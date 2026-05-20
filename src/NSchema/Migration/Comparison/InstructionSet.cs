@@ -4,44 +4,73 @@ namespace NSchema.Migration.Comparison;
 
 internal sealed class InstructionSet
 {
-    public List<SchemaInstruction> PreScripts { get; } = [];
-    public List<SchemaInstruction> ForeignKeyDrops { get; } = [];
-    public List<SchemaInstruction> IndexDrops { get; } = [];
-    public List<SchemaInstruction> PrimaryKeyDrops { get; } = [];
-    public List<SchemaInstruction> SchemaRenames { get; } = [];
-    public List<SchemaInstruction> SchemaCreates { get; } = [];
-    public List<SchemaInstruction> TableRenames { get; } = [];
-    public List<SchemaInstruction> TableCreates { get; } = [];
-    public List<SchemaInstruction> ColumnDrops { get; } = [];
-    public List<SchemaInstruction> ColumnRenames { get; } = [];
-    public List<SchemaInstruction> ColumnAdds { get; } = [];
-    public List<SchemaInstruction> ColumnAlters { get; } = [];
-    public List<SchemaInstruction> PrimaryKeyAdds { get; } = [];
-    public List<SchemaInstruction> ForeignKeyAdds { get; } = [];
-    public List<SchemaInstruction> IndexAdds { get; } = [];
-    public List<SchemaInstruction> TableDrops { get; } = [];
-    public List<SchemaInstruction> SchemaDrops { get; } = [];
-    public List<SchemaInstruction> PostScripts { get; } = [];
+    private readonly List<SchemaInstruction> _preScripts = [];
+    private readonly List<SchemaInstruction> _foreignKeyDrops = [];
+    private readonly List<SchemaInstruction> _indexDrops = [];
+    private readonly List<SchemaInstruction> _primaryKeyDrops = [];
+    private readonly List<SchemaInstruction> _schemaRenames = [];
+    private readonly List<SchemaInstruction> _schemaCreates = [];
+    private readonly List<SchemaInstruction> _tableRenames = [];
+    private readonly List<SchemaInstruction> _tableCreates = [];
+    private readonly List<SchemaInstruction> _columnDrops = [];
+    private readonly List<SchemaInstruction> _columnRenames = [];
+    private readonly List<SchemaInstruction> _columnAdds = [];
+    private readonly List<SchemaInstruction> _columnAlters = [];
+    private readonly List<SchemaInstruction> _primaryKeyAdds = [];
+    private readonly List<SchemaInstruction> _foreignKeyAdds = [];
+    private readonly List<SchemaInstruction> _indexAdds = [];
+    private readonly List<SchemaInstruction> _tableDrops = [];
+    private readonly List<SchemaInstruction> _schemaDrops = [];
+    private readonly List<SchemaInstruction> _postScripts = [];
+
+    public void Add(SchemaInstruction instruction)
+    {
+        var bucket = instruction switch
+        {
+            RunPreDeploymentScript  => _preScripts,
+            RunPostDeploymentScript => _postScripts,
+            DropForeignKey          => _foreignKeyDrops,
+            DropIndex               => _indexDrops,
+            DropPrimaryKey          => _primaryKeyDrops,
+            RenameSchema            => _schemaRenames,
+            CreateSchema            => _schemaCreates,
+            RenameTable             => _tableRenames,
+            CreateTable             => _tableCreates,
+            DropColumn              => _columnDrops,
+            RenameColumn            => _columnRenames,
+            AddColumn               => _columnAdds,
+            AlterColumnType         => _columnAlters,
+            AlterColumnNullability  => _columnAlters,
+            SetColumnDefault        => _columnAlters,
+            AddPrimaryKey           => _primaryKeyAdds,
+            AddForeignKey           => _foreignKeyAdds,
+            CreateIndex             => _indexAdds,
+            DropTable               => _tableDrops,
+            DropSchema              => _schemaDrops,
+            _ => throw new InvalidOperationException($"Unhandled instruction type: {instruction.GetType().Name}")
+        };
+        bucket.Add(instruction);
+    }
 
     public IReadOnlyList<SchemaInstruction> ToList() =>
     [
-        ..PreScripts,
-        ..ForeignKeyDrops,
-        ..IndexDrops,
-        ..PrimaryKeyDrops,
-        ..SchemaRenames,
-        ..SchemaCreates,
-        ..TableRenames,
-        ..TableCreates,
-        ..ColumnDrops,
-        ..ColumnRenames,
-        ..ColumnAdds,
-        ..ColumnAlters,
-        ..PrimaryKeyAdds,
-        ..ForeignKeyAdds,
-        ..IndexAdds,
-        ..TableDrops,
-        ..SchemaDrops,
-        ..PostScripts,
+        .._preScripts,
+        .._foreignKeyDrops,
+        .._indexDrops,
+        .._primaryKeyDrops,
+        .._schemaRenames,
+        .._schemaCreates,
+        .._tableRenames,
+        .._tableCreates,
+        .._columnDrops,
+        .._columnRenames,
+        .._columnAdds,
+        .._columnAlters,
+        .._primaryKeyAdds,
+        .._foreignKeyAdds,
+        .._indexAdds,
+        .._tableDrops,
+        .._schemaDrops,
+        .._postScripts,
     ];
 }

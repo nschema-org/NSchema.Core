@@ -15,7 +15,7 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
         foreach (var script in desired.PreDeploymentScripts ?? [])
         {
             logger.LogDebug("Pre-deployment script '{Script}'", script);
-            instructions.PreScripts.Add(new RunPreDeploymentScript(script));
+            instructions.Add(new RunPreDeploymentScript(script));
         }
 
         CompareSchemas(current.Schemas, desired.Schemas, instructions);
@@ -23,7 +23,7 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
         foreach (var script in desired.PostDeploymentScripts ?? [])
         {
             logger.LogDebug("Post-deployment script '{Script}'", script);
-            instructions.PostScripts.Add(new RunPostDeploymentScript(script));
+            instructions.Add(new RunPostDeploymentScript(script));
         }
 
         logger.LogDebug("Comparison complete: {InstructionCount} instructions generated", instructions.ToList().Count);
@@ -31,7 +31,8 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
         return instructions.ToList();
     }
 
-    private void CompareSchemas(IReadOnlyList<DatabaseSchema> current, IReadOnlyList<DatabaseSchema> desired, InstructionSet instructions)
+    private void CompareSchemas(IReadOnlyList<DatabaseSchema> current, IReadOnlyList<DatabaseSchema> desired,
+        InstructionSet instructions)
     {
         foreach (var currentSchema in current)
         {
@@ -42,17 +43,17 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
             else
             {
                 logger.LogDebug("Schema '{Schema}' not found in desired state", currentSchema.Name);
-                instructions.SchemaDrops.Add(new DropSchema(currentSchema.Name));
+                instructions.Add(new DropSchema(currentSchema.Name));
             }
         }
 
         foreach (var desiredSchema in desired)
         {
-            var matchingCurrent = FindMatch(current, desiredSchema.Name, desiredSchema.PreviousName);
+            var matchingCurrent = current.FirstOrDefault(schema => schema.Name == desiredSchema.Name || schema.Name == desiredSchema.PreviousName);
             if (matchingCurrent is null)
             {
                 logger.LogDebug("Schema '{Schema}' is new", desiredSchema.Name);
-                instructions.SchemaCreates.Add(new CreateSchema(desiredSchema.Name));
+                instructions.Add(new CreateSchema(desiredSchema.Name));
                 foreach (var table in desiredSchema.Tables)
                 {
                     AddNewTable(desiredSchema.Name, table, instructions);
@@ -66,15 +67,18 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
                 }
                 else
                 {
-                    logger.LogDebug("Schema '{OldName}' renamed to '{NewName}'", matchingCurrent.Name, desiredSchema.Name);
-                    instructions.SchemaRenames.Add(new RenameSchema(matchingCurrent.Name, desiredSchema.Name));
+                    logger.LogDebug("Schema '{OldName}' renamed to '{NewName}'", matchingCurrent.Name,
+                        desiredSchema.Name);
+                    instructions.Add(new RenameSchema(matchingCurrent.Name, desiredSchema.Name));
                 }
+
                 CompareTables(desiredSchema.Name, matchingCurrent.Tables, desiredSchema.Tables, instructions);
             }
         }
     }
 
-    private void CompareTables(string schemaName, IReadOnlyList<Table> current, IReadOnlyList<Table> desired, InstructionSet instructions)
+    private void CompareTables(string schemaName, IReadOnlyList<Table> current, IReadOnlyList<Table> desired,
+        InstructionSet instructions)
     {
         foreach (var currentTable in current)
         {
@@ -85,13 +89,13 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
             else
             {
                 logger.LogDebug("Table '{Schema}.{Table}' not found in desired state", schemaName, currentTable.Name);
-                instructions.TableDrops.Add(new DropTable(schemaName, currentTable.Name));
+                instructions.Add(new DropTable(schemaName, currentTable.Name));
             }
         }
 
         foreach (var desiredTable in desired)
         {
-            var matchingCurrent = FindMatch(current, desiredTable.Name, desiredTable.PreviousName);
+            var matchingCurrent = current.FirstOrDefault(c => c.Name == desiredTable.Name || c.Name == desiredTable.PreviousName);
             if (matchingCurrent is null)
             {
                 logger.LogDebug("Table '{Schema}.{Table}' is new", schemaName, desiredTable.Name);
@@ -106,8 +110,9 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
                 else
                 {
                     logger.LogDebug("Table '{Schema}.{OldName}' renamed to '{NewName}'", schemaName, matchingCurrent.Name, desiredTable.Name);
-                    instructions.TableRenames.Add(new RenameTable(schemaName, matchingCurrent.Name, desiredTable.Name));
+                    instructions.Add(new RenameTable(schemaName, matchingCurrent.Name, desiredTable.Name));
                 }
+
                 CompareColumns(schemaName, desiredTable.Name, matchingCurrent.Columns, desiredTable.Columns, instructions);
                 ComparePrimaryKey(schemaName, desiredTable.Name, matchingCurrent.PrimaryKey, desiredTable.PrimaryKey, instructions);
                 CompareForeignKeys(schemaName, desiredTable.Name, matchingCurrent.ForeignKeys ?? [], desiredTable.ForeignKeys ?? [], instructions);
@@ -127,17 +132,17 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
             else
             {
                 logger.LogDebug("Column '{Schema}.{Table}.{Column}' not found in desired state", schemaName, tableName, currentCol.Name);
-                instructions.ColumnDrops.Add(new DropColumn(schemaName, tableName, currentCol.Name));
+                instructions.Add(new DropColumn(schemaName, tableName, currentCol.Name));
             }
         }
 
         foreach (var desiredCol in desired)
         {
-            var matchingCurrent = FindMatch(current, desiredCol.Name, desiredCol.PreviousName);
+            var matchingCurrent = current.FirstOrDefault(c => c.Name == desiredCol.Name || c.Name == desiredCol.PreviousName);
             if (matchingCurrent is null)
             {
                 logger.LogDebug("Column '{Schema}.{Table}.{Column}' is new", schemaName, tableName, desiredCol.Name);
-                instructions.ColumnAdds.Add(new AddColumn(schemaName, tableName, desiredCol));
+                instructions.Add(new AddColumn(schemaName, tableName, desiredCol));
                 continue;
             }
 
@@ -148,7 +153,7 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
             else
             {
                 logger.LogDebug("Column '{Schema}.{Table}.{OldName}' renamed to '{NewName}'", schemaName, tableName, matchingCurrent.Name, desiredCol.Name);
-                instructions.ColumnRenames.Add(new RenameColumn(schemaName, tableName, matchingCurrent.Name, desiredCol.Name));
+                instructions.Add(new RenameColumn(schemaName, tableName, matchingCurrent.Name, desiredCol.Name));
             }
 
             if (matchingCurrent.Type == desiredCol.Type)
@@ -158,17 +163,18 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
             else
             {
                 logger.LogDebug("Column '{Schema}.{Table}.{Column}' type changed: {OldType} -> {NewType}", schemaName, tableName, desiredCol.Name, matchingCurrent.Type, desiredCol.Type);
-                instructions.ColumnAlters.Add(new AlterColumnType(schemaName, tableName, desiredCol.Name, matchingCurrent.Type, desiredCol.Type));
+                instructions.Add(new AlterColumnType(schemaName, tableName, desiredCol.Name, matchingCurrent.Type, desiredCol.Type));
             }
 
             if (matchingCurrent.IsNullable == desiredCol.IsNullable)
             {
-                logger.LogDebug("Column '{Schema}.{Table}.{Column}' nullability is unchanged ({Nullability})", schemaName, tableName, desiredCol.Name, desiredCol.IsNullable ? "NULL" : "NOT NULL");
+                logger.LogDebug("Column '{Schema}.{Table}.{Column}' nullability is unchanged ({Nullability})",
+                    schemaName, tableName, desiredCol.Name, desiredCol.IsNullable ? "NULL" : "NOT NULL");
             }
             else
             {
                 logger.LogDebug("Column '{Schema}.{Table}.{Column}' nullability changed: {OldValue} -> {NewValue}", schemaName, tableName, desiredCol.Name, matchingCurrent.IsNullable, desiredCol.IsNullable);
-                instructions.ColumnAlters.Add(new AlterColumnNullability(schemaName, tableName, desiredCol.Name, matchingCurrent.IsNullable, desiredCol.IsNullable));
+                instructions.Add(new AlterColumnNullability(schemaName, tableName, desiredCol.Name, matchingCurrent.IsNullable, desiredCol.IsNullable));
             }
 
             if (matchingCurrent.DefaultExpression == desiredCol.DefaultExpression)
@@ -177,13 +183,17 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
             }
             else
             {
-                logger.LogDebug("Column '{Schema}.{Table}.{Column}' default changed: '{OldDefault}' -> '{NewDefault}'", schemaName, tableName, desiredCol.Name, matchingCurrent.DefaultExpression, desiredCol.DefaultExpression);
-                instructions.ColumnAlters.Add(new SetColumnDefault(schemaName, tableName, desiredCol.Name, matchingCurrent.DefaultExpression, desiredCol.DefaultExpression));
+                logger.LogDebug("Column '{Schema}.{Table}.{Column}' default changed: '{OldDefault}' -> '{NewDefault}'",
+                    schemaName, tableName, desiredCol.Name, matchingCurrent.DefaultExpression,
+                    desiredCol.DefaultExpression);
+                instructions.Add(new SetColumnDefault(schemaName, tableName, desiredCol.Name,
+                    matchingCurrent.DefaultExpression, desiredCol.DefaultExpression));
             }
         }
     }
 
-    private void ComparePrimaryKey(string schemaName, string tableName, PrimaryKey? current, PrimaryKey? desired, InstructionSet instructions)
+    private void ComparePrimaryKey(string schemaName, string tableName, PrimaryKey? current, PrimaryKey? desired,
+        InstructionSet instructions)
     {
         if (current?.Equals(desired) ?? desired == null)
         {
@@ -193,30 +203,35 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
 
         if (current is not null)
         {
-            logger.LogDebug("Dropping primary key '{KeyName}' from '{Schema}.{Table}'", current.Name, schemaName, tableName);
-            instructions.PrimaryKeyDrops.Add(new DropPrimaryKey(schemaName, tableName, current.Name));
+            logger.LogDebug("Dropping primary key '{KeyName}' from '{Schema}.{Table}'", current.Name, schemaName,
+                tableName);
+            instructions.Add(new DropPrimaryKey(schemaName, tableName, current.Name));
         }
 
         if (desired is not null)
         {
-            logger.LogDebug("Adding primary key '{KeyName}' to '{Schema}.{Table}'", desired.Name, schemaName, tableName);
-            instructions.PrimaryKeyAdds.Add(new AddPrimaryKey(schemaName, tableName, desired));
+            logger.LogDebug("Adding primary key '{KeyName}' to '{Schema}.{Table}'", desired.Name, schemaName,
+                tableName);
+            instructions.Add(new AddPrimaryKey(schemaName, tableName, desired));
         }
     }
 
-    private void CompareForeignKeys(string schemaName, string tableName, IReadOnlyList<ForeignKey> current, IReadOnlyList<ForeignKey> desired, InstructionSet instructions)
+    private void CompareForeignKeys(string schemaName, string tableName, IReadOnlyList<ForeignKey> current,
+        IReadOnlyList<ForeignKey> desired, InstructionSet instructions)
     {
         foreach (var currentFk in current)
         {
             var matchingDesired = desired.FirstOrDefault(d => d.Name == currentFk.Name);
             if (matchingDesired is null || !currentFk.Equals(matchingDesired))
             {
-                logger.LogDebug("Foreign key '{FkName}' on '{Schema}.{Table}' is missing or changed", currentFk.Name, schemaName, tableName);
-                instructions.ForeignKeyDrops.Add(new DropForeignKey(schemaName, tableName, currentFk.Name));
+                logger.LogDebug("Foreign key '{FkName}' on '{Schema}.{Table}' is missing or changed", currentFk.Name,
+                    schemaName, tableName);
+                instructions.Add(new DropForeignKey(schemaName, tableName, currentFk.Name));
             }
             else
             {
-                logger.LogDebug("Foreign key '{FkName}' on '{Schema}.{Table}' is unchanged", currentFk.Name, schemaName, tableName);
+                logger.LogDebug("Foreign key '{FkName}' on '{Schema}.{Table}' is unchanged", currentFk.Name, schemaName,
+                    tableName);
             }
         }
 
@@ -225,29 +240,34 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
             var matchingCurrent = current.FirstOrDefault(c => c.Name == desiredFk.Name);
             if (matchingCurrent is null || !matchingCurrent.Equals(desiredFk))
             {
-                logger.LogDebug("Foreign key '{FkName}' on '{Schema}.{Table}' is new or changed", desiredFk.Name, schemaName, tableName);
-                instructions.ForeignKeyAdds.Add(new AddForeignKey(schemaName, tableName, desiredFk));
+                logger.LogDebug("Foreign key '{FkName}' on '{Schema}.{Table}' is new or changed", desiredFk.Name,
+                    schemaName, tableName);
+                instructions.Add(new AddForeignKey(schemaName, tableName, desiredFk));
             }
             else
             {
-                logger.LogDebug("Foreign key '{FkName}' on '{Schema}.{Table}' is unchanged", desiredFk.Name, schemaName, tableName);
+                logger.LogDebug("Foreign key '{FkName}' on '{Schema}.{Table}' is unchanged", desiredFk.Name, schemaName,
+                    tableName);
             }
         }
     }
 
-    private void CompareIndexes(string schemaName, string tableName, IReadOnlyList<TableIndex> current, IReadOnlyList<TableIndex> desired, InstructionSet instructions)
+    private void CompareIndexes(string schemaName, string tableName, IReadOnlyList<TableIndex> current,
+        IReadOnlyList<TableIndex> desired, InstructionSet instructions)
     {
         foreach (var currentIdx in current)
         {
             var matchingDesired = desired.FirstOrDefault(d => d.Name == currentIdx.Name);
             if (matchingDesired is null || !currentIdx.Equals(matchingDesired))
             {
-                logger.LogDebug("Index '{IndexName}' on '{Schema}.{Table}' is missing or changed", currentIdx.Name, schemaName, tableName);
-                instructions.IndexDrops.Add(new DropIndex(schemaName, tableName, currentIdx.Name));
+                logger.LogDebug("Index '{IndexName}' on '{Schema}.{Table}' is missing or changed", currentIdx.Name,
+                    schemaName, tableName);
+                instructions.Add(new DropIndex(schemaName, tableName, currentIdx.Name));
             }
             else
             {
-                logger.LogDebug("Index '{IndexName}' on '{Schema}.{Table}' is unchanged", currentIdx.Name, schemaName, tableName);
+                logger.LogDebug("Index '{IndexName}' on '{Schema}.{Table}' is unchanged", currentIdx.Name, schemaName,
+                    tableName);
             }
         }
 
@@ -256,12 +276,14 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
             var matchingCurrent = current.FirstOrDefault(c => c.Name == desiredIdx.Name);
             if (matchingCurrent is null || !matchingCurrent.Equals(desiredIdx))
             {
-                logger.LogDebug("Index '{IndexName}' on '{Schema}.{Table}' is new or changed", desiredIdx.Name, schemaName, tableName);
-                instructions.IndexAdds.Add(new CreateIndex(schemaName, tableName, desiredIdx));
+                logger.LogDebug("Index '{IndexName}' on '{Schema}.{Table}' is new or changed", desiredIdx.Name,
+                    schemaName, tableName);
+                instructions.Add(new CreateIndex(schemaName, tableName, desiredIdx));
             }
             else
             {
-                logger.LogDebug("Index '{IndexName}' on '{Schema}.{Table}' is unchanged", desiredIdx.Name, schemaName, tableName);
+                logger.LogDebug("Index '{IndexName}' on '{Schema}.{Table}' is unchanged", desiredIdx.Name, schemaName,
+                    tableName);
             }
         }
     }
@@ -269,33 +291,19 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
     private void AddNewTable(string schemaName, Table table, InstructionSet instructions)
     {
         logger.LogDebug("Creating table '{Schema}.{Table}'", schemaName, table.Name);
-        instructions.TableCreates.Add(new CreateTable(schemaName, table));
+        instructions.Add(new CreateTable(schemaName, table));
 
         foreach (var fk in table.ForeignKeys ?? [])
         {
-            logger.LogDebug("Adding foreign key '{FkName}' to new table '{Schema}.{Table}'", fk.Name, schemaName, table.Name);
-            instructions.ForeignKeyAdds.Add(new AddForeignKey(schemaName, table.Name, fk));
+            logger.LogDebug("Adding foreign key '{FkName}' to new table '{Schema}.{Table}'", fk.Name, schemaName,
+                table.Name);
+            instructions.Add(new AddForeignKey(schemaName, table.Name, fk));
         }
 
         foreach (var idx in table.Indexes ?? [])
         {
             logger.LogDebug("Adding index '{IndexName}' to new table '{Schema}.{Table}'", idx.Name, schemaName, table.Name);
-            instructions.IndexAdds.Add(new CreateIndex(schemaName, table.Name, idx));
+            instructions.Add(new CreateIndex(schemaName, table.Name, idx));
         }
-    }
-
-    // ── Matching ─────────────────────────────────────────────────────────────
-
-    private static T? FindMatch<T>(IReadOnlyList<T> collection, string name, string? previousName = null) where T : class
-    {
-        Func<T, string> getName = typeof(T) switch
-        {
-            var t when t == typeof(DatabaseSchema) => x => ((DatabaseSchema)(object)x).Name,
-            var t when t == typeof(Table) => x => ((Table)(object)x).Name,
-            var t when t == typeof(Column) => x => ((Column)(object)x).Name,
-            _ => throw new InvalidOperationException($"Unsupported type {typeof(T).Name}")
-        };
-
-        return collection.FirstOrDefault(x => getName(x) == name) ?? (previousName is not null ? collection.FirstOrDefault(x => getName(x) == previousName) : null);
     }
 }
