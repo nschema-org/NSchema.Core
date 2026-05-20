@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using NSchema.Domain.Migration;
 using NSchema.Domain.Schema;
 using NSchema.Migration.Comparison;
@@ -6,7 +7,7 @@ namespace NSchema.Tests.Diffing;
 
 public class DefaultSchemaComparerTests
 {
-    private readonly DefaultSchemaComparer _comparer = new();
+    private readonly DefaultSchemaComparer _comparer = new(NullLogger<DefaultSchemaComparer>.Instance);
 
     private static DatabaseModel Empty() => new([]);
 
