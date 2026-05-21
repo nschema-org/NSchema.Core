@@ -1,12 +1,12 @@
 using Npgsql;
-using NSchema.Postgres.Current;
+using NSchema.Postgres.Migration;
 using NSchema.Postgres.Tests.Fixtures;
 using NSchema.Schema;
 
-namespace NSchema.Postgres.Tests.Current;
+namespace NSchema.Postgres.Tests.Migration;
 
 [Collection("postgres")]
-public sealed class PostgresCurrentSchemaProviderTests(PostgresContainerFixture fixture) : IAsyncLifetime
+public sealed class PostgresSchemaProviderTests(PostgresContainerFixture fixture) : IAsyncLifetime
 {
     private readonly NpgsqlDataSource _dataSource = fixture.DataSource;
     private readonly string _schema = $"test_{Guid.NewGuid():N}";
@@ -31,7 +31,7 @@ public sealed class PostgresCurrentSchemaProviderTests(PostgresContainerFixture 
         await cmd.ExecuteNonQueryAsync();
     }
 
-    private PostgresCurrentSchemaProvider Extractor() => new(_dataSource);
+    private PostgresSchemaProvider Extractor() => new(_dataSource);
 
     // ── Schema / table structure ──────────────────────────────────────────────
 

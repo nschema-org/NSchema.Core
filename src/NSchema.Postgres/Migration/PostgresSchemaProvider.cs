@@ -3,9 +3,9 @@ using NSchema.Migration;
 using NSchema.Postgres.Models;
 using NSchema.Schema;
 
-namespace NSchema.Postgres.Current;
+namespace NSchema.Postgres.Migration;
 
-public sealed class PostgresCurrentSchemaProvider(NpgsqlDataSource dataSource) : ICurrentSchemaProvider
+public sealed class PostgresSchemaProvider(NpgsqlDataSource dataSource) : ICurrentSchemaProvider
 {
     public async Task<DatabaseSchema> GetSchema(string[] schemas, CancellationToken cancellationToken = default)
     {
