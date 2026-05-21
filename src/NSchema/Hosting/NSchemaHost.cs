@@ -10,15 +10,15 @@ namespace NSchema.Hosting;
 /// </summary>
 /// <param name="logger">The logger for the pipeline host.</param>
 /// <param name="lifetime">The application lifetime.</param>
-/// <param name="runner">The service that will be used to run the pipeline.</param>
-/// <param name="migrator">The migrator, used to generate SQL in dry-run mode.</param>
+/// <param name="migrator">The schema migrator.</param>
+/// <param name="sqlMigrator">The SQL migrator, used to generate SQL in dry-run mode.</param>
 /// <param name="options">The migration options.</param>
 internal class NSchemaHost(
     ILogger<NSchemaHost> logger,
     IOptions<MigrationOptions> options,
     IHostApplicationLifetime lifetime,
-    INSchemaRunner runner,
-    ISchemaMigrator migrator
+    ISchemaMigrator migrator,
+    ISqlMigrator sqlMigrator
 ) : BackgroundService
 {
     /// <inheritdoc />
@@ -26,27 +26,26 @@ internal class NSchemaHost(
     {
         try
         {
-            bool isDryRun = options.Value.DryRun;
+            var schemaPlan = await migrator.Plan(cancellationToken);
+            var sqlPlan = sqlMigrator.Plan(schemaPlan);
 
-            if (isDryRun)
+            if (options.Value.DryRun)
             {
-                var schemaPlan = await runner.Plan(cancellationToken);
-                var statementPlan = migrator.Plan(schemaPlan);
 
-                if (statementPlan.IsEmpty)
+                if (sqlPlan.IsEmpty)
                 {
                     logger.LogInformation("Dry run: no changes detected.");
                 }
                 else
                 {
                     logger.LogInformation("Dry run: {Count} statement(s) would be executed:\n\n{Script}",
-                        statementPlan.Statements.Count,
-                        string.Join(";\n\n", statementPlan) + ";");
+                        sqlPlan.Statements.Count,
+                        string.Join(";\n\n", sqlPlan) + ";");
                 }
             }
             else
             {
-                await runner.Apply(cancellationToken);
+                await sqlMigrator.Apply(sqlPlan, cancellationToken);
             }
         }
         finally

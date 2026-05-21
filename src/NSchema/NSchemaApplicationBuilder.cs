@@ -139,7 +139,7 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
     {
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
         services.TryAddSingleton<ISchemaAggregator, DefaultSchemaAggregator>();
-        services.TryAddSingleton<INSchemaRunner, DefaultNSchemaRunner>();
+        services.TryAddSingleton<ISchemaMigrator, DefaultSchemaMigrator>();
 
         services.TryAddEnumerable(
             new ServiceDescriptor(typeof(IMigrationPlanTransformer), typeof(ActionOrderingTransformer), ServiceLifetime.Singleton));

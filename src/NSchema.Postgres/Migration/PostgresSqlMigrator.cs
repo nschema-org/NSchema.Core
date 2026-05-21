@@ -5,15 +5,15 @@ using NSchema.Schema;
 
 namespace NSchema.Postgres.Migration;
 
-public sealed class PostgresSchemaMigrator(NpgsqlDataSource dataSource) : ISchemaMigrator
+public sealed class PostgresSqlMigrator(NpgsqlDataSource dataSource) : ISqlMigrator
 {
-    public StatementPlan Plan(SchemaPlan plan)
+    public SqlPlan Plan(SchemaPlan plan)
     {
         var statements = plan.Actions.Select(GenerateSql).ToList();
-        return new StatementPlan(statements);
+        return new SqlPlan(statements);
     }
 
-    public async Task Apply(StatementPlan plan, CancellationToken cancellationToken = default)
+    public async Task Apply(SqlPlan plan, CancellationToken cancellationToken = default)
     {
         await using var conn = await dataSource.OpenConnectionAsync(cancellationToken);
 

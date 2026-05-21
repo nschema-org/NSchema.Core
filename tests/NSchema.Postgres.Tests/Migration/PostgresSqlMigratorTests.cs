@@ -8,17 +8,17 @@ using NSchema.Schema;
 namespace NSchema.Postgres.Tests.Migration;
 
 [Collection("postgres")]
-public sealed class PostgresSchemaMigratorTests(PostgresContainerFixture fixture) : IAsyncLifetime
+public sealed class PostgresSqlMigratorTests(PostgresContainerFixture fixture) : IAsyncLifetime
 {
     private readonly NpgsqlDataSource _dataSource = fixture.DataSource;
     private readonly string _schema = $"test_{Guid.NewGuid():N}";
     private NpgsqlConnection _conn = null!;
-    private PostgresSchemaMigrator _executor = null!;
+    private PostgresSqlMigrator _executor = null!;
 
     public async Task InitializeAsync()
     {
         _conn = await _dataSource.OpenConnectionAsync();
-        _executor = new PostgresSchemaMigrator(_dataSource);
+        _executor = new PostgresSqlMigrator(_dataSource);
         await Exec($"""CREATE SCHEMA "{_schema}" """);
     }
 

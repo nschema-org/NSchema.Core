@@ -32,7 +32,7 @@ public static class NSchemaApplicationBuilderExtensions
         {
             builder.Services
                 .AddSingleton<ICurrentSchemaProvider, PostgresCurrentSchemaProvider>()
-                .AddSingleton<ISchemaMigrator, PostgresSchemaMigrator>();
+                .AddSingleton<ISqlMigrator, PostgresSqlMigrator>();
 
             return builder;
         }

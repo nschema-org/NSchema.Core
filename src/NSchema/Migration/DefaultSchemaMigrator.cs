@@ -1,18 +1,16 @@
-using NSchema.Migration;
 using NSchema.Policies;
 
-namespace NSchema.Hosting;
+namespace NSchema.Migration;
 
-public sealed class DefaultNSchemaRunner(
+public sealed class DefaultSchemaMigrator(
     ICurrentSchemaProvider currentProvider,
     IEnumerable<IDesiredSchemaProvider> desiredProviders,
     ISchemaAggregator schemaAggregator,
     ISchemaComparer comparer,
-    ISchemaMigrator migrator,
     IEnumerable<ISchemaPolicy> schemaValidationPolicies,
     IEnumerable<IMigrationPlanTransformer> planTransformers,
     IEnumerable<IActionPolicy> actionValidationPolicies
-) : INSchemaRunner
+) : ISchemaMigrator
 {
     public async Task<SchemaPlan> Plan(CancellationToken cancellationToken = default)
     {
@@ -49,12 +47,5 @@ public sealed class DefaultNSchemaRunner(
         }
 
         return plan;
-    }
-
-    public async Task Apply(CancellationToken cancellationToken = default)
-    {
-        var schemaPlan = await Plan(cancellationToken);
-        var statementPlan = migrator.Plan(schemaPlan);
-        await migrator.Apply(statementPlan, cancellationToken);
     }
 }
