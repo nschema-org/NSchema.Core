@@ -1,11 +1,11 @@
 using NSchema.Domain.Schema;
-using NSchema.Fluent;
+using NSchema.Target.Fluent;
 
 namespace NSchema.Sandbox;
 
 public static class Database
 {
-    public static DatabaseModel GetModel()
+    public static Domain.Schema.DatabaseSchema GetTarget()
     {
         var desired = new DatabaseModelBuilder()
             .Schema("public", schema =>

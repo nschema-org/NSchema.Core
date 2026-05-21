@@ -1,7 +1,7 @@
 namespace NSchema.Domain.Schema;
 
 public record DatabaseSchema(
-    string Name,
-    IReadOnlyList<Table> Tables,
-    string? PreviousName = null
+    IReadOnlyList<Schema> Schemas,
+    IReadOnlyList<Script>? PreDeploymentScripts = null,
+    IReadOnlyList<Script>? PostDeploymentScripts = null
 );

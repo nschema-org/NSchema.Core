@@ -1,4 +1,5 @@
 using NSchema.Domain.Migration;
+using NSchema.Domain.Migration.Instructions;
 
 namespace NSchema.Migration;
 
