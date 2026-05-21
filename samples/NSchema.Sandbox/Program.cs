@@ -14,8 +14,8 @@ builder.Services
     .Configure<MigrationOptions>(o => o.DestructiveActionPolicy = DestructiveActionPolicy.Warn);
 
 builder
-    .AddSchema<BooksSchema>()
-    .UsePostgresCurrent(connectionString);
+    .AddDesiredSchema<BooksSchema>()
+    .AddPostgresSchemaProvider(connectionString);
 
 var migration = builder.Build();
 

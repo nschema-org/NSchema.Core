@@ -10,19 +10,19 @@ public static class NSchemaApplicationBuilderExtensions
 {
     extension(NSchemaApplicationBuilder builder)
     {
-        public NSchemaApplicationBuilder UsePostgresCurrent(string connectionString)
+        public NSchemaApplicationBuilder AddPostgresSchemaProvider(string connectionString)
         {
             builder.Services.AddNpgsqlDataSource(connectionString);
             return builder.AddPostgresCore();
         }
 
-        public NSchemaApplicationBuilder UsePostgresCurrent(Action<NpgsqlDataSourceBuilder> configure)
+        public NSchemaApplicationBuilder AddPostgresSchemaProvider(Action<NpgsqlDataSourceBuilder> configure)
         {
             builder.Services.AddNpgsqlDataSource("", configure);
             return builder.AddPostgresCore();
         }
 
-        public NSchemaApplicationBuilder UsePostgresCurrent(Action<IServiceProvider, NpgsqlDataSourceBuilder> configure)
+        public NSchemaApplicationBuilder AddPostgresSchemaProvider(Action<IServiceProvider, NpgsqlDataSourceBuilder> configure)
         {
             builder.Services.AddNpgsqlDataSource("", configure);
             return builder.AddPostgresCore();

@@ -61,14 +61,14 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
     /// <inheritdoc />
     public IServiceCollection Services => _innerBuilder.Services;
 
-    public NSchemaApplicationBuilder AddSchema<T>() where T : IDesiredSchemaProvider
+    public NSchemaApplicationBuilder AddDesiredSchema<T>() where T : IDesiredSchemaProvider
     {
         var schema = new ServiceDescriptor(typeof(IDesiredSchemaProvider), typeof(T), ServiceLifetime.Singleton);
         Services.TryAddEnumerable(schema);
         return this;
     }
 
-    public NSchemaApplicationBuilder AddValidationPolicy<T>() where T : class, ISchemaPolicy
+    public NSchemaApplicationBuilder AddSchemaPolicy<T>() where T : class, ISchemaPolicy
     {
         var descriptor = new ServiceDescriptor(typeof(ISchemaPolicy), typeof(T), ServiceLifetime.Singleton);
         Services.TryAddEnumerable(descriptor);
@@ -82,7 +82,7 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
         return this;
     }
 
-    public NSchemaApplicationBuilder AddMigrationActionPolicy<T>() where T : class, IActionPolicy
+    public NSchemaApplicationBuilder AddActionPolicy<T>() where T : class, IActionPolicy
     {
         var descriptor = new ServiceDescriptor(typeof(IActionPolicy), typeof(T), ServiceLifetime.Singleton);
         Services.TryAddEnumerable(descriptor);
