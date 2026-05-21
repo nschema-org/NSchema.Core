@@ -14,7 +14,7 @@ public sealed class DefaultNSchemaRunner(
     IEnumerable<IActionPolicy> actionValidationPolicies
 ) : INSchemaRunner
 {
-    public async Task Run(CancellationToken cancellationToken = default)
+    public async Task<SchemaPlan> Plan(CancellationToken cancellationToken = default)
     {
         // Get desired schema state from all registered providers and merge.
         var schemas = await Task.WhenAll(desiredProviders.Select(p => p.GetSchema(cancellationToken)));
@@ -48,7 +48,13 @@ public sealed class DefaultNSchemaRunner(
             throw new PolicyViolationException(actionErrors);
         }
 
-        // Migrate to the desired schema.
-        await migrator.Migrate(plan, cancellationToken);
+        return plan;
+    }
+
+    public async Task Apply(CancellationToken cancellationToken = default)
+    {
+        var schemaPlan = await Plan(cancellationToken);
+        var statementPlan = migrator.Plan(schemaPlan);
+        await migrator.Apply(statementPlan, cancellationToken);
     }
 }

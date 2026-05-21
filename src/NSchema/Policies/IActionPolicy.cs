@@ -4,5 +4,5 @@ namespace NSchema.Policies;
 
 public interface IActionPolicy
 {
-    IEnumerable<PolicyError> Validate(MigrationPlan plan);
+    IEnumerable<PolicyError> Validate(SchemaPlan plan);
 }

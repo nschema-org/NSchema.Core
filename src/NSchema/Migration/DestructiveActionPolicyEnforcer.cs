@@ -9,7 +9,7 @@ public sealed class DestructiveActionPolicyEnforcer(
     IOptions<MigrationOptions> options
 ) : IActionPolicy
 {
-    public IEnumerable<PolicyError> Validate(MigrationPlan plan)
+    public IEnumerable<PolicyError> Validate(SchemaPlan plan)
     {
         foreach (var action in plan.Actions.Where(a => a.IsDestructive))
         {

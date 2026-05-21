@@ -2,5 +2,6 @@ namespace NSchema.Migration;
 
 public interface ISchemaMigrator
 {
-    Task Migrate(MigrationPlan plan, CancellationToken cancellationToken = default);
+    StatementPlan Plan(SchemaPlan plan);
+    Task Apply(StatementPlan plan, CancellationToken cancellationToken = default);
 }

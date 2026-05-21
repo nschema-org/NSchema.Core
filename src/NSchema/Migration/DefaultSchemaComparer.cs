@@ -6,7 +6,7 @@ namespace NSchema.Migration;
 
 public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger) : ISchemaComparer
 {
-    public MigrationPlan Compare(DatabaseSchema source, DatabaseSchema target)
+    public SchemaPlan Compare(DatabaseSchema source, DatabaseSchema target)
     {
         logger.LogDebug("Beginning schema comparison");
 
@@ -28,7 +28,7 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
 
         logger.LogDebug("Comparison complete: {ActionCount} actions generated", actions.Count);
 
-        return new MigrationPlan(actions);
+        return new SchemaPlan(actions);
     }
 
     private void CompareSchemas(IReadOnlyList<SchemaDefinition> current, IReadOnlyList<SchemaDefinition> desired, List<SchemaAction> actions)

@@ -1,6 +1,9 @@
+using NSchema.Migration;
+
 namespace NSchema.Hosting;
 
 public interface INSchemaRunner
 {
-    Task Run(CancellationToken cancellationToken = default);
+    Task<SchemaPlan> Plan(CancellationToken cancellationToken = default);
+    Task Apply(CancellationToken cancellationToken = default);
 }

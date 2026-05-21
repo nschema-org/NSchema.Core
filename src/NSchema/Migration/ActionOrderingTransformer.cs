@@ -32,9 +32,9 @@ public sealed class ActionOrderingTransformer : IMigrationPlanTransformer
         typeof(RunPostDeploymentScript),
     }.Index().ToFrozenDictionary(x => x.Item, x => x.Index);
 
-    public MigrationPlan Transform(MigrationPlan plan)
+    public SchemaPlan Transform(SchemaPlan plan)
     {
         var actions = plan.Actions.OrderBy(a => s_priorities[a.GetType()]).ToList();
-        return new MigrationPlan(actions);
+        return new SchemaPlan(actions);
     }
 }
