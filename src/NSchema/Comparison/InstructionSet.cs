@@ -1,4 +1,3 @@
-using NSchema.Domain.Migration;
 using NSchema.Domain.Migration.Instructions;
 
 namespace NSchema.Comparison;
@@ -28,26 +27,26 @@ internal sealed class InstructionSet
     {
         var bucket = instruction switch
         {
-            RunPreDeploymentScript  => _preScripts,
+            RunPreDeploymentScript => _preScripts,
             RunPostDeploymentScript => _postScripts,
-            DropForeignKey          => _foreignKeyDrops,
-            DropIndex               => _indexDrops,
-            DropPrimaryKey          => _primaryKeyDrops,
-            RenameSchema            => _schemaRenames,
-            CreateSchema            => _schemaCreates,
-            RenameTable             => _tableRenames,
-            CreateTable             => _tableCreates,
-            DropColumn              => _columnDrops,
-            RenameColumn            => _columnRenames,
-            AddColumn               => _columnAdds,
-            AlterColumnType         => _columnAlters,
-            AlterColumnNullability  => _columnAlters,
-            SetColumnDefault        => _columnAlters,
-            AddPrimaryKey           => _primaryKeyAdds,
-            AddForeignKey           => _foreignKeyAdds,
-            CreateIndex             => _indexAdds,
-            DropTable               => _tableDrops,
-            DropSchema              => _schemaDrops,
+            DropForeignKey => _foreignKeyDrops,
+            DropIndex => _indexDrops,
+            DropPrimaryKey => _primaryKeyDrops,
+            RenameSchema => _schemaRenames,
+            CreateSchema => _schemaCreates,
+            RenameTable => _tableRenames,
+            CreateTable => _tableCreates,
+            DropColumn => _columnDrops,
+            RenameColumn => _columnRenames,
+            AddColumn => _columnAdds,
+            AlterColumnType => _columnAlters,
+            AlterColumnNullability => _columnAlters,
+            SetColumnDefault => _columnAlters,
+            AddPrimaryKey => _primaryKeyAdds,
+            AddForeignKey => _foreignKeyAdds,
+            CreateIndex => _indexAdds,
+            DropTable => _tableDrops,
+            DropSchema => _schemaDrops,
             _ => throw new InvalidOperationException($"Unhandled instruction type: {instruction.GetType().Name}")
         };
         bucket.Add(instruction);

@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using NSchema.Comparison;
-using NSchema.Domain.Migration;
 using NSchema.Domain.Migration.Instructions;
 using NSchema.Domain.Schema;
 
@@ -30,7 +29,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(model, model);
 
         // Assert
-        result.ShouldBeEmpty();
+        result.Instructions.ShouldBeEmpty();
     }
 
     [Fact]
@@ -44,7 +43,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.ShouldBeEmpty();
+        result.IsEmpty.ShouldBeTrue();
     }
 
     // ── Schemas ──────────────────────────────────────────────────────────────
@@ -60,7 +59,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.Any(i => i is CreateSchema { SchemaName: "app" }).ShouldBeTrue();
+        result.Instructions.Any(i => i is CreateSchema { SchemaName: "app" }).ShouldBeTrue();
     }
 
     [Fact]
@@ -74,7 +73,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.Any(i => i is DropSchema { SchemaName: "app" }).ShouldBeTrue();
+        result.Instructions.Any(i => i is DropSchema { SchemaName: "app" }).ShouldBeTrue();
     }
 
     [Fact]
@@ -88,9 +87,9 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.Any(i => i is RenameSchema { OldName: "app", NewName: "application" }).ShouldBeTrue();
-        result.Any(i => i is CreateSchema).ShouldBeFalse();
-        result.Any(i => i is DropSchema).ShouldBeFalse();
+        result.Instructions.Any(i => i is RenameSchema { OldName: "app", NewName: "application" }).ShouldBeTrue();
+        result.Instructions.Any(i => i is CreateSchema).ShouldBeFalse();
+        result.Instructions.Any(i => i is DropSchema).ShouldBeFalse();
     }
 
     // ── Tables ───────────────────────────────────────────────────────────────
@@ -106,7 +105,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.Any(i => i is CreateTable { SchemaName: "app", Table.Name: "users" }).ShouldBeTrue();
+        result.Instructions.Any(i => i is CreateTable { SchemaName: "app", Table.Name: "users" }).ShouldBeTrue();
     }
 
     [Fact]
@@ -120,7 +119,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.Any(i => i is DropTable { SchemaName: "app", TableName: "users" }).ShouldBeTrue();
+        result.Instructions.Any(i => i is DropTable { SchemaName: "app", TableName: "users" }).ShouldBeTrue();
     }
 
     [Fact]
@@ -134,9 +133,9 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.Any(i => i is RenameTable { SchemaName: "app", OldName: "users", NewName: "accounts" }).ShouldBeTrue();
-        result.Any(i => i is CreateTable).ShouldBeFalse();
-        result.Any(i => i is DropTable).ShouldBeFalse();
+        result.Instructions.Any(i => i is RenameTable { SchemaName: "app", OldName: "users", NewName: "accounts" }).ShouldBeTrue();
+        result.Instructions.Any(i => i is CreateTable).ShouldBeFalse();
+        result.Instructions.Any(i => i is DropTable).ShouldBeFalse();
     }
 
     // ── Columns ──────────────────────────────────────────────────────────────
@@ -155,7 +154,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.Any(i => i is AddColumn { TableName: "users", Column.Name: "email" }).ShouldBeTrue();
+        result.Instructions.Any(i => i is AddColumn { TableName: "users", Column.Name: "email" }).ShouldBeTrue();
     }
 
     [Fact]
@@ -172,7 +171,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.Any(i => i is DropColumn { TableName: "users", ColumnName: "email" }).ShouldBeTrue();
+        result.Instructions.Any(i => i is DropColumn { TableName: "users", ColumnName: "email" }).ShouldBeTrue();
     }
 
     [Fact]
@@ -186,9 +185,9 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.Any(i => i is RenameColumn { TableName: "users", OldName: "email", NewName: "email_address" }).ShouldBeTrue();
-        result.Any(i => i is AddColumn).ShouldBeFalse();
-        result.Any(i => i is DropColumn).ShouldBeFalse();
+        result.Instructions.Any(i => i is RenameColumn { TableName: "users", OldName: "email", NewName: "email_address" }).ShouldBeTrue();
+        result.Instructions.Any(i => i is AddColumn).ShouldBeFalse();
+        result.Instructions.Any(i => i is DropColumn).ShouldBeFalse();
     }
 
     [Fact]
@@ -202,7 +201,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.Any(i => i is AlterColumnType act
+        result.Instructions.Any(i => i is AlterColumnType act
             && act.TableName == "users"
             && act.ColumnName == "id"
             && act.OldType == SqlType.Int
@@ -220,7 +219,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.Any(i => i is AlterColumnNullability acn
+        result.Instructions.Any(i => i is AlterColumnNullability acn
             && acn.TableName == "users"
             && acn.ColumnName == "email"
             && acn.WasNullable == true
@@ -238,11 +237,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.Any(i => i is SetColumnDefault scd
-            && scd.TableName == "users"
-            && scd.ColumnName == "status"
-            && scd.OldDefault == null
-            && scd.NewDefault == "'active'").ShouldBeTrue();
+        result.Instructions.Any(i => i is SetColumnDefault { TableName: "users", ColumnName: "status", OldDefault: null, NewDefault: "'active'" }).ShouldBeTrue();
     }
 
     // ── Primary Key ──────────────────────────────────────────────────────────
@@ -260,7 +255,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.Any(i => i is AddPrimaryKey { TableName: "users", PrimaryKey.Name: "pk_users" }).ShouldBeTrue();
+        result.Instructions.Any(i => i is AddPrimaryKey { TableName: "users", PrimaryKey.Name: "pk_users" }).ShouldBeTrue();
     }
 
     [Fact]
@@ -276,7 +271,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.Any(i => i is DropPrimaryKey { TableName: "users", PrimaryKeyName: "pk_users" }).ShouldBeTrue();
+        result.Instructions.Any(i => i is DropPrimaryKey { TableName: "users", PrimaryKeyName: "pk_users" }).ShouldBeTrue();
     }
 
     [Fact]
@@ -291,7 +286,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(model, model);
 
         // Assert
-        result.Any(i => i is AddPrimaryKey or DropPrimaryKey).ShouldBeFalse();
+        result.Instructions.Any(i => i is AddPrimaryKey or DropPrimaryKey).ShouldBeFalse();
     }
 
     // ── Foreign Keys ─────────────────────────────────────────────────────────
@@ -310,7 +305,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.Any(i => i is AddForeignKey { ForeignKey.Name: "fk_users_org" }).ShouldBeTrue();
+        result.Instructions.Any(i => i is AddForeignKey { ForeignKey.Name: "fk_users_org" }).ShouldBeTrue();
     }
 
     [Fact]
@@ -327,7 +322,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.Any(i => i is DropForeignKey { ForeignKeyName: "fk_users_org" }).ShouldBeTrue();
+        result.Instructions.Any(i => i is DropForeignKey { ForeignKeyName: "fk_users_org" }).ShouldBeTrue();
     }
 
     [Fact]
@@ -343,8 +338,8 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.Any(i => i is DropForeignKey { ForeignKeyName: "fk_users_org" }).ShouldBeTrue();
-        result.Any(i => i is AddForeignKey { ForeignKey.Name: "fk_users_org" }).ShouldBeTrue();
+        result.Instructions.Any(i => i is DropForeignKey { ForeignKeyName: "fk_users_org" }).ShouldBeTrue();
+        result.Instructions.Any(i => i is AddForeignKey { ForeignKey.Name: "fk_users_org" }).ShouldBeTrue();
     }
 
     // ── Indexes ──────────────────────────────────────────────────────────────
@@ -361,7 +356,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.Any(i => i is CreateIndex { Index.Name: "ix_users_email" }).ShouldBeTrue();
+        result.Instructions.Any(i => i is CreateIndex { Index.Name: "ix_users_email" }).ShouldBeTrue();
     }
 
     [Fact]
@@ -376,7 +371,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(current, desired);
 
         // Assert
-        result.Any(i => i is DropIndex { IndexName: "ix_users_email" }).ShouldBeTrue();
+        result.Instructions.Any(i => i is DropIndex { IndexName: "ix_users_email" }).ShouldBeTrue();
     }
 
     // ── Deployment scripts ───────────────────────────────────────────────────
@@ -392,7 +387,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(Empty(), desired);
 
         // Assert
-        result[0].ShouldBeOfType<RunPreDeploymentScript>()
+        result.Instructions[0].ShouldBeOfType<RunPreDeploymentScript>()
             .Script.Name.ShouldBe("install_citext");
     }
 
@@ -409,7 +404,7 @@ public class DefaultSchemaComparerTests
         var result = _comparer.Compare(Empty(), desired);
 
         // Assert
-        result[^1].ShouldBeOfType<RunPostDeploymentScript>()
+        result.Instructions[^1].ShouldBeOfType<RunPostDeploymentScript>()
             .Script.Name.ShouldBe("seed");
     }
 
@@ -426,7 +421,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app", new Table("users", [new Column("id", SqlType.Int)]));
 
         // Act
-        var result = _comparer.Compare(current, desired).ToList();
+        var result = _comparer.Compare(current, desired).Instructions.ToList();
 
         // Assert
         result.FindIndex(i => i is DropForeignKey).ShouldBeLessThan(
@@ -445,7 +440,7 @@ public class DefaultSchemaComparerTests
         ])]);
 
         // Act
-        var result = _comparer.Compare(Empty(), desired).ToList();
+        var result = _comparer.Compare(Empty(), desired).Instructions.ToList();
 
         // Assert
         result.FindLastIndex(i => i is CreateTable).ShouldBeLessThan(

@@ -42,7 +42,7 @@ public sealed class PostgresSourceSchemaProviderTests(PostgresContainerFixture f
         // (schema created in InitializeAsync)
 
         // Act
-        var model = await Extractor().Extract([_schema]);
+        var model = await Extractor().GetSchema([_schema]);
 
         // Assert
         model.Schemas.ShouldHaveSingleItem();
@@ -62,7 +62,7 @@ public sealed class PostgresSourceSchemaProviderTests(PostgresContainerFixture f
             """);
 
         // Act
-        var model = await Extractor().Extract([_schema]);
+        var model = await Extractor().GetSchema([_schema]);
 
         // Assert
         model.Schemas[0].Tables.ShouldHaveSingleItem();
@@ -83,7 +83,7 @@ public sealed class PostgresSourceSchemaProviderTests(PostgresContainerFixture f
             """);
 
         // Act
-        var cols = (await Extractor().Extract([_schema]))
+        var cols = (await Extractor().GetSchema([_schema]))
             .Schemas[0].Tables[0].Columns.ToDictionary(c => c.Name);
 
         // Assert
@@ -119,7 +119,7 @@ public sealed class PostgresSourceSchemaProviderTests(PostgresContainerFixture f
             """);
 
         // Act
-        var cols = (await Extractor().Extract([_schema]))
+        var cols = (await Extractor().GetSchema([_schema]))
             .Schemas[0].Tables[0].Columns.ToDictionary(c => c.Name);
 
         // Assert
@@ -153,7 +153,7 @@ public sealed class PostgresSourceSchemaProviderTests(PostgresContainerFixture f
             """);
 
         // Act
-        var emailCol = (await Extractor().Extract([_schema]))
+        var emailCol = (await Extractor().GetSchema([_schema]))
             .Schemas[0].Tables[0].Columns.Single(c => c.Name == "email");
 
         // Assert
@@ -174,7 +174,7 @@ public sealed class PostgresSourceSchemaProviderTests(PostgresContainerFixture f
             """);
 
         // Act
-        var idCol = (await Extractor().Extract([_schema]))
+        var idCol = (await Extractor().GetSchema([_schema]))
             .Schemas[0].Tables[0].Columns.Single(c => c.Name == "id");
 
         // Assert
@@ -194,7 +194,7 @@ public sealed class PostgresSourceSchemaProviderTests(PostgresContainerFixture f
             """);
 
         // Act
-        var statusCol = (await Extractor().Extract([_schema]))
+        var statusCol = (await Extractor().GetSchema([_schema]))
             .Schemas[0].Tables[0].Columns.Single(c => c.Name == "status");
 
         // Assert
@@ -216,7 +216,7 @@ public sealed class PostgresSourceSchemaProviderTests(PostgresContainerFixture f
             """);
 
         // Act
-        var table = (await Extractor().Extract([_schema])).Schemas[0].Tables[0];
+        var table = (await Extractor().GetSchema([_schema])).Schemas[0].Tables[0];
 
         // Assert
         table.PrimaryKey.ShouldNotBeNull();
@@ -237,7 +237,7 @@ public sealed class PostgresSourceSchemaProviderTests(PostgresContainerFixture f
             """);
 
         // Act
-        var pk = (await Extractor().Extract([_schema])).Schemas[0].Tables[0].PrimaryKey;
+        var pk = (await Extractor().GetSchema([_schema])).Schemas[0].Tables[0].PrimaryKey;
 
         // Assert
         pk.ShouldNotBeNull();
@@ -255,7 +255,7 @@ public sealed class PostgresSourceSchemaProviderTests(PostgresContainerFixture f
             """);
 
         // Act
-        var table = (await Extractor().Extract([_schema])).Schemas[0].Tables[0];
+        var table = (await Extractor().GetSchema([_schema])).Schemas[0].Tables[0];
 
         // Assert
         table.PrimaryKey.ShouldBeNull();
@@ -280,7 +280,7 @@ public sealed class PostgresSourceSchemaProviderTests(PostgresContainerFixture f
             """);
 
         // Act
-        var fks = (await Extractor().Extract([_schema]))
+        var fks = (await Extractor().GetSchema([_schema]))
             .Schemas[0].Tables.Single(t => t.Name == "users").ForeignKeys;
 
         // Assert
@@ -314,7 +314,7 @@ public sealed class PostgresSourceSchemaProviderTests(PostgresContainerFixture f
             """);
 
         // Act
-        var fk = (await Extractor().Extract([_schema]))
+        var fk = (await Extractor().GetSchema([_schema]))
             .Schemas[0].Tables.Single(t => t.Name == "users").ForeignKeys![0];
 
         // Assert
@@ -333,7 +333,7 @@ public sealed class PostgresSourceSchemaProviderTests(PostgresContainerFixture f
             """);
 
         // Act
-        var table = (await Extractor().Extract([_schema])).Schemas[0].Tables[0];
+        var table = (await Extractor().GetSchema([_schema])).Schemas[0].Tables[0];
 
         // Assert
         table.ForeignKeys.ShouldBeNull();
@@ -354,7 +354,7 @@ public sealed class PostgresSourceSchemaProviderTests(PostgresContainerFixture f
             """);
 
         // Act
-        var idx = (await Extractor().Extract([_schema]))
+        var idx = (await Extractor().GetSchema([_schema]))
             .Schemas[0].Tables[0].Indexes!.Single();
 
         // Assert
@@ -376,7 +376,7 @@ public sealed class PostgresSourceSchemaProviderTests(PostgresContainerFixture f
             """);
 
         // Act
-        var idx = (await Extractor().Extract([_schema]))
+        var idx = (await Extractor().GetSchema([_schema]))
             .Schemas[0].Tables[0].Indexes!.Single();
 
         // Assert
@@ -397,7 +397,7 @@ public sealed class PostgresSourceSchemaProviderTests(PostgresContainerFixture f
             """);
 
         // Act
-        var idx = (await Extractor().Extract([_schema]))
+        var idx = (await Extractor().GetSchema([_schema]))
             .Schemas[0].Tables[0].Indexes!.Single();
 
         // Assert
@@ -415,7 +415,7 @@ public sealed class PostgresSourceSchemaProviderTests(PostgresContainerFixture f
             """);
 
         // Act
-        var table = (await Extractor().Extract([_schema])).Schemas[0].Tables[0];
+        var table = (await Extractor().GetSchema([_schema])).Schemas[0].Tables[0];
 
         // Assert
         table.Indexes.ShouldBeNull();

@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using Npgsql;
 using NSchema.Comparison;
 using NSchema.Migration;
-using NSchema.Postgres;
 using NSchema.Postgres.Migration;
 using NSchema.Postgres.Source;
 using NSchema.Sandbox;
