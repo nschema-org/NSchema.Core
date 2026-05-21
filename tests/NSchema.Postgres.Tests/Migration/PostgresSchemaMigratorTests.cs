@@ -437,7 +437,7 @@ public sealed class PostgresSchemaMigratorTests(PostgresContainerFixture fixture
     {
         // Arrange
         await Exec($"""CREATE TABLE "{_schema}"."to_drop" (id integer)""");
-        var options = new MigrationOptions(DestructiveActionPolicy.Error);
+        var options = new MigrationOptions() { DestructiveActionPolicy = DestructiveActionPolicy.Error};
 
         // Act
         var act = () => _executor.Migrate(new MigrationPlan([new DropTable(_schema, "to_drop")]), options);
@@ -452,7 +452,7 @@ public sealed class PostgresSchemaMigratorTests(PostgresContainerFixture fixture
     {
         // Arrange
         await Exec($"""CREATE TABLE "{_schema}"."to_drop" (id integer)""");
-        var options = new MigrationOptions(DestructiveActionPolicy.Allow);
+        var options = new MigrationOptions() { DestructiveActionPolicy = DestructiveActionPolicy.Allow };
 
         // Act
         await _executor.Migrate(new MigrationPlan([new DropTable(_schema, "to_drop")]), options);
@@ -468,7 +468,7 @@ public sealed class PostgresSchemaMigratorTests(PostgresContainerFixture fixture
     {
         // Arrange
         await Exec($"""CREATE TABLE "{_schema}"."to_drop" (id integer)""");
-        var options = new MigrationOptions(DestructiveActionPolicy.Warn);
+        var options = new MigrationOptions() { DestructiveActionPolicy = DestructiveActionPolicy.Warn };
 
         // Act
         await _executor.Migrate(new MigrationPlan([new DropTable(_schema, "to_drop")]), options);
@@ -481,7 +481,7 @@ public sealed class PostgresSchemaMigratorTests(PostgresContainerFixture fixture
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static readonly MigrationOptions Allow = new(DestructiveActionPolicy.Allow);
+    private static readonly MigrationOptions Allow = new() { DestructiveActionPolicy = DestructiveActionPolicy.Allow };
 
     private async Task Exec(string sql)
     {

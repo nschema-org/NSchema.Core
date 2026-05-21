@@ -1,5 +1,6 @@
 namespace NSchema.Migration;
 
-public record MigrationOptions(
-    DestructiveActionPolicy DestructiveActionPolicy = DestructiveActionPolicy.Error
-);
+public class MigrationOptions
+{
+    public DestructiveActionPolicy DestructiveActionPolicy { get; set; } = DestructiveActionPolicy.Error;
+}
