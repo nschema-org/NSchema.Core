@@ -84,6 +84,62 @@ public sealed class DefaultSchemaAggregatorTests
         result.PostDeploymentScripts.ShouldBeEmpty();
     }
 
+    // ── Partial schemas ───────────────────────────────────────────────────────
+
+    [Fact]
+    public void Merge_AnyProviderPartial_ResultIsPartial()
+    {
+        var db1 = Db(new SchemaDefinition("public", [], IsPartial: true));
+        var db2 = Db(Schema("public", Table("posts")));
+
+        var result = s_aggregator.Aggregate([db1, db2]);
+
+        result.Schemas[0].IsPartial.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Merge_NoProviderPartial_ResultIsNotPartial()
+    {
+        var db1 = Db(Schema("public", Table("users")));
+        var db2 = Db(Schema("public", Table("posts")));
+
+        var result = s_aggregator.Aggregate([db1, db2]);
+
+        result.Schemas[0].IsPartial.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Merge_DroppedTables_AreCombinedAcrossProviders()
+    {
+        var db1 = Db(new SchemaDefinition("public", [], DroppedTables: ["old_users"]));
+        var db2 = Db(new SchemaDefinition("public", [], DroppedTables: ["legacy_data"]));
+
+        var result = s_aggregator.Aggregate([db1, db2]);
+
+        result.Schemas[0].DroppedTables.ShouldBe(["old_users", "legacy_data"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public void Merge_DroppedSchemas_AreCombinedAcrossProviders()
+    {
+        var db1 = new DatabaseSchema([], [], [], ["old_schema"]);
+        var db2 = new DatabaseSchema([], [], [], ["legacy"]);
+
+        var result = s_aggregator.Aggregate([db1, db2]);
+
+        result.DroppedSchemas.ShouldBe(["old_schema", "legacy"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public void Merge_NoDroppedSchemas_DroppedSchemasIsNull()
+    {
+        var db1 = Db(Schema("public", Table("users")));
+
+        var result = s_aggregator.Aggregate([db1]);
+
+        result.DroppedSchemas.ShouldBeNull();
+    }
+
     // ── Scripts ───────────────────────────────────────────────────────────────
 
     [Fact]

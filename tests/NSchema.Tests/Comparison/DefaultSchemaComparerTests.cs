@@ -374,6 +374,52 @@ public class DefaultSchemaComparerTests
         result.Actions.Any(i => i is DropIndex { IndexName: "ix_users_email" }).ShouldBeTrue();
     }
 
+    // ── Partial schemas ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void Diff_PartialSchema_DoesNotDropUnmanagedTables()
+    {
+        var current = WithSchema("app", SimpleTable("users"), SimpleTable("legacy"));
+        var desired = new DatabaseSchema([new SchemaDefinition("app", [SimpleTable("users")], IsPartial: true)]);
+
+        var result = _comparer.Compare(current, desired);
+
+        result.Actions.Any(i => i is DropTable { TableName: "legacy" }).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Diff_PartialSchema_StillManagesDeclaredTables()
+    {
+        var current = WithSchema("app", SimpleTable("users"), SimpleTable("legacy"));
+        var desired = new DatabaseSchema([new SchemaDefinition("app", [SimpleTable("users"), SimpleTable("orders")], IsPartial: true)]);
+
+        var result = _comparer.Compare(current, desired);
+
+        result.Actions.Any(i => i is CreateTable { Table.Name: "orders" }).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Diff_PartialSchema_ExplicitDropTable_DropsSpecifiedTable()
+    {
+        var current = WithSchema("app", SimpleTable("users"), SimpleTable("legacy"));
+        var desired = new DatabaseSchema([new SchemaDefinition("app", [SimpleTable("users")], IsPartial: true, DroppedTables: ["legacy"])]);
+
+        var result = _comparer.Compare(current, desired);
+
+        result.Actions.Any(i => i is DropTable { TableName: "legacy" }).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Diff_PartialSchema_ExplicitDropTable_NotInCurrent_ProducesNoAction()
+    {
+        var current = WithSchema("app", SimpleTable("users"));
+        var desired = new DatabaseSchema([new SchemaDefinition("app", [SimpleTable("users")], IsPartial: true, DroppedTables: ["nonexistent"])]);
+
+        var result = _comparer.Compare(current, desired);
+
+        result.Actions.Any(i => i is DropTable { TableName: "nonexistent" }).ShouldBeFalse();
+    }
+
     // ── Deployment scripts ───────────────────────────────────────────────────
 
     [Fact]

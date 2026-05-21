@@ -71,27 +71,38 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
                     actions.Add(new RenameSchema(matchingCurrent.Name, desiredSchema.Name));
                 }
 
-                CompareTables(desiredSchema.Name, matchingCurrent.Tables, desiredSchema.Tables, actions);
+                CompareTables(desiredSchema.Name, matchingCurrent.Tables, desiredSchema, actions);
             }
         }
     }
 
-    private void CompareTables(string schemaName, IReadOnlyList<Table> current, IReadOnlyList<Table> desired, List<SchemaAction> actions)
+    private void CompareTables(string schemaName, IReadOnlyList<Table> current, SchemaDefinition desired, List<SchemaAction> actions)
     {
+        var droppedTables = desired.DroppedTables ?? [];
+
         foreach (var currentTable in current)
         {
-            if (desired.Any(d => d.Name == currentTable.Name || d.PreviousName == currentTable.Name))
+            if (desired.Tables.Any(d => d.Name == currentTable.Name || d.PreviousName == currentTable.Name))
             {
                 logger.LogDebug("Table '{Schema}.{Table}' exists in desired state", schemaName, currentTable.Name);
             }
-            else
+            else if (droppedTables.Contains(currentTable.Name, StringComparer.OrdinalIgnoreCase))
+            {
+                logger.LogDebug("Table '{Schema}.{Table}' explicitly marked for removal", schemaName, currentTable.Name);
+                actions.Add(new DropTable(schemaName, currentTable.Name));
+            }
+            else if (!desired.IsPartial)
             {
                 logger.LogDebug("Table '{Schema}.{Table}' not found in desired state", schemaName, currentTable.Name);
                 actions.Add(new DropTable(schemaName, currentTable.Name));
             }
+            else
+            {
+                logger.LogDebug("Table '{Schema}.{Table}' not in desired state; skipping (partial schema)", schemaName, currentTable.Name);
+            }
         }
 
-        foreach (var desiredTable in desired)
+        foreach (var desiredTable in desired.Tables)
         {
             var matchingCurrent = current.FirstOrDefault(c => c.Name == desiredTable.Name || c.Name == desiredTable.PreviousName);
             if (matchingCurrent is null)

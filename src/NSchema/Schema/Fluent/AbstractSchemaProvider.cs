@@ -7,6 +7,7 @@ public abstract class AbstractSchemaProvider : IDesiredSchemaProvider
     private readonly List<SchemaBuilder> _schemas = [];
     private readonly List<Script> _preScripts = [];
     private readonly List<Script> _postScripts = [];
+    private readonly List<string> _droppedSchemas = [];
 
     public SchemaBuilder Schema(string name)
     {
@@ -14,6 +15,8 @@ public abstract class AbstractSchemaProvider : IDesiredSchemaProvider
         _schemas.Add(builder);
         return builder;
     }
+
+    public void DropSchema(string name) => _droppedSchemas.Add(name);
 
     public void PreDeploymentScript(string name, string sql)
     {
@@ -28,7 +31,8 @@ public abstract class AbstractSchemaProvider : IDesiredSchemaProvider
     public Task<DatabaseSchema> GetSchema(CancellationToken cancellationToken = default)
     {
         var schemas = _schemas.Select(s => s.Build()).ToList();
-        var schema = new DatabaseSchema(schemas, _preScripts, _postScripts);
-        return Task.FromResult(schema);
+        return Task.FromResult(new DatabaseSchema(
+            schemas, _preScripts, _postScripts,
+            _droppedSchemas.Count > 0 ? _droppedSchemas : null));
     }
 }

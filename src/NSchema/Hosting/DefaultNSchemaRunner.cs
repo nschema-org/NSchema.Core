@@ -27,7 +27,10 @@ public sealed class DefaultNSchemaRunner(
             throw new PolicyViolationException(schemaErrors);
         }
 
-        string[] schemasInScope = desiredSchema.Schemas.Select(s => s.Name).ToArray();
+        string[] schemasInScope = desiredSchema.Schemas.Select(s => s.Name)
+            .Concat(desiredSchema.DroppedSchemas ?? [])
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
         // Get current schema state.
         var current = await currentProvider.GetSchema(schemasInScope, cancellationToken);
