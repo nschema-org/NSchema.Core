@@ -92,6 +92,7 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
     private static void ApplyServices(IServiceCollection services)
     {
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
+        services.TryAddSingleton<ISchemaAggregator, DefaultSchemaAggregator>();
         services.TryAddSingleton<INSchemaRunner, DefaultNSchemaRunner>();
 
         // This is the service responsible for running the migration.

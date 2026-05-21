@@ -9,15 +9,17 @@ namespace NSchema.Hosting;
 public sealed class DefaultNSchemaRunner(
     IOptions<MigrationOptions> options,
     ISourceSchemaProvider sourceProvider,
-    ITargetSchemaProvider targetProvider,
+    IEnumerable<ITargetSchemaProvider> targetProviders,
+    ISchemaAggregator schemaAggregator,
     ISchemaComparer comparer,
     ISchemaMigrator migrator
 ) : INSchemaRunner
 {
     public async Task Run(CancellationToken cancellationToken = default)
     {
-        // Get desired schema state.
-        var targetSchema = await targetProvider.GetSchema(cancellationToken);
+        // Get desired schema state from all registered providers and merge.
+        var schemas = await Task.WhenAll(targetProviders.Select(p => p.GetSchema(cancellationToken)));
+        var targetSchema = schemaAggregator.Aggregate(schemas);
         string[] schemasInScope = targetSchema.Schemas.Select(s => s.Name).ToArray();
 
         // Get current schema state.

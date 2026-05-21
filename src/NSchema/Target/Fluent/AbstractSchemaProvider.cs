@@ -27,11 +27,8 @@ public abstract class AbstractSchemaProvider : ITargetSchemaProvider
 
     public Task<DatabaseSchema> GetSchema(CancellationToken cancellationToken = default)
     {
-        var schema = new DatabaseSchema(
-            _schemas.Select(s => s.Build()).ToList(),
-            _preScripts.Count > 0 ? _preScripts : null,
-            _postScripts.Count > 0 ? _postScripts : null
-        );
+        var schemas = _schemas.Select(s => s.Build()).ToList();
+        var schema = new DatabaseSchema(schemas, _preScripts, _postScripts);
         return Task.FromResult(schema);
     }
 }

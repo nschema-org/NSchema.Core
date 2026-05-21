@@ -381,7 +381,7 @@ public class DefaultSchemaComparerTests
     {
         // Arrange
         var script = new Script("install_citext", "CREATE EXTENSION IF NOT EXISTS citext;");
-        var desired = new DatabaseSchema([], PreDeploymentScripts: [script]);
+        var desired = new DatabaseSchema([], PreDeploymentScripts: [script], PostDeploymentScripts: []);
 
         // Act
         var result = _comparer.Compare(Empty(), desired);
@@ -398,7 +398,9 @@ public class DefaultSchemaComparerTests
         var script = new Script("seed", "INSERT INTO app.config VALUES ('version', '1');");
         var desired = new DatabaseSchema(
             [new Schema("app", [SimpleTable("config")])],
-            PostDeploymentScripts: [script]);
+            PreDeploymentScripts: [],
+            PostDeploymentScripts: [script]
+        );
 
         // Act
         var result = _comparer.Compare(Empty(), desired);
