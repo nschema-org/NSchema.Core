@@ -10,12 +10,11 @@ public sealed class SchemaBuilder
 
     internal SchemaBuilder(string name) => _name = name;
 
-    public SchemaBuilder Table(string name, Action<TableBuilder> configure)
+    public TableBuilder Table(string name)
     {
         var builder = new TableBuilder(name);
-        configure(builder);
         _tables.Add(builder);
-        return this;
+        return builder;
     }
 
     public SchemaBuilder WasPreviouslyNamed(string previousName) { _previousName = previousName; return this; }

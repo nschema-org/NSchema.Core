@@ -7,14 +7,35 @@ using NSchema.Source;
 
 namespace NSchema.Postgres;
 
-public static class NSchemaBuilderExtensions
+public static class NSchemaApplicationBuilderExtensions
 {
-    public static NSchemaBuilder UsePostgresSource(this NSchemaBuilder builder, string connectionString)
-        => builder.UsePostgresSource(NpgsqlDataSource.Create(connectionString));
+    extension(NSchemaApplicationBuilder builder)
+    {
+        public NSchemaApplicationBuilder UsePostgresSource(string connectionString)
+        {
+            builder.Services.AddNpgsqlDataSource(connectionString);
+            return builder.AddPostgresCore();
+        }
 
-    public static NSchemaBuilder UsePostgresSource(this NSchemaBuilder builder, NpgsqlDataSource dataSource)
-        => builder.ConfigureServices(services => services
-            .AddSingleton(dataSource)
-            .AddSingleton<ISourceSchemaProvider, PostgresSourceSchemaProvider>()
-            .AddSingleton<ISchemaMigrator, PostgresSchemaMigrator>());
+        public NSchemaApplicationBuilder UsePostgresSource(Action<NpgsqlDataSourceBuilder> configure)
+        {
+            builder.Services.AddNpgsqlDataSource("", configure);
+            return builder.AddPostgresCore();
+        }
+
+        public NSchemaApplicationBuilder UsePostgresSource(Action<IServiceProvider, NpgsqlDataSourceBuilder> configure)
+        {
+            builder.Services.AddNpgsqlDataSource("", configure);
+            return builder.AddPostgresCore();
+        }
+
+        private NSchemaApplicationBuilder AddPostgresCore()
+        {
+            builder.Services
+                .AddSingleton<ISourceSchemaProvider, PostgresSourceSchemaProvider>()
+                .AddSingleton<ISchemaMigrator, PostgresSchemaMigrator>();
+
+            return builder;
+        }
+    }
 }

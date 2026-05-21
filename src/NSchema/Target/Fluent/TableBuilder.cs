@@ -26,12 +26,7 @@ public sealed class TableBuilder
         return this;
     }
 
-    public ForeignKeyBuilder ForeignKey(
-        string name,
-        IReadOnlyList<string> columnNames,
-        string referencedSchema,
-        string referencedTable,
-        IReadOnlyList<string> referencedColumnNames)
+    public ForeignKeyBuilder ForeignKey(string name, IReadOnlyList<string> columnNames, string referencedSchema, string referencedTable, IReadOnlyList<string> referencedColumnNames)
     {
         var builder = new ForeignKeyBuilder(name, columnNames, referencedSchema, referencedTable, referencedColumnNames);
         _foreignKeys.Add(builder);

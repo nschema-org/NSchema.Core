@@ -3,7 +3,7 @@ using NSchema.Target.Fluent;
 
 namespace NSchema.Tests.Target.Fluent;
 
-public sealed class DatabaseModelBuilderTests
+public sealed class AbstractSchemaProviderTests
 {
     // ── DatabaseModelBuilder ──────────────────────────────────────────────────
 
@@ -11,7 +11,7 @@ public sealed class DatabaseModelBuilderTests
     public void Build_WithNoSchemas_ReturnsModelWithEmptySchemaList()
     {
         // Arrange
-        var builder = new DatabaseModelBuilder();
+        var builder = new AbstractSchemaProvider();
 
         // Act
         var model = builder.Build();
@@ -24,7 +24,7 @@ public sealed class DatabaseModelBuilderTests
     public void Schema_AddsSchemaToModel()
     {
         // Arrange
-        var builder = new DatabaseModelBuilder();
+        var builder = new AbstractSchemaProvider();
 
         // Act
         var model = builder
@@ -40,7 +40,7 @@ public sealed class DatabaseModelBuilderTests
     public void Schema_MultipleSchemas_AllAppearInModel()
     {
         // Arrange
-        var builder = new DatabaseModelBuilder();
+        var builder = new AbstractSchemaProvider();
 
         // Act
         var model = builder
@@ -57,7 +57,7 @@ public sealed class DatabaseModelBuilderTests
     public void PreDeploymentScript_AddsScriptToModel()
     {
         // Arrange
-        var builder = new DatabaseModelBuilder();
+        var builder = new AbstractSchemaProvider();
 
         // Act
         var model = builder
@@ -75,7 +75,7 @@ public sealed class DatabaseModelBuilderTests
     public void PostDeploymentScript_AddsScriptToModel()
     {
         // Arrange
-        var builder = new DatabaseModelBuilder();
+        var builder = new AbstractSchemaProvider();
 
         // Act
         var model = builder
@@ -92,7 +92,7 @@ public sealed class DatabaseModelBuilderTests
     public void Build_WithNoScripts_ScriptListsAreNull()
     {
         // Arrange
-        var builder = new DatabaseModelBuilder();
+        var builder = new AbstractSchemaProvider();
 
         // Act
         var model = builder.Build();
@@ -108,7 +108,7 @@ public sealed class DatabaseModelBuilderTests
     public void SchemaBuilder_Table_AddsTableToSchema()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("users", _ => { });
@@ -124,7 +124,7 @@ public sealed class DatabaseModelBuilderTests
     public void SchemaBuilder_MultipleTables_AllAppearInSchema()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("users", _ => { })
@@ -140,7 +140,7 @@ public sealed class DatabaseModelBuilderTests
     public void SchemaBuilder_WasPreviouslyNamed_SetsPreviousNameOnSchema()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.WasPreviouslyNamed("old_schema");
@@ -157,7 +157,7 @@ public sealed class DatabaseModelBuilderTests
     public void TableBuilder_Column_AddsColumnToTable()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("users", table =>
@@ -178,7 +178,7 @@ public sealed class DatabaseModelBuilderTests
     public void TableBuilder_PrimaryKey_AttachesPrimaryKeyToTable()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("users", table =>
@@ -200,7 +200,7 @@ public sealed class DatabaseModelBuilderTests
     public void TableBuilder_ForeignKey_AddsForeignKeyToTable()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("posts", table =>
@@ -226,7 +226,7 @@ public sealed class DatabaseModelBuilderTests
     public void TableBuilder_Index_AddsIndexToTable()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("users", table =>
@@ -250,7 +250,7 @@ public sealed class DatabaseModelBuilderTests
     public void TableBuilder_WasPreviouslyNamed_SetsPreviousNameOnTable()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("users", table =>
@@ -268,7 +268,7 @@ public sealed class DatabaseModelBuilderTests
     public void TableBuilder_NoForeignKeys_ForeignKeysIsNull()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("users", table =>
@@ -286,7 +286,7 @@ public sealed class DatabaseModelBuilderTests
     public void TableBuilder_NoIndexes_IndexesIsNull()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("users", table =>
@@ -306,7 +306,7 @@ public sealed class DatabaseModelBuilderTests
     public void ColumnBuilder_Defaults_IsNullableWithNoIdentityOrDefault()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("t", table => table.Column("col", SqlType.Text));
@@ -325,7 +325,7 @@ public sealed class DatabaseModelBuilderTests
     public void ColumnBuilder_NotNull_SetsIsNullableFalse()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("t", table => table.Column("col", SqlType.Text).NotNull());
@@ -340,7 +340,7 @@ public sealed class DatabaseModelBuilderTests
     public void ColumnBuilder_Nullable_SetsIsNullableTrue()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("t", table => table.Column("col", SqlType.Text).NotNull().Nullable());
@@ -355,7 +355,7 @@ public sealed class DatabaseModelBuilderTests
     public void ColumnBuilder_Identity_SetsIsIdentityTrue()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("t", table => table.Column("id", SqlType.BigInt).Identity());
@@ -370,7 +370,7 @@ public sealed class DatabaseModelBuilderTests
     public void ColumnBuilder_Default_SetsDefaultExpression()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("t", table => table.Column("created_at", SqlType.DateTimeOffset).Default("now()"));
@@ -385,7 +385,7 @@ public sealed class DatabaseModelBuilderTests
     public void ColumnBuilder_WasPreviouslyNamed_SetsPreviousName()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("t", table => table.Column("full_name", SqlType.Text).WasPreviouslyNamed("name"));
@@ -402,7 +402,7 @@ public sealed class DatabaseModelBuilderTests
     public void ForeignKeyBuilder_OnDelete_SetsDeleteAction()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("posts", table =>
@@ -421,7 +421,7 @@ public sealed class DatabaseModelBuilderTests
     public void ForeignKeyBuilder_OnUpdate_SetsUpdateAction()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("posts", table =>
@@ -440,7 +440,7 @@ public sealed class DatabaseModelBuilderTests
     public void ForeignKeyBuilder_Defaults_NoActionForBothRules()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("posts", table =>
@@ -462,7 +462,7 @@ public sealed class DatabaseModelBuilderTests
     public void IndexBuilder_Unique_SetsIsUniqueTrue()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("users", table =>
@@ -480,7 +480,7 @@ public sealed class DatabaseModelBuilderTests
     public void IndexBuilder_CompositeIndex_PreservesColumnOrder()
     {
         // Arrange & Act
-        var model = new DatabaseModelBuilder()
+        var model = new AbstractSchemaProvider()
             .Schema("public", schema =>
             {
                 schema.Table("t", table =>

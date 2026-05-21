@@ -1,16 +1,21 @@
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using NSchema;
 using NSchema.Migration;
 using NSchema.Postgres;
 using NSchema.Sandbox;
 
-string connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__sandbox")
-                          ?? throw new InvalidOperationException("Connection string not found in environment variables.");
+string connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING")
+                          ?? throw new InvalidOperationException("CONNECTION_STRING environment variable is not set.");
+var builder = NSchemaApplication.CreateBuilder(args);
 
-await new NSchemaBuilder()
-    .ConfigureLogging(b => b.SetMinimumLevel(LogLevel.Debug))
-    .UseTarget(Database.GetTarget())
-    .UsePostgresSource(connectionString)
-    .ConfigureOptions(o => o.DestructiveActionPolicy = DestructiveActionPolicy.Warn)
-    .Build()
-    .MigrateAsync();
+builder.Services
+    .Configure<MigrationOptions>(o => o.DestructiveActionPolicy = DestructiveActionPolicy.Warn);
+
+builder
+    .AddSchema<BooksSchema>()
+    .UsePostgresSource(connectionString);
+
+var migration = builder.Build();
+
+await migration.RunAsync();

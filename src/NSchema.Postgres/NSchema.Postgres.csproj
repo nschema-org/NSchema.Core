@@ -36,6 +36,7 @@
 
   <ItemGroup>
     <PackageReference Include="Npgsql" />
+    <PackageReference Include="Npgsql.DependencyInjection" />
   </ItemGroup>
 
 </Project>

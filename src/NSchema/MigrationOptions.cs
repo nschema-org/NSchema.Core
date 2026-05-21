@@ -1,4 +1,6 @@
-namespace NSchema.Migration;
+using NSchema.Migration;
+
+namespace NSchema;
 
 public class MigrationOptions
 {
