@@ -220,7 +220,7 @@ public sealed class PostgresSchemaProvider(NpgsqlDataSource dataSource) : ICurre
             WHERE n.nspname = ANY(@schemas)
             AND NOT ix.indisprimary
             AND k.attnum > 0
-            GROUP BY n.nspname, t.relname, i.relname, ix.indisunique, ix.indpred
+            GROUP BY n.nspname, t.relname, i.relname, ix.indisunique, ix.indpred, ix.indrelid
             ORDER BY n.nspname, t.relname, i.relname
             """;
         cmd.Parameters.AddWithValue("schemas", schemes);
