@@ -1,29 +1,5 @@
-using System.Text.Json.Serialization;
-
 namespace NSchema.Domain.Schema;
 
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
-[JsonDerivedType(typeof(BooleanType), "boolean")]
-[JsonDerivedType(typeof(TinyIntType), "tinyint")]
-[JsonDerivedType(typeof(SmallIntType), "smallint")]
-[JsonDerivedType(typeof(IntType), "int")]
-[JsonDerivedType(typeof(BigIntType), "bigint")]
-[JsonDerivedType(typeof(FloatType), "float")]
-[JsonDerivedType(typeof(DoubleType), "double")]
-[JsonDerivedType(typeof(DecimalType), "decimal")]
-[JsonDerivedType(typeof(CharType), "char")]
-[JsonDerivedType(typeof(NCharType), "nchar")]
-[JsonDerivedType(typeof(VarCharType), "varchar")]
-[JsonDerivedType(typeof(NVarCharType), "nvarchar")]
-[JsonDerivedType(typeof(TextType), "text")]
-[JsonDerivedType(typeof(DateType), "date")]
-[JsonDerivedType(typeof(TimeType), "time")]
-[JsonDerivedType(typeof(DateTimeType), "datetime")]
-[JsonDerivedType(typeof(DateTimeOffsetType), "datetimeoffset")]
-[JsonDerivedType(typeof(GuidType), "guid")]
-[JsonDerivedType(typeof(BinaryType), "binary")]
-[JsonDerivedType(typeof(VarBinaryType), "varbinary")]
-[JsonDerivedType(typeof(CustomType), "custom")]
 public abstract record SqlType
 {
     public static readonly SqlType Boolean = new BooleanType();
