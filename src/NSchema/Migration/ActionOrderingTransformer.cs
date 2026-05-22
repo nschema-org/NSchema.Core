@@ -5,11 +5,13 @@ namespace NSchema.Migration;
 
 public sealed class ActionOrderingTransformer : IMigrationPlanTransformer
 {
-    private static readonly IReadOnlyDictionary<Type, int> s_priorities = new List<Type> {
+    public static readonly IReadOnlyDictionary<Type, int> Priorities = new List<Type> {
         typeof(RunPreDeploymentScript),
         typeof(DropForeignKey),
         typeof(DropIndex),
         typeof(DropPrimaryKey),
+        typeof(RevokeSchemaUsage),
+        typeof(RevokeTablePrivileges),
         typeof(RenameSchema),
         typeof(CreateSchema),
         typeof(RenameTable),
@@ -19,10 +21,13 @@ public sealed class ActionOrderingTransformer : IMigrationPlanTransformer
         typeof(AddColumn),
         typeof(AlterColumnType),
         typeof(AlterColumnNullability),
+        typeof(AlterIdentitySequence),
         typeof(SetColumnDefault),
         typeof(AddPrimaryKey),
         typeof(AddForeignKey),
         typeof(CreateIndex),
+        typeof(GrantSchemaUsage),
+        typeof(GrantTablePrivileges),
         typeof(SetSchemaComment),
         typeof(SetTableComment),
         typeof(SetColumnComment),
@@ -34,7 +39,7 @@ public sealed class ActionOrderingTransformer : IMigrationPlanTransformer
 
     public SchemaPlan Transform(SchemaPlan plan)
     {
-        var actions = plan.Actions.OrderBy(a => s_priorities[a.GetType()]).ToList();
+        var actions = plan.Actions.OrderBy(a => Priorities[a.GetType()]).ToList();
         return new SchemaPlan(actions);
     }
 }
