@@ -9,9 +9,9 @@ public sealed class DefaultSchemaMigrator(
     IEnumerable<IDeploymentScriptProvider> scriptProviders,
     ISchemaAggregator schemaAggregator,
     ISchemaComparer comparer,
-    IEnumerable<ISchemaPolicy> schemaValidationPolicies,
+    IEnumerable<ISchemaPolicy> schemaPolicies,
     IEnumerable<IMigrationPlanTransformer> planTransformers,
-    IEnumerable<IMigrationPolicy> actionValidationPolicies
+    IEnumerable<IMigrationPolicy> migrationPolicies
 ) : ISchemaMigrator
 {
     public async Task<MigrationPlan> Plan(CancellationToken cancellationToken = default)
@@ -21,7 +21,7 @@ public sealed class DefaultSchemaMigrator(
         var desiredSchema = schemaAggregator.Aggregate(schemas);
 
         // Run all registered schema validation policies.
-        var schemaErrors = schemaValidationPolicies.SelectMany(p => p.Validate(desiredSchema)).ToList();
+        var schemaErrors = schemaPolicies.SelectMany(p => p.Validate(desiredSchema)).ToList();
         if (schemaErrors.Count > 0)
         {
             throw new PolicyViolationException(schemaErrors);
@@ -36,7 +36,7 @@ public sealed class DefaultSchemaMigrator(
         var currentSchema = await currentProvider.GetSchema(schemasInScope, cancellationToken);
 
         // Diff the two schemas.
-        var schemaPlan = comparer.Compare(currentSchema, desiredSchema);
+        var migrationPlan = comparer.Compare(currentSchema, desiredSchema);
 
         // Collect deployment scripts and inject into the plan.
         var providerList = scriptProviders.ToList();
@@ -46,19 +46,19 @@ public sealed class DefaultSchemaMigrator(
             var postLists = await Task.WhenAll(providerList.Select(p => p.GetPostDeploymentScripts(cancellationToken)));
             var preActions = preLists.SelectMany(s => s).Select(MigrationAction (s) => new RunPreDeploymentScript(s));
             var postActions = postLists.SelectMany(s => s).Select(MigrationAction (s) => new RunPostDeploymentScript(s));
-            schemaPlan = new MigrationPlan([.. preActions, .. schemaPlan.Actions, .. postActions]);
+            migrationPlan = new MigrationPlan([.. preActions, .. migrationPlan.Actions, .. postActions]);
         }
 
         // Apply all registered plan transformers in order.
-        schemaPlan = planTransformers.Aggregate(schemaPlan, (p, t) => t.Transform(p));
+        migrationPlan = planTransformers.Aggregate(migrationPlan, (p, t) => t.Transform(p));
 
         // Run all registered action policies against the transformed plan.
-        var actionErrors = actionValidationPolicies.SelectMany(p => p.Validate(schemaPlan)).ToList();
-        if (actionErrors.Count > 0)
+        var migrationErrors = migrationPolicies.SelectMany(p => p.Validate(migrationPlan)).ToList();
+        if (migrationErrors.Count > 0)
         {
-            throw new PolicyViolationException(actionErrors);
+            throw new PolicyViolationException(migrationErrors);
         }
 
-        return schemaPlan;
+        return migrationPlan;
     }
 }
