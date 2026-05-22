@@ -6,19 +6,21 @@ using NSchema.Migration;
 namespace NSchema.Hosting;
 
 /// <summary>
-/// The hosted service that runs the pipeline.
+/// The hosted service that runs the database migration.
 /// </summary>
-/// <param name="logger">The logger for the pipeline host.</param>
+/// <param name="logger">The logger for the host.</param>
 /// <param name="lifetime">The application lifetime.</param>
 /// <param name="migrator">The schema migrator.</param>
-/// <param name="sqlMigrator">The SQL migrator, used to generate SQL in dry-run mode.</param>
+/// <param name="sqlPlanner">The SQL planner, used to generate the SQL that will be executed.</param>
+/// <param name="sqlExecutor">The SQL executor, used to run the generated SQL against the database.</param>
 /// <param name="options">The migration options.</param>
 internal class NSchemaHost(
     ILogger<NSchemaHost> logger,
     IOptions<MigrationOptions> options,
     IHostApplicationLifetime lifetime,
     ISchemaMigrator migrator,
-    ISqlMigrator sqlMigrator
+    ISqlPlanner sqlPlanner,
+    ISqlExecutor sqlExecutor
 ) : BackgroundService
 {
     /// <inheritdoc />
@@ -27,7 +29,7 @@ internal class NSchemaHost(
         try
         {
             var schemaPlan = await migrator.Plan(cancellationToken);
-            var sqlPlan = sqlMigrator.Plan(schemaPlan);
+            var sqlPlan = sqlPlanner.Plan(schemaPlan);
 
             if (options.Value.DryRun)
             {
@@ -45,7 +47,7 @@ internal class NSchemaHost(
             }
             else
             {
-                await sqlMigrator.Apply(sqlPlan, cancellationToken);
+                await sqlExecutor.Execute(sqlPlan, cancellationToken);
             }
         }
         finally

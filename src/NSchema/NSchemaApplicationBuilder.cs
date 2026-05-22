@@ -113,6 +113,12 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
         return this;
     }
 
+    public NSchemaApplicationBuilder UseSqlExecutor<T>() where T : class, ISqlExecutor
+    {
+        Services.AddSingleton<ISqlExecutor, T>();
+        return this;
+    }
+
     public NSchemaApplicationBuilder AddActionPolicy<T>() where T : class, IActionPolicy
     {
         var descriptor = new ServiceDescriptor(typeof(IActionPolicy), typeof(T), ServiceLifetime.Singleton);
@@ -146,15 +152,19 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
 
     public NSchemaApplicationBuilder AddPreDeploymentScriptsFromEmbeddedResources(Assembly assembly, string resourcePrefix)
     {
-        foreach (var resourceName in MatchingResources(assembly, resourcePrefix))
+        foreach (string resourceName in MatchingResources(assembly, resourcePrefix))
+        {
             AddPreDeploymentScriptFromEmbeddedResource(assembly, resourceName);
+        }
         return this;
     }
 
     public NSchemaApplicationBuilder AddPostDeploymentScriptsFromEmbeddedResources(Assembly assembly, string resourcePrefix)
     {
-        foreach (var resourceName in MatchingResources(assembly, resourcePrefix))
+        foreach (string resourceName in MatchingResources(assembly, resourcePrefix))
+        {
             AddPostDeploymentScriptFromEmbeddedResource(assembly, resourceName);
+        }
         return this;
     }
 
@@ -165,8 +175,8 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
 
     private static string DeriveScriptName(string resourceName)
     {
-        var lastDot = resourceName.LastIndexOf('.');
-        var secondLastDot = resourceName.LastIndexOf('.', lastDot - 1);
+        int lastDot = resourceName.LastIndexOf('.');
+        int secondLastDot = resourceName.LastIndexOf('.', lastDot - 1);
         return secondLastDot >= 0
             ? resourceName[(secondLastDot + 1)..lastDot]
             : resourceName[..lastDot];
@@ -204,6 +214,7 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
         services.TryAddSingleton<ISchemaAggregator, DefaultSchemaAggregator>();
         services.TryAddSingleton<ISchemaMigrator, DefaultSchemaMigrator>();
+        services.TryAddSingleton<ISqlExecutor, DefaultSqlExecutor>();
 
         services.TryAddEnumerable(
             new ServiceDescriptor(typeof(IMigrationPlanTransformer), typeof(ActionOrderingTransformer), ServiceLifetime.Singleton));

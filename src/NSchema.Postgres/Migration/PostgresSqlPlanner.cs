@@ -1,28 +1,15 @@
-using Npgsql;
 using NSchema.Migration;
 using NSchema.Migration.Actions;
 using NSchema.Schema;
 
 namespace NSchema.Postgres.Migration;
 
-public sealed class PostgresSqlMigrator(NpgsqlDataSource dataSource) : ISqlMigrator
+public sealed class PostgresSqlPlanner : ISqlPlanner
 {
     public SqlPlan Plan(SchemaPlan plan)
     {
         var statements = plan.Actions.Select(GenerateSql).ToList();
         return new SqlPlan(statements);
-    }
-
-    public async Task Apply(SqlPlan plan, CancellationToken cancellationToken = default)
-    {
-        await using var conn = await dataSource.OpenConnectionAsync(cancellationToken);
-
-        foreach (string statement in plan.Statements)
-        {
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandText = statement;
-            await cmd.ExecuteNonQueryAsync(cancellationToken);
-        }
     }
 
     // ── SQL generation ────────────────────────────────────────────────────────
