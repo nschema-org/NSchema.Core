@@ -8,9 +8,16 @@ internal sealed class PostgresSqlPlanner : ISqlPlanner
 {
     public SqlPlan Plan(MigrationPlan plan)
     {
-        var statements = plan.Actions.Select(GenerateSql).ToList();
+        var statements = plan.Actions.Select(ToStatement).ToList();
         return new SqlPlan(statements);
     }
+
+    private static SqlStatement ToStatement(MigrationAction action) => action switch
+    {
+        RunPreDeploymentScript x => new SqlStatement(x.Script.Sql, x.Script.RunOutsideTransaction),
+        RunPostDeploymentScript x => new SqlStatement(x.Script.Sql, x.Script.RunOutsideTransaction),
+        _ => new SqlStatement(GenerateSql(action)),
+    };
 
     // ── SQL generation ────────────────────────────────────────────────────────
 

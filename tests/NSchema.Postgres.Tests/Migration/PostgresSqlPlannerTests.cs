@@ -429,6 +429,54 @@ public sealed class PostgresSqlPlannerTests(PostgresContainerFixture fixture) : 
         exists.ShouldBeTrue();
     }
 
+    // ── Transactions ──────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Execute_FailingStatement_RollsBackEarlierSchemaChanges()
+    {
+        // Arrange — a plan that creates a table successfully, then fails on a bad statement.
+        var goodTable = Table.Create("rollback_target",
+            columns: [Column.Create("id", SqlType.BigInt)]);
+        var planActions = new MigrationAction[]
+        {
+            new CreateTable(_schema, goodTable),
+            new RunPostDeploymentScript(new Script("boom", "SELECT * FROM does_not_exist_xyz")),
+        };
+
+        // Act
+        await Should.ThrowAsync<Npgsql.PostgresException>(() =>
+            _executor.Execute(_planner.Plan(new MigrationPlan(planActions))));
+
+        // Assert — the create from earlier in the plan should have been rolled back.
+        var exists = await ScalarBool(
+            $"SELECT COUNT(*) > 0 FROM information_schema.tables WHERE table_schema = '{_schema}' AND table_name = 'rollback_target'");
+        exists.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Execute_ScriptMarkedRunOutsideTransaction_CommitsIndependentlyOfLaterFailure()
+    {
+        // Arrange — a pre-deployment script with RunOutsideTransaction=true, followed by a failing action.
+        var preScript = new Script("seed_outside", $"""CREATE TABLE "{_schema}"."outside_tx" (id integer)""")
+        {
+            RunOutsideTransaction = true,
+        };
+        var planActions = new MigrationAction[]
+        {
+            new RunPreDeploymentScript(preScript),
+            new RunPostDeploymentScript(new Script("boom", "SELECT * FROM does_not_exist_xyz")),
+        };
+
+        // Act
+        await Should.ThrowAsync<Npgsql.PostgresException>(() =>
+            _executor.Execute(_planner.Plan(new MigrationPlan(planActions))));
+
+        // Assert — the out-of-tx script committed before the failure, so its table survives.
+        var exists = await ScalarBool(
+            $"SELECT COUNT(*) > 0 FROM information_schema.tables WHERE table_schema = '{_schema}' AND table_name = 'outside_tx'");
+        exists.ShouldBeTrue();
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private async Task Exec(string sql)
