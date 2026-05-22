@@ -11,7 +11,7 @@ var builder = NSchemaApplication.CreateBuilder(args);
 builder
     .AddSchemasFromAssemblyContaining<Program>()
     .UsePostgres(connectionString)
-    .WithDryRun(true)
+    //.WithDryRun(true)
     .WithDestructiveActionPolicy(DestructiveActionPolicy.Warn);
 
 var migration = builder.Build();

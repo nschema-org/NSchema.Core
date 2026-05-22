@@ -6,21 +6,21 @@ namespace NSchema.Migration;
 
 public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger) : ISchemaComparer
 {
-    public SchemaPlan Compare(DatabaseSchema source, DatabaseSchema target)
+    public SchemaPlan Compare(DatabaseSchema current, DatabaseSchema desired)
     {
         logger.LogDebug("Beginning schema comparison");
 
         var actions = new List<SchemaAction>();
 
-        foreach (var script in target.PreDeploymentScripts ?? [])
+        foreach (var script in desired.PreDeploymentScripts ?? [])
         {
             logger.LogDebug("Pre-deployment script '{Script}'", script);
             actions.Add(new RunPreDeploymentScript(script));
         }
 
-        CompareSchemas(source.Schemas, target.Schemas, actions);
+        CompareSchemas(current.Schemas, desired.Schemas, actions);
 
-        foreach (var script in target.PostDeploymentScripts ?? [])
+        foreach (var script in desired.PostDeploymentScripts ?? [])
         {
             logger.LogDebug("Post-deployment script '{Script}'", script);
             actions.Add(new RunPostDeploymentScript(script));

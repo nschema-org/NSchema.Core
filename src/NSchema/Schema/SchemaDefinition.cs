@@ -1,5 +1,8 @@
+using System.Diagnostics;
+
 namespace NSchema.Schema;
 
+[DebuggerDisplay("{Name,nq} ({Tables.Count} tables)")]
 public record SchemaDefinition(
     string Name,
     IReadOnlyList<Table> Tables,

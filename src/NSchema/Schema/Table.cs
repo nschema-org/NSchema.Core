@@ -1,5 +1,8 @@
+using System.Diagnostics;
+
 namespace NSchema.Schema;
 
+[DebuggerDisplay("{Name,nq} ({Columns.Count} columns)")]
 public record Table(
     string Name,
     IReadOnlyList<Column> Columns,

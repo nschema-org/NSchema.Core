@@ -31,10 +31,10 @@ public sealed class DefaultSchemaMigrator(
             .ToArray();
 
         // Get current schema state.
-        var current = await currentProvider.GetSchema(schemasInScope, cancellationToken);
+        var currentSchema = await currentProvider.GetSchema(schemasInScope, cancellationToken);
 
         // Diff the two schemas.
-        var plan = comparer.Compare(current, desiredSchema);
+        var plan = comparer.Compare(currentSchema, desiredSchema);
 
         // Apply all registered plan transformers in order.
         plan = planTransformers.Aggregate(plan, (p, t) => t.Transform(p));

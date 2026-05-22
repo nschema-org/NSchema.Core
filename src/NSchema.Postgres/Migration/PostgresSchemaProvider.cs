@@ -23,7 +23,7 @@ public sealed class PostgresSchemaProvider(NpgsqlDataSource dataSource) : ICurre
         var schemaGrants = await QuerySchemaGrants(conn, schemas, cancellationToken);
         var tableGrants = await QueryTableGrants(conn, schemas, cancellationToken);
 
-        return Build(schemas, tables, columns, primaryKeys, foreignKeys, indexes,
+        return Build(tables, columns, primaryKeys, foreignKeys, indexes,
                      schemaComments, tableComments, columnComments, indexComments,
                      schemaGrants, tableGrants);
     }
@@ -375,7 +375,6 @@ public sealed class PostgresSchemaProvider(NpgsqlDataSource dataSource) : ICurre
     // ── Model assembly ────────────────────────────────────────────────────────
 
     private DatabaseSchema Build(
-        string[] schemas,
         List<TableRow> tables,
         List<ColumnRow> columns,
         List<PrimaryKeyRow> primaryKeys,
@@ -394,7 +393,13 @@ public sealed class PostgresSchemaProvider(NpgsqlDataSource dataSource) : ICurre
                 g => g.Key,
                 g => g.Select(t => BuildTable(t, columns, primaryKeys, foreignKeys, indexes, tableComments, columnComments, indexComments, tableGrants)).ToList());
 
-        var dbSchemas = schemas
+        // Drive schema list from what actually exists in the database, not from what was requested.
+        var existingSchemas = schemaComments.Keys
+            .Union(bySchema.Keys)
+            .Union(schemaGrants.Select(g => g.SchemaName))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        var dbSchemas = existingSchemas
             .Select(name =>
             {
                 var grants = schemaGrants
@@ -404,7 +409,7 @@ public sealed class PostgresSchemaProvider(NpgsqlDataSource dataSource) : ICurre
                 return new SchemaDefinition(
                     name,
                     bySchema.TryGetValue(name, out var schemaTables) ? schemaTables : [],
-                    Comment: schemaComments.TryGetValue(name, out var sc) ? sc : null,
+                    Comment: schemaComments.GetValueOrDefault(name),
                     Grants: grants.Count > 0 ? grants : null);
             })
             .ToList();
@@ -443,11 +448,11 @@ public sealed class PostgresSchemaProvider(NpgsqlDataSource dataSource) : ICurre
             .Where(i => i.SchemaName == tableRow.Schema && i.TableName == tableRow.Name)
             .Select(i => new TableIndex(
                 i.IndexName, i.ColumnNames, i.IsUnique,
-                indexComments.TryGetValue((tableRow.Schema, i.IndexName), out var ic) ? ic : null,
+                indexComments.GetValueOrDefault((tableRow.Schema, i.IndexName)),
                 i.Predicate))
             .ToList();
 
-        tableComments.TryGetValue((tableRow.Schema, tableRow.Name), out var tableComment);
+        tableComments.TryGetValue((tableRow.Schema, tableRow.Name), out string? tableComment);
 
         var grants = allTableGrants
             .Where(g => g.SchemaName == tableRow.Schema && g.TableName == tableRow.Name)
@@ -462,7 +467,8 @@ public sealed class PostgresSchemaProvider(NpgsqlDataSource dataSource) : ICurre
             fks.Count > 0 ? fks : null,
             idxs.Count > 0 ? idxs : null,
             Comment: tableComment,
-            Grants: grants.Count > 0 ? grants : null);
+            Grants: grants.Count > 0 ? grants : null
+        );
     }
 
     // ── Mapping ───────────────────────────────────────────────────────────────
@@ -470,7 +476,7 @@ public sealed class PostgresSchemaProvider(NpgsqlDataSource dataSource) : ICurre
     private static Column MapColumn(ColumnRow row, Dictionary<(string, string, string), string?> columnComments)
     {
         var type = MapSqlType(row.DataType, row.UdtName, row.MaxLength, row.NumericPrecision, row.NumericScale);
-        columnComments.TryGetValue((row.TableSchema, row.TableName, row.ColumnName), out var comment);
+        columnComments.TryGetValue((row.TableSchema, row.TableName, row.ColumnName), out string? comment);
         IdentityOptions? identityOptions = row.IsIdentity
             ? new IdentityOptions(row.IdentityStart, row.IdentityMinValue, row.IdentityIncrement)
             : null;
@@ -484,8 +490,7 @@ public sealed class PostgresSchemaProvider(NpgsqlDataSource dataSource) : ICurre
             IdentityOptions: identityOptions);
     }
 
-    private static SqlType MapSqlType(
-        string dataType, string udtName, int? maxLength, int? precision, int? scale) =>
+    private static SqlType MapSqlType(string dataType, string udtName, int? maxLength, int? precision, int? scale) =>
         dataType switch
         {
             "boolean" => SqlType.Boolean,
@@ -509,27 +514,24 @@ public sealed class PostgresSchemaProvider(NpgsqlDataSource dataSource) : ICurre
 
     private static TablePrivilege ToTablePrivilege(IEnumerable<string> privileges)
     {
-        var result = TablePrivilege.None;
-        foreach (var p in privileges)
-            result |= p switch
-            {
-                "SELECT" => TablePrivilege.Select,
-                "INSERT" => TablePrivilege.Insert,
-                "UPDATE" => TablePrivilege.Update,
-                "DELETE" => TablePrivilege.Delete,
-                _ => TablePrivilege.None,
-            };
-        return result;
+        return privileges.Aggregate(TablePrivilege.None, (current, p) => current | p switch
+        {
+            "SELECT" => TablePrivilege.Select,
+            "INSERT" => TablePrivilege.Insert,
+            "UPDATE" => TablePrivilege.Update,
+            "DELETE" => TablePrivilege.Delete,
+            _ => TablePrivilege.None,
+        });
     }
 
-    private static ForeignKey MapForeignKey(ForeignKeyRow row) =>
-        new(row.ConstraintName,
-            row.ColumnNames,
-            row.ForeignSchema,
-            row.ForeignTable,
-            row.ForeignColumnNames,
-            OnDelete: MapReferentialAction(row.DeleteRule),
-            OnUpdate: MapReferentialAction(row.UpdateRule));
+    private static ForeignKey MapForeignKey(ForeignKeyRow row) => new(row.ConstraintName,
+        row.ColumnNames,
+        row.ForeignSchema,
+        row.ForeignTable,
+        row.ForeignColumnNames,
+        OnDelete: MapReferentialAction(row.DeleteRule),
+        OnUpdate: MapReferentialAction(row.UpdateRule)
+    );
 
     private static ReferentialAction MapReferentialAction(char code) => code switch
     {

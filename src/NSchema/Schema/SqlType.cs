@@ -25,45 +25,108 @@ public abstract record SqlType
     public static SqlType VarBinary(int? maxLength = null) => new VarBinaryType(maxLength);
     public static SqlType Custom(string typeName) => new CustomType(typeName);
 
-    public sealed record BooleanType : SqlType;
+    public sealed record BooleanType : SqlType
+    {
+        public override string ToString() => "boolean";
+    }
 
-    public sealed record TinyIntType : SqlType;
+    public sealed record TinyIntType : SqlType
+    {
+        public override string ToString() => "tinyint";
+    }
 
-    public sealed record SmallIntType : SqlType;
+    public sealed record SmallIntType : SqlType
+    {
+        public override string ToString() => "smallint";
+    }
 
-    public sealed record IntType : SqlType;
+    public sealed record IntType : SqlType
+    {
+        public override string ToString() => "int";
+    }
 
-    public sealed record BigIntType : SqlType;
+    public sealed record BigIntType : SqlType
+    {
+        public override string ToString() => "bigint";
+    }
 
-    public sealed record FloatType : SqlType;
+    public sealed record FloatType : SqlType
+    {
+        public override string ToString() => "float";
+    }
 
-    public sealed record DoubleType : SqlType;
+    public sealed record DoubleType : SqlType
+    {
+        public override string ToString() => "double";
+    }
 
-    public sealed record TextType : SqlType;
+    public sealed record TextType : SqlType
+    {
+        public override string ToString() => "text";
+    }
 
-    public sealed record DateType : SqlType;
+    public sealed record DateType : SqlType
+    {
+        public override string ToString() => "date";
+    }
 
-    public sealed record TimeType : SqlType;
+    public sealed record TimeType : SqlType
+    {
+        public override string ToString() => "time";
+    }
 
-    public sealed record DateTimeType : SqlType;
+    public sealed record DateTimeType : SqlType
+    {
+        public override string ToString() => "datetime";
+    }
 
-    public sealed record DateTimeOffsetType : SqlType;
+    public sealed record DateTimeOffsetType : SqlType
+    {
+        public override string ToString() => "datetimeoffset";
+    }
 
-    public sealed record GuidType : SqlType;
+    public sealed record GuidType : SqlType
+    {
+        public override string ToString() => "guid";
+    }
 
-    public sealed record DecimalType(int Precision, int Scale) : SqlType;
+    public sealed record DecimalType(int Precision, int Scale) : SqlType
+    {
+        public override string ToString() => $"decimal({Precision},{Scale})";
+    }
 
-    public sealed record CharType(int Length) : SqlType;
+    public sealed record CharType(int Length) : SqlType
+    {
+        public override string ToString() => $"char({Length})";
+    }
 
-    public sealed record NCharType(int Length) : SqlType;
+    public sealed record NCharType(int Length) : SqlType
+    {
+        public override string ToString() => $"nchar({Length})";
+    }
 
-    public sealed record VarCharType(int? MaxLength) : SqlType;
+    public sealed record VarCharType(int? MaxLength) : SqlType
+    {
+        public override string ToString() => MaxLength is { } n ? $"varchar({n})" : "varchar";
+    }
 
-    public sealed record NVarCharType(int? MaxLength) : SqlType;
+    public sealed record NVarCharType(int? MaxLength) : SqlType
+    {
+        public override string ToString() => MaxLength is { } n ? $"nvarchar({n})" : "nvarchar";
+    }
 
-    public sealed record BinaryType(int Length) : SqlType;
+    public sealed record BinaryType(int Length) : SqlType
+    {
+        public override string ToString() => $"binary({Length})";
+    }
 
-    public sealed record VarBinaryType(int? MaxLength) : SqlType;
+    public sealed record VarBinaryType(int? MaxLength) : SqlType
+    {
+        public override string ToString() => MaxLength is { } n ? $"varbinary({n})" : "varbinary";
+    }
 
-    public sealed record CustomType(string TypeName) : SqlType;
+    public sealed record CustomType(string TypeName) : SqlType
+    {
+        public override string ToString() => TypeName;
+    }
 }

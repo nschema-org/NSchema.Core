@@ -1,5 +1,8 @@
+using System.Diagnostics;
+
 namespace NSchema.Schema;
 
+[DebuggerDisplay("{Schemas.Count} schemas")]
 public record DatabaseSchema(
     IReadOnlyList<SchemaDefinition> Schemas,
     IReadOnlyList<Script> PreDeploymentScripts,
