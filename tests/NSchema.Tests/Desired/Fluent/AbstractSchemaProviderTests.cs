@@ -149,8 +149,7 @@ public sealed class AbstractSchemaProviderTests
         });
 
         var table = model.Schemas[0].Tables[0];
-        table.ForeignKeys.ShouldNotBeNull();
-        table.ForeignKeys!.Count.ShouldBe(1);
+        table.ForeignKeys.Count.ShouldBe(1);
         table.ForeignKeys[0].Name.ShouldBe("fk_posts_user");
         table.ForeignKeys[0].ColumnNames.ShouldBe(["user_id"]);
         table.ForeignKeys[0].ReferencedSchema.ShouldBe("public");
@@ -169,7 +168,6 @@ public sealed class AbstractSchemaProviderTests
         });
 
         var table = model.Schemas[0].Tables[0];
-        table.Indexes.ShouldNotBeNull();
         table.Indexes!.Count.ShouldBe(1);
         table.Indexes[0].Name.ShouldBe("idx_users_email");
         table.Indexes[0].ColumnNames.ShouldBe(["email"]);
@@ -185,7 +183,7 @@ public sealed class AbstractSchemaProviderTests
     }
 
     [Fact]
-    public async Task TableBuilder_NoForeignKeys_ForeignKeysIsNull()
+    public async Task TableBuilder_NoForeignKeys_ForeignKeysIsEmpty()
     {
         var model = await Build(p =>
         {
@@ -193,11 +191,11 @@ public sealed class AbstractSchemaProviderTests
             table.Column("id", SqlType.BigInt);
         });
 
-        model.Schemas[0].Tables[0].ForeignKeys.ShouldBeNull();
+        model.Schemas[0].Tables[0].ForeignKeys.ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task TableBuilder_NoIndexes_IndexesIsNull()
+    public async Task TableBuilder_NoIndexes_IndexesIsEmpty()
     {
         var model = await Build(p =>
         {
@@ -205,7 +203,7 @@ public sealed class AbstractSchemaProviderTests
             table.Column("id", SqlType.BigInt);
         });
 
-        model.Schemas[0].Tables[0].Indexes.ShouldBeNull();
+        model.Schemas[0].Tables[0].Indexes.ShouldBeEmpty();
     }
 
     // ── ColumnBuilder ─────────────────────────────────────────────────────────
@@ -274,7 +272,7 @@ public sealed class AbstractSchemaProviderTests
                 .OnDelete(ReferentialAction.Cascade);
         });
 
-        model.Schemas[0].Tables[0].ForeignKeys![0].OnDelete.ShouldBe(ReferentialAction.Cascade);
+        model.Schemas[0].Tables[0].ForeignKeys[0].OnDelete.ShouldBe(ReferentialAction.Cascade);
     }
 
     [Fact]
@@ -287,7 +285,7 @@ public sealed class AbstractSchemaProviderTests
                 .OnUpdate(ReferentialAction.SetNull);
         });
 
-        model.Schemas[0].Tables[0].ForeignKeys![0].OnUpdate.ShouldBe(ReferentialAction.SetNull);
+        model.Schemas[0].Tables[0].ForeignKeys[0].OnUpdate.ShouldBe(ReferentialAction.SetNull);
     }
 
     [Fact]
@@ -299,7 +297,7 @@ public sealed class AbstractSchemaProviderTests
                 .ForeignKey("fk", ["user_id"], "public", "users", ["id"]);
         });
 
-        var fk = model.Schemas[0].Tables[0].ForeignKeys![0];
+        var fk = model.Schemas[0].Tables[0].ForeignKeys[0];
         fk.OnDelete.ShouldBe(ReferentialAction.NoAction);
         fk.OnUpdate.ShouldBe(ReferentialAction.NoAction);
     }
@@ -316,7 +314,7 @@ public sealed class AbstractSchemaProviderTests
                 .Unique();
         });
 
-        model.Schemas[0].Tables[0].Indexes![0].IsUnique.ShouldBeTrue();
+        model.Schemas[0].Tables[0].Indexes[0].IsUnique.ShouldBeTrue();
     }
 
     [Fact]
@@ -328,6 +326,6 @@ public sealed class AbstractSchemaProviderTests
                 .Index("idx_composite", ["last_name", "first_name"]);
         });
 
-        model.Schemas[0].Tables[0].Indexes![0].ColumnNames.ShouldBe(["last_name", "first_name"]);
+        model.Schemas[0].Tables[0].Indexes[0].ColumnNames.ShouldBe(["last_name", "first_name"]);
     }
 }

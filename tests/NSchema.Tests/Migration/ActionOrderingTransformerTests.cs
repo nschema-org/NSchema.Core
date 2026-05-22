@@ -33,8 +33,8 @@ public class ActionOrderingTransformerTests
         var fk = new ForeignKey("fk_orders_user", ["user_id"], "app", "users", ["id"]);
         var plan = PlanWith(
             new AddForeignKey("app", "orders", fk),
-            new CreateTable("app", new Table("users", [new Column("id", SqlType.Int, IsNullable: false)])),
-            new CreateTable("app", new Table("orders", [new Column("id", SqlType.Int, IsNullable: false)])));
+            new CreateTable("app", new Table("users", Columns: [new Column("id", SqlType.Int, IsNullable: false)])),
+            new CreateTable("app", new Table("orders", Columns: [new Column("id", SqlType.Int, IsNullable: false)])));
 
         // Act
         var result = _sut.Transform(plan).Actions.ToList();
@@ -49,7 +49,7 @@ public class ActionOrderingTransformerTests
     {
         // Arrange
         var plan = PlanWith(
-            new CreateTable("app", new Table("items", [new Column("id", SqlType.Int, IsNullable: false)])),
+            new CreateTable("app", new Table("items", Columns: [new Column("id", SqlType.Int, IsNullable: false)])),
             new RunPreDeploymentScript(new Script("pre", "SELECT 1")));
 
         // Act
@@ -65,7 +65,7 @@ public class ActionOrderingTransformerTests
         // Arrange
         var plan = PlanWith(
             new RunPostDeploymentScript(new Script("post", "SELECT 1")),
-            new CreateTable("app", new Table("items", [new Column("id", SqlType.Int, IsNullable: false)])));
+            new CreateTable("app", new Table("items", Columns: [new Column("id", SqlType.Int, IsNullable: false)])));
 
         // Act
         var result = _sut.Transform(plan).Actions.ToList();

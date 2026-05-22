@@ -14,10 +14,9 @@ public sealed class DefaultSchemaAggregatorTests
         new(schemas, pre, post);
 
     private static SchemaDefinition Schema(string name, params Table[] tables) =>
-        new(name, tables);
+        new(name, Tables: tables);
 
-    private static Table Table(string name) =>
-        new(name, [], null, null, null, null);
+    private static Table Table(string name) => new(name);
 
     // ── Single provider ───────────────────────────────────────────────────────
 
@@ -89,7 +88,7 @@ public sealed class DefaultSchemaAggregatorTests
     [Fact]
     public void Merge_AnyProviderPartial_ResultIsPartial()
     {
-        var db1 = Db(new SchemaDefinition("public", [], IsPartial: true));
+        var db1 = Db(new SchemaDefinition("public", IsPartial: true));
         var db2 = Db(Schema("public", Table("posts")));
 
         var result = s_aggregator.Aggregate([db1, db2]);
@@ -111,8 +110,8 @@ public sealed class DefaultSchemaAggregatorTests
     [Fact]
     public void Merge_DroppedTables_AreCombinedAcrossProviders()
     {
-        var db1 = Db(new SchemaDefinition("public", [], DroppedTables: ["old_users"]));
-        var db2 = Db(new SchemaDefinition("public", [], DroppedTables: ["legacy_data"]));
+        var db1 = Db(new SchemaDefinition("public", DroppedTables: ["old_users"]));
+        var db2 = Db(new SchemaDefinition("public", DroppedTables: ["legacy_data"]));
 
         var result = s_aggregator.Aggregate([db1, db2]);
 
@@ -137,7 +136,7 @@ public sealed class DefaultSchemaAggregatorTests
 
         var result = s_aggregator.Aggregate([db1]);
 
-        result.DroppedSchemas.ShouldBeNull();
+        result.DroppedSchemas.ShouldBeEmpty();
     }
 
     // ── Scripts ───────────────────────────────────────────────────────────────

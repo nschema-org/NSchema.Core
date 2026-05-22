@@ -315,7 +315,7 @@ public sealed class PostgresSchemaProviderTests(PostgresContainerFixture fixture
 
         // Act
         var fk = (await _sut.GetSchema([_schema]))
-            .Schemas[0].Tables.Single(t => t.Name == "users").ForeignKeys![0];
+            .Schemas[0].Tables.Single(t => t.Name == "users").ForeignKeys[0];
 
         // Assert
         fk.OnDelete.ShouldBe(ReferentialAction.Cascade);
@@ -323,7 +323,7 @@ public sealed class PostgresSchemaProviderTests(PostgresContainerFixture fixture
     }
 
     [Fact]
-    public async Task GetSchema_TableWithNoForeignKeys_ReturnsNullForeignKeys()
+    public async Task GetSchema_TableWithNoForeignKeys_ReturnsEmptyForeignKeys()
     {
         // Arrange
         await Exec($"""
@@ -336,7 +336,7 @@ public sealed class PostgresSchemaProviderTests(PostgresContainerFixture fixture
         var table = (await _sut.GetSchema([_schema])).Schemas[0].Tables[0];
 
         // Assert
-        table.ForeignKeys.ShouldBeNull();
+        table.ForeignKeys.ShouldBeEmpty();
     }
 
     // ── Indexes ───────────────────────────────────────────────────────────────
@@ -355,7 +355,7 @@ public sealed class PostgresSchemaProviderTests(PostgresContainerFixture fixture
 
         // Act
         var idx = (await _sut.GetSchema([_schema]))
-            .Schemas[0].Tables[0].Indexes!.Single();
+            .Schemas[0].Tables[0].Indexes.Single();
 
         // Assert
         idx.Name.ShouldBe("ix_users_email");
@@ -377,7 +377,7 @@ public sealed class PostgresSchemaProviderTests(PostgresContainerFixture fixture
 
         // Act
         var idx = (await _sut.GetSchema([_schema]))
-            .Schemas[0].Tables[0].Indexes!.Single();
+            .Schemas[0].Tables[0].Indexes.Single();
 
         // Assert
         idx.IsUnique.ShouldBeTrue();
@@ -398,7 +398,7 @@ public sealed class PostgresSchemaProviderTests(PostgresContainerFixture fixture
 
         // Act
         var idx = (await _sut.GetSchema([_schema]))
-            .Schemas[0].Tables[0].Indexes!.Single();
+            .Schemas[0].Tables[0].Indexes.Single();
 
         // Assert
         idx.ColumnNames.ShouldBe(["user_id", "happened"]);
@@ -418,6 +418,6 @@ public sealed class PostgresSchemaProviderTests(PostgresContainerFixture fixture
         var table = (await _sut.GetSchema([_schema])).Schemas[0].Tables[0];
 
         // Assert
-        table.Indexes.ShouldBeNull();
+        table.Indexes.ShouldBeEmpty();
     }
 }

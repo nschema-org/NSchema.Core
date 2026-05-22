@@ -61,7 +61,7 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
                 {
                     actions.Add(new SetSchemaComment(desiredSchema.Name, null, desiredSchema.Comment));
                 }
-                foreach (var grant in desiredSchema.Grants ?? [])
+                foreach (var grant in desiredSchema.Grants)
                 {
                     actions.Add(new GrantSchemaUsage(desiredSchema.Name, grant.Role));
                 }
@@ -85,7 +85,7 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
                     actions.Add(new SetSchemaComment(desiredSchema.Name, matchingCurrent.Comment, desiredSchema.Comment));
                 }
 
-                CompareSchemaGrants(desiredSchema.Name, matchingCurrent.Grants ?? [], desiredSchema.Grants ?? [], actions);
+                CompareSchemaGrants(desiredSchema.Name, matchingCurrent.Grants, desiredSchema.Grants, actions);
                 CompareTables(desiredSchema.Name, matchingCurrent.Tables, desiredSchema, actions);
             }
         }
@@ -93,7 +93,7 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
 
     private void CompareTables(string schemaName, IReadOnlyList<Table> current, SchemaDefinition desired, List<SchemaAction> actions)
     {
-        var droppedTables = desired.DroppedTables ?? [];
+        var droppedTables = desired.DroppedTables;
 
         foreach (var currentTable in current)
         {
@@ -145,9 +145,9 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
 
                 CompareColumns(schemaName, desiredTable.Name, matchingCurrent.Columns, desiredTable.Columns, actions);
                 ComparePrimaryKey(schemaName, desiredTable.Name, matchingCurrent.PrimaryKey, desiredTable.PrimaryKey, actions);
-                CompareForeignKeys(schemaName, desiredTable.Name, matchingCurrent.ForeignKeys ?? [], desiredTable.ForeignKeys ?? [], actions);
-                CompareIndexes(schemaName, desiredTable.Name, matchingCurrent.Indexes ?? [], desiredTable.Indexes ?? [], actions);
-                CompareTableGrants(schemaName, desiredTable.Name, matchingCurrent.Grants ?? [], desiredTable.Grants ?? [], actions);
+                CompareForeignKeys(schemaName, desiredTable.Name, matchingCurrent.ForeignKeys, desiredTable.ForeignKeys, actions);
+                CompareIndexes(schemaName, desiredTable.Name, matchingCurrent.Indexes, desiredTable.Indexes, actions);
+                CompareTableGrants(schemaName, desiredTable.Name, matchingCurrent.Grants, desiredTable.Grants, actions);
             }
         }
     }
@@ -384,13 +384,13 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
         logger.LogDebug("Creating table '{Schema}.{Table}'", schemaName, table.Name);
         actions.Add(new CreateTable(schemaName, table));
 
-        foreach (var fk in table.ForeignKeys ?? [])
+        foreach (var fk in table.ForeignKeys)
         {
             logger.LogDebug("Adding foreign key '{FkName}' to new table '{Schema}.{Table}'", fk.Name, schemaName, table.Name);
             actions.Add(new AddForeignKey(schemaName, table.Name, fk));
         }
 
-        foreach (var idx in table.Indexes ?? [])
+        foreach (var idx in table.Indexes)
         {
             logger.LogDebug("Adding index '{IndexName}' to new table '{Schema}.{Table}'", idx.Name, schemaName, table.Name);
             actions.Add(new CreateIndex(schemaName, table.Name, idx));
@@ -404,7 +404,7 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
         foreach (var col in table.Columns.Where(c => c.Comment is not null))
             actions.Add(new SetColumnComment(schemaName, table.Name, col.Name, null, col.Comment));
 
-        foreach (var grant in table.Grants ?? [])
+        foreach (var grant in table.Grants)
         {
             logger.LogDebug("Granting privileges on new table '{Schema}.{Table}' to '{Role}'", schemaName, table.Name, grant.Role);
             actions.Add(new GrantTablePrivileges(schemaName, table.Name, grant.Role, grant.Privileges));

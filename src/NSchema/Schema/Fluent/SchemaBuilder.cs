@@ -28,7 +28,5 @@ public sealed class SchemaBuilder
     public SchemaBuilder DropTable(string name) { _droppedTables.Add(name); return this; }
 
     internal SchemaDefinition Build() =>
-        new(_name, _tables.Select(t => t.Build()).ToList(), _previousName, _isPartial,
-            _droppedTables.Count > 0 ? _droppedTables : null, _comment,
-            _grants.Count > 0 ? _grants : null);
+        new(_name, _previousName, _isPartial, _comment, _tables.Select(t => t.Build()).ToList(), _droppedTables, _grants);
 }

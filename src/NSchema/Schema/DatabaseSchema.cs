@@ -10,6 +10,8 @@ public record DatabaseSchema(
     IReadOnlyList<string>? DroppedSchemas = null
 )
 {
+    public IReadOnlyList<string> DroppedSchemas { get; init; } = DroppedSchemas ?? [];
+
     public DatabaseSchema(IReadOnlyList<SchemaDefinition> Schemas)
         : this(Schemas, [], []) { }
 }

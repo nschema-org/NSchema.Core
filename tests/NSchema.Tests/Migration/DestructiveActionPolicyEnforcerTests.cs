@@ -17,7 +17,7 @@ public class DestructiveActionPolicyEnforcerTests
 
     private static readonly SchemaAction DestructiveAction = new DropTable("public", "users");
     private static readonly SchemaAction NonDestructiveAction = new CreateTable("public",
-        new Table("users", [new Column("id", SqlType.BigInt, IsNullable: false)]));
+        new Table("users", Columns: [new Column("id", SqlType.BigInt, IsNullable: false)]));
 
     [Fact]
     public void Validate_WhenPolicyIsError_ReturnsErrorForDestructiveAction()

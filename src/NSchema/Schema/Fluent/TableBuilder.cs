@@ -46,11 +46,7 @@ public sealed class TableBuilder
 
     internal Table Build() =>
         new(_name,
-            _columns.Select(c => c.Build()).ToList(),
-            _primaryKey,
-            _foreignKeys.Count > 0 ? _foreignKeys.Select(f => f.Build()).ToList() : null,
-            _indexes.Count > 0 ? _indexes.Select(i => i.Build()).ToList() : null,
             _previousName,
-            _comment,
-            _grants.Count > 0 ? _grants : null);
+            _primaryKey,
+            _comment, _columns.Select(c => c.Build()).ToList(), _foreignKeys.Select(f => f.Build()).ToList(), _indexes.Select(i => i.Build()).ToList(), _grants);
 }

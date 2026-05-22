@@ -32,7 +32,6 @@ public abstract class AbstractSchemaProvider : IDesiredSchemaProvider
     {
         var schemas = _schemas.Select(s => s.Build()).ToList();
         return Task.FromResult(new DatabaseSchema(
-            schemas, _preScripts, _postScripts,
-            _droppedSchemas.Count > 0 ? _droppedSchemas : null));
+            schemas, _preScripts, _postScripts, _droppedSchemas));
     }
 }

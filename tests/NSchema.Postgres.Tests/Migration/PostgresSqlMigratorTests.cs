@@ -92,7 +92,7 @@ public sealed class PostgresSqlMigratorTests(PostgresContainerFixture fixture) :
     {
         // Arrange
         var table = new Table("users",
-            [new Column("id", SqlType.BigInt, IsNullable: false)]);
+            Columns: [new Column("id", SqlType.BigInt, IsNullable: false)]);
 
         // Act
         await _executor.Apply(_executor.Plan(new SchemaPlan([new CreateTable(_schema, table)])));
@@ -108,8 +108,7 @@ public sealed class PostgresSqlMigratorTests(PostgresContainerFixture fixture) :
     {
         // Arrange
         var table = new Table("orders",
-            [new Column("id", SqlType.BigInt, IsNullable: false)],
-            PrimaryKey: new PrimaryKey("pk_orders", ["id"]));
+            PrimaryKey: new PrimaryKey("pk_orders", ["id"]), Columns: [new Column("id", SqlType.BigInt, IsNullable: false)]);
 
         // Act
         await _executor.Apply(_executor.Plan(new SchemaPlan([new CreateTable(_schema, table)])));

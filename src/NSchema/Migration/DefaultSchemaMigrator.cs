@@ -26,7 +26,7 @@ public sealed class DefaultSchemaMigrator(
         }
 
         string[] schemasInScope = desiredSchema.Schemas.Select(s => s.Name)
-            .Concat(desiredSchema.DroppedSchemas ?? [])
+            .Concat(desiredSchema.DroppedSchemas)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 

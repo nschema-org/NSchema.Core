@@ -408,9 +408,8 @@ public sealed class PostgresSchemaProvider(NpgsqlDataSource dataSource) : ICurre
                     .ToList();
                 return new SchemaDefinition(
                     name,
-                    bySchema.TryGetValue(name, out var schemaTables) ? schemaTables : [],
                     Comment: schemaComments.GetValueOrDefault(name),
-                    Grants: grants.Count > 0 ? grants : null);
+                    Tables: bySchema.TryGetValue(name, out var schemaTables) ? schemaTables : [], Grants: grants);
             })
             .ToList();
 
@@ -460,15 +459,7 @@ public sealed class PostgresSchemaProvider(NpgsqlDataSource dataSource) : ICurre
             .Select(g => new TableGrant(g.Key, ToTablePrivilege(g.Select(r => r.Privilege))))
             .ToList();
 
-        return new Table(
-            tableRow.Name,
-            cols,
-            pk,
-            fks.Count > 0 ? fks : null,
-            idxs.Count > 0 ? idxs : null,
-            Comment: tableComment,
-            Grants: grants.Count > 0 ? grants : null
-        );
+        return new Table(tableRow.Name, PrimaryKey: pk, Comment: tableComment, Columns: cols, ForeignKeys: fks, Indexes: idxs, Grants: grants);
     }
 
     // ── Mapping ───────────────────────────────────────────────────────────────

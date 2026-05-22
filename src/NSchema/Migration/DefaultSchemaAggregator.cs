@@ -17,7 +17,7 @@ public sealed class DefaultSchemaAggregator : ISchemaAggregator
         var preScripts = all.SelectMany(db => db.PreDeploymentScripts).ToList();
         var postScripts = all.SelectMany(db => db.PostDeploymentScripts).ToList();
         var droppedSchemas = all
-            .SelectMany(db => db.DroppedSchemas ?? [])
+            .SelectMany(db => db.DroppedSchemas)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -46,12 +46,12 @@ public sealed class DefaultSchemaAggregator : ISchemaAggregator
 
         bool isPartial = group.Any(s => s.IsPartial);
         var droppedTables = group
-            .SelectMany(s => s.DroppedTables ?? [])
+            .SelectMany(s => s.DroppedTables)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         string? previousName = group.Select(s => s.PreviousName).FirstOrDefault(n => n is not null);
 
-        return new SchemaDefinition(group.Key, tables, previousName, isPartial,
-            droppedTables.Count > 0 ? droppedTables : null);
+        return new SchemaDefinition(group.Key, previousName, isPartial, null,
+            tables, droppedTables.Count > 0 ? droppedTables : null);
     }
 }
