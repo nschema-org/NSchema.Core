@@ -1,7 +1,7 @@
 using NSchema.Schema;
 using NSchema.Schema.Fluent;
 
-namespace NSchema.Tests.Desired.Fluent;
+namespace NSchema.Tests.Schema.Fluent;
 
 public sealed class AbstractSchemaProviderTests
 {

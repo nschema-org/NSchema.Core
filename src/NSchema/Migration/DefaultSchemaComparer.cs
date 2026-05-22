@@ -61,8 +61,7 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
                 }
                 else
                 {
-                    logger.LogInformation("Schema '{OldName}' renamed to '{NewName}'", matchingCurrent.Name,
-                        desiredSchema.Name);
+                    logger.LogInformation("Schema '{OldName}' renamed to '{NewName}'", matchingCurrent.Name, desiredSchema.Name);
                     actions.Add(new RenameSchema(matchingCurrent.Name, desiredSchema.Name));
                 }
 
@@ -225,8 +224,7 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
         }
     }
 
-    private void ComparePrimaryKey(string schemaName, string tableName, PrimaryKey? current, PrimaryKey? desired,
-        List<SchemaAction> actions)
+    private void ComparePrimaryKey(string schemaName, string tableName, PrimaryKey? current, PrimaryKey? desired, List<SchemaAction> actions)
     {
         if (current?.Equals(desired) ?? desired == null)
         {
@@ -382,7 +380,9 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
             logger.LogInformation("Adding index '{IndexName}' to new table '{Schema}.{Table}'", idx.Name, schemaName, table.Name);
             actions.Add(new CreateIndex(schemaName, table.Name, idx));
             if (idx.Comment is not null)
+            {
                 actions.Add(new SetIndexComment(schemaName, table.Name, idx.Name, null, idx.Comment));
+            }
         }
 
         if (table.Comment is not null)

@@ -1,7 +1,7 @@
 using NSchema.Migration;
 using NSchema.Schema;
 
-namespace NSchema.Tests.Desired;
+namespace NSchema.Tests.Migration;
 
 public sealed class DefaultSchemaAggregatorTests
 {

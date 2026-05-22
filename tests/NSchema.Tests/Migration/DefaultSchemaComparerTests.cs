@@ -3,7 +3,7 @@ using NSchema.Migration;
 using NSchema.Migration.Actions;
 using NSchema.Schema;
 
-namespace NSchema.Tests.Comparison;
+namespace NSchema.Tests.Migration;
 
 public class DefaultSchemaComparerTests
 {

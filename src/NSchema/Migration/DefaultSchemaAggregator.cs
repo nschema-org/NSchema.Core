@@ -49,6 +49,7 @@ public sealed class DefaultSchemaAggregator : ISchemaAggregator
         string? previousName = group.Select(s => s.PreviousName).FirstOrDefault(n => n is not null);
 
         return new SchemaDefinition(group.Key, previousName, isPartial, null,
-            tables, droppedTables.Count > 0 ? droppedTables : null);
+            comments, tables, droppedTables.Count > 0 ? droppedTables : null
+            );
     }
 }

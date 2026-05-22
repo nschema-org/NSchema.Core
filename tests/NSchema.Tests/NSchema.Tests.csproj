@@ -32,8 +32,4 @@
     <ProjectReference Include="..\..\src\NSchema\NSchema.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Target\" />
-  </ItemGroup>
-
 </Project>
