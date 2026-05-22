@@ -3,7 +3,7 @@ using NSchema.Migration.Actions;
 
 namespace NSchema.Migration;
 
-public sealed class ActionOrderingTransformer : IMigrationPlanTransformer
+internal sealed class ActionOrderingTransformer : IMigrationPlanTransformer
 {
     public static readonly IReadOnlyDictionary<Type, int> Priorities = new List<Type> {
         typeof(RunPreDeploymentScript),

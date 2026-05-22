@@ -4,10 +4,7 @@ using NSchema.Policies;
 
 namespace NSchema.Migration;
 
-public sealed class DestructiveActionPolicyEnforcer(
-    ILogger<DestructiveActionPolicyEnforcer> logger,
-    IOptions<MigrationOptions> options
-) : IActionPolicy
+internal sealed class DestructiveActionPolicyEnforcer(ILogger<DestructiveActionPolicyEnforcer> logger, IOptions<MigrationOptions> options) : IActionPolicy
 {
     public IEnumerable<PolicyError> Validate(SchemaPlan plan)
     {

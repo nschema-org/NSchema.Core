@@ -11,7 +11,7 @@ public sealed class DefaultSchemaAggregator : ISchemaAggregator
         var mergedSchemas = all
             .SelectMany(db => db.Schemas)
             .GroupBy(s => s.Name)
-            .Select(MergeSchemaGroup)
+            .Select(s => AggregateSchemaGroup(s.ToList()))
             .ToList();
 
         var droppedSchemas = all
@@ -22,45 +22,44 @@ public sealed class DefaultSchemaAggregator : ISchemaAggregator
         return new DatabaseSchema(mergedSchemas, droppedSchemas.Count > 0 ? droppedSchemas : null);
     }
 
-    private static SchemaDefinition MergeSchemaGroup(IGrouping<string, SchemaDefinition> group)
+    private SchemaDefinition AggregateSchemaGroup(IReadOnlyList<SchemaDefinition> schemas)
     {
         var tables = new List<Table>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var schema in group)
+        string schemaName = schemas[0].Name;
+        foreach (var schema in schemas)
         {
             foreach (var table in schema.Tables)
             {
                 if (!seen.Add(table.Name))
                 {
-                    throw new InvalidOperationException(
-                        $"Duplicate table '{table.Name}' found in schema '{group.Key}' across multiple providers.");
+                    throw new InvalidOperationException($"Duplicate table '{table.Name}' found in schema '{schemaName}' across multiple providers.");
                 }
 
                 tables.Add(table);
             }
         }
 
-        bool isPartial = group.Any(s => s.IsPartial);
-        var droppedTables = group
-            .SelectMany(s => s.DroppedTables)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        string? previousName = group.Select(s => s.PreviousName).FirstOrDefault(n => n is not null);
-
-        var comments = group.Select(s => s.Comment).Where(c => c is not null).Distinct().ToList();
+        var comments = schemas.Select(s => s.Comment).Where(c => c is not null).Distinct().ToList();
         if (comments.Count > 1)
         {
-            throw new InvalidOperationException(
-                $"Conflicting comments specified for schema '{group.Key}' across multiple providers.");
+            throw new InvalidOperationException($"Conflicting comments specified for schema '{schemaName}' across multiple providers.");
         }
         string? comment = comments.FirstOrDefault();
 
-        var grants = group
+        bool isPartial = schemas.Any(s => s.IsPartial);
+        var droppedTables = schemas
+            .SelectMany(s => s.DroppedTables)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        string? previousName = schemas.Select(s => s.PreviousName).FirstOrDefault(n => n is not null);
+
+        var grants = schemas
             .SelectMany(s => s.Grants)
             .Distinct()
             .ToList();
 
-        return new SchemaDefinition(group.Key, previousName, isPartial, comment, tables, droppedTables, grants);
+        return new SchemaDefinition(schemaName, previousName, isPartial, comment, tables, droppedTables, grants);
     }
 }
