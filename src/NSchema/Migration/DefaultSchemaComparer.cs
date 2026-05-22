@@ -11,20 +11,7 @@ public sealed class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger)
         logger.LogDebug("Beginning schema comparison");
 
         var actions = new List<SchemaAction>();
-
-        foreach (var script in desired.PreDeploymentScripts ?? [])
-        {
-            logger.LogDebug("Pre-deployment script '{Script}'", script);
-            actions.Add(new RunPreDeploymentScript(script));
-        }
-
         CompareSchemas(current.Schemas, desired.Schemas, actions);
-
-        foreach (var script in desired.PostDeploymentScripts ?? [])
-        {
-            logger.LogDebug("Post-deployment script '{Script}'", script);
-            actions.Add(new RunPostDeploymentScript(script));
-        }
 
         logger.LogDebug("Comparison complete: {ActionCount} actions generated", actions.Count);
 

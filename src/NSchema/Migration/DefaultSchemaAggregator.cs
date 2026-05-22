@@ -14,15 +14,12 @@ public sealed class DefaultSchemaAggregator : ISchemaAggregator
             .Select(MergeSchemaGroup)
             .ToList();
 
-        var preScripts = all.SelectMany(db => db.PreDeploymentScripts).ToList();
-        var postScripts = all.SelectMany(db => db.PostDeploymentScripts).ToList();
         var droppedSchemas = all
             .SelectMany(db => db.DroppedSchemas)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        return new DatabaseSchema(mergedSchemas, preScripts, postScripts,
-            droppedSchemas.Count > 0 ? droppedSchemas : null);
+        return new DatabaseSchema(mergedSchemas, droppedSchemas.Count > 0 ? droppedSchemas : null);
     }
 
     private static SchemaDefinition MergeSchemaGroup(IGrouping<string, SchemaDefinition> group)

@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using NSchema.Hosting;
 using NSchema.Migration;
 using NSchema.Policies;
+using NSchema.Schema;
 
 namespace NSchema;
 
@@ -64,8 +65,9 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
 
     public NSchemaApplicationBuilder AddSchema<T>() where T : IDesiredSchemaProvider
     {
-        var schema = new ServiceDescriptor(typeof(IDesiredSchemaProvider), typeof(T), ServiceLifetime.Singleton);
-        Services.TryAddEnumerable(schema);
+        Services.TryAddEnumerable(new ServiceDescriptor(typeof(IDesiredSchemaProvider), typeof(T), ServiceLifetime.Singleton));
+        if (typeof(IDeploymentScriptProvider).IsAssignableFrom(typeof(T)))
+            Services.TryAddEnumerable(new ServiceDescriptor(typeof(IDeploymentScriptProvider), typeof(T), ServiceLifetime.Singleton));
         return this;
     }
 
@@ -76,6 +78,8 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
         foreach (var type in types)
         {
             Services.TryAddEnumerable(new ServiceDescriptor(typeof(IDesiredSchemaProvider), type, ServiceLifetime.Singleton));
+            if (typeof(IDeploymentScriptProvider).IsAssignableFrom(type))
+                Services.TryAddEnumerable(new ServiceDescriptor(typeof(IDeploymentScriptProvider), type, ServiceLifetime.Singleton));
         }
         return this;
     }
@@ -113,6 +117,18 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
     {
         var descriptor = new ServiceDescriptor(typeof(IActionPolicy), typeof(T), ServiceLifetime.Singleton);
         Services.TryAddEnumerable(descriptor);
+        return this;
+    }
+
+    public NSchemaApplicationBuilder AddPreDeploymentScript(string name, string sql)
+    {
+        Services.AddSingleton<IDeploymentScriptProvider>(new InlineScriptProvider(pre: [new Script(name, sql)], post: []));
+        return this;
+    }
+
+    public NSchemaApplicationBuilder AddPostDeploymentScript(string name, string sql)
+    {
+        Services.AddSingleton<IDeploymentScriptProvider>(new InlineScriptProvider(pre: [], post: [new Script(name, sql)]));
         return this;
     }
 

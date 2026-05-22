@@ -7,11 +7,7 @@ public sealed class DefaultSchemaAggregatorTests
 {
     private static readonly DefaultSchemaAggregator s_aggregator = new();
 
-    private static DatabaseSchema Db(params SchemaDefinition[] schemas) =>
-        new(schemas, [], []);
-
-    private static DatabaseSchema Db(IReadOnlyList<SchemaDefinition> schemas, IReadOnlyList<Script> pre, IReadOnlyList<Script> post) =>
-        new(schemas, pre, post);
+    private static DatabaseSchema Db(params SchemaDefinition[] schemas) => new(schemas);
 
     private static SchemaDefinition Schema(string name, params Table[] tables) =>
         new(name, Tables: tables);
@@ -79,8 +75,6 @@ public sealed class DefaultSchemaAggregatorTests
         var result = s_aggregator.Aggregate([]);
 
         result.Schemas.ShouldBeEmpty();
-        result.PreDeploymentScripts.ShouldBeEmpty();
-        result.PostDeploymentScripts.ShouldBeEmpty();
     }
 
     // ── Partial schemas ───────────────────────────────────────────────────────
@@ -121,8 +115,8 @@ public sealed class DefaultSchemaAggregatorTests
     [Fact]
     public void Merge_DroppedSchemas_AreCombinedAcrossProviders()
     {
-        var db1 = new DatabaseSchema([], [], [], ["old_schema"]);
-        var db2 = new DatabaseSchema([], [], [], ["legacy"]);
+        var db1 = new DatabaseSchema([], ["old_schema"]);
+        var db2 = new DatabaseSchema([], ["legacy"]);
 
         var result = s_aggregator.Aggregate([db1, db2]);
 
@@ -139,39 +133,4 @@ public sealed class DefaultSchemaAggregatorTests
         result.DroppedSchemas.ShouldBeEmpty();
     }
 
-    // ── Scripts ───────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Merge_ConcatenatesPreDeploymentScripts()
-    {
-        var db1 = Db([], [new Script("a", "SELECT 1")], []);
-        var db2 = Db([], [new Script("b", "SELECT 2")], []);
-
-        var result = s_aggregator.Aggregate([db1, db2]);
-
-        result.PreDeploymentScripts.Select(s => s.Name).ShouldBe(["a", "b"]);
-    }
-
-    [Fact]
-    public void Merge_ConcatenatesPostDeploymentScripts()
-    {
-        var db1 = Db([], [], [new Script("seed1", "INSERT INTO t VALUES (1)")]);
-        var db2 = Db([], [], [new Script("seed2", "INSERT INTO t VALUES (2)")]);
-
-        var result = s_aggregator.Aggregate([db1, db2]);
-
-        result.PostDeploymentScripts.Select(s => s.Name).ShouldBe(["seed1", "seed2"]);
-    }
-
-    [Fact]
-    public void Merge_NoScripts_ScriptListsAreEmpty()
-    {
-        var db1 = Db(Schema("public", Table("users")));
-        var db2 = Db(Schema("admin", Table("roles")));
-
-        var result = s_aggregator.Aggregate([db1, db2]);
-
-        result.PreDeploymentScripts.ShouldBeEmpty();
-        result.PostDeploymentScripts.ShouldBeEmpty();
-    }
 }

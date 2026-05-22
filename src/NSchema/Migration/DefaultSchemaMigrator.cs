@@ -1,3 +1,4 @@
+using NSchema.Migration.Actions;
 using NSchema.Policies;
 
 namespace NSchema.Migration;
@@ -5,6 +6,7 @@ namespace NSchema.Migration;
 public sealed class DefaultSchemaMigrator(
     ICurrentSchemaProvider currentProvider,
     IEnumerable<IDesiredSchemaProvider> desiredProviders,
+    IEnumerable<IDeploymentScriptProvider> scriptProviders,
     ISchemaAggregator schemaAggregator,
     ISchemaComparer comparer,
     IEnumerable<ISchemaPolicy> schemaValidationPolicies,
@@ -34,18 +36,31 @@ public sealed class DefaultSchemaMigrator(
         var currentSchema = await currentProvider.GetSchema(schemasInScope, cancellationToken);
 
         // Diff the two schemas.
-        var plan = comparer.Compare(currentSchema, desiredSchema);
+        var schemaPlan = comparer.Compare(currentSchema, desiredSchema);
+
+        // Collect deployment scripts and inject into the plan.
+        var providerList = scriptProviders.ToList();
+        if (providerList.Count > 0)
+        {
+            var preActions = providerList
+                .SelectMany(p => p.PreDeploymentScripts)
+                .Select(SchemaAction (s) => new RunPreDeploymentScript(s));
+            var postActions = providerList
+                .SelectMany(p => p.PostDeploymentScripts)
+                .Select(SchemaAction (s) => new RunPostDeploymentScript(s));
+            schemaPlan = new SchemaPlan([.. preActions, .. schemaPlan.Actions, .. postActions]);
+        }
 
         // Apply all registered plan transformers in order.
-        plan = planTransformers.Aggregate(plan, (p, t) => t.Transform(p));
+        schemaPlan = planTransformers.Aggregate(schemaPlan, (p, t) => t.Transform(p));
 
         // Run all registered action policies against the transformed plan.
-        var actionErrors = actionValidationPolicies.SelectMany(p => p.Validate(plan)).ToList();
+        var actionErrors = actionValidationPolicies.SelectMany(p => p.Validate(schemaPlan)).ToList();
         if (actionErrors.Count > 0)
         {
             throw new PolicyViolationException(actionErrors);
         }
 
-        return plan;
+        return schemaPlan;
     }
 }

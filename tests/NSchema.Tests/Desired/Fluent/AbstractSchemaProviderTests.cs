@@ -14,6 +14,13 @@ public sealed class AbstractSchemaProviderTests
         return await provider.GetSchema();
     }
 
+    private static TestSchemaProvider BuildProvider(Action<TestSchemaProvider> configure)
+    {
+        var provider = new TestSchemaProvider();
+        configure(provider);
+        return provider;
+    }
+
     // ── DatabaseModelBuilder ──────────────────────────────────────────────────
 
     [Fact]
@@ -43,34 +50,6 @@ public sealed class AbstractSchemaProviderTests
 
         model.Schemas.Count.ShouldBe(2);
         model.Schemas.Select(s => s.Name).ShouldBe(["public", "admin"]);
-    }
-
-    [Fact]
-    public async Task PreDeploymentScript_AddsScriptToModel()
-    {
-        var model = await Build(p => p.PreDeploymentScript("init", "SELECT 1"));
-
-        model.PreDeploymentScripts.Count.ShouldBe(1);
-        model.PreDeploymentScripts[0].Name.ShouldBe("init");
-        model.PreDeploymentScripts[0].Sql.ShouldBe("SELECT 1");
-    }
-
-    [Fact]
-    public async Task PostDeploymentScript_AddsScriptToModel()
-    {
-        var model = await Build(p => p.PostDeploymentScript("seed", "INSERT INTO config DEFAULT VALUES"));
-
-        model.PostDeploymentScripts.Count.ShouldBe(1);
-        model.PostDeploymentScripts[0].Name.ShouldBe("seed");
-    }
-
-    [Fact]
-    public async Task Build_WithNoScripts_ScriptListsAreEmpty()
-    {
-        var model = await Build(_ => { });
-
-        model.PreDeploymentScripts.ShouldBeEmpty();
-        model.PostDeploymentScripts.ShouldBeEmpty();
     }
 
     // ── SchemaBuilder ─────────────────────────────────────────────────────────

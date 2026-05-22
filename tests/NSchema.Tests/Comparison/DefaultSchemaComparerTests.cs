@@ -534,40 +534,4 @@ public class DefaultSchemaComparerTests
         result.Actions.Any(i => i is SetSchemaComment or SetTableComment or SetColumnComment or SetIndexComment).ShouldBeFalse();
     }
 
-    // ── Deployment scripts ───────────────────────────────────────────────────
-
-    [Fact]
-    public void Diff_PreDeploymentScript_IsFirstAction()
-    {
-        // Arrange
-        var script = new Script("install_citext", "CREATE EXTENSION IF NOT EXISTS citext;");
-        var desired = new DatabaseSchema([], PreDeploymentScripts: [script], PostDeploymentScripts: []);
-
-        // Act
-        var result = _comparer.Compare(Empty(), desired);
-
-        // Assert
-        result.Actions[0].ShouldBeOfType<RunPreDeploymentScript>()
-            .Script.Name.ShouldBe("install_citext");
-    }
-
-    [Fact]
-    public void Diff_PostDeploymentScript_IsLastAction()
-    {
-        // Arrange
-        var script = new Script("seed", "INSERT INTO app.config VALUES ('version', '1');");
-        var desired = new DatabaseSchema(
-            [new SchemaDefinition("app", Tables: [SimpleTable("config")])],
-            PreDeploymentScripts: [],
-            PostDeploymentScripts: [script]
-        );
-
-        // Act
-        var result = _comparer.Compare(Empty(), desired);
-
-        // Assert
-        result.Actions[^1].ShouldBeOfType<RunPostDeploymentScript>()
-            .Script.Name.ShouldBe("seed");
-    }
-
 }
