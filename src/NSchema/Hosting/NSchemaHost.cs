@@ -2,6 +2,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSchema.Migration;
+using NSchema.Migration.Sql;
 
 namespace NSchema.Hosting;
 

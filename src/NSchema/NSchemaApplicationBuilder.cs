@@ -8,8 +8,8 @@ using Microsoft.Extensions.Logging;
 using NSchema.Hosting;
 using NSchema.Migration;
 using NSchema.Migration.ScriptProviders;
+using NSchema.Migration.Sql;
 using NSchema.Policies;
-using NSchema.Schema;
 
 namespace NSchema;
 

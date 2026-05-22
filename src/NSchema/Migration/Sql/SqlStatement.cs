@@ -1,7 +1,7 @@
-namespace NSchema.Migration;
+namespace NSchema.Migration.Sql;
 
 /// <summary>
-/// A single SQL statement in a <see cref="SqlPlan"/>, together with execution metadata.
+/// A single SQL statement in a <see cref="Sql"/>, together with execution metadata.
 /// </summary>
 /// <param name="Sql">The SQL text to execute.</param>
 /// <param name="RunOutsideTransaction">
