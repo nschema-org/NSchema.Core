@@ -4,7 +4,7 @@ A declarative database schema migration library for .NET.
 
 You describe the schema you want in C#. NSchema reads the current state of the database, diffs it against your desired state, then generates and applies a migration plan to close the gap.
 
-## Quick start
+## Getting started
 
 Install the core package and a provider for your database:
 
@@ -13,7 +13,7 @@ dotnet add package NSchema
 dotnet add package NSchema.Postgres
 ```
 
-Declare a schema by subclassing `AbstractSchemaProvider`:
+Declare a schema by subclassing `AbstractSchemaProvider` using your preferred style:
 
 ```csharp
 using NSchema.Schema;
@@ -23,11 +23,22 @@ public class AppSchema : AbstractSchemaProvider
 {
     public AppSchema()
     {
+        // Return style
         var users = Schema("app").Table("users");
         users.Column("id", SqlType.Text).PrimaryKey("users_pkey");
-        users.Column("email", SqlType.Citext).NotNull();
+        users.Column("email", SqlType.Text).NotNull();
         users.Column("name", SqlType.Text).NotNull();
         users.Index("uc_users_email", ["email"]).Unique();
+
+        // Delegate style
+        Schema("app", s => s
+            .Table("users", t => t
+                .Column("id", SqlType.Text, c => c.PrimaryKey("users_pkey"))
+                .Column("email", SqlType.Text, c => c.NotNull())
+                .Column("name", SqlType.Text, c => c.NotNull())
+                .Index("uc_users_email", ["email"], i => i.Unique())
+            )
+        );
     }
 }
 ```

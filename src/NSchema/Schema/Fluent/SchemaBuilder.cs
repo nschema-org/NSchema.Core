@@ -16,15 +16,29 @@ public sealed class SchemaBuilder
     internal SchemaBuilder(string name) => _name = name;
 
     /// <summary>
-    /// Adds a new table to the schema with the specified name and returns a builder for configuring the table's properties and columns.
+    /// Adds a new table to the schema with the specified name.
     /// </summary>
     /// <param name="name">The name of the table to add to the schema.</param>
-    /// <returns>A <see cref="TableBuilder"/> instance that can be used to configure the table's properties and columns.</returns>
+    /// <returns>A <see cref="TableBuilder"/> instance that can be used to configure the table.</returns>
     public TableBuilder Table(string name)
     {
         var builder = new TableBuilder(name);
         _tables.Add(builder);
         return builder;
+    }
+
+    /// <summary>
+    /// Adds a new table to the schema with the specified name.
+    /// </summary>
+    /// <param name="name">The name of the table to add to the schema.</param>
+    /// <param name="configure">A delegate that can be used to configure the table.</param>
+    /// <returns>The current <see cref="SchemaBuilder"/> instance, allowing for method chaining.</returns>
+    public SchemaBuilder Table(string name, Action<TableBuilder> configure)
+    {
+        var builder = new TableBuilder(name);
+        _tables.Add(builder);
+        configure.Invoke(builder);
+        return this;
     }
 
     /// <summary>
