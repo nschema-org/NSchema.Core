@@ -8,7 +8,8 @@ namespace NSchema.Hosting;
 /// <summary>
 /// The hosted service that runs the database migration.
 /// </summary>
-/// <param name="logger">The logger for the host.</param>
+/// <param name="logger">The logger for diagnostic output (structured sinks).</param>
+/// <param name="reporter">The reporter for user-facing migration progress.</param>
 /// <param name="lifetime">The application lifetime.</param>
 /// <param name="migrator">The schema migrator.</param>
 /// <param name="sqlPlanner">The SQL planner, used to generate the SQL that will be executed.</param>
@@ -16,6 +17,7 @@ namespace NSchema.Hosting;
 /// <param name="options">The migration options.</param>
 internal class NSchemaHost(
     ILogger<NSchemaHost> logger,
+    IMigrationReporter reporter,
     IOptions<MigrationOptions> options,
     IHostApplicationLifetime lifetime,
     IMigrationPlanProvider migrator,
@@ -33,18 +35,18 @@ internal class NSchemaHost(
 
             if (options.Value.DryRun)
             {
-                logger.LogInformation("Dry run enabled. No changes will be applied to the database.");
+                reporter.Info("Dry run enabled. No changes will be applied to the database.");
 
                 if (sqlPlan.IsEmpty)
                 {
-                    logger.LogInformation("No changes detected.");
+                    reporter.Info("No changes detected.");
                 }
                 else
                 {
-                    logger.LogInformation("Changes detected. The following SQL would be executed to apply the migration:");
-                    foreach(var statement in sqlPlan.Statements)
+                    reporter.Info("Changes detected. The following SQL would be executed to apply the migration:");
+                    foreach (var statement in sqlPlan.Statements)
                     {
-                        logger.LogInformation("Statement: {Sql}", statement.Sql);
+                        reporter.Info($"Statement: {statement.Sql}");
                     }
                 }
             }

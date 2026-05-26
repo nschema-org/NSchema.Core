@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using NSchema.Hosting;
 using NSchema.Migration;
 using NSchema.Migration.Plan;
 using NSchema.Schema;
@@ -9,7 +9,7 @@ namespace NSchema.Tests.Migration;
 public class DestructiveActionMigrationPolicyTests
 {
     private static DestructiveActionMigrationPolicy Create(DestructiveActionPolicy policy) => new(
-        NullLogger<DestructiveActionMigrationPolicy>.Instance,
+        Substitute.For<IMigrationReporter>(),
         Options.Create(new MigrationOptions { DestructiveActionPolicy = policy })
     );
 

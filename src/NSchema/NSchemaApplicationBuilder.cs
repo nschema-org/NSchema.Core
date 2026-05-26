@@ -36,6 +36,9 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
             Configuration = new ConfigurationManager(),
         });
 
+        // Drop the default console logger so third-party libraries don't spam the terminal.
+        _innerBuilder.Logging.ClearProviders();
+
         _innerBuilder.Services
             .AddOptions<MigrationOptions>();
     }
@@ -233,6 +236,7 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
 
     private static void ApplyServices(IServiceCollection services)
     {
+        services.TryAddSingleton<IMigrationReporter, DefaultMigrationReporter>();
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
         services.TryAddSingleton<ISchemaAggregator, DefaultSchemaAggregator>();
         services.TryAddSingleton<IMigrationPlanProvider, DefaultMigrationPlanProvider>();

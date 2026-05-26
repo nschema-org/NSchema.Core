@@ -17,11 +17,13 @@ public sealed class NSchemaHostTests
         MigrationOptions? options = null)
         => new(
             NullLogger<NSchemaHost>.Instance,
+            Substitute.For<IMigrationReporter>(),
             Options.Create(options ?? new MigrationOptions()),
             lifetime,
             planProvider,
             planner,
-            executor);
+            executor
+        );
 
     private static IMigrationPlanProvider PlanProviderReturning(MigrationPlan plan)
     {
