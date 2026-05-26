@@ -43,6 +43,8 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
             .AddOptions<MigrationOptions>();
     }
 
+    #region Host Builder
+
     /// <inheritdoc />
     public IDictionary<object, object> Properties => ((IHostApplicationBuilder)_innerBuilder).Properties;
 
@@ -60,6 +62,47 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
 
     /// <inheritdoc />
     public IServiceCollection Services => _innerBuilder.Services;
+
+    #endregion
+
+    #region Configuration
+
+    /// <summary>
+    /// Configures the policy to apply when a destructive action is detected in the migration plan.
+    /// </summary>
+    /// <param name="policy">The policy to apply.</param>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder WithDestructiveActionPolicy(DestructiveActionPolicy policy)
+    {
+        Services.Configure<MigrationOptions>(o => o.DestructiveActionPolicy = policy);
+        return this;
+    }
+
+    /// <summary>
+    /// Configures the application to perform a dry run, where the migration plan will be generated and logged but not executed against the database.
+    /// </summary>
+    /// <param name="dryRun">Whether to enable dry run mode. Defaults to true.</param>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder DryRunOnly(bool dryRun = true)
+    {
+        Services.Configure<MigrationOptions>(o => o.DryRun = dryRun);
+        return this;
+    }
+
+    /// <summary>
+    /// Scopes the migration to a specific set of schema names.
+    /// </summary>
+    /// <param name="schemaNames">The schema names to include in the migration.</param>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder ForSchemas(params string[] schemaNames)
+    {
+        Services.Configure<MigrationOptions>(o => o.SchemaNames = schemaNames);
+        return this;
+    }
+
+    #endregion
+
+    #region Desired Schema
 
     /// <summary>
     /// Adds a provider to the application that will be used to retrieve the desired schema.
@@ -95,85 +138,9 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddSchemasFromAssemblyContaining<T>() => AddSchemasFromAssembly(typeof(T).Assembly);
 
-    /// <summary>
-    /// Configures the policy to apply when a destructive action is detected in the migration plan.
-    /// </summary>
-    /// <param name="policy">The policy to apply.</param>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder WithDestructiveActionPolicy(DestructiveActionPolicy policy)
-    {
-        Services.Configure<MigrationOptions>(o => o.DestructiveActionPolicy = policy);
-        return this;
-    }
+    #endregion
 
-    /// <summary>
-    /// Configures the application to perform a dry run, where the migration plan will be generated and logged but not executed against the database.
-    /// </summary>
-    /// <param name="dryRun">Whether to enable dry run mode. Defaults to true.</param>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder DryRunOnly(bool dryRun = true)
-    {
-        Services.Configure<MigrationOptions>(o => o.DryRun = dryRun);
-        return this;
-    }
-
-    /// <summary>
-    /// Scopes the migration to a specific set of schema names.
-    /// </summary>
-    /// <param name="schemaNames">The schema names to include in the migration.</param>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder ForSchemas(params string[] schemaNames)
-    {
-        Services.Configure<MigrationOptions>(o => o.SchemaNames = schemaNames);
-        return this;
-    }
-
-    /// <summary>
-    /// Adds a policy to the application that will be used to validate the desired schema.
-    /// </summary>
-    /// <typeparam name="T">The type of the policy to add.</typeparam>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddSchemaPolicy<T>() where T : class, ISchemaPolicy
-    {
-        var descriptor = new ServiceDescriptor(typeof(ISchemaPolicy), typeof(T), ServiceLifetime.Singleton);
-        Services.TryAddEnumerable(descriptor);
-        return this;
-    }
-
-    /// <summary>
-    /// Adds a transformer to the application that will be used to transform the migration plan before it is executed.
-    /// </summary>
-    /// <typeparam name="T">The type of the transformer to add.</typeparam>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddPlanTransformer<T>() where T : class, IMigrationPlanTransformer
-    {
-        var descriptor = new ServiceDescriptor(typeof(IMigrationPlanTransformer), typeof(T), ServiceLifetime.Singleton);
-        Services.TryAddEnumerable(descriptor);
-        return this;
-    }
-
-    /// <summary>
-    /// Adds a custom SQL executor to the application that will be used to execute the generated migration scripts against the database.
-    /// </summary>
-    /// <typeparam name="T">The type of the SQL executor to add.</typeparam>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder UseSqlExecutor<T>() where T : class, ISqlExecutor
-    {
-        Services.AddSingleton<ISqlExecutor, T>();
-        return this;
-    }
-
-    /// <summary>
-    /// Adds a policy to the application that will be used to validate the generated migration plan before it is executed.
-    /// </summary>
-    /// <typeparam name="T">The type of the policy to add.</typeparam>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddMigrationPolicy<T>() where T : class, IMigrationPolicy
-    {
-        var descriptor = new ServiceDescriptor(typeof(IMigrationPolicy), typeof(T), ServiceLifetime.Singleton);
-        Services.TryAddEnumerable(descriptor);
-        return this;
-    }
+    #region Scripts
 
     /// <summary>
     /// Adds a provider to the application that will be used to retrieve deployment scripts to run during migration.
@@ -227,6 +194,93 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddScriptsFromEmbeddedResources(ScriptType type, Assembly assembly, string resourcePrefix)
         => AddScriptProvider(new EmbeddedResourcePrefixScriptProvider(type, assembly, resourcePrefix));
+
+    #endregion
+
+    #region Schema Policies
+
+    /// <summary>
+    /// Adds a policy to the application that will be used to validate the desired schema.
+    /// </summary>
+    /// <typeparam name="T">The type of the policy to add.</typeparam>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder AddSchemaPolicy<T>() where T : class, ISchemaPolicy
+    {
+        var descriptor = new ServiceDescriptor(typeof(ISchemaPolicy), typeof(T), ServiceLifetime.Singleton);
+        Services.TryAddEnumerable(descriptor);
+        return this;
+    }
+
+    #endregion
+
+    #region Plan Transformers
+
+    /// <summary>
+    /// Adds a transformer to the application that will be used to transform the migration plan before it is executed.
+    /// </summary>
+    /// <typeparam name="T">The type of the transformer to add.</typeparam>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder AddPlanTransformer<T>() where T : class, IMigrationPlanTransformer
+    {
+        var descriptor = new ServiceDescriptor(typeof(IMigrationPlanTransformer), typeof(T), ServiceLifetime.Singleton);
+        Services.TryAddEnumerable(descriptor);
+        return this;
+    }
+
+    #endregion
+
+    #region Migration Policies
+
+    /// <summary>
+    /// Adds a policy to the application that will be used to validate the generated migration plan before it is executed.
+    /// </summary>
+    /// <typeparam name="T">The type of the policy to add.</typeparam>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder AddMigrationPolicy<T>() where T : class, IMigrationPolicy
+    {
+        var descriptor = new ServiceDescriptor(typeof(IMigrationPolicy), typeof(T), ServiceLifetime.Singleton);
+        Services.TryAddEnumerable(descriptor);
+        return this;
+    }
+
+    #endregion
+
+    #region Other Extension Points
+
+    /// <summary>
+    /// Adds a custom SQL executor to the application that will be used to execute the generated migration scripts against the database.
+    /// </summary>
+    /// <typeparam name="T">The type of the SQL executor to add.</typeparam>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder UseSqlExecutor<T>() where T : class, ISqlExecutor
+    {
+        Services.AddSingleton<ISqlExecutor, T>();
+        return this;
+    }
+
+    /// <summary>
+    /// Registers the <see cref="ISchemaProvider"/> that supplies the current (live) database schema.
+    /// </summary>
+    /// <typeparam name="T">The type of the provider to register as the current-state source.</typeparam>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder UseSchemaSource<T>() where T : class, ISchemaProvider
+    {
+        Services.AddKeyedSingleton<ISchemaProvider, T>(ISchemaProvider.CurrentSchemaProviderKey);
+        return this;
+    }
+
+    /// <summary>
+    /// Registers the <see cref="ISqlPlanner"/> that generates the SQL for a migration plan.
+    /// </summary>
+    /// <typeparam name="T">The type of the provider to register as the current-state source.</typeparam>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder UseSqlPlanner<T>() where T : class, ISqlPlanner
+    {
+        Services.AddSingleton<ISqlPlanner, T>();
+        return this;
+    }
+
+    #endregion
 
     /// <summary>
     /// Builds the <see cref="NSchemaApplication" />.
