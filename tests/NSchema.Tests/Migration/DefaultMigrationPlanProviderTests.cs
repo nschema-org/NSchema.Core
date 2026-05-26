@@ -1,3 +1,4 @@
+using NSchema.Hosting;
 using NSchema.Migration;
 using NSchema.Migration.Plan;
 using NSchema.Policies;
@@ -51,6 +52,7 @@ public sealed class DefaultMigrationPlanProviderTests
         IEnumerable<IMigrationPlanTransformer>? transformers = null,
         IEnumerable<IMigrationPolicy>? migrationPolicies = null
     ) => new(
+        Substitute.For<IMigrationReporter>(),
         current ?? CurrentProvider(DatabaseSchema.Create([])),
         desired ?? [DesiredProvider(DatabaseSchema.Create([]))],
         scripts ?? [],
