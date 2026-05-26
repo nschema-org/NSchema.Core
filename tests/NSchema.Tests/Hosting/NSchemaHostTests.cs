@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSchema.Hosting;
 using NSchema.Migration;
@@ -14,14 +13,8 @@ public sealed class NSchemaHostTests
         ISqlPlanner planner,
         ISqlExecutor executor,
         IHostApplicationLifetime lifetime,
-        MigrationOptions? options = null)
-        => new(
-            NullLogger<NSchemaHost>.Instance,
-            Options.Create(options ?? new MigrationOptions()),
-            lifetime,
-            planProvider,
-            planner,
-            executor);
+        MigrationOptions? options = null
+    ) => new(Options.Create(options ?? new MigrationOptions()), Substitute.For<IMigrationReporter>(), Substitute.For<IMigrationPlanRenderer>(), lifetime, planProvider, planner, executor);
 
     private static IMigrationPlanProvider PlanProviderReturning(MigrationPlan plan)
     {
