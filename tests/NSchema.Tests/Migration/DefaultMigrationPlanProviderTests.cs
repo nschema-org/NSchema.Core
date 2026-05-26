@@ -60,7 +60,8 @@ public sealed class DefaultMigrationPlanProviderTests
         comparer ?? Comparer(),
         schemaPolicies ?? [],
         transformers ?? [],
-        migrationPolicies ?? []);
+        migrationPolicies ?? []
+    );
 
     [Fact]
     public async Task GetMigrationPlan_AggregatesDesiredSchemasBeforeComparing()
