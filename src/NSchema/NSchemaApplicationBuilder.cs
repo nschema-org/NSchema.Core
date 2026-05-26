@@ -21,11 +21,6 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
 
     internal NSchemaApplicationBuilder(NSchemaApplicationOptions options)
     {
-        var configuration = new ConfigurationManager();
-        configuration.AddInMemoryCollection(new Dictionary<string, string?> {
-            { "Logging:LogLevel:Microsoft.Hosting.Lifetime", nameof(LogLevel.Warning) }
-        });
-
         // When left empty, the content root usually defaults to the current working directory.
         // Since NSchema will usually be run from a project/repository directory, it won't be able to
         // find things like appsettings.json.
@@ -37,7 +32,7 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
             ApplicationName = options.ApplicationName,
             EnvironmentName = options.EnvironmentName,
             ContentRootPath = contentRoot,
-            Configuration = configuration,
+            Configuration = new ConfigurationManager(),
         });
 
         _innerBuilder.Services
