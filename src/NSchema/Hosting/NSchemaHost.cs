@@ -46,7 +46,7 @@ internal class NSchemaHost(
                     reporter.Info("Changes detected. The following SQL would be executed to apply the migration:");
                     foreach (var statement in sqlPlan.Statements)
                     {
-                        reporter.Info($"Statement: {statement.Sql}");
+                        reporter.Info(statement.Sql);
                     }
                 }
             }
