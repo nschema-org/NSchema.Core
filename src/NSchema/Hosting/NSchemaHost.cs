@@ -33,16 +33,19 @@ internal class NSchemaHost(
 
             if (options.Value.DryRun)
             {
+                logger.LogInformation("Dry run enabled. No changes will be applied to the database.");
 
                 if (sqlPlan.IsEmpty)
                 {
-                    logger.LogInformation("Dry run: no changes detected.");
+                    logger.LogInformation("No changes detected.");
                 }
                 else
                 {
-                    logger.LogInformation("Dry run: {Count} statement(s) would be executed:\n\n{Script}",
-                        sqlPlan.Statements.Count,
-                        string.Join(";\n\n", sqlPlan) + ";");
+                    logger.LogInformation("Changes detected. The following SQL would be executed to apply the migration:");
+                    foreach(var statement in sqlPlan.Statements)
+                    {
+                        logger.LogInformation("Statement: {Sql}", statement.Sql);
+                    }
                 }
             }
             else
