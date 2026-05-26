@@ -50,7 +50,7 @@ public class ActionOrderingTransformerTests
         // Arrange
         var plan = PlanWith(
             new CreateTable("app", Table.Create("items", columns: [Column.Create("id", SqlType.Int, isNullable: false)])),
-            new RunPreDeploymentScript(new Script("pre", "SELECT 1")));
+            new RunPreDeploymentScript(new Script("pre", "SELECT 1", ScriptType.PreDeployment)));
 
         // Act
         var result = _sut.Transform(plan).Actions.ToList();
@@ -64,7 +64,7 @@ public class ActionOrderingTransformerTests
     {
         // Arrange
         var plan = PlanWith(
-            new RunPostDeploymentScript(new Script("post", "SELECT 1")),
+            new RunPostDeploymentScript(new Script("post", "SELECT 1", ScriptType.PostDeployment)),
             new CreateTable("app", Table.Create("items", columns: [Column.Create("id", SqlType.Int, isNullable: false)])));
 
         // Act

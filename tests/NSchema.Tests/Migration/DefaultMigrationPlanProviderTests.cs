@@ -44,7 +44,7 @@ public sealed class DefaultMigrationPlanProviderTests
     private static DefaultMigrationPlanProvider Build(
         ICurrentSchemaProvider? current = null,
         IEnumerable<IDesiredSchemaProvider>? desired = null,
-        IEnumerable<IDeploymentScriptProvider>? scripts = null,
+        IEnumerable<IScriptProvider>? scripts = null,
         ISchemaAggregator? aggregator = null,
         ISchemaComparer? comparer = null,
         IEnumerable<ISchemaPolicy>? schemaPolicies = null,
@@ -147,11 +147,12 @@ public sealed class DefaultMigrationPlanProviderTests
     public async Task GetMigrationPlan_InjectsPreAndPostDeploymentScriptsAroundActions()
     {
         var coreAction = new CreateSchema("app");
-        var scripts = Substitute.For<IDeploymentScriptProvider>();
-        scripts.GetPreDeploymentScripts(Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<IReadOnlyList<Script>>([new Script("pre", "SELECT 1")]));
-        scripts.GetPostDeploymentScripts(Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<IReadOnlyList<Script>>([new Script("post", "SELECT 2")]));
+        var scripts = Substitute.For<IScriptProvider>();
+        scripts.GetScripts(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<Script>>([
+                new Script("pre", "SELECT 1", ScriptType.PreDeployment),
+                new Script("post", "SELECT 2", ScriptType.PostDeployment),
+            ]));
 
         var sut = Build(scripts: [scripts], comparer: Comparer(coreAction));
 

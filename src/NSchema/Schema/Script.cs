@@ -5,7 +5,8 @@ namespace NSchema.Schema;
 /// </summary>
 /// <param name="Name">The name of the script, which can be used for identification and reference purposes.</param>
 /// <param name="Sql">The actual SQL code contained in the script, which defines the operations to be performed on the database when the script is executed.</param>
-public record Script(string Name, string Sql)
+/// <param name="Type">The type of script, indicating when it should be executed in relation to the main migration actions.</param>
+public record Script(string Name, string Sql, ScriptType Type)
 {
     /// <summary>
     /// When true, the script runs outside of the migration's transaction.

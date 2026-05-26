@@ -6,20 +6,12 @@ namespace NSchema.Migration.ScriptProviders;
 /// <summary>
 /// Provides migration scripts by loading embedded resources from a specified assembly that match a given resource name prefix.
 /// </summary>
-/// <param name="phase">The deployment phase for which the scripts should be provided.</param>
+/// <param name="type">The type of the script, indicating when it should be executed in relation to the main migration actions.</param>
 /// <param name="assembly">The assembly containing the embedded resources to be loaded as migration scripts.</param>
 /// <param name="resourcePrefix">The prefix used to filter embedded resources in the assembly.</param>
-internal sealed class EmbeddedResourcePrefixScriptProvider(DeploymentPhase phase, Assembly assembly, string resourcePrefix) : IDeploymentScriptProvider
+internal sealed class EmbeddedResourcePrefixScriptProvider(ScriptType type, Assembly assembly, string resourcePrefix) : IScriptProvider
 {
-    private static readonly IReadOnlyList<Script> s_empty = [];
-
-    public async Task<IReadOnlyList<Script>> GetPreDeploymentScripts(CancellationToken cancellationToken = default)
-        => phase == DeploymentPhase.Pre ? await Load(cancellationToken) : s_empty;
-
-    public async Task<IReadOnlyList<Script>> GetPostDeploymentScripts(CancellationToken cancellationToken = default)
-        => phase == DeploymentPhase.Post ? await Load(cancellationToken) : s_empty;
-
-    private async Task<IReadOnlyList<Script>> Load(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<Script>> GetScripts(CancellationToken cancellationToken = default)
     {
         var resourceNames = assembly.GetManifestResourceNames()
             .Where(n => n.StartsWith(resourcePrefix, StringComparison.OrdinalIgnoreCase))
@@ -29,7 +21,7 @@ internal sealed class EmbeddedResourcePrefixScriptProvider(DeploymentPhase phase
         foreach (var resourceName in resourceNames)
         {
             var sql = await EmbeddedResource.Read(assembly, resourceName, cancellationToken);
-            scripts.Add(new Script(EmbeddedResource.DeriveName(resourceName), sql));
+            scripts.Add(new Script(EmbeddedResource.DeriveName(resourceName), sql, type));
         }
         return scripts;
     }

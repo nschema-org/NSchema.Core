@@ -1,5 +1,6 @@
 using NSchema.Migration.Plan;
 using NSchema.Policies;
+using NSchema.Schema;
 
 namespace NSchema.Migration;
 
@@ -17,7 +18,7 @@ namespace NSchema.Migration;
 internal sealed class DefaultMigrationPlanProvider(
     ICurrentSchemaProvider currentProvider,
     IEnumerable<IDesiredSchemaProvider> desiredProviders,
-    IEnumerable<IDeploymentScriptProvider> scriptProviders,
+    IEnumerable<IScriptProvider> scriptProviders,
     ISchemaAggregator schemaAggregator,
     ISchemaComparer comparer,
     IEnumerable<ISchemaPolicy> schemaPolicies,
@@ -53,10 +54,10 @@ internal sealed class DefaultMigrationPlanProvider(
         var providerList = scriptProviders.ToList();
         if (providerList.Count > 0)
         {
-            var preLists = await Task.WhenAll(providerList.Select(p => p.GetPreDeploymentScripts(cancellationToken)));
-            var postLists = await Task.WhenAll(providerList.Select(p => p.GetPostDeploymentScripts(cancellationToken)));
-            var preActions = preLists.SelectMany(s => s).Select(MigrationAction (s) => new RunPreDeploymentScript(s));
-            var postActions = postLists.SelectMany(s => s).Select(MigrationAction (s) => new RunPostDeploymentScript(s));
+            var scriptLists = await Task.WhenAll(providerList.Select(p => p.GetScripts(cancellationToken)));
+            var scripts = scriptLists.SelectMany(s => s).ToList();
+            var preActions = scripts.Where(s => s.Type == ScriptType.PreDeployment).Select(MigrationAction (s) => new RunPreDeploymentScript(s));
+            var postActions = scripts.Where(s => s.Type == ScriptType.PostDeployment).Select(MigrationAction (s) => new RunPostDeploymentScript(s));
             migrationPlan = new MigrationPlan([.. preActions, .. migrationPlan.Actions, .. postActions]);
         }
 

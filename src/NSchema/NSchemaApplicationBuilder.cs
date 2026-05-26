@@ -9,6 +9,7 @@ using NSchema.Hosting;
 using NSchema.Migration;
 using NSchema.Migration.ScriptProviders;
 using NSchema.Policies;
+using NSchema.Schema;
 
 namespace NSchema;
 
@@ -65,10 +66,6 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
     public NSchemaApplicationBuilder AddSchema<T>() where T : IDesiredSchemaProvider
     {
         Services.TryAddEnumerable(new ServiceDescriptor(typeof(IDesiredSchemaProvider), typeof(T), ServiceLifetime.Singleton));
-        if (typeof(IDeploymentScriptProvider).IsAssignableFrom(typeof(T)))
-        {
-            Services.TryAddEnumerable(new ServiceDescriptor(typeof(IDeploymentScriptProvider), typeof(T), ServiceLifetime.Singleton));
-        }
         return this;
     }
 
@@ -84,10 +81,6 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
         foreach (var type in types)
         {
             Services.TryAddEnumerable(new ServiceDescriptor(typeof(IDesiredSchemaProvider), type, ServiceLifetime.Singleton));
-            if (typeof(IDeploymentScriptProvider).IsAssignableFrom(type))
-            {
-                Services.TryAddEnumerable(new ServiceDescriptor(typeof(IDeploymentScriptProvider), type, ServiceLifetime.Singleton));
-            }
         }
         return this;
     }
@@ -173,7 +166,7 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
     /// </summary>
     /// <param name="provider">The provider to add.</param>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddScriptProvider(IDeploymentScriptProvider provider)
+    public NSchemaApplicationBuilder AddScriptProvider(IScriptProvider provider)
     {
         Services.AddSingleton(provider);
         return this;
@@ -184,67 +177,42 @@ public class NSchemaApplicationBuilder : IHostApplicationBuilder
     /// </summary>
     /// <typeparam name="TProvider">The type of the provider to add.</typeparam>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddScriptProvider<TProvider>() where TProvider : class, IDeploymentScriptProvider
+    public NSchemaApplicationBuilder AddScriptProvider<TProvider>() where TProvider : class, IScriptProvider
     {
-        Services.AddSingleton<IDeploymentScriptProvider, TProvider>();
+        Services.AddSingleton<IScriptProvider, TProvider>();
         return this;
     }
 
     /// <summary>
-    /// Adds a SQL script to the application from a file that will be run before any other migration actions.
-    /// </summary>
-    /// <param name="path">The path to the SQL script file.</param>
-    /// <param name="name">An optional name for the script, used for logging and in migration plans. If not provided, the file name will be used.</param>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddPreDeploymentScriptFromFile(string path, string? name = null)
-        => AddScriptProvider(new FileScriptProvider(DeploymentPhase.Pre, path, name));
-
-    /// <summary>
     /// Adds a SQL script to the application from a file that will be run after all other migration actions.
     /// </summary>
+    /// <param name="type">The type of the script, indicating when it should be executed in relation to the main migration actions.</param>
     /// <param name="path">The path to the SQL script file.</param>
     /// <param name="name">An optional name for the script, used for logging and in migration plans. If not provided, the file name will be used.</param>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddPostDeploymentScriptFromFile(string path, string? name = null)
-        => AddScriptProvider(new FileScriptProvider(DeploymentPhase.Post, path, name));
-
-    /// <summary>
-    /// Adds SQL scripts to the application from files in a directory that will be run before any other migration actions. The scripts will be run in alphabetical order.
-    /// </summary>
-    /// <param name="assembly">The assembly containing the embedded resource.</param>
-    /// <param name="resourceName">The name of the embedded resource containing the SQL script.</param>
-    /// <param name="name">An optional name for the script, used for logging and in migration plans. If not provided, the resource name will be used.</param>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddPreDeploymentScriptFromEmbeddedResource(Assembly assembly, string resourceName, string? name = null)
-        => AddScriptProvider(new EmbeddedResourceScriptProvider(DeploymentPhase.Pre, assembly, resourceName, name));
+    public NSchemaApplicationBuilder AddScriptFromFile(ScriptType type, string path, string? name = null)
+        => AddScriptProvider(new FileScriptProvider(type, path, name));
 
     /// <summary>
     /// Adds SQL scripts to the application from files in a directory that will be run after all other migration actions. The scripts will be run in alphabetical order.
     /// </summary>
+    /// <param name="type">The type of the script, indicating when it should be executed in relation to the main migration actions.</param>
     /// <param name="assembly">The assembly containing the embedded resource.</param>
     /// <param name="resourceName">The name of the embedded resource containing the SQL script.</param>
     /// <param name="name">An optional name for the script, used for logging and in migration plans. If not provided, the resource name will be used.</param>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddPostDeploymentScriptFromEmbeddedResource(Assembly assembly, string resourceName, string? name = null)
-        => AddScriptProvider(new EmbeddedResourceScriptProvider(DeploymentPhase.Post, assembly, resourceName, name));
-
-    /// <summary>
-    /// Adds SQL scripts to the application from embedded resources in an assembly that will be run before any other migration actions. The scripts will be run in alphabetical order.
-    /// </summary>
-    /// <param name="assembly">The assembly containing the embedded resources.</param>
-    /// <param name="resourcePrefix">The prefix of the embedded resources to include as scripts. For example, if the assembly contains embedded resources "Scripts.Pre.Script1.sql" and "Scripts.Pre.Script2.sql", a prefix of "Scripts.Pre." would include both of these as scripts.</param>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddPreDeploymentScriptsFromEmbeddedResources(Assembly assembly, string resourcePrefix)
-        => AddScriptProvider(new EmbeddedResourcePrefixScriptProvider(DeploymentPhase.Pre, assembly, resourcePrefix));
+    public NSchemaApplicationBuilder AddPostDeploymentScriptFromEmbeddedResource(ScriptType type, Assembly assembly, string resourceName, string? name = null)
+        => AddScriptProvider(new EmbeddedResourceScriptProvider(type, assembly, resourceName, name));
 
     /// <summary>
     /// Adds SQL scripts to the application from embedded resources in an assembly that will be run after all other migration actions. The scripts will be run in alphabetical order.
     /// </summary>
+    /// <param name="type">The type of the script, indicating when it should be executed in relation to the main migration actions.</param>
     /// <param name="assembly">The assembly containing the embedded resources.</param>
     /// <param name="resourcePrefix">The prefix of the embedded resources to include as scripts. For example, if the assembly contains embedded resources "Scripts.Post.Script1.sql" and "Scripts.Post.Script2.sql", a prefix of "Scripts.Post." would include both of these as scripts.</param>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddPostDeploymentScriptsFromEmbeddedResources(Assembly assembly, string resourcePrefix)
-        => AddScriptProvider(new EmbeddedResourcePrefixScriptProvider(DeploymentPhase.Post, assembly, resourcePrefix));
+    public NSchemaApplicationBuilder AddScriptsFromEmbeddedResources(ScriptType type, Assembly assembly, string resourcePrefix)
+        => AddScriptProvider(new EmbeddedResourcePrefixScriptProvider(type, assembly, resourcePrefix));
 
     /// <summary>
     /// Builds the <see cref="NSchemaApplication" />.
