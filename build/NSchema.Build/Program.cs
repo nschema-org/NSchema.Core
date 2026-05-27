@@ -19,6 +19,7 @@ builder.Services.AddOptions<BuildOptions>()
     .Validate(b => !string.IsNullOrEmpty(b.TempDirectory))
     .Validate(b => !string.IsNullOrEmpty(b.Configuration))
     .Validate(b => !string.IsNullOrEmpty(b.ProjectFile))
+    .Validate(b => !string.IsNullOrEmpty(b.ChangelogFile))
     .ValidateOnStart();
 
 var pipeline = builder.Build();
@@ -29,15 +30,21 @@ return args switch
         .UseStep<Format>()
         .UseStep<ExtractProject>()
         .UseStep<Version>()
+        .UseStep<Changelog>()
         .UseStep<Restore>()
         .UseStep<Build>()
         .UseStep<Test>()
         .RunWithExitCode(),
     ["deploy"] => pipeline
         .UseStep<Clean>()
+        .UseStep<ExtractProject>()
+        .UseStep<Version>()
+        .UseStep<Changelog>()
         .UseStep<Restore>()
         .UseStep<Build>()
+        .UseStep<Test>()
         .UseStep<Pack>()
+        .UseStep<CreateRelease>()
         .UseStep<Publish>()
         .RunWithExitCode(),
     _ => Help()

@@ -15,9 +15,9 @@ namespace NSchema.Hosting;
 /// <param name="executor">Applies the plan to the target.</param>
 internal sealed class DefaultMigrationPipeline(
     IOptions<MigrationOptions> options,
-    IMigrationReporter reporter,
-    IMigrationPlanRenderer planRenderer,
     IMigrationPlanner planner,
+    IMigrationPlanRenderer planRenderer,
+    IMigrationReporter reporter,
     IMigrationExecutor executor
 ) : IMigrationPipeline
 {

@@ -4,95 +4,100 @@ using NSchema.Migration;
 using NSchema.Migration.Plan;
 using NSchema.Policies;
 using NSchema.Schema;
+using NSubstitute.ExceptionExtensions;
 
 namespace NSchema.Tests.Hosting;
 
 public sealed class DefaultMigrationPipelineTests
 {
-    private static MigrationPlan EmptyPlan() => new([], DatabaseSchema.Create([]));
+    private readonly IOptions<MigrationOptions> _options = Options.Create(new MigrationOptions());
+    private readonly IMigrationPlanner _planner = Substitute.For<IMigrationPlanner>();
+    private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
+    private readonly IMigrationPlanRenderer _renderer = Substitute.For<IMigrationPlanRenderer>();
+    private readonly IMigrationExecutor _executor = Substitute.For<IMigrationExecutor>();
 
-    private static IMigrationPlanner PlannerReturning(MigrationPlan plan)
+    private readonly DefaultMigrationPipeline _sut;
+
+    public DefaultMigrationPipelineTests()
     {
-        var p = Substitute.For<IMigrationPlanner>();
-        p.Plan(Arg.Any<CancellationToken>()).Returns(Task.FromResult(plan));
-        return p;
-    }
+        _planner
+            .Plan(Arg.Any<CancellationToken>())
+            .Returns(new MigrationPlan([], DatabaseSchema.Create([])));
 
-    private static DefaultMigrationPipeline Build(
-        IMigrationPlanner planner,
-        IMigrationExecutor executor,
-        IMigrationReporter? reporter = null,
-        MigrationOptions? options = null
-    ) => new(
-        Options.Create(options ?? new MigrationOptions()),
-        reporter ?? Substitute.For<IMigrationReporter>(),
-        Substitute.For<IMigrationPlanRenderer>(),
-        planner,
-        executor);
+        _sut = new DefaultMigrationPipeline(_options, _planner, _renderer, _reporter, _executor);
+    }
 
     [Fact]
     public async Task Run_DryRun_InvokesExecutorWithDryRunFlag()
     {
-        var executor = Substitute.For<IMigrationExecutor>();
-        var sut = Build(PlannerReturning(EmptyPlan()), executor, options: new MigrationOptions { DryRun = true });
+        // Arrange
+        _options.Value.DryRun = true;
 
-        await sut.Run();
+        // Act
+        await _sut.Run();
 
-        await executor.Received(1).Apply(Arg.Any<MigrationPlan>(), true, Arg.Any<CancellationToken>());
+        // Assert
+        await _executor.Received(1).Apply(Arg.Any<MigrationPlan>(), true, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Run_NotDryRun_PassesPlanToExecutor()
     {
+        // Arrange
         var plan = new MigrationPlan([new CreateSchema("app")], DatabaseSchema.Create([]));
-        var executor = Substitute.For<IMigrationExecutor>();
-        var sut = Build(PlannerReturning(plan), executor);
+        _planner.Plan(Arg.Any<CancellationToken>()).Returns(plan);
 
-        await sut.Run();
+        // Act
+        await _sut.Run();
 
-        await executor.Received(1).Apply(plan, false, Arg.Any<CancellationToken>());
+        // Assert
+        await _executor.Received(1).Apply(plan, false, Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Run_NotDryRun_StillCallsExecutor_WhenPlanIsEmpty()
+    public async Task Run_EmptyPlan_StillPassesPlanToExecutor()
     {
-        var executor = Substitute.For<IMigrationExecutor>();
-        var sut = Build(PlannerReturning(EmptyPlan()), executor);
+        // Arrange
 
-        await sut.Run();
+        // Act
+        await _sut.Run();
 
-        await executor.Received(1).Apply(Arg.Any<MigrationPlan>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+        // Assert
+        await _executor.Received(1).Apply(Arg.Any<MigrationPlan>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Run_PolicyViolation_ReportsErrorsAndRethrows()
     {
-        var planner = Substitute.For<IMigrationPlanner>();
+        // Arrange
         var errors = new[] { new PolicyError("P1", "msg1"), new PolicyError("P2", "msg2") };
-        planner.Plan(Arg.Any<CancellationToken>())
-            .Returns<Task<MigrationPlan>>(_ => throw new PolicyViolationException(errors));
-        var reporter = Substitute.For<IMigrationReporter>();
-        var executor = Substitute.For<IMigrationExecutor>();
-        var sut = Build(planner, executor, reporter);
+        _planner
+            .Plan(Arg.Any<CancellationToken>())
+            .Throws(new PolicyViolationException(errors));
 
-        await Should.ThrowAsync<PolicyViolationException>(() => sut.Run());
+        // Act
+        var act = () => _sut.Run();
 
-        reporter.Received().Error(Arg.Is<string>(s => s.Contains("msg1")));
-        reporter.Received().Error(Arg.Is<string>(s => s.Contains("msg2")));
-        await executor.DidNotReceive().Apply(Arg.Any<MigrationPlan>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+        // Assert
+        act.ShouldThrow<PolicyViolationException>();
+        _reporter.Received().Error(Arg.Is<string>(s => s.Contains("msg1")));
+        _reporter.Received().Error(Arg.Is<string>(s => s.Contains("msg2")));
+        await _executor.DidNotReceive().Apply(Arg.Any<MigrationPlan>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Run_ExecutorThrows_ReportsErrorAndRethrows()
+    public void Run_ExecutorThrows_ReportsErrorAndRethrows()
     {
-        var executor = Substitute.For<IMigrationExecutor>();
-        executor.Apply(Arg.Any<MigrationPlan>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-            .Returns<Task>(_ => throw new InvalidOperationException("boom"));
-        var reporter = Substitute.For<IMigrationReporter>();
-        var sut = Build(PlannerReturning(EmptyPlan()), executor, reporter);
+        // Arrange
+        _executor
+            .Apply(Arg.Any<MigrationPlan>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Throws(new InvalidOperationException("boom"));
 
-        await Should.ThrowAsync<InvalidOperationException>(() => sut.Run());
+        // Act
+        var act = async () => await _sut.Run();
 
-        reporter.Received().Error(Arg.Is<string>(s => s.Contains("boom")));
+        // Assert
+        act.ShouldThrow<InvalidOperationException>();
+        _reporter.Received().Error(Arg.Is<string>(s => s.Contains("boom")));
     }
 }
