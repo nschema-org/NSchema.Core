@@ -1,5 +1,4 @@
 <Solution>
-  <Project Path="../../src/NSchema/NSchema.csproj" />
   <Project Path="PostgresQuickstart.AppHost\PostgresQuickstart.AppHost.csproj" />
   <Project Path="PostgresQuickstart\PostgresQuickstart.csproj" />
 </Solution>
