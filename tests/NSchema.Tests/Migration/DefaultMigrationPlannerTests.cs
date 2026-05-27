@@ -7,7 +7,7 @@ using NSchema.Schema;
 
 namespace NSchema.Tests.Migration;
 
-public sealed class DefaultMigrationPlanProviderTests
+public sealed class DefaultMigrationPlannerTests
 {
     private static ISchemaProvider DesiredProvider(DatabaseSchema schema, Action<string[]?>? captureScope = null)
     {
@@ -44,11 +44,12 @@ public sealed class DefaultMigrationPlanProviderTests
     private static ISchemaComparer Comparer(params MigrationAction[] actions)
     {
         var c = Substitute.For<ISchemaComparer>();
-        c.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(new MigrationPlan(actions));
+        c.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>())
+            .Returns(call => new MigrationPlan(actions, call.ArgAt<DatabaseSchema>(1)));
         return c;
     }
 
-    private static DefaultMigrationPlanProvider Build(
+    private static DefaultMigrationPlanner Build(
         ISchemaProvider? current = null,
         IEnumerable<ISchemaProvider>? desired = null,
         IEnumerable<IScriptProvider>? scripts = null,
@@ -59,7 +60,6 @@ public sealed class DefaultMigrationPlanProviderTests
         IEnumerable<IMigrationPolicy>? migrationPolicies = null,
         MigrationOptions? options = null
     ) => new(
-        Substitute.For<IMigrationReporter>(),
         current ?? CurrentProvider(DatabaseSchema.Create([])),
         desired ?? [DesiredProvider(DatabaseSchema.Create([]))],
         scripts ?? [],
@@ -86,7 +86,7 @@ public sealed class DefaultMigrationPlanProviderTests
             aggregator: aggregator,
             comparer: comparer);
 
-        await sut.ComputeMigrationPlan();
+        await sut.Plan();
 
         aggregator.Received(1).Aggregate(Arg.Is<IReadOnlyList<DatabaseSchema>>(l => l.Count == 2));
         comparer.Received(1).Compare(Arg.Any<DatabaseSchema>(), merged);
@@ -100,7 +100,7 @@ public sealed class DefaultMigrationPlanProviderTests
 
         var sut = Build(schemaPolicies: [policy]);
 
-        var ex = await Should.ThrowAsync<PolicyViolationException>(() => sut.ComputeMigrationPlan());
+        var ex = await Should.ThrowAsync<PolicyViolationException>(() => sut.Plan());
         ex.Errors.ShouldHaveSingleItem();
         ex.Errors[0].Message.ShouldBe("broken");
     }
@@ -115,7 +115,7 @@ public sealed class DefaultMigrationPlanProviderTests
 
         var sut = Build(current: current, comparer: comparer, schemaPolicies: [policy]);
 
-        await Should.ThrowAsync<PolicyViolationException>(() => sut.ComputeMigrationPlan());
+        await Should.ThrowAsync<PolicyViolationException>(() => sut.Plan());
         await current.DidNotReceive().GetSchema(Arg.Any<string[]>(), Arg.Any<CancellationToken>());
         comparer.DidNotReceive().Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>());
     }
@@ -131,7 +131,7 @@ public sealed class DefaultMigrationPlanProviderTests
 
         var sut = Build(current: current, desired: [DesiredProvider(desired)]);
 
-        await sut.ComputeMigrationPlan();
+        await sut.Plan();
 
         captured.ShouldNotBeNull();
         captured!.ShouldBe(["app", "admin", "legacy"], ignoreOrder: true);
@@ -148,7 +148,7 @@ public sealed class DefaultMigrationPlanProviderTests
 
         var sut = Build(current: current, desired: [DesiredProvider(desired)]);
 
-        await sut.ComputeMigrationPlan();
+        await sut.Plan();
 
         captured!.Length.ShouldBe(1);
         captured[0].ShouldBe("app");
@@ -167,7 +167,7 @@ public sealed class DefaultMigrationPlanProviderTests
 
         var sut = Build(scripts: [scripts], comparer: Comparer(coreAction));
 
-        var plan = await sut.ComputeMigrationPlan();
+        var plan = await sut.Plan();
 
         plan.Actions.Count.ShouldBe(3);
         plan.Actions[0].ShouldBeOfType<RunScript>().Script.Name.ShouldBe("pre");
@@ -181,7 +181,7 @@ public sealed class DefaultMigrationPlanProviderTests
         var coreAction = new CreateSchema("app");
         var sut = Build(comparer: Comparer(coreAction));
 
-        var plan = await sut.ComputeMigrationPlan();
+        var plan = await sut.Plan();
 
         plan.Actions.ShouldHaveSingleItem();
         plan.Actions[0].ShouldBe(coreAction);
@@ -192,14 +192,14 @@ public sealed class DefaultMigrationPlanProviderTests
     {
         var t1 = Substitute.For<IMigrationPlanTransformer>();
         var t2 = Substitute.For<IMigrationPlanTransformer>();
-        var after1 = new MigrationPlan([new CreateSchema("after1")]);
-        var after2 = new MigrationPlan([new CreateSchema("after2")]);
+        var after1 = new MigrationPlan([new CreateSchema("after1")], DatabaseSchema.Create([]));
+        var after2 = new MigrationPlan([new CreateSchema("after2")], DatabaseSchema.Create([]));
         t1.Transform(Arg.Any<MigrationPlan>()).Returns(after1);
         t2.Transform(after1).Returns(after2);
 
         var sut = Build(transformers: [t1, t2]);
 
-        var plan = await sut.ComputeMigrationPlan();
+        var plan = await sut.Plan();
 
         plan.ShouldBe(after2);
         Received.InOrder(() =>
@@ -213,7 +213,7 @@ public sealed class DefaultMigrationPlanProviderTests
     public async Task GetMigrationPlan_RunsMigrationPoliciesAgainstTransformedPlanAndThrowsOnError()
     {
         var transformer = Substitute.For<IMigrationPlanTransformer>();
-        var transformed = new MigrationPlan([new DropTable("app", "users")]);
+        var transformed = new MigrationPlan([new DropTable("app", "users")], DatabaseSchema.Create([]));
         transformer.Transform(Arg.Any<MigrationPlan>()).Returns(transformed);
 
         var policy = Substitute.For<IMigrationPolicy>();
@@ -221,7 +221,7 @@ public sealed class DefaultMigrationPlanProviderTests
 
         var sut = Build(transformers: [transformer], migrationPolicies: [policy]);
 
-        var ex = await Should.ThrowAsync<PolicyViolationException>(() => sut.ComputeMigrationPlan());
+        var ex = await Should.ThrowAsync<PolicyViolationException>(() => sut.Plan());
         ex.Errors[0].Message.ShouldBe("destructive");
         policy.Received(1).Validate(transformed);
     }
@@ -239,7 +239,7 @@ public sealed class DefaultMigrationPlanProviderTests
             desired: [DesiredProvider(desired, s => desiredScope = s)],
             options: new MigrationOptions { SchemaNames = ["app", "legacy"] });
 
-        await sut.ComputeMigrationPlan();
+        await sut.Plan();
 
         desiredScope.ShouldBe(["app", "legacy"]);
         currentScope.ShouldBe(["app", "legacy"]);
@@ -253,7 +253,7 @@ public sealed class DefaultMigrationPlanProviderTests
 
         var sut = Build(desired: [DesiredProvider(desired, s => desiredScope = s)]);
 
-        await sut.ComputeMigrationPlan();
+        await sut.Plan();
 
         desiredScope.ShouldBeNull();
     }
@@ -268,7 +268,7 @@ public sealed class DefaultMigrationPlanProviderTests
 
         var sut = Build(schemaPolicies: [p1, p2]);
 
-        var ex = await Should.ThrowAsync<PolicyViolationException>(() => sut.ComputeMigrationPlan());
+        var ex = await Should.ThrowAsync<PolicyViolationException>(() => sut.Plan());
         ex.Errors.Count.ShouldBe(3);
     }
 }
