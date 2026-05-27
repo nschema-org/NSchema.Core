@@ -11,10 +11,10 @@ namespace NSchema.Tests.Hosting;
 public sealed class DefaultMigrationPipelineTests
 {
     private readonly IOptions<MigrationOptions> _options = Options.Create(new MigrationOptions());
-    private readonly IMigrationPlanner _planner =  Substitute.For<IMigrationPlanner>();
-    private readonly IMigrationReporter _reporter =  Substitute.For<IMigrationReporter>();
-    private readonly IMigrationPlanRenderer _renderer =  Substitute.For<IMigrationPlanRenderer>();
-    private readonly IMigrationExecutor _executor =  Substitute.For<IMigrationExecutor>();
+    private readonly IMigrationPlanner _planner = Substitute.For<IMigrationPlanner>();
+    private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
+    private readonly IMigrationPlanRenderer _renderer = Substitute.For<IMigrationPlanRenderer>();
+    private readonly IMigrationExecutor _executor = Substitute.For<IMigrationExecutor>();
 
     private readonly DefaultMigrationPipeline _sut;
 

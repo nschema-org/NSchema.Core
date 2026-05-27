@@ -4,7 +4,7 @@ using NSchema.Migration;
 using NSchema.Migration.Sql;
 using NSchema.Tests.Fixtures;
 
-namespace NSchema.Tests.Migration;
+namespace NSchema.Tests.Migration.Sql;
 
 [Collection("postgres")]
 public sealed class DefaultSqlExecutorTests : IAsyncLifetime
