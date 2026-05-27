@@ -222,9 +222,8 @@ public class DefaultMigrationPlanRendererTests
         var output = _sut.Render(plan);
 
         // Assert
-        output.ShouldContain("~ schema app");
+        output.ShouldContain("~ schema app (\"new comment\")");
         output.ShouldContain("rename: app_old → app");
-        output.ShouldContain("comment: <none> → \"new comment\"");
         output.ShouldContain("+ grant usage to reader");
         output.ShouldContain("- revoke usage from writer");
     }
@@ -233,6 +232,8 @@ public class DefaultMigrationPlanRendererTests
     public void Render_ColumnModifications_DescribeOldAndNewValues()
     {
         // Arrange
+        // The email column has no AddColumn line in this plan, so its comment change has nowhere
+        // to fold into and renders on its own row — that's the expected fallback.
         var plan = new MigrationPlan([
             new AlterColumnType("app", "users", "id", SqlType.Int, SqlType.BigInt),
             new AlterColumnNullability("app", "users", "email", false, true),
@@ -251,6 +252,74 @@ public class DefaultMigrationPlanRendererTests
         output.ShouldContain("status default: <none> → 'active'");
         output.ShouldContain("email comment: \"old\" → \"new\"");
         output.ShouldContain("rename column: uname → username");
+    }
+
+    [Fact]
+    public void Render_CreateTableWithComments_FoldsCommentsIntoHeaderAndColumnLines()
+    {
+        // Arrange
+        var plan = new MigrationPlan([
+            new CreateSchema("events"),
+            new SetSchemaComment("events", null, "Event domain."),
+            new CreateTable("events", Table.Create("attendees", columns:
+            [
+                Column.Create("id", SqlType.Text, isNullable: false),
+                Column.Create("name", SqlType.Text, isNullable: false),
+                Column.Create("email", SqlType.Text, isNullable: false),
+            ])),
+            new SetTableComment("events", "attendees", null, "People who have purchased tickets."),
+            new SetColumnComment("events", "attendees", "id", null, "Primary key."),
+            new SetColumnComment("events", "attendees", "name", null, "Attendee's full name."),
+            new SetColumnComment("events", "attendees", "email", null, "Email address for ticket delivery."),
+        ], DatabaseSchema.Create([]));
+
+        // Act
+        var output = _sut.Render(plan);
+
+        // Assert
+        output.ShouldContain("+ schema events (\"Event domain.\")");
+        output.ShouldContain("+ table events.attendees (\"People who have purchased tickets.\")");
+        output.ShouldContain("+ id Text not null (\"Primary key.\")");
+        output.ShouldContain("+ name Text not null (\"Attendee's full name.\")");
+        output.ShouldContain("+ email Text not null (\"Email address for ticket delivery.\")");
+        // No separate `~ comment:` / `~ x comment:` lines should remain.
+        output.ShouldNotContain("~ comment:");
+        output.ShouldNotContain("id comment:");
+        output.ShouldNotContain("name comment:");
+        output.ShouldNotContain("email comment:");
+    }
+
+    [Fact]
+    public void Render_AddColumnWithComment_FoldsCommentIntoColumnLine()
+    {
+        // Arrange
+        var plan = new MigrationPlan([
+            new AddColumn("app", "users", Column.Create("nickname", SqlType.Text)),
+            new SetColumnComment("app", "users", "nickname", null, "Display name."),
+        ], DatabaseSchema.Create([]));
+
+        // Act
+        var output = _sut.Render(plan);
+
+        // Assert
+        output.ShouldContain("+ nickname Text not null (\"Display name.\")");
+        output.ShouldNotContain("nickname comment:");
+    }
+
+    [Fact]
+    public void Render_TableCommentChangeAlone_FoldsIntoHeader()
+    {
+        // Arrange
+        var plan = new MigrationPlan([
+            new SetTableComment("app", "users", "old summary", "new summary"),
+        ], DatabaseSchema.Create([]));
+
+        // Act
+        var output = _sut.Render(plan);
+
+        // Assert
+        output.ShouldContain("~ table app.users (\"old summary\" → \"new summary\")");
+        output.ShouldNotContain("~ comment:");
     }
 
     [Fact]

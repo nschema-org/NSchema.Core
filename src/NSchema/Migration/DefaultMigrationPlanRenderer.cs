@@ -123,20 +123,53 @@ internal sealed class DefaultMigrationPlanRenderer : IMigrationPlanRenderer
         var (kind, headerLabel, headerTarget) = ClassifyGroup(key, actions);
         var marker = palette.For(kind);
         var sb = new StringBuilder();
-        sb.Append(marker).Append(' ').Append(headerLabel).Append(' ').AppendLine(headerTarget);
+        var absorbed = new HashSet<MigrationAction>(ReferenceEqualityComparer.Instance);
 
-        // For a brand-new table, expand the CreateTable into per-column lines so the
-        // reader can see the table's shape, not just its name.
+        // Comments belong on the element they describe, so they fold into the header / column line
+        // rather than appearing as their own `~ comment:` row.
+        sb.Append(marker).Append(' ').Append(headerLabel).Append(' ').Append(headerTarget);
+        if (key.TableName is null)
+        {
+            if (actions.OfType<SetSchemaComment>().FirstOrDefault() is { } schemaComment)
+            {
+                sb.Append(CommentSuffix(schemaComment.OldComment, schemaComment.NewComment));
+                absorbed.Add(schemaComment);
+            }
+        }
+        else if (actions.OfType<SetTableComment>().FirstOrDefault() is { } tableComment)
+        {
+            sb.Append(CommentSuffix(tableComment.OldComment, tableComment.NewComment));
+            absorbed.Add(tableComment);
+        }
+        sb.AppendLine();
+
+        // SetColumnComment for a column we're about to print (either inside a new table, or as
+        // an AddColumn) folds into that column's line. Comments for columns with no
+        // accompanying column line fall through to the default rendering below.
+        var columnComments = key.TableName is null
+            ? new Dictionary<string, SetColumnComment>()
+            : actions.OfType<SetColumnComment>().ToDictionary(c => c.ColumnName, c => c);
+
         if (key.TableName is not null && kind == ChangeKind.Add && actions.OfType<CreateTable>().FirstOrDefault() is { } createdTable)
         {
             foreach (var column in createdTable.Table.Columns)
             {
-                sb.Append("    ").Append(palette.For(ChangeKind.Add)).Append(' ').AppendLine(FormatColumn(column));
+                var line = FormatColumn(column);
+                if (columnComments.TryGetValue(column.Name, out var columnComment))
+                {
+                    line += CommentSuffix(columnComment.OldComment, columnComment.NewComment);
+                    absorbed.Add(columnComment);
+                }
+                sb.Append("    ").Append(palette.For(ChangeKind.Add)).Append(' ').AppendLine(line);
             }
         }
 
         foreach (var action in actions)
         {
+            if (absorbed.Contains(action))
+            {
+                continue;
+            }
             // The create/drop that drives a group's headline is implicit; CreateTable's
             // columns were already enumerated above when applicable.
             if (kind == ChangeKind.Add && action is CreateSchema or CreateTable)
@@ -148,13 +181,25 @@ internal sealed class DefaultMigrationPlanRenderer : IMigrationPlanRenderer
                 continue;
             }
 
-            var (lineKind, detail) = DescribeAction(action);
-            sb.Append("    ").Append(palette.For(lineKind)).Append(' ').AppendLine(detail);
+            if (action is AddColumn add && columnComments.TryGetValue(add.Column.Name, out var addColumnComment))
+            {
+                var detail = FormatColumn(add.Column) + CommentSuffix(addColumnComment.OldComment, addColumnComment.NewComment);
+                absorbed.Add(addColumnComment);
+                sb.Append("    ").Append(palette.For(ChangeKind.Add)).Append(' ').AppendLine(detail);
+                continue;
+            }
+
+            var (lineKind, lineDetail) = DescribeAction(action);
+            sb.Append("    ").Append(palette.For(lineKind)).Append(' ').AppendLine(lineDetail);
         }
 
         var sortKey = key.TableName is null ? $"0:{key.SchemaName}" : $"1:{key.SchemaName}.{key.TableName}";
         return new GroupBlock(sortKey, kind, sb.ToString().TrimEnd('\r', '\n'));
     }
+
+    private static string CommentSuffix(string? oldComment, string? newComment) => oldComment is null
+        ? $" ({FormatComment(newComment)})"
+        : $" ({FormatComment(oldComment)} → {FormatComment(newComment)})";
 
     private static (ChangeKind kind, string label, string target) ClassifyGroup(GroupKey key, IReadOnlyList<MigrationAction> actions)
     {
