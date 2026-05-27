@@ -7,7 +7,7 @@ using NSchema.Schema;
 
 namespace NSchema.Tests.Migration;
 
-public sealed class DefaultMigrationPlanProviderTests
+public sealed class DefaultMigrationPlannerTests
 {
     private static ISchemaProvider DesiredProvider(DatabaseSchema schema, Action<string[]?>? captureScope = null)
     {
@@ -49,7 +49,7 @@ public sealed class DefaultMigrationPlanProviderTests
         return c;
     }
 
-    private static DefaultMigrationPlanProvider Build(
+    private static DefaultMigrationPlanner Build(
         ISchemaProvider? current = null,
         IEnumerable<ISchemaProvider>? desired = null,
         IEnumerable<IScriptProvider>? scripts = null,
@@ -60,7 +60,6 @@ public sealed class DefaultMigrationPlanProviderTests
         IEnumerable<IMigrationPolicy>? migrationPolicies = null,
         MigrationOptions? options = null
     ) => new(
-        Substitute.For<IMigrationReporter>(),
         current ?? CurrentProvider(DatabaseSchema.Create([])),
         desired ?? [DesiredProvider(DatabaseSchema.Create([]))],
         scripts ?? [],

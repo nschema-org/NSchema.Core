@@ -82,7 +82,8 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IMigrationPlanRenderer, DefaultMigrationPlanRenderer>();
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
         services.TryAddSingleton<ISchemaAggregator, DefaultSchemaAggregator>();
-        services.TryAddSingleton<IMigrationPlanProvider, DefaultMigrationPlanProvider>();
+        services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
+        services.TryAddSingleton<IMigrationPipeline, DefaultMigrationPipeline>();
         services.TryAddSingleton<ISqlExecutor, DefaultSqlExecutor>();
         services.TryAddSingleton<IMigrationExecutor, SqlMigrationExecutor>();
 
