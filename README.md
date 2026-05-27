@@ -1,4 +1,4 @@
-# ![NSchema](assets/nschema-logo-horizontal.png)
+# ![NSchema](https://raw.githubusercontent.com/tom-wolfe/NSchema/main/assets/nschema-logo-horizontal.png)
 
 NSchema is a declarative database schema migration library for .NET.
 
