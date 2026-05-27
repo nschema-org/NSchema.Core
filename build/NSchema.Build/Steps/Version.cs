@@ -48,12 +48,6 @@ public class Version(
             throw new Exception($"Project version {projectInfo.Version} is not greater than the latest version {latestVersion}.");
         }
 
-        if (options.Value.IsPreRelease is { } isPreRelease && isPreRelease != projectInfo.Version.IsPrerelease)
-        {
-            throw new Exception(
-                $"GitHub Release prerelease flag ({isPreRelease}) does not match project version {projectInfo.Version} (IsPrerelease={projectInfo.Version.IsPrerelease}).");
-        }
-
         logger.LogInformation("Version {Version} is valid and can be used for package {PackageName}.", projectInfo.Version, projectInfo.Name);
     }
 }

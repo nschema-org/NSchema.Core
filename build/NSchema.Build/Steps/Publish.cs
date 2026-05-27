@@ -22,7 +22,8 @@ public class Publish(IOptions<BuildOptions> options, IPipelineContext context, I
                 "nuget", "push",
                 packageFile.AbsolutePath,
                 "--source", options.Value.NuGetFeed,
-                "--api-key", options.Value.NuGetApiKey
+                "--api-key", options.Value.NuGetApiKey,
+                "--skip-duplicate"
             ],
             cancellationToken
         );
