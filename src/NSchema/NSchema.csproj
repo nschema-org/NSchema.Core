@@ -12,6 +12,7 @@
     <PackageId>NSchema</PackageId>
     <PackageProjectUrl>https://github.com/tom-wolfe/NSchema</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>nschema-mark-128.png</PackageIcon>
     <LicenseExpression>MIT</LicenseExpression>
     <RepositoryUrl>https://github.com/tom-wolfe/NSchema.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -34,6 +35,9 @@
     </None>
     <None Include="..\..\CHANGELOG.md" Pack="true" PackagePath="/">
       <Link>CHANGELOG.md</Link>
+    </None>
+    <None Include="..\..\assets\nschema-mark-128.png" Pack="true" PackagePath="/">
+      <Link>nschema-mark-128.png</Link>
     </None>
   </ItemGroup>
 
