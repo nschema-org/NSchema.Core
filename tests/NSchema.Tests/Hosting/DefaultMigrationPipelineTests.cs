@@ -11,7 +11,6 @@ public sealed class DefaultMigrationPipelineTests
 {
     private readonly IMigrationPlanner _planner = Substitute.For<IMigrationPlanner>();
     private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
-    private readonly IMigrationPlanRenderer _renderer = Substitute.For<IMigrationPlanRenderer>();
     private readonly IMigrationCompiler _compiler = Substitute.For<IMigrationCompiler>();
     private readonly ICompiledMigration _execution = Substitute.For<ICompiledMigration>();
 
@@ -26,7 +25,7 @@ public sealed class DefaultMigrationPipelineTests
         _execution.Preview.Returns([]);
         _compiler.Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>()).Returns(_execution);
 
-        _sut = new DefaultMigrationPipeline(_planner, _renderer, _reporter, _compiler);
+        _sut = new DefaultMigrationPipeline(_planner, _reporter, _compiler);
     }
 
     [Fact]
@@ -70,17 +69,20 @@ public sealed class DefaultMigrationPipelineTests
     }
 
     [Fact]
-    public async Task Plan_PreviewLines_AreReported()
+    public async Task Plan_PresentsPlanAndPreviewToReporter()
     {
         // Arrange
+        var plan = new MigrationPlan([new CreateSchema("app")], DatabaseSchema.Create([]));
+        _planner.Plan(Arg.Any<CancellationToken>()).Returns(plan);
         _execution.Preview.Returns(["CREATE SCHEMA app", "CREATE TABLE app.users (id int)"]);
 
         // Act
         await _sut.Plan();
 
-        // Assert
-        _reporter.Received(1).Info("CREATE SCHEMA app");
-        _reporter.Received(1).Info("CREATE TABLE app.users (id int)");
+        // Assert: the pipeline hands artifacts to the reporter; rendering is the reporter's concern.
+        _reporter.Received(1).ReportPlan(plan);
+        _reporter.Received(1).ReportPreview(Arg.Is<IReadOnlyList<string>>(p =>
+            p.SequenceEqual(new[] { "CREATE SCHEMA app", "CREATE TABLE app.users (id int)" })));
     }
 
     [Fact]

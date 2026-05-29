@@ -7,12 +7,10 @@ namespace NSchema.Hosting;
 /// Default <see cref="IMigrationPipeline"/>.
 /// </summary>
 /// <param name="planner">Builds the migration plan.</param>
-/// <param name="planRenderer">Renders the migration plan as a human-readable diff.</param>
-/// <param name="reporter">The reporter for user-facing migration progress.</param>
+/// <param name="reporter">Presents user-facing migration progress and artifacts.</param>
 /// <param name="compiler">Compiles the plan into an executable unit of work.</param>
 internal sealed class DefaultMigrationPipeline(
     IMigrationPlanner planner,
-    IMigrationPlanRenderer planRenderer,
     IMigrationReporter reporter,
     IMigrationCompiler compiler
 ) : IMigrationPipeline
@@ -41,7 +39,7 @@ internal sealed class DefaultMigrationPipeline(
     }
 
     /// <summary>
-    /// Computes the plan, renders the diff, compiles it into an execution, and reports the preview.
+    /// Computes the plan, presents the diff, compiles it into an execution, and presents the preview.
     /// </summary>
     private async Task<ICompiledMigration> Prepare(CancellationToken cancellationToken)
     {
@@ -61,14 +59,11 @@ internal sealed class DefaultMigrationPipeline(
             throw;
         }
 
-        reporter.Info(planRenderer.Render(plan) + Environment.NewLine);
+        reporter.ReportPlan(plan);
 
         reporter.Info("Compiling migration plan...");
         var execution = await compiler.Compile(plan, cancellationToken);
-        foreach (var line in execution.Preview)
-        {
-            reporter.Info(line);
-        }
+        reporter.ReportPreview(execution.Preview);
 
         return execution;
     }

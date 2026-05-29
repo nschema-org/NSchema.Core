@@ -75,8 +75,8 @@ Call `Build()` to get an `NSchemaApplication`, from which you can then `Plan()` 
 
 Each run performs one operation, selected by `MigrationOptions.Operation`:
 
-- **`Apply`** (default) — compute the plan and apply it to the database.
-- **`Plan`** — compute and render the plan, including the SQL that would run, without touching the database.
+- **`Plan`** (default) — compute and render the plan, including the SQL that would run, without touching the database.
+- **`Apply`** — compute the plan and apply it to the database.
 
 Configure it on the builder, or trigger it explicitly:
 
@@ -286,10 +286,12 @@ Everything in the pipeline is registered through DI. You can replace defaults or
 
 These extension points are less commonly used, but still available for advanced scenarios.
 
-| Interface           | Purpose                                                               | Registered via                         |
-|---------------------|-----------------------------------------------------------------------|----------------------------------------|
-| `ISchemaAggregator` | Combine multiple desired schemas into a single schema for comparison. | `AddSingleton<ISchemaAggregator, T>()` |
-| `ISchemaComparer`   | Compare the current and desired schemas to produce a migration plan.  | `AddSingleton<ISchemaComparer, T>()`   |
+| Interface                  | Purpose                                                               | Registered via                                |
+|----------------------------|-----------------------------------------------------------------------|-----------------------------------------------|
+| `IMigrationReportRenderer` | Customize how the migration plan is converted to a string.            | `AddSingleton<IMigrationReportRenderer, T>()` |
+| `IMigrationReporter`       | Customize how user updates are reported to the terminal and logger.   | `AddSingleton<IMigrationReporter, T>()`       |
+| `ISchemaAggregator`        | Combine multiple desired schemas into a single schema for comparison. | `AddSingleton<ISchemaAggregator, T>()`        |
+| `ISchemaComparer`          | Compare the current and desired schemas to produce a migration plan.  | `AddSingleton<ISchemaComparer, T>()`          |
 
 ## License
 

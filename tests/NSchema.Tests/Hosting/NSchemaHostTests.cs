@@ -55,6 +55,7 @@ public sealed class NSchemaHostTests
     public async Task Execute_StopsApplication_WhenPipelineThrows()
     {
         // Arrange
+        _options.Operation = MigrationOperation.Apply;
         _pipeline.Apply(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("boom"));
         await _sut.StartAsync(CancellationToken.None);
 

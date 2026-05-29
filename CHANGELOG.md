@@ -19,6 +19,7 @@ Additionally, I've expanded the concept of a "DryRun" into a more explicit Plan/
 ### Changed
 
 - The pipeline now compiles the plan into an `ICompiledMigration` and previews it separately from execution. The same compiled unit is both previewed and executed, so the preview always matches what runs, and the plan/apply distinction no longer leaks into executor implementations. Compiled migration reporting moved into the pipeline.
+- **Breaking:** `IMigrationReporter` is now a presenter responsible for displaying the plan and execution results, so it can be more easily customized.
 
 ### Removed
 
