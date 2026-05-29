@@ -1,7 +1,7 @@
 namespace NSchema.Migration;
 
 /// <summary>
-/// A migration plan compiled into a concrete, inspectable unit of work by an <see cref="IMigrationExecutor"/>.
+/// A migration plan compiled into a concrete, inspectable unit of work by an <see cref="IMigrationCompiler"/>.
 /// </summary>
 /// <remarks>
 /// The same compiled instance is both previewed and executed, so what a caller inspects via

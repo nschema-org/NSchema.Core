@@ -14,7 +14,7 @@ public sealed class DefaultMigrationPipelineTests
     private readonly IMigrationPlanner _planner = Substitute.For<IMigrationPlanner>();
     private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
     private readonly IMigrationPlanRenderer _renderer = Substitute.For<IMigrationPlanRenderer>();
-    private readonly IMigrationExecutor _executor = Substitute.For<IMigrationExecutor>();
+    private readonly IMigrationCompiler _compiler = Substitute.For<IMigrationCompiler>();
     private readonly IMigrationExecution _execution = Substitute.For<IMigrationExecution>();
 
     private readonly DefaultMigrationPipeline _sut;
@@ -26,9 +26,9 @@ public sealed class DefaultMigrationPipelineTests
             .Returns(new MigrationPlan([], DatabaseSchema.Create([])));
 
         _execution.Preview.Returns([]);
-        _executor.Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>()).Returns(_execution);
+        _compiler.Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>()).Returns(_execution);
 
-        _sut = new DefaultMigrationPipeline(_options, _planner, _renderer, _reporter, _executor);
+        _sut = new DefaultMigrationPipeline(_options, _planner, _renderer, _reporter, _compiler);
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public sealed class DefaultMigrationPipelineTests
         await _sut.Run();
 
         // Assert
-        await _executor.Received(1).Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>());
+        await _compiler.Received(1).Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>());
         await _execution.DidNotReceive().Execute(Arg.Any<CancellationToken>());
     }
 
@@ -56,7 +56,7 @@ public sealed class DefaultMigrationPipelineTests
         await _sut.Run();
 
         // Assert
-        await _executor.Received(1).Compile(plan, Arg.Any<CancellationToken>());
+        await _compiler.Received(1).Compile(plan, Arg.Any<CancellationToken>());
         await _execution.Received(1).Execute(Arg.Any<CancellationToken>());
     }
 
@@ -102,7 +102,7 @@ public sealed class DefaultMigrationPipelineTests
         act.ShouldThrow<PolicyViolationException>();
         _reporter.Received().Error(Arg.Is<string>(s => s.Contains("msg1")));
         _reporter.Received().Error(Arg.Is<string>(s => s.Contains("msg2")));
-        await _executor.DidNotReceive().Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>());
+        await _compiler.DidNotReceive().Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

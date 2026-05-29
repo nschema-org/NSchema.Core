@@ -5,17 +5,17 @@ using NSubstitute.ExceptionExtensions;
 
 namespace NSchema.Tests.Migration.Sql;
 
-public sealed class SqlMigrationExecutorTests
+public sealed class SqlMigrationCompilerTests
 {
     private readonly ISqlPlanner _sqlPlanner = Substitute.For<ISqlPlanner>();
     private readonly ISqlExecutor _sqlExecutor = Substitute.For<ISqlExecutor>();
 
-    private readonly SqlMigrationExecutor _sut;
+    private readonly SqlMigrationCompiler _sut;
 
-    public SqlMigrationExecutorTests()
+    public SqlMigrationCompilerTests()
     {
         _sqlPlanner.Plan(Arg.Any<MigrationPlan>()).Returns(new SqlPlan([]));
-        _sut = new SqlMigrationExecutor(_sqlPlanner, _sqlExecutor);
+        _sut = new SqlMigrationCompiler(_sqlPlanner, _sqlExecutor);
     }
 
     private static MigrationPlan EmptyMigrationPlan() => new([], DatabaseSchema.Create([]));
