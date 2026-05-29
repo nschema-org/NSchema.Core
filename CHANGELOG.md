@@ -4,6 +4,22 @@ All notable changes to NSchema will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `MigrationOperation` enum and `MigrationOptions.Operation` to select what a run does (`Plan` or `Apply`), configurable via `RunOperation(...)`.
+- `IMigrationCompiler` and `IMigrationExecution`: a migration plan is compiled into an inspectable, executable unit of work — `Preview` (what would happen) plus `Execute` (perform it). Register a custom compiler via `UseMigrationCompiler<T>()`.
+
+### Changed
+
+- The pipeline now compiles the plan into an `IMigrationExecution` and previews it separately from execution. The same compiled unit is both previewed and executed, so the preview always matches what runs, and the plan/apply distinction no longer leaks into executor implementations. SQL statement reporting moved into the pipeline.
+
+### Deprecated
+
+- `MigrationOptions.DryRun` and `DryRunOnly()` — use `Operation` / `RunOperation(MigrationOperation.Plan)` instead.
+- `IMigrationExecutor` and `UseMigrationExecutor<T>()` — implement `IMigrationCompiler` and register it with `UseMigrationCompiler<T>()`. Existing executors keep working through an internal adapter, though a wrapped legacy executor surfaces nothing in plan mode beyond the rendered diff.
+
 ## [1.0.1] - 2026-05-28
 
 ### Fixed
