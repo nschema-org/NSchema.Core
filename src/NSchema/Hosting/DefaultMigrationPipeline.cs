@@ -44,7 +44,7 @@ internal sealed class DefaultMigrationPipeline(
     /// Computes the plan, renders the diff, compiles it into an execution, and reports the preview.
     /// Shared by <see cref="Plan"/> and <see cref="Apply"/>.
     /// </summary>
-    private async Task<IMigrationExecution> Prepare(CancellationToken cancellationToken)
+    private async Task<ICompiledMigration> Prepare(CancellationToken cancellationToken)
     {
         reporter.Info("Computing migration plan...");
         Migration.Plan.MigrationPlan plan;

@@ -13,7 +13,7 @@ public sealed class DefaultMigrationPipelineTests
     private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
     private readonly IMigrationPlanRenderer _renderer = Substitute.For<IMigrationPlanRenderer>();
     private readonly IMigrationCompiler _compiler = Substitute.For<IMigrationCompiler>();
-    private readonly IMigrationExecution _execution = Substitute.For<IMigrationExecution>();
+    private readonly ICompiledMigration _execution = Substitute.For<ICompiledMigration>();
 
     private readonly DefaultMigrationPipeline _sut;
 

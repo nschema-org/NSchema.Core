@@ -8,7 +8,7 @@ namespace NSchema.Migration;
 /// </summary>
 /// <remarks>
 /// A legacy executor reports its work as a side effect of <see cref="IMigrationExecutor.Apply"/> rather
-/// than returning it, so the compiled execution exposes an empty <see cref="IMigrationExecution.Preview"/>;
+/// than returning it, so the compiled execution exposes an empty <see cref="ICompiledMigration.Preview"/>;
 /// legacy executors therefore surface nothing in plan mode beyond the rendered diff. Apply behaviour is
 /// preserved.
 /// </remarks>
@@ -16,10 +16,10 @@ namespace NSchema.Migration;
 [Obsolete("Implement IMigrationCompiler directly instead. This adapter will be removed in a future major version.")]
 internal sealed class ExecutorBackedCompiler(IMigrationExecutor executor) : IMigrationCompiler
 {
-    public Task<IMigrationExecution> Compile(MigrationPlan plan, CancellationToken cancellationToken = default)
-        => Task.FromResult<IMigrationExecution>(new ExecutorBackedExecution(executor, plan));
+    public Task<ICompiledMigration> Compile(MigrationPlan plan, CancellationToken cancellationToken = default)
+        => Task.FromResult<ICompiledMigration>(new ExecutorBacked(executor, plan));
 
-    private sealed class ExecutorBackedExecution(IMigrationExecutor executor, MigrationPlan plan) : IMigrationExecution
+    private sealed class ExecutorBacked(IMigrationExecutor executor, MigrationPlan plan) : ICompiledMigration
     {
         public IReadOnlyList<string> Preview { get; } = [];
 
