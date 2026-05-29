@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - `MigrationOperation` enum and `MigrationOptions.Operation` to select what a run does (`Plan` or `Apply`), configurable via `RunOperation(...)`.
 - `IMigrationCompiler` and `IMigrationExecution`: a migration plan is compiled into an inspectable, executable unit of work — `Preview` (what would happen) plus `Execute` (perform it). Register a custom compiler via `UseMigrationCompiler<T>()`.
+- Explicit `NSchemaApplication.Plan(...)` and `Apply(...)` entry points that run the full host lifecycle for a specific operation, overriding the configured `Operation` for that run. `RunAsync()` continues to use the configured operation.
 
 ### Changed
 
