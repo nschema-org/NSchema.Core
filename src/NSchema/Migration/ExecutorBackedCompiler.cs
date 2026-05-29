@@ -24,7 +24,7 @@ internal sealed class ExecutorBackedCompiler(IMigrationExecutor executor) : IMig
         public IReadOnlyList<string> Preview { get; } = [];
 
         public Task Execute(CancellationToken cancellationToken = default)
-            => executor.Apply(plan, planOnly: false, cancellationToken);
+            => executor.Apply(plan, dryRun: false, cancellationToken);
     }
 }
 
