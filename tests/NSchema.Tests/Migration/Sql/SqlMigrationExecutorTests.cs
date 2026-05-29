@@ -1,5 +1,3 @@
-using NSchema.Hosting;
-using NSchema.Migration;
 using NSchema.Migration.Plan;
 using NSchema.Migration.Sql;
 using NSchema.Schema;
@@ -9,7 +7,6 @@ namespace NSchema.Tests.Migration.Sql;
 
 public sealed class SqlMigrationExecutorTests
 {
-    private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
     private readonly ISqlPlanner _sqlPlanner = Substitute.For<ISqlPlanner>();
     private readonly ISqlExecutor _sqlExecutor = Substitute.For<ISqlExecutor>();
 
@@ -18,52 +15,38 @@ public sealed class SqlMigrationExecutorTests
     public SqlMigrationExecutorTests()
     {
         _sqlPlanner.Plan(Arg.Any<MigrationPlan>()).Returns(new SqlPlan([]));
-        _sut = new SqlMigrationExecutor(_reporter, _sqlPlanner, _sqlExecutor);
+        _sut = new SqlMigrationExecutor(_sqlPlanner, _sqlExecutor);
     }
 
     private static MigrationPlan EmptyMigrationPlan() => new([], DatabaseSchema.Create([]));
 
     [Fact]
-    public async Task Apply_PassesMigrationPlanToSqlPlanner()
+    public async Task Compile_PassesMigrationPlanToSqlPlanner()
     {
         // Arrange
         var plan = EmptyMigrationPlan();
 
         // Act
-        await _sut.Apply(plan, planOnly: false);
+        await _sut.Compile(plan);
 
         // Assert
         _sqlPlanner.Received(1).Plan(plan);
     }
 
     [Fact]
-    public async Task Apply_NotDryRun_ExecutesSqlPlan()
-    {
-        // Arrange
-        var sqlPlan = new SqlPlan([new SqlStatement("SELECT 1")]);
-        _sqlPlanner.Plan(Arg.Any<MigrationPlan>()).Returns(sqlPlan);
-
-        // Act
-        await _sut.Apply(EmptyMigrationPlan(), planOnly: false);
-
-        // Assert
-        await _sqlExecutor.Received(1).Execute(sqlPlan, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Apply_DryRun_DoesNotExecuteSqlPlan()
+    public async Task Compile_DoesNotExecute()
     {
         // Arrange
 
         // Act
-        await _sut.Apply(EmptyMigrationPlan(), planOnly: true);
+        await _sut.Compile(EmptyMigrationPlan());
 
         // Assert
         await _sqlExecutor.DidNotReceive().Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Apply_ReportsEachStatement()
+    public async Task Preview_ContainsEachStatement()
     {
         // Arrange
         var sqlPlan = new SqlPlan([
@@ -73,68 +56,52 @@ public sealed class SqlMigrationExecutorTests
         _sqlPlanner.Plan(Arg.Any<MigrationPlan>()).Returns(sqlPlan);
 
         // Act
-        await _sut.Apply(EmptyMigrationPlan(), planOnly: false);
+        var execution = await _sut.Compile(EmptyMigrationPlan());
 
         // Assert
-        _reporter.Received(1).Info("CREATE SCHEMA app");
-        _reporter.Received(1).Info("CREATE TABLE app.users (id int)");
+        execution.Preview.ShouldBe(["CREATE SCHEMA app", "CREATE TABLE app.users (id int)"]);
     }
 
     [Fact]
-    public async Task Apply_DryRun_StillReportsStatements()
-    {
-        // Arrange
-        var sqlPlan = new SqlPlan([new SqlStatement("CREATE SCHEMA app")]);
-        _sqlPlanner.Plan(Arg.Any<MigrationPlan>()).Returns(sqlPlan);
-
-        // Act
-        await _sut.Apply(EmptyMigrationPlan(), planOnly: true);
-
-        // Assert
-        _reporter.Received(1).Info("CREATE SCHEMA app");
-    }
-
-    [Fact]
-    public async Task Apply_PassesCancellationTokenToExecutor()
-    {
-        // Arrange
-        using var cts = new CancellationTokenSource();
-        var token = cts.Token;
-
-        // Act
-        await _sut.Apply(EmptyMigrationPlan(), planOnly: false, token);
-
-        // Assert
-        await _sqlExecutor.Received(1).Execute(Arg.Any<SqlPlan>(), token);
-    }
-
-    [Fact]
-    public async Task Apply_PlansSqlBeforeExecuting()
+    public async Task Execute_ExecutesSqlPlan()
     {
         // Arrange
         var sqlPlan = new SqlPlan([new SqlStatement("SELECT 1")]);
         _sqlPlanner.Plan(Arg.Any<MigrationPlan>()).Returns(sqlPlan);
 
         // Act
-        await _sut.Apply(EmptyMigrationPlan(), planOnly: false);
+        var execution = await _sut.Compile(EmptyMigrationPlan());
+        await execution.Execute();
 
         // Assert
-        Received.InOrder(() =>
-        {
-            _sqlPlanner.Plan(Arg.Any<MigrationPlan>());
-            _sqlExecutor.Execute(sqlPlan, Arg.Any<CancellationToken>());
-        });
+        await _sqlExecutor.Received(1).Execute(sqlPlan, Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Apply_ExecutorThrows_PropagatesException()
+    public async Task Execute_PassesCancellationTokenToExecutor()
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        var token = cts.Token;
+
+        // Act
+        var execution = await _sut.Compile(EmptyMigrationPlan());
+        await execution.Execute(token);
+
+        // Assert
+        await _sqlExecutor.Received(1).Execute(Arg.Any<SqlPlan>(), token);
+    }
+
+    [Fact]
+    public async Task Execute_ExecutorThrows_PropagatesException()
     {
         // Arrange
         _sqlExecutor.Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("boom"));
 
         // Act
-        var act = () => _sut.Apply(EmptyMigrationPlan(), planOnly: false);
+        var execution = await _sut.Compile(EmptyMigrationPlan());
+        var act = () => execution.Execute();
 
         // Assert
         await Should.ThrowAsync<InvalidOperationException>(act);

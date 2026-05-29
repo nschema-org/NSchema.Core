@@ -15,6 +15,7 @@ public sealed class DefaultMigrationPipelineTests
     private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
     private readonly IMigrationPlanRenderer _renderer = Substitute.For<IMigrationPlanRenderer>();
     private readonly IMigrationExecutor _executor = Substitute.For<IMigrationExecutor>();
+    private readonly IMigrationExecution _execution = Substitute.For<IMigrationExecution>();
 
     private readonly DefaultMigrationPipeline _sut;
 
@@ -24,11 +25,14 @@ public sealed class DefaultMigrationPipelineTests
             .Plan(Arg.Any<CancellationToken>())
             .Returns(new MigrationPlan([], DatabaseSchema.Create([])));
 
+        _execution.Preview.Returns([]);
+        _executor.Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>()).Returns(_execution);
+
         _sut = new DefaultMigrationPipeline(_options, _planner, _renderer, _reporter, _executor);
     }
 
     [Fact]
-    public async Task Run_PlanOperation_InvokesExecutorWithDryRunFlag()
+    public async Task Run_PlanOperation_CompilesButDoesNotExecute()
     {
         // Arrange
         _options.Value.Operation = MigrationOperation.Plan;
@@ -37,11 +41,12 @@ public sealed class DefaultMigrationPipelineTests
         await _sut.Run();
 
         // Assert
-        await _executor.Received(1).Apply(Arg.Any<MigrationPlan>(), true, Arg.Any<CancellationToken>());
+        await _executor.Received(1).Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>());
+        await _execution.DidNotReceive().Execute(Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Run_ApplyOperation_PassesPlanToExecutor()
+    public async Task Run_ApplyOperation_CompilesAndExecutes()
     {
         // Arrange
         var plan = new MigrationPlan([new CreateSchema("app")], DatabaseSchema.Create([]));
@@ -51,11 +56,12 @@ public sealed class DefaultMigrationPipelineTests
         await _sut.Run();
 
         // Assert
-        await _executor.Received(1).Apply(plan, false, Arg.Any<CancellationToken>());
+        await _executor.Received(1).Compile(plan, Arg.Any<CancellationToken>());
+        await _execution.Received(1).Execute(Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Run_EmptyPlan_StillPassesPlanToExecutor()
+    public async Task Run_EmptyPlan_StillExecutes()
     {
         // Arrange
 
@@ -63,7 +69,21 @@ public sealed class DefaultMigrationPipelineTests
         await _sut.Run();
 
         // Assert
-        await _executor.Received(1).Apply(Arg.Any<MigrationPlan>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+        await _execution.Received(1).Execute(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Run_PreviewLines_AreReported()
+    {
+        // Arrange
+        _execution.Preview.Returns(["CREATE SCHEMA app", "CREATE TABLE app.users (id int)"]);
+
+        // Act
+        await _sut.Run();
+
+        // Assert
+        _reporter.Received(1).Info("CREATE SCHEMA app");
+        _reporter.Received(1).Info("CREATE TABLE app.users (id int)");
     }
 
     [Fact]
@@ -82,15 +102,15 @@ public sealed class DefaultMigrationPipelineTests
         act.ShouldThrow<PolicyViolationException>();
         _reporter.Received().Error(Arg.Is<string>(s => s.Contains("msg1")));
         _reporter.Received().Error(Arg.Is<string>(s => s.Contains("msg2")));
-        await _executor.DidNotReceive().Apply(Arg.Any<MigrationPlan>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+        await _executor.DidNotReceive().Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public void Run_ExecutorThrows_ReportsErrorAndRethrows()
+    public void Run_ExecutionThrows_ReportsErrorAndRethrows()
     {
         // Arrange
-        _executor
-            .Apply(Arg.Any<MigrationPlan>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+        _execution
+            .Execute(Arg.Any<CancellationToken>())
             .Throws(new InvalidOperationException("boom"));
 
         // Act

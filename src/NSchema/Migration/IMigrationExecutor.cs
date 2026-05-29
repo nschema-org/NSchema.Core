@@ -3,15 +3,16 @@ using NSchema.Migration.Plan;
 namespace NSchema.Migration;
 
 /// <summary>
-/// Applies a migration plan to a target.
+/// Compiles a migration plan into an executable unit of work for a target.
 /// </summary>
 public interface IMigrationExecutor
 {
     /// <summary>
-    /// Executes the given migration plan against the target.
+    /// Compiles the given migration plan into an <see cref="IMigrationExecution"/> that can be previewed
+    /// and executed. Compiling has no side effects on the target.
     /// </summary>
-    /// <param name="plan">The migration plan to apply.</param>
-    /// <param name="planOnly">When true, the executor should preview what it would do (e.g. report the SQL it would run, or the file it would write) without making any changes.</param>
+    /// <param name="plan">The migration plan to compile.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task Apply(MigrationPlan plan, bool planOnly, CancellationToken cancellationToken = default);
+    /// <returns>The compiled unit of work.</returns>
+    Task<IMigrationExecution> Compile(MigrationPlan plan, CancellationToken cancellationToken = default);
 }

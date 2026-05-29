@@ -12,7 +12,7 @@ namespace NSchema.Hosting;
 /// <param name="reporter">The reporter for user-facing migration progress.</param>
 /// <param name="planRenderer">Renders the migration plan as a human-readable diff.</param>
 /// <param name="planner">Builds the migration plan.</param>
-/// <param name="executor">Applies the plan to the target.</param>
+/// <param name="executor">Compiles the plan into an executable unit of work.</param>
 internal sealed class DefaultMigrationPipeline(
     IOptions<MigrationOptions> options,
     IMigrationPlanner planner,
@@ -49,11 +49,20 @@ internal sealed class DefaultMigrationPipeline(
 
         try
         {
-            await executor.Apply(plan, planOnly, cancellationToken);
-            if (!planOnly)
+            var execution = await executor.Compile(plan, cancellationToken);
+            foreach (var line in execution.Preview)
             {
-                reporter.Info("Migration completed successfully.");
+                reporter.Info(line);
             }
+
+            if (planOnly)
+            {
+                return;
+            }
+
+            reporter.Info("Running database migration...");
+            await execution.Execute(cancellationToken);
+            reporter.Info("Migration completed successfully.");
         }
         catch (Exception ex)
         {
