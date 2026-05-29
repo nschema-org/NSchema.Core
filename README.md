@@ -69,32 +69,41 @@ Call `Build()` to get an `NSchemaApplication`, from which you can then `Plan()` 
 
 ### Configuration
 
-[TODO: expand on configuration options, e.g. logging, metrics, providers, etc.]
-
 #### Operations: plan and apply
 
-Each run performs one operation, selected by `MigrationOptions.Operation`:
+Each run performs one of the following operations:
 
-- **`Plan`** (default) — compute and render the plan, including the SQL that would run, without touching the database.
+- **`Plan`** (default) — compute and render the plan, without touching the database.
 - **`Apply`** — compute the plan and apply it to the database.
 
-Configure it on the builder, or trigger it explicitly:
+The operation can be decided in one of two ways: either by setting `MigrationOptions.Operation`, or by explicitly calling `Plan()` or `Apply()` on the built application:
 
 ```csharp
 // Configured
 builder.RunOperation(MigrationOperation.Plan);
-await builder.Build().RunAsync();
-
-// Explicit — overrides the configured operation for this run
 var app = builder.Build();
-await app.Plan();   // or app.Apply()
+await app.RunAsync(); // Will run the plan.
+
+// Explicit
+await app.Apply(); // Will run the apply, even if the configured operation is Plan.
 ```
 
-Both paths run the full host lifecycle. `RunAsync()` uses the configured operation; `Plan()` / `Apply()` override it for that run.
+Both paths run the full .NET host lifecycle, so background services, logging, metrics, etc. are all available regardless of how you choose to run.
+
+#### Destructive action policy
+
+By default, NSchema will error on any destructive actions (e.g. dropping tables or columns) to prevent accidental data loss. You can change this behavior by configuring the `DestructiveActionPolicy`:
+
+```csharp
+builder.WithDestructiveActionPolicy(DestructiveActionPolicy.Warn); // log a warning, but continue with the migration
+builder.WithDestructiveActionPolicy(DestructiveActionPolicy.Allow); // allow destructive actions without warning
+```
+
+If you need more advanced control, you can implement your own `IMigrationPolicy` and register it with `AddMigrationPolicy<T>()`.
 
 #### Scoping to specific schemas
 
-Set `MigrationOptions.SchemaNames` (via `ForSchemas(...)`) to scope a run to a subset of schemas. Useful for deploying schemas independently of one another, or for tooling that targets a single schema:
+Set `MigrationOptions.SchemaNames` to scope a run to a subset of schemas. Useful for deploying schemas independently of one another:
 
 ```csharp
 builder
@@ -105,9 +114,71 @@ builder
 
 Declarations or drops for schemas outside the scope are ignored, so unmanaged schemas in the database are never touched.
 
-Next sections cover the concepts and extension points in more detail.
+#### Configuring desired schemas
 
-### Schema declaration
+The desired schema(s) are configured by registering one or more `ISchemaProvider` implementations that can supply the target schema. The most common way to do this is to subclass `AbstractSchemaProvider`, but you can also implement `ISchemaProvider` directly if you need more control.
+
+```csharp
+builder
+    .AddSchema<AppSchema>() // register a single schema provider
+    .AddSchemasFromAssemblyContaining<AppSchema>(); // register all providers in the assembly
+```
+
+#### Configuring the current schema
+
+The current schema is configured by registering a single `ISchemaProvider` that can read the current state of the database. This is typically done via a provider package like `NSchema.Postgres`, which will include an implementation that reads the schema directly from the database.
+
+```csharp
+// Using a provider package:
+builder.UsePostgres();
+
+// Or directly:
+builder.UseCurrentSchema<PostgresSchemaProvider>();
+```
+
+#### Adding scripts
+
+You can add pre- or post-deployment scripts to run alongside the generated migration SQL. This is useful for data migrations, cache invalidation, or any other custom logic that needs to run as part of the deployment.
+
+Scripts can also be added from embedded resources, or by implementing `IScriptProvider` directly for more complex scenarios:
+
+```csharp
+// Add scripts from files:
+builder
+    .AddScriptFromFile(ScriptType.PreDeployment, "pre_deploy.sql")
+    .AddScriptFromFile(ScriptType.PostDeployment, "post_deploy.sql");
+
+// Add scripts from embedded resources:
+builder.AddScriptsFromEmbeddedResources(ScriptType.PreDeployment, typeof(Program).Assembly, "MyNamespace.Scripts.PreDeployment.");
+
+// Add a custom script provider:
+builder.AddScriptProvider<CustomScriptProvider>();
+```
+
+#### Schema policies
+
+Schema policies are used to validate the desired schema before any comparison or planning is done:
+
+```csharp
+```builder.AddSchemaPolicy<TableNamesMustBePluralPolicy>();`
+```
+
+#### Migration policies
+Migration policies are used to validate the generated migration plan before it's executed:
+
+```csharp
+builder.AddMigrationPolicy<NoDestructiveActionsPolicy>();
+```
+
+#### Plan transformers
+
+Plan transformers are used to rewrite or reorder the generated migration plan before it's validated and executed:
+
+```csharp
+builder.AddPlanTransformer<DependencyOrderingPlanTransformer>();
+```
+
+### Defining desired schemas
 
 The easiest way to declare a schema is to subclass `AbstractSchemaProvider` as in the quickstart above.
 
@@ -261,6 +332,8 @@ public class AppSchema : AbstractSchemaProvider
 
 ## Concepts
 
+This section goes over some of the core concepts in NSchema in more detail.
+
 ### Domain Model
 
 NSchema works around a simple domain model of schemas, tables, columns, indexes, and constraints. The model is designed to be flexible enough to represent the features of any relational database, while still being simple and intuitive to work with.
@@ -268,9 +341,6 @@ NSchema works around a simple domain model of schemas, tables, columns, indexes,
 These models are used to represent both the desired state (what you want) and the current state (what the database has), so they can be compared symmetrically and transformed as needed.
 
 Because they're just .NET objects, the schema can be constructed in any way you like. The built-in `AbstractSchemaProvider` provides a convenient entry point, but you could just as easily read from a JSON file, generate it from code, or even construct it from the database itself.
-#### Fluent API
-
-[TODO: Write docs about the `AbstractSchemaProvider` class.]
 
 ### Pipeline
 
