@@ -15,10 +15,25 @@ public class MigrationOptions
     public DestructiveActionPolicy DestructiveActionPolicy { get; set; } = DestructiveActionPolicy.Error;
 
     /// <summary>
+    /// The operation the migration run performs. Defaults to <see cref="MigrationOperation.Apply"/>,
+    /// which preserves the historical <c>DryRun = false</c> behaviour.
+    /// </summary>
+    public MigrationOperation Operation { get; set; } = MigrationOperation.Apply;
+
+    /// <summary>
     /// Indicates whether the migration should be executed in "dry run" mode, where the generated SQL commands are not
     /// actually executed against the database, but instead are logged or returned for review.
     /// </summary>
-    public bool DryRun { get; set; }
+    /// <remarks>
+    /// This is a projection over <see cref="Operation"/>: it reads <see langword="true"/> when the
+    /// operation is <see cref="MigrationOperation.Plan"/>, and setting it maps to
+    /// <see cref="MigrationOperation.Plan"/> / <see cref="MigrationOperation.Apply"/>.
+    /// </remarks>
+    public bool DryRun
+    {
+        get => Operation == MigrationOperation.Plan;
+        set => Operation = value ? MigrationOperation.Plan : MigrationOperation.Apply;
+    }
 
     /// <summary>
     /// Controls whether the executor wraps the migration in a transaction.
