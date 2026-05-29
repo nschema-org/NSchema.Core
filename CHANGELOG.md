@@ -4,7 +4,11 @@ All notable changes to NSchema will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.0-alpha.1] - 2026-05-29
+
+While version 1.0.0 was useful, the pipeline model wasn't quite flexible enough. I've taken the opportunity to rethink the abstractions around applying migrations.
+
+Additionally, I've expanded the concept of a "DryRun" into a more explicit Plan/Apply model, which can be accessed both through by configuration and explicit methods. This should reduce the chance of running the wrong operation.
 
 ### Added
 
