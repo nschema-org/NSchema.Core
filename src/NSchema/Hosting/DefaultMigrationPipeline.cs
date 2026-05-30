@@ -44,6 +44,14 @@ internal sealed class DefaultMigrationPipeline(
         await stateCapturer.Capture(cancellationToken);
     }
 
+    public async Task Refresh(CancellationToken cancellationToken = default)
+    {
+        if (!await stateCapturer.Capture(cancellationToken))
+        {
+            throw new InvalidOperationException("Refresh requires a state store. Register one via UseSchemaStateStore(...) or UseFileStateStore(...).");
+        }
+    }
+
     /// <summary>
     /// Computes the plan, presents the diff, compiles it into an execution, and presents the preview.
     /// </summary>
