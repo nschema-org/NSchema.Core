@@ -16,8 +16,10 @@ namespace NSchema.Hosting;
 internal sealed class StateCapture(
     IOptions<MigrationOptions> options,
     IMigrationReporter reporter,
-    ISchemaStateStore? store,
-    [FromKeyedServices(ISchemaProvider.LiveCurrentSchemaProviderKey)] ISchemaProvider? live
+    // Default values make these genuinely optional: MS DI only treats a parameter as optional when it has a
+    // default, not from the nullable annotation alone. Without them, a no-store run fails to construct.
+    ISchemaStateStore? store = null,
+    [FromKeyedServices(ISchemaProvider.LiveCurrentSchemaProviderKey)] ISchemaProvider? live = null
 ) : IStateCapturer
 {
     public async Task<bool> Capture(CancellationToken cancellationToken = default)

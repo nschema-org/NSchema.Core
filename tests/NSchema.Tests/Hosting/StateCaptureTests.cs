@@ -11,28 +11,14 @@ public sealed class StateCaptureTests
 {
     private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
 
-    private static IServiceProvider Services(ISchemaStateStore? store, ISchemaProvider? live)
-    {
-        var services = new ServiceCollection();
-        if (store is not null)
-        {
-            services.AddSingleton(store);
-        }
-        if (live is not null)
-        {
-            services.AddKeyedSingleton(typeof(ISchemaProvider), ISchemaProvider.LiveCurrentSchemaProviderKey, live);
-        }
-        return services.BuildServiceProvider();
-    }
-
-    private StateCapture CreateSut(IServiceProvider services, MigrationOptions? options = null) =>
-        new(services, Options.Create(options ?? new MigrationOptions()), _reporter);
+    private StateCapture CreateSut(ISchemaStateStore? store, ISchemaProvider? live, MigrationOptions? options = null) =>
+        new(Options.Create(options ?? new MigrationOptions()), _reporter, store, live);
 
     [Fact]
     public async Task Capture_NoStore_ReturnsFalse()
     {
         // Arrange
-        var sut = CreateSut(Services(store: null, live: null));
+        var sut = CreateSut(store: null, live: null);
 
         // Act
         var result = await sut.Capture();
@@ -46,7 +32,7 @@ public sealed class StateCaptureTests
     {
         // Arrange
         var store = Substitute.For<ISchemaStateStore>();
-        var sut = CreateSut(Services(store, live: null));
+        var sut = CreateSut(store, live: null);
 
         // Act
         var act = () => sut.Capture();
@@ -63,7 +49,7 @@ public sealed class StateCaptureTests
         var live = Substitute.For<ISchemaProvider>();
         live.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(schema);
         var store = Substitute.For<ISchemaStateStore>();
-        var sut = CreateSut(Services(store, live));
+        var sut = CreateSut(store, live);
 
         // Act
         var result = await sut.Capture();
@@ -80,7 +66,7 @@ public sealed class StateCaptureTests
         var live = Substitute.For<ISchemaProvider>();
         live.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(DatabaseSchema.Create([]));
         var store = Substitute.For<ISchemaStateStore>();
-        var sut = CreateSut(Services(store, live), new MigrationOptions { SchemaNames = ["app"] });
+        var sut = CreateSut(store, live, new MigrationOptions { SchemaNames = ["app"] });
 
         // Act
         await sut.Capture();
@@ -89,5 +75,18 @@ public sealed class StateCaptureTests
         await live.Received(1).GetSchema(
             Arg.Is<string[]?>(names => names != null && names.SequenceEqual(new[] { "app" })),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void Resolves_WhenNoStoreOrLiveProviderRegistered()
+    {
+        // The store and live provider are optional: an app with neither must still resolve the capturer
+        // (so a no-store apply works). This relies on DI injecting null for the unregistered dependencies.
+        var builder = NSchemaApplication.CreateBuilder();
+        using var app = builder.Build();
+
+        var capturer = app.Services.GetRequiredService<IStateCapturer>();
+
+        capturer.ShouldBeOfType<StateCapture>();
     }
 }
