@@ -49,4 +49,14 @@ public partial class NSchemaApplicationBuilder
         Services.AddKeyedSingleton<ISchemaProvider, StateBackedSchemaProvider>(ISchemaProvider.CurrentSchemaProviderKey);
         return this;
     }
+
+    /// <summary>
+    /// Reads the current schema from the state store when planning and from the live database when applying.
+    /// </summary>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder UseCurrentSchemaAuto()
+    {
+        Services.AddKeyedSingleton<ISchemaProvider, AutoCurrentSchemaProvider>(ISchemaProvider.CurrentSchemaProviderKey);
+        return this;
+    }
 }
