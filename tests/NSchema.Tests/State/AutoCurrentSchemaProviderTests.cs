@@ -31,7 +31,7 @@ public sealed class AutoCurrentSchemaProviderTests
         var store = Substitute.For<ISchemaStateStore>();
         store.Read(Arg.Any<CancellationToken>()).Returns(StateSchema);
         var options = Options.Create(new MigrationOptions { Operation = MigrationOperation.Plan });
-        var sut = new AutoCurrentSchemaProvider(live, store, options);
+        var sut = new AutoCurrentSchemaProvider(options, store, live);
 
         // Act
         var result = await sut.GetSchema();
@@ -49,7 +49,7 @@ public sealed class AutoCurrentSchemaProviderTests
         live.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(LiveSchema);
         var store = Substitute.For<ISchemaStateStore>();
         var options = Options.Create(new MigrationOptions { Operation = MigrationOperation.Apply });
-        var sut = new AutoCurrentSchemaProvider(live, store, options);
+        var sut = new AutoCurrentSchemaProvider(options, store, live);
 
         // Act
         var result = await sut.GetSchema();
@@ -82,6 +82,39 @@ public sealed class AutoCurrentSchemaProviderTests
 
         options.Value.Operation = MigrationOperation.Apply;
         (await current.GetSchema()).Schemas.ShouldHaveSingleItem().Name.ShouldBe("live");
+    }
+
+    [Fact]
+    public async Task UseCurrentSchemaAuto_PlanWithoutLiveProvider_ReadsFromState()
+    {
+        // Arrange: a PR preview has no database connection, so no live provider is registered.
+        var builder = NSchemaApplication.CreateBuilder();
+        builder
+            .UseStateStore(new StateStore())
+            .UseCurrentSchemaAuto();
+        using var app = builder.Build();
+
+        var current = app.Services.GetRequiredKeyedService<ISchemaProvider>(ISchemaProvider.CurrentSchemaProviderKey);
+        var options = app.Services.GetRequiredService<IOptions<MigrationOptions>>();
+        options.Value.Operation = MigrationOperation.Plan;
+
+        // Act
+        var result = await current.GetSchema();
+
+        // Assert
+        result.Schemas.ShouldHaveSingleItem().Name.ShouldBe("state");
+    }
+
+    [Fact]
+    public async Task GetSchema_ApplyWithoutLiveProvider_Throws()
+    {
+        // Arrange
+        var store = Substitute.For<ISchemaStateStore>();
+        var options = Options.Create(new MigrationOptions { Operation = MigrationOperation.Apply });
+        var sut = new AutoCurrentSchemaProvider(options, store, liveProvider: null);
+
+        // Act / Assert
+        await Should.ThrowAsync<InvalidOperationException>(() => sut.GetSchema());
     }
 
     [Fact]
