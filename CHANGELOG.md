@@ -19,6 +19,7 @@ Additionally, we're looking at introducing an optional "backend state store" so 
 - Added `IMigrationCompiler` and `ICompiledMigration`. Replaces `IMigrationExecutor` by compiling a migration plan into an executable unit of work. Register a custom compiler via `UseMigrationCompiler<T>()`.
 - Added `ISchemaStateStore` for optional backend state storage, and `UseSchemaStateStore<T>()` for registration. This allows plans to be generated against the last applied state rather than the current live state.
 - Added `FileSchemaStateStore` implementation of `ISchemaStateStore` that saves the last applied schema to a local file. This is useful for simple scenarios or as a reference implementation for custom stores.
+- Added control over where the current schema is read from: `UseStateBackedCurrentSchema()` reads it from the state store, while `UseCurrentSchemaAuto()` reads from the store when planning and from the live database when applying.
 
 ### Changed
 
