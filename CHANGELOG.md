@@ -25,7 +25,9 @@ V2 also introduces an optional Terraform-style "backend state store" so that pla
 
 - The pipeline now compiles the plan into an `ICompiledMigration` and previews it separately from execution.
 - **Breaking:** NSchema applications now default to `Plan` mode, so they won't apply changes unless explicitly configured or invoked with `Apply()`.
+- **Breaking:** `IMigrationReporter` has moved to the `NSchema.Migration` namespace (was `NSchema.Hosting`).
 - **Breaking:** `IMigrationReporter` is now a presenter responsible for displaying the plan and execution results, so it can be more easily customized.
+- **Breaking:** `PolicyError` has a new `Severity` property. The existing 2-argument constructor still compiles, but custom `IMigrationPolicy` implementations should now signal warnings with `PolicySeverity.Warning`.
 
 ### Removed
 

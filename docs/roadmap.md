@@ -112,7 +112,7 @@ For NSchema, convention-based key naming already works (`nschema/{env}/state.jso
 
 Machine-readable plan output (JSON or SARIF) that CI systems, PR comment bots, and Slack notifications can consume directly, without each consumer implementing a custom `IMigrationReporter`.
 
-`IMigrationReporter.ReportPlan(MigrationPlan)` already receives the full domain plan, so a structured reporter is implementable today. The gap is a built-in, well-documented format that becomes a standard integration point.
+`IMigrationReporter.ReportPlan(MigrationPlan)` receives the full domain plan and `ReportDiagnostics(IReadOnlyList<PolicyError>)` receives all policy findings, so a structured reporter is implementable today. The gap is a built-in, well-documented format that becomes a standard integration point.
 
 ---
 
