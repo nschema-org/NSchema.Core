@@ -8,6 +8,7 @@ using NSchema.Hosting;
 using NSchema.Migration;
 using NSchema.Migration.Sql;
 using NSchema.Policies;
+using NSchema.State;
 
 namespace NSchema;
 
@@ -78,6 +79,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
     private static void ApplyServices(IServiceCollection services)
     {
+        services.TryAddSingleton<ISchemaStateSerializer, DefaultSchemaStateSerializer>();
         services.TryAddSingleton<IMigrationReporter, DefaultMigrationReporter>();
         services.TryAddSingleton<IMigrationPlanRenderer, DefaultMigrationPlanRenderer>();
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
