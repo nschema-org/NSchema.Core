@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using NSchema.Migration;
 using NSchema.State;
 
 namespace NSchema;
@@ -28,15 +29,24 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
-    /// Registers a <see cref="LocalFileSchemaStateStore"/> that persists schema snapshots to a file on the
-    /// local filesystem at the given path.
+    /// Registers a <see cref="FileSchemaStateStore"/> that persists schema snapshots to a local file.
     /// </summary>
     /// <param name="path">The absolute or relative path of the state file.</param>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder UseLocalFileStateStore(string path)
+    public NSchemaApplicationBuilder UseFileStateStore(string path)
     {
-        Services.Configure<LocalFileSchemaStateStoreOptions>(o => o.Path = path);
-        Services.AddSingleton<ISchemaStateStore, LocalFileSchemaStateStore>();
+        Services.Configure<FileSchemaStateStoreOptions>(o => o.Path = path);
+        Services.AddSingleton<ISchemaStateStore, FileSchemaStateStore>();
+        return this;
+    }
+
+    /// <summary>
+    /// Registers the state store as the current-state schema source. Requires a state store to be registered.
+    /// </summary>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder UseStateBackedCurrentSchema()
+    {
+        Services.AddKeyedSingleton<ISchemaProvider, StateBackedSchemaProvider>(ISchemaProvider.CurrentSchemaProviderKey);
         return this;
     }
 }

@@ -4,16 +4,16 @@ using NSchema.State;
 
 namespace NSchema.Tests.State;
 
-public sealed class LocalFileSchemaStateStoreTests : IDisposable
+public sealed class FileSchemaStateStoreTests : IDisposable
 {
     private readonly string _directory = Path.Combine(Path.GetTempPath(), $"nschema-state-{Guid.NewGuid():N}");
     private readonly string _path;
-    private readonly IOptions<LocalFileSchemaStateStoreOptions> _options;
+    private readonly IOptions<FileSchemaStateStoreOptions> _options;
 
-    public LocalFileSchemaStateStoreTests()
+    public FileSchemaStateStoreTests()
     {
         _path = Path.Combine(_directory, "nested", "state.json");
-        _options = Options.Create(new LocalFileSchemaStateStoreOptions { Path = _path });
+        _options = Options.Create(new FileSchemaStateStoreOptions { Path = _path });
     }
 
     public void Dispose()
@@ -31,7 +31,7 @@ public sealed class LocalFileSchemaStateStoreTests : IDisposable
     public async Task Read_MissingFile_ReturnsNull()
     {
         // Arrange
-        var sut = new LocalFileSchemaStateStore(_options);
+        var sut = new FileSchemaStateStore(_options);
 
         // Act
         var result = await sut.Read();
@@ -44,7 +44,7 @@ public sealed class LocalFileSchemaStateStoreTests : IDisposable
     public async Task Write_CreatesFileAndMissingDirectories()
     {
         // Arrange
-        var sut = new LocalFileSchemaStateStore(_options);
+        var sut = new FileSchemaStateStore(_options);
 
         // Act
         await sut.Write(SampleSchema());
@@ -57,7 +57,7 @@ public sealed class LocalFileSchemaStateStoreTests : IDisposable
     public async Task Write_ThenRead_RoundTripsTheSchema()
     {
         // Arrange
-        var sut = new LocalFileSchemaStateStore(_options);
+        var sut = new FileSchemaStateStore(_options);
         var original = SampleSchema();
 
         // Act

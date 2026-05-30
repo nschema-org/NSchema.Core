@@ -24,13 +24,13 @@ public sealed class StateStoreRegistrationTests
     }
 
     [Fact]
-    public void UseLocalFileStateStore_RegistersLocalFileStore()
+    public void UseFileStateStore_RegistersFileStore()
     {
         // Act
-        var store = ResolveStore(b => b.UseLocalFileStateStore("state.json"));
+        var store = ResolveStore(b => b.UseFileStateStore("state.json"));
 
         // Assert
-        store.ShouldBeOfType<LocalFileSchemaStateStore>();
+        store.ShouldBeOfType<FileSchemaStateStore>();
     }
 
     [Fact]

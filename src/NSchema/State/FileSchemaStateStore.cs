@@ -10,7 +10,7 @@ namespace NSchema.State;
 /// <remarks>
 /// Useful for local development and for backends that surface state as a mounted file.
 /// </remarks>
-internal sealed class LocalFileSchemaStateStore(IOptions<LocalFileSchemaStateStoreOptions> options) : ISchemaStateStore
+internal sealed class FileSchemaStateStore(IOptions<FileSchemaStateStoreOptions> options) : ISchemaStateStore
 {
     /// <inheritdoc />
     public async Task<DatabaseSchema?> Read(CancellationToken cancellationToken = default)
