@@ -5,6 +5,7 @@ using Microsoft.Extensions.Diagnostics.Metrics;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NSchema.Hosting;
+using NSchema.Hosting.Operations;
 using NSchema.Migration;
 using NSchema.Migration.Sql;
 using NSchema.Policies;
@@ -85,9 +86,12 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
         services.TryAddSingleton<ISchemaAggregator, DefaultSchemaAggregator>();
         services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
-        services.TryAddSingleton<IMigrationPipeline, DefaultMigrationPipeline>();
         services.TryAddSingleton<IStateCapturer, DefaultStateCapturer>();
         services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();
+
+        services.TryAddKeyedSingleton<IMigrationOperation, PlanOperation>(MigrationOperation.Plan);
+        services.TryAddKeyedSingleton<IMigrationOperation, ApplyOperation>(MigrationOperation.Apply);
+        services.TryAddKeyedSingleton<IMigrationOperation, RefreshOperation>(MigrationOperation.Refresh);
 
         // The SQL compiler and executor are only meaningful when a database provider has registered an
         // ISqlPlanner. An offline run (e.g. a PR preview that plans against a state store) registers none, so
