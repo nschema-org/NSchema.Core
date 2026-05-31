@@ -41,9 +41,7 @@ public sealed class DefaultMigrationPipelineTests
         _execution.Preview.Returns([]);
         _compiler.Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>()).Returns(_execution);
 
-        _sut = new DefaultMigrationPipeline(
-            _planner, _reporter, _stateCapturer,
-            _currentProvider, [_desiredProvider], _aggregator, _options, _compiler);
+        _sut = new DefaultMigrationPipeline(_options, _planner, _reporter, _stateCapturer, _currentProvider, [_desiredProvider], _aggregator, _compiler);
     }
 
     [Fact]
@@ -164,9 +162,7 @@ public sealed class DefaultMigrationPipelineTests
         var plan = new MigrationPlan([new CreateSchema("app")], DatabaseSchema.Create([]));
         _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
             .Returns(new MigrationPlanResult(plan, []));
-        var sut = new DefaultMigrationPipeline(
-            _planner, _reporter, _stateCapturer,
-            _currentProvider, [_desiredProvider], _aggregator, _options, compiler: null);
+        var sut = new DefaultMigrationPipeline(_options, _planner, _reporter, _stateCapturer, _currentProvider, [_desiredProvider], _aggregator, compiler: null);
 
         await sut.Plan();
 
@@ -177,9 +173,7 @@ public sealed class DefaultMigrationPipelineTests
     [Fact]
     public async Task Apply_NoCompiler_Throws()
     {
-        var sut = new DefaultMigrationPipeline(
-            _planner, _reporter, _stateCapturer,
-            _currentProvider, [_desiredProvider], _aggregator, _options, compiler: null);
+        var sut = new DefaultMigrationPipeline(_options, _planner, _reporter, _stateCapturer, _currentProvider, [_desiredProvider], _aggregator, compiler: null);
 
         await Should.ThrowAsync<InvalidOperationException>(() => sut.Apply());
         await _planner.DidNotReceive().Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>());
@@ -255,9 +249,7 @@ public sealed class DefaultMigrationPipelineTests
         p1.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(s1);
         p2.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(s2);
         _aggregator.Aggregate(Arg.Any<IReadOnlyList<DatabaseSchema>>()).Returns(merged);
-        var sut = new DefaultMigrationPipeline(
-            _planner, _reporter, _stateCapturer,
-            _currentProvider, [p1, p2], _aggregator, _options, _compiler);
+        var sut = new DefaultMigrationPipeline(_options, _planner, _reporter, _stateCapturer, _currentProvider, [p1, p2], _aggregator, _compiler);
 
         await sut.Plan();
 

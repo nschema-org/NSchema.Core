@@ -16,9 +16,5 @@ internal interface IMigrationPlanner
     /// <param name="desiredSchema">The desired database schema to diff towards.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The generated migration plan and any non-fatal diagnostics.</returns>
-    Task<MigrationPlanResult> Plan(
-        DatabaseSchema currentSchema,
-        DatabaseSchema desiredSchema,
-        CancellationToken cancellationToken = default
-    );
+    Task<MigrationPlanResult> Plan(DatabaseSchema currentSchema, DatabaseSchema desiredSchema, CancellationToken cancellationToken = default);
 }

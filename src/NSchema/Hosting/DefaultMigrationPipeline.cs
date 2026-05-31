@@ -21,15 +21,13 @@ namespace NSchema.Hosting;
 /// <see cref="Apply"/> requires one and throws.
 /// </param>
 internal sealed class DefaultMigrationPipeline(
+    IOptions<MigrationOptions> options,
     IMigrationPlanner planner,
     IMigrationReporter reporter,
     IStateCapturer stateCapturer,
     ICurrentSchemaProvider currentProvider,
     IEnumerable<ISchemaProvider> desiredProviders,
     ISchemaAggregator schemaAggregator,
-    IOptions<MigrationOptions> options,
-    // A default value makes this genuinely optional: MS DI only treats a parameter as optional when it has a
-    // default, not from the nullable annotation alone. Without it, an offline run fails to construct the pipeline.
     IMigrationCompiler? compiler = null
 ) : IMigrationPipeline
 {

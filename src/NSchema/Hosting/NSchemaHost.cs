@@ -10,11 +10,7 @@ namespace NSchema.Hosting;
 /// <param name="lifetime">The application lifetime.</param>
 /// <param name="pipeline">The migration pipeline to run.</param>
 /// <param name="options">The migration options, which select the operation to run.</param>
-internal sealed class NSchemaHost(
-    IOptions<MigrationOptions> options,
-    IHostApplicationLifetime lifetime,
-    IMigrationPipeline pipeline
-) : BackgroundService
+internal sealed class NSchemaHost(IOptions<MigrationOptions> options, IHostApplicationLifetime lifetime, IMigrationPipeline pipeline) : BackgroundService
 {
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
