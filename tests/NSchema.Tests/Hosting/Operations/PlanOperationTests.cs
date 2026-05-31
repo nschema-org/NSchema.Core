@@ -17,8 +17,7 @@ public sealed class PlanOperationTests
     private readonly IDesiredSchemaProvider _desiredProvider = Substitute.For<IDesiredSchemaProvider>();
     private readonly IOptions<MigrationOptions> _options = Options.Create(new MigrationOptions());
 
-    private PlanOperation BuildSut(IMigrationCompiler? compiler) => new(
-        _planner, _reporter, _currentProvider, _desiredProvider, _options, compiler);
+    private PlanOperation BuildSut(IMigrationCompiler? compiler) => new(_options, _planner, _reporter, _currentProvider, _desiredProvider, compiler);
 
     private readonly PlanOperation _sut;
 

@@ -5,11 +5,11 @@ using NSchema.Policies;
 namespace NSchema.Hosting.Operations;
 
 internal sealed class PlanOperation(
+    IOptions<MigrationOptions> options,
     IMigrationPlanner planner,
     IMigrationReporter reporter,
     ICurrentSchemaProvider currentProvider,
     IDesiredSchemaProvider desiredProvider,
-    IOptions<MigrationOptions> options,
     IMigrationCompiler? compiler = null
 ) : IMigrationOperation
 {
@@ -19,7 +19,10 @@ internal sealed class PlanOperation(
 
         reporter.Info("Computing migration plan...");
         var source = currentProvider.GetSource(SchemaSourceMode.Offline, required: false);
-        var (currentSchema, desiredSchema) = await SchemaResolution.ResolveAsync(source, desiredProvider, options.Value.SchemaNames, cancellationToken);
+
+        var desiredSchema = await desiredProvider.GetSchema(options.Value.SchemaNames, cancellationToken);
+        var schemasInScope = options.Value.SchemaNames ?? desiredSchema.AllSchemaNames;
+        var currentSchema = await source.GetSchema(schemasInScope, cancellationToken);
 
         var result = await planner.Plan(currentSchema, desiredSchema, cancellationToken);
 

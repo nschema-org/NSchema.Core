@@ -18,13 +18,15 @@ internal sealed class ApplyOperation(
     {
         if (compiler is null)
         {
-            throw new InvalidOperationException(
-                "Applying a migration requires a database provider to compile the plan into SQL, but none is registered. Register one (for example via UsePostgres).");
+            throw new InvalidOperationException("Applying a migration requires a database provider to compile the plan into SQL, but none is registered.");
         }
 
         reporter.Info("Computing migration plan...");
         var source = currentProvider.GetSource(SchemaSourceMode.Online, required: true);
-        var (currentSchema, desiredSchema) = await SchemaResolution.ResolveAsync(source, desiredProvider, options.Value.SchemaNames, cancellationToken);
+
+        var desiredSchema = await desiredProvider.GetSchema(options.Value.SchemaNames, cancellationToken);
+        var schemasInScope = options.Value.SchemaNames ?? desiredSchema.AllSchemaNames;
+        var currentSchema = await source.GetSchema(schemasInScope, cancellationToken);
 
         var result = await planner.Plan(currentSchema, desiredSchema, cancellationToken);
 
