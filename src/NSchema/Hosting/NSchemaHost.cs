@@ -24,11 +24,9 @@ internal sealed class NSchemaHost(
             var operation = services.GetRequiredKeyedService<IMigrationOperation>(options.Value.Operation);
             await operation.Execute(cancellationToken);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException and not PolicyViolationException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // PolicyViolationException is already narrated via ReportDiagnostics before the throw.
             // Cancellation is expected (e.g. Ctrl+C) and not an error condition.
-            // Everything else is unexpected and hasn't been narrated yet.
             reporter.Error($"Migration failed: {ex.Message}");
             throw;
         }
