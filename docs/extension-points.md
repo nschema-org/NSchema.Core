@@ -4,7 +4,7 @@ Everything in the pipeline is registered through DI. You can replace defaults or
 
 | Interface                          | Purpose                                                                                                 | Registered via                                                                             |
 |------------------------------------|---------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|
-| `ISchemaProvider` (desired)        | Contribute schemas to the desired state. Usually via `AbstractSchemaProvider`.                          | `AddSchema<T>()` / `AddSchemasFromAssembly[Containing]<T>()`                               |
+| `ISchemaProvider` (desired)        | Contribute schemas to the desired state. Usually via `AbstractSchemaProvider`.                          | `AddSchema<T>()`                                                                           |
 | `ISchemaProvider` (online current) | Read the current live database schema.                                                                  | `UseCurrentSchema<T>()` (or via a provider package, e.g. `UsePostgres(...)`)               |
 | `ISchemaPolicy`                    | Validate the merged desired schema.                                                                     | `AddSchemaPolicy<T>()`                                                                     |
 | `IMigrationPlanTransformer`        | Rewrite or reorder the generated plan.                                                                  | `AddPlanTransformer<T>()`                                                                  |
@@ -19,12 +19,13 @@ Everything in the pipeline is registered through DI. You can replace defaults or
 
 These extension points are less commonly used, but still available for advanced scenarios.
 
-| Interface                | Purpose                                                                              | Registered via                                                    |
-|--------------------------|--------------------------------------------------------------------------------------|-------------------------------------------------------------------|
-| `IMigrationPlanner`      | Replace the planner that diffs the two schemas and produces a `MigrationPlanResult`. | `AddSingleton<IMigrationPlanner, T>()`                            |
-| `ICurrentSchemaProvider` | Replace how online and offline current-state sources are wired together.             | `AddSingleton<ICurrentSchemaProvider, T>()`                       |
-| `IMigrationPlanRenderer` | Customize how the migration plan is converted to a string.                           | `AddSingleton<IMigrationPlanRenderer, T>()`                       |
-| `IMigrationReporter`     | Customize how user updates are reported to the terminal and logger.                  | `AddSingleton<IMigrationReporter, T>()`                           |
-| `ISchemaAggregator`      | Combine multiple desired schemas into a single schema for comparison.                | `AddSingleton<ISchemaAggregator, T>()`                            |
-| `ISchemaComparer`        | Compare the current and desired schemas to produce a migration plan.                 | `AddSingleton<ISchemaComparer, T>()`                              |
-| `IMigrationOperation`    | Implement a custom operation (plan, apply, refresh, or a new one).                   | `AddKeyedSingleton<IMigrationOperation, T>(MigrationOperation.*)` |
+| Interface                | Purpose                                                                                 | Registered via                                                    |
+|--------------------------|-----------------------------------------------------------------------------------------|-------------------------------------------------------------------|
+| `IMigrationPlanner`      | Replace the planner that diffs the two schemas and produces a `MigrationPlanResult`.    | `AddSingleton<IMigrationPlanner, T>()`                            |
+| `IDesiredSchemaProvider` | Replace how desired schemas are gathered and aggregated into a single `DatabaseSchema`. | `AddSingleton<IDesiredSchemaProvider, T>()`                       |
+| `ICurrentSchemaProvider` | Replace how online and offline current-state sources are selected and read              | `AddSingleton<ICurrentSchemaProvider, T>()`                       |
+| `IMigrationPlanRenderer` | Customize how the migration plan is converted to a string.                              | `AddSingleton<IMigrationPlanRenderer, T>()`                       |
+| `IMigrationReporter`     | Customize how user updates are reported to the terminal and logger.                     | `AddSingleton<IMigrationReporter, T>()`                           |
+| `ISchemaAggregator`      | Combine multiple desired schemas into a single schema for comparison.                   | `AddSingleton<ISchemaAggregator, T>()`                            |
+| `ISchemaComparer`        | Compare the current and desired schemas to produce a migration plan.                    | `AddSingleton<ISchemaComparer, T>()`                              |
+| `IMigrationOperation`    | Implement a custom operation (plan, apply, refresh, or a new one).                      | `AddKeyedSingleton<IMigrationOperation, T>(MigrationOperation.*)` |
