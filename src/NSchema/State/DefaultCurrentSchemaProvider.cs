@@ -9,7 +9,7 @@ namespace NSchema.State;
 /// <param name="online">The live database provider, if any.</param>
 /// <param name="store">The state store, if any.</param>
 internal sealed class DefaultCurrentSchemaProvider(
-    [FromKeyedServices(ICurrentSchemaProvider.OnlineSchemaProviderKey)]
+    [FromKeyedServices(NSchemaKeys.OnlineSchemaProvider)]
     ISchemaProvider? online = null,
     ISchemaStateStore? store = null
 ) : ICurrentSchemaProvider

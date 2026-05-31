@@ -6,11 +6,6 @@ namespace NSchema.Migration;
 public interface ICurrentSchemaProvider
 {
     /// <summary>
-    /// DI key for the live database schema provider.
-    /// </summary>
-    internal const string OnlineSchemaProviderKey = "NSchema.Online";
-
-    /// <summary>
     /// Returns the schema provider for the specified mode.
     /// </summary>
     /// <param name="preferred">The preferred source to retrieve.</param>

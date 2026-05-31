@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using NSchema.Migration;
+using NSchema.Migration.Sql;
 
 namespace NSchema;
 
@@ -23,7 +24,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder WithTransactionMode(TransactionMode mode)
     {
-        Services.Configure<MigrationRunOptions>(o => o.TransactionMode = mode);
+        Services.Configure<SqlExecutorOptions>(o => o.TransactionMode = mode);
         return this;
     }
 

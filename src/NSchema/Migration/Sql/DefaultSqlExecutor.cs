@@ -8,8 +8,8 @@ namespace NSchema.Migration.Sql;
 /// A default implementation of the ISqlExecutor interface that executes SQL statements using a provided DbDataSource.
 /// </summary>
 /// <param name="dataSource">The DbDataSource used to obtain database connections for executing SQL statements.</param>
-/// <param name="options">Migration options that control how the executor handles transactions.</param>
-public sealed class DefaultSqlExecutor(DbDataSource dataSource, IOptions<MigrationRunOptions> options) : ISqlExecutor
+/// <param name="options">Options that control how the executor handles transactions.</param>
+public sealed class DefaultSqlExecutor(DbDataSource dataSource, IOptions<SqlExecutorOptions> options) : ISqlExecutor
 {
     /// <inheritdoc/>
     public async Task Execute(SqlPlan plan, CancellationToken cancellationToken = default)

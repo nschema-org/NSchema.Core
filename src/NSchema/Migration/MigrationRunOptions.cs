@@ -10,8 +10,4 @@ public class MigrationRunOptions
     /// </summary>
     public MigrationOperation Operation { get; set; } = MigrationOperation.Plan;
 
-    /// <summary>
-    /// Controls whether the executor wraps the migration in a transaction.
-    /// </summary>
-    public TransactionMode TransactionMode { get; set; } = TransactionMode.Single;
 }

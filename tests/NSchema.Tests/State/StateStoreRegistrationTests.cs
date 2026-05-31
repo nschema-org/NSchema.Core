@@ -57,6 +57,14 @@ public sealed class StateStoreRegistrationTests
     }
 
     [Fact]
+    public void UseStateStore_CalledTwice_LastOneWins()
+    {
+        var store = ResolveStore(b => b.UseStateStore<FakeStateStore>().UseStateStoreFile("state.json"));
+
+        store.ShouldBeOfType<FileSchemaStateStore>();
+    }
+
+    [Fact]
     public void NoStateStore_ResolvesToNull()
     {
         // Act

@@ -8,6 +8,17 @@ public sealed class DefaultDesiredSchemaProviderTests
     private readonly ISchemaAggregator _aggregator = Substitute.For<ISchemaAggregator>();
 
     [Fact]
+    public async Task GetSchema_NoProviders_ThrowsWithHelpfulMessage()
+    {
+        var sut = new DefaultDesiredSchemaProvider([], _aggregator);
+
+        var act = () => sut.GetSchema();
+
+        var ex = await Should.ThrowAsync<InvalidOperationException>(act);
+        ex.Message.ShouldContain("AddSchema");
+    }
+
+    [Fact]
     public async Task GetSchema_AggregatesAllProviders()
     {
         var s1 = DatabaseSchema.Create([SchemaDefinition.Create("a")]);

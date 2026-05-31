@@ -41,6 +41,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
         _innerBuilder.Services.AddOptions<MigrationOptions>();
         _innerBuilder.Services.AddOptions<MigrationRunOptions>();
+        _innerBuilder.Services.AddOptions<SqlExecutorOptions>();
     }
 
     /// <inheritdoc />
