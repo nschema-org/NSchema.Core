@@ -16,9 +16,9 @@ The API has changed significantly. This section is organised around what you nee
 
 **`DryRun` / `DryRunOnly()` have been removed.** Use `RunOperation(MigrationOperation.Plan)` or `app.Plan()` instead.
 
-**`NSchemaApplication` now has explicit entry points** — `Plan()`, `Apply()`, and `Refresh()` — that run a specific operation regardless of the configured default. `RunAsync()` still uses the configured operation.
+**`NSchemaApplication` now has explicit entry points.** `Plan()`, `Apply()`, and `Refresh()` methods that run a specific operation regardless of the configured default. `RunAsync()` still uses the configured operation.
 
-**`MigrationOptions` has been split in two.** Settings that control what gets migrated (`SchemaNames`, `DestructiveActionPolicy`) stay in `MigrationOptions`. Settings that control how a run executes (`Operation`, `TransactionMode`) have moved to the new `MigrationRunOptions`. The builder methods (`RunOperation(...)`, `ForSchemas(...)`, `WithDestructiveActionPolicy(...)`) still work as before; only direct reads of `IOptions<MigrationOptions>` for those two properties need to change.
+**`MigrationOptions` has been broken up.** Settings that control what gets migrated (`SchemaNames`, `DestructiveActionPolicy`) stay in `MigrationOptions`. Settings that control how a run executes (`Operation`, `TransactionMode`) have moved to `MigrationRunOptions` and `SqlExecutorOptions`. The builder methods still work as before; only direct reads of `IOptions<MigrationOptions>` need to change.
 
 **`PolicyError` has a new `Severity` property.** The existing 2-argument constructor still compiles, but custom `IMigrationPolicy` implementations should use `PolicySeverity.Warning` to signal non-fatal findings rather than returning errors.
 
@@ -34,7 +34,7 @@ The API has changed significantly. This section is organised around what you nee
 
 ### Backend state store (new)
 
-By default NSchema plans against the live database, but this isn't always possible — a CI pipeline may have no database connection, or you may want plans to reflect the last deployed state rather than any drift since then.
+By default NSchema plans against the live database, but this isn't always possible. A CI pipeline may have no way to reach the database, or you may want plans to reflect the last deployed state rather than any drift since then.
 
 NSchema now supports an optional state store that persists a snapshot of the schema after every successful apply:
 
@@ -42,11 +42,11 @@ NSchema now supports an optional state store that persists a snapshot of the sch
 builder.UseStateStoreFile("schema_state.json");
 ```
 
-Once a store is registered, `Plan` operations automatically read from it instead of the live database (offline planning), while `Apply` operations always use the live database. No further configuration is needed — registering the store is all it takes.
+Once a store is registered, `Plan` operations automatically read from it instead of the live database (offline planning), while `Apply` operations always use the live database. No further configuration is needed.
 
-A new `Refresh` operation captures the current live schema to the store without planning or applying anything. Use this to initialise the store, or to record drift that happened outside of NSchema.
+A new `Refresh` operation captures the current live schema to the store without planning or applying anything. Use this to initialize the store, or to record drift that happened outside of NSchema.
 
-`FileSchemaStateStore` is a ready-made file-backed implementation. Custom stores implement `ISchemaStateStore`.
+`FileSchemaStateStore` is a ready-made file-backed implementation. Custom stores implement `ISchemaStateStore`. Alongside this release, there will be an `NSchema.Aws` package with an implementation for S3.
 
 ## [1.0.1] - 2026-05-28
 
@@ -56,7 +56,7 @@ A new `Refresh` operation captures the current live schema to the store without 
 
 ## [1.0.0] - 2026-05-27
 
-First stable release. The public API is now covered by semantic versioning — breaking changes will only ship in a new major version.
+First stable release. The public API is now covered by semantic versioning. Breaking changes will only ship in a new major version.
 
 ### Added
 

@@ -1,4 +1,6 @@
-namespace NSchema.Migration;
+using NSchema.Migration;
+
+namespace NSchema.Hosting;
 
 /// <summary>
 /// Configures how a migration run is executed.

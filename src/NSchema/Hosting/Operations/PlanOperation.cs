@@ -18,11 +18,9 @@ internal sealed class PlanOperation(
         reporter.Info("Running in Plan mode. No changes will be applied to the database.");
 
         reporter.Info("Computing migration plan...");
-        var source = currentProvider.GetSource(SchemaSourceMode.Offline, required: false);
-
         var desiredSchema = await desiredProvider.GetSchema(options.Value.SchemaNames, cancellationToken);
         var schemasInScope = options.Value.SchemaNames ?? desiredSchema.AllSchemaNames;
-        var currentSchema = await source.GetSchema(schemasInScope, cancellationToken);
+        var currentSchema = await currentProvider.GetSchema(SchemaSourceMode.Offline, schemasInScope, required: false, cancellationToken);
 
         var result = await planner.Plan(currentSchema, desiredSchema, cancellationToken);
 

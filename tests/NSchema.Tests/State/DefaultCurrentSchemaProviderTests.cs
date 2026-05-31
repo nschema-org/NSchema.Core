@@ -33,7 +33,7 @@ public sealed class DefaultCurrentSchemaProviderTests
         var provider = new FakeOnlineProvider();
         var sut = new DefaultCurrentSchemaProvider(online: provider);
 
-        sut.GetSource(SchemaSourceMode.Online).ShouldBeSameAs(provider);
+        sut.GetSchema(SchemaSourceMode.Online).ShouldBeSameAs(provider);
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public sealed class DefaultCurrentSchemaProviderTests
     {
         var sut = new DefaultCurrentSchemaProvider();
 
-        Should.Throw<InvalidOperationException>(() => sut.GetSource(SchemaSourceMode.Online));
+        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Online));
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public sealed class DefaultCurrentSchemaProviderTests
     {
         var sut = new DefaultCurrentSchemaProvider(store: new FakeStateStore());
 
-        Should.Throw<InvalidOperationException>(() => sut.GetSource(SchemaSourceMode.Online));
+        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Online));
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public sealed class DefaultCurrentSchemaProviderTests
     {
         var sut = new DefaultCurrentSchemaProvider(store: new FakeStateStore());
 
-        var result = await sut.GetSource(SchemaSourceMode.Offline).GetSchema();
+        var result = await sut.GetSchema(SchemaSourceMode.Offline).GetSchema();
 
         result.ShouldBeSameAs(OfflineSchema);
     }
@@ -67,7 +67,7 @@ public sealed class DefaultCurrentSchemaProviderTests
     {
         var sut = new DefaultCurrentSchemaProvider();
 
-        Should.Throw<InvalidOperationException>(() => sut.GetSource(SchemaSourceMode.Offline));
+        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Offline));
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public sealed class DefaultCurrentSchemaProviderTests
     {
         var sut = new DefaultCurrentSchemaProvider(online: new FakeOnlineProvider());
 
-        Should.Throw<InvalidOperationException>(() => sut.GetSource(SchemaSourceMode.Offline));
+        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Offline));
     }
 
     // --- required: false (with fallback) ---
@@ -86,7 +86,7 @@ public sealed class DefaultCurrentSchemaProviderTests
         var provider = new FakeOnlineProvider();
         var sut = new DefaultCurrentSchemaProvider(online: provider);
 
-        sut.GetSource(SchemaSourceMode.Online, required: false).ShouldBeSameAs(provider);
+        sut.GetSchema(SchemaSourceMode.Online, required: false).ShouldBeSameAs(provider);
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public sealed class DefaultCurrentSchemaProviderTests
     {
         var sut = new DefaultCurrentSchemaProvider(store: new FakeStateStore());
 
-        var result = await sut.GetSource(SchemaSourceMode.Online, required: false).GetSchema();
+        var result = await sut.GetSchema(SchemaSourceMode.Online, required: false).GetSchema();
 
         result.ShouldBeSameAs(OfflineSchema);
     }
@@ -107,7 +107,7 @@ public sealed class DefaultCurrentSchemaProviderTests
             store: new FakeStateStore());
 
         // When offline is available it should be returned, not the online fallback.
-        var source = sut.GetSource(SchemaSourceMode.Offline, required: false);
+        var source = sut.GetSchema(SchemaSourceMode.Offline, required: false);
         source.ShouldNotBeSameAs(new FakeOnlineProvider()); // it's the offline provider
     }
 
@@ -117,7 +117,7 @@ public sealed class DefaultCurrentSchemaProviderTests
         var provider = new FakeOnlineProvider();
         var sut = new DefaultCurrentSchemaProvider(online: provider);
 
-        sut.GetSource(SchemaSourceMode.Offline, required: false).ShouldBeSameAs(provider);
+        sut.GetSchema(SchemaSourceMode.Offline, required: false).ShouldBeSameAs(provider);
     }
 
     [Fact]
@@ -125,8 +125,8 @@ public sealed class DefaultCurrentSchemaProviderTests
     {
         var sut = new DefaultCurrentSchemaProvider();
 
-        Should.Throw<InvalidOperationException>(() => sut.GetSource(SchemaSourceMode.Offline, required: false));
-        Should.Throw<InvalidOperationException>(() => sut.GetSource(SchemaSourceMode.Online, required: false));
+        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Offline, required: false));
+        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Online, required: false));
     }
 
     // --- DI integration ---
@@ -140,8 +140,8 @@ public sealed class DefaultCurrentSchemaProviderTests
         var current = app.Services.GetRequiredService<ICurrentSchemaProvider>();
 
         // Online is configured; offline is not.
-        current.GetSource(SchemaSourceMode.Online).ShouldNotBeNull();
-        Should.Throw<InvalidOperationException>(() => current.GetSource(SchemaSourceMode.Offline));
+        current.GetSchema(SchemaSourceMode.Online).ShouldNotBeNull();
+        Should.Throw<InvalidOperationException>(() => current.GetSchema(SchemaSourceMode.Offline));
     }
 
     [Fact]
@@ -153,8 +153,8 @@ public sealed class DefaultCurrentSchemaProviderTests
         var current = app.Services.GetRequiredService<ICurrentSchemaProvider>();
 
         // Offline is configured; online is not.
-        current.GetSource(SchemaSourceMode.Offline).ShouldNotBeNull();
-        Should.Throw<InvalidOperationException>(() => current.GetSource(SchemaSourceMode.Online));
+        current.GetSchema(SchemaSourceMode.Offline).ShouldNotBeNull();
+        Should.Throw<InvalidOperationException>(() => current.GetSchema(SchemaSourceMode.Online));
     }
 
     [Fact]
@@ -167,8 +167,8 @@ public sealed class DefaultCurrentSchemaProviderTests
         using var app = builder.Build();
         var current = app.Services.GetRequiredService<ICurrentSchemaProvider>();
 
-        var online = await current.GetSource(SchemaSourceMode.Online).GetSchema();
-        var offline = await current.GetSource(SchemaSourceMode.Offline).GetSchema();
+        var online = await current.GetSchema(SchemaSourceMode.Online).GetSchema();
+        var offline = await current.GetSchema(SchemaSourceMode.Offline).GetSchema();
 
         online.Schemas.ShouldHaveSingleItem().Name.ShouldBe("online");
         offline.Schemas.ShouldHaveSingleItem().Name.ShouldBe("offline");

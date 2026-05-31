@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using NSchema.Migration;
+using NSchema.Schema;
 
 namespace NSchema.State;
 
@@ -17,7 +18,13 @@ internal sealed class DefaultCurrentSchemaProvider(
     private readonly StateBackedSchemaProvider? _offline = store is not null ? new StateBackedSchemaProvider(store) : null;
 
     /// <inheritdoc />
-    public ISchemaProvider GetSource(SchemaSourceMode preferred, bool required = true) => preferred switch
+    public Task<DatabaseSchema> GetSchema(SchemaSourceMode preferred, string[]? schemaNames, bool required = true, CancellationToken cancellationToken = default)
+    {
+        var provider = GetProvider(preferred, required);
+        return provider.GetSchema(schemaNames, cancellationToken);
+    }
+
+    private ISchemaProvider GetProvider(SchemaSourceMode preferred, bool required = true) => preferred switch
     {
         SchemaSourceMode.Online when online is not null => online,
         SchemaSourceMode.Online when required => throw new InvalidOperationException("No online schema provider is registered."),

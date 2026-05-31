@@ -30,7 +30,7 @@ public sealed class ApplyOperationTests
         var mockSource = Substitute.For<ISchemaProvider>();
         mockSource.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
             .Returns(DatabaseSchema.Create([]));
-        _currentProvider.GetSource(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>()).Returns(mockSource);
+        _currentProvider.GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>()).Returns(mockSource);
 
         _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
             .Returns(DatabaseSchema.Create([]));
@@ -127,7 +127,7 @@ public sealed class ApplyOperationTests
     {
         var onlineSource = Substitute.For<ISchemaProvider>();
         onlineSource.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(DatabaseSchema.Create([]));
-        _currentProvider.GetSource(SchemaSourceMode.Online, required: true).Returns(onlineSource);
+        _currentProvider.GetSchema(SchemaSourceMode.Online, required: true).Returns(onlineSource);
 
         await _sut.Execute();
 

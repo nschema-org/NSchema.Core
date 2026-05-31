@@ -26,7 +26,7 @@ public sealed class PlanOperationTests
         var mockSource = Substitute.For<ISchemaProvider>();
         mockSource.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
             .Returns(DatabaseSchema.Create([]));
-        _currentProvider.GetSource(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>()).Returns(mockSource);
+        _currentProvider.GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>()).Returns(mockSource);
 
         _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
             .Returns(DatabaseSchema.Create([]));
@@ -105,7 +105,7 @@ public sealed class PlanOperationTests
     {
         var offlineSource = Substitute.For<ISchemaProvider>();
         offlineSource.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(DatabaseSchema.Create([]));
-        _currentProvider.GetSource(SchemaSourceMode.Offline, required: false).Returns(offlineSource);
+        _currentProvider.GetSchema(SchemaSourceMode.Offline, required: false).Returns(offlineSource);
 
         await _sut.Execute();
 
@@ -123,7 +123,7 @@ public sealed class PlanOperationTests
         var source = Substitute.For<ISchemaProvider>();
         source.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
             .Returns(call => { capturedScope = call.Arg<string[]?>(); return Task.FromResult(DatabaseSchema.Create([])); });
-        _currentProvider.GetSource(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>()).Returns(source);
+        _currentProvider.GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>()).Returns(source);
 
         await _sut.Execute();
 
@@ -141,7 +141,7 @@ public sealed class PlanOperationTests
         var source = Substitute.For<ISchemaProvider>();
         source.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
             .Returns(call => { currentScope = call.Arg<string[]?>(); return Task.FromResult(DatabaseSchema.Create([])); });
-        _currentProvider.GetSource(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>()).Returns(source);
+        _currentProvider.GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>()).Returns(source);
         _options.Value.SchemaNames = ["app", "legacy"];
 
         await _sut.Execute();

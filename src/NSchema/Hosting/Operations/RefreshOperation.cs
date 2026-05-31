@@ -19,7 +19,7 @@ internal sealed class RefreshOperation(
         }
 
         reporter.Info("Capturing schema state...");
-        var schema = await currentProvider.GetSource(SchemaSourceMode.Online, required: true).GetSchema(options.Value.SchemaNames, cancellationToken);
+        var schema = await currentProvider.GetSchema(SchemaSourceMode.Online, options.Value.SchemaNames, required: true, cancellationToken);
         await store.Write(schema, cancellationToken);
         reporter.Info("Schema state captured.");
     }

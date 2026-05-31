@@ -15,7 +15,7 @@ public sealed class RefreshOperationTests
     {
         var source = Substitute.For<ISchemaProvider>();
         source.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(DatabaseSchema.Create([]));
-        _currentProvider.GetSource(SchemaSourceMode.Online, required: true).Returns(source);
+        _currentProvider.GetSchema(SchemaSourceMode.Online, required: true).Returns(source);
         return new RefreshOperation(Options.Create(new MigrationOptions()), _reporter, _currentProvider, store);
     }
 
@@ -25,7 +25,7 @@ public sealed class RefreshOperationTests
         var schema = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
         var source = Substitute.For<ISchemaProvider>();
         source.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(schema);
-        _currentProvider.GetSource(SchemaSourceMode.Online, required: true).Returns(source);
+        _currentProvider.GetSchema(SchemaSourceMode.Online, required: true).Returns(source);
         var store = Substitute.For<ISchemaStateStore>();
         var sut = new RefreshOperation(Options.Create(new MigrationOptions()), _reporter, _currentProvider, store);
 
@@ -47,7 +47,7 @@ public sealed class RefreshOperationTests
     {
         var source = Substitute.For<ISchemaProvider>();
         source.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(DatabaseSchema.Create([]));
-        _currentProvider.GetSource(SchemaSourceMode.Online, required: true).Returns(source);
+        _currentProvider.GetSchema(SchemaSourceMode.Online, required: true).Returns(source);
         var store = Substitute.For<ISchemaStateStore>();
         var sut = new RefreshOperation(
             Options.Create(new MigrationOptions { SchemaNames = ["app"] }),

@@ -40,7 +40,7 @@ The `Refresh` operation captures the current live schema to the state store with
 
 ## Schema providers
 
-Desired state is declared through one or more `ISchemaProvider` implementations. Multiple desired providers are supported and will be combined into a single schema using `ISchemaAggregator`, which can be overridden. The default aggregator merges declared schemas of the same name, but throws on duplicate tables. This lets you organize schemas by feature or bounded context and have them merged at runtime.
+Desired state is declared through one or more `ISchemaProvider` implementations. Multiple desired providers are supported and will be combined into a single schema, merging declared schemas of the same name. This lets you organize schemas by feature or bounded context and have them merged at runtime.
 
 Current state is accessed through `ICurrentSchemaProvider`, which wraps two optional sources:
 

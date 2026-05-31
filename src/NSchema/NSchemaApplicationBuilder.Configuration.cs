@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using NSchema.Hosting;
 using NSchema.Migration;
 using NSchema.Migration.Sql;
 
