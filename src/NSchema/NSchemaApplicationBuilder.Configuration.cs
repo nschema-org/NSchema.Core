@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
+using NSchema.Hosting;
 using NSchema.Migration;
+using NSchema.Migration.Sql;
 
 namespace NSchema;
 
@@ -17,13 +19,24 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
+    /// Configures the transaction mode to use when executing the migration plan.
+    /// </summary>
+    /// <param name="mode">The transaction mode to use.</param>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder WithTransactionMode(TransactionMode mode)
+    {
+        Services.Configure<SqlExecutorOptions>(o => o.TransactionMode = mode);
+        return this;
+    }
+
+    /// <summary>
     /// Configures the operation the migration run performs.
     /// </summary>
     /// <param name="operation">The operation to perform.</param>
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder RunOperation(MigrationOperation operation)
     {
-        Services.Configure<MigrationOptions>(o => o.Operation = operation);
+        Services.Configure<MigrationRunOptions>(o => o.Operation = operation);
         return this;
     }
 

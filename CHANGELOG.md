@@ -6,33 +6,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-Version 2 is focusing on improving the developer experience, with a more explicit but flexible model for planning and applying changes. The public API has been restructured to support this, and some breaking changes have been made to increase clarity and make operations more explicit.
+Version 2 focuses on improving developer experience with a more explicit and extensible model for planning and applying changes. It also introduces an optional Terraform-style state store so that plans can be made against snapshots rather than a live database.
 
-V2 also introduces an optional Terraform-style "backend state store" so that plans can be made against state snapshots rather than the current live state.
+The API has changed significantly. This section is organised around what you need to do, depending on your role.
 
-### Added
+### If you are a library user
 
-- Replaced the `MigrationOptions.DryRun` flag with a `MigrationOperation` enum and `MigrationOptions.Operation` option to select what a run does (`Plan` or `Apply`), configurable via `RunOperation(...)`.
-- Explicit `NSchemaApplication.Plan(...)` and `Apply(...)` entry points that run a specific operation. This overrides any pre-configured `Operation` for that run. (`RunAsync()` still uses the configured operation.)
-- Added `IMigrationCompiler` and `ICompiledMigration`. Replaces `IMigrationExecutor` by compiling a migration plan into an executable unit of work. Register a custom compiler via `UseMigrationCompiler<T>()`.
-- Added `ISchemaStateSerializer` for versioned serialization of schema state, with a built-in `DefaultSchemaStateSerializer`.
-- Added `ISchemaStateStore` for optional backend state storage, and `UseStateStore<T>()` for registration. This allows plans to be generated against the last applied state rather than the current live state.
-- Added `FileSchemaStateStore` implementation of `ISchemaStateStore` that saves the last applied schema to a local file. This is useful for simple scenarios or as a reference implementation for custom stores.
-- Added control over where the current schema is read from: `UseCurrentSchemaState()` reads it from the state store, while `UseCurrentSchemaAuto()` reads from the store when planning and from the live database when applying.
-- After a successful apply, NSchema now captures the resulting schema to the state store (when one is configured). The new `Refresh` operation (`MigrationOperation.Refresh` / `NSchemaApplication.Refresh()`) captures it without planning or applying.
+**The default operation is now `Plan`.** NSchema will not apply changes unless you explicitly configure it with `RunOperation(MigrationOperation.Apply)` or call `app.Apply()`. This prevents accidental data loss when running NSchema for the first time.
 
-### Changed
+**`DryRun` / `DryRunOnly()` have been removed.** Use `RunOperation(MigrationOperation.Plan)` or `app.Plan()` instead.
 
-- The pipeline now compiles the plan into an `ICompiledMigration` and previews it separately from execution.
-- **Breaking:** NSchema applications now default to `Plan` mode, so they won't apply changes unless explicitly configured or invoked with `Apply()`.
-- **Breaking:** `IMigrationReporter` has moved to the `NSchema.Migration` namespace (was `NSchema.Hosting`).
-- **Breaking:** `IMigrationReporter` is now a presenter responsible for displaying the plan and execution results, so it can be more easily customized.
-- **Breaking:** `PolicyError` has a new `Severity` property. The existing 2-argument constructor still compiles, but custom `IMigrationPolicy` implementations should now signal warnings with `PolicySeverity.Warning`.
+**`NSchemaApplication` now has explicit entry points.** `Plan()`, `Apply()`, and `Refresh()` methods that run a specific operation regardless of the configured default. `RunAsync()` still uses the configured operation.
 
-### Removed
+**`MigrationOptions` has been broken up.** Settings that control what gets migrated (`SchemaNames`, `DestructiveActionPolicy`) stay in `MigrationOptions`. Settings that control how a run executes (`Operation`, `TransactionMode`) have moved to `MigrationRunOptions` and `SqlExecutorOptions`. The builder methods still work as before; only direct reads of `IOptions<MigrationOptions>` need to change.
 
-- **Breaking:** `MigrationOptions.DryRun` and `DryRunOnly()` are gone. Use `Operation` / `RunOperation(MigrationOperation.Plan)` instead.
-- **Breaking:** `IMigrationExecutor` and `UseMigrationExecutor<T>()` are gone. Implement `IMigrationCompiler` (returning an `ICompiledMigration`) and register it with `UseMigrationCompiler<T>()`.
+**`PolicyError` has a new `Severity` property.** The existing 2-argument constructor still compiles, but custom `IMigrationPolicy` implementations should use `PolicySeverity.Warning` to signal non-fatal findings rather than returning errors.
+
+### If you are a database provider
+
+**`IMigrationReporter` has moved** to the `NSchema.Migration` namespace (was `NSchema.Hosting`). Update any `using` directives.
+
+**`IMigrationExecutor` and `UseMigrationExecutor<T>()` have been removed.** Implement `IMigrationCompiler` instead. A compiler receives a `MigrationPlan` and returns an executable `ICompiledMigration` unit. Register it with `UseMigrationCompiler<T>()`.
+
+**`UseCurrentSchema<T>()` is unchanged.** It still registers the live database provider. No action required.
+
+**`IMigrationPlanner` is now public** and its `Plan()` method now takes explicit `DatabaseSchema currentSchema` and `DatabaseSchema desiredSchema` parameters. If you have a custom planner implementation, update the signature. The planner is now a pure domain service — it no longer resolves schema providers from DI.
+
+### Backend state store (new)
+
+By default NSchema plans against the live database, but this isn't always possible. A CI pipeline may have no way to reach the database, or you may want plans to reflect the last deployed state rather than any drift since then.
+
+NSchema now supports an optional state store that persists a snapshot of the schema after every successful apply:
+
+```csharp
+builder.UseStateStoreFile("schema_state.json");
+```
+
+Once a store is registered, `Plan` operations automatically read from it instead of the live database (offline planning), while `Apply` operations always use the live database. No further configuration is needed.
+
+A new `Refresh` operation captures the current live schema to the store without planning or applying anything. Use this to initialize the store, or to record drift that happened outside of NSchema.
+
+`FileSchemaStateStore` is a ready-made file-backed implementation. Custom stores implement `ISchemaStateStore`. Alongside this release, there will be an `NSchema.Aws` package with an implementation for S3.
 
 ## [1.0.1] - 2026-05-28
 
@@ -42,7 +56,7 @@ V2 also introduces an optional Terraform-style "backend state store" so that pla
 
 ## [1.0.0] - 2026-05-27
 
-First stable release. The public API is now covered by semantic versioning — breaking changes will only ship in a new major version.
+First stable release. The public API is now covered by semantic versioning. Breaking changes will only ship in a new major version.
 
 ### Added
 

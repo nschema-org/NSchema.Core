@@ -1,5 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using NSchema.Migration.Plan;
 using NSchema.Policies;
 using NSchema.Schema;
@@ -9,51 +7,27 @@ namespace NSchema.Migration;
 /// <summary>
 /// Default <see cref="IMigrationPlanner"/>.
 /// </summary>
-/// <param name="currentProvider">The provider for retrieving the current schema state.</param>
-/// <param name="desiredProviders">The collection of providers for retrieving the desired schema state.</param>
-/// <param name="scriptProviders">The collection of providers for retrieving pre- and post-deployment scripts.</param>
-/// <param name="schemaAggregator">The service responsible for aggregating multiple desired schema states into a single cohesive schema.</param>
-/// <param name="comparer">The service responsible for comparing the current and desired schemas and generating an initial migration plan.</param>
-/// <param name="schemaPolicies">The collection of policies to validate the desired schema.</param>
-/// <param name="planTransformers">The collection of transformers to modify the generated migration plan.</param>
-/// <param name="migrationPolicies">The collection of policies to validate the final migration plan.</param>
-/// <param name="options">Migration options, including the optional schema-name scope filter.</param>
+/// <param name="scriptProviders">Pre- and post-deployment scripts to inject around the plan actions.</param>
+/// <param name="comparer">Produces the initial set of migration actions by diffing the two schemas.</param>
+/// <param name="schemaPolicies">Policies that validate the desired schema before diffing.</param>
+/// <param name="planTransformers">Transformers applied to the plan in registration order.</param>
+/// <param name="migrationPolicies">Policies that validate the final transformed plan.</param>
 internal sealed class DefaultMigrationPlanner(
-    [FromKeyedServices(ISchemaProvider.CurrentSchemaProviderKey)] ISchemaProvider currentProvider,
-    IEnumerable<ISchemaProvider> desiredProviders,
     IEnumerable<IScriptProvider> scriptProviders,
-    ISchemaAggregator schemaAggregator,
     ISchemaComparer comparer,
     IEnumerable<ISchemaPolicy> schemaPolicies,
     IEnumerable<IMigrationPlanTransformer> planTransformers,
-    IEnumerable<IMigrationPolicy> migrationPolicies,
-    IOptions<MigrationOptions> options
+    IEnumerable<IMigrationPolicy> migrationPolicies
 ) : IMigrationPlanner
 {
-    public async Task<MigrationPlanResult> Plan(CancellationToken cancellationToken = default)
+    public async Task<MigrationPlanResult> Plan(DatabaseSchema currentSchema, DatabaseSchema desiredSchema, CancellationToken cancellationToken = default)
     {
-        var scope = options.Value.SchemaNames;
-
-        // Get desired schema state from all registered providers and merge.
-        var schemas = await Task.WhenAll(desiredProviders.Select(p => p.GetSchema(scope, cancellationToken)));
-        var desiredSchema = schemaAggregator.Aggregate(schemas);
-
-        // Run all registered schema validation policies.
+        // Validate the desired schema before diffing.
         var schemaErrors = schemaPolicies.SelectMany(p => p.Validate(desiredSchema)).ToList();
         if (schemaErrors.Count > 0)
         {
             return new MigrationPlanResult(null, schemaErrors);
         }
-
-        // Get current schema state. When no explicit scope is set, derive it from the aggregated
-        // declared (and dropped) schemas so we never touch unmanaged schemas in the database.
-        var schemasInScope = scope is { Length: > 0 }
-            ? scope
-            : desiredSchema.Schemas.Select(s => s.Name)
-                .Concat(desiredSchema.DroppedSchemas)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-        var currentSchema = await currentProvider.GetSchema(schemasInScope, cancellationToken);
 
         // Diff the two schemas.
         var migrationPlan = comparer.Compare(currentSchema, desiredSchema);
@@ -72,7 +46,7 @@ internal sealed class DefaultMigrationPlanner(
         // Apply all registered plan transformers in order.
         migrationPlan = planTransformers.Aggregate(migrationPlan, (p, t) => t.Transform(p));
 
-        // Run all registered action policies against the transformed plan.
+        // Validate the transformed plan.
         var diagnostics = migrationPolicies.SelectMany(p => p.Validate(migrationPlan)).ToList();
         return new MigrationPlanResult(migrationPlan, diagnostics);
     }

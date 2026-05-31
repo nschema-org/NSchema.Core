@@ -1,4 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
 using NSchema.Migration;
 using NSchema.Schema;
 using NSchema.State;
@@ -90,18 +89,4 @@ public sealed class StateBackedSchemaProviderTests
         result.Schemas.Select(s => s.Name).ShouldBe(["My_Schema"]);
     }
 
-    [Fact]
-    public void UseCurrentSchemaState_RegistersAsCurrentProvider()
-    {
-        // Arrange
-        var builder = NSchemaApplication.CreateBuilder();
-        builder.UseStateStore(_store).UseCurrentSchemaState();
-        using var app = builder.Build();
-
-        // Act
-        var current = app.Services.GetRequiredKeyedService<ISchemaProvider>(ISchemaProvider.CurrentSchemaProviderKey);
-
-        // Assert
-        current.ShouldBeOfType<StateBackedSchemaProvider>();
-    }
 }

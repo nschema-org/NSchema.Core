@@ -5,22 +5,8 @@ namespace NSchema.Migration;
 /// <summary>
 /// Provides a database schema, scoped to a set of schema names.
 /// </summary>
-/// <remarks>
-/// A single shape is used for both desired-state and current-state providers, so the same implementation
-/// (for example a live Postgres reader) can be plugged into either role, determined at registration time.
-/// </remarks>
 public interface ISchemaProvider
 {
-    /// <summary>
-    /// DI key for the effective current-state provider the planner reads.
-    /// </summary>
-    internal const string CurrentSchemaProviderKey = "NSchema.Current";
-
-    /// <summary>
-    /// DI key for the live current-state provider (the one that reads the real database).
-    /// </summary>
-    internal const string LiveCurrentSchemaProviderKey = "NSchema.Current.Live";
-
     /// <summary>
     /// Gets the schema for the specified schema names.
     /// </summary>
