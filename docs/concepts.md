@@ -21,7 +21,7 @@ This section of the pipeline is where the migration plan is generated. It runs o
 1. **Resolve desired schemas.** Load the target schema(s) from one or more registered sources.
 2. **Combine desired schemas.** Combine the desired schemas into a single database schema.
 3. **Validate the desired schema.** Run any registered schema policies to validate things like naming, required columns, banned types, etc.
-4. **Read current state.** Load the current schema from your target database, or the state store.
+4. **Read current state.** Load the current schema from the live database or the state store, depending on the operation and what's configured.
 5. **Compare schemas.** The current and desired schemas are compared to produce a `MigrationPlan`.
 6. **Transform the plan.** Any custom transformations are applied to the plan. This is where actions are reordered to respect dependencies, or where custom actions are injected.
 7. **Validate the plan.** Validate the plan using any registered policies. If configured, the built-in `DestructiveActionMigrationPolicy` will error on any destructive actions.
@@ -40,19 +40,20 @@ The `Refresh` operation captures the current live schema to the state store with
 
 ## Schema providers
 
-All schemas, both desired and current, are resolved through an `ISchemaProvider` interface. This allows providers to be swapped in and out for different purposes, and for the same provider to be used as either a desired or current source depending on how it's registered.
+Desired state is declared through one or more `ISchemaProvider` implementations. Multiple desired providers are supported and will be combined into a single schema using `ISchemaAggregator`, which can be overridden. The default aggregator merges declared schemas of the same name, but throws on duplicate tables. This lets you organize schemas by feature or bounded context and have them merged at runtime.
 
-While only one current provider can be registered, multiple desired providers are supported and will be combined into a single schema using an implementation of `ISchemaAggregator`, which can be overridden.
+Current state is accessed through `ICurrentSchemaProvider`, which wraps two optional sources:
 
-The default schema aggregator will merge declared schemas of the same name, but throw exceptions on duplicate tables. This allows you to organize your schemas in different ways, e.g. by feature or bounded context, and have them merged together at runtime.
+- **Online.** The live database, registered via `UseCurrentSchema<T>()` or a provider package like `UsePostgres(...)`.
+- **Offline.** A persisted snapshot, enabled automatically when a `ISchemaStateStore` is registered via `UseStateStore<T>()`.
+
+`Plan` operations prefer the offline source when available (so planning works without a database connection); `Apply` always reads from the live database.
 
 ### Schema scope
 
-The `ISchemaProvider.GetSchema(...)` method takes an optional list of schema names to read. When `null` or empty, the provider is expected to return its full schema. This allows a provider that supports it (e.g. Postgres) to be used as either a desired or current source without changes, and also allows for scoping to a subset of schemas when needed.
+The `ISchemaProvider.GetSchema(...)` method takes an optional list of schema names to read. When `null` or empty, the provider is expected to return its full schema. This allows for scoping to a subset of schemas when needed.
 
-This allows you to deploy schemas independently of one another, even when they're contained within the same assembly, or to build tools that target a single schema without needing to read or understand the full database.
-
-By default, the scope of a migration is equal to the full set of schemas returned by the registered desired providers, but it can also be configured explicitly via `MigrationOptions.SchemaNames` or the `ForSchemas(...)` extension method.
+By default, the scope of a migration is equal to the full set of schemas returned by the registered desired providers, but it can also be configured explicitly via `MigrationOptions.SchemaNames` or the `ForSchemas(...)` builder method.
 
 ## Schema policies
 

@@ -17,6 +17,17 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
+    /// Configures the transaction mode to use when executing the migration plan.
+    /// </summary>
+    /// <param name="mode">The transaction mode to use.</param>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder WithTransactionMode(TransactionMode mode)
+    {
+        Services.Configure<MigrationRunOptions>(o => o.TransactionMode = mode);
+        return this;
+    }
+
+    /// <summary>
     /// Configures the operation the migration run performs.
     /// </summary>
     /// <param name="operation">The operation to perform.</param>
