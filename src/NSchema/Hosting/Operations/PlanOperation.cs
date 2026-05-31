@@ -19,8 +19,9 @@ internal sealed class PlanOperation(
     {
         reporter.Info("Running in Plan mode. No changes will be applied to the database.");
 
+        reporter.Info("Computing migration plan...");
         var source = currentProvider.GetSource(SchemaSourceMode.Offline, required: false);
-        var (currentSchema, desiredSchema) = await ResolveSchemas(source, cancellationToken);
+        var (currentSchema, desiredSchema) = await SchemaResolution.ResolveAsync(source, desiredProviders, schemaAggregator, options.Value.SchemaNames, cancellationToken);
 
         var result = await planner.Plan(currentSchema, desiredSchema, cancellationToken);
 
@@ -43,22 +44,4 @@ internal sealed class PlanOperation(
         reporter.ReportPreview(execution.Preview);
     }
 
-    private async Task<(DatabaseSchema current, DatabaseSchema desired)> ResolveSchemas(ISchemaProvider source, CancellationToken cancellationToken)
-    {
-        reporter.Info("Computing migration plan...");
-
-        var scope = options.Value.SchemaNames;
-        var schemas = await Task.WhenAll(desiredProviders.Select(p => p.GetSchema(scope, cancellationToken)));
-        var desiredSchema = schemaAggregator.Aggregate(schemas);
-
-        var schemasInScope = scope is { Length: > 0 }
-            ? scope
-            : desiredSchema.Schemas.Select(s => s.Name)
-                .Concat(desiredSchema.DroppedSchemas)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-        var currentSchema = await source.GetSchema(schemasInScope, cancellationToken);
-
-        return (currentSchema, desiredSchema);
-    }
 }

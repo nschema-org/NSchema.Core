@@ -7,7 +7,7 @@ namespace NSchema.Migration;
 /// <summary>
 /// The result of a planning pass: the computed plan plus all policy diagnostics.
 /// </summary>
-internal sealed record MigrationPlanResult(MigrationPlan? Plan, IReadOnlyList<PolicyError> Diagnostics)
+public sealed record MigrationPlanResult(MigrationPlan? Plan, IReadOnlyList<PolicyError> Diagnostics)
 {
     /// <summary>
     /// True when <see cref="Diagnostics"/> contains at least one error-severity finding.

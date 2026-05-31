@@ -20,7 +20,7 @@ public partial class NSchemaApplicationBuilder
     /// <summary>
     /// Registers the <see cref="ISqlPlanner"/> that generates the SQL for a migration plan.
     /// </summary>
-    /// <typeparam name="T">The type of the provider to register as the current-state source.</typeparam>
+    /// <typeparam name="T">The type of the SQL planner to register.</typeparam>
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder UseSqlPlanner<T>() where T : class, ISqlPlanner
     {

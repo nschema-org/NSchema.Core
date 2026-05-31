@@ -6,7 +6,7 @@ namespace NSchema.Migration;
 /// <summary>
 /// Builds a <see cref="MigrationPlan"/> by diffing the desired schema against the current database state.
 /// </summary>
-internal interface IMigrationPlanner
+public interface IMigrationPlanner
 {
     /// <summary>
     /// Generates a migration plan that outlines the necessary steps to migrate the database from its current state
