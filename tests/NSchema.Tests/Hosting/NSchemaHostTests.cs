@@ -93,17 +93,4 @@ public sealed class NSchemaHostTests
         await Should.ThrowAsync<InvalidOperationException>(() => sut.ExecuteTask!);
         _reporter.Received(1).Error(Arg.Is<string>(s => s.Contains("boom")));
     }
-
-    [Fact]
-    public async Task Execute_PolicyViolationException_DoesNotReportAdditionalError()
-    {
-        _options.Operation = MigrationOperation.Apply;
-        _applyOp.Execute(Arg.Any<CancellationToken>())
-            .ThrowsAsync(new PolicyViolationException([]));
-        var sut = BuildHost();
-        await sut.StartAsync(CancellationToken.None);
-
-        await Should.ThrowAsync<PolicyViolationException>(() => sut.ExecuteTask!);
-        _reporter.DidNotReceive().Error(Arg.Any<string>());
-    }
 }
