@@ -61,11 +61,12 @@ A run performs one of two operations: **`Plan`** (the default) computes and rend
 
 ## Documentation
 
-- **[Configuration](docs/configuration.md)**. Hosting, operations, destructive-action policy, scoping, registering schemas, scripts, and policies.
-- **[Defining schemas](docs/schemas.md)**. The full fluent reference for schemas, tables, columns, foreign keys, and indexes.
-- **[Concepts](docs/concepts.md)**. The domain model, the pipeline, and how the pieces fit together.
-- **[Extension points](docs/extension-points.md)** Every interface you can swap or extend, and how to register it.
-- **[Samples](samples/)** Complete sample applications and reference implementations.
+- **[Configuration](docs/configuration.md).** Hosting, operations, destructive-action policy, scoping, registering schemas, scripts, and policies.
+- **[Defining schemas](docs/schemas.md).** The full fluent reference for schemas, tables, columns, foreign keys, and indexes.
+- **[Concepts](docs/concepts.md).** The domain model, the pipeline, and how the pieces fit together.
+- **[Extension points](docs/extension-points.md).** Every interface you can swap or extend, and how to register it.
+- **[Samples](samples/).** Complete sample applications and reference implementations.
+- **[Roadmap](docs/roadmap.md).** Planned features and improvements.
 
 ## License
 
