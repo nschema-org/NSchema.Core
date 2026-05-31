@@ -41,17 +41,9 @@ internal sealed class ApplyOperation(
         var execution = await compiler.Compile(result.Plan, cancellationToken);
         reporter.ReportPreview(execution.Preview);
 
-        try
-        {
-            reporter.Info("Running database migration...");
-            await execution.Execute(cancellationToken);
-            reporter.Info("Migration completed successfully.");
-        }
-        catch (Exception ex)
-        {
-            reporter.Error($"Migration failed: {ex.Message}");
-            throw;
-        }
+        reporter.Info("Running database migration...");
+        await execution.Execute(cancellationToken);
+        reporter.Info("Migration completed successfully.");
 
         // Capture the resulting schema so a later offline plan can diff against it.
         if (store is not null)

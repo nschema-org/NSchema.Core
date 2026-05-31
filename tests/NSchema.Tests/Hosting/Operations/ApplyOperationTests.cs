@@ -111,17 +111,6 @@ public sealed class ApplyOperationTests
     }
 
     [Fact]
-    public void Execute_ExecutionThrows_ReportsErrorAndRethrows()
-    {
-        _execution.Execute(Arg.Any<CancellationToken>()).Throws(new InvalidOperationException("boom"));
-
-        var act = async () => await _sut.Execute();
-
-        act.ShouldThrow<InvalidOperationException>();
-        _reporter.Received().Error(Arg.Is<string>(s => s.Contains("boom")));
-    }
-
-    [Fact]
     public async Task Execute_AlwaysUsesOnlineSource()
     {
         await _sut.Execute();
