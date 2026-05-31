@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using NSchema.Migration;
 using NSchema.Policies;
+using NSchema.State;
 
 namespace NSchema.Hosting.Operations;
 
@@ -8,9 +9,9 @@ internal sealed class ApplyOperation(
     IOptions<MigrationOptions> options,
     IMigrationPlanner planner,
     IMigrationReporter reporter,
-    IStateCapturer stateCapturer,
     ICurrentSchemaProvider currentProvider,
     IDesiredSchemaProvider desiredProvider,
+    ISchemaStateStore? store = null,
     IMigrationCompiler? compiler = null
 ) : IMigrationOperation
 {
@@ -56,7 +57,12 @@ internal sealed class ApplyOperation(
 
         // Capture the resulting schema so a later offline plan can diff against it.
         // A no-op when no store is configured; runs even for an empty diff to keep the state fresh.
-        await stateCapturer.Capture(cancellationToken);
+        if (store is not null)
+        {
+            reporter.Info("Capturing schema state...");
+            var snapshot = await source.GetSchema(options.Value.SchemaNames, cancellationToken);
+            await store.Write(snapshot, cancellationToken);
+            reporter.Info("Schema state captured.");
+        }
     }
-
 }

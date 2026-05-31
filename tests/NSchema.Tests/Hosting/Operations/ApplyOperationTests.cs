@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Options;
-using NSchema.Hosting;
 using NSchema.Hosting.Operations;
 using NSchema.Migration;
 using NSchema.Migration.Plan;
 using NSchema.Policies;
 using NSchema.Schema;
+using NSchema.State;
 using NSubstitute.ExceptionExtensions;
 
 namespace NSchema.Tests.Hosting.Operations;
@@ -15,12 +15,13 @@ public sealed class ApplyOperationTests
     private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
     private readonly IMigrationCompiler _compiler = Substitute.For<IMigrationCompiler>();
     private readonly ICompiledMigration _execution = Substitute.For<ICompiledMigration>();
-    private readonly IStateCapturer _stateCapturer = Substitute.For<IStateCapturer>();
+    private readonly ISchemaStateStore _store = Substitute.For<ISchemaStateStore>();
     private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
     private readonly IDesiredSchemaProvider _desiredProvider = Substitute.For<IDesiredSchemaProvider>();
     private readonly IOptions<MigrationOptions> _options = Options.Create(new MigrationOptions());
 
-    private ApplyOperation BuildSut(IMigrationCompiler? compiler) => new(_options, _planner, _reporter, _stateCapturer, _currentProvider, _desiredProvider, compiler);
+    private ApplyOperation BuildSut(IMigrationCompiler? compiler, ISchemaStateStore? store = null) =>
+        new(_options, _planner, _reporter, _currentProvider, _desiredProvider, store, compiler);
 
     private readonly ApplyOperation _sut;
 
@@ -43,7 +44,7 @@ public sealed class ApplyOperationTests
     }
 
     [Fact]
-    public async Task Execute_CompilesExecutesAndCapturesState()
+    public async Task Execute_CompilesAndExecutesPlan()
     {
         var plan = new MigrationPlan([new CreateSchema("app")], DatabaseSchema.Create([]));
         _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
@@ -53,7 +54,35 @@ public sealed class ApplyOperationTests
 
         await _compiler.Received(1).Compile(plan, Arg.Any<CancellationToken>());
         await _execution.Received(1).Execute(Arg.Any<CancellationToken>());
-        await _stateCapturer.Received(1).Capture(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Execute_WithStore_CapturesStateAfterSuccess()
+    {
+        var sut = BuildSut(_compiler, _store);
+
+        await sut.Execute();
+
+        await _store.Received(1).Write(Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Execute_WithStore_DoesNotCaptureWhenExecutionFails()
+    {
+        _execution.Execute(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("boom"));
+        var sut = BuildSut(_compiler, _store);
+
+        await Should.ThrowAsync<InvalidOperationException>(() => sut.Execute());
+
+        await _store.DidNotReceive().Write(Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Execute_NoStore_DoesNotAttemptCapture()
+    {
+        await _sut.Execute();
+
+        await _store.DidNotReceive().Write(Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -63,16 +92,6 @@ public sealed class ApplyOperationTests
 
         await Should.ThrowAsync<InvalidOperationException>(() => sut.Execute());
         await _planner.DidNotReceive().Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>());
-        await _stateCapturer.DidNotReceive().Capture(Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Execute_DoesNotCaptureState_WhenExecutionFails()
-    {
-        _execution.Execute(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("boom"));
-
-        await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute());
-        await _stateCapturer.DidNotReceive().Capture(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -112,7 +131,7 @@ public sealed class ApplyOperationTests
 
         await _sut.Execute();
 
-        await onlineSource.Received(1).GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+        await onlineSource.Received().GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
