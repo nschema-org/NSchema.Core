@@ -9,10 +9,8 @@ namespace NSchema.Migration.Sql;
 /// </summary>
 /// <param name="dataSource">The DbDataSource used to obtain database connections for executing SQL statements.</param>
 /// <param name="options">Migration options that control how the executor handles transactions.</param>
-public sealed class DefaultSqlExecutor(DbDataSource dataSource, IOptions<MigrationOptions>? options = null) : ISqlExecutor
+public sealed class DefaultSqlExecutor(DbDataSource dataSource, IOptions<MigrationRunOptions> options) : ISqlExecutor
 {
-    private readonly MigrationOptions _options = options?.Value ?? new MigrationOptions();
-
     /// <inheritdoc/>
     public async Task Execute(SqlPlan plan, CancellationToken cancellationToken = default)
     {
@@ -23,7 +21,7 @@ public sealed class DefaultSqlExecutor(DbDataSource dataSource, IOptions<Migrati
 
         await using var conn = await dataSource.OpenConnectionAsync(cancellationToken);
 
-        if (_options.TransactionMode == TransactionMode.None)
+        if (options.Value.TransactionMode == TransactionMode.None)
         {
             foreach (var statement in plan.Statements)
             {

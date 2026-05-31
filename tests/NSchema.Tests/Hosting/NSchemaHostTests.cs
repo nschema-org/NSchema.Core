@@ -9,7 +9,7 @@ namespace NSchema.Tests.Hosting;
 
 public sealed class NSchemaHostTests
 {
-    private readonly MigrationOptions _options = new();
+    private readonly MigrationRunOptions _options = new();
     private readonly IMigrationOperation _planOp = Substitute.For<IMigrationOperation>();
     private readonly IMigrationOperation _applyOp = Substitute.For<IMigrationOperation>();
     private readonly IMigrationOperation _refreshOp = Substitute.For<IMigrationOperation>();

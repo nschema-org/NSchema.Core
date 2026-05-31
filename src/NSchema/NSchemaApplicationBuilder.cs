@@ -39,8 +39,8 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Drop the default console logger so third-party libraries don't spam the terminal.
         _innerBuilder.Logging.ClearProviders();
 
-        _innerBuilder.Services
-            .AddOptions<MigrationOptions>();
+        _innerBuilder.Services.AddOptions<MigrationOptions>();
+        _innerBuilder.Services.AddOptions<MigrationRunOptions>();
     }
 
     /// <inheritdoc />
@@ -103,8 +103,8 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
             services.TryAddSingleton<IMigrationCompiler, SqlMigrationCompiler>();
         }
 
-        services.TryAddEnumerable(new ServiceDescriptor(typeof(IMigrationPlanTransformer), typeof(ActionOrderingTransformer), ServiceLifetime.Singleton));
-        services.TryAddEnumerable(new ServiceDescriptor(typeof(IMigrationPolicy), typeof(DestructiveActionMigrationPolicy), ServiceLifetime.Singleton));
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IMigrationPlanTransformer, ActionOrderingTransformer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IMigrationPolicy, DestructiveActionMigrationPolicy>());
 
         // This is the service responsible for running the migration.
         services.AddHostedService<NSchemaHost>();

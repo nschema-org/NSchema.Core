@@ -23,7 +23,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder RunOperation(MigrationOperation operation)
     {
-        Services.Configure<MigrationOptions>(o => o.Operation = operation);
+        Services.Configure<MigrationRunOptions>(o => o.Operation = operation);
         return this;
     }
 
