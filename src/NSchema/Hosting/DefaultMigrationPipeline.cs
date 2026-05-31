@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Microsoft.Extensions.Options;
 using NSchema.Migration;
 using NSchema.Policies;
 
@@ -10,6 +11,10 @@ namespace NSchema.Hosting;
 /// <param name="planner">Builds the migration plan.</param>
 /// <param name="reporter">Presents user-facing migration progress and artifacts.</param>
 /// <param name="stateCapturer">Captures the resulting schema into the state store after an apply.</param>
+/// <param name="currentProvider">Supplies the online and offline current-state sources.</param>
+/// <param name="desiredProviders">The providers that declare the desired database state.</param>
+/// <param name="schemaAggregator">Merges multiple desired-state schemas into one.</param>
+/// <param name="options">Migration options, including the schema-name scope filter.</param>
 /// <param name="compiler">
 /// Compiles the plan into an executable unit of work. Optional: an offline configuration (no database provider, so
 /// no SQL is generated) has no compiler. A <see cref="Plan"/> then reports the plan without a SQL preview; an
@@ -19,6 +24,10 @@ internal sealed class DefaultMigrationPipeline(
     IMigrationPlanner planner,
     IMigrationReporter reporter,
     IStateCapturer stateCapturer,
+    ICurrentSchemaProvider currentProvider,
+    IEnumerable<ISchemaProvider> desiredProviders,
+    ISchemaAggregator schemaAggregator,
+    IOptions<MigrationOptions> options,
     // A default value makes this genuinely optional: MS DI only treats a parameter as optional when it has a
     // default, not from the nullable annotation alone. Without it, an offline run fails to construct the pipeline.
     IMigrationCompiler? compiler = null
@@ -27,7 +36,9 @@ internal sealed class DefaultMigrationPipeline(
     public async Task Plan(CancellationToken cancellationToken = default)
     {
         reporter.Info("Running in Plan mode. No changes will be applied to the database.");
-        await Prepare(cancellationToken);
+        // Prefer the offline snapshot for planning so it works without a database connection.
+        var source = currentProvider.GetSource(SchemaSourceMode.Offline, required: false);
+        await Prepare(source, cancellationToken);
     }
 
     public async Task Apply(CancellationToken cancellationToken = default)
@@ -37,8 +48,10 @@ internal sealed class DefaultMigrationPipeline(
             throw new InvalidOperationException("Applying a migration requires a database provider to compile the plan into SQL, but none is registered. Register one (for example via UsePostgres).");
         }
 
+        var source = currentProvider.GetSource(SchemaSourceMode.Online, required: true);
+
         // compiler is non-null here, so Prepare always produces an execution.
-        var execution = await Prepare(cancellationToken) ?? throw new UnreachableException();
+        var execution = await Prepare(source, cancellationToken) ?? throw new UnreachableException();
 
         try
         {
@@ -65,14 +78,25 @@ internal sealed class DefaultMigrationPipeline(
         }
     }
 
-    /// <summary>
-    /// Computes the plan and presents the diff, then — when a compiler is configured — compiles it into an
-    /// execution and presents the preview. Returns <see langword="null"/> for an offline run with no compiler.
-    /// </summary>
-    private async Task<ICompiledMigration?> Prepare(CancellationToken cancellationToken)
+    private async Task<ICompiledMigration?> Prepare(ISchemaProvider source, CancellationToken cancellationToken)
     {
         reporter.Info("Computing migration plan...");
-        var result = await planner.Plan(cancellationToken);
+
+        // Collect and aggregate the desired schema from all registered providers.
+        var scope = options.Value.SchemaNames;
+        var schemas = await Task.WhenAll(desiredProviders.Select(p => p.GetSchema(scope, cancellationToken)));
+        var desiredSchema = schemaAggregator.Aggregate(schemas);
+
+        // Derive the scope for the current read when not explicitly set, so we only touch managed schemas.
+        var schemasInScope = scope is { Length: > 0 }
+            ? scope
+            : desiredSchema.Schemas.Select(s => s.Name)
+                .Concat(desiredSchema.DroppedSchemas)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        var currentSchema = await source.GetSchema(schemasInScope, cancellationToken);
+
+        var result = await planner.Plan(currentSchema, desiredSchema, cancellationToken);
 
         reporter.ReportDiagnostics(result.Diagnostics);
 

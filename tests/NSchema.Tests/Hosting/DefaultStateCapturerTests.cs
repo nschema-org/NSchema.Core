@@ -11,14 +11,35 @@ public sealed class DefaultStateCapturerTests
 {
     private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
 
-    private DefaultStateCapturer CreateSut(ISchemaStateStore? store, ISchemaProvider? live, MigrationOptions? options = null) =>
-        new(Options.Create(options ?? new MigrationOptions()), _reporter, store, live);
+    private DefaultStateCapturer CreateSut(
+        ICurrentSchemaProvider currentProvider,
+        ISchemaStateStore? store,
+        MigrationOptions? options = null
+    ) => new(Options.Create(options ?? new MigrationOptions()), _reporter, currentProvider, store);
+
+    private static ICurrentSchemaProvider WithOnline(DatabaseSchema schema)
+    {
+        var source = Substitute.For<ISchemaProvider>();
+        source.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(schema);
+
+        var p = Substitute.For<ICurrentSchemaProvider>();
+        p.GetSource(SchemaSourceMode.Online, required: true).Returns(source);
+        return p;
+    }
+
+    private static ICurrentSchemaProvider WithoutOnline()
+    {
+        var p = Substitute.For<ICurrentSchemaProvider>();
+        p.GetSource(SchemaSourceMode.Online, required: true)
+            .Returns(_ => throw new InvalidOperationException("No online schema provider is registered."));
+        return p;
+    }
 
     [Fact]
     public async Task Capture_NoStore_ReturnsFalse()
     {
         // Arrange
-        var sut = CreateSut(store: null, live: null);
+        var sut = CreateSut(WithoutOnline(), store: null);
 
         // Act
         var result = await sut.Capture();
@@ -28,28 +49,23 @@ public sealed class DefaultStateCapturerTests
     }
 
     [Fact]
-    public async Task Capture_StoreButNoLiveProvider_Throws()
+    public async Task Capture_StoreButNoOnlineProvider_Throws()
     {
         // Arrange
         var store = Substitute.For<ISchemaStateStore>();
-        var sut = CreateSut(store, live: null);
+        var sut = CreateSut(WithoutOnline(), store);
 
-        // Act
-        var act = () => sut.Capture();
-
-        // Assert
-        await Should.ThrowAsync<InvalidOperationException>(act);
+        // Act / Assert
+        await Should.ThrowAsync<InvalidOperationException>(() => sut.Capture());
     }
 
     [Fact]
-    public async Task Capture_ReadsLiveSchemaAndWritesToStore()
+    public async Task Capture_ReadsOnlineSchemaAndWritesToStore()
     {
         // Arrange
         var schema = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
-        var live = Substitute.For<ISchemaProvider>();
-        live.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(schema);
         var store = Substitute.For<ISchemaStateStore>();
-        var sut = CreateSut(store, live);
+        var sut = CreateSut(WithOnline(schema), store);
 
         // Act
         var result = await sut.Capture();
@@ -63,25 +79,27 @@ public sealed class DefaultStateCapturerTests
     public async Task Capture_ScopesTheReadBySchemaNames()
     {
         // Arrange
-        var live = Substitute.For<ISchemaProvider>();
-        live.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(DatabaseSchema.Create([]));
+        var source = Substitute.For<ISchemaProvider>();
+        source.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(DatabaseSchema.Create([]));
+        var provider = Substitute.For<ICurrentSchemaProvider>();
+        provider.GetSource(SchemaSourceMode.Online, required: true).Returns(source);
         var store = Substitute.For<ISchemaStateStore>();
-        var sut = CreateSut(store, live, new MigrationOptions { SchemaNames = ["app"] });
+        var sut = CreateSut(provider, store, new MigrationOptions { SchemaNames = ["app"] });
 
         // Act
         await sut.Capture();
 
         // Assert
-        await live.Received(1).GetSchema(
+        await source.Received(1).GetSchema(
             Arg.Is<string[]?>(names => names != null && names.SequenceEqual(new[] { "app" })),
             Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public void Resolves_WhenNoStoreOrLiveProviderRegistered()
+    public void Resolves_WhenNoStoreOrOnlineProviderRegistered()
     {
-        // The store and live provider are optional: an app with neither must still resolve the capturer
-        // (so a no-store apply works). This relies on DI injecting null for the unregistered dependencies.
+        // The store is optional: an app with no state store must still resolve the capturer.
+        // ICurrentSchemaProvider is always registered by the framework even with no sources configured.
         var builder = NSchemaApplication.CreateBuilder();
         using var app = builder.Build();
 

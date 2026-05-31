@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using NSchema.Migration;
 using NSchema.State;
 
 namespace NSchema;
@@ -37,26 +36,6 @@ public partial class NSchemaApplicationBuilder
     {
         Services.Configure<FileSchemaStateStoreOptions>(o => o.Path = path);
         Services.AddSingleton<ISchemaStateStore, FileSchemaStateStore>();
-        return this;
-    }
-
-    /// <summary>
-    /// Registers the state store as the current-state schema source. Requires a state store to be registered.
-    /// </summary>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder UseCurrentSchemaState()
-    {
-        Services.AddKeyedSingleton<ISchemaProvider, StateBackedSchemaProvider>(ISchemaProvider.CurrentSchemaProviderKey);
-        return this;
-    }
-
-    /// <summary>
-    /// Reads the current schema from the state store when planning and from the live database when applying.
-    /// </summary>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder UseCurrentSchemaAuto()
-    {
-        Services.AddKeyedSingleton<ISchemaProvider, AutoCurrentSchemaProvider>(ISchemaProvider.CurrentSchemaProviderKey);
         return this;
     }
 }

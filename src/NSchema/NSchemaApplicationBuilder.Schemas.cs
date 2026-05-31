@@ -42,13 +42,13 @@ public partial class NSchemaApplicationBuilder
     public NSchemaApplicationBuilder AddSchemasFromAssemblyContaining<T>() => AddSchemasFromAssembly(typeof(T).Assembly);
 
     /// <summary>
-    /// Registers the <see cref="ISchemaProvider"/> that supplies the current (live) database schema.
+    /// Registers the <see cref="ISchemaProvider"/> that reads the live database schema (the online source).
     /// </summary>
-    /// <typeparam name="T">The type of the provider to register as the current-state source.</typeparam>
+    /// <typeparam name="T">The type of the provider to register as the online current-state source.</typeparam>
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder UseCurrentSchema<T>() where T : class, ISchemaProvider
     {
-        Services.AddKeyedSingleton<ISchemaProvider, T>(ISchemaProvider.LiveCurrentSchemaProviderKey);
+        Services.AddKeyedSingleton<ISchemaProvider, T>(ICurrentSchemaProvider.OnlineSchemaProviderKey);
         return this;
     }
 }
