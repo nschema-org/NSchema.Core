@@ -28,147 +28,146 @@ public sealed class DefaultCurrentSchemaProviderTests
     // --- required: true (strict) ---
 
     [Fact]
-    public void GetSource_Online_Required_ReturnsOnlineProvider()
-    {
-        var provider = new FakeOnlineProvider();
-        var sut = new DefaultCurrentSchemaProvider(online: provider);
-
-        sut.GetSchema(SchemaSourceMode.Online).ShouldBeSameAs(provider);
-    }
-
-    [Fact]
-    public void GetSource_Online_Required_WhenNotConfigured_Throws()
-    {
-        var sut = new DefaultCurrentSchemaProvider();
-
-        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Online));
-    }
-
-    [Fact]
-    public void GetSource_Online_Required_WhenOnlyOfflineConfigured_Throws()
-    {
-        var sut = new DefaultCurrentSchemaProvider(store: new FakeStateStore());
-
-        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Online));
-    }
-
-    [Fact]
-    public async Task GetSource_Offline_Required_ReturnsOfflineProvider()
-    {
-        var sut = new DefaultCurrentSchemaProvider(store: new FakeStateStore());
-
-        var result = await sut.GetSchema(SchemaSourceMode.Offline).GetSchema();
-
-        result.ShouldBeSameAs(OfflineSchema);
-    }
-
-    [Fact]
-    public void GetSource_Offline_Required_WhenNotConfigured_Throws()
-    {
-        var sut = new DefaultCurrentSchemaProvider();
-
-        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Offline));
-    }
-
-    [Fact]
-    public void GetSource_Offline_Required_WhenOnlyOnlineConfigured_Throws()
+    public async Task GetSchema_Online_Required_ReturnsOnlineSchema()
     {
         var sut = new DefaultCurrentSchemaProvider(online: new FakeOnlineProvider());
 
-        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Offline));
+        var result = await sut.GetSchema(SchemaSourceMode.Online, null);
+
+        result.ShouldBe(OnlineSchema);
+    }
+
+    [Fact]
+    public void GetSchema_Online_Required_WhenNotConfigured_Throws()
+    {
+        var sut = new DefaultCurrentSchemaProvider();
+
+        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Online, null));
+    }
+
+    [Fact]
+    public void GetSchema_Online_Required_WhenOnlyOfflineConfigured_Throws()
+    {
+        var sut = new DefaultCurrentSchemaProvider(store: new FakeStateStore());
+
+        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Online, null));
+    }
+
+    [Fact]
+    public async Task GetSchema_Offline_Required_ReturnsOfflineSchema()
+    {
+        var sut = new DefaultCurrentSchemaProvider(store: new FakeStateStore());
+
+        var result = await sut.GetSchema(SchemaSourceMode.Offline, null);
+
+        result.ShouldBe(OfflineSchema);
+    }
+
+    [Fact]
+    public void GetSchema_Offline_Required_WhenNotConfigured_Throws()
+    {
+        var sut = new DefaultCurrentSchemaProvider();
+
+        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Offline, null));
+    }
+
+    [Fact]
+    public void GetSchema_Offline_Required_WhenOnlyOnlineConfigured_Throws()
+    {
+        var sut = new DefaultCurrentSchemaProvider(online: new FakeOnlineProvider());
+
+        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Offline, null));
     }
 
     // --- required: false (with fallback) ---
 
     [Fact]
-    public void GetSource_Online_NotRequired_ReturnsOnline_WhenConfigured()
+    public async Task GetSchema_Online_NotRequired_ReturnsOnlineSchema_WhenConfigured()
     {
-        var provider = new FakeOnlineProvider();
-        var sut = new DefaultCurrentSchemaProvider(online: provider);
+        var sut = new DefaultCurrentSchemaProvider(online: new FakeOnlineProvider());
 
-        sut.GetSchema(SchemaSourceMode.Online, required: false).ShouldBeSameAs(provider);
+        var result = await sut.GetSchema(SchemaSourceMode.Online, null, required: false);
+
+        result.ShouldBe(OnlineSchema);
     }
 
     [Fact]
-    public async Task GetSource_Online_NotRequired_FallsBackToOffline_WhenOnlineNotConfigured()
+    public async Task GetSchema_Online_NotRequired_FallsBackToOffline_WhenOnlineNotConfigured()
     {
         var sut = new DefaultCurrentSchemaProvider(store: new FakeStateStore());
 
-        var result = await sut.GetSchema(SchemaSourceMode.Online, required: false).GetSchema();
+        var result = await sut.GetSchema(SchemaSourceMode.Online, null, required: false);
 
-        result.ShouldBeSameAs(OfflineSchema);
+        result.ShouldBe(OfflineSchema);
     }
 
     [Fact]
-    public void GetSource_Offline_NotRequired_ReturnsOffline_WhenConfigured()
+    public async Task GetSchema_Offline_NotRequired_ReturnsOfflineSchema_WhenConfigured()
     {
-        var sut = new DefaultCurrentSchemaProvider(
-            online: new FakeOnlineProvider(),
-            store: new FakeStateStore());
+        var sut = new DefaultCurrentSchemaProvider(online: new FakeOnlineProvider(), store: new FakeStateStore());
 
-        // When offline is available it should be returned, not the online fallback.
-        var source = sut.GetSchema(SchemaSourceMode.Offline, required: false);
-        source.ShouldNotBeSameAs(new FakeOnlineProvider()); // it's the offline provider
+        var result = await sut.GetSchema(SchemaSourceMode.Offline, null, required: false);
+
+        result.ShouldBe(OfflineSchema);
     }
 
     [Fact]
-    public void GetSource_Offline_NotRequired_FallsBackToOnline_WhenOfflineNotConfigured()
+    public async Task GetSchema_Offline_NotRequired_FallsBackToOnline_WhenOfflineNotConfigured()
     {
-        var provider = new FakeOnlineProvider();
-        var sut = new DefaultCurrentSchemaProvider(online: provider);
+        var sut = new DefaultCurrentSchemaProvider(online: new FakeOnlineProvider());
 
-        sut.GetSchema(SchemaSourceMode.Offline, required: false).ShouldBeSameAs(provider);
+        var result = await sut.GetSchema(SchemaSourceMode.Offline, null, required: false);
+
+        result.ShouldBe(OnlineSchema);
     }
 
     [Fact]
-    public void GetSource_NotRequired_WhenNeitherConfigured_Throws()
+    public void GetSchema_NotRequired_WhenNeitherConfigured_Throws()
     {
         var sut = new DefaultCurrentSchemaProvider();
 
-        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Offline, required: false));
-        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Online, required: false));
+        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Offline, null, required: false));
+        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Online, null, required: false));
     }
 
     // --- DI integration ---
 
     [Fact]
-    public void UseCurrentSchema_RegistersOnlineSource()
+    public async Task UseCurrentSchema_RegistersOnlineSource()
     {
         var builder = NSchemaApplication.CreateBuilder();
         builder.UseCurrentSchema<FakeOnlineProvider>();
         using var app = builder.Build();
         var current = app.Services.GetRequiredService<ICurrentSchemaProvider>();
 
-        // Online is configured; offline is not.
-        current.GetSchema(SchemaSourceMode.Online).ShouldNotBeNull();
-        Should.Throw<InvalidOperationException>(() => current.GetSchema(SchemaSourceMode.Offline));
+        var online = await current.GetSchema(SchemaSourceMode.Online, null);
+        online.ShouldBe(OnlineSchema);
+        Should.Throw<InvalidOperationException>(() => current.GetSchema(SchemaSourceMode.Offline, null));
     }
 
     [Fact]
-    public void UseStateStore_RegistersOfflineSource()
+    public async Task UseStateStore_RegistersOfflineSource()
     {
         var builder = NSchemaApplication.CreateBuilder();
         builder.UseStateStore(new FakeStateStore());
         using var app = builder.Build();
         var current = app.Services.GetRequiredService<ICurrentSchemaProvider>();
 
-        // Offline is configured; online is not.
-        current.GetSchema(SchemaSourceMode.Offline).ShouldNotBeNull();
-        Should.Throw<InvalidOperationException>(() => current.GetSchema(SchemaSourceMode.Online));
+        var offline = await current.GetSchema(SchemaSourceMode.Offline, null);
+        offline.ShouldBe(OfflineSchema);
+        Should.Throw<InvalidOperationException>(() => current.GetSchema(SchemaSourceMode.Online, null));
     }
 
     [Fact]
     public async Task UseCurrentSchema_AndStateStore_BothSourcesAvailable()
     {
         var builder = NSchemaApplication.CreateBuilder();
-        builder
-            .UseCurrentSchema<FakeOnlineProvider>()
-            .UseStateStore(new FakeStateStore());
+        builder.UseCurrentSchema<FakeOnlineProvider>().UseStateStore(new FakeStateStore());
         using var app = builder.Build();
         var current = app.Services.GetRequiredService<ICurrentSchemaProvider>();
 
-        var online = await current.GetSchema(SchemaSourceMode.Online).GetSchema();
-        var offline = await current.GetSchema(SchemaSourceMode.Offline).GetSchema();
+        var online = await current.GetSchema(SchemaSourceMode.Online, null);
+        var offline = await current.GetSchema(SchemaSourceMode.Offline, null);
 
         online.Schemas.ShouldHaveSingleItem().Name.ShouldBe("online");
         offline.Schemas.ShouldHaveSingleItem().Name.ShouldBe("offline");

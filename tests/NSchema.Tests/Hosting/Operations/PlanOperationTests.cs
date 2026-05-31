@@ -23,10 +23,9 @@ public sealed class PlanOperationTests
 
     public PlanOperationTests()
     {
-        var mockSource = Substitute.For<ISchemaProvider>();
-        mockSource.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
+        _currentProvider
+            .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(DatabaseSchema.Create([]));
-        _currentProvider.GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>()).Returns(mockSource);
 
         _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
             .Returns(DatabaseSchema.Create([]));
@@ -103,13 +102,10 @@ public sealed class PlanOperationTests
     [Fact]
     public async Task Execute_PrefersOfflineSource()
     {
-        var offlineSource = Substitute.For<ISchemaProvider>();
-        offlineSource.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(DatabaseSchema.Create([]));
-        _currentProvider.GetSchema(SchemaSourceMode.Offline, required: false).Returns(offlineSource);
-
         await _sut.Execute();
 
-        await offlineSource.Received(1).GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+        await _currentProvider.Received(1).GetSchema(
+            SchemaSourceMode.Offline, Arg.Any<string[]?>(), required: false, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -120,10 +116,9 @@ public sealed class PlanOperationTests
             droppedSchemas: ["legacy"]);
         _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(desired);
         string[]? capturedScope = null;
-        var source = Substitute.For<ISchemaProvider>();
-        source.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(call => { capturedScope = call.Arg<string[]?>(); return Task.FromResult(DatabaseSchema.Create([])); });
-        _currentProvider.GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>()).Returns(source);
+        _currentProvider
+            .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(call => { capturedScope = call.ArgAt<string[]?>(1); return Task.FromResult(DatabaseSchema.Create([])); });
 
         await _sut.Execute();
 
@@ -138,10 +133,9 @@ public sealed class PlanOperationTests
         string[]? currentScope = null;
         _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
             .Returns(call => { desiredScope = call.Arg<string[]?>(); return Task.FromResult(DatabaseSchema.Create([])); });
-        var source = Substitute.For<ISchemaProvider>();
-        source.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(call => { currentScope = call.Arg<string[]?>(); return Task.FromResult(DatabaseSchema.Create([])); });
-        _currentProvider.GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>()).Returns(source);
+        _currentProvider
+            .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(call => { currentScope = call.ArgAt<string[]?>(1); return Task.FromResult(DatabaseSchema.Create([])); });
         _options.Value.SchemaNames = ["app", "legacy"];
 
         await _sut.Execute();

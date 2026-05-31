@@ -11,23 +11,23 @@ public sealed class RefreshOperationTests
     private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
     private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
 
-    private RefreshOperation BuildSut(ISchemaStateStore? store)
+    private RefreshOperation BuildSut(ISchemaStateStore? store, MigrationOptions? options = null)
     {
-        var source = Substitute.For<ISchemaProvider>();
-        source.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(DatabaseSchema.Create([]));
-        _currentProvider.GetSchema(SchemaSourceMode.Online, required: true).Returns(source);
-        return new RefreshOperation(Options.Create(new MigrationOptions()), _reporter, _currentProvider, store);
+        _currentProvider
+            .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(DatabaseSchema.Create([]));
+        return new RefreshOperation(Options.Create(options ?? new MigrationOptions()), _reporter, _currentProvider, store);
     }
 
     [Fact]
     public async Task Execute_WritesLiveSchemaToStore()
     {
         var schema = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
-        var source = Substitute.For<ISchemaProvider>();
-        source.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(schema);
-        _currentProvider.GetSchema(SchemaSourceMode.Online, required: true).Returns(source);
         var store = Substitute.For<ISchemaStateStore>();
-        var sut = new RefreshOperation(Options.Create(new MigrationOptions()), _reporter, _currentProvider, store);
+        var sut = BuildSut(store);
+        _currentProvider
+            .GetSchema(SchemaSourceMode.Online, Arg.Any<string[]?>(), required: true, Arg.Any<CancellationToken>())
+            .Returns(schema);
 
         await sut.Execute();
 
@@ -45,18 +45,15 @@ public sealed class RefreshOperationTests
     [Fact]
     public async Task Execute_ScopesReadBySchemaNames()
     {
-        var source = Substitute.For<ISchemaProvider>();
-        source.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(DatabaseSchema.Create([]));
-        _currentProvider.GetSchema(SchemaSourceMode.Online, required: true).Returns(source);
         var store = Substitute.For<ISchemaStateStore>();
-        var sut = new RefreshOperation(
-            Options.Create(new MigrationOptions { SchemaNames = ["app"] }),
-            _reporter, _currentProvider, store);
+        var sut = BuildSut(store, new MigrationOptions { SchemaNames = ["app"] });
 
         await sut.Execute();
 
-        await source.Received(1).GetSchema(
+        await _currentProvider.Received(1).GetSchema(
+            SchemaSourceMode.Online,
             Arg.Is<string[]?>(names => names != null && names.SequenceEqual(new[] { "app" })),
+            required: true,
             Arg.Any<CancellationToken>());
     }
 }
