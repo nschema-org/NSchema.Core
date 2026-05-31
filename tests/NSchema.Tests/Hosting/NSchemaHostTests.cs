@@ -3,7 +3,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NSchema.Hosting;
 using NSchema.Migration;
-using NSchema.Policies;
 using NSubstitute.ExceptionExtensions;
 
 namespace NSchema.Tests.Hosting;
