@@ -86,9 +86,17 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<ISchemaAggregator, DefaultSchemaAggregator>();
         services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
         services.TryAddSingleton<IMigrationPipeline, DefaultMigrationPipeline>();
-        services.TryAddSingleton<ISqlExecutor, DefaultSqlExecutor>();
-        services.TryAddSingleton<IMigrationCompiler, SqlMigrationCompiler>();
         services.TryAddSingleton<IStateCapturer, DefaultStateCapturer>();
+
+        // The SQL compiler and executor are only meaningful when a database provider has registered an
+        // ISqlPlanner. An offline run (e.g. a PR preview that plans against a state store) registers none, so
+        // we leave IMigrationCompiler unregistered and the pipeline reports the plan without a SQL preview.
+        // A user who supplies their own compiler via UseMigrationCompiler<T>() already registered it above.
+        if (services.Any(d => d.ServiceType == typeof(ISqlPlanner)))
+        {
+            services.TryAddSingleton<ISqlExecutor, DefaultSqlExecutor>();
+            services.TryAddSingleton<IMigrationCompiler, SqlMigrationCompiler>();
+        }
 
         // The planner reads the effective current provider. By default that's the live provider; calling
         // UseCurrentSchemaState / UseCurrentSchemaAuto registers an override that wins over this.

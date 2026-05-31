@@ -26,7 +26,7 @@ public sealed class DefaultMigrationPipelineTests
         _execution.Preview.Returns([]);
         _compiler.Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>()).Returns(_execution);
 
-        _sut = new DefaultMigrationPipeline(_planner, _reporter, _compiler, _stateCapturer);
+        _sut = new DefaultMigrationPipeline(_planner, _reporter, _stateCapturer, _compiler);
     }
 
     [Fact]
@@ -167,6 +167,37 @@ public sealed class DefaultMigrationPipelineTests
         // Assert
         act.ShouldThrow<InvalidOperationException>();
         _reporter.Received().Error(Arg.Is<string>(s => s.Contains("boom")));
+    }
+
+    [Fact]
+    public async Task Plan_NoCompiler_ReportsPlanWithoutPreview()
+    {
+        // Arrange: an offline run with no database provider registers no compiler.
+        var plan = new MigrationPlan([new CreateSchema("app")], DatabaseSchema.Create([]));
+        _planner.Plan(Arg.Any<CancellationToken>()).Returns(new MigrationPlanResult(plan, []));
+        var sut = new DefaultMigrationPipeline(_planner, _reporter, _stateCapturer, compiler: null);
+
+        // Act
+        await sut.Plan();
+
+        // Assert
+        _reporter.Received(1).ReportPlan(plan);
+        _reporter.DidNotReceive().ReportPreview(Arg.Any<IReadOnlyList<string>>());
+    }
+
+    [Fact]
+    public async Task Apply_NoCompiler_Throws()
+    {
+        // Arrange
+        var sut = new DefaultMigrationPipeline(_planner, _reporter, _stateCapturer, compiler: null);
+
+        // Act
+        var act = () => sut.Apply();
+
+        // Assert
+        await Should.ThrowAsync<InvalidOperationException>(act);
+        await _planner.DidNotReceive().Plan(Arg.Any<CancellationToken>());
+        await _stateCapturer.DidNotReceive().Capture(Arg.Any<CancellationToken>());
     }
 
     [Fact]
