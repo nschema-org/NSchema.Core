@@ -149,7 +149,7 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
             else
             {
                 LogColumnNotInDesired(schemaName, tableName, currentCol.Name);
-                actions.Add(new DropColumn(schemaName, tableName, currentCol.Name));
+                actions.Add(new DropColumn(schemaName, tableName, currentCol));
             }
         }
 

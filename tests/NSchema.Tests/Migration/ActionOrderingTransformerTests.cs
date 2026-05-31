@@ -15,7 +15,7 @@ public class ActionOrderingTransformerTests
     {
         // Arrange
         var plan = PlanWith(
-            new DropColumn("app", "users", "org_id"),
+            new DropColumn("app", "users", Column.Create("org_id", SqlType.Int)),
             new DropForeignKey("app", "users", "fk_users_org"));
 
         // Act
@@ -80,7 +80,7 @@ public class ActionOrderingTransformerTests
         // Arrange
         var plan = PlanWith(
             new DropTable("app", "users"),
-            new DropColumn("app", "orders", "user_id"));
+            new DropColumn("app", "orders", Column.Create("user_id", SqlType.Int)));
 
         // Act
         var result = _sut.Transform(plan).Actions.ToList();

@@ -179,7 +179,13 @@ internal sealed class DefaultMigrationPlanRenderer : IMigrationPlanRenderer
             {
                 continue;
             }
+
             if (kind == ChangeKind.Remove && action is DropSchema or DropTable)
+            {
+                continue;
+            }
+            // Renames are folded into the group header; no separate detail line needed.
+            if (action is RenameSchema or RenameTable)
             {
                 continue;
             }
@@ -202,7 +208,8 @@ internal sealed class DefaultMigrationPlanRenderer : IMigrationPlanRenderer
             sb.Append("    ").Append(palette.For(lineKind)).Append(' ').AppendLine(lineDetail);
         }
 
-        var sortKey = key.TableName is null ? $"0:{key.SchemaName}" : $"1:{key.SchemaName}.{key.TableName}";
+        // Sort schema-level groups before their tables so related changes appear together.
+        var sortKey = key.TableName is null ? $"{key.SchemaName}:0" : $"{key.SchemaName}:1:{key.TableName}";
         return new GroupBlock(sortKey, kind, sb.ToString().TrimEnd('\r', '\n'));
     }
 
@@ -214,18 +221,40 @@ internal sealed class DefaultMigrationPlanRenderer : IMigrationPlanRenderer
     {
         if (key.TableName is null)
         {
-            var schemaKind =
-                actions.Any(a => a is CreateSchema) ? ChangeKind.Add :
-                actions.Any(a => a is DropSchema) ? ChangeKind.Remove :
-                ChangeKind.Modify;
-            return (schemaKind, "schema", key.SchemaName);
+            if (actions.Any(a => a is CreateSchema))
+            {
+                return (ChangeKind.Add, "schema", key.SchemaName);
+            }
+
+            if (actions.Any(a => a is DropSchema))
+            {
+                return (ChangeKind.Remove, "schema", key.SchemaName);
+            }
+            // Rename folds into the header so the user sees "old → new" at a glance.
+            if (actions.OfType<RenameSchema>().FirstOrDefault() is { } sr)
+            {
+                return (ChangeKind.Modify, "schema", $"{sr.OldName} → {sr.NewName}");
+            }
+
+            return (ChangeKind.Modify, "schema", key.SchemaName);
         }
 
-        var tableKind =
-            actions.Any(a => a is CreateTable) ? ChangeKind.Add :
-            actions.Any(a => a is DropTable) ? ChangeKind.Remove :
-            ChangeKind.Modify;
-        return (tableKind, "table", $"{key.SchemaName}.{key.TableName}");
+        if (actions.Any(a => a is CreateTable))
+        {
+            return (ChangeKind.Add, "table", $"{key.SchemaName}.{key.TableName}");
+        }
+
+        if (actions.Any(a => a is DropTable))
+        {
+            return (ChangeKind.Remove, "table", $"{key.SchemaName}.{key.TableName}");
+        }
+
+        if (actions.OfType<RenameTable>().FirstOrDefault() is { } tr)
+        {
+            return (ChangeKind.Modify, "table", $"{key.SchemaName}.{tr.OldName} → {tr.NewName}");
+        }
+
+        return (ChangeKind.Modify, "table", $"{key.SchemaName}.{key.TableName}");
     }
 
     private static (ChangeKind, string) DescribeAction(MigrationAction action) => action switch
@@ -245,10 +274,10 @@ internal sealed class DefaultMigrationPlanRenderer : IMigrationPlanRenderer
         RevokeTablePrivileges a => (ChangeKind.Remove, $"revoke {a.Privileges} from {a.Role}"),
 
         AddColumn a => (ChangeKind.Add, FormatColumn(a.Column)),
-        DropColumn a => (ChangeKind.Remove, a.ColumnName),
+        DropColumn a => (ChangeKind.Remove, FormatColumn(a.Column)),
         RenameColumn a => (ChangeKind.Modify, $"rename column: {a.OldName} → {a.NewName}"),
         AlterColumnType a => (ChangeKind.Modify, $"{a.ColumnName} type: {a.OldType} → {a.NewType}"),
-        AlterColumnNullability a => (ChangeKind.Modify, $"{a.ColumnName} nullable: {a.OldNullable.ToString().ToLowerInvariant()} → {a.NewNullable.ToString().ToLowerInvariant()}"),
+        AlterColumnNullability a => (ChangeKind.Modify, $"{a.ColumnName} nullable: {FormatNullability(a.OldNullable)} → {FormatNullability(a.NewNullable)}"),
         AlterIdentitySequence a => (ChangeKind.Modify, $"{a.ColumnName} identity: {FormatIdentity(a.OldOptions)} → {FormatIdentity(a.NewOptions)}"),
         SetColumnDefault a => (ChangeKind.Modify, $"{a.ColumnName} default: {FormatDefault(a.OldDefault)} → {FormatDefault(a.NewDefault)}"),
         SetColumnComment a => (ChangeKind.Modify, $"{a.ColumnName} comment: {FormatComment(a.OldComment)} → {FormatComment(a.NewComment)}"),
@@ -275,7 +304,33 @@ internal sealed class DefaultMigrationPlanRenderer : IMigrationPlanRenderer
 
     private static string FormatDefault(string? value) => value ?? "<none>";
 
-    private static string FormatIdentity(IdentityOptions? options) => options is null ? "<none>" : options.ToString() ?? "<set>";
+    private static string FormatNullability(bool nullable) => nullable ? "null" : "not null";
+
+    private static string FormatIdentity(IdentityOptions? options)
+    {
+        if (options is null)
+        {
+            return "<none>";
+        }
+
+        var parts = new List<string>(3);
+        if (options.StartWith.HasValue)
+        {
+            parts.Add($"start={options.StartWith}");
+        }
+
+        if (options.MinValue.HasValue)
+        {
+            parts.Add($"min={options.MinValue}");
+        }
+
+        if (options.IncrementBy.HasValue)
+        {
+            parts.Add($"step={options.IncrementBy}");
+        }
+
+        return parts.Count > 0 ? string.Join(", ", parts) : "<default>";
+    }
 
     private enum ChangeKind { Add, Modify, Remove }
 
