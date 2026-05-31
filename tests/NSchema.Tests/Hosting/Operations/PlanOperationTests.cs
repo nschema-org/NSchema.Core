@@ -14,12 +14,11 @@ public sealed class PlanOperationTests
     private readonly IMigrationCompiler _compiler = Substitute.For<IMigrationCompiler>();
     private readonly ICompiledMigration _execution = Substitute.For<ICompiledMigration>();
     private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
-    private readonly ISchemaAggregator _aggregator = Substitute.For<ISchemaAggregator>();
-    private readonly ISchemaProvider _desiredProvider = Substitute.For<ISchemaProvider>();
+    private readonly IDesiredSchemaProvider _desiredProvider = Substitute.For<IDesiredSchemaProvider>();
     private readonly IOptions<MigrationOptions> _options = Options.Create(new MigrationOptions());
 
     private PlanOperation BuildSut(IMigrationCompiler? compiler) => new(
-        _planner, _reporter, _currentProvider, [_desiredProvider], _aggregator, _options, compiler);
+        _planner, _reporter, _currentProvider, _desiredProvider, _options, compiler);
 
     private readonly PlanOperation _sut;
 
@@ -31,8 +30,6 @@ public sealed class PlanOperationTests
         _currentProvider.GetSource(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>()).Returns(mockSource);
 
         _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(DatabaseSchema.Create([]));
-        _aggregator.Aggregate(Arg.Any<IReadOnlyList<DatabaseSchema>>())
             .Returns(DatabaseSchema.Create([]));
         _planner
             .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
@@ -117,31 +114,12 @@ public sealed class PlanOperationTests
     }
 
     [Fact]
-    public async Task Execute_AggregatesAllDesiredProviders()
-    {
-        var s1 = DatabaseSchema.Create([SchemaDefinition.Create("a")]);
-        var s2 = DatabaseSchema.Create([SchemaDefinition.Create("b")]);
-        var merged = DatabaseSchema.Create([SchemaDefinition.Create("a"), SchemaDefinition.Create("b")]);
-        var p1 = Substitute.For<ISchemaProvider>();
-        var p2 = Substitute.For<ISchemaProvider>();
-        p1.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(s1);
-        p2.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(s2);
-        _aggregator.Aggregate(Arg.Any<IReadOnlyList<DatabaseSchema>>()).Returns(merged);
-        var sut = new PlanOperation(_planner, _reporter, _currentProvider, [p1, p2], _aggregator, _options, _compiler);
-
-        await sut.Execute();
-
-        _aggregator.Received(1).Aggregate(Arg.Is<IReadOnlyList<DatabaseSchema>>(l => l.Count == 2));
-        await _planner.Received(1).Plan(Arg.Any<DatabaseSchema>(), merged, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
     public async Task Execute_DerivesCurrentScopeFromDesiredSchema()
     {
         var desired = DatabaseSchema.Create(
             [SchemaDefinition.Create("app"), SchemaDefinition.Create("admin")],
             droppedSchemas: ["legacy"]);
-        _aggregator.Aggregate(Arg.Any<IReadOnlyList<DatabaseSchema>>()).Returns(desired);
+        _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(desired);
         string[]? capturedScope = null;
         var source = Substitute.For<ISchemaProvider>();
         source.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())

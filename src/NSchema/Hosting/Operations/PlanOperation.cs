@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Options;
 using NSchema.Migration;
 using NSchema.Policies;
-using NSchema.Schema;
 
 namespace NSchema.Hosting.Operations;
 
@@ -9,8 +8,7 @@ internal sealed class PlanOperation(
     IMigrationPlanner planner,
     IMigrationReporter reporter,
     ICurrentSchemaProvider currentProvider,
-    IEnumerable<ISchemaProvider> desiredProviders,
-    ISchemaAggregator schemaAggregator,
+    IDesiredSchemaProvider desiredProvider,
     IOptions<MigrationOptions> options,
     IMigrationCompiler? compiler = null
 ) : IMigrationOperation
@@ -21,7 +19,7 @@ internal sealed class PlanOperation(
 
         reporter.Info("Computing migration plan...");
         var source = currentProvider.GetSource(SchemaSourceMode.Offline, required: false);
-        var (currentSchema, desiredSchema) = await SchemaResolution.ResolveAsync(source, desiredProviders, schemaAggregator, options.Value.SchemaNames, cancellationToken);
+        var (currentSchema, desiredSchema) = await SchemaResolution.ResolveAsync(source, desiredProvider, options.Value.SchemaNames, cancellationToken);
 
         var result = await planner.Plan(currentSchema, desiredSchema, cancellationToken);
 

@@ -17,11 +17,10 @@ public sealed class ApplyOperationTests
     private readonly ICompiledMigration _execution = Substitute.For<ICompiledMigration>();
     private readonly IStateCapturer _stateCapturer = Substitute.For<IStateCapturer>();
     private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
-    private readonly ISchemaAggregator _aggregator = Substitute.For<ISchemaAggregator>();
-    private readonly ISchemaProvider _desiredProvider = Substitute.For<ISchemaProvider>();
+    private readonly IDesiredSchemaProvider _desiredProvider = Substitute.For<IDesiredSchemaProvider>();
     private readonly IOptions<MigrationOptions> _options = Options.Create(new MigrationOptions());
 
-    private ApplyOperation BuildSut(IMigrationCompiler? compiler) => new(_options, _planner, _reporter, _stateCapturer, _currentProvider, [_desiredProvider], _aggregator, compiler);
+    private ApplyOperation BuildSut(IMigrationCompiler? compiler) => new(_options, _planner, _reporter, _stateCapturer, _currentProvider, _desiredProvider, compiler);
 
     private readonly ApplyOperation _sut;
 
@@ -33,8 +32,6 @@ public sealed class ApplyOperationTests
         _currentProvider.GetSource(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>()).Returns(mockSource);
 
         _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(DatabaseSchema.Create([]));
-        _aggregator.Aggregate(Arg.Any<IReadOnlyList<DatabaseSchema>>())
             .Returns(DatabaseSchema.Create([]));
         _planner
             .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
