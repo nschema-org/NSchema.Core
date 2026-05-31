@@ -22,6 +22,8 @@ internal sealed class ApplyOperation(
             throw new InvalidOperationException("Applying a migration requires a database provider to compile the plan into SQL, but none is registered.");
         }
 
+        reporter.Info("Running in Apply mode. Changes will be applied to the database.");
+
         reporter.Info("Computing migration plan...");
         var desiredSchema = await desiredProvider.GetSchema(options.Value.SchemaNames, cancellationToken);
         var schemasInScope = options.Value.SchemaNames ?? desiredSchema.AllSchemaNames;
@@ -29,17 +31,22 @@ internal sealed class ApplyOperation(
 
         var result = await planner.Plan(currentSchema, desiredSchema, cancellationToken);
 
-        reporter.ReportDiagnostics(result.Diagnostics);
         if (result.HasErrors)
         {
+            reporter.ReportDiagnostics(result.Diagnostics);
             throw new PolicyViolationException(result.Errors.ToList());
         }
 
         reporter.ReportPlan(result.Plan);
+        reporter.ReportDiagnostics(result.Diagnostics);
 
         reporter.Info("Compiling migration plan...");
         var execution = await compiler.Compile(result.Plan, cancellationToken);
-        reporter.ReportPreview(execution.Preview);
+        if (execution.Preview.Count > 0)
+        {
+            reporter.Info("SQL Preview:");
+            reporter.ReportPreview(execution.Preview);
+        }
 
         reporter.Info("Running database migration...");
         await execution.Execute(cancellationToken);
