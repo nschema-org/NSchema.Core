@@ -37,7 +37,7 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition> Schemas, IReadOnlyL
     {
         if (schemaNames is not { Length: > 0 })
         {
-            return new  DatabaseSchema(Schemas, DroppedSchemas);
+            return new DatabaseSchema(Schemas, DroppedSchemas);
         }
 
         var scope = new HashSet<string>(schemaNames, StringComparer.OrdinalIgnoreCase);
