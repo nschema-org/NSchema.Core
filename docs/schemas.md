@@ -2,6 +2,8 @@
 
 The easiest way to declare a schema is to subclass `AbstractSchemaProvider`, as in the [README](../README.md) quickstart. This page is the full reference for the fluent declaration API.
 
+You can also declare schemas in a [JSON file](#defining-schemas-in-json) instead of C#, which is useful when you don't want a compiled project just to describe a schema.
+
 ## Schema declaration
 
 Schemas are declared as follows:
@@ -151,3 +153,81 @@ public class AppSchema : AbstractSchemaProvider
 - `Name` declares the name of the index in the database.
 - `ColumnNames` declares the columns that are part of the index.
 - `Unique()` marks the index as unique.
+
+## Defining schemas in JSON
+
+Instead of writing a C# class, you can declare the desired schema in a JSON file and register it with `AddJsonSchema`:
+
+```csharp
+builder.AddJsonSchema("schema.json");
+```
+
+You can register multiple JSON files, mix them with `AbstractSchemaProvider` classes, or use them on their own; all registered providers are aggregated before planning.
+
+To register every JSON file in a directory at once, use `AddJsonSchemasFromDirectory`:
+
+```csharp
+builder.AddJsonSchemasFromDirectory("schemas");
+```
+
+By default this picks up `*.json` files recursively, including subdirectories.
+
+The document mirrors the schema model:
+
+```json
+{
+  "schemas": [
+    {
+      "name": "app",
+      "comment": "The application schema.",
+      "tables": [
+        {
+          "name": "users",
+          "primaryKey": { "name": "users_pkey", "columnNames": ["id"] },
+          "columns": [
+            { "name": "id", "type": "bigint", "isIdentity": true },
+            { "name": "email", "type": "varchar(255)" },
+            { "name": "name", "type": "text" },
+            { "name": "balance", "type": "decimal(18,2)", "isNullable": true, "defaultExpression": "0" }
+          ],
+          "indexes": [
+            { "name": "uc_users_email", "columnNames": ["email"], "isUnique": true }
+          ],
+          "foreignKeys": [
+            {
+              "name": "FK_users_role_id",
+              "columnNames": ["role_id"],
+              "referencedSchema": "app",
+              "referencedTable": "roles",
+              "referencedColumnNames": ["id"],
+              "onDelete": "Cascade",
+              "onUpdate": "NoAction"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "droppedSchemas": []
+}
+```
+
+Renames use `oldName` (the JSON equivalent of `RenamedFrom(...)`) on a schema, table, or column. A schema can be marked partial with `"isPartial": true`, dropped tables are listed in a schema's `droppedTables` array, and dropped schemas in the top-level `droppedSchemas` array. Referential actions (`onDelete` / `onUpdate`) and table privileges are written as their enum names (`Cascade`, `SetNull`, `Select`, `All`, ...).
+
+### SQL types
+
+SQL types are written as compact strings rather than objects. Parameterless types are just their name; sized and precision types include their arguments:
+
+| String                                                       | Equivalent                                                  |
+|--------------------------------------------------------------|-------------------------------------------------------------|
+| `boolean`, `tinyint`, `smallint`, `int`, `bigint`            | `SqlType.Boolean` ... `SqlType.BigInt`                      |
+| `float`, `double`                                            | `SqlType.Float`, `SqlType.Double`                           |
+| `text`, `date`, `time`, `datetime`, `datetimeoffset`, `guid` | `SqlType.Text` ... `SqlType.Guid`                           |
+| `decimal(18,2)`                                              | `SqlType.Decimal(18, 2)`                                    |
+| `char(8)`, `nchar(4)`, `binary(16)`                          | `SqlType.Char(8)`, `SqlType.NChar(4)`, `SqlType.Binary(16)` |
+| `varchar`, `varchar(255)`                                    | `SqlType.VarChar()`, `SqlType.VarChar(255)`                 |
+| `nvarchar`, `nvarchar(64)`                                   | `SqlType.NVarChar()`, `SqlType.NVarChar(64)`                |
+| `varbinary`, `varbinary(32)`                                 | `SqlType.VarBinary()`, `SqlType.VarBinary(32)`              |
+| any other value, e.g. `jsonb`                                | `SqlType.Custom("jsonb")`                                   |
+
+Any string that isn't a recognized built-in type becomes a custom type, which is how you target database-specific types like `jsonb` or `uuid`.
