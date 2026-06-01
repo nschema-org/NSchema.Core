@@ -102,20 +102,20 @@ Providers are registered with `builder.AddSchema<T>()` or `builder.AddSchemasFro
 
 ### Extension points
 
-| Interface | Registered via |
-|-----------|----------------|
-| `ISchemaProvider` (desired) | `AddSchema<T>()` / `AddSchemasFromAssembly[Containing]<T>()` |
-| `ISchemaProvider` (online current) | `UseCurrentSchema<T>()` — typically called from a database-provider extension (e.g. `UsePostgres(...)`) |
-| `IMigrationOperation` | `AddKeyedSingleton<IMigrationOperation, T>(MigrationOperation.*)` |
-| `ISchemaPolicy` | `AddSchemaPolicy<T>()` |
-| `IMigrationPlanTransformer` | `AddPlanTransformer<T>()` |
-| `IMigrationPolicy` | `AddMigrationPolicy<T>()` |
-| `IScriptProvider` | `AddScriptProvider<T>()` / `AddScriptFromFile(...)` / `AddScriptsFromEmbeddedResources(...)` |
-| `ISqlExecutor` | `UseSqlExecutor<T>()` (replaces default) |
-| `IMigrationCompiler` | `UseMigrationCompiler<T>()` (replaces default `SqlMigrationCompiler`) |
-| `ISchemaStateStore` | `UseStateStore<T>()` / `UseStateStore(instance)` / `UseStateStoreFile(path)` |
-| `ISchemaComparer`, `ISchemaAggregator`, `IMigrationPlanner`, `IMigrationReporter`, `IMigrationPlanRenderer` | Override via `Services.AddSingleton<...>()` before `Build()` (defaults registered with `TryAdd`) |
-| `ISqlPlanner` | Supplied by a database-provider extension |
+| Interface                                                                                                   | Registered via                                                                                          |
+|-------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
+| `ISchemaProvider` (desired)                                                                                 | `AddSchema<T>()` / `AddSchemasFromAssembly[Containing]<T>()`                                            |
+| `ISchemaProvider` (online current)                                                                          | `UseCurrentSchema<T>()` — typically called from a database-provider extension (e.g. `UsePostgres(...)`) |
+| `IMigrationOperation`                                                                                       | `AddKeyedSingleton<IMigrationOperation, T>(MigrationOperation.*)`                                       |
+| `ISchemaPolicy`                                                                                             | `AddSchemaPolicy<T>()`                                                                                  |
+| `IMigrationPlanTransformer`                                                                                 | `AddPlanTransformer<T>()`                                                                               |
+| `IMigrationPolicy`                                                                                          | `AddMigrationPolicy<T>()`                                                                               |
+| `IScriptProvider`                                                                                           | `AddScriptProvider<T>()` / `AddScriptFromFile(...)` / `AddScriptsFromEmbeddedResources(...)`            |
+| `ISqlExecutor`                                                                                              | `UseSqlExecutor<T>()` (replaces default)                                                                |
+| `IMigrationCompiler`                                                                                        | `UseMigrationCompiler<T>()` (replaces default `SqlMigrationCompiler`)                                   |
+| `ISchemaStateStore`                                                                                         | `UseStateStore<T>()` / `UseStateStore(instance)` / `UseFileStateStore(path)`                            |
+| `ISchemaComparer`, `ISchemaAggregator`, `IMigrationPlanner`, `IMigrationReporter`, `IMigrationPlanRenderer` | Override via `Services.AddSingleton<...>()` before `Build()` (defaults registered with `TryAdd`)        |
+| `ISqlPlanner`                                                                                               | Supplied by a database-provider extension                                                               |
 
 ### Renaming
 

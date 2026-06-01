@@ -15,7 +15,7 @@ internal sealed class RefreshOperation(
     {
         if (store is null)
         {
-            throw new InvalidOperationException("Refresh requires a state store. Register one via UseStateStore(...) or UseStateStoreFile(...).");
+            throw new InvalidOperationException("Refresh requires a state store.");
         }
 
         reporter.Info("Running in Refresh mode.");
