@@ -78,7 +78,13 @@ builder
     .AddSchemasFromAssemblyContaining<AppSchema>(); // register all providers in the assembly
 ```
 
-See [Defining schemas](schemas.md) for the full declaration reference.
+Schemas can also be loaded from a JSON file instead of C#, with no extra package required:
+
+```csharp
+builder.AddJsonSchema("schema.json");
+```
+
+See [Defining schemas](schemas.md) for the full declaration reference, including the [JSON format](schemas.md#defining-schemas-in-json).
 
 ## Configuring the current schema
 
