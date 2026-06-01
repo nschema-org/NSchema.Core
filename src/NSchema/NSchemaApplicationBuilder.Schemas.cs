@@ -24,7 +24,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddSchema<T>(Func<IServiceProvider, T> factory) where T : class, ISchemaProvider
     {
-        Services.AddSingleton(ServiceDescriptor.Singleton<ISchemaProvider, T>(factory));
+        Services.AddSingleton<ISchemaProvider, T>(factory);
         return this;
     }
 
