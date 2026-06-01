@@ -11,9 +11,21 @@ public partial class NSchemaApplicationBuilder
     /// </summary>
     /// <typeparam name="T">The type of the provider to add.</typeparam>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddSchema<T>() where T : ISchemaProvider
+    public NSchemaApplicationBuilder AddSchema<T>() where T : class, ISchemaProvider
     {
-        Services.TryAddEnumerable(new ServiceDescriptor(typeof(ISchemaProvider), typeof(T), ServiceLifetime.Singleton));
+        Services.TryAddEnumerable(ServiceDescriptor.Singleton<ISchemaProvider, T>());
+        return this;
+    }
+
+    /// <summary>
+    /// Adds a provider to the application that will be used to retrieve the desired schema.
+    /// </summary>
+    /// <typeparam name="T">The type of the provider to add.</typeparam>
+    /// <param name="factory">A factory that creates an instance of the provider.</param>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder AddSchema<T>(Func<IServiceProvider, T> factory) where T : class, ISchemaProvider
+    {
+        Services.TryAddEnumerable(ServiceDescriptor.Singleton<ISchemaProvider, T>(factory));
         return this;
     }
 

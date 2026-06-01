@@ -15,7 +15,7 @@ internal sealed class DefaultSchemaStateSerializer : ISchemaStateSerializer
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        Converters = { new SqlTypeJsonConverter(), new JsonStringEnumConverter() },
+        Converters = { new JsonStringEnumConverter() },
     };
 
     /// <inheritdoc />

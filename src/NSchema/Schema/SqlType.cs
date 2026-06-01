@@ -1,8 +1,32 @@
+using System.Text.Json.Serialization;
+
 namespace NSchema.Schema;
 
 /// <summary>
 /// Represents a SQL data type that can be used for defining columns in a database schema.
 /// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
+[JsonDerivedType(typeof(BooleanType), "boolean")]
+[JsonDerivedType(typeof(TinyIntType), "tinyint")]
+[JsonDerivedType(typeof(SmallIntType), "smallint")]
+[JsonDerivedType(typeof(IntType), "int")]
+[JsonDerivedType(typeof(BigIntType), "bigint")]
+[JsonDerivedType(typeof(FloatType), "float")]
+[JsonDerivedType(typeof(DoubleType), "double")]
+[JsonDerivedType(typeof(TextType), "text")]
+[JsonDerivedType(typeof(DateType), "date")]
+[JsonDerivedType(typeof(TimeType), "time")]
+[JsonDerivedType(typeof(DateTimeType), "datetime")]
+[JsonDerivedType(typeof(DateTimeOffsetType), "datetimeoffset")]
+[JsonDerivedType(typeof(GuidType), "guid")]
+[JsonDerivedType(typeof(DecimalType), "decimal")]
+[JsonDerivedType(typeof(CharType), "char")]
+[JsonDerivedType(typeof(NCharType), "nchar")]
+[JsonDerivedType(typeof(VarCharType), "varchar")]
+[JsonDerivedType(typeof(NVarCharType), "nvarchar")]
+[JsonDerivedType(typeof(BinaryType), "binary")]
+[JsonDerivedType(typeof(VarBinaryType), "varbinary")]
+[JsonDerivedType(typeof(CustomType), "custom")]
 public abstract record SqlType
 {
     /// <summary>
@@ -126,6 +150,70 @@ public abstract record SqlType
     /// <param name="typeName">The name of the custom SQL type. This should be a valid SQL type name recognized by the target database system.</param>
     /// <returns>A new instance of <see cref="CustomType"/> with the specified type name.</returns>
     public static SqlType Custom(string typeName) => new CustomType(typeName);
+
+    /// <summary>
+    /// Parses a SQL type from its canonical string representation, as produced by <see cref="ToString"/>.
+    /// </summary>
+    public static SqlType Parse(string value)
+    {
+        var parenStart = value.IndexOf('(');
+
+        if (parenStart < 0)
+        {
+            return value.ToLowerInvariant() switch
+            {
+                "boolean" => Boolean,
+                "tinyint" => TinyInt,
+                "smallint" => SmallInt,
+                "int" => Int,
+                "bigint" => BigInt,
+                "float" => Float,
+                "double" => Double,
+                "text" => Text,
+                "date" => Date,
+                "time" => Time,
+                "datetime" => DateTime,
+                "datetimeoffset" => DateTimeOffset,
+                "guid" => Guid,
+                "varchar" => VarChar(),
+                "nvarchar" => NVarChar(),
+                "varbinary" => VarBinary(),
+                _ => Custom(value),
+            };
+        }
+
+        var parenEnd = value.LastIndexOf(')');
+        if (parenEnd < parenStart)
+        {
+            throw new FormatException($"Malformed SqlType string: \"{value}\".");
+        }
+
+        var baseName = value[..parenStart].ToLowerInvariant();
+        var args = value[(parenStart + 1)..parenEnd].AsSpan();
+
+        if (baseName == "decimal")
+        {
+            var comma = args.IndexOf(',');
+            if (comma < 0)
+            {
+                throw new FormatException($"SqlType \"decimal\" requires two arguments: \"{value}\".");
+            }
+
+            return Decimal(int.Parse(args[..comma].Trim()), int.Parse(args[(comma + 1)..].Trim()));
+        }
+
+        var length = int.Parse(args.Trim());
+        return baseName switch
+        {
+            "char" => Char(length),
+            "nchar" => NChar(length),
+            "binary" => Binary(length),
+            "varchar" => VarChar(length),
+            "nvarchar" => NVarChar(length),
+            "varbinary" => VarBinary(length),
+            _ => Custom(value),
+        };
+    }
 
     /// <summary>
     /// The SQL boolean type, representing true/false values.
