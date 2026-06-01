@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using NSchema.Migration;
 using NSchema.Schema;
 
@@ -15,6 +16,10 @@ public sealed class JsonSchemaProvider : ISchemaProvider
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        TypeInfoResolver = new DefaultJsonTypeInfoResolver
+        {
+            Modifiers = { SqlTypeJsonConverter.SuppressPolymorphism },
+        },
         Converters = { new SqlTypeJsonConverter(), new JsonStringEnumConverter() },
     };
 
