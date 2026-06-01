@@ -9,7 +9,7 @@ namespace NSchema.Json;
 /// <summary>
 /// An <see cref="ISchemaProvider"/> that loads the desired schema from a JSON file.
 /// </summary>
-public sealed class JsonSchemaProvider : ISchemaProvider
+internal sealed class JsonSchemaProvider : ISchemaProvider
 {
     private static readonly JsonSerializerOptions _options = new()
     {
