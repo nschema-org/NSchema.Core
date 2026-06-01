@@ -91,12 +91,9 @@ Currently: PostgreSQL. SQL Server is the obvious next step, but MySQL, Oracle, a
 
 ---
 
-### Multiple schema providers
+### Domain-specific schemas
 
-Declaring schemas in C# code is the primary use case for non-CLI use, but some teams might want to source schemas from elsewhere:
-
-- **YAML files** — `ISchemaProvider` that reads schema definitions from a directory of YAML. Could be a good fit for teams with strong DevOps culture who want to manage everything as code, but don't want to write C#.
-- **DSL** — a custom domain-specific language for schema definitions, with a parser that emits `DatabaseSchema` instances. Could be more concise than C# for complex schemas, but adds the overhead of designing and maintaining a DSL.
+A custom domain-specific language for schema definitions, with a parser that emits `DatabaseSchema` instances. Could be more concise than C# for complex schemas, but adds the overhead of designing and maintaining a DSL.
 
 ---
 
