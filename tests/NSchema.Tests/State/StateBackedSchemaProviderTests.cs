@@ -33,8 +33,8 @@ public sealed class StateBackedSchemaProviderTests
         // Act
         var result = await sut.GetSchema();
 
-        // Assert
-        result.ShouldBeSameAs(persisted);
+        // Assert: an unscoped read returns the persisted schema unchanged (by value).
+        result.ShouldBe(persisted);
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public sealed class StateBackedSchemaProviderTests
         var result = await sut.GetSchema([]);
 
         // Assert
-        result.ShouldBeSameAs(persisted);
+        result.ShouldBe(persisted);
     }
 
     [Fact]

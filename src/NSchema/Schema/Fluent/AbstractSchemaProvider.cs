@@ -38,16 +38,9 @@ public abstract class AbstractSchemaProvider : ISchemaProvider
     /// <inheritdoc/>
     public Task<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default)
     {
-        var includedBuilders = _schemas.AsEnumerable();
-        if (schemaNames is { Length: > 0 })
-        {
-            var scope = new HashSet<string>(schemaNames, StringComparer.OrdinalIgnoreCase);
-            includedBuilders = includedBuilders.Where(s => scope.Contains(s.Name));
-        }
-
-        var materialized = includedBuilders.ToList();
-        var schemas = materialized.Where(s => !s.IsDropped).Select(s => s.Build()).ToList();
-        var droppedSchemas = materialized.Where(s => s.IsDropped).Select(s => s.Name).ToList();
-        return Task.FromResult(new DatabaseSchema(schemas, droppedSchemas));
+        var schemas = _schemas.Where(s => !s.IsDropped).Select(s => s.Build()).ToList();
+        var droppedSchemas = _schemas.Where(s => s.IsDropped).Select(s => s.Name).ToList();
+        var schema = new DatabaseSchema(schemas, droppedSchemas);
+        return Task.FromResult(schema.Filter(schemaNames));
     }
 }
