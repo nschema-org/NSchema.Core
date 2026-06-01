@@ -24,10 +24,10 @@ public sealed class StateStoreRegistrationTests
     }
 
     [Fact]
-    public void UseStateStoreFile_RegistersFileStore()
+    public void UseFileStateStore_RegistersFileStore()
     {
         // Act
-        var store = ResolveStore(b => b.UseStateStoreFile("state.json"));
+        var store = ResolveStore(b => b.UseFileStateStore("state.json"));
 
         // Assert
         store.ShouldBeOfType<FileSchemaStateStore>();
@@ -57,9 +57,9 @@ public sealed class StateStoreRegistrationTests
     }
 
     [Fact]
-    public void UseStateStore_CalledTwice_LastOneWins()
+    public void UseFileStateStore_CalledTwice_LastOneWins()
     {
-        var store = ResolveStore(b => b.UseStateStore<FakeStateStore>().UseStateStoreFile("state.json"));
+        var store = ResolveStore(b => b.UseStateStore<FakeStateStore>().UseFileStateStore("state.json"));
 
         store.ShouldBeOfType<FileSchemaStateStore>();
     }

@@ -36,10 +36,10 @@ By default, NSchema generates plans against the current live state of the databa
 
 NSchema supports an optional backend state store that persists a snapshot of the schema. After a successful apply, NSchema captures the resulting schema to the store, so a later plan can be generated against that snapshot. You can also capture the current schema without applying by running a [`Refresh`](#operations) operation — handy for recording drift that happened between applies.
 
-Register a state store from a provider package like `NSchema.Aws`, or use the built-in `UseStateStoreFile(path)` for a file-backed store:
+Register a state store from a provider package like `NSchema.Aws`, or use the built-in `UseFileStateStore(path)` for a file-backed store:
 
 ```csharp
-builder.UseStateStoreFile("schema_state.json");
+builder.UseFileStateStore("schema_state.json");
 ```
 
 When a state store is registered, `Plan` operations automatically use it as the current-state source (offline planning), and `Apply` operations always read from the live database. No additional configuration is needed.

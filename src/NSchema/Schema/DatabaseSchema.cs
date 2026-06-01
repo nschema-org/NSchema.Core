@@ -27,4 +27,22 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition> Schemas, IReadOnlyL
     /// <param name="schemas">A list of SchemaDefinition objects, each representing a specific schema within the database.</param>
     /// <param name="droppedSchemas">A list of schema names that have been dropped from the database.</param>
     public static DatabaseSchema Create(IReadOnlyList<SchemaDefinition> schemas, IReadOnlyList<string>? droppedSchemas = null) => new(schemas, droppedSchemas ?? []);
+
+    /// <summary>
+    /// Restricts the schema to the named schemas.
+    /// </summary>
+    /// <param name="schemaNames">The names of the schemas to include in the filtered result.</param>
+    /// <returns>A new <see cref="DatabaseSchema"/> containing only the schemas and dropped schemas that match the provided names.</returns>
+    public DatabaseSchema Filter(string[]? schemaNames)
+    {
+        if (schemaNames is not { Length: > 0 })
+        {
+            return new DatabaseSchema(Schemas, DroppedSchemas);
+        }
+
+        var scope = new HashSet<string>(schemaNames, StringComparer.OrdinalIgnoreCase);
+        var filtered = Schemas.Where(s => scope.Contains(s.Name)).ToList();
+        var filteredDropped = DroppedSchemas.Where(scope.Contains).ToList();
+        return new DatabaseSchema(filtered, filteredDropped);
+    }
 }

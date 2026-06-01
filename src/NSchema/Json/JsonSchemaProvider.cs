@@ -44,19 +44,6 @@ internal sealed class JsonSchemaProvider : ISchemaProvider
         var schema = await JsonSerializer.DeserializeAsync<DatabaseSchema>(stream, _options, cancellationToken)
             ?? throw new JsonException($"JSON schema file deserialized to null: \"{_filePath}\".");
 
-        return Filter(schema, schemaNames);
-    }
-
-    private static DatabaseSchema Filter(DatabaseSchema schema, string[]? schemaNames)
-    {
-        if (schemaNames is not { Length: > 0 })
-        {
-            return schema;
-        }
-
-        var scope = new HashSet<string>(schemaNames, StringComparer.OrdinalIgnoreCase);
-        var filtered = schema.Schemas.Where(s => scope.Contains(s.Name)).ToList();
-        var filteredDropped = schema.DroppedSchemas.Where(scope.Contains).ToList();
-        return new DatabaseSchema(filtered, filteredDropped);
+        return schema.Filter(schemaNames);
     }
 }

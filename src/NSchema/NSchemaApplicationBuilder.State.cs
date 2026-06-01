@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.State;
@@ -35,11 +36,16 @@ public partial class NSchemaApplicationBuilder
     /// </summary>
     /// <param name="path">The absolute or relative path of the state file.</param>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder UseStateStoreFile(string path)
+    public NSchemaApplicationBuilder UseFileStateStore(string path)
     {
         Services.RemoveAll<ISchemaStateStore>();
         Services.Configure<FileSchemaStateStoreOptions>(o => o.Path = path);
         Services.AddSingleton<ISchemaStateStore, FileSchemaStateStore>();
         return this;
     }
+
+    /// <summary></summary>
+    [Obsolete($"Use {nameof(UseFileStateStore)} instead.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public NSchemaApplicationBuilder UseStateStoreFile(string path) => UseFileStateStore(path);
 }

@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.Migration;
 
 namespace NSchema;
@@ -13,7 +12,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddSchema<T>() where T : class, ISchemaProvider
     {
-        Services.TryAddEnumerable(ServiceDescriptor.Singleton<ISchemaProvider, T>());
+        Services.AddSingleton(ServiceDescriptor.Singleton<ISchemaProvider, T>());
         return this;
     }
 
@@ -25,7 +24,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddSchema<T>(Func<IServiceProvider, T> factory) where T : class, ISchemaProvider
     {
-        Services.TryAddEnumerable(ServiceDescriptor.Singleton<ISchemaProvider, T>(factory));
+        Services.AddSingleton<ISchemaProvider, T>(factory);
         return this;
     }
 

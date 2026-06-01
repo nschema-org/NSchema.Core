@@ -17,18 +17,7 @@ internal sealed class StateBackedSchemaProvider(ISchemaStateStore store) : ISche
     public async Task<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default)
     {
         var schema = await store.Read(cancellationToken);
-        if (schema == null)
-        {
-            return DatabaseSchema.Create([]);
-        }
-
-        // Honor the ISchemaProvider contract: null/empty scope means "return everything".
-        if (schemaNames is not { Length: > 0 })
-        {
-            return schema;
-        }
-
-        var set = new HashSet<string>(schemaNames, StringComparer.OrdinalIgnoreCase);
-        return schema with { Schemas = schema.Schemas.Where(s => set.Contains(s.Name)).ToList() };
+        // Ensure we return an empty schema for a bootstrap run.
+        return schema?.Filter(schemaNames) ?? DatabaseSchema.Create([]);
     }
 }
