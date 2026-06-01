@@ -203,6 +203,24 @@ public sealed class JsonSchemaProviderTests : IDisposable
     public void SqlTypeParse_ParsesAllTypes(string input, SqlType expected)
         => SqlType.Parse(input).ShouldBe(expected);
 
+    [Fact]
+    public void SqlTypeStringCases_CoversEveryConcreteSqlType()
+    {
+        // Every concrete SqlType must appear in SqlTypeStringCases so SqlTypeParse_ParsesAllTypes
+        // and GetSchema_RoundTripsAllSqlTypes exercise its string round-trip. Declaring a new SqlType
+        // without adding a Parse case here will fail this test.
+        var declared = typeof(SqlType).Assembly.GetTypes()
+            .Where(t => !t.IsAbstract && t.IsSubclassOf(typeof(SqlType)))
+            .ToHashSet();
+
+        var covered = SqlTypeStringCases()
+            .Select(row => ((SqlType)row[1]!).GetType())
+            .ToHashSet();
+
+        var missing = declared.Except(covered).Select(type => type.Name).Order().ToList();
+        missing.ShouldBeEmpty($"SqlTypeStringCases is missing: {string.Join(", ", missing)}");
+    }
+
     [Theory]
     [MemberData(nameof(SqlTypeStringCases))]
     public async Task GetSchema_RoundTripsAllSqlTypes(string typeString, SqlType expected)
