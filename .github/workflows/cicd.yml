@@ -1,4 +1,4 @@
-name: NSchema CI/CD Pipeline
+name: NSchema
 
 on:
   workflow_dispatch:

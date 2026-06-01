@@ -6,22 +6,21 @@ using NSchema.Policies;
 namespace NSchema.Hosting;
 
 /// <summary>
-/// Default <see cref="IMigrationReporter"/> that presents output to the terminal: it renders the plan as a
-/// Terraform-style diff via <see cref="IMigrationPlanRenderer"/>, writes user-facing output directly to the
-/// console, and fans out to <see cref="ILogger"/> so structured sinks (Datadog, OpenTelemetry, etc.)
-/// continue to receive the migration narrative.
+/// Default <see cref="IMigrationReporter"/> that presents user-facing output via <see cref="ILogger"/>.
+/// The terminal logger provider (registered by default) routes log output to stdout/stderr; any structured
+/// sink the consumer adds also receives the same events.
 /// </summary>
-/// <param name="logger">The logger to fan structured output out to.</param>
+/// <param name="logger">The logger to write output to.</param>
 /// <param name="planRenderer">Renders the migration plan as a human-readable diff.</param>
 internal sealed class DefaultMigrationReporter(ILogger<DefaultMigrationReporter> logger, IMigrationPlanRenderer planRenderer) : IMigrationReporter
 {
-    public void Info(string message) => Write(LogLevel.Information, message);
+    public void Info(string message) => logger.Log(LogLevel.Information, message);
 
-    public void Error(string message) => Write(LogLevel.Error, message);
+    public void Error(string message) => logger.Log(LogLevel.Error, message);
 
     public void ReportPlan(MigrationPlan plan)
     {
-        Write(LogLevel.Information, planRenderer.Render(plan));
+        logger.Log(LogLevel.Information, planRenderer.Render(plan));
 
         // A blank line separates the diff from following output. This is terminal layout only, so it
         // doesn't go through the logger.
@@ -32,7 +31,7 @@ internal sealed class DefaultMigrationReporter(ILogger<DefaultMigrationReporter>
     {
         foreach (var statement in statements)
         {
-            Write(LogLevel.Information, statement);
+            logger.Log(LogLevel.Information, statement);
         }
     }
 
@@ -46,17 +45,7 @@ internal sealed class DefaultMigrationReporter(ILogger<DefaultMigrationReporter>
                 PolicySeverity.Warning => LogLevel.Warning,
                 _ => LogLevel.Information,
             };
-            Write(level, $"{diagnostic.PolicyName}: {diagnostic.Message}");
+            logger.Log(level, "{DiagnosticPolicyName}: {DiagnosticMessage}", diagnostic.PolicyName, diagnostic.Message);
         }
-    }
-
-    private void Write(LogLevel level, string message)
-    {
-        // Forward to ILogger as a single structured Message field for downstream sinks.
-        logger.Log(level, "{Message}", message);
-
-        // Errors and warnings go to stderr so they don't get tangled with normal output when piped.
-        var writer = level >= LogLevel.Warning ? Console.Error : Console.Out;
-        writer.WriteLine(message);
     }
 }

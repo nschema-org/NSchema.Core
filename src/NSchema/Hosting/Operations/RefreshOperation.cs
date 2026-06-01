@@ -18,7 +18,7 @@ internal sealed class RefreshOperation(
             throw new InvalidOperationException("Refresh requires a state store. Register one via UseStateStore(...) or UseStateStoreFile(...).");
         }
 
-        reporter.Info("Capturing schema state...");
+        reporter.Info("Running in Refresh mode.");
         var schema = await currentProvider.GetSchema(SchemaSourceMode.Online, options.Value.SchemaNames, required: true, cancellationToken);
         await store.Write(schema, cancellationToken);
         reporter.Info("Schema state captured.");

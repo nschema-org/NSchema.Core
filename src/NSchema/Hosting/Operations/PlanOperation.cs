@@ -24,23 +24,28 @@ internal sealed class PlanOperation(
 
         var result = await planner.Plan(currentSchema, desiredSchema, cancellationToken);
 
-        reporter.ReportDiagnostics(result.Diagnostics);
         if (result.HasErrors)
         {
+            reporter.ReportDiagnostics(result.Diagnostics);
             throw new PolicyViolationException(result.Errors.ToList());
         }
 
         reporter.ReportPlan(result.Plan);
+        reporter.ReportDiagnostics(result.Diagnostics);
 
         if (compiler is null)
         {
-            reporter.Info("No database provider registered; reporting the plan without a SQL preview.");
+            reporter.Info("No SQL preview available — no database connection is configured.");
             return;
         }
 
         reporter.Info("Compiling migration plan...");
         var execution = await compiler.Compile(result.Plan, cancellationToken);
-        reporter.ReportPreview(execution.Preview);
+        if (execution.Preview.Count > 0)
+        {
+            reporter.Info("SQL Preview:");
+            reporter.ReportPreview(execution.Preview);
+        }
     }
 
 }

@@ -76,7 +76,7 @@ public sealed class PlanOperationTests
     }
 
     [Fact]
-    public async Task Execute_PolicyViolation_ReportsDiagnosticsAndThrows()
+    public async Task Execute_PolicyViolation_ReportsDiagnosticsAndThrows_WithoutShowingPlan()
     {
         var errors = new[] { new PolicyError("P1", "msg", PolicySeverity.Error) };
         _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
@@ -84,19 +84,26 @@ public sealed class PlanOperationTests
 
         await Should.ThrowAsync<PolicyViolationException>(() => _sut.Execute());
         _reporter.Received(1).ReportDiagnostics(Arg.Any<IReadOnlyList<PolicyError>>());
+        _reporter.DidNotReceive().ReportPlan(Arg.Any<MigrationPlan>());
         await _compiler.DidNotReceive().Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Execute_ForwardsDiagnosticsToReporter()
+    public async Task Execute_NonErrorDiagnostics_ReportedAfterPlan()
     {
         var diagnostics = new[] { new PolicyError("P1", "info", PolicySeverity.Info) };
+        var plan = new MigrationPlan([], DatabaseSchema.Create([]));
         _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
-            .Returns(new MigrationPlanResult(new MigrationPlan([], DatabaseSchema.Create([])), diagnostics));
+            .Returns(new MigrationPlanResult(plan, diagnostics));
+
+        var callOrder = new List<string>();
+        _reporter.When(r => r.ReportPlan(Arg.Any<MigrationPlan>())).Do(_ => callOrder.Add("plan"));
+        _reporter.When(r => r.ReportDiagnostics(Arg.Any<IReadOnlyList<PolicyError>>())).Do(_ => callOrder.Add("diagnostics"));
 
         await _sut.Execute();
 
         _reporter.Received(1).ReportDiagnostics(Arg.Is<IReadOnlyList<PolicyError>>(d => d.SequenceEqual(diagnostics)));
+        callOrder.ShouldBe(["plan", "diagnostics"]);
     }
 
     [Fact]

@@ -31,7 +31,7 @@ public class DefaultMigrationPlanRendererTests
             new RevokeTablePrivileges("s", "t", "role", TablePrivilege.Select),
 
             new AddColumn("s", "t", Column.Create("c", SqlType.Int)),
-            new DropColumn("s", "t", "c"),
+            new DropColumn("s", "t", Column.Create("c", SqlType.Int)),
             new RenameColumn("s", "t", "c_old", "c"),
             new AlterColumnType("s", "t", "c", SqlType.Int, SqlType.BigInt),
             new AlterColumnNullability("s", "t", "c", false, true),
@@ -244,8 +244,8 @@ public class DefaultMigrationPlanRendererTests
         var output = _sut.Render(plan);
 
         // Assert
-        output.ShouldContain("~ schema app (\"new comment\")");
-        output.ShouldContain("rename: app_old → app");
+        output.ShouldContain("~ schema app_old → app (\"new comment\")");
+        output.ShouldNotContain("rename: app_old → app");
         output.ShouldContain("+ grant usage to reader");
         output.ShouldContain("- revoke usage from writer");
     }
@@ -270,7 +270,7 @@ public class DefaultMigrationPlanRendererTests
         // Assert
         output.ShouldContain("~ table app.users");
         output.ShouldContain("id type: Int → BigInt");
-        output.ShouldContain("email nullable: false → true");
+        output.ShouldContain("email nullable: not null → null");
         output.ShouldContain("status default: <none> → 'active'");
         output.ShouldContain("email comment: \"old\" → \"new\"");
         output.ShouldContain("rename column: uname → username");

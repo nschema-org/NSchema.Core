@@ -94,7 +94,7 @@ public sealed class ApplyOperationTests
     }
 
     [Fact]
-    public async Task Execute_PolicyViolation_ReportsDiagnosticsAndThrows()
+    public async Task Execute_PolicyViolation_ReportsDiagnosticsAndThrows_WithoutShowingPlan()
     {
         var errors = new[]
         {
@@ -107,18 +107,26 @@ public sealed class ApplyOperationTests
         await Should.ThrowAsync<PolicyViolationException>(() => _sut.Execute());
         _reporter.Received(1).ReportDiagnostics(Arg.Is<IReadOnlyList<PolicyError>>(d =>
             d.Any(e => e.Message == "msg1") && d.Any(e => e.Message == "msg2")));
+        _reporter.DidNotReceive().ReportPlan(Arg.Any<MigrationPlan>());
         await _compiler.DidNotReceive().Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public void Execute_ExecutionThrows_ReportsErrorAndRethrows()
+    public async Task Execute_NonErrorDiagnostics_ReportedAfterPlan()
     {
-        _execution.Execute(Arg.Any<CancellationToken>()).Throws(new InvalidOperationException("boom"));
+        var diagnostics = new[] { new PolicyError("P1", "warn", PolicySeverity.Warning) };
+        var plan = new MigrationPlan([], DatabaseSchema.Create([]));
+        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
+            .Returns(new MigrationPlanResult(plan, diagnostics));
 
-        var act = async () => await _sut.Execute();
+        var callOrder = new List<string>();
+        _reporter.When(r => r.ReportPlan(Arg.Any<MigrationPlan>())).Do(_ => callOrder.Add("plan"));
+        _reporter.When(r => r.ReportDiagnostics(Arg.Any<IReadOnlyList<PolicyError>>())).Do(_ => callOrder.Add("diagnostics"));
 
-        act.ShouldThrow<InvalidOperationException>();
-        _reporter.Received().Error(Arg.Is<string>(s => s.Contains("boom")));
+        await _sut.Execute();
+
+        _reporter.Received(1).ReportDiagnostics(Arg.Is<IReadOnlyList<PolicyError>>(d => d.SequenceEqual(diagnostics)));
+        callOrder.ShouldBe(["plan", "diagnostics"]);
     }
 
     [Fact]

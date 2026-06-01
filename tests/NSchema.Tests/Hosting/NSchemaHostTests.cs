@@ -14,6 +14,7 @@ public sealed class NSchemaHostTests
     private readonly IMigrationOperation _applyOp = Substitute.For<IMigrationOperation>();
     private readonly IMigrationOperation _refreshOp = Substitute.For<IMigrationOperation>();
     private readonly IHostApplicationLifetime _lifetime = Substitute.For<IHostApplicationLifetime>();
+    private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
 
     private NSchemaHost BuildHost()
     {
@@ -22,7 +23,7 @@ public sealed class NSchemaHostTests
         services.AddKeyedSingleton<IMigrationOperation>(MigrationOperation.Apply, (_, _) => _applyOp);
         services.AddKeyedSingleton<IMigrationOperation>(MigrationOperation.Refresh, (_, _) => _refreshOp);
         var sp = services.BuildServiceProvider();
-        return new NSchemaHost(Options.Create(_options), _lifetime, sp);
+        return new NSchemaHost(Options.Create(_options), _lifetime, sp, _reporter);
     }
 
     [Fact]
@@ -78,5 +79,17 @@ public sealed class NSchemaHostTests
 
         await Should.ThrowAsync<InvalidOperationException>(() => sut.ExecuteTask!);
         _lifetime.Received(1).StopApplication();
+    }
+
+    [Fact]
+    public async Task Execute_UnexpectedException_ReportsErrorBeforeRethrowing()
+    {
+        _options.Operation = MigrationOperation.Apply;
+        _applyOp.Execute(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("boom"));
+        var sut = BuildHost();
+        await sut.StartAsync(CancellationToken.None);
+
+        await Should.ThrowAsync<InvalidOperationException>(() => sut.ExecuteTask!);
+        _reporter.Received(1).Error(Arg.Is<string>(s => s.Contains("boom")));
     }
 }

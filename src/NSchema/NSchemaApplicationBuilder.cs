@@ -39,6 +39,13 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Drop the default console logger so third-party libraries don't spam the terminal.
         _innerBuilder.Logging.ClearProviders();
 
+        // Register NSchema's own terminal logger. The category filter restricts it to the reporter's category only,
+        // so internal diagnostic logs from other services (e.g. the comparer) aren't shown on the terminal
+        // but still reach any structured sink the consumer adds.
+        _innerBuilder.Logging.AddProvider(new NSchemaTerminalLoggerProvider());
+        _innerBuilder.Logging.AddFilter<NSchemaTerminalLoggerProvider>(typeof(DefaultMigrationReporter).FullName, LogLevel.Trace);
+        _innerBuilder.Logging.AddFilter<NSchemaTerminalLoggerProvider>(null, LogLevel.None);
+
         _innerBuilder.Services.AddOptions<MigrationOptions>();
         _innerBuilder.Services.AddOptions<MigrationRunOptions>();
         _innerBuilder.Services.AddOptions<SqlExecutorOptions>();

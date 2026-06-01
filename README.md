@@ -1,5 +1,7 @@
 # ![NSchema](https://raw.githubusercontent.com/tom-wolfe/NSchema/main/assets/nschema-logo-horizontal.png)
 
+[![NSchema](https://github.com/nschema-org/NSchema/actions/workflows/cicd.yml/badge.svg)](https://github.com/nschema-org/NSchema/actions/workflows/cicd.yml)
+
 NSchema is a declarative database schema migration library for .NET.
 
 You describe the schema you want in C#. NSchema compares it against the current state of your database, then runs the SQL to bring it in line.

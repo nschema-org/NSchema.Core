@@ -17,69 +17,275 @@ internal sealed class DefaultMigrationPlanRenderer : IMigrationPlanRenderer
             return "No changes detected.";
         }
 
-        var palette = Palette.ForCurrentEnvironment();
-        var sb = new StringBuilder();
+        var model = BuildDiffModel(plan);
+        return RenderDiffModel(model, Palette.ForCurrentEnvironment());
+    }
 
-        var scripted = new List<RunScript>();
-        var grouped = new Dictionary<GroupKey, List<MigrationAction>>();
-        foreach (var action in plan.Actions)
+    // -------------------------------------------------------------------------
+    // Model building — translates a flat action list into a structured diff tree
+    // -------------------------------------------------------------------------
+
+    private static DiffModel BuildDiffModel(MigrationPlan plan)
+    {
+        var scripts = plan.Actions.OfType<RunScript>().ToList();
+
+        var groups = plan.Actions
+            .Where(a => a is not RunScript)
+            .GroupBy(GroupKeyFor)
+            .Select(g => BuildGroup(g.Key, g.ToList()))
+            .OrderBy(g => g.SortKey, StringComparer.Ordinal)
+            .Select(g => g.Group)
+            .ToList();
+
+        return new DiffModel(
+            Adds: groups.Count(g => g.Kind == ChangeKind.Add),
+            Changes: groups.Count(g => g.Kind == ChangeKind.Modify),
+            Removes: groups.Count(g => g.Kind == ChangeKind.Remove),
+            Groups: groups,
+            PreDeploymentScripts: scripts
+                .Where(s => s.Script.Type == ScriptType.PreDeployment)
+                .Select(s => s.Script.Name).ToList(),
+            PostDeploymentScripts: scripts
+                .Where(s => s.Script.Type == ScriptType.PostDeployment)
+                .Select(s => s.Script.Name).ToList());
+    }
+
+    private static (string SortKey, DiffGroup Group) BuildGroup(GroupKey key, List<MigrationAction> actions)
+    {
+        var (kind, header, absorbedComment) = ClassifyGroup(key, actions);
+
+        // Column comments are pre-indexed so BuildColumnLines and BuildDetailLines can both
+        // look them up without coordinating through shared mutable state.
+        var columnComments = actions
+            .OfType<SetColumnComment>()
+            .ToDictionary(c => c.ColumnName, c => c);
+
+        var (columnLines, consumedByColumns) = BuildColumnLines(kind, actions, columnComments);
+        var detailLines = BuildDetailLines(kind, actions, absorbedComment, columnComments, consumedByColumns);
+
+        var sortKey = key.TableName is null
+            ? $"{key.SchemaName}:0"
+            : $"{key.SchemaName}:1:{key.TableName}";
+
+        return (sortKey, new DiffGroup(kind, header, columnLines, detailLines));
+    }
+
+    /// <summary>
+    /// Determines the change kind and builds the full header string for a group, including
+    /// any rename notation and the comment folded in. Returns the comment action that was
+    /// absorbed so the detail-line builder can skip it.
+    /// </summary>
+    private static (ChangeKind Kind, string Header, MigrationAction? AbsorbedComment) ClassifyGroup(
+        GroupKey key, IReadOnlyList<MigrationAction> actions)
+    {
+        if (key.TableName is null)
         {
-            if (action is RunScript script)
+            ChangeKind kind;
+            string target;
+
+            if (actions.Any(a => a is CreateSchema))
             {
-                scripted.Add(script);
+                (kind, target) = (ChangeKind.Add, key.SchemaName);
+            }
+            else if (actions.Any(a => a is DropSchema))
+            {
+                (kind, target) = (ChangeKind.Remove, key.SchemaName);
+            }
+            else if (actions.OfType<RenameSchema>().FirstOrDefault() is { } sr)
+            {
+                (kind, target) = (ChangeKind.Modify, $"{sr.OldName} → {sr.NewName}");
+            }
+            else
+            {
+                (kind, target) = (ChangeKind.Modify, key.SchemaName);
+            }
+
+            var comment = actions.OfType<SetSchemaComment>().FirstOrDefault();
+            var header = comment is null
+                ? $"schema {target}"
+                : $"schema {target}{CommentSuffix(comment.OldComment, comment.NewComment)}";
+
+            return (kind, header, comment);
+        }
+        else
+        {
+            ChangeKind kind;
+            string target;
+
+            if (actions.Any(a => a is CreateTable))
+            {
+                (kind, target) = (ChangeKind.Add, $"{key.SchemaName}.{key.TableName}");
+            }
+            else if (actions.Any(a => a is DropTable))
+            {
+                (kind, target) = (ChangeKind.Remove, $"{key.SchemaName}.{key.TableName}");
+            }
+            else if (actions.OfType<RenameTable>().FirstOrDefault() is { } tr)
+            {
+                (kind, target) = (ChangeKind.Modify, $"{key.SchemaName}.{tr.OldName} → {tr.NewName}");
+            }
+            else
+            {
+                (kind, target) = (ChangeKind.Modify, $"{key.SchemaName}.{key.TableName}");
+            }
+
+            var comment = actions.OfType<SetTableComment>().FirstOrDefault();
+            var header = comment is null
+                ? $"table {target}"
+                : $"table {target}{CommentSuffix(comment.OldComment, comment.NewComment)}";
+
+            return (kind, header, comment);
+        }
+    }
+
+    /// <summary>
+    /// Produces the inline column list for a new-table group. Returns the set of column names
+    /// whose comments were consumed here so the detail builder can skip the corresponding
+    /// SetColumnComment actions.
+    /// </summary>
+    private static (IReadOnlyList<DiffLine> Lines, HashSet<string> ConsumedColumnNames) BuildColumnLines(
+        ChangeKind kind,
+        IReadOnlyList<MigrationAction> actions,
+        Dictionary<string, SetColumnComment> columnComments)
+    {
+        if (kind != ChangeKind.Add || actions.OfType<CreateTable>().FirstOrDefault() is not { } createTable)
+        {
+            return ([], []);
+        }
+
+        var lines = new List<DiffLine>(createTable.Table.Columns.Count);
+        var consumed = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var column in createTable.Table.Columns)
+        {
+            var text = FormatColumn(column);
+            if (columnComments.TryGetValue(column.Name, out var comment))
+            {
+                text += CommentSuffix(comment.OldComment, comment.NewComment);
+                consumed.Add(column.Name);
+            }
+            lines.Add(new DiffLine(ChangeKind.Add, text));
+        }
+        return (lines, consumed);
+    }
+
+    /// <summary>
+    /// Produces detail lines for a group, skipping implicit/absorbed actions and folding
+    /// column comments into their AddColumn lines.
+    /// </summary>
+    private static IReadOnlyList<DiffLine> BuildDetailLines(
+        ChangeKind kind,
+        IReadOnlyList<MigrationAction> actions,
+        MigrationAction? absorbedComment,
+        Dictionary<string, SetColumnComment> columnComments,
+        HashSet<string> consumedByColumns)
+    {
+        // Pre-compute which SetColumnComment actions will be folded into AddColumn lines so we
+        // can skip them unconditionally regardless of action ordering in the list.
+        var consumedColumnNames = new HashSet<string>(consumedByColumns, StringComparer.Ordinal);
+        foreach (var add in actions.OfType<AddColumn>())
+        {
+            if (columnComments.ContainsKey(add.Column.Name))
+            {
+                consumedColumnNames.Add(add.Column.Name);
+            }
+        }
+
+        var lines = new List<DiffLine>();
+        foreach (var action in actions)
+        {
+            if (action == absorbedComment)
+            {
                 continue;
             }
 
-            var key = GroupKeyFor(action);
-            if (!grouped.TryGetValue(key, out var list))
+            if (kind == ChangeKind.Add && action is CreateSchema or CreateTable)
             {
-                grouped[key] = list = [];
+                continue;
             }
-            list.Add(action);
+
+            if (kind == ChangeKind.Remove && action is DropSchema or DropTable)
+            {
+                continue;
+            }
+
+            if (action is RenameSchema or RenameTable)
+            {
+                continue;
+            }
+
+            if (action is SetColumnComment scc && consumedColumnNames.Contains(scc.ColumnName))
+            {
+                continue;
+            }
+
+            if (action is AddColumn add && columnComments.TryGetValue(add.Column.Name, out var addComment))
+            {
+                lines.Add(new DiffLine(ChangeKind.Add, FormatColumn(add.Column) + CommentSuffix(addComment.OldComment, addComment.NewComment)));
+                continue;
+            }
+
+            var (lineKind, lineText) = DescribeAction(action);
+            lines.Add(new DiffLine(lineKind, lineText));
         }
+        return lines;
+    }
 
-        var groupBlocks = grouped
-            .Select(g => RenderGroup(g.Key, g.Value, palette))
-            .OrderBy(b => b.SortKey, StringComparer.Ordinal)
-            .ToList();
+    // -------------------------------------------------------------------------
+    // Rendering — pure string formatting, no decisions
+    // -------------------------------------------------------------------------
 
-        var adds = groupBlocks.Count(b => b.Kind == ChangeKind.Add);
-        var changes = groupBlocks.Count(b => b.Kind == ChangeKind.Modify);
-        var destroys = groupBlocks.Count(b => b.Kind == ChangeKind.Remove);
+    private static string RenderDiffModel(DiffModel model, Palette palette)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"Plan: {model.Adds} to add, {model.Changes} to change, {model.Removes} to destroy.");
 
-        sb.AppendLine($"Plan: {adds} to add, {changes} to change, {destroys} to destroy.");
-
-        foreach (var block in groupBlocks)
+        foreach (var group in model.Groups)
         {
             sb.AppendLine();
-            sb.AppendLine(block.Text);
+            sb.Append(palette.For(group.Kind)).Append(' ').AppendLine(group.Header);
+
+            foreach (var line in group.ColumnLines)
+            {
+                sb.Append("    ").Append(palette.For(line.Kind)).Append(' ').AppendLine(line.Text);
+            }
+
+            if (group.ColumnLines.Count > 0 && group.DetailLines.Count > 0)
+            {
+                sb.AppendLine();
+            }
+
+            foreach (var line in group.DetailLines)
+            {
+                sb.Append("    ").Append(palette.For(line.Kind)).Append(' ').AppendLine(line.Text);
+            }
         }
 
-        var preScripts = scripted.Where(s => s.Script.Type == ScriptType.PreDeployment).ToList();
-        var postScripts = scripted.Where(s => s.Script.Type == ScriptType.PostDeployment).ToList();
-
-        if (preScripts.Count > 0)
+        if (model.PreDeploymentScripts.Count > 0)
         {
             sb.AppendLine();
             sb.AppendLine("Pre-deployment scripts:");
-            foreach (var script in preScripts)
+            foreach (var name in model.PreDeploymentScripts)
             {
-                sb.AppendLine($"  • {script.Script.Name}");
+                sb.AppendLine($"  • {name}");
             }
         }
 
-        if (postScripts.Count > 0)
+        if (model.PostDeploymentScripts.Count > 0)
         {
             sb.AppendLine();
             sb.AppendLine("Post-deployment scripts:");
-            foreach (var script in postScripts)
+            foreach (var name in model.PostDeploymentScripts)
             {
-                sb.AppendLine($"  • {script.Script.Name}");
+                sb.AppendLine($"  • {name}");
             }
         }
 
         return sb.ToString().TrimEnd();
     }
+
+    // -------------------------------------------------------------------------
+    // Action routing
+    // -------------------------------------------------------------------------
 
     private static GroupKey GroupKeyFor(MigrationAction action) => action switch
     {
@@ -118,117 +324,7 @@ internal sealed class DefaultMigrationPlanRenderer : IMigrationPlanRenderer
         _ => throw new NotSupportedException($"Renderer cannot group action of type {action.GetType().Name}."),
     };
 
-    private static GroupBlock RenderGroup(GroupKey key, IReadOnlyList<MigrationAction> actions, Palette palette)
-    {
-        var (kind, headerLabel, headerTarget) = ClassifyGroup(key, actions);
-        var marker = palette.For(kind);
-        var sb = new StringBuilder();
-        var absorbed = new HashSet<MigrationAction>(ReferenceEqualityComparer.Instance);
-
-        // Comments belong on the element they describe, so they fold into the header / column line
-        // rather than appearing as their own `~ comment:` row.
-        sb.Append(marker).Append(' ').Append(headerLabel).Append(' ').Append(headerTarget);
-        if (key.TableName is null)
-        {
-            if (actions.OfType<SetSchemaComment>().FirstOrDefault() is { } schemaComment)
-            {
-                sb.Append(CommentSuffix(schemaComment.OldComment, schemaComment.NewComment));
-                absorbed.Add(schemaComment);
-            }
-        }
-        else if (actions.OfType<SetTableComment>().FirstOrDefault() is { } tableComment)
-        {
-            sb.Append(CommentSuffix(tableComment.OldComment, tableComment.NewComment));
-            absorbed.Add(tableComment);
-        }
-        sb.AppendLine();
-
-        // SetColumnComment for a column we're about to print (either inside a new table, or as
-        // an AddColumn) folds into that column's line. Comments for columns with no
-        // accompanying column line fall through to the default rendering below.
-        var columnComments = key.TableName is null
-            ? new Dictionary<string, SetColumnComment>()
-            : actions.OfType<SetColumnComment>().ToDictionary(c => c.ColumnName, c => c);
-
-        var renderedColumns = false;
-        if (key.TableName is not null && kind == ChangeKind.Add && actions.OfType<CreateTable>().FirstOrDefault() is { } createdTable)
-        {
-            foreach (var column in createdTable.Table.Columns)
-            {
-                var line = FormatColumn(column);
-                if (columnComments.TryGetValue(column.Name, out var columnComment))
-                {
-                    line += CommentSuffix(columnComment.OldComment, columnComment.NewComment);
-                    absorbed.Add(columnComment);
-                }
-                sb.Append("    ").Append(palette.For(ChangeKind.Add)).Append(' ').AppendLine(line);
-                renderedColumns = true;
-            }
-        }
-
-        var separatorPending = renderedColumns;
-        foreach (var action in actions)
-        {
-            if (absorbed.Contains(action))
-            {
-                continue;
-            }
-            // The create/drop that drives a group's headline is implicit; CreateTable's
-            // columns were already enumerated above when applicable.
-            if (kind == ChangeKind.Add && action is CreateSchema or CreateTable)
-            {
-                continue;
-            }
-            if (kind == ChangeKind.Remove && action is DropSchema or DropTable)
-            {
-                continue;
-            }
-
-            if (separatorPending)
-            {
-                sb.AppendLine();
-                separatorPending = false;
-            }
-
-            if (action is AddColumn add && columnComments.TryGetValue(add.Column.Name, out var addColumnComment))
-            {
-                var detail = FormatColumn(add.Column) + CommentSuffix(addColumnComment.OldComment, addColumnComment.NewComment);
-                absorbed.Add(addColumnComment);
-                sb.Append("    ").Append(palette.For(ChangeKind.Add)).Append(' ').AppendLine(detail);
-                continue;
-            }
-
-            var (lineKind, lineDetail) = DescribeAction(action);
-            sb.Append("    ").Append(palette.For(lineKind)).Append(' ').AppendLine(lineDetail);
-        }
-
-        var sortKey = key.TableName is null ? $"0:{key.SchemaName}" : $"1:{key.SchemaName}.{key.TableName}";
-        return new GroupBlock(sortKey, kind, sb.ToString().TrimEnd('\r', '\n'));
-    }
-
-    private static string CommentSuffix(string? oldComment, string? newComment) => oldComment is null
-        ? $" ({FormatComment(newComment)})"
-        : $" ({FormatComment(oldComment)} → {FormatComment(newComment)})";
-
-    private static (ChangeKind kind, string label, string target) ClassifyGroup(GroupKey key, IReadOnlyList<MigrationAction> actions)
-    {
-        if (key.TableName is null)
-        {
-            var schemaKind =
-                actions.Any(a => a is CreateSchema) ? ChangeKind.Add :
-                actions.Any(a => a is DropSchema) ? ChangeKind.Remove :
-                ChangeKind.Modify;
-            return (schemaKind, "schema", key.SchemaName);
-        }
-
-        var tableKind =
-            actions.Any(a => a is CreateTable) ? ChangeKind.Add :
-            actions.Any(a => a is DropTable) ? ChangeKind.Remove :
-            ChangeKind.Modify;
-        return (tableKind, "table", $"{key.SchemaName}.{key.TableName}");
-    }
-
-    private static (ChangeKind, string) DescribeAction(MigrationAction action) => action switch
+    private static (ChangeKind Kind, string Text) DescribeAction(MigrationAction action) => action switch
     {
         CreateSchema a => (ChangeKind.Add, $"schema {a.SchemaName}"),
         DropSchema a => (ChangeKind.Remove, $"schema {a.SchemaName}"),
@@ -245,10 +341,10 @@ internal sealed class DefaultMigrationPlanRenderer : IMigrationPlanRenderer
         RevokeTablePrivileges a => (ChangeKind.Remove, $"revoke {a.Privileges} from {a.Role}"),
 
         AddColumn a => (ChangeKind.Add, FormatColumn(a.Column)),
-        DropColumn a => (ChangeKind.Remove, a.ColumnName),
+        DropColumn a => (ChangeKind.Remove, FormatColumn(a.Column)),
         RenameColumn a => (ChangeKind.Modify, $"rename column: {a.OldName} → {a.NewName}"),
         AlterColumnType a => (ChangeKind.Modify, $"{a.ColumnName} type: {a.OldType} → {a.NewType}"),
-        AlterColumnNullability a => (ChangeKind.Modify, $"{a.ColumnName} nullable: {a.OldNullable.ToString().ToLowerInvariant()} → {a.NewNullable.ToString().ToLowerInvariant()}"),
+        AlterColumnNullability a => (ChangeKind.Modify, $"{a.ColumnName} nullable: {FormatNullability(a.OldNullable)} → {FormatNullability(a.NewNullable)}"),
         AlterIdentitySequence a => (ChangeKind.Modify, $"{a.ColumnName} identity: {FormatIdentity(a.OldOptions)} → {FormatIdentity(a.NewOptions)}"),
         SetColumnDefault a => (ChangeKind.Modify, $"{a.ColumnName} default: {FormatDefault(a.OldDefault)} → {FormatDefault(a.NewDefault)}"),
         SetColumnComment a => (ChangeKind.Modify, $"{a.ColumnName} comment: {FormatComment(a.OldComment)} → {FormatComment(a.NewComment)}"),
@@ -265,23 +361,72 @@ internal sealed class DefaultMigrationPlanRenderer : IMigrationPlanRenderer
         _ => throw new NotSupportedException($"Renderer cannot describe action of type {action.GetType().Name}."),
     };
 
-    private static string FormatColumn(Column column)
-    {
-        var nullability = column.IsNullable ? "null" : "not null";
-        return $"{column.Name} {column.Type} {nullability}";
-    }
+    // -------------------------------------------------------------------------
+    // Formatters
+    // -------------------------------------------------------------------------
+
+    private static string FormatColumn(Column column) =>
+        $"{column.Name} {column.Type} {(column.IsNullable ? "null" : "not null")}";
+
+    private static string CommentSuffix(string? oldComment, string? newComment) => oldComment is null
+        ? $" ({FormatComment(newComment)})"
+        : $" ({FormatComment(oldComment)} → {FormatComment(newComment)})";
 
     private static string FormatComment(string? comment) => comment is null ? "<none>" : $"\"{comment}\"";
 
     private static string FormatDefault(string? value) => value ?? "<none>";
 
-    private static string FormatIdentity(IdentityOptions? options) => options is null ? "<none>" : options.ToString() ?? "<set>";
+    private static string FormatNullability(bool nullable) => nullable ? "null" : "not null";
+
+    private static string FormatIdentity(IdentityOptions? options)
+    {
+        if (options is null)
+        {
+            return "<none>";
+        }
+
+        var parts = new List<string>(3);
+        if (options.StartWith.HasValue)
+        {
+            parts.Add($"start={options.StartWith}");
+        }
+
+        if (options.MinValue.HasValue)
+        {
+            parts.Add($"min={options.MinValue}");
+        }
+
+        if (options.IncrementBy.HasValue)
+        {
+            parts.Add($"step={options.IncrementBy}");
+        }
+
+        return parts.Count > 0 ? string.Join(", ", parts) : "<default>";
+    }
+
+    // -------------------------------------------------------------------------
+    // Private types
+    // -------------------------------------------------------------------------
 
     private enum ChangeKind { Add, Modify, Remove }
 
     private readonly record struct GroupKey(string SchemaName, string? TableName);
 
-    private readonly record struct GroupBlock(string SortKey, ChangeKind Kind, string Text);
+    private sealed record DiffModel(
+        int Adds,
+        int Changes,
+        int Removes,
+        IReadOnlyList<DiffGroup> Groups,
+        IReadOnlyList<string> PreDeploymentScripts,
+        IReadOnlyList<string> PostDeploymentScripts);
+
+    private sealed record DiffGroup(
+        ChangeKind Kind,
+        string Header,
+        IReadOnlyList<DiffLine> ColumnLines,
+        IReadOnlyList<DiffLine> DetailLines);
+
+    private sealed record DiffLine(ChangeKind Kind, string Text);
 
     // Encapsulates ANSI rendering. When colour is disabled we substitute the plain marker
     // characters so the rest of the renderer doesn't have to branch on environment state.
