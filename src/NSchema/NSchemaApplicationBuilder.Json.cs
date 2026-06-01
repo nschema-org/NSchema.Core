@@ -1,6 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;
 using NSchema.Json;
-using NSchema.Migration;
 
 namespace NSchema;
 
@@ -14,9 +12,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddJsonSchema(string filePath)
     {
-        // Registered directly rather than via AddSchema(factory): that uses TryAddEnumerable, which
-        // deduplicates by implementation type and would collapse multiple JsonSchemaProviders into one.
-        Services.AddSingleton<ISchemaProvider>(new JsonSchemaProvider(filePath));
+        AddSchema(_ => new JsonSchemaProvider(filePath));
         return this;
     }
 
