@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using NSchema.Hosting;
 using NSchema.Hosting.Operations;
 using NSchema.Migration;
 using NSchema.Migration.Plan;
@@ -18,10 +19,11 @@ public sealed class ApplyOperationTests
     private readonly ISchemaStateStore _store = Substitute.For<ISchemaStateStore>();
     private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
     private readonly IDesiredSchemaProvider _desiredProvider = Substitute.For<IDesiredSchemaProvider>();
+    private readonly IMigrationConfirmation _confirmation = Substitute.For<IMigrationConfirmation>();
     private readonly IOptions<MigrationOptions> _options = Options.Create(new MigrationOptions());
 
     private ApplyOperation BuildSut(IMigrationCompiler? compiler, ISchemaStateStore? store = null) =>
-        new(_options, _planner, _reporter, _currentProvider, _desiredProvider, store, compiler);
+        new(_options, _planner, _reporter, _currentProvider, _desiredProvider, _confirmation, store, compiler);
 
     private readonly ApplyOperation _sut;
 
@@ -38,6 +40,7 @@ public sealed class ApplyOperationTests
             .Returns(new MigrationPlanResult(new MigrationPlan([], DatabaseSchema.Create([])), []));
         _execution.Preview.Returns([]);
         _compiler.Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>()).Returns(_execution);
+        _confirmation.Confirm(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>()).Returns(true);
 
         _sut = BuildSut(_compiler);
     }
@@ -143,5 +146,59 @@ public sealed class ApplyOperationTests
     {
         await _sut.Execute();
         await _execution.Received(1).Execute(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Execute_EmptyPlan_DoesNotPromptForConfirmation()
+    {
+        await _sut.Execute();
+
+        await _confirmation.DidNotReceive().Confirm(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Execute_NonEmptyPlan_NotConfirmed_DoesNotExecuteOrCapture()
+    {
+        var plan = new MigrationPlan([new CreateSchema("app")], DatabaseSchema.Create([]));
+        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
+            .Returns(new MigrationPlanResult(plan, []));
+        _confirmation.Confirm(plan, Arg.Any<CancellationToken>()).Returns(false);
+        var sut = BuildSut(_compiler, _store);
+
+        await sut.Execute();
+
+        await _execution.DidNotReceive().Execute(Arg.Any<CancellationToken>());
+        await _store.DidNotReceive().Write(Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Execute_NonEmptyPlan_Confirmed_Executes()
+    {
+        var plan = new MigrationPlan([new CreateSchema("app")], DatabaseSchema.Create([]));
+        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
+            .Returns(new MigrationPlanResult(plan, []));
+        _confirmation.Confirm(plan, Arg.Any<CancellationToken>()).Returns(true);
+
+        await _sut.Execute();
+
+        await _execution.Received(1).Execute(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Execute_ConfirmationPromptedAfterPreview()
+    {
+        var plan = new MigrationPlan([new CreateSchema("app")], DatabaseSchema.Create([]));
+        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
+            .Returns(new MigrationPlanResult(plan, []));
+        _execution.Preview.Returns(["CREATE SCHEMA app;"]);
+
+        var callOrder = new List<string>();
+        _reporter.When(r => r.ReportPreview(Arg.Any<IReadOnlyList<string>>())).Do(_ => callOrder.Add("preview"));
+        _confirmation.Confirm(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>())
+            .Returns(_ => { callOrder.Add("confirm"); return true; });
+
+        await _sut.Execute();
+
+        callOrder.ShouldBe(["preview", "confirm"]);
     }
 }

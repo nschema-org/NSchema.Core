@@ -11,6 +11,7 @@ internal sealed class ApplyOperation(
     IMigrationReporter reporter,
     ICurrentSchemaProvider currentProvider,
     IDesiredSchemaProvider desiredProvider,
+    IMigrationConfirmation confirmation,
     ISchemaStateStore? store = null,
     IMigrationCompiler? compiler = null
 ) : IMigrationOperation
@@ -46,6 +47,13 @@ internal sealed class ApplyOperation(
         {
             reporter.Info("SQL Preview:");
             reporter.ReportPreview(execution.Preview);
+        }
+
+        // Offer an interactive front-end the chance to prompt before any changes are made.
+        if (!await confirmation.Confirm(result.Plan, cancellationToken))
+        {
+            reporter.Info("Apply cancelled. No changes were made to the database.");
+            return;
         }
 
         reporter.Info("Running database migration...");
