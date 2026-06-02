@@ -12,4 +12,8 @@ public class MigrationRunOptions
     /// </summary>
     public MigrationOperation Operation { get; set; } = MigrationOperation.Plan;
 
+    /// <summary>
+    /// Controls how exceptions are surfaced.
+    /// </summary>
+    public ExceptionBehavior ExceptionBehavior { get; set; } = ExceptionBehavior.ReportAndThrow;
 }

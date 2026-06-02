@@ -26,8 +26,11 @@ internal sealed class NSchemaHost(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Cancellation is expected (e.g. Ctrl+C) and not an error condition.
-            reporter.Error($"Migration failed: {ex.Message}");
+            if (options.Value.ExceptionBehavior == ExceptionBehavior.ReportAndThrow)
+            {
+                reporter.Error($"Migration failed: {ex.Message}");
+            }
+
             result.Exception = ex;
         }
         finally

@@ -153,3 +153,12 @@ Plan transformers are used to rewrite or reorder the generated migration plan be
 ```csharp
 builder.AddPlanTransformer<DependencyOrderingPlanTransformer>();
 ```
+
+## Exception behavior
+
+By default, NSchema will report any exceptions using `IMigrationReporter` and then rethrow them. You can change this behavior
+
+```csharp
+builder.WithExceptionBehavior(ExceptionBehavior.ReportAndThrow); // report and rethrow exceptions (default)
+builder.WithExceptionBehavior(ExceptionBehavior.Throw);          // rethrow exceptions without reporting.
+```
