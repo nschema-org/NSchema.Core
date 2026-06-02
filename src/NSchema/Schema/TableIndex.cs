@@ -14,6 +14,11 @@ namespace NSchema.Schema;
 public record TableIndex(string Name, IReadOnlyList<string> ColumnNames, bool IsUnique, string? Comment, string? Predicate)
 {
     /// <summary>
+    /// A list of column names that are included in the index.
+    /// </summary>
+    public IReadOnlyList<string> ColumnNames { get; init; } = ColumnNames ?? [];
+
+    /// <summary>
     /// Creates a new <see cref="TableIndex"/> with the given options, defaulting unspecified members.
     /// </summary>
     /// <param name="name">The name of the index.</param>

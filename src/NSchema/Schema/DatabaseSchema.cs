@@ -12,6 +12,16 @@ namespace NSchema.Schema;
 public record DatabaseSchema(IReadOnlyList<SchemaDefinition> Schemas, IReadOnlyList<string> DroppedSchemas)
 {
     /// <summary>
+    /// A list of SchemaDefinition objects, each representing a specific schema within the database.
+    /// </summary>
+    public IReadOnlyList<SchemaDefinition> Schemas { get; init; } = Schemas ?? [];
+
+    /// <summary>
+    /// A list of schema names that have been dropped from the database.
+    /// </summary>
+    public IReadOnlyList<string> DroppedSchemas { get; init; } = DroppedSchemas ?? [];
+
+    /// <summary>
     /// Gets a combined list of all schema names, including both existing schemas and those that have been dropped.
     /// </summary>
     [JsonIgnore]

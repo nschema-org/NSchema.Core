@@ -24,6 +24,21 @@ public record SchemaDefinition(
 )
 {
     /// <summary>
+    /// A list of tables that are part of the schema.
+    /// </summary>
+    public IReadOnlyList<Table> Tables { get; init; } = Tables ?? [];
+
+    /// <summary>
+    /// A list of tables that have been dropped from the schema.
+    /// </summary>
+    public IReadOnlyList<string> DroppedTables { get; init; } = DroppedTables ?? [];
+
+    /// <summary>
+    /// A list of grants that define the permissions associated with the schema.
+    /// </summary>
+    public IReadOnlyList<SchemaGrant> Grants { get; init; } = Grants ?? [];
+
+    /// <summary>
     /// Creates a new <see cref="SchemaDefinition"/> with the given options, defaulting unspecified members.
     /// </summary>
     /// <param name="name">The name of the schema.</param>

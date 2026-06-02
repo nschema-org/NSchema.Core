@@ -10,6 +10,11 @@ namespace NSchema.Schema;
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
 public record PrimaryKey(string Name, IReadOnlyList<string> ColumnNames)
 {
+    /// <summary>
+    /// A list of column names that are part of the primary key constraint.
+    /// </summary>
+    public IReadOnlyList<string> ColumnNames { get; init; } = ColumnNames ?? [];
+
     private string DebuggerDisplay => $"{Name}: ({string.Join(", ", ColumnNames)})";
 
     /// <summary>
