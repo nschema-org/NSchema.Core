@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -34,7 +35,17 @@ public sealed class NSchemaApplication : IHost
     }
 
     /// <inheritdoc />
-    public Task StopAsync(CancellationToken cancellationToken) => _host.StopAsync(cancellationToken);
+    public async Task StopAsync(CancellationToken cancellationToken)
+    {
+        await _host.StopAsync(cancellationToken);
+
+        // The migration runs as a background service, so unhandled exceptions terminate the host but aren't surfaced.
+        // We rethrow it here with its original stacktrace, so it isn't lost.
+        if (_host.Services.GetRequiredService<MigrationOperationResult>().Exception is { } failure)
+        {
+            ExceptionDispatchInfo.Throw(failure);
+        }
+    }
 
     /// <summary>
     /// Computes and renders the plan without applying it to the target.

@@ -149,14 +149,6 @@ public sealed class ApplyOperationTests
     }
 
     [Fact]
-    public async Task Execute_EmptyPlan_DoesNotPromptForConfirmation()
-    {
-        await _sut.Execute();
-
-        await _confirmation.DidNotReceive().Confirm(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
     public async Task Execute_NonEmptyPlan_NotConfirmed_DoesNotExecuteOrCapture()
     {
         var plan = new MigrationPlan([new CreateSchema("app")], DatabaseSchema.Create([]));

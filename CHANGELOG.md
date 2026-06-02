@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - Fixed an issue with the schema domain models where deserializing them could leave collection properties as `null` instead of empty.
+- Fixed an issue where exceptions thrown during a migration were being swallowed silently by the host.
 
 ## [2.1.0] - 2026-06-02
 

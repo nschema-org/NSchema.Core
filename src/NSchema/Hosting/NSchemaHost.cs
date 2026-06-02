@@ -12,7 +12,8 @@ internal sealed class NSchemaHost(
     IOptions<MigrationRunOptions> options,
     IHostApplicationLifetime lifetime,
     IServiceProvider services,
-    IMigrationReporter reporter
+    IMigrationReporter reporter,
+    MigrationOperationResult result
 ) : BackgroundService
 {
     /// <inheritdoc />
@@ -27,7 +28,7 @@ internal sealed class NSchemaHost(
         {
             // Cancellation is expected (e.g. Ctrl+C) and not an error condition.
             reporter.Error($"Migration failed: {ex.Message}");
-            throw;
+            result.Exception = ex;
         }
         finally
         {

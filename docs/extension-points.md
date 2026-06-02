@@ -28,4 +28,3 @@ These extension points are less commonly used, but still available for advanced 
 | `IMigrationReporter`     | Customize how user updates are reported to the terminal and logger.                     | `AddSingleton<IMigrationReporter, T>()`                           |
 | `ISchemaAggregator`      | Combine multiple desired schemas into a single schema for comparison.                   | `AddSingleton<ISchemaAggregator, T>()`                            |
 | `ISchemaComparer`        | Compare the current and desired schemas to produce a migration plan.                    | `AddSingleton<ISchemaComparer, T>()`                              |
-| `IMigrationOperation`    | Implement a custom operation (plan, apply, refresh, or a new one).                      | `AddKeyedSingleton<IMigrationOperation, T>(MigrationOperation.*)` |

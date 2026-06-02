@@ -15,7 +15,7 @@ public sealed class NSchemaHostTests
     private readonly IMigrationOperation _refreshOp = Substitute.For<IMigrationOperation>();
     private readonly IHostApplicationLifetime _lifetime = Substitute.For<IHostApplicationLifetime>();
     private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
-    private readonly MigrationRunOutcome _outcome = new();
+    private readonly MigrationOperationResult _outcome = new();
 
     private NSchemaHost BuildHost()
     {
@@ -84,7 +84,7 @@ public sealed class NSchemaHostTests
         await sut.ExecuteTask!;
 
         _lifetime.Received(1).StopApplication();
-        _outcome.Failure.ShouldBe(boom);
+        _outcome.Exception.ShouldBe(boom);
     }
 
     [Fact]
@@ -99,6 +99,6 @@ public sealed class NSchemaHostTests
         await sut.ExecuteTask!;
 
         _reporter.Received(1).Error(Arg.Is<string>(s => s.Contains("boom")));
-        _outcome.Failure.ShouldBe(boom);
+        _outcome.Exception.ShouldBe(boom);
     }
 }
