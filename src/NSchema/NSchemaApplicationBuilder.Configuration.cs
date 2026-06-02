@@ -41,6 +41,17 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
+    /// Configures how exceptions are surfaced.
+    /// </summary>
+    /// <param name="behavior">The exception behavior to apply.</param>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder WithExceptionBehavior(ExceptionBehavior behavior)
+    {
+        Services.Configure<MigrationRunOptions>(o => o.ExceptionBehavior = behavior);
+        return this;
+    }
+
+    /// <summary>
     /// Scopes the migration to a specific set of schema names.
     /// </summary>
     /// <param name="schemaNames">The schema names to include in the migration.</param>
