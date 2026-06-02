@@ -24,6 +24,16 @@ public record ForeignKey(
 )
 {
     /// <summary>
+    /// A list of column names in the current table that are part of the foreign key constraint.
+    /// </summary>
+    public IReadOnlyList<string> ColumnNames { get; init; } = ColumnNames ?? [];
+
+    /// <summary>
+    /// A list of column names in the referenced table that are part of the foreign key constraint.
+    /// </summary>
+    public IReadOnlyList<string> ReferencedColumnNames { get; init; } = ReferencedColumnNames ?? [];
+
+    /// <summary>
     /// Creates a new <see cref="ForeignKey"/> with the given options, defaulting unspecified members.
     /// </summary>
     /// <param name="name">The name of the foreign key constraint.</param>

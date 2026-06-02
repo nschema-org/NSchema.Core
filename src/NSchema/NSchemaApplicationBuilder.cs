@@ -96,6 +96,8 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
         services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();
         services.TryAddSingleton<IDesiredSchemaProvider, DefaultDesiredSchemaProvider>();
+        services.TryAddSingleton<IMigrationConfirmation, AutoApproveConfirmation>();
+        services.TryAddSingleton<MigrationOperationResult>();
 
         services.TryAddKeyedSingleton<IMigrationOperation, PlanOperation>(MigrationOperation.Plan);
         services.TryAddKeyedSingleton<IMigrationOperation, ApplyOperation>(MigrationOperation.Apply);

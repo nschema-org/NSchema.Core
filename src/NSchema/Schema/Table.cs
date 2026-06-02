@@ -26,6 +26,26 @@ public record Table(
 )
 {
     /// <summary>
+    /// A list of columns that are part of the table.
+    /// </summary>
+    public IReadOnlyList<Column> Columns { get; init; } = Columns ?? [];
+
+    /// <summary>
+    /// A list of foreign keys that define the relationships between this table and other tables in the database schema.
+    /// </summary>
+    public IReadOnlyList<ForeignKey> ForeignKeys { get; init; } = ForeignKeys ?? [];
+
+    /// <summary>
+    /// A list of indexes that are defined on the table.
+    /// </summary>
+    public IReadOnlyList<TableIndex> Indexes { get; init; } = Indexes ?? [];
+
+    /// <summary>
+    /// A list of grants that define the permissions associated with the table.
+    /// </summary>
+    public IReadOnlyList<TableGrant> Grants { get; init; } = Grants ?? [];
+
+    /// <summary>
     /// Creates a new <see cref="Table"/> with the given options, defaulting unspecified members.
     /// </summary>
     /// <param name="name">The name of the table.</param>

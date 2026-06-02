@@ -6,7 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-Documentation tweaks.
+### Added
+
+- A new `IMigrationConfirmation` interface in `NSchema.Hosting` that can be used to seek confirmation before applying a migration. This is intended for interactive scenarios (e.g. CLI) where the user can review the plan and confirm before proceeding.
+
+### Fixed
+
+- Fixed an issue with the schema domain models where deserializing them could leave collection properties as `null` instead of empty.
+- Fixed an issue where exceptions thrown during a migration were being swallowed silently by the host.
 
 ## [2.1.0] - 2026-06-02
 
