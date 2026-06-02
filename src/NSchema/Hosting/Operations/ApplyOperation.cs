@@ -64,7 +64,7 @@ internal sealed class ApplyOperation(
         if (store is not null)
         {
             reporter.Info("Capturing schema state...");
-            var snapshot = await currentProvider.GetSchema(SchemaSourceMode.Online, options.Value.SchemaNames, required: true, cancellationToken);
+            var snapshot = await currentProvider.GetSchema(SchemaSourceMode.Online, null, required: true, cancellationToken);
             await store.Write(snapshot, cancellationToken);
             reporter.Info("Schema state captured.");
         }
