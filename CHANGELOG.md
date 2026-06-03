@@ -4,38 +4,43 @@ All notable changes to NSchema will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.0.0] - 2026-06-04
 
-This release moves NSchema closer to having a functional CLI, so I've improved the reporting and plan rendering, and added some control features like an interactive hook and exception-handling options.
+This release is a big step towards a functional CLI. Alongside new reporting, diff rendering, and interactive controls, I've reorganized the codebase into clearer top-level namespaces and split SQL generation from execution so that plans can be previewed entirely offline.
 
-The core happy path of planning and applying migrations is unchanged, so library users shouldn't encounter any of the breaking changes.
+Planning and applying behavior are the same as before, but most public types have moved namespaces and a few have been renamed, so you'll need to update your `using` directives (and a handful of type names) when upgrading.
 
 ### Added
 
 - A new `IMigrationConfirmation` interface in `NSchema.Hosting` that can be used to seek confirmation before applying a migration. This is intended for interactive scenarios (e.g. CLI) where the user can review the plan and confirm before proceeding.
 - Exception handling can now be controlled via `MigrationRunOptions.ExceptionBehavior` or `NSchemaApplicationBuilder.WithExceptionBehavior(...)`. The default behavior is preserved: exceptions will be reported to the `IMigrationReporter` and then re-thrown.
-- A structured, hierarchical diff model (`MigrationDiff` in `NSchema.Migration.Diff.Model`) and a new `IDiffRenderer` interface to render it to text. Alternative output formats (e.g. machine-readable JSON) can now be added by registering a custom `IDiffRenderer`, without touching the diffing logic.
+- Schemas are now diffed into a structured, hierarchical model (`NSchema.Diff.Model.MigrationDiff`) and a new `IDiffRenderer` interface renders it for the reporter.
 - `UseTerraformRenderer(...)` to configure the default Terraform-style renderer.
+- SQL previews are now structured too. `ISqlPlanRenderer` renders a `SqlPlan` to text, mirroring `IDiffRenderer`.
+- Offline SQL previews. Because generating SQL is pure string-building, `Plan` now renders the SQL preview whenever an `ISqlGenerator` dialect is registered.
+- `PolicyDiagnostics`, a collection type for policy results, with a `PolicyDiagnosticSeverity` of `Info`, `Warning`, or `Error`.
 
 ### Changed
 
+- **Breaking:** Namespaces have been flattened. Several areas have been promoted out of the `NSchema.Migration` umbrella into top-level namespaces that mirror the architecture.
+- **Breaking:** `ISqlPlanner` is now `ISqlGenerator`, and its `Plan(MigrationPlan)` method is now `Generate(MigrationPlan)`. Register it with `UseSqlGenerator<T>()` (was `UseSqlPlanner<T>()`).
+- **Breaking:** `IMigrationReporter.ReportPreview(IReadOnlyList<string>)` is now `ReportSqlPlan(SqlPlan)`, so the reporter receives the structured plan and renders it via `ISqlPlanRenderer` rather than a pre-flattened list of strings.
+- **Breaking:** `IMigrationReporter`'s `ReportPlan(MigrationPlan)` has been replaced by `ReportDiff(MigrationDiff)`. The plan is converted to a structured diff before it is reported.
+- **Breaking:** `PolicyError` is now `PolicyDiagnostic`, and `PolicySeverity` is now `PolicyDiagnosticSeverity`. Custom `ISchemaPolicy` / `IMigrationPolicy` implementations return `PolicyDiagnostic`s.
+- **Breaking:** The `DestructiveActionPolicy` enum moved to `NSchema.Policies`, alongside the policy abstractions it configures.
+- `DefaultSqlExecutor` no longer requires a `DbDataSource` to be constructed; it's an optional dependency, and execution throws a clear error if no connection is configured. This keeps the container wiring unconditional.
 - Migration reporting messages have been overhauled to be more informative.
 - The `IMigrationReporter` now logs directly to the console instead of using `ILogger`. This removes some hacky wiring around segregating logging sinks by category.
-- **Breaking:** `IMigrationReporter`'s `ReportPlan(MigrationPlan)` has been replaced by `ReportDiff(MigrationDiff)`. The plan is converted to a structured diff before it is reported.
-- **Breaking:** Schema-source types (`ISchemaProvider`, `ICurrentSchemaProvider`, `IDesiredSchemaProvider`, `ISchemaAggregator`, `FileSchemaProvider`, `SchemaSourceMode`) moved to `NSchema.Migration.Sources`,
-- **Breaking:** The `DestructiveActionPolicy` enum moved to `NSchema.Policies`, alongside the policy abstractions it configures.
 
 ### Removed
 
+- **Breaking:** `IMigrationCompiler`, `ICompiledMigration`, and `UseMigrationCompiler<T>()`. SQL handling now relies on `ISqlGenerator` and `ISqlExecutor`.
 - **Breaking:** `IMigrationPlanRenderer`. Plan output now flows through `IDiffRenderer` (diff → text); register a custom `IDiffRenderer` or call `UseTerraformRenderer(...)` instead.
-
-### Changed
-
-- Migration reporting messages have been overhauled to be more informative.
-- The `IMigrationReporter` now logs directly to the console instead of using `ILogger`. This removes some hacky wiring around segregating logging sinks by category.
 
 ### Fixed
 
+- Toggling a column into or out of an identity column is now detected and emitted as a change. Previously only changes between two already-identity columns were picked up.
+- Table privilege grants are now rendered by decomposing the privilege flags (e.g. `SELECT, INSERT`) instead of using the enum name, which could surface aliases like `ReadOnly` for `SELECT`.
 - Fixed an issue with the schema domain models where deserializing them could leave collection properties as `null` instead of empty.
 - Fixed an issue where exceptions thrown during a migration were being swallowed silently by the host.
 - Fixed a regression where apply and refresh were scoping the final schema snapshot to the filtered schemas rather than the full set.
@@ -89,7 +94,7 @@ Desired schemas can now be declared in a JSON file instead of C#, so you can des
 builder.AddJsonSchema("schema.json");
 ```
 
-The file mirrors the schema model, with SQL types written as compact strings (`"int"`, `"varchar(255)"`, `"decimal(10,2)"`). Multiple files can be registered and are aggregated like any other provider. See [Defining schemas in JSON](docs/schemas.md#defining-schemas-in-json) for the format reference. This ships in the core package under the `NSchema.Json` namespace — no extra dependency — and is the foundation for the planned CLI front-end.
+The file mirrors the schema model, with SQL types written as compact strings (`"int"`, `"varchar(255)"`, `"decimal(10,2)"`). Multiple files can be registered and are aggregated like any other provider. See [Defining schemas in JSON](docs/schemas.md#defining-schemas-in-json) for the format reference.
 
 ### Upgrading from 1.x
 
