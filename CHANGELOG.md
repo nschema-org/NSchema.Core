@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Migration reporting messages have been overhauled to be more informative.
 - The `IMigrationReporter` now logs directly to the console instead of using `ILogger`. This removes some hacky wiring around segregating logging sinks by category.
 
 ### Fixed

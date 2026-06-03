@@ -19,7 +19,7 @@ internal sealed class ApplyOperation(
 
         reporter.Info("Applying schema migration. Changes will be applied to the database.");
 
-        var plan = await helper.Prepare(cancellationToken);
+        var plan = await helper.Prepare(SchemaSourceMode.Online, required: true, cancellationToken);
 
         reporter.Info("Compiling migration plan...");
         var execution = await compiler.Compile(plan, cancellationToken);
@@ -36,6 +36,12 @@ internal sealed class ApplyOperation(
         await execution.Execute(cancellationToken);
         reporter.Info("Migration completed successfully.");
 
-        await helper.Refresh(cancellationToken);
+        // Capture the post-apply state only when a store is configured; otherwise there's nowhere to write it.
+        if (helper.HasStore)
+        {
+            reporter.Info("Updating state store...");
+            await helper.Refresh(cancellationToken);
+            reporter.Info("State store updated successfully.");
+        }
     }
 }

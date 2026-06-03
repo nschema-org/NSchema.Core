@@ -6,7 +6,7 @@ using NSchema.State;
 
 namespace NSchema.Hosting.Services;
 
-internal class MigrationHelper(
+internal sealed class MigrationHelper(
     IOptions<MigrationOptions> options,
     IMigrationPlanner planner,
     IMigrationReporter reporter,
@@ -17,7 +17,7 @@ internal class MigrationHelper(
 {
     public bool HasStore => store is not null;
 
-    public async Task<MigrationPlan> Prepare(CancellationToken cancellationToken = default)
+    public async Task<MigrationPlan> Prepare(SchemaSourceMode currentSource, bool required, CancellationToken cancellationToken = default)
     {
         reporter.Info("Loading desired schema...");
         var desiredSchema = await desiredProvider.GetSchema(options.Value.SchemaNames, cancellationToken);
@@ -26,7 +26,7 @@ internal class MigrationHelper(
         reporter.Info($"Migration plan will be scoped to the following schemas: {string.Join(", ", schemasInScope)}");
 
         reporter.Info("Loading provider schema...");
-        var currentSchema = await currentProvider.GetSchema(SchemaSourceMode.Offline, schemasInScope, required: false, cancellationToken);
+        var currentSchema = await currentProvider.GetSchema(currentSource, schemasInScope, required, cancellationToken);
 
         reporter.Info("Computing migration plan...");
         var result = await planner.Plan(currentSchema, desiredSchema, cancellationToken);
@@ -49,9 +49,7 @@ internal class MigrationHelper(
             throw new InvalidOperationException("Unable to refresh state without backend store.");
         }
 
-        reporter.Info("Refreshing schema state...");
         var schema = await currentProvider.GetSchema(SchemaSourceMode.Online, null, required: true, cancellationToken);
         await store.Write(schema, cancellationToken);
-        reporter.Info("Schema state refreshed successfully.");
     }
 }

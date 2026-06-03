@@ -12,7 +12,7 @@ internal sealed class PlanOperation(
     public async Task Execute(CancellationToken cancellationToken = default)
     {
         reporter.Info("Planning schema migration. No changes will be applied to the database.");
-        var plan = await helper.Prepare(cancellationToken);
+        var plan = await helper.Prepare(SchemaSourceMode.Offline, required: false, cancellationToken);
 
         if (compiler == null)
         {

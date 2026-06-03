@@ -1,37 +1,27 @@
-using Microsoft.Extensions.Options;
 using NSchema.Hosting.Operations;
+using NSchema.Hosting.Services;
 using NSchema.Migration;
 using NSchema.Migration.Plan;
-using NSchema.Policies;
 using NSchema.Schema;
 
 namespace NSchema.Tests.Hosting.Operations;
 
 public sealed class PlanOperationTests
 {
-    private readonly IMigrationPlanner _planner = Substitute.For<IMigrationPlanner>();
     private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
+    private readonly IMigrationHelper _helper = Substitute.For<IMigrationHelper>();
     private readonly IMigrationCompiler _compiler = Substitute.For<IMigrationCompiler>();
     private readonly ICompiledMigration _execution = Substitute.For<ICompiledMigration>();
-    private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
-    private readonly IDesiredSchemaProvider _desiredProvider = Substitute.For<IDesiredSchemaProvider>();
-    private readonly IOptions<MigrationOptions> _options = Options.Create(new MigrationOptions());
 
-    private PlanOperation BuildSut(IMigrationCompiler? compiler) => new(_options, _planner, _reporter, _currentProvider, _desiredProvider, compiler);
+    private readonly MigrationPlan _plan = new([new CreateSchema("app")], DatabaseSchema.Create([]));
+
+    private PlanOperation BuildSut(IMigrationCompiler? compiler) => new(_reporter, _helper, compiler);
 
     private readonly PlanOperation _sut;
 
     public PlanOperationTests()
     {
-        _currentProvider
-            .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-            .Returns(DatabaseSchema.Create([]));
-
-        _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(DatabaseSchema.Create([]));
-        _planner
-            .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
-            .Returns(new MigrationPlanResult(new MigrationPlan([], DatabaseSchema.Create([])), []));
+        _helper.Prepare(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(_plan);
         _execution.Preview.Returns([]);
         _compiler.Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>()).Returns(_execution);
 
@@ -39,127 +29,51 @@ public sealed class PlanOperationTests
     }
 
     [Fact]
+    public async Task Execute_PreparesPlanFromOfflineSource()
+    {
+        await _sut.Execute();
+
+        await _helper.Received(1).Prepare(SchemaSourceMode.Offline, required: false, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Execute_CompilesButDoesNotExecute()
     {
         await _sut.Execute();
 
-        await _compiler.Received(1).Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>());
+        await _compiler.Received(1).Compile(_plan, Arg.Any<CancellationToken>());
         await _execution.DidNotReceive().Execute(Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Execute_PresentsPlanAndPreviewToReporter()
+    public async Task Execute_PresentsPreviewToReporter()
     {
-        var plan = new MigrationPlan([new CreateSchema("app")], DatabaseSchema.Create([]));
-        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
-            .Returns(new MigrationPlanResult(plan, []));
         _execution.Preview.Returns(["CREATE SCHEMA app"]);
 
         await _sut.Execute();
 
-        _reporter.Received(1).ReportPlan(plan);
         _reporter.Received(1).ReportPreview(Arg.Is<IReadOnlyList<string>>(p => p.SequenceEqual(new[] { "CREATE SCHEMA app" })));
     }
 
     [Fact]
     public async Task Execute_NoCompiler_ReportsPlanWithoutPreview()
     {
-        var plan = new MigrationPlan([new CreateSchema("app")], DatabaseSchema.Create([]));
-        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
-            .Returns(new MigrationPlanResult(plan, []));
         var sut = BuildSut(compiler: null);
 
         await sut.Execute();
 
-        _reporter.Received(1).ReportPlan(plan);
+        await _helper.Received(1).Prepare(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
         _reporter.DidNotReceive().ReportPreview(Arg.Any<IReadOnlyList<string>>());
     }
 
     [Fact]
-    public async Task Execute_PolicyViolation_ReportsDiagnosticsAndThrows_WithoutShowingPlan()
+    public async Task Execute_PrepareThrows_DoesNotCompile()
     {
-        var errors = new[] { new PolicyError("P1", "msg", PolicySeverity.Error) };
-        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
-            .Returns(new MigrationPlanResult(null, errors));
+        _helper.Prepare(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns<MigrationPlan>(_ => throw new InvalidOperationException("boom"));
 
-        await Should.ThrowAsync<PolicyViolationException>(() => _sut.Execute());
-        _reporter.Received(1).ReportDiagnostics(Arg.Any<IReadOnlyList<PolicyError>>());
-        _reporter.DidNotReceive().ReportPlan(Arg.Any<MigrationPlan>());
+        await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute());
+
         await _compiler.DidNotReceive().Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Execute_NonErrorDiagnostics_ReportedAfterPlan()
-    {
-        var diagnostics = new[] { new PolicyError("P1", "info", PolicySeverity.Info) };
-        var plan = new MigrationPlan([], DatabaseSchema.Create([]));
-        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
-            .Returns(new MigrationPlanResult(plan, diagnostics));
-
-        var callOrder = new List<string>();
-        _reporter.When(r => r.ReportPlan(Arg.Any<MigrationPlan>())).Do(_ => callOrder.Add("plan"));
-        _reporter.When(r => r.ReportDiagnostics(Arg.Any<IReadOnlyList<PolicyError>>())).Do(_ => callOrder.Add("diagnostics"));
-
-        await _sut.Execute();
-
-        _reporter.Received(1).ReportDiagnostics(Arg.Is<IReadOnlyList<PolicyError>>(d => d.SequenceEqual(diagnostics)));
-        callOrder.ShouldBe(["plan", "diagnostics"]);
-    }
-
-    [Fact]
-    public async Task Execute_PrefersOfflineSource()
-    {
-        await _sut.Execute();
-
-        await _currentProvider.Received(1).GetSchema(
-            SchemaSourceMode.Offline, Arg.Any<string[]?>(), required: false, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Execute_DerivesCurrentScopeFromDesiredSchema()
-    {
-        var desired = DatabaseSchema.Create(
-            [SchemaDefinition.Create("app"), SchemaDefinition.Create("admin")],
-            droppedSchemas: ["legacy"]);
-        _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(desired);
-        string[]? capturedScope = null;
-        _currentProvider
-            .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-            .Returns(call => { capturedScope = call.ArgAt<string[]?>(1); return Task.FromResult(DatabaseSchema.Create([])); });
-
-        await _sut.Execute();
-
-        capturedScope.ShouldNotBeNull();
-        capturedScope!.ShouldBe(["app", "admin", "legacy"], ignoreOrder: true);
-    }
-
-    [Fact]
-    public async Task Execute_PassesExplicitScopeToDesiredAndCurrentProviders()
-    {
-        string[]? desiredScope = null;
-        string[]? currentScope = null;
-        _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(call => { desiredScope = call.Arg<string[]?>(); return Task.FromResult(DatabaseSchema.Create([])); });
-        _currentProvider
-            .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-            .Returns(call => { currentScope = call.ArgAt<string[]?>(1); return Task.FromResult(DatabaseSchema.Create([])); });
-        _options.Value.SchemaNames = ["app", "legacy"];
-
-        await _sut.Execute();
-
-        desiredScope.ShouldBe(["app", "legacy"]);
-        currentScope.ShouldBe(["app", "legacy"]);
-    }
-
-    [Fact]
-    public async Task Execute_PassesNullScopeToDesiredProviders_WhenNoExplicitScope()
-    {
-        string[]? desiredScope = [];
-        _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(call => { desiredScope = call.Arg<string[]?>(); return Task.FromResult(DatabaseSchema.Create([])); });
-
-        await _sut.Execute();
-
-        desiredScope.ShouldBeNull();
     }
 }
