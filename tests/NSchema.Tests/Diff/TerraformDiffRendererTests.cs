@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using NSchema.Diff;
 using NSchema.Diff.Model;
 using NSchema.Schema.Model;
+using NSchema.Scripts.Model;
 
 namespace NSchema.Tests.Diff;
 

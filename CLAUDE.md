@@ -36,8 +36,8 @@ The codebase is split into two layers:
 
 Built-in operations (`src/NSchema/Hosting/Operations/`):
 
-- **`PlanOperation`** — resolves schemas (offline source preferred), calls `IMigrationPlanner`, reports the plan and the SQL preview (if an `ISqlPlanner` dialect is registered). Does not execute.
-- **`ApplyOperation`** — resolves schemas (online source required), calls `IMigrationPlanner`, generates SQL via `ISqlPlanner`, previews it, executes via `ISqlExecutor`, and captures state.
+- **`PlanOperation`** — resolves schemas (offline source preferred), calls `IMigrationPlanner`, reports the plan and the SQL preview (if an `ISqlGenerator` dialect is registered). Does not execute.
+- **`ApplyOperation`** — resolves schemas (online source required), calls `IMigrationPlanner`, generates SQL via `ISqlGenerator`, previews it, executes via `ISqlExecutor`, and captures state.
 - **`RefreshOperation`** — captures the live schema to the state store without planning or applying.
 
 `SchemaResolution.ResolveAsync` (`src/NSchema/Hosting/Operations/SchemaResolution.cs`) is a shared static helper used by `PlanOperation` and `ApplyOperation` to collect desired providers, aggregate, derive scope, and fetch the current schema.
@@ -78,8 +78,8 @@ The planner has no knowledge of operations, online/offline routing, or `Migratio
 
 Generating SQL and executing it are deliberately separate, so a plan can be previewed offline:
 
-- **`ISqlPlanner`** (supplied by a database-provider extension) turns a `MigrationPlan` into a structured `SqlPlan` (an ordered list of `SqlStatement`s, each flagged if it `RunOutsideTransaction`). This is pure string-building — no connection — so the SQL preview works offline whenever a dialect is registered. The planner is optional: an offline run with no provider registers none, and `PlanOperation` reports the plan without a SQL preview.
-- **`ISqlExecutor`** (default `DefaultSqlExecutor`) executes the `SqlPlan` against a `DbDataSource`. It reads `MigrationRunOptions.TransactionMode` to decide whether to wrap everything in one transaction. It is the only online step, registered only when an `ISqlPlanner` is present.
+- **`ISqlGenerator`** (`UseSqlGenerator<T>()`, typically supplied by a database-provider extension) turns a `MigrationPlan` into a structured `SqlPlan` (an ordered list of `SqlStatement`s, each flagged if it `RunOutsideTransaction`). This is pure string-building — no connection — so the SQL preview works offline whenever a dialect is registered. The generator is optional: an offline run with no provider registers none, and `PlanOperation` reports the plan without a SQL preview.
+- **`ISqlExecutor`** (default `DefaultSqlExecutor`) executes the `SqlPlan` against a `DbDataSource`. It reads `MigrationRunOptions.TransactionMode` to decide whether to wrap everything in one transaction. It is the only online step.
 
 The operations consume these two seams directly — there is no separate compiler abstraction. The `SqlPlan` reaches the reporter as a structured value via `IMigrationReporter.ReportSqlPlan(SqlPlan)`, which renders it through **`ISqlPlanRenderer`** (default `DefaultSqlPlanRenderer`), mirroring the diff side's `IDiffRenderer`.
 
@@ -120,7 +120,7 @@ Providers are registered with `builder.AddSchema<T>()` or `builder.AddSchemasFro
 | `ISchemaComparer`, `IMigrationLinearizer`, `ISchemaAggregator`, `IMigrationPlanner`, `IMigrationReporter`   | Override via `Services.AddSingleton<...>()` before `Build()` (defaults registered with `TryAdd`)        |
 | `IDiffRenderer`                                                                                             | `UseTerraformRenderer(...)`, or override via `Services.AddSingleton<...>()` before `Build()`            |
 | `ISqlPlanRenderer`                                                                                          | Override via `Services.AddSingleton<...>()` before `Build()` (default `DefaultSqlPlanRenderer`)         |
-| `ISqlPlanner`                                                                                               | `UseSqlPlanner<T>()`, typically supplied by a database-provider extension                               |
+| `ISqlGenerator`                                                                                            | `UseSqlGenerator<T>()`, typically supplied by a database-provider extension                             |
 
 ### Diff rendering
 

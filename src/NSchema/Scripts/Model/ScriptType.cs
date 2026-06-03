@@ -1,4 +1,4 @@
-namespace NSchema.Schema.Model;
+namespace NSchema.Scripts.Model;
 
 /// <summary>
 /// Defines the type of a SQL script, indicating when it should be executed in relation to the main migration actions.

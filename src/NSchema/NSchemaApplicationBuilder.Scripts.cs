@@ -1,7 +1,7 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
-using NSchema.Schema.Model;
 using NSchema.Scripts;
+using NSchema.Scripts.Model;
 
 namespace NSchema;
 

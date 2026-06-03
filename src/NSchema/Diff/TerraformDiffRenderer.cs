@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.Extensions.Options;
 using NSchema.Diff.Model;
 using NSchema.Schema.Model;
+using NSchema.Scripts.Model;
 
 namespace NSchema.Diff;
 

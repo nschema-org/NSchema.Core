@@ -19,7 +19,7 @@ public sealed class DefaultSqlExecutorTests : IAsyncLifetime
     public DefaultSqlExecutorTests(PostgresContainerFixture fixture)
     {
         _dataSource = fixture.DataSource;
-        _sut = new DefaultSqlExecutor(_dataSource, _options);
+        _sut = new DefaultSqlExecutor(_options, _dataSource);
     }
 
     public async ValueTask InitializeAsync()

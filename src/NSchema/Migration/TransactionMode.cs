@@ -1,4 +1,3 @@
-using NSchema.Sql;
 using NSchema.Sql.Model;
 
 namespace NSchema.Migration;

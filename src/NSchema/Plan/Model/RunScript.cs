@@ -1,4 +1,4 @@
-using NSchema.Schema.Model;
+using NSchema.Scripts.Model;
 
 namespace NSchema.Plan.Model;
 

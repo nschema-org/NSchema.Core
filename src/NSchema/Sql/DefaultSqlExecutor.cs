@@ -9,9 +9,9 @@ namespace NSchema.Sql;
 /// <summary>
 /// A default implementation of the ISqlExecutor interface that executes SQL statements using a provided DbDataSource.
 /// </summary>
-/// <param name="dataSource">The DbDataSource used to obtain database connections for executing SQL statements.</param>
 /// <param name="options">Options that control how the executor handles transactions.</param>
-public sealed class DefaultSqlExecutor(DbDataSource dataSource, IOptions<SqlExecutorOptions> options) : ISqlExecutor
+/// <param name="dataSource">The DbDataSource used to obtain database connections.</param>
+public sealed class DefaultSqlExecutor(IOptions<SqlExecutorOptions> options, DbDataSource? dataSource = null) : ISqlExecutor
 {
     /// <inheritdoc/>
     public async Task Execute(SqlPlan plan, CancellationToken cancellationToken = default)
@@ -19,6 +19,11 @@ public sealed class DefaultSqlExecutor(DbDataSource dataSource, IOptions<SqlExec
         if (plan.IsEmpty)
         {
             return;
+        }
+
+        if (dataSource is null)
+        {
+            throw new InvalidOperationException("Cannot execute the migration: no database connection is configured. Register a database provider.");
         }
 
         await using var conn = await dataSource.OpenConnectionAsync(cancellationToken);

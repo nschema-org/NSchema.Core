@@ -2,6 +2,7 @@ using NSchema.Diff;
 using NSchema.Plan;
 using NSchema.Plan.Model;
 using NSchema.Schema.Model;
+using NSchema.Scripts.Model;
 
 namespace NSchema.Migration;
 

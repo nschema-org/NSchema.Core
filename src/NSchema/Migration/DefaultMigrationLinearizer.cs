@@ -1,7 +1,7 @@
 using System.Collections.Frozen;
 using NSchema.Diff.Model;
 using NSchema.Plan.Model;
-using NSchema.Schema.Model;
+using NSchema.Scripts.Model;
 
 namespace NSchema.Migration;
 

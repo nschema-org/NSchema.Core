@@ -1,4 +1,4 @@
-namespace NSchema.Schema.Model;
+namespace NSchema.Scripts.Model;
 
 /// <summary>
 /// Represents a SQL script that can be executed as part of the database schema.

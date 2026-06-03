@@ -6,6 +6,7 @@ using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Schema;
 using NSchema.Schema.Model;
+using NSchema.Scripts.Model;
 using NSchema.State;
 
 namespace NSchema.Tests.Hosting.Services;
