@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using Npgsql;
 using NSchema.Migration;
 using NSchema.Sql;
+using NSchema.Sql.Model;
 using NSchema.Tests.Fixtures;
 
 namespace NSchema.Tests.Sql;

@@ -5,6 +5,7 @@ using NSchema.Migration;
 using NSchema.Plan.Model;
 using NSchema.Schema;
 using NSchema.Sql;
+using NSchema.Sql.Model;
 using NSubstitute.ExceptionExtensions;
 
 namespace NSchema.Tests.Hosting.Operations;

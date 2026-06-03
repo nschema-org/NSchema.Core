@@ -1,4 +1,4 @@
-namespace NSchema.Sql;
+namespace NSchema.Sql.Model;
 
 /// <summary>
 /// A single SQL statement in a <see cref="Sql"/>, together with execution metadata.

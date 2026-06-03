@@ -1,6 +1,7 @@
 using NSchema.Diff.Model;
 using NSchema.Policies;
 using NSchema.Sql;
+using NSchema.Sql.Model;
 
 namespace NSchema.Migration;
 

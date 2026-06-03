@@ -2,6 +2,7 @@ using System.Data;
 using System.Data.Common;
 using Microsoft.Extensions.Options;
 using NSchema.Migration;
+using NSchema.Sql.Model;
 
 namespace NSchema.Sql;
 

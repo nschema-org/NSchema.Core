@@ -1,4 +1,5 @@
 using NSchema.Plan.Model;
+using NSchema.Sql.Model;
 
 namespace NSchema.Sql;
 

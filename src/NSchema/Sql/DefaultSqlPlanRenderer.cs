@@ -1,4 +1,5 @@
 using System.Text;
+using NSchema.Sql.Model;
 
 namespace NSchema.Sql;
 
