@@ -8,7 +8,7 @@ internal sealed class ApplyOperation(
     IMigrationConfirmation confirmation,
     IMigrationHelper helper,
     IMigrationCompiler? compiler = null
-): IMigrationOperation
+) : IMigrationOperation
 {
     public async Task Execute(CancellationToken cancellationToken = default)
     {
