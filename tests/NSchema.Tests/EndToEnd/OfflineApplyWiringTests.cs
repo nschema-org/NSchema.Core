@@ -1,5 +1,3 @@
-using NSchema;
-
 namespace NSchema.Tests.EndToEnd;
 
 /// <summary>
