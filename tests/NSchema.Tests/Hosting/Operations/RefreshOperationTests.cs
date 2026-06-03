@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Options;
 using NSchema.Hosting.Operations;
 using NSchema.Migration;
 using NSchema.Schema;
@@ -11,12 +10,12 @@ public sealed class RefreshOperationTests
     private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
     private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
 
-    private RefreshOperation BuildSut(ISchemaStateStore? store, MigrationOptions? options = null)
+    private RefreshOperation BuildSut(ISchemaStateStore? store)
     {
         _currentProvider
             .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(DatabaseSchema.Create([]));
-        return new RefreshOperation(Options.Create(options ?? new MigrationOptions()), _reporter, _currentProvider, store);
+        return new RefreshOperation(_reporter, _currentProvider, store);
     }
 
     [Fact]
@@ -43,16 +42,16 @@ public sealed class RefreshOperationTests
     }
 
     [Fact]
-    public async Task Execute_ScopesReadBySchemaNames()
+    public async Task Execute_DoesNotScopeReadBySchemaNames()
     {
         var store = Substitute.For<ISchemaStateStore>();
-        var sut = BuildSut(store, new MigrationOptions { SchemaNames = ["app"] });
+        var sut = BuildSut(store);
 
         await sut.Execute();
 
         await _currentProvider.Received(1).GetSchema(
             SchemaSourceMode.Online,
-            Arg.Is<string[]?>(names => names != null && names.SequenceEqual(new[] { "app" })),
+            Arg.Is<string[]?>(names => names == null),
             required: true,
             Arg.Any<CancellationToken>());
     }

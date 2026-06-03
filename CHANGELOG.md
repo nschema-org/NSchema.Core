@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Fixed an issue with the schema domain models where deserializing them could leave collection properties as `null` instead of empty.
 - Fixed an issue where exceptions thrown during a migration were being swallowed silently by the host.
+- Fixed a regression where apply and refresh were scoping the final schema snapshot to the filtered schemas rather than the full set.
 
 ## [2.1.0] - 2026-06-02
 
