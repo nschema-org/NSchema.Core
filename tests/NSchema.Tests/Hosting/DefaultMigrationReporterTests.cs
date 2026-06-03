@@ -62,7 +62,7 @@ public sealed class DefaultMigrationReporterTests
     [Fact]
     public void ReportDiagnostics_RoutesWarningsAndErrorsToError()
     {
-        var diagnostics = new[]
+        var diagnostics = new PolicyDiagnostics
         {
             new PolicyDiagnostic("P1", "all good", PolicyDiagnosticSeverity.Info),
             new PolicyDiagnostic("P2", "be careful", PolicyDiagnosticSeverity.Warning),
@@ -80,7 +80,7 @@ public sealed class DefaultMigrationReporterTests
     [Fact]
     public void ReportDiagnostics_WithNoDiagnostics_WritesNone()
     {
-        _sut.ReportDiagnostics([]);
+        _sut.ReportDiagnostics(new PolicyDiagnostics());
 
         _output.ToString().ShouldContain("None");
     }

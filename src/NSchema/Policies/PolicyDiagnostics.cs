@@ -6,6 +6,11 @@ namespace NSchema.Policies;
 public class PolicyDiagnostics : List<PolicyDiagnostic>
 {
     /// <summary>
+    /// Initializes a new instance of the <see cref="PolicyDiagnostics"/> class with no diagnostics.
+    /// </summary>
+    public PolicyDiagnostics() : this([]) { }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="PolicyDiagnostics"/> class with the specified diagnostics.
     /// </summary>
     public PolicyDiagnostics(IEnumerable<PolicyDiagnostic> diagnostics) : base(diagnostics) { }

@@ -40,7 +40,7 @@ internal sealed class DefaultMigrationReporter(TextWriter output, TextWriter err
         }
     }
 
-    public void ReportDiagnostics(IReadOnlyList<PolicyDiagnostic> diagnostics)
+    public void ReportDiagnostics(PolicyDiagnostics diagnostics)
     {
         output.WriteLine("Policy diagnostics:");
         if (diagnostics.Count == 0)

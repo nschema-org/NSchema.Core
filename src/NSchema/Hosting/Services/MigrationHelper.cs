@@ -29,10 +29,11 @@ internal sealed class MigrationHelper(
 
         reporter.Info("Validating schema...");
         var schemaDiagnostics = schemaPolicies.SelectMany(p => p.Validate(desiredSchema));
+
         var diagnostics = new PolicyDiagnostics(schemaDiagnostics);
+        reporter.ReportDiagnostics(diagnostics);
         if (diagnostics.HasErrors)
         {
-            reporter.ReportDiagnostics(diagnostics);
             throw new PolicyViolationException(diagnostics.Errors.ToList());
         }
 

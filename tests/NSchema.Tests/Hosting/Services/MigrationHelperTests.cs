@@ -97,7 +97,7 @@ public sealed class MigrationHelperTests
 
         // Assert
         await act.ShouldThrowAsync<PolicyViolationException>();
-        _reporter.Received(1).ReportDiagnostics(Arg.Any<IReadOnlyList<PolicyDiagnostic>>());
+        _reporter.Received(1).ReportDiagnostics(Arg.Any<PolicyDiagnostics>());
         _reporter.DidNotReceive().ReportDiff(Arg.Any<MigrationDiff>());
     }
 
@@ -112,13 +112,13 @@ public sealed class MigrationHelperTests
 
         var callOrder = new List<string>();
         _reporter.When(r => r.ReportDiff(Arg.Any<MigrationDiff>())).Do(_ => callOrder.Add("diff"));
-        _reporter.When(r => r.ReportDiagnostics(Arg.Any<IReadOnlyList<PolicyDiagnostic>>())).Do(_ => callOrder.Add("diagnostics"));
+        _reporter.When(r => r.ReportDiagnostics(Arg.Any<PolicyDiagnostics>())).Do(_ => callOrder.Add("diagnostics"));
 
         // Act
         await _sut.Plan(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);
 
         // Assert
-        _reporter.Received(1).ReportDiagnostics(Arg.Is<IReadOnlyList<PolicyDiagnostic>>(d => d.SequenceEqual(diagnostics)));
+        _reporter.Received(1).ReportDiagnostics(Arg.Is<PolicyDiagnostics>(d => d.SequenceEqual(diagnostics)));
         callOrder.ShouldBe(["diff", "diagnostics"]);
     }
 
