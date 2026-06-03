@@ -32,7 +32,7 @@ public sealed class DefaultDesiredSchemaProviderTests
         _aggregator.Aggregate(Arg.Any<IReadOnlyList<DatabaseSchema>>()).Returns(merged);
         var sut = new DefaultDesiredSchemaProvider([p1, p2], _aggregator);
 
-        var result = await sut.GetSchema();
+        var result = await sut.GetSchema(null, TestContext.Current.CancellationToken);
 
         result.ShouldBe(merged);
         _aggregator.Received(1).Aggregate(Arg.Is<IReadOnlyList<DatabaseSchema>>(l => l.Count == 2));
@@ -53,7 +53,7 @@ public sealed class DefaultDesiredSchemaProviderTests
         _aggregator.Aggregate(Arg.Any<IReadOnlyList<DatabaseSchema>>()).Returns(DatabaseSchema.Create([]));
         var sut = new DefaultDesiredSchemaProvider([p1, p2], _aggregator);
 
-        await sut.GetSchema(scope);
+        await sut.GetSchema(scope, TestContext.Current.CancellationToken);
 
         captured1.ShouldBe(scope);
         captured2.ShouldBe(scope);

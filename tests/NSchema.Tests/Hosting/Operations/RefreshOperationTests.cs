@@ -16,7 +16,7 @@ public sealed class RefreshOperationTests
     {
         _helper.HasStore.Returns(true);
 
-        await BuildSut().Execute();
+        await BuildSut().Execute(TestContext.Current.CancellationToken);
 
         await _helper.Received(1).Refresh(Arg.Any<CancellationToken>());
     }

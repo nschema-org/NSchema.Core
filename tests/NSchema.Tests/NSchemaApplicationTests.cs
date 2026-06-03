@@ -27,7 +27,7 @@ public sealed class NSchemaApplicationTests
     {
         using var app = BuildApp();
 
-        await app.Plan();
+        await app.Plan(TestContext.Current.CancellationToken);
 
         await _planOp.Received(1).Execute(Arg.Any<CancellationToken>());
         await _applyOp.DidNotReceive().Execute(Arg.Any<CancellationToken>());
@@ -38,7 +38,7 @@ public sealed class NSchemaApplicationTests
     {
         using var app = BuildApp();
 
-        await app.Apply();
+        await app.Apply(TestContext.Current.CancellationToken);
 
         await _applyOp.Received(1).Execute(Arg.Any<CancellationToken>());
         await _planOp.DidNotReceive().Execute(Arg.Any<CancellationToken>());
@@ -49,7 +49,7 @@ public sealed class NSchemaApplicationTests
     {
         using var app = BuildApp();
 
-        await app.Refresh();
+        await app.Refresh(TestContext.Current.CancellationToken);
 
         await _refreshOp.Received(1).Execute(Arg.Any<CancellationToken>());
         await _applyOp.DidNotReceive().Execute(Arg.Any<CancellationToken>());
@@ -62,7 +62,7 @@ public sealed class NSchemaApplicationTests
         // Configured to Apply, but Plan() is invoked explicitly.
         using var app = BuildApp(b => b.RunOperation(MigrationOperation.Apply));
 
-        await app.Plan();
+        await app.Plan(TestContext.Current.CancellationToken);
 
         await _planOp.Received(1).Execute(Arg.Any<CancellationToken>());
         await _applyOp.DidNotReceive().Execute(Arg.Any<CancellationToken>());
@@ -73,7 +73,7 @@ public sealed class NSchemaApplicationTests
     {
         using var app = BuildApp(b => b.RunOperation(MigrationOperation.Plan));
 
-        await app.RunAsync();
+        await app.RunAsync(TestContext.Current.CancellationToken);
 
         await _planOp.Received(1).Execute(Arg.Any<CancellationToken>());
         await _applyOp.DidNotReceive().Execute(Arg.Any<CancellationToken>());
@@ -83,7 +83,7 @@ public sealed class NSchemaApplicationTests
     public async Task SecondRun_Throws()
     {
         using var app = BuildApp();
-        await app.Plan();
+        await app.Plan(TestContext.Current.CancellationToken);
 
         await Should.ThrowAsync<InvalidOperationException>(() => app.Apply());
     }

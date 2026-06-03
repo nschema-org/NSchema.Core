@@ -38,7 +38,7 @@ public sealed class ApplyOperationTests
     [Fact]
     public async Task Execute_PreparesPlanFromOnlineSource()
     {
-        await _sut.Execute();
+        await _sut.Execute(TestContext.Current.CancellationToken);
 
         await _helper.Received(1).Prepare(SchemaSourceMode.Online, required: true, Arg.Any<CancellationToken>());
     }
@@ -46,7 +46,7 @@ public sealed class ApplyOperationTests
     [Fact]
     public async Task Execute_CompilesAndExecutesPlan()
     {
-        await _sut.Execute();
+        await _sut.Execute(TestContext.Current.CancellationToken);
 
         await _compiler.Received(1).Compile(_plan, Arg.Any<CancellationToken>());
         await _execution.Received(1).Execute(Arg.Any<CancellationToken>());
@@ -64,7 +64,7 @@ public sealed class ApplyOperationTests
     [Fact]
     public async Task Execute_WithStore_RefreshesStateAfterSuccess()
     {
-        await _sut.Execute();
+        await _sut.Execute(TestContext.Current.CancellationToken);
 
         await _helper.Received(1).Refresh(Arg.Any<CancellationToken>());
     }
@@ -74,7 +74,7 @@ public sealed class ApplyOperationTests
     {
         _helper.HasStore.Returns(false);
 
-        await _sut.Execute();
+        await _sut.Execute(TestContext.Current.CancellationToken);
 
         await _helper.DidNotReceive().Refresh(Arg.Any<CancellationToken>());
     }
@@ -84,7 +84,7 @@ public sealed class ApplyOperationTests
     {
         _execution.Execute(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("boom"));
 
-        await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute());
+        await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(TestContext.Current.CancellationToken));
 
         await _helper.DidNotReceive().Refresh(Arg.Any<CancellationToken>());
     }
@@ -94,7 +94,7 @@ public sealed class ApplyOperationTests
     {
         _confirmation.Confirm(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>()).Returns(false);
 
-        await _sut.Execute();
+        await _sut.Execute(TestContext.Current.CancellationToken);
 
         await _execution.DidNotReceive().Execute(Arg.Any<CancellationToken>());
         await _helper.DidNotReceive().Refresh(Arg.Any<CancellationToken>());
@@ -105,7 +105,7 @@ public sealed class ApplyOperationTests
     {
         _confirmation.Confirm(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>()).Returns(true);
 
-        await _sut.Execute();
+        await _sut.Execute(TestContext.Current.CancellationToken);
 
         await _execution.Received(1).Execute(Arg.Any<CancellationToken>());
     }
@@ -120,7 +120,7 @@ public sealed class ApplyOperationTests
         _confirmation.Confirm(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>())
             .Returns(_ => { callOrder.Add("confirm"); return true; });
 
-        await _sut.Execute();
+        await _sut.Execute(TestContext.Current.CancellationToken);
 
         callOrder.ShouldBe(["preview", "confirm"]);
     }

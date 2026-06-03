@@ -28,7 +28,7 @@ public sealed class JsonSchemaProviderTests : IDisposable
         var path = WriteFile("empty.json", """{ "schemas": [], "droppedSchemas": [] }""");
         var sut = new JsonSchemaProvider(path);
 
-        var result = await sut.GetSchema();
+        var result = await sut.GetSchema(null, TestContext.Current.CancellationToken);
 
         result.Schemas.ShouldBeEmpty();
         result.DroppedSchemas.ShouldBeEmpty();
@@ -59,7 +59,7 @@ public sealed class JsonSchemaProviderTests : IDisposable
             """);
 
         var sut = new JsonSchemaProvider(path);
-        var result = await sut.GetSchema();
+        var result = await sut.GetSchema(null, TestContext.Current.CancellationToken);
 
         result.Schemas.Count.ShouldBe(1);
         var schema = result.Schemas[0];
@@ -124,7 +124,7 @@ public sealed class JsonSchemaProviderTests : IDisposable
             """);
 
         var sut = new JsonSchemaProvider(path);
-        var result = await sut.GetSchema();
+        var result = await sut.GetSchema(null, TestContext.Current.CancellationToken);
 
         var schema = result.Schemas[0];
         schema.Name.ShouldBe("app");
@@ -214,7 +214,7 @@ public sealed class JsonSchemaProviderTests : IDisposable
             .ToHashSet();
 
         var covered = SqlTypeStringCases()
-            .Select(row => ((SqlType)row[1]!).GetType())
+            .Select(row => row.Data.Item2.GetType())
             .ToHashSet();
 
         var missing = declared.Except(covered).Select(type => type.Name).Order().ToList();
@@ -237,7 +237,7 @@ public sealed class JsonSchemaProviderTests : IDisposable
             """);
 
         var sut = new JsonSchemaProvider(path);
-        var result = await sut.GetSchema();
+        var result = await sut.GetSchema(null, TestContext.Current.CancellationToken);
 
         result.Schemas[0].Tables[0].Columns[0].Type.ShouldBe(expected);
     }
@@ -262,7 +262,7 @@ public sealed class JsonSchemaProviderTests : IDisposable
             """);
 
         var sut = new JsonSchemaProvider(path);
-        var result = await sut.GetSchema(schemaNames: ["app", "old"]);
+        var result = await sut.GetSchema(schemaNames: ["app", "old"], TestContext.Current.CancellationToken);
 
         result.Schemas.Select(s => s.Name).ShouldBe(["app"]);
         result.DroppedSchemas.ShouldBe(["old"]);
@@ -277,7 +277,7 @@ public sealed class JsonSchemaProviderTests : IDisposable
             """);
 
         var sut = new JsonSchemaProvider(path);
-        var result = await sut.GetSchema(schemaNames: ["app"]);
+        var result = await sut.GetSchema(schemaNames: ["app"], TestContext.Current.CancellationToken);
 
         result.Schemas.Count.ShouldBe(1);
     }
@@ -294,7 +294,7 @@ public sealed class JsonSchemaProviderTests : IDisposable
             """);
 
         var sut = new JsonSchemaProvider(path);
-        var result = await sut.GetSchema(schemaNames: null);
+        var result = await sut.GetSchema(schemaNames: null, TestContext.Current.CancellationToken);
 
         result.Schemas.Count.ShouldBe(2);
     }

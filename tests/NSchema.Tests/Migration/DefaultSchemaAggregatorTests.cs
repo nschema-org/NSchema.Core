@@ -1,4 +1,3 @@
-using NSchema.Migration;
 using NSchema.Migration.Sources;
 using NSchema.Schema;
 

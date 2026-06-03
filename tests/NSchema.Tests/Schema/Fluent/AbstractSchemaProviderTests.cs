@@ -14,7 +14,7 @@ public sealed class AbstractSchemaProviderTests
         // Arrange
 
         // Act
-        var model = await _sut.GetSchema();
+        var model = await _sut.GetSchema(null, TestContext.Current.CancellationToken);
 
         // Assert
         model.Schemas.ShouldBeEmpty();
@@ -28,7 +28,7 @@ public sealed class AbstractSchemaProviderTests
         var builder = _sut.Schema("public");
 
         // Act
-        var model = await _sut.GetSchema();
+        var model = await _sut.GetSchema(null, TestContext.Current.CancellationToken);
 
         // Assert
         builder.ShouldNotBeNull();
@@ -43,14 +43,14 @@ public sealed class AbstractSchemaProviderTests
         _sut.Schema("public", _ => invoked = true);
 
         // Act
-        await _sut.GetSchema();
+        await _sut.GetSchema(null, TestContext.Current.CancellationToken);
 
         // Assert
         invoked.ShouldBeTrue();
     }
 
     [Fact]
-    public async Task Schema_WithConfigureDelegate_ReturnsProviderForChaining()
+    public void Schema_WithConfigureDelegate_ReturnsProviderForChaining()
     {
         // Arrange
 
@@ -69,7 +69,7 @@ public sealed class AbstractSchemaProviderTests
         _sut.Schema("admin");
 
         // Act
-        var model = await _sut.GetSchema();
+        var model = await _sut.GetSchema(null, TestContext.Current.CancellationToken);
 
         // Assert
         model.Schemas.Select(s => s.Name).ShouldBe(["public", "admin"]);
@@ -84,7 +84,7 @@ public sealed class AbstractSchemaProviderTests
         _sut.Schema("internal");
 
         // Act
-        var model = await _sut.GetSchema(["public", "internal"]);
+        var model = await _sut.GetSchema(["public", "internal"], TestContext.Current.CancellationToken);
 
         // Assert
         model.Schemas.Select(s => s.Name).ShouldBe(["public", "internal"]);
@@ -97,7 +97,7 @@ public sealed class AbstractSchemaProviderTests
         _sut.Schema("Public");
 
         // Act
-        var model = await _sut.GetSchema(["public"]);
+        var model = await _sut.GetSchema(["public"], TestContext.Current.CancellationToken);
 
         // Assert
         model.Schemas.Select(s => s.Name).ShouldBe(["Public"]);
@@ -111,7 +111,7 @@ public sealed class AbstractSchemaProviderTests
         _sut.Schema("admin");
 
         // Act
-        var model = await _sut.GetSchema([]);
+        var model = await _sut.GetSchema([], TestContext.Current.CancellationToken);
 
         // Assert
         model.Schemas.Select(s => s.Name).ShouldBe(["public", "admin"]);
@@ -125,7 +125,7 @@ public sealed class AbstractSchemaProviderTests
         _sut.Schema("public");
 
         // Act
-        var model = await _sut.GetSchema();
+        var model = await _sut.GetSchema(null, TestContext.Current.CancellationToken);
 
         // Assert
         model.Schemas.Select(s => s.Name).ShouldBe(["public"]);

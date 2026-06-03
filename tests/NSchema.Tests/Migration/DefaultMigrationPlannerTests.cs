@@ -7,7 +7,7 @@ namespace NSchema.Tests.Migration;
 
 public sealed class DefaultMigrationPlannerTests
 {
-    private static readonly DatabaseSchema EmptySchema = DatabaseSchema.Create([]);
+    private static readonly DatabaseSchema _emptySchema = DatabaseSchema.Create([]);
 
     private readonly List<IScriptProvider> _scripts = [];
     private readonly ISchemaComparer _comparer = Substitute.For<ISchemaComparer>();
@@ -15,7 +15,7 @@ public sealed class DefaultMigrationPlannerTests
     private readonly List<IMigrationPlanTransformer> _transformers = [];
     private readonly List<IMigrationPolicy> _migrationPolicies = [];
 
-    private DefaultMigrationPlanner _sut => new(
+    private DefaultMigrationPlanner Sut => new(
         _scripts,
         _comparer,
         _schemaPolicies,
@@ -38,7 +38,7 @@ public sealed class DefaultMigrationPlannerTests
         _schemaPolicies.Add(policy);
 
         // Act
-        var result = await _sut.Plan(EmptySchema, EmptySchema);
+        var result = await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
 
         // Assert
         result.Plan.ShouldBeNull();
@@ -56,7 +56,7 @@ public sealed class DefaultMigrationPlannerTests
         _schemaPolicies.Add(policy);
 
         // Act
-        await _sut.Plan(EmptySchema, EmptySchema);
+        await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
 
         // Assert
         _comparer.DidNotReceive().Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>());
@@ -70,7 +70,7 @@ public sealed class DefaultMigrationPlannerTests
         var desired = DatabaseSchema.Create([SchemaDefinition.Create("desired")]);
 
         // Act
-        await _sut.Plan(current, desired);
+        await Sut.Plan(current, desired, TestContext.Current.CancellationToken);
 
         // Assert
         _comparer.Received(1).Compare(current, desired);
@@ -92,7 +92,7 @@ public sealed class DefaultMigrationPlannerTests
         _scripts.Add(scripts);
 
         // Act
-        var result = await _sut.Plan(EmptySchema, EmptySchema);
+        var result = await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
 
         // Assert
         result.Plan.ShouldNotBeNull();
@@ -111,7 +111,7 @@ public sealed class DefaultMigrationPlannerTests
             .Returns(call => new MigrationPlan([coreAction], call.ArgAt<DatabaseSchema>(1)));
 
         // Act
-        var result = await _sut.Plan(EmptySchema, EmptySchema);
+        var result = await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
 
         // Assert
         result.Plan.ShouldNotBeNull();
@@ -125,15 +125,15 @@ public sealed class DefaultMigrationPlannerTests
         // Arrange
         var t1 = Substitute.For<IMigrationPlanTransformer>();
         var t2 = Substitute.For<IMigrationPlanTransformer>();
-        var after1 = new MigrationPlan([new CreateSchema("after1")], EmptySchema);
-        var after2 = new MigrationPlan([new CreateSchema("after2")], EmptySchema);
+        var after1 = new MigrationPlan([new CreateSchema("after1")], _emptySchema);
+        var after2 = new MigrationPlan([new CreateSchema("after2")], _emptySchema);
         t1.Transform(Arg.Any<MigrationPlan>()).Returns(after1);
         t2.Transform(after1).Returns(after2);
         _transformers.Add(t1);
         _transformers.Add(t2);
 
         // Act
-        var result = await _sut.Plan(EmptySchema, EmptySchema);
+        var result = await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
 
         // Assert
         result.Plan.ShouldBe(after2);
@@ -149,7 +149,7 @@ public sealed class DefaultMigrationPlannerTests
     {
         // Arrange
         var transformer = Substitute.For<IMigrationPlanTransformer>();
-        var transformed = new MigrationPlan([new DropTable("app", "users")], EmptySchema);
+        var transformed = new MigrationPlan([new DropTable("app", "users")], _emptySchema);
         transformer.Transform(Arg.Any<MigrationPlan>()).Returns(transformed);
         _transformers.Add(transformer);
         var policy = Substitute.For<IMigrationPolicy>();
@@ -157,7 +157,7 @@ public sealed class DefaultMigrationPlannerTests
         _migrationPolicies.Add(policy);
 
         // Act
-        var result = await _sut.Plan(EmptySchema, EmptySchema);
+        var result = await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
 
         // Assert
         result.Diagnostics.ShouldHaveSingleItem();
@@ -177,7 +177,7 @@ public sealed class DefaultMigrationPlannerTests
         _schemaPolicies.Add(p2);
 
         // Act
-        var result = await _sut.Plan(EmptySchema, EmptySchema);
+        var result = await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
 
         // Assert
         result.Diagnostics.Count.ShouldBe(3);
