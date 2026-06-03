@@ -115,7 +115,17 @@ Providers are registered with `builder.AddSchema<T>()` or `builder.AddSchemasFro
 | `IMigrationCompiler`                                                                                        | `UseMigrationCompiler<T>()` (replaces default `SqlMigrationCompiler`)                                   |
 | `ISchemaStateStore`                                                                                         | `UseStateStore<T>()` / `UseStateStore(instance)` / `UseFileStateStore(path)`                            |
 | `ISchemaComparer`, `ISchemaAggregator`, `IMigrationPlanner`, `IMigrationReporter`, `IMigrationPlanRenderer` | Override via `Services.AddSingleton<...>()` before `Build()` (defaults registered with `TryAdd`)        |
+| `IMigrationDiffBuilder`, `IMigrationDiffRenderer`                                                           | Override via `Services.AddSingleton<...>()` before `Build()` (defaults registered with `TryAdd`)        |
 | `ISqlPlanner`                                                                                               | Supplied by a database-provider extension                                                               |
+
+### Plan rendering
+
+Rendering a `MigrationPlan` for display is a two-phase pipeline so output formats can vary independently of the diffing logic:
+
+1. **`IMigrationDiffBuilder`** (default `DefaultMigrationDiffBuilder`) rearranges the plan's flat action list into a structured, hierarchical `MigrationDiff` (`src/NSchema/Migration/Diff/`): schema → table → columns/indexes/constraints/grants, each carrying a `ChangeKind` (`Add`/`Modify`/`Remove`). The model is presentation-agnostic.
+2. **`IMigrationDiffRenderer`** (default `TerraformMigrationDiffRenderer`) turns a `MigrationDiff` into text. The default emits a Terraform-style diff; an alternative (e.g. JSON) can be registered without touching phase 1. Each renderer owns its own options POCO — the Terraform renderer reads `TerraformRendererOptions.IncludeColour` (which defaults to the environment's preference: on unless `NO_COLOR` is set or output is redirected), configurable via `WithTerraformColour(bool)`. The renderer itself never reads the environment.
+
+`DefaultMigrationPlanRenderer` is a thin facade over the two — `IMigrationPlanRenderer.Render(plan)` calls `renderer.Render(builder.Build(plan))` — so the public `IMigrationPlanRenderer` contract is unchanged.
 
 ### Renaming
 

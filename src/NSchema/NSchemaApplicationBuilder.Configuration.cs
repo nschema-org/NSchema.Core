@@ -30,6 +30,18 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
+    /// Configures the plan output to use a Terraform-style renderer.
+    /// </summary>
+    /// <param name="configure">A delegate to configure the renderer options.</param>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder UseTerraformRenderer(Action<TerraformRendererOptions> configure)
+    {
+        Services.AddSingleton<IMigrationDiffRenderer, TerraformMigrationDiffRenderer>();
+        Services.Configure(configure);
+        return this;
+    }
+
+    /// <summary>
     /// Configures the operation the migration run performs.
     /// </summary>
     /// <param name="operation">The operation to perform.</param>

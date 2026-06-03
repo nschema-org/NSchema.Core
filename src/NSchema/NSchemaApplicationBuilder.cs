@@ -43,6 +43,10 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         _innerBuilder.Services.AddOptions<MigrationOptions>();
         _innerBuilder.Services.AddOptions<MigrationRunOptions>();
         _innerBuilder.Services.AddOptions<SqlExecutorOptions>();
+
+        _innerBuilder.Services
+            .AddOptions<TerraformRendererOptions>()
+            .Configure(o => o.IncludeColour = EnvironmentHelpers.SupportsColor);
     }
 
     /// <inheritdoc />
@@ -84,6 +88,8 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
     {
         services.TryAddSingleton<ISchemaStateSerializer, DefaultSchemaStateSerializer>();
         services.TryAddSingleton<IMigrationReporter>(sp => new DefaultMigrationReporter(Console.Out, Console.Error, sp.GetRequiredService<IMigrationPlanRenderer>()));
+        services.TryAddSingleton<IMigrationDiffBuilder, DefaultMigrationDiffBuilder>();
+        services.TryAddSingleton<IMigrationDiffRenderer, TerraformMigrationDiffRenderer>();
         services.TryAddSingleton<IMigrationPlanRenderer, DefaultMigrationPlanRenderer>();
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
         services.TryAddSingleton<ISchemaAggregator, DefaultSchemaAggregator>();
