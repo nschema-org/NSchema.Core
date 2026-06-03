@@ -45,7 +45,7 @@ internal sealed class DefaultMigrationReporter(TextWriter output, TextWriter err
         output.WriteLine("Policy diagnostics:");
         if (diagnostics.Count == 0)
         {
-            output.WriteLine("None");
+            output.WriteLine("- Nothing to report");
             return;
         }
 

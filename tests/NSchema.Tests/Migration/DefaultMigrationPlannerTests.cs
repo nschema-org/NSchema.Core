@@ -81,8 +81,8 @@ public sealed class DefaultMigrationPlannerTests
         // Arrange
         IReadOnlyList<Script> scripts =
         [
-            new Script("pre", "SELECT 1", ScriptType.PreDeployment),
-            new Script("post", "SELECT 2", ScriptType.PostDeployment),
+            new("pre", "SELECT 1", ScriptType.PreDeployment),
+            new("post", "SELECT 2", ScriptType.PostDeployment),
         ];
 
         // Act
@@ -90,8 +90,8 @@ public sealed class DefaultMigrationPlannerTests
 
         // Assert
         result.Diff.ShouldNotBeNull();
-        result.Diff.PreDeploymentScripts.ShouldBe(["pre"]);
-        result.Diff.PostDeploymentScripts.ShouldBe(["post"]);
+        result.Diff.PreDeploymentScripts.ShouldBe([scripts[0]]);
+        result.Diff.PostDeploymentScripts.ShouldBe([scripts[1]]);
     }
 
     [Fact]

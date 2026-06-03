@@ -28,8 +28,8 @@ internal sealed class DefaultMigrationPlanner(
         // Diff the schemas.
         var diff = comparer.Compare(currentSchema, desiredSchema) with
         {
-            PreDeploymentScripts = [.. scripts.Where(s => s.Type == ScriptType.PreDeployment).Select(s => s.Name)],
-            PostDeploymentScripts = [.. scripts.Where(s => s.Type == ScriptType.PostDeployment).Select(s => s.Name)],
+            PreDeploymentScripts = [.. scripts.Where(s => s.Type == ScriptType.PreDeployment)],
+            PostDeploymentScripts = [.. scripts.Where(s => s.Type == ScriptType.PostDeployment)],
         };
 
         // Transform and validate the diff.
@@ -38,12 +38,9 @@ internal sealed class DefaultMigrationPlanner(
 
         // Convert the diff into a migration plan.
         var plan = linearizer.Linearize(diff);
-        if (scripts.Count > 0)
-        {
-            var preActions = scripts.Where(s => s.Type == ScriptType.PreDeployment).Select(MigrationAction (s) => new RunScript(s));
-            var postActions = scripts.Where(s => s.Type == ScriptType.PostDeployment).Select(MigrationAction (s) => new RunScript(s));
-            plan = plan with { Actions = [.. preActions, .. plan.Actions, .. postActions] };
-        }
+        var preActions = diff.PreDeploymentScripts.Select(MigrationAction (s) => new RunScript(s));
+        var postActions = diff.PostDeploymentScripts.Select(MigrationAction (s) => new RunScript(s));
+        plan = plan with { Actions = [.. preActions, .. plan.Actions, .. postActions] };
 
         // Transform and validate the plan.
         plan = planTransformers.Aggregate(plan, (p, t) => t.Transform(p));

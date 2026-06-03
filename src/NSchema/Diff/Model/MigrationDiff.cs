@@ -1,3 +1,5 @@
+using NSchema.Schema.Model;
+
 namespace NSchema.Diff.Model;
 
 /// <summary>
@@ -8,8 +10,8 @@ namespace NSchema.Diff.Model;
 /// <param name="PostDeploymentScripts">Names of post-deployment scripts to run.</param>
 public sealed record MigrationDiff(
     IReadOnlyList<SchemaDiff> Schemas,
-    IReadOnlyList<string> PreDeploymentScripts,
-    IReadOnlyList<string> PostDeploymentScripts
+    IReadOnlyList<Script> PreDeploymentScripts,
+    IReadOnlyList<Script> PostDeploymentScripts
 )
 {
     /// <summary>

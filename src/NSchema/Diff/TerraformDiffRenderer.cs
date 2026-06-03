@@ -145,18 +145,18 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
         }
     }
 
-    private void RenderScripts(StringBuilder sb, string heading, IReadOnlyList<string> names)
+    private void RenderScripts(StringBuilder sb, string heading, IReadOnlyList<Script> scripts)
     {
-        if (names.Count == 0)
+        if (scripts.Count == 0)
         {
             return;
         }
 
         sb.AppendLine();
         sb.AppendLine(heading);
-        foreach (var name in names)
+        foreach (var script in scripts)
         {
-            sb.AppendLine($"  • {name}");
+            sb.AppendLine($"  • {script.Name}");
         }
     }
 
