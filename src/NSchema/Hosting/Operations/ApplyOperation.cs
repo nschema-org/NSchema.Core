@@ -1,7 +1,7 @@
 using NSchema.Hosting.Services;
 using NSchema.Migration;
-using NSchema.Migration.Sql;
 using NSchema.Schema;
+using NSchema.Sql;
 
 namespace NSchema.Hosting.Operations;
 

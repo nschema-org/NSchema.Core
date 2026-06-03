@@ -1,9 +1,9 @@
 using NSchema.Hosting.Operations;
 using NSchema.Hosting.Services;
 using NSchema.Migration;
-using NSchema.Migration.Sql;
 using NSchema.Plan.Model;
 using NSchema.Schema;
+using NSchema.Sql;
 
 namespace NSchema.Tests.Hosting.Operations;
 

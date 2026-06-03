@@ -1,6 +1,6 @@
-using NSchema.Migration.Sql;
+using NSchema.Sql;
 
-namespace NSchema.Tests.Migration.Sql;
+namespace NSchema.Tests.Sql;
 
 public sealed class DefaultSqlPlanRendererTests
 {

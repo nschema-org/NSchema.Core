@@ -1,4 +1,4 @@
-namespace NSchema.Migration.Sql;
+namespace NSchema.Sql;
 
 /// <summary>
 /// A single SQL statement in a <see cref="Sql"/>, together with execution metadata.

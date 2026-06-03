@@ -1,4 +1,6 @@
-namespace NSchema.Migration.Sql;
+using NSchema.Migration;
+
+namespace NSchema.Sql;
 
 /// <summary>
 /// Controls how the SQL executor runs the compiled migration plan.

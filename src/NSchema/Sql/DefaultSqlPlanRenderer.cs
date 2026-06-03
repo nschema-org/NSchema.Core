@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace NSchema.Migration.Sql;
+namespace NSchema.Sql;
 
 /// <summary>
 /// Default <see cref="ISqlPlanRenderer"/>.

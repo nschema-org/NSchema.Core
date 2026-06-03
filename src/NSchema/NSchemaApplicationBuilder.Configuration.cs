@@ -2,7 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NSchema.Diff;
 using NSchema.Hosting;
 using NSchema.Migration;
-using NSchema.Migration.Sql;
+using NSchema.Sql;
 
 namespace NSchema;
 

@@ -1,8 +1,8 @@
 using NSchema.Diff;
 using NSchema.Diff.Model;
 using NSchema.Hosting;
-using NSchema.Migration.Sql;
 using NSchema.Policies;
+using NSchema.Sql;
 
 namespace NSchema.Tests.Hosting;
 

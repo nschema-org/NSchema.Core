@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Options;
 using Npgsql;
 using NSchema.Migration;
-using NSchema.Migration.Sql;
+using NSchema.Sql;
 using NSchema.Tests.Fixtures;
 
-namespace NSchema.Tests.Migration.Sql;
+namespace NSchema.Tests.Sql;
 
 [Collection("postgres")]
 public sealed class DefaultSqlExecutorTests : IAsyncLifetime

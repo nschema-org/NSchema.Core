@@ -1,4 +1,4 @@
-namespace NSchema.Migration.Sql;
+namespace NSchema.Sql;
 
 /// <summary>
 /// Renders a <see cref="SqlPlan"/> into human-readable text for previewing.
