@@ -87,34 +87,35 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
     private static void ApplyServices(IServiceCollection services)
     {
-        services.TryAddSingleton<ISchemaStateSerializer, DefaultSchemaStateSerializer>();
-        services.TryAddSingleton<IMigrationReporter>(sp => new DefaultMigrationReporter(Console.Out, Console.Error, sp.GetRequiredService<IDiffRenderer>()));
-        services.TryAddSingleton<IDiffRenderer, TerraformDiffRenderer>();
-        services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
-        services.TryAddSingleton<IMigrationLinearizer, DefaultMigrationLinearizer>();
-        services.TryAddSingleton<ISchemaAggregator, DefaultSchemaAggregator>();
-        services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
+        // Schemas
         services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();
         services.TryAddSingleton<IDesiredSchemaProvider, DefaultDesiredSchemaProvider>();
+        services.TryAddSingleton<ISchemaAggregator, DefaultSchemaAggregator>();
+
+        // Diffing
+        services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
+        services.TryAddSingleton<IDiffRenderer, TerraformDiffRenderer>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IDiffPolicy, DestructiveActionMigrationPolicy>());
+
+        // Migration
+        services.TryAddSingleton<IMigrationReporter>(sp => new DefaultMigrationReporter(Console.Out, Console.Error, sp.GetRequiredService<IDiffRenderer>(), sp.GetRequiredService<ISqlPlanRenderer>()));
+        services.TryAddSingleton<IMigrationLinearizer, DefaultMigrationLinearizer>();
+        services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
         services.TryAddSingleton<IMigrationConfirmation, AutoApproveConfirmation>();
+
+        // SQL
+        services.TryAddSingleton<ISqlPlanRenderer, DefaultSqlPlanRenderer>();
+        services.TryAddSingleton<ISqlExecutor, DefaultSqlExecutor>();
+
+        // State
+        services.TryAddSingleton<ISchemaStateSerializer, DefaultSchemaStateSerializer>();
+
+        // Operations
         services.TryAddSingleton<MigrationOperationResult>();
         services.TryAddSingleton<IMigrationHelper, MigrationHelper>();
-
         services.TryAddKeyedSingleton<IMigrationOperation, PlanOperation>(MigrationOperation.Plan);
         services.TryAddKeyedSingleton<IMigrationOperation, ApplyOperation>(MigrationOperation.Apply);
         services.TryAddKeyedSingleton<IMigrationOperation, RefreshOperation>(MigrationOperation.Refresh);
-
-        // The SQL compiler and executor are only meaningful when a database provider has registered an
-        // ISqlPlanner. An offline run (e.g. a PR preview that plans against a state store) registers none, so
-        // we leave IMigrationCompiler unregistered and the pipeline reports the plan without a SQL preview.
-        // A user who supplies their own compiler via UseMigrationCompiler<T>() already registered it above.
-        if (services.Any(d => d.ServiceType == typeof(ISqlPlanner)))
-        {
-            services.TryAddSingleton<ISqlExecutor, DefaultSqlExecutor>();
-            services.TryAddSingleton<IMigrationCompiler, SqlMigrationCompiler>();
-        }
-
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IDiffPolicy, DestructiveActionMigrationPolicy>());
 
         // This is the service responsible for running the migration.
         services.AddHostedService<NSchemaHost>();

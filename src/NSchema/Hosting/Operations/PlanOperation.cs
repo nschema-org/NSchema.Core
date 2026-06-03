@@ -1,5 +1,6 @@
 using NSchema.Hosting.Services;
 using NSchema.Migration;
+using NSchema.Migration.Sql;
 using NSchema.Schema;
 
 namespace NSchema.Hosting.Operations;
@@ -7,7 +8,7 @@ namespace NSchema.Hosting.Operations;
 internal sealed class PlanOperation(
     IMigrationReporter reporter,
     IMigrationHelper helper,
-    IMigrationCompiler? compiler = null
+    ISqlGenerator? sqlGenerator = null
 ) : IMigrationOperation
 {
     public async Task Execute(CancellationToken cancellationToken = default)
@@ -15,15 +16,15 @@ internal sealed class PlanOperation(
         reporter.Info("Planning schema migration. No changes will be applied to the database.");
         var plan = await helper.Plan(SchemaSourceMode.Offline, required: false, cancellationToken);
 
-        if (compiler == null)
+        // Generating SQL is pure string building, so the preview works offline whenever a dialect (ISqlPlanner)
+        // is registered — no database connection required.
+        if (sqlGenerator is null)
         {
             reporter.Info("Unable to generate SQL preview. No provider is configured.");
+            return;
         }
-        else
-        {
-            reporter.Info("Compiling migration plan...");
-            var execution = await compiler.Compile(plan, cancellationToken);
-            reporter.ReportPreview(execution.Preview);
-        }
+
+        reporter.Info("Generating SQL...");
+        reporter.ReportSqlPlan(sqlGenerator.Generate(plan));
     }
 }

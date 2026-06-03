@@ -1,6 +1,7 @@
 using NSchema.Diff;
 using NSchema.Diff.Model;
 using NSchema.Migration;
+using NSchema.Migration.Sql;
 using NSchema.Policies;
 
 namespace NSchema.Hosting;
@@ -11,7 +12,8 @@ namespace NSchema.Hosting;
 /// <param name="output">The writer for informational output (typically stdout).</param>
 /// <param name="error">The writer for errors and warnings (typically stderr).</param>
 /// <param name="diffRenderer">Renders the migration diff as human-readable text.</param>
-internal sealed class DefaultMigrationReporter(TextWriter output, TextWriter error, IDiffRenderer diffRenderer) : IMigrationReporter
+/// <param name="sqlPlanRenderer">Renders the SQL plan as human-readable text.</param>
+internal sealed class DefaultMigrationReporter(TextWriter output, TextWriter error, IDiffRenderer diffRenderer, ISqlPlanRenderer sqlPlanRenderer) : IMigrationReporter
 {
     public void Info(string message) => output.WriteLine(message);
 
@@ -24,20 +26,10 @@ internal sealed class DefaultMigrationReporter(TextWriter output, TextWriter err
         output.WriteLine();
     }
 
-    public void ReportPreview(IReadOnlyList<string> statements)
+    public void ReportSqlPlan(SqlPlan plan)
     {
-        output.WriteLine("SQL Preview:");
-        if (statements.Count == 0)
-        {
-            output.WriteLine("- No statements to execute");
-        }
-        else
-        {
-            foreach (var statement in statements)
-            {
-                output.WriteLine(statement);
-            }
-        }
+        output.WriteLine(sqlPlanRenderer.Render(plan));
+        output.WriteLine();
     }
 
     public void ReportDiagnostics(PolicyDiagnostics diagnostics)

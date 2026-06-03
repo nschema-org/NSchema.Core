@@ -1,6 +1,7 @@
 using NSchema.Diff;
 using NSchema.Diff.Model;
 using NSchema.Hosting;
+using NSchema.Migration.Sql;
 using NSchema.Policies;
 
 namespace NSchema.Tests.Hosting;
@@ -10,12 +11,13 @@ public sealed class DefaultMigrationReporterTests
     private readonly StringWriter _output = new();
     private readonly StringWriter _error = new();
     private readonly IDiffRenderer _diffRenderer = Substitute.For<IDiffRenderer>();
+    private readonly ISqlPlanRenderer _sqlPlanRenderer = Substitute.For<ISqlPlanRenderer>();
 
     private readonly DefaultMigrationReporter _sut;
 
     public DefaultMigrationReporterTests()
     {
-        _sut = new DefaultMigrationReporter(_output, _error, _diffRenderer);
+        _sut = new DefaultMigrationReporter(_output, _error, _diffRenderer, _sqlPlanRenderer);
     }
 
     [Fact]
@@ -49,14 +51,15 @@ public sealed class DefaultMigrationReporterTests
     }
 
     [Fact]
-    public void ReportPreview_WritesEachStatementToOutput()
+    public void ReportSqlPlan_WritesRenderedPlanToOutput()
     {
-        _sut.ReportPreview(["CREATE SCHEMA app", "CREATE TABLE app.users (id int)"]);
+        var plan = new SqlPlan([new SqlStatement("CREATE SCHEMA app")]);
+        _sqlPlanRenderer.Render(plan).Returns("rendered sql");
 
-        var lines = _output.ToString();
-        lines.ShouldContain("SQL Preview:");
-        lines.ShouldContain("CREATE SCHEMA app");
-        lines.ShouldContain("CREATE TABLE app.users (id int)");
+        _sut.ReportSqlPlan(plan);
+
+        _output.ToString().ShouldContain("rendered sql");
+        _error.ToString().ShouldBeEmpty();
     }
 
     [Fact]
