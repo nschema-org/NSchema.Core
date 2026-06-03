@@ -29,6 +29,11 @@ The core happy path of planning and applying migrations is unchanged, so library
 
 - **Breaking:** `IMigrationPlanRenderer`. Plan output now flows through `IDiffRenderer` (diff → text); register a custom `IDiffRenderer` or call `UseTerraformRenderer(...)` instead.
 
+### Changed
+
+- Migration reporting messages have been overhauled to be more informative.
+- The `IMigrationReporter` now logs directly to the console instead of using `ILogger`. This removes some hacky wiring around segregating logging sinks by category.
+
 ### Fixed
 
 - Fixed an issue with the schema domain models where deserializing them could leave collection properties as `null` instead of empty.
