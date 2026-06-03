@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NSchema.Hosting;
 using NSchema.Hosting.Operations;
+using NSchema.Hosting.Services;
 using NSchema.Migration;
 using NSchema.Migration.Sql;
 using NSchema.Policies;
@@ -38,13 +39,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
         // Drop the default console logger so third-party libraries don't spam the terminal.
         _innerBuilder.Logging.ClearProviders();
-
-        // Register NSchema's own terminal logger. The category filter restricts it to the reporter's category only,
-        // so internal diagnostic logs from other services (e.g. the comparer) aren't shown on the terminal
-        // but still reach any structured sink the consumer adds.
-        _innerBuilder.Logging.AddProvider(new NSchemaTerminalLoggerProvider());
-        _innerBuilder.Logging.AddFilter<NSchemaTerminalLoggerProvider>(typeof(DefaultMigrationReporter).FullName, LogLevel.Trace);
-        _innerBuilder.Logging.AddFilter<NSchemaTerminalLoggerProvider>(null, LogLevel.None);
 
         _innerBuilder.Services.AddOptions<MigrationOptions>();
         _innerBuilder.Services.AddOptions<MigrationRunOptions>();
@@ -89,7 +83,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
     private static void ApplyServices(IServiceCollection services)
     {
         services.TryAddSingleton<ISchemaStateSerializer, DefaultSchemaStateSerializer>();
-        services.TryAddSingleton<IMigrationReporter, DefaultMigrationReporter>();
+        services.TryAddSingleton<IMigrationReporter>(sp => new DefaultMigrationReporter(Console.Out, Console.Error, sp.GetRequiredService<IMigrationPlanRenderer>()));
         services.TryAddSingleton<IMigrationPlanRenderer, DefaultMigrationPlanRenderer>();
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
         services.TryAddSingleton<ISchemaAggregator, DefaultSchemaAggregator>();
@@ -98,6 +92,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IDesiredSchemaProvider, DefaultDesiredSchemaProvider>();
         services.TryAddSingleton<IMigrationConfirmation, AutoApproveConfirmation>();
         services.TryAddSingleton<MigrationOperationResult>();
+        services.TryAddSingleton<IMigrationHelper, MigrationHelper>();
 
         services.TryAddKeyedSingleton<IMigrationOperation, PlanOperation>(MigrationOperation.Plan);
         services.TryAddKeyedSingleton<IMigrationOperation, ApplyOperation>(MigrationOperation.Apply);

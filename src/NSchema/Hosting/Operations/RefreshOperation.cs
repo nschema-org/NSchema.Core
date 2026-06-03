@@ -1,24 +1,19 @@
+using NSchema.Hosting.Services;
 using NSchema.Migration;
-using NSchema.State;
 
 namespace NSchema.Hosting.Operations;
 
-internal sealed class RefreshOperation(
-    IMigrationReporter reporter,
-    ICurrentSchemaProvider currentProvider,
-    ISchemaStateStore? store = null
-) : IMigrationOperation
+internal sealed class RefreshOperation(IMigrationHelper helper, IMigrationReporter reporter) : IMigrationOperation
 {
     public async Task Execute(CancellationToken cancellationToken = default)
     {
-        if (store is null)
+        if (!helper.HasStore)
         {
-            throw new InvalidOperationException("Refresh requires a state store.");
+            throw new InvalidOperationException("Unable to perform refresh without configured state store.");
         }
 
-        reporter.Info("Running in Refresh mode.");
-        var schema = await currentProvider.GetSchema(SchemaSourceMode.Online, null, required: true, cancellationToken);
-        await store.Write(schema, cancellationToken);
-        reporter.Info("Schema state captured.");
+        reporter.Info("Refreshing state store...");
+        await helper.Refresh(cancellationToken);
+        reporter.Info("State store refreshed successfully.");
     }
 }
