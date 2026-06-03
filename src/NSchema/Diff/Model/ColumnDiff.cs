@@ -3,8 +3,7 @@ using NSchema.Schema.Model;
 namespace NSchema.Diff.Model;
 
 /// <summary>
-/// Describes the changes affecting a single column. For an added or dropped column the full
-/// <paramref name="Definition"/> is provided; for a modified column the individual field changes are populated.
+/// Describes the changes affecting a single column.
 /// </summary>
 /// <param name="Name">The column name (the new name when renamed).</param>
 /// <param name="Kind">The change to the column.</param>
@@ -24,4 +23,5 @@ public sealed record ColumnDiff(
     ValueChange<bool>? Nullability,
     ValueChange<string>? Default,
     ValueChange<IdentityOptions>? Identity,
-    ValueChange<string>? Comment);
+    ValueChange<string>? Comment
+);

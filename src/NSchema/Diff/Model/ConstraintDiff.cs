@@ -15,4 +15,5 @@ public sealed record ConstraintDiff(
     ConstraintType Type,
     string Name,
     PrimaryKey? PrimaryKey,
-    ForeignKey? ForeignKey);
+    ForeignKey? ForeignKey
+);

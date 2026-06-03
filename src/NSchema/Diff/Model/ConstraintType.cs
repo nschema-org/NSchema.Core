@@ -5,9 +5,13 @@ namespace NSchema.Diff.Model;
 /// </summary>
 public enum ConstraintType
 {
-    /// <summary>A primary key constraint.</summary>
+    /// <summary>
+    /// A primary key constraint.
+    /// </summary>
     PrimaryKey,
 
-    /// <summary>A foreign key constraint.</summary>
+    /// <summary>
+    /// A foreign key constraint.
+    /// </summary>
     ForeignKey,
 }

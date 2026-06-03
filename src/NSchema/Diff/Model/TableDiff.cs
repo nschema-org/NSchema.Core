@@ -15,9 +15,7 @@ namespace NSchema.Diff.Model;
 /// <param name="Indexes">Index changes on the table.</param>
 /// <param name="Constraints">Primary and foreign key changes on the table.</param>
 /// <param name="Definition">
-/// The full table definition when the table is being created (<see cref="ChangeKind.Add"/>); otherwise
-/// <see langword="null"/>. Carries the primary key and column definitions needed to emit a single
-/// <c>CREATE TABLE</c>, so the linearizer can reconstruct the create action without re-deriving them.
+/// The full table definition when the table is being created (<see cref="ChangeKind.Add"/>); otherwise <see langword="null"/>.
 /// </param>
 public sealed record TableDiff(
     string Schema,
@@ -29,4 +27,5 @@ public sealed record TableDiff(
     IReadOnlyList<GrantChange> Grants,
     IReadOnlyList<IndexDiff> Indexes,
     IReadOnlyList<ConstraintDiff> Constraints,
-    Table? Definition = null);
+    Table? Definition = null
+);

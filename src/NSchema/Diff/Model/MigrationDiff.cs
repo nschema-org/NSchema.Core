@@ -1,20 +1,12 @@
-using NSchema.Plan.Model;
-
 namespace NSchema.Diff.Model;
 
 /// <summary>
-/// A structured, hierarchical view of the changes between two schemas, arranged as schemas
-/// containing tables containing columns, indexes, constraints and grants. This is produced directly by
-/// <see cref="ISchemaComparer"/>, consumed by <see cref="IDiffRenderer"/> for display, and
-/// linearized into an executable <see cref="MigrationPlan"/> by <see cref="Migration.IMigrationLinearizer"/>.
+/// A representation of the changes between two schemas.
 /// </summary>
-/// <param name="Schemas">The changed schemas, ordered by name.</param>
-/// <param name="PreDeploymentScripts">Names of pre-deployment scripts to run, in plan order.</param>
-/// <param name="PostDeploymentScripts">Names of post-deployment scripts to run, in plan order.</param>
-public sealed record MigrationDiff(
-    IReadOnlyList<SchemaDiff> Schemas,
-    IReadOnlyList<string> PreDeploymentScripts,
-    IReadOnlyList<string> PostDeploymentScripts)
+/// <param name="Schemas">The changed schemas.</param>
+/// <param name="PreDeploymentScripts">Names of pre-deployment scripts to run.</param>
+/// <param name="PostDeploymentScripts">Names of post-deployment scripts to run.</param>
+public sealed record MigrationDiff(IReadOnlyList<SchemaDiff> Schemas, IReadOnlyList<string> PreDeploymentScripts, IReadOnlyList<string> PostDeploymentScripts)
 {
     /// <summary>
     /// Gets a value indicating whether the diff contains no changes at all.
@@ -32,6 +24,32 @@ public sealed record MigrationDiff(
             var modified = 0;
             var removed = 0;
 
+            foreach (var schema in Schemas)
+            {
+                if (schema.Kind is { } kind)
+                {
+                    Tally(kind);
+                }
+                foreach (var table in schema.Tables)
+                {
+                    Tally(table.Kind);
+                    foreach (var column in table.Columns)
+                    {
+                        Tally(column.Kind);
+                    }
+                    foreach (var index in table.Indexes)
+                    {
+                        Tally(index.Kind);
+                    }
+                    foreach (var constraint in table.Constraints)
+                    {
+                        Tally(constraint.Kind);
+                    }
+                }
+            }
+
+            return new DiffSummary(added, modified, removed);
+
             void Tally(ChangeKind kind)
             {
                 switch (kind)
@@ -39,23 +57,9 @@ public sealed record MigrationDiff(
                     case ChangeKind.Add: added++; break;
                     case ChangeKind.Modify: modified++; break;
                     case ChangeKind.Remove: removed++; break;
+                    default: throw new ArgumentOutOfRangeException(nameof(kind), kind, null);
                 }
             }
-
-            foreach (var schema in Schemas)
-            {
-                if (schema.Kind is { } kind)
-                {
-                    Tally(kind);
-                }
-
-                foreach (var table in schema.Tables)
-                {
-                    Tally(table.Kind);
-                }
-            }
-
-            return new DiffSummary(added, modified, removed);
         }
     }
 }
