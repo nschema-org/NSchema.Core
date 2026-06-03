@@ -4,15 +4,15 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.Metrics;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NSchema.Diff;
 using NSchema.Hosting;
 using NSchema.Hosting.Operations;
 using NSchema.Hosting.Services;
 using NSchema.Migration;
-using NSchema.Migration.Diff;
-using NSchema.Migration.Sources;
 using NSchema.Migration.Sql;
-using NSchema.Policies;
+using NSchema.Schema;
 using NSchema.State;
+using DefaultSchemaComparer = NSchema.Diff.DefaultSchemaComparer;
 
 namespace NSchema;
 

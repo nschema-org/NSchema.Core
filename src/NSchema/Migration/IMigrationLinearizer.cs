@@ -1,13 +1,11 @@
-using NSchema.Migration.Diff.Model;
-using NSchema.Migration.Plan;
-using NSchema.Schema;
+using NSchema.Diff.Model;
+using NSchema.Plan.Model;
+using NSchema.Schema.Model;
 
 namespace NSchema.Migration;
 
 /// <summary>
-/// Linearizes a structured <see cref="MigrationDiff"/> into an executable <see cref="MigrationPlan"/>: a flat,
-/// dependency-ordered list of <see cref="MigrationAction"/>s. This is the inverse projection of the comparer —
-/// the diff is the semantic model, the plan is the execution schedule derived from it.
+/// Linearizes a structured <see cref="MigrationDiff"/> into an executable <see cref="MigrationPlan"/>.
 /// </summary>
 public interface IMigrationLinearizer
 {

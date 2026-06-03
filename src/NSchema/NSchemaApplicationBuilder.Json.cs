@@ -1,4 +1,4 @@
-using NSchema.Migration.Sources;
+using NSchema.Schema;
 
 namespace NSchema;
 

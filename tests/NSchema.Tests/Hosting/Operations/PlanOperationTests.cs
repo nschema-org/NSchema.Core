@@ -1,9 +1,9 @@
 using NSchema.Hosting.Operations;
 using NSchema.Hosting.Services;
 using NSchema.Migration;
-using NSchema.Migration.Plan;
-using NSchema.Migration.Sources;
+using NSchema.Plan.Model;
 using NSchema.Schema;
+using NSchema.Schema.Model;
 
 namespace NSchema.Tests.Hosting.Operations;
 
@@ -22,7 +22,7 @@ public sealed class PlanOperationTests
 
     public PlanOperationTests()
     {
-        _helper.Prepare(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(_plan);
+        _helper.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(_plan);
         _execution.Preview.Returns([]);
         _compiler.Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>()).Returns(_execution);
 
@@ -34,7 +34,7 @@ public sealed class PlanOperationTests
     {
         await _sut.Execute(TestContext.Current.CancellationToken);
 
-        await _helper.Received(1).Prepare(SchemaSourceMode.Offline, required: false, Arg.Any<CancellationToken>());
+        await _helper.Received(1).Plan(SchemaSourceMode.Offline, required: false, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -63,14 +63,14 @@ public sealed class PlanOperationTests
 
         await sut.Execute(TestContext.Current.CancellationToken);
 
-        await _helper.Received(1).Prepare(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+        await _helper.Received(1).Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
         _reporter.DidNotReceive().ReportPreview(Arg.Any<IReadOnlyList<string>>());
     }
 
     [Fact]
     public async Task Execute_PrepareThrows_DoesNotCompile()
     {
-        _helper.Prepare(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+        _helper.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns<MigrationPlan>(_ => throw new InvalidOperationException("boom"));
 
         await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute());

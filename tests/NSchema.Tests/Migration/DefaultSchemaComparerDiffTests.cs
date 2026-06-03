@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using NSchema.Migration;
-using NSchema.Migration.Diff.Model;
-using NSchema.Schema;
+using NSchema.Diff.Model;
+using NSchema.Schema.Model;
+using DefaultSchemaComparer = NSchema.Diff.DefaultSchemaComparer;
 
 namespace NSchema.Tests.Migration;
 

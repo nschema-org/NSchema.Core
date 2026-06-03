@@ -1,6 +1,6 @@
-using NSchema.Migration.Plan;
 using NSchema.Migration.Sql;
-using NSchema.Schema;
+using NSchema.Plan.Model;
+using NSchema.Schema.Model;
 using NSubstitute.ExceptionExtensions;
 
 namespace NSchema.Tests.Migration.Sql;

@@ -1,5 +1,5 @@
-using NSchema.Migration.Sources;
 using NSchema.Schema;
+using NSchema.Schema.Model;
 
 namespace NSchema.Tests.Migration;
 
@@ -11,7 +11,7 @@ public sealed class DefaultSchemaAggregatorTests
 
     private static SchemaDefinition Schema(string name, params Table[] tables) => SchemaDefinition.Create(name, tables: tables);
 
-    private static Table Table(string name) => NSchema.Schema.Table.Create(name);
+    private static Table Table(string name) => NSchema.Schema.Model.Table.Create(name);
 
     // ── Single provider ───────────────────────────────────────────────────────
 

@@ -1,7 +1,9 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using NSchema.Policies;
+using NSchema.Diff;
+using NSchema.Migration;
+using NSchema.Schema;
 
 namespace NSchema;
 

@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Options;
+using NSchema.Diff;
 using NSchema.Migration;
-using NSchema.Migration.Plan;
+using NSchema.Plan.Model;
 using NSchema.Policies;
-using NSchema.Schema;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Migration;

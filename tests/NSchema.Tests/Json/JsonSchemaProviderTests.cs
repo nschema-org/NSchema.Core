@@ -1,6 +1,6 @@
 using System.Text.Json;
-using NSchema.Migration.Sources;
 using NSchema.Schema;
+using NSchema.Schema.Model;
 
 namespace NSchema.Tests.Json;
 

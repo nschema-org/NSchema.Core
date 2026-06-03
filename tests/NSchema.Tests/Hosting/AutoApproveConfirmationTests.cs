@@ -1,6 +1,6 @@
 using NSchema.Hosting;
-using NSchema.Migration.Plan;
-using NSchema.Schema;
+using NSchema.Plan.Model;
+using NSchema.Schema.Model;
 
 namespace NSchema.Tests.Hosting;
 

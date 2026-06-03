@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
-using NSchema.Migration.Sources;
 using NSchema.Schema;
+using NSchema.Schema.Model;
 
 namespace NSchema.State;
 

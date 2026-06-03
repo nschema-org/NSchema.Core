@@ -1,6 +1,6 @@
 using NSchema.Hosting.Services;
 using NSchema.Migration;
-using NSchema.Migration.Sources;
+using NSchema.Schema;
 
 namespace NSchema.Hosting.Operations;
 
@@ -20,7 +20,7 @@ internal sealed class ApplyOperation(
 
         reporter.Info("Applying schema migration. Changes will be applied to the database.");
 
-        var plan = await helper.Prepare(SchemaSourceMode.Online, required: true, cancellationToken);
+        var plan = await helper.Plan(SchemaSourceMode.Online, required: true, cancellationToken);
 
         reporter.Info("Compiling migration plan...");
         var execution = await compiler.Compile(plan, cancellationToken);

@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
-using NSchema.Migration.Diff.Model;
-using NSchema.Migration.Plan;
+using NSchema.Diff.Model;
+using NSchema.Plan.Model;
 using NSchema.Policies;
 
 namespace NSchema.Migration;

@@ -1,11 +1,11 @@
 using Microsoft.Extensions.Options;
+using NSchema.Diff.Model;
 using NSchema.Hosting.Services;
 using NSchema.Migration;
-using NSchema.Migration.Diff.Model;
-using NSchema.Migration.Plan;
-using NSchema.Migration.Sources;
+using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Schema;
+using NSchema.Schema.Model;
 using NSchema.State;
 
 namespace NSchema.Tests.Hosting.Services;
@@ -51,7 +51,7 @@ public sealed class MigrationHelperTests
             .Returns(new MigrationPlanResult(plan, diff, []));
 
         // Act
-        var result = await _sut.Prepare(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);
+        var result = await _sut.Plan(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBe(plan);
@@ -64,7 +64,7 @@ public sealed class MigrationHelperTests
         // Arrange
 
         // Act
-        await _sut.Prepare(SchemaSourceMode.Online, required: true, TestContext.Current.CancellationToken);
+        await _sut.Plan(SchemaSourceMode.Online, required: true, TestContext.Current.CancellationToken);
 
         // Assert
         await _currentProvider.Received(1).GetSchema(
@@ -77,7 +77,7 @@ public sealed class MigrationHelperTests
         // Arrange
 
         // Act
-        await _sut.Prepare(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);
+        await _sut.Plan(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);
 
         // Assert
         await _currentProvider.Received(1).GetSchema(
@@ -93,7 +93,7 @@ public sealed class MigrationHelperTests
             .Returns(new MigrationPlanResult(null, null, errors));
 
         // Act
-        var act = () => _sut.Prepare(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);
+        var act = () => _sut.Plan(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);
 
         // Assert
         await act.ShouldThrowAsync<PolicyViolationException>();
@@ -115,7 +115,7 @@ public sealed class MigrationHelperTests
         _reporter.When(r => r.ReportDiagnostics(Arg.Any<IReadOnlyList<PolicyError>>())).Do(_ => callOrder.Add("diagnostics"));
 
         // Act
-        await _sut.Prepare(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);
+        await _sut.Plan(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);
 
         // Assert
         _reporter.Received(1).ReportDiagnostics(Arg.Is<IReadOnlyList<PolicyError>>(d => d.SequenceEqual(diagnostics)));
@@ -136,7 +136,7 @@ public sealed class MigrationHelperTests
             .Returns(call => { capturedScope = call.ArgAt<string[]?>(1); return Task.FromResult(DatabaseSchema.Create([])); });
 
         // Act
-        await _sut.Prepare(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);
+        await _sut.Plan(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);
 
         // Assert
         capturedScope.ShouldNotBeNull();
@@ -157,7 +157,7 @@ public sealed class MigrationHelperTests
         _options.Value.SchemaNames = ["app", "legacy"];
 
         // Act
-        await _sut.Prepare(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);
+        await _sut.Plan(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);
 
         // Assert
         desiredScope.ShouldBe(["app", "legacy"]);
@@ -173,7 +173,7 @@ public sealed class MigrationHelperTests
             .Returns(call => { desiredScope = call.Arg<string[]?>(); return Task.FromResult(DatabaseSchema.Create([])); });
 
         // Act
-        await _sut.Prepare(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);
+        await _sut.Plan(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);
 
         // Assert
         desiredScope.ShouldBeNull();

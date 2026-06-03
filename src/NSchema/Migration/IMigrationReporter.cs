@@ -1,4 +1,4 @@
-using NSchema.Migration.Diff.Model;
+using NSchema.Diff.Model;
 using NSchema.Policies;
 
 namespace NSchema.Migration;

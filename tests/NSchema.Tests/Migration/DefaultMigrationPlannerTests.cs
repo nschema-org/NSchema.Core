@@ -1,9 +1,11 @@
+using NSchema.Diff;
+using NSchema.Diff.Model;
 using NSchema.Migration;
-using NSchema.Migration.Diff;
-using NSchema.Migration.Diff.Model;
-using NSchema.Migration.Plan;
+using NSchema.Plan;
+using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Schema;
+using NSchema.Schema.Model;
 
 namespace NSchema.Tests.Migration;
 
@@ -11,11 +13,10 @@ public sealed class DefaultMigrationPlannerTests
 {
     private static readonly DatabaseSchema _emptySchema = DatabaseSchema.Create([]);
     private static readonly MigrationDiff _emptyDiff = new([], [], []);
+    private static readonly IReadOnlyList<Script> _noScripts = [];
 
-    private readonly List<IScriptProvider> _scripts = [];
     private readonly ISchemaComparer _comparer = Substitute.For<ISchemaComparer>();
     private readonly IMigrationLinearizer _linearizer = Substitute.For<IMigrationLinearizer>();
-    private readonly List<ISchemaTransformer> _schemaTransformers = [];
     private readonly List<ISchemaPolicy> _schemaPolicies = [];
     private readonly List<IDiffTransformer> _diffTransformers = [];
     private readonly List<IDiffPolicy> _diffPolicies = [];
@@ -23,10 +24,8 @@ public sealed class DefaultMigrationPlannerTests
     private readonly List<IMigrationPolicy> _migrationPolicies = [];
 
     private DefaultMigrationPlanner Sut => new(
-        _scripts,
         _comparer,
         _linearizer,
-        _schemaTransformers,
         _schemaPolicies,
         _diffTransformers,
         _diffPolicies,
@@ -42,7 +41,7 @@ public sealed class DefaultMigrationPlannerTests
     }
 
     [Fact]
-    public async Task Plan_RunsSchemaPoliciesAndReturnsErrorDiagnostics()
+    public void Plan_RunsSchemaPoliciesAndReturnsErrorDiagnostics()
     {
         // Arrange
         var policy = Substitute.For<ISchemaPolicy>();
@@ -50,7 +49,7 @@ public sealed class DefaultMigrationPlannerTests
         _schemaPolicies.Add(policy);
 
         // Act
-        var result = await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
+        var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
 
         // Assert
         result.Plan.ShouldBeNull();
@@ -61,7 +60,7 @@ public sealed class DefaultMigrationPlannerTests
     }
 
     [Fact]
-    public async Task Plan_SchemaPolicyFailure_SkipsComparisonEntirely()
+    public void Plan_SchemaPolicyFailure_SkipsComparisonEntirely()
     {
         // Arrange
         var policy = Substitute.For<ISchemaPolicy>();
@@ -69,61 +68,41 @@ public sealed class DefaultMigrationPlannerTests
         _schemaPolicies.Add(policy);
 
         // Act
-        await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
+        Sut.Plan(_emptySchema, _emptySchema, _noScripts);
 
         // Assert
         _comparer.DidNotReceive().Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>());
     }
 
     [Fact]
-    public async Task Plan_PassesBothSchemasToComparer()
+    public void Plan_PassesBothSchemasToComparer()
     {
         // Arrange
         var current = DatabaseSchema.Create([SchemaDefinition.Create("current")]);
         var desired = DatabaseSchema.Create([SchemaDefinition.Create("desired")]);
 
         // Act
-        await Sut.Plan(current, desired, TestContext.Current.CancellationToken);
+        Sut.Plan(current, desired, _noScripts);
 
         // Assert
         _comparer.Received(1).Compare(current, desired);
     }
 
     [Fact]
-    public async Task Plan_AppliesSchemaTransformersBeforeComparing()
-    {
-        // Arrange
-        var current = DatabaseSchema.Create([SchemaDefinition.Create("current")]);
-        var desired = DatabaseSchema.Create([SchemaDefinition.Create("desired")]);
-        var transformed = DatabaseSchema.Create([SchemaDefinition.Create("transformed")]);
-        var transformer = Substitute.For<ISchemaTransformer>();
-        transformer.Transform(desired).Returns(transformed);
-        _schemaTransformers.Add(transformer);
-
-        // Act
-        await Sut.Plan(current, desired, TestContext.Current.CancellationToken);
-
-        // Assert
-        _comparer.Received(1).Compare(current, transformed);
-    }
-
-    [Fact]
-    public async Task Plan_InjectsPreAndPostDeploymentScriptsAroundActions()
+    public void Plan_InjectsPreAndPostDeploymentScriptsAroundActions()
     {
         // Arrange
         var coreAction = new CreateSchema("app");
         _linearizer.Linearize(Arg.Any<MigrationDiff>(), Arg.Any<DatabaseSchema>())
             .Returns(call => new MigrationPlan([coreAction], call.ArgAt<DatabaseSchema>(1)));
-        var scripts = Substitute.For<IScriptProvider>();
-        scripts.GetScripts(Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<IReadOnlyList<Script>>([
-                new Script("pre", "SELECT 1", ScriptType.PreDeployment),
-                new Script("post", "SELECT 2", ScriptType.PostDeployment),
-            ]));
-        _scripts.Add(scripts);
+        IReadOnlyList<Script> scripts =
+        [
+            new Script("pre", "SELECT 1", ScriptType.PreDeployment),
+            new Script("post", "SELECT 2", ScriptType.PostDeployment),
+        ];
 
         // Act
-        var result = await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
+        var result = Sut.Plan(_emptySchema, _emptySchema, scripts);
 
         // Assert
         result.Plan.ShouldNotBeNull();
@@ -134,19 +113,17 @@ public sealed class DefaultMigrationPlannerTests
     }
 
     [Fact]
-    public async Task Plan_ScriptNamesAreCarriedOntoTheDiff()
+    public void Plan_ScriptNamesAreCarriedOntoTheDiff()
     {
         // Arrange
-        var scripts = Substitute.For<IScriptProvider>();
-        scripts.GetScripts(Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<IReadOnlyList<Script>>([
-                new Script("pre", "SELECT 1", ScriptType.PreDeployment),
-                new Script("post", "SELECT 2", ScriptType.PostDeployment),
-            ]));
-        _scripts.Add(scripts);
+        IReadOnlyList<Script> scripts =
+        [
+            new Script("pre", "SELECT 1", ScriptType.PreDeployment),
+            new Script("post", "SELECT 2", ScriptType.PostDeployment),
+        ];
 
         // Act
-        var result = await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
+        var result = Sut.Plan(_emptySchema, _emptySchema, scripts);
 
         // Assert
         result.Diff.ShouldNotBeNull();
@@ -155,7 +132,7 @@ public sealed class DefaultMigrationPlannerTests
     }
 
     [Fact]
-    public async Task Plan_NoScriptProviders_DoesNotAlterPlan()
+    public void Plan_NoScripts_DoesNotAlterPlan()
     {
         // Arrange
         var coreAction = new CreateSchema("app");
@@ -163,7 +140,7 @@ public sealed class DefaultMigrationPlannerTests
             .Returns(call => new MigrationPlan([coreAction], call.ArgAt<DatabaseSchema>(1)));
 
         // Act
-        var result = await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
+        var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
 
         // Assert
         result.Plan.ShouldNotBeNull();
@@ -172,7 +149,7 @@ public sealed class DefaultMigrationPlannerTests
     }
 
     [Fact]
-    public async Task Plan_AppliesDiffTransformersBeforeLinearizing()
+    public void Plan_AppliesDiffTransformersBeforeLinearizing()
     {
         // Arrange
         var transformed = new MigrationDiff([new SchemaDiff("app", ChangeKind.Add, null, null, [], [])], [], []);
@@ -181,14 +158,14 @@ public sealed class DefaultMigrationPlannerTests
         _diffTransformers.Add(transformer);
 
         // Act
-        await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
+        Sut.Plan(_emptySchema, _emptySchema, _noScripts);
 
         // Assert
         _linearizer.Received(1).Linearize(transformed, Arg.Any<DatabaseSchema>());
     }
 
     [Fact]
-    public async Task Plan_RunsDiffPoliciesAgainstTheDiff()
+    public void Plan_RunsDiffPoliciesAgainstTheDiff()
     {
         // Arrange
         var policy = Substitute.For<IDiffPolicy>();
@@ -196,7 +173,7 @@ public sealed class DefaultMigrationPlannerTests
         _diffPolicies.Add(policy);
 
         // Act
-        var result = await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
+        var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
 
         // Assert
         result.Diagnostics.ShouldHaveSingleItem();
@@ -205,7 +182,7 @@ public sealed class DefaultMigrationPlannerTests
     }
 
     [Fact]
-    public async Task Plan_AppliesTransformersInRegistrationOrder()
+    public void Plan_AppliesTransformersInRegistrationOrder()
     {
         // Arrange
         var t1 = Substitute.For<IMigrationPlanTransformer>();
@@ -218,7 +195,7 @@ public sealed class DefaultMigrationPlannerTests
         _transformers.Add(t2);
 
         // Act
-        var result = await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
+        var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
 
         // Assert
         result.Plan.ShouldBe(after2);
@@ -230,7 +207,7 @@ public sealed class DefaultMigrationPlannerTests
     }
 
     [Fact]
-    public async Task Plan_RunsMigrationPoliciesAgainstTransformedPlan()
+    public void Plan_RunsMigrationPoliciesAgainstTransformedPlan()
     {
         // Arrange
         var transformer = Substitute.For<IMigrationPlanTransformer>();
@@ -242,7 +219,7 @@ public sealed class DefaultMigrationPlannerTests
         _migrationPolicies.Add(policy);
 
         // Act
-        var result = await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
+        var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
 
         // Assert
         result.Diagnostics.ShouldHaveSingleItem();
@@ -251,7 +228,7 @@ public sealed class DefaultMigrationPlannerTests
     }
 
     [Fact]
-    public async Task Plan_AggregatesDiagnosticsFromMultiplePolicies()
+    public void Plan_AggregatesDiagnosticsFromMultiplePolicies()
     {
         // Arrange
         var p1 = Substitute.For<ISchemaPolicy>();
@@ -262,7 +239,7 @@ public sealed class DefaultMigrationPlannerTests
         _schemaPolicies.Add(p2);
 
         // Act
-        var result = await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
+        var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
 
         // Assert
         result.Diagnostics.Count.ShouldBe(3);

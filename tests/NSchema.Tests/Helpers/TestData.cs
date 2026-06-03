@@ -1,6 +1,6 @@
-using NSchema.Migration.Diff.Model;
-using NSchema.Migration.Plan;
-using NSchema.Schema;
+using NSchema.Diff.Model;
+using NSchema.Plan.Model;
+using NSchema.Schema.Model;
 
 namespace NSchema.Tests.Helpers;
 

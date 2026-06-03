@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
-using NSchema.Migration.Diff;
-using NSchema.Migration.Diff.Model;
+using NSchema.Diff;
+using NSchema.Diff.Model;
 
 namespace NSchema.Tests.Migration;
 

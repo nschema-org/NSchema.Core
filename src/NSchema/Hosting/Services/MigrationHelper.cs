@@ -1,8 +1,9 @@
 using Microsoft.Extensions.Options;
 using NSchema.Migration;
-using NSchema.Migration.Plan;
-using NSchema.Migration.Sources;
+using NSchema.Plan.Model;
 using NSchema.Policies;
+using NSchema.Schema;
+using NSchema.Scripts;
 using NSchema.State;
 
 namespace NSchema.Hosting.Services;
@@ -10,6 +11,7 @@ namespace NSchema.Hosting.Services;
 internal sealed class MigrationHelper(
     IOptions<MigrationOptions> options,
     IMigrationPlanner planner,
+    IEnumerable<IScriptProvider> scriptProviders,
     IMigrationReporter reporter,
     ICurrentSchemaProvider currentProvider,
     IDesiredSchemaProvider desiredProvider,
@@ -18,19 +20,23 @@ internal sealed class MigrationHelper(
 {
     public bool HasStore => store is not null;
 
-    public async Task<MigrationPlan> Prepare(SchemaSourceMode currentSource, bool required, CancellationToken cancellationToken = default)
+    public async Task<MigrationPlan> Plan(SchemaSourceMode currentSource, bool required, CancellationToken cancellationToken = default)
     {
         reporter.Info("Loading desired schema...");
         var desiredSchema = await desiredProvider.GetSchema(options.Value.SchemaNames, cancellationToken);
         var schemasInScope = options.Value.SchemaNames ?? desiredSchema.AllSchemaNames;
 
-        reporter.Info($"Migration plan will be scoped to the following schemas: {string.Join(", ", schemasInScope)}");
+        reporter.Info($"Migration will be scoped to the following schemas: {string.Join(", ", schemasInScope)}");
 
         reporter.Info("Loading provider schema...");
         var currentSchema = await currentProvider.GetSchema(currentSource, schemasInScope, required, cancellationToken);
 
+        reporter.Info("Loading scripts...");
+        var scriptLists = await Task.WhenAll(scriptProviders.Select(p => p.GetScripts(cancellationToken)));
+        var scripts = scriptLists.SelectMany(s => s).ToList();
+
         reporter.Info("Computing migration plan...");
-        var result = await planner.Plan(currentSchema, desiredSchema, cancellationToken);
+        var result = planner.Plan(currentSchema, desiredSchema, scripts);
         if (result.HasErrors)
         {
             reporter.ReportDiagnostics(result.Diagnostics);

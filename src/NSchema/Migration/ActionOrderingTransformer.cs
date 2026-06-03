@@ -1,6 +1,7 @@
 using System.Collections.Frozen;
-using NSchema.Migration.Plan;
-using NSchema.Schema;
+using NSchema.Plan;
+using NSchema.Plan.Model;
+using NSchema.Schema.Model;
 
 namespace NSchema.Migration;
 

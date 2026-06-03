@@ -1,6 +1,5 @@
-using NSchema.Migration;
-using NSchema.Migration.Sources;
 using NSchema.Schema;
+using NSchema.Schema.Model;
 
 namespace NSchema.Tests.Migration;
 
@@ -11,7 +10,7 @@ public sealed class DefaultDesiredSchemaProviderTests
     [Fact]
     public async Task GetSchema_NoProviders_ThrowsWithHelpfulMessage()
     {
-        var sut = new DefaultDesiredSchemaProvider([], _aggregator);
+        var sut = new DefaultDesiredSchemaProvider([], _aggregator, []);
 
         var act = () => sut.GetSchema();
 
@@ -30,12 +29,30 @@ public sealed class DefaultDesiredSchemaProviderTests
         p1.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(s1);
         p2.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(s2);
         _aggregator.Aggregate(Arg.Any<IReadOnlyList<DatabaseSchema>>()).Returns(merged);
-        var sut = new DefaultDesiredSchemaProvider([p1, p2], _aggregator);
+        var sut = new DefaultDesiredSchemaProvider([p1, p2], _aggregator, []);
 
         var result = await sut.GetSchema(null, TestContext.Current.CancellationToken);
 
         result.ShouldBe(merged);
         _aggregator.Received(1).Aggregate(Arg.Is<IReadOnlyList<DatabaseSchema>>(l => l.Count == 2));
+    }
+
+    [Fact]
+    public async Task GetSchema_AppliesTransformersAfterAggregation()
+    {
+        var aggregated = DatabaseSchema.Create([SchemaDefinition.Create("raw")]);
+        var transformed = DatabaseSchema.Create([SchemaDefinition.Create("transformed")]);
+        var provider = Substitute.For<ISchemaProvider>();
+        provider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(DatabaseSchema.Create([]));
+        _aggregator.Aggregate(Arg.Any<IReadOnlyList<DatabaseSchema>>()).Returns(aggregated);
+        var transformer = Substitute.For<ISchemaTransformer>();
+        transformer.Transform(aggregated).Returns(transformed);
+        var sut = new DefaultDesiredSchemaProvider([provider], _aggregator, [transformer]);
+
+        var result = await sut.GetSchema(null, TestContext.Current.CancellationToken);
+
+        result.ShouldBe(transformed);
+        transformer.Received(1).Transform(aggregated);
     }
 
     [Fact]
@@ -51,7 +68,7 @@ public sealed class DefaultDesiredSchemaProviderTests
         p2.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
             .Returns(call => { captured2 = call.Arg<string[]?>(); return Task.FromResult(DatabaseSchema.Create([])); });
         _aggregator.Aggregate(Arg.Any<IReadOnlyList<DatabaseSchema>>()).Returns(DatabaseSchema.Create([]));
-        var sut = new DefaultDesiredSchemaProvider([p1, p2], _aggregator);
+        var sut = new DefaultDesiredSchemaProvider([p1, p2], _aggregator, []);
 
         await sut.GetSchema(scope, TestContext.Current.CancellationToken);
 

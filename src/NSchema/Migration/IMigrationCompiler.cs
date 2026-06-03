@@ -1,4 +1,4 @@
-using NSchema.Migration.Plan;
+using NSchema.Plan.Model;
 
 namespace NSchema.Migration;
 

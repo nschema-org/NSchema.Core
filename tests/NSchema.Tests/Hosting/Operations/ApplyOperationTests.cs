@@ -2,9 +2,9 @@ using NSchema.Hosting;
 using NSchema.Hosting.Operations;
 using NSchema.Hosting.Services;
 using NSchema.Migration;
-using NSchema.Migration.Plan;
-using NSchema.Migration.Sources;
+using NSchema.Plan.Model;
 using NSchema.Schema;
+using NSchema.Schema.Model;
 using NSubstitute.ExceptionExtensions;
 
 namespace NSchema.Tests.Hosting.Operations;
@@ -26,7 +26,7 @@ public sealed class ApplyOperationTests
 
     public ApplyOperationTests()
     {
-        _helper.Prepare(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(_plan);
+        _helper.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(_plan);
         _helper.HasStore.Returns(true);
         _execution.Preview.Returns([]);
         _compiler.Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>()).Returns(_execution);
@@ -40,7 +40,7 @@ public sealed class ApplyOperationTests
     {
         await _sut.Execute(TestContext.Current.CancellationToken);
 
-        await _helper.Received(1).Prepare(SchemaSourceMode.Online, required: true, Arg.Any<CancellationToken>());
+        await _helper.Received(1).Plan(SchemaSourceMode.Online, required: true, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public sealed class ApplyOperationTests
         var sut = BuildSut(compiler: null);
 
         await Should.ThrowAsync<InvalidOperationException>(() => sut.Execute());
-        await _helper.DidNotReceive().Prepare(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+        await _helper.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
