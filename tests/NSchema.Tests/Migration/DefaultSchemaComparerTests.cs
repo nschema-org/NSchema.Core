@@ -7,7 +7,13 @@ namespace NSchema.Tests.Migration;
 
 public class DefaultSchemaComparerTests
 {
-    private readonly DefaultSchemaComparer _sut = new(NullLogger<DefaultSchemaComparer>.Instance);
+    private readonly DefaultSchemaComparer _comparer = new(NullLogger<DefaultSchemaComparer>.Instance);
+    private readonly DefaultMigrationLinearizer _linearizer = new();
+
+    // The comparer now produces a structured diff; linearizing it back to actions lets these tests keep asserting
+    // on the action contract and exercises the full comparer -> diff -> plan round trip in one go.
+    private MigrationPlan Compare(DatabaseSchema current, DatabaseSchema desired) =>
+        _linearizer.Linearize(_comparer.Compare(current, desired), desired);
 
     private static DatabaseSchema Empty() => DatabaseSchema.Create([]);
 
@@ -26,7 +32,7 @@ public class DefaultSchemaComparerTests
         var model = WithSchema("app", SimpleTable("users"));
 
         // Act
-        var result = _sut.Compare(model, model);
+        var result = Compare(model, model);
 
         // Assert
         result.Actions.ShouldBeEmpty();
@@ -40,7 +46,7 @@ public class DefaultSchemaComparerTests
         var desired = Empty();
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.IsEmpty.ShouldBeTrue();
@@ -56,7 +62,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app");
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is CreateSchema { SchemaName: "app" }).ShouldBeTrue();
@@ -70,7 +76,7 @@ public class DefaultSchemaComparerTests
         var desired = Empty();
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is DropSchema { SchemaName: "app" }).ShouldBeTrue();
@@ -84,7 +90,7 @@ public class DefaultSchemaComparerTests
         var desired = DatabaseSchema.Create([SchemaDefinition.Create("application", oldName: "app")]);
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is RenameSchema { OldName: "app", NewName: "application" }).ShouldBeTrue();
@@ -102,7 +108,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app", SimpleTable("users"));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is CreateTable { SchemaName: "app", Table.Name: "users" }).ShouldBeTrue();
@@ -116,7 +122,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app");
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is DropTable { SchemaName: "app", TableName: "users" }).ShouldBeTrue();
@@ -130,7 +136,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app", Table.Create("accounts", oldName: "users", columns: [Column.Create("id", SqlType.Int)]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is RenameTable { SchemaName: "app", OldName: "users", NewName: "accounts" }).ShouldBeTrue();
@@ -151,7 +157,7 @@ public class DefaultSchemaComparerTests
         ]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is AddColumn { TableName: "users", Column.Name: "email" }).ShouldBeTrue();
@@ -168,7 +174,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app", Table.Create("users", columns: [Column.Create("id", SqlType.Int)]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is DropColumn { TableName: "users", ColumnName: "email" }).ShouldBeTrue();
@@ -182,7 +188,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app", Table.Create("users", columns: [Column.Create("email_address", SqlType.Text, oldName: "email")]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is RenameColumn { TableName: "users", OldName: "email", NewName: "email_address" }).ShouldBeTrue();
@@ -198,7 +204,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app", Table.Create("users", columns: [Column.Create("id", SqlType.BigInt)]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is AlterColumnType act
@@ -216,7 +222,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app", Table.Create("users", columns: [Column.Create("email", SqlType.Text, isNullable: false)]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is AlterColumnNullability acn
@@ -234,7 +240,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app", Table.Create("users", columns: [Column.Create("status", SqlType.Text, defaultExpression: "'active'")]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is SetColumnDefault { TableName: "users", ColumnName: "status", OldDefault: null, NewDefault: "'active'" }).ShouldBeTrue();
@@ -251,7 +257,7 @@ public class DefaultSchemaComparerTests
             primaryKey: new PrimaryKey("pk_users", ["id"]), columns: [Column.Create("id", SqlType.Int)]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is AddPrimaryKey { TableName: "users", PrimaryKey.Name: "pk_users" }).ShouldBeTrue();
@@ -266,7 +272,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app", Table.Create("users", columns: [Column.Create("id", SqlType.Int)]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is DropPrimaryKey { TableName: "users", PrimaryKeyName: "pk_users" }).ShouldBeTrue();
@@ -280,7 +286,7 @@ public class DefaultSchemaComparerTests
             primaryKey: new PrimaryKey("pk_users", ["id"]), columns: [Column.Create("id", SqlType.Int)]));
 
         // Act
-        var result = _sut.Compare(model, model);
+        var result = Compare(model, model);
 
         // Assert
         result.Actions.Any(i => i is AddPrimaryKey or DropPrimaryKey).ShouldBeFalse();
@@ -299,7 +305,7 @@ public class DefaultSchemaComparerTests
             foreignKeys: [fk]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is AddForeignKey { ForeignKey.Name: "fk_users_org" }).ShouldBeTrue();
@@ -316,7 +322,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app", SimpleTable("users"));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is DropForeignKey { ForeignKeyName: "fk_users_org" }).ShouldBeTrue();
@@ -332,7 +338,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app", Table.Create("users", columns: [Column.Create("id", SqlType.Int)], foreignKeys: [modified]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is DropForeignKey { ForeignKeyName: "fk_users_org" }).ShouldBeTrue();
@@ -350,7 +356,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app", Table.Create("users", columns: [Column.Create("id", SqlType.Int)], indexes: [idx]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is CreateIndex { Index.Name: "ix_users_email" }).ShouldBeTrue();
@@ -365,7 +371,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app", SimpleTable("users"));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is DropIndex { IndexName: "ix_users_email" }).ShouldBeTrue();
@@ -381,7 +387,7 @@ public class DefaultSchemaComparerTests
         var desired = DatabaseSchema.Create([SchemaDefinition.Create("app", isPartial: true, tables: [SimpleTable("users")])]);
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is DropTable { TableName: "legacy" }).ShouldBeFalse();
@@ -395,7 +401,7 @@ public class DefaultSchemaComparerTests
         var desired = DatabaseSchema.Create([SchemaDefinition.Create("app", isPartial: true, tables: [SimpleTable("users"), SimpleTable("orders")])]);
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is CreateTable { Table.Name: "orders" }).ShouldBeTrue();
@@ -409,7 +415,7 @@ public class DefaultSchemaComparerTests
         var desired = DatabaseSchema.Create([SchemaDefinition.Create("app", isPartial: true, tables: [SimpleTable("users")], droppedTables: ["legacy"])]);
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is DropTable { TableName: "legacy" }).ShouldBeTrue();
@@ -423,7 +429,7 @@ public class DefaultSchemaComparerTests
         var desired = DatabaseSchema.Create([SchemaDefinition.Create("app", isPartial: true, tables: [SimpleTable("users")], droppedTables: ["nonexistent"])]);
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is DropTable { TableName: "nonexistent" }).ShouldBeFalse();
@@ -439,7 +445,7 @@ public class DefaultSchemaComparerTests
         var desired = DatabaseSchema.Create([SchemaDefinition.Create("app", comment: "Application schema")]);
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is SetSchemaComment { SchemaName: "app", OldComment: null, NewComment: "Application schema" }).ShouldBeTrue();
@@ -453,7 +459,7 @@ public class DefaultSchemaComparerTests
         var desired = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is SetSchemaComment { SchemaName: "app", OldComment: "Old comment", NewComment: null }).ShouldBeTrue();
@@ -467,7 +473,7 @@ public class DefaultSchemaComparerTests
         var desired = DatabaseSchema.Create([SchemaDefinition.Create("app", comment: "Application schema", tables: [])]);
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is SetSchemaComment { SchemaName: "app", NewComment: "Application schema" }).ShouldBeTrue();
@@ -481,7 +487,7 @@ public class DefaultSchemaComparerTests
         var desired = DatabaseSchema.Create([SchemaDefinition.Create("app", tables: [Table.Create("users", comment: "User accounts", columns: [Column.Create("id", SqlType.Int)])])]);
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is SetTableComment { TableName: "users", OldComment: null, NewComment: "User accounts" }).ShouldBeTrue();
@@ -495,7 +501,7 @@ public class DefaultSchemaComparerTests
         var desired = DatabaseSchema.Create([SchemaDefinition.Create("app", tables: [Table.Create("users", comment: "User accounts", columns: [Column.Create("id", SqlType.Int)])])]);
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is SetTableComment { TableName: "users", NewComment: "User accounts" }).ShouldBeTrue();
@@ -509,7 +515,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app", Table.Create("users", columns: [Column.Create("id", SqlType.Int, comment: "Primary key")]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is SetColumnComment { ColumnName: "id", OldComment: null, NewComment: "Primary key" }).ShouldBeTrue();
@@ -523,7 +529,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app", Table.Create("users", columns: [Column.Create("id", SqlType.Int), Column.Create("email", SqlType.Text, comment: "Email address")]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is SetColumnComment { ColumnName: "email", NewComment: "Email address" }).ShouldBeTrue();
@@ -539,7 +545,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app", Table.Create("users", columns: [Column.Create("id", SqlType.Int)], indexes: [idxWithComment]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is SetIndexComment { IndexName: "ix_users_email", OldComment: null, NewComment: "Email lookup index" }).ShouldBeTrue();
@@ -555,7 +561,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app", Table.Create("users", columns: [Column.Create("id", SqlType.Int)], indexes: [idx]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is CreateIndex { Index.Name: "ix_users_email" }).ShouldBeTrue();
@@ -572,7 +578,7 @@ public class DefaultSchemaComparerTests
         var desired = DatabaseSchema.Create([SchemaDefinition.Create("app", grants: [new SchemaGrant("reporting")])]);
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is GrantSchemaUsage { SchemaName: "app", Role: "reporting" }).ShouldBeTrue();
@@ -586,7 +592,7 @@ public class DefaultSchemaComparerTests
         var desired = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is RevokeSchemaUsage { SchemaName: "app", Role: "reporting" }).ShouldBeTrue();
@@ -600,7 +606,7 @@ public class DefaultSchemaComparerTests
         var desired = DatabaseSchema.Create([SchemaDefinition.Create("app", grants: [new SchemaGrant("app_user")])]);
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is GrantSchemaUsage { SchemaName: "app", Role: "app_user" }).ShouldBeTrue();
@@ -613,7 +619,7 @@ public class DefaultSchemaComparerTests
         var model = DatabaseSchema.Create([SchemaDefinition.Create("app", grants: [new SchemaGrant("app_user")])]);
 
         // Act
-        var result = _sut.Compare(model, model);
+        var result = Compare(model, model);
 
         // Assert
         result.Actions.Any(i => i is GrantSchemaUsage or RevokeSchemaUsage).ShouldBeFalse();
@@ -631,7 +637,7 @@ public class DefaultSchemaComparerTests
             grants: [new TableGrant("reporting", TablePrivilege.Select)]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is GrantTablePrivileges
@@ -648,7 +654,7 @@ public class DefaultSchemaComparerTests
         var desired = WithSchema("app", SimpleTable("users"));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is RevokeTablePrivileges
@@ -667,7 +673,7 @@ public class DefaultSchemaComparerTests
             grants: [new TableGrant("app_user", TablePrivilege.All)]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is RevokeTablePrivileges
@@ -685,7 +691,7 @@ public class DefaultSchemaComparerTests
             grants: [new TableGrant("app_user", TablePrivilege.All)]));
 
         // Act
-        var result = _sut.Compare(model, model);
+        var result = Compare(model, model);
 
         // Assert
         result.Actions.Any(i => i is GrantTablePrivileges or RevokeTablePrivileges).ShouldBeFalse();
@@ -701,7 +707,7 @@ public class DefaultSchemaComparerTests
             grants: [new TableGrant("app_user", TablePrivilege.All)]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is GrantTablePrivileges
@@ -722,7 +728,7 @@ public class DefaultSchemaComparerTests
                 identityOptions: new IdentityOptions(1000, 1000, 1))]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is AlterIdentitySequence ais
@@ -740,7 +746,7 @@ public class DefaultSchemaComparerTests
                 identityOptions: new IdentityOptions(1, 1, 1))]));
 
         // Act
-        var result = _sut.Compare(model, model);
+        var result = Compare(model, model);
 
         // Assert
         result.Actions.Any(i => i is AlterIdentitySequence).ShouldBeFalse();
@@ -757,7 +763,7 @@ public class DefaultSchemaComparerTests
                 identityOptions: new IdentityOptions(1, 1, 1))]));
 
         // Act
-        var result = _sut.Compare(current, desired);
+        var result = Compare(current, desired);
 
         // Assert
         result.Actions.Any(i => i is AlterIdentitySequence).ShouldBeFalse();
@@ -771,7 +777,7 @@ public class DefaultSchemaComparerTests
             comment: "App schema", tables: [Table.Create("users", comment: "Users", columns: [Column.Create("id", SqlType.Int, comment: "PK")])])]);
 
         // Act
-        var result = _sut.Compare(model, model);
+        var result = Compare(model, model);
 
         // Assert
         result.Actions.Any(i => i is SetSchemaComment or SetTableComment or SetColumnComment or SetIndexComment).ShouldBeFalse();

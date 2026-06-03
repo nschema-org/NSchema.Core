@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Options;
 using NSchema.Hosting.Services;
 using NSchema.Migration;
-using NSchema.Migration.Diff;
 using NSchema.Migration.Diff.Model;
 using NSchema.Migration.Plan;
 using NSchema.Migration.Sources;
@@ -14,14 +13,13 @@ namespace NSchema.Tests.Hosting.Services;
 public sealed class MigrationHelperTests
 {
     private readonly IMigrationPlanner _planner = Substitute.For<IMigrationPlanner>();
-    private readonly IDiffBuilder _diffBuilder = Substitute.For<IDiffBuilder>();
     private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
     private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
     private readonly IDesiredSchemaProvider _desiredProvider = Substitute.For<IDesiredSchemaProvider>();
     private readonly IOptions<MigrationOptions> _options = Options.Create(new MigrationOptions());
 
     private MigrationHelper BuildSut(ISchemaStateStore? store = null) =>
-        new(_options, _planner, _diffBuilder, _reporter, _currentProvider, _desiredProvider, store);
+        new(_options, _planner, _reporter, _currentProvider, _desiredProvider, store);
 
     private readonly MigrationHelper _sut;
 
@@ -37,11 +35,7 @@ public sealed class MigrationHelperTests
 
         _planner
             .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
-            .Returns(new MigrationPlanResult(new MigrationPlan([], DatabaseSchema.Create([])), []));
-
-        _diffBuilder
-            .Build(Arg.Any<MigrationPlan>())
-            .Returns(new MigrationDiff([], [], []));
+            .Returns(new MigrationPlanResult(new MigrationPlan([], DatabaseSchema.Create([])), new MigrationDiff([], [], []), []));
 
         _sut = BuildSut();
     }
@@ -51,14 +45,10 @@ public sealed class MigrationHelperTests
     {
         // Arrange
         var plan = new MigrationPlan([new CreateSchema("app")], DatabaseSchema.Create([]));
+        var diff = new MigrationDiff([], [], []);
         _planner
             .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
-            .Returns(new MigrationPlanResult(plan, []));
-
-        var diff = new MigrationDiff([], [], []);
-        _diffBuilder
-            .Build(plan)
-            .Returns(diff);
+            .Returns(new MigrationPlanResult(plan, diff, []));
 
         // Act
         var result = await _sut.Prepare(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);
@@ -100,7 +90,7 @@ public sealed class MigrationHelperTests
         // Arrange
         var errors = new[] { new PolicyError("P1", "msg") };
         _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
-            .Returns(new MigrationPlanResult(null, errors));
+            .Returns(new MigrationPlanResult(null, null, errors));
 
         // Act
         var act = () => _sut.Prepare(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);
@@ -118,7 +108,7 @@ public sealed class MigrationHelperTests
         var diagnostics = new[] { new PolicyError("P1", "info", PolicySeverity.Info) };
         var plan = new MigrationPlan([], DatabaseSchema.Create([]));
         _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
-            .Returns(new MigrationPlanResult(plan, diagnostics));
+            .Returns(new MigrationPlanResult(plan, new MigrationDiff([], [], []), diagnostics));
 
         var callOrder = new List<string>();
         _reporter.When(r => r.ReportDiff(Arg.Any<MigrationDiff>())).Do(_ => callOrder.Add("diff"));

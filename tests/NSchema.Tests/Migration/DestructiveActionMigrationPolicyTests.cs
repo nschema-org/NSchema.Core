@@ -25,7 +25,7 @@ public class DestructiveActionMigrationPolicyTests
         _options.Value.DestructiveActionPolicy = DestructiveActionPolicy.Error;
 
         // Act
-        var errors = _sut.Validate(TestData.DestructivePlan).ToList();
+        var errors = _sut.Validate(TestData.DestructiveDiff).ToList();
 
         // Assert
         errors.ShouldHaveSingleItem();
@@ -41,7 +41,7 @@ public class DestructiveActionMigrationPolicyTests
         _options.Value.DestructiveActionPolicy = DestructiveActionPolicy.Allow;
 
         // Act
-        var results = _sut.Validate(TestData.DestructivePlan).ToList();
+        var results = _sut.Validate(TestData.DestructiveDiff).ToList();
 
         // Assert
         results.ShouldHaveSingleItem();
@@ -55,7 +55,7 @@ public class DestructiveActionMigrationPolicyTests
         _options.Value.DestructiveActionPolicy = DestructiveActionPolicy.Warn;
 
         // Act
-        var results = _sut.Validate(TestData.DestructivePlan).ToList();
+        var results = _sut.Validate(TestData.DestructiveDiff).ToList();
 
         // Assert
         results.ShouldHaveSingleItem();
@@ -70,7 +70,7 @@ public class DestructiveActionMigrationPolicyTests
         _options.Value.DestructiveActionPolicy = DestructiveActionPolicy.Error;
 
         // Act
-        var results = _sut.Validate(TestData.NonDestructivePlan).ToList();
+        var results = _sut.Validate(TestData.NonDestructiveDiff).ToList();
 
         // Assert
         results.ShouldBeEmpty();
@@ -80,11 +80,11 @@ public class DestructiveActionMigrationPolicyTests
     public void Validate_WhenPolicyIsError_ReturnsOneErrorPerDestructiveActionType()
     {
         // Arrange
-        var plan = new MigrationPlan([TestData.DestructiveAction, TestData.DestructiveAction], DatabaseSchema.Create([]));
+        var diff = TestData.DiffWithDroppedTables("users", "accounts");
         _options.Value.DestructiveActionPolicy = DestructiveActionPolicy.Error;
 
         // Act
-        var errors = _sut.Validate(plan).ToList();
+        var errors = _sut.Validate(diff).ToList();
 
         // Assert
         errors.Count.ShouldBe(1);

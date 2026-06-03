@@ -1,9 +1,10 @@
 namespace NSchema.Migration.Diff.Model;
 
 /// <summary>
-/// A structured, hierarchical view of a <see cref="Plan.MigrationPlan"/>, arranged as schemas
-/// containing tables containing columns, indexes, constraints and grants. This is the intermediate
-/// model produced by <see cref="IDiffBuilder"/> and consumed by <see cref="IDiffRenderer"/>.
+/// A structured, hierarchical view of the changes between two schemas, arranged as schemas
+/// containing tables containing columns, indexes, constraints and grants. This is produced directly by
+/// <see cref="Migration.ISchemaComparer"/>, consumed by <see cref="IDiffRenderer"/> for display, and
+/// linearized into an executable <see cref="Plan.MigrationPlan"/> by <see cref="Migration.IMigrationLinearizer"/>.
 /// </summary>
 /// <param name="Schemas">The changed schemas, ordered by name.</param>
 /// <param name="PreDeploymentScripts">Names of pre-deployment scripts to run, in plan order.</param>

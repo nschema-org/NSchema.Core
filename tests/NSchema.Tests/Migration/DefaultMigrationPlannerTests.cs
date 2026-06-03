@@ -1,4 +1,6 @@
 using NSchema.Migration;
+using NSchema.Migration.Diff;
+using NSchema.Migration.Diff.Model;
 using NSchema.Migration.Plan;
 using NSchema.Policies;
 using NSchema.Schema;
@@ -8,24 +10,34 @@ namespace NSchema.Tests.Migration;
 public sealed class DefaultMigrationPlannerTests
 {
     private static readonly DatabaseSchema _emptySchema = DatabaseSchema.Create([]);
+    private static readonly MigrationDiff _emptyDiff = new([], [], []);
 
     private readonly List<IScriptProvider> _scripts = [];
     private readonly ISchemaComparer _comparer = Substitute.For<ISchemaComparer>();
+    private readonly IMigrationLinearizer _linearizer = Substitute.For<IMigrationLinearizer>();
+    private readonly List<ISchemaTransformer> _schemaTransformers = [];
     private readonly List<ISchemaPolicy> _schemaPolicies = [];
+    private readonly List<IDiffTransformer> _diffTransformers = [];
+    private readonly List<IDiffPolicy> _diffPolicies = [];
     private readonly List<IMigrationPlanTransformer> _transformers = [];
     private readonly List<IMigrationPolicy> _migrationPolicies = [];
 
     private DefaultMigrationPlanner Sut => new(
         _scripts,
         _comparer,
+        _linearizer,
+        _schemaTransformers,
         _schemaPolicies,
+        _diffTransformers,
+        _diffPolicies,
         _transformers,
         _migrationPolicies
     );
 
     public DefaultMigrationPlannerTests()
     {
-        _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>())
+        _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(_emptyDiff);
+        _linearizer.Linearize(Arg.Any<MigrationDiff>(), Arg.Any<DatabaseSchema>())
             .Returns(call => new MigrationPlan([], call.ArgAt<DatabaseSchema>(1)));
     }
 
@@ -42,6 +54,7 @@ public sealed class DefaultMigrationPlannerTests
 
         // Assert
         result.Plan.ShouldBeNull();
+        result.Diff.ShouldBeNull();
         result.Diagnostics.ShouldHaveSingleItem();
         result.Diagnostics[0].Message.ShouldBe("broken");
         result.Diagnostics[0].Severity.ShouldBe(PolicySeverity.Error);
@@ -77,11 +90,29 @@ public sealed class DefaultMigrationPlannerTests
     }
 
     [Fact]
+    public async Task Plan_AppliesSchemaTransformersBeforeComparing()
+    {
+        // Arrange
+        var current = DatabaseSchema.Create([SchemaDefinition.Create("current")]);
+        var desired = DatabaseSchema.Create([SchemaDefinition.Create("desired")]);
+        var transformed = DatabaseSchema.Create([SchemaDefinition.Create("transformed")]);
+        var transformer = Substitute.For<ISchemaTransformer>();
+        transformer.Transform(desired).Returns(transformed);
+        _schemaTransformers.Add(transformer);
+
+        // Act
+        await Sut.Plan(current, desired, TestContext.Current.CancellationToken);
+
+        // Assert
+        _comparer.Received(1).Compare(current, transformed);
+    }
+
+    [Fact]
     public async Task Plan_InjectsPreAndPostDeploymentScriptsAroundActions()
     {
         // Arrange
         var coreAction = new CreateSchema("app");
-        _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>())
+        _linearizer.Linearize(Arg.Any<MigrationDiff>(), Arg.Any<DatabaseSchema>())
             .Returns(call => new MigrationPlan([coreAction], call.ArgAt<DatabaseSchema>(1)));
         var scripts = Substitute.For<IScriptProvider>();
         scripts.GetScripts(Arg.Any<CancellationToken>())
@@ -103,11 +134,32 @@ public sealed class DefaultMigrationPlannerTests
     }
 
     [Fact]
+    public async Task Plan_ScriptNamesAreCarriedOntoTheDiff()
+    {
+        // Arrange
+        var scripts = Substitute.For<IScriptProvider>();
+        scripts.GetScripts(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<Script>>([
+                new Script("pre", "SELECT 1", ScriptType.PreDeployment),
+                new Script("post", "SELECT 2", ScriptType.PostDeployment),
+            ]));
+        _scripts.Add(scripts);
+
+        // Act
+        var result = await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Diff.ShouldNotBeNull();
+        result.Diff.PreDeploymentScripts.ShouldBe(["pre"]);
+        result.Diff.PostDeploymentScripts.ShouldBe(["post"]);
+    }
+
+    [Fact]
     public async Task Plan_NoScriptProviders_DoesNotAlterPlan()
     {
         // Arrange
         var coreAction = new CreateSchema("app");
-        _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>())
+        _linearizer.Linearize(Arg.Any<MigrationDiff>(), Arg.Any<DatabaseSchema>())
             .Returns(call => new MigrationPlan([coreAction], call.ArgAt<DatabaseSchema>(1)));
 
         // Act
@@ -117,6 +169,39 @@ public sealed class DefaultMigrationPlannerTests
         result.Plan.ShouldNotBeNull();
         result.Plan.Actions.ShouldHaveSingleItem();
         result.Plan.Actions[0].ShouldBe(coreAction);
+    }
+
+    [Fact]
+    public async Task Plan_AppliesDiffTransformersBeforeLinearizing()
+    {
+        // Arrange
+        var transformed = new MigrationDiff([new SchemaDiff("app", ChangeKind.Add, null, null, [], [])], [], []);
+        var transformer = Substitute.For<IDiffTransformer>();
+        transformer.Transform(_emptyDiff).Returns(transformed);
+        _diffTransformers.Add(transformer);
+
+        // Act
+        await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
+
+        // Assert
+        _linearizer.Received(1).Linearize(transformed, Arg.Any<DatabaseSchema>());
+    }
+
+    [Fact]
+    public async Task Plan_RunsDiffPoliciesAgainstTheDiff()
+    {
+        // Arrange
+        var policy = Substitute.For<IDiffPolicy>();
+        policy.Validate(_emptyDiff).Returns([new PolicyError("Test", "destructive")]);
+        _diffPolicies.Add(policy);
+
+        // Act
+        var result = await Sut.Plan(_emptySchema, _emptySchema, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Diagnostics.ShouldHaveSingleItem();
+        result.Diagnostics[0].Message.ShouldBe("destructive");
+        policy.Received(1).Validate(_emptyDiff);
     }
 
     [Fact]

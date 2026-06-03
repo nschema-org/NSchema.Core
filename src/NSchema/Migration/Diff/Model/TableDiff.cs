@@ -1,3 +1,5 @@
+using NSchema.Schema;
+
 namespace NSchema.Migration.Diff.Model;
 
 /// <summary>
@@ -12,6 +14,11 @@ namespace NSchema.Migration.Diff.Model;
 /// <param name="Grants">Privileges granted or revoked on the table.</param>
 /// <param name="Indexes">Index changes on the table.</param>
 /// <param name="Constraints">Primary and foreign key changes on the table.</param>
+/// <param name="Definition">
+/// The full table definition when the table is being created (<see cref="ChangeKind.Add"/>); otherwise
+/// <see langword="null"/>. Carries the primary key and column definitions needed to emit a single
+/// <c>CREATE TABLE</c>, so the linearizer can reconstruct the create action without re-deriving them.
+/// </param>
 public sealed record TableDiff(
     string Schema,
     string Name,
@@ -21,4 +28,5 @@ public sealed record TableDiff(
     IReadOnlyList<ColumnDiff> Columns,
     IReadOnlyList<GrantChange> Grants,
     IReadOnlyList<IndexDiff> Indexes,
-    IReadOnlyList<ConstraintDiff> Constraints);
+    IReadOnlyList<ConstraintDiff> Constraints,
+    Table? Definition = null);

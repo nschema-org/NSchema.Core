@@ -90,9 +90,9 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
     {
         services.TryAddSingleton<ISchemaStateSerializer, DefaultSchemaStateSerializer>();
         services.TryAddSingleton<IMigrationReporter>(sp => new DefaultMigrationReporter(Console.Out, Console.Error, sp.GetRequiredService<IDiffRenderer>()));
-        services.TryAddSingleton<IDiffBuilder, DefaultDiffBuilder>();
         services.TryAddSingleton<IDiffRenderer, TerraformDiffRenderer>();
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
+        services.TryAddSingleton<IMigrationLinearizer, DefaultMigrationLinearizer>();
         services.TryAddSingleton<ISchemaAggregator, DefaultSchemaAggregator>();
         services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
         services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();
@@ -115,8 +115,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
             services.TryAddSingleton<IMigrationCompiler, SqlMigrationCompiler>();
         }
 
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IMigrationPlanTransformer, ActionOrderingTransformer>());
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IMigrationPolicy, DestructiveActionMigrationPolicy>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IDiffPolicy, DestructiveActionMigrationPolicy>());
 
         // This is the service responsible for running the migration.
         services.AddHostedService<NSchemaHost>();

@@ -1,19 +1,21 @@
 using System.Diagnostics.CodeAnalysis;
+using NSchema.Migration.Diff.Model;
 using NSchema.Migration.Plan;
 using NSchema.Policies;
 
 namespace NSchema.Migration;
 
 /// <summary>
-/// The result of a planning pass: the computed plan plus all policy diagnostics.
+/// The result of a planning pass: the computed plan, its structured diff, and all policy diagnostics.
 /// </summary>
-public sealed record MigrationPlanResult(MigrationPlan? Plan, IReadOnlyList<PolicyError> Diagnostics)
+public sealed record MigrationPlanResult(MigrationPlan? Plan, MigrationDiff? Diff, IReadOnlyList<PolicyError> Diagnostics)
 {
     /// <summary>
     /// True when <see cref="Diagnostics"/> contains at least one error-severity finding.
-    /// When false, <see cref="Plan"/> is guaranteed non-null.
+    /// When false, both <see cref="Plan"/> and <see cref="Diff"/> are guaranteed non-null.
     /// </summary>
     [MemberNotNullWhen(false, nameof(Plan))]
+    [MemberNotNullWhen(false, nameof(Diff))]
     public bool HasErrors => Errors.Any();
 
     /// <summary>

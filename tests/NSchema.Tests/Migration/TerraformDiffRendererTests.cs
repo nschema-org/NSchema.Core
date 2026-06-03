@@ -1,15 +1,13 @@
 using Microsoft.Extensions.Options;
 using NSchema.Migration.Diff;
 using NSchema.Migration.Diff.Model;
-using NSchema.Migration.Plan;
-using NSchema.Schema;
 
 namespace NSchema.Tests.Migration;
 
 public class TerraformDiffRendererTests
 {
     private static MigrationDiff Diff() =>
-        new DefaultDiffBuilder().Build(new MigrationPlan([new CreateSchema("app")], DatabaseSchema.Create([])));
+        new([new SchemaDiff("app", ChangeKind.Add, null, null, [], [])], [], []);
 
     private static TerraformDiffRenderer Renderer(bool includeColour) =>
         new(Options.Create(new TerraformDiffRendererOptions { IncludeColour = includeColour }));

@@ -76,4 +76,39 @@ public partial class NSchemaApplicationBuilder
     /// <typeparam name="T">The type whose containing assembly will be scanned for migration policies.</typeparam>
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddMigrationPoliciesFromAssemblyContaining<T>() => AddMigrationPoliciesFromAssembly(typeof(T).Assembly);
+
+    /// <summary>
+    /// Adds a policy to the application that will be used to validate the structured diff before it is executed.
+    /// </summary>
+    /// <typeparam name="T">The type of the policy to add.</typeparam>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder AddDiffPolicy<T>() where T : class, IDiffPolicy
+    {
+        var descriptor = new ServiceDescriptor(typeof(IDiffPolicy), typeof(T), ServiceLifetime.Singleton);
+        Services.TryAddEnumerable(descriptor);
+        return this;
+    }
+
+    /// <summary>
+    /// Adds all concrete types that implement <see cref="IDiffPolicy"/> to the application from the specified assembly.
+    /// </summary>
+    /// <param name="assembly">The assembly to scan for diff policies.</param>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder AddDiffPoliciesFromAssembly(Assembly assembly)
+    {
+        var types = assembly.GetTypes()
+            .Where(t => t is { IsAbstract: false, IsInterface: false } && typeof(IDiffPolicy).IsAssignableFrom(t));
+        foreach (var type in types)
+        {
+            Services.TryAddEnumerable(new ServiceDescriptor(typeof(IDiffPolicy), type, ServiceLifetime.Singleton));
+        }
+        return this;
+    }
+
+    /// <summary>
+    /// Adds all concrete types that implement <see cref="IDiffPolicy"/> to the application from the assembly containing the specified type.
+    /// </summary>
+    /// <typeparam name="T">The type whose containing assembly will be scanned for diff policies.</typeparam>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder AddDiffPoliciesFromAssemblyContaining<T>() => AddDiffPoliciesFromAssembly(typeof(T).Assembly);
 }

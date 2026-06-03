@@ -74,7 +74,6 @@ Call `app.Plan()` / `app.Apply()` / `app.Refresh()` explicitly, or configure the
 - **[Concepts](docs/concepts.md).** The domain model, the pipeline, and how the pieces fit together.
 - **[Extension points](docs/extension-points.md).** Every interface you can swap or extend, and how to register it.
 - **[Samples](samples/).** Complete sample applications and reference implementations.
-- **[Roadmap](docs/roadmap.md).** Planned features and improvements.
 
 ## License
 
