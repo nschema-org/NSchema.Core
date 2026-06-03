@@ -25,9 +25,16 @@ internal sealed class DefaultMigrationReporter(TextWriter output, TextWriter err
     public void ReportPreview(IReadOnlyList<string> statements)
     {
         output.WriteLine("SQL Preview:");
-        foreach (var statement in statements)
+        if (statements.Count == 0)
         {
-            output.WriteLine(statement);
+            output.WriteLine("- No statements to execute");
+        }
+        else
+        {
+            foreach (var statement in statements)
+            {
+                output.WriteLine(statement);
+            }
         }
     }
 

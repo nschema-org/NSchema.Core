@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NSchema.Hosting;
 using NSchema.Hosting.Operations;
+using NSchema.Hosting.Services;
 using NSchema.Migration;
 using NSchema.Migration.Sql;
 using NSchema.Policies;
@@ -91,6 +92,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IDesiredSchemaProvider, DefaultDesiredSchemaProvider>();
         services.TryAddSingleton<IMigrationConfirmation, AutoApproveConfirmation>();
         services.TryAddSingleton<MigrationOperationResult>();
+        services.TryAddSingleton<IMigrationHelper, MigrationHelper>();
 
         services.TryAddKeyedSingleton<IMigrationOperation, PlanOperation>(MigrationOperation.Plan);
         services.TryAddKeyedSingleton<IMigrationOperation, ApplyOperation>(MigrationOperation.Apply);
