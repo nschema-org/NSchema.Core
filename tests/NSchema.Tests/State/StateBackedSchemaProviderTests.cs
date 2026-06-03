@@ -15,7 +15,7 @@ public sealed class StateBackedSchemaProviderTests
         var sut = new StateBackedSchemaProvider(_store);
 
         // Act
-        var result = await sut.GetSchema();
+        var result = await sut.GetSchema(null, TestContext.Current.CancellationToken);
 
         // Assert: an empty schema makes a first-run plan show a full create.
         result.Schemas.ShouldBeEmpty();
@@ -31,7 +31,7 @@ public sealed class StateBackedSchemaProviderTests
         var sut = new StateBackedSchemaProvider(_store);
 
         // Act
-        var result = await sut.GetSchema();
+        var result = await sut.GetSchema(null, TestContext.Current.CancellationToken);
 
         // Assert: an unscoped read returns the persisted schema unchanged (by value).
         result.ShouldBe(persisted);
@@ -46,7 +46,7 @@ public sealed class StateBackedSchemaProviderTests
         var sut = new StateBackedSchemaProvider(_store);
 
         // Act
-        var result = await sut.GetSchema([]);
+        var result = await sut.GetSchema([], TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBe(persisted);
@@ -67,7 +67,7 @@ public sealed class StateBackedSchemaProviderTests
         var sut = new StateBackedSchemaProvider(_store);
 
         // Act
-        var result = await sut.GetSchema(["my_schema"]);
+        var result = await sut.GetSchema(["my_schema"], TestContext.Current.CancellationToken);
 
         // Assert
         result.Schemas.Select(s => s.Name).ShouldBe(["my_schema"]);
@@ -82,7 +82,7 @@ public sealed class StateBackedSchemaProviderTests
         var sut = new StateBackedSchemaProvider(_store);
 
         // Act
-        var result = await sut.GetSchema(["my_schema"]);
+        var result = await sut.GetSchema(["my_schema"], TestContext.Current.CancellationToken);
 
         // Assert
         result.Schemas.Select(s => s.Name).ShouldBe(["My_Schema"]);

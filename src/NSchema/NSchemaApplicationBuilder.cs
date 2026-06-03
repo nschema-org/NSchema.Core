@@ -8,6 +8,8 @@ using NSchema.Hosting;
 using NSchema.Hosting.Operations;
 using NSchema.Hosting.Services;
 using NSchema.Migration;
+using NSchema.Migration.Diff;
+using NSchema.Migration.Sources;
 using NSchema.Migration.Sql;
 using NSchema.Policies;
 using NSchema.State;
@@ -43,6 +45,10 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         _innerBuilder.Services.AddOptions<MigrationOptions>();
         _innerBuilder.Services.AddOptions<MigrationRunOptions>();
         _innerBuilder.Services.AddOptions<SqlExecutorOptions>();
+
+        _innerBuilder.Services
+            .AddOptions<TerraformDiffRendererOptions>()
+            .Configure(o => o.IncludeColour = EnvironmentHelpers.SupportsColor);
     }
 
     /// <inheritdoc />
@@ -83,8 +89,9 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
     private static void ApplyServices(IServiceCollection services)
     {
         services.TryAddSingleton<ISchemaStateSerializer, DefaultSchemaStateSerializer>();
-        services.TryAddSingleton<IMigrationReporter>(sp => new DefaultMigrationReporter(Console.Out, Console.Error, sp.GetRequiredService<IMigrationPlanRenderer>()));
-        services.TryAddSingleton<IMigrationPlanRenderer, DefaultMigrationPlanRenderer>();
+        services.TryAddSingleton<IMigrationReporter>(sp => new DefaultMigrationReporter(Console.Out, Console.Error, sp.GetRequiredService<IDiffRenderer>()));
+        services.TryAddSingleton<IDiffBuilder, DefaultDiffBuilder>();
+        services.TryAddSingleton<IDiffRenderer, TerraformDiffRenderer>();
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
         services.TryAddSingleton<ISchemaAggregator, DefaultSchemaAggregator>();
         services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();

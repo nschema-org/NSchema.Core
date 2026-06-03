@@ -1,5 +1,6 @@
 using NSchema.Migration;
-using NSchema.Migration.Plan;
+using NSchema.Migration.Diff;
+using NSchema.Migration.Diff.Model;
 using NSchema.Policies;
 
 namespace NSchema.Hosting;
@@ -9,16 +10,17 @@ namespace NSchema.Hosting;
 /// </summary>
 /// <param name="output">The writer for informational output (typically stdout).</param>
 /// <param name="error">The writer for errors and warnings (typically stderr).</param>
-/// <param name="planRenderer">Renders the migration plan as a human-readable diff.</param>
-internal sealed class DefaultMigrationReporter(TextWriter output, TextWriter error, IMigrationPlanRenderer planRenderer) : IMigrationReporter
+/// <param name="diffRenderer">Renders the migration diff as human-readable text.</param>
+internal sealed class DefaultMigrationReporter(TextWriter output, TextWriter error, IDiffRenderer diffRenderer) : IMigrationReporter
 {
     public void Info(string message) => output.WriteLine(message);
 
     public void Error(string message) => error.WriteLine(message);
 
-    public void ReportPlan(MigrationPlan plan)
+    public void ReportDiff(MigrationDiff diff)
     {
-        output.WriteLine(planRenderer.Render(plan));
+        var renderer = diffRenderer.Render(diff);
+        output.WriteLine(renderer);
         output.WriteLine();
     }
 

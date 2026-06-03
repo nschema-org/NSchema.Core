@@ -6,10 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+This release moves NSchema closer to having a functional CLI, so I've improved the reporting and plan rendering, and added some control features like an interactive hook and exception-handling options.
+
+The core happy path of planning and applying migrations is unchanged, so library users shouldn't encounter any of the breaking changes.
+
 ### Added
 
 - A new `IMigrationConfirmation` interface in `NSchema.Hosting` that can be used to seek confirmation before applying a migration. This is intended for interactive scenarios (e.g. CLI) where the user can review the plan and confirm before proceeding.
 - Exception handling can now be controlled via `MigrationRunOptions.ExceptionBehavior` or `NSchemaApplicationBuilder.WithExceptionBehavior(...)`. The default behavior is preserved: exceptions will be reported to the `IMigrationReporter` and then re-thrown.
+- A structured, hierarchical diff model (`MigrationDiff` in `NSchema.Migration.Diff.Model`) and a new `IDiffRenderer` interface to render it to text. Alternative output formats (e.g. machine-readable JSON) can now be added by registering a custom `IDiffRenderer`, without touching the diffing logic.
+- `UseTerraformRenderer(...)` to configure the default Terraform-style renderer.
+
+### Changed
+
+- Migration reporting messages have been overhauled to be more informative.
+- The `IMigrationReporter` now logs directly to the console instead of using `ILogger`. This removes some hacky wiring around segregating logging sinks by category.
+- **Breaking:** `IMigrationReporter`'s `ReportPlan(MigrationPlan)` has been replaced by `ReportDiff(MigrationDiff)`. The plan is converted to a structured diff before it is reported.
+- **Breaking:** Schema-source types (`ISchemaProvider`, `ICurrentSchemaProvider`, `IDesiredSchemaProvider`, `ISchemaAggregator`, `FileSchemaProvider`, `SchemaSourceMode`) moved to `NSchema.Migration.Sources`,
+- **Breaking:** The `DestructiveActionPolicy` enum moved to `NSchema.Policies`, alongside the policy abstractions it configures.
+
+### Removed
+
+- **Breaking:** `IMigrationPlanRenderer`. Plan output now flows through `IDiffRenderer` (diff → text); register a custom `IDiffRenderer` or call `UseTerraformRenderer(...)` instead.
 
 ### Changed
 

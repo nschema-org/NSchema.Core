@@ -1,10 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
-using NSchema.Migration;
 using NSchema.Schema;
 
-namespace NSchema.Json;
+namespace NSchema.Migration.Sources;
 
 /// <summary>
 /// An <see cref="ISchemaProvider"/> that loads the desired schema from a JSON file.

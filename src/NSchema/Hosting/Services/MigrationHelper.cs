@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Options;
 using NSchema.Migration;
+using NSchema.Migration.Diff;
 using NSchema.Migration.Plan;
+using NSchema.Migration.Sources;
 using NSchema.Policies;
 using NSchema.State;
 
@@ -9,6 +11,7 @@ namespace NSchema.Hosting.Services;
 internal sealed class MigrationHelper(
     IOptions<MigrationOptions> options,
     IMigrationPlanner planner,
+    IDiffBuilder diffBuilder,
     IMigrationReporter reporter,
     ICurrentSchemaProvider currentProvider,
     IDesiredSchemaProvider desiredProvider,
@@ -36,7 +39,8 @@ internal sealed class MigrationHelper(
             throw new PolicyViolationException(result.Errors.ToList());
         }
 
-        reporter.ReportPlan(result.Plan);
+        var diff = diffBuilder.Build(result.Plan);
+        reporter.ReportDiff(diff);
         reporter.ReportDiagnostics(result.Diagnostics);
 
         return result.Plan;

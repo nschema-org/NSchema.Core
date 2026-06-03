@@ -1,6 +1,6 @@
 using NSchema.Schema;
 
-namespace NSchema.Migration;
+namespace NSchema.Migration.Sources;
 
 /// <summary>
 /// Provides the aggregated desired database schema from all registered <see cref="ISchemaProvider"/> instances.

@@ -21,7 +21,7 @@ public sealed class DefaultSqlExecutorTests : IAsyncLifetime
         _sut = new DefaultSqlExecutor(_dataSource, _options);
     }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         await Exec($"""CREATE SCHEMA "{_schema}" """);
         await Exec($"""CREATE TABLE "{_schema}"."t" (id int)""");
@@ -34,7 +34,7 @@ public sealed class DefaultSqlExecutorTests : IAsyncLifetime
         var plan = new SqlPlan([]);
 
         // Act
-        await _sut.Execute(plan);
+        await _sut.Execute(plan, TestContext.Current.CancellationToken);
 
         // Assert
         (await RowCount()).ShouldBe(0);
@@ -51,7 +51,7 @@ public sealed class DefaultSqlExecutorTests : IAsyncLifetime
         ]);
 
         // Act
-        await _sut.Execute(plan);
+        await _sut.Execute(plan, TestContext.Current.CancellationToken);
 
         // Assert
         (await RowCount()).ShouldBe(2);
@@ -118,7 +118,7 @@ public sealed class DefaultSqlExecutorTests : IAsyncLifetime
         (await RowCount()).ShouldBe(2);
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         await Exec($"""DROP SCHEMA IF EXISTS "{_schema}" CASCADE""");
     }

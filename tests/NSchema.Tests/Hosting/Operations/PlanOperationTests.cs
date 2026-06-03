@@ -2,6 +2,7 @@ using NSchema.Hosting.Operations;
 using NSchema.Hosting.Services;
 using NSchema.Migration;
 using NSchema.Migration.Plan;
+using NSchema.Migration.Sources;
 using NSchema.Schema;
 
 namespace NSchema.Tests.Hosting.Operations;
@@ -31,7 +32,7 @@ public sealed class PlanOperationTests
     [Fact]
     public async Task Execute_PreparesPlanFromOfflineSource()
     {
-        await _sut.Execute();
+        await _sut.Execute(TestContext.Current.CancellationToken);
 
         await _helper.Received(1).Prepare(SchemaSourceMode.Offline, required: false, Arg.Any<CancellationToken>());
     }
@@ -39,7 +40,7 @@ public sealed class PlanOperationTests
     [Fact]
     public async Task Execute_CompilesButDoesNotExecute()
     {
-        await _sut.Execute();
+        await _sut.Execute(TestContext.Current.CancellationToken);
 
         await _compiler.Received(1).Compile(_plan, Arg.Any<CancellationToken>());
         await _execution.DidNotReceive().Execute(Arg.Any<CancellationToken>());
@@ -50,7 +51,7 @@ public sealed class PlanOperationTests
     {
         _execution.Preview.Returns(["CREATE SCHEMA app"]);
 
-        await _sut.Execute();
+        await _sut.Execute(TestContext.Current.CancellationToken);
 
         _reporter.Received(1).ReportPreview(Arg.Is<IReadOnlyList<string>>(p => p.SequenceEqual(new[] { "CREATE SCHEMA app" })));
     }
@@ -60,7 +61,7 @@ public sealed class PlanOperationTests
     {
         var sut = BuildSut(compiler: null);
 
-        await sut.Execute();
+        await sut.Execute(TestContext.Current.CancellationToken);
 
         await _helper.Received(1).Prepare(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
         _reporter.DidNotReceive().ReportPreview(Arg.Any<IReadOnlyList<string>>());

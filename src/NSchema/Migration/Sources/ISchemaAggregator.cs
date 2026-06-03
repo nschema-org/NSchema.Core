@@ -1,6 +1,6 @@
 using NSchema.Schema;
 
-namespace NSchema.Migration;
+namespace NSchema.Migration.Sources;
 
 /// <summary>
 /// Defines a contract for aggregating multiple database schemas into a single consolidated schema representation.

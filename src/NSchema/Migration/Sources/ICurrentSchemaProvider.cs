@@ -1,6 +1,6 @@
 using NSchema.Schema;
 
-namespace NSchema.Migration;
+namespace NSchema.Migration.Sources;
 
 /// <summary>
 /// Provides the current database schema, with optional online (live database) and offline (persisted snapshot) sources.

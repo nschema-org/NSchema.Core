@@ -27,7 +27,7 @@ public sealed class SqlMigrationCompilerTests
         var plan = EmptyMigrationPlan();
 
         // Act
-        await _sut.Compile(plan);
+        await _sut.Compile(plan, TestContext.Current.CancellationToken);
 
         // Assert
         _sqlPlanner.Received(1).Plan(plan);
@@ -39,7 +39,7 @@ public sealed class SqlMigrationCompilerTests
         // Arrange
 
         // Act
-        await _sut.Compile(EmptyMigrationPlan());
+        await _sut.Compile(EmptyMigrationPlan(), TestContext.Current.CancellationToken);
 
         // Assert
         await _sqlExecutor.DidNotReceive().Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>());
@@ -56,7 +56,7 @@ public sealed class SqlMigrationCompilerTests
         _sqlPlanner.Plan(Arg.Any<MigrationPlan>()).Returns(sqlPlan);
 
         // Act
-        var execution = await _sut.Compile(EmptyMigrationPlan());
+        var execution = await _sut.Compile(EmptyMigrationPlan(), TestContext.Current.CancellationToken);
 
         // Assert
         execution.Preview.ShouldBe(["CREATE SCHEMA app", "CREATE TABLE app.users (id int)"]);
@@ -70,8 +70,8 @@ public sealed class SqlMigrationCompilerTests
         _sqlPlanner.Plan(Arg.Any<MigrationPlan>()).Returns(sqlPlan);
 
         // Act
-        var execution = await _sut.Compile(EmptyMigrationPlan());
-        await execution.Execute();
+        var execution = await _sut.Compile(EmptyMigrationPlan(), TestContext.Current.CancellationToken);
+        await execution.Execute(TestContext.Current.CancellationToken);
 
         // Assert
         await _sqlExecutor.Received(1).Execute(sqlPlan, Arg.Any<CancellationToken>());
@@ -85,7 +85,7 @@ public sealed class SqlMigrationCompilerTests
         var token = cts.Token;
 
         // Act
-        var execution = await _sut.Compile(EmptyMigrationPlan());
+        var execution = await _sut.Compile(EmptyMigrationPlan(), TestContext.Current.CancellationToken);
         await execution.Execute(token);
 
         // Assert
@@ -100,7 +100,7 @@ public sealed class SqlMigrationCompilerTests
             .ThrowsAsync(new InvalidOperationException("boom"));
 
         // Act
-        var execution = await _sut.Compile(EmptyMigrationPlan());
+        var execution = await _sut.Compile(EmptyMigrationPlan(), TestContext.Current.CancellationToken);
         var act = () => execution.Execute();
 
         // Assert

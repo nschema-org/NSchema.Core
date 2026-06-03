@@ -1,4 +1,4 @@
-namespace NSchema.Migration;
+namespace NSchema.Policies;
 
 /// <summary>
 /// Defines policies for handling destructive actions during database schema migrations.

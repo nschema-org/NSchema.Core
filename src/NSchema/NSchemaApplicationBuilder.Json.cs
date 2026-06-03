@@ -1,4 +1,4 @@
-using NSchema.Json;
+using NSchema.Migration.Sources;
 
 namespace NSchema;
 

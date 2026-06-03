@@ -35,7 +35,7 @@ public sealed class FileSchemaStateStoreTests : IDisposable
         var sut = new FileSchemaStateStore(_options, _serializer);
 
         // Act
-        var result = await sut.Read();
+        var result = await sut.Read(TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBeNull();
@@ -48,7 +48,7 @@ public sealed class FileSchemaStateStoreTests : IDisposable
         var sut = new FileSchemaStateStore(_options, _serializer);
 
         // Act
-        await sut.Write(SampleSchema());
+        await sut.Write(SampleSchema(), TestContext.Current.CancellationToken);
 
         // Assert
         File.Exists(_path).ShouldBeTrue();
@@ -62,8 +62,8 @@ public sealed class FileSchemaStateStoreTests : IDisposable
         var original = SampleSchema();
 
         // Act
-        await sut.Write(original);
-        var result = await sut.Read();
+        await sut.Write(original, TestContext.Current.CancellationToken);
+        var result = await sut.Read(TestContext.Current.CancellationToken);
 
         // Assert: compare via the serializer, since the domain records don't all define structural equality.
         result.ShouldNotBeNull();

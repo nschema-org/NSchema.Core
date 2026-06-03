@@ -1,6 +1,6 @@
 using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
-using NSchema.Migration;
+using NSchema.Migration.Sources;
 
 namespace NSchema;
 

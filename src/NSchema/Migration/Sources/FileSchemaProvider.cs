@@ -1,6 +1,6 @@
 using NSchema.Schema;
 
-namespace NSchema.Migration;
+namespace NSchema.Migration.Sources;
 
 /// <summary>
 /// Base class for an <see cref="ISchemaProvider"/> that loads the desired schema from a single file.
