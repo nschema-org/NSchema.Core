@@ -15,6 +15,7 @@ internal sealed class MigrationHelper(
     IMigrationReporter reporter,
     ICurrentSchemaProvider currentProvider,
     IDesiredSchemaProvider desiredProvider,
+    IEnumerable<ISchemaPolicy> schemaPolicies,
     ISchemaStateStore? store = null
 ) : IMigrationHelper
 {
@@ -25,6 +26,15 @@ internal sealed class MigrationHelper(
         reporter.Info("Loading desired schema...");
         var desiredSchema = await desiredProvider.GetSchema(options.Value.SchemaNames, cancellationToken);
         var schemasInScope = options.Value.SchemaNames ?? desiredSchema.AllSchemaNames;
+
+        reporter.Info("Validating schema...");
+        var schemaDiagnostics = schemaPolicies.SelectMany(p => p.Validate(desiredSchema));
+        var diagnostics = new PolicyDiagnostics(schemaDiagnostics);
+        if (diagnostics.HasErrors)
+        {
+            reporter.ReportDiagnostics(diagnostics);
+            throw new PolicyViolationException(diagnostics.Errors.ToList());
+        }
 
         reporter.Info($"Migration will be scoped to the following schemas: {string.Join(", ", schemasInScope)}");
 
@@ -40,7 +50,7 @@ internal sealed class MigrationHelper(
         if (result.HasErrors)
         {
             reporter.ReportDiagnostics(result.Diagnostics);
-            throw new PolicyViolationException(result.Errors.ToList());
+            throw new PolicyViolationException(result.Diagnostics.Errors.ToList());
         }
 
         reporter.ReportDiff(result.Diff);

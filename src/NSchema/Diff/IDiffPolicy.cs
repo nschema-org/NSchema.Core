@@ -16,5 +16,5 @@ public interface IDiffPolicy
     /// </summary>
     /// <param name="diff">The structured migration diff to validate against this policy.</param>
     /// <returns>The collection of errors found during validation. If the diff is valid according to this policy, the collection will be empty.</returns>
-    IEnumerable<PolicyError> Validate(MigrationDiff diff);
+    IEnumerable<PolicyDiagnostic> Validate(MigrationDiff diff);
 }

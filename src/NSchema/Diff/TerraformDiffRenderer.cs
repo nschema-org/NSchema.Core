@@ -6,13 +6,11 @@ using NSchema.Schema.Model;
 namespace NSchema.Diff;
 
 /// <summary>
-/// Default <see cref="IDiffRenderer"/> that produces a Terraform-style diff. Whether ANSI colour is
-/// included is controlled by <see cref="TerraformDiffRendererOptions"/>. A pure walk of the
-/// <see cref="MigrationDiff"/>: it formats each node and never reorganizes the model.
+/// Produces a Terraform-style output of a database diff.
 /// </summary>
 internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOptions> options) : IDiffRenderer
 {
-    private const string Indent = "    ";
+    private readonly Palette _palette = Palette.For(options.Value.IncludeColour);
 
     public string Render(MigrationDiff diff)
     {
@@ -21,24 +19,25 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
             return "No changes detected.";
         }
 
-        var palette = Palette.For(options.Value.IncludeColour);
         var sb = new StringBuilder();
-
-        var summary = diff.Summary;
-        sb.AppendLine($"Plan: {summary.Added} to add, {summary.Modified} to change, {summary.Removed} to destroy.");
 
         foreach (var schema in diff.Schemas)
         {
             if (schema.Kind is { } kind)
             {
-                RenderSchema(sb, palette, schema, kind);
+                RenderSchema(sb, schema, kind);
             }
 
             foreach (var table in schema.Tables)
             {
-                RenderTable(sb, palette, table);
+                RenderTable(sb, table);
             }
         }
+
+        sb.AppendLine();
+
+        var (added, modified, removed) = diff.GetSummary();
+        sb.AppendLine($"Plan: {added} to add, {modified} to change, {removed} to destroy.");
 
         RenderScripts(sb, "Pre-deployment scripts:", diff.PreDeploymentScripts);
         RenderScripts(sb, "Post-deployment scripts:", diff.PostDeploymentScripts);
@@ -46,28 +45,28 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
         return sb.ToString().TrimEnd();
     }
 
-    private static void RenderSchema(StringBuilder sb, Palette palette, SchemaDiff schema, ChangeKind kind)
+    private void RenderSchema(StringBuilder sb, SchemaDiff schema, ChangeKind kind)
     {
         var target = schema.RenamedFrom is null ? schema.Name : $"{schema.RenamedFrom} → {schema.Name}";
-        AppendHeader(sb, palette, kind, $"schema {target}{CommentSuffix(schema.Comment)}");
+        AppendHeader(sb, kind, $"schema {target}{CommentSuffix(schema.Comment)}");
 
         foreach (var grant in schema.Grants)
         {
             var text = grant.Kind == ChangeKind.Add ? $"grant usage to {grant.Role}" : $"revoke usage from {grant.Role}";
-            AppendDetail(sb, palette, grant.Kind, text);
+            AppendDetail(sb, grant.Kind, text);
         }
     }
 
-    private static void RenderTable(StringBuilder sb, Palette palette, TableDiff table)
+    private void RenderTable(StringBuilder sb, TableDiff table)
     {
         var name = table.RenamedFrom is null
             ? $"{table.Schema}.{table.Name}"
             : $"{table.Schema}.{table.RenamedFrom} → {table.Name}";
-        AppendHeader(sb, palette, table.Kind, $"table {name}{CommentSuffix(table.Comment)}");
+        AppendHeader(sb, table.Kind, $"table {name}{CommentSuffix(table.Comment)}");
 
         foreach (var column in table.Columns)
         {
-            RenderColumn(sb, palette, column);
+            RenderColumn(sb, column);
         }
 
         // A new table renders its columns as a block, separated from the constraint/index/grant block by a
@@ -81,7 +80,7 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
         foreach (var constraint in table.Constraints)
         {
             var label = constraint.Type == ConstraintType.PrimaryKey ? "primary key" : "foreign key";
-            AppendDetail(sb, palette, constraint.Kind, $"{label} {constraint.Name}");
+            AppendDetail(sb, constraint.Kind, $"{label} {constraint.Name}");
         }
 
         foreach (var index in table.Indexes)
@@ -89,7 +88,7 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
             var text = index.Kind == ChangeKind.Modify
                 ? $"index {index.Name} comment: {FormatComment(index.Comment?.Old)} → {FormatComment(index.Comment?.New)}"
                 : $"index {index.Name}";
-            AppendDetail(sb, palette, index.Kind, text);
+            AppendDetail(sb, index.Kind, text);
         }
 
         foreach (var grant in table.Grants)
@@ -97,56 +96,56 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
             var text = grant.Kind == ChangeKind.Add
                 ? $"grant {grant.Privileges} to {grant.Role}"
                 : $"revoke {grant.Privileges} from {grant.Role}";
-            AppendDetail(sb, palette, grant.Kind, text);
+            AppendDetail(sb, grant.Kind, text);
         }
     }
 
-    private static void RenderColumn(StringBuilder sb, Palette palette, ColumnDiff column)
+    private void RenderColumn(StringBuilder sb, ColumnDiff column)
     {
         if (column.Kind == ChangeKind.Add && column.Definition is { } added)
         {
-            AppendDetail(sb, palette, ChangeKind.Add, FormatColumn(added) + CommentSuffix(column.Comment));
+            AppendDetail(sb, ChangeKind.Add, FormatColumn(added) + CommentSuffix(column.Comment));
             return;
         }
 
         if (column.Kind == ChangeKind.Remove && column.Definition is { } removed)
         {
-            AppendDetail(sb, palette, ChangeKind.Remove, FormatColumn(removed));
+            AppendDetail(sb, ChangeKind.Remove, FormatColumn(removed));
             return;
         }
 
         if (column.RenamedFrom is not null)
         {
-            AppendDetail(sb, palette, ChangeKind.Modify, $"rename column: {column.RenamedFrom} → {column.Name}");
+            AppendDetail(sb, ChangeKind.Modify, $"rename column: {column.RenamedFrom} → {column.Name}");
         }
 
         if (column.Type is { } type)
         {
-            AppendDetail(sb, palette, ChangeKind.Modify, $"{column.Name} type: {type.Old} → {type.New}");
+            AppendDetail(sb, ChangeKind.Modify, $"{column.Name} type: {type.Old} → {type.New}");
         }
 
         if (column.Nullability is { } nullable)
         {
-            AppendDetail(sb, palette, ChangeKind.Modify, $"{column.Name} nullable: {FormatNullability(nullable.Old)} → {FormatNullability(nullable.New)}");
+            AppendDetail(sb, ChangeKind.Modify, $"{column.Name} nullable: {FormatNullability(nullable.Old)} → {FormatNullability(nullable.New)}");
         }
 
         if (column.Default is { } @default)
         {
-            AppendDetail(sb, palette, ChangeKind.Modify, $"{column.Name} default: {FormatDefault(@default.Old)} → {FormatDefault(@default.New)}");
+            AppendDetail(sb, ChangeKind.Modify, $"{column.Name} default: {FormatDefault(@default.Old)} → {FormatDefault(@default.New)}");
         }
 
         if (column.Identity is { } identity)
         {
-            AppendDetail(sb, palette, ChangeKind.Modify, $"{column.Name} identity: {FormatIdentity(identity.Old)} → {FormatIdentity(identity.New)}");
+            AppendDetail(sb, ChangeKind.Modify, $"{column.Name} identity: {FormatIdentity(identity.Old)} → {FormatIdentity(identity.New)}");
         }
 
         if (column.Comment is { } comment)
         {
-            AppendDetail(sb, palette, ChangeKind.Modify, $"{column.Name} comment: {FormatComment(comment.Old)} → {FormatComment(comment.New)}");
+            AppendDetail(sb, ChangeKind.Modify, $"{column.Name} comment: {FormatComment(comment.Old)} → {FormatComment(comment.New)}");
         }
     }
 
-    private static void RenderScripts(StringBuilder sb, string heading, IReadOnlyList<string> names)
+    private void RenderScripts(StringBuilder sb, string heading, IReadOnlyList<string> names)
     {
         if (names.Count == 0)
         {
@@ -161,35 +160,35 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
         }
     }
 
-    private static void AppendHeader(StringBuilder sb, Palette palette, ChangeKind kind, string text)
+    private void AppendHeader(StringBuilder sb, ChangeKind kind, string text)
     {
         sb.AppendLine();
-        sb.Append(palette.For(kind)).Append(' ').AppendLine(text);
+        sb.Append(_palette.For(kind)).Append(' ').AppendLine(text);
     }
 
-    private static void AppendDetail(StringBuilder sb, Palette palette, ChangeKind kind, string text) =>
-        sb.Append(Indent).Append(palette.For(kind)).Append(' ').AppendLine(text);
+    private void AppendDetail(StringBuilder sb, ChangeKind kind, string text) =>
+        sb.Append(options.Value.Indent).Append(_palette.For(kind)).Append(' ').AppendLine(text);
 
     // -------------------------------------------------------------------------
     // Formatters
     // -------------------------------------------------------------------------
 
-    private static string FormatColumn(Column column) =>
+    private string FormatColumn(Column column) =>
         $"{column.Name} {column.Type} {(column.IsNullable ? "null" : "not null")}";
 
-    private static string CommentSuffix(ValueChange<string>? comment) => comment is null
+    private string CommentSuffix(ValueChange<string>? comment) => comment is null
         ? string.Empty
         : comment.Old is null
             ? $" ({FormatComment(comment.New)})"
             : $" ({FormatComment(comment.Old)} → {FormatComment(comment.New)})";
 
-    private static string FormatComment(string? comment) => comment is null ? "<none>" : $"\"{comment}\"";
+    private string FormatComment(string? comment) => comment is null ? "<none>" : $"\"{comment}\"";
 
-    private static string FormatDefault(string? value) => value ?? "<none>";
+    private string FormatDefault(string? value) => value ?? "<none>";
 
-    private static string FormatNullability(bool? nullable) => nullable == true ? "null" : "not null";
+    private string FormatNullability(bool? nullable) => nullable == true ? "null" : "not null";
 
-    private static string FormatIdentity(IdentityOptions? options)
+    private string FormatIdentity(IdentityOptions? options)
     {
         if (options is null)
         {
@@ -215,7 +214,7 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
         return parts.Count > 0 ? string.Join(", ", parts) : "<default>";
     }
 
-    // Encapsulates ANSI rendering. When colour is disabled we substitute the plain marker
+    // Encapsulates ANSI rendering. When color is disabled we substitute the plain marker
     // characters so the rest of the renderer doesn't have to branch on environment state.
     private sealed class Palette
     {
@@ -243,7 +242,7 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
             _ => "?",
         };
 
-        public static Palette For(bool colour) => colour
+        public static Palette For(bool color) => color
             ? new Palette($"{Green}+{Reset}", $"{Red}-{Reset}", $"{Yellow}~{Reset}")
             : new Palette("+", "-", "~");
     }

@@ -3,7 +3,6 @@ using NSchema.Hosting.Services;
 using NSchema.Migration;
 using NSchema.Plan.Model;
 using NSchema.Schema;
-using NSchema.Schema.Model;
 
 namespace NSchema.Tests.Hosting.Operations;
 
@@ -14,7 +13,7 @@ public sealed class PlanOperationTests
     private readonly IMigrationCompiler _compiler = Substitute.For<IMigrationCompiler>();
     private readonly ICompiledMigration _execution = Substitute.For<ICompiledMigration>();
 
-    private readonly MigrationPlan _plan = new([new CreateSchema("app")], DatabaseSchema.Create([]));
+    private readonly MigrationPlan _plan = new([new CreateSchema("app")]);
 
     private PlanOperation BuildSut(IMigrationCompiler? compiler) => new(_reporter, _helper, compiler);
 

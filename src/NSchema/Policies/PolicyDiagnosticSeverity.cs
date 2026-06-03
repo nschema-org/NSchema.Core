@@ -1,9 +1,9 @@
 namespace NSchema.Policies;
 
 /// <summary>
-/// The severity of a <see cref="PolicyError"/> finding.
+/// The severity of a <see cref="PolicyDiagnostic"/> finding.
 /// </summary>
-public enum PolicySeverity
+public enum PolicyDiagnosticSeverity
 {
     /// <summary>
     /// Informational; no action required.

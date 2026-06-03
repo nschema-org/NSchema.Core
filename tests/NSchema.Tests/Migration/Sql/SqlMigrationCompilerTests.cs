@@ -1,6 +1,5 @@
 using NSchema.Migration.Sql;
 using NSchema.Plan.Model;
-using NSchema.Schema.Model;
 using NSubstitute.ExceptionExtensions;
 
 namespace NSchema.Tests.Migration.Sql;
@@ -18,7 +17,7 @@ public sealed class SqlMigrationCompilerTests
         _sut = new SqlMigrationCompiler(_sqlPlanner, _sqlExecutor);
     }
 
-    private static MigrationPlan EmptyMigrationPlan() => new([], DatabaseSchema.Create([]));
+    private static MigrationPlan EmptyMigrationPlan() => new([]);
 
     [Fact]
     public async Task Compile_PassesMigrationPlanToSqlPlanner()

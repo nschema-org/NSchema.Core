@@ -13,5 +13,5 @@ public interface IMigrationPolicy
     /// </summary>
     /// <param name="plan">The migration plan to validate against this policy.</param>
     /// <returns>The collection of errors found during validation. If the migration plan is valid according to this policy, the collection will be empty.</returns>
-    IEnumerable<PolicyError> Validate(MigrationPlan plan);
+    IEnumerable<PolicyDiagnostic> Validate(MigrationPlan plan);
 }

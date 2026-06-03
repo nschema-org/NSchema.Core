@@ -14,7 +14,7 @@ public class DefaultMigrationLinearizerTests
     // The comparer now produces a structured diff; linearizing it back to actions lets these tests keep asserting
     // on the action contract and exercises the full comparer -> diff -> plan round trip in one go.
     private MigrationPlan Compare(DatabaseSchema current, DatabaseSchema desired) =>
-        _linearizer.Linearize(_comparer.Compare(current, desired), desired);
+        _linearizer.Linearize(_comparer.Compare(current, desired));
 
     private static DatabaseSchema Empty() => DatabaseSchema.Create([]);
 

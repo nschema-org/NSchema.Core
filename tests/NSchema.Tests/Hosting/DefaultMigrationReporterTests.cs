@@ -64,9 +64,9 @@ public sealed class DefaultMigrationReporterTests
     {
         var diagnostics = new[]
         {
-            new PolicyError("P1", "all good", PolicySeverity.Info),
-            new PolicyError("P2", "be careful", PolicySeverity.Warning),
-            new PolicyError("P3", "blocked", PolicySeverity.Error),
+            new PolicyDiagnostic("P1", "all good", PolicyDiagnosticSeverity.Info),
+            new PolicyDiagnostic("P2", "be careful", PolicyDiagnosticSeverity.Warning),
+            new PolicyDiagnostic("P3", "blocked", PolicyDiagnosticSeverity.Error),
         };
 
         _sut.ReportDiagnostics(diagnostics);

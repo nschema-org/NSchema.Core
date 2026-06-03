@@ -1,7 +1,6 @@
 using NSchema.Diff;
 using NSchema.Plan;
 using NSchema.Plan.Model;
-using NSchema.Schema;
 using NSchema.Schema.Model;
 
 namespace NSchema.Migration;
@@ -11,7 +10,6 @@ namespace NSchema.Migration;
 /// </summary>
 /// <param name="comparer">Produces the structured diff by comparing the two schemas.</param>
 /// <param name="linearizer">Derives the ordered executable plan from the diff.</param>
-/// <param name="schemaPolicies">Policies that validate the desired schema before diffing.</param>
 /// <param name="diffTransformers">Transformers applied to the diff before linearization, in registration order.</param>
 /// <param name="diffPolicies">Policies that validate the structured diff (e.g. destructive-change checks).</param>
 /// <param name="planTransformers">Transformers applied to the linearized plan in registration order.</param>
@@ -19,7 +17,6 @@ namespace NSchema.Migration;
 internal sealed class DefaultMigrationPlanner(
     ISchemaComparer comparer,
     IMigrationLinearizer linearizer,
-    IEnumerable<ISchemaPolicy> schemaPolicies,
     IEnumerable<IDiffTransformer> diffTransformers,
     IEnumerable<IDiffPolicy> diffPolicies,
     IEnumerable<IMigrationPlanTransformer> planTransformers,
@@ -28,30 +25,19 @@ internal sealed class DefaultMigrationPlanner(
 {
     public MigrationPlanResult Plan(DatabaseSchema currentSchema, DatabaseSchema desiredSchema, IReadOnlyList<Script> scripts)
     {
-        // Validate schema policies.
-        var schemaErrors = schemaPolicies.SelectMany(p => p.Validate(desiredSchema)).ToList();
-        if (schemaErrors.Count > 0)
-        {
-            return new MigrationPlanResult(null, null, schemaErrors);
-        }
-
         // Diff the schemas.
-        var diff = comparer.Compare(currentSchema, desiredSchema);
-        if (scripts.Count > 0)
+        var diff = comparer.Compare(currentSchema, desiredSchema) with
         {
-            diff = diff with
-            {
-                PreDeploymentScripts = [.. scripts.Where(s => s.Type == ScriptType.PreDeployment).Select(s => s.Name)],
-                PostDeploymentScripts = [.. scripts.Where(s => s.Type == ScriptType.PostDeployment).Select(s => s.Name)],
-            };
-        }
+            PreDeploymentScripts = [.. scripts.Where(s => s.Type == ScriptType.PreDeployment).Select(s => s.Name)],
+            PostDeploymentScripts = [.. scripts.Where(s => s.Type == ScriptType.PostDeployment).Select(s => s.Name)],
+        };
 
         // Transform and validate the diff.
         diff = diffTransformers.Aggregate(diff, (d, t) => t.Transform(d));
         var diagnostics = diffPolicies.SelectMany(p => p.Validate(diff)).ToList();
 
         // Convert the diff into a migration plan.
-        var plan = linearizer.Linearize(diff, desiredSchema);
+        var plan = linearizer.Linearize(diff);
         if (scripts.Count > 0)
         {
             var preActions = scripts.Where(s => s.Type == ScriptType.PreDeployment).Select(MigrationAction (s) => new RunScript(s));

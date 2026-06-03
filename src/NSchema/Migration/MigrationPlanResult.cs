@@ -8,18 +8,18 @@ namespace NSchema.Migration;
 /// <summary>
 /// The result of a planning pass: the computed plan, its structured diff, and all policy diagnostics.
 /// </summary>
-public sealed record MigrationPlanResult(MigrationPlan? Plan, MigrationDiff? Diff, IReadOnlyList<PolicyError> Diagnostics)
+public sealed record MigrationPlanResult(MigrationPlan? Plan, MigrationDiff? Diff, IEnumerable<PolicyDiagnostic> diagnostics)
 {
     /// <summary>
-    /// True when <see cref="Diagnostics"/> contains at least one error-severity finding.
+    /// The diagnostics emitted by policies during the planning pass, if any.
+    /// </summary>
+    public PolicyDiagnostics Diagnostics { get; } = new(diagnostics);
+
+    /// <summary>
+    /// True when <see cref="diagnostics"/> contains at least one error-severity finding.
     /// When false, both <see cref="Plan"/> and <see cref="Diff"/> are guaranteed non-null.
     /// </summary>
     [MemberNotNullWhen(false, nameof(Plan))]
     [MemberNotNullWhen(false, nameof(Diff))]
-    public bool HasErrors => Errors.Any();
-
-    /// <summary>
-    /// The subset of <see cref="Diagnostics"/> with error severity.
-    /// </summary>
-    public IEnumerable<PolicyError> Errors => Diagnostics.Where(d => d.Severity == PolicySeverity.Error);
+    public bool HasErrors => Diagnostics.HasErrors;
 }

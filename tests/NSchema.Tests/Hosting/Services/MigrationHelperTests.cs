@@ -19,7 +19,7 @@ public sealed class MigrationHelperTests
     private readonly IOptions<MigrationOptions> _options = Options.Create(new MigrationOptions());
 
     private MigrationHelper BuildSut(ISchemaStateStore? store = null) =>
-        new(_options, _planner, _reporter, _currentProvider, _desiredProvider, store);
+        new(_options, _planner, [], _reporter, _currentProvider, _desiredProvider, [], store);
 
     private readonly MigrationHelper _sut;
 
@@ -34,8 +34,8 @@ public sealed class MigrationHelperTests
             .Returns(DatabaseSchema.Create([]));
 
         _planner
-            .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
-            .Returns(new MigrationPlanResult(new MigrationPlan([], DatabaseSchema.Create([])), new MigrationDiff([], [], []), []));
+            .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
+            .Returns(new MigrationPlanResult(new MigrationPlan([]), new MigrationDiff([], [], []), []));
 
         _sut = BuildSut();
     }
@@ -44,10 +44,10 @@ public sealed class MigrationHelperTests
     public async Task Prepare_ReturnsComputedPlan_AndReportsItsDiff()
     {
         // Arrange
-        var plan = new MigrationPlan([new CreateSchema("app")], DatabaseSchema.Create([]));
+        var plan = new MigrationPlan([new CreateSchema("app")]);
         var diff = new MigrationDiff([], [], []);
         _planner
-            .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
+            .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
             .Returns(new MigrationPlanResult(plan, diff, []));
 
         // Act
@@ -88,8 +88,8 @@ public sealed class MigrationHelperTests
     public async Task Prepare_PolicyViolation_ReportsDiagnosticsAndThrows_WithoutShowingPlan()
     {
         // Arrange
-        var errors = new[] { new PolicyError("P1", "msg") };
-        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
+        var errors = new[] { new PolicyDiagnostic("P1", "msg") };
+        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
             .Returns(new MigrationPlanResult(null, null, errors));
 
         // Act
@@ -97,7 +97,7 @@ public sealed class MigrationHelperTests
 
         // Assert
         await act.ShouldThrowAsync<PolicyViolationException>();
-        _reporter.Received(1).ReportDiagnostics(Arg.Any<IReadOnlyList<PolicyError>>());
+        _reporter.Received(1).ReportDiagnostics(Arg.Any<IReadOnlyList<PolicyDiagnostic>>());
         _reporter.DidNotReceive().ReportDiff(Arg.Any<MigrationDiff>());
     }
 
@@ -105,20 +105,20 @@ public sealed class MigrationHelperTests
     public async Task Prepare_NonErrorDiagnostics_ReportedAfterDiff()
     {
         // Arrange
-        var diagnostics = new[] { new PolicyError("P1", "info", PolicySeverity.Info) };
-        var plan = new MigrationPlan([], DatabaseSchema.Create([]));
-        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
+        var diagnostics = new[] { new PolicyDiagnostic("P1", "info", PolicyDiagnosticSeverity.Info) };
+        var plan = new MigrationPlan([]);
+        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
             .Returns(new MigrationPlanResult(plan, new MigrationDiff([], [], []), diagnostics));
 
         var callOrder = new List<string>();
         _reporter.When(r => r.ReportDiff(Arg.Any<MigrationDiff>())).Do(_ => callOrder.Add("diff"));
-        _reporter.When(r => r.ReportDiagnostics(Arg.Any<IReadOnlyList<PolicyError>>())).Do(_ => callOrder.Add("diagnostics"));
+        _reporter.When(r => r.ReportDiagnostics(Arg.Any<IReadOnlyList<PolicyDiagnostic>>())).Do(_ => callOrder.Add("diagnostics"));
 
         // Act
         await _sut.Plan(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);
 
         // Assert
-        _reporter.Received(1).ReportDiagnostics(Arg.Is<IReadOnlyList<PolicyError>>(d => d.SequenceEqual(diagnostics)));
+        _reporter.Received(1).ReportDiagnostics(Arg.Is<IReadOnlyList<PolicyDiagnostic>>(d => d.SequenceEqual(diagnostics)));
         callOrder.ShouldBe(["diff", "diagnostics"]);
     }
 

@@ -29,7 +29,7 @@ public class DestructiveActionMigrationPolicyTests
 
         // Assert
         errors.ShouldHaveSingleItem();
-        errors[0].Severity.ShouldBe(PolicySeverity.Error);
+        errors[0].Severity.ShouldBe(PolicyDiagnosticSeverity.Error);
         errors[0].PolicyName.ShouldBe(nameof(DestructiveActionMigrationPolicy));
         errors[0].Message.ShouldContain(nameof(DropTable));
     }
@@ -45,7 +45,7 @@ public class DestructiveActionMigrationPolicyTests
 
         // Assert
         results.ShouldHaveSingleItem();
-        results[0].Severity.ShouldBe(PolicySeverity.Info);
+        results[0].Severity.ShouldBe(PolicyDiagnosticSeverity.Info);
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public class DestructiveActionMigrationPolicyTests
 
         // Assert
         results.ShouldHaveSingleItem();
-        results[0].Severity.ShouldBe(PolicySeverity.Warning);
+        results[0].Severity.ShouldBe(PolicyDiagnosticSeverity.Warning);
         results[0].Message.ShouldContain(nameof(DropTable));
     }
 

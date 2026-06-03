@@ -11,9 +11,9 @@ public static class TestData
 
     public static readonly DatabaseSchema EmptySchema = DatabaseSchema.Create([]);
 
-    public static readonly MigrationPlan EmptyPlan = new([], EmptySchema);
-    public static readonly MigrationPlan DestructivePlan = new([DestructiveAction], EmptySchema);
-    public static readonly MigrationPlan NonDestructivePlan = new([NonDestructiveAction], EmptySchema);
+    public static readonly MigrationPlan EmptyPlan = new([]);
+    public static readonly MigrationPlan DestructivePlan = new([DestructiveAction]);
+    public static readonly MigrationPlan NonDestructivePlan = new([NonDestructiveAction]);
 
     /// <summary>A diff dropping the <c>identity.users</c> table.</summary>
     public static readonly MigrationDiff DestructiveDiff = DiffWithDroppedTables("users");

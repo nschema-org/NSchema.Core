@@ -4,7 +4,6 @@ using NSchema.Migration;
 using NSchema.Plan;
 using NSchema.Plan.Model;
 using NSchema.Policies;
-using NSchema.Schema;
 using NSchema.Schema.Model;
 
 namespace NSchema.Tests.Migration;
@@ -17,7 +16,6 @@ public sealed class DefaultMigrationPlannerTests
 
     private readonly ISchemaComparer _comparer = Substitute.For<ISchemaComparer>();
     private readonly IMigrationLinearizer _linearizer = Substitute.For<IMigrationLinearizer>();
-    private readonly List<ISchemaPolicy> _schemaPolicies = [];
     private readonly List<IDiffTransformer> _diffTransformers = [];
     private readonly List<IDiffPolicy> _diffPolicies = [];
     private readonly List<IMigrationPlanTransformer> _transformers = [];
@@ -26,7 +24,6 @@ public sealed class DefaultMigrationPlannerTests
     private DefaultMigrationPlanner Sut => new(
         _comparer,
         _linearizer,
-        _schemaPolicies,
         _diffTransformers,
         _diffPolicies,
         _transformers,
@@ -36,42 +33,8 @@ public sealed class DefaultMigrationPlannerTests
     public DefaultMigrationPlannerTests()
     {
         _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(_emptyDiff);
-        _linearizer.Linearize(Arg.Any<MigrationDiff>(), Arg.Any<DatabaseSchema>())
-            .Returns(call => new MigrationPlan([], call.ArgAt<DatabaseSchema>(1)));
-    }
-
-    [Fact]
-    public void Plan_RunsSchemaPoliciesAndReturnsErrorDiagnostics()
-    {
-        // Arrange
-        var policy = Substitute.For<ISchemaPolicy>();
-        policy.Validate(Arg.Any<DatabaseSchema>()).Returns([new PolicyError("Test", "broken")]);
-        _schemaPolicies.Add(policy);
-
-        // Act
-        var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
-
-        // Assert
-        result.Plan.ShouldBeNull();
-        result.Diff.ShouldBeNull();
-        result.Diagnostics.ShouldHaveSingleItem();
-        result.Diagnostics[0].Message.ShouldBe("broken");
-        result.Diagnostics[0].Severity.ShouldBe(PolicySeverity.Error);
-    }
-
-    [Fact]
-    public void Plan_SchemaPolicyFailure_SkipsComparisonEntirely()
-    {
-        // Arrange
-        var policy = Substitute.For<ISchemaPolicy>();
-        policy.Validate(Arg.Any<DatabaseSchema>()).Returns([new PolicyError("Test", "fail")]);
-        _schemaPolicies.Add(policy);
-
-        // Act
-        Sut.Plan(_emptySchema, _emptySchema, _noScripts);
-
-        // Assert
-        _comparer.DidNotReceive().Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>());
+        _linearizer.Linearize(Arg.Any<MigrationDiff>())
+            .Returns(call => new MigrationPlan([]));
     }
 
     [Fact]
@@ -93,8 +56,8 @@ public sealed class DefaultMigrationPlannerTests
     {
         // Arrange
         var coreAction = new CreateSchema("app");
-        _linearizer.Linearize(Arg.Any<MigrationDiff>(), Arg.Any<DatabaseSchema>())
-            .Returns(call => new MigrationPlan([coreAction], call.ArgAt<DatabaseSchema>(1)));
+        _linearizer.Linearize(Arg.Any<MigrationDiff>())
+            .Returns(call => new MigrationPlan([coreAction]));
         IReadOnlyList<Script> scripts =
         [
             new Script("pre", "SELECT 1", ScriptType.PreDeployment),
@@ -136,8 +99,8 @@ public sealed class DefaultMigrationPlannerTests
     {
         // Arrange
         var coreAction = new CreateSchema("app");
-        _linearizer.Linearize(Arg.Any<MigrationDiff>(), Arg.Any<DatabaseSchema>())
-            .Returns(call => new MigrationPlan([coreAction], call.ArgAt<DatabaseSchema>(1)));
+        _linearizer.Linearize(Arg.Any<MigrationDiff>())
+            .Returns(call => new MigrationPlan([coreAction]));
 
         // Act
         var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
@@ -161,7 +124,7 @@ public sealed class DefaultMigrationPlannerTests
         Sut.Plan(_emptySchema, _emptySchema, _noScripts);
 
         // Assert
-        _linearizer.Received(1).Linearize(transformed, Arg.Any<DatabaseSchema>());
+        _linearizer.Received(1).Linearize(transformed);
     }
 
     [Fact]
@@ -169,7 +132,7 @@ public sealed class DefaultMigrationPlannerTests
     {
         // Arrange
         var policy = Substitute.For<IDiffPolicy>();
-        policy.Validate(_emptyDiff).Returns([new PolicyError("Test", "destructive")]);
+        policy.Validate(_emptyDiff).Returns([new PolicyDiagnostic("Test", "destructive")]);
         _diffPolicies.Add(policy);
 
         // Act
@@ -187,8 +150,8 @@ public sealed class DefaultMigrationPlannerTests
         // Arrange
         var t1 = Substitute.For<IMigrationPlanTransformer>();
         var t2 = Substitute.For<IMigrationPlanTransformer>();
-        var after1 = new MigrationPlan([new CreateSchema("after1")], _emptySchema);
-        var after2 = new MigrationPlan([new CreateSchema("after2")], _emptySchema);
+        var after1 = new MigrationPlan([new CreateSchema("after1")]);
+        var after2 = new MigrationPlan([new CreateSchema("after2")]);
         t1.Transform(Arg.Any<MigrationPlan>()).Returns(after1);
         t2.Transform(after1).Returns(after2);
         _transformers.Add(t1);
@@ -211,11 +174,11 @@ public sealed class DefaultMigrationPlannerTests
     {
         // Arrange
         var transformer = Substitute.For<IMigrationPlanTransformer>();
-        var transformed = new MigrationPlan([new DropTable("app", "users")], _emptySchema);
+        var transformed = new MigrationPlan([new DropTable("app", "users")]);
         transformer.Transform(Arg.Any<MigrationPlan>()).Returns(transformed);
         _transformers.Add(transformer);
         var policy = Substitute.For<IMigrationPolicy>();
-        policy.Validate(transformed).Returns([new PolicyError("Test", "destructive")]);
+        policy.Validate(transformed).Returns([new PolicyDiagnostic("Test", "destructive")]);
         _migrationPolicies.Add(policy);
 
         // Act
@@ -225,23 +188,5 @@ public sealed class DefaultMigrationPlannerTests
         result.Diagnostics.ShouldHaveSingleItem();
         result.Diagnostics[0].Message.ShouldBe("destructive");
         policy.Received(1).Validate(transformed);
-    }
-
-    [Fact]
-    public void Plan_AggregatesDiagnosticsFromMultiplePolicies()
-    {
-        // Arrange
-        var p1 = Substitute.For<ISchemaPolicy>();
-        var p2 = Substitute.For<ISchemaPolicy>();
-        p1.Validate(Arg.Any<DatabaseSchema>()).Returns([new PolicyError("P1", "a")]);
-        p2.Validate(Arg.Any<DatabaseSchema>()).Returns([new PolicyError("P2", "b"), new PolicyError("P2", "c")]);
-        _schemaPolicies.Add(p1);
-        _schemaPolicies.Add(p2);
-
-        // Act
-        var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
-
-        // Assert
-        result.Diagnostics.Count.ShouldBe(3);
     }
 }

@@ -61,7 +61,7 @@ public class DefaultSchemaComparerTests
             ]),
             SchemaDefinition.Create("reporting"));
 
-        _sut.Compare(current, desired).Summary.ShouldBe(new DiffSummary(Added: 1, Modified: 1, Removed: 1));
+        _sut.Compare(current, desired).GetSummary().ShouldBe(new DiffSummary(Added: 1, Modified: 1, Removed: 1));
     }
 
     [Fact]

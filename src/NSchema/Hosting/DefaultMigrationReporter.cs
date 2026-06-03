@@ -40,7 +40,7 @@ internal sealed class DefaultMigrationReporter(TextWriter output, TextWriter err
         }
     }
 
-    public void ReportDiagnostics(IReadOnlyList<PolicyError> diagnostics)
+    public void ReportDiagnostics(IReadOnlyList<PolicyDiagnostic> diagnostics)
     {
         output.WriteLine("Policy diagnostics:");
         if (diagnostics.Count == 0)
@@ -51,7 +51,7 @@ internal sealed class DefaultMigrationReporter(TextWriter output, TextWriter err
 
         foreach (var diagnostic in diagnostics)
         {
-            var writer = diagnostic.Severity is PolicySeverity.Error or PolicySeverity.Warning ? error : output;
+            var writer = diagnostic.Severity is PolicyDiagnosticSeverity.Error or PolicyDiagnosticSeverity.Warning ? error : output;
             writer.WriteLine($"- {diagnostic.PolicyName}: {diagnostic.Message}");
         }
     }

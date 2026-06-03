@@ -4,7 +4,6 @@ using NSchema.Hosting.Services;
 using NSchema.Migration;
 using NSchema.Plan.Model;
 using NSchema.Schema;
-using NSchema.Schema.Model;
 using NSubstitute.ExceptionExtensions;
 
 namespace NSchema.Tests.Hosting.Operations;
@@ -17,7 +16,7 @@ public sealed class ApplyOperationTests
     private readonly ICompiledMigration _execution = Substitute.For<ICompiledMigration>();
     private readonly IMigrationConfirmation _confirmation = Substitute.For<IMigrationConfirmation>();
 
-    private readonly MigrationPlan _plan = new([new CreateSchema("app")], DatabaseSchema.Create([]));
+    private readonly MigrationPlan _plan = new([new CreateSchema("app")]);
 
     private ApplyOperation BuildSut(IMigrationCompiler? compiler) =>
         new(_reporter, _confirmation, _helper, compiler);

@@ -13,5 +13,5 @@ public interface ISchemaPolicy
     /// </summary>
     /// <param name="schema">The database schema to validate against this policy.</param>
     /// <returns>The collection of errors found during validation. If the schema is valid according to this policy, the collection will be empty.</returns>
-    IEnumerable<PolicyError> Validate(DatabaseSchema schema);
+    IEnumerable<PolicyDiagnostic> Validate(DatabaseSchema schema);
 }

@@ -6,7 +6,11 @@ namespace NSchema.Diff.Model;
 /// <param name="Schemas">The changed schemas.</param>
 /// <param name="PreDeploymentScripts">Names of pre-deployment scripts to run.</param>
 /// <param name="PostDeploymentScripts">Names of post-deployment scripts to run.</param>
-public sealed record MigrationDiff(IReadOnlyList<SchemaDiff> Schemas, IReadOnlyList<string> PreDeploymentScripts, IReadOnlyList<string> PostDeploymentScripts)
+public sealed record MigrationDiff(
+    IReadOnlyList<SchemaDiff> Schemas,
+    IReadOnlyList<string> PreDeploymentScripts,
+    IReadOnlyList<string> PostDeploymentScripts
+)
 {
     /// <summary>
     /// Gets a value indicating whether the diff contains no changes at all.
@@ -16,49 +20,49 @@ public sealed record MigrationDiff(IReadOnlyList<SchemaDiff> Schemas, IReadOnlyL
     /// <summary>
     /// Gets the aggregate counts of changed schemas and tables, grouped by <see cref="ChangeKind"/>.
     /// </summary>
-    public DiffSummary Summary
+    public DiffSummary GetSummary()
     {
-        get
-        {
-            var added = 0;
-            var modified = 0;
-            var removed = 0;
+        var added = 0;
+        var modified = 0;
+        var removed = 0;
 
-            foreach (var schema in Schemas)
+        foreach (var schema in Schemas)
+        {
+            if (schema.Kind is { } kind)
             {
-                if (schema.Kind is { } kind)
-                {
-                    Tally(kind);
-                }
-                foreach (var table in schema.Tables)
-                {
-                    Tally(table.Kind);
-                    foreach (var column in table.Columns)
-                    {
-                        Tally(column.Kind);
-                    }
-                    foreach (var index in table.Indexes)
-                    {
-                        Tally(index.Kind);
-                    }
-                    foreach (var constraint in table.Constraints)
-                    {
-                        Tally(constraint.Kind);
-                    }
-                }
+                Tally(kind);
             }
 
-            return new DiffSummary(added, modified, removed);
-
-            void Tally(ChangeKind kind)
+            foreach (var table in schema.Tables)
             {
-                switch (kind)
+                Tally(table.Kind);
+                foreach (var column in table.Columns)
                 {
-                    case ChangeKind.Add: added++; break;
-                    case ChangeKind.Modify: modified++; break;
-                    case ChangeKind.Remove: removed++; break;
-                    default: throw new ArgumentOutOfRangeException(nameof(kind), kind, null);
+                    Tally(column.Kind);
                 }
+
+                foreach (var index in table.Indexes)
+                {
+                    Tally(index.Kind);
+                }
+
+                foreach (var constraint in table.Constraints)
+                {
+                    Tally(constraint.Kind);
+                }
+            }
+        }
+
+        return new DiffSummary(added, modified, removed);
+
+        void Tally(ChangeKind kind)
+        {
+            switch (kind)
+            {
+                case ChangeKind.Add: added++; break;
+                case ChangeKind.Modify: modified++; break;
+                case ChangeKind.Remove: removed++; break;
+                default: throw new ArgumentOutOfRangeException(nameof(kind), kind, null);
             }
         }
     }

@@ -12,7 +12,7 @@ namespace NSchema.Diff;
 /// </summary>
 internal sealed class DestructiveActionMigrationPolicy(IOptions<MigrationOptions> options) : IDiffPolicy
 {
-    public IEnumerable<PolicyError> Validate(MigrationDiff diff)
+    public IEnumerable<PolicyDiagnostic> Validate(MigrationDiff diff)
     {
         var destructive = DestructiveChanges(diff).Distinct().ToList();
         if (destructive.Count == 0)
@@ -24,25 +24,23 @@ internal sealed class DestructiveActionMigrationPolicy(IOptions<MigrationOptions
 
         return options.Value.DestructiveActionPolicy switch
         {
-            DestructiveActionPolicy.Allow => [new PolicyError(
+            DestructiveActionPolicy.Allow => [new PolicyDiagnostic(
                 nameof(DestructiveActionMigrationPolicy),
                 $"Allowing destructive actions in migration plan: {typeString}.",
-                PolicySeverity.Info
+                PolicyDiagnosticSeverity.Info
             )],
-            DestructiveActionPolicy.Warn => [new PolicyError(
+            DestructiveActionPolicy.Warn => [new PolicyDiagnostic(
                 nameof(DestructiveActionMigrationPolicy),
                 $"Migration plan contains destructive actions: {typeString}.",
-                PolicySeverity.Warning
+                PolicyDiagnosticSeverity.Warning
                 )],
-            _ => [new PolicyError(
+            _ => [new PolicyDiagnostic(
                 nameof(DestructiveActionMigrationPolicy),
                 $"Destructive actions blocked by policy: {typeString}."
             )]
         };
     }
 
-    // Mirrors MigrationAction.IsDestructive: dropped schemas/tables/columns, narrowing column changes, and
-    // revoked grants. Labels reuse the action type names so messages stay consistent across the pipeline.
     private static IEnumerable<string> DestructiveChanges(MigrationDiff diff)
     {
         foreach (var schema in diff.Schemas)
@@ -84,6 +82,19 @@ internal sealed class DestructiveActionMigrationPolicy(IOptions<MigrationOptions
                     if (column.Nullability is not null)
                     {
                         yield return nameof(AlterColumnNullability);
+                    }
+                }
+
+                foreach (var constraint in table.Constraints.Where(g => g.Kind == ChangeKind.Remove))
+                {
+                    switch (constraint.Type)
+                    {
+                        case ConstraintType.PrimaryKey:
+                            yield return nameof(DropPrimaryKey);
+                            break;
+                        case ConstraintType.ForeignKey:
+                            yield return nameof(DropForeignKey);
+                            break;
                     }
                 }
             }

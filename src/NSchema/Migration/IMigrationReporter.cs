@@ -31,5 +31,5 @@ public interface IMigrationReporter
     /// <summary>
     /// Presents non-fatal policy diagnostics (warnings and info) produced during planning.
     /// </summary>
-    void ReportDiagnostics(IReadOnlyList<PolicyError> diagnostics);
+    void ReportDiagnostics(IReadOnlyList<PolicyDiagnostic> diagnostics);
 }

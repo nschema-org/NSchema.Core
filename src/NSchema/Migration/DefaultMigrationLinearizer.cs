@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using NSchema.Diff.Model;
 using NSchema.Plan.Model;
 using NSchema.Schema.Model;
@@ -5,22 +6,60 @@ using NSchema.Schema.Model;
 namespace NSchema.Migration;
 
 /// <summary>
-/// Default <see cref="IMigrationLinearizer"/>. Walks the structured diff, emits the migration actions that realize
-/// each change, and orders the result into a safe dependency order via <see cref="ActionOrderingTransformer"/>.
+/// Walks the structured diff and produces a migration plan.
 /// </summary>
 internal sealed class DefaultMigrationLinearizer : IMigrationLinearizer
 {
-    private static readonly ActionOrderingTransformer Orderer = new();
+    // A little dramatic, but it works.
+    private const int PreScriptPriority = int.MinValue;
+    private const int PostScriptPriority = int.MaxValue;
 
-    public MigrationPlan Linearize(MigrationDiff diff, DatabaseSchema desiredSchema)
+    private static readonly IReadOnlyDictionary<Type, int> _priorities = new List<Type> {
+        typeof(DropForeignKey),
+        typeof(DropIndex),
+        typeof(DropPrimaryKey),
+        typeof(RevokeSchemaUsage),
+        typeof(RevokeTablePrivileges),
+        typeof(RenameSchema),
+        typeof(CreateSchema),
+        typeof(RenameTable),
+        typeof(CreateTable),
+        typeof(DropColumn),
+        typeof(RenameColumn),
+        typeof(AddColumn),
+        typeof(AlterColumnType),
+        typeof(AlterColumnNullability),
+        typeof(AlterIdentitySequence),
+        typeof(SetColumnDefault),
+        typeof(AddPrimaryKey),
+        typeof(AddForeignKey),
+        typeof(CreateIndex),
+        typeof(GrantSchemaUsage),
+        typeof(GrantTablePrivileges),
+        typeof(SetSchemaComment),
+        typeof(SetTableComment),
+        typeof(SetColumnComment),
+        typeof(SetIndexComment),
+        typeof(DropTable),
+        typeof(DropSchema),
+    }.Index().ToFrozenDictionary(x => x.Item, x => x.Index);
+
+    public MigrationPlan Linearize(MigrationDiff diff)
     {
         var actions = new List<MigrationAction>();
         foreach (var schema in diff.Schemas)
         {
             EmitSchema(schema, actions);
         }
+        actions = actions.OrderBy(GetPriority).ToList();
+        return new MigrationPlan(actions);
 
-        return Orderer.Transform(new MigrationPlan(actions, desiredSchema));
+        static int GetPriority(MigrationAction action) => action switch
+        {
+            RunScript { Script.Type: ScriptType.PreDeployment } => PreScriptPriority,
+            RunScript { Script.Type: ScriptType.PostDeployment } => PostScriptPriority,
+            _ => _priorities[action.GetType()],
+        };
     }
 
     private static void EmitSchema(SchemaDiff schema, List<MigrationAction> actions)
@@ -130,7 +169,7 @@ internal sealed class DefaultMigrationLinearizer : IMigrationLinearizer
                 actions.Add(new DropColumn(table.Schema, table.Name, column.Definition!));
                 break;
 
-            default: // Modify
+            case ChangeKind.Modify:
                 if (column.RenamedFrom is not null)
                 {
                     actions.Add(new RenameColumn(table.Schema, table.Name, column.RenamedFrom, column.Name));
@@ -156,6 +195,7 @@ internal sealed class DefaultMigrationLinearizer : IMigrationLinearizer
                     actions.Add(new SetColumnComment(table.Schema, table.Name, column.Name, column.Comment.Old, column.Comment.New));
                 }
                 break;
+            default: throw new NotSupportedException($"Cannot linearize column change {column.Kind}.");
         }
     }
 
