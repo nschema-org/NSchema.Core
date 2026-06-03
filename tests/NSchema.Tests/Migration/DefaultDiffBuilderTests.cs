@@ -1,4 +1,3 @@
-using NSchema.Migration;
 using NSchema.Migration.Diff;
 using NSchema.Migration.Diff.Model;
 using NSchema.Migration.Plan;

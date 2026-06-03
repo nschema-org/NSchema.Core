@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using NSchema.Migration;
 using NSchema.Migration.Diff;
 using NSchema.Migration.Plan;
+using NSchema.Migration.Sources;
 using NSchema.Policies;
 using NSchema.State;
 

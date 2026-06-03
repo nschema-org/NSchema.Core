@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using NSchema.Migration;
+using NSchema.Migration.Sources;
 using NSchema.Schema;
 
 namespace NSchema.State;

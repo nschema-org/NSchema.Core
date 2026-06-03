@@ -1,6 +1,6 @@
 using NSchema.Schema;
 
-namespace NSchema.Migration;
+namespace NSchema.Migration.Sources;
 
 internal sealed class DefaultSchemaAggregator : ISchemaAggregator
 {

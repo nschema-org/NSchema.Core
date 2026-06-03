@@ -1,5 +1,5 @@
-using NSchema.Migration;
 using NSchema.Migration.Plan;
+using NSchema.Migration.Sources;
 
 namespace NSchema.Hosting.Services;
 

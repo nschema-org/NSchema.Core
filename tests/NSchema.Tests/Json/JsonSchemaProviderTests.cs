@@ -1,5 +1,5 @@
 using System.Text.Json;
-using NSchema.Json;
+using NSchema.Migration.Sources;
 using NSchema.Schema;
 
 namespace NSchema.Tests.Json;

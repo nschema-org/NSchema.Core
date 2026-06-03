@@ -3,6 +3,7 @@ using NSchema.Hosting;
 using NSchema.Migration;
 using NSchema.Migration.Diff;
 using NSchema.Migration.Sql;
+using NSchema.Policies;
 
 namespace NSchema;
 

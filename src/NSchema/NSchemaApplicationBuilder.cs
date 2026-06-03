@@ -9,6 +9,7 @@ using NSchema.Hosting.Operations;
 using NSchema.Hosting.Services;
 using NSchema.Migration;
 using NSchema.Migration.Diff;
+using NSchema.Migration.Sources;
 using NSchema.Migration.Sql;
 using NSchema.Policies;
 using NSchema.State;

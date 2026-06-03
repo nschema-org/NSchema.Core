@@ -1,4 +1,4 @@
-using NSchema.Migration;
+using NSchema.Migration.Sources;
 
 namespace NSchema.Schema.Fluent;
 

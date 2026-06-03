@@ -1,4 +1,4 @@
-namespace NSchema.Migration;
+namespace NSchema.Migration.Sources;
 
 /// <summary>
 /// Indicates which schema source to read when retrieving the current database state.

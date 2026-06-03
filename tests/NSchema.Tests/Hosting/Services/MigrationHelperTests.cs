@@ -4,6 +4,7 @@ using NSchema.Migration;
 using NSchema.Migration.Diff;
 using NSchema.Migration.Diff.Model;
 using NSchema.Migration.Plan;
+using NSchema.Migration.Sources;
 using NSchema.Policies;
 using NSchema.Schema;
 using NSchema.State;

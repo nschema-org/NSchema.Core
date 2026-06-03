@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Options;
+using NSchema.Migration;
 using NSchema.Migration.Plan;
-using NSchema.Policies;
 
-namespace NSchema.Migration;
+namespace NSchema.Policies;
 
 /// <summary>
 /// A migration policy that checks for destructive actions and applies the configured policy.

@@ -2,6 +2,7 @@ using NSchema.Hosting.Operations;
 using NSchema.Hosting.Services;
 using NSchema.Migration;
 using NSchema.Migration.Plan;
+using NSchema.Migration.Sources;
 using NSchema.Schema;
 
 namespace NSchema.Tests.Hosting.Operations;
