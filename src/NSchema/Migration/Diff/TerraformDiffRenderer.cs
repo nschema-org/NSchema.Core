@@ -1,16 +1,16 @@
 using System.Text;
 using Microsoft.Extensions.Options;
-using NSchema.Migration.Diff;
+using NSchema.Migration.Diff.Model;
 using NSchema.Schema;
 
-namespace NSchema.Migration;
+namespace NSchema.Migration.Diff;
 
 /// <summary>
-/// Default <see cref="IMigrationDiffRenderer"/> that produces a Terraform-style diff. Whether ANSI colour is
-/// included is controlled by <see cref="TerraformRendererOptions"/>. A pure walk of the
+/// Default <see cref="IDiffRenderer"/> that produces a Terraform-style diff. Whether ANSI colour is
+/// included is controlled by <see cref="TerraformDiffRendererOptions"/>. A pure walk of the
 /// <see cref="MigrationDiff"/>: it formats each node and never reorganizes the model.
 /// </summary>
-internal sealed class TerraformMigrationDiffRenderer(IOptions<TerraformRendererOptions> options) : IMigrationDiffRenderer
+internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOptions> options) : IDiffRenderer
 {
     private const string Indent = "    ";
 

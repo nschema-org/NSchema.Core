@@ -1,6 +1,6 @@
 using NSchema.Schema;
 
-namespace NSchema.Migration.Diff;
+namespace NSchema.Migration.Diff.Model;
 
 /// <summary>
 /// Describes a privilege granted to or revoked from a role.

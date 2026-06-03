@@ -1,6 +1,6 @@
 using NSchema.Schema;
 
-namespace NSchema.Migration.Diff;
+namespace NSchema.Migration.Diff.Model;
 
 /// <summary>
 /// Describes the changes affecting a single column. For an added or dropped column the full

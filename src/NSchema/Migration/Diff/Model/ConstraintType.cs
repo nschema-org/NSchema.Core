@@ -1,4 +1,4 @@
-namespace NSchema.Migration.Diff;
+namespace NSchema.Migration.Diff.Model;
 
 /// <summary>
 /// Identifies the kind of table constraint a <see cref="ConstraintDiff"/> describes.

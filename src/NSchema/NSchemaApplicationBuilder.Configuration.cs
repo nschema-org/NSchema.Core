@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using NSchema.Hosting;
 using NSchema.Migration;
+using NSchema.Migration.Diff;
 using NSchema.Migration.Sql;
 
 namespace NSchema;
@@ -34,9 +35,9 @@ public partial class NSchemaApplicationBuilder
     /// </summary>
     /// <param name="configure">A delegate to configure the renderer options.</param>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder UseTerraformRenderer(Action<TerraformRendererOptions> configure)
+    public NSchemaApplicationBuilder UseTerraformRenderer(Action<TerraformDiffRendererOptions> configure)
     {
-        Services.AddSingleton<IMigrationDiffRenderer, TerraformMigrationDiffRenderer>();
+        Services.AddSingleton<IDiffRenderer, TerraformDiffRenderer>();
         Services.Configure(configure);
         return this;
     }

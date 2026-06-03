@@ -1,4 +1,4 @@
-namespace NSchema.Migration.Diff;
+namespace NSchema.Migration.Diff.Model;
 
 /// <summary>
 /// Aggregate counts of the top-level changes in a <see cref="MigrationDiff"/>. Each changed schema and each

@@ -1,12 +1,12 @@
-using NSchema.Migration.Diff;
+using NSchema.Migration.Diff.Model;
 using NSchema.Migration.Plan;
 
-namespace NSchema.Migration;
+namespace NSchema.Migration.Diff;
 
 /// <summary>
 /// Rearranges a flat <see cref="MigrationPlan"/> into a structured, hierarchical <see cref="MigrationDiff"/>.
 /// </summary>
-public interface IMigrationDiffBuilder
+public interface IDiffBuilder
 {
     /// <summary>
     /// Builds a structured diff from the given plan.

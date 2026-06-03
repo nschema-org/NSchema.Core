@@ -1,9 +1,9 @@
-namespace NSchema.Migration;
+namespace NSchema.Migration.Diff;
 
 /// <summary>
-/// Options for the default Terraform-style <see cref="TerraformMigrationDiffRenderer"/>.
+/// Options for the default Terraform-style <see cref="TerraformDiffRenderer"/>.
 /// </summary>
-public class TerraformRendererOptions
+public class TerraformDiffRendererOptions
 {
     /// <summary>
     /// Whether to include ANSI color in the rendered output.

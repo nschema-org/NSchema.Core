@@ -1,18 +1,19 @@
 using Microsoft.Extensions.Options;
 using NSchema.Migration;
 using NSchema.Migration.Diff;
+using NSchema.Migration.Diff.Model;
 using NSchema.Migration.Plan;
 using NSchema.Schema;
 
 namespace NSchema.Tests.Migration;
 
-public class TerraformMigrationDiffRendererTests
+public class TerraformDiffRendererTests
 {
     private static MigrationDiff Diff() =>
-        new DefaultMigrationDiffBuilder().Build(new MigrationPlan([new CreateSchema("app")], DatabaseSchema.Create([])));
+        new DefaultDiffBuilder().Build(new MigrationPlan([new CreateSchema("app")], DatabaseSchema.Create([])));
 
-    private static TerraformMigrationDiffRenderer Renderer(bool includeColour) =>
-        new(Options.Create(new TerraformRendererOptions { IncludeColour = includeColour }));
+    private static TerraformDiffRenderer Renderer(bool includeColour) =>
+        new(Options.Create(new TerraformDiffRendererOptions { IncludeColour = includeColour }));
 
     [Fact]
     public void Render_WithColour_EmitsAnsiEscapeCodes()

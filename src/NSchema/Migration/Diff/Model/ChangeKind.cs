@@ -1,4 +1,4 @@
-namespace NSchema.Migration.Diff;
+namespace NSchema.Migration.Diff.Model;
 
 /// <summary>
 /// The kind of change a diff element represents.

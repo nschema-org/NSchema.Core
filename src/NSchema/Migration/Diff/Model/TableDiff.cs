@@ -1,4 +1,4 @@
-namespace NSchema.Migration.Diff;
+namespace NSchema.Migration.Diff.Model;
 
 /// <summary>
 /// Describes the changes affecting a single table.

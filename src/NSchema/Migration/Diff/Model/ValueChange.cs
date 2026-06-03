@@ -1,4 +1,4 @@
-namespace NSchema.Migration.Diff;
+namespace NSchema.Migration.Diff.Model;
 
 /// <summary>
 /// Represents a change to a single value, capturing its previous and new state.

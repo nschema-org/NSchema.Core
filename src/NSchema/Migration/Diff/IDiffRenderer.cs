@@ -1,12 +1,11 @@
-using NSchema.Migration.Diff;
+using NSchema.Migration.Diff.Model;
 
-namespace NSchema.Migration;
+namespace NSchema.Migration.Diff;
 
 /// <summary>
-/// Renders a structured <see cref="MigrationDiff"/> into a textual representation, such as a
-/// Terraform-style summary or a machine-readable format.
+/// Renders a structured <see cref="MigrationDiff"/> into a textual representation.
 /// </summary>
-public interface IMigrationDiffRenderer
+public interface IDiffRenderer
 {
     /// <summary>
     /// Renders the given diff.

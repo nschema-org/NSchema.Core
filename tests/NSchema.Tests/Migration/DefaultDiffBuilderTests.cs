@@ -1,14 +1,15 @@
 using NSchema.Migration;
 using NSchema.Migration.Diff;
+using NSchema.Migration.Diff.Model;
 using NSchema.Migration.Plan;
 using NSchema.Schema;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Migration;
 
-public class DefaultMigrationDiffBuilderTests
+public class DefaultDiffBuilderTests
 {
-    private readonly DefaultMigrationDiffBuilder _sut = new();
+    private readonly DefaultDiffBuilder _sut = new();
 
     [Fact]
     public void Build_EmptyPlan_ProducesEmptyDiff()

@@ -1,6 +1,6 @@
 using NSchema.Schema;
 
-namespace NSchema.Migration.Diff;
+namespace NSchema.Migration.Diff.Model;
 
 /// <summary>
 /// Describes a change to a primary or foreign key constraint.

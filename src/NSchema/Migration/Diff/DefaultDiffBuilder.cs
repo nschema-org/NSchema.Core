@@ -1,14 +1,14 @@
-using NSchema.Migration.Diff;
+using NSchema.Migration.Diff.Model;
 using NSchema.Migration.Plan;
 using NSchema.Schema;
 
-namespace NSchema.Migration;
+namespace NSchema.Migration.Diff;
 
 /// <summary>
-/// Default <see cref="IMigrationDiffBuilder"/>. Groups a plan's actions by schema and table and folds
+/// Default <see cref="IDiffBuilder"/>. Groups a plan's actions by schema and table and folds
 /// them into the hierarchical <see cref="MigrationDiff"/> model.
 /// </summary>
-internal sealed class DefaultMigrationDiffBuilder : IMigrationDiffBuilder
+internal sealed class DefaultDiffBuilder : IDiffBuilder
 {
     public MigrationDiff Build(MigrationPlan plan)
     {

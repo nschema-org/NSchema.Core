@@ -1,4 +1,4 @@
-namespace NSchema.Migration.Diff;
+namespace NSchema.Migration.Diff.Model;
 
 /// <summary>
 /// Describes the changes affecting a single schema and the tables within it.
@@ -18,4 +18,5 @@ public sealed record SchemaDiff(
     string? RenamedFrom,
     ValueChange<string>? Comment,
     IReadOnlyList<GrantChange> Grants,
-    IReadOnlyList<TableDiff> Tables);
+    IReadOnlyList<TableDiff> Tables
+);
