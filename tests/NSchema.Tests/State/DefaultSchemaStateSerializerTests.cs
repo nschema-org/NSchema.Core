@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
-using NSchema.Schema;
+using NSchema.Schema.Model;
 using NSchema.State;
 
 namespace NSchema.Tests.State;

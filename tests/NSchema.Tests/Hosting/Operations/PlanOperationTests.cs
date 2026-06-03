@@ -1,9 +1,10 @@
 using NSchema.Hosting.Operations;
 using NSchema.Hosting.Services;
 using NSchema.Migration;
-using NSchema.Migration.Plan;
-using NSchema.Migration.Sources;
+using NSchema.Plan.Model;
 using NSchema.Schema;
+using NSchema.Sql;
+using NSchema.Sql.Model;
 
 namespace NSchema.Tests.Hosting.Operations;
 
@@ -11,22 +12,21 @@ public sealed class PlanOperationTests
 {
     private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
     private readonly IMigrationHelper _helper = Substitute.For<IMigrationHelper>();
-    private readonly IMigrationCompiler _compiler = Substitute.For<IMigrationCompiler>();
-    private readonly ICompiledMigration _execution = Substitute.For<ICompiledMigration>();
+    private readonly ISqlGenerator _generator = Substitute.For<ISqlGenerator>();
 
-    private readonly MigrationPlan _plan = new([new CreateSchema("app")], DatabaseSchema.Create([]));
+    private readonly MigrationPlan _plan = new([new CreateSchema("app")]);
+    private readonly SqlPlan _sqlPlan = new([new SqlStatement("CREATE SCHEMA app")]);
 
-    private PlanOperation BuildSut(IMigrationCompiler? compiler) => new(_reporter, _helper, compiler);
+    private PlanOperation BuildSut(ISqlGenerator? planner) => new(_reporter, _helper, planner);
 
     private readonly PlanOperation _sut;
 
     public PlanOperationTests()
     {
-        _helper.Prepare(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(_plan);
-        _execution.Preview.Returns([]);
-        _compiler.Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>()).Returns(_execution);
+        _helper.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(_plan);
+        _generator.Generate(Arg.Any<MigrationPlan>()).Returns(_sqlPlan);
 
-        _sut = BuildSut(_compiler);
+        _sut = BuildSut(_generator);
     }
 
     [Fact]
@@ -34,47 +34,37 @@ public sealed class PlanOperationTests
     {
         await _sut.Execute(TestContext.Current.CancellationToken);
 
-        await _helper.Received(1).Prepare(SchemaSourceMode.Offline, required: false, Arg.Any<CancellationToken>());
+        await _helper.Received(1).Plan(SchemaSourceMode.Offline, required: false, Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Execute_CompilesButDoesNotExecute()
+    public async Task Execute_GeneratesSqlFromPlanAndReportsIt()
     {
         await _sut.Execute(TestContext.Current.CancellationToken);
 
-        await _compiler.Received(1).Compile(_plan, Arg.Any<CancellationToken>());
-        await _execution.DidNotReceive().Execute(Arg.Any<CancellationToken>());
+        _generator.Received(1).Generate(_plan);
+        _reporter.Received(1).ReportSqlPlan(_sqlPlan);
     }
 
     [Fact]
-    public async Task Execute_PresentsPreviewToReporter()
+    public async Task Execute_NoPlanner_ReportsPlanWithoutSqlPreview()
     {
-        _execution.Preview.Returns(["CREATE SCHEMA app"]);
-
-        await _sut.Execute(TestContext.Current.CancellationToken);
-
-        _reporter.Received(1).ReportPreview(Arg.Is<IReadOnlyList<string>>(p => p.SequenceEqual(new[] { "CREATE SCHEMA app" })));
-    }
-
-    [Fact]
-    public async Task Execute_NoCompiler_ReportsPlanWithoutPreview()
-    {
-        var sut = BuildSut(compiler: null);
+        var sut = BuildSut(planner: null);
 
         await sut.Execute(TestContext.Current.CancellationToken);
 
-        await _helper.Received(1).Prepare(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
-        _reporter.DidNotReceive().ReportPreview(Arg.Any<IReadOnlyList<string>>());
+        await _helper.Received(1).Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+        _reporter.DidNotReceive().ReportSqlPlan(Arg.Any<SqlPlan>());
     }
 
     [Fact]
-    public async Task Execute_PrepareThrows_DoesNotCompile()
+    public async Task Execute_PrepareThrows_DoesNotGenerateSql()
     {
-        _helper.Prepare(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+        _helper.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns<MigrationPlan>(_ => throw new InvalidOperationException("boom"));
 
         await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute());
 
-        await _compiler.DidNotReceive().Compile(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>());
+        _generator.DidNotReceive().Generate(Arg.Any<MigrationPlan>());
     }
 }

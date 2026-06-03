@@ -79,13 +79,11 @@ Migration policies are used to validate the generated migration plan before it's
 
 Migration policies are implemented using `IMigrationPolicy` and registered with `AddMigrationPolicy<T>()`. If any policy returns errors, execution will halt, preventing bad plans from being applied.
 
-## Migration compilation
+## SQL generation and execution
 
-The migration compiler is responsible for taking the validated migration plan and compiling it into an executable unit of work, along with a preview of the work that will be done.
+Once the plan is validated, NSchema turns it into SQL and, for an apply, runs it. These are two separate steps, so a plan can be previewed without a live connection:
 
-For a complete override, you can implement `IMigrationCompiler` and register with `UseMigrationCompiler<T>()`, but if you're targeting a SQL database, the default compiler offers two extension points:
+- `ISqlGenerator` turns the plan into a `SqlPlan`. This is pure string-building, so the SQL preview works offline; it's typically implemented in database providers like `NSchema.Postgres` and registered with `UseSqlGenerator<T>()`.
+- `ISqlExecutor` runs the `SqlPlan` against the database. The default implementation has simple transaction management, but you could replace it (via `UseSqlExecutor<T>()`) with one that adds logging, retries, or other features.
 
-- `ISqlPlanner` generates the SQL statement for each action in the plan. This is typically implemented in database providers like `NSchema.Postgres`.
-- `ISqlExecutor` takes the generated SQL and executes it against the database. There is a default implementation that has simple transaction management, but you could replace it with one that adds logging, retries, or other features.
-
-The default compiler compiles the plan into a SQL script, but you could replace it with a compiler that emits a C# class, a PowerShell script, or anything else you can execute.
+The rendered preview is produced by `ISqlPlanRenderer` (default `DefaultSqlPlanRenderer`), which the reporter owns — register a custom one to change the preview format, mirroring how `IDiffRenderer` controls the diff output.

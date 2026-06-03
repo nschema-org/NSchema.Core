@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Options;
-using NSchema.Schema;
+using NSchema.Schema.Model;
 
 namespace NSchema.State;
 

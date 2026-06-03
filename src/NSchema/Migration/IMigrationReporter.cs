@@ -1,5 +1,6 @@
-using NSchema.Migration.Diff.Model;
+using NSchema.Diff.Model;
 using NSchema.Policies;
+using NSchema.Sql.Model;
 
 namespace NSchema.Migration;
 
@@ -24,12 +25,12 @@ public interface IMigrationReporter
     void ReportDiff(MigrationDiff diff);
 
     /// <summary>
-    /// Presents the statements a compiled migration would run.
+    /// Presents the SQL plan a migration would run.
     /// </summary>
-    void ReportPreview(IReadOnlyList<string> statements);
+    void ReportSqlPlan(SqlPlan plan);
 
     /// <summary>
     /// Presents non-fatal policy diagnostics (warnings and info) produced during planning.
     /// </summary>
-    void ReportDiagnostics(IReadOnlyList<PolicyError> diagnostics);
+    void ReportDiagnostics(PolicyDiagnostics diagnostics);
 }

@@ -1,5 +1,5 @@
-using NSchema.Migration.Plan;
-using NSchema.Migration.Sources;
+using NSchema.Plan.Model;
+using NSchema.Schema;
 
 namespace NSchema.Hosting.Services;
 
@@ -13,7 +13,7 @@ internal interface IMigrationHelper
     /// <param name="currentSource">Which source to read the current schema from.</param>
     /// <param name="required">Whether <paramref name="currentSource"/> must be available, or may fall back to the other source.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<MigrationPlan> Prepare(SchemaSourceMode currentSource, bool required, CancellationToken cancellationToken = default);
+    Task<MigrationPlan> Plan(SchemaSourceMode currentSource, bool required, CancellationToken cancellationToken = default);
 
     Task Refresh(CancellationToken cancellationToken = default);
 }

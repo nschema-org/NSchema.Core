@@ -1,6 +1,7 @@
 using NSchema.Hosting.Services;
 using NSchema.Migration;
-using NSchema.Migration.Sources;
+using NSchema.Schema;
+using NSchema.Sql;
 
 namespace NSchema.Hosting.Operations;
 
@@ -8,23 +9,24 @@ internal sealed class ApplyOperation(
     IMigrationReporter reporter,
     IMigrationConfirmation confirmation,
     IMigrationHelper helper,
-    IMigrationCompiler? compiler = null
+    ISqlGenerator? sqlGenerator = null,
+    ISqlExecutor? sqlExecutor = null
 ) : IMigrationOperation
 {
     public async Task Execute(CancellationToken cancellationToken = default)
     {
-        if (compiler == null)
+        if (sqlGenerator is null || sqlExecutor is null)
         {
-            throw new InvalidOperationException("Applying a migration requires a database provider to compile the plan into SQL, but none is registered.");
+            throw new InvalidOperationException("Applying a migration requires a database provider to generate and execute SQL, but none is registered.");
         }
 
         reporter.Info("Applying schema migration. Changes will be applied to the database.");
 
-        var plan = await helper.Prepare(SchemaSourceMode.Online, required: true, cancellationToken);
+        var plan = await helper.Plan(SchemaSourceMode.Online, required: true, cancellationToken);
 
-        reporter.Info("Compiling migration plan...");
-        var execution = await compiler.Compile(plan, cancellationToken);
-        reporter.ReportPreview(execution.Preview);
+        reporter.Info("Generating SQL...");
+        var sqlPlan = sqlGenerator.Generate(plan);
+        reporter.ReportSqlPlan(sqlPlan);
 
         // Offer an interactive front-end the chance to prompt before any changes are made.
         if (!await confirmation.Confirm(plan, cancellationToken))
@@ -34,7 +36,7 @@ internal sealed class ApplyOperation(
         }
 
         reporter.Info("Running database migration...");
-        await execution.Execute(cancellationToken);
+        await sqlExecutor.Execute(sqlPlan, cancellationToken);
         reporter.Info("Migration completed successfully.");
 
         // Capture the post-apply state only when a store is configured; otherwise there's nowhere to write it.

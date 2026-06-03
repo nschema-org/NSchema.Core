@@ -36,8 +36,8 @@ The codebase is split into two layers:
 
 Built-in operations (`src/NSchema/Hosting/Operations/`):
 
-- **`PlanOperation`** — resolves schemas (offline source preferred), calls `IMigrationPlanner`, reports the plan and preview (if a compiler is registered). Does not execute.
-- **`ApplyOperation`** — resolves schemas (online source required), calls `IMigrationPlanner`, compiles, previews, executes, and captures state.
+- **`PlanOperation`** — resolves schemas (offline source preferred), calls `IMigrationPlanner`, reports the plan and the SQL preview (if an `ISqlGenerator` dialect is registered). Does not execute.
+- **`ApplyOperation`** — resolves schemas (online source required), calls `IMigrationPlanner`, generates SQL via `ISqlGenerator`, previews it, executes via `ISqlExecutor`, and captures state.
 - **`RefreshOperation`** — captures the live schema to the state store without planning or applying.
 
 `SchemaResolution.ResolveAsync` (`src/NSchema/Hosting/Operations/SchemaResolution.cs`) is a shared static helper used by `PlanOperation` and `ApplyOperation` to collect desired providers, aggregate, derive scope, and fetch the current schema.
@@ -66,21 +66,22 @@ The internal `DefaultCurrentSchemaProvider` wires both sources together. Registe
 
 ### Planner
 
-`DefaultMigrationPlanner` (`src/NSchema/Migration/DefaultMigrationPlanner.cs`) is a pure domain service. It takes two pre-resolved `DatabaseSchema` values and produces a `MigrationPlanResult`:
+`DefaultMigrationPlanner` (`src/NSchema/Migration/DefaultMigrationPlanner.cs`) is a pure domain service. It takes two pre-resolved `DatabaseSchema` values and produces a `MigrationPlanResult` (which carries both the executable `MigrationPlan` and its structured `MigrationDiff`). The **structured diff is the primary artifact**: the comparer emits it directly, and the linearizer derives the ordered plan from it. The pipeline is three stages, each of which transforms its representation and then validates it:
 
-1. **Validate desired** — every `ISchemaPolicy` runs against the desired schema.
-2. **Diff** — `ISchemaComparer` produces the initial `MigrationPlan`.
-3. **Inject scripts** — pre/post scripts from `IScriptProvider`s are inserted.
-4. **Transform** — `IMigrationPlanTransformer`s run in registration order. The built-in `ActionOrderingTransformer` sorts actions into a safe dependency order.
-5. **Validate plan** — every `IMigrationPolicy` runs against the transformed plan. The built-in `DestructiveActionMigrationPolicy` enforces `MigrationOptions.DestructiveActionPolicy`.
+1. **Schema stage** — `ISchemaTransformer`s run in registration order against the desired schema, then every `ISchemaPolicy` validates it. A schema-policy error is fatal and skips the rest.
+2. **Diff stage** — `ISchemaComparer` produces the structured `MigrationDiff` directly (no flat-action intermediate). Deployment-script names from `IScriptProvider`s are folded onto the diff for rendering. `IDiffTransformer`s then run in registration order, and every `IDiffPolicy` validates the result. The built-in `DestructiveActionMigrationPolicy` runs here (it reasons over `ChangeKind.Remove` and narrowing column changes) and enforces `MigrationOptions.DestructiveActionPolicy`.
+3. **Plan stage** — `IMigrationLinearizer` (default `DefaultMigrationLinearizer`) walks the diff and emits the migration actions, ordering them into a safe dependency order via `ActionOrderingTransformer`. The collected scripts are spliced in as `RunScript` actions (pre first, post last). `IMigrationPlanTransformer`s then run in registration order, and every `IMigrationPolicy` validates the final plan.
 
 The planner has no knowledge of operations, online/offline routing, or `MigrationRunOptions`.
 
-### Compilation and execution
+### SQL generation and execution
 
-`IMigrationCompiler` (default `SqlMigrationCompiler`) turns a `MigrationPlan` into an `ICompiledMigration`: an inspectable unit with a `Preview` (SQL statements) and an `Execute`. The compiler is optional — an offline run with no database provider registers none, and `PlanOperation` reports the plan without a SQL preview.
+Generating SQL and executing it are deliberately separate, so a plan can be previewed offline:
 
-`DefaultSqlExecutor` executes the `SqlPlan` using a `DbDataSource`. It reads `MigrationRunOptions.TransactionMode` to decide whether to wrap everything in one transaction.
+- **`ISqlGenerator`** (`UseSqlGenerator<T>()`, typically supplied by a database-provider extension) turns a `MigrationPlan` into a structured `SqlPlan` (an ordered list of `SqlStatement`s, each flagged if it `RunOutsideTransaction`). This is pure string-building — no connection — so the SQL preview works offline whenever a dialect is registered. The generator is optional: an offline run with no provider registers none, and `PlanOperation` reports the plan without a SQL preview.
+- **`ISqlExecutor`** (default `DefaultSqlExecutor`) executes the `SqlPlan` against a `DbDataSource`. It reads `MigrationRunOptions.TransactionMode` to decide whether to wrap everything in one transaction. It is the only online step.
+
+The operations consume these two seams directly — there is no separate compiler abstraction. The `SqlPlan` reaches the reporter as a structured value via `IMigrationReporter.ReportSqlPlan(SqlPlan)`, which renders it through **`ISqlPlanRenderer`** (default `DefaultSqlPlanRenderer`), mirroring the diff side's `IDiffRenderer`.
 
 ### Defining a schema
 
@@ -107,25 +108,27 @@ Providers are registered with `builder.AddSchema<T>()` or `builder.AddSchemasFro
 | `ISchemaProvider` (desired)                                                                                 | `AddSchema<T>()` / `AddSchemasFromAssembly[Containing]<T>()`                                            |
 | `ISchemaProvider` (online current)                                                                          | `UseCurrentSchema<T>()` — typically called from a database-provider extension (e.g. `UsePostgres(...)`) |
 | `IMigrationOperation`                                                                                       | `AddKeyedSingleton<IMigrationOperation, T>(MigrationOperation.*)`                                       |
+| `ISchemaTransformer`                                                                                        | `AddSchemaTransformer<T>()` / `AddSchemaTransformersFromAssembly[Containing]<T>()`                      |
 | `ISchemaPolicy`                                                                                             | `AddSchemaPolicy<T>()`                                                                                  |
+| `IDiffTransformer`                                                                                          | `AddDiffTransformer<T>()` / `AddDiffTransformersFromAssembly[Containing]<T>()`                          |
+| `IDiffPolicy`                                                                                               | `AddDiffPolicy<T>()` / `AddDiffPoliciesFromAssembly[Containing]<T>()`                                   |
 | `IMigrationPlanTransformer`                                                                                 | `AddPlanTransformer<T>()`                                                                               |
 | `IMigrationPolicy`                                                                                          | `AddMigrationPolicy<T>()`                                                                               |
 | `IScriptProvider`                                                                                           | `AddScriptProvider<T>()` / `AddScriptFromFile(...)` / `AddScriptsFromEmbeddedResources(...)`            |
 | `ISqlExecutor`                                                                                              | `UseSqlExecutor<T>()` (replaces default)                                                                |
-| `IMigrationCompiler`                                                                                        | `UseMigrationCompiler<T>()` (replaces default `SqlMigrationCompiler`)                                   |
 | `ISchemaStateStore`                                                                                         | `UseStateStore<T>()` / `UseStateStore(instance)` / `UseFileStateStore(path)`                            |
-| `ISchemaComparer`, `ISchemaAggregator`, `IMigrationPlanner`, `IMigrationReporter`                           | Override via `Services.AddSingleton<...>()` before `Build()` (defaults registered with `TryAdd`)        |
+| `ISchemaComparer`, `IMigrationLinearizer`, `ISchemaAggregator`, `IMigrationPlanner`, `IMigrationReporter`   | Override via `Services.AddSingleton<...>()` before `Build()` (defaults registered with `TryAdd`)        |
 | `IDiffRenderer`                                                                                             | `UseTerraformRenderer(...)`, or override via `Services.AddSingleton<...>()` before `Build()`            |
-| `ISqlPlanner`                                                                                               | Supplied by a database-provider extension                                                               |
+| `ISqlPlanRenderer`                                                                                          | Override via `Services.AddSingleton<...>()` before `Build()` (default `DefaultSqlPlanRenderer`)         |
+| `ISqlGenerator`                                                                                            | `UseSqlGenerator<T>()`, typically supplied by a database-provider extension                             |
 
 ### Diff rendering
 
-Showing the plan to the user is a two-phase pipeline so output formats can vary independently of the diffing logic. `MigrationHelper.Prepare` drives it: after planning, it builds the diff and hands it to the reporter.
+The structured `MigrationDiff` (`Migration/Diff/Model/`: schema → table → columns/indexes/constraints/grants, each carrying a `ChangeKind` of `Add`/`Modify`/`Remove`) is produced directly by `ISchemaComparer` during planning and carried on `MigrationPlanResult.Diff`. The model is presentation-agnostic, and it is the semantic source of truth — `IMigrationLinearizer` derives the executable plan from it, so a diff transformer that changes the tree also changes what executes.
 
-1. **`IDiffBuilder`** (default `DefaultDiffBuilder`, in `src/NSchema/Migration/Diff/`) rearranges the plan's flat action list into a structured, hierarchical `MigrationDiff` (`Migration/Diff/Model/`): schema → table → columns/indexes/constraints/grants, each carrying a `ChangeKind` (`Add`/`Modify`/`Remove`). The model is presentation-agnostic. `IDiffBuilder` is an interface so it can be faked in tests, not because the build is meant to be swapped — there is one canonical projection.
-2. **`IDiffRenderer`** (default `TerraformDiffRenderer`) turns a `MigrationDiff` into text. The default emits a Terraform-style diff; an alternative (e.g. JSON) can be registered without touching phase 1. Each renderer owns its own options POCO — the Terraform renderer reads `TerraformDiffRendererOptions.IncludeColour` (defaulted from the environment via `EnvironmentHelpers.SupportsColor`: on unless `NO_COLOR` is set or output is redirected), configured through `UseTerraformRenderer(o => ...)`. The renderer itself never reads the environment.
+Rendering is a single phase: **`IDiffRenderer`** (default `TerraformDiffRenderer`) turns a `MigrationDiff` into text. The default emits a Terraform-style diff; an alternative (e.g. JSON) can be registered without touching the diff projection. Each renderer owns its own options POCO — the Terraform renderer reads `TerraformDiffRendererOptions.IncludeColour` (defaulted from the environment via `EnvironmentHelpers.SupportsColor`: on unless `NO_COLOR` is set or output is redirected), configured through `UseTerraformRenderer(o => ...)`. The renderer itself never reads the environment.
 
-`IMigrationReporter.ReportDiff(MigrationDiff)` is the single seam between the two: the reporter owns the `IDiffRenderer` and writes the rendered text to its output. There is no plan-level renderer facade — the helper builds the diff, the reporter renders it.
+`IMigrationReporter.ReportDiff(MigrationDiff)` is the seam: the reporter owns the `IDiffRenderer` and writes the rendered text to its output. `MigrationHelper.Prepare` simply hands `result.Diff` to the reporter — there is no separate diff-building step.
 
 ### Renaming
 

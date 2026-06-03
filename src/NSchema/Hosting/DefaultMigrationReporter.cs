@@ -1,7 +1,9 @@
+using NSchema.Diff;
+using NSchema.Diff.Model;
 using NSchema.Migration;
-using NSchema.Migration.Diff;
-using NSchema.Migration.Diff.Model;
 using NSchema.Policies;
+using NSchema.Sql;
+using NSchema.Sql.Model;
 
 namespace NSchema.Hosting;
 
@@ -11,7 +13,8 @@ namespace NSchema.Hosting;
 /// <param name="output">The writer for informational output (typically stdout).</param>
 /// <param name="error">The writer for errors and warnings (typically stderr).</param>
 /// <param name="diffRenderer">Renders the migration diff as human-readable text.</param>
-internal sealed class DefaultMigrationReporter(TextWriter output, TextWriter error, IDiffRenderer diffRenderer) : IMigrationReporter
+/// <param name="sqlPlanRenderer">Renders the SQL plan as human-readable text.</param>
+internal sealed class DefaultMigrationReporter(TextWriter output, TextWriter error, IDiffRenderer diffRenderer, ISqlPlanRenderer sqlPlanRenderer) : IMigrationReporter
 {
     public void Info(string message) => output.WriteLine(message);
 
@@ -24,34 +27,24 @@ internal sealed class DefaultMigrationReporter(TextWriter output, TextWriter err
         output.WriteLine();
     }
 
-    public void ReportPreview(IReadOnlyList<string> statements)
+    public void ReportSqlPlan(SqlPlan plan)
     {
-        output.WriteLine("SQL Preview:");
-        if (statements.Count == 0)
-        {
-            output.WriteLine("- No statements to execute");
-        }
-        else
-        {
-            foreach (var statement in statements)
-            {
-                output.WriteLine(statement);
-            }
-        }
+        output.WriteLine(sqlPlanRenderer.Render(plan));
+        output.WriteLine();
     }
 
-    public void ReportDiagnostics(IReadOnlyList<PolicyError> diagnostics)
+    public void ReportDiagnostics(PolicyDiagnostics diagnostics)
     {
         output.WriteLine("Policy diagnostics:");
         if (diagnostics.Count == 0)
         {
-            output.WriteLine("None");
+            output.WriteLine("- Nothing to report");
             return;
         }
 
         foreach (var diagnostic in diagnostics)
         {
-            var writer = diagnostic.Severity is PolicySeverity.Error or PolicySeverity.Warning ? error : output;
+            var writer = diagnostic.Severity is PolicyDiagnosticSeverity.Error or PolicyDiagnosticSeverity.Warning ? error : output;
             writer.WriteLine($"- {diagnostic.PolicyName}: {diagnostic.Message}");
         }
     }

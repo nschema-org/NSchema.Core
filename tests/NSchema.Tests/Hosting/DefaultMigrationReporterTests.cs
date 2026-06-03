@@ -1,7 +1,9 @@
+using NSchema.Diff;
+using NSchema.Diff.Model;
 using NSchema.Hosting;
-using NSchema.Migration.Diff;
-using NSchema.Migration.Diff.Model;
 using NSchema.Policies;
+using NSchema.Sql;
+using NSchema.Sql.Model;
 
 namespace NSchema.Tests.Hosting;
 
@@ -10,12 +12,13 @@ public sealed class DefaultMigrationReporterTests
     private readonly StringWriter _output = new();
     private readonly StringWriter _error = new();
     private readonly IDiffRenderer _diffRenderer = Substitute.For<IDiffRenderer>();
+    private readonly ISqlPlanRenderer _sqlPlanRenderer = Substitute.For<ISqlPlanRenderer>();
 
     private readonly DefaultMigrationReporter _sut;
 
     public DefaultMigrationReporterTests()
     {
-        _sut = new DefaultMigrationReporter(_output, _error, _diffRenderer);
+        _sut = new DefaultMigrationReporter(_output, _error, _diffRenderer, _sqlPlanRenderer);
     }
 
     [Fact]
@@ -49,24 +52,25 @@ public sealed class DefaultMigrationReporterTests
     }
 
     [Fact]
-    public void ReportPreview_WritesEachStatementToOutput()
+    public void ReportSqlPlan_WritesRenderedPlanToOutput()
     {
-        _sut.ReportPreview(["CREATE SCHEMA app", "CREATE TABLE app.users (id int)"]);
+        var plan = new SqlPlan([new SqlStatement("CREATE SCHEMA app")]);
+        _sqlPlanRenderer.Render(plan).Returns("rendered sql");
 
-        var lines = _output.ToString();
-        lines.ShouldContain("SQL Preview:");
-        lines.ShouldContain("CREATE SCHEMA app");
-        lines.ShouldContain("CREATE TABLE app.users (id int)");
+        _sut.ReportSqlPlan(plan);
+
+        _output.ToString().ShouldContain("rendered sql");
+        _error.ToString().ShouldBeEmpty();
     }
 
     [Fact]
     public void ReportDiagnostics_RoutesWarningsAndErrorsToError()
     {
-        var diagnostics = new[]
+        var diagnostics = new PolicyDiagnostics
         {
-            new PolicyError("P1", "all good", PolicySeverity.Info),
-            new PolicyError("P2", "be careful", PolicySeverity.Warning),
-            new PolicyError("P3", "blocked", PolicySeverity.Error),
+            new PolicyDiagnostic("P1", "all good", PolicyDiagnosticSeverity.Info),
+            new PolicyDiagnostic("P2", "be careful", PolicyDiagnosticSeverity.Warning),
+            new PolicyDiagnostic("P3", "blocked", PolicyDiagnosticSeverity.Error),
         };
 
         _sut.ReportDiagnostics(diagnostics);
@@ -80,8 +84,8 @@ public sealed class DefaultMigrationReporterTests
     [Fact]
     public void ReportDiagnostics_WithNoDiagnostics_WritesNone()
     {
-        _sut.ReportDiagnostics([]);
+        _sut.ReportDiagnostics(new PolicyDiagnostics());
 
-        _output.ToString().ShouldContain("None");
+        _output.ToString().ShouldContain("Nothing to report");
     }
 }

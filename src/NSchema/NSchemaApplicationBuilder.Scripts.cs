@@ -1,8 +1,7 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
-using NSchema.Migration;
-using NSchema.Migration.ScriptProviders;
-using NSchema.Schema;
+using NSchema.Scripts;
+using NSchema.Scripts.Model;
 
 namespace NSchema;
 
