@@ -5,7 +5,7 @@ using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Tests.Helpers;
 
-namespace NSchema.Tests.Migration;
+namespace NSchema.Tests.Diff;
 
 public class DestructiveActionMigrationPolicyTests
 {

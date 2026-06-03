@@ -2,7 +2,7 @@ using System.Text.Json;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 
-namespace NSchema.Tests.Json;
+namespace NSchema.Tests.Schema;
 
 public sealed class JsonSchemaProviderTests : IDisposable
 {

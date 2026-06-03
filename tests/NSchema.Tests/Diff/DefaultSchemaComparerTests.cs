@@ -1,15 +1,15 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using NSchema.Diff;
 using NSchema.Diff.Model;
 using NSchema.Schema.Model;
-using DefaultSchemaComparer = NSchema.Diff.DefaultSchemaComparer;
 
-namespace NSchema.Tests.Migration;
+namespace NSchema.Tests.Diff;
 
 /// <summary>
 /// Covers the structured-diff projection the comparer now produces directly (formerly the responsibility of
 /// DefaultDiffBuilder), driven from realistic schema inputs.
 /// </summary>
-public class DefaultSchemaComparerDiffTests
+public class DefaultSchemaComparerTests
 {
     private readonly DefaultSchemaComparer _sut = new(NullLogger<DefaultSchemaComparer>.Instance);
 

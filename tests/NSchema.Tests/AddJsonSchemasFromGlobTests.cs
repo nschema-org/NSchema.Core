@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using NSchema.Schema;
 
-namespace NSchema.Tests.Json;
+namespace NSchema.Tests;
 
 public sealed class AddJsonSchemasFromGlobTests : IDisposable
 {

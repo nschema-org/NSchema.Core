@@ -2,7 +2,7 @@ using Microsoft.Extensions.Options;
 using NSchema.Diff;
 using NSchema.Diff.Model;
 
-namespace NSchema.Tests.Migration;
+namespace NSchema.Tests.Diff;
 
 public class TerraformDiffRendererTests
 {

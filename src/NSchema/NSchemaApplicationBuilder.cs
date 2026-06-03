@@ -12,7 +12,6 @@ using NSchema.Migration;
 using NSchema.Migration.Sql;
 using NSchema.Schema;
 using NSchema.State;
-using DefaultSchemaComparer = NSchema.Diff.DefaultSchemaComparer;
 
 namespace NSchema;
 

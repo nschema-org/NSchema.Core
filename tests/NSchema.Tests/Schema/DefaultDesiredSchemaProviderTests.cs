@@ -1,7 +1,7 @@
 using NSchema.Schema;
 using NSchema.Schema.Model;
 
-namespace NSchema.Tests.Migration;
+namespace NSchema.Tests.Schema;
 
 public sealed class DefaultDesiredSchemaProviderTests
 {

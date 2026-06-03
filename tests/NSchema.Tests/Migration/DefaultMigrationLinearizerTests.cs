@@ -1,12 +1,12 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using NSchema.Diff;
 using NSchema.Migration;
 using NSchema.Plan.Model;
 using NSchema.Schema.Model;
-using DefaultSchemaComparer = NSchema.Diff.DefaultSchemaComparer;
 
 namespace NSchema.Tests.Migration;
 
-public class DefaultSchemaComparerTests
+public class DefaultMigrationLinearizerTests
 {
     private readonly DefaultSchemaComparer _comparer = new(NullLogger<DefaultSchemaComparer>.Instance);
     private readonly DefaultMigrationLinearizer _linearizer = new();
