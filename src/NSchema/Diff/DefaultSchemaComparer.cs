@@ -319,14 +319,20 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
             comment = new ValueChange<string>(current.Comment, desired.Comment);
         }
 
+        // Identity changes when the column is toggled into or out of identity, or when both columns are
+        // identity but their sequence options differ. Old/New options are null on the side that isn't identity.
         ValueChange<IdentityOptions>? identity = null;
-        if (current.IsIdentity && desired.IsIdentity && current.IdentityOptions != desired.IdentityOptions)
+        var identityToggled = current.IsIdentity != desired.IsIdentity;
+        var identityOptionsChanged = current.IsIdentity && desired.IsIdentity && current.IdentityOptions != desired.IdentityOptions;
+        if (identityToggled || identityOptionsChanged)
         {
+            var oldOptions = current.IsIdentity ? current.IdentityOptions : null;
+            var newOptions = desired.IsIdentity ? desired.IdentityOptions : null;
             LogColumnIdentityChanged(schemaName, tableName, desired.Name,
-                current.IdentityOptions?.StartWith, desired.IdentityOptions?.StartWith,
-                current.IdentityOptions?.MinValue, desired.IdentityOptions?.MinValue,
-                current.IdentityOptions?.IncrementBy, desired.IdentityOptions?.IncrementBy);
-            identity = new ValueChange<IdentityOptions>(current.IdentityOptions, desired.IdentityOptions);
+                oldOptions?.StartWith, newOptions?.StartWith,
+                oldOptions?.MinValue, newOptions?.MinValue,
+                oldOptions?.IncrementBy, newOptions?.IncrementBy);
+            identity = new ValueChange<IdentityOptions>(oldOptions, newOptions);
         }
 
         if (renamedFrom is null && type is null && nullability is null && @default is null && comment is null && identity is null)

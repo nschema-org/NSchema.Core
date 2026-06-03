@@ -93,9 +93,10 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
 
         foreach (var grant in table.Grants)
         {
+            var privileges = FormatPrivileges(grant.Privileges);
             var text = grant.Kind == ChangeKind.Add
-                ? $"grant {grant.Privileges} to {grant.Role}"
-                : $"revoke {grant.Privileges} from {grant.Role}";
+                ? $"grant {privileges} to {grant.Role}"
+                : $"revoke {privileges} from {grant.Role}";
             AppendDetail(sb, grant.Kind, text);
         }
     }
@@ -181,6 +182,39 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
         : comment.Old is null
             ? $" ({FormatComment(comment.New)})"
             : $" ({FormatComment(comment.Old)} → {FormatComment(comment.New)})";
+
+    // Decompose the privilege flags into the underlying SQL privileges rather than rendering the enum name,
+    // which would surface aliases (e.g. ReadOnly for Select) and composites (All) instead of the real grants.
+    private static string FormatPrivileges(TablePrivilege? privileges)
+    {
+        if (privileges is not { } granted || granted == TablePrivilege.None)
+        {
+            return "no privileges";
+        }
+
+        var parts = new List<string>(4);
+        if (granted.HasFlag(TablePrivilege.Select))
+        {
+            parts.Add("SELECT");
+        }
+
+        if (granted.HasFlag(TablePrivilege.Insert))
+        {
+            parts.Add("INSERT");
+        }
+
+        if (granted.HasFlag(TablePrivilege.Update))
+        {
+            parts.Add("UPDATE");
+        }
+
+        if (granted.HasFlag(TablePrivilege.Delete))
+        {
+            parts.Add("DELETE");
+        }
+
+        return string.Join(", ", parts);
+    }
 
     private string FormatComment(string? comment) => comment is null ? "<none>" : $"\"{comment}\"";
 
