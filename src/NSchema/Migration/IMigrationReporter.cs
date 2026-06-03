@@ -1,4 +1,4 @@
-using NSchema.Migration.Plan;
+using NSchema.Migration.Diff.Model;
 using NSchema.Policies;
 
 namespace NSchema.Migration;
@@ -19,9 +19,9 @@ public interface IMigrationReporter
     void Error(string message);
 
     /// <summary>
-    /// Presents the computed migration plan as a human-readable diff.
+    /// Presents the computed migration diff as human-readable output.
     /// </summary>
-    void ReportPlan(MigrationPlan plan);
+    void ReportDiff(MigrationDiff diff);
 
     /// <summary>
     /// Presents the statements a compiled migration would run.

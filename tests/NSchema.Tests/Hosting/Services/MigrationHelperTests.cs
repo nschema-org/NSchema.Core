@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Options;
 using NSchema.Hosting.Services;
 using NSchema.Migration;
+using NSchema.Migration.Diff;
+using NSchema.Migration.Diff.Model;
 using NSchema.Migration.Plan;
 using NSchema.Policies;
 using NSchema.Schema;
@@ -11,13 +13,14 @@ namespace NSchema.Tests.Hosting.Services;
 public sealed class MigrationHelperTests
 {
     private readonly IMigrationPlanner _planner = Substitute.For<IMigrationPlanner>();
+    private readonly IDiffBuilder _diffBuilder = Substitute.For<IDiffBuilder>();
     private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
     private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
     private readonly IDesiredSchemaProvider _desiredProvider = Substitute.For<IDesiredSchemaProvider>();
     private readonly IOptions<MigrationOptions> _options = Options.Create(new MigrationOptions());
 
     private MigrationHelper BuildSut(ISchemaStateStore? store = null) =>
-        new(_options, _planner, _reporter, _currentProvider, _desiredProvider, store);
+        new(_options, _planner, _diffBuilder, _reporter, _currentProvider, _desiredProvider, store);
 
     private readonly MigrationHelper _sut;
 
@@ -31,21 +34,24 @@ public sealed class MigrationHelperTests
         _planner
             .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
             .Returns(new MigrationPlanResult(new MigrationPlan([], DatabaseSchema.Create([])), []));
+        _diffBuilder.Build(Arg.Any<MigrationPlan>()).Returns(new MigrationDiff([], [], []));
 
         _sut = BuildSut();
     }
 
     [Fact]
-    public async Task Prepare_ReturnsComputedPlan()
+    public async Task Prepare_ReturnsComputedPlan_AndReportsItsDiff()
     {
         var plan = new MigrationPlan([new CreateSchema("app")], DatabaseSchema.Create([]));
         _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<CancellationToken>())
             .Returns(new MigrationPlanResult(plan, []));
+        var diff = new MigrationDiff([], [], []);
+        _diffBuilder.Build(plan).Returns(diff);
 
         var result = await _sut.Prepare(SchemaSourceMode.Offline, required: false);
 
         result.ShouldBe(plan);
-        _reporter.Received(1).ReportPlan(plan);
+        _reporter.Received(1).ReportDiff(diff);
     }
 
     [Fact]
@@ -76,11 +82,11 @@ public sealed class MigrationHelperTests
         await Should.ThrowAsync<PolicyViolationException>(() => _sut.Prepare(SchemaSourceMode.Offline, required: false));
 
         _reporter.Received(1).ReportDiagnostics(Arg.Any<IReadOnlyList<PolicyError>>());
-        _reporter.DidNotReceive().ReportPlan(Arg.Any<MigrationPlan>());
+        _reporter.DidNotReceive().ReportDiff(Arg.Any<MigrationDiff>());
     }
 
     [Fact]
-    public async Task Prepare_NonErrorDiagnostics_ReportedAfterPlan()
+    public async Task Prepare_NonErrorDiagnostics_ReportedAfterDiff()
     {
         var diagnostics = new[] { new PolicyError("P1", "info", PolicySeverity.Info) };
         var plan = new MigrationPlan([], DatabaseSchema.Create([]));
@@ -88,13 +94,13 @@ public sealed class MigrationHelperTests
             .Returns(new MigrationPlanResult(plan, diagnostics));
 
         var callOrder = new List<string>();
-        _reporter.When(r => r.ReportPlan(Arg.Any<MigrationPlan>())).Do(_ => callOrder.Add("plan"));
+        _reporter.When(r => r.ReportDiff(Arg.Any<MigrationDiff>())).Do(_ => callOrder.Add("diff"));
         _reporter.When(r => r.ReportDiagnostics(Arg.Any<IReadOnlyList<PolicyError>>())).Do(_ => callOrder.Add("diagnostics"));
 
         await _sut.Prepare(SchemaSourceMode.Offline, required: false);
 
         _reporter.Received(1).ReportDiagnostics(Arg.Is<IReadOnlyList<PolicyError>>(d => d.SequenceEqual(diagnostics)));
-        callOrder.ShouldBe(["plan", "diagnostics"]);
+        callOrder.ShouldBe(["diff", "diagnostics"]);
     }
 
     [Fact]

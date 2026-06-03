@@ -114,18 +114,18 @@ Providers are registered with `builder.AddSchema<T>()` or `builder.AddSchemasFro
 | `ISqlExecutor`                                                                                              | `UseSqlExecutor<T>()` (replaces default)                                                                |
 | `IMigrationCompiler`                                                                                        | `UseMigrationCompiler<T>()` (replaces default `SqlMigrationCompiler`)                                   |
 | `ISchemaStateStore`                                                                                         | `UseStateStore<T>()` / `UseStateStore(instance)` / `UseFileStateStore(path)`                            |
-| `ISchemaComparer`, `ISchemaAggregator`, `IMigrationPlanner`, `IMigrationReporter`, `IMigrationPlanRenderer` | Override via `Services.AddSingleton<...>()` before `Build()` (defaults registered with `TryAdd`)        |
-| `IMigrationDiffBuilder`, `IMigrationDiffRenderer`                                                           | Override via `Services.AddSingleton<...>()` before `Build()` (defaults registered with `TryAdd`)        |
+| `ISchemaComparer`, `ISchemaAggregator`, `IMigrationPlanner`, `IMigrationReporter`                           | Override via `Services.AddSingleton<...>()` before `Build()` (defaults registered with `TryAdd`)        |
+| `IDiffRenderer`                                                                                             | `UseTerraformRenderer(...)`, or override via `Services.AddSingleton<...>()` before `Build()`            |
 | `ISqlPlanner`                                                                                               | Supplied by a database-provider extension                                                               |
 
-### Plan rendering
+### Diff rendering
 
-Rendering a `MigrationPlan` for display is a two-phase pipeline so output formats can vary independently of the diffing logic:
+Showing the plan to the user is a two-phase pipeline so output formats can vary independently of the diffing logic. `MigrationHelper.Prepare` drives it: after planning, it builds the diff and hands it to the reporter.
 
-1. **`IMigrationDiffBuilder`** (default `DefaultMigrationDiffBuilder`) rearranges the plan's flat action list into a structured, hierarchical `MigrationDiff` (`src/NSchema/Migration/Diff/`): schema → table → columns/indexes/constraints/grants, each carrying a `ChangeKind` (`Add`/`Modify`/`Remove`). The model is presentation-agnostic.
-2. **`IMigrationDiffRenderer`** (default `TerraformMigrationDiffRenderer`) turns a `MigrationDiff` into text. The default emits a Terraform-style diff; an alternative (e.g. JSON) can be registered without touching phase 1. Each renderer owns its own options POCO — the Terraform renderer reads `TerraformRendererOptions.IncludeColour` (which defaults to the environment's preference: on unless `NO_COLOR` is set or output is redirected), configurable via `WithTerraformColour(bool)`. The renderer itself never reads the environment.
+1. **`IDiffBuilder`** (default `DefaultDiffBuilder`, in `src/NSchema/Migration/Diff/`) rearranges the plan's flat action list into a structured, hierarchical `MigrationDiff` (`Migration/Diff/Model/`): schema → table → columns/indexes/constraints/grants, each carrying a `ChangeKind` (`Add`/`Modify`/`Remove`). The model is presentation-agnostic. `IDiffBuilder` is an interface so it can be faked in tests, not because the build is meant to be swapped — there is one canonical projection.
+2. **`IDiffRenderer`** (default `TerraformDiffRenderer`) turns a `MigrationDiff` into text. The default emits a Terraform-style diff; an alternative (e.g. JSON) can be registered without touching phase 1. Each renderer owns its own options POCO — the Terraform renderer reads `TerraformDiffRendererOptions.IncludeColour` (defaulted from the environment via `EnvironmentHelpers.SupportsColor`: on unless `NO_COLOR` is set or output is redirected), configured through `UseTerraformRenderer(o => ...)`. The renderer itself never reads the environment.
 
-`DefaultMigrationPlanRenderer` is a thin facade over the two — `IMigrationPlanRenderer.Render(plan)` calls `renderer.Render(builder.Build(plan))` — so the public `IMigrationPlanRenderer` contract is unchanged.
+`IMigrationReporter.ReportDiff(MigrationDiff)` is the single seam between the two: the reporter owns the `IDiffRenderer` and writes the rendered text to its output. There is no plan-level renderer facade — the helper builds the diff, the reporter renders it.
 
 ### Renaming
 

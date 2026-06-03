@@ -1,8 +1,7 @@
 using NSchema.Hosting;
-using NSchema.Migration;
-using NSchema.Migration.Plan;
+using NSchema.Migration.Diff;
+using NSchema.Migration.Diff.Model;
 using NSchema.Policies;
-using NSchema.Schema;
 
 namespace NSchema.Tests.Hosting;
 
@@ -10,13 +9,13 @@ public sealed class DefaultMigrationReporterTests
 {
     private readonly StringWriter _output = new();
     private readonly StringWriter _error = new();
-    private readonly IMigrationPlanRenderer _planRenderer = Substitute.For<IMigrationPlanRenderer>();
+    private readonly IDiffRenderer _diffRenderer = Substitute.For<IDiffRenderer>();
 
     private readonly DefaultMigrationReporter _sut;
 
     public DefaultMigrationReporterTests()
     {
-        _sut = new DefaultMigrationReporter(_output, _error, _planRenderer);
+        _sut = new DefaultMigrationReporter(_output, _error, _diffRenderer);
     }
 
     [Fact]
@@ -38,12 +37,12 @@ public sealed class DefaultMigrationReporterTests
     }
 
     [Fact]
-    public void ReportPlan_WritesRenderedPlanToOutput()
+    public void ReportDiff_WritesRenderedDiffToOutput()
     {
-        var plan = new MigrationPlan([], DatabaseSchema.Create([]));
-        _planRenderer.Render(plan).Returns("rendered diff");
+        var diff = new MigrationDiff([], [], []);
+        _diffRenderer.Render(diff).Returns("rendered diff");
 
-        _sut.ReportPlan(plan);
+        _sut.ReportDiff(diff);
 
         _output.ToString().ShouldContain("rendered diff");
         _error.ToString().ShouldBeEmpty();
