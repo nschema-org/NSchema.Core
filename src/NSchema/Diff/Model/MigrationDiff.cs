@@ -6,8 +6,8 @@ namespace NSchema.Diff.Model;
 /// A representation of the changes between two schemas.
 /// </summary>
 /// <param name="Schemas">The changed schemas.</param>
-/// <param name="PreDeploymentScripts">Names of pre-deployment scripts to run.</param>
-/// <param name="PostDeploymentScripts">Names of post-deployment scripts to run.</param>
+/// <param name="PreDeploymentScripts">The pre-deployment scripts to run.</param>
+/// <param name="PostDeploymentScripts">The post-deployment scripts to run.</param>
 public sealed record MigrationDiff(
     IReadOnlyList<SchemaDiff> Schemas,
     IReadOnlyList<Script> PreDeploymentScripts,
@@ -20,7 +20,7 @@ public sealed record MigrationDiff(
     public bool IsEmpty => Schemas.Count == 0 && PreDeploymentScripts.Count == 0 && PostDeploymentScripts.Count == 0;
 
     /// <summary>
-    /// Gets the aggregate counts of changed schemas and tables, grouped by <see cref="ChangeKind"/>.
+    /// Gets the aggregate counts of every changed element, grouped by <see cref="ChangeKind"/>.
     /// </summary>
     public DiffSummary GetSummary()
     {

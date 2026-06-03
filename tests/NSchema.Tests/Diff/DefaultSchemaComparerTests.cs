@@ -47,7 +47,7 @@ public class DefaultSchemaComparerTests
     }
 
     [Fact]
-    public void Compare_Summary_CountsChangedSchemasAndTablesByKind()
+    public void Compare_Summary_CountsEveryChangedElementByKind()
     {
         var current = Db(SchemaDefinition.Create("app", tables:
         [
@@ -61,7 +61,8 @@ public class DefaultSchemaComparerTests
             ]),
             SchemaDefinition.Create("reporting"));
 
-        _sut.Compare(current, desired).GetSummary().ShouldBe(new DiffSummary(Added: 1, Modified: 1, Removed: 1));
+        // reporting schema (Add) + shipped_at column (Add); orders table (Modify); audit_log table (Remove).
+        _sut.Compare(current, desired).GetSummary().ShouldBe(new DiffSummary(Added: 2, Modified: 1, Removed: 1));
     }
 
     [Fact]

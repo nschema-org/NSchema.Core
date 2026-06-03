@@ -26,11 +26,15 @@ internal sealed class DefaultMigrationPlanner(
     public MigrationPlanResult Plan(DatabaseSchema currentSchema, DatabaseSchema desiredSchema, IReadOnlyList<Script> scripts)
     {
         // Diff the schemas.
-        var diff = comparer.Compare(currentSchema, desiredSchema) with
+        var diff = comparer.Compare(currentSchema, desiredSchema);
+        if (scripts.Count > 0)
         {
-            PreDeploymentScripts = [.. scripts.Where(s => s.Type == ScriptType.PreDeployment)],
-            PostDeploymentScripts = [.. scripts.Where(s => s.Type == ScriptType.PostDeployment)],
-        };
+            diff = diff with
+            {
+                PreDeploymentScripts = [.. scripts.Where(s => s.Type == ScriptType.PreDeployment)],
+                PostDeploymentScripts = [.. scripts.Where(s => s.Type == ScriptType.PostDeployment)],
+            };
+        }
 
         // Transform and validate the diff.
         diff = diffTransformers.Aggregate(diff, (d, t) => t.Transform(d));

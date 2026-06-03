@@ -28,13 +28,15 @@ internal sealed class MigrationHelper(
         var schemasInScope = options.Value.SchemaNames ?? desiredSchema.AllSchemaNames;
 
         reporter.Info("Validating schema...");
-        var schemaDiagnostics = schemaPolicies.SelectMany(p => p.Validate(desiredSchema));
-
-        var diagnostics = new PolicyDiagnostics(schemaDiagnostics);
-        reporter.ReportDiagnostics(diagnostics);
-        if (diagnostics.HasErrors)
+        var schemaDiagnostics = new PolicyDiagnostics(schemaPolicies.SelectMany(p => p.Validate(desiredSchema)));
+        if (schemaDiagnostics.Count > 0)
         {
-            throw new PolicyViolationException(diagnostics.Errors.ToList());
+            reporter.ReportDiagnostics(schemaDiagnostics);
+        }
+
+        if (schemaDiagnostics.HasErrors)
+        {
+            throw new PolicyViolationException(schemaDiagnostics.Errors.ToList());
         }
 
         reporter.Info($"Migration will be scoped to the following schemas: {string.Join(", ", schemasInScope)}");

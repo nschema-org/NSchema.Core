@@ -82,6 +82,6 @@ public sealed class DefaultMigrationReporterTests
     {
         _sut.ReportDiagnostics(new PolicyDiagnostics());
 
-        _output.ToString().ShouldContain("None");
+        _output.ToString().ShouldContain("Nothing to report");
     }
 }
