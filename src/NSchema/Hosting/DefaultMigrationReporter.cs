@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using NSchema.Migration;
 using NSchema.Migration.Plan;
 using NSchema.Policies;
@@ -6,46 +5,45 @@ using NSchema.Policies;
 namespace NSchema.Hosting;
 
 /// <summary>
-/// Default <see cref="IMigrationReporter"/> that presents user-facing output via <see cref="ILogger"/>.
-/// The terminal logger provider (registered by default) routes log output to stdout/stderr; any structured
-/// sink the consumer adds also receives the same events.
+/// Default <see cref="IMigrationReporter"/> that presents user-facing output.
 /// </summary>
-/// <param name="logger">The logger to write output to.</param>
+/// <param name="output">The writer for informational output (typically stdout).</param>
+/// <param name="error">The writer for errors and warnings (typically stderr).</param>
 /// <param name="planRenderer">Renders the migration plan as a human-readable diff.</param>
-internal sealed class DefaultMigrationReporter(ILogger<DefaultMigrationReporter> logger, IMigrationPlanRenderer planRenderer) : IMigrationReporter
+internal sealed class DefaultMigrationReporter(TextWriter output, TextWriter error, IMigrationPlanRenderer planRenderer) : IMigrationReporter
 {
-    public void Info(string message) => logger.Log(LogLevel.Information, message);
+    public void Info(string message) => output.WriteLine(message);
 
-    public void Error(string message) => logger.Log(LogLevel.Error, message);
+    public void Error(string message) => error.WriteLine(message);
 
     public void ReportPlan(MigrationPlan plan)
     {
-        logger.Log(LogLevel.Information, planRenderer.Render(plan));
-
-        // A blank line separates the diff from following output. This is terminal layout only, so it
-        // doesn't go through the logger.
-        Console.Out.WriteLine();
+        output.WriteLine(planRenderer.Render(plan));
+        output.WriteLine();
     }
 
     public void ReportPreview(IReadOnlyList<string> statements)
     {
+        output.WriteLine("SQL Preview:");
         foreach (var statement in statements)
         {
-            logger.Log(LogLevel.Information, statement);
+            output.WriteLine(statement);
         }
     }
 
     public void ReportDiagnostics(IReadOnlyList<PolicyError> diagnostics)
     {
+        output.WriteLine("Policy diagnostics:");
+        if (diagnostics.Count == 0)
+        {
+            output.WriteLine("None");
+            return;
+        }
+
         foreach (var diagnostic in diagnostics)
         {
-            var level = diagnostic.Severity switch
-            {
-                PolicySeverity.Error => LogLevel.Error,
-                PolicySeverity.Warning => LogLevel.Warning,
-                _ => LogLevel.Information,
-            };
-            logger.Log(level, "{DiagnosticPolicyName}: {DiagnosticMessage}", diagnostic.PolicyName, diagnostic.Message);
+            var writer = diagnostic.Severity is PolicySeverity.Error or PolicySeverity.Warning ? error : output;
+            writer.WriteLine($"- {diagnostic.PolicyName}: {diagnostic.Message}");
         }
     }
 }

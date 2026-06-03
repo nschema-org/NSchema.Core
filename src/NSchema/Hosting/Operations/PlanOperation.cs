@@ -17,13 +17,17 @@ internal sealed class PlanOperation(
     {
         reporter.Info("Running in Plan mode. No changes will be applied to the database.");
 
-        reporter.Info("Computing migration plan...");
+        reporter.Info("Loading desired schema...");
         var desiredSchema = await desiredProvider.GetSchema(options.Value.SchemaNames, cancellationToken);
         var schemasInScope = options.Value.SchemaNames ?? desiredSchema.AllSchemaNames;
+
+        reporter.Info($"Migration plan will be scoped to the following schemas: {string.Join(", ", schemasInScope)}");
+
+        reporter.Info("Loading provider schema...");
         var currentSchema = await currentProvider.GetSchema(SchemaSourceMode.Offline, schemasInScope, required: false, cancellationToken);
 
+        reporter.Info("Computing migration plan...");
         var result = await planner.Plan(currentSchema, desiredSchema, cancellationToken);
-
         if (result.HasErrors)
         {
             reporter.ReportDiagnostics(result.Diagnostics);
@@ -35,7 +39,7 @@ internal sealed class PlanOperation(
 
         if (compiler is null)
         {
-            reporter.Info("No SQL preview available — no database connection is configured.");
+            reporter.Info("Unable to generate SQL preview. No provider is configured.");
             return;
         }
 
@@ -43,9 +47,7 @@ internal sealed class PlanOperation(
         var execution = await compiler.Compile(result.Plan, cancellationToken);
         if (execution.Preview.Count > 0)
         {
-            reporter.Info("SQL Preview:");
             reporter.ReportPreview(execution.Preview);
         }
     }
-
 }
