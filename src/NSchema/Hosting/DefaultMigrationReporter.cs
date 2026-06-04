@@ -22,14 +22,15 @@ internal sealed class DefaultMigrationReporter(TextWriter output, TextWriter err
 
     public void ReportDiff(MigrationDiff diff)
     {
-        var renderer = diffRenderer.Render(diff);
-        output.WriteLine(renderer);
+        var render = diffRenderer.Render(diff);
+        output.WriteLine(render);
         output.WriteLine();
     }
 
     public void ReportSqlPlan(SqlPlan plan)
     {
-        output.WriteLine(sqlPlanRenderer.Render(plan));
+        var render = sqlPlanRenderer.Render(plan);
+        output.WriteLine(render);
         output.WriteLine();
     }
 
