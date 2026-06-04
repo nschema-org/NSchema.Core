@@ -1,0 +1,106 @@
+﻿{
+  schemas: [
+    {
+      name: app,
+      oldName: legacy_app,
+      isPartial: true,
+      comment: application schema,
+      tables: [
+        {
+          name: users,
+          oldName: members,
+          primaryKey: {
+            name: users_pkey,
+            columnNames: [
+              id
+            ]
+          },
+          comment: all users,
+          columns: [
+            {
+              name: id,
+              type: bigint,
+              isNullable: false,
+              isIdentity: true,
+              identityOptions: {
+                startWith: 1,
+                minValue: 1,
+                incrementBy: 1
+              }
+            },
+            {
+              name: name,
+              type: varchar(255),
+              isNullable: false,
+              isIdentity: false,
+              comment: display name
+            },
+            {
+              name: balance,
+              type: decimal(18,2),
+              isNullable: true,
+              isIdentity: false,
+              defaultExpression: 0
+            },
+            {
+              name: code,
+              type: char(8),
+              isNullable: false,
+              isIdentity: false,
+              oldName: short_code
+            },
+            {
+              name: metadata,
+              type: jsonb,
+              isNullable: true,
+              isIdentity: false
+            }
+          ],
+          foreignKeys: [
+            {
+              name: users_org_fk,
+              referencedSchema: app,
+              referencedTable: orgs,
+              onDelete: Cascade,
+              onUpdate: SetNull,
+              columnNames: [
+                org_id
+              ],
+              referencedColumnNames: [
+                id
+              ]
+            }
+          ],
+          indexes: [
+            {
+              name: users_name_ix,
+              isUnique: true,
+              comment: unique names,
+              predicate: name IS NOT NULL,
+              columnNames: [
+                name
+              ]
+            }
+          ],
+          grants: [
+            {
+              role: readers,
+              privileges: All
+            }
+          ]
+        }
+      ],
+      droppedTables: [
+        old_table
+      ],
+      grants: [
+        {
+          role: app_role
+        }
+      ]
+    }
+  ],
+  droppedSchemas: [
+    scratch
+  ]
+}
