@@ -46,10 +46,9 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         _innerBuilder.Services.AddOptions<MigrationRunOptions>();
         _innerBuilder.Services.AddOptions<SqlExecutorOptions>();
 
-        // Register the built-in JSON schema serializer first, so any AddSchemaSerializer the user adds
-        // later takes precedence for its format under the resolver's last-wins rule.
-        _innerBuilder.Services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<ISchemaDocumentSerializer, JsonSchemaDocumentSerializer>());
+        // Register the built-in human reporter as the default candidate, first so any AddReporter the user
+        // adds later takes precedence for its format under the resolver's last-wins rule.
+     ;
 
         _innerBuilder.Services
             .AddOptions<TerraformDiffRendererOptions>()
@@ -98,6 +97,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IDesiredSchemaProvider, DefaultDesiredSchemaProvider>();
         services.TryAddSingleton<ISchemaAggregator, DefaultSchemaAggregator>();
         services.TryAddSingleton<ISchemaDocumentSerializerResolver, DefaultSchemaDocumentSerializerResolver>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<ISchemaDocumentSerializer, JsonSchemaDocumentSerializer>());
 
         // Diffing
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
@@ -105,10 +105,11 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IDiffPolicy, DestructiveActionMigrationPolicy>());
 
         // Migration
-        services.TryAddSingleton<IMigrationReporter>(sp => new DefaultMigrationReporter(Console.Out, Console.Error, sp.GetRequiredService<IDiffRenderer>(), sp.GetRequiredService<ISqlPlanRenderer>()));
+        services.TryAddSingleton<IMigrationReporterResolver, DefaultMigrationReporterResolver>();
         services.TryAddSingleton<IMigrationLinearizer, DefaultMigrationLinearizer>();
         services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
         services.TryAddSingleton<IMigrationConfirmation, AutoApproveConfirmation>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IMigrationReporter), sp => new DefaultMigrationReporter(sp.GetRequiredService<IDiffRenderer>(), sp.GetRequiredService<ISqlPlanRenderer>(), Console.Out, Console.Error)));
 
         // SQL
         services.TryAddSingleton<ISqlPlanRenderer, DefaultSqlPlanRenderer>();

@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
-using NSchema.Migration;
 
 namespace NSchema.Hosting;
 
@@ -12,7 +11,7 @@ internal sealed class NSchemaHost(
     IOptions<MigrationRunOptions> options,
     IHostApplicationLifetime lifetime,
     IServiceProvider services,
-    IMigrationReporter reporter,
+    IMigrationReporterResolver reporter,
     MigrationOperationResult result
 ) : BackgroundService
 {
@@ -28,7 +27,7 @@ internal sealed class NSchemaHost(
         {
             if (options.Value.ExceptionBehavior == ExceptionBehavior.ReportAndThrow)
             {
-                reporter.Error($"Migration failed: {ex.Message}");
+                reporter.Current.Error($"Migration failed: {ex.Message}");
             }
 
             result.Exception = ex;

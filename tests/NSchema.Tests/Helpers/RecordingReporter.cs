@@ -1,4 +1,5 @@
 using NSchema.Diff.Model;
+using NSchema.Hosting;
 using NSchema.Migration;
 using NSchema.Policies;
 using NSchema.Sql.Model;
@@ -11,6 +12,8 @@ namespace NSchema.Tests.Helpers;
 /// </summary>
 internal sealed class RecordingReporter : IMigrationReporter
 {
+    public string Format => MigrationRunOptions.DefaultOutputFormat;
+
     public List<string> Infos { get; } = [];
     public List<string> Errors { get; } = [];
     public MigrationDiff? Diff { get; private set; }
