@@ -10,6 +10,7 @@ using NSchema.Hosting.Operations;
 using NSchema.Hosting.Services;
 using NSchema.Migration;
 using NSchema.Schema;
+using NSchema.Schema.Serialization;
 using NSchema.Sql;
 using NSchema.State;
 
@@ -44,6 +45,11 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         _innerBuilder.Services.AddOptions<MigrationOptions>();
         _innerBuilder.Services.AddOptions<MigrationRunOptions>();
         _innerBuilder.Services.AddOptions<SqlExecutorOptions>();
+
+        // Register the built-in JSON schema serializer first, so any AddSchemaSerializer the user adds
+        // later takes precedence for its format under the resolver's last-wins rule.
+        _innerBuilder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<ISchemaDocumentSerializer, JsonSchemaDocumentSerializer>());
 
         _innerBuilder.Services
             .AddOptions<TerraformDiffRendererOptions>()
@@ -91,6 +97,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();
         services.TryAddSingleton<IDesiredSchemaProvider, DefaultDesiredSchemaProvider>();
         services.TryAddSingleton<ISchemaAggregator, DefaultSchemaAggregator>();
+        services.TryAddSingleton<ISchemaDocumentSerializerResolver, DefaultSchemaDocumentSerializerResolver>();
 
         // Diffing
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();

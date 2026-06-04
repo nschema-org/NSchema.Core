@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using NSchema.Schema;
+using NSchema.Schema.Serialization;
 
 namespace NSchema;
 
@@ -36,6 +37,29 @@ public partial class NSchemaApplicationBuilder
     public NSchemaApplicationBuilder UseCurrentSchema<T>() where T : class, ISchemaProvider
     {
         Services.AddKeyedSingleton<ISchemaProvider, T>(NSchemaKeys.OnlineSchemaProvider);
+        return this;
+    }
+
+    /// <summary>
+    /// Registers an <see cref="ISchemaDocumentSerializer"/> that reads and writes a desired-schema file format.
+    /// </summary>
+    /// <typeparam name="T">The serializer implementation to register.</typeparam>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder AddSchemaSerializer<T>() where T : class, ISchemaDocumentSerializer
+    {
+        Services.AddSingleton<ISchemaDocumentSerializer, T>();
+        return this;
+    }
+
+    /// <summary>
+    /// Registers an <see cref="ISchemaDocumentSerializer"/> instance that reads and writes a desired-schema file format.
+    /// </summary>
+    /// <param name="serializer">The serializer instance to register.</param>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder AddSchemaSerializer(ISchemaDocumentSerializer serializer)
+    {
+        ArgumentNullException.ThrowIfNull(serializer);
+        Services.AddSingleton(serializer);
         return this;
     }
 }

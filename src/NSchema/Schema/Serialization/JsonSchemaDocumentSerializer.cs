@@ -10,6 +10,11 @@ namespace NSchema.Schema.Serialization;
 /// </summary>
 public sealed class JsonSchemaDocumentSerializer : ISchemaDocumentSerializer
 {
+    /// <summary>
+    /// A singleton instance of the <see cref="JsonSchemaDocumentSerializer"/> class.
+    /// </summary>
+    public static readonly JsonSchemaDocumentSerializer Instance = new();
+
     private static readonly JsonSerializerOptions _options = new()
     {
         WriteIndented = true,
