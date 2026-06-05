@@ -8,6 +8,7 @@ using NSchema.Diff;
 using NSchema.Hosting;
 using NSchema.Hosting.Operations;
 using NSchema.Hosting.Services;
+using NSchema.Import;
 using NSchema.Migration;
 using NSchema.Schema;
 using NSchema.Schema.Serialization;
@@ -45,6 +46,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         _innerBuilder.Services.AddOptions<MigrationOptions>();
         _innerBuilder.Services.AddOptions<MigrationRunOptions>();
         _innerBuilder.Services.AddOptions<SqlExecutorOptions>();
+        _innerBuilder.Services.AddOptions<ImportOptions>();
 
         _innerBuilder.Services
             .AddOptions<TerraformDiffRendererOptions>()
@@ -106,6 +108,9 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
         services.TryAddSingleton<IDiffRenderer, TerraformDiffRenderer>();
 
+        // Import
+        services.TryAddSingleton<ISchemaImportTargetResolver, DefaultSchemaImportTargetResolver>();
+
         // Migration
         services.TryAddSingleton<IMigrationReporterResolver, DefaultMigrationReporterResolver>();
         services.TryAddSingleton<IMigrationLinearizer, DefaultMigrationLinearizer>();
@@ -126,6 +131,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddKeyedSingleton<IMigrationOperation, PlanOperation>(MigrationOperation.Plan);
         services.TryAddKeyedSingleton<IMigrationOperation, ApplyOperation>(MigrationOperation.Apply);
         services.TryAddKeyedSingleton<IMigrationOperation, RefreshOperation>(MigrationOperation.Refresh);
+        services.TryAddKeyedSingleton<IMigrationOperation, ImportOperation>(MigrationOperation.Import);
 
         // This is the service responsible for running the migration.
         services.AddHostedService<NSchemaHost>();

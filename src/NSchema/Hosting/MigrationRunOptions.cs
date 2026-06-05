@@ -25,7 +25,7 @@ public class MigrationRunOptions
     /// <summary>
     /// The SQL dialect to generate, resolved to an <see cref="Sql.ISqlGenerator"/> at runtime.
     /// </summary>
-    public string? Dialect { get; set; }
+    public string Dialect { get; set; } = "";
 
     /// <summary>
     /// Controls how exceptions are surfaced.

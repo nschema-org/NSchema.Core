@@ -19,4 +19,9 @@ public enum MigrationOperation
     /// Read the live current schema and write it to the state store, without planning or applying anything.
     /// </summary>
     Refresh,
+
+    /// <summary>
+    /// Read the live current schema and write it to the import target.
+    /// </summary>
+    Import,
 }

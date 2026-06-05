@@ -1,13 +1,8 @@
 namespace NSchema.Sql;
 
 /// <summary>
-/// Resolves a registered <see cref="ISqlGenerator"/> by its dialect, and selects the one for the current
-/// run via <see cref="Current"/>.
+/// Resolves a registered <see cref="ISqlGenerator"/> by its dialect, and selects the one for the current run via <see cref="Current"/>.
 /// </summary>
-/// <remarks>
-/// When more than one generator is registered for the same dialect, the registration is ambiguous and
-/// throws. Generators are optional: with none registered, <see cref="Current"/> is <see langword="null"/>.
-/// </remarks>
 public interface ISqlGeneratorResolver
 {
     /// <summary>
