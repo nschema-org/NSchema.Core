@@ -20,13 +20,13 @@ internal sealed class RecordingReporter : IMigrationReporter
     public string Format => FormatName;
 
     public List<string> Infos { get; } = [];
-    public List<string> Errors { get; } = [];
+    public List<Exception> Exceptions { get; } = [];
     public MigrationDiff? Diff { get; private set; }
     public SqlPlan? SqlPlan { get; private set; }
     public List<PolicyDiagnostic> Diagnostics { get; } = [];
 
     public void Info(string message) => Infos.Add(message);
-    public void Error(string message) => Errors.Add(message);
+    public void ReportException(Exception exception) => Exceptions.Add(exception);
     public void ReportDiff(MigrationDiff diff) => Diff = diff;
     public void ReportSqlPlan(SqlPlan plan) => SqlPlan = plan;
     public void ReportDiagnostics(PolicyDiagnostics diagnostics) => Diagnostics.AddRange(diagnostics);

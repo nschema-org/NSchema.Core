@@ -14,7 +14,7 @@ public sealed class ReporterRegistrationTests
     {
         public string Format => format;
         public void Info(string message) { }
-        public void Error(string message) { }
+        public void ReportException(Exception exception) { }
         public void ReportDiff(MigrationDiff diff) { }
         public void ReportSqlPlan(SqlPlan plan) { }
         public void ReportDiagnostics(PolicyDiagnostics diagnostics) { }
@@ -48,11 +48,15 @@ public sealed class ReporterRegistrationTests
     }
 
     [Fact]
-    public void AddReporter_DuplicateFormat_Throws()
+    public void AddReporter_OverridesBuiltInReporter_ForSameFormat()
     {
-        // A different reporter for the built-in 'human' format is ambiguous and throws when resolved.
-        Should.Throw<InvalidOperationException>(
-            () => Build(b => b.AddReporter(new StubReporter("human"))).GetRequiredService<IMigrationReporterResolver>());
+        // The built-in 'human' reporter is registered first, so a caller's reporter for the same format,
+        // added afterwards, replaces it (last registration wins).
+        var human = new StubReporter("human");
+
+        var resolver = Build(b => b.AddReporter(human)).GetRequiredService<IMigrationReporterResolver>();
+
+        resolver.ForFormat("human").ShouldBeSameAs(human);
     }
 
     [Fact]

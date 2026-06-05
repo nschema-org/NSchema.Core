@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.State;
@@ -43,9 +42,4 @@ public partial class NSchemaApplicationBuilder
         Services.AddSingleton<ISchemaStateStore, FileSchemaStateStore>();
         return this;
     }
-
-    /// <summary></summary>
-    [Obsolete($"Use {nameof(UseFileStateStore)} instead.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public NSchemaApplicationBuilder UseStateStoreFile(string path) => UseFileStateStore(path);
 }

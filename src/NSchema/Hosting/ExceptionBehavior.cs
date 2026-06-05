@@ -1,3 +1,5 @@
+using NSchema.Migration;
+
 namespace NSchema.Hosting;
 
 /// <summary>
@@ -6,7 +8,7 @@ namespace NSchema.Hosting;
 public enum ExceptionBehavior
 {
     /// <summary>
-    /// Present the exception via <see cref="Migration.IMigrationReporter.Error(string)"/>, then rethrow it.
+    /// Present the exception via <see cref="IMigrationReporter.ReportException(System.Exception)"/>, then rethrow it.
     /// </summary>
     ReportAndThrow,
 

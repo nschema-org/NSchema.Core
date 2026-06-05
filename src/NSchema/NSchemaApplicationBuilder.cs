@@ -49,6 +49,14 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         _innerBuilder.Services
             .AddOptions<TerraformDiffRendererOptions>()
             .Configure(o => o.IncludeColour = EnvironmentHelpers.SupportsColor);
+
+        // The usual pattern is first-registration-wins: we use TryAddSingleton at build time to supply defaults where consumers haven't.
+        // Services consumed from a Resolver are last-registration-wins, so we register those up front.
+        _innerBuilder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IMigrationReporter, DefaultMigrationReporter>());
+        _innerBuilder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<ISchemaDocumentSerializer, JsonSchemaDocumentSerializer>());
+
+        // The other kinds of services we register up front are ones that users might want to remove.
+        _innerBuilder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IDiffPolicy, DestructiveActionMigrationPolicy>());
     }
 
     /// <inheritdoc />
@@ -93,19 +101,16 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IDesiredSchemaProvider, DefaultDesiredSchemaProvider>();
         services.TryAddSingleton<ISchemaAggregator, DefaultSchemaAggregator>();
         services.TryAddSingleton<ISchemaDocumentSerializerResolver, DefaultSchemaDocumentSerializerResolver>();
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<ISchemaDocumentSerializer, JsonSchemaDocumentSerializer>());
 
         // Diffing
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
         services.TryAddSingleton<IDiffRenderer, TerraformDiffRenderer>();
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IDiffPolicy, DestructiveActionMigrationPolicy>());
 
         // Migration
         services.TryAddSingleton<IMigrationReporterResolver, DefaultMigrationReporterResolver>();
         services.TryAddSingleton<IMigrationLinearizer, DefaultMigrationLinearizer>();
         services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
         services.TryAddSingleton<IMigrationConfirmation, AutoApproveConfirmation>();
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IMigrationReporter, DefaultMigrationReporter>());
 
         // SQL
         services.TryAddSingleton<ISqlPlanRenderer, DefaultSqlPlanRenderer>();

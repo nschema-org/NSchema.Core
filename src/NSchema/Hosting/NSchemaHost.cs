@@ -27,7 +27,7 @@ internal sealed class NSchemaHost(
         {
             if (options.Value.ExceptionBehavior == ExceptionBehavior.ReportAndThrow)
             {
-                reporter.Current.Error($"Migration failed: {ex.Message}");
+                reporter.Current.ReportException(ex);
             }
 
             result.Exception = ex;

@@ -20,9 +20,10 @@ public interface IMigrationReporter
     void Info(string message);
 
     /// <summary>
-    /// Reports an error to the user.
+    /// Reports an error to the user. Receives the original <see cref="Exception"/> so the reporter can present it however suits its output format.
     /// </summary>
-    void Error(string message);
+    /// <param name="exception">The exception that caused the operation to fail.</param>
+    void ReportException(Exception exception);
 
     /// <summary>
     /// Presents the computed migration diff as human-readable output.
