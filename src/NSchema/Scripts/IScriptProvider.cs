@@ -12,5 +12,5 @@ public interface IScriptProvider
     /// </summary>
     /// <param name="cancellationToken">A cancellation token to cancel the operation.</param>
     /// <returns>The scripts to run.</returns>
-    Task<IReadOnlyList<Script>> GetScripts(CancellationToken cancellationToken = default);
+    ValueTask<IReadOnlyList<Script>> GetScripts(CancellationToken cancellationToken = default);
 }

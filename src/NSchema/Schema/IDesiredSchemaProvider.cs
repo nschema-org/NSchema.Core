@@ -10,5 +10,5 @@ public interface IDesiredSchemaProvider
     /// <summary>
     /// Gets the aggregated desired schema, optionally scoped to the specified schema names.
     /// </summary>
-    Task<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default);
+    ValueTask<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default);
 }

@@ -4,6 +4,7 @@ using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Schema;
 using NSchema.Scripts;
+using NSchema.Scripts.Model;
 using NSchema.State;
 
 namespace NSchema.Hosting.Services;
@@ -45,8 +46,12 @@ internal sealed class MigrationHelper(
         var currentSchema = await currentProvider.GetSchema(currentSource, schemasInScope, required, cancellationToken);
 
         reporter.Current.Info("Loading scripts...");
-        var scriptLists = await Task.WhenAll(scriptProviders.Select(p => p.GetScripts(cancellationToken)));
-        var scripts = scriptLists.SelectMany(s => s).ToList();
+        List<Script> scripts = [];
+        var scriptTasks = scriptProviders.Select(p => p.GetScripts(cancellationToken));
+        foreach (var task in scriptTasks)
+        {
+            scripts.AddRange(await task);
+        }
 
         reporter.Current.Info("Computing migration plan...");
         var result = planner.Plan(currentSchema, desiredSchema, scripts);

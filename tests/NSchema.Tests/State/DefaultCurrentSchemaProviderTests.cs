@@ -12,8 +12,8 @@ public sealed class DefaultCurrentSchemaProviderTests
 
     private sealed class FakeOnlineProvider : ISchemaProvider
     {
-        public Task<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default) =>
-            Task.FromResult(_onlineSchema);
+        public ValueTask<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(_onlineSchema);
     }
 
     private sealed class FakeStateStore : ISchemaStateStore

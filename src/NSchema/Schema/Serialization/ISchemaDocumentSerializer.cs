@@ -18,7 +18,7 @@ public interface ISchemaDocumentSerializer
     /// <param name="schema">The schema to serialize.</param>
     /// <param name="destination">A writable stream to receive the document.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    Task Write(DatabaseSchema schema, Stream destination, CancellationToken cancellationToken = default);
+    ValueTask Write(DatabaseSchema schema, Stream destination, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Reads a <see cref="DatabaseSchema"/> from <paramref name="source"/>.

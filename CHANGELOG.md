@@ -35,6 +35,7 @@ Planning and applying behavior are the same as before, but most public types hav
 - **Breaking:** `IMigrationReporter`'s `ReportPlan(MigrationPlan)` has been replaced by `ReportDiff(MigrationDiff)`. The plan is converted to a structured diff before it is reported.
 - **Breaking:** `PolicyError` is now `PolicyDiagnostic`, and `PolicySeverity` is now `PolicyDiagnosticSeverity`. Custom `ISchemaPolicy` / `IMigrationPolicy` implementations return `PolicyDiagnostic`s.
 - **Breaking:** The `DestructiveActionPolicy` enum moved to `NSchema.Policies`, alongside the policy abstractions it configures.
+- **Breaking:** Most async surfaces now use `ValueTask` instead of `Task` for better performance in the common synchronous case.
 - `DefaultSqlExecutor` no longer requires a `DbDataSource` to be constructed; it's an optional dependency, and execution throws a clear error if no connection is configured. This keeps the container wiring unconditional.
 - Migration reporting messages have been overhauled to be more informative.
 - The `IMigrationReporter` now logs directly to the console instead of using `ILogger`. This removes some hacky wiring around segregating logging sinks by category.

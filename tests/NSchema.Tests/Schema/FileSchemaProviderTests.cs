@@ -30,7 +30,7 @@ public sealed class FileSchemaProviderTests : IDisposable
 
         public string Format => "test";
 
-        public Task Write(DatabaseSchema schema, Stream destination, CancellationToken cancellationToken = default)
+        public ValueTask Write(DatabaseSchema schema, Stream destination, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
         public async ValueTask<DatabaseSchema> Read(Stream source, CancellationToken cancellationToken = default)
@@ -106,7 +106,7 @@ public sealed class FileSchemaProviderTests : IDisposable
         var missing = Path.Combine(_tempDir, "nope.txt");
         var (sut, serializer) = Sut(missing, Schemas("app"));
 
-        var ex = await Should.ThrowAsync<FileNotFoundException>(() => sut.GetSchema());
+        var ex = await Should.ThrowAsync<FileNotFoundException>(() => sut.GetSchema().AsTask());
 
         ex.Message.ShouldContain(missing);
         serializer.ReadCalled.ShouldBeFalse();

@@ -308,7 +308,7 @@ public sealed class JsonSchemaProviderTests : IDisposable
     {
         var sut = new JsonSchemaProvider(Path.Combine(_tempDir, "missing.json"));
 
-        var act = () => sut.GetSchema();
+        var act = () => sut.GetSchema().AsTask();
 
         await act.ShouldThrowAsync<FileNotFoundException>();
     }
@@ -319,7 +319,7 @@ public sealed class JsonSchemaProviderTests : IDisposable
         var path = WriteFile("bad.json", "{ not valid json }");
         var sut = new JsonSchemaProvider(path);
 
-        var act = () => sut.GetSchema();
+        var act = () => sut.GetSchema().AsTask();
 
         await act.ShouldThrowAsync<JsonException>();
     }

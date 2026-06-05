@@ -19,5 +19,5 @@ public interface ICurrentSchemaProvider
     /// </param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <exception cref="InvalidOperationException">Thrown when the requested source is not available and no fallback exists.</exception>
-    Task<DatabaseSchema> GetSchema(SchemaSourceMode preferred, string[]? schemaNames, bool required = true, CancellationToken cancellationToken = default);
+    ValueTask<DatabaseSchema> GetSchema(SchemaSourceMode preferred, string[]? schemaNames, bool required = true, CancellationToken cancellationToken = default);
 }

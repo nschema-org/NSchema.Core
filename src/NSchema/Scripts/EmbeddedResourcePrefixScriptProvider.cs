@@ -11,7 +11,7 @@ namespace NSchema.Scripts;
 /// <param name="resourcePrefix">The prefix used to filter embedded resources in the assembly.</param>
 internal sealed class EmbeddedResourcePrefixScriptProvider(ScriptType type, Assembly assembly, string resourcePrefix) : IScriptProvider
 {
-    public async Task<IReadOnlyList<Script>> GetScripts(CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyList<Script>> GetScripts(CancellationToken cancellationToken = default)
     {
         var resourceNames = assembly.GetManifestResourceNames()
             .Where(n => n.StartsWith(resourcePrefix, StringComparison.OrdinalIgnoreCase))

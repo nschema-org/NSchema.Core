@@ -12,7 +12,7 @@ public sealed class DefaultDesiredSchemaProviderTests
     {
         var sut = new DefaultDesiredSchemaProvider([], _aggregator, []);
 
-        var act = () => sut.GetSchema();
+        var act = () => sut.GetSchema().AsTask();
 
         await Should.ThrowAsync<InvalidOperationException>(act);
     }
@@ -63,9 +63,9 @@ public sealed class DefaultDesiredSchemaProviderTests
         var p1 = Substitute.For<ISchemaProvider>();
         var p2 = Substitute.For<ISchemaProvider>();
         p1.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(call => { captured1 = call.Arg<string[]?>(); return Task.FromResult(DatabaseSchema.Create([])); });
+            .Returns(call => { captured1 = call.Arg<string[]?>(); return DatabaseSchema.Create([]); });
         p2.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(call => { captured2 = call.Arg<string[]?>(); return Task.FromResult(DatabaseSchema.Create([])); });
+            .Returns(call => { captured2 = call.Arg<string[]?>(); return DatabaseSchema.Create([]); });
         _aggregator.Aggregate(Arg.Any<IReadOnlyList<DatabaseSchema>>()).Returns(DatabaseSchema.Create([]));
         var sut = new DefaultDesiredSchemaProvider([p1, p2], _aggregator, []);
 
