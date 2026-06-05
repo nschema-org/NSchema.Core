@@ -32,8 +32,8 @@ public sealed class JsonSchemaDocumentSerializer : ISchemaDocumentSerializer
     public string Format => "json";
 
     /// <inheritdoc/>
-    public Task Write(DatabaseSchema schema, Stream destination, CancellationToken cancellationToken = default)
-        => JsonSerializer.SerializeAsync(destination, schema, _options, cancellationToken);
+    public ValueTask Write(DatabaseSchema schema, Stream destination, CancellationToken cancellationToken = default)
+        => new(JsonSerializer.SerializeAsync(destination, schema, _options, cancellationToken));
 
     /// <inheritdoc/>
     public async ValueTask<DatabaseSchema> Read(Stream source, CancellationToken cancellationToken = default)

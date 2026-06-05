@@ -19,5 +19,5 @@ public interface ISchemaProvider
     /// Declarative providers should return everything they describe, while live-database providers should return every schema they can see.
     /// If a schema name does not exist, it should not be included in the returned schema.
     /// </remarks>
-    Task<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default);
+    ValueTask<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default);
 }

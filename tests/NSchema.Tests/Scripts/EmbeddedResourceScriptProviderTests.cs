@@ -38,7 +38,7 @@ public sealed class EmbeddedResourceScriptProviderTests
         var sut = new EmbeddedResourceScriptProvider(
             ScriptType.PreDeployment, _assembly, "NSchema.Tests.Resources.missing.sql");
 
-        var act = () => sut.GetScripts();
+        var act = () => sut.GetScripts().AsTask();
 
         await act.ShouldThrowAsync<InvalidOperationException>();
     }

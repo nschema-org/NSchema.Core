@@ -14,7 +14,7 @@ namespace NSchema.State;
 internal sealed class StateBackedSchemaProvider(ISchemaStateStore store) : ISchemaProvider
 {
     /// <inheritdoc />
-    public async Task<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default)
+    public async ValueTask<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default)
     {
         var schema = await store.Read(cancellationToken);
         // Ensure we return an empty schema for a bootstrap run.

@@ -18,7 +18,7 @@ internal sealed class DefaultCurrentSchemaProvider(
     private readonly StateBackedSchemaProvider? _offline = store is not null ? new StateBackedSchemaProvider(store) : null;
 
     /// <inheritdoc />
-    public Task<DatabaseSchema> GetSchema(SchemaSourceMode preferred, string[]? schemaNames, bool required = true, CancellationToken cancellationToken = default)
+    public ValueTask<DatabaseSchema> GetSchema(SchemaSourceMode preferred, string[]? schemaNames, bool required = true, CancellationToken cancellationToken = default)
     {
         var provider = GetProvider(preferred, required);
         return provider.GetSchema(schemaNames, cancellationToken);

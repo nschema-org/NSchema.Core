@@ -22,7 +22,7 @@ public class FileSchemaProvider : ISchemaProvider
     }
 
     /// <inheritdoc/>
-    public async Task<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default)
+    public async ValueTask<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default)
     {
         if (!File.Exists(_filePath))
         {

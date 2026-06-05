@@ -57,7 +57,7 @@ public sealed class FileScriptProviderTests : IDisposable
     {
         var sut = new FileScriptProvider(ScriptType.PreDeployment, Path.Combine(_tempDir, "missing.sql"));
 
-        var act = () => sut.GetScripts();
+        var act = () => sut.GetScripts().AsTask();
 
         await act.ShouldThrowAsync<FileNotFoundException>();
     }

@@ -11,7 +11,7 @@ public sealed class SchemaSerializerRegistrationTests
     {
         public string Format => format;
 
-        public Task Write(DatabaseSchema schema, Stream destination, CancellationToken cancellationToken = default)
+        public ValueTask Write(DatabaseSchema schema, Stream destination, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
         public ValueTask<DatabaseSchema> Read(Stream source, CancellationToken cancellationToken = default)

@@ -12,7 +12,7 @@ namespace NSchema.Scripts;
 /// <param name="name">An optional name to assign to the script; if not provided, a name will be derived from the resource name.</param>
 internal sealed class EmbeddedResourceScriptProvider(ScriptType type, Assembly assembly, string resourceName, string? name = null) : IScriptProvider
 {
-    public async Task<IReadOnlyList<Script>> GetScripts(CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyList<Script>> GetScripts(CancellationToken cancellationToken = default)
     {
         var sql = await EmbeddedResource.Read(assembly, resourceName, cancellationToken);
         return [new Script(name ?? EmbeddedResource.DeriveName(resourceName), sql, type)];

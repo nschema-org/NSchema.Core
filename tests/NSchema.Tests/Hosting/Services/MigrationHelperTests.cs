@@ -134,7 +134,7 @@ public sealed class MigrationHelperTests
         string[]? capturedScope = null;
         _currentProvider
             .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-            .Returns(call => { capturedScope = call.ArgAt<string[]?>(1); return Task.FromResult(DatabaseSchema.Create([])); });
+            .Returns(call => { capturedScope = call.ArgAt<string[]?>(1); return DatabaseSchema.Create([]); });
 
         // Act
         await _sut.Plan(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);
@@ -151,10 +151,10 @@ public sealed class MigrationHelperTests
         string[]? desiredScope = null;
         string[]? currentScope = null;
         _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(call => { desiredScope = call.Arg<string[]?>(); return Task.FromResult(DatabaseSchema.Create([])); });
+            .Returns(call => { desiredScope = call.Arg<string[]?>(); return DatabaseSchema.Create([]); });
         _currentProvider
             .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-            .Returns(call => { currentScope = call.ArgAt<string[]?>(1); return Task.FromResult(DatabaseSchema.Create([])); });
+            .Returns(call => { currentScope = call.ArgAt<string[]?>(1); return DatabaseSchema.Create([]); });
         _options.Value.SchemaNames = ["app", "legacy"];
 
         // Act
@@ -171,7 +171,7 @@ public sealed class MigrationHelperTests
         // Arrange
         string[]? desiredScope = [];
         _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(call => { desiredScope = call.Arg<string[]?>(); return Task.FromResult(DatabaseSchema.Create([])); });
+            .Returns(call => { desiredScope = call.Arg<string[]?>(); return DatabaseSchema.Create([]); });
 
         // Act
         await _sut.Plan(SchemaSourceMode.Offline, required: false, TestContext.Current.CancellationToken);

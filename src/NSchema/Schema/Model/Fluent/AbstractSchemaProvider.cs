@@ -34,11 +34,11 @@ public abstract class AbstractSchemaProvider : ISchemaProvider
     }
 
     /// <inheritdoc/>
-    public Task<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default)
+    public ValueTask<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default)
     {
         var schemas = _schemas.Where(s => !s.IsDropped).Select(s => s.Build()).ToList();
         var droppedSchemas = _schemas.Where(s => s.IsDropped).Select(s => s.Name).ToList();
         var schema = new DatabaseSchema(schemas, droppedSchemas);
-        return Task.FromResult(schema.Filter(schemaNames));
+        return ValueTask.FromResult(schema.Filter(schemaNames));
     }
 }
