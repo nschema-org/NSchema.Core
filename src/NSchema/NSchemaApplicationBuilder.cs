@@ -44,18 +44,14 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Drop the default console logger so third-party libraries don't spam the terminal.
         _innerBuilder.Logging.ClearProviders();
 
-        _innerBuilder.Services.AddOptions<MigrationOptions>();
         _innerBuilder.Services.AddOptions<OperationOptions>();
+        _innerBuilder.Services.AddOptions<MigrationOptions>();
         _innerBuilder.Services.AddOptions<ImportOptions>();
-
-        _innerBuilder.Services
-            .AddOptions<TerraformDiffRendererOptions>()
-            .Configure(o => o.IncludeColour = EnvironmentHelpers.SupportsColor);
+        _innerBuilder.Services.AddOptions<TerraformDiffRendererOptions>();
 
         // Register built-in keyed implementations (first-registration-wins).
-        _innerBuilder.Services.TryAddKeyedSingleton<IMigrationReporter, DefaultMigrationReporter>(DefaultMigrationReporter.FormatName);
-        _innerBuilder.Services.Configure<OperationOptions>(o => o.OutputFormat ??= DefaultMigrationReporter.FormatName);
-        _innerBuilder.Services.TryAddKeyedSingleton<ISchemaDocumentSerializer, JsonSchemaDocumentSerializer>(JsonSchemaDocumentSerializer.FormatName);
+        AddReporter<DefaultMigrationReporter>(DefaultMigrationReporter.FormatName);
+        AddSchemaSerializer<JsonSchemaDocumentSerializer>(JsonSchemaDocumentSerializer.FormatName);
 
         // Diff policies registered up front so users can remove them before Build().
         _innerBuilder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IDiffPolicy, DestructiveActionMigrationPolicy>());

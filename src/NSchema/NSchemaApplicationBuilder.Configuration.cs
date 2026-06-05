@@ -18,21 +18,34 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
-    /// Configures the transaction mode to use when executing the migration plan.
+    /// Configures the operation options.
     /// </summary>
-    public NSchemaApplicationBuilder WithTransactionMode(TransactionMode mode)
+    public NSchemaApplicationBuilder WithOperationOptions(Action<OperationOptions> configure)
     {
-        Services.Configure<OperationOptions>(o => o.TransactionMode = mode);
+        Services.Configure<OperationOptions>(configure);
         return this;
     }
+
+    /// <summary>
+    /// Configures the transaction mode to use when executing the migration plan.
+    /// </summary>
+    public NSchemaApplicationBuilder WithTransactionMode(TransactionMode mode) => WithOperationOptions(o => o.TransactionMode = mode);
 
     /// <summary>
     /// Configures the plan output to use a Terraform-style renderer.
     /// </summary>
     public NSchemaApplicationBuilder UseTerraformRenderer(Action<TerraformDiffRendererOptions> configure)
     {
-        Services.Replace(ServiceDescriptor.Singleton<IDiffRenderer, TerraformDiffRenderer>());
         Services.Configure(configure);
+        return UseRenderer<TerraformDiffRenderer>();
+    }
+
+    /// <summary>
+    /// Configures the plan output to use the given renderer.
+    /// </summary>
+    public NSchemaApplicationBuilder UseRenderer<TRenderer>() where TRenderer : class, IDiffRenderer
+    {
+        Services.Replace(ServiceDescriptor.Singleton<IDiffRenderer, TRenderer>());
         return this;
     }
 
@@ -44,7 +57,6 @@ public partial class NSchemaApplicationBuilder
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(format);
         Services.TryAddKeyedSingleton<IMigrationReporter, T>(format);
-        Services.Configure<OperationOptions>(o => o.OutputFormat ??= format);
         return this;
     }
 
@@ -56,48 +68,18 @@ public partial class NSchemaApplicationBuilder
     {
         ArgumentNullException.ThrowIfNull(reporter);
         Services.TryAddKeyedSingleton(reporter.Format, reporter);
-        Services.Configure<OperationOptions>(o => o.OutputFormat ??= reporter.Format);
-        return this;
-    }
-
-    /// <summary>
-    /// Replaces the <see cref="IMigrationReporter"/> registered for <paramref name="format"/>, or adds it if not yet registered.
-    /// </summary>
-    public NSchemaApplicationBuilder UseReporter<T>(string format) where T : class, IMigrationReporter
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(format);
-        Services.Replace(ServiceDescriptor.KeyedSingleton<IMigrationReporter, T>(format));
-        return this;
-    }
-
-    /// <summary>
-    /// Replaces the <see cref="IMigrationReporter"/> registered for the instance's format, or adds it if not yet registered.
-    /// </summary>
-    public NSchemaApplicationBuilder UseReporter(IMigrationReporter reporter)
-    {
-        ArgumentNullException.ThrowIfNull(reporter);
-        Services.Replace(ServiceDescriptor.KeyedSingleton(reporter.Format, reporter));
         return this;
     }
 
     /// <summary>
     /// Configures the operation the migration run performs.
     /// </summary>
-    public NSchemaApplicationBuilder RunOperation(MigrationOperation operation)
-    {
-        Services.Configure<OperationOptions>(o => o.Operation = operation);
-        return this;
-    }
+    public NSchemaApplicationBuilder RunOperation(MigrationOperation operation) => WithOperationOptions(o => o.Operation = operation);
 
     /// <summary>
     /// Configures the output format used to render run output.
     /// </summary>
-    public NSchemaApplicationBuilder WithOutputFormat(string format)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(format);
-        Services.Configure<OperationOptions>(o => o.OutputFormat = format);
-        return this;
-    }
+    public NSchemaApplicationBuilder WithOutputFormat(string format) => WithOperationOptions(o => o.OutputFormat = format);
 
     /// <summary>
     /// Configures how exceptions are surfaced.

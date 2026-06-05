@@ -60,16 +60,6 @@ public sealed class ReporterRegistrationTests
     }
 
     [Fact]
-    public void UseReporter_OverridesBuiltInReporter_ForSameFormat()
-    {
-        var human = new StubReporter("human");
-
-        var resolver = Build(b => b.UseReporter(human)).GetRequiredService<IKeyedResolver<IMigrationReporter>>();
-
-        resolver.Resolve("human").ShouldBeSameAs(human);
-    }
-
-    [Fact]
     public void Current_SelectsReporterForConfiguredOutputFormat()
     {
         var json = new StubReporter("json");

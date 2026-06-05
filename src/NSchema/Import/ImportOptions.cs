@@ -18,5 +18,5 @@ public class ImportOptions
     /// <summary>
     /// The name of the import target to write to. When <see langword="null"/>, the single registered target is used.
     /// </summary>
-    public string Target { get; set; } = "";
+    public string? Target { get; set; }
 }
