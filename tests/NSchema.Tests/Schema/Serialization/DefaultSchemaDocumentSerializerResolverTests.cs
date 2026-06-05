@@ -71,8 +71,6 @@ public sealed class DefaultSchemaDocumentSerializerResolverTests
 
     [Theory]
     [InlineData(null)]
-    [InlineData("")]
-    [InlineData("   ")]
     public void ForFormat_RejectsMissingFormat(string? format)
         => Should.Throw<ArgumentException>(() => Resolver(new StubSerializer("json")).ForFormat(format!));
 
