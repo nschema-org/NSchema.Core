@@ -66,6 +66,7 @@ internal sealed class DefaultMigrationReporter : IMigrationReporter
         if (diagnostics.Count == 0)
         {
             _output.WriteLine("- Nothing to report");
+            _output.WriteLine();
             return;
         }
 
@@ -74,5 +75,6 @@ internal sealed class DefaultMigrationReporter : IMigrationReporter
             var writer = diagnostic.Severity is PolicyDiagnosticSeverity.Error or PolicyDiagnosticSeverity.Warning ? _error : _output;
             writer.WriteLine($"- {diagnostic.PolicyName}: {diagnostic.Message}");
         }
+        _output.WriteLine();
     }
 }

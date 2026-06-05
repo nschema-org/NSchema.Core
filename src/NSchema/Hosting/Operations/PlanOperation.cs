@@ -19,7 +19,8 @@ internal sealed class PlanOperation(
             reporter.Current.Info("Unable to generate SQL preview. No provider is configured.");
             return;
         }
-        reporter.Current.Info("Generating SQL...");
-        reporter.Current.ReportSqlPlan(sqlGenerator.Generate(plan));
+
+        var sqlPlan = sqlGenerator.Generate(plan);
+        reporter.Current.ReportSqlPlan(sqlPlan);
     }
 }
