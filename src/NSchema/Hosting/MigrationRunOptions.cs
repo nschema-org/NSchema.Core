@@ -23,6 +23,11 @@ public class MigrationRunOptions
     public string OutputFormat { get; set; } = DefaultOutputFormat;
 
     /// <summary>
+    /// The SQL dialect to generate, resolved to an <see cref="Sql.ISqlGenerator"/> at runtime.
+    /// </summary>
+    public string? Dialect { get; set; }
+
+    /// <summary>
     /// Controls how exceptions are surfaced.
     /// </summary>
     public ExceptionBehavior ExceptionBehavior { get; set; } = ExceptionBehavior.ReportAndThrow;

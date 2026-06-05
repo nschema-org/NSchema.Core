@@ -99,7 +99,7 @@ public sealed class PlanEndToEndTests : IDisposable
 
         using var app = NewBuilder(current)
             .AddJsonSchema(desired)
-            .UseSqlGenerator<StubSqlGenerator>()
+            .AddSqlGenerator<StubSqlGenerator>()
             .Build();
 
         await app.Plan(TestContext.Current.CancellationToken);

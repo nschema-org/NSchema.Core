@@ -110,6 +110,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // SQL
         services.TryAddSingleton<ISqlPlanRenderer, DefaultSqlPlanRenderer>();
         services.TryAddSingleton<ISqlExecutor, DefaultSqlExecutor>();
+        services.TryAddSingleton<ISqlGeneratorResolver, DefaultSqlGeneratorResolver>();
 
         // State
         services.TryAddSingleton<ISchemaStateSerializer, DefaultSchemaStateSerializer>();

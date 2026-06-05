@@ -89,6 +89,18 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
+    /// Selects the SQL dialect to generate, when more than one <see cref="Sql.ISqlGenerator"/> is registered.
+    /// </summary>
+    /// <param name="dialect">The dialect, e.g. <c>postgres</c>.</param>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder WithDialect(string dialect)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(dialect);
+        Services.Configure<MigrationRunOptions>(o => o.Dialect = dialect);
+        return this;
+    }
+
+    /// <summary>
     /// Configures how exceptions are surfaced.
     /// </summary>
     /// <param name="behavior">The exception behavior to apply.</param>

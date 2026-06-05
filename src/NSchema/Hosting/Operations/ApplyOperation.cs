@@ -8,13 +8,13 @@ internal sealed class ApplyOperation(
     IMigrationReporterResolver reporter,
     IMigrationConfirmation confirmation,
     IMigrationHelper helper,
-    ISqlGenerator? sqlGenerator = null,
+    ISqlGeneratorResolver sqlGenerators,
     ISqlExecutor? sqlExecutor = null
 ) : IMigrationOperation
 {
     public async Task Execute(CancellationToken cancellationToken = default)
     {
-        if (sqlGenerator is null || sqlExecutor is null)
+        if (sqlGenerators.Current is not { } sqlGenerator || sqlExecutor is null)
         {
             throw new InvalidOperationException("Applying a migration requires a database provider to generate and execute SQL, but none is registered.");
         }

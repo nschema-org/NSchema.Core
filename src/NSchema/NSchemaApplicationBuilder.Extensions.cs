@@ -6,11 +6,11 @@ namespace NSchema;
 public partial class NSchemaApplicationBuilder
 {
     /// <summary>
-    /// Registers the <see cref="ISqlGenerator"/> that generates the SQL for a migration plan.
+    /// Registers an <see cref="ISqlGenerator"/> that generates the SQL for a migration plan.
     /// </summary>
-    /// <typeparam name="T">The type of the SQL planner to register.</typeparam>
+    /// <typeparam name="T">The type of the SQL generator to register.</typeparam>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder UseSqlGenerator<T>() where T : class, ISqlGenerator
+    public NSchemaApplicationBuilder AddSqlGenerator<T>() where T : class, ISqlGenerator
     {
         Services.AddSingleton<ISqlGenerator, T>();
         return this;
@@ -21,7 +21,7 @@ public partial class NSchemaApplicationBuilder
     /// </summary>
     /// <typeparam name="T">The type of the SQL executor to add.</typeparam>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder UseSqlExecutor<T>() where T : class, ISqlExecutor
+    public NSchemaApplicationBuilder AddSqlExecutor<T>() where T : class, ISqlExecutor
     {
         Services.AddSingleton<ISqlExecutor, T>();
         return this;
