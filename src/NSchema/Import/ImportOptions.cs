@@ -16,7 +16,7 @@ public class ImportOptions
     public string[]? Tables { get; set; }
 
     /// <summary>
-    /// The name of the import target to write to.
+    /// The name of the import target to write to. When <see langword="null"/>, the single registered target is used.
     /// </summary>
-    public string Target { get; set; } = FileSchemaImportTarget.TargetName;
+    public string Target { get; set; } = "";
 }

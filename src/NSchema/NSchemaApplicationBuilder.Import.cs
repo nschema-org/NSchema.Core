@@ -7,31 +7,39 @@ namespace NSchema;
 public partial class NSchemaApplicationBuilder
 {
     /// <summary>
-    /// Registers a target for importing schemas.
+    /// Registers a <see cref="FileSchemaImportTarget"/> that writes imported schemas to the local filesystem.
     /// </summary>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddImportTarget<T>() where T : class, ISchemaImportTarget
+    /// <param name="configure">An action to configure the file import target options.</param>
+    public NSchemaApplicationBuilder UseFileImportTarget(Action<FileSchemaImportTargetOptions> configure)
     {
-        Services.Replace(ServiceDescriptor.Singleton<ISchemaImportTarget, T>());
+        Services.Configure(configure);
+        return UseImportTarget<FileSchemaImportTarget>(FileSchemaImportTarget.TargetName);
+    }
+
+    /// <summary>
+    /// Registers a new <see cref="ISchemaImportTarget"/> for <paramref name="target"/>.
+    /// Throws if <paramref name="target"/> is already registered; use <see cref="UseImportTarget{T}"/> to replace.
+    /// </summary>
+    public NSchemaApplicationBuilder AddImportTarget<T>(string target) where T : class, ISchemaImportTarget
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(target);
+        Services.TryAddKeyedSingleton<ISchemaImportTarget, T>(target);
         return this;
     }
 
     /// <summary>
-    /// Registers a <see cref="FileSchemaImportTarget"/> that writes imported schemas to the local filesystem.
+    /// Replaces the <see cref="ISchemaImportTarget"/> registered for <paramref name="target"/>, or adds it if not yet registered.
     /// </summary>
-    /// <param name="configure">An action to configure the import target options.</param>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder UseFileImportTarget(Action<FileSchemaImportTargetOptions> configure)
+    public NSchemaApplicationBuilder UseImportTarget<T>(string target) where T : class, ISchemaImportTarget
     {
-        Services.Configure(configure);
-        return AddImportTarget<FileSchemaImportTarget>();
+        ArgumentException.ThrowIfNullOrWhiteSpace(target);
+        Services.Replace(ServiceDescriptor.KeyedSingleton<ISchemaImportTarget, T>(target));
+        return this;
     }
 
     /// <summary>
-    /// Restricts the import to the specified schema namespaces.
+    /// Configures import options such as which schemas and tables to import.
     /// </summary>
-    /// <param name="configure">An action to configure the import options.</param>
-    /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder WithImportOptions(Action<ImportOptions> configure)
     {
         Services.Configure(configure);

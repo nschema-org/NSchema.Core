@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Schema.Serialization;
@@ -8,19 +9,17 @@ namespace NSchema.Import;
 /// <summary>
 /// An <see cref="ISchemaImportTarget"/> that writes the imported schema to the local filesystem, merging additively with any existing files.
 /// </summary>
-internal sealed class FileSchemaImportTarget(IOptions<FileSchemaImportTargetOptions> options, ISchemaDocumentSerializerResolver serializers, ISchemaAggregator aggregator) : ISchemaImportTarget
+internal sealed class FileSchemaImportTarget(IOptions<FileSchemaImportTargetOptions> options, IKeyedResolver<ISchemaDocumentSerializer> serializers, ISchemaAggregator aggregator) : ISchemaImportTarget
 {
     /// <summary>
     /// The name of the target, used for resolution.
     /// </summary>
     public const string TargetName = "file";
 
-    public string Target => TargetName;
-
     public async Task Write(DatabaseSchema schema, CancellationToken cancellationToken = default)
     {
         var opts = options.Value;
-        var serializer = serializers.ForFormat(opts.Format);
+        var serializer = serializers.Resolve(opts.Format);
 
         foreach (var (path, partition) in BuildPartitions(schema, opts))
         {

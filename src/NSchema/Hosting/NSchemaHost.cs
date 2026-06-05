@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using NSchema.Migration;
+using NSchema.Resolution;
 
 namespace NSchema.Hosting;
 
@@ -11,7 +13,7 @@ internal sealed class NSchemaHost(
     IOptions<MigrationRunOptions> options,
     IHostApplicationLifetime lifetime,
     IServiceProvider services,
-    IMigrationReporterResolver reporter,
+    IKeyedResolver<IMigrationReporter> reporter,
     MigrationOperationResult result
 ) : BackgroundService
 {

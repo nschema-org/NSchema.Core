@@ -12,8 +12,6 @@ public partial class NSchemaApplicationBuilder
     /// <summary>
     /// Configures the policy to apply when a destructive action is detected in the migration plan.
     /// </summary>
-    /// <param name="policy">The policy to apply.</param>
-    /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder WithDestructiveActionPolicy(DestructiveActionPolicy policy)
     {
         Services.Configure<MigrationOptions>(o => o.DestructiveActionPolicy = policy);
@@ -23,8 +21,6 @@ public partial class NSchemaApplicationBuilder
     /// <summary>
     /// Configures the transaction mode to use when executing the migration plan.
     /// </summary>
-    /// <param name="mode">The transaction mode to use.</param>
-    /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder WithTransactionMode(TransactionMode mode)
     {
         Services.Configure<SqlExecutorOptions>(o => o.TransactionMode = mode);
@@ -34,8 +30,6 @@ public partial class NSchemaApplicationBuilder
     /// <summary>
     /// Configures the plan output to use a Terraform-style renderer.
     /// </summary>
-    /// <param name="configure">A delegate to configure the renderer options.</param>
-    /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder UseTerraformRenderer(Action<TerraformDiffRendererOptions> configure)
     {
         Services.Replace(ServiceDescriptor.Singleton<IDiffRenderer, TerraformDiffRenderer>());
@@ -44,33 +38,50 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
-    /// Registers an <see cref="IMigrationReporter"/> as a candidate for its output format.
+    /// Registers an <see cref="IMigrationReporter"/> for a new output format.
+    /// Throws if <paramref name="format"/> is already registered; use <see cref="UseReporter{T}"/> to replace an existing one.
     /// </summary>
-    /// <typeparam name="T">The reporter implementation to register.</typeparam>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddReporter<T>() where T : class, IMigrationReporter
+    public NSchemaApplicationBuilder AddReporter<T>(string format) where T : class, IMigrationReporter
     {
-        Services.TryAddEnumerable(ServiceDescriptor.Singleton<IMigrationReporter, T>());
+        ArgumentException.ThrowIfNullOrWhiteSpace(format);
+        Services.TryAddKeyedSingleton<IMigrationReporter, T>(format);
         return this;
     }
 
     /// <summary>
-    /// Registers an <see cref="IMigrationReporter"/> instance as a candidate for its output format.
+    /// Registers an <see cref="IMigrationReporter"/> instance for a new output format (key taken from <see cref="IMigrationReporter.Format"/>).
+    /// Throws if the format is already registered; use <see cref="UseReporter"/> to replace an existing one.
     /// </summary>
-    /// <param name="reporter">The reporter instance to register.</param>
-    /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddReporter(IMigrationReporter reporter)
     {
         ArgumentNullException.ThrowIfNull(reporter);
-        Services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IMigrationReporter), reporter));
+        Services.TryAddKeyedSingleton(reporter.Format, reporter);
+        return this;
+    }
+
+    /// <summary>
+    /// Replaces the <see cref="IMigrationReporter"/> registered for <paramref name="format"/>, or adds it if not yet registered.
+    /// </summary>
+    public NSchemaApplicationBuilder UseReporter<T>(string format) where T : class, IMigrationReporter
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(format);
+        Services.Replace(ServiceDescriptor.KeyedSingleton<IMigrationReporter, T>(format));
+        return this;
+    }
+
+    /// <summary>
+    /// Replaces the <see cref="IMigrationReporter"/> registered for the instance's format, or adds it if not yet registered.
+    /// </summary>
+    public NSchemaApplicationBuilder UseReporter(IMigrationReporter reporter)
+    {
+        ArgumentNullException.ThrowIfNull(reporter);
+        Services.Replace(ServiceDescriptor.KeyedSingleton(reporter.Format, reporter));
         return this;
     }
 
     /// <summary>
     /// Configures the operation the migration run performs.
     /// </summary>
-    /// <param name="operation">The operation to perform.</param>
-    /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder RunOperation(MigrationOperation operation)
     {
         Services.Configure<MigrationRunOptions>(o => o.Operation = operation);
@@ -78,10 +89,8 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
-    /// Configures the output format used to render run output, resolved to an <see cref="IMigrationReporter"/> at runtime.
+    /// Configures the output format used to render run output.
     /// </summary>
-    /// <param name="format">The output format, e.g. <c>human</c> or <c>json</c>.</param>
-    /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder WithOutputFormat(string format)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(format);
@@ -90,10 +99,8 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
-    /// Selects the SQL dialect to generate, when more than one <see cref="Sql.ISqlGenerator"/> is registered.
+    /// Selects the SQL dialect to generate, when more than one <see cref="ISqlGenerator"/> is registered.
     /// </summary>
-    /// <param name="dialect">The dialect, e.g. <c>postgres</c>.</param>
-    /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder WithDialect(string dialect)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(dialect);
@@ -104,8 +111,6 @@ public partial class NSchemaApplicationBuilder
     /// <summary>
     /// Configures how exceptions are surfaced.
     /// </summary>
-    /// <param name="behavior">The exception behavior to apply.</param>
-    /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder WithExceptionBehavior(ExceptionBehavior behavior)
     {
         Services.Configure<MigrationRunOptions>(o => o.ExceptionBehavior = behavior);
@@ -115,8 +120,6 @@ public partial class NSchemaApplicationBuilder
     /// <summary>
     /// Scopes the migration to a specific set of schema names.
     /// </summary>
-    /// <param name="schemaNames">The schema names to include in the migration.</param>
-    /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder ForSchemas(params string[] schemaNames)
     {
         Services.Configure<MigrationOptions>(o => o.SchemaNames = schemaNames);

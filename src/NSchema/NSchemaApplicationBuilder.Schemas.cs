@@ -10,8 +10,6 @@ public partial class NSchemaApplicationBuilder
     /// <summary>
     /// Adds a provider to the application that will be used to retrieve the desired schema.
     /// </summary>
-    /// <typeparam name="T">The type of the provider to add.</typeparam>
-    /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddSchema<T>() where T : class, ISchemaProvider
     {
         Services.AddSingleton<ISchemaProvider, T>();
@@ -21,9 +19,6 @@ public partial class NSchemaApplicationBuilder
     /// <summary>
     /// Adds a provider to the application that will be used to retrieve the desired schema.
     /// </summary>
-    /// <typeparam name="T">The type of the provider to add.</typeparam>
-    /// <param name="factory">A factory that creates an instance of the provider.</param>
-    /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddSchema<T>(Func<IServiceProvider, T> factory) where T : class, ISchemaProvider
     {
         Services.AddSingleton<ISchemaProvider, T>(factory);
@@ -33,8 +28,6 @@ public partial class NSchemaApplicationBuilder
     /// <summary>
     /// Registers the <see cref="ISchemaProvider"/> that reads the live database schema (the online source).
     /// </summary>
-    /// <typeparam name="T">The type of the provider to register as the online current-state source.</typeparam>
-    /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder UseCurrentSchema<T>() where T : class, ISchemaProvider
     {
         Services.Replace(ServiceDescriptor.KeyedSingleton<ISchemaProvider, T>(NSchemaKeys.OnlineSchemaProvider));
@@ -42,13 +35,23 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
-    /// Registers an <see cref="ISchemaDocumentSerializer"/> that reads and writes a desired-schema file format.
+    /// Registers an <see cref="ISchemaDocumentSerializer"/> for a new format.
+    /// Throws if <paramref name="format"/> is already registered; use <see cref="UseSchemaSerializer{T}"/> to replace an existing one.
     /// </summary>
-    /// <typeparam name="T">The serializer implementation to register.</typeparam>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddSchemaSerializer<T>() where T : class, ISchemaDocumentSerializer
+    public NSchemaApplicationBuilder AddSchemaSerializer<T>(string format) where T : class, ISchemaDocumentSerializer
     {
-        Services.TryAddEnumerable(ServiceDescriptor.Singleton<ISchemaDocumentSerializer, T>());
+        ArgumentException.ThrowIfNullOrWhiteSpace(format);
+        Services.TryAddKeyedSingleton<ISchemaDocumentSerializer, T>(format);
+        return this;
+    }
+
+    /// <summary>
+    /// Replaces the <see cref="ISchemaDocumentSerializer"/> registered for <paramref name="format"/>, or adds it if not yet registered.
+    /// </summary>
+    public NSchemaApplicationBuilder UseSchemaSerializer<T>(string format) where T : class, ISchemaDocumentSerializer
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(format);
+        Services.Replace(ServiceDescriptor.KeyedSingleton<ISchemaDocumentSerializer, T>(format));
         return this;
     }
 }

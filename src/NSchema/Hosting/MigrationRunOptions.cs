@@ -10,7 +10,7 @@ public class MigrationRunOptions
     /// <summary>
     /// The default output format: human-readable terminal output.
     /// </summary>
-    public const string DefaultOutputFormat = "human";
+    public const string DefaultOutputFormat = DefaultMigrationReporter.FormatName;
 
     /// <summary>
     /// The operation the migration run performs. Defaults to <see cref="MigrationOperation.Plan"/>.

@@ -10,6 +10,7 @@ using NSchema.Hosting.Operations;
 using NSchema.Hosting.Services;
 using NSchema.Import;
 using NSchema.Migration;
+using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Schema.Serialization;
 using NSchema.Sql;
@@ -52,12 +53,11 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
             .AddOptions<TerraformDiffRendererOptions>()
             .Configure(o => o.IncludeColour = EnvironmentHelpers.SupportsColor);
 
-        // The usual pattern is first-registration-wins: we use TryAddSingleton at build time to supply defaults where consumers haven't.
-        // Services consumed from a Resolver are last-registration-wins, so we register those up front.
-        _innerBuilder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IMigrationReporter, DefaultMigrationReporter>());
-        _innerBuilder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<ISchemaDocumentSerializer, JsonSchemaDocumentSerializer>());
+        // Register built-in keyed implementations (first-registration-wins).
+        _innerBuilder.Services.TryAddKeyedSingleton<IMigrationReporter, DefaultMigrationReporter>(DefaultMigrationReporter.FormatName);
+        _innerBuilder.Services.TryAddKeyedSingleton<ISchemaDocumentSerializer, JsonSchemaDocumentSerializer>(JsonSchemaDocumentSerializer.FormatName);
 
-        // The other kinds of services we register up front are ones that users might want to remove.
+        // Diff policies registered up front so users can remove them before Build().
         _innerBuilder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IDiffPolicy, DestructiveActionMigrationPolicy>());
     }
 
@@ -102,17 +102,18 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();
         services.TryAddSingleton<IDesiredSchemaProvider, DefaultDesiredSchemaProvider>();
         services.TryAddSingleton<ISchemaAggregator, DefaultSchemaAggregator>();
-        services.TryAddSingleton<ISchemaDocumentSerializerResolver, DefaultSchemaDocumentSerializerResolver>();
 
         // Diffing
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
         services.TryAddSingleton<IDiffRenderer, TerraformDiffRenderer>();
 
-        // Import
-        services.TryAddSingleton<ISchemaImportTargetResolver, DefaultSchemaImportTargetResolver>();
+        // Keyed resolvers (one per named-service type)
+        services.TryAddSingleton<IKeyedResolver<IMigrationReporter>>(sp => new DefaultKeyedResolver<IMigrationReporter, MigrationRunOptions>(sp, o => o.OutputFormat));
+        services.TryAddSingleton<IKeyedResolver<ISqlGenerator>>(sp => new DefaultKeyedResolver<ISqlGenerator, MigrationRunOptions>(sp, o => o.Dialect));
+        services.TryAddSingleton<IKeyedResolver<ISchemaDocumentSerializer>, DefaultKeyedResolver<ISchemaDocumentSerializer, object>>();
+        services.TryAddSingleton<IKeyedResolver<ISchemaImportTarget>>(sp => new DefaultKeyedResolver<ISchemaImportTarget, ImportOptions>(sp, o => o.Target));
 
         // Migration
-        services.TryAddSingleton<IMigrationReporterResolver, DefaultMigrationReporterResolver>();
         services.TryAddSingleton<IMigrationLinearizer, DefaultMigrationLinearizer>();
         services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
         services.TryAddSingleton<IMigrationConfirmation, AutoApproveConfirmation>();
@@ -120,7 +121,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // SQL
         services.TryAddSingleton<ISqlPlanRenderer, DefaultSqlPlanRenderer>();
         services.TryAddSingleton<ISqlExecutor, DefaultSqlExecutor>();
-        services.TryAddSingleton<ISqlGeneratorResolver, DefaultSqlGeneratorResolver>();
 
         // State
         services.TryAddSingleton<ISchemaStateSerializer, DefaultSchemaStateSerializer>();

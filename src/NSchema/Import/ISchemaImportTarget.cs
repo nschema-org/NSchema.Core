@@ -8,12 +8,8 @@ namespace NSchema.Import;
 public interface ISchemaImportTarget
 {
     /// <summary>
-    /// Gets the name of the target.
-    /// </summary>
-    public string Target { get; }
-    
-    /// <summary>
-    /// Writes <paramref name="schema"/> to the target.
+    /// Writes <paramref name="schema"/> to the target, adding or replacing tables while preserving
+    /// any existing content not covered by the import.
     /// </summary>
     Task Write(DatabaseSchema schema, CancellationToken cancellationToken = default);
 }

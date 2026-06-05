@@ -34,8 +34,7 @@ public sealed class SchemaSerializerRegistrationTests
     {
         var builder = NSchemaApplication.CreateBuilder();
         configure(builder);
-        using var app = builder.Build();
-        return app.Services.GetRequiredService<ISchemaDocumentSerializerResolver>();
+        return builder.Build().Services.GetRequiredService<ISchemaDocumentSerializerResolver>();
     }
 
     [Fact]
@@ -44,35 +43,29 @@ public sealed class SchemaSerializerRegistrationTests
         var resolver = Resolve(_ => { });
 
         resolver.ForFormat("json").ShouldBeOfType<JsonSchemaDocumentSerializer>();
-        resolver.AvailableFormats.ShouldContain("json");
+        resolver.Keys.ShouldContain("json");
     }
 
     [Fact]
     public void AddSchemaSerializer_RegistersResolvableSerializer()
     {
-        var resolver = Resolve(b => b.AddSchemaSerializer<YamlStubSerializer>());
+        var resolver = Resolve(b => b.AddSchemaSerializer<YamlStubSerializer>("yaml"));
 
         resolver.ForFormat("yaml").ShouldBeOfType<YamlStubSerializer>();
-        resolver.AvailableFormats.ShouldBe(["json", "yaml"], ignoreOrder: true);
+        resolver.Keys.ShouldBe(["json", "yaml"], ignoreOrder: true);
     }
 
     [Fact]
-    public void AddSchemaSerializer_SameType_IsDeduplicated()
+    public void AddSchemaSerializer_DuplicateFormat_Throws()
     {
-        // Re-registering the built-in implementation type is deduplicated by TryAddEnumerable, so json stays
-        // resolvable without a duplicate registration.
-        var resolver = Resolve(b => b.AddSchemaSerializer<JsonSchemaDocumentSerializer>());
-
-        resolver.ForFormat("json").ShouldBeOfType<JsonSchemaDocumentSerializer>();
-        resolver.AvailableFormats.ShouldBe(["json"]);
+        Should.Throw<InvalidOperationException>(() =>
+            Resolve(b => b.AddSchemaSerializer<JsonStubSerializer>("json")));
     }
 
     [Fact]
-    public void AddSchemaSerializer_OverridesBuiltIn_ForSameFormat()
+    public void UseSchemaSerializer_OverridesBuiltIn_ForSameFormat()
     {
-        // The built-in json serializer is registered first, so a caller's serializer for the same format,
-        // added afterwards, replaces it (last registration wins).
-        var resolver = Resolve(b => b.AddSchemaSerializer<JsonStubSerializer>());
+        var resolver = Resolve(b => b.UseSchemaSerializer<JsonStubSerializer>("json"));
 
         resolver.ForFormat("json").ShouldBeOfType<JsonStubSerializer>();
     }

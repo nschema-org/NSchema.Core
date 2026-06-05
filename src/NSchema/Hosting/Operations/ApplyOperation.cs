@@ -1,14 +1,16 @@
 using NSchema.Hosting.Services;
+using NSchema.Migration;
+using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Sql;
 
 namespace NSchema.Hosting.Operations;
 
 internal sealed class ApplyOperation(
-    IMigrationReporterResolver reporter,
+    IKeyedResolver<IMigrationReporter> reporters,
     IMigrationConfirmation confirmation,
     IMigrationHelper helper,
-    ISqlGeneratorResolver sqlGenerators,
+    IKeyedResolver<ISqlGenerator> sqlGenerators,
     ISqlExecutor? sqlExecutor = null
 ) : IMigrationOperation
 {
@@ -19,31 +21,31 @@ internal sealed class ApplyOperation(
             throw new InvalidOperationException("Applying a migration requires a database provider to generate and execute SQL, but none is registered.");
         }
 
-        reporter.Current.Info("Applying schema migration. Changes will be applied to the database.");
+        reporters.Current.Info("Applying schema migration. Changes will be applied to the database.");
 
         var plan = await helper.Plan(SchemaSourceMode.Online, required: true, cancellationToken);
 
-        reporter.Current.Info("Generating SQL...");
+        reporters.Current.Info("Generating SQL...");
         var sqlPlan = sqlGenerator.Generate(plan);
-        reporter.Current.ReportSqlPlan(sqlPlan);
+        reporters.Current.ReportSqlPlan(sqlPlan);
 
         // Offer an interactive front-end the chance to prompt before any changes are made.
         if (!await confirmation.Confirm(plan, cancellationToken))
         {
-            reporter.Current.Info("Apply cancelled. No changes were made to the database.");
+            reporters.Current.Info("Apply cancelled. No changes were made to the database.");
             return;
         }
 
-        reporter.Current.Info("Running database migration...");
+        reporters.Current.Info("Running database migration...");
         await sqlExecutor.Execute(sqlPlan, cancellationToken);
-        reporter.Current.Info("Migration completed successfully.");
+        reporters.Current.Info("Migration completed successfully.");
 
         // Capture the post-apply state only when a store is configured; otherwise there's nowhere to write it.
         if (helper.HasStore)
         {
-            reporter.Current.Info("Updating state store...");
+            reporters.Current.Info("Updating state store...");
             await helper.Refresh(cancellationToken);
-            reporter.Current.Info("State store updated successfully.");
+            reporters.Current.Info("State store updated successfully.");
         }
     }
 }
