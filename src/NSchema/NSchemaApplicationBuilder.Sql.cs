@@ -13,7 +13,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddSqlGenerator<T>() where T : class, ISqlGenerator
     {
-        Services.AddSingleton<ISqlGenerator, T>();
+        Services.TryAddEnumerable(ServiceDescriptor.Singleton<ISqlGenerator, T>());
         return this;
     }
 

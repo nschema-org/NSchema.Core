@@ -51,8 +51,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddMigrationPolicy<T>() where T : class, IMigrationPolicy
     {
-        var descriptor = new ServiceDescriptor(typeof(IMigrationPolicy), typeof(T), ServiceLifetime.Singleton);
-        Services.TryAddEnumerable(descriptor);
+        Services.TryAddEnumerable(ServiceDescriptor.Singleton<IMigrationPolicy, T>());
         return this;
     }
 
@@ -67,7 +66,7 @@ public partial class NSchemaApplicationBuilder
             .Where(t => t is { IsAbstract: false, IsInterface: false } && typeof(IMigrationPolicy).IsAssignableFrom(t));
         foreach (var type in types)
         {
-            Services.TryAddEnumerable(new ServiceDescriptor(typeof(IMigrationPolicy), type, ServiceLifetime.Singleton));
+            Services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IMigrationPolicy), type));
         }
         return this;
     }
@@ -86,8 +85,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddDiffPolicy<T>() where T : class, IDiffPolicy
     {
-        var descriptor = new ServiceDescriptor(typeof(IDiffPolicy), typeof(T), ServiceLifetime.Singleton);
-        Services.TryAddEnumerable(descriptor);
+        Services.TryAddEnumerable(ServiceDescriptor.Singleton<IDiffPolicy, T>());
         return this;
     }
 
@@ -102,7 +100,7 @@ public partial class NSchemaApplicationBuilder
             .Where(t => t is { IsAbstract: false, IsInterface: false } && typeof(IDiffPolicy).IsAssignableFrom(t));
         foreach (var type in types)
         {
-            Services.TryAddEnumerable(new ServiceDescriptor(typeof(IDiffPolicy), type, ServiceLifetime.Singleton));
+            Services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IDiffPolicy), type));
         }
         return this;
     }

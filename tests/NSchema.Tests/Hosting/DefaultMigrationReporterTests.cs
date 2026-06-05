@@ -31,11 +31,11 @@ public sealed class DefaultMigrationReporterTests
     }
 
     [Fact]
-    public void Error_WritesToError()
+    public void ReportException_WritesToError()
     {
-        _sut.Error("boom");
+        _sut.ReportException(new InvalidOperationException("boom"));
 
-        _error.ToString().ShouldBe("boom" + Environment.NewLine);
+        _error.ToString().ShouldBe("Operation failed: boom" + Environment.NewLine);
         _output.ToString().ShouldBeEmpty();
     }
 

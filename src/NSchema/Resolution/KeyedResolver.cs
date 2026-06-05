@@ -15,7 +15,6 @@ internal abstract class KeyedResolver<TKey, TValue>
     /// <param name="keyOf">Extracts the name key from an implementation.</param>
     /// <param name="itemNoun">A singular noun for the resolved item, used in error messages (e.g. <c>reporter</c>).</param>
     /// <param name="comparer">The key comparer to use. If null, the default will be used, which is case-sensitive for strings.</param>
-    /// <exception cref="InvalidOperationException">Two implementations share a key.</exception>
     protected KeyedResolver(IEnumerable<TValue> items, Func<TValue, TKey> keyOf, string itemNoun, IEqualityComparer<TKey>? comparer = null)
     {
         _byName = new Dictionary<TKey, TValue>(comparer);
@@ -24,10 +23,9 @@ internal abstract class KeyedResolver<TKey, TValue>
         foreach (var item in items)
         {
             var name = keyOf(item);
-            if (!_byName.TryAdd(name, item))
-            {
-                throw new InvalidOperationException($"Multiple {itemNoun}s are registered for '{name}'. Each item must have exactly one {itemNoun}.");
-            }
+
+            // Implicitly overrides older registrations. Last-registration wins.
+            _byName[name] = item;
         }
     }
 
@@ -40,6 +38,7 @@ internal abstract class KeyedResolver<TKey, TValue>
     /// Resolves the implementation registered for <paramref name="key"/>.
     /// </summary>
     /// <exception cref="InvalidOperationException">No implementation is registered for the key.</exception>
+    /// <remarks>If there are multiple types registered, the last one will be returned.</remarks>
     public TValue Resolve(TKey key)
     {
         if (_byName.TryGetValue(key, out var item))

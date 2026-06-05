@@ -109,7 +109,7 @@ public sealed class NSchemaHostTests
         await _sut.ExecuteTask!;
 
         // Assert
-        _reporter.Received(1).Error(Arg.Is<string>(s => s.Contains("boom")));
+        _reporter.Received(1).ReportException(boom);
         _outcome.Exception.ShouldBe(boom);
     }
 
@@ -127,7 +127,7 @@ public sealed class NSchemaHostTests
         await _sut.ExecuteTask!;
 
         // Assert
-        _reporter.DidNotReceive().Error(Arg.Any<string>());
+        _reporter.DidNotReceive().ReportException(Arg.Any<Exception>());
         _outcome.Exception.ShouldBe(boom);
     }
 }

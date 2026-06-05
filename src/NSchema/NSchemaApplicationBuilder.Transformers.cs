@@ -16,8 +16,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddPlanTransformer<T>() where T : class, IMigrationPlanTransformer
     {
-        var descriptor = new ServiceDescriptor(typeof(IMigrationPlanTransformer), typeof(T), ServiceLifetime.Singleton);
-        Services.TryAddEnumerable(descriptor);
+        Services.TryAddEnumerable(ServiceDescriptor.Singleton<IMigrationPlanTransformer, T>());
         return this;
     }
 
@@ -32,7 +31,7 @@ public partial class NSchemaApplicationBuilder
             .Where(t => t is { IsAbstract: false, IsInterface: false } && typeof(IMigrationPlanTransformer).IsAssignableFrom(t));
         foreach (var type in types)
         {
-            Services.TryAddEnumerable(new ServiceDescriptor(typeof(IMigrationPlanTransformer), type, ServiceLifetime.Singleton));
+            Services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IMigrationPlanTransformer), type));
         }
         return this;
     }
@@ -51,8 +50,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddSchemaTransformer<T>() where T : class, ISchemaTransformer
     {
-        var descriptor = new ServiceDescriptor(typeof(ISchemaTransformer), typeof(T), ServiceLifetime.Singleton);
-        Services.TryAddEnumerable(descriptor);
+        Services.TryAddEnumerable(ServiceDescriptor.Singleton<ISchemaTransformer, T>());
         return this;
     }
 
@@ -67,7 +65,7 @@ public partial class NSchemaApplicationBuilder
             .Where(t => t is { IsAbstract: false, IsInterface: false } && typeof(ISchemaTransformer).IsAssignableFrom(t));
         foreach (var type in types)
         {
-            Services.TryAddEnumerable(new ServiceDescriptor(typeof(ISchemaTransformer), type, ServiceLifetime.Singleton));
+            Services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(ISchemaTransformer), type));
         }
         return this;
     }
@@ -86,8 +84,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddDiffTransformer<T>() where T : class, IDiffTransformer
     {
-        var descriptor = new ServiceDescriptor(typeof(IDiffTransformer), typeof(T), ServiceLifetime.Singleton);
-        Services.TryAddEnumerable(descriptor);
+        Services.TryAddEnumerable(ServiceDescriptor.Singleton<IDiffTransformer, T>());
         return this;
     }
 
@@ -102,7 +99,7 @@ public partial class NSchemaApplicationBuilder
             .Where(t => t is { IsAbstract: false, IsInterface: false } && typeof(IDiffTransformer).IsAssignableFrom(t));
         foreach (var type in types)
         {
-            Services.TryAddEnumerable(new ServiceDescriptor(typeof(IDiffTransformer), type, ServiceLifetime.Singleton));
+            Services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IDiffTransformer), type));
         }
         return this;
     }

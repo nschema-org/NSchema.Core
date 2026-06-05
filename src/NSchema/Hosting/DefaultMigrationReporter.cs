@@ -44,7 +44,7 @@ internal sealed class DefaultMigrationReporter : IMigrationReporter
 
     public void Info(string message) => _output.WriteLine(message);
 
-    public void Error(string message) => _error.WriteLine(message);
+    public void ReportException(Exception exception) => _error.WriteLine($"Operation failed: {exception.Message}");
 
     public void ReportDiff(MigrationDiff diff)
     {

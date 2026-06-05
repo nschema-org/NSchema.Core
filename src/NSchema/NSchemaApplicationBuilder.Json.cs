@@ -22,12 +22,14 @@ public partial class NSchemaApplicationBuilder
     /// <param name="recursive">Whether to include matching files in subdirectories. Defaults to <see langword="true"/>.</param>
     /// <returns>The application builder, for chaining.</returns>
     /// <exception cref="DirectoryNotFoundException">The directory does not exist.</exception>
-    public NSchemaApplicationBuilder AddJsonSchemasFromDirectory(string directoryPath, string searchPattern = "*.json", bool recursive = true) => AddFileSchemasFromDirectory(directoryPath, searchPattern, recursive, path => new JsonSchemaProvider(path));
+    public NSchemaApplicationBuilder AddJsonSchemasFromDirectory(string directoryPath, string searchPattern = "*.json", bool recursive = true) =>
+        AddFileSchemasFromDirectory(directoryPath, searchPattern, recursive, path => new JsonSchemaProvider(path));
 
     /// <summary>
     /// Adds a <see cref="JsonSchemaProvider"/> for every JSON file matching a glob pattern.
     /// </summary>
     /// <param name="globPattern">A glob pattern, e.g. <c>schemas/**/*.json</c>.</param>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddJsonSchemasFromGlob(string globPattern) => AddFileSchemasFromGlob(globPattern, path => new JsonSchemaProvider(path));
+    public NSchemaApplicationBuilder AddJsonSchemasFromGlob(string globPattern) =>
+        AddFileSchemasFromGlob(globPattern, path => new JsonSchemaProvider(path));
 }

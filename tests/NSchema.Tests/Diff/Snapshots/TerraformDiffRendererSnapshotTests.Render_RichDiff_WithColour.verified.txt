@@ -1,5 +1,4 @@
-﻿
-[32m+[0m schema reporting ("analytics")
+﻿[32m+[0m schema reporting ("analytics")
     [32m+[0m grant usage to analyst
 
 [32m+[0m table app.users ("all users")
