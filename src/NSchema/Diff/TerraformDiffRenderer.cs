@@ -43,7 +43,7 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
         RenderScripts(sb, "Pre-deployment scripts:", diff.PreDeploymentScripts);
         RenderScripts(sb, "Post-deployment scripts:", diff.PostDeploymentScripts);
 
-        return sb.ToString().TrimEnd();
+        return sb.ToString().Trim();
     }
 
     private void RenderSchema(StringBuilder sb, SchemaDiff schema, ChangeKind kind)

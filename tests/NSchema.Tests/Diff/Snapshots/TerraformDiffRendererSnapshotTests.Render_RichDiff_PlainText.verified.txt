@@ -1,5 +1,4 @@
-﻿
-+ schema reporting ("analytics")
+﻿+ schema reporting ("analytics")
     + grant usage to analyst
 
 + table app.users ("all users")
