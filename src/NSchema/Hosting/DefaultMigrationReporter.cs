@@ -48,8 +48,8 @@ internal sealed class DefaultMigrationReporter : IMigrationReporter
     {
         if (exception is PolicyViolationException pve)
         {
-            _error.WriteLine("Policy validation failed with the following issues:");
-            ReportDiagnosticItems(pve.Errors);
+            _error.WriteLine(pve.Message);
+            ReportDiagnosticItems(pve.Errors, _error);
         }
         else
         {
@@ -74,23 +74,22 @@ internal sealed class DefaultMigrationReporter : IMigrationReporter
     public void ReportDiagnostics(PolicyDiagnostics diagnostics)
     {
         _output.WriteLine("Policy diagnostics:");
-        ReportDiagnosticItems(diagnostics);
+        ReportDiagnosticItems(diagnostics, _output);
     }
 
-    private void ReportDiagnosticItems(IReadOnlyList<PolicyDiagnostic> diagnostics)
+    private void ReportDiagnosticItems(IReadOnlyList<PolicyDiagnostic> diagnostics, TextWriter pipe)
     {
         if (diagnostics.Count == 0)
         {
-            _output.WriteLine("- Nothing to report");
-            _output.WriteLine();
+            pipe.WriteLine("- Nothing to report");
+            pipe.WriteLine();
             return;
         }
 
         foreach (var diagnostic in diagnostics)
         {
-            var writer = diagnostic.Severity is PolicyDiagnosticSeverity.Error or PolicyDiagnosticSeverity.Warning ? _error : _output;
-            writer.WriteLine($"- {diagnostic.PolicyName}: {diagnostic.Message}");
+            pipe.WriteLine($"- {diagnostic.PolicyName}: {diagnostic.Message}");
         }
-        _output.WriteLine();
+        pipe.WriteLine();
     }
 }

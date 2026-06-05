@@ -40,6 +40,29 @@ public sealed class DefaultMigrationReporterTests
     }
 
     [Fact]
+    public void ReportException_PolicyViolationException_WritesDetailsToError()
+    {
+        // Arrange
+        var diagnostics = new PolicyDiagnostics
+        {
+            new PolicyDiagnostic("P1", "all good", PolicyDiagnosticSeverity.Info),
+            new PolicyDiagnostic("P2", "be careful", PolicyDiagnosticSeverity.Warning),
+            new PolicyDiagnostic("P3", "blocked", PolicyDiagnosticSeverity.Error),
+        };
+        var exception = new PolicyViolationException(diagnostics);
+
+        // Act
+        _sut.ReportException(exception);
+
+        // Assert
+        _error.ToString().ShouldContain("P1: all good");
+        _error.ToString().ShouldContain("P2: be careful");
+        _error.ToString().ShouldContain("P3: blocked");
+        _error.ToString().ShouldContain("Policy violated with 3 error(s).");
+        _output.ToString().ShouldBeEmpty();
+    }
+
+    [Fact]
     public void ReportDiff_WritesRenderedDiffToOutput()
     {
         var diff = new MigrationDiff([], [], []);
@@ -64,7 +87,7 @@ public sealed class DefaultMigrationReporterTests
     }
 
     [Fact]
-    public void ReportDiagnostics_RoutesWarningsAndErrorsToError()
+    public void ReportDiagnostics_RoutesToOutput()
     {
         var diagnostics = new PolicyDiagnostics
         {
@@ -76,15 +99,14 @@ public sealed class DefaultMigrationReporterTests
         _sut.ReportDiagnostics(diagnostics);
 
         _output.ToString().ShouldContain("P1: all good");
-        _error.ToString().ShouldContain("P2: be careful");
-        _error.ToString().ShouldContain("P3: blocked");
-        _output.ToString().ShouldNotContain("P3: blocked");
+        _output.ToString().ShouldContain("P2: be careful");
+        _output.ToString().ShouldContain("P3: blocked");
     }
 
     [Fact]
     public void ReportDiagnostics_WithNoDiagnostics_WritesNone()
     {
-        _sut.ReportDiagnostics(new PolicyDiagnostics());
+        _sut.ReportDiagnostics([]);
 
         _output.ToString().ShouldContain("Nothing to report");
     }
