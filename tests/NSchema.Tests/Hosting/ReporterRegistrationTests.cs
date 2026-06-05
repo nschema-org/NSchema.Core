@@ -48,34 +48,31 @@ public sealed class ReporterRegistrationTests
     }
 
     [Fact]
-    public void AddReporter_OverridingFormat_LastWins()
+    public void AddReporter_DuplicateFormat_Throws()
     {
-        var replacement = new StubReporter("human");
-
-        var resolver = Build(b => b.AddReporter(replacement)).GetRequiredService<IMigrationReporterResolver>();
-
-        // The user's later registration shadows the built-in human reporter.
-        resolver.ForFormat("human").ShouldBeSameAs(replacement);
+        // A different reporter for the built-in 'human' format is ambiguous and throws when resolved.
+        Should.Throw<InvalidOperationException>(
+            () => Build(b => b.AddReporter(new StubReporter("human"))).GetRequiredService<IMigrationReporterResolver>());
     }
 
     [Fact]
-    public void ConsumerFacingReporter_IsTheOneSelectedByOutputFormat()
+    public void Current_SelectsReporterForConfiguredOutputFormat()
     {
         var json = new StubReporter("json");
 
-        var services = Build(b => b
+        var resolver = Build(b => b
             .AddReporter(json)
-            .WithOutputFormat("json"));
+            .WithOutputFormat("json"))
+            .GetRequiredService<IMigrationReporterResolver>();
 
-        // Whatever a consumer injects is the reporter chosen for the configured output format.
-        services.GetRequiredService<IMigrationReporter>().ShouldBeSameAs(json);
+        resolver.Current.ShouldBeSameAs(json);
     }
 
     [Fact]
-    public void ConsumerFacingReporter_DefaultsToHumanReporter()
+    public void Current_DefaultsToHumanReporter()
     {
-        var reporter = Build(_ => { }).GetRequiredService<IMigrationReporter>();
+        var resolver = Build(_ => { }).GetRequiredService<IMigrationReporterResolver>();
 
-        reporter.ShouldBeOfType<DefaultMigrationReporter>();
+        resolver.Current.ShouldBeOfType<DefaultMigrationReporter>();
     }
 }

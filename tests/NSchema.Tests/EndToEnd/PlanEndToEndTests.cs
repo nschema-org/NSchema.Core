@@ -1,6 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
 using NSchema.Diff.Model;
-using NSchema.Migration;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Tests.Helpers;
@@ -29,7 +28,7 @@ public sealed class PlanEndToEndTests : IDisposable
     private NSchemaApplicationBuilder NewBuilder(DatabaseSchema current)
     {
         var builder = NSchemaApplication.CreateBuilder();
-        builder.Services.AddSingleton<IMigrationReporter>(_reporter);
+        builder.AddReporter(_reporter).WithOutputFormat(RecordingReporter.FormatName);
         builder.Services.AddKeyedSingleton<ISchemaProvider>(NSchemaKeys.OnlineSchemaProvider, new InMemorySchemaProvider(current));
         return builder;
     }

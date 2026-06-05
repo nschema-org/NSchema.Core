@@ -49,21 +49,19 @@ public sealed class SchemaSerializerRegistrationTests
     [Fact]
     public void AddSchemaSerializer_Generic_IsResolvable()
     {
+        // Re-registering the same implementation type is deduplicated by TryAddEnumerable, so json stays
+        // resolvable without a duplicate-format conflict.
         var resolver = Resolve(b => b.AddSchemaSerializer<JsonSchemaDocumentSerializer>());
 
-        // Registering a second JSON serializer keeps json resolvable and doesn't duplicate the format.
         resolver.ForFormat("json").ShouldBeOfType<JsonSchemaDocumentSerializer>();
         resolver.AvailableFormats.ShouldBe(["json"]);
     }
 
     [Fact]
-    public void AddSchemaSerializer_OverridingFormat_LastWins()
+    public void AddSchemaSerializer_DuplicateFormat_Throws()
     {
-        var replacement = new StubSerializer("json");
-
-        var resolver = Resolve(b => b.AddSchemaSerializer(replacement));
-
-        // The user's later registration shadows the built-in JSON serializer.
-        resolver.ForFormat("json").ShouldBeSameAs(replacement);
+        // A different serializer for the built-in 'json' format is ambiguous and throws when resolved.
+        Should.Throw<InvalidOperationException>(
+            () => Resolve(b => b.AddSchemaSerializer(new StubSerializer("json"))));
     }
 }

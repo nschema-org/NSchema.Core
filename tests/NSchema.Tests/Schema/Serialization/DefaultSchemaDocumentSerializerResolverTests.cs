@@ -26,7 +26,7 @@ public sealed class DefaultSchemaDocumentSerializerResolverTests
         var json = new StubSerializer("json");
         var sut = Resolver(json, new StubSerializer("yaml"));
 
-        sut.ForFormat("json").ShouldBeSameAs(json);
+        sut.Resolve("json").ShouldBeSameAs(json);
     }
 
     [Fact]
@@ -35,17 +35,16 @@ public sealed class DefaultSchemaDocumentSerializerResolverTests
         var yaml = new StubSerializer("yaml");
         var sut = Resolver(yaml);
 
-        sut.ForFormat("YAML").ShouldBeSameAs(yaml);
+        sut.Resolve("YAML").ShouldBeSameAs(yaml);
     }
 
     [Fact]
-    public void ForFormat_LastRegistrationWins_ForDuplicateFormat()
+    public void Constructor_Throws_OnDuplicateFormat()
     {
-        var first = new StubSerializer("json");
-        var second = new StubSerializer("json");
-        var sut = Resolver(first, second);
+        var ex = Should.Throw<InvalidOperationException>(
+            () => Resolver(new StubSerializer("json"), new StubSerializer("JSON")));
 
-        sut.ForFormat("json").ShouldBeSameAs(second);
+        ex.Message.ShouldContain("json");
     }
 
     [Fact]
@@ -53,7 +52,7 @@ public sealed class DefaultSchemaDocumentSerializerResolverTests
     {
         var sut = Resolver(new StubSerializer("json"), new StubSerializer("yaml"));
 
-        var ex = Should.Throw<InvalidOperationException>(() => sut.ForFormat("xml"));
+        var ex = Should.Throw<InvalidOperationException>(() => sut.Resolve("xml"));
 
         ex.Message.ShouldContain("xml");
         ex.Message.ShouldContain("json");
@@ -65,7 +64,7 @@ public sealed class DefaultSchemaDocumentSerializerResolverTests
     {
         var sut = Resolver();
 
-        var ex = Should.Throw<InvalidOperationException>(() => sut.ForFormat("json"));
+        var ex = Should.Throw<InvalidOperationException>(() => sut.Resolve("json"));
 
         ex.Message.ShouldContain("none");
     }
@@ -75,14 +74,14 @@ public sealed class DefaultSchemaDocumentSerializerResolverTests
     [InlineData("")]
     [InlineData("   ")]
     public void ForFormat_RejectsMissingFormat(string? format)
-        => Should.Throw<ArgumentException>(() => Resolver(new StubSerializer("json")).ForFormat(format!));
+        => Should.Throw<ArgumentException>(() => Resolver(new StubSerializer("json")).Resolve(format!));
 
     [Fact]
     public void TryForFormat_ReturnsFalse_WhenUnregistered()
     {
         var sut = Resolver(new StubSerializer("json"));
 
-        sut.TryForFormat("yaml", out var serializer).ShouldBeFalse();
+        sut.TryResolve("yaml", out var serializer).ShouldBeFalse();
         serializer.ShouldBeNull();
     }
 
@@ -92,19 +91,19 @@ public sealed class DefaultSchemaDocumentSerializerResolverTests
         var json = new StubSerializer("json");
         var sut = Resolver(json);
 
-        sut.TryForFormat("json", out var serializer).ShouldBeTrue();
+        sut.TryResolve("json", out var serializer).ShouldBeTrue();
         serializer.ShouldBeSameAs(json);
     }
 
     [Fact]
-    public void AvailableFormats_ListsDistinctFormats()
+    public void AvailableFormats_ListsRegisteredFormats()
     {
-        var sut = Resolver(new StubSerializer("json"), new StubSerializer("yaml"), new StubSerializer("JSON"));
+        var sut = Resolver(new StubSerializer("json"), new StubSerializer("yaml"));
 
-        sut.AvailableFormats.ShouldBe(["json", "yaml"], ignoreOrder: true);
+        sut.Keys.ShouldBe(["json", "yaml"], ignoreOrder: true);
     }
 
     [Fact]
     public void AvailableFormats_Empty_WhenNoSerializers()
-        => Resolver().AvailableFormats.ShouldBeEmpty();
+        => Resolver().Keys.ShouldBeEmpty();
 }

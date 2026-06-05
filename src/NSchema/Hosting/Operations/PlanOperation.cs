@@ -1,5 +1,4 @@
 using NSchema.Hosting.Services;
-using NSchema.Migration;
 using NSchema.Schema;
 using NSchema.Sql;
 

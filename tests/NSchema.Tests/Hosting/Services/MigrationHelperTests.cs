@@ -20,7 +20,7 @@ public sealed class MigrationHelperTests
     private readonly IOptions<MigrationOptions> _options = Options.Create(new MigrationOptions());
 
     private MigrationHelper BuildSut(ISchemaStateStore? store = null) =>
-        new(_options, _planner, [], _reporter, _currentProvider, _desiredProvider, [], store);
+        new(_options, _planner, [], Helpers.TestReporters.ResolverFor(_reporter), _currentProvider, _desiredProvider, [], store);
 
     private readonly MigrationHelper _sut;
 

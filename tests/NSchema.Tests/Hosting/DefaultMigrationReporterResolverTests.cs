@@ -30,7 +30,7 @@ public sealed class DefaultMigrationReporterResolverTests
         var human = new StubReporter("human");
         var sut = Resolver("human", human, new StubReporter("json"));
 
-        sut.ForFormat("human").ShouldBeSameAs(human);
+        sut.Resolve("human").ShouldBeSameAs(human);
     }
 
     [Fact]
@@ -39,17 +39,16 @@ public sealed class DefaultMigrationReporterResolverTests
         var json = new StubReporter("json");
         var sut = Resolver("human", json);
 
-        sut.ForFormat("JSON").ShouldBeSameAs(json);
+        sut.Resolve("JSON").ShouldBeSameAs(json);
     }
 
     [Fact]
-    public void ForFormat_LastRegistrationWins_ForDuplicateFormat()
+    public void Constructor_Throws_OnDuplicateFormat()
     {
-        var first = new StubReporter("human");
-        var second = new StubReporter("human");
-        var sut = Resolver("human", first, second);
+        var ex = Should.Throw<InvalidOperationException>(
+            () => Resolver("human", new StubReporter("human"), new StubReporter("HUMAN")));
 
-        sut.ForFormat("human").ShouldBeSameAs(second);
+        ex.Message.ShouldContain("human");
     }
 
     [Fact]
@@ -57,7 +56,7 @@ public sealed class DefaultMigrationReporterResolverTests
     {
         var sut = Resolver("human", new StubReporter("human"), new StubReporter("json"));
 
-        var ex = Should.Throw<InvalidOperationException>(() => sut.ForFormat("xml"));
+        var ex = Should.Throw<InvalidOperationException>(() => sut.Resolve("xml"));
 
         ex.Message.ShouldContain("xml");
         ex.Message.ShouldContain("human");
@@ -87,15 +86,15 @@ public sealed class DefaultMigrationReporterResolverTests
     {
         var sut = Resolver("human", new StubReporter("human"));
 
-        sut.TryForFormat("json", out var reporter).ShouldBeFalse();
+        sut.TryResolve("json", out var reporter).ShouldBeFalse();
         reporter.ShouldBeNull();
     }
 
     [Fact]
-    public void AvailableFormats_ListsDistinctFormats()
+    public void AvailableFormats_ListsRegisteredFormats()
     {
-        var sut = Resolver("human", new StubReporter("human"), new StubReporter("json"), new StubReporter("HUMAN"));
+        var sut = Resolver("human", new StubReporter("human"), new StubReporter("json"));
 
-        sut.AvailableFormats.ShouldBe(["human", "json"], ignoreOrder: true);
+        sut.Keys.ShouldBe(["human", "json"], ignoreOrder: true);
     }
 }

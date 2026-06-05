@@ -46,10 +46,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         _innerBuilder.Services.AddOptions<MigrationRunOptions>();
         _innerBuilder.Services.AddOptions<SqlExecutorOptions>();
 
-        // Register the built-in human reporter as the default candidate, first so any AddReporter the user
-        // adds later takes precedence for its format under the resolver's last-wins rule.
-     ;
-
         _innerBuilder.Services
             .AddOptions<TerraformDiffRendererOptions>()
             .Configure(o => o.IncludeColour = EnvironmentHelpers.SupportsColor);
@@ -109,7 +105,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IMigrationLinearizer, DefaultMigrationLinearizer>();
         services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
         services.TryAddSingleton<IMigrationConfirmation, AutoApproveConfirmation>();
-        services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IMigrationReporter), sp => new DefaultMigrationReporter(sp.GetRequiredService<IDiffRenderer>(), sp.GetRequiredService<ISqlPlanRenderer>(), Console.Out, Console.Error)));
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IMigrationReporter, DefaultMigrationReporter>());
 
         // SQL
         services.TryAddSingleton<ISqlPlanRenderer, DefaultSqlPlanRenderer>();
