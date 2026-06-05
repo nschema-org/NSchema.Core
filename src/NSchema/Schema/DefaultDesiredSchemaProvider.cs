@@ -17,7 +17,12 @@ internal sealed class DefaultDesiredSchemaProvider(
         }
 
         // Task.WhenAll has no ValueTask overload; materialize each call to a Task to fan out concurrently.
-        var schemas = await Task.WhenAll(providerList.Select(p => p.GetSchema(schemaNames, cancellationToken).AsTask()));
+        List<DatabaseSchema> schemas = [];
+        var schemaTasks = providerList.Select(provider => provider.GetSchema(schemaNames, cancellationToken));
+        foreach (var schemaTask in schemaTasks)
+        {
+            schemas.AddRange(await schemaTask);
+        }
         var aggregated = aggregator.Aggregate(schemas);
         return transformers.Aggregate(aggregated, (schema, transformer) => transformer.Transform(schema));
     }
