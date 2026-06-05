@@ -6,9 +6,6 @@ namespace NSchema.Hosting;
 /// Resolves a registered <see cref="IMigrationReporter"/> by its output format, and selects the one for
 /// the configured run via <see cref="Current"/>.
 /// </summary>
-/// <remarks>
-/// When more than one reporter is registered for the same format, the last one registered wins.
-/// </remarks>
 public interface IMigrationReporterResolver
 {
     /// <summary>
