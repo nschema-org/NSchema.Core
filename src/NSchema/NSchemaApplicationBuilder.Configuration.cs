@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.Diff;
 using NSchema.Hosting;
 using NSchema.Migration;
@@ -37,7 +38,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder UseTerraformRenderer(Action<TerraformDiffRendererOptions> configure)
     {
-        Services.AddSingleton<IDiffRenderer, TerraformDiffRenderer>();
+        Services.Replace(ServiceDescriptor.Singleton<IDiffRenderer, TerraformDiffRenderer>());
         Services.Configure(configure);
         return this;
     }
@@ -49,7 +50,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddReporter<T>() where T : class, IMigrationReporter
     {
-        Services.AddSingleton<IMigrationReporter, T>();
+        Services.TryAddEnumerable(ServiceDescriptor.Singleton<IMigrationReporter, T>());
         return this;
     }
 
@@ -61,7 +62,7 @@ public partial class NSchemaApplicationBuilder
     public NSchemaApplicationBuilder AddReporter(IMigrationReporter reporter)
     {
         ArgumentNullException.ThrowIfNull(reporter);
-        Services.AddSingleton(reporter);
+        Services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IMigrationReporter), reporter));
         return this;
     }
 

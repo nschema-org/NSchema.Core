@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.Schema;
 using NSchema.Schema.Serialization;
 
@@ -13,7 +14,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddSchema<T>() where T : class, ISchemaProvider
     {
-        Services.AddSingleton(ServiceDescriptor.Singleton<ISchemaProvider, T>());
+        Services.AddSingleton<ISchemaProvider, T>();
         return this;
     }
 
@@ -36,7 +37,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder UseCurrentSchema<T>() where T : class, ISchemaProvider
     {
-        Services.AddKeyedSingleton<ISchemaProvider, T>(NSchemaKeys.OnlineSchemaProvider);
+        Services.Replace(ServiceDescriptor.KeyedSingleton<ISchemaProvider, T>(NSchemaKeys.OnlineSchemaProvider));
         return this;
     }
 
@@ -47,19 +48,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddSchemaSerializer<T>() where T : class, ISchemaDocumentSerializer
     {
-        Services.AddSingleton<ISchemaDocumentSerializer, T>();
-        return this;
-    }
-
-    /// <summary>
-    /// Registers an <see cref="ISchemaDocumentSerializer"/> instance that reads and writes a desired-schema file format.
-    /// </summary>
-    /// <param name="serializer">The serializer instance to register.</param>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddSchemaSerializer(ISchemaDocumentSerializer serializer)
-    {
-        ArgumentNullException.ThrowIfNull(serializer);
-        Services.AddSingleton(serializer);
+        Services.TryAddEnumerable(ServiceDescriptor.Singleton<ISchemaDocumentSerializer, T>());
         return this;
     }
 }
