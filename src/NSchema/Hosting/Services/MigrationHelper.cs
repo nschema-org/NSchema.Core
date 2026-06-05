@@ -30,14 +30,14 @@ internal sealed class MigrationHelper(
 
         reporter.Current.Info("Validating schema...");
         var schemaDiagnostics = new PolicyDiagnostics(schemaPolicies.SelectMany(p => p.Validate(desiredSchema)));
-        if (schemaDiagnostics.Count > 0)
-        {
-            reporter.Current.ReportDiagnostics(schemaDiagnostics);
-        }
-
         if (schemaDiagnostics.HasErrors)
         {
             throw new PolicyViolationException(schemaDiagnostics.Errors.ToList());
+        }
+
+        if (schemaDiagnostics.Count > 0)
+        {
+            reporter.Current.ReportDiagnostics(schemaDiagnostics);
         }
 
         reporter.Current.Info($"Migration will be scoped to the following schemas: {string.Join(", ", schemasInScope)}");
@@ -57,7 +57,6 @@ internal sealed class MigrationHelper(
         var result = planner.Plan(currentSchema, desiredSchema, scripts);
         if (result.HasErrors)
         {
-            reporter.Current.ReportDiagnostics(result.Diagnostics);
             throw new PolicyViolationException(result.Diagnostics.Errors.ToList());
         }
 

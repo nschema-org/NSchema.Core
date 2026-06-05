@@ -86,7 +86,7 @@ public sealed class MigrationHelperTests
     }
 
     [Fact]
-    public async Task Prepare_PolicyViolation_ReportsDiagnosticsAndThrows_WithoutShowingPlan()
+    public async Task Prepare_PolicyViolation_ThrowsWithoutReporting()
     {
         // Arrange
         var errors = new[] { new PolicyDiagnostic("P1", "msg") };
@@ -98,7 +98,7 @@ public sealed class MigrationHelperTests
 
         // Assert
         await act.ShouldThrowAsync<PolicyViolationException>();
-        _reporter.Received(1).ReportDiagnostics(Arg.Any<PolicyDiagnostics>());
+        _reporter.DidNotReceive().ReportDiagnostics(Arg.Any<PolicyDiagnostics>());
         _reporter.DidNotReceive().ReportDiff(Arg.Any<MigrationDiff>());
     }
 

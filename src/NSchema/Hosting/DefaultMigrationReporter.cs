@@ -44,7 +44,18 @@ internal sealed class DefaultMigrationReporter : IMigrationReporter
 
     public void Info(string message) => _output.WriteLine(message);
 
-    public void ReportException(Exception exception) => _error.WriteLine($"Operation failed: {exception.Message}");
+    public void ReportException(Exception exception)
+    {
+        if (exception is PolicyViolationException pve)
+        {
+            _error.WriteLine("Policy validation failed with the following issues:");
+            ReportDiagnosticItems(pve.Errors);
+        }
+        else
+        {
+            _error.WriteLine($"Operation failed: {exception.Message}");
+        }
+    }
 
     public void ReportDiff(MigrationDiff diff)
     {
@@ -63,6 +74,11 @@ internal sealed class DefaultMigrationReporter : IMigrationReporter
     public void ReportDiagnostics(PolicyDiagnostics diagnostics)
     {
         _output.WriteLine("Policy diagnostics:");
+        ReportDiagnosticItems(diagnostics);
+    }
+
+    private void ReportDiagnosticItems(IReadOnlyList<PolicyDiagnostic> diagnostics)
+    {
         if (diagnostics.Count == 0)
         {
             _output.WriteLine("- Nothing to report");
