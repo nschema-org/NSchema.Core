@@ -12,7 +12,7 @@ namespace NSchema.Hosting;
 /// </summary>
 internal sealed class DefaultMigrationReporter : IMigrationReporter
 {
-    public const string FormatName = "human";
+    public const string FormatName = "default";
 
     private readonly TextWriter _output;
     private readonly TextWriter _error;

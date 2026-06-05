@@ -15,6 +15,7 @@ Each run performs one of the following operations:
 - **`Plan`** (default) computes and renders the plan, without touching the database.
 - **`Apply`** computes the plan and applies it to the database. After a successful apply, the resulting schema is captured to the [state store](#backend-state-store) if one is configured.
 - **`Refresh`** reads the current schema from the live database and writes it to the state store, without planning or applying anything. Requires a state store.
+- **`Import`** reads the live database schema and writes it to the configured `ISchemaImportTarget`. Useful for bootstrapping a project from an existing database.
 
 The operation can be decided in one of two ways: either by setting `MigrationRunOptions.Operation` via `RunOperation(...)`, or by explicitly calling `Plan()`, `Apply()`, or `Refresh()` on the built application:
 
@@ -136,11 +137,9 @@ Run output is produced by an `IMigrationReporter`. The built-in `human` reporter
 
 ```csharp
 builder
-    .AddReporter<JsonReporter>()      // a reporter whose Format is "json"
-    .WithOutputFormat("json");        // or set MigrationRunOptions.OutputFormat
+    .AddReporter<JsonReporter>("json")   // register by explicit format key
+    .WithOutputFormat("json");           // or set MigrationRunOptions.OutputFormat
 ```
-
-Each format must be registered once; registering a second reporter for the same format throws.
 
 ## SQL dialect
 
@@ -148,12 +147,10 @@ When more than one `ISqlGenerator` is registered (each declaring a `Dialect`), c
 
 ```csharp
 builder
-    .AddSqlGenerator<PostgresGenerator>()  // Dialect "postgres"
-    .AddSqlGenerator<MySqlGenerator>()     // Dialect "mysql"
-    .WithDialect("postgres");              // or set MigrationRunOptions.Dialect
+    .AddSqlGenerator<PostgresGenerator>("postgres")
+    .AddSqlGenerator<MySqlGenerator>("mysql")
+    .WithDialect("postgres");    // or set MigrationRunOptions.Dialect
 ```
-
-With a single generator registered, it is used automatically and `WithDialect` is unnecessary.
 
 ## Schema policies
 
