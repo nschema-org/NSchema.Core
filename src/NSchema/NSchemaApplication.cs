@@ -73,7 +73,7 @@ public sealed class NSchemaApplication : IHost
 
     private Task RunOperation(MigrationOperation operation, CancellationToken cancellationToken)
     {
-        _host.Services.GetRequiredService<IOptions<MigrationRunOptions>>().Value.Operation = operation;
+        _host.Services.GetRequiredService<IOptions<OperationOptions>>().Value.Operation = operation;
         return this.RunAsync(cancellationToken);
     }
 

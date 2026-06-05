@@ -10,7 +10,7 @@ namespace NSchema.Hosting;
 /// The hosted service that runs the configured migration operation once on startup and then stops the application.
 /// </summary>
 internal sealed class NSchemaHost(
-    IOptions<MigrationRunOptions> options,
+    IOptions<OperationOptions> options,
     IHostApplicationLifetime lifetime,
     IServiceProvider services,
     IKeyedResolver<IMigrationReporter> reporter,

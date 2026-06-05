@@ -3,9 +3,9 @@ using NSchema.Migration;
 namespace NSchema.Hosting;
 
 /// <summary>
-/// Configures how a migration run is executed.
+/// Configures how an operation is executed.
 /// </summary>
-public class MigrationRunOptions
+public class OperationOptions
 {
     /// <summary>
     /// The default output format: human-readable terminal output.
@@ -13,15 +13,14 @@ public class MigrationRunOptions
     public const string DefaultOutputFormat = DefaultMigrationReporter.FormatName;
 
     /// <summary>
-    /// The operation the migration run performs. Defaults to <see cref="MigrationOperation.Plan"/>.
+    /// The operation to perform. Defaults to <see cref="MigrationOperation.Plan"/>.
     /// </summary>
     public MigrationOperation Operation { get; set; } = MigrationOperation.Plan;
 
     /// <summary>
-    /// The format used to render run output, resolved to an <see cref="IMigrationReporter"/> at runtime.
-    /// Defaults to <see cref="DefaultOutputFormat"/> if not set by registration or configuration.
+    /// The format used to render output, resolved to an <see cref="IMigrationReporter"/> at runtime.
     /// </summary>
-    public string? OutputFormat { get; set; }
+    public string OutputFormat { get; set; } = DefaultOutputFormat;
 
     /// <summary>
     /// The SQL dialect to generate, resolved to an <see cref="Sql.ISqlGenerator"/> at runtime.

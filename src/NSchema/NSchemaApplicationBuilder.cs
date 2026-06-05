@@ -45,7 +45,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         _innerBuilder.Logging.ClearProviders();
 
         _innerBuilder.Services.AddOptions<MigrationOptions>();
-        _innerBuilder.Services.AddOptions<MigrationRunOptions>();
+        _innerBuilder.Services.AddOptions<OperationOptions>();
         _innerBuilder.Services.AddOptions<ImportOptions>();
 
         _innerBuilder.Services
@@ -54,7 +54,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
         // Register built-in keyed implementations (first-registration-wins).
         _innerBuilder.Services.TryAddKeyedSingleton<IMigrationReporter, DefaultMigrationReporter>(DefaultMigrationReporter.FormatName);
-        _innerBuilder.Services.Configure<MigrationRunOptions>(o => o.OutputFormat ??= DefaultMigrationReporter.FormatName);
+        _innerBuilder.Services.Configure<OperationOptions>(o => o.OutputFormat ??= DefaultMigrationReporter.FormatName);
         _innerBuilder.Services.TryAddKeyedSingleton<ISchemaDocumentSerializer, JsonSchemaDocumentSerializer>(JsonSchemaDocumentSerializer.FormatName);
 
         // Diff policies registered up front so users can remove them before Build().
@@ -108,8 +108,8 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IDiffRenderer, TerraformDiffRenderer>();
 
         // Keyed resolvers (one per named-service type)
-        services.TryAddSingleton<IKeyedResolver<IMigrationReporter>>(sp => new DefaultKeyedResolver<IMigrationReporter, MigrationRunOptions>(sp, o => o.OutputFormat));
-        services.TryAddSingleton<IKeyedResolver<ISqlGenerator>>(sp => new DefaultKeyedResolver<ISqlGenerator, MigrationRunOptions>(sp, o => o.Dialect));
+        services.TryAddSingleton<IKeyedResolver<IMigrationReporter>>(sp => new DefaultKeyedResolver<IMigrationReporter, OperationOptions>(sp, o => o.OutputFormat));
+        services.TryAddSingleton<IKeyedResolver<ISqlGenerator>>(sp => new DefaultKeyedResolver<ISqlGenerator, OperationOptions>(sp, o => o.Dialect));
         services.TryAddSingleton<IKeyedResolver<ISchemaDocumentSerializer>, DefaultKeyedResolver<ISchemaDocumentSerializer, object>>();
         services.TryAddSingleton<IKeyedResolver<ISchemaImportTarget>>(sp => new DefaultKeyedResolver<ISchemaImportTarget, ImportOptions>(sp, o => o.Target));
 

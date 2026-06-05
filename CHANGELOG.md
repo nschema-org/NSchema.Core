@@ -13,14 +13,14 @@ Planning and applying behavior are the same as before, but most public types hav
 ### Added
 
 - A new `IMigrationConfirmation` interface in `NSchema.Hosting` that can be used to seek confirmation before applying a migration. This is intended for interactive scenarios (e.g. CLI) where the user can review the plan and confirm before proceeding.
-- Exception handling can now be controlled via `MigrationRunOptions.ExceptionBehavior` or `NSchemaApplicationBuilder.WithExceptionBehavior(...)`. The default behavior is preserved: exceptions will be reported to the `IMigrationReporter` and then re-thrown.
+- Exception handling can now be controlled via `OperationOptions.ExceptionBehavior` or `NSchemaApplicationBuilder.WithExceptionBehavior(...)`. The default behavior is preserved: exceptions will be reported to the `IMigrationReporter` and then re-thrown.
 - Schemas are now diffed into a structured, hierarchical model (`NSchema.Diff.Model.MigrationDiff`) and a new `IDiffRenderer` interface renders it for the reporter.
 - `UseTerraformRenderer(...)` to configure the default Terraform-style renderer.
 - SQL previews are now structured too. `ISqlPlanRenderer` renders a `SqlPlan` to text, mirroring `IDiffRenderer`.
 - Offline SQL previews. Because generating SQL is pure string-building, `Plan` now renders the SQL preview whenever an `ISqlGenerator` dialect is registered.
 - `PolicyDiagnostics`, a collection type for policy results, with a `PolicyDiagnosticSeverity` of `Info`, `Warning`, or `Error`.
-- Pluggable output formats. `IMigrationReporter` now carries a `Format`, so several reporters can be registered with `AddReporter<T>(format)` or `AddReporter(instance)` and one chosen per run via `WithOutputFormat(...)` (or `MigrationRunOptions.OutputFormat`, defaulting to `human`). The built-in human reporter remains the default.
-- Selectable SQL dialects. `ISqlGenerator` now carries a `Dialect`, so several generators can be registered with `AddSqlGenerator<T>(dialect)` and one chosen per run via `WithDialect(...)` (or `MigrationRunOptions.Dialect`).
+- Pluggable output formats. `IMigrationReporter` now carries a `Format`, so several reporters can be registered with `AddReporter<T>(format)` or `AddReporter(instance)` and one chosen per run via `WithOutputFormat(...)` (or `MigrationOptions.OutputFormat`, defaulting to `human`). The built-in human reporter remains the default.
+- Selectable SQL dialects. `ISqlGenerator` now carries a `Dialect`, so several generators can be registered with `AddSqlGenerator<T>(dialect)` and one chosen per run via `WithDialect(...)` (or `MigrationOptions.Dialect`).
 - Pluggable schema document formats. A new `ISchemaDocumentSerializer` reads and writes a desired-schema file format (JSON built-in); register more with `AddSchemaSerializer<T>(format)`. `FileSchemaProvider` now delegates parsing to one.
 - `IKeyedResolver<TValue>` a new shared resolver interface injected directly to consumers of any named-service seam (reporters, SQL generators, schema serializers, import targets). Exposes `Current`, `HasCurrent`, `Resolve(key)`, and `TryResolve(key, out value)`.
 - `Import` operation. Reads the live database schema and writes it to a registered `ISchemaImportTarget`. Triggered via `app.Import()` or `RunOperation(MigrationOperation.Import)`. Partial imports are supported via `ImportOptions.Schemas` and `ImportOptions.Tables`.

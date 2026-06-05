@@ -11,7 +11,7 @@ namespace NSchema.Tests.Sql;
 /// </summary>
 public sealed class DefaultSqlExecutorOfflineTests
 {
-    private static DefaultSqlExecutor WithoutDataSource() => new(Options.Create(new MigrationRunOptions()));
+    private static DefaultSqlExecutor WithoutDataSource() => new(Options.Create(new OperationOptions()));
 
     [Fact]
     public async Task Execute_EmptyPlan_DoesNothing_EvenWithoutDataSource()

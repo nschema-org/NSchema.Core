@@ -22,7 +22,7 @@ public partial class NSchemaApplicationBuilder
     /// </summary>
     public NSchemaApplicationBuilder WithTransactionMode(TransactionMode mode)
     {
-        Services.Configure<MigrationRunOptions>(o => o.TransactionMode = mode);
+        Services.Configure<OperationOptions>(o => o.TransactionMode = mode);
         return this;
     }
 
@@ -44,7 +44,7 @@ public partial class NSchemaApplicationBuilder
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(format);
         Services.TryAddKeyedSingleton<IMigrationReporter, T>(format);
-        Services.Configure<MigrationRunOptions>(o => o.OutputFormat ??= format);
+        Services.Configure<OperationOptions>(o => o.OutputFormat ??= format);
         return this;
     }
 
@@ -56,7 +56,7 @@ public partial class NSchemaApplicationBuilder
     {
         ArgumentNullException.ThrowIfNull(reporter);
         Services.TryAddKeyedSingleton(reporter.Format, reporter);
-        Services.Configure<MigrationRunOptions>(o => o.OutputFormat ??= reporter.Format);
+        Services.Configure<OperationOptions>(o => o.OutputFormat ??= reporter.Format);
         return this;
     }
 
@@ -85,7 +85,7 @@ public partial class NSchemaApplicationBuilder
     /// </summary>
     public NSchemaApplicationBuilder RunOperation(MigrationOperation operation)
     {
-        Services.Configure<MigrationRunOptions>(o => o.Operation = operation);
+        Services.Configure<OperationOptions>(o => o.Operation = operation);
         return this;
     }
 
@@ -95,7 +95,7 @@ public partial class NSchemaApplicationBuilder
     public NSchemaApplicationBuilder WithOutputFormat(string format)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(format);
-        Services.Configure<MigrationRunOptions>(o => o.OutputFormat = format);
+        Services.Configure<OperationOptions>(o => o.OutputFormat = format);
         return this;
     }
 
@@ -104,7 +104,7 @@ public partial class NSchemaApplicationBuilder
     /// </summary>
     public NSchemaApplicationBuilder WithExceptionBehavior(ExceptionBehavior behavior)
     {
-        Services.Configure<MigrationRunOptions>(o => o.ExceptionBehavior = behavior);
+        Services.Configure<OperationOptions>(o => o.ExceptionBehavior = behavior);
         return this;
     }
 

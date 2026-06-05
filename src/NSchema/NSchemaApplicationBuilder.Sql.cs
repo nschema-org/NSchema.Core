@@ -15,7 +15,7 @@ public partial class NSchemaApplicationBuilder
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(dialect);
         Services.TryAddKeyedSingleton<ISqlGenerator, T>(dialect);
-        Services.Configure<MigrationRunOptions>(o => o.Dialect ??= dialect);
+        Services.Configure<OperationOptions>(o => o.Dialect ??= dialect);
         return this;
     }
 
@@ -34,7 +34,7 @@ public partial class NSchemaApplicationBuilder
     public NSchemaApplicationBuilder WithDialect(string dialect)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(dialect);
-        Services.Configure<MigrationRunOptions>(o => o.Dialect = dialect);
+        Services.Configure<OperationOptions>(o => o.Dialect = dialect);
         return this;
     }
 }

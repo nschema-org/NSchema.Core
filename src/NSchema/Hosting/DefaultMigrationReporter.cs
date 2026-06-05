@@ -42,7 +42,7 @@ internal sealed class DefaultMigrationReporter : IMigrationReporter
         _sqlPlanRenderer = sqlPlanRenderer;
     }
 
-    public string Format => MigrationRunOptions.DefaultOutputFormat;
+    public string Format => OperationOptions.DefaultOutputFormat;
 
     public void Info(string message) => _output.WriteLine(message);
 

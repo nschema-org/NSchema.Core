@@ -35,9 +35,9 @@ These extension points are less commonly used, but still available for advanced 
 
 A few seams let you register several implementations and pick one per run by a string key. All four are backed by `IKeyedResolver<TValue>`, which is injected directly into consumers. Duplicate key registrations are first-wins; use the corresponding `Use…<T>()` method to replace a built-in default.
 
-| Seam                        | Key       | Registered via                   | Selected by                                                  |
-|-----------------------------|-----------|----------------------------------|--------------------------------------------------------------|
-| `IMigrationReporter`        | `Format`  | `AddReporter<T>(format)`         | `WithOutputFormat(...)` / `MigrationRunOptions.OutputFormat` |
-| `ISqlGenerator`             | `Dialect` | `AddSqlGenerator<T>(dialect)`    | `WithDialect(...)` / `MigrationRunOptions.Dialect`           |
-| `ISchemaDocumentSerializer` | `Format`  | `AddSchemaSerializer<T>(format)` | the consumer (e.g. a file extension or CLI flag)             |
-| `ISchemaImportTarget`       | name      | `AddImportTarget<T>(name)`       | `ImportOptions.Target` / auto-selected if exactly one        |
+| Seam                        | Key       | Registered via                   | Selected by                                               |
+|-----------------------------|-----------|----------------------------------|-----------------------------------------------------------|
+| `IMigrationReporter`        | `Format`  | `AddReporter<T>(format)`         | `WithOutputFormat(...)` / `OperationOptions.OutputFormat` |
+| `ISqlGenerator`             | `Dialect` | `AddSqlGenerator<T>(dialect)`    | `WithDialect(...)` / `OperationOptions.Dialect`           |
+| `ISchemaDocumentSerializer` | `Format`  | `AddSchemaSerializer<T>(format)` | the consumer (e.g. a file extension or CLI flag)          |
+| `ISchemaImportTarget`       | name      | `AddImportTarget<T>(name)`       | `ImportOptions.Target` / auto-selected if exactly one     |

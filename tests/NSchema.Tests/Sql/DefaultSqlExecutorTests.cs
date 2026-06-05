@@ -13,7 +13,7 @@ public sealed class DefaultSqlExecutorTests : IAsyncLifetime
 {
     private readonly NpgsqlDataSource _dataSource;
     private readonly string _schema = $"exec_{Guid.NewGuid():N}";
-    private readonly IOptions<MigrationRunOptions> _options = Options.Create(new MigrationRunOptions());
+    private readonly IOptions<OperationOptions> _options = Options.Create(new OperationOptions());
 
     private readonly DefaultSqlExecutor _sut;
 
