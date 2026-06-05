@@ -31,7 +31,7 @@ public sealed class SqlGeneratorRegistrationTests
     }
 
     [Fact]
-    public void UseSqlGenerator_RegistersResolvableGenerator()
+    public void AddSqlGenerator_RegistersResolvableGenerator()
     {
         var resolver = Resolve(b => b.AddSqlGenerator<StubSqlGenerator>());
 

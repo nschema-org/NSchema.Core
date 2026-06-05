@@ -130,6 +130,31 @@ builder.WithTransactionMode(TransactionMode.Single); // run the entire migration
 builder.WithTransactionMode(TransactionMode.None); // run all statements outside of transactions
 ```
 
+## Output format
+
+Run output is produced by an `IMigrationReporter`. The built-in `human` reporter writes human-readable output to the terminal. You can register additional reporters (each declaring a `Format`) and select one per run:
+
+```csharp
+builder
+    .AddReporter<JsonReporter>()      // a reporter whose Format is "json"
+    .WithOutputFormat("json");        // or set MigrationRunOptions.OutputFormat
+```
+
+Each format must be registered once; registering a second reporter for the same format throws.
+
+## SQL dialect
+
+When more than one `ISqlGenerator` is registered (each declaring a `Dialect`), choose which one generates the SQL for a run:
+
+```csharp
+builder
+    .AddSqlGenerator<PostgresGenerator>()  // Dialect "postgres"
+    .AddSqlGenerator<MySqlGenerator>()     // Dialect "mysql"
+    .WithDialect("postgres");              // or set MigrationRunOptions.Dialect
+```
+
+With a single generator registered, it is used automatically and `WithDialect` is unnecessary.
+
 ## Schema policies
 
 Schema policies are used to validate the desired schema before any comparison or planning is done:

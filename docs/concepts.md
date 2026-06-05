@@ -83,7 +83,7 @@ Migration policies are implemented using `IMigrationPolicy` and registered with 
 
 Once the plan is validated, NSchema turns it into SQL and, for an apply, runs it. These are two separate steps, so a plan can be previewed without a live connection:
 
-- `ISqlGenerator` turns the plan into a `SqlPlan`. This is pure string-building, so the SQL preview works offline; it's typically implemented in database providers like `NSchema.Postgres` and registered with `UseSqlGenerator<T>()`.
+- `ISqlGenerator` turns the plan into a `SqlPlan`. This is pure string-building, so the SQL preview works offline; it's typically implemented in database providers like `NSchema.Postgres` and registered with `AddSqlGenerator<T>()`. Each generator declares a `Dialect`; register several and choose one per run with `WithDialect(...)`.
 - `ISqlExecutor` runs the `SqlPlan` against the database. The default implementation has simple transaction management, but you could replace it (via `UseSqlExecutor<T>()`) with one that adds logging, retries, or other features.
 
 The rendered preview is produced by `ISqlPlanRenderer` (default `DefaultSqlPlanRenderer`), which the reporter owns — register a custom one to change the preview format, mirroring how `IDiffRenderer` controls the diff output.

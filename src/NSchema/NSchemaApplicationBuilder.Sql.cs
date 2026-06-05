@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.Sql;
 
 namespace NSchema;
@@ -17,13 +18,13 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
-    /// Adds a custom SQL executor to the application that will be used to execute the generated migration scripts against the database.
+    /// Registers a custom SQL executor that will be used to execute the generated migration scripts against the database.
     /// </summary>
     /// <typeparam name="T">The type of the SQL executor to add.</typeparam>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddSqlExecutor<T>() where T : class, ISqlExecutor
+    public NSchemaApplicationBuilder UseSqlExecutor<T>() where T : class, ISqlExecutor
     {
-        Services.AddSingleton<ISqlExecutor, T>();
+        Services.Replace(ServiceDescriptor.Singleton<ISqlExecutor, T>());
         return this;
     }
 }
