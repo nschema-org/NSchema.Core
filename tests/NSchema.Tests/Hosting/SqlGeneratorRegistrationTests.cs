@@ -62,12 +62,13 @@ public sealed class SqlGeneratorRegistrationTests
     }
 
     [Fact]
-    public void WithoutDialect_MultipleGenerators_HasNoCurrentGenerator()
+    public void WithoutDialect_MultipleGenerators_FirstRegisteredBecomesDefault()
     {
         var resolver = Resolve(b => b
             .AddSqlGenerator<StubSqlGenerator>(StubSqlGenerator.DialectName)
             .AddSqlGenerator<MySqlStubGenerator>("mysql"));
 
-        resolver.HasCurrent.ShouldBeFalse();
+        resolver.HasCurrent.ShouldBeTrue();
+        resolver.Current.ShouldBeOfType<StubSqlGenerator>();
     }
 }

@@ -3,7 +3,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.Diff;
 using NSchema.Hosting;
 using NSchema.Migration;
-using NSchema.Sql;
 
 namespace NSchema;
 
@@ -23,7 +22,7 @@ public partial class NSchemaApplicationBuilder
     /// </summary>
     public NSchemaApplicationBuilder WithTransactionMode(TransactionMode mode)
     {
-        Services.Configure<SqlExecutorOptions>(o => o.TransactionMode = mode);
+        Services.Configure<MigrationRunOptions>(o => o.TransactionMode = mode);
         return this;
     }
 
@@ -39,23 +38,25 @@ public partial class NSchemaApplicationBuilder
 
     /// <summary>
     /// Registers an <see cref="IMigrationReporter"/> for a new output format.
-    /// Throws if <paramref name="format"/> is already registered; use <see cref="UseReporter{T}"/> to replace an existing one.
+    /// The first registered format becomes the default output format if none has been set explicitly.
     /// </summary>
     public NSchemaApplicationBuilder AddReporter<T>(string format) where T : class, IMigrationReporter
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(format);
         Services.TryAddKeyedSingleton<IMigrationReporter, T>(format);
+        Services.Configure<MigrationRunOptions>(o => o.OutputFormat ??= format);
         return this;
     }
 
     /// <summary>
     /// Registers an <see cref="IMigrationReporter"/> instance for a new output format (key taken from <see cref="IMigrationReporter.Format"/>).
-    /// Throws if the format is already registered; use <see cref="UseReporter"/> to replace an existing one.
+    /// The first registered format becomes the default output format if none has been set explicitly.
     /// </summary>
     public NSchemaApplicationBuilder AddReporter(IMigrationReporter reporter)
     {
         ArgumentNullException.ThrowIfNull(reporter);
         Services.TryAddKeyedSingleton(reporter.Format, reporter);
+        Services.Configure<MigrationRunOptions>(o => o.OutputFormat ??= reporter.Format);
         return this;
     }
 
@@ -95,16 +96,6 @@ public partial class NSchemaApplicationBuilder
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(format);
         Services.Configure<MigrationRunOptions>(o => o.OutputFormat = format);
-        return this;
-    }
-
-    /// <summary>
-    /// Selects the SQL dialect to generate, when more than one <see cref="ISqlGenerator"/> is registered.
-    /// </summary>
-    public NSchemaApplicationBuilder WithDialect(string dialect)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(dialect);
-        Services.Configure<MigrationRunOptions>(o => o.Dialect = dialect);
         return this;
     }
 

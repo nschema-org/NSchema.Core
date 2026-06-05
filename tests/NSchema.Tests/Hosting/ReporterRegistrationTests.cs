@@ -29,11 +29,11 @@ public sealed class ReporterRegistrationTests
     }
 
     [Fact]
-    public void Default_RegistersHumanReporter()
+    public void Default_RegistersDefaultReporter()
     {
         var resolver = Build(_ => { }).GetRequiredService<IKeyedResolver<IMigrationReporter>>();
 
-        resolver.Resolve("human").ShouldBeOfType<DefaultMigrationReporter>();
+        resolver.Resolve(DefaultMigrationReporter.FormatName).ShouldBeOfType<DefaultMigrationReporter>();
         resolver.HasCurrent.ShouldBeTrue();
         resolver.Current.ShouldBeOfType<DefaultMigrationReporter>();
     }

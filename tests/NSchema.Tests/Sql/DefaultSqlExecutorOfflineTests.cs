@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using NSchema.Hosting;
 using NSchema.Sql;
 using NSchema.Sql.Model;
 
@@ -10,7 +11,7 @@ namespace NSchema.Tests.Sql;
 /// </summary>
 public sealed class DefaultSqlExecutorOfflineTests
 {
-    private static DefaultSqlExecutor WithoutDataSource() => new(Options.Create(new SqlExecutorOptions()));
+    private static DefaultSqlExecutor WithoutDataSource() => new(Options.Create(new MigrationRunOptions()));
 
     [Fact]
     public async Task Execute_EmptyPlan_DoesNothing_EvenWithoutDataSource()

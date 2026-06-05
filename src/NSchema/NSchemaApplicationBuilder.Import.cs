@@ -13,17 +13,19 @@ public partial class NSchemaApplicationBuilder
     public NSchemaApplicationBuilder UseFileImportTarget(Action<FileSchemaImportTargetOptions> configure)
     {
         Services.Configure(configure);
+        Services.Configure<ImportOptions>(o => o.Target ??= FileSchemaImportTarget.TargetName);
         return UseImportTarget<FileSchemaImportTarget>(FileSchemaImportTarget.TargetName);
     }
 
     /// <summary>
     /// Registers a new <see cref="ISchemaImportTarget"/> for <paramref name="target"/>.
-    /// Throws if <paramref name="target"/> is already registered; use <see cref="UseImportTarget{T}"/> to replace.
+    /// The first registered target becomes the default if none has been set explicitly via <see cref="WithImportOptions"/>.
     /// </summary>
     public NSchemaApplicationBuilder AddImportTarget<T>(string target) where T : class, ISchemaImportTarget
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
         Services.TryAddKeyedSingleton<ISchemaImportTarget, T>(target);
+        Services.Configure<ImportOptions>(o => o.Target ??= target);
         return this;
     }
 

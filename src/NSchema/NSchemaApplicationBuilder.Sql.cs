@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using NSchema.Hosting;
 using NSchema.Sql;
 
 namespace NSchema;
@@ -14,6 +15,7 @@ public partial class NSchemaApplicationBuilder
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(dialect);
         Services.TryAddKeyedSingleton<ISqlGenerator, T>(dialect);
+        Services.Configure<MigrationRunOptions>(o => o.Dialect ??= dialect);
         return this;
     }
 
@@ -23,6 +25,16 @@ public partial class NSchemaApplicationBuilder
     public NSchemaApplicationBuilder UseSqlExecutor<T>() where T : class, ISqlExecutor
     {
         Services.Replace(ServiceDescriptor.Singleton<ISqlExecutor, T>());
+        return this;
+    }
+
+    /// <summary>
+    /// Selects the SQL dialect to generate, when more than one <see cref="ISqlGenerator"/> is registered.
+    /// </summary>
+    public NSchemaApplicationBuilder WithDialect(string dialect)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(dialect);
+        Services.Configure<MigrationRunOptions>(o => o.Dialect = dialect);
         return this;
     }
 }

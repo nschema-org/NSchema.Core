@@ -46,7 +46,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
         _innerBuilder.Services.AddOptions<MigrationOptions>();
         _innerBuilder.Services.AddOptions<MigrationRunOptions>();
-        _innerBuilder.Services.AddOptions<SqlExecutorOptions>();
         _innerBuilder.Services.AddOptions<ImportOptions>();
 
         _innerBuilder.Services
@@ -55,6 +54,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
         // Register built-in keyed implementations (first-registration-wins).
         _innerBuilder.Services.TryAddKeyedSingleton<IMigrationReporter, DefaultMigrationReporter>(DefaultMigrationReporter.FormatName);
+        _innerBuilder.Services.Configure<MigrationRunOptions>(o => o.OutputFormat ??= DefaultMigrationReporter.FormatName);
         _innerBuilder.Services.TryAddKeyedSingleton<ISchemaDocumentSerializer, JsonSchemaDocumentSerializer>(JsonSchemaDocumentSerializer.FormatName);
 
         // Diff policies registered up front so users can remove them before Build().
