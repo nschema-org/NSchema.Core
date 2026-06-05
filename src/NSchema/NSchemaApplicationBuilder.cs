@@ -10,6 +10,7 @@ using NSchema.Hosting.Operations;
 using NSchema.Hosting.Services;
 using NSchema.Migration;
 using NSchema.Schema;
+using NSchema.Schema.Serialization;
 using NSchema.Sql;
 using NSchema.State;
 
@@ -91,6 +92,8 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();
         services.TryAddSingleton<IDesiredSchemaProvider, DefaultDesiredSchemaProvider>();
         services.TryAddSingleton<ISchemaAggregator, DefaultSchemaAggregator>();
+        services.TryAddSingleton<ISchemaDocumentSerializerResolver, DefaultSchemaDocumentSerializerResolver>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<ISchemaDocumentSerializer, JsonSchemaDocumentSerializer>());
 
         // Diffing
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
@@ -98,14 +101,16 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IDiffPolicy, DestructiveActionMigrationPolicy>());
 
         // Migration
-        services.TryAddSingleton<IMigrationReporter>(sp => new DefaultMigrationReporter(Console.Out, Console.Error, sp.GetRequiredService<IDiffRenderer>(), sp.GetRequiredService<ISqlPlanRenderer>()));
+        services.TryAddSingleton<IMigrationReporterResolver, DefaultMigrationReporterResolver>();
         services.TryAddSingleton<IMigrationLinearizer, DefaultMigrationLinearizer>();
         services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
         services.TryAddSingleton<IMigrationConfirmation, AutoApproveConfirmation>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IMigrationReporter, DefaultMigrationReporter>());
 
         // SQL
         services.TryAddSingleton<ISqlPlanRenderer, DefaultSqlPlanRenderer>();
         services.TryAddSingleton<ISqlExecutor, DefaultSqlExecutor>();
+        services.TryAddSingleton<ISqlGeneratorResolver, DefaultSqlGeneratorResolver>();
 
         // State
         services.TryAddSingleton<ISchemaStateSerializer, DefaultSchemaStateSerializer>();

@@ -26,6 +26,7 @@ internal sealed class DefaultSqlPlanRenderer : ISqlPlanRenderer
             var marker = statement.RunOutsideTransaction ? " (outside transaction)" : string.Empty;
             sb.AppendLine($"-- [{i + 1}/{plan.Statements.Count}]{marker}");
             sb.AppendLine(statement.Sql);
+            sb.AppendLine();
         }
 
         return sb.ToString().TrimEnd();

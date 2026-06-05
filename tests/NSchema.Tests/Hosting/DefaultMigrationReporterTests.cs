@@ -18,7 +18,7 @@ public sealed class DefaultMigrationReporterTests
 
     public DefaultMigrationReporterTests()
     {
-        _sut = new DefaultMigrationReporter(_output, _error, _diffRenderer, _sqlPlanRenderer);
+        _sut = new DefaultMigrationReporter(_diffRenderer, _sqlPlanRenderer, _output, _error);
     }
 
     [Fact]

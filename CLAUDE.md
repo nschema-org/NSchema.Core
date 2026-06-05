@@ -78,7 +78,7 @@ The planner has no knowledge of operations, online/offline routing, or `Migratio
 
 Generating SQL and executing it are deliberately separate, so a plan can be previewed offline:
 
-- **`ISqlGenerator`** (`UseSqlGenerator<T>()`, typically supplied by a database-provider extension) turns a `MigrationPlan` into a structured `SqlPlan` (an ordered list of `SqlStatement`s, each flagged if it `RunOutsideTransaction`). This is pure string-building — no connection — so the SQL preview works offline whenever a dialect is registered. The generator is optional: an offline run with no provider registers none, and `PlanOperation` reports the plan without a SQL preview.
+- **`ISqlGenerator`** (`AddSqlGenerator<T>()`, typically supplied by a database-provider extension) turns a `MigrationPlan` into a structured `SqlPlan` (an ordered list of `SqlStatement`s, each flagged if it `RunOutsideTransaction`). This is pure string-building — no connection — so the SQL preview works offline whenever a dialect is registered. Each generator declares a `Dialect`; operations resolve the one for the run through **`ISqlGeneratorResolver`** (default `DefaultSqlGeneratorResolver`), keyed by `MigrationRunOptions.Dialect`. The generator is optional: with none registered, `ISqlGeneratorResolver.Current` is `null` and `PlanOperation` reports the plan without a SQL preview; with one, it is used automatically; with several, `WithDialect(...)` chooses.
 - **`ISqlExecutor`** (default `DefaultSqlExecutor`) executes the `SqlPlan` against a `DbDataSource`. It reads `MigrationRunOptions.TransactionMode` to decide whether to wrap everything in one transaction. It is the only online step.
 
 The operations consume these two seams directly — there is no separate compiler abstraction. The `SqlPlan` reaches the reporter as a structured value via `IMigrationReporter.ReportSqlPlan(SqlPlan)`, which renders it through **`ISqlPlanRenderer`** (default `DefaultSqlPlanRenderer`), mirroring the diff side's `IDiffRenderer`.
@@ -103,24 +103,30 @@ Providers are registered with `builder.AddSchema<T>()` or `builder.AddSchemasFro
 
 ### Extension points
 
-| Interface                                                                                                   | Registered via                                                                                          |
-|-------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
-| `ISchemaProvider` (desired)                                                                                 | `AddSchema<T>()` / `AddSchemasFromAssembly[Containing]<T>()`                                            |
-| `ISchemaProvider` (online current)                                                                          | `UseCurrentSchema<T>()` — typically called from a database-provider extension (e.g. `UsePostgres(...)`) |
-| `IMigrationOperation`                                                                                       | `AddKeyedSingleton<IMigrationOperation, T>(MigrationOperation.*)`                                       |
-| `ISchemaTransformer`                                                                                        | `AddSchemaTransformer<T>()` / `AddSchemaTransformersFromAssembly[Containing]<T>()`                      |
-| `ISchemaPolicy`                                                                                             | `AddSchemaPolicy<T>()`                                                                                  |
-| `IDiffTransformer`                                                                                          | `AddDiffTransformer<T>()` / `AddDiffTransformersFromAssembly[Containing]<T>()`                          |
-| `IDiffPolicy`                                                                                               | `AddDiffPolicy<T>()` / `AddDiffPoliciesFromAssembly[Containing]<T>()`                                   |
-| `IMigrationPlanTransformer`                                                                                 | `AddPlanTransformer<T>()`                                                                               |
-| `IMigrationPolicy`                                                                                          | `AddMigrationPolicy<T>()`                                                                               |
-| `IScriptProvider`                                                                                           | `AddScriptProvider<T>()` / `AddScriptFromFile(...)` / `AddScriptsFromEmbeddedResources(...)`            |
-| `ISqlExecutor`                                                                                              | `UseSqlExecutor<T>()` (replaces default)                                                                |
-| `ISchemaStateStore`                                                                                         | `UseStateStore<T>()` / `UseStateStore(instance)` / `UseFileStateStore(path)`                            |
-| `ISchemaComparer`, `IMigrationLinearizer`, `ISchemaAggregator`, `IMigrationPlanner`, `IMigrationReporter`   | Override via `Services.AddSingleton<...>()` before `Build()` (defaults registered with `TryAdd`)        |
-| `IDiffRenderer`                                                                                             | `UseTerraformRenderer(...)`, or override via `Services.AddSingleton<...>()` before `Build()`            |
-| `ISqlPlanRenderer`                                                                                          | Override via `Services.AddSingleton<...>()` before `Build()` (default `DefaultSqlPlanRenderer`)         |
-| `ISqlGenerator`                                                                                            | `UseSqlGenerator<T>()`, typically supplied by a database-provider extension                             |
+| Interface                                                                           | Registered via                                                                                          |
+|-------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
+| `ISchemaProvider` (desired)                                                         | `AddSchema<T>()` / `AddSchemasFromAssembly[Containing]<T>()`                                            |
+| `ISchemaProvider` (online current)                                                  | `UseCurrentSchema<T>()` — typically called from a database-provider extension (e.g. `UsePostgres(...)`) |
+| `IMigrationOperation`                                                               | `AddKeyedSingleton<IMigrationOperation, T>(MigrationOperation.*)`                                       |
+| `ISchemaTransformer`                                                                | `AddSchemaTransformer<T>()` / `AddSchemaTransformersFromAssembly[Containing]<T>()`                      |
+| `ISchemaPolicy`                                                                     | `AddSchemaPolicy<T>()`                                                                                  |
+| `IDiffTransformer`                                                                  | `AddDiffTransformer<T>()` / `AddDiffTransformersFromAssembly[Containing]<T>()`                          |
+| `IDiffPolicy`                                                                       | `AddDiffPolicy<T>()` / `AddDiffPoliciesFromAssembly[Containing]<T>()`                                   |
+| `IMigrationPlanTransformer`                                                         | `AddPlanTransformer<T>()`                                                                               |
+| `IMigrationPolicy`                                                                  | `AddMigrationPolicy<T>()`                                                                               |
+| `IScriptProvider`                                                                   | `AddScriptProvider<T>()` / `AddScriptFromFile(...)` / `AddScriptsFromEmbeddedResources(...)`            |
+| `ISqlExecutor`                                                                      | `UseSqlExecutor<T>()` (replaces default)                                                                |
+| `ISchemaStateStore`                                                                 | `UseStateStore<T>()` / `UseStateStore(instance)` / `UseFileStateStore(path)`                            |
+| `IMigrationReporter` (keyed by `Format`)                                            | `AddReporter<T>()` / `AddReporter(instance)`; select with `WithOutputFormat(...)`                       |
+| `ISqlGenerator` (keyed by `Dialect`)                                                | `AddSqlGenerator<T>()`, typically a database-provider extension; select with `WithDialect(...)`         |
+| `ISchemaDocumentSerializer` (keyed by `Format`)                                     | `AddSchemaSerializer<T>()` / `AddSchemaSerializer(instance)` (JSON built-in)                            |
+| `ISchemaComparer`, `IMigrationLinearizer`, `ISchemaAggregator`, `IMigrationPlanner` | Override via `Services.AddSingleton<...>()` before `Build()` (defaults registered with `TryAdd`)        |
+| `IDiffRenderer`                                                                     | `UseTerraformRenderer(...)`, or override via `Services.AddSingleton<...>()` before `Build()`            |
+| `ISqlPlanRenderer`                                                                  | Override via `Services.AddSingleton<...>()` before `Build()` (default `DefaultSqlPlanRenderer`)         |
+
+### Resolving one of many (resolver pattern)
+
+Several seams let you register multiple implementations and select one per run by a key: `IMigrationReporter` (by `Format`), `ISqlGenerator` (by `Dialect`), and `ISchemaDocumentSerializer` (by `Format`). Each shares the `KeyedResolver<TKey, TValue>` base (`Resolution/`), which builds a key→implementation map and **throws on a duplicate key** (an ambiguous registration is a configuration error, not a last-wins). The per-domain resolvers — `IMigrationReporterResolver`, `ISqlGeneratorResolver`, `ISchemaDocumentSerializerResolver` — wrap it, expose the available keys, and (for reporters and generators) a `Current` that reads the run option (`OutputFormat` / `Dialect`) so consumers select the run's implementation without injecting options. The built-in default candidate (e.g. the `human` reporter, the JSON serializer) is registered first; the generator pool has no default. Adding a candidate uses `Add…<T>()`; string keys are matched case-insensitively.
 
 ### Diff rendering
 
@@ -143,3 +149,5 @@ Schemas, tables, and columns support rename detection via the fluent `RenamedFro
 **`MigrationRunOptions`** — how to run it:
 - `Operation` — `Plan` (default), `Apply`, or `Refresh`. Configured via `RunOperation(...)`, or overridden per-run by calling `NSchemaApplication.Plan()` / `Apply()` / `Refresh()`.
 - `TransactionMode` — `Single` (default; whole plan in one transaction, with carve-outs for statements marked `RunOutsideTransaction`) or `None`.
+- `OutputFormat` — the `IMigrationReporter` format to render with (default `human`). Configured via `WithOutputFormat(...)`; resolved through `IMigrationReporterResolver.Current`.
+- `Dialect` — the `ISqlGenerator` dialect to generate (default unset → the single registered generator). Configured via `WithDialect(...)`; resolved through `ISqlGeneratorResolver.Current`.

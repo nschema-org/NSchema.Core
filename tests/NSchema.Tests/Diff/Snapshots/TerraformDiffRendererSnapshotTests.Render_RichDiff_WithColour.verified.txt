@@ -1,0 +1,28 @@
+﻿
+[32m+[0m schema reporting ("analytics")
+    [32m+[0m grant usage to analyst
+
+[32m+[0m table app.users ("all users")
+    [32m+[0m id bigint not null
+    [32m+[0m name varchar(255) not null
+
+    [32m+[0m primary key users_pkey
+    [32m+[0m index users_name_ix
+    [32m+[0m grant SELECT to readers
+
+[33m~[0m table app.purchases → orders
+    [33m~[0m total type: int → bigint
+    [33m~[0m total nullable: null → not null
+    [31m-[0m legacy_flag boolean not null
+    [31m-[0m foreign key orders_user_fk
+    [31m-[0m revoke INSERT from writers
+
+[31m-[0m schema scratch
+
+Plan: 6 to add, 2 to change, 3 to destroy.
+
+Pre-deployment scripts:
+  • 0001_pre
+
+Post-deployment scripts:
+  • 0001_post

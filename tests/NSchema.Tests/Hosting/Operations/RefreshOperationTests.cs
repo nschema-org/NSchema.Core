@@ -9,7 +9,7 @@ public sealed class RefreshOperationTests
     private readonly IMigrationHelper _helper = Substitute.For<IMigrationHelper>();
     private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
 
-    private RefreshOperation BuildSut() => new(_helper, _reporter);
+    private RefreshOperation BuildSut() => new(_helper, Helpers.TestReporters.ResolverFor(_reporter));
 
     [Fact]
     public async Task Execute_WithStore_DelegatesToHelperRefresh()

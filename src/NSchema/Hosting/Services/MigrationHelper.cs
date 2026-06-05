@@ -12,7 +12,7 @@ internal sealed class MigrationHelper(
     IOptions<MigrationOptions> options,
     IMigrationPlanner planner,
     IEnumerable<IScriptProvider> scriptProviders,
-    IMigrationReporter reporter,
+    IMigrationReporterResolver reporter,
     ICurrentSchemaProvider currentProvider,
     IDesiredSchemaProvider desiredProvider,
     IEnumerable<ISchemaPolicy> schemaPolicies,
@@ -23,15 +23,15 @@ internal sealed class MigrationHelper(
 
     public async Task<MigrationPlan> Plan(SchemaSourceMode currentSource, bool required, CancellationToken cancellationToken = default)
     {
-        reporter.Info("Loading desired schema...");
+        reporter.Current.Info("Loading desired schema...");
         var desiredSchema = await desiredProvider.GetSchema(options.Value.SchemaNames, cancellationToken);
         var schemasInScope = options.Value.SchemaNames ?? desiredSchema.AllSchemaNames;
 
-        reporter.Info("Validating schema...");
+        reporter.Current.Info("Validating schema...");
         var schemaDiagnostics = new PolicyDiagnostics(schemaPolicies.SelectMany(p => p.Validate(desiredSchema)));
         if (schemaDiagnostics.Count > 0)
         {
-            reporter.ReportDiagnostics(schemaDiagnostics);
+            reporter.Current.ReportDiagnostics(schemaDiagnostics);
         }
 
         if (schemaDiagnostics.HasErrors)
@@ -39,25 +39,25 @@ internal sealed class MigrationHelper(
             throw new PolicyViolationException(schemaDiagnostics.Errors.ToList());
         }
 
-        reporter.Info($"Migration will be scoped to the following schemas: {string.Join(", ", schemasInScope)}");
+        reporter.Current.Info($"Migration will be scoped to the following schemas: {string.Join(", ", schemasInScope)}");
 
-        reporter.Info("Loading provider schema...");
+        reporter.Current.Info("Loading provider schema...");
         var currentSchema = await currentProvider.GetSchema(currentSource, schemasInScope, required, cancellationToken);
 
-        reporter.Info("Loading scripts...");
+        reporter.Current.Info("Loading scripts...");
         var scriptLists = await Task.WhenAll(scriptProviders.Select(p => p.GetScripts(cancellationToken)));
         var scripts = scriptLists.SelectMany(s => s).ToList();
 
-        reporter.Info("Computing migration plan...");
+        reporter.Current.Info("Computing migration plan...");
         var result = planner.Plan(currentSchema, desiredSchema, scripts);
         if (result.HasErrors)
         {
-            reporter.ReportDiagnostics(result.Diagnostics);
+            reporter.Current.ReportDiagnostics(result.Diagnostics);
             throw new PolicyViolationException(result.Diagnostics.Errors.ToList());
         }
 
-        reporter.ReportDiff(result.Diff);
-        reporter.ReportDiagnostics(result.Diagnostics);
+        reporter.Current.ReportDiff(result.Diff);
+        reporter.Current.ReportDiagnostics(result.Diagnostics);
 
         return result.Plan;
     }

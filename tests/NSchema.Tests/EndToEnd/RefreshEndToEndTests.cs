@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using NSchema.Migration;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Tests.Helpers;
@@ -69,7 +68,8 @@ public sealed class RefreshEndToEndTests : IDisposable
         using var planner = NSchemaApplication.CreateBuilder()
             .UseFileStateStore(_statePath)
             .AddJsonSchema(desired)
-            .Tap(b => b.Services.AddSingleton<IMigrationReporter>(reporter))
+            .AddReporter(reporter)
+            .WithOutputFormat(RecordingReporter.FormatName)
             .Build();
 
         await planner.Plan(TestContext.Current.CancellationToken);

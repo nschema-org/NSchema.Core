@@ -21,8 +21,12 @@ public sealed class ApplyOperationTests
     private readonly MigrationPlan _plan = new([new CreateSchema("app")]);
     private readonly SqlPlan _sqlPlan = new([new SqlStatement("CREATE SCHEMA app")]);
 
-    private ApplyOperation BuildSut(ISqlGenerator? planner, ISqlExecutor? executor) =>
-        new(_reporter, _confirmation, _helper, planner, executor);
+    private ApplyOperation BuildSut(ISqlGenerator? planner, ISqlExecutor? executor) => new(
+        Helpers.TestReporters.ResolverFor(_reporter),
+        _confirmation, _helper,
+        Helpers.TestSqlGenerators.ResolverFor(planner),
+        executor
+    );
 
     private readonly ApplyOperation _sut;
 

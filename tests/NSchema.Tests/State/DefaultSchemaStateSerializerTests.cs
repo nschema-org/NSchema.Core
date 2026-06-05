@@ -1,5 +1,3 @@
-using System.Runtime.CompilerServices;
-using System.Text.Json.Nodes;
 using NSchema.Schema.Model;
 using NSchema.State;
 
@@ -118,35 +116,12 @@ public sealed class DefaultSchemaStateSerializerTests
     }
 
     [Fact]
-    public void Serialize_MatchesSnapshot()
-    {
-        // The snapshot file pins the on-disk format. It's compared structurally (DeepEquals), so
-        // whitespace and property order don't matter — but a domain change that alters the serialized
-        // shape fails here. When that's intentional, regenerate it via RefreshSnapshot and bump
-        // SchemaStateEnvelope.CurrentVersion if the on-disk format itself changed.
-        var path = SnapshotPath();
-        File.Exists(path).ShouldBeTrue($"Snapshot not found at '{path}'. Run the RefreshSnapshot test to generate it.");
-
-        var actual = _sut.Serialize(RichSchema());
-        var expected = File.ReadAllText(path);
-
-        JsonNode.DeepEquals(JsonNode.Parse(actual), JsonNode.Parse(expected)).ShouldBeTrue(
-            "Serialized output no longer matches the snapshot. If this change is intentional, regenerate it with " +
-            "the RefreshSnapshot test (and bump SchemaStateEnvelope.CurrentVersion if the on-disk format changed).");
-    }
-
-    [Fact(Skip = "Enable locally to regenerate the serialization snapshot, then commit the updated file.")]
-    public void RefreshSnapshot()
-    {
-        var path = SnapshotPath();
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, _sut.Serialize(RichSchema()));
-    }
-
-    // Resolves the snapshot next to this source file, so RefreshSnapshot writes back to the
-    // source-controlled copy. Reads from the source tree, which assumes tests run on the build machine.
-    private static string SnapshotPath([CallerFilePath] string thisFilePath = "")
-        => Path.Combine(Path.GetDirectoryName(thisFilePath)!, "Snapshots", "rich-schema.json");
+    public Task Serialize_MatchesSnapshot()
+        // The verified snapshot pins the on-disk format. VerifyJson reformats both sides consistently,
+        // so whitespace and indentation don't matter — but a domain change that alters the serialized
+        // shape fails here. When that's intentional, accept the .received.txt as the new baseline (and
+        // bump SchemaStateEnvelope.CurrentVersion if the on-disk format itself changed).
+        => VerifyJson(_sut.Serialize(RichSchema()));
 
     [Fact]
     public void Serialize_WritesEnumsAsNames()

@@ -1,26 +1,25 @@
 using NSchema.Hosting.Services;
-using NSchema.Migration;
 using NSchema.Schema;
 using NSchema.Sql;
 
 namespace NSchema.Hosting.Operations;
 
 internal sealed class PlanOperation(
-    IMigrationReporter reporter,
+    IMigrationReporterResolver reporter,
     IMigrationHelper helper,
-    ISqlGenerator? sqlGenerator = null
+    ISqlGeneratorResolver sqlGenerators
 ) : IMigrationOperation
 {
     public async Task Execute(CancellationToken cancellationToken = default)
     {
-        reporter.Info("Planning schema migration. No changes will be applied to the database.");
+        reporter.Current.Info("Planning schema migration. No changes will be applied to the database.");
         var plan = await helper.Plan(SchemaSourceMode.Offline, required: false, cancellationToken);
-        if (sqlGenerator is null)
+        if (sqlGenerators.Current is not { } sqlGenerator)
         {
-            reporter.Info("Unable to generate SQL preview. No provider is configured.");
+            reporter.Current.Info("Unable to generate SQL preview. No provider is configured.");
             return;
         }
-        reporter.Info("Generating SQL...");
-        reporter.ReportSqlPlan(sqlGenerator.Generate(plan));
+        reporter.Current.Info("Generating SQL...");
+        reporter.Current.ReportSqlPlan(sqlGenerator.Generate(plan));
     }
 }

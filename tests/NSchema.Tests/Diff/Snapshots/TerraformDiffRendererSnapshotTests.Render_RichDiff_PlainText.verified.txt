@@ -1,0 +1,28 @@
+﻿
++ schema reporting ("analytics")
+    + grant usage to analyst
+
++ table app.users ("all users")
+    + id bigint not null
+    + name varchar(255) not null
+
+    + primary key users_pkey
+    + index users_name_ix
+    + grant SELECT to readers
+
+~ table app.purchases → orders
+    ~ total type: int → bigint
+    ~ total nullable: null → not null
+    - legacy_flag boolean not null
+    - foreign key orders_user_fk
+    - revoke INSERT from writers
+
+- schema scratch
+
+Plan: 6 to add, 2 to change, 3 to destroy.
+
+Pre-deployment scripts:
+  • 0001_pre
+
+Post-deployment scripts:
+  • 0001_post

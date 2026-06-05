@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using NSchema.Migration;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Sql;
@@ -33,10 +32,11 @@ public sealed class ApplyEndToEndTests : IDisposable
         NSchemaApplication.CreateBuilder()
             .AddJsonSchema(desiredJsonPath)
             .UseStateStore(_store)
-            .UseSqlGenerator<StubSqlGenerator>()
+            .AddSqlGenerator<StubSqlGenerator>()
+            .AddReporter(_reporter)
+            .WithOutputFormat(RecordingReporter.FormatName)
             .Tap(b =>
             {
-                b.Services.AddSingleton<IMigrationReporter>(_reporter);
                 b.Services.AddSingleton<ISqlExecutor>(_executor);
                 b.Services.AddKeyedSingleton<ISchemaProvider>(NSchemaKeys.OnlineSchemaProvider, new InMemorySchemaProvider(current));
             })

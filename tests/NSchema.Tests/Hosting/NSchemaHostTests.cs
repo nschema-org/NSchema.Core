@@ -27,7 +27,7 @@ public sealed class NSchemaHostTests
         services.AddKeyedSingleton<IMigrationOperation>(MigrationOperation.Refresh, (_, _) => _refreshOp);
         var sp = services.BuildServiceProvider();
 
-        _sut = new NSchemaHost(Options.Create(_options), _lifetime, sp, _reporter, _outcome);
+        _sut = new NSchemaHost(Options.Create(_options), _lifetime, sp, Helpers.TestReporters.ResolverFor(_reporter), _outcome);
     }
 
     [Fact]

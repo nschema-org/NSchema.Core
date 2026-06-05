@@ -43,6 +43,29 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
+    /// Registers an <see cref="IMigrationReporter"/> as a candidate for its output format.
+    /// </summary>
+    /// <typeparam name="T">The reporter implementation to register.</typeparam>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder AddReporter<T>() where T : class, IMigrationReporter
+    {
+        Services.AddSingleton<IMigrationReporter, T>();
+        return this;
+    }
+
+    /// <summary>
+    /// Registers an <see cref="IMigrationReporter"/> instance as a candidate for its output format.
+    /// </summary>
+    /// <param name="reporter">The reporter instance to register.</param>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder AddReporter(IMigrationReporter reporter)
+    {
+        ArgumentNullException.ThrowIfNull(reporter);
+        Services.AddSingleton(reporter);
+        return this;
+    }
+
+    /// <summary>
     /// Configures the operation the migration run performs.
     /// </summary>
     /// <param name="operation">The operation to perform.</param>
@@ -50,6 +73,30 @@ public partial class NSchemaApplicationBuilder
     public NSchemaApplicationBuilder RunOperation(MigrationOperation operation)
     {
         Services.Configure<MigrationRunOptions>(o => o.Operation = operation);
+        return this;
+    }
+
+    /// <summary>
+    /// Configures the output format used to render run output, resolved to an <see cref="IMigrationReporter"/> at runtime.
+    /// </summary>
+    /// <param name="format">The output format, e.g. <c>human</c> or <c>json</c>.</param>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder WithOutputFormat(string format)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(format);
+        Services.Configure<MigrationRunOptions>(o => o.OutputFormat = format);
+        return this;
+    }
+
+    /// <summary>
+    /// Selects the SQL dialect to generate, when more than one <see cref="Sql.ISqlGenerator"/> is registered.
+    /// </summary>
+    /// <param name="dialect">The dialect, e.g. <c>postgres</c>.</param>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder WithDialect(string dialect)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(dialect);
+        Services.Configure<MigrationRunOptions>(o => o.Dialect = dialect);
         return this;
     }
 

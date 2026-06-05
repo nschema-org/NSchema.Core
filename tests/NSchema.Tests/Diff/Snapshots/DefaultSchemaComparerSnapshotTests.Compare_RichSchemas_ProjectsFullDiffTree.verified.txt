@@ -1,0 +1,67 @@
+﻿{
+  Schemas: [
+    {
+      Name: app,
+      Tables: [
+        {
+          Schema: app,
+          Name: users,
+          Kind: Modify,
+          Columns: [
+            {
+              Name: legacy_flag,
+              Kind: Remove,
+              Definition: {
+                Name: legacy_flag,
+                Type: boolean,
+                IsNullable: false,
+                IsIdentity: false
+              }
+            },
+            {
+              Name: id,
+              Kind: Modify,
+              Type: {
+                Old: int,
+                New: bigint
+              }
+            },
+            {
+              Name: email_address,
+              Kind: Modify,
+              RenamedFrom: email,
+              Type: {
+                Old: varchar(100),
+                New: text
+              }
+            }
+          ],
+          Indexes: [
+            {
+              Name: users_email_ix,
+              Definition: {
+                Name: users_email_ix,
+                IsUnique: true,
+                ColumnNames: [
+                  email_address
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      Name: reporting,
+      Kind: Add,
+      Comment: {
+        New: analytics
+      }
+    },
+    {
+      Name: scratch,
+      Kind: Remove
+    }
+  ],
+  IsEmpty: false
+}
