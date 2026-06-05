@@ -33,6 +33,7 @@ public sealed class ApplyEndToEndTests : IDisposable
             .AddJsonSchema(desiredJsonPath)
             .UseStateStore(_store)
             .AddSqlGenerator<StubSqlGenerator>(StubSqlGenerator.DialectName)
+            .WithDialect(StubSqlGenerator.DialectName)
             .AddReporter(_reporter)
             .WithOutputFormat(RecordingReporter.FormatName)
             .Tap(b =>

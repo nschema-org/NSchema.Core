@@ -11,20 +11,20 @@ internal sealed class DefaultKeyedResolver<TValue, TOptions> : IKeyedResolver<TV
 {
     private readonly Lazy<TValue?> _current;
     private readonly IServiceProvider _provider;
-    private readonly Func<TOptions, string>? _selector;
+    private readonly Func<TOptions, string?>? _selector;
 
     /// <summary>
     /// Resolves keyed DI service registrations for <typeparamref name="TValue"/> by string key.
     /// </summary>
-    public DefaultKeyedResolver(IServiceProvider provider, Func<TOptions, string>? selector = null)
+    public DefaultKeyedResolver(IServiceProvider provider, Func<TOptions, string?>? selector = null)
     {
         _provider = provider;
         _selector = selector;
         _current = new Lazy<TValue?>(GetCurrent);
     }
 
-    public TValue Current => _current.Value ?? throw new InvalidOperationException($"No current {typeof(TValue).Name} registered for '{typeof(TOptions)}'.");
-    public bool HasCurrent => _selector is not null;
+    public TValue Current => _current.Value ?? throw new InvalidOperationException($"No current {typeof(TValue).Name} is configured.");
+    public bool HasCurrent => _current.Value is not null;
 
     public TValue Resolve(string key)
     {
@@ -42,12 +42,9 @@ internal sealed class DefaultKeyedResolver<TValue, TOptions> : IKeyedResolver<TV
 
     private TValue? GetCurrent()
     {
-        if (_selector == null)
-        {
-            return default;
-        }
-
-        var defaultKey = _selector(_provider.GetRequiredService<IOptions<TOptions>>().Value);
-        return TryResolve(defaultKey, out var value) ? value : default;
+        if (_selector is null) return default;
+        var key = _selector(_provider.GetRequiredService<IOptions<TOptions>>().Value);
+        if (string.IsNullOrWhiteSpace(key)) return default;
+        return TryResolve(key, out var value) ? value : default;
     }
 }

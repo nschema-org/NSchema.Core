@@ -1,19 +1,18 @@
-using NSchema.Hosting;
 using NSchema.Migration;
+using NSchema.Resolution;
 
 namespace NSchema.Tests.Helpers;
 
 internal static class TestReporters
 {
     /// <summary>
-    /// Wraps a single reporter in an <see cref="IMigrationReporterResolver"/> whose <c>Current</c> (and any
-    /// format lookup) returns it, so consumer tests can keep asserting on the reporter directly.
+    /// Wraps a single reporter in an <see cref="IKeyedResolver{T}"/> whose <c>Current</c> returns it.
     /// </summary>
-    public static IMigrationReporterResolver ResolverFor(IMigrationReporter reporter)
+    public static IKeyedResolver<IMigrationReporter> ResolverFor(IMigrationReporter reporter)
     {
-        var resolver = Substitute.For<IMigrationReporterResolver>();
+        var resolver = Substitute.For<IKeyedResolver<IMigrationReporter>>();
         resolver.Current.Returns(reporter);
-        resolver.ForFormat(Arg.Any<string>()).Returns(reporter);
+        resolver.HasCurrent.Returns(true);
         return resolver;
     }
 }

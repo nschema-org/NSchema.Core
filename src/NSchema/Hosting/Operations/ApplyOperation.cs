@@ -16,7 +16,7 @@ internal sealed class ApplyOperation(
 {
     public async Task Execute(CancellationToken cancellationToken = default)
     {
-        if (sqlGenerators.Current is not { } sqlGenerator || sqlExecutor is null)
+        if (!sqlGenerators.HasCurrent || sqlExecutor is null)
         {
             throw new InvalidOperationException("Applying a migration requires a database provider to generate and execute SQL, but none is registered.");
         }
@@ -26,7 +26,7 @@ internal sealed class ApplyOperation(
         var plan = await helper.Plan(SchemaSourceMode.Online, required: true, cancellationToken);
 
         reporters.Current.Info("Generating SQL...");
-        var sqlPlan = sqlGenerator.Generate(plan);
+        var sqlPlan = sqlGenerators.Current.Generate(plan);
         reporters.Current.ReportSqlPlan(sqlPlan);
 
         // Offer an interactive front-end the chance to prompt before any changes are made.

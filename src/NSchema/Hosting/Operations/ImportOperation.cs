@@ -25,8 +25,7 @@ internal sealed class ImportOperation(
             schema = schema.FilterTables(opts.Tables);
         }
 
-        var target = targets.Resolve(opts.Target);
-        await target.Write(schema, cancellationToken);
+        await targets.Current.Write(schema, cancellationToken);
         reporters.Current.Info("Schema imported successfully.");
     }
 }
