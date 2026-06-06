@@ -43,7 +43,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\NSchema\NSchema.csproj" />
+    <ProjectReference Include="..\..\src\NSchema.Core\NSchema.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
