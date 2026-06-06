@@ -22,7 +22,7 @@ public partial class NSchemaApplicationBuilder
     /// </summary>
     public NSchemaApplicationBuilder WithOperationOptions(Action<OperationOptions> configure)
     {
-        Services.Configure<OperationOptions>(configure);
+        Services.Configure(configure);
         return this;
     }
 
@@ -51,23 +51,21 @@ public partial class NSchemaApplicationBuilder
 
     /// <summary>
     /// Registers an <see cref="IMigrationReporter"/> for a new output format.
-    /// The first registered format becomes the default output format if none has been set explicitly.
     /// </summary>
     public NSchemaApplicationBuilder AddReporter<T>(string format) where T : class, IMigrationReporter
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(format);
-        Services.TryAddKeyedSingleton<IMigrationReporter, T>(format);
+        Services.Replace(ServiceDescriptor.KeyedSingleton<IMigrationReporter, T>(format));
         return this;
     }
 
     /// <summary>
-    /// Registers an <see cref="IMigrationReporter"/> instance for a new output format (key taken from <see cref="IMigrationReporter.Format"/>).
-    /// The first registered format becomes the default output format if none has been set explicitly.
+    /// Registers an <see cref="IMigrationReporter"/> instance for a new output format.
     /// </summary>
-    public NSchemaApplicationBuilder AddReporter(IMigrationReporter reporter)
+    public NSchemaApplicationBuilder AddReporter(string format, IMigrationReporter reporter)
     {
         ArgumentNullException.ThrowIfNull(reporter);
-        Services.TryAddKeyedSingleton(reporter.Format, reporter);
+        Services.Replace(ServiceDescriptor.KeyedSingleton(format, reporter));
         return this;
     }
 

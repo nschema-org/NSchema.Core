@@ -11,9 +11,8 @@ namespace NSchema.Tests.Hosting;
 public sealed class ReporterRegistrationTests
 {
     /// <summary>A no-op reporter that only carries a format, for registration tests.</summary>
-    private sealed class StubReporter(string format) : IMigrationReporter
+    private sealed class StubReporter : IMigrationReporter
     {
-        public string Format => format;
         public void Info(string message) { }
         public void ReportException(Exception exception) { }
         public void ReportDiff(MigrationDiff diff) { }
@@ -41,31 +40,31 @@ public sealed class ReporterRegistrationTests
     [Fact]
     public void AddReporter_Instance_IsResolvable()
     {
-        var json = new StubReporter("json");
+        var json = new StubReporter();
 
-        var resolver = Build(b => b.AddReporter(json)).GetRequiredService<IKeyedResolver<IMigrationReporter>>();
+        var resolver = Build(b => b.AddReporter("json", json)).GetRequiredService<IKeyedResolver<IMigrationReporter>>();
 
         resolver.Resolve("json").ShouldBeSameAs(json);
     }
 
     [Fact]
-    public void AddReporter_DuplicateFormat_KeepsFirst()
+    public void AddReporter_DuplicateFormat_KeepsLast()
     {
-        var first = new StubReporter("json");
-        var second = new StubReporter("json");
+        var first = new StubReporter();
+        var second = new StubReporter();
 
-        var resolver = Build(b => b.AddReporter(first).AddReporter(second)).GetRequiredService<IKeyedResolver<IMigrationReporter>>();
+        var resolver = Build(b => b.AddReporter("json", first).AddReporter("json", second)).GetRequiredService<IKeyedResolver<IMigrationReporter>>();
 
-        resolver.Resolve("json").ShouldBeSameAs(first);
+        resolver.Resolve("json").ShouldBeSameAs(second);
     }
 
     [Fact]
     public void Current_SelectsReporterForConfiguredOutputFormat()
     {
-        var json = new StubReporter("json");
+        var json = new StubReporter();
 
         var resolver = Build(b => b
-            .AddReporter(json)
+            .AddReporter("json", json)
             .WithOutputFormat("json"))
             .GetRequiredService<IKeyedResolver<IMigrationReporter>>();
 

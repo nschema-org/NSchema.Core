@@ -68,7 +68,7 @@ public sealed class RefreshEndToEndTests : IDisposable
         using var planner = NSchemaApplication.CreateBuilder()
             .UseFileStateStore(_statePath)
             .AddJsonSchema(desired)
-            .AddReporter(reporter)
+            .AddReporter(RecordingReporter.FormatName, reporter)
             .WithOutputFormat(RecordingReporter.FormatName)
             .Build();
 
