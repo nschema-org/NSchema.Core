@@ -28,7 +28,7 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<MigrationOptions> opt
         {
             DestructiveActionPolicy.Allow => [PolicyDiagnostic.Info(PolicyName, $"Allowing destructive actions in migration plan: {typeString}.")],
             DestructiveActionPolicy.Warn => [PolicyDiagnostic.Warning(PolicyName, $"Migration plan contains destructive actions: {typeString}.")],
-            _ => [ PolicyDiagnostic.Error(PolicyName, $"Destructive actions blocked by policy: {typeString}.")]
+            _ => [PolicyDiagnostic.Error(PolicyName, $"Destructive actions blocked by policy: {typeString}.")]
         };
     }
 

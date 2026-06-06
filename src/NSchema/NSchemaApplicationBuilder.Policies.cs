@@ -16,7 +16,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddSchemaPolicy<T>() where T : class, ISchemaPolicy
     {
-        Services.TryAddEnumerable(ServiceDescriptor.Singleton<ISchemaPolicy,T>());
+        Services.TryAddEnumerable(ServiceDescriptor.Singleton<ISchemaPolicy, T>());
         return this;
     }
 
