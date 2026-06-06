@@ -24,7 +24,6 @@
                 type: {
                   kind: bigint
                 },
-                isNullable: false,
                 isIdentity: true,
                 identityOptions: {
                   startWith: 1,
@@ -38,8 +37,6 @@
                   kind: varchar,
                   maxLength: 255
                 },
-                isNullable: false,
-                isIdentity: false,
                 comment: display name
               },
               {
@@ -50,7 +47,6 @@
                   scale: 2
                 },
                 isNullable: true,
-                isIdentity: false,
                 defaultExpression: 0
               },
               {
@@ -59,8 +55,6 @@
                   kind: char,
                   length: 8
                 },
-                isNullable: false,
-                isIdentity: false,
                 oldName: short_code
               },
               {
