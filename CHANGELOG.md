@@ -26,6 +26,7 @@ Planning and applying behavior are the same as before, but most public types hav
 - `Import` operation. Reads the live database schema and writes it to a registered `ISchemaImportTarget`. Triggered via `app.Import()` or `RunOperation(MigrationOperation.Import)`. Partial imports are supported via `ImportOptions.Schemas` and `ImportOptions.Tables`.
 - `ISchemaImportTarget` the output abstraction for the `Import` operation. Register with `AddImportTarget<T>(name)` / `UseImportTarget<T>(name)` / `UseFileImportTarget(...)`. The target is selected by key via `ImportOptions.Target`.
 - `FileSchemaImportTarget` a built-in file-backed import target. Registered with `UseFileImportTarget(opts => ...)`. Supports `ImportPartitionMode` of `None` (single file), `Schema` (one file per schema), or `Table` (one file per table).
+- `Validate` operation. Reads the desired schema and validates it against all registered `ISchemaPolicy` implementations. Triggered via `app.Validate()` or `RunOperation(MigrationOperation.Validate)`.
 
 ### Changed
 
