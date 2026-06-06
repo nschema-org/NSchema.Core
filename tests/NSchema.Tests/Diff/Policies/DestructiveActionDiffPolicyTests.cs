@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Options;
-using NSchema.Diff;
 using NSchema.Diff.Policies;
 using NSchema.Migration;
 using NSchema.Plan.Model;
@@ -31,7 +30,7 @@ public class DestructiveActionDiffPolicyTests
         // Assert
         errors.ShouldHaveSingleItem();
         errors[0].Severity.ShouldBe(PolicyDiagnosticSeverity.Error);
-        errors[0].PolicyName.ShouldBe(nameof(DestructiveActionDiffPolicy));
+        errors[0].PolicyName.ShouldBe("destructive-actions");
         errors[0].Message.ShouldContain(nameof(DropTable));
     }
 
