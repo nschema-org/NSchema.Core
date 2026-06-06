@@ -36,7 +36,7 @@ public sealed class EmbeddedResourceScriptProviderTests
     public async Task GetScripts_WhenResourceMissing_Throws()
     {
         var sut = new EmbeddedResourceScriptProvider(
-            ScriptType.PreDeployment, _assembly, "NSchema.Tests.Resources.missing.sql");
+            ScriptType.PreDeployment, _assembly, "NSchema.Core.Tests.Resources.missing.sql");
 
         var act = () => sut.GetScripts().AsTask();
 

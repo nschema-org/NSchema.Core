@@ -1,20 +1,22 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Title>NSchema</Title>
-    <Description>A declarative database schema migration tool built for .NET</Description>
+    <Title>NSchema.Core</Title>
+    <Description>The core engine for NSchema, a declarative database schema migration tool built for .NET</Description>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AssemblyName>NSchema.Core</AssemblyName>
+    <RootNamespace>NSchema</RootNamespace>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Authors>Tom Wolfe</Authors>
     <Copyright>Copyright © 2026 Tom Wolfe</Copyright>
-    <PackageId>NSchema</PackageId>
-    <PackageProjectUrl>https://github.com/tom-wolfe/NSchema</PackageProjectUrl>
+    <PackageId>NSchema.Core</PackageId>
+    <PackageProjectUrl>https://github.com/nschema-org/NSchema.Core</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>nschema-mark-128.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/tom-wolfe/NSchema.git</RepositoryUrl>
+    <RepositoryUrl>https://github.com/nschema-org/NSchema.Core.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>

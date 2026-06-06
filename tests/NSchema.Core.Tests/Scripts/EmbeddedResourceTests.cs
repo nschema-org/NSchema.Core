@@ -23,11 +23,11 @@ public sealed class EmbeddedResourceTests
     [Fact]
     public async Task Read_WhenResourceMissing_ThrowsInvalidOperationWithResourceAndAssemblyNames()
     {
-        var act = () => EmbeddedResource.Read(_assembly, "NSchema.Tests.Resources.nope.sql", TestContext.Current.CancellationToken);
+        var act = () => EmbeddedResource.Read(_assembly, "NSchema.Core.Tests.Resources.nope.sql", TestContext.Current.CancellationToken);
 
         var ex = await act.ShouldThrowAsync<InvalidOperationException>();
-        ex.Message.ShouldContain("NSchema.Tests.Resources.nope.sql");
-        ex.Message.ShouldContain("NSchema.Tests");
+        ex.Message.ShouldContain("NSchema.Core.Tests.Resources.nope.sql");
+        ex.Message.ShouldContain("NSchema.Core.Tests");
     }
 
     // -------------------------------------------------------------------------
@@ -35,7 +35,7 @@ public sealed class EmbeddedResourceTests
     // -------------------------------------------------------------------------
 
     [Theory]
-    [InlineData("NSchema.Tests.Resources.pre_001.sql", "pre_001")]
+    [InlineData("NSchema.Core.Tests.Resources.pre_001.sql", "pre_001")]
     [InlineData("Some.Deeply.Nested.Namespace.script.sql", "script")]
     [InlineData("script.sql", "script")]
     public void DeriveName_ExtractsSegmentBeforeExtension(string resourceName, string expected)
