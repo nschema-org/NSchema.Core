@@ -14,7 +14,10 @@ internal static class TestSqlGenerators
         var resolver = Substitute.For<IKeyedResolver<ISqlGenerator>>();
         resolver.HasCurrent.Returns(generator is not null);
         if (generator is not null)
+        {
             resolver.Current.Returns(generator);
+        }
+
         return resolver;
     }
 }

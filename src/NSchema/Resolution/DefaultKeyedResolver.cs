@@ -42,9 +42,17 @@ internal sealed class DefaultKeyedResolver<TValue, TOptions> : IKeyedResolver<TV
 
     private TValue? GetCurrent()
     {
-        if (_selector is null) return default;
+        if (_selector is null)
+        {
+            return default;
+        }
+
         var key = _selector(_provider.GetRequiredService<IOptions<TOptions>>().Value);
-        if (string.IsNullOrWhiteSpace(key)) return default;
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return default;
+        }
+
         return TryResolve(key, out var value) ? value : default;
     }
 }
