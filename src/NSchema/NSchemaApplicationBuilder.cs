@@ -49,7 +49,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         _innerBuilder.Services.AddOptions<ImportOptions>();
         _innerBuilder.Services.AddOptions<TerraformDiffRendererOptions>();
 
-        // Register built-in keyed implementations (first-registration-wins).
+        // Register built-in keyed implementations (last-registration-wins).
         AddReporter<DefaultMigrationReporter>(DefaultMigrationReporter.FormatName);
         AddSchemaSerializer<JsonSchemaDocumentSerializer>(JsonSchemaDocumentSerializer.FormatName);
 
