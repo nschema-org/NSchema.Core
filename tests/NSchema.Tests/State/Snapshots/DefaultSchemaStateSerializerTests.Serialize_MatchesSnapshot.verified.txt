@@ -63,8 +63,7 @@
                   kind: custom,
                   typeName: jsonb
                 },
-                isNullable: true,
-                isIdentity: false
+                isNullable: true
               }
             ],
             foreignKeys: [
