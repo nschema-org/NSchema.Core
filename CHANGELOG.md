@@ -27,6 +27,7 @@ Planning and applying behavior are the same as before, but most public types hav
 - `ISchemaImportTarget` the output abstraction for the `Import` operation. Register with `AddImportTarget<T>(name)` / `UseImportTarget<T>(name)` / `UseFileImportTarget(...)`. The target is selected by key via `ImportOptions.Target`.
 - `FileSchemaImportTarget` a built-in file-backed import target. Registered with `UseFileImportTarget(opts => ...)`. Supports `ImportPartitionMode` of `None` (single file), `Schema` (one file per schema), or `Table` (one file per table).
 - `Validate` operation. Reads the desired schema and validates it against all registered `ISchemaPolicy` implementations. Triggered via `app.Validate()` or `RunOperation(MigrationOperation.Validate)`.
+- A new set of structural and linting schema policies that include checks for common issues like missing primary keys or invalid indexes.
 
 ### Changed
 
