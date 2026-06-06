@@ -4,13 +4,13 @@ using NSchema.Migration;
 using NSchema.Plan.Model;
 using NSchema.Policies;
 
-namespace NSchema.Diff;
+namespace NSchema.Diff.Policies;
 
 /// <summary>
 /// A diff policy that checks for destructive changes and applies the configured policy.
 /// Non-fatal outcomes are returned as Info/Warning diagnostics so the pipeline can surface them without aborting.
 /// </summary>
-internal sealed class DestructiveActionMigrationPolicy(IOptions<MigrationOptions> options) : IDiffPolicy
+internal sealed class DestructiveActionDiffPolicy(IOptions<MigrationOptions> options) : IDiffPolicy
 {
     public IEnumerable<PolicyDiagnostic> Validate(MigrationDiff diff)
     {
@@ -25,17 +25,17 @@ internal sealed class DestructiveActionMigrationPolicy(IOptions<MigrationOptions
         return options.Value.DestructiveActionPolicy switch
         {
             DestructiveActionPolicy.Allow => [new PolicyDiagnostic(
-                nameof(DestructiveActionMigrationPolicy),
+                nameof(DestructiveActionDiffPolicy),
                 $"Allowing destructive actions in migration plan: {typeString}.",
                 PolicyDiagnosticSeverity.Info
             )],
             DestructiveActionPolicy.Warn => [new PolicyDiagnostic(
-                nameof(DestructiveActionMigrationPolicy),
+                nameof(DestructiveActionDiffPolicy),
                 $"Migration plan contains destructive actions: {typeString}.",
                 PolicyDiagnosticSeverity.Warning
                 )],
             _ => [new PolicyDiagnostic(
-                nameof(DestructiveActionMigrationPolicy),
+                nameof(DestructiveActionDiffPolicy),
                 $"Destructive actions blocked by policy: {typeString}."
             )]
         };

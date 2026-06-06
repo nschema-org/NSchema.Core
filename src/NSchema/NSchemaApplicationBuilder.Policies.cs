@@ -16,8 +16,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddSchemaPolicy<T>() where T : class, ISchemaPolicy
     {
-        var descriptor = new ServiceDescriptor(typeof(ISchemaPolicy), typeof(T), ServiceLifetime.Singleton);
-        Services.TryAddEnumerable(descriptor);
+        Services.TryAddEnumerable(ServiceDescriptor.Singleton<ISchemaPolicy,T>());
         return this;
     }
 
@@ -32,7 +31,7 @@ public partial class NSchemaApplicationBuilder
             .Where(t => t is { IsAbstract: false, IsInterface: false } && typeof(ISchemaPolicy).IsAssignableFrom(t));
         foreach (var type in types)
         {
-            Services.TryAddEnumerable(new ServiceDescriptor(typeof(ISchemaPolicy), type, ServiceLifetime.Singleton));
+            Services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(ISchemaPolicy), type));
         }
         return this;
     }
