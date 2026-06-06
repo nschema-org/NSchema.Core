@@ -78,7 +78,7 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition> Schemas, IReadOnlyL
     /// <returns></returns>
     public DatabaseSchema Combine(DatabaseSchema schema)
     {
-        var mergedSchemas = new[] { this, schema}
+        var mergedSchemas = new[] { this, schema }
             .SelectMany(db => db.Schemas)
             .GroupBy(s => s.Name)
             .Select(s => AggregateSchemaGroup(s.ToList()))
