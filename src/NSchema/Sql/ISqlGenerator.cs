@@ -13,12 +13,6 @@ namespace NSchema.Sql;
 public interface ISqlGenerator
 {
     /// <summary>
-    /// The SQL dialect this generator targets, e.g. <c>postgres</c>. Used to select a generator at runtime
-    /// when more than one is registered.
-    /// </summary>
-    string Dialect { get; }
-
-    /// <summary>
     /// Generates a SQL plan based on the provided migration plan.
     /// </summary>
     /// <param name="plan">A migration plan containing the necessary steps to migrate a database schema.</param>

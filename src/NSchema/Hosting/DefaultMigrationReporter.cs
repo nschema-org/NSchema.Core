@@ -42,8 +42,6 @@ internal sealed class DefaultMigrationReporter : IMigrationReporter
         _sqlPlanRenderer = sqlPlanRenderer;
     }
 
-    public string Format => OperationOptions.DefaultOutputFormat;
-
     public void Info(string message) => _output.WriteLine(message);
 
     public void ReportException(Exception exception)

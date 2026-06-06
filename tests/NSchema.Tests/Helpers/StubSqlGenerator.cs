@@ -9,8 +9,6 @@ internal sealed class StubSqlGenerator : ISqlGenerator
 {
     public const string DialectName = "stub";
 
-    public string Dialect => DialectName;
-
     public SqlPlan Generate(MigrationPlan plan)
         => new([.. plan.Actions.Select(a => new SqlStatement($"-- {a.GetType().Name}"))]);
 }

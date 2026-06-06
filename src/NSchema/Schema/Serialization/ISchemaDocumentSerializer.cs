@@ -8,11 +8,6 @@ namespace NSchema.Schema.Serialization;
 public interface ISchemaDocumentSerializer
 {
     /// <summary>
-    /// The canonical name of the format this serializer handles, e.g. <c>json</c> or <c>yaml</c>.
-    /// </summary>
-    string Format { get; }
-
-    /// <summary>
     /// Writes <paramref name="schema"/> to <paramref name="destination"/> in this serializer's format.
     /// </summary>
     /// <param name="schema">The schema to serialize.</param>

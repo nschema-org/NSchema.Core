@@ -28,8 +28,6 @@ public sealed class FileSchemaProviderTests : IDisposable
         public string? ParsedContent { get; private set; }
         public bool ReadCalled { get; private set; }
 
-        public string Format => "test";
-
         public ValueTask Write(DatabaseSchema schema, Stream destination, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
