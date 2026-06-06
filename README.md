@@ -13,7 +13,7 @@ Designed to be familiar to .NET devs, with extensibility and safety features to 
 Install the core package and a database provider:
 
 ```bash
-dotnet add package NSchema
+dotnet add package NSchema.Core
 dotnet add package NSchema.Postgres   # or another provider
 ```
 
