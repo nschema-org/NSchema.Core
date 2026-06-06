@@ -12,7 +12,7 @@ public sealed class EmbeddedResourcePrefixScriptProviderTests
     public async Task GetScripts_ReturnsAllMatchingResources_OrderedByName()
     {
         var sut = new EmbeddedResourcePrefixScriptProvider(
-            ScriptType.PreDeployment, _assembly, "NSchema.Core.Tests.Resources.pre_");
+            ScriptType.PreDeployment, _assembly, "NSchema.Tests.Resources.pre_");
 
         var scripts = await sut.GetScripts(TestContext.Current.CancellationToken);
 
@@ -35,7 +35,7 @@ public sealed class EmbeddedResourcePrefixScriptProviderTests
     public async Task GetScripts_ReturnsEmpty_WhenNoResourcesMatchPrefix()
     {
         var sut = new EmbeddedResourcePrefixScriptProvider(
-            ScriptType.PreDeployment, _assembly, "NSchema.Core.Tests.Resources.nomatch_");
+            ScriptType.PreDeployment, _assembly, "NSchema.Tests.Resources.nomatch_");
 
         var scripts = await sut.GetScripts(TestContext.Current.CancellationToken);
 
