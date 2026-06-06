@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json.Serialization;
 
 namespace NSchema.Schema.Model;
 
@@ -17,7 +18,9 @@ namespace NSchema.Schema.Model;
 public record Column(
     string Name,
     SqlType Type,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool IsNullable,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool IsIdentity,
     string? DefaultExpression,
     string? OldName,

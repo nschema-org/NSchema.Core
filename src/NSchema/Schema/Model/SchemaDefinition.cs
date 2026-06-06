@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json.Serialization;
 
 namespace NSchema.Schema.Model;
 
@@ -16,6 +17,7 @@ namespace NSchema.Schema.Model;
 public record SchemaDefinition(
     string Name,
     string? OldName,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool IsPartial,
     string? Comment,
     IReadOnlyList<Table> Tables,
