@@ -32,8 +32,9 @@ public sealed class ApplyEndToEndTests : IDisposable
         NSchemaApplication.CreateBuilder()
             .AddJsonSchema(desiredJsonPath)
             .UseStateStore(_store)
-            .AddSqlGenerator<StubSqlGenerator>()
-            .AddReporter(_reporter)
+            .AddSqlGenerator<StubSqlGenerator>(StubSqlGenerator.DialectName)
+            .WithDialect(StubSqlGenerator.DialectName)
+            .AddReporter(RecordingReporter.FormatName, _reporter)
             .WithOutputFormat(RecordingReporter.FormatName)
             .Tap(b =>
             {

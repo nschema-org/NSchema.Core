@@ -6,7 +6,7 @@ How to host, run, and configure an NSchema application. New to NSchema? Start wi
 
 NSchema should be familiar to any developer who's used ASP.NET. It runs as a hosted application, with `NSchemaApplication.CreateBuilder(...)` producing a builder that you can configure with your target schema, database provider, configuration, logging, metrics, or any other .NET packages that we've come to rely on.
 
-Call `builder.Build()` to get an `NSchemaApplication`, from which you can then run a `Plan()`, `Apply()`, or `Refresh()` operation. You can also use the standard `RunAsync()` extension method, which will use the configured `MigrationRunOptions.Operation` for that run, defaulting to `Plan` if none has been specified.
+Call `builder.Build()` to get an `NSchemaApplication`, from which you can then run a `Plan()`, `Apply()`, or `Refresh()` operation. You can also use the standard `RunAsync()` extension method, which will use the configured `OperationOptions.Operation` for that run, defaulting to `Plan` if none has been specified.
 
 ## Operations
 
@@ -15,8 +15,9 @@ Each run performs one of the following operations:
 - **`Plan`** (default) computes and renders the plan, without touching the database.
 - **`Apply`** computes the plan and applies it to the database. After a successful apply, the resulting schema is captured to the [state store](#backend-state-store) if one is configured.
 - **`Refresh`** reads the current schema from the live database and writes it to the state store, without planning or applying anything. Requires a state store.
+- **`Import`** reads the live database schema and writes it to the configured `ISchemaImportTarget`. Useful for bootstrapping a project from an existing database.
 
-The operation can be decided in one of two ways: either by setting `MigrationRunOptions.Operation` via `RunOperation(...)`, or by explicitly calling `Plan()`, `Apply()`, or `Refresh()` on the built application:
+The operation can be decided in one of two ways: either by setting `OperationOptions.Operation` via `RunOperation(...)`, or by explicitly calling `Plan()`, `Apply()`, or `Refresh()` on the built application:
 
 ```csharp
 // Configured
@@ -123,7 +124,7 @@ builder.AddScriptProvider<CustomScriptProvider>();
 
 By default, NSchema runs the entire migration inside a single transaction to ensure that either all changes are applied successfully or none at all. However, some databases don't support DDL statements inside transactions, or you may have specific statements that need to run outside of a transaction.
 
-You can configure the transaction mode with `MigrationRunOptions.TransactionMode`:
+You can configure the transaction mode with `OperationOptions.TransactionMode`:
 
 ```csharp
 builder.WithTransactionMode(TransactionMode.Single); // run the entire migration in a single transaction (default)
@@ -132,15 +133,13 @@ builder.WithTransactionMode(TransactionMode.None); // run all statements outside
 
 ## Output format
 
-Run output is produced by an `IMigrationReporter`. The built-in `human` reporter writes human-readable output to the terminal. You can register additional reporters (each declaring a `Format`) and select one per run:
+Run output is produced by an `IMigrationReporter`. The built-in `default` reporter writes human-readable output to the terminal. You can register additional reporters (each declaring a `Format`) and select one per run:
 
 ```csharp
 builder
-    .AddReporter<JsonReporter>()      // a reporter whose Format is "json"
-    .WithOutputFormat("json");        // or set MigrationRunOptions.OutputFormat
+    .AddReporter<JsonReporter>("json")   // register by explicit format key
+    .WithOutputFormat("json");           // or set OperationOptions.OutputFormat
 ```
-
-Each format must be registered once; registering a second reporter for the same format throws.
 
 ## SQL dialect
 
@@ -148,12 +147,10 @@ When more than one `ISqlGenerator` is registered (each declaring a `Dialect`), c
 
 ```csharp
 builder
-    .AddSqlGenerator<PostgresGenerator>()  // Dialect "postgres"
-    .AddSqlGenerator<MySqlGenerator>()     // Dialect "mysql"
-    .WithDialect("postgres");              // or set MigrationRunOptions.Dialect
+    .AddSqlGenerator<PostgresGenerator>("postgres")
+    .AddSqlGenerator<MySqlGenerator>("mysql")
+    .WithDialect("postgres");    // or set OperationOptions.Dialect
 ```
-
-With a single generator registered, it is used automatically and `WithDialect` is unnecessary.
 
 ## Schema policies
 

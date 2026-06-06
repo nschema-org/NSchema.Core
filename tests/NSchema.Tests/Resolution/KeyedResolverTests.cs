@@ -1,95 +1,109 @@
+using Microsoft.Extensions.DependencyInjection;
 using NSchema.Resolution;
 
 namespace NSchema.Tests.Resolution;
 
 /// <summary>
-/// Tests the shared resolution behaviour for every <see cref="KeyedResolver{TKey,TValue}"/> subclass
-/// (reporters, SQL generators, schema serializers), so the concrete resolvers only need to cover their own
-/// selection logic on top.
+/// Tests <see cref="DefaultKeyedResolver{TValue,TOptions}"/> — the shared resolver backing every keyed-service seam.
 /// </summary>
 public sealed class KeyedResolverTests
 {
-    private sealed record Item(string Key, string Value);
-
-    /// <summary>A minimal concrete resolver that exposes the protected base behaviour for testing.</summary>
-    private sealed class ItemResolver(IEnumerable<Item> items)
-        : KeyedResolver<string, Item>(items, i => i.Key, "item", StringComparer.OrdinalIgnoreCase);
-
-    [Fact]
-    public void Resolve_ReturnsItem_ForRegisteredKey()
+    private sealed class Options
     {
-        var json = new Item("json", "j");
-        var sut = new ItemResolver([json, new Item("yaml", "y")]);
+        public string? Key { get; set; }
+    }
 
-        sut.Resolve("json").ShouldBeSameAs(json);
+    private static (IKeyedResolver<string> resolver, IServiceProvider provider) Build(
+        Action<IServiceCollection>? configure = null,
+        string? selectedKey = null)
+    {
+        var services = new ServiceCollection();
+        configure?.Invoke(services);
+        services.Configure<Options>(o => o.Key = selectedKey);
+        services.AddSingleton<IKeyedResolver<string>>(sp =>
+            new DefaultKeyedResolver<string, Options>(sp, o => o.Key));
+        var provider = services.BuildServiceProvider();
+        return (provider.GetRequiredService<IKeyedResolver<string>>(), provider);
     }
 
     [Fact]
-    public void Resolve_IsCaseInsensitive()
+    public void Resolve_ReturnsRegisteredValue()
     {
-        var json = new Item("json", "j");
-        var sut = new ItemResolver([json]);
+        var (sut, _) = Build(s => s.AddKeyedSingleton<string>("json", (_, _) => "json-value"));
 
-        sut.Resolve("JSON").ShouldBeSameAs(json);
+        sut.Resolve("json").ShouldBe("json-value");
     }
 
     [Fact]
-    public void Resolve_LastRegistrationWins_ForDuplicateKey()
+    public void Resolve_UnknownKey_Throws()
     {
-        var first = new Item("json", "first");
-        var second = new Item("JSON", "second");
-        var sut = new ItemResolver([first, second]);
-
-        // A later registration replaces an earlier one for the same key, letting callers override defaults.
-        sut.Resolve("json").ShouldBeSameAs(second);
-    }
-
-    [Fact]
-    public void Resolve_UnknownKey_ThrowsListingAvailableKeys()
-    {
-        var sut = new ItemResolver([new Item("json", "j"), new Item("yaml", "y")]);
+        var (sut, _) = Build(s =>
+        {
+            s.AddKeyedSingleton<string>("json", (_, _) => "j");
+            s.AddKeyedSingleton<string>("yaml", (_, _) => "y");
+        });
 
         var ex = Should.Throw<InvalidOperationException>(() => sut.Resolve("xml"));
 
         ex.Message.ShouldContain("xml");
-        ex.Message.ShouldContain("json");
-        ex.Message.ShouldContain("yaml");
     }
 
     [Fact]
-    public void Resolve_WhenNoneRegistered_ThrowsSayingNone()
+    public void TryResolve_ReturnsTrueAndValue_WhenPresent()
     {
-        var sut = new ItemResolver([]);
+        var (sut, _) = Build(s => s.AddKeyedSingleton<string>("json", (_, _) => "json-value"));
 
-        var ex = Should.Throw<InvalidOperationException>(() => sut.Resolve("json"));
-
-        ex.Message.ShouldContain("none");
-    }
-
-    [Fact]
-    public void TryResolve_ReturnsTrueAndItem_WhenRegistered()
-    {
-        var json = new Item("json", "j");
-        var sut = new ItemResolver([json]);
-
-        sut.TryResolve("json", out var item).ShouldBeTrue();
-        item.ShouldBeSameAs(json);
+        sut.TryResolve("json", out var value).ShouldBeTrue();
+        value.ShouldBe("json-value");
     }
 
     [Fact]
     public void TryResolve_ReturnsFalseAndNull_WhenAbsent()
     {
-        var sut = new ItemResolver([new Item("json", "j")]);
+        var (sut, _) = Build(s => s.AddKeyedSingleton<string>("json", (_, _) => "j"));
 
-        sut.TryResolve("xml", out var item).ShouldBeFalse();
-        item.ShouldBeNull();
+        sut.TryResolve("xml", out var value).ShouldBeFalse();
+        value.ShouldBeNull();
     }
 
     [Fact]
-    public void Keys_ListsDistinctRegisteredKeys()
+    public void Current_ReturnsValue_WhenKeyConfiguredAndRegistered()
     {
-        var sut = new ItemResolver([new Item("json", "a"), new Item("yaml", "b"), new Item("json", "c")]);
+        var (sut, _) = Build(
+            s => s.AddKeyedSingleton<string>("json", (_, _) => "json-value"),
+            selectedKey: "json");
 
-        sut.Keys.ShouldBe(["json", "yaml"], ignoreOrder: true);
+        sut.HasCurrent.ShouldBeTrue();
+        sut.Current.ShouldBe("json-value");
+    }
+
+    [Fact]
+    public void Current_Throws_WhenKeyNotConfigured()
+    {
+        var (sut, _) = Build(s => s.AddKeyedSingleton<string>("json", (_, _) => "j"));
+
+        sut.HasCurrent.ShouldBeFalse();
+        Should.Throw<InvalidOperationException>(() => sut.Current);
+    }
+
+    [Fact]
+    public void Current_Throws_WhenKeyConfiguredButNotRegistered()
+    {
+        var (sut, _) = Build(selectedKey: "xml");
+
+        sut.HasCurrent.ShouldBeFalse();
+        Should.Throw<InvalidOperationException>(() => sut.Current);
+    }
+
+    [Fact]
+    public void HasCurrent_False_WhenNoSelector()
+    {
+        var services = new ServiceCollection();
+        services.AddKeyedSingleton<string>("json", (_, _) => "j");
+        services.AddSingleton<IKeyedResolver<string>>(sp =>
+            new DefaultKeyedResolver<string, Options>(sp, selector: null));
+        var sut = services.BuildServiceProvider().GetRequiredService<IKeyedResolver<string>>();
+
+        sut.HasCurrent.ShouldBeFalse();
     }
 }

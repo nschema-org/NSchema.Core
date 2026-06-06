@@ -10,11 +10,6 @@ namespace NSchema.Migration;
 public interface IMigrationReporter
 {
     /// <summary>
-    /// The output format this reporter produces, e.g. <c>human</c> or <c>json</c>.
-    /// </summary>
-    string Format { get; }
-
-    /// <summary>
     /// Reports a status / progress message to the user.
     /// </summary>
     void Info(string message);

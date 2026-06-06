@@ -39,6 +39,7 @@ Built-in operations (`src/NSchema/Hosting/Operations/`):
 - **`PlanOperation`** — resolves schemas (offline source preferred), calls `IMigrationPlanner`, reports the plan and the SQL preview (if an `ISqlGenerator` dialect is registered). Does not execute.
 - **`ApplyOperation`** — resolves schemas (online source required), calls `IMigrationPlanner`, generates SQL via `ISqlGenerator`, previews it, executes via `ISqlExecutor`, and captures state.
 - **`RefreshOperation`** — captures the live schema to the state store without planning or applying.
+- **`ImportOperation`** — fetches the live schema (optionally filtered by `ImportOptions.Schemas` / `ImportOptions.Tables`), then writes it to the configured `ISchemaImportTarget` via `IKeyedResolver<ISchemaImportTarget>.Current`. Import is additive: existing tables in the target are preserved.
 
 `SchemaResolution.ResolveAsync` (`src/NSchema/Hosting/Operations/SchemaResolution.cs`) is a shared static helper used by `PlanOperation` and `ApplyOperation` to collect desired providers, aggregate, derive scope, and fetch the current schema.
 
@@ -78,7 +79,7 @@ The planner has no knowledge of operations, online/offline routing, or `Migratio
 
 Generating SQL and executing it are deliberately separate, so a plan can be previewed offline:
 
-- **`ISqlGenerator`** (`AddSqlGenerator<T>()`, typically supplied by a database-provider extension) turns a `MigrationPlan` into a structured `SqlPlan` (an ordered list of `SqlStatement`s, each flagged if it `RunOutsideTransaction`). This is pure string-building — no connection — so the SQL preview works offline whenever a dialect is registered. Each generator declares a `Dialect`; operations resolve the one for the run through **`ISqlGeneratorResolver`** (default `DefaultSqlGeneratorResolver`), keyed by `MigrationRunOptions.Dialect`. The generator is optional: with none registered, `ISqlGeneratorResolver.Current` is `null` and `PlanOperation` reports the plan without a SQL preview; with one, it is used automatically; with several, `WithDialect(...)` chooses.
+- **`ISqlGenerator`** (`AddSqlGenerator<T>(dialect)`, typically supplied by a database-provider extension) turns a `MigrationPlan` into a structured `SqlPlan` (an ordered list of `SqlStatement`s, each flagged if it `RunOutsideTransaction`). This is pure string-building — no connection — so the SQL preview works offline whenever a dialect is registered. Each generator declares a `Dialect`; operations resolve the one for the run via `IKeyedResolver<ISqlGenerator>`, keyed by `MigrationRunOptions.Dialect`. The generator is optional: with none registered or no `WithDialect(...)` set, `HasCurrent` is `false` and `PlanOperation` reports the plan without a SQL preview.
 - **`ISqlExecutor`** (default `DefaultSqlExecutor`) executes the `SqlPlan` against a `DbDataSource`. It reads `MigrationRunOptions.TransactionMode` to decide whether to wrap everything in one transaction. It is the only online step.
 
 The operations consume these two seams directly — there is no separate compiler abstraction. The `SqlPlan` reaches the reporter as a structured value via `IMigrationReporter.ReportSqlPlan(SqlPlan)`, which renders it through **`ISqlPlanRenderer`** (default `DefaultSqlPlanRenderer`), mirroring the diff side's `IDiffRenderer`.
@@ -117,22 +118,30 @@ Providers are registered with `builder.AddSchema<T>()` or `builder.AddSchemasFro
 | `IScriptProvider`                                                                   | `AddScriptProvider<T>()` / `AddScriptFromFile(...)` / `AddScriptsFromEmbeddedResources(...)`            |
 | `ISqlExecutor`                                                                      | `UseSqlExecutor<T>()` (replaces default)                                                                |
 | `ISchemaStateStore`                                                                 | `UseStateStore<T>()` / `UseStateStore(instance)` / `UseFileStateStore(path)`                            |
-| `IMigrationReporter` (keyed by `Format`)                                            | `AddReporter<T>()` / `AddReporter(instance)`; select with `WithOutputFormat(...)`                       |
-| `ISqlGenerator` (keyed by `Dialect`)                                                | `AddSqlGenerator<T>()`, typically a database-provider extension; select with `WithDialect(...)`         |
-| `ISchemaDocumentSerializer` (keyed by `Format`)                                     | `AddSchemaSerializer<T>()` / `AddSchemaSerializer(instance)` (JSON built-in)                            |
+| `IMigrationReporter` (keyed by `Format`)                                            | `AddReporter<T>(format)` / `AddReporter(instance)` (last-wins per key); select with `WithOutputFormat(...)` |
+| `ISqlGenerator` (keyed by `Dialect`)                                                | `AddSqlGenerator<T>(dialect)`, typically a database-provider extension; select with `WithDialect(...)`  |
+| `ISchemaDocumentSerializer` (keyed by `Format`)                                     | `AddSchemaSerializer<T>(format)` (first-wins); `UseSchemaSerializer<T>(format)` to replace (JSON built-in) |
+| `ISchemaImportTarget` (keyed by name)                                               | `AddImportTarget<T>(name)` / `AddFileImportTarget(opts => ...)` (last-wins per key; first registered is default) |
 | `ISchemaComparer`, `IMigrationLinearizer`, `ISchemaAggregator`, `IMigrationPlanner` | Override via `Services.AddSingleton<...>()` before `Build()` (defaults registered with `TryAdd`)        |
-| `IDiffRenderer`                                                                     | `UseTerraformRenderer(...)`, or override via `Services.AddSingleton<...>()` before `Build()`            |
+| `IDiffRenderer`                                                                     | `UseTerraformRenderer(...)` / `UseRenderer<TRenderer>()`, or override via `Services.AddSingleton<...>()` before `Build()` |
 | `ISqlPlanRenderer`                                                                  | Override via `Services.AddSingleton<...>()` before `Build()` (default `DefaultSqlPlanRenderer`)         |
 
 ### Resolving one of many (resolver pattern)
 
-Several seams let you register multiple implementations and select one per run by a key: `IMigrationReporter` (by `Format`), `ISqlGenerator` (by `Dialect`), and `ISchemaDocumentSerializer` (by `Format`). Each shares the `KeyedResolver<TKey, TValue>` base (`Resolution/`), which builds a key→implementation map and **throws on a duplicate key** (an ambiguous registration is a configuration error, not a last-wins). The per-domain resolvers — `IMigrationReporterResolver`, `ISqlGeneratorResolver`, `ISchemaDocumentSerializerResolver` — wrap it, expose the available keys, and (for reporters and generators) a `Current` that reads the run option (`OutputFormat` / `Dialect`) so consumers select the run's implementation without injecting options. The built-in default candidate (e.g. the `human` reporter, the JSON serializer) is registered first; the generator pool has no default. Adding a candidate uses `Add…<T>()`; string keys are matched case-insensitively.
+Several seams let you register multiple implementations and select one per run by a key: `IMigrationReporter` (by `Format`), `ISqlGenerator` (by `Dialect`), `ISchemaDocumentSerializer` (by `Format`), and `ISchemaImportTarget` (by name). All four share a single `IKeyedResolver<TValue>` interface (`Resolution/`), backed by DI keyed services. `IMigrationReporter` and `ISchemaImportTarget` use last-wins registration (`Services.Replace`); `ISqlGenerator` and `ISchemaDocumentSerializer` use first-wins (`TryAddKeyedSingleton`), and `ISchemaDocumentSerializer` has a `UseSchemaSerializer<T>(format)` method to replace the built-in.
+
+`IKeyedResolver<TValue>` is injected directly into consumers and exposes:
+- `Current` — resolves the implementation for the current run's configured key (e.g. `OutputFormat`, `Dialect`, `Target`). Throws if no key is configured or the key isn't registered.
+- `HasCurrent` — returns `true` if `Current` would succeed; use this to guard optional seams (e.g. SQL generators).
+- `Resolve(key)` / `TryResolve(key, out value)` — resolve by explicit key.
+
+The `DefaultKeyedResolver<TValue, TOptions>` implementation reads the current key from `IOptions<TOptions>` via a selector delegate supplied at registration time.
 
 ### Diff rendering
 
 The structured `MigrationDiff` (`Migration/Diff/Model/`: schema → table → columns/indexes/constraints/grants, each carrying a `ChangeKind` of `Add`/`Modify`/`Remove`) is produced directly by `ISchemaComparer` during planning and carried on `MigrationPlanResult.Diff`. The model is presentation-agnostic, and it is the semantic source of truth — `IMigrationLinearizer` derives the executable plan from it, so a diff transformer that changes the tree also changes what executes.
 
-Rendering is a single phase: **`IDiffRenderer`** (default `TerraformDiffRenderer`) turns a `MigrationDiff` into text. The default emits a Terraform-style diff; an alternative (e.g. JSON) can be registered without touching the diff projection. Each renderer owns its own options POCO — the Terraform renderer reads `TerraformDiffRendererOptions.IncludeColour` (defaulted from the environment via `EnvironmentHelpers.SupportsColor`: on unless `NO_COLOR` is set or output is redirected), configured through `UseTerraformRenderer(o => ...)`. The renderer itself never reads the environment.
+Rendering is a single phase: **`IDiffRenderer`** (default `TerraformDiffRenderer`) turns a `MigrationDiff` into text. The default emits a Terraform-style diff; an alternative (e.g. JSON) can be registered without touching the diff projection. Each renderer owns its own options POCO — the Terraform renderer reads `TerraformDiffRendererOptions.IncludeColour`, which defaults via its property initializer to `EnvironmentHelpers.SupportsColor` (on unless `NO_COLOR` is set or output is redirected). Override it via `UseTerraformRenderer(o => ...)`. The renderer itself never reads the environment.
 
 `IMigrationReporter.ReportDiff(MigrationDiff)` is the seam: the reporter owns the `IDiffRenderer` and writes the rendered text to its output. `MigrationHelper.Prepare` simply hands `result.Diff` to the reporter — there is no separate diff-building step.
 
@@ -147,7 +156,12 @@ Schemas, tables, and columns support rename detection via the fluent `RenamedFro
 - `SchemaNames` — optional `string[]` scope filter. When set, only these schemas are read, validated, and diffed. When unset, scope is derived from declared and dropped schemas. Configured via `ForSchemas(...)`.
 
 **`MigrationRunOptions`** — how to run it:
-- `Operation` — `Plan` (default), `Apply`, or `Refresh`. Configured via `RunOperation(...)`, or overridden per-run by calling `NSchemaApplication.Plan()` / `Apply()` / `Refresh()`.
+- `Operation` — `Plan` (default), `Apply`, `Refresh`, or `Import`. Configured via `RunOperation(...)`, or overridden per-run by calling `NSchemaApplication.Plan()` / `Apply()` / `Refresh()` / `Import()`.
 - `TransactionMode` — `Single` (default; whole plan in one transaction, with carve-outs for statements marked `RunOutsideTransaction`) or `None`.
-- `OutputFormat` — the `IMigrationReporter` format to render with (default `human`). Configured via `WithOutputFormat(...)`; resolved through `IMigrationReporterResolver.Current`.
-- `Dialect` — the `ISqlGenerator` dialect to generate (default unset → the single registered generator). Configured via `WithDialect(...)`; resolved through `ISqlGeneratorResolver.Current`.
+- `OutputFormat` — the `IMigrationReporter` format to render with (defaults to `DefaultMigrationReporter.FormatName`). Configured via `WithOutputFormat(...)`; resolved through `IKeyedResolver<IMigrationReporter>.Current`.
+- `Dialect` — the `ISqlGenerator` dialect to generate (must be set explicitly when a generator is registered). Configured via `WithDialect(...)`; resolved through `IKeyedResolver<ISqlGenerator>.Current`.
+
+**`ImportOptions`** — what to import:
+- `Schemas` — optional `string[]` scope filter; only these schemas are fetched from the live database.
+- `Tables` — optional `string[]` table filter applied after fetching.
+- `Target` — the key of the registered `ISchemaImportTarget` to write to. When unset, auto-selected if exactly one target is registered; throws if none or multiple. Configured via `WithImportOptions(...)`.

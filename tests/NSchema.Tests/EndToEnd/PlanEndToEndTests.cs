@@ -28,7 +28,7 @@ public sealed class PlanEndToEndTests : IDisposable
     private NSchemaApplicationBuilder NewBuilder(DatabaseSchema current)
     {
         var builder = NSchemaApplication.CreateBuilder();
-        builder.AddReporter(_reporter).WithOutputFormat(RecordingReporter.FormatName);
+        builder.AddReporter(RecordingReporter.FormatName, _reporter).WithOutputFormat(RecordingReporter.FormatName);
         builder.Services.AddKeyedSingleton<ISchemaProvider>(NSchemaKeys.OnlineSchemaProvider, new InMemorySchemaProvider(current));
         return builder;
     }
@@ -99,7 +99,8 @@ public sealed class PlanEndToEndTests : IDisposable
 
         using var app = NewBuilder(current)
             .AddJsonSchema(desired)
-            .AddSqlGenerator<StubSqlGenerator>()
+            .AddSqlGenerator<StubSqlGenerator>(StubSqlGenerator.DialectName)
+            .WithDialect(StubSqlGenerator.DialectName)
             .Build();
 
         await app.Plan(TestContext.Current.CancellationToken);

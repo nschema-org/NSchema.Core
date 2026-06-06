@@ -12,6 +12,8 @@ namespace NSchema.Hosting;
 /// </summary>
 internal sealed class DefaultMigrationReporter : IMigrationReporter
 {
+    public const string FormatName = "default";
+
     private readonly TextWriter _output;
     private readonly TextWriter _error;
     private readonly IDiffRenderer _diffRenderer;
@@ -40,7 +42,7 @@ internal sealed class DefaultMigrationReporter : IMigrationReporter
         _sqlPlanRenderer = sqlPlanRenderer;
     }
 
-    public string Format => MigrationRunOptions.DefaultOutputFormat;
+    public string Format => OperationOptions.DefaultOutputFormat;
 
     public void Info(string message) => _output.WriteLine(message);
 

@@ -3,7 +3,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.Diff;
 using NSchema.Hosting;
 using NSchema.Migration;
-using NSchema.Sql;
 
 namespace NSchema;
 
@@ -12,8 +11,6 @@ public partial class NSchemaApplicationBuilder
     /// <summary>
     /// Configures the policy to apply when a destructive action is detected in the migration plan.
     /// </summary>
-    /// <param name="policy">The policy to apply.</param>
-    /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder WithDestructiveActionPolicy(DestructiveActionPolicy policy)
     {
         Services.Configure<MigrationOptions>(o => o.DestructiveActionPolicy = policy);
@@ -21,102 +18,79 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
-    /// Configures the transaction mode to use when executing the migration plan.
+    /// Configures the operation options.
     /// </summary>
-    /// <param name="mode">The transaction mode to use.</param>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder WithTransactionMode(TransactionMode mode)
+    public NSchemaApplicationBuilder WithOperationOptions(Action<OperationOptions> configure)
     {
-        Services.Configure<SqlExecutorOptions>(o => o.TransactionMode = mode);
-        return this;
-    }
-
-    /// <summary>
-    /// Configures the plan output to use a Terraform-style renderer.
-    /// </summary>
-    /// <param name="configure">A delegate to configure the renderer options.</param>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder UseTerraformRenderer(Action<TerraformDiffRendererOptions> configure)
-    {
-        Services.Replace(ServiceDescriptor.Singleton<IDiffRenderer, TerraformDiffRenderer>());
         Services.Configure(configure);
         return this;
     }
 
     /// <summary>
-    /// Registers an <see cref="IMigrationReporter"/> as a candidate for its output format.
+    /// Configures the transaction mode to use when executing the migration plan.
     /// </summary>
-    /// <typeparam name="T">The reporter implementation to register.</typeparam>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddReporter<T>() where T : class, IMigrationReporter
+    public NSchemaApplicationBuilder WithTransactionMode(TransactionMode mode) => WithOperationOptions(o => o.TransactionMode = mode);
+
+    /// <summary>
+    /// Configures the plan output to use a Terraform-style renderer.
+    /// </summary>
+    public NSchemaApplicationBuilder UseTerraformRenderer(Action<TerraformDiffRendererOptions> configure)
     {
-        Services.TryAddEnumerable(ServiceDescriptor.Singleton<IMigrationReporter, T>());
+        Services.Configure(configure);
+        return UseRenderer<TerraformDiffRenderer>();
+    }
+
+    /// <summary>
+    /// Configures the plan output to use the given renderer.
+    /// </summary>
+    public NSchemaApplicationBuilder UseRenderer<TRenderer>() where TRenderer : class, IDiffRenderer
+    {
+        Services.Replace(ServiceDescriptor.Singleton<IDiffRenderer, TRenderer>());
         return this;
     }
 
     /// <summary>
-    /// Registers an <see cref="IMigrationReporter"/> instance as a candidate for its output format.
+    /// Registers an <see cref="IMigrationReporter"/> for a new output format.
     /// </summary>
-    /// <param name="reporter">The reporter instance to register.</param>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddReporter(IMigrationReporter reporter)
+    public NSchemaApplicationBuilder AddReporter<T>(string format) where T : class, IMigrationReporter
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(format);
+        Services.Replace(ServiceDescriptor.KeyedSingleton<IMigrationReporter, T>(format));
+        return this;
+    }
+
+    /// <summary>
+    /// Registers an <see cref="IMigrationReporter"/> instance for a new output format.
+    /// </summary>
+    public NSchemaApplicationBuilder AddReporter(string format, IMigrationReporter reporter)
     {
         ArgumentNullException.ThrowIfNull(reporter);
-        Services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IMigrationReporter), reporter));
+        Services.Replace(ServiceDescriptor.KeyedSingleton(format, reporter));
         return this;
     }
 
     /// <summary>
     /// Configures the operation the migration run performs.
     /// </summary>
-    /// <param name="operation">The operation to perform.</param>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder RunOperation(MigrationOperation operation)
-    {
-        Services.Configure<MigrationRunOptions>(o => o.Operation = operation);
-        return this;
-    }
+    public NSchemaApplicationBuilder RunOperation(MigrationOperation operation) => WithOperationOptions(o => o.Operation = operation);
 
     /// <summary>
-    /// Configures the output format used to render run output, resolved to an <see cref="IMigrationReporter"/> at runtime.
+    /// Configures the output format used to render run output.
     /// </summary>
-    /// <param name="format">The output format, e.g. <c>human</c> or <c>json</c>.</param>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder WithOutputFormat(string format)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(format);
-        Services.Configure<MigrationRunOptions>(o => o.OutputFormat = format);
-        return this;
-    }
-
-    /// <summary>
-    /// Selects the SQL dialect to generate, when more than one <see cref="Sql.ISqlGenerator"/> is registered.
-    /// </summary>
-    /// <param name="dialect">The dialect, e.g. <c>postgres</c>.</param>
-    /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder WithDialect(string dialect)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(dialect);
-        Services.Configure<MigrationRunOptions>(o => o.Dialect = dialect);
-        return this;
-    }
+    public NSchemaApplicationBuilder WithOutputFormat(string format) => WithOperationOptions(o => o.OutputFormat = format);
 
     /// <summary>
     /// Configures how exceptions are surfaced.
     /// </summary>
-    /// <param name="behavior">The exception behavior to apply.</param>
-    /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder WithExceptionBehavior(ExceptionBehavior behavior)
     {
-        Services.Configure<MigrationRunOptions>(o => o.ExceptionBehavior = behavior);
+        Services.Configure<OperationOptions>(o => o.ExceptionBehavior = behavior);
         return this;
     }
 
     /// <summary>
     /// Scopes the migration to a specific set of schema names.
     /// </summary>
-    /// <param name="schemaNames">The schema names to include in the migration.</param>
-    /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder ForSchemas(params string[] schemaNames)
     {
         Services.Configure<MigrationOptions>(o => o.SchemaNames = schemaNames);

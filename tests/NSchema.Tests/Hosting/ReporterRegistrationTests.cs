@@ -3,6 +3,7 @@ using NSchema.Diff.Model;
 using NSchema.Hosting;
 using NSchema.Migration;
 using NSchema.Policies;
+using NSchema.Resolution;
 using NSchema.Sql.Model;
 
 namespace NSchema.Tests.Hosting;
@@ -10,9 +11,8 @@ namespace NSchema.Tests.Hosting;
 public sealed class ReporterRegistrationTests
 {
     /// <summary>A no-op reporter that only carries a format, for registration tests.</summary>
-    private sealed class StubReporter(string format) : IMigrationReporter
+    private sealed class StubReporter : IMigrationReporter
     {
-        public string Format => format;
         public void Info(string message) { }
         public void ReportException(Exception exception) { }
         public void ReportDiff(MigrationDiff diff) { }
@@ -28,46 +28,45 @@ public sealed class ReporterRegistrationTests
     }
 
     [Fact]
-    public void Default_RegistersHumanReporter()
+    public void Default_RegistersDefaultReporter()
     {
-        var resolver = Build(_ => { }).GetRequiredService<IMigrationReporterResolver>();
+        var resolver = Build(_ => { }).GetRequiredService<IKeyedResolver<IMigrationReporter>>();
 
-        resolver.ForFormat("human").ShouldBeOfType<DefaultMigrationReporter>();
-        resolver.AvailableFormats.ShouldContain("human");
+        resolver.Resolve(DefaultMigrationReporter.FormatName).ShouldBeOfType<DefaultMigrationReporter>();
+        resolver.HasCurrent.ShouldBeTrue();
+        resolver.Current.ShouldBeOfType<DefaultMigrationReporter>();
     }
 
     [Fact]
     public void AddReporter_Instance_IsResolvable()
     {
-        var json = new StubReporter("json");
+        var json = new StubReporter();
 
-        var resolver = Build(b => b.AddReporter(json)).GetRequiredService<IMigrationReporterResolver>();
+        var resolver = Build(b => b.AddReporter("json", json)).GetRequiredService<IKeyedResolver<IMigrationReporter>>();
 
-        resolver.ForFormat("json").ShouldBeSameAs(json);
-        resolver.AvailableFormats.ShouldBe(["human", "json"], ignoreOrder: true);
+        resolver.Resolve("json").ShouldBeSameAs(json);
     }
 
     [Fact]
-    public void AddReporter_OverridesBuiltInReporter_ForSameFormat()
+    public void AddReporter_DuplicateFormat_KeepsLast()
     {
-        // The built-in 'human' reporter is registered first, so a caller's reporter for the same format,
-        // added afterwards, replaces it (last registration wins).
-        var human = new StubReporter("human");
+        var first = new StubReporter();
+        var second = new StubReporter();
 
-        var resolver = Build(b => b.AddReporter(human)).GetRequiredService<IMigrationReporterResolver>();
+        var resolver = Build(b => b.AddReporter("json", first).AddReporter("json", second)).GetRequiredService<IKeyedResolver<IMigrationReporter>>();
 
-        resolver.ForFormat("human").ShouldBeSameAs(human);
+        resolver.Resolve("json").ShouldBeSameAs(second);
     }
 
     [Fact]
     public void Current_SelectsReporterForConfiguredOutputFormat()
     {
-        var json = new StubReporter("json");
+        var json = new StubReporter();
 
         var resolver = Build(b => b
-            .AddReporter(json)
+            .AddReporter("json", json)
             .WithOutputFormat("json"))
-            .GetRequiredService<IMigrationReporterResolver>();
+            .GetRequiredService<IKeyedResolver<IMigrationReporter>>();
 
         resolver.Current.ShouldBeSameAs(json);
     }
@@ -75,7 +74,7 @@ public sealed class ReporterRegistrationTests
     [Fact]
     public void Current_DefaultsToHumanReporter()
     {
-        var resolver = Build(_ => { }).GetRequiredService<IMigrationReporterResolver>();
+        var resolver = Build(_ => { }).GetRequiredService<IKeyedResolver<IMigrationReporter>>();
 
         resolver.Current.ShouldBeOfType<DefaultMigrationReporter>();
     }

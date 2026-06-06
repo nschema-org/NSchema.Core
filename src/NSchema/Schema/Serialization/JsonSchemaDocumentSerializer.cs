@@ -11,6 +11,11 @@ namespace NSchema.Schema.Serialization;
 public sealed class JsonSchemaDocumentSerializer : ISchemaDocumentSerializer
 {
     /// <summary>
+    /// The format name key for this serializer.
+    /// </summary>
+    public const string FormatName = "json";
+
+    /// <summary>
     /// A singleton instance of the <see cref="JsonSchemaDocumentSerializer"/> class.
     /// </summary>
     public static readonly JsonSchemaDocumentSerializer Instance = new();
@@ -29,7 +34,7 @@ public sealed class JsonSchemaDocumentSerializer : ISchemaDocumentSerializer
     };
 
     /// <inheritdoc/>
-    public string Format => "json";
+    public string Format => FormatName;
 
     /// <inheritdoc/>
     public ValueTask Write(DatabaseSchema schema, Stream destination, CancellationToken cancellationToken = default)

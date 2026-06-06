@@ -13,22 +13,25 @@ Planning and applying behavior are the same as before, but most public types hav
 ### Added
 
 - A new `IMigrationConfirmation` interface in `NSchema.Hosting` that can be used to seek confirmation before applying a migration. This is intended for interactive scenarios (e.g. CLI) where the user can review the plan and confirm before proceeding.
-- Exception handling can now be controlled via `MigrationRunOptions.ExceptionBehavior` or `NSchemaApplicationBuilder.WithExceptionBehavior(...)`. The default behavior is preserved: exceptions will be reported to the `IMigrationReporter` and then re-thrown.
+- Exception handling can now be controlled via `OperationOptions.ExceptionBehavior` or `NSchemaApplicationBuilder.WithExceptionBehavior(...)`. The default behavior is preserved: exceptions will be reported to the `IMigrationReporter` and then re-thrown.
 - Schemas are now diffed into a structured, hierarchical model (`NSchema.Diff.Model.MigrationDiff`) and a new `IDiffRenderer` interface renders it for the reporter.
 - `UseTerraformRenderer(...)` to configure the default Terraform-style renderer.
 - SQL previews are now structured too. `ISqlPlanRenderer` renders a `SqlPlan` to text, mirroring `IDiffRenderer`.
 - Offline SQL previews. Because generating SQL is pure string-building, `Plan` now renders the SQL preview whenever an `ISqlGenerator` dialect is registered.
 - `PolicyDiagnostics`, a collection type for policy results, with a `PolicyDiagnosticSeverity` of `Info`, `Warning`, or `Error`.
-- Pluggable output formats. `IMigrationReporter` now carries a `Format`, so several reporters can be registered with `AddReporter<T>()` and one chosen per run via `WithOutputFormat(...)` (or `MigrationRunOptions.OutputFormat`, defaulting to `human`). The built-in human reporter remains the default.
-- Selectable SQL dialects. `ISqlGenerator` now carries a `Dialect`, so several generators can be registered with `AddSqlGenerator<T>()` and one chosen per run via `WithDialect(...)` (or `MigrationRunOptions.Dialect`). When a single generator is registered it is used automatically, as before.
-- Pluggable schema document formats. A new `ISchemaDocumentSerializer` reads and writes a desired-schema file format (JSON built-in); register more with `AddSchemaSerializer<T>()`. `FileSchemaProvider` now delegates parsing to one.
-- Runtime resolver seams for the above. `IMigrationReporterResolver`, `ISqlGeneratorResolver`, and `ISchemaDocumentSerializerResolver` — let you register many implementations and select one at runtime by key (output format, dialect, or document format). Registering two implementations for the same key is rejected.
+- Pluggable output formats. `IMigrationReporter` now carries a `Format`, so several reporters can be registered with `AddReporter<T>(format)` or `AddReporter(instance)` and one chosen per run via `WithOutputFormat(...)` (or `MigrationOptions.OutputFormat`, defaulting to `human`). The built-in human reporter remains the default.
+- Selectable SQL dialects. `ISqlGenerator` now carries a `Dialect`, so several generators can be registered with `AddSqlGenerator<T>(dialect)` and one chosen per run via `WithDialect(...)` (or `MigrationOptions.Dialect`).
+- Pluggable schema document formats. A new `ISchemaDocumentSerializer` reads and writes a desired-schema file format (JSON built-in); register more with `AddSchemaSerializer<T>(format)`. `FileSchemaProvider` now delegates parsing to one.
+- `IKeyedResolver<TValue>` a new shared resolver interface injected directly to consumers of any named-service seam (reporters, SQL generators, schema serializers, import targets). Exposes `Current`, `HasCurrent`, `Resolve(key)`, and `TryResolve(key, out value)`.
+- `Import` operation. Reads the live database schema and writes it to a registered `ISchemaImportTarget`. Triggered via `app.Import()` or `RunOperation(MigrationOperation.Import)`. Partial imports are supported via `ImportOptions.Schemas` and `ImportOptions.Tables`.
+- `ISchemaImportTarget` the output abstraction for the `Import` operation. Register with `AddImportTarget<T>(name)` / `UseImportTarget<T>(name)` / `UseFileImportTarget(...)`. The target is selected by key via `ImportOptions.Target`.
+- `FileSchemaImportTarget` a built-in file-backed import target. Registered with `UseFileImportTarget(opts => ...)`. Supports `ImportPartitionMode` of `None` (single file), `Schema` (one file per schema), or `Table` (one file per table).
 
 ### Changed
 
 - **Breaking:** Namespaces have been flattened. Several areas have been promoted out of the `NSchema.Migration` umbrella into top-level namespaces that mirror the architecture.
-- **Breaking:** `ISqlPlanner` is now `ISqlGenerator`, and its `Plan(MigrationPlan)` method is now `Generate(MigrationPlan)`. Register it with `AddSqlGenerator<T>()` (was `UseSqlPlanner<T>()`). It also now requires a `Dialect` property so generators can be selected by dialect.
-- **Breaking:** `UseSqlGenerator<T>()` has been renamed to `AddSqlGenerator<T>()`, matching the other additive registration methods.
+- **Breaking:** `ISqlPlanner` is now `ISqlGenerator`, and its `Plan(MigrationPlan)` method is now `Generate(MigrationPlan)`. Register it with `AddSqlGenerator<T>(dialect)` (was `UseSqlPlanner<T>()`). It also now requires a `Dialect` property so generators can be selected by dialect.
+- **Breaking:** `UseSqlGenerator<T>()` has been renamed to `AddSqlGenerator<T>(dialect)`, matching the other additive registration methods.
 - **Breaking:** `IMigrationReporter` now requires a `Format` property so reporters can be selected by output format. Custom reporters must supply one.
 - **Breaking:** `FileSchemaProvider` is no longer abstract with a `Parse(Stream)` method; it now takes an `ISchemaDocumentSerializer`. Implement a new file format by implementing `ISchemaDocumentSerializer` rather than subclassing `FileSchemaProvider`.
 - **Breaking:** `IMigrationReporter.ReportPreview(IReadOnlyList<string>)` is now `ReportSqlPlan(SqlPlan)`, so the reporter receives the structured plan and renders it via `ISqlPlanRenderer` rather than a pre-flattened list of strings.
