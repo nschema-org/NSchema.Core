@@ -73,5 +73,5 @@ public sealed class SchemaLintPolicy : ISchemaPolicy
         }
     }
 
-    private static PolicyDiagnostic Warning(string message) => new(PolicyName, message, PolicyDiagnosticSeverity.Warning);
+    private static PolicyDiagnostic Warning(string message) => PolicyDiagnostic.Warning(PolicyName, message);
 }

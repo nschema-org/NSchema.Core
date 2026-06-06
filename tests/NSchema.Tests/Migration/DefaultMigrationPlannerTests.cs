@@ -133,7 +133,7 @@ public sealed class DefaultMigrationPlannerTests
     {
         // Arrange
         var policy = Substitute.For<IDiffPolicy>();
-        policy.Validate(_emptyDiff).Returns([new PolicyDiagnostic("Test", "destructive")]);
+        policy.Validate(_emptyDiff).Returns([PolicyDiagnostic.Error("Test", "destructive")]);
         _diffPolicies.Add(policy);
 
         // Act
@@ -179,7 +179,7 @@ public sealed class DefaultMigrationPlannerTests
         transformer.Transform(Arg.Any<MigrationPlan>()).Returns(transformed);
         _transformers.Add(transformer);
         var policy = Substitute.For<IMigrationPolicy>();
-        policy.Validate(transformed).Returns([new PolicyDiagnostic("Test", "destructive")]);
+        policy.Validate(transformed).Returns([PolicyDiagnostic.Error("Test", "destructive")]);
         _migrationPolicies.Add(policy);
 
         // Act

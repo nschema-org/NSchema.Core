@@ -152,5 +152,5 @@ public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
     // The NUL character cannot appear in an identifier, so it is a safe composite-key separator even for quoted names.
     private static string Key(string schema, string table) => $"{schema.ToLowerInvariant()}\0{table.ToLowerInvariant()}";
 
-    private static PolicyDiagnostic Error(string message) => new(PolicyName, message);
+    private static PolicyDiagnostic Error(string message) => PolicyDiagnostic.Error(PolicyName, message);
 }

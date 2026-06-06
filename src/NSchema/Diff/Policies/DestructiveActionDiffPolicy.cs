@@ -12,6 +12,8 @@ namespace NSchema.Diff.Policies;
 /// </summary>
 internal sealed class DestructiveActionDiffPolicy(IOptions<MigrationOptions> options) : IDiffPolicy
 {
+    private const string PolicyName = "destructive-actions";
+
     public IEnumerable<PolicyDiagnostic> Validate(MigrationDiff diff)
     {
         var destructive = DestructiveChanges(diff).Distinct().ToList();
@@ -24,20 +26,9 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<MigrationOptions> opt
 
         return options.Value.DestructiveActionPolicy switch
         {
-            DestructiveActionPolicy.Allow => [new PolicyDiagnostic(
-                nameof(DestructiveActionDiffPolicy),
-                $"Allowing destructive actions in migration plan: {typeString}.",
-                PolicyDiagnosticSeverity.Info
-            )],
-            DestructiveActionPolicy.Warn => [new PolicyDiagnostic(
-                nameof(DestructiveActionDiffPolicy),
-                $"Migration plan contains destructive actions: {typeString}.",
-                PolicyDiagnosticSeverity.Warning
-                )],
-            _ => [new PolicyDiagnostic(
-                nameof(DestructiveActionDiffPolicy),
-                $"Destructive actions blocked by policy: {typeString}."
-            )]
+            DestructiveActionPolicy.Allow => [PolicyDiagnostic.Info(PolicyName, $"Allowing destructive actions in migration plan: {typeString}.")],
+            DestructiveActionPolicy.Warn => [PolicyDiagnostic.Warning(PolicyName, $"Migration plan contains destructive actions: {typeString}.")],
+            _ => [ PolicyDiagnostic.Error(PolicyName, $"Destructive actions blocked by policy: {typeString}.")]
         };
     }
 
