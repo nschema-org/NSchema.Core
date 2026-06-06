@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>NSchema.Tests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

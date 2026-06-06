@@ -1,4 +1,4 @@
-name: NSchema
+name: NSchema.Core
 
 on:
   workflow_dispatch:
