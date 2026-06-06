@@ -1,6 +1,6 @@
-# ![NSchema](https://raw.githubusercontent.com/tom-wolfe/NSchema/main/assets/nschema-logo-horizontal.png)
+# ![NSchema](https://raw.githubusercontent.com/nschema-org/NSchema.Core/main/assets/nschema-logo-horizontal.png)
 
-[![NSchema](https://github.com/nschema-org/NSchema/actions/workflows/cicd.yml/badge.svg)](https://github.com/nschema-org/NSchema/actions/workflows/cicd.yml)
+[![NSchema.Core](https://github.com/nschema-org/NSchema.Core/actions/workflows/cicd.yml/badge.svg)](https://github.com/nschema-org/NSchema.Core/actions/workflows/cicd.yml)
 
 NSchema is a declarative database schema migration library for .NET.
 
@@ -13,7 +13,7 @@ Designed to be familiar to .NET devs, with extensibility and safety features to 
 Install the core package and a database provider:
 
 ```bash
-dotnet add package NSchema
+dotnet add package NSchema.Core
 dotnet add package NSchema.Postgres   # or another provider
 ```
 
