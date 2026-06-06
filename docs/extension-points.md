@@ -19,21 +19,21 @@ Everything in the pipeline is registered through DI. You can replace defaults or
 
 These extension points are less commonly used, but still available for advanced scenarios.
 
-| Interface                | Purpose                                                                                      | Registered via                                                                                                                 |
-|--------------------------|----------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------|
-| `IMigrationPlanner`      | Replace the planner that diffs the two schemas and produces a `MigrationPlanResult`.         | `AddSingleton<IMigrationPlanner, T>()`                                                                                         |
-| `IDesiredSchemaProvider` | Replace how desired schemas are gathered and aggregated into a single `DatabaseSchema`.      | `AddSingleton<IDesiredSchemaProvider, T>()`                                                                                    |
-| `ICurrentSchemaProvider` | Replace how online and offline current-state sources are selected and read                   | `AddSingleton<ICurrentSchemaProvider, T>()`                                                                                    |
-| `IDiffRenderer`          | Customize how the migration diff is rendered to text (e.g. JSON instead of Terraform-style). | `UseTerraformRenderer(...)` / `AddSingleton<IDiffRenderer, T>()`                                                               |
-| `IMigrationReporter`     | Customize run output. Register several and select one with `WithOutputFormat(...)`.          | `AddReporter<T>(format)` / `AddReporter(instance)` (first-wins); `UseReporter<T>(format)` / `UseReporter(instance)` to replace |
-| `ISchemaAggregator`      | Combine multiple desired schemas into a single schema for comparison.                        | `AddSingleton<ISchemaAggregator, T>()`                                                                                         |
-| `ISchemaComparer`        | Compare the current and desired schemas to produce a migration plan.                         | `AddSingleton<ISchemaComparer, T>()`                                                                                           |
-| `ISqlPlanRenderer`       | Customize how the SQL preview is rendered to text.                                           | `AddSingleton<ISqlPlanRenderer, T>()`                                                                                          |
-| `ISqlExecutor`           | Override how SQL is sent to the database (e.g. logging, custom transactions).                | `UseSqlExecutor<T>()`                                                                                                          |
+| Interface                | Purpose                                                                                      | Registered via                                                   |
+|--------------------------|----------------------------------------------------------------------------------------------|------------------------------------------------------------------|
+| `IMigrationPlanner`      | Replace the planner that diffs the two schemas and produces a `MigrationPlanResult`.         | `AddSingleton<IMigrationPlanner, T>()`                           |
+| `IDesiredSchemaProvider` | Replace how desired schemas are gathered and aggregated into a single `DatabaseSchema`.      | `AddSingleton<IDesiredSchemaProvider, T>()`                      |
+| `ICurrentSchemaProvider` | Replace how online and offline current-state sources are selected and read                   | `AddSingleton<ICurrentSchemaProvider, T>()`                      |
+| `IDiffRenderer`          | Customize how the migration diff is rendered to text (e.g. JSON instead of Terraform-style). | `UseTerraformRenderer(...)` / `AddSingleton<IDiffRenderer, T>()` |
+| `IMigrationReporter`     | Customize run output. Register several and select one with `WithOutputFormat(...)`.          | `AddReporter<T>(format)` / `AddReporter(instance)`               |
+| `ISchemaAggregator`      | Combine multiple desired schemas into a single schema for comparison.                        | `AddSingleton<ISchemaAggregator, T>()`                           |
+| `ISchemaComparer`        | Compare the current and desired schemas to produce a migration plan.                         | `AddSingleton<ISchemaComparer, T>()`                             |
+| `ISqlPlanRenderer`       | Customize how the SQL preview is rendered to text.                                           | `AddSingleton<ISqlPlanRenderer, T>()`                            |
+| `ISqlExecutor`           | Override how SQL is sent to the database (e.g. logging, custom transactions).                | `UseSqlExecutor<T>()`                                            |
 
 ## Selecting one of many by key
 
-A few seams let you register several implementations and pick one per run by a string key. All four are backed by `IKeyedResolver<TValue>`, which is injected directly into consumers. Duplicate key registrations are first-wins; use the corresponding `Use…<T>()` method to replace a built-in default.
+A few seams let you register several implementations and pick one per run by a string key. All four are backed by `IKeyedResolver<TValue>`, which is injected directly into consumers.
 
 | Seam                        | Key       | Registered via                   | Selected by                                               |
 |-----------------------------|-----------|----------------------------------|-----------------------------------------------------------|
