@@ -24,4 +24,9 @@ public enum MigrationOperation
     /// Read the live current schema and write it to the import target.
     /// </summary>
     Import,
+
+    /// <summary>
+    /// Load the desired schema and validate it against the schema policies.
+    /// </summary>
+    Validate,
 }

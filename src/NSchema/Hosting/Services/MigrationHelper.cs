@@ -4,6 +4,7 @@ using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Resolution;
 using NSchema.Schema;
+using NSchema.Schema.Model;
 using NSchema.Scripts;
 using NSchema.Scripts.Model;
 using NSchema.State;
@@ -23,11 +24,10 @@ internal sealed class MigrationHelper(
 {
     public bool HasStore => store is not null;
 
-    public async Task<MigrationPlan> Plan(SchemaSourceMode currentSource, bool required, CancellationToken cancellationToken = default)
+    public async Task<DatabaseSchema> Validate(CancellationToken cancellationToken = default)
     {
         reporters.Current.Info("Loading desired schema...");
         var desiredSchema = await desiredProvider.GetSchema(options.Value.SchemaNames, cancellationToken);
-        var schemasInScope = options.Value.SchemaNames ?? desiredSchema.AllSchemaNames;
 
         reporters.Current.Info("Validating schema...");
         var schemaDiagnostics = new PolicyDiagnostics(schemaPolicies.SelectMany(p => p.Validate(desiredSchema)));
@@ -40,6 +40,14 @@ internal sealed class MigrationHelper(
         {
             reporters.Current.ReportDiagnostics(schemaDiagnostics);
         }
+
+        return desiredSchema;
+    }
+
+    public async Task<MigrationPlan> Plan(SchemaSourceMode currentSource, bool required, CancellationToken cancellationToken = default)
+    {
+        var desiredSchema = await Validate(cancellationToken);
+        var schemasInScope = options.Value.SchemaNames ?? desiredSchema.AllSchemaNames;
 
         reporters.Current.Info($"Migration will be scoped to the following schemas: {string.Join(", ", schemasInScope)}");
 

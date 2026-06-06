@@ -42,6 +42,65 @@ public sealed class MigrationHelperTests
     }
 
     [Fact]
+    public async Task ValidateDesiredSchema_ReturnsLoadedSchema_WhenNoPolicyErrors()
+    {
+        // Arrange
+        var desired = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
+        _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(desired);
+
+        // Act
+        var result = await _sut.Validate(TestContext.Current.CancellationToken);
+
+        // Assert
+        result.ShouldBe(desired);
+    }
+
+    [Fact]
+    public async Task ValidateDesiredSchema_PolicyViolation_ThrowsWithoutReporting()
+    {
+        // Arrange
+        var policy = Substitute.For<ISchemaPolicy>();
+        policy.Validate(Arg.Any<DatabaseSchema>()).Returns([new PolicyDiagnostic("P1", "msg")]);
+        var sut = new MigrationHelper(
+            _options, _planner, [], Helpers.TestReporters.ResolverFor(_reporter), _currentProvider, _desiredProvider, [policy]);
+
+        // Act
+        var act = () => sut.Validate(TestContext.Current.CancellationToken);
+
+        // Assert
+        await act.ShouldThrowAsync<PolicyViolationException>();
+        _reporter.DidNotReceive().ReportDiagnostics(Arg.Any<PolicyDiagnostics>());
+    }
+
+    [Fact]
+    public async Task ValidateDesiredSchema_NonErrorDiagnostics_AreReported()
+    {
+        // Arrange
+        var policy = Substitute.For<ISchemaPolicy>();
+        policy.Validate(Arg.Any<DatabaseSchema>())
+            .Returns([new PolicyDiagnostic("P1", "info", PolicyDiagnosticSeverity.Info)]);
+        var sut = new MigrationHelper(
+            _options, _planner, [], Helpers.TestReporters.ResolverFor(_reporter), _currentProvider, _desiredProvider, [policy]);
+
+        // Act
+        await sut.Validate(TestContext.Current.CancellationToken);
+
+        // Assert
+        _reporter.Received(1).ReportDiagnostics(Arg.Any<PolicyDiagnostics>());
+    }
+
+    [Fact]
+    public async Task ValidateDesiredSchema_DoesNotContactCurrentProvider()
+    {
+        // Act
+        await _sut.Validate(TestContext.Current.CancellationToken);
+
+        // Assert
+        await _currentProvider.DidNotReceive().GetSchema(
+            Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Prepare_ReturnsComputedPlan_AndReportsItsDiff()
     {
         // Arrange

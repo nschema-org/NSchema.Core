@@ -71,6 +71,12 @@ public sealed class NSchemaApplication : IHost
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     public Task Import(CancellationToken cancellationToken = default) => RunOperation(MigrationOperation.Import, cancellationToken);
 
+    /// <summary>
+    /// Loads the desired schema and validates it against the configured schema policies.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    public Task Validate(CancellationToken cancellationToken = default) => RunOperation(MigrationOperation.Validate, cancellationToken);
+
     private Task RunOperation(MigrationOperation operation, CancellationToken cancellationToken)
     {
         _host.Services.GetRequiredService<IOptions<OperationOptions>>().Value.Operation = operation;
