@@ -6,18 +6,17 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <!-- The package and assembly are named NSchema.Core; the API namespace stays NSchema so consumers keep using NSchema. -->
     <AssemblyName>NSchema.Core</AssemblyName>
     <RootNamespace>NSchema</RootNamespace>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Authors>Tom Wolfe</Authors>
     <Copyright>Copyright © 2026 Tom Wolfe</Copyright>
     <PackageId>NSchema.Core</PackageId>
-    <PackageProjectUrl>https://github.com/tom-wolfe/NSchema</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/nschema-org/NSchema.Core</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>nschema-mark-128.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/tom-wolfe/NSchema.git</RepositoryUrl>
+    <RepositoryUrl>https://github.com/nschema-org/NSchema.Core.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
