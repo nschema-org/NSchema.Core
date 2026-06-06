@@ -60,7 +60,7 @@ public sealed class MigrationHelperTests
     {
         // Arrange
         var policy = Substitute.For<ISchemaPolicy>();
-        policy.Validate(Arg.Any<DatabaseSchema>()).Returns([new PolicyDiagnostic("P1", "msg")]);
+        policy.Validate(Arg.Any<DatabaseSchema>()).Returns([PolicyDiagnostic.Error("P1", "msg")]);
         var sut = new MigrationHelper(
             _options, _planner, [], Helpers.TestReporters.ResolverFor(_reporter), _currentProvider, _desiredProvider, [policy]);
 
@@ -148,7 +148,7 @@ public sealed class MigrationHelperTests
     public async Task Prepare_PolicyViolation_ThrowsWithoutReporting()
     {
         // Arrange
-        var errors = new[] { new PolicyDiagnostic("P1", "msg") };
+        var errors = new[] { PolicyDiagnostic.Error("P1", "msg") };
         _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
             .Returns(new MigrationPlanResult(null, null, errors));
 

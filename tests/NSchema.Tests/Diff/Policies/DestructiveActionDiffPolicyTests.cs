@@ -1,21 +1,21 @@
 using Microsoft.Extensions.Options;
-using NSchema.Diff;
+using NSchema.Diff.Policies;
 using NSchema.Migration;
 using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Tests.Helpers;
 
-namespace NSchema.Tests.Diff;
+namespace NSchema.Tests.Diff.Policies;
 
-public class DestructiveActionMigrationPolicyTests
+public class DestructiveActionDiffPolicyTests
 {
     private readonly IOptions<MigrationOptions> _options = Options.Create(new MigrationOptions());
 
-    private readonly DestructiveActionMigrationPolicy _sut;
+    private readonly DestructiveActionDiffPolicy _sut;
 
-    public DestructiveActionMigrationPolicyTests()
+    public DestructiveActionDiffPolicyTests()
     {
-        _sut = new DestructiveActionMigrationPolicy(_options);
+        _sut = new DestructiveActionDiffPolicy(_options);
     }
 
     [Fact]
@@ -30,7 +30,7 @@ public class DestructiveActionMigrationPolicyTests
         // Assert
         errors.ShouldHaveSingleItem();
         errors[0].Severity.ShouldBe(PolicyDiagnosticSeverity.Error);
-        errors[0].PolicyName.ShouldBe(nameof(DestructiveActionMigrationPolicy));
+        errors[0].PolicyName.ShouldBe("destructive-actions");
         errors[0].Message.ShouldContain(nameof(DropTable));
     }
 

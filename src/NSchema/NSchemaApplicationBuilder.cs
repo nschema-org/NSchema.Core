@@ -5,6 +5,7 @@ using Microsoft.Extensions.Diagnostics.Metrics;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NSchema.Diff;
+using NSchema.Diff.Policies;
 using NSchema.Hosting;
 using NSchema.Hosting.Operations;
 using NSchema.Hosting.Services;
@@ -12,6 +13,7 @@ using NSchema.Import;
 using NSchema.Migration;
 using NSchema.Resolution;
 using NSchema.Schema;
+using NSchema.Schema.Policies;
 using NSchema.Schema.Serialization;
 using NSchema.Sql;
 using NSchema.State;
@@ -53,8 +55,10 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         AddReporter<DefaultMigrationReporter>(DefaultMigrationReporter.FormatName);
         AddSchemaSerializer<JsonSchemaDocumentSerializer>(JsonSchemaDocumentSerializer.FormatName);
 
-        // Diff policies registered up front so users can remove them before Build().
-        _innerBuilder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IDiffPolicy, DestructiveActionMigrationPolicy>());
+        // Policies registered up front so users can remove them before Build().
+        AddSchemaPolicy<StructuralIntegritySchemaPolicy>();
+        AddSchemaPolicy<SchemaLintPolicy>();
+        AddDiffPolicy<DestructiveActionDiffPolicy>();
     }
 
     /// <inheritdoc />

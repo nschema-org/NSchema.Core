@@ -9,8 +9,8 @@ public sealed class PolicyViolationExceptionTests
     {
         var errors = new[]
         {
-            new PolicyDiagnostic("P1", "first"),
-            new PolicyDiagnostic("P2", "second"),
+            PolicyDiagnostic.Error("P1", "first"),
+            PolicyDiagnostic.Error("P2", "second"),
         };
 
         var exception = new PolicyViolationException(errors);
@@ -21,7 +21,7 @@ public sealed class PolicyViolationExceptionTests
     [Fact]
     public void Errors_ExposesTheSuppliedDiagnostics()
     {
-        var errors = new[] { new PolicyDiagnostic("P1", "boom") };
+        var errors = new[] { PolicyDiagnostic.Error("P1", "boom") };
 
         var exception = new PolicyViolationException(errors);
 
