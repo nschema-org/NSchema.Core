@@ -128,6 +128,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddKeyedSingleton<IMigrationOperation, ApplyOperation>(MigrationOperation.Apply);
         services.TryAddKeyedSingleton<IMigrationOperation, RefreshOperation>(MigrationOperation.Refresh);
         services.TryAddKeyedSingleton<IMigrationOperation, ImportOperation>(MigrationOperation.Import);
+        services.TryAddKeyedSingleton<IMigrationOperation, ValidateOperation>(MigrationOperation.Validate);
 
         // This is the service responsible for running the migration.
         services.AddHostedService<NSchemaHost>();

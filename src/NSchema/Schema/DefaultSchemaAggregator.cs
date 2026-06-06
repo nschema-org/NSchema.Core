@@ -34,7 +34,7 @@ internal sealed class DefaultSchemaAggregator : ISchemaAggregator
             {
                 if (!seen.Add(table.Name))
                 {
-                    throw new InvalidOperationException($"Duplicate table '{table.Name}' found in schema '{schemaName}' across multiple providers.");
+                    throw new InvalidOperationException($"Duplicate table '{table.Name}' found in schema '{schemaName}'.");
                 }
 
                 tables.Add(table);
@@ -44,7 +44,7 @@ internal sealed class DefaultSchemaAggregator : ISchemaAggregator
         var comments = schemas.Select(s => s.Comment).Where(c => c is not null).Distinct().ToList();
         if (comments.Count > 1)
         {
-            throw new InvalidOperationException($"Conflicting comments specified for schema '{schemaName}' across multiple providers.");
+            throw new InvalidOperationException($"Conflicting comments specified for schema '{schemaName}'.");
         }
         var comment = comments.FirstOrDefault();
 
