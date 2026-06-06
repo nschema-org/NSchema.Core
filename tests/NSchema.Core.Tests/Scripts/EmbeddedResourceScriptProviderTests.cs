@@ -12,7 +12,7 @@ public sealed class EmbeddedResourceScriptProviderTests
     public async Task GetScripts_LoadsResourceWithDerivedName()
     {
         var sut = new EmbeddedResourceScriptProvider(
-            ScriptType.PreDeployment, _assembly, "NSchema.Core.Tests.Resources.pre_001.sql");
+            ScriptType.PreDeployment, _assembly, "NSchema.Tests.Resources.pre_001.sql");
 
         var script = (await sut.GetScripts(TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
 
@@ -25,7 +25,7 @@ public sealed class EmbeddedResourceScriptProviderTests
     public async Task GetScripts_UsesExplicitName_WhenProvided()
     {
         var sut = new EmbeddedResourceScriptProvider(
-            ScriptType.PostDeployment, _assembly, "NSchema.Core.Tests.Resources.post_001.sql", name: "analyze");
+            ScriptType.PostDeployment, _assembly, "NSchema.Tests.Resources.post_001.sql", name: "analyze");
 
         var script = (await sut.GetScripts(TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
 

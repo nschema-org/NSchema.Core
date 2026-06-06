@@ -15,7 +15,7 @@ public sealed class EmbeddedResourceTests
     public async Task Read_ReturnsResourceContent()
     {
         var content = await EmbeddedResource.Read(
-            _assembly, "NSchema.Core.Tests.Resources.pre_001.sql", TestContext.Current.CancellationToken);
+            _assembly, "NSchema.Tests.Resources.pre_001.sql", TestContext.Current.CancellationToken);
 
         content.ShouldBe("CREATE EXTENSION IF NOT EXISTS pgcrypto;\n");
     }
