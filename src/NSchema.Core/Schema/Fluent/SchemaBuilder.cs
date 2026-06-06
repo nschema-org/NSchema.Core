@@ -1,4 +1,6 @@
-namespace NSchema.Schema.Model.Fluent;
+using NSchema.Schema.Model;
+
+namespace NSchema.Schema.Fluent;
 
 /// <summary>
 /// Provides a fluent interface for building a database schema definition.

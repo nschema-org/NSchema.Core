@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Options;
 using NSchema.Resolution;
-using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Schema.Serialization;
 
@@ -9,7 +8,7 @@ namespace NSchema.Import;
 /// <summary>
 /// An <see cref="ISchemaImportTarget"/> that writes the imported schema to the local filesystem, merging additively with any existing files.
 /// </summary>
-internal sealed class FileSchemaImportTarget(IOptions<FileSchemaImportTargetOptions> options, IKeyedResolver<ISchemaDocumentSerializer> serializers, ISchemaAggregator aggregator) : ISchemaImportTarget
+internal sealed class FileSchemaImportTarget(IOptions<FileSchemaImportTargetOptions> options, IKeyedResolver<ISchemaDocumentSerializer> serializers) : ISchemaImportTarget
 {
     /// <summary>
     /// The name of the target, used for resolution.
@@ -77,6 +76,6 @@ internal sealed class FileSchemaImportTarget(IOptions<FileSchemaImportTargetOpti
             .ToList();
 
         var pruned = DatabaseSchema.Create(prunedSchemas, existing.DroppedSchemas.ToList());
-        return aggregator.Aggregate([pruned, incoming]);
+        return pruned.Combine(incoming);
     }
 }

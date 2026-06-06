@@ -2,11 +2,7 @@ using NSchema.Schema.Model;
 
 namespace NSchema.Schema;
 
-internal sealed class DefaultDesiredSchemaProvider(
-    IEnumerable<ISchemaProvider> providers,
-    ISchemaAggregator aggregator,
-    IEnumerable<ISchemaTransformer> transformers
-) : IDesiredSchemaProvider
+internal sealed class DefaultDesiredSchemaProvider(IEnumerable<ISchemaProvider> providers, IEnumerable<ISchemaTransformer> transformers) : IDesiredSchemaProvider
 {
     public async ValueTask<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default)
     {
@@ -23,7 +19,7 @@ internal sealed class DefaultDesiredSchemaProvider(
         {
             schemas.AddRange(await schemaTask);
         }
-        var aggregated = aggregator.Aggregate(schemas);
+        var aggregated = schemas.Aggregate(DatabaseSchema.Create([]), (acc, schema) => acc.Combine(schema));
         return transformers.Aggregate(aggregated, (schema, transformer) => transformer.Transform(schema));
     }
 }

@@ -1,4 +1,4 @@
-using NSchema.Schema.Model.Fluent;
+using NSchema.Schema.Fluent;
 
 namespace NSchema.Tests.Schema.Fluent;
 

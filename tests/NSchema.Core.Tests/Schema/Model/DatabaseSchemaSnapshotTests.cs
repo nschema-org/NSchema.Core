@@ -1,18 +1,15 @@
-using NSchema.Schema;
 using NSchema.Schema.Model;
 
-namespace NSchema.Tests.Schema;
+namespace NSchema.Tests.Schema.Model;
 
 /// <summary>
-/// Snapshot coverage for <see cref="DefaultSchemaAggregator"/>. The per-case assertions in
-/// <see cref="DefaultSchemaAggregatorTests"/> pin the merge rules; this captures the whole merged
+/// Snapshot coverage for <see cref="DatabaseSchema"/>. The per-case assertions in
+/// <see cref="DatabaseSchemaTests"/> pin the merge rules; this captures the whole merged
 /// <c>DatabaseSchema</c> graph for several providers at once, so table grouping, ordering, and
 /// carried-through detail all show up as a single reviewable diff.
 /// </summary>
-public sealed class DefaultSchemaAggregatorSnapshotTests
+public sealed class DatabaseSchemaSnapshotTests
 {
-    private readonly DefaultSchemaAggregator _sut = new();
-
     [Fact]
     public Task Aggregate_MultipleProviders_MergesIntoSingleGraph()
     {
@@ -42,6 +39,6 @@ public sealed class DefaultSchemaAggregatorSnapshotTests
                 tables: [Table.Create("daily_totals", columns: [Column.Create("day", SqlType.Date)])]),
         ]);
 
-        return Verify(_sut.Aggregate([core, billing, reporting]));
+        return Verify(core.Combine(billing).Combine(reporting));
     }
 }

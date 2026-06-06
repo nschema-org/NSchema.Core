@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Options;
 using NSchema.Import;
 using NSchema.Resolution;
-using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Schema.Serialization;
 
@@ -11,7 +10,6 @@ public sealed class FileSchemaImportTargetTests : IDisposable
 {
     private readonly string _dir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
     private readonly IKeyedResolver<ISchemaDocumentSerializer> _serializers;
-    private readonly ISchemaAggregator _aggregator = new DefaultSchemaAggregator();
 
     public FileSchemaImportTargetTests()
     {
@@ -24,7 +22,7 @@ public sealed class FileSchemaImportTargetTests : IDisposable
     public void Dispose() => Directory.Delete(_dir, recursive: true);
 
     private FileSchemaImportTarget BuildSut(FileSchemaImportTargetOptions opts) =>
-        new(Options.Create(opts), _serializers, _aggregator);
+        new(Options.Create(opts), _serializers);
 
     private static async Task<DatabaseSchema> ReadSchema(string path)
     {
