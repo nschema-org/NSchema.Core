@@ -133,7 +133,7 @@ builder.WithTransactionMode(TransactionMode.None); // run all statements outside
 
 ## Output format
 
-Run output is produced by an `IMigrationReporter`. The built-in `human` reporter writes human-readable output to the terminal. You can register additional reporters (each declaring a `Format`) and select one per run:
+Run output is produced by an `IMigrationReporter`. The built-in `default` reporter writes human-readable output to the terminal. You can register additional reporters (each declaring a `Format`) and select one per run:
 
 ```csharp
 builder
