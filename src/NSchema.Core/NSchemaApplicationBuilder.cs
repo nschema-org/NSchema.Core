@@ -101,7 +101,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Schemas
         services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();
         services.TryAddSingleton<IDesiredSchemaProvider, DefaultDesiredSchemaProvider>();
-        services.TryAddSingleton<ISchemaAggregator, DefaultSchemaAggregator>();
 
         // Diffing
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();

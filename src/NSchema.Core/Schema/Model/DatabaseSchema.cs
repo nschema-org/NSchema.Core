@@ -70,4 +70,66 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition> Schemas, IReadOnlyL
         var filteredDropped = DroppedSchemas.Where(scope.Contains).ToList();
         return new DatabaseSchema(filtered, filteredDropped);
     }
+
+    /// <summary>
+    /// Combines the current <see cref="DatabaseSchema"/> with another.
+    /// </summary>
+    /// <param name="schema">The schema to combine with.</param>
+    /// <returns></returns>
+    public DatabaseSchema Combine(DatabaseSchema schema)
+    {
+        var mergedSchemas = new[] { this, schema}
+            .SelectMany(db => db.Schemas)
+            .GroupBy(s => s.Name)
+            .Select(s => AggregateSchemaGroup(s.ToList()))
+            .ToList();
+
+        var droppedSchemas = DroppedSchemas
+            .Concat(schema.DroppedSchemas)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return new DatabaseSchema(mergedSchemas, droppedSchemas);
+    }
+
+    private static SchemaDefinition AggregateSchemaGroup(IReadOnlyList<SchemaDefinition> schemas)
+    {
+        var tables = new List<Table>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var schemaName = schemas[0].Name;
+        foreach (var schema in schemas)
+        {
+            foreach (var table in schema.Tables)
+            {
+                if (!seen.Add(table.Name))
+                {
+                    throw new InvalidOperationException($"Duplicate table '{table.Name}' found in schema '{schemaName}'.");
+                }
+
+                tables.Add(table);
+            }
+        }
+
+        var comments = schemas.Select(s => s.Comment).Where(c => c is not null).Distinct().ToList();
+        if (comments.Count > 1)
+        {
+            throw new InvalidOperationException($"Conflicting comments specified for schema '{schemaName}'.");
+        }
+        var comment = comments.FirstOrDefault();
+
+        var isPartial = schemas.Any(s => s.IsPartial);
+        var droppedTables = schemas
+            .SelectMany(s => s.DroppedTables)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var oldName = schemas.Select(s => s.OldName).FirstOrDefault(n => n is not null);
+
+        var grants = schemas
+            .SelectMany(s => s.Grants)
+            .Distinct()
+            .ToList();
+
+        return new SchemaDefinition(schemaName, oldName, isPartial, comment, tables, droppedTables, grants);
+    }
 }
