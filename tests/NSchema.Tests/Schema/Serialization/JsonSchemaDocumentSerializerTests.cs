@@ -86,9 +86,6 @@ public sealed class JsonSchemaDocumentSerializerTests
     }
 
     [Fact]
-    public void Format_IsJson() => _sut.Format.ShouldBe("json");
-
-    [Fact]
     public async Task Write_ThenRead_RoundTripsAllFeatures()
     {
         // Arrange

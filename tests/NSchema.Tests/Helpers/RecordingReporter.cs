@@ -17,8 +17,6 @@ internal sealed class RecordingReporter : IMigrationReporter
 {
     public const string FormatName = "recording";
 
-    public string Format => FormatName;
-
     public List<string> Infos { get; } = [];
     public List<Exception> Exceptions { get; } = [];
     public MigrationDiff? Diff { get; private set; }
