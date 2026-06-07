@@ -11,7 +11,7 @@ public sealed class AutoApproveConfirmationTests
     public async Task Confirm_ReturnsTrue()
     {
         // Arrange
-        var plan = new MigrationPlan([]);
+        var plan = new MigrationPlan([],[],[]);
 
         // Act
         var result = await _sut.Confirm(plan, TestContext.Current.CancellationToken);

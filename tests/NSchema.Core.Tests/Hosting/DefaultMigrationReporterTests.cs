@@ -79,11 +79,11 @@ public sealed class DefaultMigrationReporterTests
     [Fact]
     public void ReportPlan_WritesDeploymentScriptNamesToOutput()
     {
-        var plan = new MigrationPlan([])
-        {
-            PreDeploymentScripts = [new Script("0001_pre", "SELECT 1", ScriptType.PreDeployment)],
-            PostDeploymentScripts = [new Script("0001_post", "SELECT 2", ScriptType.PostDeployment)],
-        };
+        var plan = new MigrationPlan(
+            [],
+            [new Script("0001_pre", "SELECT 1", ScriptType.PreDeployment)],
+            [new Script("0001_post", "SELECT 2", ScriptType.PostDeployment)]
+        );
 
         _sut.ReportPlan(plan);
 
@@ -98,7 +98,7 @@ public sealed class DefaultMigrationReporterTests
     [Fact]
     public void ReportPlan_WithNoScripts_WritesNothing()
     {
-        _sut.ReportPlan(new MigrationPlan([new CreateSchema("app")]));
+        _sut.ReportPlan(new MigrationPlan([new CreateSchema("app")],[],[]));
 
         _output.ToString().ShouldBeEmpty();
     }

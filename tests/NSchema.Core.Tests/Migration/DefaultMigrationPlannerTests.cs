@@ -35,7 +35,7 @@ public sealed class DefaultMigrationPlannerTests
     {
         _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(_emptyDiff);
         _linearizer.Linearize(Arg.Any<DatabaseDiff>())
-            .Returns(call => new MigrationPlan([]));
+            .Returns(_ => []);
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public sealed class DefaultMigrationPlannerTests
         // Arrange
         var coreAction = new CreateSchema("app");
         _linearizer.Linearize(Arg.Any<DatabaseDiff>())
-            .Returns(call => new MigrationPlan([coreAction]));
+            .Returns(_ => [coreAction]);
         IReadOnlyList<Script> scripts =
         [
             new Script("pre", "SELECT 1", ScriptType.PreDeployment),
@@ -81,7 +81,7 @@ public sealed class DefaultMigrationPlannerTests
         // Arrange
         var coreAction = new CreateSchema("app");
         _linearizer.Linearize(Arg.Any<DatabaseDiff>())
-            .Returns(call => new MigrationPlan([coreAction]));
+            .Returns([coreAction]);
 
         // Act
         var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
@@ -131,8 +131,8 @@ public sealed class DefaultMigrationPlannerTests
         // Arrange
         var t1 = Substitute.For<IMigrationPlanTransformer>();
         var t2 = Substitute.For<IMigrationPlanTransformer>();
-        var after1 = new MigrationPlan([new CreateSchema("after1")]);
-        var after2 = new MigrationPlan([new CreateSchema("after2")]);
+        var after1 = new MigrationPlan([new CreateSchema("after1")],[],[]);
+        var after2 = new MigrationPlan([new CreateSchema("after2")],[],[]);
         t1.Transform(Arg.Any<MigrationPlan>()).Returns(after1);
         t2.Transform(after1).Returns(after2);
         _transformers.Add(t1);
@@ -155,7 +155,7 @@ public sealed class DefaultMigrationPlannerTests
     {
         // Arrange
         var transformer = Substitute.For<IMigrationPlanTransformer>();
-        var transformed = new MigrationPlan([new DropTable("app", "users")]);
+        var transformed = new MigrationPlan([new DropTable("app", "users")],[],[]);
         transformer.Transform(Arg.Any<MigrationPlan>()).Returns(transformed);
         _transformers.Add(transformer);
         var policy = Substitute.For<IMigrationPolicy>();
@@ -188,14 +188,14 @@ public sealed class DefaultMigrationPlannerTests
     public void PlanTeardown_LinearizesTheDiff_WithoutDiagnostics()
     {
         // Arrange
-        var plan = new MigrationPlan([new DropSchema("app")]);
-        _linearizer.Linearize(_emptyDiff).Returns(plan);
+        List<MigrationAction> actions = [new DropSchema("app")];
+        _linearizer.Linearize(_emptyDiff).Returns(actions);
 
         // Act
         var result = Sut.PlanTeardown(DatabaseSchema.Create([SchemaDefinition.Create("app")]));
 
         // Assert
-        result.Plan.ShouldBe(plan);
+        result.Plan!.Actions.ShouldBe(actions);
         result.Diff.ShouldBe(_emptyDiff);
         result.HasErrors.ShouldBeFalse();
         result.Diagnostics.Count.ShouldBe(0);

@@ -59,6 +59,6 @@ public sealed class DefaultMigrationLinearizerSnapshotTests
 
         var plan = _linearizer.Linearize(diff);
 
-        return Verify(plan.Actions.Select(a => new { Type = a.GetType().Name, Action = a }));
+        return Verify(plan.Select(a => new { Type = a.GetType().Name, Action = a }));
     }
 }

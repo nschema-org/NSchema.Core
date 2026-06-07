@@ -17,7 +17,7 @@ public sealed class DestroyOperationTests
     private readonly ISqlExecutor _executor = Substitute.For<ISqlExecutor>();
     private readonly IMigrationConfirmation _confirmation = Substitute.For<IMigrationConfirmation>();
 
-    private readonly MigrationPlan _plan = new([new DropSchema("app")]);
+    private readonly MigrationPlan _plan = new([new DropSchema("app")],[],[]);
     private readonly SqlPlan _sqlPlan = new([new SqlStatement("DROP SCHEMA app")]);
 
     private DestroyOperation BuildSut(ISqlGenerator? generator, ISqlExecutor? executor) => new(
