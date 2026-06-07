@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
 using NSchema.Schema.Model;
 
 namespace NSchema.Schema.Serialization;
@@ -26,10 +25,7 @@ public sealed class JsonSchemaDocumentSerializer : ISchemaDocumentSerializer
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault,
-        TypeInfoResolver = new DefaultJsonTypeInfoResolver
-        {
-            Modifiers = { SqlTypeJsonConverter.SuppressPolymorphism },
-        },
+        // SqlType renders as its compact canonical string here; the state store keeps the structural form.
         Converters = { new SqlTypeJsonConverter(), new JsonStringEnumConverter() },
     };
 

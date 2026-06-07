@@ -22,7 +22,10 @@
               {
                 name: id,
                 type: {
-                  kind: bigint
+                  name: bigint,
+                  length: null,
+                  precision: null,
+                  scale: null
                 },
                 isNullable: false,
                 isIdentity: true,
@@ -38,8 +41,10 @@
               {
                 name: name,
                 type: {
-                  kind: varchar,
-                  maxLength: 255
+                  name: varchar,
+                  length: 255,
+                  precision: null,
+                  scale: null
                 },
                 isNullable: false,
                 isIdentity: false,
@@ -51,7 +56,8 @@
               {
                 name: balance,
                 type: {
-                  kind: decimal,
+                  name: decimal,
+                  length: null,
                   precision: 18,
                   scale: 2
                 },
@@ -65,8 +71,10 @@
               {
                 name: code,
                 type: {
-                  kind: char,
-                  length: 8
+                  name: char,
+                  length: 8,
+                  precision: null,
+                  scale: null
                 },
                 isNullable: false,
                 isIdentity: false,
@@ -78,8 +86,10 @@
               {
                 name: metadata,
                 type: {
-                  kind: custom,
-                  typeName: jsonb
+                  name: jsonb,
+                  length: null,
+                  precision: null,
+                  scale: null
                 },
                 isNullable: true,
                 isIdentity: false,

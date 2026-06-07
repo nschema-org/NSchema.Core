@@ -1,12 +1,11 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
 using NSchema.Schema.Model;
 
 namespace NSchema.Schema.Serialization;
 
 /// <summary>
-/// Serializes <see cref="SqlType"/> as a compact string.
+/// Serializes <see cref="SqlType"/> as its compact canonical string (e.g. <c>"varchar(255)"</c>).
 /// </summary>
 internal sealed class SqlTypeJsonConverter : JsonConverter<SqlType>
 {
@@ -18,16 +17,4 @@ internal sealed class SqlTypeJsonConverter : JsonConverter<SqlType>
 
     public override void Write(Utf8JsonWriter writer, SqlType value, JsonSerializerOptions options)
         => writer.WriteStringValue(value.ToString());
-
-    /// <summary>
-    /// A <see cref="DefaultJsonTypeInfoResolver"/> modifier that strips the attribute-based polymorphism
-    /// from <see cref="SqlType"/> so this converter can take over the string representation.
-    /// </summary>
-    public static void SuppressPolymorphism(JsonTypeInfo typeInfo)
-    {
-        if (typeInfo.Type == typeof(SqlType))
-        {
-            typeInfo.PolymorphismOptions = null;
-        }
-    }
 }
