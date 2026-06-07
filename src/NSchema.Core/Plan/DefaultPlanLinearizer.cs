@@ -7,7 +7,7 @@ namespace NSchema.Plan;
 /// <summary>
 /// Walks the structured diff and produces a migration plan.
 /// </summary>
-internal sealed class DefaultMigrationLinearizer : IMigrationLinearizer
+internal sealed class DefaultPlanLinearizer : IPlanLinearizer
 {
     private static readonly IReadOnlyDictionary<Type, int> _actionPriorities = new List<Type> {
         typeof(DropForeignKey),

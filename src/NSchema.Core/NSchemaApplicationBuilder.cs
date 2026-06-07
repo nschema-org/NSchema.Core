@@ -107,7 +107,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IKeyedResolver<ISchemaImportTarget>>(sp => new DefaultKeyedResolver<ISchemaImportTarget, ImportOptions>(sp, o => o.Target));
 
         // Migration
-        services.TryAddSingleton<IMigrationLinearizer, DefaultMigrationLinearizer>();
+        services.TryAddSingleton<IPlanLinearizer, DefaultPlanLinearizer>();
         services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
 
         // Operations

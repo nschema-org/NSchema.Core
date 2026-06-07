@@ -5,17 +5,17 @@ using NSchema.Schema.Model;
 namespace NSchema.Tests.Plan;
 
 /// <summary>
-/// Snapshot coverage for <see cref="DefaultMigrationLinearizer"/>. Ordering is the linearizer's whole
+/// Snapshot coverage for <see cref="DefaultPlanLinearizer"/>. Ordering is the linearizer's whole
 /// contract, and it reads most clearly as a flat ordered list — so this pins the emitted action sequence
 /// for a diff that touches schemas, tables, columns, indexes, and constraints. The fine-grained mapping
-/// and priority assertions stay in <see cref="DefaultMigrationLinearizerTests"/>.
+/// and priority assertions stay in <see cref="DefaultPlanLinearizerTests"/>.
 ///
 /// Each action is projected as <c>{ Type, Action }</c> because the action list is polymorphic: without the
 /// concrete type name many records are ambiguous (e.g. CreateSchema vs CreateTable both show just a schema).
 /// </summary>
 public sealed class DefaultMigrationLinearizerSnapshotTests
 {
-    private readonly DefaultMigrationLinearizer _linearizer = new();
+    private readonly DefaultPlanLinearizer _linearizer = new();
 
     [Fact]
     public Task Linearize_RichDiff_OrdersActionsSafely()

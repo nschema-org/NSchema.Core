@@ -13,7 +13,7 @@ public interface ISchemaComparer
     /// <summary>
     /// Compares the current database schema with the desired database schema and produces the structured diff
     /// describing the changes needed to transform the current schema into the desired schema. The diff is then
-    /// linearized into an executable plan by <see cref="IMigrationLinearizer"/>.
+    /// linearized into an executable plan by <see cref="IPlanLinearizer"/>.
     /// </summary>
     /// <param name="current">The current database schema representing the existing state of the database.</param>
     /// <param name="desired">The desired database schema representing the target state of the database after migration.</param>

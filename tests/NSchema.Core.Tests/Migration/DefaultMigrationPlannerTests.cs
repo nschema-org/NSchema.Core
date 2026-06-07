@@ -16,11 +16,11 @@ public sealed class DefaultMigrationPlannerTests
     private static readonly IReadOnlyList<Script> _noScripts = [];
 
     private readonly ISchemaComparer _comparer = Substitute.For<ISchemaComparer>();
-    private readonly IMigrationLinearizer _linearizer = Substitute.For<IMigrationLinearizer>();
+    private readonly IPlanLinearizer _linearizer = Substitute.For<IPlanLinearizer>();
     private readonly List<IDiffTransformer> _diffTransformers = [];
     private readonly List<IDiffPolicy> _diffPolicies = [];
-    private readonly List<IMigrationPlanTransformer> _transformers = [];
-    private readonly List<IMigrationPolicy> _migrationPolicies = [];
+    private readonly List<IPlanTransformer> _transformers = [];
+    private readonly List<IPlanPolicy> _migrationPolicies = [];
 
     private DefaultMigrationPlanner Sut => new(
         _comparer,
@@ -129,8 +129,8 @@ public sealed class DefaultMigrationPlannerTests
     public void Plan_AppliesTransformersInRegistrationOrder()
     {
         // Arrange
-        var t1 = Substitute.For<IMigrationPlanTransformer>();
-        var t2 = Substitute.For<IMigrationPlanTransformer>();
+        var t1 = Substitute.For<IPlanTransformer>();
+        var t2 = Substitute.For<IPlanTransformer>();
         var after1 = new MigrationPlan([new CreateSchema("after1")], [], []);
         var after2 = new MigrationPlan([new CreateSchema("after2")], [], []);
         t1.Transform(Arg.Any<MigrationPlan>()).Returns(after1);
@@ -154,11 +154,11 @@ public sealed class DefaultMigrationPlannerTests
     public void Plan_RunsMigrationPoliciesAgainstTransformedPlan()
     {
         // Arrange
-        var transformer = Substitute.For<IMigrationPlanTransformer>();
+        var transformer = Substitute.For<IPlanTransformer>();
         var transformed = new MigrationPlan([new DropTable("app", "users")], [], []);
         transformer.Transform(Arg.Any<MigrationPlan>()).Returns(transformed);
         _transformers.Add(transformer);
-        var policy = Substitute.For<IMigrationPolicy>();
+        var policy = Substitute.For<IPlanPolicy>();
         policy.Validate(transformed).Returns([PolicyDiagnostic.Error("Test", "destructive")]);
         _migrationPolicies.Add(policy);
 
@@ -207,8 +207,8 @@ public sealed class DefaultMigrationPlannerTests
         // Arrange: register extensions that would mutate or block a normal plan.
         var diffTransformer = Substitute.For<IDiffTransformer>();
         var diffPolicy = Substitute.For<IDiffPolicy>();
-        var planTransformer = Substitute.For<IMigrationPlanTransformer>();
-        var migrationPolicy = Substitute.For<IMigrationPolicy>();
+        var planTransformer = Substitute.For<IPlanTransformer>();
+        var migrationPolicy = Substitute.For<IPlanPolicy>();
         _diffTransformers.Add(diffTransformer);
         _diffPolicies.Add(diffPolicy);
         _transformers.Add(planTransformer);

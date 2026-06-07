@@ -5,7 +5,7 @@ namespace NSchema.Plan;
 /// <summary>
 /// Defines a contract for transforming a migration plan, allowing for modifications or optimizations to be applied to the plan before execution.
 /// </summary>
-public interface IMigrationPlanTransformer
+public interface IPlanTransformer
 {
     /// <summary>
     /// Transforms the given migration plan, allowing for modifications or optimizations to be applied to the plan before execution.

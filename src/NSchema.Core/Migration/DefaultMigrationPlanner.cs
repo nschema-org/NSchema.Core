@@ -17,11 +17,11 @@ namespace NSchema.Migration;
 /// <param name="migrationPolicies">Policies that validate the final transformed plan.</param>
 internal sealed class DefaultMigrationPlanner(
     ISchemaComparer comparer,
-    IMigrationLinearizer linearizer,
+    IPlanLinearizer linearizer,
     IEnumerable<IDiffTransformer> diffTransformers,
     IEnumerable<IDiffPolicy> diffPolicies,
-    IEnumerable<IMigrationPlanTransformer> planTransformers,
-    IEnumerable<IMigrationPolicy> migrationPolicies
+    IEnumerable<IPlanTransformer> planTransformers,
+    IEnumerable<IPlanPolicy> migrationPolicies
 ) : IMigrationPlanner
 {
     public MigrationPlanResult Plan(DatabaseSchema currentSchema, DatabaseSchema desiredSchema, IReadOnlyList<Script> scripts)

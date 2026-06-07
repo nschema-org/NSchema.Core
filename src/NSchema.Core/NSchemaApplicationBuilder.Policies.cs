@@ -48,34 +48,34 @@ public partial class NSchemaApplicationBuilder
     /// </summary>
     /// <typeparam name="T">The type of the policy to add.</typeparam>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddMigrationPolicy<T>() where T : class, IMigrationPolicy
+    public NSchemaApplicationBuilder AddPlanPolicy<T>() where T : class, IPlanPolicy
     {
-        Services.TryAddEnumerable(ServiceDescriptor.Singleton<IMigrationPolicy, T>());
+        Services.TryAddEnumerable(ServiceDescriptor.Singleton<IPlanPolicy, T>());
         return this;
     }
 
     /// <summary>
-    /// Adds all concrete types that implement <see cref="IMigrationPolicy"/> to the application from the specified assembly.
+    /// Adds all concrete types that implement <see cref="IPlanPolicy"/> to the application from the specified assembly.
     /// </summary>
     /// <param name="assembly">The assembly to scan for migration policies.</param>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddMigrationPoliciesFromAssembly(Assembly assembly)
+    public NSchemaApplicationBuilder AddPlanPoliciesFromAssembly(Assembly assembly)
     {
         var types = assembly.GetTypes()
-            .Where(t => t is { IsAbstract: false, IsInterface: false } && typeof(IMigrationPolicy).IsAssignableFrom(t));
+            .Where(t => t is { IsAbstract: false, IsInterface: false } && typeof(IPlanPolicy).IsAssignableFrom(t));
         foreach (var type in types)
         {
-            Services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IMigrationPolicy), type));
+            Services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IPlanPolicy), type));
         }
         return this;
     }
 
     /// <summary>
-    /// Adds all concrete types that implement <see cref="IMigrationPolicy"/> to the application from the assembly containing the specified type.
+    /// Adds all concrete types that implement <see cref="IPlanPolicy"/> to the application from the assembly containing the specified type.
     /// </summary>
     /// <typeparam name="T">The type whose containing assembly will be scanned for migration policies.</typeparam>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddMigrationPoliciesFromAssemblyContaining<T>() => AddMigrationPoliciesFromAssembly(typeof(T).Assembly);
+    public NSchemaApplicationBuilder AddPlanPoliciesFromAssemblyContaining<T>() => AddPlanPoliciesFromAssembly(typeof(T).Assembly);
 
     /// <summary>
     /// Adds a policy to the application that will be used to validate the structured diff before it is executed.

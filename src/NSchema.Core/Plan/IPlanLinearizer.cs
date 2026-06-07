@@ -4,9 +4,9 @@ using NSchema.Plan.Model;
 namespace NSchema.Plan;
 
 /// <summary>
-/// Linearizes a structured <see cref="DatabaseDiff"/> into an executable <see cref="MigrationPlan"/>.
+/// Linearizes a structured <see cref="DatabaseDiff"/> into an executable list of actions.
 /// </summary>
-public interface IMigrationLinearizer
+public interface IPlanLinearizer
 {
     /// <summary>
     /// Produces the ordered migration plan that realizes the given diff.

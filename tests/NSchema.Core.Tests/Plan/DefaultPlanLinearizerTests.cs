@@ -6,13 +6,13 @@ using NSchema.Schema.Model;
 namespace NSchema.Tests.Plan;
 
 /// <summary>
-/// Exercises <see cref="DefaultMigrationLinearizer"/> in isolation: structured <see cref="DatabaseDiff"/> nodes go in,
+/// Exercises <see cref="DefaultPlanLinearizer"/> in isolation: structured <see cref="DatabaseDiff"/> nodes go in,
 /// the emitted <see cref="MigrationAction"/>s come out. The comparer is deliberately not involved, so these tests pin
 /// the diff-node → action mapping and the priority ordering that are the linearizer's sole responsibility.
 /// </summary>
-public sealed class DefaultMigrationLinearizerTests
+public sealed class DefaultPlanLinearizerTests
 {
-    private readonly DefaultMigrationLinearizer _linearizer = new();
+    private readonly DefaultPlanLinearizer _linearizer = new();
 
     private IReadOnlyList<MigrationAction> Linearize(params SchemaDiff[] schemas) => _linearizer.Linearize(new DatabaseDiff(schemas));
 
