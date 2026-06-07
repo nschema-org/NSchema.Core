@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NSchema.Hosting;
 using NSchema.Migration;
+using NSchema.Operations;
 using NSubstitute.ExceptionExtensions;
 
 namespace NSchema.Tests.Hosting;
@@ -10,21 +11,21 @@ namespace NSchema.Tests.Hosting;
 public sealed class NSchemaHostTests
 {
     private readonly OperationOptions _options = new();
-    private readonly IMigrationOperation _planOp = Substitute.For<IMigrationOperation>();
-    private readonly IMigrationOperation _applyOp = Substitute.For<IMigrationOperation>();
-    private readonly IMigrationOperation _refreshOp = Substitute.For<IMigrationOperation>();
+    private readonly INSchemaOperation _planOp = Substitute.For<INSchemaOperation>();
+    private readonly INSchemaOperation _applyOp = Substitute.For<INSchemaOperation>();
+    private readonly INSchemaOperation _refreshOp = Substitute.For<INSchemaOperation>();
     private readonly IHostApplicationLifetime _lifetime = Substitute.For<IHostApplicationLifetime>();
     private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
-    private readonly MigrationOperationResult _outcome = new();
+    private readonly OperationResult _outcome = new();
 
     private readonly NSchemaHost _sut;
 
     public NSchemaHostTests()
     {
         var services = new ServiceCollection();
-        services.AddKeyedSingleton<IMigrationOperation>(MigrationOperation.Plan, (_, _) => _planOp);
-        services.AddKeyedSingleton<IMigrationOperation>(MigrationOperation.Apply, (_, _) => _applyOp);
-        services.AddKeyedSingleton<IMigrationOperation>(MigrationOperation.Refresh, (_, _) => _refreshOp);
+        services.AddKeyedSingleton<INSchemaOperation>(MigrationOperation.Plan, (_, _) => _planOp);
+        services.AddKeyedSingleton<INSchemaOperation>(MigrationOperation.Apply, (_, _) => _applyOp);
+        services.AddKeyedSingleton<INSchemaOperation>(MigrationOperation.Refresh, (_, _) => _refreshOp);
         var sp = services.BuildServiceProvider();
 
         _sut = new NSchemaHost(Options.Create(_options), _lifetime, sp, Helpers.TestReporters.ResolverFor(_reporter), _outcome);

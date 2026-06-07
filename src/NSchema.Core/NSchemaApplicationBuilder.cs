@@ -7,10 +7,10 @@ using Microsoft.Extensions.Logging;
 using NSchema.Diff;
 using NSchema.Diff.Policies;
 using NSchema.Hosting;
-using NSchema.Hosting.Operations;
-using NSchema.Hosting.Services;
 using NSchema.Import;
 using NSchema.Migration;
+using NSchema.Operations;
+using NSchema.Operations.Services;
 using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Schema.Policies;
@@ -115,7 +115,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Migration
         services.TryAddSingleton<IMigrationLinearizer, DefaultMigrationLinearizer>();
         services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
-        services.TryAddSingleton<IMigrationConfirmation, AutoApproveConfirmation>();
+        services.TryAddSingleton<IOperationConfirmation, AutoApproveConfirmation>();
 
         // SQL
         services.TryAddSingleton<ISqlPlanRenderer, DefaultSqlPlanRenderer>();
@@ -125,14 +125,14 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<ISchemaStateSerializer, DefaultSchemaStateSerializer>();
 
         // Operations
-        services.TryAddSingleton<MigrationOperationResult>();
+        services.TryAddSingleton<OperationResult>();
         services.TryAddSingleton<IMigrationHelper, MigrationHelper>();
-        services.TryAddKeyedSingleton<IMigrationOperation, PlanOperation>(MigrationOperation.Plan);
-        services.TryAddKeyedSingleton<IMigrationOperation, ApplyOperation>(MigrationOperation.Apply);
-        services.TryAddKeyedSingleton<IMigrationOperation, RefreshOperation>(MigrationOperation.Refresh);
-        services.TryAddKeyedSingleton<IMigrationOperation, ImportOperation>(MigrationOperation.Import);
-        services.TryAddKeyedSingleton<IMigrationOperation, ValidateOperation>(MigrationOperation.Validate);
-        services.TryAddKeyedSingleton<IMigrationOperation, DestroyOperation>(MigrationOperation.Destroy);
+        services.TryAddKeyedSingleton<INSchemaOperation, PlanOperation>(MigrationOperation.Plan);
+        services.TryAddKeyedSingleton<INSchemaOperation, ApplyOperation>(MigrationOperation.Apply);
+        services.TryAddKeyedSingleton<INSchemaOperation, RefreshOperation>(MigrationOperation.Refresh);
+        services.TryAddKeyedSingleton<INSchemaOperation, ImportOperation>(MigrationOperation.Import);
+        services.TryAddKeyedSingleton<INSchemaOperation, ValidateOperation>(MigrationOperation.Validate);
+        services.TryAddKeyedSingleton<INSchemaOperation, DestroyOperation>(MigrationOperation.Destroy);
 
         // This is the service responsible for running the migration.
         services.AddHostedService<NSchemaHost>();

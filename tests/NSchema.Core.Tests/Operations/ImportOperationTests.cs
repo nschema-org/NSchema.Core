@@ -1,11 +1,11 @@
 using Microsoft.Extensions.Options;
-using NSchema.Hosting.Operations;
 using NSchema.Import;
 using NSchema.Migration;
+using NSchema.Operations;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 
-namespace NSchema.Tests.Hosting.Operations;
+namespace NSchema.Tests.Operations;
 
 public sealed class ImportOperationTests
 {

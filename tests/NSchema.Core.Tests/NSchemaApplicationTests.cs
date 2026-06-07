@@ -2,24 +2,25 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NSchema.Hosting;
 using NSchema.Migration;
+using NSchema.Operations;
 
 namespace NSchema.Tests;
 
 public sealed class NSchemaApplicationTests
 {
-    private readonly IMigrationOperation _planOp = Substitute.For<IMigrationOperation>();
-    private readonly IMigrationOperation _applyOp = Substitute.For<IMigrationOperation>();
-    private readonly IMigrationOperation _refreshOp = Substitute.For<IMigrationOperation>();
-    private readonly IMigrationOperation _destroyOp = Substitute.For<IMigrationOperation>();
+    private readonly INSchemaOperation _planOp = Substitute.For<INSchemaOperation>();
+    private readonly INSchemaOperation _applyOp = Substitute.For<INSchemaOperation>();
+    private readonly INSchemaOperation _refreshOp = Substitute.For<INSchemaOperation>();
+    private readonly INSchemaOperation _destroyOp = Substitute.For<INSchemaOperation>();
 
     private NSchemaApplication BuildApp(Action<NSchemaApplicationBuilder>? configure = null)
     {
         var builder = NSchemaApplication.CreateBuilder();
         // Register substitutes before Build() so TryAddKeyedSingleton in ApplyServices doesn't override them.
-        builder.Services.AddKeyedSingleton<IMigrationOperation>(MigrationOperation.Plan, (_, _) => _planOp);
-        builder.Services.AddKeyedSingleton<IMigrationOperation>(MigrationOperation.Apply, (_, _) => _applyOp);
-        builder.Services.AddKeyedSingleton<IMigrationOperation>(MigrationOperation.Refresh, (_, _) => _refreshOp);
-        builder.Services.AddKeyedSingleton<IMigrationOperation>(MigrationOperation.Destroy, (_, _) => _destroyOp);
+        builder.Services.AddKeyedSingleton<INSchemaOperation>(MigrationOperation.Plan, (_, _) => _planOp);
+        builder.Services.AddKeyedSingleton<INSchemaOperation>(MigrationOperation.Apply, (_, _) => _applyOp);
+        builder.Services.AddKeyedSingleton<INSchemaOperation>(MigrationOperation.Refresh, (_, _) => _refreshOp);
+        builder.Services.AddKeyedSingleton<INSchemaOperation>(MigrationOperation.Destroy, (_, _) => _destroyOp);
         configure?.Invoke(builder);
         return builder.Build();
     }

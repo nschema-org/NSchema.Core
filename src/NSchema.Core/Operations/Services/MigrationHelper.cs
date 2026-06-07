@@ -9,7 +9,7 @@ using NSchema.Scripts;
 using NSchema.Scripts.Model;
 using NSchema.State;
 
-namespace NSchema.Hosting.Services;
+namespace NSchema.Operations.Services;
 
 internal sealed class MigrationHelper(
     IOptions<MigrationOptions> options,

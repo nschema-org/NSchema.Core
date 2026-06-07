@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NSchema.Migration;
+using NSchema.Operations;
 using NSchema.Resolution;
 
 namespace NSchema.Hosting;
@@ -14,7 +15,7 @@ internal sealed class NSchemaHost(
     IHostApplicationLifetime lifetime,
     IServiceProvider services,
     IKeyedResolver<IMigrationReporter> reporter,
-    MigrationOperationResult result
+    OperationResult result
 ) : BackgroundService
 {
     /// <inheritdoc />
@@ -22,7 +23,7 @@ internal sealed class NSchemaHost(
     {
         try
         {
-            var operation = services.GetRequiredKeyedService<IMigrationOperation>(options.Value.Operation);
+            var operation = services.GetRequiredKeyedService<INSchemaOperation>(options.Value.Operation);
             await operation.Execute(cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

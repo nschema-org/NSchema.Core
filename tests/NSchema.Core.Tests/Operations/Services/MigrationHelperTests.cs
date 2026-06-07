@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Options;
 using NSchema.Diff.Model;
-using NSchema.Hosting.Services;
 using NSchema.Migration;
+using NSchema.Operations.Services;
 using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Schema;
@@ -9,7 +9,7 @@ using NSchema.Schema.Model;
 using NSchema.Scripts.Model;
 using NSchema.State;
 
-namespace NSchema.Tests.Hosting.Services;
+namespace NSchema.Tests.Operations.Services;
 
 public sealed class MigrationHelperTests
 {

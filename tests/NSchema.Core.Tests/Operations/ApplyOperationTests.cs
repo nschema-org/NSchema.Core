@@ -1,14 +1,13 @@
-using NSchema.Hosting;
-using NSchema.Hosting.Operations;
-using NSchema.Hosting.Services;
 using NSchema.Migration;
+using NSchema.Operations;
+using NSchema.Operations.Services;
 using NSchema.Plan.Model;
 using NSchema.Schema;
 using NSchema.Sql;
 using NSchema.Sql.Model;
 using NSubstitute.ExceptionExtensions;
 
-namespace NSchema.Tests.Hosting.Operations;
+namespace NSchema.Tests.Operations;
 
 public sealed class ApplyOperationTests
 {
@@ -16,7 +15,7 @@ public sealed class ApplyOperationTests
     private readonly IMigrationHelper _helper = Substitute.For<IMigrationHelper>();
     private readonly ISqlGenerator _generator = Substitute.For<ISqlGenerator>();
     private readonly ISqlExecutor _executor = Substitute.For<ISqlExecutor>();
-    private readonly IMigrationConfirmation _confirmation = Substitute.For<IMigrationConfirmation>();
+    private readonly IOperationConfirmation _confirmation = Substitute.For<IOperationConfirmation>();
 
     private readonly MigrationPlan _plan = new([new CreateSchema("app")],[],[]);
     private readonly SqlPlan _sqlPlan = new([new SqlStatement("CREATE SCHEMA app")]);

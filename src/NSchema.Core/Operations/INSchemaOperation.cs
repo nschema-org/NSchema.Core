@@ -1,9 +1,9 @@
-namespace NSchema.Hosting;
+namespace NSchema.Operations;
 
 /// <summary>
 /// Represents a single migration operation (plan, apply, refresh, etc.).
 /// </summary>
-public interface IMigrationOperation
+public interface INSchemaOperation
 {
     /// <summary>
     /// Executes the operation.

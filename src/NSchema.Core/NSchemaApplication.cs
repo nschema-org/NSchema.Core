@@ -41,7 +41,7 @@ public sealed class NSchemaApplication : IHost
 
         // The migration runs as a background service, so unhandled exceptions terminate the host but aren't surfaced.
         // We rethrow it here with its original stacktrace, so it isn't lost.
-        if (_host.Services.GetRequiredService<MigrationOperationResult>().Exception is { } failure)
+        if (_host.Services.GetRequiredService<OperationResult>().Exception is { } failure)
         {
             ExceptionDispatchInfo.Throw(failure);
         }

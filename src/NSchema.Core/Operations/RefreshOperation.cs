@@ -1,10 +1,10 @@
-using NSchema.Hosting.Services;
 using NSchema.Migration;
+using NSchema.Operations.Services;
 using NSchema.Resolution;
 
-namespace NSchema.Hosting.Operations;
+namespace NSchema.Operations;
 
-internal sealed class RefreshOperation(IMigrationHelper helper, IKeyedResolver<IMigrationReporter> reporters) : IMigrationOperation
+internal sealed class RefreshOperation(IMigrationHelper helper, IKeyedResolver<IMigrationReporter> reporters) : INSchemaOperation
 {
     public async Task Execute(CancellationToken cancellationToken = default)
     {

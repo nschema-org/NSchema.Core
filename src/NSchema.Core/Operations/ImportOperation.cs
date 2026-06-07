@@ -4,14 +4,14 @@ using NSchema.Migration;
 using NSchema.Resolution;
 using NSchema.Schema;
 
-namespace NSchema.Hosting.Operations;
+namespace NSchema.Operations;
 
 internal sealed class ImportOperation(
     IOptions<ImportOptions> options,
     ICurrentSchemaProvider currentSchema,
     IKeyedResolver<ISchemaImportTarget> targets,
     IKeyedResolver<IMigrationReporter> reporters
-) : IMigrationOperation
+) : INSchemaOperation
 {
     public async Task Execute(CancellationToken cancellationToken = default)
     {

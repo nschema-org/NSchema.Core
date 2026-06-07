@@ -1,17 +1,17 @@
-using NSchema.Hosting.Services;
 using NSchema.Migration;
+using NSchema.Operations.Services;
 using NSchema.Resolution;
 using NSchema.Sql;
 
-namespace NSchema.Hosting.Operations;
+namespace NSchema.Operations;
 
 internal sealed class DestroyOperation(
     IKeyedResolver<IMigrationReporter> reporters,
-    IMigrationConfirmation confirmation,
+    IOperationConfirmation confirmation,
     IMigrationHelper helper,
     IKeyedResolver<ISqlGenerator> sqlGenerators,
     ISqlExecutor? sqlExecutor = null
-) : IMigrationOperation
+) : INSchemaOperation
 {
     public async Task Execute(CancellationToken cancellationToken = default)
     {

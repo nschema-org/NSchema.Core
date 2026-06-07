@@ -1,8 +1,8 @@
-using NSchema.Hosting.Operations;
-using NSchema.Hosting.Services;
 using NSchema.Migration;
+using NSchema.Operations;
+using NSchema.Operations.Services;
 
-namespace NSchema.Tests.Hosting.Operations;
+namespace NSchema.Tests.Operations;
 
 public sealed class RefreshOperationTests
 {

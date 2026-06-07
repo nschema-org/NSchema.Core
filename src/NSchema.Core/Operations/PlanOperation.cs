@@ -1,16 +1,16 @@
-using NSchema.Hosting.Services;
 using NSchema.Migration;
+using NSchema.Operations.Services;
 using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Sql;
 
-namespace NSchema.Hosting.Operations;
+namespace NSchema.Operations;
 
 internal sealed class PlanOperation(
     IKeyedResolver<IMigrationReporter> reporters,
     IMigrationHelper helper,
     IKeyedResolver<ISqlGenerator> sqlGenerator
-) : IMigrationOperation
+) : INSchemaOperation
 {
     public async Task Execute(CancellationToken cancellationToken = default)
     {

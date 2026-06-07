@@ -2,7 +2,7 @@ using NSchema.Plan.Model;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 
-namespace NSchema.Hosting.Services;
+namespace NSchema.Operations.Services;
 
 internal interface IMigrationHelper
 {
