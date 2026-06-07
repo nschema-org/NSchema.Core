@@ -13,7 +13,7 @@ public sealed class PlanOperationTests
     private readonly IMigrationHelper _helper = Substitute.For<IMigrationHelper>();
     private readonly ISqlGenerator _generator = Substitute.For<ISqlGenerator>();
 
-    private readonly MigrationPlan _plan = new([new CreateSchema("app")],[],[]);
+    private readonly MigrationPlan _plan = new([new CreateSchema("app")], [], []);
     private readonly SqlPlan _sqlPlan = new([new SqlStatement("CREATE SCHEMA app")]);
 
     private PlanOperation BuildSut(ISqlGenerator? planner) =>

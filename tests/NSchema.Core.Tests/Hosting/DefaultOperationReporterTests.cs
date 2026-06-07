@@ -98,7 +98,7 @@ public sealed class DefaultOperationReporterTests
     [Fact]
     public void ReportPlan_WithNoScripts_WritesNothing()
     {
-        _sut.ReportPlan(new MigrationPlan([new CreateSchema("app")],[],[]));
+        _sut.ReportPlan(new MigrationPlan([new CreateSchema("app")], [], []));
 
         _output.ToString().ShouldBeEmpty();
     }

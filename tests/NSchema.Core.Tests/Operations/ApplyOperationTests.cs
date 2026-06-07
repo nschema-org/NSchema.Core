@@ -16,7 +16,7 @@ public sealed class ApplyOperationTests
     private readonly ISqlExecutor _executor = Substitute.For<ISqlExecutor>();
     private readonly IOperationConfirmation _confirmation = Substitute.For<IOperationConfirmation>();
 
-    private readonly MigrationPlan _plan = new([new CreateSchema("app")],[],[]);
+    private readonly MigrationPlan _plan = new([new CreateSchema("app")], [], []);
     private readonly SqlPlan _sqlPlan = new([new SqlStatement("CREATE SCHEMA app")]);
 
     private ApplyOperation BuildSut(ISqlGenerator? planner, ISqlExecutor? executor) => new(

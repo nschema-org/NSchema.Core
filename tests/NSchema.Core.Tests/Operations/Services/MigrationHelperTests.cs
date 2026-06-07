@@ -37,11 +37,11 @@ public sealed class MigrationHelperTests
 
         _planner
             .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
-            .Returns(new MigrationPlanResult(new MigrationPlan([],[],[]), new DatabaseDiff([]), []));
+            .Returns(new MigrationPlanResult(new MigrationPlan([], [], []), new DatabaseDiff([]), []));
 
         _planner
             .PlanTeardown(Arg.Any<DatabaseSchema>())
-            .Returns(new MigrationPlanResult(new MigrationPlan([],[],[]), new DatabaseDiff([]), []));
+            .Returns(new MigrationPlanResult(new MigrationPlan([], [], []), new DatabaseDiff([]), []));
 
         _sut = BuildSut();
     }
@@ -109,7 +109,7 @@ public sealed class MigrationHelperTests
     public async Task Prepare_ReturnsComputedPlan_AndReportsItsDiff()
     {
         // Arrange
-        var plan = new MigrationPlan([new CreateSchema("app")],[],[]);
+        var plan = new MigrationPlan([new CreateSchema("app")], [], []);
         var diff = new DatabaseDiff([]);
         _planner
             .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
@@ -171,7 +171,7 @@ public sealed class MigrationHelperTests
     {
         // Arrange
         var diagnostics = new[] { new PolicyDiagnostic("P1", "info", PolicyDiagnosticSeverity.Info) };
-        var plan = new MigrationPlan([],[],[]);
+        var plan = new MigrationPlan([], [], []);
         _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
             .Returns(new MigrationPlanResult(plan, new DatabaseDiff([]), diagnostics));
 
@@ -285,7 +285,7 @@ public sealed class MigrationHelperTests
     public async Task PlanDestroy_ReturnsTeardownPlan_AndReportsItsDiff()
     {
         // Arrange
-        var plan = new MigrationPlan([new DropSchema("app")],[],[]);
+        var plan = new MigrationPlan([new DropSchema("app")], [], []);
         var diff = new DatabaseDiff([]);
         _planner.PlanTeardown(Arg.Any<DatabaseSchema>()).Returns(new MigrationPlanResult(plan, diff, []));
 

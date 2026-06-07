@@ -131,8 +131,8 @@ public sealed class DefaultMigrationPlannerTests
         // Arrange
         var t1 = Substitute.For<IMigrationPlanTransformer>();
         var t2 = Substitute.For<IMigrationPlanTransformer>();
-        var after1 = new MigrationPlan([new CreateSchema("after1")],[],[]);
-        var after2 = new MigrationPlan([new CreateSchema("after2")],[],[]);
+        var after1 = new MigrationPlan([new CreateSchema("after1")], [], []);
+        var after2 = new MigrationPlan([new CreateSchema("after2")], [], []);
         t1.Transform(Arg.Any<MigrationPlan>()).Returns(after1);
         t2.Transform(after1).Returns(after2);
         _transformers.Add(t1);
@@ -155,7 +155,7 @@ public sealed class DefaultMigrationPlannerTests
     {
         // Arrange
         var transformer = Substitute.For<IMigrationPlanTransformer>();
-        var transformed = new MigrationPlan([new DropTable("app", "users")],[],[]);
+        var transformed = new MigrationPlan([new DropTable("app", "users")], [], []);
         transformer.Transform(Arg.Any<MigrationPlan>()).Returns(transformed);
         _transformers.Add(transformer);
         var policy = Substitute.For<IMigrationPolicy>();
