@@ -1,5 +1,3 @@
-using NSchema.Operations;
-
 namespace NSchema.Hosting;
 
 /// <summary>
@@ -8,7 +6,7 @@ namespace NSchema.Hosting;
 internal class HostOptions
 {
     /// <summary>
-    /// The operation to perform. Defaults to <see creHostOperationion.Plan"/>.
+    /// The operation to perform. Defaults to <see cref="HostOperation.Plan"/>.
     /// </summary>
     public HostOperation Operation { get; set; } = HostOperation.Plan;
 

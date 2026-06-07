@@ -3,7 +3,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NSchema.Hosting;
-using NSchema.Operations;
 using HostOptions = NSchema.Hosting.HostOptions;
 
 namespace NSchema;
