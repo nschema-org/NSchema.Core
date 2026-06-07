@@ -10,6 +10,8 @@ using NSchema.Hosting;
 using NSchema.Import;
 using NSchema.Migration;
 using NSchema.Operations;
+using NSchema.Operations.Confirmation;
+using NSchema.Operations.Operations;
 using NSchema.Operations.Services;
 using NSchema.Plan;
 using NSchema.Resolution;

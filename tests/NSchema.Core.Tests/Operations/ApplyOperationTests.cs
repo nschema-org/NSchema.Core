@@ -1,4 +1,6 @@
 using NSchema.Operations;
+using NSchema.Operations.Confirmation;
+using NSchema.Operations.Operations;
 using NSchema.Operations.Services;
 using NSchema.Plan.Model;
 using NSchema.Schema;
@@ -33,7 +35,7 @@ public sealed class ApplyOperationTests
         _helper.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(_plan);
         _helper.HasStore.Returns(true);
         _generator.Generate(Arg.Any<MigrationPlan>()).Returns(_sqlPlan);
-        _confirmation.Confirm(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>()).Returns(true);
+        _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(true);
 
         _sut = BuildSut(_generator, _executor);
     }
@@ -104,7 +106,7 @@ public sealed class ApplyOperationTests
     [Fact]
     public async Task Execute_NotConfirmed_DoesNotExecuteOrRefresh()
     {
-        _confirmation.Confirm(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>()).Returns(false);
+        _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(false);
 
         await _sut.Execute(TestContext.Current.CancellationToken);
 
@@ -115,7 +117,7 @@ public sealed class ApplyOperationTests
     [Fact]
     public async Task Execute_Confirmed_Executes()
     {
-        _confirmation.Confirm(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>()).Returns(true);
+        _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(true);
 
         await _sut.Execute(TestContext.Current.CancellationToken);
 
@@ -123,11 +125,21 @@ public sealed class ApplyOperationTests
     }
 
     [Fact]
+    public async Task Execute_ConfirmsWithApplyRequestCarryingThePlan()
+    {
+        await _sut.Execute(TestContext.Current.CancellationToken);
+
+        await _confirmation.Received(1).Confirm(
+            Arg.Is<ApplyConfirmationRequest>(r => r.Plan == _plan && !r.IsDestructive),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Execute_ConfirmationPromptedAfterSqlReported()
     {
         var callOrder = new List<string>();
         _reporter.When(r => r.ReportSqlPlan(Arg.Any<SqlPlan>())).Do(_ => callOrder.Add("sql"));
-        _confirmation.Confirm(Arg.Any<MigrationPlan>(), Arg.Any<CancellationToken>())
+        _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>())
             .Returns(_ => { callOrder.Add("confirm"); return true; });
 
         await _sut.Execute(TestContext.Current.CancellationToken);

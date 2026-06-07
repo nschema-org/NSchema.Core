@@ -1,4 +1,5 @@
 using NSchema.Operations;
+using NSchema.Operations.Operations;
 using NSchema.Operations.Services;
 using NSchema.Plan.Model;
 using NSchema.Schema;

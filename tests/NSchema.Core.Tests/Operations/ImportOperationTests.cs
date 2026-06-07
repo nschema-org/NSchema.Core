@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using NSchema.Import;
 using NSchema.Operations;
+using NSchema.Operations.Operations;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 

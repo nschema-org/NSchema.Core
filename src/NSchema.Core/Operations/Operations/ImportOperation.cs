@@ -3,7 +3,7 @@ using NSchema.Import;
 using NSchema.Resolution;
 using NSchema.Schema;
 
-namespace NSchema.Operations;
+namespace NSchema.Operations.Operations;
 
 internal sealed class ImportOperation(
     IOptions<ImportOptions> options,

@@ -1,7 +1,7 @@
 using NSchema.Operations.Services;
 using NSchema.Resolution;
 
-namespace NSchema.Operations;
+namespace NSchema.Operations.Operations;
 
 internal sealed class ValidateOperation(IMigrationHelper helper, IKeyedResolver<IOperationReporter> reporters) : IOperation
 {

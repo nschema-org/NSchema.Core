@@ -14,7 +14,7 @@ Planning and applying behavior are the same as before, but most public types hav
 
 ### Added
 
-- A new `IOperationConfirmation` interface in `NSchema.Operations` that can be used to seek confirmation before applying a migration. This is intended for interactive scenarios (e.g. CLI) where the user can review the plan and confirm before proceeding.
+- A new `IOperationConfirmation` interface in `NSchema.Operations` that can be used to seek confirmation before an operation makes changes. This is intended for interactive scenarios (e.g. CLI) where the user can review the plan and confirm before proceeding.
 - Exception handling can now be controlled via `OperationOptions.ExceptionBehavior` or `NSchemaApplicationBuilder.WithExceptionBehavior(...)`. The default behavior is preserved: exceptions will be reported to the `IOperationReporter` and then re-thrown.
 - Schemas are now diffed into a structured, hierarchical model (`NSchema.Diff.Model.MigrationDiff`) and a new `IDiffRenderer` interface renders it for the reporter.
 - `UseTerraformRenderer(...)` to configure the default Terraform-style renderer.

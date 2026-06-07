@@ -1,9 +1,10 @@
+using NSchema.Operations.Confirmation;
 using NSchema.Operations.Services;
 using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Sql;
 
-namespace NSchema.Operations;
+namespace NSchema.Operations.Operations;
 
 internal sealed class ApplyOperation(
     IKeyedResolver<IOperationReporter> reporters,
@@ -29,7 +30,7 @@ internal sealed class ApplyOperation(
         reporters.Current.ReportSqlPlan(sqlPlan);
 
         // Offer an interactive front-end the chance to prompt before any changes are made.
-        if (!await confirmation.Confirm(plan, cancellationToken))
+        if (!await confirmation.Confirm(new ApplyConfirmationRequest(plan), cancellationToken))
         {
             reporters.Current.Info("Apply cancelled. No changes were made to the database.");
             return;

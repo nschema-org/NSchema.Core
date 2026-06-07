@@ -3,7 +3,7 @@ using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Sql;
 
-namespace NSchema.Operations;
+namespace NSchema.Operations.Operations;
 
 internal sealed class PlanOperation(
     IKeyedResolver<IOperationReporter> reporters,
