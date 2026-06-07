@@ -24,7 +24,11 @@
                 type: {
                   kind: bigint
                 },
+                isNullable: false,
                 isIdentity: true,
+                defaultExpression: null,
+                oldName: null,
+                comment: null,
                 identityOptions: {
                   startWith: 1,
                   minValue: 1,
@@ -37,7 +41,12 @@
                   kind: varchar,
                   maxLength: 255
                 },
-                comment: display name
+                isNullable: false,
+                isIdentity: false,
+                defaultExpression: null,
+                oldName: null,
+                comment: display name,
+                identityOptions: null
               },
               {
                 name: balance,
@@ -47,7 +56,11 @@
                   scale: 2
                 },
                 isNullable: true,
-                defaultExpression: 0
+                isIdentity: false,
+                defaultExpression: 0,
+                oldName: null,
+                comment: null,
+                identityOptions: null
               },
               {
                 name: code,
@@ -55,7 +68,12 @@
                   kind: char,
                   length: 8
                 },
-                oldName: short_code
+                isNullable: false,
+                isIdentity: false,
+                defaultExpression: null,
+                oldName: short_code,
+                comment: null,
+                identityOptions: null
               },
               {
                 name: metadata,
@@ -63,7 +81,12 @@
                   kind: custom,
                   typeName: jsonb
                 },
-                isNullable: true
+                isNullable: true,
+                isIdentity: false,
+                defaultExpression: null,
+                oldName: null,
+                comment: null,
+                identityOptions: null
               }
             ],
             foreignKeys: [

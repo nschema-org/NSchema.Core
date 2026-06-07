@@ -1,8 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using NSchema.Schema.Model;
 
-namespace NSchema.Schema.Model;
+namespace NSchema.Schema.Serialization;
 
 /// <summary>
 /// Serializes <see cref="SqlType"/> as a compact string.

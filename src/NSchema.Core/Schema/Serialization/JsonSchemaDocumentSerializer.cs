@@ -25,7 +25,7 @@ public sealed class JsonSchemaDocumentSerializer : ISchemaDocumentSerializer
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault,
         TypeInfoResolver = new DefaultJsonTypeInfoResolver
         {
             Modifiers = { SqlTypeJsonConverter.SuppressPolymorphism },

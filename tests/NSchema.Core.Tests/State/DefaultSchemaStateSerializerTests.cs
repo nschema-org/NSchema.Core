@@ -147,6 +147,30 @@ public sealed class DefaultSchemaStateSerializerTests
     }
 
     [Fact]
+    public void Serialize_WritesDefaultAndNullMembers()
+    {
+        // The state store is a fact store: a member at its default value must still be recorded, so that
+        // "absent" can never be mistaken for "present and equal to today's default". This is the inverse
+        // of the user-facing serializer, which omits defaults. See DomainModelSerializationContractTests.
+        var schema = DatabaseSchema.Create(
+        [
+            SchemaDefinition.Create("app", tables:
+            [
+                Table.Create("t", columns: [Column.Create("c", SqlType.Int)]),
+            ]),
+        ]);
+
+        // Act
+        var json = _sut.Serialize(schema);
+
+        // Assert: false bools and null strings are written, not omitted.
+        json.ShouldContain("\"isPartial\": false");
+        json.ShouldContain("\"isNullable\": false");
+        json.ShouldContain("\"isIdentity\": false");
+        json.ShouldContain("\"defaultExpression\": null");
+    }
+
+    [Fact]
     public void Deserialize_FutureFormatVersion_Throws()
     {
         // Arrange
