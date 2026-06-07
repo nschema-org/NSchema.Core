@@ -1,7 +1,7 @@
 using NSchema.Plan.Model;
 using NSchema.Policies;
 
-namespace NSchema.Migration;
+namespace NSchema.Plan;
 
 /// <summary>
 /// Defines an interface for validating a migration plan against a set of rules or policies.

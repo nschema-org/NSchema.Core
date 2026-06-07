@@ -1,5 +1,6 @@
 using NSchema.Diff.Model;
 using NSchema.Migration;
+using NSchema.Plan;
 using NSchema.Schema.Model;
 
 namespace NSchema.Diff;

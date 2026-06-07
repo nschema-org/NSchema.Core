@@ -1,8 +1,8 @@
 using NSchema.Diff.Model;
-using NSchema.Migration;
+using NSchema.Plan;
 using NSchema.Schema.Model;
 
-namespace NSchema.Tests.Migration;
+namespace NSchema.Tests.Plan;
 
 /// <summary>
 /// Snapshot coverage for <see cref="DefaultMigrationLinearizer"/>. Ordering is the linearizer's whole

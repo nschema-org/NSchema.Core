@@ -1,9 +1,9 @@
 using NSchema.Diff.Model;
-using NSchema.Migration;
+using NSchema.Plan;
 using NSchema.Plan.Model;
 using NSchema.Schema.Model;
 
-namespace NSchema.Tests.Migration;
+namespace NSchema.Tests.Plan;
 
 /// <summary>
 /// Exercises <see cref="DefaultMigrationLinearizer"/> in isolation: structured <see cref="DatabaseDiff"/> nodes go in,

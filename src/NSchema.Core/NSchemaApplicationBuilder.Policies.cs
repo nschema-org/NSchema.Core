@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.Diff;
 using NSchema.Migration;
+using NSchema.Plan;
 using NSchema.Schema;
 
 namespace NSchema;

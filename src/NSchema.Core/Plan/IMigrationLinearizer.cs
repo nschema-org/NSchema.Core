@@ -1,7 +1,7 @@
 using NSchema.Diff.Model;
 using NSchema.Plan.Model;
 
-namespace NSchema.Migration;
+namespace NSchema.Plan;
 
 /// <summary>
 /// Linearizes a structured <see cref="DatabaseDiff"/> into an executable <see cref="MigrationPlan"/>.

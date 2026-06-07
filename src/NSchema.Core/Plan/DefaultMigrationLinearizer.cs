@@ -2,7 +2,7 @@ using System.Collections.Frozen;
 using NSchema.Diff.Model;
 using NSchema.Plan.Model;
 
-namespace NSchema.Migration;
+namespace NSchema.Plan;
 
 /// <summary>
 /// Walks the structured diff and produces a migration plan.

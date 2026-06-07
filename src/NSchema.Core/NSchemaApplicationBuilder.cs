@@ -11,6 +11,7 @@ using NSchema.Import;
 using NSchema.Migration;
 using NSchema.Operations;
 using NSchema.Operations.Services;
+using NSchema.Plan;
 using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Schema.Policies;
