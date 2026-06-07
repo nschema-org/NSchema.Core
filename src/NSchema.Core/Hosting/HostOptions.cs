@@ -8,9 +8,9 @@ namespace NSchema.Hosting;
 internal class HostOptions
 {
     /// <summary>
-    /// The operation to perform. Defaults to <see cref="Operations.Operation.Plan"/>.
+    /// The operation to perform. Defaults to <see creHostOperationion.Plan"/>.
     /// </summary>
-    public Operation Operation { get; set; } = Operation.Plan;
+    public HostOperation Operation { get; set; } = HostOperation.Plan;
 
     /// <summary>
     /// Controls how exceptions are surfaced.

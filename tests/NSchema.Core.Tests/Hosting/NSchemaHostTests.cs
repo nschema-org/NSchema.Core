@@ -23,9 +23,9 @@ public sealed class NSchemaHostTests
     public NSchemaHostTests()
     {
         var services = new ServiceCollection();
-        services.AddKeyedSingleton<IOperation>(Operation.Plan, (_, _) => _planOp);
-        services.AddKeyedSingleton<IOperation>(Operation.Apply, (_, _) => _applyOp);
-        services.AddKeyedSingleton<IOperation>(Operation.Refresh, (_, _) => _refreshOp);
+        services.AddKeyedSingleton<IOperation>(HostOperation.Plan, (_, _) => _planOp);
+        services.AddKeyedSingleton<IOperation>(HostOperation.Apply, (_, _) => _applyOp);
+        services.AddKeyedSingleton<IOperation>(HostOperation.Refresh, (_, _) => _refreshOp);
         var sp = services.BuildServiceProvider();
 
         _sut = new NSchemaHost(Options.Create(_options), _lifetime, sp, Helpers.TestReporters.ResolverFor(_reporter), _outcome);
@@ -35,7 +35,7 @@ public sealed class NSchemaHostTests
     public async Task Execute_PlanOperation_RunsPlanAndStops()
     {
         // Arrange
-        _options.Operation = Operation.Plan;
+        _options.Operation = HostOperation.Plan;
 
         // Act
         await _sut.StartAsync(CancellationToken.None);
@@ -51,7 +51,7 @@ public sealed class NSchemaHostTests
     public async Task Execute_ApplyOperation_RunsApplyAndStops()
     {
         // Arrange
-        _options.Operation = Operation.Apply;
+        _options.Operation = HostOperation.Apply;
 
         // Act
         await _sut.StartAsync(CancellationToken.None);
@@ -67,7 +67,7 @@ public sealed class NSchemaHostTests
     public async Task Execute_RefreshOperation_RunsRefreshAndStops()
     {
         // Arrange
-        _options.Operation = Operation.Refresh;
+        _options.Operation = HostOperation.Refresh;
 
         // Act
         await _sut.StartAsync(CancellationToken.None);
@@ -84,7 +84,7 @@ public sealed class NSchemaHostTests
     public async Task Execute_StopsApplication_WhenOperationThrows()
     {
         // Arrange
-        _options.Operation = Operation.Apply;
+        _options.Operation = HostOperation.Apply;
         var boom = new InvalidOperationException("boom");
         _applyOp.Execute(Arg.Any<CancellationToken>()).ThrowsAsync(boom);
 
@@ -101,7 +101,7 @@ public sealed class NSchemaHostTests
     public async Task Execute_UnexpectedException_ReportsErrorAndCapturesFailure()
     {
         // Arrange
-        _options.Operation = Operation.Apply;
+        _options.Operation = HostOperation.Apply;
         var boom = new InvalidOperationException("boom");
         _applyOp.Execute(Arg.Any<CancellationToken>()).ThrowsAsync(boom);
 
@@ -118,7 +118,7 @@ public sealed class NSchemaHostTests
     public async Task Execute_ThrowBehavior_CapturesFailureWithoutReporting()
     {
         // Arrange
-        _options.Operation = Operation.Apply;
+        _options.Operation = HostOperation.Apply;
         _options.ExceptionBehavior = ExceptionBehavior.Throw;
         var boom = new InvalidOperationException("boom");
         _applyOp.Execute(Arg.Any<CancellationToken>()).ThrowsAsync(boom);

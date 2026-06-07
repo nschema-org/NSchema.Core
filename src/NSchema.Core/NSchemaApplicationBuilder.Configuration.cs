@@ -78,7 +78,7 @@ public partial class NSchemaApplicationBuilder
     /// <summary>
     /// Configures the operation the migration run performs.
     /// </summary>
-    public NSchemaApplicationBuilder RunOperation(Operation operation)
+    public NSchemaApplicationBuilder RunOperation(HostOperation operation)
     {
         Services.Configure<HostOptions>(o => o.Operation = operation);
         return this;

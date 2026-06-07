@@ -1,9 +1,9 @@
-namespace NSchema.Operations;
+namespace NSchema.Hosting;
 
 /// <summary>
-/// The operation to perform when running the migration.
+/// The operation to perform when running the host.
 /// </summary>
-public enum Operation
+public enum HostOperation
 {
     /// <summary>
     /// Compute and render the migration plan without applying it to the target.

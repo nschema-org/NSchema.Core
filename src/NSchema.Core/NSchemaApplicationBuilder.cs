@@ -114,12 +114,12 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IMigrationHelper, MigrationHelper>();
         services.TryAddSingleton<IOperationConfirmation, AutoApproveConfirmation>();
         services.TryAddSingleton<IKeyedResolver<IOperationReporter>>(sp => new DefaultKeyedResolver<IOperationReporter, OperationOptions>(sp, o => o.Reporter));
-        services.TryAddKeyedSingleton<IOperation, PlanOperation>(Operation.Plan);
-        services.TryAddKeyedSingleton<IOperation, ApplyOperation>(Operation.Apply);
-        services.TryAddKeyedSingleton<IOperation, RefreshOperation>(Operation.Refresh);
-        services.TryAddKeyedSingleton<IOperation, ImportOperation>(Operation.Import);
-        services.TryAddKeyedSingleton<IOperation, ValidateOperation>(Operation.Validate);
-        services.TryAddKeyedSingleton<IOperation, DestroyOperation>(Operation.Destroy);
+        services.TryAddKeyedSingleton<IOperation, PlanOperation>(HostOperation.Plan);
+        services.TryAddKeyedSingleton<IOperation, ApplyOperation>(HostOperation.Apply);
+        services.TryAddKeyedSingleton<IOperation, RefreshOperation>(HostOperation.Refresh);
+        services.TryAddKeyedSingleton<IOperation, ImportOperation>(HostOperation.Import);
+        services.TryAddKeyedSingleton<IOperation, ValidateOperation>(HostOperation.Validate);
+        services.TryAddKeyedSingleton<IOperation, DestroyOperation>(HostOperation.Destroy);
 
         // Schemas
         services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();
