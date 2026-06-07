@@ -14,39 +14,42 @@ Planning and applying behavior are the same as before, but most public types hav
 
 ### Added
 
-- A new `IMigrationConfirmation` interface in `NSchema.Hosting` that can be used to seek confirmation before applying a migration. This is intended for interactive scenarios (e.g. CLI) where the user can review the plan and confirm before proceeding.
-- Exception handling can now be controlled via `OperationOptions.ExceptionBehavior` or `NSchemaApplicationBuilder.WithExceptionBehavior(...)`. The default behavior is preserved: exceptions will be reported to the `IMigrationReporter` and then re-thrown.
+- A new `IOperationConfirmation` interface in `NSchema.Operations` that can be used to seek confirmation before an operation makes changes. This is intended for interactive scenarios (e.g. CLI) where the user can review the plan and confirm before proceeding.
+- Exception handling can now be controlled via `OperationOptions.ExceptionBehavior` or `NSchemaApplicationBuilder.WithExceptionBehavior(...)`. The default behavior is preserved: exceptions will be reported to the `IOperationReporter` and then re-thrown.
 - Schemas are now diffed into a structured, hierarchical model (`NSchema.Diff.Model.MigrationDiff`) and a new `IDiffRenderer` interface renders it for the reporter.
 - `UseTerraformRenderer(...)` to configure the default Terraform-style renderer.
 - SQL previews are now structured too. `ISqlPlanRenderer` renders a `SqlPlan` to text, mirroring `IDiffRenderer`.
 - Offline SQL previews. Because generating SQL is pure string-building, `Plan` now renders the SQL preview whenever an `ISqlGenerator` dialect is registered.
 - `PolicyDiagnostics`, a collection type for policy results, with a `PolicyDiagnosticSeverity` of `Info`, `Warning`, or `Error`.
-- Pluggable output formats. `IMigrationReporter` now carries a `Format`, so several reporters can be registered with `AddReporter<T>(format)` or `AddReporter(instance)` and one chosen per run via `WithOutputFormat(...)` (or `MigrationOptions.OutputFormat`, defaulting to `human`). The built-in human reporter remains the default.
-- Selectable SQL dialects. `ISqlGenerator` now carries a `Dialect`, so several generators can be registered with `AddSqlGenerator<T>(dialect)` and one chosen per run via `WithDialect(...)` (or `MigrationOptions.Dialect`).
-- Pluggable schema document formats. A new `ISchemaDocumentSerializer` reads and writes a desired-schema file format (JSON built-in); register more with `AddSchemaSerializer<T>(format)`. `FileSchemaProvider` now delegates parsing to one.
+- Pluggable output formats. `IOperationReporter` now carries a `Format`, so several reporters can be registered with `AddReporter<T>(format)` or `AddReporter(instance)` and one chosen per run via `WithOutputFormat(...)` (or `OperationOptions.OutputFormat`, defaulting to `human`). The built-in human reporter remains the default.
+- Selectable SQL dialects. `ISqlGenerator` now carries a `Dialect`, so several generators can be registered with `AddSqlGenerator<T>(dialect)` and one chosen per run via `WithDialect(...)` (or `OperationOptions.Dialect`).
+- Pluggable schema document formats. A new `ISchemaSerializer` reads and writes a desired-schema file format (JSON built-in); register more with `AddSchemaSerializer<T>(format)`. `FileSchemaProvider` now delegates parsing to one.
 - `IKeyedResolver<TValue>` a new shared resolver interface injected directly to consumers of any named-service seam (reporters, SQL generators, schema serializers, import targets). Exposes `Current`, `HasCurrent`, `Resolve(key)`, and `TryResolve(key, out value)`.
-- `Import` operation. Reads the live database schema and writes it to a registered `ISchemaImportTarget`. Triggered via `app.Import()` or `RunOperation(MigrationOperation.Import)`. Partial imports are supported via `ImportOptions.Schemas` and `ImportOptions.Tables`.
+- `Import` operation. Reads the live database schema and writes it to a registered `ISchemaImportTarget`. Triggered via `app.Import()` or `RunOperation(Operation.Import)`. Partial imports are supported via `ImportOptions.Schemas` and `ImportOptions.Tables`.
 - `ISchemaImportTarget` the output abstraction for the `Import` operation. Register with `AddImportTarget<T>(name)` / `UseImportTarget<T>(name)` / `UseFileImportTarget(...)`. The target is selected by key via `ImportOptions.Target`.
 - `FileSchemaImportTarget` a built-in file-backed import target. Registered with `UseFileImportTarget(opts => ...)`. Supports `ImportPartitionMode` of `None` (single file), `Schema` (one file per schema), or `Table` (one file per table).
-- `Validate` operation. Reads the desired schema and validates it against all registered `ISchemaPolicy` implementations. Triggered via `app.Validate()` or `RunOperation(MigrationOperation.Validate)`.
+- `Validate` operation. Reads the desired schema and validates it against all registered `ISchemaPolicy` implementations. Triggered via `app.Validate()` or `RunOperation(Operation.Validate)`.
+- `Destroy` operation. Destroys all managed objects in the target database. Triggered via `app.Destroy()` or `RunOperation(Operation.Destroy)`. Use with extreme caution.
 - A new set of structural and linting schema policies that include checks for common issues like missing primary keys or invalid indexes.
 
 ### Changed
 
 - **Breaking:** Namespaces have been flattened. Several areas have been promoted out of the `NSchema.Migration` umbrella into top-level namespaces that mirror the architecture.
+- **Breaking:** The operation seam dropped its `Migration` prefix and moved to `NSchema.Operations`: `IMigrationOperation` is now `IOperation`, the `MigrationOperation` enum is now `Operation`, `MigrationOperationResult` is now `OperationResult`, and `IMigrationConfirmation` is now `IOperationConfirmation`. `MigrationRunOptions` is now `OperationOptions` (in `NSchema.Hosting`).
+- **Breaking:** The plan-stage extension points are now named for the stage, matching `ISchemaPolicy` / `IDiffPolicy`: `IMigrationPlanTransformer` is now `IPlanTransformer`, `IMigrationPolicy` is now `IPlanPolicy` (registered with `AddPlanPolicy<T>()`, was `AddMigrationPolicy<T>()`), and `IMigrationLinearizer` is now `IPlanLinearizer`. They live in `NSchema.Plan` alongside the `MigrationPlan` model.
 - **Breaking:** `ISqlPlanner` is now `ISqlGenerator`, and its `Plan(MigrationPlan)` method is now `Generate(MigrationPlan)`. Register it with `AddSqlGenerator<T>(dialect)` (was `UseSqlPlanner<T>()`). It also now requires a `Dialect` property so generators can be selected by dialect.
 - **Breaking:** `UseSqlGenerator<T>()` has been renamed to `AddSqlGenerator<T>(dialect)`, matching the other additive registration methods.
-- **Breaking:** `IMigrationReporter` now requires a `Format` property so reporters can be selected by output format. Custom reporters must supply one.
-- **Breaking:** `FileSchemaProvider` is no longer abstract with a `Parse(Stream)` method; it now takes an `ISchemaDocumentSerializer`. Implement a new file format by implementing `ISchemaDocumentSerializer` rather than subclassing `FileSchemaProvider`.
-- **Breaking:** `IMigrationReporter.ReportPreview(IReadOnlyList<string>)` is now `ReportSqlPlan(SqlPlan)`, so the reporter receives the structured plan and renders it via `ISqlPlanRenderer` rather than a pre-flattened list of strings.
-- **Breaking:** `IMigrationReporter`'s `ReportPlan(MigrationPlan)` has been replaced by `ReportDiff(MigrationDiff)`. The plan is converted to a structured diff before it is reported.
-- **Breaking:** `PolicyError` is now `PolicyDiagnostic`, and `PolicySeverity` is now `PolicyDiagnosticSeverity`. Custom `ISchemaPolicy` / `IMigrationPolicy` implementations return `PolicyDiagnostic`s.
-- **Breaking:** The `DestructiveActionPolicy` enum moved to `NSchema.Policies`, alongside the policy abstractions it configures.
+- **Breaking:** `IMigrationReporter` is now `IOperationReporter` (in `NSchema.Operations`). It also now requires a `Format` property so reporters can be selected by output format; custom reporters must supply one.
+- **Breaking:** `FileSchemaProvider` is no longer abstract with a `Parse(Stream)` method; it now takes an `ISchemaSerializer`. Implement a new file format by implementing `ISchemaSerializer` rather than subclassing `FileSchemaProvider`.
+- **Breaking:** `IOperationReporter.ReportPreview(IReadOnlyList<string>)` is now `ReportSqlPlan(SqlPlan)`, so the reporter receives the structured plan and renders it via `ISqlPlanRenderer` rather than a pre-flattened list of strings.
+- **Breaking:** `IOperationReporter`'s `ReportPlan(MigrationPlan)` has been replaced by `ReportDiff(MigrationDiff)`. The plan is converted to a structured diff before it is reported.
+- **Breaking:** `PolicyError` is now `PolicyDiagnostic`, and `PolicySeverity` is now `PolicyDiagnosticSeverity`. Custom `ISchemaPolicy` / `IPlanPolicy` implementations return `PolicyDiagnostic`s.
+- **Breaking:** The `DestructiveActionPolicy` enum moved to `NSchema.Migration`, alongside the `MigrationOptions` it configures.
 - **Breaking:** Most async surfaces now use `ValueTask` instead of `Task` for better performance in the common synchronous case.
 - **Breaking:** `SqlType` is now a flat object instead of a class hierarchy, making serialization significantly easier, more robust and extensible. The built-in types are now static properties instead of subclasses.
 - `DefaultSqlExecutor` no longer requires a `DbDataSource` to be constructed; it's an optional dependency, and execution throws a clear error if no connection is configured. This keeps the container wiring unconditional.
 - Migration reporting messages have been overhauled to be more informative.
-- The `IMigrationReporter` now logs directly to the console instead of using `ILogger`. This removes some hacky wiring around segregating logging sinks by category.
+- The `IOperationReporter` now logs directly to the console instead of using `ILogger`. This removes some hacky wiring around segregating logging sinks by category.
 
 ### Removed
 

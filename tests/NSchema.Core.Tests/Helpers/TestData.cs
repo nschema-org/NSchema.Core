@@ -10,17 +10,16 @@ public static class TestData
     public static readonly MigrationAction NonDestructiveAction = new CreateSchema("identity");
 
     /// <summary>A diff dropping the <c>identity.users</c> table.</summary>
-    public static readonly MigrationDiff DestructiveDiff = DiffWithDroppedTables("users");
+    public static readonly DatabaseDiff DestructiveDiff = DiffWithDroppedTables("users");
 
     /// <summary>A diff that only adds a schema.</summary>
-    public static readonly MigrationDiff NonDestructiveDiff = new(
-        [new SchemaDiff("identity", ChangeKind.Add, null, null, [], [])], [], []);
+    public static readonly DatabaseDiff NonDestructiveDiff = new(
+        [new SchemaDiff("identity", ChangeKind.Add, null, null, [], [])]);
 
     /// <summary>Builds a diff that drops the named tables from the <c>identity</c> schema.</summary>
-    public static MigrationDiff DiffWithDroppedTables(params string[] tableNames) => new(
+    public static DatabaseDiff DiffWithDroppedTables(params string[] tableNames) => new(
         [new SchemaDiff("identity", null, null, null, [],
-            [.. tableNames.Select(name => new TableDiff("identity", name, ChangeKind.Remove, null, null, [], [], [], []))])],
-        [], []);
+            [.. tableNames.Select(name => new TableDiff("identity", name, ChangeKind.Remove, null, null, [], [], [], []))])]);
 
     /// <summary>
     /// A schema exercising every domain feature (renames, identity, facets, comments, foreign keys,

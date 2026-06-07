@@ -1,7 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using NSchema.Diff.Model;
 using NSchema.Hosting;
-using NSchema.Migration;
+using NSchema.Operations;
+using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Resolution;
 using NSchema.Sql.Model;
@@ -11,11 +12,12 @@ namespace NSchema.Tests.Hosting;
 public sealed class ReporterRegistrationTests
 {
     /// <summary>A no-op reporter that only carries a format, for registration tests.</summary>
-    private sealed class StubReporter : IMigrationReporter
+    private sealed class StubReporter : IOperationReporter
     {
         public void Info(string message) { }
         public void ReportException(Exception exception) { }
-        public void ReportDiff(MigrationDiff diff) { }
+        public void ReportDiff(DatabaseDiff diff) { }
+        public void ReportPlan(MigrationPlan plan) { }
         public void ReportSqlPlan(SqlPlan plan) { }
         public void ReportDiagnostics(PolicyDiagnostics diagnostics) { }
     }
@@ -30,11 +32,11 @@ public sealed class ReporterRegistrationTests
     [Fact]
     public void Default_RegistersDefaultReporter()
     {
-        var resolver = Build(_ => { }).GetRequiredService<IKeyedResolver<IMigrationReporter>>();
+        var resolver = Build(_ => { }).GetRequiredService<IKeyedResolver<IOperationReporter>>();
 
-        resolver.Resolve(DefaultMigrationReporter.FormatName).ShouldBeOfType<DefaultMigrationReporter>();
+        resolver.Resolve(DefaultOperationReporter.ReporterName).ShouldBeOfType<DefaultOperationReporter>();
         resolver.HasCurrent.ShouldBeTrue();
-        resolver.Current.ShouldBeOfType<DefaultMigrationReporter>();
+        resolver.Current.ShouldBeOfType<DefaultOperationReporter>();
     }
 
     [Fact]
@@ -42,7 +44,7 @@ public sealed class ReporterRegistrationTests
     {
         var json = new StubReporter();
 
-        var resolver = Build(b => b.AddReporter("json", json)).GetRequiredService<IKeyedResolver<IMigrationReporter>>();
+        var resolver = Build(b => b.AddReporter("json", json)).GetRequiredService<IKeyedResolver<IOperationReporter>>();
 
         resolver.Resolve("json").ShouldBeSameAs(json);
     }
@@ -53,7 +55,7 @@ public sealed class ReporterRegistrationTests
         var first = new StubReporter();
         var second = new StubReporter();
 
-        var resolver = Build(b => b.AddReporter("json", first).AddReporter("json", second)).GetRequiredService<IKeyedResolver<IMigrationReporter>>();
+        var resolver = Build(b => b.AddReporter("json", first).AddReporter("json", second)).GetRequiredService<IKeyedResolver<IOperationReporter>>();
 
         resolver.Resolve("json").ShouldBeSameAs(second);
     }
@@ -65,8 +67,8 @@ public sealed class ReporterRegistrationTests
 
         var resolver = Build(b => b
             .AddReporter("json", json)
-            .WithOutputFormat("json"))
-            .GetRequiredService<IKeyedResolver<IMigrationReporter>>();
+            .WithRenderer("json"))
+            .GetRequiredService<IKeyedResolver<IOperationReporter>>();
 
         resolver.Current.ShouldBeSameAs(json);
     }
@@ -74,8 +76,8 @@ public sealed class ReporterRegistrationTests
     [Fact]
     public void Current_DefaultsToHumanReporter()
     {
-        var resolver = Build(_ => { }).GetRequiredService<IKeyedResolver<IMigrationReporter>>();
+        var resolver = Build(_ => { }).GetRequiredService<IKeyedResolver<IOperationReporter>>();
 
-        resolver.Current.ShouldBeOfType<DefaultMigrationReporter>();
+        resolver.Current.ShouldBeOfType<DefaultOperationReporter>();
     }
 }

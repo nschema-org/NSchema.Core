@@ -1,0 +1,37 @@
+namespace NSchema.Hosting;
+
+/// <summary>
+/// The operation to perform when running the host.
+/// </summary>
+public enum HostOperation
+{
+    /// <summary>
+    /// Compute and render the migration plan without applying it to the target.
+    /// </summary>
+    Plan,
+
+    /// <summary>
+    /// Compute the plan and apply it to the target.
+    /// </summary>
+    Apply,
+
+    /// <summary>
+    /// Read the live current schema and write it to the state store, without planning or applying anything.
+    /// </summary>
+    Refresh,
+
+    /// <summary>
+    /// Read the live current schema and write it to the import target.
+    /// </summary>
+    Import,
+
+    /// <summary>
+    /// Load the desired schema and validate it against the schema policies.
+    /// </summary>
+    Validate,
+
+    /// <summary>
+    /// Drop the managed schema objects from the target.
+    /// </summary>
+    Destroy,
+}

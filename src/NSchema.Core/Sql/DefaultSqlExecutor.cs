@@ -1,8 +1,6 @@
 using System.Data;
 using System.Data.Common;
 using Microsoft.Extensions.Options;
-using NSchema.Hosting;
-using NSchema.Migration;
 using NSchema.Sql.Model;
 
 namespace NSchema.Sql;
@@ -12,7 +10,7 @@ namespace NSchema.Sql;
 /// </summary>
 /// <param name="options">Options that control how the executor handles transactions.</param>
 /// <param name="dataSource">The DbDataSource used to obtain database connections.</param>
-public sealed class DefaultSqlExecutor(IOptions<OperationOptions> options, DbDataSource? dataSource = null) : ISqlExecutor
+public sealed class DefaultSqlExecutor(IOptions<SqlOptions> options, DbDataSource? dataSource = null) : ISqlExecutor
 {
     /// <inheritdoc/>
     public async Task Execute(SqlPlan plan, CancellationToken cancellationToken = default)

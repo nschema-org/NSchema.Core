@@ -35,7 +35,7 @@ public sealed class ApplyEndToEndTests : IDisposable
             .AddSqlGenerator<StubSqlGenerator>(StubSqlGenerator.DialectName)
             .WithDialect(StubSqlGenerator.DialectName)
             .AddReporter(RecordingReporter.FormatName, _reporter)
-            .WithOutputFormat(RecordingReporter.FormatName)
+            .WithRenderer(RecordingReporter.FormatName)
             .Tap(b =>
             {
                 b.Services.AddSingleton<ISqlExecutor>(_executor);

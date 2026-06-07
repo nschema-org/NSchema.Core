@@ -19,9 +19,3 @@
 [31m-[0m schema scratch
 
 Plan: 6 to add, 2 to change, 3 to destroy.
-
-Pre-deployment scripts:
-  • 0001_pre
-
-Post-deployment scripts:
-  • 0001_post

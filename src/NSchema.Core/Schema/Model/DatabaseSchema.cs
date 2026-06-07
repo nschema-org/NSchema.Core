@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Text.Json.Serialization;
 
 namespace NSchema.Schema.Model;
 
@@ -24,7 +23,6 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition> Schemas, IReadOnlyL
     /// <summary>
     /// Gets a combined list of all schema names, including both existing schemas and those that have been dropped.
     /// </summary>
-    [JsonIgnore]
     public string[] AllSchemaNames => Schemas
         .Select(s => s.Name)
         .Concat(DroppedSchemas)

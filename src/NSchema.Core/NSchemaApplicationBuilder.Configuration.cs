@@ -3,6 +3,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.Diff;
 using NSchema.Hosting;
 using NSchema.Migration;
+using NSchema.Operations;
+using NSchema.Sql;
 
 namespace NSchema;
 
@@ -29,7 +31,11 @@ public partial class NSchemaApplicationBuilder
     /// <summary>
     /// Configures the transaction mode to use when executing the migration plan.
     /// </summary>
-    public NSchemaApplicationBuilder WithTransactionMode(TransactionMode mode) => WithOperationOptions(o => o.TransactionMode = mode);
+    public NSchemaApplicationBuilder WithTransactionMode(TransactionMode mode)
+    {
+        Services.Configure<SqlOptions>(o => o.TransactionMode = mode);
+        return this;
+    }
 
     /// <summary>
     /// Configures the plan output to use a Terraform-style renderer.
@@ -50,19 +56,19 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
-    /// Registers an <see cref="IMigrationReporter"/> for a new output format.
+    /// Registers an <see cref="IOperationReporter"/> for a new output format.
     /// </summary>
-    public NSchemaApplicationBuilder AddReporter<T>(string format) where T : class, IMigrationReporter
+    public NSchemaApplicationBuilder AddReporter<T>(string format) where T : class, IOperationReporter
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(format);
-        Services.Replace(ServiceDescriptor.KeyedSingleton<IMigrationReporter, T>(format));
+        Services.Replace(ServiceDescriptor.KeyedSingleton<IOperationReporter, T>(format));
         return this;
     }
 
     /// <summary>
-    /// Registers an <see cref="IMigrationReporter"/> instance for a new output format.
+    /// Registers an <see cref="IOperationReporter"/> instance for a new output format.
     /// </summary>
-    public NSchemaApplicationBuilder AddReporter(string format, IMigrationReporter reporter)
+    public NSchemaApplicationBuilder AddReporter(string format, IOperationReporter reporter)
     {
         ArgumentNullException.ThrowIfNull(reporter);
         Services.Replace(ServiceDescriptor.KeyedSingleton(format, reporter));
@@ -72,19 +78,23 @@ public partial class NSchemaApplicationBuilder
     /// <summary>
     /// Configures the operation the migration run performs.
     /// </summary>
-    public NSchemaApplicationBuilder RunOperation(MigrationOperation operation) => WithOperationOptions(o => o.Operation = operation);
+    public NSchemaApplicationBuilder RunOperation(HostOperation operation)
+    {
+        Services.Configure<HostOptions>(o => o.Operation = operation);
+        return this;
+    }
 
     /// <summary>
     /// Configures the output format used to render run output.
     /// </summary>
-    public NSchemaApplicationBuilder WithOutputFormat(string format) => WithOperationOptions(o => o.OutputFormat = format);
+    public NSchemaApplicationBuilder WithRenderer(string format) => WithOperationOptions(o => o.Reporter = format);
 
     /// <summary>
     /// Configures how exceptions are surfaced.
     /// </summary>
     public NSchemaApplicationBuilder WithExceptionBehavior(ExceptionBehavior behavior)
     {
-        Services.Configure<OperationOptions>(o => o.ExceptionBehavior = behavior);
+        Services.Configure<HostOptions>(o => o.ExceptionBehavior = behavior);
         return this;
     }
 

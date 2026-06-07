@@ -14,30 +14,30 @@ public partial class NSchemaApplicationBuilder
     /// </summary>
     /// <typeparam name="T">The type of the transformer to add.</typeparam>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddPlanTransformer<T>() where T : class, IMigrationPlanTransformer
+    public NSchemaApplicationBuilder AddPlanTransformer<T>() where T : class, IPlanTransformer
     {
-        Services.TryAddEnumerable(ServiceDescriptor.Singleton<IMigrationPlanTransformer, T>());
+        Services.TryAddEnumerable(ServiceDescriptor.Singleton<IPlanTransformer, T>());
         return this;
     }
 
     /// <summary>
-    /// Adds all concrete types that implement <see cref="IMigrationPlanTransformer"/> to the application from the specified assembly.
+    /// Adds all concrete types that implement <see cref="IPlanTransformer"/> to the application from the specified assembly.
     /// </summary>
     /// <param name="assembly">The assembly to scan for plan transformers.</param>
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder AddPlanTransformersFromAssembly(Assembly assembly)
     {
         var types = assembly.GetTypes()
-            .Where(t => t is { IsAbstract: false, IsInterface: false } && typeof(IMigrationPlanTransformer).IsAssignableFrom(t));
+            .Where(t => t is { IsAbstract: false, IsInterface: false } && typeof(IPlanTransformer).IsAssignableFrom(t));
         foreach (var type in types)
         {
-            Services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IMigrationPlanTransformer), type));
+            Services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IPlanTransformer), type));
         }
         return this;
     }
 
     /// <summary>
-    /// Adds all concrete types that implement <see cref="IMigrationPlanTransformer"/> to the application from the assembly containing the specified type.
+    /// Adds all concrete types that implement <see cref="IPlanTransformer"/> to the application from the assembly containing the specified type.
     /// </summary>
     /// <typeparam name="T">The type whose containing assembly will be scanned for plan transformers.</typeparam>
     /// <returns>The application builder, for chaining.</returns>

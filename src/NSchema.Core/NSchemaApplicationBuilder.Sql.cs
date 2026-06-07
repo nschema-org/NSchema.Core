@@ -1,6 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using NSchema.Hosting;
 using NSchema.Sql;
 
 namespace NSchema;
@@ -15,7 +14,7 @@ public partial class NSchemaApplicationBuilder
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(dialect);
         Services.TryAddKeyedSingleton<ISqlGenerator, T>(dialect);
-        Services.Configure<OperationOptions>(o => o.Dialect ??= dialect);
+        Services.Configure<SqlOptions>(o => o.Dialect ??= dialect);
         return this;
     }
 
@@ -34,7 +33,7 @@ public partial class NSchemaApplicationBuilder
     public NSchemaApplicationBuilder WithDialect(string dialect)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(dialect);
-        Services.Configure<OperationOptions>(o => o.Dialect = dialect);
+        Services.Configure<SqlOptions>(o => o.Dialect = dialect);
         return this;
     }
 }

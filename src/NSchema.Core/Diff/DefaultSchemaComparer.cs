@@ -6,7 +6,7 @@ namespace NSchema.Diff;
 
 internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaComparer> logger) : ISchemaComparer
 {
-    public MigrationDiff Compare(DatabaseSchema current, DatabaseSchema desired)
+    public DatabaseDiff Compare(DatabaseSchema current, DatabaseSchema desired)
     {
         LogBeginningComparison();
 
@@ -14,7 +14,7 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
 
         LogComparisonComplete(schemas.Count);
 
-        return new MigrationDiff(schemas, [], []);
+        return new DatabaseDiff(schemas);
     }
 
     private List<SchemaDiff> CompareSchemas(IReadOnlyList<SchemaDefinition> current, IReadOnlyList<SchemaDefinition> desired)
