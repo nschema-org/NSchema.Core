@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-This release is a big step towards a functional CLI. Alongside new reporting, diff rendering, and interactive controls, I've reorganized the codebase into clearer top-level namespaces and split SQL generation from execution so that plans can be previewed entirely offline. Output formats, SQL dialects, and schema file formats are now pluggable: you register several implementations and select one per run by key.
+This release is a big rewrite converting `NSchema` package into `NSchema.Core` to allow the NSchema CLI tool to take the `NSchema` package name.
+
+Alongside new reporting, diff rendering, and interactive controls, I've reorganized the codebase into clearer top-level namespaces and split SQL generation from execution so that plans can be previewed entirely offline. Output formats, SQL dialects, and schema file formats are now pluggable: you register several implementations and select one per run by key.
 
 Planning and applying behavior are the same as before, but most public types have moved namespaces and a few have been renamed, so you'll need to update your `using` directives (and a handful of type names) when upgrading.
 
@@ -41,6 +43,7 @@ Planning and applying behavior are the same as before, but most public types hav
 - **Breaking:** `PolicyError` is now `PolicyDiagnostic`, and `PolicySeverity` is now `PolicyDiagnosticSeverity`. Custom `ISchemaPolicy` / `IMigrationPolicy` implementations return `PolicyDiagnostic`s.
 - **Breaking:** The `DestructiveActionPolicy` enum moved to `NSchema.Policies`, alongside the policy abstractions it configures.
 - **Breaking:** Most async surfaces now use `ValueTask` instead of `Task` for better performance in the common synchronous case.
+- **Breaking:** `SqlType` is now a flat object instead of a class hierarchy, making serialization significantly easier, more robust and extensible. The built-in types are now static properties instead of subclasses.
 - `DefaultSqlExecutor` no longer requires a `DbDataSource` to be constructed; it's an optional dependency, and execution throws a clear error if no connection is configured. This keeps the container wiring unconditional.
 - Migration reporting messages have been overhauled to be more informative.
 - The `IMigrationReporter` now logs directly to the console instead of using `ILogger`. This removes some hacky wiring around segregating logging sinks by category.
@@ -49,6 +52,7 @@ Planning and applying behavior are the same as before, but most public types hav
 
 - **Breaking:** `IMigrationCompiler`, `ICompiledMigration`, and `UseMigrationCompiler<T>()`. SQL handling now relies on `ISqlGenerator` and `ISqlExecutor`.
 - **Breaking:** `IMigrationPlanRenderer`. Plan output now flows through `IDiffRenderer` (diff → text); register a custom `IDiffRenderer` or call `UseTerraformRenderer(...)` instead.
+- ** Breaking:** `ISchemaAggregator` has been removed. Instead, use `DatabaseSchema.Combine` to aggregate schemas.
 
 ### Fixed
 
