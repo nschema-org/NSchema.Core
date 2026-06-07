@@ -69,7 +69,7 @@ public sealed class RefreshEndToEndTests : IDisposable
             .UseFileStateStore(_statePath)
             .AddJsonSchema(desired)
             .AddReporter(RecordingReporter.FormatName, reporter)
-            .WithOutputFormat(RecordingReporter.FormatName)
+            .WithRenderer(RecordingReporter.FormatName)
             .Build();
 
         await planner.Plan(TestContext.Current.CancellationToken);

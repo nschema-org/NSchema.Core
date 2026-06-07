@@ -14,7 +14,7 @@ namespace NSchema.Hosting;
 /// </summary>
 internal sealed class DefaultOperationReporter : IOperationReporter
 {
-    public const string FormatName = "default";
+    public const string ReporterName = "default";
 
     private readonly TextWriter _output;
     private readonly TextWriter _error;

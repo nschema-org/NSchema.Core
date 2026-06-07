@@ -52,7 +52,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         _innerBuilder.Services.AddOptions<TerraformDiffRendererOptions>();
 
         // Register built-in keyed implementations (last-registration-wins).
-        AddReporter<DefaultOperationReporter>(DefaultOperationReporter.FormatName);
+        AddReporter<DefaultOperationReporter>(DefaultOperationReporter.ReporterName);
         AddSchemaSerializer<JsonSchemaDocumentSerializer>(JsonSchemaDocumentSerializer.FormatName);
 
         // Policies registered up front so users can remove them before Build().
@@ -98,41 +98,41 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
     private static void ApplyServices(IServiceCollection services)
     {
-        // Schemas
-        services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();
-        services.TryAddSingleton<IDesiredSchemaProvider, DefaultDesiredSchemaProvider>();
-
         // Diffing
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
         services.TryAddSingleton<IDiffRenderer, TerraformDiffRenderer>();
 
-        // Keyed resolvers (one per named-service type)
-        services.TryAddSingleton<IKeyedResolver<IOperationReporter>>(sp => new DefaultKeyedResolver<IOperationReporter, OperationOptions>(sp, o => o.OutputFormat));
-        services.TryAddSingleton<IKeyedResolver<ISqlGenerator>>(sp => new DefaultKeyedResolver<ISqlGenerator, OperationOptions>(sp, o => o.Dialect));
-        services.TryAddSingleton<IKeyedResolver<ISchemaDocumentSerializer>, DefaultKeyedResolver<ISchemaDocumentSerializer, object>>();
+        // Import
         services.TryAddSingleton<IKeyedResolver<ISchemaImportTarget>>(sp => new DefaultKeyedResolver<ISchemaImportTarget, ImportOptions>(sp, o => o.Target));
 
         // Migration
         services.TryAddSingleton<IMigrationLinearizer, DefaultMigrationLinearizer>();
         services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
-        services.TryAddSingleton<IOperationConfirmation, AutoApproveConfirmation>();
-
-        // SQL
-        services.TryAddSingleton<ISqlPlanRenderer, DefaultSqlPlanRenderer>();
-        services.TryAddSingleton<ISqlExecutor, DefaultSqlExecutor>();
-
-        // State
-        services.TryAddSingleton<ISchemaStateSerializer, DefaultSchemaStateSerializer>();
 
         // Operations
         services.TryAddSingleton<OperationResult>();
         services.TryAddSingleton<IMigrationHelper, MigrationHelper>();
+        services.TryAddSingleton<IOperationConfirmation, AutoApproveConfirmation>();
+        services.TryAddSingleton<IKeyedResolver<IOperationReporter>>(sp => new DefaultKeyedResolver<IOperationReporter, OperationOptions>(sp, o => o.Reporter));
         services.TryAddKeyedSingleton<IOperation, PlanOperation>(Operation.Plan);
         services.TryAddKeyedSingleton<IOperation, ApplyOperation>(Operation.Apply);
         services.TryAddKeyedSingleton<IOperation, RefreshOperation>(Operation.Refresh);
         services.TryAddKeyedSingleton<IOperation, ImportOperation>(Operation.Import);
         services.TryAddKeyedSingleton<IOperation, ValidateOperation>(Operation.Validate);
         services.TryAddKeyedSingleton<IOperation, DestroyOperation>(Operation.Destroy);
+
+        // Schemas
+        services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();
+        services.TryAddSingleton<IDesiredSchemaProvider, DefaultDesiredSchemaProvider>();
+        services.TryAddSingleton<IKeyedResolver<ISchemaDocumentSerializer>, DefaultKeyedResolver<ISchemaDocumentSerializer, object>>();
+
+        // SQL
+        services.TryAddSingleton<ISqlPlanRenderer, DefaultSqlPlanRenderer>();
+        services.TryAddSingleton<ISqlExecutor, DefaultSqlExecutor>();
+        services.TryAddSingleton<IKeyedResolver<ISqlGenerator>>(sp => new DefaultKeyedResolver<ISqlGenerator, SqlOptions>(sp, o => o.Dialect));
+
+        // State
+        services.TryAddSingleton<ISchemaStateSerializer, DefaultSchemaStateSerializer>();
 
         // This is the service responsible for running the migration.
         services.AddHostedService<NSchemaHost>();

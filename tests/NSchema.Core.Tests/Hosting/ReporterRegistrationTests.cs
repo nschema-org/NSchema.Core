@@ -34,7 +34,7 @@ public sealed class ReporterRegistrationTests
     {
         var resolver = Build(_ => { }).GetRequiredService<IKeyedResolver<IOperationReporter>>();
 
-        resolver.Resolve(DefaultOperationReporter.FormatName).ShouldBeOfType<DefaultOperationReporter>();
+        resolver.Resolve(DefaultOperationReporter.ReporterName).ShouldBeOfType<DefaultOperationReporter>();
         resolver.HasCurrent.ShouldBeTrue();
         resolver.Current.ShouldBeOfType<DefaultOperationReporter>();
     }
@@ -67,7 +67,7 @@ public sealed class ReporterRegistrationTests
 
         var resolver = Build(b => b
             .AddReporter("json", json)
-            .WithOutputFormat("json"))
+            .WithRenderer("json"))
             .GetRequiredService<IKeyedResolver<IOperationReporter>>();
 
         resolver.Current.ShouldBeSameAs(json);

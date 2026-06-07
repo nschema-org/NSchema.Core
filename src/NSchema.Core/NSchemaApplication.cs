@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NSchema.Hosting;
 using NSchema.Operations;
+using HostOptions = NSchema.Hosting.HostOptions;
 
 namespace NSchema;
 
@@ -85,7 +86,7 @@ public sealed class NSchemaApplication : IHost
 
     private Task RunOperation(Operation operation, CancellationToken cancellationToken)
     {
-        _host.Services.GetRequiredService<IOptions<OperationOptions>>().Value.Operation = operation;
+        _host.Services.GetRequiredService<IOptions<HostOptions>>().Value.Operation = operation;
         return this.RunAsync(cancellationToken);
     }
 

@@ -28,7 +28,7 @@ public sealed class PlanEndToEndTests : IDisposable
     private NSchemaApplicationBuilder NewBuilder(DatabaseSchema current)
     {
         var builder = NSchemaApplication.CreateBuilder();
-        builder.AddReporter(RecordingReporter.FormatName, _reporter).WithOutputFormat(RecordingReporter.FormatName);
+        builder.AddReporter(RecordingReporter.FormatName, _reporter).WithRenderer(RecordingReporter.FormatName);
         builder.Services.AddKeyedSingleton<ISchemaProvider>(NSchemaKeys.OnlineSchemaProvider, new InMemorySchemaProvider(current));
         return builder;
     }

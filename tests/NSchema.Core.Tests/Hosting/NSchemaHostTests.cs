@@ -4,12 +4,13 @@ using Microsoft.Extensions.Options;
 using NSchema.Hosting;
 using NSchema.Operations;
 using NSubstitute.ExceptionExtensions;
+using HostOptions = NSchema.Hosting.HostOptions;
 
 namespace NSchema.Tests.Hosting;
 
 public sealed class NSchemaHostTests
 {
-    private readonly OperationOptions _options = new();
+    private readonly HostOptions _options = new();
     private readonly IOperation _planOp = Substitute.For<IOperation>();
     private readonly IOperation _applyOp = Substitute.For<IOperation>();
     private readonly IOperation _refreshOp = Substitute.For<IOperation>();
