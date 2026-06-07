@@ -9,5 +9,5 @@ internal sealed class JsonSchemaProvider : FileSchemaProvider
 {
     /// <param name="filePath">Absolute or relative path to the JSON schema file.</param>
     public JsonSchemaProvider(string filePath)
-        : base(filePath, JsonSchemaDocumentSerializer.Instance) { }
+        : base(filePath, JsonSchemaSerializer.Instance) { }
 }

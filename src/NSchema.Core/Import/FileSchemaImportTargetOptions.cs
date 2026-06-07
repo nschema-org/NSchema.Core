@@ -17,7 +17,7 @@ public class FileSchemaImportTargetOptions
     /// <summary>
     /// The serializer format key (e.g. <c>json</c>). Defaults to <c>json</c>.
     /// </summary>
-    public string Format { get; set; } = JsonSchemaDocumentSerializer.FormatName;
+    public string Format { get; set; } = JsonSchemaSerializer.FormatName;
 
     /// <summary>
     /// Controls how the imported schema is split across output files.

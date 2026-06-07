@@ -19,11 +19,11 @@ public sealed class FileSchemaProviderTests : IDisposable
     }
 
     /// <summary>
-    /// Minimal <see cref="ISchemaDocumentSerializer"/> that records what it was handed and returns
+    /// Minimal <see cref="ISchemaSerializer"/> that records what it was handed and returns
     /// a caller-supplied schema, so the <see cref="FileSchemaProvider"/> plumbing can be tested in
     /// isolation from parsing.
     /// </summary>
-    private sealed class RecordingSerializer(DatabaseSchema result) : ISchemaDocumentSerializer
+    private sealed class RecordingSerializer(DatabaseSchema result) : ISchemaSerializer
     {
         public string? ParsedContent { get; private set; }
         public bool ReadCalled { get; private set; }

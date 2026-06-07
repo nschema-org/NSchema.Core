@@ -21,7 +21,7 @@ The operation can be decided in one of two ways: either by setting `OperationOpt
 
 ```csharp
 // Configured
-builder.RunOperation(MigrationOperation.Plan);
+builder.RunOperation(Operation.Plan);
 var app = builder.Build();
 await app.RunAsync(); // Will run the plan.
 
@@ -54,7 +54,7 @@ builder.WithDestructiveActionPolicy(DestructiveActionPolicy.Warn); // log a warn
 builder.WithDestructiveActionPolicy(DestructiveActionPolicy.Allow); // allow destructive actions without warning
 ```
 
-If you need more advanced control, you can implement your own `IMigrationPolicy` and register it with `AddMigrationPolicy<T>()`.
+If you need more advanced control, you can implement your own `IPlanPolicy` and register it with `AddPlanPolicy<T>()`.
 
 ## Scoping to specific schemas
 
@@ -133,7 +133,7 @@ builder.WithTransactionMode(TransactionMode.None); // run all statements outside
 
 ## Output format
 
-Run output is produced by an `IMigrationReporter`. The built-in `default` reporter writes human-readable output to the terminal. You can register additional reporters (each declaring a `Format`) and select one per run:
+Run output is produced by an `IOperationReporter`. The built-in `default` reporter writes human-readable output to the terminal. You can register additional reporters (each declaring a `Format`) and select one per run:
 
 ```csharp
 builder
@@ -160,12 +160,12 @@ Schema policies are used to validate the desired schema before any comparison or
 builder.AddSchemaPolicy<TableNamesMustBePluralPolicy>();
 ```
 
-## Migration policies
+## Plan policies
 
-Migration policies are used to validate the generated migration plan before it's executed:
+Plan policies are used to validate the generated migration plan before it's executed:
 
 ```csharp
-builder.AddMigrationPolicy<NoDestructiveActionsPolicy>();
+builder.AddPlanPolicy<NoDestructiveActionsPolicy>();
 ```
 
 ## Plan transformers
@@ -178,7 +178,7 @@ builder.AddPlanTransformer<DependencyOrderingPlanTransformer>();
 
 ## Exception behavior
 
-By default, NSchema will report any exceptions using `IMigrationReporter` and then rethrow them. You can change this behavior
+By default, NSchema will report any exceptions using `IOperationReporter` and then rethrow them. You can change this behavior
 
 ```csharp
 builder.WithExceptionBehavior(ExceptionBehavior.ReportAndThrow); // report and rethrow exceptions (default)

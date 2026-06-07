@@ -8,7 +8,7 @@ namespace NSchema.Import;
 /// <summary>
 /// An <see cref="ISchemaImportTarget"/> that writes the imported schema to the local filesystem, merging additively with any existing files.
 /// </summary>
-internal sealed class FileSchemaImportTarget(IOptions<FileSchemaImportTargetOptions> options, IKeyedResolver<ISchemaDocumentSerializer> serializers) : ISchemaImportTarget
+internal sealed class FileSchemaImportTarget(IOptions<FileSchemaImportTargetOptions> options, IKeyedResolver<ISchemaSerializer> serializers) : ISchemaImportTarget
 {
     /// <summary>
     /// The name of the target, used for resolution.
@@ -34,7 +34,7 @@ internal sealed class FileSchemaImportTarget(IOptions<FileSchemaImportTargetOpti
         _ => throw new InvalidOperationException($"Unknown partition mode: {opts.Partition}")
     };
 
-    private async Task WritePartition(string path, DatabaseSchema incoming, ISchemaDocumentSerializer serializer, CancellationToken cancellationToken)
+    private async Task WritePartition(string path, DatabaseSchema incoming, ISchemaSerializer serializer, CancellationToken cancellationToken)
     {
         var existing = await TryReadExisting(path, serializer, cancellationToken);
         var merged = existing is null ? incoming : Merge(existing, incoming);
@@ -49,7 +49,7 @@ internal sealed class FileSchemaImportTarget(IOptions<FileSchemaImportTargetOpti
         await serializer.Write(merged, stream, cancellationToken);
     }
 
-    private static async Task<DatabaseSchema?> TryReadExisting(string path, ISchemaDocumentSerializer serializer, CancellationToken cancellationToken)
+    private static async Task<DatabaseSchema?> TryReadExisting(string path, ISchemaSerializer serializer, CancellationToken cancellationToken)
     {
         if (!File.Exists(path))
         {

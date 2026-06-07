@@ -7,7 +7,7 @@ namespace NSchema.Schema.Serialization;
 /// <summary>
 /// Reads and writes a <see cref="DatabaseSchema"/> as an indented, camel-cased JSON document.
 /// </summary>
-public sealed class JsonSchemaDocumentSerializer : ISchemaDocumentSerializer
+public sealed class JsonSchemaSerializer : ISchemaSerializer
 {
     /// <summary>
     /// The format name key for this serializer.
@@ -15,9 +15,9 @@ public sealed class JsonSchemaDocumentSerializer : ISchemaDocumentSerializer
     public const string FormatName = "json";
 
     /// <summary>
-    /// A singleton instance of the <see cref="JsonSchemaDocumentSerializer"/> class.
+    /// A singleton instance of the <see cref="JsonSchemaSerializer"/> class.
     /// </summary>
-    public static readonly JsonSchemaDocumentSerializer Instance = new();
+    public static readonly JsonSchemaSerializer Instance = new();
 
     private static readonly JsonSerializerOptions _options = new()
     {

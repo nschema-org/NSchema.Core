@@ -5,9 +5,9 @@ using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Schema.Serialization;
 
-public sealed class JsonSchemaDocumentSerializerTests
+public sealed class JsonSchemaSerializerTests
 {
-    private static readonly JsonSchemaDocumentSerializer _sut = new();
+    private static readonly JsonSchemaSerializer _sut = new();
 
     private static async Task<string> Serialize(DatabaseSchema schema)
     {

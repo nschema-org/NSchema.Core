@@ -8,7 +8,7 @@ namespace NSchema.Tests.Schema.Model;
 
 /// <summary>
 /// Ensures no serialization contract leaks into the domain model:
-/// - User-facing serialization is controlled by <see cref="JsonSchemaDocumentSerializer"/>.
+/// - User-facing serialization is controlled by <see cref="JsonSchemaSerializer"/>.
 /// - State serialization is owned by <see cref="DefaultSchemaStateSerializer"/>.
 /// </summary>
 public sealed class DomainModelSerializationContractTests
@@ -36,7 +36,7 @@ public sealed class DomainModelSerializationContractTests
             var condition = property.GetCustomAttribute<JsonIgnoreAttribute>()?.Condition;
             (condition is null or JsonIgnoreCondition.Always or JsonIgnoreCondition.Never).ShouldBeTrue(
                 $"{type.Name}.{property.Name} uses a conditional [JsonIgnore]; move the omission into " +
-                "JsonSchemaDocumentSerializer so it cannot bleed into the state format.");
+                "JsonSchemaSerializer so it cannot bleed into the state format.");
 
             property.GetCustomAttribute<JsonPropertyNameAttribute>().ShouldBeNull(
                 $"{type.Name}.{property.Name} renames a member via [JsonPropertyName]; naming is a " +

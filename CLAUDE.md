@@ -121,7 +121,7 @@ Providers are registered with `builder.AddSchema<T>()` or `builder.AddSchemasFro
 | `ISchemaStateStore`                                            | `UseStateStore<T>()` / `UseStateStore(instance)` / `UseFileStateStore(path)`                                              |
 | `IMigrationReporter` (keyed by `Format`)                       | `AddReporter<T>(format)` / `AddReporter(instance)` (last-wins per key); select with `WithOutputFormat(...)`               |
 | `ISqlGenerator` (keyed by `Dialect`)                           | `AddSqlGenerator<T>(dialect)`, typically a database-provider extension; select with `WithDialect(...)`                    |
-| `ISchemaDocumentSerializer` (keyed by `Format`)                | `AddSchemaSerializer<T>(format)` (first-wins); `UseSchemaSerializer<T>(format)` to replace (JSON built-in)                |
+| `ISchemaSerializer` (keyed by `Format`)                | `AddSchemaSerializer<T>(format)` (first-wins); `UseSchemaSerializer<T>(format)` to replace (JSON built-in)                |
 | `ISchemaImportTarget` (keyed by name)                          | `AddImportTarget<T>(name)` / `AddFileImportTarget(opts => ...)` (last-wins per key; first registered is default)          |
 | `ISchemaComparer`, `IMigrationLinearizer`, `IMigrationPlanner` | Override via `Services.AddSingleton<...>()` before `Build()` (defaults registered with `TryAdd`)                          |
 | `IDiffRenderer`                                                | `UseTerraformRenderer(...)` / `UseRenderer<TRenderer>()`, or override via `Services.AddSingleton<...>()` before `Build()` |
@@ -129,7 +129,7 @@ Providers are registered with `builder.AddSchema<T>()` or `builder.AddSchemasFro
 
 ### Resolving one of many (resolver pattern)
 
-Several seams let you register multiple implementations and select one per run by a key: `IMigrationReporter` (by `Format`), `ISqlGenerator` (by `Dialect`), `ISchemaDocumentSerializer` (by `Format`), and `ISchemaImportTarget` (by name). All four share a single `IKeyedResolver<TValue>` interface (`Resolution/`), backed by DI keyed services. `IMigrationReporter` and `ISchemaImportTarget` use last-wins registration (`Services.Replace`); `ISqlGenerator` and `ISchemaDocumentSerializer` use first-wins (`TryAddKeyedSingleton`), and `ISchemaDocumentSerializer` has a `UseSchemaSerializer<T>(format)` method to replace the built-in.
+Several seams let you register multiple implementations and select one per run by a key: `IMigrationReporter` (by `Format`), `ISqlGenerator` (by `Dialect`), `ISchemaSerializer` (by `Format`), and `ISchemaImportTarget` (by name). All four share a single `IKeyedResolver<TValue>` interface (`Resolution/`), backed by DI keyed services. `IMigrationReporter` and `ISchemaImportTarget` use last-wins registration (`Services.Replace`); `ISqlGenerator` and `ISchemaSerializer` use first-wins (`TryAddKeyedSingleton`), and `ISchemaSerializer` has a `UseSchemaSerializer<T>(format)` method to replace the built-in.
 
 `IKeyedResolver<TValue>` is injected directly into consumers and exposes:
 - `Current` — resolves the implementation for the current run's configured key (e.g. `OutputFormat`, `Dialect`, `Target`). Throws if no key is configured or the key isn't registered.

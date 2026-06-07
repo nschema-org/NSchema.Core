@@ -5,7 +5,7 @@ namespace NSchema.Schema.Serialization;
 /// <summary>
 /// Reads and writes a human-authored <see cref="DatabaseSchema"/> document in a particular text format (e.g. JSON or YAML).
 /// </summary>
-public interface ISchemaDocumentSerializer
+public interface ISchemaSerializer
 {
     /// <summary>
     /// Writes <paramref name="schema"/> to <paramref name="destination"/> in this serializer's format.

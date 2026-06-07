@@ -54,7 +54,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
         // Register built-in keyed implementations (last-registration-wins).
         AddReporter<DefaultOperationReporter>(DefaultOperationReporter.ReporterName);
-        AddSchemaSerializer<JsonSchemaDocumentSerializer>(JsonSchemaDocumentSerializer.FormatName);
+        AddSchemaSerializer<JsonSchemaSerializer>(JsonSchemaSerializer.FormatName);
 
         // Policies registered up front so users can remove them before Build().
         AddSchemaPolicy<StructuralIntegritySchemaPolicy>();
@@ -125,7 +125,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Schemas
         services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();
         services.TryAddSingleton<IDesiredSchemaProvider, DefaultDesiredSchemaProvider>();
-        services.TryAddSingleton<IKeyedResolver<ISchemaDocumentSerializer>, DefaultKeyedResolver<ISchemaDocumentSerializer, object>>();
+        services.TryAddSingleton<IKeyedResolver<ISchemaSerializer>, DefaultKeyedResolver<ISchemaSerializer, object>>();
 
         // SQL
         services.TryAddSingleton<ISqlPlanRenderer, DefaultSqlPlanRenderer>();
