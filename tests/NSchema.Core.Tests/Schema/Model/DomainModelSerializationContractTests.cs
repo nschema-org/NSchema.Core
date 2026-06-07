@@ -1,5 +1,4 @@
 using System.Reflection;
-using System.Text.Json.Serialization;
 using NSchema.Schema.Model;
 using NSchema.Schema.Serialization;
 using NSchema.State;
@@ -7,12 +6,15 @@ using NSchema.State;
 namespace NSchema.Tests.Schema.Model;
 
 /// <summary>
-/// Ensures no serialization contract leaks into the domain model:
-/// - User-facing serialization is controlled by <see cref="JsonSchemaSerializer"/>.
-/// - State serialization is owned by <see cref="DefaultSchemaStateSerializer"/>.
+/// Ensures the domain model carries no serialization contract whatsoever: every JSON shaping
+/// decision is owned by a serializer's <c>JsonSerializerOptions</c> — user-facing serialization by
+/// <see cref="JsonSchemaSerializer"/>, state serialization by <see cref="DefaultSchemaStateSerializer"/>.
+/// An attribute on the shared model would silently bind both formats together, so none is allowed.
 /// </summary>
 public sealed class DomainModelSerializationContractTests
 {
+    private const string JsonSerializationNamespace = "System.Text.Json.Serialization";
+
     public static TheoryData<Type> DomainTypes()
     {
         var data = new TheoryData<Type>();
@@ -26,25 +28,26 @@ public sealed class DomainModelSerializationContractTests
 
     [Theory]
     [MemberData(nameof(DomainTypes))]
-    public void DomainMembers_CarryNoPresentationShapingAttributes(Type type)
+    public void DomainTypes_CarryNoJsonSerializationAttributes(Type type)
     {
-        foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-        {
-            // An unconditional [JsonIgnore] removes a member from *both* serializers equally — it drops
-            // derived/computed values (e.g. AllSchemaNames) rather than diverging the two formats, so it
-            // is allowed. A *conditional* ignore is presentation terseness and must not live here.
-            var condition = property.GetCustomAttribute<JsonIgnoreAttribute>()?.Condition;
-            (condition is null or JsonIgnoreCondition.Always or JsonIgnoreCondition.Never).ShouldBeTrue(
-                $"{type.Name}.{property.Name} uses a conditional [JsonIgnore]; move the omission into " +
-                "JsonSchemaSerializer so it cannot bleed into the state format.");
+        var offenders = JsonAttributesOn(type.Name, type)
+            .Concat(type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .SelectMany(p => JsonAttributesOn($"{type.Name}.{p.Name}", p)))
+            .Concat(type.GetFields(BindingFlags.Public | BindingFlags.Instance)
+                .SelectMany(f => JsonAttributesOn($"{type.Name}.{f.Name}", f)))
+            .Concat(type.GetConstructors()
+                .SelectMany(c => c.GetParameters())
+                .SelectMany(p => JsonAttributesOn($"{type.Name}(.ctor {p.Name})", p)))
+            .ToList();
 
-            property.GetCustomAttribute<JsonPropertyNameAttribute>().ShouldBeNull(
-                $"{type.Name}.{property.Name} renames a member via [JsonPropertyName]; naming is a " +
-                "per-serializer concern and must not live on the shared domain model.");
-
-            property.GetCustomAttribute<JsonConverterAttribute>().ShouldBeNull(
-                $"{type.Name}.{property.Name} pins a converter via attribute; configure converters on " +
-                "each serializer's JsonSerializerOptions instead.");
-        }
+        offenders.ShouldBeEmpty(
+            $"{type.Name} carries System.Text.Json.Serialization attributes that bind a serialization " +
+            "contract onto the shared domain model. Configure this on each serializer's " +
+            $"JsonSerializerOptions instead: {string.Join(", ", offenders)}");
     }
+
+    private static IEnumerable<string> JsonAttributesOn(string location, ICustomAttributeProvider member) =>
+        member.GetCustomAttributes(inherit: false)
+            .Where(a => a.GetType().Namespace == JsonSerializationNamespace)
+            .Select(a => $"{location} → [{a.GetType().Name}]");
 }

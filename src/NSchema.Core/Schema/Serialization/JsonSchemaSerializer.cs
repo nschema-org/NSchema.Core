@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using NSchema.Schema.Model;
 
 namespace NSchema.Schema.Serialization;
@@ -27,6 +28,7 @@ public sealed class JsonSchemaSerializer : ISchemaSerializer
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault,
         // SqlType renders as its compact canonical string here; the state store keeps the structural form.
         Converters = { new SqlTypeJsonConverter(), new JsonStringEnumConverter() },
+        TypeInfoResolver = new DefaultJsonTypeInfoResolver { Modifiers = { DomainModelJson.IgnoreComputedProperties } },
     };
 
     /// <inheritdoc/>
