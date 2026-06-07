@@ -8,7 +8,7 @@ namespace NSchema.Tests.Schema.Serialization;
 public sealed class SchemaSerializerRegistrationTests
 {
     /// <summary>A no-op serializer for the 'yaml' format, for registration tests.</summary>
-    private sealed class YamlStubSerializer : ISchemaDocumentSerializer
+    private sealed class YamlStubSerializer : ISchemaSerializer
     {
         public string Format => "yaml";
 
@@ -20,7 +20,7 @@ public sealed class SchemaSerializerRegistrationTests
     }
 
     /// <summary>A no-op serializer that claims the built-in 'json' format, for override tests.</summary>
-    private sealed class JsonStubSerializer : ISchemaDocumentSerializer
+    private sealed class JsonStubSerializer : ISchemaSerializer
     {
         public string Format => "json";
 
@@ -31,11 +31,11 @@ public sealed class SchemaSerializerRegistrationTests
             => throw new NotSupportedException();
     }
 
-    private static IKeyedResolver<ISchemaDocumentSerializer> Resolve(Action<NSchemaApplicationBuilder> configure)
+    private static IKeyedResolver<ISchemaSerializer> Resolve(Action<NSchemaApplicationBuilder> configure)
     {
         var builder = NSchemaApplication.CreateBuilder();
         configure(builder);
-        return builder.Build().Services.GetRequiredService<IKeyedResolver<ISchemaDocumentSerializer>>();
+        return builder.Build().Services.GetRequiredService<IKeyedResolver<ISchemaSerializer>>();
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public sealed class SchemaSerializerRegistrationTests
     {
         var resolver = Resolve(_ => { });
 
-        resolver.Resolve("json").ShouldBeOfType<JsonSchemaDocumentSerializer>();
+        resolver.Resolve("json").ShouldBeOfType<JsonSchemaSerializer>();
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public sealed class SchemaSerializerRegistrationTests
         var resolver = Resolve(b => b.AddSchemaSerializer<YamlStubSerializer>("yaml"));
 
         resolver.Resolve("yaml").ShouldBeOfType<YamlStubSerializer>();
-        resolver.Resolve("json").ShouldBeOfType<JsonSchemaDocumentSerializer>();
+        resolver.Resolve("json").ShouldBeOfType<JsonSchemaSerializer>();
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public sealed class SchemaSerializerRegistrationTests
     {
         var resolver = Resolve(b => b.AddSchemaSerializer<JsonStubSerializer>("json"));
 
-        resolver.Resolve("json").ShouldBeOfType<JsonSchemaDocumentSerializer>();
+        resolver.Resolve("json").ShouldBeOfType<JsonSchemaSerializer>();
     }
 
     [Fact]

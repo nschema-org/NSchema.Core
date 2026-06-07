@@ -17,4 +17,11 @@ public interface IMigrationPlanner
     /// <param name="scripts">The pre- and post-deployment scripts to fold into the diff and splice into the plan.</param>
     /// <returns>The generated migration plan and any non-fatal diagnostics.</returns>
     MigrationPlanResult Plan(DatabaseSchema currentSchema, DatabaseSchema desiredSchema, IReadOnlyList<Script> scripts);
+
+    /// <summary>
+    /// Builds a teardown plan that drops everything in <paramref name="currentSchema"/>.
+    /// </summary>
+    /// <param name="currentSchema">The managed schema to tear down.</param>
+    /// <returns>The teardown plan and the structured diff describing the removals.</returns>
+    MigrationPlanResult PlanTeardown(DatabaseSchema currentSchema);
 }

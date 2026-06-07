@@ -2,7 +2,6 @@ using System.Text;
 using Microsoft.Extensions.Options;
 using NSchema.Diff.Model;
 using NSchema.Schema.Model;
-using NSchema.Scripts.Model;
 
 namespace NSchema.Diff;
 
@@ -13,7 +12,7 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
 {
     private readonly Palette _palette = Palette.For(options.Value.IncludeColour);
 
-    public string Render(MigrationDiff diff)
+    public string Render(DatabaseDiff diff)
     {
         if (diff.IsEmpty)
         {
@@ -39,9 +38,6 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
 
         var (added, modified, removed) = diff.GetSummary();
         sb.AppendLine($"Plan: {added} to add, {modified} to change, {removed} to destroy.");
-
-        RenderScripts(sb, "Pre-deployment scripts:", diff.PreDeploymentScripts);
-        RenderScripts(sb, "Post-deployment scripts:", diff.PostDeploymentScripts);
 
         return sb.ToString().Trim();
     }
@@ -144,21 +140,6 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
         if (column.Comment is { } comment)
         {
             AppendDetail(sb, ChangeKind.Modify, $"{column.Name} comment: {FormatComment(comment.Old)} → {FormatComment(comment.New)}");
-        }
-    }
-
-    private void RenderScripts(StringBuilder sb, string heading, IReadOnlyList<Script> scripts)
-    {
-        if (scripts.Count == 0)
-        {
-            return;
-        }
-
-        sb.AppendLine();
-        sb.AppendLine(heading);
-        foreach (var script in scripts)
-        {
-            sb.AppendLine($"  • {script.Name}");
         }
     }
 

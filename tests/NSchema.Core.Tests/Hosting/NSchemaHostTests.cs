@@ -2,29 +2,30 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NSchema.Hosting;
-using NSchema.Migration;
+using NSchema.Operations;
 using NSubstitute.ExceptionExtensions;
+using HostOptions = NSchema.Hosting.HostOptions;
 
 namespace NSchema.Tests.Hosting;
 
 public sealed class NSchemaHostTests
 {
-    private readonly OperationOptions _options = new();
-    private readonly IMigrationOperation _planOp = Substitute.For<IMigrationOperation>();
-    private readonly IMigrationOperation _applyOp = Substitute.For<IMigrationOperation>();
-    private readonly IMigrationOperation _refreshOp = Substitute.For<IMigrationOperation>();
+    private readonly HostOptions _options = new();
+    private readonly IOperation _planOp = Substitute.For<IOperation>();
+    private readonly IOperation _applyOp = Substitute.For<IOperation>();
+    private readonly IOperation _refreshOp = Substitute.For<IOperation>();
     private readonly IHostApplicationLifetime _lifetime = Substitute.For<IHostApplicationLifetime>();
-    private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
-    private readonly MigrationOperationResult _outcome = new();
+    private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
+    private readonly OperationResult _outcome = new();
 
     private readonly NSchemaHost _sut;
 
     public NSchemaHostTests()
     {
         var services = new ServiceCollection();
-        services.AddKeyedSingleton<IMigrationOperation>(MigrationOperation.Plan, (_, _) => _planOp);
-        services.AddKeyedSingleton<IMigrationOperation>(MigrationOperation.Apply, (_, _) => _applyOp);
-        services.AddKeyedSingleton<IMigrationOperation>(MigrationOperation.Refresh, (_, _) => _refreshOp);
+        services.AddKeyedSingleton<IOperation>(HostOperation.Plan, (_, _) => _planOp);
+        services.AddKeyedSingleton<IOperation>(HostOperation.Apply, (_, _) => _applyOp);
+        services.AddKeyedSingleton<IOperation>(HostOperation.Refresh, (_, _) => _refreshOp);
         var sp = services.BuildServiceProvider();
 
         _sut = new NSchemaHost(Options.Create(_options), _lifetime, sp, Helpers.TestReporters.ResolverFor(_reporter), _outcome);
@@ -34,7 +35,7 @@ public sealed class NSchemaHostTests
     public async Task Execute_PlanOperation_RunsPlanAndStops()
     {
         // Arrange
-        _options.Operation = MigrationOperation.Plan;
+        _options.Operation = HostOperation.Plan;
 
         // Act
         await _sut.StartAsync(CancellationToken.None);
@@ -50,7 +51,7 @@ public sealed class NSchemaHostTests
     public async Task Execute_ApplyOperation_RunsApplyAndStops()
     {
         // Arrange
-        _options.Operation = MigrationOperation.Apply;
+        _options.Operation = HostOperation.Apply;
 
         // Act
         await _sut.StartAsync(CancellationToken.None);
@@ -66,7 +67,7 @@ public sealed class NSchemaHostTests
     public async Task Execute_RefreshOperation_RunsRefreshAndStops()
     {
         // Arrange
-        _options.Operation = MigrationOperation.Refresh;
+        _options.Operation = HostOperation.Refresh;
 
         // Act
         await _sut.StartAsync(CancellationToken.None);
@@ -83,7 +84,7 @@ public sealed class NSchemaHostTests
     public async Task Execute_StopsApplication_WhenOperationThrows()
     {
         // Arrange
-        _options.Operation = MigrationOperation.Apply;
+        _options.Operation = HostOperation.Apply;
         var boom = new InvalidOperationException("boom");
         _applyOp.Execute(Arg.Any<CancellationToken>()).ThrowsAsync(boom);
 
@@ -100,7 +101,7 @@ public sealed class NSchemaHostTests
     public async Task Execute_UnexpectedException_ReportsErrorAndCapturesFailure()
     {
         // Arrange
-        _options.Operation = MigrationOperation.Apply;
+        _options.Operation = HostOperation.Apply;
         var boom = new InvalidOperationException("boom");
         _applyOp.Execute(Arg.Any<CancellationToken>()).ThrowsAsync(boom);
 
@@ -117,7 +118,7 @@ public sealed class NSchemaHostTests
     public async Task Execute_ThrowBehavior_CapturesFailureWithoutReporting()
     {
         // Arrange
-        _options.Operation = MigrationOperation.Apply;
+        _options.Operation = HostOperation.Apply;
         _options.ExceptionBehavior = ExceptionBehavior.Throw;
         var boom = new InvalidOperationException("boom");
         _applyOp.Execute(Arg.Any<CancellationToken>()).ThrowsAsync(boom);

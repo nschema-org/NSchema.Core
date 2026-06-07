@@ -1,4 +1,6 @@
 using NSchema.Hosting;
+using NSchema.Operations;
+using NSchema.Operations.Confirmation;
 using NSchema.Plan.Model;
 
 namespace NSchema.Tests.Hosting;
@@ -11,10 +13,10 @@ public sealed class AutoApproveConfirmationTests
     public async Task Confirm_ReturnsTrue()
     {
         // Arrange
-        var plan = new MigrationPlan([]);
+        var request = new ApplyConfirmationRequest(new MigrationPlan([], [], []));
 
         // Act
-        var result = await _sut.Confirm(plan, TestContext.Current.CancellationToken);
+        var result = await _sut.Confirm(request, TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBeTrue();

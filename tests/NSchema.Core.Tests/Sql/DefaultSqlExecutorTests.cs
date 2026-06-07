@@ -1,7 +1,5 @@
 using Microsoft.Extensions.Options;
 using Npgsql;
-using NSchema.Hosting;
-using NSchema.Migration;
 using NSchema.Sql;
 using NSchema.Sql.Model;
 using NSchema.Tests.Fixtures;
@@ -13,7 +11,7 @@ public sealed class DefaultSqlExecutorTests : IAsyncLifetime
 {
     private readonly NpgsqlDataSource _dataSource;
     private readonly string _schema = $"exec_{Guid.NewGuid():N}";
-    private readonly IOptions<OperationOptions> _options = Options.Create(new OperationOptions());
+    private readonly IOptions<SqlOptions> _options = Options.Create(new SqlOptions());
 
     private readonly DefaultSqlExecutor _sut;
 

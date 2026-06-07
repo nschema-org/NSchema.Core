@@ -1,6 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using NSchema.Schema.Model;
+using NSchema.Schema.Serialization;
 
 namespace NSchema.State;
 
@@ -16,6 +18,7 @@ internal sealed class DefaultSchemaStateSerializer : ISchemaStateSerializer
         PropertyNameCaseInsensitive = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
         Converters = { new JsonStringEnumConverter() },
+        TypeInfoResolver = new DefaultJsonTypeInfoResolver { Modifiers = { DomainModelJson.IgnoreComputedProperties } },
     };
 
     /// <inheritdoc />

@@ -20,11 +20,11 @@ This section of the pipeline is where the migration plan is generated. It runs o
 
 1. **Resolve desired schemas.** Load the target schema(s) from one or more registered sources.
 2. **Combine desired schemas.** Combine the desired schemas into a single database schema.
-3. **Validate the desired schema.** Run any registered schema policies to validate things like naming, required columns, banned types, etc.
+3. **Validate the desired schema.** Run any registered schema policies to validate things like missing foreign keys, tables without columns, etc.
 4. **Read current state.** Load the current schema from the live database or the state store, depending on the operation and what's configured.
 5. **Compare schemas.** The current and desired schemas are compared to produce a `MigrationPlan`.
 6. **Transform the plan.** Any custom transformations are applied to the plan. This is where actions are reordered to respect dependencies, or where custom actions are injected.
-7. **Validate the plan.** Validate the plan using any registered policies. If configured, the built-in `DestructiveActionMigrationPolicy` will error on any destructive actions.
+7. **Validate the plan.** Validate the plan using any registered policies. If configured, the built-in destructive actions policy will error on any destructive actions.
 8. **Compile the plan.** The migration plan is compiled into an executable unit of work.
 
 ### Applying
@@ -71,13 +71,13 @@ The default comparer supports all the core features of the domain model, but you
 
 The plan transformation step allows the migration plan to be modified before it's validated and executed. This is where actions are re-ordered to respect dependencies, or custom actions can be injected that aren't directly related to schema changes (e.g. data migrations, cache invalidation, etc.)
 
-Transformations are implemented by creating a class that implements `IMigrationPlanTransformer`, and registered with `AddPlanTransformer<T>()`.
+Transformations are implemented by creating a class that implements `IPlanTransformer`, and registered with `AddPlanTransformer<T>()`.
 
-## Migration policies
+## Plan policies
 
-Migration policies are used to validate the generated migration plan before it's executed. This is where you can enforce rules about what kinds of changes are allowed, e.g. preventing destructive actions like dropping tables or columns.
+Plan policies are used to validate the generated migration plan before it's executed. This is where you can enforce rules about what kinds of changes are allowed, e.g. preventing destructive actions like dropping tables or columns.
 
-Migration policies are implemented using `IMigrationPolicy` and registered with `AddMigrationPolicy<T>()`. If any policy returns errors, execution will halt, preventing bad plans from being applied.
+Plan policies are implemented using `IPlanPolicy` and registered with `AddPlanPolicy<T>()`. If any policy returns errors, execution will halt, preventing bad plans from being applied.
 
 ## SQL generation and execution
 

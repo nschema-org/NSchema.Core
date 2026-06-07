@@ -1,5 +1,6 @@
 using NSchema.Diff.Model;
-using NSchema.Migration;
+using NSchema.Operations;
+using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Sql.Model;
 
@@ -13,19 +14,21 @@ namespace NSchema.Tests.Helpers;
 /// Uses a distinct <see cref="Format"/> so it coexists with the built-in human reporter without colliding;
 /// end-to-end tests select it via <c>WithOutputFormat(RecordingReporter.FormatName)</c>.
 /// </remarks>
-internal sealed class RecordingReporter : IMigrationReporter
+internal sealed class RecordingReporter : IOperationReporter
 {
     public const string FormatName = "recording";
 
     public List<string> Infos { get; } = [];
     public List<Exception> Exceptions { get; } = [];
-    public MigrationDiff? Diff { get; private set; }
+    public DatabaseDiff? Diff { get; private set; }
+    public MigrationPlan? Plan { get; private set; }
     public SqlPlan? SqlPlan { get; private set; }
     public List<PolicyDiagnostic> Diagnostics { get; } = [];
 
     public void Info(string message) => Infos.Add(message);
     public void ReportException(Exception exception) => Exceptions.Add(exception);
-    public void ReportDiff(MigrationDiff diff) => Diff = diff;
+    public void ReportDiff(DatabaseDiff diff) => Diff = diff;
+    public void ReportPlan(MigrationPlan plan) => Plan = plan;
     public void ReportSqlPlan(SqlPlan plan) => SqlPlan = plan;
     public void ReportDiagnostics(PolicyDiagnostics diagnostics) => Diagnostics.AddRange(diagnostics);
 }

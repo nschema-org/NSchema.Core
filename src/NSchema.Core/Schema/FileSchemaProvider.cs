@@ -9,11 +9,11 @@ namespace NSchema.Schema;
 public class FileSchemaProvider : ISchemaProvider
 {
     private readonly string _filePath;
-    private readonly ISchemaDocumentSerializer _serializer;
+    private readonly ISchemaSerializer _serializer;
 
     /// <param name="filePath">Absolute or relative path to the schema file.</param>
     /// <param name="serializer">The serializer that parses the file's format.</param>
-    public FileSchemaProvider(string filePath, ISchemaDocumentSerializer serializer)
+    public FileSchemaProvider(string filePath, ISchemaSerializer serializer)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(serializer);

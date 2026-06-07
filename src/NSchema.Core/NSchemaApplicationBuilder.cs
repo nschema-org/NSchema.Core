@@ -7,10 +7,13 @@ using Microsoft.Extensions.Logging;
 using NSchema.Diff;
 using NSchema.Diff.Policies;
 using NSchema.Hosting;
-using NSchema.Hosting.Operations;
-using NSchema.Hosting.Services;
 using NSchema.Import;
 using NSchema.Migration;
+using NSchema.Operations;
+using NSchema.Operations.Confirmation;
+using NSchema.Operations.Operations;
+using NSchema.Operations.Services;
+using NSchema.Plan;
 using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Schema.Policies;
@@ -52,8 +55,8 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         _innerBuilder.Services.AddOptions<TerraformDiffRendererOptions>();
 
         // Register built-in keyed implementations (last-registration-wins).
-        AddReporter<DefaultMigrationReporter>(DefaultMigrationReporter.FormatName);
-        AddSchemaSerializer<JsonSchemaDocumentSerializer>(JsonSchemaDocumentSerializer.FormatName);
+        AddReporter<DefaultOperationReporter>(DefaultOperationReporter.ReporterName);
+        AddSchemaSerializer<JsonSchemaSerializer>(JsonSchemaSerializer.FormatName);
 
         // Policies registered up front so users can remove them before Build().
         AddSchemaPolicy<StructuralIntegritySchemaPolicy>();
@@ -98,40 +101,41 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
     private static void ApplyServices(IServiceCollection services)
     {
-        // Schemas
-        services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();
-        services.TryAddSingleton<IDesiredSchemaProvider, DefaultDesiredSchemaProvider>();
-
         // Diffing
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
         services.TryAddSingleton<IDiffRenderer, TerraformDiffRenderer>();
 
-        // Keyed resolvers (one per named-service type)
-        services.TryAddSingleton<IKeyedResolver<IMigrationReporter>>(sp => new DefaultKeyedResolver<IMigrationReporter, OperationOptions>(sp, o => o.OutputFormat));
-        services.TryAddSingleton<IKeyedResolver<ISqlGenerator>>(sp => new DefaultKeyedResolver<ISqlGenerator, OperationOptions>(sp, o => o.Dialect));
-        services.TryAddSingleton<IKeyedResolver<ISchemaDocumentSerializer>, DefaultKeyedResolver<ISchemaDocumentSerializer, object>>();
+        // Import
         services.TryAddSingleton<IKeyedResolver<ISchemaImportTarget>>(sp => new DefaultKeyedResolver<ISchemaImportTarget, ImportOptions>(sp, o => o.Target));
 
         // Migration
-        services.TryAddSingleton<IMigrationLinearizer, DefaultMigrationLinearizer>();
+        services.TryAddSingleton<IPlanLinearizer, DefaultPlanLinearizer>();
         services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
-        services.TryAddSingleton<IMigrationConfirmation, AutoApproveConfirmation>();
+
+        // Operations
+        services.TryAddSingleton<OperationResult>();
+        services.TryAddSingleton<IMigrationHelper, MigrationHelper>();
+        services.TryAddSingleton<IOperationConfirmation, AutoApproveConfirmation>();
+        services.TryAddSingleton<IKeyedResolver<IOperationReporter>>(sp => new DefaultKeyedResolver<IOperationReporter, OperationOptions>(sp, o => o.Reporter));
+        services.TryAddKeyedSingleton<IOperation, PlanOperation>(HostOperation.Plan);
+        services.TryAddKeyedSingleton<IOperation, ApplyOperation>(HostOperation.Apply);
+        services.TryAddKeyedSingleton<IOperation, RefreshOperation>(HostOperation.Refresh);
+        services.TryAddKeyedSingleton<IOperation, ImportOperation>(HostOperation.Import);
+        services.TryAddKeyedSingleton<IOperation, ValidateOperation>(HostOperation.Validate);
+        services.TryAddKeyedSingleton<IOperation, DestroyOperation>(HostOperation.Destroy);
+
+        // Schemas
+        services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();
+        services.TryAddSingleton<IDesiredSchemaProvider, DefaultDesiredSchemaProvider>();
+        services.TryAddSingleton<IKeyedResolver<ISchemaSerializer>, DefaultKeyedResolver<ISchemaSerializer, object>>();
 
         // SQL
         services.TryAddSingleton<ISqlPlanRenderer, DefaultSqlPlanRenderer>();
         services.TryAddSingleton<ISqlExecutor, DefaultSqlExecutor>();
+        services.TryAddSingleton<IKeyedResolver<ISqlGenerator>>(sp => new DefaultKeyedResolver<ISqlGenerator, SqlOptions>(sp, o => o.Dialect));
 
         // State
         services.TryAddSingleton<ISchemaStateSerializer, DefaultSchemaStateSerializer>();
-
-        // Operations
-        services.TryAddSingleton<MigrationOperationResult>();
-        services.TryAddSingleton<IMigrationHelper, MigrationHelper>();
-        services.TryAddKeyedSingleton<IMigrationOperation, PlanOperation>(MigrationOperation.Plan);
-        services.TryAddKeyedSingleton<IMigrationOperation, ApplyOperation>(MigrationOperation.Apply);
-        services.TryAddKeyedSingleton<IMigrationOperation, RefreshOperation>(MigrationOperation.Refresh);
-        services.TryAddKeyedSingleton<IMigrationOperation, ImportOperation>(MigrationOperation.Import);
-        services.TryAddKeyedSingleton<IMigrationOperation, ValidateOperation>(MigrationOperation.Validate);
 
         // This is the service responsible for running the migration.
         services.AddHostedService<NSchemaHost>();

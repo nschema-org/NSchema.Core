@@ -1,7 +1,7 @@
 namespace NSchema.Diff.Model;
 
 /// <summary>
-/// Aggregate counts of the top-level changes in a <see cref="MigrationDiff"/>. Each changed schema and each
+/// Aggregate counts of the top-level changes in a <see cref="DatabaseDiff"/>. Each changed schema and each
 /// changed table contributes one to the count for its <see cref="ChangeKind"/>.
 /// </summary>
 /// <param name="Added">The number of schemas and tables being created.</param>
