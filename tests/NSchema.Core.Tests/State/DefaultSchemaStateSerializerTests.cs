@@ -1,5 +1,6 @@
 using NSchema.Schema.Model;
 using NSchema.State;
+using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.State;
 
@@ -51,26 +52,6 @@ public sealed class DefaultSchemaStateSerializerTests
         ],
         droppedSchemas: ["scratch"]);
 
-    private static readonly SqlType[] _sqlTypes =
-    [
-        SqlType.Boolean, SqlType.TinyInt, SqlType.SmallInt, SqlType.Int, SqlType.BigInt,
-        SqlType.Float, SqlType.Double, SqlType.Text, SqlType.Date, SqlType.Time,
-        SqlType.DateTime, SqlType.DateTimeOffset, SqlType.Guid,
-        SqlType.Decimal(18, 2), SqlType.Char(8), SqlType.NChar(4), SqlType.Binary(16),
-        SqlType.VarChar(255), SqlType.VarChar(), SqlType.NVarChar(64), SqlType.NVarChar(),
-        SqlType.VarBinary(32), SqlType.VarBinary(), SqlType.Custom("jsonb"),
-    ];
-
-    public static TheoryData<SqlType> AllSqlTypes()
-    {
-        var data = new TheoryData<SqlType>();
-        foreach (var type in _sqlTypes)
-        {
-            data.Add(type);
-        }
-        return data;
-    }
-
     [Fact]
     public void Serialize_ThenDeserialize_RoundTripsAllFeatures()
     {
@@ -86,7 +67,7 @@ public sealed class DefaultSchemaStateSerializerTests
     }
 
     [Theory]
-    [MemberData(nameof(AllSqlTypes))]
+    [MemberData(nameof(SqlTypeHelpers.AllShapes), MemberType = typeof(SqlTypeHelpers))]
     public void RoundTrip_PreservesSqlType(SqlType type)
     {
         // Arrange
@@ -98,21 +79,6 @@ public sealed class DefaultSchemaStateSerializerTests
 
         // Assert
         roundTripped.Schemas[0].Tables[0].Columns[0].Type.ShouldBe(type);
-    }
-
-    [Fact]
-    public void AllSqlTypes_CoversEveryConcreteSqlType()
-    {
-        // Every concrete SqlType in the domain must appear in AllSqlTypes, so RoundTrip_PreservesSqlType
-        // exercises it. Declaring a new SqlType without adding it here will fail this test.
-        var declared = typeof(SqlType).Assembly.GetTypes()
-            .Where(t => !t.IsAbstract && t.IsSubclassOf(typeof(SqlType)))
-            .ToHashSet();
-
-        var covered = _sqlTypes.Select(type => type.GetType()).ToHashSet();
-
-        var missing = declared.Except(covered).Select(type => type.Name).Order().ToList();
-        missing.ShouldBeEmpty($"AllSqlTypes is missing: {string.Join(", ", missing)}");
     }
 
     [Fact]
