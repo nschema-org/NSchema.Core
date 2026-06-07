@@ -190,4 +190,57 @@ public sealed class DefaultMigrationPlannerTests
         result.Diagnostics[0].Message.ShouldBe("destructive");
         policy.Received(1).Validate(transformed);
     }
+
+    [Fact]
+    public void PlanTeardown_DiffsManagedSchemaAgainstEmpty()
+    {
+        // Arrange
+        var managed = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
+
+        // Act
+        Sut.PlanTeardown(managed);
+
+        // Assert: the managed schema is diffed against an empty desired schema.
+        _comparer.Received(1).Compare(managed, Arg.Is<DatabaseSchema>(d => d.Schemas.Count == 0 && d.DroppedSchemas.Count == 0));
+    }
+
+    [Fact]
+    public void PlanTeardown_LinearizesTheDiff_WithoutDiagnostics()
+    {
+        // Arrange
+        var plan = new MigrationPlan([new DropSchema("app")]);
+        _linearizer.Linearize(_emptyDiff).Returns(plan);
+
+        // Act
+        var result = Sut.PlanTeardown(DatabaseSchema.Create([SchemaDefinition.Create("app")]));
+
+        // Assert
+        result.Plan.ShouldBe(plan);
+        result.Diff.ShouldBe(_emptyDiff);
+        result.HasErrors.ShouldBeFalse();
+        result.Diagnostics.Count.ShouldBe(0);
+    }
+
+    [Fact]
+    public void PlanTeardown_BypassesAllTransformersAndPolicies()
+    {
+        // Arrange: register extensions that would mutate or block a normal plan.
+        var diffTransformer = Substitute.For<IDiffTransformer>();
+        var diffPolicy = Substitute.For<IDiffPolicy>();
+        var planTransformer = Substitute.For<IMigrationPlanTransformer>();
+        var migrationPolicy = Substitute.For<IMigrationPolicy>();
+        _diffTransformers.Add(diffTransformer);
+        _diffPolicies.Add(diffPolicy);
+        _transformers.Add(planTransformer);
+        _migrationPolicies.Add(migrationPolicy);
+
+        // Act
+        Sut.PlanTeardown(DatabaseSchema.Create([SchemaDefinition.Create("app")]));
+
+        // Assert: none of the user-extensible steps are consulted on a teardown.
+        diffTransformer.DidNotReceive().Transform(Arg.Any<MigrationDiff>());
+        diffPolicy.DidNotReceive().Validate(Arg.Any<MigrationDiff>());
+        planTransformer.DidNotReceive().Transform(Arg.Any<MigrationPlan>());
+        migrationPolicy.DidNotReceive().Validate(Arg.Any<MigrationPlan>());
+    }
 }

@@ -40,6 +40,7 @@ Built-in operations (`src/NSchema/Hosting/Operations/`):
 - **`ApplyOperation`** — resolves schemas (online source required), calls `IMigrationPlanner`, generates SQL via `ISqlGenerator`, previews it, executes via `ISqlExecutor`, and captures state.
 - **`RefreshOperation`** — captures the live schema to the state store without planning or applying.
 - **`ImportOperation`** — fetches the live schema (optionally filtered by `ImportOptions.Schemas` / `ImportOptions.Tables`), then writes it to the configured `ISchemaImportTarget` via `IKeyedResolver<ISchemaImportTarget>.Current`. Import is additive: existing tables in the target are preserved.
+- **`DestroyOperation`** — tears down the managed schema. It reads the managed schema from the state store (offline) when one is configured, otherwise from the declared desired schema, and diffs it against an empty schema to produce drops, then generates SQL and executes it (online required), like `ApplyOperation`. Destroy uses `IMigrationPlanner.PlanTeardown`, a **trusted path that bypasses the diff/plan transformers and policies** (so a custom policy can't block teardown and a transformer can't silently alter it); the destructive-action policy therefore never runs. `IMigrationConfirmation` still gates execution.
 
 `SchemaResolution.ResolveAsync` (`src/NSchema/Hosting/Operations/SchemaResolution.cs`) is a shared static helper used by `PlanOperation` and `ApplyOperation` to collect desired providers, aggregate, derive scope, and fetch the current schema.
 
@@ -156,7 +157,7 @@ Schemas, tables, and columns support rename detection via the fluent `RenamedFro
 - `SchemaNames` — optional `string[]` scope filter. When set, only these schemas are read, validated, and diffed. When unset, scope is derived from declared and dropped schemas. Configured via `ForSchemas(...)`.
 
 **`MigrationRunOptions`** — how to run it:
-- `Operation` — `Plan` (default), `Apply`, `Refresh`, or `Import`. Configured via `RunOperation(...)`, or overridden per-run by calling `NSchemaApplication.Plan()` / `Apply()` / `Refresh()` / `Import()`.
+- `Operation` — `Plan` (default), `Apply`, `Refresh`, `Import`, `Validate`, or `Destroy`. Configured via `RunOperation(...)`, or overridden per-run by calling `NSchemaApplication.Plan()` / `Apply()` / `Refresh()` / `Import()` / `Validate()` / `Destroy()`.
 - `TransactionMode` — `Single` (default; whole plan in one transaction, with carve-outs for statements marked `RunOutsideTransaction`) or `None`.
 - `OutputFormat` — the `IMigrationReporter` format to render with (defaults to `DefaultMigrationReporter.FormatName`). Configured via `WithOutputFormat(...)`; resolved through `IKeyedResolver<IMigrationReporter>.Current`.
 - `Dialect` — the `ISqlGenerator` dialect to generate (must be set explicitly when a generator is registered). Configured via `WithDialect(...)`; resolved through `IKeyedResolver<ISqlGenerator>.Current`.

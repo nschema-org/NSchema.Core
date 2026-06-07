@@ -38,6 +38,10 @@ public sealed class MigrationHelperTests
             .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
             .Returns(new MigrationPlanResult(new MigrationPlan([]), new MigrationDiff([], [], []), []));
 
+        _planner
+            .PlanTeardown(Arg.Any<DatabaseSchema>())
+            .Returns(new MigrationPlanResult(new MigrationPlan([]), new MigrationDiff([], [], []), []));
+
         _sut = BuildSut();
     }
 
@@ -237,6 +241,59 @@ public sealed class MigrationHelperTests
 
         // Assert
         desiredScope.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task PlanDestroy_WithStore_TearsDownOfflineSchema()
+    {
+        // Arrange
+        var managed = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
+        _currentProvider
+            .GetSchema(SchemaSourceMode.Offline, Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(managed);
+        var sut = BuildSut(Substitute.For<ISchemaStateStore>());
+
+        // Act
+        await sut.PlanDestroy(TestContext.Current.CancellationToken);
+
+        // Assert
+        await _currentProvider.Received(1).GetSchema(
+            SchemaSourceMode.Offline, Arg.Any<string[]?>(), required: true, Arg.Any<CancellationToken>());
+        _planner.Received(1).PlanTeardown(managed);
+        await _desiredProvider.DidNotReceive().GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PlanDestroy_WithoutStore_TearsDownDesiredSchema()
+    {
+        // Arrange
+        var managed = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
+        _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(managed);
+        var sut = BuildSut(store: null);
+
+        // Act
+        await sut.PlanDestroy(TestContext.Current.CancellationToken);
+
+        // Assert
+        _planner.Received(1).PlanTeardown(managed);
+        await _currentProvider.DidNotReceive().GetSchema(
+            Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PlanDestroy_ReturnsTeardownPlan_AndReportsItsDiff()
+    {
+        // Arrange
+        var plan = new MigrationPlan([new DropSchema("app")]);
+        var diff = new MigrationDiff([], [], []);
+        _planner.PlanTeardown(Arg.Any<DatabaseSchema>()).Returns(new MigrationPlanResult(plan, diff, []));
+
+        // Act
+        var result = await _sut.PlanDestroy(TestContext.Current.CancellationToken);
+
+        // Assert
+        result.ShouldBe(plan);
+        _reporter.Received(1).ReportDiff(diff);
     }
 
     [Fact]

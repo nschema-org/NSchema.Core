@@ -75,6 +75,27 @@ internal sealed class MigrationHelper(
         return result.Plan;
     }
 
+    public async Task<MigrationPlan> PlanDestroy(CancellationToken cancellationToken = default)
+    {
+        // The managed schema is what we tear down: recorded state when we have it, otherwise the declared desired schema.
+        // GetSchema applies the schema transformers, so a transform that adds an object is reflected here and therefore gets dropped.
+        var managedSchema = store is not null
+            ? await currentProvider.GetSchema(SchemaSourceMode.Offline, options.Value.SchemaNames, required: true, cancellationToken)
+            : await desiredProvider.GetSchema(options.Value.SchemaNames, cancellationToken);
+
+        reporters.Current.Info("Computing teardown plan...");
+        var result = planner.PlanTeardown(managedSchema);
+        if (result.HasErrors)
+        {
+            throw new PolicyViolationException(result.Diagnostics.Errors.ToList());
+        }
+
+        reporters.Current.ReportDiff(result.Diff);
+        reporters.Current.ReportDiagnostics(result.Diagnostics);
+
+        return result.Plan;
+    }
+
     public async Task Refresh(CancellationToken cancellationToken = default)
     {
         if (store == null)

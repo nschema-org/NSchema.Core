@@ -23,5 +23,11 @@ internal interface IMigrationHelper
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     Task<MigrationPlan> Plan(SchemaSourceMode currentSource, bool required, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Builds a plan that tears down the managed schema.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    Task<MigrationPlan> PlanDestroy(CancellationToken cancellationToken = default);
+
     Task Refresh(CancellationToken cancellationToken = default);
 }

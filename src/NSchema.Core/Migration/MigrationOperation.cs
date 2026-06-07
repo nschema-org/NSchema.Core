@@ -29,4 +29,9 @@ public enum MigrationOperation
     /// Load the desired schema and validate it against the schema policies.
     /// </summary>
     Validate,
+
+    /// <summary>
+    /// Drop the managed schema objects from the target.
+    /// </summary>
+    Destroy,
 }

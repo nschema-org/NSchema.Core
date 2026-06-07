@@ -1,12 +1,11 @@
 using NSchema.Hosting.Services;
 using NSchema.Migration;
 using NSchema.Resolution;
-using NSchema.Schema;
 using NSchema.Sql;
 
 namespace NSchema.Hosting.Operations;
 
-internal sealed class ApplyOperation(
+internal sealed class DestroyOperation(
     IKeyedResolver<IMigrationReporter> reporters,
     IMigrationConfirmation confirmation,
     IMigrationHelper helper,
@@ -18,12 +17,12 @@ internal sealed class ApplyOperation(
     {
         if (!sqlGenerators.HasCurrent || sqlExecutor is null)
         {
-            throw new InvalidOperationException("Applying a migration requires a database provider to generate and execute SQL, but none is registered.");
+            throw new InvalidOperationException("Destroying a schema requires a database provider to generate and execute SQL, but none is registered.");
         }
 
-        reporters.Current.Info("Applying schema migration. Changes will be applied to the database.");
+        reporters.Current.Info("Destroying schema. All managed objects will be dropped from the database.");
 
-        var plan = await helper.Plan(SchemaSourceMode.Online, required: true, cancellationToken);
+        var plan = await helper.PlanDestroy(cancellationToken);
 
         reporters.Current.Info("Generating SQL...");
         var sqlPlan = sqlGenerators.Current.Generate(plan);
@@ -32,15 +31,15 @@ internal sealed class ApplyOperation(
         // Offer an interactive front-end the chance to prompt before any changes are made.
         if (!await confirmation.Confirm(plan, cancellationToken))
         {
-            reporters.Current.Info("Apply cancelled. No changes were made to the database.");
+            reporters.Current.Info("Destroy cancelled. No changes were made to the database.");
             return;
         }
 
-        reporters.Current.Info("Running schema migration...");
+        reporters.Current.Info("Running schema teardown...");
         await sqlExecutor.Execute(sqlPlan, cancellationToken);
-        reporters.Current.Info("Migration completed successfully.");
+        reporters.Current.Info("Schema destroyed successfully.");
 
-        // Capture the post-apply state only when a store is configured; otherwise there's nowhere to write it.
+        // Capture the post-destroy state only when a store is configured; otherwise there's nowhere to write it.
         if (helper.HasStore)
         {
             reporters.Current.Info("Updating state store...");
