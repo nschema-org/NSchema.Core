@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Options;
 using NSchema.Import;
-using NSchema.Migration;
 using NSchema.Operations;
 using NSchema.Schema;
 using NSchema.Schema.Model;
@@ -11,7 +10,7 @@ public sealed class ImportOperationTests
 {
     private readonly ICurrentSchemaProvider _currentSchema = Substitute.For<ICurrentSchemaProvider>();
     private readonly ISchemaImportTarget _target = Substitute.For<ISchemaImportTarget>();
-    private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
+    private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
 
     private readonly DatabaseSchema _schema = DatabaseSchema.Create([SchemaDefinition.Create("app",
         tables: [Table.Create("users"), Table.Create("orders")])]);

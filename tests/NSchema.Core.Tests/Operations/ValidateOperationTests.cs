@@ -1,4 +1,3 @@
-using NSchema.Migration;
 using NSchema.Operations;
 using NSchema.Operations.Services;
 using NSchema.Schema.Model;
@@ -8,7 +7,7 @@ namespace NSchema.Tests.Operations;
 public sealed class ValidateOperationTests
 {
     private readonly IMigrationHelper _helper = Substitute.For<IMigrationHelper>();
-    private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
+    private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
 
     private ValidateOperation BuildSut() => new(_helper, Helpers.TestReporters.ResolverFor(_reporter));
 

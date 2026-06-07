@@ -15,7 +15,7 @@ internal sealed class MigrationHelper(
     IOptions<MigrationOptions> options,
     IMigrationPlanner planner,
     IEnumerable<IScriptProvider> scriptProviders,
-    IKeyedResolver<IMigrationReporter> reporters,
+    IKeyedResolver<IOperationReporter> reporters,
     ICurrentSchemaProvider currentProvider,
     IDesiredSchemaProvider desiredProvider,
     IEnumerable<ISchemaPolicy> schemaPolicies,

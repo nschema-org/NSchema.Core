@@ -1,6 +1,6 @@
 using NSchema.Sql.Model;
 
-namespace NSchema.Migration;
+namespace NSchema.Sql;
 
 /// <summary>
 /// Controls how the SQL executor wraps a migration in a database transaction.

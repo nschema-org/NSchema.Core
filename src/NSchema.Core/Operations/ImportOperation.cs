@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Options;
 using NSchema.Import;
-using NSchema.Migration;
 using NSchema.Resolution;
 using NSchema.Schema;
 
@@ -10,8 +9,8 @@ internal sealed class ImportOperation(
     IOptions<ImportOptions> options,
     ICurrentSchemaProvider currentSchema,
     IKeyedResolver<ISchemaImportTarget> targets,
-    IKeyedResolver<IMigrationReporter> reporters
-) : INSchemaOperation
+    IKeyedResolver<IOperationReporter> reporters
+) : IOperation
 {
     public async Task Execute(CancellationToken cancellationToken = default)
     {

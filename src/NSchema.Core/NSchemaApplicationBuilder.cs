@@ -52,7 +52,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         _innerBuilder.Services.AddOptions<TerraformDiffRendererOptions>();
 
         // Register built-in keyed implementations (last-registration-wins).
-        AddReporter<DefaultMigrationReporter>(DefaultMigrationReporter.FormatName);
+        AddReporter<DefaultOperationReporter>(DefaultOperationReporter.FormatName);
         AddSchemaSerializer<JsonSchemaDocumentSerializer>(JsonSchemaDocumentSerializer.FormatName);
 
         // Policies registered up front so users can remove them before Build().
@@ -107,7 +107,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IDiffRenderer, TerraformDiffRenderer>();
 
         // Keyed resolvers (one per named-service type)
-        services.TryAddSingleton<IKeyedResolver<IMigrationReporter>>(sp => new DefaultKeyedResolver<IMigrationReporter, OperationOptions>(sp, o => o.OutputFormat));
+        services.TryAddSingleton<IKeyedResolver<IOperationReporter>>(sp => new DefaultKeyedResolver<IOperationReporter, OperationOptions>(sp, o => o.OutputFormat));
         services.TryAddSingleton<IKeyedResolver<ISqlGenerator>>(sp => new DefaultKeyedResolver<ISqlGenerator, OperationOptions>(sp, o => o.Dialect));
         services.TryAddSingleton<IKeyedResolver<ISchemaDocumentSerializer>, DefaultKeyedResolver<ISchemaDocumentSerializer, object>>();
         services.TryAddSingleton<IKeyedResolver<ISchemaImportTarget>>(sp => new DefaultKeyedResolver<ISchemaImportTarget, ImportOptions>(sp, o => o.Target));
@@ -127,12 +127,12 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Operations
         services.TryAddSingleton<OperationResult>();
         services.TryAddSingleton<IMigrationHelper, MigrationHelper>();
-        services.TryAddKeyedSingleton<INSchemaOperation, PlanOperation>(MigrationOperation.Plan);
-        services.TryAddKeyedSingleton<INSchemaOperation, ApplyOperation>(MigrationOperation.Apply);
-        services.TryAddKeyedSingleton<INSchemaOperation, RefreshOperation>(MigrationOperation.Refresh);
-        services.TryAddKeyedSingleton<INSchemaOperation, ImportOperation>(MigrationOperation.Import);
-        services.TryAddKeyedSingleton<INSchemaOperation, ValidateOperation>(MigrationOperation.Validate);
-        services.TryAddKeyedSingleton<INSchemaOperation, DestroyOperation>(MigrationOperation.Destroy);
+        services.TryAddKeyedSingleton<IOperation, PlanOperation>(Operation.Plan);
+        services.TryAddKeyedSingleton<IOperation, ApplyOperation>(Operation.Apply);
+        services.TryAddKeyedSingleton<IOperation, RefreshOperation>(Operation.Refresh);
+        services.TryAddKeyedSingleton<IOperation, ImportOperation>(Operation.Import);
+        services.TryAddKeyedSingleton<IOperation, ValidateOperation>(Operation.Validate);
+        services.TryAddKeyedSingleton<IOperation, DestroyOperation>(Operation.Destroy);
 
         // This is the service responsible for running the migration.
         services.AddHostedService<NSchemaHost>();

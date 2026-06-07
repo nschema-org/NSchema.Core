@@ -1,4 +1,3 @@
-using NSchema.Migration;
 using NSchema.Operations;
 using NSchema.Operations.Services;
 using NSchema.Plan.Model;
@@ -10,7 +9,7 @@ namespace NSchema.Tests.Operations;
 
 public sealed class PlanOperationTests
 {
-    private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
+    private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
     private readonly IMigrationHelper _helper = Substitute.For<IMigrationHelper>();
     private readonly ISqlGenerator _generator = Substitute.For<ISqlGenerator>();
 

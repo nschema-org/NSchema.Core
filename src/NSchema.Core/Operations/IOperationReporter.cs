@@ -3,12 +3,12 @@ using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Sql.Model;
 
-namespace NSchema.Migration;
+namespace NSchema.Operations;
 
 /// <summary>
 /// Presents user-facing progress and outcomes for a migration run.
 /// </summary>
-public interface IMigrationReporter
+public interface IOperationReporter
 {
     /// <summary>
     /// Reports a status / progress message to the user.

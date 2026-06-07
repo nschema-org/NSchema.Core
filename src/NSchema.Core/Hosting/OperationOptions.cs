@@ -1,4 +1,6 @@
 using NSchema.Migration;
+using NSchema.Operations;
+using NSchema.Sql;
 
 namespace NSchema.Hosting;
 
@@ -10,15 +12,15 @@ public class OperationOptions
     /// <summary>
     /// The default output format: human-readable terminal output.
     /// </summary>
-    public const string DefaultOutputFormat = DefaultMigrationReporter.FormatName;
+    public const string DefaultOutputFormat = DefaultOperationReporter.FormatName;
 
     /// <summary>
-    /// The operation to perform. Defaults to <see cref="MigrationOperation.Plan"/>.
+    /// The operation to perform. Defaults to <see cref="Operations.Operation.Plan"/>.
     /// </summary>
-    public MigrationOperation Operation { get; set; } = MigrationOperation.Plan;
+    public Operation Operation { get; set; } = Operation.Plan;
 
     /// <summary>
-    /// The format used to render output, resolved to an <see cref="IMigrationReporter"/> at runtime.
+    /// The format used to render output, resolved to an <see cref="IOperationReporter"/> at runtime.
     /// </summary>
     public string OutputFormat { get; set; } = DefaultOutputFormat;
 
@@ -28,7 +30,7 @@ public class OperationOptions
     public string? Dialect { get; set; }
 
     /// <summary>
-    /// Controls whether the migration runs inside a transaction. Applies to <see cref="MigrationOperation.Apply"/> only.
+    /// Controls whether the migration runs inside a transaction. Applies to <see cref="Operations.Operation.Apply"/> only.
     /// </summary>
     public TransactionMode TransactionMode { get; set; } = TransactionMode.Single;
 

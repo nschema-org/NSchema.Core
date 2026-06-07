@@ -1,26 +1,24 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using NSchema.Hosting;
-using NSchema.Migration;
 using NSchema.Operations;
 
 namespace NSchema.Tests;
 
 public sealed class NSchemaApplicationTests
 {
-    private readonly INSchemaOperation _planOp = Substitute.For<INSchemaOperation>();
-    private readonly INSchemaOperation _applyOp = Substitute.For<INSchemaOperation>();
-    private readonly INSchemaOperation _refreshOp = Substitute.For<INSchemaOperation>();
-    private readonly INSchemaOperation _destroyOp = Substitute.For<INSchemaOperation>();
+    private readonly IOperation _planOp = Substitute.For<IOperation>();
+    private readonly IOperation _applyOp = Substitute.For<IOperation>();
+    private readonly IOperation _refreshOp = Substitute.For<IOperation>();
+    private readonly IOperation _destroyOp = Substitute.For<IOperation>();
 
     private NSchemaApplication BuildApp(Action<NSchemaApplicationBuilder>? configure = null)
     {
         var builder = NSchemaApplication.CreateBuilder();
         // Register substitutes before Build() so TryAddKeyedSingleton in ApplyServices doesn't override them.
-        builder.Services.AddKeyedSingleton<INSchemaOperation>(MigrationOperation.Plan, (_, _) => _planOp);
-        builder.Services.AddKeyedSingleton<INSchemaOperation>(MigrationOperation.Apply, (_, _) => _applyOp);
-        builder.Services.AddKeyedSingleton<INSchemaOperation>(MigrationOperation.Refresh, (_, _) => _refreshOp);
-        builder.Services.AddKeyedSingleton<INSchemaOperation>(MigrationOperation.Destroy, (_, _) => _destroyOp);
+        builder.Services.AddKeyedSingleton<IOperation>(Operation.Plan, (_, _) => _planOp);
+        builder.Services.AddKeyedSingleton<IOperation>(Operation.Apply, (_, _) => _applyOp);
+        builder.Services.AddKeyedSingleton<IOperation>(Operation.Refresh, (_, _) => _refreshOp);
+        builder.Services.AddKeyedSingleton<IOperation>(Operation.Destroy, (_, _) => _destroyOp);
         configure?.Invoke(builder);
         return builder.Build();
     }
@@ -75,7 +73,7 @@ public sealed class NSchemaApplicationTests
     public async Task ExplicitOperation_OverridesConfiguredOperation()
     {
         // Configured to Apply, but Plan() is invoked explicitly.
-        using var app = BuildApp(b => b.RunOperation(MigrationOperation.Apply));
+        using var app = BuildApp(b => b.RunOperation(Operation.Apply));
 
         await app.Plan(TestContext.Current.CancellationToken);
 
@@ -86,7 +84,7 @@ public sealed class NSchemaApplicationTests
     [Fact]
     public async Task RunAsync_UsesConfiguredOperation_WhenNoOverride()
     {
-        using var app = BuildApp(b => b.RunOperation(MigrationOperation.Plan));
+        using var app = BuildApp(b => b.RunOperation(Operation.Plan));
 
         await app.RunAsync(TestContext.Current.CancellationToken);
 

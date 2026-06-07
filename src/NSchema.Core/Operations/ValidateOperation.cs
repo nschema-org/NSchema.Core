@@ -1,10 +1,9 @@
-using NSchema.Migration;
 using NSchema.Operations.Services;
 using NSchema.Resolution;
 
 namespace NSchema.Operations;
 
-internal sealed class ValidateOperation(IMigrationHelper helper, IKeyedResolver<IMigrationReporter> reporters) : INSchemaOperation
+internal sealed class ValidateOperation(IMigrationHelper helper, IKeyedResolver<IOperationReporter> reporters) : IOperation
 {
     public async Task Execute(CancellationToken cancellationToken = default)
     {

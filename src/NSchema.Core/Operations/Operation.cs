@@ -1,9 +1,9 @@
-namespace NSchema.Migration;
+namespace NSchema.Operations;
 
 /// <summary>
 /// The operation to perform when running the migration.
 /// </summary>
-public enum MigrationOperation
+public enum Operation
 {
     /// <summary>
     /// Compute and render the migration plan without applying it to the target.

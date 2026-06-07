@@ -1,5 +1,5 @@
 using NSchema.Diff.Model;
-using NSchema.Migration;
+using NSchema.Operations;
 using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Sql.Model;
@@ -14,7 +14,7 @@ namespace NSchema.Tests.Helpers;
 /// Uses a distinct <see cref="Format"/> so it coexists with the built-in human reporter without colliding;
 /// end-to-end tests select it via <c>WithOutputFormat(RecordingReporter.FormatName)</c>.
 /// </remarks>
-internal sealed class RecordingReporter : IMigrationReporter
+internal sealed class RecordingReporter : IOperationReporter
 {
     public const string FormatName = "recording";
 

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using NSchema.Diff.Model;
 using NSchema.Migration;
+using NSchema.Operations;
 using NSchema.Operations.Services;
 using NSchema.Plan.Model;
 using NSchema.Policies;
@@ -14,7 +15,7 @@ namespace NSchema.Tests.Operations.Services;
 public sealed class MigrationHelperTests
 {
     private readonly IMigrationPlanner _planner = Substitute.For<IMigrationPlanner>();
-    private readonly IMigrationReporter _reporter = Substitute.For<IMigrationReporter>();
+    private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
     private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
     private readonly IDesiredSchemaProvider _desiredProvider = Substitute.For<IDesiredSchemaProvider>();
     private readonly IOptions<MigrationOptions> _options = Options.Create(new MigrationOptions());

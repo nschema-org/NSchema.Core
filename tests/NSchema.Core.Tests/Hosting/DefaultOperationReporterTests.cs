@@ -9,18 +9,18 @@ using NSchema.Sql.Model;
 
 namespace NSchema.Tests.Hosting;
 
-public sealed class DefaultMigrationReporterTests
+public sealed class DefaultOperationReporterTests
 {
     private readonly StringWriter _output = new();
     private readonly StringWriter _error = new();
     private readonly IDiffRenderer _diffRenderer = Substitute.For<IDiffRenderer>();
     private readonly ISqlPlanRenderer _sqlPlanRenderer = Substitute.For<ISqlPlanRenderer>();
 
-    private readonly DefaultMigrationReporter _sut;
+    private readonly DefaultOperationReporter _sut;
 
-    public DefaultMigrationReporterTests()
+    public DefaultOperationReporterTests()
     {
-        _sut = new DefaultMigrationReporter(_diffRenderer, _sqlPlanRenderer, _output, _error);
+        _sut = new DefaultOperationReporter(_diffRenderer, _sqlPlanRenderer, _output, _error);
     }
 
     [Fact]

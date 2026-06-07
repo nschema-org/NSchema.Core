@@ -1,4 +1,3 @@
-using NSchema.Migration;
 using NSchema.Operations.Services;
 using NSchema.Resolution;
 using NSchema.Schema;
@@ -7,12 +6,12 @@ using NSchema.Sql;
 namespace NSchema.Operations;
 
 internal sealed class ApplyOperation(
-    IKeyedResolver<IMigrationReporter> reporters,
+    IKeyedResolver<IOperationReporter> reporters,
     IOperationConfirmation confirmation,
     IMigrationHelper helper,
     IKeyedResolver<ISqlGenerator> sqlGenerators,
     ISqlExecutor? sqlExecutor = null
-) : INSchemaOperation
+) : IOperation
 {
     public async Task Execute(CancellationToken cancellationToken = default)
     {

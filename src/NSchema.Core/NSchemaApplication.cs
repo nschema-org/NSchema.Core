@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NSchema.Hosting;
-using NSchema.Migration;
+using NSchema.Operations;
 
 namespace NSchema;
 
@@ -51,39 +51,39 @@ public sealed class NSchemaApplication : IHost
     /// Computes and renders the plan without applying it to the target.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Plan(CancellationToken cancellationToken = default) => RunOperation(MigrationOperation.Plan, cancellationToken);
+    public Task Plan(CancellationToken cancellationToken = default) => RunOperation(Operation.Plan, cancellationToken);
 
     /// <summary>
     /// Computes the plan and applies it to the target.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Apply(CancellationToken cancellationToken = default) => RunOperation(MigrationOperation.Apply, cancellationToken);
+    public Task Apply(CancellationToken cancellationToken = default) => RunOperation(Operation.Apply, cancellationToken);
 
     /// <summary>
     /// Reads the live current schema and writes it to the state store, without planning or applying anything.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Refresh(CancellationToken cancellationToken = default) => RunOperation(MigrationOperation.Refresh, cancellationToken);
+    public Task Refresh(CancellationToken cancellationToken = default) => RunOperation(Operation.Refresh, cancellationToken);
 
     /// <summary>
     /// Reads the live current schema and writes it to the configured import target as desired-schema source files.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Import(CancellationToken cancellationToken = default) => RunOperation(MigrationOperation.Import, cancellationToken);
+    public Task Import(CancellationToken cancellationToken = default) => RunOperation(Operation.Import, cancellationToken);
 
     /// <summary>
     /// Loads the desired schema and validates it against the configured schema policies.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Validate(CancellationToken cancellationToken = default) => RunOperation(MigrationOperation.Validate, cancellationToken);
+    public Task Validate(CancellationToken cancellationToken = default) => RunOperation(Operation.Validate, cancellationToken);
 
     /// <summary>
     /// Drops the managed schema objects from the target.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Destroy(CancellationToken cancellationToken = default) => RunOperation(MigrationOperation.Destroy, cancellationToken);
+    public Task Destroy(CancellationToken cancellationToken = default) => RunOperation(Operation.Destroy, cancellationToken);
 
-    private Task RunOperation(MigrationOperation operation, CancellationToken cancellationToken)
+    private Task RunOperation(Operation operation, CancellationToken cancellationToken)
     {
         _host.Services.GetRequiredService<IOptions<OperationOptions>>().Value.Operation = operation;
         return this.RunAsync(cancellationToken);

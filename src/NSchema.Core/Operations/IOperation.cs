@@ -3,7 +3,7 @@ namespace NSchema.Operations;
 /// <summary>
 /// Represents a single migration operation (plan, apply, refresh, etc.).
 /// </summary>
-public interface INSchemaOperation
+public interface IOperation
 {
     /// <summary>
     /// Executes the operation.
