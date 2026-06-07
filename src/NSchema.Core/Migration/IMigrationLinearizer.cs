@@ -4,7 +4,7 @@ using NSchema.Plan.Model;
 namespace NSchema.Migration;
 
 /// <summary>
-/// Linearizes a structured <see cref="MigrationDiff"/> into an executable <see cref="MigrationPlan"/>.
+/// Linearizes a structured <see cref="DatabaseDiff"/> into an executable <see cref="MigrationPlan"/>.
 /// </summary>
 public interface IMigrationLinearizer
 {
@@ -12,6 +12,6 @@ public interface IMigrationLinearizer
     /// Produces the ordered migration plan that realizes the given diff.
     /// </summary>
     /// <param name="diff">The structured diff to linearize.</param>
-    /// <returns>The dependency-ordered migration plan.</returns>
-    MigrationPlan Linearize(MigrationDiff diff);
+    /// <returns>The dependency-ordered action list.</returns>
+    IReadOnlyList<MigrationAction> Linearize(DatabaseDiff diff);
 }

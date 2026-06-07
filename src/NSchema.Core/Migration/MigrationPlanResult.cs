@@ -13,7 +13,7 @@ public sealed record MigrationPlanResult
     /// <param name="plan">The computed migration plan, or <c>null</c> when planning produced errors.</param>
     /// <param name="diff">The structured diff, or <c>null</c> when planning produced errors.</param>
     /// <param name="diagnostics">The diagnostics emitted by policies during the planning pass.</param>
-    public MigrationPlanResult(MigrationPlan? plan, MigrationDiff? diff, IEnumerable<PolicyDiagnostic> diagnostics)
+    public MigrationPlanResult(MigrationPlan? plan, DatabaseDiff? diff, IEnumerable<PolicyDiagnostic> diagnostics)
     {
         Plan = plan;
         Diff = diff;
@@ -24,7 +24,7 @@ public sealed record MigrationPlanResult
     public MigrationPlan? Plan { get; }
 
     /// <summary>The structured diff; non-null when <see cref="HasErrors"/> is <c>false</c>.</summary>
-    public MigrationDiff? Diff { get; }
+    public DatabaseDiff? Diff { get; }
 
     /// <summary>
     /// The diagnostics emitted by policies during the planning pass, if any.

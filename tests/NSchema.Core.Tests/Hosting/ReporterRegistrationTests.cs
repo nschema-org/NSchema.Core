@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NSchema.Diff.Model;
 using NSchema.Hosting;
 using NSchema.Migration;
+using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Resolution;
 using NSchema.Sql.Model;
@@ -15,7 +16,8 @@ public sealed class ReporterRegistrationTests
     {
         public void Info(string message) { }
         public void ReportException(Exception exception) { }
-        public void ReportDiff(MigrationDiff diff) { }
+        public void ReportDiff(DatabaseDiff diff) { }
+        public void ReportPlan(MigrationPlan plan) { }
         public void ReportSqlPlan(SqlPlan plan) { }
         public void ReportDiagnostics(PolicyDiagnostics diagnostics) { }
     }

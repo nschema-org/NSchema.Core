@@ -2,7 +2,6 @@ using Microsoft.Extensions.Options;
 using NSchema.Diff;
 using NSchema.Diff.Model;
 using NSchema.Schema.Model;
-using NSchema.Scripts.Model;
 
 namespace NSchema.Tests.Diff;
 
@@ -12,7 +11,7 @@ public sealed class TerraformDiffRendererTests
     // Helpers — render and build diff fragments concisely.
     // -------------------------------------------------------------------------
 
-    private static string Render(MigrationDiff diff, bool colour = false, string? indent = null)
+    private static string Render(DatabaseDiff diff, bool colour = false, string? indent = null)
     {
         var options = new TerraformDiffRendererOptions { IncludeColour = colour };
         if (indent is not null)
@@ -23,11 +22,7 @@ public sealed class TerraformDiffRendererTests
         return new TerraformDiffRenderer(Options.Create(options)).Render(diff);
     }
 
-    private static MigrationDiff DiffOf(
-        IReadOnlyList<SchemaDiff>? schemas = null,
-        IReadOnlyList<Script>? pre = null,
-        IReadOnlyList<Script>? post = null
-    ) => new(schemas ?? [], pre ?? [], post ?? []);
+    private static DatabaseDiff DiffOf(IReadOnlyList<SchemaDiff>? schemas = null) => new(schemas ?? []);
 
     private static SchemaDiff Schema(
         string name,
@@ -67,7 +62,7 @@ public sealed class TerraformDiffRendererTests
         => new(name, ChangeKind.Modify, null, renamedFrom, type, nullability, @default, identity, comment);
 
     /// <summary>Wraps a single table-changing schema (null schema kind) for brevity.</summary>
-    private static MigrationDiff WithTable(TableDiff table)
+    private static DatabaseDiff WithTable(TableDiff table)
         => DiffOf([Schema("app", tables: [table])]);
 
     // -------------------------------------------------------------------------
@@ -321,30 +316,6 @@ public sealed class TerraformDiffRendererTests
         Render(WithTable(Table("users", ChangeKind.Modify, grants: [grant])))
             .ShouldContain($"+ grant {expected} to reader");
     }
-
-    // -------------------------------------------------------------------------
-    // Scripts
-    // -------------------------------------------------------------------------
-
-    [Fact]
-    public void Render_PreAndPostScripts_RenderSeparateSections()
-    {
-        var diff = DiffOf(
-            [Schema("app", ChangeKind.Add)],
-            pre: [new Script("0001_pre", "SELECT 1", ScriptType.PreDeployment)],
-            post: [new Script("0001_post", "SELECT 2", ScriptType.PostDeployment)]);
-
-        var output = Render(diff);
-
-        output.ShouldContain("Pre-deployment scripts:");
-        output.ShouldContain("  • 0001_pre");
-        output.ShouldContain("Post-deployment scripts:");
-        output.ShouldContain("  • 0001_post");
-    }
-
-    [Fact]
-    public void Render_NoScripts_OmitsScriptSections()
-        => Render(DiffOf([Schema("app", ChangeKind.Add)])).ShouldNotContain("deployment scripts");
 
     // -------------------------------------------------------------------------
     // Colour / formatting options

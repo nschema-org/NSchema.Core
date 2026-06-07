@@ -2,7 +2,6 @@ using Microsoft.Extensions.Options;
 using NSchema.Diff;
 using NSchema.Diff.Model;
 using NSchema.Schema.Model;
-using NSchema.Scripts.Model;
 
 namespace NSchema.Tests.Diff;
 
@@ -11,13 +10,13 @@ namespace NSchema.Tests.Diff;
 /// </summary>
 public sealed class TerraformDiffRendererSnapshotTests
 {
-    private static string Render(MigrationDiff diff, bool colour)
+    private static string Render(DatabaseDiff diff, bool colour)
         => new TerraformDiffRenderer(Options.Create(new TerraformDiffRendererOptions { IncludeColour = colour })).Render(diff);
 
     /// <summary>
-    /// A diff exercising add/modify/remove across schemas, tables, columns, indexes, constraints, grants, and scripts.
+    /// A diff exercising add/modify/remove across schemas, tables, columns, indexes, constraints, and grants.
     /// </summary>
-    private static MigrationDiff RichDiff()
+    private static DatabaseDiff RichDiff()
     {
         var addedTable = new TableDiff(
             Schema: "app", Name: "users", Kind: ChangeKind.Add, RenamedFrom: null,
@@ -46,7 +45,7 @@ public sealed class TerraformDiffRendererSnapshotTests
             Indexes: [],
             Constraints: [new ConstraintDiff(ChangeKind.Remove, ConstraintType.ForeignKey, "orders_user_fk", null, null)]);
 
-        return new MigrationDiff(
+        return new DatabaseDiff(
             Schemas:
             [
                 new SchemaDiff("reporting", ChangeKind.Add, null,
@@ -55,9 +54,7 @@ public sealed class TerraformDiffRendererSnapshotTests
                     Tables: []),
                 new SchemaDiff("app", null, null, null, [], [addedTable, modifiedTable]),
                 new SchemaDiff("scratch", ChangeKind.Remove, null, null, [], []),
-            ],
-            PreDeploymentScripts: [new Script("0001_pre", "SELECT 1", ScriptType.PreDeployment)],
-            PostDeploymentScripts: [new Script("0001_post", "SELECT 2", ScriptType.PostDeployment)]);
+            ]);
     }
 
     [Fact]
@@ -67,5 +64,5 @@ public sealed class TerraformDiffRendererSnapshotTests
     public Task Render_RichDiff_WithColour() => Verify(Render(RichDiff(), colour: true));
 
     [Fact]
-    public Task Render_EmptyDiff() => Verify(Render(new MigrationDiff([], [], []), colour: false));
+    public Task Render_EmptyDiff() => Verify(Render(new DatabaseDiff([]), colour: false));
 }

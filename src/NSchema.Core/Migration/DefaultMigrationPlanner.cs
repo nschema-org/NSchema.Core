@@ -28,24 +28,16 @@ internal sealed class DefaultMigrationPlanner(
     {
         // Diff the schemas.
         var diff = comparer.Compare(currentSchema, desiredSchema);
-        if (scripts.Count > 0)
-        {
-            diff = diff with
-            {
-                PreDeploymentScripts = [.. scripts.Where(s => s.Type == ScriptType.PreDeployment)],
-                PostDeploymentScripts = [.. scripts.Where(s => s.Type == ScriptType.PostDeployment)],
-            };
-        }
 
         // Transform and validate the diff.
         diff = diffTransformers.Aggregate(diff, (d, t) => t.Transform(d));
         var diagnostics = diffPolicies.SelectMany(p => p.Validate(diff)).ToList();
 
         // Convert the diff into a migration plan.
-        var plan = linearizer.Linearize(diff);
-        var preActions = diff.PreDeploymentScripts.Select(MigrationAction (s) => new RunScript(s));
-        var postActions = diff.PostDeploymentScripts.Select(MigrationAction (s) => new RunScript(s));
-        plan = plan with { Actions = [.. preActions, .. plan.Actions, .. postActions] };
+        var actions = linearizer.Linearize(diff);
+        var preDeploymentScripts = scripts.Where(s => s.Type == ScriptType.PreDeployment).ToList();
+        var postDeploymentScripts = scripts.Where(s => s.Type == ScriptType.PostDeployment).ToList();
+        var plan = new MigrationPlan(actions, preDeploymentScripts, postDeploymentScripts);
 
         // Transform and validate the plan.
         plan = planTransformers.Aggregate(plan, (p, t) => t.Transform(p));
@@ -59,7 +51,8 @@ internal sealed class DefaultMigrationPlanner(
         // Don't run transformers/policies for teardown.
         // This is a purely destructive action, and needs to be available as an escape.
         var diff = comparer.Compare(currentSchema, DatabaseSchema.Create([]));
-        var plan = linearizer.Linearize(diff);
+        var actions = linearizer.Linearize(diff);
+        var plan = new MigrationPlan(actions, [], []);
         return new MigrationPlanResult(plan, diff, []);
     }
 }

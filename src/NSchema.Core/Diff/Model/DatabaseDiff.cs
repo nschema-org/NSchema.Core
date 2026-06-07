@@ -1,23 +1,15 @@
-using NSchema.Scripts.Model;
-
 namespace NSchema.Diff.Model;
 
 /// <summary>
-/// A representation of the changes between two schemas.
+/// A representation of the changes between two database schemas.
 /// </summary>
 /// <param name="Schemas">The changed schemas.</param>
-/// <param name="PreDeploymentScripts">The pre-deployment scripts to run.</param>
-/// <param name="PostDeploymentScripts">The post-deployment scripts to run.</param>
-public sealed record MigrationDiff(
-    IReadOnlyList<SchemaDiff> Schemas,
-    IReadOnlyList<Script> PreDeploymentScripts,
-    IReadOnlyList<Script> PostDeploymentScripts
-)
+public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff> Schemas)
 {
     /// <summary>
     /// Gets a value indicating whether the diff contains no changes at all.
     /// </summary>
-    public bool IsEmpty => Schemas.Count == 0 && PreDeploymentScripts.Count == 0 && PostDeploymentScripts.Count == 0;
+    public bool IsEmpty => Schemas.Count == 0;
 
     /// <summary>
     /// Gets the aggregate counts of every changed element, grouped by <see cref="ChangeKind"/>.

@@ -12,7 +12,7 @@ namespace NSchema.Tests.Migration;
 public sealed class DefaultMigrationPlannerTests
 {
     private static readonly DatabaseSchema _emptySchema = DatabaseSchema.Create([]);
-    private static readonly MigrationDiff _emptyDiff = new([], [], []);
+    private static readonly DatabaseDiff _emptyDiff = new([]);
     private static readonly IReadOnlyList<Script> _noScripts = [];
 
     private readonly ISchemaComparer _comparer = Substitute.For<ISchemaComparer>();
@@ -34,7 +34,7 @@ public sealed class DefaultMigrationPlannerTests
     public DefaultMigrationPlannerTests()
     {
         _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(_emptyDiff);
-        _linearizer.Linearize(Arg.Any<MigrationDiff>())
+        _linearizer.Linearize(Arg.Any<DatabaseDiff>())
             .Returns(call => new MigrationPlan([]));
     }
 
@@ -53,11 +53,11 @@ public sealed class DefaultMigrationPlannerTests
     }
 
     [Fact]
-    public void Plan_InjectsPreAndPostDeploymentScriptsAroundActions()
+    public void Plan_AttachesPreAndPostDeploymentScriptsToPlan()
     {
         // Arrange
         var coreAction = new CreateSchema("app");
-        _linearizer.Linearize(Arg.Any<MigrationDiff>())
+        _linearizer.Linearize(Arg.Any<DatabaseDiff>())
             .Returns(call => new MigrationPlan([coreAction]));
         IReadOnlyList<Script> scripts =
         [
@@ -68,31 +68,11 @@ public sealed class DefaultMigrationPlannerTests
         // Act
         var result = Sut.Plan(_emptySchema, _emptySchema, scripts);
 
-        // Assert
+        // Assert: scripts live on the plan (not interleaved into Actions, which carry only schema changes).
         result.Plan.ShouldNotBeNull();
-        result.Plan.Actions.Count.ShouldBe(3);
-        result.Plan.Actions[0].ShouldBeOfType<RunScript>().Script.Name.ShouldBe("pre");
-        result.Plan.Actions[1].ShouldBe(coreAction);
-        result.Plan.Actions[2].ShouldBeOfType<RunScript>().Script.Name.ShouldBe("post");
-    }
-
-    [Fact]
-    public void Plan_ScriptNamesAreCarriedOntoTheDiff()
-    {
-        // Arrange
-        IReadOnlyList<Script> scripts =
-        [
-            new("pre", "SELECT 1", ScriptType.PreDeployment),
-            new("post", "SELECT 2", ScriptType.PostDeployment),
-        ];
-
-        // Act
-        var result = Sut.Plan(_emptySchema, _emptySchema, scripts);
-
-        // Assert
-        result.Diff.ShouldNotBeNull();
-        result.Diff.PreDeploymentScripts.ShouldBe([scripts[0]]);
-        result.Diff.PostDeploymentScripts.ShouldBe([scripts[1]]);
+        result.Plan.Actions.ShouldHaveSingleItem().ShouldBe(coreAction);
+        result.Plan.PreDeploymentScripts.ShouldBe([scripts[0]]);
+        result.Plan.PostDeploymentScripts.ShouldBe([scripts[1]]);
     }
 
     [Fact]
@@ -100,7 +80,7 @@ public sealed class DefaultMigrationPlannerTests
     {
         // Arrange
         var coreAction = new CreateSchema("app");
-        _linearizer.Linearize(Arg.Any<MigrationDiff>())
+        _linearizer.Linearize(Arg.Any<DatabaseDiff>())
             .Returns(call => new MigrationPlan([coreAction]));
 
         // Act
@@ -116,7 +96,7 @@ public sealed class DefaultMigrationPlannerTests
     public void Plan_AppliesDiffTransformersBeforeLinearizing()
     {
         // Arrange
-        var transformed = new MigrationDiff([new SchemaDiff("app", ChangeKind.Add, null, null, [], [])], [], []);
+        var transformed = new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add, null, null, [], [])]);
         var transformer = Substitute.For<IDiffTransformer>();
         transformer.Transform(_emptyDiff).Returns(transformed);
         _diffTransformers.Add(transformer);
@@ -238,8 +218,8 @@ public sealed class DefaultMigrationPlannerTests
         Sut.PlanTeardown(DatabaseSchema.Create([SchemaDefinition.Create("app")]));
 
         // Assert: none of the user-extensible steps are consulted on a teardown.
-        diffTransformer.DidNotReceive().Transform(Arg.Any<MigrationDiff>());
-        diffPolicy.DidNotReceive().Validate(Arg.Any<MigrationDiff>());
+        diffTransformer.DidNotReceive().Transform(Arg.Any<DatabaseDiff>());
+        diffPolicy.DidNotReceive().Validate(Arg.Any<DatabaseDiff>());
         planTransformer.DidNotReceive().Transform(Arg.Any<MigrationPlan>());
         migrationPolicy.DidNotReceive().Validate(Arg.Any<MigrationPlan>());
     }

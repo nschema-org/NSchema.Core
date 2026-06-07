@@ -1,7 +1,9 @@
 using NSchema.Diff;
 using NSchema.Diff.Model;
 using NSchema.Migration;
+using NSchema.Plan.Model;
 using NSchema.Policies;
+using NSchema.Scripts.Model;
 using NSchema.Sql;
 using NSchema.Sql.Model;
 
@@ -57,17 +59,38 @@ internal sealed class DefaultMigrationReporter : IMigrationReporter
         }
     }
 
-    public void ReportDiff(MigrationDiff diff)
+    public void ReportDiff(DatabaseDiff diff)
     {
         var render = _diffRenderer.Render(diff);
         _output.WriteLine(render);
         _output.WriteLine();
     }
 
+    public void ReportPlan(MigrationPlan plan)
+    {
+        ReportScripts("Pre-deployment scripts:", plan.PreDeploymentScripts);
+        ReportScripts("Post-deployment scripts:", plan.PostDeploymentScripts);
+    }
+
     public void ReportSqlPlan(SqlPlan plan)
     {
         var render = _sqlPlanRenderer.Render(plan);
         _output.WriteLine(render);
+        _output.WriteLine();
+    }
+
+    private void ReportScripts(string heading, IReadOnlyList<Script> scripts)
+    {
+        if (scripts.Count == 0)
+        {
+            return;
+        }
+
+        _output.WriteLine(heading);
+        foreach (var script in scripts)
+        {
+            _output.WriteLine($"  - {script.Name}");
+        }
         _output.WriteLine();
     }
 

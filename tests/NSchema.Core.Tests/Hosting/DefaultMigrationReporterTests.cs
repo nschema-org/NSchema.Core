@@ -1,7 +1,9 @@
 using NSchema.Diff;
 using NSchema.Diff.Model;
 using NSchema.Hosting;
+using NSchema.Plan.Model;
 using NSchema.Policies;
+using NSchema.Scripts.Model;
 using NSchema.Sql;
 using NSchema.Sql.Model;
 
@@ -65,13 +67,40 @@ public sealed class DefaultMigrationReporterTests
     [Fact]
     public void ReportDiff_WritesRenderedDiffToOutput()
     {
-        var diff = new MigrationDiff([], [], []);
+        var diff = new DatabaseDiff([]);
         _diffRenderer.Render(diff).Returns("rendered diff");
 
         _sut.ReportDiff(diff);
 
         _output.ToString().ShouldContain("rendered diff");
         _error.ToString().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void ReportPlan_WritesDeploymentScriptNamesToOutput()
+    {
+        var plan = new MigrationPlan([])
+        {
+            PreDeploymentScripts = [new Script("0001_pre", "SELECT 1", ScriptType.PreDeployment)],
+            PostDeploymentScripts = [new Script("0001_post", "SELECT 2", ScriptType.PostDeployment)],
+        };
+
+        _sut.ReportPlan(plan);
+
+        var output = _output.ToString();
+        output.ShouldContain("Pre-deployment scripts:");
+        output.ShouldContain("  - 0001_pre");
+        output.ShouldContain("Post-deployment scripts:");
+        output.ShouldContain("  - 0001_post");
+        _error.ToString().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void ReportPlan_WithNoScripts_WritesNothing()
+    {
+        _sut.ReportPlan(new MigrationPlan([new CreateSchema("app")]));
+
+        _output.ToString().ShouldBeEmpty();
     }
 
     [Fact]

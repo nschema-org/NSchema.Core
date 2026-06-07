@@ -3,7 +3,7 @@ using NSchema.Diff.Model;
 namespace NSchema.Diff;
 
 /// <summary>
-/// Renders a structured <see cref="MigrationDiff"/> into a textual representation.
+/// Renders a structured <see cref="DatabaseDiff"/> into a textual representation.
 /// </summary>
 public interface IDiffRenderer
 {
@@ -12,5 +12,5 @@ public interface IDiffRenderer
     /// </summary>
     /// <param name="diff">The diff to render.</param>
     /// <returns>The rendered representation.</returns>
-    string Render(MigrationDiff diff);
+    string Render(DatabaseDiff diff);
 }

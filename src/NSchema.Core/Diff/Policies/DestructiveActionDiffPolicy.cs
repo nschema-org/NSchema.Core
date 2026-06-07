@@ -14,7 +14,7 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<MigrationOptions> opt
 {
     private const string PolicyName = "destructive-actions";
 
-    public IEnumerable<PolicyDiagnostic> Validate(MigrationDiff diff)
+    public IEnumerable<PolicyDiagnostic> Validate(DatabaseDiff diff)
     {
         var destructive = DestructiveChanges(diff).Distinct().ToList();
         if (destructive.Count == 0)
@@ -32,7 +32,7 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<MigrationOptions> opt
         };
     }
 
-    private static IEnumerable<string> DestructiveChanges(MigrationDiff diff)
+    private static IEnumerable<string> DestructiveChanges(DatabaseDiff diff)
     {
         foreach (var schema in diff.Schemas)
         {

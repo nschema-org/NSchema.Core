@@ -49,15 +49,13 @@ public sealed class DefaultMigrationLinearizerSnapshotTests
             Indexes: [new IndexDiff(ChangeKind.Add, "orders_total_ix", TableIndex.Create("orders_total_ix", ["total"]), null)],
             Constraints: [new ConstraintDiff(ChangeKind.Remove, ConstraintType.ForeignKey, "orders_user_fk", null, null)]);
 
-        var diff = new MigrationDiff(
+        var diff = new DatabaseDiff(
             Schemas:
             [
                 new SchemaDiff("reporting", ChangeKind.Add, null, null, [], []),
                 new SchemaDiff("app", null, null, null, [], [newTable, modifiedTable]),
                 new SchemaDiff("scratch", ChangeKind.Remove, null, null, [], []),
-            ],
-            PreDeploymentScripts: [],
-            PostDeploymentScripts: []);
+            ]);
 
         var plan = _linearizer.Linearize(diff);
 

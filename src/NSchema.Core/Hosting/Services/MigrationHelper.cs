@@ -70,6 +70,7 @@ internal sealed class MigrationHelper(
         }
 
         reporters.Current.ReportDiff(result.Diff);
+        reporters.Current.ReportPlan(result.Plan);
         reporters.Current.ReportDiagnostics(result.Diagnostics);
 
         return result.Plan;
@@ -91,6 +92,7 @@ internal sealed class MigrationHelper(
         }
 
         reporters.Current.ReportDiff(result.Diff);
+        reporters.Current.ReportPlan(result.Plan);
         reporters.Current.ReportDiagnostics(result.Diagnostics);
 
         return result.Plan;

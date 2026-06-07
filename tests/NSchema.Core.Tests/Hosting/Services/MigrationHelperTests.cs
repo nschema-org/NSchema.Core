@@ -36,11 +36,11 @@ public sealed class MigrationHelperTests
 
         _planner
             .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
-            .Returns(new MigrationPlanResult(new MigrationPlan([]), new MigrationDiff([], [], []), []));
+            .Returns(new MigrationPlanResult(new MigrationPlan([]), new DatabaseDiff([]), []));
 
         _planner
             .PlanTeardown(Arg.Any<DatabaseSchema>())
-            .Returns(new MigrationPlanResult(new MigrationPlan([]), new MigrationDiff([], [], []), []));
+            .Returns(new MigrationPlanResult(new MigrationPlan([]), new DatabaseDiff([]), []));
 
         _sut = BuildSut();
     }
@@ -109,7 +109,7 @@ public sealed class MigrationHelperTests
     {
         // Arrange
         var plan = new MigrationPlan([new CreateSchema("app")]);
-        var diff = new MigrationDiff([], [], []);
+        var diff = new DatabaseDiff([]);
         _planner
             .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
             .Returns(new MigrationPlanResult(plan, diff, []));
@@ -162,7 +162,7 @@ public sealed class MigrationHelperTests
         // Assert
         await act.ShouldThrowAsync<PolicyViolationException>();
         _reporter.DidNotReceive().ReportDiagnostics(Arg.Any<PolicyDiagnostics>());
-        _reporter.DidNotReceive().ReportDiff(Arg.Any<MigrationDiff>());
+        _reporter.DidNotReceive().ReportDiff(Arg.Any<DatabaseDiff>());
     }
 
     [Fact]
@@ -172,10 +172,10 @@ public sealed class MigrationHelperTests
         var diagnostics = new[] { new PolicyDiagnostic("P1", "info", PolicyDiagnosticSeverity.Info) };
         var plan = new MigrationPlan([]);
         _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
-            .Returns(new MigrationPlanResult(plan, new MigrationDiff([], [], []), diagnostics));
+            .Returns(new MigrationPlanResult(plan, new DatabaseDiff([]), diagnostics));
 
         var callOrder = new List<string>();
-        _reporter.When(r => r.ReportDiff(Arg.Any<MigrationDiff>())).Do(_ => callOrder.Add("diff"));
+        _reporter.When(r => r.ReportDiff(Arg.Any<DatabaseDiff>())).Do(_ => callOrder.Add("diff"));
         _reporter.When(r => r.ReportDiagnostics(Arg.Any<PolicyDiagnostics>())).Do(_ => callOrder.Add("diagnostics"));
 
         // Act
@@ -285,7 +285,7 @@ public sealed class MigrationHelperTests
     {
         // Arrange
         var plan = new MigrationPlan([new DropSchema("app")]);
-        var diff = new MigrationDiff([], [], []);
+        var diff = new DatabaseDiff([]);
         _planner.PlanTeardown(Arg.Any<DatabaseSchema>()).Returns(new MigrationPlanResult(plan, diff, []));
 
         // Act

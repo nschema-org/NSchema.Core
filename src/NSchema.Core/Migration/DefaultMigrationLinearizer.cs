@@ -1,7 +1,6 @@
 using System.Collections.Frozen;
 using NSchema.Diff.Model;
 using NSchema.Plan.Model;
-using NSchema.Scripts.Model;
 
 namespace NSchema.Migration;
 
@@ -10,11 +9,7 @@ namespace NSchema.Migration;
 /// </summary>
 internal sealed class DefaultMigrationLinearizer : IMigrationLinearizer
 {
-    // A little dramatic, but it works.
-    private const int PreScriptPriority = int.MinValue;
-    private const int PostScriptPriority = int.MaxValue;
-
-    private static readonly IReadOnlyDictionary<Type, int> _priorities = new List<Type> {
+    private static readonly IReadOnlyDictionary<Type, int> _actionPriorities = new List<Type> {
         typeof(DropForeignKey),
         typeof(DropIndex),
         typeof(DropPrimaryKey),
@@ -44,22 +39,16 @@ internal sealed class DefaultMigrationLinearizer : IMigrationLinearizer
         typeof(DropSchema),
     }.Index().ToFrozenDictionary(x => x.Item, x => x.Index);
 
-    public MigrationPlan Linearize(MigrationDiff diff)
+    public IReadOnlyList<MigrationAction> Linearize(DatabaseDiff diff)
     {
         var actions = new List<MigrationAction>();
         foreach (var schema in diff.Schemas)
         {
             EmitSchema(schema, actions);
         }
-        actions = actions.OrderBy(GetPriority).ToList();
-        return new MigrationPlan(actions);
 
-        static int GetPriority(MigrationAction action) => action switch
-        {
-            RunScript { Script.Type: ScriptType.PreDeployment } => PreScriptPriority,
-            RunScript { Script.Type: ScriptType.PostDeployment } => PostScriptPriority,
-            _ => _priorities[action.GetType()],
-        };
+        actions = actions.OrderBy(action => _actionPriorities[action.GetType()]).ToList();
+        return actions;
     }
 
     private static void EmitSchema(SchemaDiff schema, List<MigrationAction> actions)

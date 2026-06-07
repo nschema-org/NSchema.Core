@@ -1,4 +1,5 @@
 using NSchema.Diff.Model;
+using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Sql.Model;
 
@@ -23,7 +24,12 @@ public interface IMigrationReporter
     /// <summary>
     /// Presents the computed migration diff as human-readable output.
     /// </summary>
-    void ReportDiff(MigrationDiff diff);
+    void ReportDiff(DatabaseDiff diff);
+
+    /// <summary>
+    /// Presents plan-level detail that isn't part of the diff, such as the pre- and post-deployment scripts.
+    /// </summary>
+    void ReportPlan(MigrationPlan plan);
 
     /// <summary>
     /// Presents the SQL plan a migration would run.
