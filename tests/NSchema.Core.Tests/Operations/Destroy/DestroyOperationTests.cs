@@ -5,6 +5,8 @@ using NSchema.Operations.Services;
 using NSchema.Plan.Model;
 using NSchema.Sql;
 using NSchema.Sql.Model;
+using NSchema.State;
+using NSchema.Tests.Helpers;
 using NSubstitute.ExceptionExtensions;
 
 namespace NSchema.Tests.Operations.Destroy;
@@ -16,6 +18,7 @@ public sealed class DestroyOperationTests
     private readonly ISqlGenerator _generator = Substitute.For<ISqlGenerator>();
     private readonly ISqlExecutor _executor = Substitute.For<ISqlExecutor>();
     private readonly IOperationConfirmation _confirmation = Substitute.For<IOperationConfirmation>();
+    private readonly RecordingStateLock _stateLock = new();
 
     private readonly MigrationPlan _plan = new([new DropSchema("app")], [], []);
     private readonly SqlPlan _sqlPlan = new([new SqlStatement("DROP SCHEMA app")]);
@@ -24,6 +27,7 @@ public sealed class DestroyOperationTests
         Helpers.TestReporters.ResolverFor(_reporter),
         _confirmation, _workflow,
         Helpers.TestSqlGenerators.ResolverFor(generator),
+        _stateLock,
         executor
     );
 
@@ -84,6 +88,27 @@ public sealed class DestroyOperationTests
         ex.Message.ShouldBe("boom");
 
         await _workflow.Received(1).Refresh(RefreshMode.Optional, Arg.Any<CancellationToken>());
+        _stateLock.Released.ShouldBe(1); // lock released even when teardown fails
+    }
+
+    [Fact]
+    public async Task Execute_AcquiresAndReleasesStateLock()
+    {
+        await _sut.Execute(new DestroyArguments(), TestContext.Current.CancellationToken);
+
+        _stateLock.Acquisitions.ShouldHaveSingleItem().Operation.ShouldBe("destroy");
+        _stateLock.Released.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Execute_StateLocked_DoesNotPlanOrExecute()
+    {
+        _stateLock.OnAcquire = _ => throw new StateLockedException("locked");
+
+        await Should.ThrowAsync<StateLockedException>(() => _sut.Execute(new DestroyArguments()));
+
+        await _workflow.DidNotReceive().PlanDestroy(Arg.Any<CancellationToken>());
+        await _executor.DidNotReceive().Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

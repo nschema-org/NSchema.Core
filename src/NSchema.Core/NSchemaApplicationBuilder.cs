@@ -12,6 +12,7 @@ using NSchema.Operations.Apply;
 using NSchema.Operations.Confirmation;
 using NSchema.Operations.Destroy;
 using NSchema.Operations.Drift;
+using NSchema.Operations.ForceUnlock;
 using NSchema.Operations.Import;
 using NSchema.Operations.Plan;
 using NSchema.Operations.PlanDestroy;
@@ -126,6 +127,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IDestroyOperation, DestroyOperation>();
         services.TryAddSingleton<IShowOperation, ShowOperation>();
         services.TryAddSingleton<IDriftOperation, DriftOperation>();
+        services.TryAddSingleton<IForceUnlockOperation, ForceUnlockOperation>();
 
         // Plan
         services.TryAddSingleton<IPlanLinearizer, DefaultPlanLinearizer>();
@@ -144,5 +146,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
         // State
         services.TryAddSingleton<ISchemaStateSerializer, DefaultSchemaStateSerializer>();
+        services.TryAddSingleton<IStateLock, NoOpStateLock>();
     }
 }
