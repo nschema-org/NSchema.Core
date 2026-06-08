@@ -1,13 +1,12 @@
 using NSchema.Diff;
 using NSchema.Diff.Model;
-using NSchema.Operations;
 using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Scripts.Model;
 using NSchema.Sql;
 using NSchema.Sql.Model;
 
-namespace NSchema.Hosting;
+namespace NSchema.Operations;
 
 /// <summary>
 /// Default <see cref="IOperationReporter"/> that presents user-facing output.

@@ -1,5 +1,3 @@
-using NSchema.Hosting;
-
 namespace NSchema.Operations;
 
 /// <summary>

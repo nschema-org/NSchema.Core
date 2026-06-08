@@ -1,4 +1,4 @@
-using NSchema.Hosting;
+using NSchema.Operations.Services;
 
 namespace NSchema.Diff;
 
