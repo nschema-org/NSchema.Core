@@ -19,12 +19,10 @@ Planning and applying behavior are the same as before, but most public types hav
 - Schemas are now diffed into a structured, hierarchical model (`DatabaseDiff`) and a new `IDiffRenderer` interface renders it for the reporter.
 - `UseTerraformRenderer(...)` to configure the default Terraform-style renderer.
 - SQL previews are now structured too. `ISqlPlanRenderer` renders a `SqlPlan` to text, mirroring `IDiffRenderer`.
-- Offline SQL previews. Because generating SQL is pure string-building, `Plan` now renders the SQL preview whenever an `ISqlGenerator` dialect is registered.
 - `PolicyDiagnostics`, a collection type for policy results, with a `PolicyDiagnosticSeverity` of `Info`, `Warning`, or `Error`.
 - Pluggable output formats. `IOperationReporter` now carries a `Format`, so several reporters can be registered with `AddReporter<T>(format)` / `AddReporter(format, instance)` and one chosen per run via `NSchemaApplicationOptions.Reporter`. The built-in human-readable `default` reporter remains the default.
 - Selectable SQL dialects. `ISqlGenerator` now carries a `Dialect`, so several generators can be registered with `AddSqlGenerator<T>(dialect)` and one chosen per run via `WithDialect(...)` (`SqlOptions.Dialect`).
 - Pluggable schema document formats. A new `ISchemaSerializer` reads and writes a desired-schema file format (JSON built-in); register more with `AddSchemaSerializer<T>(format)`. `FileSchemaProvider` now delegates parsing to one.
-- `IKeyedResolver<TValue>` a new shared resolver interface injected directly to consumers of any named-service seam (reporters, SQL generators, schema serializers, import targets). Exposes `Current`, `HasCurrent`, `Resolve(key)`, and `TryResolve(key, out value)`.
 - `Import` operation. Reads the live database schema and writes it to the local filesystem as desired-schema source files. Triggered via `app.Import(...)`.
 - `Validate` operation. Reads the desired schema and validates it against all registered `ISchemaPolicy` implementations. Triggered via `app.Validate(...)`.
 - `Destroy` operation. Destroys all managed objects in the target database. Triggered via `app.Destroy(...)`. Use with extreme caution.
@@ -34,7 +32,7 @@ Planning and applying behavior are the same as before, but most public types hav
 
 - **Breaking:** Namespaces have been flattened. Several areas have been promoted out of the `NSchema.Migration` umbrella into top-level namespaces that mirror the architecture.
 - **Breaking:** `NSchemaApplication` is no longer an `IHost` and no longer runs the migration as a `BackgroundService`. `Build()` returns a single-use object whose operation methods run the work synchronously and let exceptions propagate to the caller; there is no host lifecycle. Run behaviour (reporter, exception behaviour) is configured via `NSchemaApplicationOptions` passed to `CreateBuilder(...)`.
-- **Breaking:** The single migration-operation seam has been replaced by one interface per operation in `NSchema.Operations.<Operation>` (`IPlanOperation`, `IApplyOperation`, …), each with an `Execute(<Operation>Arguments, …)` method. Operations are invoked by calling the matching method on the built application (`app.Plan()`, `app.Apply()`, …); per-run inputs are passed via the arguments record. `IMigrationConfirmation` is now `IOperationConfirmation`.
+- **Breaking:** The single migration-operation seam has been replaced by one internal handler per operation, each with an `Execute(<Operation>Arguments, …)` method. Operations are invoked by calling the matching method on the built application (`app.Plan()`, `app.Apply()`, …); per-run inputs are passed via the public arguments records (`PlanArguments`, `ApplyArguments`, …). `IMigrationConfirmation` is now `IOperationConfirmation`.
 - **Breaking:** Schema scoping is now a per-operation argument (`PlanArguments.Schemas` / `ApplyArguments.Schemas` / `ValidateArguments.Schemas`) rather than the ambient `MigrationOptions.SchemaNames` / `ForSchemas(...)`, which are removed.
 - **Breaking:** The plan-stage extension points are now named for the stage, matching `ISchemaPolicy` / `IDiffPolicy`: `IMigrationPlanTransformer` is now `IPlanTransformer`, `IMigrationPolicy` is now `IPlanPolicy` (registered with `AddPlanPolicy<T>()`, was `AddMigrationPolicy<T>()`), and `IMigrationLinearizer` is now `IPlanLinearizer`. They live in `NSchema.Plan` alongside the `MigrationPlan` model.
 - **Breaking:** `ISqlPlanner` is now `ISqlGenerator`, and its `Plan(MigrationPlan)` method is now `Generate(MigrationPlan)`. Register it with `AddSqlGenerator<T>(dialect)` (was `UseSqlPlanner<T>()`). It also now requires a `Dialect` property so generators can be selected by dialect.
@@ -50,6 +48,7 @@ Planning and applying behavior are the same as before, but most public types hav
 - `DefaultSqlExecutor` no longer requires a `DbDataSource` to be constructed; it's an optional dependency, and execution throws a clear error if no connection is configured. This keeps the container wiring unconditional.
 - Migration reporting messages have been overhauled to be more informative.
 - The `IOperationReporter` now logs directly to the console instead of using `ILogger`. This removes some hacky wiring around segregating logging sinks by category.
+- **Breaking:** `ISchemaStateStore` now deals in serialized state rather than `DatabaseSchema` snapshots. The core owns the state format and serializes/deserializes around the store.
 
 ### Removed
 
