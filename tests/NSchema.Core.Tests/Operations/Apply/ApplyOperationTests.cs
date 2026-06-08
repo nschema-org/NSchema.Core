@@ -1,15 +1,16 @@
 using NSchema.Operations;
+using NSchema.Operations.Apply;
 using NSchema.Operations.Confirmation;
-using NSchema.Operations.Operations;
 using NSchema.Operations.Services;
 using NSchema.Plan.Model;
+using NSchema.Schema;
 using NSchema.Sql;
 using NSchema.Sql.Model;
 using NSubstitute.ExceptionExtensions;
 
-namespace NSchema.Tests.Operations;
+namespace NSchema.Tests.Operations.Apply;
 
-public sealed class DestroyOperationTests
+public sealed class ApplyOperationTests
 {
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
     private readonly IMigrationHelper _helper = Substitute.For<IMigrationHelper>();
@@ -17,21 +18,21 @@ public sealed class DestroyOperationTests
     private readonly ISqlExecutor _executor = Substitute.For<ISqlExecutor>();
     private readonly IOperationConfirmation _confirmation = Substitute.For<IOperationConfirmation>();
 
-    private readonly MigrationPlan _plan = new([new DropSchema("app")], [], []);
-    private readonly SqlPlan _sqlPlan = new([new SqlStatement("DROP SCHEMA app")]);
+    private readonly MigrationPlan _plan = new([new CreateSchema("app")], [], []);
+    private readonly SqlPlan _sqlPlan = new([new SqlStatement("CREATE SCHEMA app")]);
 
-    private DestroyOperation BuildSut(ISqlGenerator? generator, ISqlExecutor? executor) => new(
+    private ApplyOperation BuildSut(ISqlGenerator? planner, ISqlExecutor? executor) => new(
         Helpers.TestReporters.ResolverFor(_reporter),
         _confirmation, _helper,
-        Helpers.TestSqlGenerators.ResolverFor(generator),
+        Helpers.TestSqlGenerators.ResolverFor(planner),
         executor
     );
 
-    private readonly DestroyOperation _sut;
+    private readonly ApplyOperation _sut;
 
-    public DestroyOperationTests()
+    public ApplyOperationTests()
     {
-        _helper.PlanDestroy(Arg.Any<CancellationToken>()).Returns(_plan);
+        _helper.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(_plan);
         _helper.HasStore.Returns(true);
         _generator.Generate(Arg.Any<MigrationPlan>()).Returns(_sqlPlan);
         _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(true);
@@ -40,37 +41,44 @@ public sealed class DestroyOperationTests
     }
 
     [Fact]
-    public async Task Execute_GeneratesAndExecutesTeardownSql()
+    public async Task Execute_PreparesPlanFromOnlineSource()
     {
-        await _sut.Execute(TestContext.Current.CancellationToken);
+        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
 
-        await _helper.Received(1).PlanDestroy(Arg.Any<CancellationToken>());
+        await _helper.Received(1).Plan(SchemaSourceMode.Online, required: true, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Execute_GeneratesAndExecutesSqlPlan()
+    {
+        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
+
         _generator.Received(1).Generate(_plan);
         await _executor.Received(1).Execute(_sqlPlan, Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Execute_NoGenerator_ThrowsWithoutPlanning()
+    public async Task Execute_NoPlanner_ThrowsWithoutPreparing()
     {
-        var sut = BuildSut(generator: null, executor: _executor);
+        var sut = BuildSut(planner: null, executor: _executor);
 
-        await Should.ThrowAsync<InvalidOperationException>(() => sut.Execute());
-        await _helper.DidNotReceive().PlanDestroy(Arg.Any<CancellationToken>());
+        await Should.ThrowAsync<InvalidOperationException>(() => sut.Execute(new ApplyArguments()));
+        await _helper.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Execute_NoExecutor_ThrowsWithoutPlanning()
+    public async Task Execute_NoExecutor_ThrowsWithoutPreparing()
     {
-        var sut = BuildSut(generator: _generator, executor: null);
+        var sut = BuildSut(planner: _generator, executor: null);
 
-        await Should.ThrowAsync<InvalidOperationException>(() => sut.Execute());
-        await _helper.DidNotReceive().PlanDestroy(Arg.Any<CancellationToken>());
+        await Should.ThrowAsync<InvalidOperationException>(() => sut.Execute(new ApplyArguments()));
+        await _helper.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Execute_WithStore_RefreshesStateAfterSuccess()
     {
-        await _sut.Execute(TestContext.Current.CancellationToken);
+        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
 
         await _helper.Received(1).Refresh(Arg.Any<CancellationToken>());
     }
@@ -80,7 +88,7 @@ public sealed class DestroyOperationTests
     {
         _helper.HasStore.Returns(false);
 
-        await _sut.Execute(TestContext.Current.CancellationToken);
+        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
 
         await _helper.DidNotReceive().Refresh(Arg.Any<CancellationToken>());
     }
@@ -90,7 +98,7 @@ public sealed class DestroyOperationTests
     {
         _executor.Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("boom"));
 
-        await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(TestContext.Current.CancellationToken));
+        await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken));
 
         await _helper.DidNotReceive().Refresh(Arg.Any<CancellationToken>());
     }
@@ -100,7 +108,7 @@ public sealed class DestroyOperationTests
     {
         _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(false);
 
-        await _sut.Execute(TestContext.Current.CancellationToken);
+        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
 
         await _executor.DidNotReceive().Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>());
         await _helper.DidNotReceive().Refresh(Arg.Any<CancellationToken>());
@@ -111,18 +119,18 @@ public sealed class DestroyOperationTests
     {
         _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(true);
 
-        await _sut.Execute(TestContext.Current.CancellationToken);
+        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
 
         await _executor.Received(1).Execute(_sqlPlan, Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Execute_ConfirmsWithDestructiveDestroyRequestCarryingThePlan()
+    public async Task Execute_ConfirmsWithApplyRequestCarryingThePlan()
     {
-        await _sut.Execute(TestContext.Current.CancellationToken);
+        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
 
         await _confirmation.Received(1).Confirm(
-            Arg.Is<DestroyConfirmationRequest>(r => r.Plan == _plan && r.IsDestructive),
+            Arg.Is<ApplyConfirmationRequest>(r => r.Plan == _plan && !r.IsDestructive),
             Arg.Any<CancellationToken>());
     }
 
@@ -134,7 +142,7 @@ public sealed class DestroyOperationTests
         _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>())
             .Returns(_ => { callOrder.Add("confirm"); return true; });
 
-        await _sut.Execute(TestContext.Current.CancellationToken);
+        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
 
         callOrder.ShouldBe(["sql", "confirm"]);
     }

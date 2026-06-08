@@ -9,9 +9,14 @@ using NSchema.Diff.Policies;
 using NSchema.Import;
 using NSchema.Migration;
 using NSchema.Operations;
+using NSchema.Operations.Apply;
 using NSchema.Operations.Confirmation;
-using NSchema.Operations.Operations;
+using NSchema.Operations.Destroy;
+using NSchema.Operations.Import;
+using NSchema.Operations.Plan;
+using NSchema.Operations.Refresh;
 using NSchema.Operations.Services;
+using NSchema.Operations.Validate;
 using NSchema.Plan;
 using NSchema.Resolution;
 using NSchema.Schema;
@@ -52,7 +57,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
         _innerBuilder.Services.AddOptions<OperationOptions>();
         _innerBuilder.Services.AddOptions<MigrationOptions>();
-        _innerBuilder.Services.AddOptions<ImportOptions>();
         _innerBuilder.Services.AddOptions<TerraformDiffRendererOptions>();
 
         // Register built-in keyed implementations (last-registration-wins).
@@ -107,7 +111,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IDiffRenderer, TerraformDiffRenderer>();
 
         // Import
-        services.TryAddSingleton<IKeyedResolver<ISchemaImportTarget>>(sp => new DefaultKeyedResolver<ISchemaImportTarget, ImportOptions>(sp, o => o.Target));
+        services.TryAddSingleton<IKeyedResolver<ISchemaImportTarget>, DefaultKeyedResolver<ISchemaImportTarget, object>>();
 
         // Migration
         services.TryAddSingleton<IPlanLinearizer, DefaultPlanLinearizer>();
@@ -117,12 +121,12 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IMigrationHelper, MigrationHelper>();
         services.TryAddSingleton<IOperationConfirmation, AutoApproveConfirmation>();
         services.TryAddSingleton<IKeyedResolver<IOperationReporter>>(sp => new DefaultKeyedResolver<IOperationReporter, OperationOptions>(sp, o => o.Reporter));
-        services.TryAddKeyedSingleton<IOperation, PlanOperation>(OperationKind.Plan);
-        services.TryAddKeyedSingleton<IOperation, ApplyOperation>(OperationKind.Apply);
-        services.TryAddKeyedSingleton<IOperation, RefreshOperation>(OperationKind.Refresh);
-        services.TryAddKeyedSingleton<IOperation, ImportOperation>(OperationKind.Import);
-        services.TryAddKeyedSingleton<IOperation, ValidateOperation>(OperationKind.Validate);
-        services.TryAddKeyedSingleton<IOperation, DestroyOperation>(OperationKind.Destroy);
+        services.TryAddSingleton<IPlanOperation, PlanOperation>();
+        services.TryAddSingleton<IApplyOperation, ApplyOperation>();
+        services.TryAddSingleton<IRefreshOperation, RefreshOperation>();
+        services.TryAddSingleton<IImportOperation, ImportOperation>();
+        services.TryAddSingleton<IValidateOperation, ValidateOperation>();
+        services.TryAddSingleton<IDestroyOperation, DestroyOperation>();
 
         // Schemas
         services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();

@@ -65,11 +65,11 @@ A run performs one of three operations:
 - **`Apply`** computes the plan and applies it.
 - **`Refresh`** captures the current live schema to the state store without planning or applying.
 
-Call `app.Plan()` / `app.Apply()` / `app.Refresh()` explicitly, or configure the default via `RunOperation(...)` and use `RunAsync()`. See [Configuration](docs/configuration.md#operations) for details.
+Run an operation by calling the matching method on the built application — `app.Plan()` / `app.Apply()` / `app.Refresh()`. See [Configuration](docs/configuration.md#operations) for the full list.
 
 ## Documentation
 
-- **[Configuration](docs/configuration.md).** Hosting, operations, destructive-action policy, scoping, registering schemas, scripts, and policies.
+- **[Configuration](docs/configuration.md).** Building and running, operations, destructive-action policy, scoping, registering schemas, scripts, and policies.
 - **[Defining schemas](docs/schemas.md).** The full fluent reference for schemas, tables, columns, foreign keys, and indexes.
 - **[Concepts](docs/concepts.md).** The domain model, the pipeline, and how the pieces fit together.
 - **[Extension points](docs/extension-points.md).** Every interface you can swap or extend, and how to register it.

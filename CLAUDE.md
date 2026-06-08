@@ -21,7 +21,7 @@ Note: the Postgres provider was extracted to its own repository (see commit `dd3
 
 NSchema is a declarative database schema migration library for .NET. The user describes the schema they want via `AbstractSchemaProvider`; NSchema introspects the database, diffs, and applies the difference.
 
-The application is a hosted .NET app. `NSchemaApplication.CreateBuilder()` returns an `NSchemaApplicationBuilder` (wraps `HostApplicationBuilder`). `Build()` produces an `NSchemaApplication` (`IHost`). The migration runs as a `BackgroundService` — `NSchemaHost` (`src/NSchema.Core/Hosting/NSchemaHost.cs`) — which resolves the configured `IOperation` by key (`HostOptions.Operation`) from DI, calls `Execute()`, then signals `IHostApplicationLifetime` to stop.
+`NSchemaApplication.CreateBuilder()` returns an `NSchemaApplicationBuilder`, which uses a `HostApplicationBuilder` internally purely to compose configuration, logging, metrics, and the DI container. `Build()` produces an `NSchemaApplication` (a plain `IDisposable`, not an `IHost`). It does **not** run as a host: calling `Plan()`/`Apply()`/`Refresh()`/`Import()`/`Validate()`/`Destroy()` resolves that operation's dedicated interface (`IPlanOperation`, `IApplyOperation`, …) from DI and `await`s its `Execute(arguments, ct)` directly, passing the matching arguments record. Exceptions propagate to the caller. There is no `BackgroundService` and no host lifecycle. The app is single-run — a second invocation throws.
 
 ### Layer separation
 
@@ -33,19 +33,18 @@ The codebase is split into a **domain layer** and an **application layer**:
   - `Plan/` — the executable plan model (`Plan/Model/`, rooted at `MigrationPlan`), `IPlanLinearizer`, `IPlanTransformer`, `IPlanPolicy`.
   - `Migration/` — the orchestrator that runs the three stages: `IMigrationPlanner`, `MigrationPlanResult`, `MigrationOptions`. No knowledge of operations or how a run is orchestrated.
 - **Application layer.** Orchestration of a run:
-  - `Operations/` — the `IOperation` implementations, `IMigrationHelper` (schema resolution, planning, and state capture), and `IOperationConfirmation` (`Operations/Confirmation/`).
-  - `Hosting/` — `NSchemaHost`, `HostOptions`, `OperationOptions`, the default `IOperationReporter`, and the default `IOperationConfirmation`.
+  - `Operations/` — one vertical slice per operation (`Operations/Plan/`, `Operations/Apply/`, `Operations/Refresh/`, `Operations/Import/`, `Operations/Validate/`, `Operations/Destroy/`), each holding a public interface (`IPlanOperation`, …), a public arguments record (`PlanArguments`, …, empty where the operation has no inputs yet), and the internal handler. Also `OperationOptions`, `IMigrationHelper` (schema resolution, planning, and state capture, under `Operations/Services/`), the default `IOperationReporter` (`DefaultOperationReporter`), the default `IOperationConfirmation` (`AutoApproveConfirmation`), and `IOperationConfirmation` itself (`Operations/Confirmation/`).
 
 ### Operations
 
-`NSchemaHost` reads `HostOptions.Operation`, resolves `GetRequiredKeyedService<IOperation>(operation)`, and calls `Execute()`. Adding a new operation requires a new class and a new keyed registration — no changes to `NSchemaHost`.
+Each operation is its own seam: a public `I{Name}Operation` interface with `Execute({Name}Arguments arguments, CancellationToken)`, an internal handler, and a public arguments record (the discoverable home for that operation's inputs). `NSchemaApplication` resolves the interface with `GetRequiredService<I{Name}Operation>()` and passes the arguments. There is no shared `IOperation` marker and no `OperationKind` enum — adding an operation means a new slice folder (interface + arguments + handler), a `TryAddSingleton` registration, and a public method (plus arguments overload) on `NSchemaApplication`.
 
 Built-in operations (`src/NSchema.Core/Operations/`):
 
 - **`PlanOperation`** — plans against the offline source (preferred), reports the plan and the SQL preview (if an `ISqlGenerator` dialect is registered). Does not execute.
 - **`ApplyOperation`** — plans against the online source (required), generates SQL via `ISqlGenerator`, previews it, executes via `ISqlExecutor`, and captures state.
 - **`RefreshOperation`** — captures the live schema to the state store without planning or applying.
-- **`ImportOperation`** — fetches the live schema (optionally filtered by `ImportOptions.Schemas` / `ImportOptions.Tables`), then writes it to the configured `ISchemaImportTarget` via `IKeyedResolver<ISchemaImportTarget>.Current`. Import is additive: existing tables in the target are preserved.
+- **`ImportOperation`** — fetches the live schema (optionally filtered by `ImportArguments.Schemas` / `ImportArguments.Tables`), then writes it to the configured `ISchemaImportTarget` via `IKeyedResolver<ISchemaImportTarget>.Current`. Import is additive: existing tables in the target are preserved.
 - **`ValidateOperation`** — loads the desired schema and validates it against the registered `ISchemaPolicy` implementations, without planning or applying.
 - **`DestroyOperation`** — tears down the managed schema. It reads the managed schema from the state store (offline) when one is configured, otherwise from the declared desired schema, and diffs it against an empty schema to produce drops, then generates SQL and executes it (online required), like `ApplyOperation`. Destroy uses `IMigrationPlanner.PlanTeardown`, a **trusted path that bypasses the diff/plan transformers and policies** (so a custom policy can't block teardown and a transformer can't silently alter it); the destructive-action policy therefore never runs. `IOperationConfirmation` still gates execution.
 
@@ -53,7 +52,7 @@ The shared orchestration used by `PlanOperation`, `ApplyOperation`, `DestroyOper
 
 ### Confirmation
 
-`IOperationConfirmation` (`src/NSchema.Core/Operations/Confirmation/`) gates execution of the destructive operations (`Apply`, `Destroy`). Its `Confirm` method receives an `OperationConfirmationRequest` — an abstract record carrying the `MigrationPlan` and an `IsDestructive` flag — with sealed `ApplyConfirmationRequest` and `DestroyConfirmationRequest` subtypes. A front-end can switch on the concrete type for a tailored prompt, or read `IsDestructive` to gate teardowns more strongly. The default `AutoApproveConfirmation` (in `Hosting/`) approves everything without prompting.
+`IOperationConfirmation` (`src/NSchema.Core/Operations/Confirmation/`) gates execution of the destructive operations (`Apply`, `Destroy`). Its `Confirm` method receives an `OperationConfirmationRequest` — an abstract record carrying the `MigrationPlan` and an `IsDestructive` flag — with sealed `ApplyConfirmationRequest` and `DestroyConfirmationRequest` subtypes. A front-end can switch on the concrete type for a tailored prompt, or read `IsDestructive` to gate teardowns more strongly. The default `AutoApproveConfirmation` (in `Operations/`) approves everything without prompting.
 
 ### Schema providers
 
@@ -85,7 +84,7 @@ The internal `DefaultCurrentSchemaProvider` wires both sources together. Registe
 2. **Diff stage** — `ISchemaComparer` produces the structured `DatabaseDiff` directly (no flat-action intermediate). `IDiffTransformer`s then run in registration order, and every `IDiffPolicy` validates the result. The built-in `DestructiveActionDiffPolicy` runs here (it reasons over `ChangeKind.Remove` and narrowing column changes) and enforces `MigrationOptions.DestructiveActionPolicy`.
 3. **Plan stage** — `IPlanLinearizer` (default `DefaultPlanLinearizer`) walks the diff and emits the migration actions in a safe dependency order. The planner then attaches the collected deployment scripts to the `MigrationPlan` as its `PreDeploymentScripts` / `PostDeploymentScripts` (scripts aren't a diff concept, so they live on the plan rather than in `Actions`). `IPlanTransformer`s then run in registration order, and every `IPlanPolicy` validates the final plan. At execution time the script SQL is composed around the generated statements (pre first, post last) — scripts are raw SQL and need no dialect translation.
 
-The planner has no knowledge of operations, online/offline routing, or the host/operation options.
+The planner has no knowledge of operations, online/offline routing, or the application/operation options.
 
 ### SQL generation and execution
 
@@ -120,7 +119,7 @@ Providers are registered with `builder.AddSchema<T>()` or `builder.AddSchemasFro
 |-----------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
 | `ISchemaProvider` (desired)                               | `AddSchema<T>()` / `AddSchemasFromAssembly[Containing]<T>()`                                                              |
 | `ISchemaProvider` (online current)                        | `UseCurrentSchema<T>()` — typically called from a database-provider extension (e.g. `UsePostgres(...)`)                   |
-| `IOperation`                                              | `AddKeyedSingleton<IOperation, T>(HostOperation.*)`                                                                       |
+| `I{Name}Operation` (one per operation)                    | `TryAddSingleton<I{Name}Operation, {Name}Operation>()` (built-in; replace before `Build()` to override)                  |
 | `IOperationConfirmation`                                  | `Services.AddSingleton<IOperationConfirmation, T>()` (default `AutoApproveConfirmation`, registered with `TryAdd`)        |
 | `ISchemaTransformer`                                      | `AddSchemaTransformer<T>()` / `AddSchemaTransformersFromAssembly[Containing]<T>()`                                        |
 | `ISchemaPolicy`                                           | `AddSchemaPolicy<T>()`                                                                                                    |
@@ -168,9 +167,11 @@ Schemas, tables, and columns support rename detection via the fluent `RenamedFro
 - `DestructiveActionPolicy` — `Error` (default), `Warn`, or `Allow`. Enforced by `DestructiveActionDiffPolicy`. Configured via `WithDestructiveActionPolicy(...)`.
 - `SchemaNames` — optional `string[]` scope filter. When set, only these schemas are read, validated, and diffed. When unset, scope is derived from declared and dropped schemas. Configured via `ForSchemas(...)`.
 
-**`HostOptions`** (internal, `NSchema.Hosting`) — how the host runs:
-- `Operation` — a `HostOperation`: `Plan` (default), `Apply`, `Refresh`, `Import`, `Validate`, or `Destroy`. Configured via `RunOperation(...)`, or overridden per-run by calling `NSchemaApplication.Plan()` / `Apply()` / `Refresh()` / `Import()` / `Validate()` / `Destroy()`.
-- `ExceptionBehavior` — `ReportAndThrow` (default) or `Throw`. Configured via `WithExceptionBehavior(...)`.
+**`NSchemaApplicationOptions`** (`NSchema`) — how the application is constructed and run. Passed to `CreateBuilder(options)` and registered as a singleton; its values are fixed at build time (`init`-only):
+- `Args` / `ApplicationName` / `EnvironmentName` / `ContentRootPath` — consumed by the builder constructor to configure the underlying `HostApplicationBuilder`.
+- `ExceptionBehavior` — `ReportAndThrow` (default) or `Throw`. Read by `NSchemaApplication` when an operation throws: `ReportAndThrow` reports via the resolved `IOperationReporter` before rethrowing, `Throw` just rethrows.
+
+The operation to run is **not** an option — it's chosen by which method you call on the built `NSchemaApplication` (`Plan()` / `Apply()` / `Refresh()` / `Import()` / `Validate()` / `Destroy()`). Each method has a no-arguments overload and an overload taking that operation's arguments record (e.g. `Import(ImportArguments)`).
 
 **`OperationOptions`** (`NSchema.Operations`) — output:
 - `Reporter` — the `IOperationReporter` key to render with (defaults to `DefaultOperationReporter.ReporterName`, `"default"`). Configured via `WithOperationOptions(o => o.Reporter = ...)`; resolved through `IKeyedResolver<IOperationReporter>.Current`.
@@ -179,7 +180,9 @@ Schemas, tables, and columns support rename detection via the fluent `RenamedFro
 - `Dialect` — the `ISqlGenerator` dialect to generate (must be set explicitly when a generator is registered). Configured via `WithDialect(...)`; resolved through `IKeyedResolver<ISqlGenerator>.Current`.
 - `TransactionMode` — `Single` (default; whole plan in one transaction, with carve-outs for statements marked `RunOutsideTransaction`) or `None`. Configured via `WithTransactionMode(...)`.
 
-**`ImportOptions`** (`NSchema.Import`) — what to import:
+**`ImportArguments`** (`NSchema.Operations.Import`) — per-invocation import inputs, passed to `Import(...)`:
 - `Schemas` — optional `string[]` scope filter; only these schemas are fetched from the live database.
 - `Tables` — optional `string[]` table filter applied after fetching.
+
+**`ImportOptions`** (`NSchema.Import`) — ambient import config:
 - `Target` — the key of the registered `ISchemaImportTarget` to write to. When unset, auto-selected if exactly one target is registered; throws if none or multiple. Configured via `WithImportOptions(...)`.

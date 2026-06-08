@@ -1,8 +1,7 @@
-using NSchema.Operations;
 using NSchema.Operations.Confirmation;
 using NSchema.Plan.Model;
 
-namespace NSchema.Tests.Operations;
+namespace NSchema.Tests.Operations.Confirmation;
 
 public sealed class OperationConfirmationRequestTests
 {

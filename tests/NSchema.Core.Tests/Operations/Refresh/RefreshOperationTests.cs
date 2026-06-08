@@ -1,8 +1,8 @@
 using NSchema.Operations;
-using NSchema.Operations.Operations;
+using NSchema.Operations.Refresh;
 using NSchema.Operations.Services;
 
-namespace NSchema.Tests.Operations;
+namespace NSchema.Tests.Operations.Refresh;
 
 public sealed class RefreshOperationTests
 {
@@ -16,7 +16,7 @@ public sealed class RefreshOperationTests
     {
         _helper.HasStore.Returns(true);
 
-        await BuildSut().Execute(TestContext.Current.CancellationToken);
+        await BuildSut().Execute(new RefreshArguments(), TestContext.Current.CancellationToken);
 
         await _helper.Received(1).Refresh(Arg.Any<CancellationToken>());
     }
@@ -26,7 +26,7 @@ public sealed class RefreshOperationTests
     {
         _helper.HasStore.Returns(false);
 
-        await Should.ThrowAsync<InvalidOperationException>(() => BuildSut().Execute());
+        await Should.ThrowAsync<InvalidOperationException>(() => BuildSut().Execute(new RefreshArguments()));
         await _helper.DidNotReceive().Refresh(Arg.Any<CancellationToken>());
     }
 }

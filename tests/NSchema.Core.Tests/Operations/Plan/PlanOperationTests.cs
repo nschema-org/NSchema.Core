@@ -1,12 +1,12 @@
 using NSchema.Operations;
-using NSchema.Operations.Operations;
+using NSchema.Operations.Plan;
 using NSchema.Operations.Services;
 using NSchema.Plan.Model;
 using NSchema.Schema;
 using NSchema.Sql;
 using NSchema.Sql.Model;
 
-namespace NSchema.Tests.Operations;
+namespace NSchema.Tests.Operations.Plan;
 
 public sealed class PlanOperationTests
 {
@@ -33,7 +33,7 @@ public sealed class PlanOperationTests
     [Fact]
     public async Task Execute_PreparesPlanFromOfflineSource()
     {
-        await _sut.Execute(TestContext.Current.CancellationToken);
+        await _sut.Execute(new PlanArguments(), TestContext.Current.CancellationToken);
 
         await _helper.Received(1).Plan(SchemaSourceMode.Offline, required: false, Arg.Any<CancellationToken>());
     }
@@ -41,7 +41,7 @@ public sealed class PlanOperationTests
     [Fact]
     public async Task Execute_GeneratesSqlFromPlanAndReportsIt()
     {
-        await _sut.Execute(TestContext.Current.CancellationToken);
+        await _sut.Execute(new PlanArguments(), TestContext.Current.CancellationToken);
 
         _generator.Received(1).Generate(_plan);
         _reporter.Received(1).ReportSqlPlan(_sqlPlan);
@@ -52,7 +52,7 @@ public sealed class PlanOperationTests
     {
         var sut = BuildSut(planner: null);
 
-        await sut.Execute(TestContext.Current.CancellationToken);
+        await sut.Execute(new PlanArguments(), TestContext.Current.CancellationToken);
 
         await _helper.Received(1).Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
         _reporter.DidNotReceive().ReportSqlPlan(Arg.Any<SqlPlan>());
@@ -64,7 +64,7 @@ public sealed class PlanOperationTests
         _helper.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns<MigrationPlan>(_ => throw new InvalidOperationException("boom"));
 
-        await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute());
+        await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(new PlanArguments()));
 
         _generator.DidNotReceive().Generate(Arg.Any<MigrationPlan>());
     }

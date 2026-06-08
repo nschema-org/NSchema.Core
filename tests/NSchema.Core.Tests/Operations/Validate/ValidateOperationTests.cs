@@ -1,9 +1,9 @@
 using NSchema.Operations;
-using NSchema.Operations.Operations;
 using NSchema.Operations.Services;
+using NSchema.Operations.Validate;
 using NSchema.Schema.Model;
 
-namespace NSchema.Tests.Operations;
+namespace NSchema.Tests.Operations.Validate;
 
 public sealed class ValidateOperationTests
 {
@@ -24,7 +24,7 @@ public sealed class ValidateOperationTests
     public async Task Execute_DelegatesToHelperValidateDesiredSchema()
     {
         // Act
-        await _sut.Execute(TestContext.Current.CancellationToken);
+        await _sut.Execute(new ValidateArguments(), TestContext.Current.CancellationToken);
 
         // Assert
         await _helper.Received(1).Validate(Arg.Any<CancellationToken>());
@@ -38,7 +38,7 @@ public sealed class ValidateOperationTests
             .Returns<DatabaseSchema>(_ => throw new InvalidOperationException("boom"));
 
         // Act
-        var act = () => _sut.Execute();
+        var act = () => _sut.Execute(new ValidateArguments());
 
         // Assert
         await Should.ThrowAsync<InvalidOperationException>(act);

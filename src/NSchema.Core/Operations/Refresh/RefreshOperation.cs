@@ -1,11 +1,11 @@
 using NSchema.Operations.Services;
 using NSchema.Resolution;
 
-namespace NSchema.Operations.Operations;
+namespace NSchema.Operations.Refresh;
 
-internal sealed class RefreshOperation(IMigrationHelper helper, IKeyedResolver<IOperationReporter> reporters) : IOperation
+internal sealed class RefreshOperation(IMigrationHelper helper, IKeyedResolver<IOperationReporter> reporters) : IRefreshOperation
 {
-    public async Task Execute(CancellationToken cancellationToken = default)
+    public async Task Execute(RefreshArguments arguments, CancellationToken cancellationToken = default)
     {
         if (!helper.HasStore)
         {

@@ -71,17 +71,6 @@ public sealed class ImportTargetRegistrationTests
     }
 
     [Fact]
-    public void WithImportOptions_OverridesDefaultTarget()
-    {
-        var resolver = Resolve(b => b
-            .AddImportTarget<StubImportTarget>("first")
-            .AddImportTarget<OtherStubImportTarget>("second")
-            .WithImportOptions(o => o.Target = "second"));
-
-        resolver.Current.ShouldBeOfType<OtherStubImportTarget>();
-    }
-
-    [Fact]
     public void AddFileImportTarget_RegistersFileTarget()
     {
         var resolver = Resolve(b => b.AddFileImportTarget(_ => { }));

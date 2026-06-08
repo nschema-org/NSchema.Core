@@ -1,11 +1,10 @@
-using Microsoft.Extensions.Options;
 using NSchema.Import;
 using NSchema.Operations;
-using NSchema.Operations.Operations;
+using NSchema.Operations.Import;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 
-namespace NSchema.Tests.Operations;
+namespace NSchema.Tests.Operations.Import;
 
 public sealed class ImportOperationTests
 {
@@ -16,8 +15,7 @@ public sealed class ImportOperationTests
     private readonly DatabaseSchema _schema = DatabaseSchema.Create([SchemaDefinition.Create("app",
         tables: [Table.Create("users"), Table.Create("orders")])]);
 
-    private ImportOperation BuildSut(ImportOptions? opts = null) => new(
-        Options.Create(opts ?? new ImportOptions()),
+    private ImportOperation BuildSut() => new(
         _currentSchema,
         Helpers.TestImportTargets.ResolverFor(_target),
         Helpers.TestReporters.ResolverFor(_reporter));
@@ -32,7 +30,7 @@ public sealed class ImportOperationTests
     [Fact]
     public async Task Execute_FetchesSchemaFromOnlineSource()
     {
-        await BuildSut().Execute(TestContext.Current.CancellationToken);
+        await BuildSut().Execute(new ImportArguments(), TestContext.Current.CancellationToken);
 
         await _currentSchema.Received(1).GetSchema(
             SchemaSourceMode.Online, Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
@@ -41,18 +39,18 @@ public sealed class ImportOperationTests
     [Fact]
     public async Task Execute_PassesSchemaFilterToSource()
     {
-        var opts = new ImportOptions { Schemas = ["app", "audit"] };
+        var arguments = new ImportArguments { Schemas = ["app", "audit"] };
 
-        await BuildSut(opts).Execute(TestContext.Current.CancellationToken);
+        await BuildSut().Execute(arguments, TestContext.Current.CancellationToken);
 
         await _currentSchema.Received(1).GetSchema(
-            SchemaSourceMode.Online, opts.Schemas, Arg.Any<bool>(), Arg.Any<CancellationToken>());
+            SchemaSourceMode.Online, arguments.Schemas, Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Execute_WritesSchemaToTarget()
     {
-        await BuildSut().Execute(TestContext.Current.CancellationToken);
+        await BuildSut().Execute(new ImportArguments(), TestContext.Current.CancellationToken);
 
         await _target.Received(1).Write(_schema, Arg.Any<CancellationToken>());
     }
@@ -60,9 +58,9 @@ public sealed class ImportOperationTests
     [Fact]
     public async Task Execute_WithTableFilter_FiltersSchemaBeforeWriting()
     {
-        var opts = new ImportOptions { Tables = ["users"] };
+        var arguments = new ImportArguments { Tables = ["users"] };
 
-        await BuildSut(opts).Execute(TestContext.Current.CancellationToken);
+        await BuildSut().Execute(arguments, TestContext.Current.CancellationToken);
 
         await _target.Received(1).Write(
             Arg.Is<DatabaseSchema>(s =>
@@ -74,9 +72,9 @@ public sealed class ImportOperationTests
     [Fact]
     public async Task Execute_WithEmptyTableFilter_WritesSchemaUnfiltered()
     {
-        var opts = new ImportOptions { Tables = [] };
+        var arguments = new ImportArguments { Tables = [] };
 
-        await BuildSut(opts).Execute(TestContext.Current.CancellationToken);
+        await BuildSut().Execute(arguments, TestContext.Current.CancellationToken);
 
         await _target.Received(1).Write(_schema, Arg.Any<CancellationToken>());
     }
@@ -84,7 +82,7 @@ public sealed class ImportOperationTests
     [Fact]
     public async Task Execute_ReportsProgress()
     {
-        await BuildSut().Execute(TestContext.Current.CancellationToken);
+        await BuildSut().Execute(new ImportArguments(), TestContext.Current.CancellationToken);
 
         _reporter.Received(2).Info(Arg.Any<string>());
     }
