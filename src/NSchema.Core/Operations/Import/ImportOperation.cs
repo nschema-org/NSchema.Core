@@ -32,13 +32,33 @@ internal sealed class ImportOperation(
         reporters.Current.Info("Schema imported successfully.");
     }
 
-    private static IEnumerable<(string path, DatabaseSchema schema)> BuildPartitions(DatabaseSchema schema, ImportArguments args) => args.Partition switch
+    private static IEnumerable<(string path, DatabaseSchema schema)> BuildPartitions(DatabaseSchema schema, ImportArguments args)
     {
-        ImportPartitionMode.None => [(args.OutputFile, schema)],
-        ImportPartitionMode.Schema => schema.Schemas.Select(s => (Path.Combine(args.OutputDirectory, $"{s.Name}.{args.Format}"), DatabaseSchema.Create([s]))),
-        ImportPartitionMode.Table => schema.Schemas.SelectMany(s => s.Tables.Select(t => (Path.Combine(args.OutputDirectory, s.Name, $"{t.Name}.{args.Format}"), DatabaseSchema.Create([s with { Tables = [t] }])))),
-        _ => throw new InvalidOperationException($"Unknown partition mode: {args.Partition}")
-    };
+        switch (args.Partition)
+        {
+            case ImportPartitionMode.None:
+                if (args.OutputFile is null)
+                {
+                    throw new InvalidOperationException("OutputFile must be set when Partition mode is None.");
+                }
+                return [(args.OutputFile, schema)];
+            case ImportPartitionMode.Schema:
+                if (args.OutputDirectory is null)
+                {
+                    throw new InvalidOperationException("OutputDirectory must be set when Partition mode is Schema.");
+                }
+                return schema.Schemas.Select(s => (Path.Combine(args.OutputDirectory, $"{s.Name}.{args.Format}"), DatabaseSchema.Create([s])));
+            case ImportPartitionMode.Table:
+                if (args.OutputDirectory is null)
+                {
+                    throw new InvalidOperationException("OutputDirectory must be set when Partition mode is Table.");
+                }
+                return schema.Schemas.SelectMany(s => s.Tables.Select(t => (Path.Combine(args.OutputDirectory, s.Name, $"{t.Name}.{args.Format}"),
+                    DatabaseSchema.Create([s with { Tables = [t] }]))));
+            default:
+                throw new InvalidOperationException($"Unknown partition mode: {args.Partition}");
+        }
+    }
 
     private static async Task WritePartition(string path, DatabaseSchema incoming, ISchemaSerializer serializer, CancellationToken cancellationToken)
     {

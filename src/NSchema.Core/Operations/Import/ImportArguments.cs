@@ -18,17 +18,14 @@ public sealed record ImportArguments
     public string[]? Tables { get; init; }
 
     /// <summary>
-    /// The file to write to when <see cref="Partition"/> is <see cref="ImportPartitionMode.None"/>.
-    /// Ignored for the partitioned modes, which write into <see cref="OutputDirectory"/>.
+    /// The file to write to.
     /// </summary>
-    public string OutputFile { get; init; } = "schema.json";
+    public string? OutputFile { get; init; }
 
     /// <summary>
-    /// The root directory to write into when <see cref="Partition"/> is
-    /// <see cref="ImportPartitionMode.Schema"/> or <see cref="ImportPartitionMode.Table"/>.
-    /// Ignored for <see cref="ImportPartitionMode.None"/>, which writes to <see cref="OutputFile"/>.
+    /// The root directory to.
     /// </summary>
-    public string OutputDirectory { get; init; } = ".";
+    public string? OutputDirectory { get; init; }
 
     /// <summary>
     /// Controls how the imported schema is split across output files.
