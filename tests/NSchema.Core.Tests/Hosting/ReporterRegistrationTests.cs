@@ -4,6 +4,7 @@ using NSchema.Operations;
 using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Resolution;
+using NSchema.Schema.Model;
 using NSchema.Sql.Model;
 
 namespace NSchema.Tests.Hosting;
@@ -15,6 +16,7 @@ public sealed class ReporterRegistrationTests
     {
         public void Info(string message) { }
         public void ReportException(Exception exception) { }
+        public void ReportSchema(DatabaseSchema schema) { }
         public void ReportDiff(DatabaseDiff diff) { }
         public void ReportPlan(MigrationPlan plan) { }
         public void ReportSqlPlan(SqlPlan plan) { }

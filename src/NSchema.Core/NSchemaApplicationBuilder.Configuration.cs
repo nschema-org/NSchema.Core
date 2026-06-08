@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.Diff;
 using NSchema.Diff.Policies;
 using NSchema.Operations;
+using NSchema.Schema;
 using NSchema.Sql;
 
 namespace NSchema;
@@ -51,6 +52,15 @@ public partial class NSchemaApplicationBuilder
     public NSchemaApplicationBuilder UseSqlPlanRenderer<TRenderer>() where TRenderer : class, ISqlPlanRenderer
     {
         Services.Replace(ServiceDescriptor.Singleton<ISqlPlanRenderer, TRenderer>());
+        return this;
+    }
+
+    /// <summary>
+    /// Configures the single-schema output (used by the show operation) to use the given <see cref="ISchemaRenderer"/>.
+    /// </summary>
+    public NSchemaApplicationBuilder UseSchemaRenderer<TRenderer>() where TRenderer : class, ISchemaRenderer
+    {
+        Services.Replace(ServiceDescriptor.Singleton<ISchemaRenderer, TRenderer>());
         return this;
     }
 

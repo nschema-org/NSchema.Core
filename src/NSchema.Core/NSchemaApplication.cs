@@ -3,9 +3,11 @@ using Microsoft.Extensions.Hosting;
 using NSchema.Operations;
 using NSchema.Operations.Apply;
 using NSchema.Operations.Destroy;
+using NSchema.Operations.Drift;
 using NSchema.Operations.Import;
 using NSchema.Operations.Plan;
 using NSchema.Operations.Refresh;
+using NSchema.Operations.Show;
 using NSchema.Operations.Validate;
 using NSchema.Resolution;
 
@@ -84,6 +86,28 @@ public sealed class NSchemaApplication : IDisposable
     {
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IValidateOperation>().Execute(arguments, cancellationToken));
+    }
+
+    /// <summary>
+    /// Reads the recorded state from the state store and renders it.
+    /// </summary>
+    /// <param name="arguments">The arguments controlling what is shown.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    public Task Show(ShowArguments arguments, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(arguments);
+        return Run(() => Resolve<IShowOperation>().Execute(arguments, cancellationToken));
+    }
+
+    /// <summary>
+    /// Compares the recorded state against the live database and reports how the live database has drifted from it.
+    /// </summary>
+    /// <param name="arguments">The arguments controlling the drift check.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    public Task Drift(DriftArguments arguments, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(arguments);
+        return Run(() => Resolve<IDriftOperation>().Execute(arguments, cancellationToken));
     }
 
     /// <summary>

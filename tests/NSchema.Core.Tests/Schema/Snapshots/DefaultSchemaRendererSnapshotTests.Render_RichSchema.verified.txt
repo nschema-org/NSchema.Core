@@ -1,0 +1,14 @@
+﻿schema app ("application schema")
+  grant usage to readers
+  table users ("all users")
+    id bigint not null identity
+    email varchar(255) not null ("contact address")
+    status text null default 'active'
+    primary key users_pkey (id)
+    index users_email_ix (email) unique
+    index users_active_ix (status) where status = 'active'
+    grant SELECT, INSERT to readers
+  table orders
+    id bigint not null
+    user_id bigint not null
+    foreign key orders_user_fk (user_id) -> app.users (id)

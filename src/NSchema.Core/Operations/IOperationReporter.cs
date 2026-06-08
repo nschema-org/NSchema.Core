@@ -1,6 +1,7 @@
 using NSchema.Diff.Model;
 using NSchema.Plan.Model;
 using NSchema.Policies;
+using NSchema.Schema.Model;
 using NSchema.Sql.Model;
 
 namespace NSchema.Operations;
@@ -20,6 +21,11 @@ public interface IOperationReporter
     /// </summary>
     /// <param name="exception">The exception that caused the operation to fail.</param>
     void ReportException(Exception exception);
+
+    /// <summary>
+    /// Presents a single schema state as human-readable output (e.g. the recorded state for a show operation).
+    /// </summary>
+    void ReportSchema(DatabaseSchema schema);
 
     /// <summary>
     /// Presents the computed migration diff as human-readable output.
