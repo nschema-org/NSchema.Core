@@ -75,7 +75,7 @@ ValueTask<DatabaseSchema> GetSchema(SchemaSourceMode preferred, string[]? schema
 
 The internal `DefaultCurrentSchemaProvider` wires both sources together. Registering a state store via `UseStateStore*()` is all that's needed to enable offline planning.
 
-`ISchemaStateStore` deals only in **serialized payloads** (`Task<string?> Read(...)` / `Task Write(string, ...)`) — it's a persistence sink (file, blob, …) and never sees the schema model. The core owns the format: it serializes via the internal `ISchemaStateSerializer` before writing (in `IMigrationWorkflow.Refresh`) and deserializes after reading (in `StateBackedSchemaProvider`). A custom store therefore only implements load/save of an opaque string.
+`ISchemaStateStore` deals only in **serialized payloads** (`Task<ReadOnlyMemory<byte>?> Read(...)` / `Task Write(ReadOnlyMemory<byte>, ...)`) — it's a persistence sink (file, blob, …) and never sees the schema model. The core owns the format: it serializes via the internal `ISchemaStateSerializer` before writing (in `IMigrationWorkflow.Refresh`) and deserializes after reading (in `StateBackedSchemaProvider`). A custom store therefore only implements load/save of an opaque byte payload.
 
 ### Planner
 
@@ -137,13 +137,13 @@ Providers are registered with `builder.AddSchema<T>()` or `builder.AddSchemasFro
 | `IDiffRenderer`                         | `UseTerraformRenderer(...)` / `UseDiffRenderer<TRenderer>()`                                                                    |
 | `ISqlPlanRenderer`                      | `UseSqlPlanRenderer<TRenderer>()` (default `DefaultSqlPlanRenderer`)                                                            |
 
-The planning algorithm and aggregators — `ISchemaComparer`, `IPlanLinearizer`, `IMigrationPlanner`, `ICurrentSchemaProvider`, `IDesiredSchemaProvider` — and the resolver/serialization plumbing (`IKeyedResolver<TValue>`, `ISchemaStateSerializer`) are **internal**. They remain interfaces for DI wiring and test mocking, but they are not extension points and not replaceable from user code.
+The planning algorithm and aggregators — `ISchemaComparer`, `IPlanLinearizer`, `IMigrationPlanner`, `ICurrentSchemaProvider`, `IDesiredSchemaProvider` — and the state serializer (`ISchemaStateSerializer`) are **internal**. They remain interfaces for DI wiring and test mocking, but they are not extension points and not replaceable from user code. (`IKeyedResolver<TValue>` is public — it's the resolver consumers inject to pick a keyed implementation — but the per-operation handler interfaces are internal.)
 
 ### Resolving one of many (resolver pattern)
 
-Several public seams let you register multiple implementations and select one by key. Selection is done by an **internal** `IKeyedResolver<TValue>` interface (`Resolution/`) backed by DI keyed services — it's plumbing, not an extension point. `IOperationReporter` (by reporter name), `ISqlGenerator` (by `Dialect`), and `ISchemaSerializer` (by `Format`) read the key for the current run from options (via `Current`). The import operation also resolves `ISchemaSerializer` **explicitly** from `ImportArguments.Format` (via `Resolve(key)`). `IOperationReporter` uses last-wins registration (`Services.Replace`); `ISqlGenerator` and `ISchemaSerializer` use first-wins (`TryAddKeyedSingleton`), and `ISchemaSerializer` has a `UseSchemaSerializer<T>(format)` method to replace the built-in.
+Several public seams let you register multiple implementations and select one by key. Selection goes through the shared `IKeyedResolver<TValue>` interface (`Resolution/`), backed by DI keyed services; it's injected into consumers (including front-ends — e.g. the CLI's init command injects `IKeyedResolver<ISchemaSerializer>` to write a demo schema). `IOperationReporter` (by reporter name), `ISqlGenerator` (by `Dialect`), and `ISchemaSerializer` (by `Format`) read the key for the current run from options (via `Current`). The import operation also resolves `ISchemaSerializer` **explicitly** from `ImportArguments.Format` (via `Resolve(key)`). `IOperationReporter` uses last-wins registration (`Services.Replace`); `ISqlGenerator` and `ISchemaSerializer` use first-wins (`TryAddKeyedSingleton`), and `ISchemaSerializer` has a `UseSchemaSerializer<T>(format)` method to replace the built-in.
 
-`IKeyedResolver<TValue>` (internal) is injected directly into consumers and exposes:
+`IKeyedResolver<TValue>` is injected directly into consumers and exposes:
 - `Current` — resolves the implementation for the current run's configured key (e.g. `NSchemaApplicationOptions.Reporter`, `SqlOptions.Dialect`). Throws if no key is configured or the key isn't registered.
 - `HasCurrent` — returns `true` if `Current` would succeed; use this to guard optional seams (e.g. SQL generators).
 - `Resolve(key)` / `TryResolve(key, out value)` — resolve by explicit key (how the import operation selects its target).

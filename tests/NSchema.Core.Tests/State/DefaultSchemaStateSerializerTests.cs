@@ -1,3 +1,4 @@
+using System.Text;
 using NSchema.Schema.Model;
 using NSchema.State;
 using NSchema.Tests.Helpers;
@@ -8,6 +9,8 @@ public sealed class DefaultSchemaStateSerializerTests
 {
     private static readonly ISchemaStateSerializer _sut = new DefaultSchemaStateSerializer();
 
+    private static string Json(DatabaseSchema schema) => Encoding.UTF8.GetString(_sut.Serialize(schema).Span);
+
     [Fact]
     public void Serialize_ThenDeserialize_RoundTripsAllFeatures()
     {
@@ -15,11 +18,11 @@ public sealed class DefaultSchemaStateSerializerTests
         var original = TestData.RichSchema();
 
         // Act: a read + write cycle must reproduce the exact same document.
-        var json = _sut.Serialize(original);
-        var roundTripped = _sut.Deserialize(json);
+        var json = Json(original);
+        var roundTripped = _sut.Deserialize(_sut.Serialize(original));
 
         // Assert
-        _sut.Serialize(roundTripped).ShouldBe(json);
+        Json(roundTripped).ShouldBe(json);
     }
 
     [Theory]
@@ -43,7 +46,7 @@ public sealed class DefaultSchemaStateSerializerTests
         // so whitespace and indentation don't matter — but a domain change that alters the serialized
         // shape fails here. When that's intentional, accept the .received.txt as the new baseline (and
         // bump SchemaStateEnvelope.CurrentVersion if the on-disk format itself changed).
-        => VerifyJson(_sut.Serialize(TestData.RichSchema()));
+        => VerifyJson(Json(TestData.RichSchema()));
 
     [Fact]
     public void Serialize_WritesEnumsAsNames()
@@ -61,7 +64,7 @@ public sealed class DefaultSchemaStateSerializerTests
         ]);
 
         // Act
-        var json = _sut.Serialize(schema);
+        var json = Json(schema);
 
         // Assert: enums serialize as readable names, not integers.
         json.ShouldContain("\"Cascade\"");
@@ -83,7 +86,7 @@ public sealed class DefaultSchemaStateSerializerTests
         ]);
 
         // Act
-        var json = _sut.Serialize(schema);
+        var json = Json(schema);
 
         // Assert: false bools and null strings are written, not omitted.
         json.ShouldContain("\"isPartial\": false");
@@ -102,7 +105,7 @@ public sealed class DefaultSchemaStateSerializerTests
             """;
 
         // Act
-        var act = () => _sut.Deserialize(json);
+        var act = () => _sut.Deserialize(Encoding.UTF8.GetBytes(json));
 
         // Assert
         act.ShouldThrow<NotSupportedException>();

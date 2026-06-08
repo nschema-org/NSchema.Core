@@ -8,10 +8,10 @@ public sealed class StateStoreRegistrationTests
 {
     private sealed class FakeStateStore : ISchemaStateStore
     {
-        public Task<string?> Read(CancellationToken cancellationToken = default) =>
-            Task.FromResult<string?>(null);
+        public Task<ReadOnlyMemory<byte>?> Read(CancellationToken cancellationToken = default) =>
+            Task.FromResult<ReadOnlyMemory<byte>?>(null);
 
-        public Task Write(string state, CancellationToken cancellationToken = default) =>
+        public Task Write(ReadOnlyMemory<byte> state, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
     }
 

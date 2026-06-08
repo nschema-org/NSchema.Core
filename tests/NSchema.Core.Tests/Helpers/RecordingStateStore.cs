@@ -13,10 +13,10 @@ internal sealed class RecordingStateStore : ISchemaStateStore
 
     public DatabaseSchema? Written { get; private set; }
 
-    public Task<string?> Read(CancellationToken cancellationToken = default) =>
-        Task.FromResult(Written is null ? null : _serializer.Serialize(Written));
+    public Task<ReadOnlyMemory<byte>?> Read(CancellationToken cancellationToken = default) =>
+        Task.FromResult<ReadOnlyMemory<byte>?>(Written is null ? null : _serializer.Serialize(Written));
 
-    public Task Write(string state, CancellationToken cancellationToken = default)
+    public Task Write(ReadOnlyMemory<byte> state, CancellationToken cancellationToken = default)
     {
         Written = _serializer.Deserialize(state);
         return Task.CompletedTask;

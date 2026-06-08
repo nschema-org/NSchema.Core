@@ -301,13 +301,16 @@ public sealed class MigrationWorkflowTests
             .Returns(schema);
         var sut = BuildSut(store);
 
+        var expected = _stateSerializer.Serialize(schema).ToArray();
+
         // Act
         await sut.Refresh(RefreshMode.Required, TestContext.Current.CancellationToken);
 
         // Assert
         await _currentProvider.Received(1).GetSchema(
             SchemaSourceMode.Online, Arg.Is<string[]?>(names => names == null), required: true, Arg.Any<CancellationToken>());
-        await store.Received(1).Write(_stateSerializer.Serialize(schema), Arg.Any<CancellationToken>());
+        await store.Received(1).Write(
+            Arg.Is<ReadOnlyMemory<byte>>(m => m.ToArray().SequenceEqual(expected)), Arg.Any<CancellationToken>());
     }
 
     [Fact]
