@@ -2,6 +2,7 @@ using NSchema.Diff.Model;
 using NSchema.Operations;
 using NSchema.Plan.Model;
 using NSchema.Policies;
+using NSchema.Schema.Model;
 using NSchema.Sql.Model;
 
 namespace NSchema.Tests.Helpers;
@@ -20,6 +21,7 @@ internal sealed class RecordingReporter : IOperationReporter
 
     public List<string> Infos { get; } = [];
     public List<Exception> Exceptions { get; } = [];
+    public DatabaseSchema? Schema { get; private set; }
     public DatabaseDiff? Diff { get; private set; }
     public MigrationPlan? Plan { get; private set; }
     public SqlPlan? SqlPlan { get; private set; }
@@ -27,6 +29,7 @@ internal sealed class RecordingReporter : IOperationReporter
 
     public void Info(string message) => Infos.Add(message);
     public void ReportException(Exception exception) => Exceptions.Add(exception);
+    public void ReportSchema(DatabaseSchema schema) => Schema = schema;
     public void ReportDiff(DatabaseDiff diff) => Diff = diff;
     public void ReportPlan(MigrationPlan plan) => Plan = plan;
     public void ReportSqlPlan(SqlPlan plan) => SqlPlan = plan;

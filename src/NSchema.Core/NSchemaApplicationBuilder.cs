@@ -11,10 +11,12 @@ using NSchema.Operations;
 using NSchema.Operations.Apply;
 using NSchema.Operations.Confirmation;
 using NSchema.Operations.Destroy;
+using NSchema.Operations.Drift;
 using NSchema.Operations.Import;
 using NSchema.Operations.Plan;
 using NSchema.Operations.Refresh;
 using NSchema.Operations.Services;
+using NSchema.Operations.Show;
 using NSchema.Operations.Validate;
 using NSchema.Plan;
 using NSchema.Resolution;
@@ -120,6 +122,8 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IImportOperation, ImportOperation>();
         services.TryAddSingleton<IValidateOperation, ValidateOperation>();
         services.TryAddSingleton<IDestroyOperation, DestroyOperation>();
+        services.TryAddSingleton<IShowOperation, ShowOperation>();
+        services.TryAddSingleton<IDriftOperation, DriftOperation>();
 
         // Plan
         services.TryAddSingleton<IPlanLinearizer, DefaultPlanLinearizer>();
@@ -129,6 +133,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();
         services.TryAddSingleton<IDesiredSchemaProvider, DefaultDesiredSchemaProvider>();
         services.TryAddSingleton<IKeyedResolver<ISchemaSerializer>, DefaultKeyedResolver<ISchemaSerializer, object>>();
+        services.TryAddSingleton<ISchemaRenderer, DefaultSchemaRenderer>();
 
         // SQL
         services.TryAddSingleton<ISqlPlanRenderer, DefaultSqlPlanRenderer>();
