@@ -1,9 +1,9 @@
-using System.Runtime.ExceptionServices;
 using NSchema.Operations.Confirmation;
 using NSchema.Operations.Services;
 using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Sql;
+using NSchema.State;
 
 namespace NSchema.Operations.Apply;
 
@@ -12,6 +12,7 @@ internal sealed class ApplyOperation(
     IOperationConfirmation confirmation,
     IMigrationWorkflow workflow,
     IKeyedResolver<ISqlGenerator> sqlGenerators,
+    IStateLock stateLock,
     ISqlExecutor? sqlExecutor = null
 ) : IApplyOperation
 {
@@ -23,6 +24,10 @@ internal sealed class ApplyOperation(
         }
 
         reporters.Current.Info("Applying schema migration. Changes will be applied to the database.");
+
+        // Hold the state lock for the whole operation so a concurrent apply/destroy/refresh can't run against the
+        // same state. Released when the handle is disposed at the end of the method (no-op unless a lock is registered).
+        await using var stateLockHandle = await stateLock.Acquire(new StateLockRequest("apply"), cancellationToken);
 
         var plan = await workflow.Plan(SchemaSourceMode.Online, required: true, arguments.Schemas, cancellationToken);
 
