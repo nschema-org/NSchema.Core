@@ -121,7 +121,12 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition> Schemas, IReadOnlyL
             .SelectMany(s => s.DroppedTables)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-        var oldName = schemas.Select(s => s.OldName).FirstOrDefault(n => n is not null);
+        var oldNames = schemas.Select(s => s.OldName).Where(n => n is not null).Distinct().ToList();
+        if (oldNames.Count > 1)
+        {
+            throw new InvalidOperationException($"Conflicting old names specified for schema '{schemaName}'.");
+        }
+        var oldName = oldNames.FirstOrDefault();
 
         var grants = schemas
             .SelectMany(s => s.Grants)

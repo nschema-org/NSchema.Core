@@ -20,29 +20,29 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
     private List<SchemaDiff> CompareSchemas(IReadOnlyList<SchemaDefinition> current, IReadOnlyList<SchemaDefinition> desired)
     {
         var result = new List<SchemaDiff>();
+        var (forDesired, currentMatched) = MatchEntities(current, desired, s => s.Name, s => s.OldName, "schema");
 
-        foreach (var currentSchema in current)
+        for (var j = 0; j < current.Count; j++)
         {
-            if (desired.Any(d => d.Name == currentSchema.Name || d.OldName == currentSchema.Name))
+            if (currentMatched[j])
             {
-                LogSchemaExists(currentSchema.Name);
+                LogSchemaExists(current[j].Name);
             }
             else
             {
-                LogSchemaNotInDesired(currentSchema.Name);
-                result.Add(new SchemaDiff(currentSchema.Name, ChangeKind.Remove, null, null, [], []));
+                LogSchemaNotInDesired(current[j].Name);
+                result.Add(new SchemaDiff(current[j].Name, ChangeKind.Remove, null, null, [], []));
             }
         }
 
-        foreach (var desiredSchema in desired)
+        for (var i = 0; i < desired.Count; i++)
         {
-            var matchingCurrent = current.FirstOrDefault(schema => schema.Name == desiredSchema.Name || schema.Name == desiredSchema.OldName);
-            if (matchingCurrent is null)
+            if (forDesired[i] is not { } matchingCurrent)
             {
-                LogSchemaNew(desiredSchema.Name);
-                result.Add(BuildNewSchema(desiredSchema));
+                LogSchemaNew(desired[i].Name);
+                result.Add(BuildNewSchema(desired[i]));
             }
-            else if (BuildModifiedSchema(matchingCurrent, desiredSchema) is { } diff)
+            else if (BuildModifiedSchema(matchingCurrent, desired[i]) is { } diff)
             {
                 result.Add(diff);
             }
@@ -51,6 +51,109 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
         // The diff presents schemas ordered by name (tables likewise, within each schema).
         result.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
         return result;
+    }
+
+    /// <summary>
+    /// Pairs each current entity with at most one desired entity. Renames (an explicit <c>OldName</c>) are
+    /// matched first, then remaining desired entities claim a current entity by exact name.
+    /// </summary>
+    /// <remarks>
+    /// A rename is rejected when it collides with a surviving entity, because the result cannot be ordered
+    /// safely and is indistinguishable from an add/drop pair: either the previous name is still declared in
+    /// the desired set (so we cannot tell a rename from a retain-plus-create), or the new name is already
+    /// taken by another current entity. The user must split the rename and the conflicting change into
+    /// separate migrations.
+    /// </remarks>
+    /// <param name="current">The current-state entities.</param>
+    /// <param name="desired">The desired-state entities.</param>
+    /// <param name="name">Projects an entity's name.</param>
+    /// <param name="oldName">Projects an entity's previous name (its rename source), or <c>null</c>.</param>
+    /// <param name="entityKind">The noun used in the ambiguity error (e.g. <c>"table"</c>).</param>
+    /// <param name="container">An optional qualifier for the entity in the error (e.g. the schema name).</param>
+    /// <returns>
+    /// <c>ForDesired[i]</c> is the current entity matched to <c>desired[i]</c>, or <c>null</c> if it is new;
+    /// <c>CurrentMatched[j]</c> is whether <c>current[j]</c> was claimed (otherwise it has been removed).
+    /// </returns>
+    private static (T?[] ForDesired, bool[] CurrentMatched) MatchEntities<T>(
+        IReadOnlyList<T> current,
+        IReadOnlyList<T> desired,
+        Func<T, string> name,
+        Func<T, string?> oldName,
+        string entityKind,
+        string? container = null
+    ) where T : class
+    {
+        var forDesired = new T?[desired.Count];
+        var currentMatched = new bool[current.Count];
+        var matchedByRename = new bool[desired.Count];
+
+        // Pass 1: explicit renames take priority.
+        for (var i = 0; i < desired.Count; i++)
+        {
+            if (oldName(desired[i]) is not { } renamedFrom)
+            {
+                continue;
+            }
+
+            for (var j = 0; j < current.Count; j++)
+            {
+                if (!currentMatched[j] && name(current[j]) == renamedFrom)
+                {
+                    forDesired[i] = current[j];
+                    currentMatched[j] = true;
+                    matchedByRename[i] = true;
+                    break;
+                }
+            }
+        }
+
+        // Pass 2: exact name matches for whatever current entities remain unclaimed.
+        for (var i = 0; i < desired.Count; i++)
+        {
+            if (forDesired[i] is not null)
+            {
+                continue;
+            }
+
+            for (var j = 0; j < current.Count; j++)
+            {
+                if (!currentMatched[j] && name(current[j]) == name(desired[i]))
+                {
+                    forDesired[i] = current[j];
+                    currentMatched[j] = true;
+                    break;
+                }
+            }
+        }
+
+        // Reject renames that collide with a surviving entity (see remarks).
+        for (var i = 0; i < desired.Count; i++)
+        {
+            if (!matchedByRename[i])
+            {
+                continue;
+            }
+
+            var newName = name(desired[i]);
+            var renamedFrom = oldName(desired[i])!;
+            var index = i;
+
+            var oldNameStillDeclared = desired.Where((_, d) => d != index).Any(d => name(d) == renamedFrom);
+            var newNameAlreadyTaken = current.Any(c => name(c) == newName && !ReferenceEquals(c, forDesired[index]));
+
+            if (oldNameStillDeclared || newNameAlreadyTaken)
+            {
+                var qualified = container is null ? newName : $"{container}.{newName}";
+                var reason = oldNameStillDeclared
+                    ? $"its previous name '{renamedFrom}' is still declared"
+                    : $"a {entityKind} named '{newName}' already exists";
+                throw new InvalidOperationException(
+                    $"Ambiguous rename of {entityKind} '{qualified}' from '{renamedFrom}': {reason}. " +
+                    "Perform the rename and the conflicting change in separate migrations.");
+            }
+        }
+
+        return (forDesired, currentMatched);
     }
 
     private SchemaDiff BuildNewSchema(SchemaDefinition desired)
@@ -106,10 +209,12 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
     {
         var result = new List<TableDiff>();
         var droppedTables = desired.DroppedTables;
+        var (forDesired, currentMatched) = MatchEntities(current, desired.Tables, t => t.Name, t => t.OldName, "table", schemaName);
 
-        foreach (var currentTable in current)
+        for (var j = 0; j < current.Count; j++)
         {
-            if (desired.Tables.Any(d => d.Name == currentTable.Name || d.OldName == currentTable.Name))
+            var currentTable = current[j];
+            if (currentMatched[j])
             {
                 LogTableExists(schemaName, currentTable.Name);
             }
@@ -129,10 +234,10 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
             }
         }
 
-        foreach (var desiredTable in desired.Tables)
+        for (var i = 0; i < desired.Tables.Count; i++)
         {
-            var matchingCurrent = current.FirstOrDefault(c => c.Name == desiredTable.Name || c.Name == desiredTable.OldName);
-            if (matchingCurrent is null)
+            var desiredTable = desired.Tables[i];
+            if (forDesired[i] is not { } matchingCurrent)
             {
                 LogTableNew(schemaName, desiredTable.Name);
                 result.Add(BuildNewTable(schemaName, desiredTable));
@@ -234,24 +339,25 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
     private List<ColumnDiff> CompareColumns(string schemaName, string tableName, IReadOnlyList<Column> current, IReadOnlyList<Column> desired)
     {
         var result = new List<ColumnDiff>();
+        var (forDesired, currentMatched) = MatchEntities(current, desired, c => c.Name, c => c.OldName, "column", $"{schemaName}.{tableName}");
 
-        foreach (var currentCol in current)
+        for (var j = 0; j < current.Count; j++)
         {
-            if (desired.Any(d => d.Name == currentCol.Name || d.OldName == currentCol.Name))
+            if (currentMatched[j])
             {
-                LogColumnExists(schemaName, tableName, currentCol.Name);
+                LogColumnExists(schemaName, tableName, current[j].Name);
             }
             else
             {
-                LogColumnNotInDesired(schemaName, tableName, currentCol.Name);
-                result.Add(new ColumnDiff(currentCol.Name, ChangeKind.Remove, currentCol, null, null, null, null, null, null));
+                LogColumnNotInDesired(schemaName, tableName, current[j].Name);
+                result.Add(new ColumnDiff(current[j].Name, ChangeKind.Remove, current[j], null, null, null, null, null, null));
             }
         }
 
-        foreach (var desiredCol in desired)
+        for (var i = 0; i < desired.Count; i++)
         {
-            var matchingCurrent = current.FirstOrDefault(c => c.Name == desiredCol.Name || c.Name == desiredCol.OldName);
-            if (matchingCurrent is null)
+            var desiredCol = desired[i];
+            if (forDesired[i] is not { } matchingCurrent)
             {
                 LogColumnNew(schemaName, tableName, desiredCol.Name);
                 var comment = desiredCol.Comment is not null ? new ValueChange<string>(null, desiredCol.Comment) : null;

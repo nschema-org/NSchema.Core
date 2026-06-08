@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using NSchema.Operations.Confirmation;
 using NSchema.Operations.Services;
 using NSchema.Resolution;
@@ -37,10 +38,17 @@ internal sealed class ApplyOperation(
         }
 
         reporters.Current.Info("Running schema migration...");
-        await sqlExecutor.Execute(sqlPlan, cancellationToken);
-        reporters.Current.Info("Migration completed successfully.");
 
-        // Capture the resulting state when a store is configured; a no-op otherwise.
-        await workflow.Refresh(RefreshMode.Optional, cancellationToken);
+        try
+        {
+            await sqlExecutor.Execute(sqlPlan, cancellationToken);
+            reporters.Current.Info("Migration completed successfully.");
+        }
+        finally
+        {
+            // Capture the resulting state when a store is configured; a no-op otherwise. This runs even when
+            // execution failed partway (e.g. an un-transacted plan) so the store reflects what was actually applied.
+            await workflow.Refresh(RefreshMode.Optional, cancellationToken);
+        }
     }
 }

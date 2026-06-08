@@ -164,6 +164,35 @@ public sealed class DatabaseSchemaTests
         ex.Message.ShouldContain("public");
     }
 
+    [Fact]
+    public void Combine_ConflictingOldNames_Throws()
+    {
+        // Arrange — two providers disagree on what the schema was renamed from.
+        var db1 = Db(SchemaDefinition.Create("public", oldName: "legacy"));
+        var db2 = Db(SchemaDefinition.Create("public", oldName: "old_public"));
+
+        // Act
+        var act = () => db1.Combine(db2);
+
+        // Assert
+        var ex = act.ShouldThrow<InvalidOperationException>();
+        ex.Message.ShouldContain("public");
+    }
+
+    [Fact]
+    public void Combine_MatchingOldNames_AreCombined()
+    {
+        // Arrange — agreeing (or one-sided) rename sources combine without complaint.
+        var db1 = Db(SchemaDefinition.Create("public", oldName: "legacy"));
+        var db2 = Db(SchemaDefinition.Create("public"));
+
+        // Act
+        var result = db1.Combine(db2);
+
+        // Assert
+        result.Schemas.ShouldHaveSingleItem().OldName.ShouldBe("legacy");
+    }
+
     // ── Grants ────────────────────────────────────────────────────────────────
 
     [Fact]
