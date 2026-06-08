@@ -1,4 +1,4 @@
-namespace NSchema.Import;
+namespace NSchema.Operations.Import;
 
 /// <summary>
 /// Controls how an import is split across output files.

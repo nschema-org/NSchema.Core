@@ -65,7 +65,7 @@ public sealed class NSchemaApplication : IDisposable
     }
 
     /// <summary>
-    /// Reads the live current schema and writes it to the configured import target as desired-schema source files.
+    /// Reads the live current schema and writes it to the output files as desired-schema source files.
     /// </summary>
     /// <param name="arguments">The arguments controlling which schema to import.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
