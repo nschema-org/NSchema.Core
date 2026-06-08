@@ -7,16 +7,16 @@ namespace NSchema.Tests.Operations.Validate;
 
 public sealed class ValidateOperationTests
 {
-    private readonly IMigrationHelper _helper = Substitute.For<IMigrationHelper>();
+    private readonly IMigrationWorkflow _workflow = Substitute.For<IMigrationWorkflow>();
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
 
-    private ValidateOperation BuildSut() => new(_helper, Helpers.TestReporters.ResolverFor(_reporter));
+    private ValidateOperation BuildSut() => new(_workflow, Helpers.TestReporters.ResolverFor(_reporter));
 
     private readonly ValidateOperation _sut;
 
     public ValidateOperationTests()
     {
-        _helper.Validate(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(DatabaseSchema.Create([]));
+        _workflow.Validate(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(DatabaseSchema.Create([]));
         _sut = BuildSut();
     }
 
@@ -27,14 +27,14 @@ public sealed class ValidateOperationTests
         await _sut.Execute(new ValidateArguments(), TestContext.Current.CancellationToken);
 
         // Assert
-        await _helper.Received(1).Validate(Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+        await _workflow.Received(1).Validate(Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Execute_ValidationThrows_Propagates()
     {
         // Arrange
-        _helper.Validate(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
+        _workflow.Validate(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
             .Returns<DatabaseSchema>(_ => throw new InvalidOperationException("boom"));
 
         // Act

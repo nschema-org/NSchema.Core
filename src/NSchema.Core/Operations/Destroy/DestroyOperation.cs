@@ -8,7 +8,7 @@ namespace NSchema.Operations.Destroy;
 internal sealed class DestroyOperation(
     IKeyedResolver<IOperationReporter> reporters,
     IOperationConfirmation confirmation,
-    IMigrationHelper helper,
+    IMigrationWorkflow workflow,
     IKeyedResolver<ISqlGenerator> sqlGenerators,
     ISqlExecutor? sqlExecutor = null
 ) : IDestroyOperation
@@ -22,7 +22,7 @@ internal sealed class DestroyOperation(
 
         reporters.Current.Info("Destroying schema. All managed objects will be dropped from the database.");
 
-        var plan = await helper.PlanDestroy(cancellationToken);
+        var plan = await workflow.PlanDestroy(cancellationToken);
 
         reporters.Current.Info("Generating SQL...");
         var sqlPlan = sqlGenerators.Current.Generate(plan);
@@ -39,12 +39,7 @@ internal sealed class DestroyOperation(
         await sqlExecutor.Execute(sqlPlan, cancellationToken);
         reporters.Current.Info("Schema destroyed successfully.");
 
-        // Capture the post-destroy state only when a store is configured; otherwise there's nowhere to write it.
-        if (helper.HasStore)
-        {
-            reporters.Current.Info("Updating state store...");
-            await helper.Refresh(cancellationToken);
-            reporters.Current.Info("State store updated successfully.");
-        }
+        // Capture the resulting state when a store is configured; a no-op otherwise.
+        await workflow.Refresh(RefreshMode.Optional, cancellationToken);
     }
 }

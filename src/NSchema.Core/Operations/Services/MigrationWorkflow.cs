@@ -10,17 +10,15 @@ using NSchema.State;
 
 namespace NSchema.Operations.Services;
 
-internal sealed class MigrationHelper(
+internal sealed class MigrationWorkflow(
     IMigrationPlanner planner,
     IEnumerable<IScriptProvider> scriptProviders,
     IKeyedResolver<IOperationReporter> reporters,
     ICurrentSchemaProvider currentProvider,
     IDesiredSchemaProvider desiredProvider,
     ISchemaStateStore? store = null
-) : IMigrationHelper
+) : IMigrationWorkflow
 {
-    public bool HasStore => store is not null;
-
     public async Task<DatabaseSchema> Validate(string[]? schemas, CancellationToken cancellationToken = default)
     {
         reporters.Current.Info("Loading desired schema...");
@@ -100,14 +98,22 @@ internal sealed class MigrationHelper(
         return result.Plan;
     }
 
-    public async Task Refresh(CancellationToken cancellationToken = default)
+    public async Task Refresh(RefreshMode mode, CancellationToken cancellationToken = default)
     {
-        if (store == null)
+        if (store is null)
         {
-            throw new InvalidOperationException("Unable to refresh state without backend store.");
+            if (mode == RefreshMode.Required)
+            {
+                throw new InvalidOperationException("Unable to refresh state without a configured state store.");
+            }
+
+            // Optional: nothing to capture.
+            return;
         }
 
+        reporters.Current.Info("Updating state store...");
         var schema = await currentProvider.GetSchema(SchemaSourceMode.Online, null, required: true, cancellationToken);
         await store.Write(schema, cancellationToken);
+        reporters.Current.Info("State store updated successfully.");
     }
 }

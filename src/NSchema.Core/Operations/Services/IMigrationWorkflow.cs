@@ -4,10 +4,12 @@ using NSchema.Schema.Model;
 
 namespace NSchema.Operations.Services;
 
-internal interface IMigrationHelper
+/// <summary>
+/// The imperative shell operations use to run the pure planner: it resolves schemas, invokes
+/// <see cref="NSchema.Plan.IMigrationPlanner"/>, surfaces diagnostics, and captures state to the store.
+/// </summary>
+internal interface IMigrationWorkflow
 {
-    bool HasStore { get; }
-
     /// <summary>
     /// Validates the desired schema against the schema policies, throwing on errors.
     /// </summary>
@@ -31,5 +33,13 @@ internal interface IMigrationHelper
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     Task<MigrationPlan> PlanDestroy(CancellationToken cancellationToken = default);
 
-    Task Refresh(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Captures the live schema into the state store.
+    /// </summary>
+    /// <param name="mode">
+    /// <see cref="RefreshMode.Required"/> throws when no state store is configured;
+    /// <see cref="RefreshMode.Optional"/> skips silently.
+    /// </param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    Task Refresh(RefreshMode mode, CancellationToken cancellationToken = default);
 }

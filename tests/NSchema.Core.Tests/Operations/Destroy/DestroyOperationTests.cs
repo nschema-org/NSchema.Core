@@ -12,7 +12,7 @@ namespace NSchema.Tests.Operations.Destroy;
 public sealed class DestroyOperationTests
 {
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
-    private readonly IMigrationHelper _helper = Substitute.For<IMigrationHelper>();
+    private readonly IMigrationWorkflow _workflow = Substitute.For<IMigrationWorkflow>();
     private readonly ISqlGenerator _generator = Substitute.For<ISqlGenerator>();
     private readonly ISqlExecutor _executor = Substitute.For<ISqlExecutor>();
     private readonly IOperationConfirmation _confirmation = Substitute.For<IOperationConfirmation>();
@@ -22,7 +22,7 @@ public sealed class DestroyOperationTests
 
     private DestroyOperation BuildSut(ISqlGenerator? generator, ISqlExecutor? executor) => new(
         Helpers.TestReporters.ResolverFor(_reporter),
-        _confirmation, _helper,
+        _confirmation, _workflow,
         Helpers.TestSqlGenerators.ResolverFor(generator),
         executor
     );
@@ -31,8 +31,7 @@ public sealed class DestroyOperationTests
 
     public DestroyOperationTests()
     {
-        _helper.PlanDestroy(Arg.Any<CancellationToken>()).Returns(_plan);
-        _helper.HasStore.Returns(true);
+        _workflow.PlanDestroy(Arg.Any<CancellationToken>()).Returns(_plan);
         _generator.Generate(Arg.Any<MigrationPlan>()).Returns(_sqlPlan);
         _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(true);
 
@@ -44,7 +43,7 @@ public sealed class DestroyOperationTests
     {
         await _sut.Execute(new DestroyArguments(), TestContext.Current.CancellationToken);
 
-        await _helper.Received(1).PlanDestroy(Arg.Any<CancellationToken>());
+        await _workflow.Received(1).PlanDestroy(Arg.Any<CancellationToken>());
         _generator.Received(1).Generate(_plan);
         await _executor.Received(1).Execute(_sqlPlan, Arg.Any<CancellationToken>());
     }
@@ -55,7 +54,7 @@ public sealed class DestroyOperationTests
         var sut = BuildSut(generator: null, executor: _executor);
 
         await Should.ThrowAsync<InvalidOperationException>(() => sut.Execute(new DestroyArguments()));
-        await _helper.DidNotReceive().PlanDestroy(Arg.Any<CancellationToken>());
+        await _workflow.DidNotReceive().PlanDestroy(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -64,7 +63,7 @@ public sealed class DestroyOperationTests
         var sut = BuildSut(generator: _generator, executor: null);
 
         await Should.ThrowAsync<InvalidOperationException>(() => sut.Execute(new DestroyArguments()));
-        await _helper.DidNotReceive().PlanDestroy(Arg.Any<CancellationToken>());
+        await _workflow.DidNotReceive().PlanDestroy(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -72,17 +71,7 @@ public sealed class DestroyOperationTests
     {
         await _sut.Execute(new DestroyArguments(), TestContext.Current.CancellationToken);
 
-        await _helper.Received(1).Refresh(Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Execute_NoStore_DoesNotRefresh()
-    {
-        _helper.HasStore.Returns(false);
-
-        await _sut.Execute(new DestroyArguments(), TestContext.Current.CancellationToken);
-
-        await _helper.DidNotReceive().Refresh(Arg.Any<CancellationToken>());
+        await _workflow.Received(1).Refresh(RefreshMode.Optional, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -92,7 +81,7 @@ public sealed class DestroyOperationTests
 
         await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(new DestroyArguments(), TestContext.Current.CancellationToken));
 
-        await _helper.DidNotReceive().Refresh(Arg.Any<CancellationToken>());
+        await _workflow.DidNotReceive().Refresh(Arg.Any<RefreshMode>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -103,7 +92,7 @@ public sealed class DestroyOperationTests
         await _sut.Execute(new DestroyArguments(), TestContext.Current.CancellationToken);
 
         await _executor.DidNotReceive().Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>());
-        await _helper.DidNotReceive().Refresh(Arg.Any<CancellationToken>());
+        await _workflow.DidNotReceive().Refresh(Arg.Any<RefreshMode>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

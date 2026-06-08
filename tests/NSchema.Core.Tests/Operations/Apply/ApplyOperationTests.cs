@@ -13,7 +13,7 @@ namespace NSchema.Tests.Operations.Apply;
 public sealed class ApplyOperationTests
 {
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
-    private readonly IMigrationHelper _helper = Substitute.For<IMigrationHelper>();
+    private readonly IMigrationWorkflow _workflow = Substitute.For<IMigrationWorkflow>();
     private readonly ISqlGenerator _generator = Substitute.For<ISqlGenerator>();
     private readonly ISqlExecutor _executor = Substitute.For<ISqlExecutor>();
     private readonly IOperationConfirmation _confirmation = Substitute.For<IOperationConfirmation>();
@@ -23,7 +23,7 @@ public sealed class ApplyOperationTests
 
     private ApplyOperation BuildSut(ISqlGenerator? planner, ISqlExecutor? executor) => new(
         Helpers.TestReporters.ResolverFor(_reporter),
-        _confirmation, _helper,
+        _confirmation, _workflow,
         Helpers.TestSqlGenerators.ResolverFor(planner),
         executor
     );
@@ -32,8 +32,7 @@ public sealed class ApplyOperationTests
 
     public ApplyOperationTests()
     {
-        _helper.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(_plan);
-        _helper.HasStore.Returns(true);
+        _workflow.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(_plan);
         _generator.Generate(Arg.Any<MigrationPlan>()).Returns(_sqlPlan);
         _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(true);
 
@@ -45,7 +44,7 @@ public sealed class ApplyOperationTests
     {
         await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
 
-        await _helper.Received(1).Plan(SchemaSourceMode.Online, required: true, Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+        await _workflow.Received(1).Plan(SchemaSourceMode.Online, required: true, Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -63,7 +62,7 @@ public sealed class ApplyOperationTests
         var sut = BuildSut(planner: null, executor: _executor);
 
         await Should.ThrowAsync<InvalidOperationException>(() => sut.Execute(new ApplyArguments()));
-        await _helper.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+        await _workflow.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -72,7 +71,7 @@ public sealed class ApplyOperationTests
         var sut = BuildSut(planner: _generator, executor: null);
 
         await Should.ThrowAsync<InvalidOperationException>(() => sut.Execute(new ApplyArguments()));
-        await _helper.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+        await _workflow.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -80,17 +79,7 @@ public sealed class ApplyOperationTests
     {
         await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
 
-        await _helper.Received(1).Refresh(Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Execute_NoStore_DoesNotRefresh()
-    {
-        _helper.HasStore.Returns(false);
-
-        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
-
-        await _helper.DidNotReceive().Refresh(Arg.Any<CancellationToken>());
+        await _workflow.Received(1).Refresh(RefreshMode.Optional, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -100,7 +89,7 @@ public sealed class ApplyOperationTests
 
         await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken));
 
-        await _helper.DidNotReceive().Refresh(Arg.Any<CancellationToken>());
+        await _workflow.DidNotReceive().Refresh(Arg.Any<RefreshMode>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -111,7 +100,7 @@ public sealed class ApplyOperationTests
         await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
 
         await _executor.DidNotReceive().Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>());
-        await _helper.DidNotReceive().Refresh(Arg.Any<CancellationToken>());
+        await _workflow.DidNotReceive().Refresh(Arg.Any<RefreshMode>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

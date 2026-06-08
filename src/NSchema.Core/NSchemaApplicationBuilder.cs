@@ -114,12 +114,8 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Import
         services.TryAddSingleton<IKeyedResolver<ISchemaImportTarget>, DefaultKeyedResolver<ISchemaImportTarget, object>>();
 
-        // Migration
-        services.TryAddSingleton<IPlanLinearizer, DefaultPlanLinearizer>();
-        services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
-
         // Operations
-        services.TryAddSingleton<IMigrationHelper, MigrationHelper>();
+        services.TryAddSingleton<IMigrationWorkflow, MigrationWorkflow>();
         services.TryAddSingleton<IOperationConfirmation, AutoApproveConfirmation>();
         services.TryAddSingleton<IKeyedResolver<IOperationReporter>>(sp => new DefaultKeyedResolver<IOperationReporter, NSchemaApplicationOptions>(sp, o => o.Reporter));
         services.TryAddSingleton<IPlanOperation, PlanOperation>();
@@ -128,6 +124,10 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IImportOperation, ImportOperation>();
         services.TryAddSingleton<IValidateOperation, ValidateOperation>();
         services.TryAddSingleton<IDestroyOperation, DestroyOperation>();
+
+        // Plan
+        services.TryAddSingleton<IPlanLinearizer, DefaultPlanLinearizer>();
+        services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
 
         // Schemas
         services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();

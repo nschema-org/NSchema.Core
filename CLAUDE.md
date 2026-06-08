@@ -32,7 +32,7 @@ The codebase is split into a **domain layer** and an **application layer**:
   - `Diff/` — the structured diff model (`Diff/Model/`, rooted at `DatabaseDiff`), `ISchemaComparer`, `IDiffTransformer`, `IDiffPolicy`, and the diff renderer.
   - `Plan/` — the executable plan model (`Plan/Model/`, rooted at `MigrationPlan`), `IPlanLinearizer`, `IPlanTransformer`, `IPlanPolicy`, and the planner that runs all three stages: `IMigrationPlanner` (default `DefaultMigrationPlanner`) and its `MigrationPlanResult`. The planner has no knowledge of operations or how a run is orchestrated.
 - **Application layer.** Orchestration of a run:
-  - `Operations/` — one vertical slice per operation (`Operations/Plan/`, `Operations/Apply/`, `Operations/Refresh/`, `Operations/Import/`, `Operations/Validate/`, `Operations/Destroy/`), each holding a public interface (`IPlanOperation`, …), a public arguments record (`PlanArguments`, …, empty where the operation has no inputs yet), and the internal handler. Also `IMigrationHelper` (schema resolution, planning, and state capture, under `Operations/Services/`), the default `IOperationReporter` (`DefaultOperationReporter`), the default `IOperationConfirmation` (`AutoApproveConfirmation`), and `IOperationConfirmation` itself (`Operations/Confirmation/`).
+  - `Operations/` — one vertical slice per operation (`Operations/Plan/`, `Operations/Apply/`, `Operations/Refresh/`, `Operations/Import/`, `Operations/Validate/`, `Operations/Destroy/`), each holding a public interface (`IPlanOperation`, …), a public arguments record (`PlanArguments`, …, empty where the operation has no inputs yet), and the internal handler. Also `IMigrationWorkflow` (the imperative shell operations share — schema resolution, planning, and state capture, under `Operations/Services/`), the default `IOperationReporter` (`DefaultOperationReporter`), the default `IOperationConfirmation` (`AutoApproveConfirmation`), and `IOperationConfirmation` itself (`Operations/Confirmation/`).
 
 ### Operations
 
@@ -47,7 +47,7 @@ Built-in operations (`src/NSchema.Core/Operations/`):
 - **`ValidateOperation`** — loads the desired schema and validates it against the registered `ISchemaPolicy` implementations, without planning or applying.
 - **`DestroyOperation`** — tears down the managed schema. It reads the managed schema from the state store (offline) when one is configured, otherwise from the declared desired schema, and diffs it against an empty schema to produce drops, then generates SQL and executes it (online required), like `ApplyOperation`. Destroy uses `IMigrationPlanner.PlanTeardown`, a **trusted path that bypasses the diff/plan transformers and policies** (so a custom policy can't block teardown and a transformer can't silently alter it); the destructive-action policy therefore never runs. `IOperationConfirmation` still gates execution.
 
-The shared orchestration used by `PlanOperation`, `ApplyOperation`, `DestroyOperation`, `RefreshOperation`, and `ValidateOperation` lives in **`IMigrationHelper`** (`src/NSchema.Core/Operations/Services/`): it collects desired providers, derives scope, fetches the current schema, calls `IMigrationPlanner`, reports the diff/plan, and (for `Refresh` / post-apply) captures state to the store.
+The shared orchestration used by `PlanOperation`, `ApplyOperation`, `DestroyOperation`, `RefreshOperation`, and `ValidateOperation` lives in **`IMigrationWorkflow`** (`src/NSchema.Core/Operations/Services/`) — the imperative shell around the pure `IMigrationPlanner`: it collects desired providers, derives scope, fetches the current schema, calls the planner, reports the diff/plan, and captures state to the store. State capture goes through `Refresh(RefreshMode)`: `Required` (the `Refresh` operation) throws when no store is configured, `Optional` (post-apply / post-destroy) is a silent no-op when there's no store.
 
 ### Confirmation
 
@@ -154,7 +154,7 @@ The structured `DatabaseDiff` (`Diff/Model/`: schema → table → columns/index
 
 Rendering is a single phase: **`IDiffRenderer`** (default `TerraformDiffRenderer`) turns a `DatabaseDiff` into text. The default emits a Terraform-style diff; an alternative (e.g. JSON) can be registered without touching the diff projection. Each renderer owns its own options POCO — the Terraform renderer reads `TerraformDiffRendererOptions.IncludeColour`, which defaults via its property initializer to `EnvironmentHelpers.SupportsColor` (on unless `NO_COLOR` is set or output is redirected). Override it via `UseTerraformRenderer(o => ...)`. The renderer itself never reads the environment.
 
-`IOperationReporter.ReportDiff(DatabaseDiff)` is the seam: the reporter owns the `IDiffRenderer` and writes the rendered text to its output. `IMigrationHelper` hands `result.Diff` to the reporter (alongside `ReportPlan(result.Plan)`) — there is no separate diff-building step.
+`IOperationReporter.ReportDiff(DatabaseDiff)` is the seam: the reporter owns the `IDiffRenderer` and writes the rendered text to its output. `IMigrationWorkflow` hands `result.Diff` to the reporter (alongside `ReportPlan(result.Plan)`) — there is no separate diff-building step.
 
 ### Renaming
 
@@ -165,7 +165,7 @@ Schemas, tables, and columns support rename detection via the fluent `RenamedFro
 **`DestructiveActionOptions`** (`NSchema.Diff.Policies`) — owned by the diff policy it configures:
 - `Policy` — a `DestructiveActionPolicy`: `Error` (default), `Warn`, or `Allow`. Enforced by `DestructiveActionDiffPolicy` (which reads `IOptions<DestructiveActionOptions>`). Configured via `WithDestructiveActionPolicy(...)`.
 
-Schema scope is **not** an option — it's a per-invocation argument. `PlanArguments` / `ApplyArguments` / `ValidateArguments` carry a `Schemas` filter; when `null`, scope is derived from the desired schema. `IMigrationHelper` takes the scope as an explicit parameter rather than reading ambient options. (`Destroy` is unscoped — it always tears down the whole managed schema.)
+Schema scope is **not** an option — it's a per-invocation argument. `PlanArguments` / `ApplyArguments` / `ValidateArguments` carry a `Schemas` filter; when `null`, scope is derived from the desired schema. `IMigrationWorkflow` takes the scope as an explicit parameter rather than reading ambient options. (`Destroy` is unscoped — it always tears down the whole managed schema.)
 
 **`NSchemaApplicationOptions`** (`NSchema`) — how the application is constructed and run. Passed to `CreateBuilder(options)` and registered as a singleton; its values are fixed at build time (`init`-only):
 - `Args` / `ApplicationName` / `EnvironmentName` / `ContentRootPath` — consumed by the builder constructor to configure the underlying `HostApplicationBuilder`.

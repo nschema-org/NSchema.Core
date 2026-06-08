@@ -11,19 +11,19 @@ using NSchema.State;
 
 namespace NSchema.Tests.Operations.Services;
 
-public sealed class MigrationHelperTests
+public sealed class MigrationWorkflowTests
 {
     private readonly IMigrationPlanner _planner = Substitute.For<IMigrationPlanner>();
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
     private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
     private readonly IDesiredSchemaProvider _desiredProvider = Substitute.For<IDesiredSchemaProvider>();
 
-    private MigrationHelper BuildSut(ISchemaStateStore? store = null) =>
+    private MigrationWorkflow BuildSut(ISchemaStateStore? store = null) =>
         new(_planner, [], Helpers.TestReporters.ResolverFor(_reporter), _currentProvider, _desiredProvider, store);
 
-    private readonly MigrationHelper _sut;
+    private readonly MigrationWorkflow _sut;
 
-    public MigrationHelperTests()
+    public MigrationWorkflowTests()
     {
         _currentProvider
             .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
@@ -290,32 +290,6 @@ public sealed class MigrationHelperTests
     }
 
     [Fact]
-    public void HasStore_WithoutStore_ReturnsFalse()
-    {
-        // Arrange
-        var sut = BuildSut(store: null);
-
-        // Act
-        var result = sut.HasStore;
-
-        // Assert
-        result.ShouldBeFalse();
-    }
-
-    [Fact]
-    public void HasStore_WithStore_ReturnsTrue()
-    {
-        // Arrange
-        var sut = BuildSut(Substitute.For<ISchemaStateStore>());
-
-        // Act
-        var result = sut.HasStore;
-
-        // Assert
-        result.ShouldBeTrue();
-    }
-
-    [Fact]
     public async Task Refresh_WritesLiveSchemaToStore_Unscoped()
     {
         // Arrange
@@ -326,24 +300,38 @@ public sealed class MigrationHelperTests
             .Returns(schema);
         var sut = BuildSut(store);
 
-        // Assert
-        await sut.Refresh(TestContext.Current.CancellationToken);
+        // Act
+        await sut.Refresh(RefreshMode.Required, TestContext.Current.CancellationToken);
 
+        // Assert
         await _currentProvider.Received(1).GetSchema(
             SchemaSourceMode.Online, Arg.Is<string[]?>(names => names == null), required: true, Arg.Any<CancellationToken>());
         await store.Received(1).Write(schema, Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Refresh_NoStore_Throws()
+    public async Task Refresh_Required_NoStore_Throws()
     {
         // Arrange
         var sut = BuildSut(store: null);
 
         // Act
-        var act = () => sut.Refresh();
+        var act = () => sut.Refresh(RefreshMode.Required, TestContext.Current.CancellationToken);
 
         // Assert
         await act.ShouldThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task Refresh_Optional_NoStore_IsNoOp()
+    {
+        // Arrange
+        var sut = BuildSut(store: null);
+
+        // Act / Assert: no store, but Optional — completes without contacting the live database or throwing.
+        await sut.Refresh(RefreshMode.Optional, TestContext.Current.CancellationToken);
+
+        await _currentProvider.DidNotReceive().GetSchema(
+            SchemaSourceMode.Online, Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
 }
