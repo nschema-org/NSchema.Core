@@ -16,6 +16,7 @@ internal sealed class MigrationWorkflow(
     IKeyedResolver<IOperationReporter> reporters,
     ICurrentSchemaProvider currentProvider,
     IDesiredSchemaProvider desiredProvider,
+    ISchemaStateSerializer stateSerializer,
     ISchemaStateStore? store = null
 ) : IMigrationWorkflow
 {
@@ -113,7 +114,8 @@ internal sealed class MigrationWorkflow(
 
         reporters.Current.Info("Updating state store...");
         var schema = await currentProvider.GetSchema(SchemaSourceMode.Online, null, required: true, cancellationToken);
-        await store.Write(schema, cancellationToken);
+        var snapshot = stateSerializer.Serialize(schema);
+        await store.Write(snapshot, cancellationToken);
         reporters.Current.Info("State store updated successfully.");
     }
 }

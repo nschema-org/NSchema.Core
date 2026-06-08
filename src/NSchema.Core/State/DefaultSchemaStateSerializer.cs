@@ -22,16 +22,17 @@ internal sealed class DefaultSchemaStateSerializer : ISchemaStateSerializer
     };
 
     /// <inheritdoc />
-    public string Serialize(DatabaseSchema schema)
+    public ReadOnlyMemory<byte> Serialize(DatabaseSchema schema)
     {
         var envelope = new SchemaStateEnvelope(SchemaStateEnvelope.CurrentVersion, schema);
-        return JsonSerializer.Serialize(envelope, _options);
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(envelope, _options);
+        return bytes;
     }
 
     /// <inheritdoc />
-    public DatabaseSchema Deserialize(string json)
+    public DatabaseSchema Deserialize(ReadOnlyMemory<byte> state)
     {
-        var envelope = JsonSerializer.Deserialize<SchemaStateEnvelope>(json, _options)
+        var envelope = JsonSerializer.Deserialize<SchemaStateEnvelope>(state.Span, _options)
             ?? throw new JsonException("State payload deserialized to null.");
 
         if (envelope.Version > SchemaStateEnvelope.CurrentVersion)

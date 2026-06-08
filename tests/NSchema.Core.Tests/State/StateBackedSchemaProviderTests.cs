@@ -6,13 +6,19 @@ namespace NSchema.Tests.State;
 public sealed class StateBackedSchemaProviderTests
 {
     private readonly ISchemaStateStore _store = Substitute.For<ISchemaStateStore>();
+    private readonly ISchemaStateSerializer _serializer = new DefaultSchemaStateSerializer();
+
+    private StateBackedSchemaProvider BuildSut() => new(_store, _serializer);
+
+    private void Persisted(DatabaseSchema schema) =>
+        _store.Read(Arg.Any<CancellationToken>()).Returns<ReadOnlyMemory<byte>?>(_serializer.Serialize(schema));
 
     [Fact]
     public async Task GetSchema_NoState_ReturnsEmptySchema()
     {
         // Arrange
-        _store.Read(Arg.Any<CancellationToken>()).Returns((DatabaseSchema?)null);
-        var sut = new StateBackedSchemaProvider(_store);
+        _store.Read(Arg.Any<CancellationToken>()).Returns((ReadOnlyMemory<byte>?)null);
+        var sut = BuildSut();
 
         // Act
         var result = await sut.GetSchema(null, TestContext.Current.CancellationToken);
@@ -26,30 +32,28 @@ public sealed class StateBackedSchemaProviderTests
     public async Task GetSchema_WithState_ReturnsPersistedSchema()
     {
         // Arrange
-        var persisted = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
-        _store.Read(Arg.Any<CancellationToken>()).Returns(persisted);
-        var sut = new StateBackedSchemaProvider(_store);
+        Persisted(DatabaseSchema.Create([SchemaDefinition.Create("app")]));
+        var sut = BuildSut();
 
         // Act
         var result = await sut.GetSchema(null, TestContext.Current.CancellationToken);
 
-        // Assert: an unscoped read returns the persisted schema unchanged (by value).
-        result.ShouldBe(persisted);
+        // Assert: an unscoped read returns the persisted schema.
+        result.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
 
     [Fact]
     public async Task GetSchema_EmptyScope_ReturnsPersistedSchema()
     {
         // Arrange: an empty scope means "return everything", same as null.
-        var persisted = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
-        _store.Read(Arg.Any<CancellationToken>()).Returns(persisted);
-        var sut = new StateBackedSchemaProvider(_store);
+        Persisted(DatabaseSchema.Create([SchemaDefinition.Create("app")]));
+        var sut = BuildSut();
 
         // Act
         var result = await sut.GetSchema([], TestContext.Current.CancellationToken);
 
         // Assert
-        result.ShouldBe(persisted);
+        result.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
 
     [Fact]
@@ -58,13 +62,12 @@ public sealed class StateBackedSchemaProviderTests
         // Arrange: the store snapshots the whole database (e.g. includes the default "public"
         // schema), but a scoped read must only return the managed schemas — otherwise the diff
         // would plan to drop the unmanaged ones.
-        var persisted = DatabaseSchema.Create(
+        Persisted(DatabaseSchema.Create(
         [
             SchemaDefinition.Create("my_schema"),
             SchemaDefinition.Create("public")
-        ]);
-        _store.Read(Arg.Any<CancellationToken>()).Returns(persisted);
-        var sut = new StateBackedSchemaProvider(_store);
+        ]));
+        var sut = BuildSut();
 
         // Act
         var result = await sut.GetSchema(["my_schema"], TestContext.Current.CancellationToken);
@@ -77,9 +80,8 @@ public sealed class StateBackedSchemaProviderTests
     public async Task GetSchema_WithScope_MatchesSchemaNamesCaseInsensitively()
     {
         // Arrange: scope matching mirrors the comparer's OrdinalIgnoreCase comparison.
-        var persisted = DatabaseSchema.Create([SchemaDefinition.Create("My_Schema")]);
-        _store.Read(Arg.Any<CancellationToken>()).Returns(persisted);
-        var sut = new StateBackedSchemaProvider(_store);
+        Persisted(DatabaseSchema.Create([SchemaDefinition.Create("My_Schema")]));
+        var sut = BuildSut();
 
         // Act
         var result = await sut.GetSchema(["my_schema"], TestContext.Current.CancellationToken);
@@ -87,5 +89,4 @@ public sealed class StateBackedSchemaProviderTests
         // Assert
         result.Schemas.Select(s => s.Name).ShouldBe(["My_Schema"]);
     }
-
 }

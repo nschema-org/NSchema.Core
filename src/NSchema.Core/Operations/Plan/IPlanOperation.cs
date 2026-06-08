@@ -3,7 +3,7 @@ namespace NSchema.Operations.Plan;
 /// <summary>
 /// Computes and renders the migration plan without applying it to the target.
 /// </summary>
-public interface IPlanOperation
+internal interface IPlanOperation
 {
     /// <summary>
     /// Executes the plan operation.

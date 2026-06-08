@@ -1,12 +1,11 @@
+using System.Text;
 using Microsoft.Extensions.Options;
-using NSchema.Schema.Model;
 using NSchema.State;
 
 namespace NSchema.Tests.State;
 
 public sealed class FileSchemaStateStoreTests : IDisposable
 {
-    private static readonly ISchemaStateSerializer _serializer = new DefaultSchemaStateSerializer();
     private readonly string _directory = Path.Combine(Path.GetTempPath(), $"nschema-state-{Guid.NewGuid():N}");
     private readonly string _path;
     private readonly IOptions<FileSchemaStateStoreOptions> _options;
@@ -25,48 +24,36 @@ public sealed class FileSchemaStateStoreTests : IDisposable
         }
     }
 
-    private static DatabaseSchema SampleSchema() => DatabaseSchema.Create(
-        [SchemaDefinition.Create("app", tables: [Table.Create("users", columns: [Column.Create("id", SqlType.Int)])])]);
-
     [Fact]
     public async Task Read_MissingFile_ReturnsNull()
     {
-        // Arrange
-        var sut = new FileSchemaStateStore(_options, _serializer);
+        var sut = new FileSchemaStateStore(_options);
 
-        // Act
         var result = await sut.Read(TestContext.Current.CancellationToken);
 
-        // Assert
         result.ShouldBeNull();
     }
 
     [Fact]
     public async Task Write_CreatesFileAndMissingDirectories()
     {
-        // Arrange
-        var sut = new FileSchemaStateStore(_options, _serializer);
+        var sut = new FileSchemaStateStore(_options);
 
-        // Act
-        await sut.Write(SampleSchema(), TestContext.Current.CancellationToken);
+        await sut.Write(new byte[] { 0x7b, 0x7d }, TestContext.Current.CancellationToken);
 
-        // Assert
         File.Exists(_path).ShouldBeTrue();
     }
 
     [Fact]
-    public async Task Write_ThenRead_RoundTripsTheSchema()
+    public async Task Write_ThenRead_RoundTripsThePayload()
     {
-        // Arrange
-        var sut = new FileSchemaStateStore(_options, _serializer);
-        var original = SampleSchema();
+        var sut = new FileSchemaStateStore(_options);
+        var payload = Encoding.UTF8.GetBytes("""{"version":1,"schema":"state"}""");
 
-        // Act
-        await sut.Write(original, TestContext.Current.CancellationToken);
+        await sut.Write(payload, TestContext.Current.CancellationToken);
         var result = await sut.Read(TestContext.Current.CancellationToken);
 
-        // Assert: compare via the serializer, since the domain records don't all define structural equality.
         result.ShouldNotBeNull();
-        _serializer.Serialize(result).ShouldBe(_serializer.Serialize(original));
+        result.Value.ToArray().ShouldBe(payload);
     }
 }

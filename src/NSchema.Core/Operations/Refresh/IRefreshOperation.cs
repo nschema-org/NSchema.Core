@@ -3,7 +3,7 @@ namespace NSchema.Operations.Refresh;
 /// <summary>
 /// Reads the live current schema and writes it to the state store, without planning or applying anything.
 /// </summary>
-public interface IRefreshOperation
+internal interface IRefreshOperation
 {
     /// <summary>
     /// Executes the refresh operation.

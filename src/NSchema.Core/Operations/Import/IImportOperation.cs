@@ -3,7 +3,7 @@ namespace NSchema.Operations.Import;
 /// <summary>
 /// Reads the live database schema and writes it to the configured import target.
 /// </summary>
-public interface IImportOperation
+internal interface IImportOperation
 {
     /// <summary>
     /// Executes the import operation.
