@@ -275,6 +275,50 @@ public class DefaultSchemaComparerTests
     }
 
     [Fact]
+    public void Compare_TableRenamedAndOldNameReused_RenamesAndCreatesWithoutDropping()
+    {
+        // 'people' is renamed to 'users', and a brand-new 'people' table reuses the freed-up name in the same diff.
+        // The single current 'people' must be claimed by the rename only; the new 'people' must be an Add, not a Modify.
+        var current = Db(SchemaDefinition.Create("app", tables:
+        [
+            Table.Create("people", columns: [Column.Create("id", SqlType.Int)]),
+        ]));
+        var desired = Db(SchemaDefinition.Create("app", tables:
+        [
+            Table.Create("users", oldName: "people", columns: [Column.Create("id", SqlType.Int)]),
+            Table.Create("people", columns: [Column.Create("id", SqlType.Int)]),
+        ]));
+
+        var tables = _sut.Compare(current, desired).Schemas.ShouldHaveSingleItem().Tables;
+
+        var renamed = tables.Single(t => t.Name == "users");
+        renamed.Kind.ShouldBe(ChangeKind.Modify);
+        renamed.RenamedFrom.ShouldBe("people");
+
+        var created = tables.Single(t => t.Name == "people");
+        created.Kind.ShouldBe(ChangeKind.Add);
+
+        tables.ShouldNotContain(t => t.Kind == ChangeKind.Remove);
+    }
+
+    [Fact]
+    public void Compare_ColumnRenamedAndOldNameReused_RenamesAndCreatesWithoutDropping()
+    {
+        var renamedThenReused = DiffTable(
+            Table.Create("t", columns: [Column.Create("mail", SqlType.Text)]),
+            Table.Create("t", columns:
+            [
+                Column.Create("email", SqlType.Text, oldName: "mail"),
+                Column.Create("mail", SqlType.Text),
+            ]));
+
+        var columns = renamedThenReused.ShouldNotBeNull().Columns;
+        columns.Single(c => c.Name == "email").RenamedFrom.ShouldBe("mail");
+        columns.Single(c => c.Name == "mail").Kind.ShouldBe(ChangeKind.Add);
+        columns.ShouldNotContain(c => c.Kind == ChangeKind.Remove);
+    }
+
+    [Fact]
     public void Compare_TableCommentChange_FoldsCommentValueChange()
     {
         var table = DiffTable(
