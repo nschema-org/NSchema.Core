@@ -1,12 +1,13 @@
-using NSchema.Import;
 using NSchema.Resolution;
 using NSchema.Schema;
+using NSchema.Schema.Model;
+using NSchema.Schema.Serialization;
 
 namespace NSchema.Operations.Import;
 
 internal sealed class ImportOperation(
     ICurrentSchemaProvider currentSchema,
-    IKeyedResolver<ISchemaImportTarget> targets,
+    IKeyedResolver<ISchemaSerializer> serializers,
     IKeyedResolver<IOperationReporter> reporters
 ) : IImportOperation
 {
@@ -21,7 +22,66 @@ internal sealed class ImportOperation(
             schema = schema.FilterTables(arguments.Tables);
         }
 
-        await targets.Resolve(arguments.Target).Write(schema, cancellationToken);
+        var serializer = serializers.Resolve(arguments.Format);
+
+        foreach (var (path, partition) in BuildPartitions(schema, arguments))
+        {
+            await WritePartition(path, partition, serializer, cancellationToken);
+        }
+
         reporters.Current.Info("Schema imported successfully.");
+    }
+
+    private static IEnumerable<(string path, DatabaseSchema schema)> BuildPartitions(DatabaseSchema schema, ImportArguments args) => args.Partition switch
+    {
+        ImportPartitionMode.None => [(args.OutputFile, schema)],
+        ImportPartitionMode.Schema => schema.Schemas.Select(s => (Path.Combine(args.OutputDirectory, $"{s.Name}.{args.Format}"), DatabaseSchema.Create([s]))),
+        ImportPartitionMode.Table => schema.Schemas.SelectMany(s => s.Tables.Select(t => (Path.Combine(args.OutputDirectory, s.Name, $"{t.Name}.{args.Format}"), DatabaseSchema.Create([s with { Tables = [t] }])))),
+        _ => throw new InvalidOperationException($"Unknown partition mode: {args.Partition}")
+    };
+
+    private static async Task WritePartition(string path, DatabaseSchema incoming, ISchemaSerializer serializer, CancellationToken cancellationToken)
+    {
+        var existing = await TryReadExisting(path, serializer, cancellationToken);
+        var merged = existing is null ? incoming : Merge(existing, incoming);
+
+        var directory = Path.GetDirectoryName(Path.GetFullPath(path));
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        await using var stream = File.Open(path, FileMode.Create, FileAccess.Write);
+        await serializer.Write(merged, stream, cancellationToken);
+    }
+
+    private static async Task<DatabaseSchema?> TryReadExisting(string path, ISchemaSerializer serializer, CancellationToken cancellationToken)
+    {
+        if (!File.Exists(path))
+        {
+            return null;
+        }
+
+        await using var stream = File.OpenRead(path);
+        return await serializer.Read(stream, cancellationToken);
+    }
+
+    private static DatabaseSchema Merge(DatabaseSchema existing, DatabaseSchema incoming)
+    {
+        // Strip any tables from existing that appear in the incoming import so the
+        // aggregator sees no duplicates, then aggregate. Incoming tables win on conflict.
+        var incomingTablesBySchema = incoming.Schemas.ToDictionary(
+            s => s.Name,
+            s => new HashSet<string>(s.Tables.Select(t => t.Name), StringComparer.OrdinalIgnoreCase),
+            StringComparer.OrdinalIgnoreCase);
+
+        var prunedSchemas = existing.Schemas
+            .Select(s => incomingTablesBySchema.TryGetValue(s.Name, out var incomingTables)
+                ? s with { Tables = s.Tables.Where(t => !incomingTables.Contains(t.Name)).ToList() }
+                : s)
+            .ToList();
+
+        var pruned = DatabaseSchema.Create(prunedSchemas, existing.DroppedSchemas.ToList());
+        return pruned.Combine(incoming);
     }
 }

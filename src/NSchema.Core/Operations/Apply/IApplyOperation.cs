@@ -3,7 +3,7 @@ namespace NSchema.Operations.Apply;
 /// <summary>
 /// Computes the migration plan and applies it to the target.
 /// </summary>
-public interface IApplyOperation
+internal interface IApplyOperation
 {
     /// <summary>
     /// Executes the apply operation.

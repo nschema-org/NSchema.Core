@@ -3,7 +3,7 @@ namespace NSchema.Operations.Destroy;
 /// <summary>
 /// Tears down the managed schema, dropping all managed objects from the target.
 /// </summary>
-public interface IDestroyOperation
+internal interface IDestroyOperation
 {
     /// <summary>
     /// Executes the destroy operation.

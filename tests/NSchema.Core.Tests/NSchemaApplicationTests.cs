@@ -30,7 +30,7 @@ public sealed class NSchemaApplicationTests
     {
         using var app = BuildApp();
 
-        await app.Plan(TestContext.Current.CancellationToken);
+        await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
         await _planOp.Received(1).Execute(Arg.Any<PlanArguments>(), Arg.Any<CancellationToken>());
         await _applyOp.DidNotReceive().Execute(Arg.Any<ApplyArguments>(), Arg.Any<CancellationToken>());
@@ -41,7 +41,7 @@ public sealed class NSchemaApplicationTests
     {
         using var app = BuildApp();
 
-        await app.Apply(TestContext.Current.CancellationToken);
+        await app.Apply(new ApplyArguments(), TestContext.Current.CancellationToken);
 
         await _applyOp.Received(1).Execute(Arg.Any<ApplyArguments>(), Arg.Any<CancellationToken>());
         await _planOp.DidNotReceive().Execute(Arg.Any<PlanArguments>(), Arg.Any<CancellationToken>());
@@ -52,7 +52,7 @@ public sealed class NSchemaApplicationTests
     {
         using var app = BuildApp();
 
-        await app.Refresh(TestContext.Current.CancellationToken);
+        await app.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken);
 
         await _refreshOp.Received(1).Execute(Arg.Any<RefreshArguments>(), Arg.Any<CancellationToken>());
         await _applyOp.DidNotReceive().Execute(Arg.Any<ApplyArguments>(), Arg.Any<CancellationToken>());
@@ -64,7 +64,7 @@ public sealed class NSchemaApplicationTests
     {
         using var app = BuildApp();
 
-        await app.Destroy(TestContext.Current.CancellationToken);
+        await app.Destroy(new DestroyArguments(), TestContext.Current.CancellationToken);
 
         await _destroyOp.Received(1).Execute(Arg.Any<DestroyArguments>(), Arg.Any<CancellationToken>());
         await _applyOp.DidNotReceive().Execute(Arg.Any<ApplyArguments>(), Arg.Any<CancellationToken>());
@@ -86,8 +86,8 @@ public sealed class NSchemaApplicationTests
     public async Task SecondRun_Throws()
     {
         using var app = BuildApp();
-        await app.Plan(TestContext.Current.CancellationToken);
+        await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
-        await Should.ThrowAsync<InvalidOperationException>(() => app.Apply());
+        await Should.ThrowAsync<InvalidOperationException>(() => app.Apply(new ApplyArguments()));
     }
 }

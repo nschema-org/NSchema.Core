@@ -17,9 +17,10 @@ public sealed class MigrationWorkflowTests
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
     private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
     private readonly IDesiredSchemaProvider _desiredProvider = Substitute.For<IDesiredSchemaProvider>();
+    private readonly ISchemaStateSerializer _stateSerializer = new DefaultSchemaStateSerializer();
 
     private MigrationWorkflow BuildSut(ISchemaStateStore? store = null) =>
-        new(_planner, [], Helpers.TestReporters.ResolverFor(_reporter), _currentProvider, _desiredProvider, store);
+        new(_planner, [], Helpers.TestReporters.ResolverFor(_reporter), _currentProvider, _desiredProvider, _stateSerializer, store);
 
     private readonly MigrationWorkflow _sut;
 
@@ -300,13 +301,16 @@ public sealed class MigrationWorkflowTests
             .Returns(schema);
         var sut = BuildSut(store);
 
+        var expected = _stateSerializer.Serialize(schema).ToArray();
+
         // Act
         await sut.Refresh(RefreshMode.Required, TestContext.Current.CancellationToken);
 
         // Assert
         await _currentProvider.Received(1).GetSchema(
             SchemaSourceMode.Online, Arg.Is<string[]?>(names => names == null), required: true, Arg.Any<CancellationToken>());
-        await store.Received(1).Write(schema, Arg.Any<CancellationToken>());
+        await store.Received(1).Write(
+            Arg.Is<ReadOnlyMemory<byte>>(m => m.ToArray().SequenceEqual(expected)), Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using NSchema.Operations.Apply;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Sql;
@@ -54,7 +55,7 @@ public sealed class ApplyEndToEndTests : IDisposable
 
         using var app = BuildApp(current, desired);
 
-        await app.Apply(TestContext.Current.CancellationToken);
+        await app.Apply(new ApplyArguments(), TestContext.Current.CancellationToken);
 
         // The plan reached the executor as a non-empty SQL plan.
         _executor.Executed.ShouldNotBeNull().Statements.ShouldNotBeEmpty();
@@ -76,7 +77,7 @@ public sealed class ApplyEndToEndTests : IDisposable
 
         using var app = BuildApp(schema, desired);
 
-        await app.Apply(TestContext.Current.CancellationToken);
+        await app.Apply(new ApplyArguments(), TestContext.Current.CancellationToken);
 
         _reporter.Diff.ShouldNotBeNull().IsEmpty.ShouldBeTrue();
         _executor.Executed.ShouldNotBeNull().Statements.ShouldBeEmpty();

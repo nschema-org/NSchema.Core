@@ -9,13 +9,16 @@ namespace NSchema.Tests.Helpers;
 /// </summary>
 internal sealed class RecordingStateStore : ISchemaStateStore
 {
+    private static readonly DefaultSchemaStateSerializer _serializer = new();
+
     public DatabaseSchema? Written { get; private set; }
 
-    public Task<DatabaseSchema?> Read(CancellationToken cancellationToken = default) => Task.FromResult(Written);
+    public Task<ReadOnlyMemory<byte>?> Read(CancellationToken cancellationToken = default) =>
+        Task.FromResult<ReadOnlyMemory<byte>?>(Written is null ? null : _serializer.Serialize(Written));
 
-    public Task Write(DatabaseSchema schema, CancellationToken cancellationToken = default)
+    public Task Write(ReadOnlyMemory<byte> state, CancellationToken cancellationToken = default)
     {
-        Written = schema;
+        Written = _serializer.Deserialize(state);
         return Task.CompletedTask;
     }
 }

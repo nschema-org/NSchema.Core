@@ -15,7 +15,7 @@ Each run performs one of the following operations, selected by the method you ca
 - **`Plan()`** computes and renders the plan, without touching the database.
 - **`Apply()`** computes the plan and applies it to the database. After a successful apply, the resulting schema is captured to the [state store](#backend-state-store) if one is configured.
 - **`Refresh()`** reads the current schema from the live database and writes it to the state store, without planning or applying anything. Requires a state store.
-- **`Import()`** reads the live database schema and writes it to the configured `ISchemaImportTarget`. Useful for bootstrapping a project from an existing database.
+- **`Import()`** reads the live database schema and writes it to the local filesystem as desired-schema source files (destination, partitioning, and format are set per run via `ImportArguments`). Useful for bootstrapping a project from an existing database.
 - **`Validate()`** loads the desired schema and validates it against the configured schema policies, without planning or applying.
 - **`Destroy()`** drops the managed schema objects from the database.
 

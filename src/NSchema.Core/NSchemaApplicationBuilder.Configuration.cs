@@ -33,15 +33,24 @@ public partial class NSchemaApplicationBuilder
     public NSchemaApplicationBuilder UseTerraformRenderer(Action<TerraformDiffRendererOptions> configure)
     {
         Services.Configure(configure);
-        return UseRenderer<TerraformDiffRenderer>();
+        return UseDiffRenderer<TerraformDiffRenderer>();
     }
 
     /// <summary>
-    /// Configures the plan output to use the given renderer.
+    /// Configures the diff output to use the given <see cref="IDiffRenderer"/>.
     /// </summary>
-    public NSchemaApplicationBuilder UseRenderer<TRenderer>() where TRenderer : class, IDiffRenderer
+    public NSchemaApplicationBuilder UseDiffRenderer<TRenderer>() where TRenderer : class, IDiffRenderer
     {
         Services.Replace(ServiceDescriptor.Singleton<IDiffRenderer, TRenderer>());
+        return this;
+    }
+
+    /// <summary>
+    /// Configures the SQL preview output to use the given <see cref="ISqlPlanRenderer"/>.
+    /// </summary>
+    public NSchemaApplicationBuilder UseSqlPlanRenderer<TRenderer>() where TRenderer : class, ISqlPlanRenderer
+    {
+        Services.Replace(ServiceDescriptor.Singleton<ISqlPlanRenderer, TRenderer>());
         return this;
     }
 
@@ -64,5 +73,4 @@ public partial class NSchemaApplicationBuilder
         Services.Replace(ServiceDescriptor.KeyedSingleton(format, reporter));
         return this;
     }
-
 }

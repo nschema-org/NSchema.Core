@@ -8,7 +8,7 @@ namespace NSchema.Diff;
 /// Defines a contract for comparing two database schemas and producing the structured <see cref="DatabaseDiff"/>
 /// that describes the changes needed to transform the current schema into the desired schema.
 /// </summary>
-public interface ISchemaComparer
+internal interface ISchemaComparer
 {
     /// <summary>
     /// Compares the current database schema with the desired database schema and produces the structured diff

@@ -7,7 +7,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSchema.Diff;
 using NSchema.Diff.Policies;
-using NSchema.Import;
 using NSchema.Operations;
 using NSchema.Operations.Apply;
 using NSchema.Operations.Confirmation;
@@ -110,9 +109,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Diffing
         services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
         services.TryAddSingleton<IDiffRenderer, TerraformDiffRenderer>();
-
-        // Import
-        services.TryAddSingleton<IKeyedResolver<ISchemaImportTarget>, DefaultKeyedResolver<ISchemaImportTarget, object>>();
 
         // Operations
         services.TryAddSingleton<IMigrationWorkflow, MigrationWorkflow>();

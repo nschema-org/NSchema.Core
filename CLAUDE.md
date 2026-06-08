@@ -36,14 +36,14 @@ The codebase is split into a **domain layer** and an **application layer**:
 
 ### Operations
 
-Each operation is its own seam: a public `I{Name}Operation` interface with `Execute({Name}Arguments arguments, CancellationToken)`, an internal handler, and a public arguments record (the discoverable home for that operation's inputs). `NSchemaApplication` resolves the interface with `GetRequiredService<I{Name}Operation>()` and passes the arguments. There is no shared `IOperation` marker and no `OperationKind` enum — adding an operation means a new slice folder (interface + arguments + handler), a `TryAddSingleton` registration, and a public method (plus arguments overload) on `NSchemaApplication`.
+Each operation is its own seam: an **internal** `I{Name}Operation` interface with `Execute({Name}Arguments arguments, CancellationToken)`, an internal handler, and a **public** arguments record (the discoverable home for that operation's inputs). `NSchemaApplication` resolves the interface with `GetRequiredService<I{Name}Operation>()` and passes the arguments. The interfaces are internal because operations are invoked via the public methods on `NSchemaApplication` (`Plan()`, `Apply()`, …), not by user code resolving the handler; only the arguments records are public. There is no shared `IOperation` marker and no `OperationKind` enum — adding an operation means a new slice folder (interface + arguments + handler), a `TryAddSingleton` registration, and a public method (plus arguments overload) on `NSchemaApplication`.
 
 Built-in operations (`src/NSchema.Core/Operations/`):
 
 - **`PlanOperation`** — plans against the offline source (preferred), reports the plan and the SQL preview (if an `ISqlGenerator` dialect is registered). Does not execute.
 - **`ApplyOperation`** — plans against the online source (required), generates SQL via `ISqlGenerator`, previews it, executes via `ISqlExecutor`, and captures state.
 - **`RefreshOperation`** — captures the live schema to the state store without planning or applying.
-- **`ImportOperation`** — fetches the live schema (optionally filtered by `ImportArguments.Schemas` / `ImportArguments.Tables`), then writes it to the configured `ISchemaImportTarget` via `IKeyedResolver<ISchemaImportTarget>.Current`. Import is additive: existing tables in the target are preserved.
+- **`ImportOperation`** — fetches the live schema (optionally filtered by `ImportArguments.Schemas` / `ImportArguments.Tables`), then writes it to the local filesystem as desired-schema source files. The destination is per-invocation: `ImportArguments.OutputFile` (when `Partition` is `None`) or `ImportArguments.OutputDirectory` (for the partitioned modes), serialized via `IKeyedResolver<ISchemaSerializer>` keyed by `ImportArguments.Format`. Import is additive: existing tables in the target files are preserved. The file-writing logic (partitioning + additive merge) lives directly in the handler — there is no `ISchemaImportTarget` seam.
 - **`ValidateOperation`** — loads the desired schema and validates it against the registered `ISchemaPolicy` implementations, without planning or applying.
 - **`DestroyOperation`** — tears down the managed schema. It reads the managed schema from the state store (offline) when one is configured, otherwise from the declared desired schema, and diffs it against an empty schema to produce drops, then generates SQL and executes it (online required), like `ApplyOperation`. Destroy uses `IMigrationPlanner.PlanTeardown`, a **trusted path that bypasses the diff/plan transformers and policies** (so a custom policy can't block teardown and a transformer can't silently alter it); the destructive-action policy therefore never runs. `IOperationConfirmation` still gates execution.
 
@@ -74,6 +74,8 @@ ValueTask<DatabaseSchema> GetSchema(SchemaSourceMode preferred, string[]? schema
 - `GetSchema(Offline, …, required: false)` — prefers offline, falls back to online, throws only if neither exists.
 
 The internal `DefaultCurrentSchemaProvider` wires both sources together. Registering a state store via `UseStateStore*()` is all that's needed to enable offline planning.
+
+`ISchemaStateStore` deals only in **serialized payloads** (`Task<ReadOnlyMemory<byte>?> Read(...)` / `Task Write(ReadOnlyMemory<byte>, ...)`) — it's a persistence sink (file, blob, …) and never sees the schema model. The core owns the format: it serializes via the internal `ISchemaStateSerializer` before writing (in `IMigrationWorkflow.Refresh`) and deserializes after reading (in `StateBackedSchemaProvider`). A custom store therefore only implements load/save of an opaque byte payload.
 
 ### Planner
 
@@ -114,39 +116,39 @@ Providers are registered with `builder.AddSchema<T>()` or `builder.AddSchemasFro
 
 ### Extension points
 
-| Interface                                                 | Registered via                                                                                                                    |
-|-----------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
-| `ISchemaProvider` (desired)                               | `AddSchema<T>()` / `AddSchemasFromAssembly[Containing]<T>()`                                                                      |
-| `ISchemaProvider` (online current)                        | `UseCurrentSchema<T>()` — typically called from a database-provider extension (e.g. `UsePostgres(...)`)                           |
-| `I{Name}Operation` (one per operation)                    | `TryAddSingleton<I{Name}Operation, {Name}Operation>()` (built-in; replace before `Build()` to override)                           |
-| `IOperationConfirmation`                                  | `Services.AddSingleton<IOperationConfirmation, T>()` (default `AutoApproveConfirmation`, registered with `TryAdd`)                |
-| `ISchemaTransformer`                                      | `AddSchemaTransformer<T>()` / `AddSchemaTransformersFromAssembly[Containing]<T>()`                                                |
-| `ISchemaPolicy`                                           | `AddSchemaPolicy<T>()`                                                                                                            |
-| `IDiffTransformer`                                        | `AddDiffTransformer<T>()` / `AddDiffTransformersFromAssembly[Containing]<T>()`                                                    |
-| `IDiffPolicy`                                             | `AddDiffPolicy<T>()` / `AddDiffPoliciesFromAssembly[Containing]<T>()`                                                             |
-| `IPlanTransformer`                                        | `AddPlanTransformer<T>()` / `AddPlanTransformersFromAssembly[Containing]<T>()`                                                    |
-| `IPlanPolicy`                                             | `AddPlanPolicy<T>()` / `AddPlanPoliciesFromAssembly[Containing]<T>()`                                                             |
-| `IScriptProvider`                                         | `AddScripts(provider)` / `AddScriptFromFile(...)` / `AddScriptsFromEmbeddedResources(...)`                                        |
-| `ISqlExecutor`                                            | `UseSqlExecutor<T>()` (replaces default)                                                                                          |
-| `ISchemaStateStore`                                       | `UseStateStore<T>()` / `UseStateStore(instance)` / `UseFileStateStore(path)`                                                      |
-| `IOperationReporter` (keyed by name)                      | `AddReporter<T>(format)` / `AddReporter(format, instance)` (last-wins per key); select via `NSchemaApplicationOptions.Reporter`   |
-| `ISqlGenerator` (keyed by `Dialect`)                      | `AddSqlGenerator<T>(dialect)`, typically a database-provider extension; select with `WithDialect(...)`                            |
-| `ISchemaSerializer` (keyed by `Format`)                   | `AddSchemaSerializer<T>(format)` (first-wins); `UseSchemaSerializer<T>(format)` to replace (JSON built-in)                        |
-| `ISchemaImportTarget` (keyed by name)                     | `AddImportTarget<T>(name)` / `AddFileImportTarget(opts => ...)` (last-wins per key); resolved per run by `ImportArguments.Target` |
-| `ISchemaComparer`, `IPlanLinearizer`, `IMigrationPlanner` | Override via `Services.AddSingleton<...>()` before `Build()` (defaults registered with `TryAdd`)                                  |
-| `IDiffRenderer`                                           | `UseTerraformRenderer(...)` / `UseRenderer<TRenderer>()`, or override via `Services.AddSingleton<...>()` before `Build()`         |
-| `ISqlPlanRenderer`                                        | Override via `Services.AddSingleton<...>()` before `Build()` (default `DefaultSqlPlanRenderer`)                                   |
+| Interface                               | Registered via                                                                                                                  |
+|-----------------------------------------|---------------------------------------------------------------------------------------------------------------------------------|
+| `ISchemaProvider` (desired)             | `AddSchema<T>()` / `AddSchemasFromAssembly[Containing]<T>()`                                                                    |
+| `ISchemaProvider` (online current)      | `UseCurrentSchema<T>()` — typically called from a database-provider extension (e.g. `UsePostgres(...)`)                         |
+| `I{Name}Operation` (one per operation)  | `TryAddSingleton<I{Name}Operation, {Name}Operation>()` (built-in; replace before `Build()` to override)                         |
+| `IOperationConfirmation`                | `Services.AddSingleton<IOperationConfirmation, T>()` (default `AutoApproveConfirmation`, registered with `TryAdd`)              |
+| `ISchemaTransformer`                    | `AddSchemaTransformer<T>()` / `AddSchemaTransformersFromAssembly[Containing]<T>()`                                              |
+| `ISchemaPolicy`                         | `AddSchemaPolicy<T>()`                                                                                                          |
+| `IDiffTransformer`                      | `AddDiffTransformer<T>()` / `AddDiffTransformersFromAssembly[Containing]<T>()`                                                  |
+| `IDiffPolicy`                           | `AddDiffPolicy<T>()` / `AddDiffPoliciesFromAssembly[Containing]<T>()`                                                           |
+| `IPlanTransformer`                      | `AddPlanTransformer<T>()` / `AddPlanTransformersFromAssembly[Containing]<T>()`                                                  |
+| `IPlanPolicy`                           | `AddPlanPolicy<T>()` / `AddPlanPoliciesFromAssembly[Containing]<T>()`                                                           |
+| `IScriptProvider`                       | `AddScripts(provider)` / `AddScriptFromFile(...)` / `AddScriptsFromEmbeddedResources(...)`                                      |
+| `ISqlExecutor`                          | `UseSqlExecutor<T>()` (replaces default)                                                                                        |
+| `ISchemaStateStore`                     | `UseStateStore<T>()` / `UseStateStore(instance)` / `UseFileStateStore(path)`                                                    |
+| `IOperationReporter` (keyed by name)    | `AddReporter<T>(format)` / `AddReporter(format, instance)` (last-wins per key); select via `NSchemaApplicationOptions.Reporter` |
+| `ISqlGenerator` (keyed by `Dialect`)    | `AddSqlGenerator<T>(dialect)`, typically a database-provider extension; select with `WithDialect(...)`                          |
+| `ISchemaSerializer` (keyed by `Format`) | `AddSchemaSerializer<T>(format)` (first-wins); `UseSchemaSerializer<T>(format)` to replace (JSON built-in)                      |
+| `IDiffRenderer`                         | `UseTerraformRenderer(...)` / `UseDiffRenderer<TRenderer>()`                                                                    |
+| `ISqlPlanRenderer`                      | `UseSqlPlanRenderer<TRenderer>()` (default `DefaultSqlPlanRenderer`)                                                            |
+
+The planning algorithm and aggregators — `ISchemaComparer`, `IPlanLinearizer`, `IMigrationPlanner`, `ICurrentSchemaProvider`, `IDesiredSchemaProvider` — and the state serializer (`ISchemaStateSerializer`) are **internal**. They remain interfaces for DI wiring and test mocking, but they are not extension points and not replaceable from user code. (`IKeyedResolver<TValue>` is public — it's the resolver consumers inject to pick a keyed implementation — but the per-operation handler interfaces are internal.)
 
 ### Resolving one of many (resolver pattern)
 
-Several seams let you register multiple implementations and select one by key, sharing a single `IKeyedResolver<TValue>` interface (`Resolution/`) backed by DI keyed services. `IOperationReporter` (by reporter name), `ISqlGenerator` (by `Dialect`), and `ISchemaSerializer` (by `Format`) read the key for the current run from options (via `Current`). `ISchemaImportTarget` (by name) is instead resolved **explicitly** from `ImportArguments.Target` (via `Resolve(key)`), so it has no ambient `Current`. `IOperationReporter` and `ISchemaImportTarget` use last-wins registration (`Services.Replace`); `ISqlGenerator` and `ISchemaSerializer` use first-wins (`TryAddKeyedSingleton`), and `ISchemaSerializer` has a `UseSchemaSerializer<T>(format)` method to replace the built-in.
+Several public seams let you register multiple implementations and select one by key. Selection goes through the shared `IKeyedResolver<TValue>` interface (`Resolution/`), backed by DI keyed services; it's injected into consumers (including front-ends — e.g. the CLI's init command injects `IKeyedResolver<ISchemaSerializer>` to write a demo schema). `IOperationReporter` (by reporter name), `ISqlGenerator` (by `Dialect`), and `ISchemaSerializer` (by `Format`) read the key for the current run from options (via `Current`). The import operation also resolves `ISchemaSerializer` **explicitly** from `ImportArguments.Format` (via `Resolve(key)`). `IOperationReporter` uses last-wins registration (`Services.Replace`); `ISqlGenerator` and `ISchemaSerializer` use first-wins (`TryAddKeyedSingleton`), and `ISchemaSerializer` has a `UseSchemaSerializer<T>(format)` method to replace the built-in.
 
 `IKeyedResolver<TValue>` is injected directly into consumers and exposes:
 - `Current` — resolves the implementation for the current run's configured key (e.g. `NSchemaApplicationOptions.Reporter`, `SqlOptions.Dialect`). Throws if no key is configured or the key isn't registered.
 - `HasCurrent` — returns `true` if `Current` would succeed; use this to guard optional seams (e.g. SQL generators).
 - `Resolve(key)` / `TryResolve(key, out value)` — resolve by explicit key (how the import operation selects its target).
 
-The `DefaultKeyedResolver<TValue, TOptions>` implementation reads the current key from `IOptions<TOptions>` via a selector delegate supplied at registration time; the import-target resolver is registered without a selector, so it has no `Current` and is used only via `Resolve`.
+The `DefaultKeyedResolver<TValue, TOptions>` implementation reads the current key from `IOptions<TOptions>` via a selector delegate supplied at registration time; a resolver registered without a selector (e.g. `ISchemaSerializer`) has no `Current` and is used only via `Resolve` (how the import operation selects its serializer by `ImportArguments.Format`).
 
 ### Diff rendering
 
@@ -181,4 +183,7 @@ The operation to run is **not** an option — it's chosen by which method you ca
 **`ImportArguments`** (`NSchema.Operations.Import`) — per-invocation import inputs, passed to `Import(...)`:
 - `Schemas` — optional `string[]` scope filter; only these schemas are fetched from the live database.
 - `Tables` — optional `string[]` table filter applied after fetching.
-- `Target` — the key of the registered `ISchemaImportTarget` to write to, resolved via `IKeyedResolver<ISchemaImportTarget>.Resolve(...)`.
+- `OutputFile` — the file to write to when `Partition` is `None` (defaults to `schema.json`).
+- `OutputDirectory` — the root directory to write into when `Partition` is `Schema` or `Table` (defaults to `.`).
+- `Partition` — an `ImportPartitionMode` (`None` / `Schema` / `Table`) controlling how the import is split across files.
+- `Format` — the `ISchemaSerializer` format key to write with, resolved via `IKeyedResolver<ISchemaSerializer>.Resolve(...)` (defaults to `json`).

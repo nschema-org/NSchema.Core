@@ -1,3 +1,5 @@
+using NSchema.Operations.Apply;
+
 namespace NSchema.Tests.EndToEnd;
 
 /// <summary>
@@ -12,7 +14,7 @@ public sealed class OfflineApplyWiringTests
     {
         using var app = NSchemaApplication.CreateBuilder().Build();
 
-        var ex = await Should.ThrowAsync<InvalidOperationException>(() => app.Apply(TestContext.Current.CancellationToken));
+        var ex = await Should.ThrowAsync<InvalidOperationException>(() => app.Apply(new ApplyArguments(), TestContext.Current.CancellationToken));
 
         ex.Message.ShouldContain("requires a database provider");
     }
