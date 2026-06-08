@@ -1,6 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NSchema.Operations;
+using NSchema.Operations.Apply;
+using NSchema.Operations.Destroy;
+using NSchema.Operations.Import;
+using NSchema.Operations.Plan;
+using NSchema.Operations.Refresh;
+using NSchema.Operations.Validate;
 using NSchema.Resolution;
 
 namespace NSchema;
@@ -29,39 +35,107 @@ public sealed class NSchemaApplication : IDisposable
     /// Computes and renders the plan without applying it to the target.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Plan(CancellationToken cancellationToken = default) => RunOperation(OperationKind.Plan, cancellationToken);
+    public Task Plan(CancellationToken cancellationToken = default) => Plan(new PlanArguments(), cancellationToken);
+
+    /// <summary>
+    /// Computes and renders the plan without applying it to the target.
+    /// </summary>
+    /// <param name="arguments">The arguments controlling the plan.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    public Task Plan(PlanArguments arguments, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(arguments);
+        return Run(() => Resolve<IPlanOperation>().Execute(arguments, cancellationToken));
+    }
 
     /// <summary>
     /// Computes the plan and applies it to the target.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Apply(CancellationToken cancellationToken = default) => RunOperation(OperationKind.Apply, cancellationToken);
+    public Task Apply(CancellationToken cancellationToken = default) => Apply(new ApplyArguments(), cancellationToken);
+
+    /// <summary>
+    /// Computes the plan and applies it to the target.
+    /// </summary>
+    /// <param name="arguments">The arguments controlling the apply.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    public Task Apply(ApplyArguments arguments, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(arguments);
+        return Run(() => Resolve<IApplyOperation>().Execute(arguments, cancellationToken));
+    }
 
     /// <summary>
     /// Reads the live current schema and writes it to the state store, without planning or applying anything.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Refresh(CancellationToken cancellationToken = default) => RunOperation(OperationKind.Refresh, cancellationToken);
+    public Task Refresh(CancellationToken cancellationToken = default) => Refresh(new RefreshArguments(), cancellationToken);
+
+    /// <summary>
+    /// Reads the live current schema and writes it to the state store, without planning or applying anything.
+    /// </summary>
+    /// <param name="arguments">The arguments controlling the refresh.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    public Task Refresh(RefreshArguments arguments, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(arguments);
+        return Run(() => Resolve<IRefreshOperation>().Execute(arguments, cancellationToken));
+    }
 
     /// <summary>
     /// Reads the live current schema and writes it to the configured import target as desired-schema source files.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Import(CancellationToken cancellationToken = default) => RunOperation(OperationKind.Import, cancellationToken);
+    public Task Import(CancellationToken cancellationToken = default) => Import(new ImportArguments(), cancellationToken);
+
+    /// <summary>
+    /// Reads the live current schema and writes it to the configured import target as desired-schema source files.
+    /// </summary>
+    /// <param name="arguments">The arguments controlling which schema to import.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    public Task Import(ImportArguments arguments, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(arguments);
+        return Run(() => Resolve<IImportOperation>().Execute(arguments, cancellationToken));
+    }
 
     /// <summary>
     /// Loads the desired schema and validates it against the configured schema policies.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Validate(CancellationToken cancellationToken = default) => RunOperation(OperationKind.Validate, cancellationToken);
+    public Task Validate(CancellationToken cancellationToken = default) => Validate(new ValidateArguments(), cancellationToken);
+
+    /// <summary>
+    /// Loads the desired schema and validates it against the configured schema policies.
+    /// </summary>
+    /// <param name="arguments">The arguments controlling the validation.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    public Task Validate(ValidateArguments arguments, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(arguments);
+        return Run(() => Resolve<IValidateOperation>().Execute(arguments, cancellationToken));
+    }
 
     /// <summary>
     /// Drops the managed schema objects from the target.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Destroy(CancellationToken cancellationToken = default) => RunOperation(OperationKind.Destroy, cancellationToken);
+    public Task Destroy(CancellationToken cancellationToken = default) => Destroy(new DestroyArguments(), cancellationToken);
 
-    private async Task RunOperation(OperationKind operation, CancellationToken cancellationToken)
+    /// <summary>
+    /// Drops the managed schema objects from the target.
+    /// </summary>
+    /// <param name="arguments">The arguments controlling the teardown.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    public Task Destroy(DestroyArguments arguments, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(arguments);
+        return Run(() => Resolve<IDestroyOperation>().Execute(arguments, cancellationToken));
+    }
+
+    private T Resolve<T>() where T : notnull => _host.Services.GetRequiredService<T>();
+
+    private async Task Run(Func<Task> execute)
     {
         if (_hasRun)
         {
@@ -69,10 +143,9 @@ public sealed class NSchemaApplication : IDisposable
         }
         _hasRun = true;
 
-        var op = _host.Services.GetRequiredKeyedService<IOperation>(operation);
         try
         {
-            await op.Execute(cancellationToken);
+            await execute();
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

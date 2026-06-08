@@ -53,7 +53,7 @@ Current state is accessed through `ICurrentSchemaProvider`, which wraps two opti
 
 The `ISchemaProvider.GetSchema(...)` method takes an optional list of schema names to read. When `null` or empty, the provider is expected to return its full schema. This allows for scoping to a subset of schemas when needed.
 
-By default, the scope of a migration is equal to the full set of schemas returned by the registered desired providers, but it can also be configured explicitly via `MigrationOptions.SchemaNames` or the `ForSchemas(...)` builder method.
+By default, the scope of a migration is equal to the full set of schemas returned by the registered desired providers, but it can also be scoped explicitly per run by setting the `Schemas` argument on the operation (e.g. `app.Plan(new PlanArguments { Schemas = ["app"] })`).
 
 ## Schema policies
 

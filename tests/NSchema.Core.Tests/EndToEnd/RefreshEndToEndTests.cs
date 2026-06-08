@@ -65,11 +65,10 @@ public sealed class RefreshEndToEndTests : IDisposable
             { "schemas": [{ "name": "app", "tables": [{ "name": "users", "columns": [{ "name": "id", "type": "int" }] }] }], "droppedSchemas": [] }
             """);
 
-        using var planner = NSchemaApplication.CreateBuilder()
+        using var planner = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions { Reporter = RecordingReporter.FormatName })
             .UseFileStateStore(_statePath)
             .AddJsonSchema(desired)
             .AddReporter(RecordingReporter.FormatName, reporter)
-            .WithRenderer(RecordingReporter.FormatName)
             .Build();
 
         await planner.Plan(TestContext.Current.CancellationToken);

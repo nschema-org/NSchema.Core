@@ -1,23 +1,26 @@
 using Microsoft.Extensions.DependencyInjection;
-using NSchema.Operations;
+using NSchema.Operations.Apply;
+using NSchema.Operations.Destroy;
+using NSchema.Operations.Plan;
+using NSchema.Operations.Refresh;
 
 namespace NSchema.Tests;
 
 public sealed class NSchemaApplicationTests
 {
-    private readonly IOperation _planOp = Substitute.For<IOperation>();
-    private readonly IOperation _applyOp = Substitute.For<IOperation>();
-    private readonly IOperation _refreshOp = Substitute.For<IOperation>();
-    private readonly IOperation _destroyOp = Substitute.For<IOperation>();
+    private readonly IPlanOperation _planOp = Substitute.For<IPlanOperation>();
+    private readonly IApplyOperation _applyOp = Substitute.For<IApplyOperation>();
+    private readonly IRefreshOperation _refreshOp = Substitute.For<IRefreshOperation>();
+    private readonly IDestroyOperation _destroyOp = Substitute.For<IDestroyOperation>();
 
     private NSchemaApplication BuildApp(Action<NSchemaApplicationBuilder>? configure = null)
     {
         var builder = NSchemaApplication.CreateBuilder();
-        // Register substitutes before Build() so TryAddKeyedSingleton in ApplyServices doesn't override them.
-        builder.Services.AddKeyedSingleton<IOperation>(OperationKind.Plan, (_, _) => _planOp);
-        builder.Services.AddKeyedSingleton<IOperation>(OperationKind.Apply, (_, _) => _applyOp);
-        builder.Services.AddKeyedSingleton<IOperation>(OperationKind.Refresh, (_, _) => _refreshOp);
-        builder.Services.AddKeyedSingleton<IOperation>(OperationKind.Destroy, (_, _) => _destroyOp);
+        // Register substitutes before Build() so TryAddSingleton in ApplyServices doesn't override them.
+        builder.Services.AddSingleton(_planOp);
+        builder.Services.AddSingleton(_applyOp);
+        builder.Services.AddSingleton(_refreshOp);
+        builder.Services.AddSingleton(_destroyOp);
         configure?.Invoke(builder);
         return builder.Build();
     }
@@ -29,8 +32,8 @@ public sealed class NSchemaApplicationTests
 
         await app.Plan(TestContext.Current.CancellationToken);
 
-        await _planOp.Received(1).Execute(Arg.Any<CancellationToken>());
-        await _applyOp.DidNotReceive().Execute(Arg.Any<CancellationToken>());
+        await _planOp.Received(1).Execute(Arg.Any<PlanArguments>(), Arg.Any<CancellationToken>());
+        await _applyOp.DidNotReceive().Execute(Arg.Any<ApplyArguments>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -40,8 +43,8 @@ public sealed class NSchemaApplicationTests
 
         await app.Apply(TestContext.Current.CancellationToken);
 
-        await _applyOp.Received(1).Execute(Arg.Any<CancellationToken>());
-        await _planOp.DidNotReceive().Execute(Arg.Any<CancellationToken>());
+        await _applyOp.Received(1).Execute(Arg.Any<ApplyArguments>(), Arg.Any<CancellationToken>());
+        await _planOp.DidNotReceive().Execute(Arg.Any<PlanArguments>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -51,9 +54,9 @@ public sealed class NSchemaApplicationTests
 
         await app.Refresh(TestContext.Current.CancellationToken);
 
-        await _refreshOp.Received(1).Execute(Arg.Any<CancellationToken>());
-        await _applyOp.DidNotReceive().Execute(Arg.Any<CancellationToken>());
-        await _planOp.DidNotReceive().Execute(Arg.Any<CancellationToken>());
+        await _refreshOp.Received(1).Execute(Arg.Any<RefreshArguments>(), Arg.Any<CancellationToken>());
+        await _applyOp.DidNotReceive().Execute(Arg.Any<ApplyArguments>(), Arg.Any<CancellationToken>());
+        await _planOp.DidNotReceive().Execute(Arg.Any<PlanArguments>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -63,9 +66,20 @@ public sealed class NSchemaApplicationTests
 
         await app.Destroy(TestContext.Current.CancellationToken);
 
-        await _destroyOp.Received(1).Execute(Arg.Any<CancellationToken>());
-        await _applyOp.DidNotReceive().Execute(Arg.Any<CancellationToken>());
-        await _planOp.DidNotReceive().Execute(Arg.Any<CancellationToken>());
+        await _destroyOp.Received(1).Execute(Arg.Any<DestroyArguments>(), Arg.Any<CancellationToken>());
+        await _applyOp.DidNotReceive().Execute(Arg.Any<ApplyArguments>(), Arg.Any<CancellationToken>());
+        await _planOp.DidNotReceive().Execute(Arg.Any<PlanArguments>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Plan_ForwardsProvidedArguments()
+    {
+        using var app = BuildApp();
+        var arguments = new PlanArguments();
+
+        await app.Plan(arguments, TestContext.Current.CancellationToken);
+
+        await _planOp.Received(1).Execute(arguments, Arg.Any<CancellationToken>());
     }
 
     [Fact]

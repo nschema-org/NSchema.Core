@@ -1,35 +1,28 @@
 # Configuration
 
-How to host, run, and configure an NSchema application. New to NSchema? Start with the [README](../README.md) quickstart, then come back here.
+How to build, run, and configure an NSchema application. New to NSchema? Start with the [README](../README.md) quickstart, then come back here.
 
-## Hosting
+## Building and running
 
-NSchema should be familiar to any developer who's used ASP.NET. It runs as a hosted application, with `NSchemaApplication.CreateBuilder(...)` producing a builder that you can configure with your target schema, database provider, configuration, logging, metrics, or any other .NET packages that we've come to rely on.
+The builder should be familiar to any developer who's used ASP.NET. `NSchemaApplication.CreateBuilder(...)` produces a builder that you can configure with your target schema, database provider, configuration, logging, metrics, or any other .NET packages that we've come to rely on — it uses a `HostApplicationBuilder` internally purely to compose those.
 
-Call `builder.Build()` to get an `NSchemaApplication`, from which you can then run a `Plan()`, `Apply()`, or `Refresh()` operation. You can also use the standard `RunAsync()` extension method, which will use the configured `OperationOptions.Operation` for that run, defaulting to `Plan` if none has been specified.
+Call `builder.Build()` to get an `NSchemaApplication`. It is not a long-running host; it's a single-use object that runs one operation and exits. Run an operation by calling the matching method on it (`Plan()`, `Apply()`, etc.). The operation `await`s directly, so exceptions surface to you at the call site, and the application can only be run once.
 
 ## Operations
 
-Each run performs one of the following operations:
+Each run performs one of the following operations, selected by the method you call on the built application:
 
-- **`Plan`** (default) computes and renders the plan, without touching the database.
-- **`Apply`** computes the plan and applies it to the database. After a successful apply, the resulting schema is captured to the [state store](#backend-state-store) if one is configured.
-- **`Refresh`** reads the current schema from the live database and writes it to the state store, without planning or applying anything. Requires a state store.
-- **`Import`** reads the live database schema and writes it to the configured `ISchemaImportTarget`. Useful for bootstrapping a project from an existing database.
-
-The operation can be decided in one of two ways: either by setting `OperationOptions.Operation` via `RunOperation(...)`, or by explicitly calling `Plan()`, `Apply()`, or `Refresh()` on the built application:
+- **`Plan()`** computes and renders the plan, without touching the database.
+- **`Apply()`** computes the plan and applies it to the database. After a successful apply, the resulting schema is captured to the [state store](#backend-state-store) if one is configured.
+- **`Refresh()`** reads the current schema from the live database and writes it to the state store, without planning or applying anything. Requires a state store.
+- **`Import()`** reads the live database schema and writes it to the configured `ISchemaImportTarget`. Useful for bootstrapping a project from an existing database.
+- **`Validate()`** loads the desired schema and validates it against the configured schema policies, without planning or applying.
+- **`Destroy()`** drops the managed schema objects from the database.
 
 ```csharp
-// Configured
-builder.RunOperation(Operation.Plan);
 var app = builder.Build();
-await app.RunAsync(); // Will run the plan.
-
-// Explicit
-await app.Apply(); // Will run the apply, even if the configured operation is Plan.
+await app.Apply(); // Runs the apply.
 ```
-
-Both paths run the full .NET host lifecycle, so background services, logging, metrics, etc. are all available regardless of how you choose to run.
 
 ## Backend state store
 
@@ -58,16 +51,18 @@ If you need more advanced control, you can implement your own `IPlanPolicy` and 
 
 ## Scoping to specific schemas
 
-Set `MigrationOptions.SchemaNames` to scope a run to a subset of schemas. Useful for deploying schemas independently of one another:
+Pass a `Schemas` filter on the operation arguments to scope a run to a subset of schemas. Useful for deploying schemas independently of one another:
 
 ```csharp
-builder
+var app = builder
     .AddSchemasFromAssemblyContaining<Program>()
     .UsePostgres(connectionString)
-    .ForSchemas("app");   // only "app" is read, validated, and diffed
+    .Build();
+
+await app.Plan(new PlanArguments { Schemas = ["app"] });   // only "app" is read, validated, and diffed
 ```
 
-Declarations or drops for schemas outside the scope are ignored, so unmanaged schemas in the database are never touched.
+Scope is a per-invocation argument (`PlanArguments` / `ApplyArguments` / `ValidateArguments` / `DestroyArguments`), not ambient configuration. Declarations or drops for schemas outside the scope are ignored, so unmanaged schemas in the database are never touched.
 
 ## Configuring desired schemas
 
@@ -124,7 +119,7 @@ builder.AddScriptProvider<CustomScriptProvider>();
 
 By default, NSchema runs the entire migration inside a single transaction to ensure that either all changes are applied successfully or none at all. However, some databases don't support DDL statements inside transactions, or you may have specific statements that need to run outside of a transaction.
 
-You can configure the transaction mode with `OperationOptions.TransactionMode`:
+You can configure the transaction mode with `WithTransactionMode(...)`:
 
 ```csharp
 builder.WithTransactionMode(TransactionMode.Single); // run the entire migration in a single transaction (default)
@@ -133,12 +128,13 @@ builder.WithTransactionMode(TransactionMode.None); // run all statements outside
 
 ## Output format
 
-Run output is produced by an `IOperationReporter`. The built-in `default` reporter writes human-readable output to the terminal. You can register additional reporters (each declaring a `Format`) and select one per run:
+Run output is produced by an `IOperationReporter`. The built-in `default` reporter writes human-readable output to the terminal. Register additional reporters by format key on the builder, and select which one a run uses via `NSchemaApplicationOptions.Reporter`:
 
 ```csharp
-builder
-    .AddReporter<JsonReporter>("json")   // register by explicit format key
-    .WithOutputFormat("json");           // or set OperationOptions.OutputFormat
+var app = NSchemaApplication
+    .CreateBuilder(new NSchemaApplicationOptions { Reporter = "json" })  // select the reporter for this run
+    .AddReporter<JsonReporter>("json")                                   // register it under that key
+    .Build();
 ```
 
 ## SQL dialect
@@ -149,7 +145,7 @@ When more than one `ISqlGenerator` is registered (each declaring a `Dialect`), c
 builder
     .AddSqlGenerator<PostgresGenerator>("postgres")
     .AddSqlGenerator<MySqlGenerator>("mysql")
-    .WithDialect("postgres");    // or set OperationOptions.Dialect
+    .WithDialect("postgres");    // or set SqlOptions.Dialect
 ```
 
 ## Schema policies
@@ -178,9 +174,20 @@ builder.AddPlanTransformer<DependencyOrderingPlanTransformer>();
 
 ## Exception behavior
 
-By default, NSchema will report any exceptions using `IOperationReporter` and then rethrow them. You can change this behavior
+By default, NSchema will report any exceptions using `IOperationReporter` and then rethrow them. You can change this behavior through `NSchemaApplicationOptions`, passed when you create the builder:
 
 ```csharp
-builder.WithExceptionBehavior(ExceptionBehavior.ReportAndThrow); // report and rethrow exceptions (default)
-builder.WithExceptionBehavior(ExceptionBehavior.Throw);          // rethrow exceptions without reporting.
+// report and rethrow exceptions (default)
+var app = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions
+{
+    ExceptionBehavior = ExceptionBehavior.ReportAndThrow,
+});
+
+// rethrow exceptions without reporting
+var app = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions
+{
+    ExceptionBehavior = ExceptionBehavior.Throw,
+});
 ```
+
+Either way the exception propagates out of the operation call (e.g. `await app.Apply()`), so you can handle it and set a process exit code in your entry point.

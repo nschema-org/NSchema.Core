@@ -10,6 +10,7 @@ internal static class TestImportTargets
         var resolver = Substitute.For<IKeyedResolver<ISchemaImportTarget>>();
         resolver.Current.Returns(target);
         resolver.HasCurrent.Returns(true);
+        resolver.Resolve(Arg.Any<string>()).Returns(target);
         return resolver;
     }
 }

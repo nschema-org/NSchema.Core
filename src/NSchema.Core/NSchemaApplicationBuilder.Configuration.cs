@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.Diff;
-using NSchema.Migration;
+using NSchema.Diff.Policies;
 using NSchema.Operations;
 using NSchema.Sql;
 
@@ -14,16 +14,7 @@ public partial class NSchemaApplicationBuilder
     /// </summary>
     public NSchemaApplicationBuilder WithDestructiveActionPolicy(DestructiveActionPolicy policy)
     {
-        Services.Configure<MigrationOptions>(o => o.DestructiveActionPolicy = policy);
-        return this;
-    }
-
-    /// <summary>
-    /// Configures the operation options.
-    /// </summary>
-    public NSchemaApplicationBuilder WithOperationOptions(Action<OperationOptions> configure)
-    {
-        Services.Configure(configure);
+        Services.Configure<DestructiveActionOptions>(o => o.Policy = policy);
         return this;
     }
 
@@ -74,17 +65,4 @@ public partial class NSchemaApplicationBuilder
         return this;
     }
 
-    /// <summary>
-    /// Configures the output format used to render run output.
-    /// </summary>
-    public NSchemaApplicationBuilder WithRenderer(string format) => WithOperationOptions(o => o.Reporter = format);
-
-    /// <summary>
-    /// Scopes the migration to a specific set of schema names.
-    /// </summary>
-    public NSchemaApplicationBuilder ForSchemas(params string[] schemaNames)
-    {
-        Services.Configure<MigrationOptions>(o => o.SchemaNames = schemaNames);
-        return this;
-    }
 }

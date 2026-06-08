@@ -64,10 +64,9 @@ public sealed class ReporterRegistrationTests
     {
         var json = new StubReporter();
 
-        var resolver = Build(b => b
-            .AddReporter("json", json)
-            .WithRenderer("json"))
-            .GetRequiredService<IKeyedResolver<IOperationReporter>>();
+        var builder = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions { Reporter = "json" });
+        builder.AddReporter("json", json);
+        var resolver = builder.Build().Services.GetRequiredService<IKeyedResolver<IOperationReporter>>();
 
         resolver.Current.ShouldBeSameAs(json);
     }
