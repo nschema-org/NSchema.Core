@@ -5,7 +5,7 @@ namespace NSchema.Schema;
 /// <summary>
 /// Provides the aggregated desired database schema from all registered <see cref="ISchemaProvider"/> instances.
 /// </summary>
-public interface IDesiredSchemaProvider
+internal interface IDesiredSchemaProvider
 {
     /// <summary>
     /// Gets the aggregated desired schema, optionally scoped to the specified schema names.

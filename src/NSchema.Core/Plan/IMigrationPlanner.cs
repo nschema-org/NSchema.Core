@@ -8,7 +8,7 @@ namespace NSchema.Plan;
 /// <summary>
 /// Builds a <see cref="MigrationPlan"/> by diffing the desired schema against the current database state.
 /// </summary>
-public interface IMigrationPlanner
+internal interface IMigrationPlanner
 {
     /// <summary>
     /// Runs the schema stage in isolation: validates the desired schema against the registered schema policies.

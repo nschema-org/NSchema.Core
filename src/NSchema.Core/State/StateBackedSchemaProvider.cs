@@ -10,14 +10,15 @@ namespace NSchema.State;
 /// When no state exists yet (bootstrap), an empty <see cref="DatabaseSchema"/> is returned
 /// so the first plan shows a full create.
 /// </remarks>
-/// <param name="store">The state store to read the snapshot from.</param>
-internal sealed class StateBackedSchemaProvider(ISchemaStateStore store) : ISchemaProvider
+/// <param name="store">The state store to read the payload from.</param>
+/// <param name="serializer">Deserializes the stored payload into a schema snapshot.</param>
+internal sealed class StateBackedSchemaProvider(ISchemaStateStore store, ISchemaStateSerializer serializer) : ISchemaProvider
 {
     /// <inheritdoc />
     public async ValueTask<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default)
     {
-        var schema = await store.Read(cancellationToken);
+        var snapshot = await store.Read(cancellationToken);
         // Ensure we return an empty schema for a bootstrap run.
-        return schema?.Filter(schemaNames) ?? DatabaseSchema.Create([]);
+        return snapshot is null ? DatabaseSchema.Create([]) : serializer.Deserialize(snapshot.Value).Filter(schemaNames);
     }
 }

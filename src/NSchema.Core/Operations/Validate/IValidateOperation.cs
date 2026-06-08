@@ -3,7 +3,7 @@ namespace NSchema.Operations.Validate;
 /// <summary>
 /// Loads the desired schema and validates it against the configured schema policies, without planning or applying.
 /// </summary>
-public interface IValidateOperation
+internal interface IValidateOperation
 {
     /// <summary>
     /// Executes the validate operation.
