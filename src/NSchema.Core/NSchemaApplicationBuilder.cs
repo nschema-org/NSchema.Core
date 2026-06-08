@@ -6,7 +6,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NSchema.Diff;
 using NSchema.Diff.Policies;
-using NSchema.Hosting;
 using NSchema.Import;
 using NSchema.Migration;
 using NSchema.Operations;
@@ -28,10 +27,12 @@ namespace NSchema;
 /// </summary>
 public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 {
+    private readonly NSchemaApplicationOptions _options;
     private readonly HostApplicationBuilder _innerBuilder;
 
     internal NSchemaApplicationBuilder(NSchemaApplicationOptions options)
     {
+        _options = options;
         // When left empty, the content root usually defaults to the current working directory.
         // Since NSchema will usually be run from a project/repository directory, it won't be able to
         // find things like appsettings.json.
@@ -92,7 +93,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         ApplyServices(Services);
 
         var host = _innerBuilder.Build();
-        return new NSchemaApplication(host);
+        return new NSchemaApplication(host, _options.ExceptionBehavior);
     }
 
     /// <inheritdoc />
@@ -116,12 +117,12 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IMigrationHelper, MigrationHelper>();
         services.TryAddSingleton<IOperationConfirmation, AutoApproveConfirmation>();
         services.TryAddSingleton<IKeyedResolver<IOperationReporter>>(sp => new DefaultKeyedResolver<IOperationReporter, OperationOptions>(sp, o => o.Reporter));
-        services.TryAddKeyedSingleton<IOperation, PlanOperation>(HostOperation.Plan);
-        services.TryAddKeyedSingleton<IOperation, ApplyOperation>(HostOperation.Apply);
-        services.TryAddKeyedSingleton<IOperation, RefreshOperation>(HostOperation.Refresh);
-        services.TryAddKeyedSingleton<IOperation, ImportOperation>(HostOperation.Import);
-        services.TryAddKeyedSingleton<IOperation, ValidateOperation>(HostOperation.Validate);
-        services.TryAddKeyedSingleton<IOperation, DestroyOperation>(HostOperation.Destroy);
+        services.TryAddKeyedSingleton<IOperation, PlanOperation>(OperationKind.Plan);
+        services.TryAddKeyedSingleton<IOperation, ApplyOperation>(OperationKind.Apply);
+        services.TryAddKeyedSingleton<IOperation, RefreshOperation>(OperationKind.Refresh);
+        services.TryAddKeyedSingleton<IOperation, ImportOperation>(OperationKind.Import);
+        services.TryAddKeyedSingleton<IOperation, ValidateOperation>(OperationKind.Validate);
+        services.TryAddKeyedSingleton<IOperation, DestroyOperation>(OperationKind.Destroy);
 
         // Schemas
         services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();

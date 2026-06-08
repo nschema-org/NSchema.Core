@@ -1,6 +1,6 @@
 using NSchema.Diff;
 using NSchema.Diff.Model;
-using NSchema.Hosting;
+using NSchema.Operations;
 using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Scripts.Model;

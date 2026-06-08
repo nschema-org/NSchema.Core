@@ -1,4 +1,3 @@
-using NSchema.Hosting;
 using NSchema.Operations;
 using NSchema.Operations.Confirmation;
 using NSchema.Plan.Model;

@@ -1,4 +1,4 @@
-namespace NSchema.Hosting;
+namespace NSchema.Operations.Services;
 
 /// <summary>
 /// Helper methods for determining environment capabilities.
