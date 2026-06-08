@@ -3,7 +3,7 @@ using NSchema.Policies;
 using NSchema.Schema.Model;
 using NSchema.Scripts.Model;
 
-namespace NSchema.Migration;
+namespace NSchema.Plan;
 
 /// <summary>
 /// Builds a <see cref="MigrationPlan"/> by diffing the desired schema against the current database state.

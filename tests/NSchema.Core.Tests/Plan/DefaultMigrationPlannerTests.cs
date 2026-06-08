@@ -1,6 +1,5 @@
 using NSchema.Diff;
 using NSchema.Diff.Model;
-using NSchema.Migration;
 using NSchema.Plan;
 using NSchema.Plan.Model;
 using NSchema.Policies;
@@ -8,7 +7,7 @@ using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Scripts.Model;
 
-namespace NSchema.Tests.Migration;
+namespace NSchema.Tests.Plan;
 
 public sealed class DefaultMigrationPlannerTests
 {
@@ -22,7 +21,7 @@ public sealed class DefaultMigrationPlannerTests
     private readonly List<IDiffTransformer> _diffTransformers = [];
     private readonly List<IDiffPolicy> _diffPolicies = [];
     private readonly List<IPlanTransformer> _transformers = [];
-    private readonly List<IPlanPolicy> _migrationPolicies = [];
+    private readonly List<IPlanPolicy> _planPolicies = [];
 
     private DefaultMigrationPlanner Sut => new(
         _comparer,
@@ -31,7 +30,7 @@ public sealed class DefaultMigrationPlannerTests
         _diffTransformers,
         _diffPolicies,
         _transformers,
-        _migrationPolicies
+        _planPolicies
     );
 
     public DefaultMigrationPlannerTests()
@@ -206,7 +205,7 @@ public sealed class DefaultMigrationPlannerTests
     }
 
     [Fact]
-    public void Plan_RunsMigrationPoliciesAgainstTransformedPlan()
+    public void Plan_RunsPlanPoliciesAgainstTransformedPlan()
     {
         // Arrange
         var transformer = Substitute.For<IPlanTransformer>();
@@ -215,7 +214,7 @@ public sealed class DefaultMigrationPlannerTests
         _transformers.Add(transformer);
         var policy = Substitute.For<IPlanPolicy>();
         policy.Validate(transformed).Returns([PolicyDiagnostic.Error("Test", "destructive")]);
-        _migrationPolicies.Add(policy);
+        _planPolicies.Add(policy);
 
         // Act
         var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
@@ -263,11 +262,11 @@ public sealed class DefaultMigrationPlannerTests
         var diffTransformer = Substitute.For<IDiffTransformer>();
         var diffPolicy = Substitute.For<IDiffPolicy>();
         var planTransformer = Substitute.For<IPlanTransformer>();
-        var migrationPolicy = Substitute.For<IPlanPolicy>();
+        var planPolicy = Substitute.For<IPlanPolicy>();
         _diffTransformers.Add(diffTransformer);
         _diffPolicies.Add(diffPolicy);
         _transformers.Add(planTransformer);
-        _migrationPolicies.Add(migrationPolicy);
+        _planPolicies.Add(planPolicy);
 
         // Act
         Sut.PlanTeardown(DatabaseSchema.Create([SchemaDefinition.Create("app")]));
@@ -276,6 +275,6 @@ public sealed class DefaultMigrationPlannerTests
         diffTransformer.DidNotReceive().Transform(Arg.Any<DatabaseDiff>());
         diffPolicy.DidNotReceive().Validate(Arg.Any<DatabaseDiff>());
         planTransformer.DidNotReceive().Transform(Arg.Any<MigrationPlan>());
-        migrationPolicy.DidNotReceive().Validate(Arg.Any<MigrationPlan>());
+        planPolicy.DidNotReceive().Validate(Arg.Any<MigrationPlan>());
     }
 }

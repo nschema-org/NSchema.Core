@@ -1,4 +1,4 @@
-using NSchema.Migration;
+using NSchema.Plan;
 using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Resolution;

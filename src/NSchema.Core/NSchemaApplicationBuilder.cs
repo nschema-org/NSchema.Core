@@ -8,7 +8,6 @@ using Microsoft.Extensions.Options;
 using NSchema.Diff;
 using NSchema.Diff.Policies;
 using NSchema.Import;
-using NSchema.Migration;
 using NSchema.Operations;
 using NSchema.Operations.Apply;
 using NSchema.Operations.Confirmation;

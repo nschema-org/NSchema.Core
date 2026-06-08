@@ -1,12 +1,11 @@
 using NSchema.Diff;
-using NSchema.Plan;
 using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Scripts.Model;
 
-namespace NSchema.Migration;
+namespace NSchema.Plan;
 
 /// <summary>
 /// Default <see cref="IMigrationPlanner"/>.
@@ -17,7 +16,7 @@ namespace NSchema.Migration;
 /// <param name="diffTransformers">Transformers applied to the diff before linearization, in registration order.</param>
 /// <param name="diffPolicies">Policies that validate the structured diff (e.g. destructive-change checks).</param>
 /// <param name="planTransformers">Transformers applied to the linearized plan in registration order.</param>
-/// <param name="migrationPolicies">Policies that validate the final transformed plan.</param>
+/// <param name="planPolicies">Policies that validate the final transformed plan.</param>
 internal sealed class DefaultMigrationPlanner(
     ISchemaComparer comparer,
     IPlanLinearizer linearizer,
@@ -25,7 +24,7 @@ internal sealed class DefaultMigrationPlanner(
     IEnumerable<IDiffTransformer> diffTransformers,
     IEnumerable<IDiffPolicy> diffPolicies,
     IEnumerable<IPlanTransformer> planTransformers,
-    IEnumerable<IPlanPolicy> migrationPolicies
+    IEnumerable<IPlanPolicy> planPolicies
 ) : IMigrationPlanner
 {
     public PolicyDiagnostics Validate(DatabaseSchema desiredSchema) =>
@@ -56,7 +55,7 @@ internal sealed class DefaultMigrationPlanner(
 
         // Transform and validate the plan.
         plan = planTransformers.Aggregate(plan, (p, t) => t.Transform(p));
-        diagnostics.AddRange(migrationPolicies.SelectMany(p => p.Validate(plan)));
+        diagnostics.AddRange(planPolicies.SelectMany(p => p.Validate(plan)));
 
         return new MigrationPlanResult(plan, diff, diagnostics);
     }

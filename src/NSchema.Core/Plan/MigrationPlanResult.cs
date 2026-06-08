@@ -3,7 +3,7 @@ using NSchema.Diff.Model;
 using NSchema.Plan.Model;
 using NSchema.Policies;
 
-namespace NSchema.Migration;
+namespace NSchema.Plan;
 
 /// <summary>
 /// The result of a planning pass: the computed plan, its structured diff, and all policy diagnostics.

@@ -1,7 +1,7 @@
 using NSchema.Diff.Model;
-using NSchema.Migration;
 using NSchema.Operations;
 using NSchema.Operations.Services;
+using NSchema.Plan;
 using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Schema;

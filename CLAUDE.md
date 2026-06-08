@@ -27,11 +27,10 @@ NSchema is a declarative database schema migration library for .NET. The user de
 
 The codebase is split into a **domain layer** and an **application layer**:
 
-- **Domain layer.** Pure planning logic, organized as one namespace per pipeline stage plus an orchestrator:
+- **Domain layer.** Pure planning logic, organized as one namespace per pipeline stage:
   - `Schema/` — the schema model, desired/current providers, `ISchemaTransformer`, `ISchemaPolicy`.
   - `Diff/` — the structured diff model (`Diff/Model/`, rooted at `DatabaseDiff`), `ISchemaComparer`, `IDiffTransformer`, `IDiffPolicy`, and the diff renderer.
-  - `Plan/` — the executable plan model (`Plan/Model/`, rooted at `MigrationPlan`), `IPlanLinearizer`, `IPlanTransformer`, `IPlanPolicy`.
-  - `Migration/` — the orchestrator that runs the three stages: `IMigrationPlanner`, `MigrationPlanResult`. No knowledge of operations or how a run is orchestrated.
+  - `Plan/` — the executable plan model (`Plan/Model/`, rooted at `MigrationPlan`), `IPlanLinearizer`, `IPlanTransformer`, `IPlanPolicy`, and the planner that runs all three stages: `IMigrationPlanner` (default `DefaultMigrationPlanner`) and its `MigrationPlanResult`. The planner has no knowledge of operations or how a run is orchestrated.
 - **Application layer.** Orchestration of a run:
   - `Operations/` — one vertical slice per operation (`Operations/Plan/`, `Operations/Apply/`, `Operations/Refresh/`, `Operations/Import/`, `Operations/Validate/`, `Operations/Destroy/`), each holding a public interface (`IPlanOperation`, …), a public arguments record (`PlanArguments`, …, empty where the operation has no inputs yet), and the internal handler. Also `IMigrationHelper` (schema resolution, planning, and state capture, under `Operations/Services/`), the default `IOperationReporter` (`DefaultOperationReporter`), the default `IOperationConfirmation` (`AutoApproveConfirmation`), and `IOperationConfirmation` itself (`Operations/Confirmation/`).
 
@@ -78,7 +77,7 @@ The internal `DefaultCurrentSchemaProvider` wires both sources together. Registe
 
 ### Planner
 
-`DefaultMigrationPlanner` (`src/NSchema.Core/Migration/DefaultMigrationPlanner.cs`) is a pure domain service. It takes two pre-resolved `DatabaseSchema` values and produces a `MigrationPlanResult` (which carries the executable `MigrationPlan`, its structured `DatabaseDiff`, and any `PolicyDiagnostic`s). The **structured diff is the primary artifact**: the comparer emits it directly, and the linearizer derives the ordered plan from it. The pipeline is three stages, each of which transforms its representation and then validates it:
+`DefaultMigrationPlanner` (`src/NSchema.Core/Plan/DefaultMigrationPlanner.cs`) is a pure domain service. It takes two pre-resolved `DatabaseSchema` values and produces a `MigrationPlanResult` (which carries the executable `MigrationPlan`, its structured `DatabaseDiff`, and any `PolicyDiagnostic`s). The **structured diff is the primary artifact**: the comparer emits it directly, and the linearizer derives the ordered plan from it. The pipeline is three stages, each of which transforms its representation and then validates it:
 
 1. **Schema stage** — `ISchemaTransformer`s are applied upstream by `IDesiredSchemaProvider` when it produces the desired schema; the planner then runs every `ISchemaPolicy` against it. A schema-policy error is fatal and skips the rest. This stage is also exposed on its own as `IMigrationPlanner.Validate(desired)`, which the validate operation uses.
 2. **Diff stage** — `ISchemaComparer` produces the structured `DatabaseDiff` directly (no flat-action intermediate). `IDiffTransformer`s then run in registration order, and every `IDiffPolicy` validates the result. The built-in `DestructiveActionDiffPolicy` runs here (it reasons over `ChangeKind.Remove` and narrowing column changes) and enforces its own `DestructiveActionOptions.Policy`.
