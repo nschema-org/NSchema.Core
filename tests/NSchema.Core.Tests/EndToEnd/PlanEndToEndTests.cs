@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using NSchema.Diff.Model;
+using NSchema.Operations.Plan;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Tests.Helpers;
@@ -56,7 +57,7 @@ public sealed class PlanEndToEndTests : IDisposable
 
         using var app = NewBuilder(current).AddJsonSchema(desired).Build();
 
-        await app.Plan(TestContext.Current.CancellationToken);
+        await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
         var schema = _reporter.Diff.ShouldNotBeNull().Schemas.ShouldHaveSingleItem();
         schema.Name.ShouldBe("app");
@@ -83,7 +84,7 @@ public sealed class PlanEndToEndTests : IDisposable
 
         using var app = NewBuilder(schema).AddJsonSchema(desired).Build();
 
-        await app.Plan(TestContext.Current.CancellationToken);
+        await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
         _reporter.Diff.ShouldNotBeNull().IsEmpty.ShouldBeTrue();
     }
@@ -103,7 +104,7 @@ public sealed class PlanEndToEndTests : IDisposable
             .WithDialect(StubSqlGenerator.DialectName)
             .Build();
 
-        await app.Plan(TestContext.Current.CancellationToken);
+        await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
         // The stub emits one statement per action; creating a schema yields a CreateSchema action.
         _reporter.SqlPlan.ShouldNotBeNull().Statements.ShouldNotBeEmpty();
@@ -120,7 +121,7 @@ public sealed class PlanEndToEndTests : IDisposable
 
         using var app = NewBuilder(current).AddJsonSchema(desired).Build();
 
-        await app.Plan(TestContext.Current.CancellationToken);
+        await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
         _reporter.SqlPlan.ShouldBeNull();
         _reporter.Infos.ShouldContain(i => i.Contains("Unable to generate SQL preview"));

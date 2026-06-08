@@ -34,12 +34,6 @@ public sealed class NSchemaApplication : IDisposable
     /// <summary>
     /// Computes and renders the plan without applying it to the target.
     /// </summary>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Plan(CancellationToken cancellationToken = default) => Plan(new PlanArguments(), cancellationToken);
-
-    /// <summary>
-    /// Computes and renders the plan without applying it to the target.
-    /// </summary>
     /// <param name="arguments">The arguments controlling the plan.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     public Task Plan(PlanArguments arguments, CancellationToken cancellationToken = default)
@@ -47,12 +41,6 @@ public sealed class NSchemaApplication : IDisposable
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IPlanOperation>().Execute(arguments, cancellationToken));
     }
-
-    /// <summary>
-    /// Computes the plan and applies it to the target.
-    /// </summary>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Apply(CancellationToken cancellationToken = default) => Apply(new ApplyArguments(), cancellationToken);
 
     /// <summary>
     /// Computes the plan and applies it to the target.
@@ -68,12 +56,6 @@ public sealed class NSchemaApplication : IDisposable
     /// <summary>
     /// Reads the live current schema and writes it to the state store, without planning or applying anything.
     /// </summary>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Refresh(CancellationToken cancellationToken = default) => Refresh(new RefreshArguments(), cancellationToken);
-
-    /// <summary>
-    /// Reads the live current schema and writes it to the state store, without planning or applying anything.
-    /// </summary>
     /// <param name="arguments">The arguments controlling the refresh.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     public Task Refresh(RefreshArguments arguments, CancellationToken cancellationToken = default)
@@ -81,12 +63,6 @@ public sealed class NSchemaApplication : IDisposable
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IRefreshOperation>().Execute(arguments, cancellationToken));
     }
-
-    /// <summary>
-    /// Reads the live current schema and writes it to the configured import target as desired-schema source files.
-    /// </summary>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Import(CancellationToken cancellationToken = default) => Import(new ImportArguments(), cancellationToken);
 
     /// <summary>
     /// Reads the live current schema and writes it to the configured import target as desired-schema source files.
@@ -102,12 +78,6 @@ public sealed class NSchemaApplication : IDisposable
     /// <summary>
     /// Loads the desired schema and validates it against the configured schema policies.
     /// </summary>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Validate(CancellationToken cancellationToken = default) => Validate(new ValidateArguments(), cancellationToken);
-
-    /// <summary>
-    /// Loads the desired schema and validates it against the configured schema policies.
-    /// </summary>
     /// <param name="arguments">The arguments controlling the validation.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     public Task Validate(ValidateArguments arguments, CancellationToken cancellationToken = default)
@@ -115,12 +85,6 @@ public sealed class NSchemaApplication : IDisposable
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IValidateOperation>().Execute(arguments, cancellationToken));
     }
-
-    /// <summary>
-    /// Drops the managed schema objects from the target.
-    /// </summary>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Destroy(CancellationToken cancellationToken = default) => Destroy(new DestroyArguments(), cancellationToken);
 
     /// <summary>
     /// Drops the managed schema objects from the target.

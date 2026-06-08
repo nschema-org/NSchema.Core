@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using NSchema.Operations.Plan;
+using NSchema.Operations.Refresh;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Tests.Helpers;
@@ -41,7 +43,7 @@ public sealed class RefreshEndToEndTests : IDisposable
             .Tap(b => b.Services.AddKeyedSingleton<ISchemaProvider>(NSchemaKeys.OnlineSchemaProvider, new InMemorySchemaProvider(LiveSchema())))
             .Build();
 
-        await app.Refresh(TestContext.Current.CancellationToken);
+        await app.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken);
 
         store.Written.ShouldNotBeNull().Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
     }
@@ -55,7 +57,7 @@ public sealed class RefreshEndToEndTests : IDisposable
             .Tap(b => b.Services.AddKeyedSingleton<ISchemaProvider>(NSchemaKeys.OnlineSchemaProvider, new InMemorySchemaProvider(LiveSchema())))
             .Build())
         {
-            await capture.Refresh(TestContext.Current.CancellationToken);
+            await capture.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken);
         }
 
         // 2. Plan offline against the captured state with a matching desired schema — no live database involved.
@@ -71,7 +73,7 @@ public sealed class RefreshEndToEndTests : IDisposable
             .AddReporter(RecordingReporter.FormatName, reporter)
             .Build();
 
-        await planner.Plan(TestContext.Current.CancellationToken);
+        await planner.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
         reporter.Diff.ShouldNotBeNull().IsEmpty.ShouldBeTrue();
     }

@@ -25,7 +25,7 @@ public sealed class NSchemaApplicationExceptionTests
         _applyOp.Execute(Arg.Any<ApplyArguments>(), Arg.Any<CancellationToken>()).ThrowsAsync(boom);
         using var app = BuildApp();
 
-        var thrown = await Should.ThrowAsync<InvalidOperationException>(() => app.Apply(TestContext.Current.CancellationToken));
+        var thrown = await Should.ThrowAsync<InvalidOperationException>(() => app.Apply(new ApplyArguments(), TestContext.Current.CancellationToken));
 
         thrown.ShouldBe(boom);
         _reporter.Received(1).ReportException(boom);
@@ -38,7 +38,7 @@ public sealed class NSchemaApplicationExceptionTests
         _applyOp.Execute(Arg.Any<ApplyArguments>(), Arg.Any<CancellationToken>()).ThrowsAsync(boom);
         using var app = BuildApp(ExceptionBehavior.Throw);
 
-        var thrown = await Should.ThrowAsync<InvalidOperationException>(() => app.Apply(TestContext.Current.CancellationToken));
+        var thrown = await Should.ThrowAsync<InvalidOperationException>(() => app.Apply(new ApplyArguments(), TestContext.Current.CancellationToken));
 
         thrown.ShouldBe(boom);
         _reporter.DidNotReceive().ReportException(Arg.Any<Exception>());
