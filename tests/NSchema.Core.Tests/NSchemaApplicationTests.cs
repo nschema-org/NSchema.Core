@@ -1,6 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using NSchema.Hosting;
 using NSchema.Operations;
 
 namespace NSchema.Tests;
@@ -16,10 +14,10 @@ public sealed class NSchemaApplicationTests
     {
         var builder = NSchemaApplication.CreateBuilder();
         // Register substitutes before Build() so TryAddKeyedSingleton in ApplyServices doesn't override them.
-        builder.Services.AddKeyedSingleton<IOperation>(HostOperation.Plan, (_, _) => _planOp);
-        builder.Services.AddKeyedSingleton<IOperation>(HostOperation.Apply, (_, _) => _applyOp);
-        builder.Services.AddKeyedSingleton<IOperation>(HostOperation.Refresh, (_, _) => _refreshOp);
-        builder.Services.AddKeyedSingleton<IOperation>(HostOperation.Destroy, (_, _) => _destroyOp);
+        builder.Services.AddKeyedSingleton<IOperation>(OperationKind.Plan, (_, _) => _planOp);
+        builder.Services.AddKeyedSingleton<IOperation>(OperationKind.Apply, (_, _) => _applyOp);
+        builder.Services.AddKeyedSingleton<IOperation>(OperationKind.Refresh, (_, _) => _refreshOp);
+        builder.Services.AddKeyedSingleton<IOperation>(OperationKind.Destroy, (_, _) => _destroyOp);
         configure?.Invoke(builder);
         return builder.Build();
     }
@@ -68,29 +66,6 @@ public sealed class NSchemaApplicationTests
         await _destroyOp.Received(1).Execute(Arg.Any<CancellationToken>());
         await _applyOp.DidNotReceive().Execute(Arg.Any<CancellationToken>());
         await _planOp.DidNotReceive().Execute(Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task ExplicitOperation_OverridesConfiguredOperation()
-    {
-        // Configured to Apply, but Plan() is invoked explicitly.
-        using var app = BuildApp(b => b.RunOperation(HostOperation.Apply));
-
-        await app.Plan(TestContext.Current.CancellationToken);
-
-        await _planOp.Received(1).Execute(Arg.Any<CancellationToken>());
-        await _applyOp.DidNotReceive().Execute(Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task RunAsync_UsesConfiguredOperation_WhenNoOverride()
-    {
-        using var app = BuildApp(b => b.RunOperation(HostOperation.Plan));
-
-        await app.RunAsync(TestContext.Current.CancellationToken);
-
-        await _planOp.Received(1).Execute(Arg.Any<CancellationToken>());
-        await _applyOp.DidNotReceive().Execute(Arg.Any<CancellationToken>());
     }
 
     [Fact]

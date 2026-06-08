@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.Diff;
-using NSchema.Hosting;
 using NSchema.Migration;
 using NSchema.Operations;
 using NSchema.Sql;
@@ -76,27 +75,9 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
-    /// Configures the operation the migration run performs.
-    /// </summary>
-    public NSchemaApplicationBuilder RunOperation(HostOperation operation)
-    {
-        Services.Configure<HostOptions>(o => o.Operation = operation);
-        return this;
-    }
-
-    /// <summary>
     /// Configures the output format used to render run output.
     /// </summary>
     public NSchemaApplicationBuilder WithRenderer(string format) => WithOperationOptions(o => o.Reporter = format);
-
-    /// <summary>
-    /// Configures how exceptions are surfaced.
-    /// </summary>
-    public NSchemaApplicationBuilder WithExceptionBehavior(ExceptionBehavior behavior)
-    {
-        Services.Configure<HostOptions>(o => o.ExceptionBehavior = behavior);
-        return this;
-    }
 
     /// <summary>
     /// Scopes the migration to a specific set of schema names.

@@ -1,7 +1,6 @@
-using NSchema.Operations;
 using NSchema.Operations.Confirmation;
 
-namespace NSchema.Hosting;
+namespace NSchema.Operations;
 
 /// <summary>
 /// The default <see cref="IOperationConfirmation"/>, which approves every operation without prompting.

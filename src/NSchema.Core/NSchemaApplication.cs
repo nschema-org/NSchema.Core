@@ -1,98 +1,93 @@
-using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
-using NSchema.Hosting;
-using HostOptions = NSchema.Hosting.HostOptions;
+using NSchema.Operations;
+using NSchema.Resolution;
 
 namespace NSchema;
 
 /// <summary>
 /// The main entry point for an NSchema application.
 /// </summary>
-public sealed class NSchemaApplication : IHost
+public sealed class NSchemaApplication : IDisposable
 {
     private bool _hasRun;
     private readonly IHost _host;
+    private readonly ExceptionBehavior _behavior;
 
-    internal NSchemaApplication(IHost host)
+    internal NSchemaApplication(IHost host, ExceptionBehavior behavior)
     {
         _host = host;
+        _behavior = behavior;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// The application's service provider.
+    /// </summary>
     public IServiceProvider Services => _host.Services;
-
-    /// <inheritdoc />
-    public Task StartAsync(CancellationToken cancellationToken)
-    {
-        if (_hasRun)
-        {
-            throw new InvalidOperationException("The application can only be started once.");
-        }
-        _hasRun = true;
-        return _host.StartAsync(cancellationToken);
-    }
-
-    /// <inheritdoc />
-    public async Task StopAsync(CancellationToken cancellationToken)
-    {
-        await _host.StopAsync(cancellationToken);
-
-        // The migration runs as a background service, so unhandled exceptions terminate the host but aren't surfaced.
-        // We rethrow it here with its original stacktrace, so it isn't lost.
-        if (_host.Services.GetRequiredService<OperationResult>().Exception is { } failure)
-        {
-            ExceptionDispatchInfo.Throw(failure);
-        }
-    }
 
     /// <summary>
     /// Computes and renders the plan without applying it to the target.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Plan(CancellationToken cancellationToken = default) => RunOperation(HostOperation.Plan, cancellationToken);
+    public Task Plan(CancellationToken cancellationToken = default) => RunOperation(OperationKind.Plan, cancellationToken);
 
     /// <summary>
     /// Computes the plan and applies it to the target.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Apply(CancellationToken cancellationToken = default) => RunOperation(HostOperation.Apply, cancellationToken);
+    public Task Apply(CancellationToken cancellationToken = default) => RunOperation(OperationKind.Apply, cancellationToken);
 
     /// <summary>
     /// Reads the live current schema and writes it to the state store, without planning or applying anything.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Refresh(CancellationToken cancellationToken = default) => RunOperation(HostOperation.Refresh, cancellationToken);
+    public Task Refresh(CancellationToken cancellationToken = default) => RunOperation(OperationKind.Refresh, cancellationToken);
 
     /// <summary>
     /// Reads the live current schema and writes it to the configured import target as desired-schema source files.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Import(CancellationToken cancellationToken = default) => RunOperation(HostOperation.Import, cancellationToken);
+    public Task Import(CancellationToken cancellationToken = default) => RunOperation(OperationKind.Import, cancellationToken);
 
     /// <summary>
     /// Loads the desired schema and validates it against the configured schema policies.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Validate(CancellationToken cancellationToken = default) => RunOperation(HostOperation.Validate, cancellationToken);
+    public Task Validate(CancellationToken cancellationToken = default) => RunOperation(OperationKind.Validate, cancellationToken);
 
     /// <summary>
     /// Drops the managed schema objects from the target.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Destroy(CancellationToken cancellationToken = default) => RunOperation(HostOperation.Destroy, cancellationToken);
+    public Task Destroy(CancellationToken cancellationToken = default) => RunOperation(OperationKind.Destroy, cancellationToken);
 
-    private Task RunOperation(HostOperation operation, CancellationToken cancellationToken)
+    private async Task RunOperation(OperationKind operation, CancellationToken cancellationToken)
     {
-        _host.Services.GetRequiredService<IOptions<HostOptions>>().Value.Operation = operation;
-        return this.RunAsync(cancellationToken);
+        if (_hasRun)
+        {
+            throw new InvalidOperationException("The application can only be run once.");
+        }
+        _hasRun = true;
+
+        var op = _host.Services.GetRequiredKeyedService<IOperation>(operation);
+        try
+        {
+            await op.Execute(cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Surface the exception via the reporter (when configured to) before letting it propagate to the caller.
+            if (_behavior == ExceptionBehavior.ReportAndThrow)
+            {
+                _host.Services.GetRequiredService<IKeyedResolver<IOperationReporter>>().Current.ReportException(ex);
+            }
+            throw;
+        }
     }
 
     /// <inheritdoc />
     public void Dispose()
     {
-        GC.SuppressFinalize(this);
         _host.Dispose();
     }
 
