@@ -14,6 +14,7 @@ using NSchema.Operations.Destroy;
 using NSchema.Operations.Drift;
 using NSchema.Operations.Import;
 using NSchema.Operations.Plan;
+using NSchema.Operations.PlanDestroy;
 using NSchema.Operations.Refresh;
 using NSchema.Operations.Services;
 using NSchema.Operations.Show;
@@ -117,6 +118,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IOperationConfirmation, AutoApproveConfirmation>();
         services.TryAddSingleton<IKeyedResolver<IOperationReporter>>(sp => new DefaultKeyedResolver<IOperationReporter, NSchemaApplicationOptions>(sp, o => o.Reporter));
         services.TryAddSingleton<IPlanOperation, PlanOperation>();
+        services.TryAddSingleton<IPlanDestroyOperation, PlanDestroyOperation>();
         services.TryAddSingleton<IApplyOperation, ApplyOperation>();
         services.TryAddSingleton<IRefreshOperation, RefreshOperation>();
         services.TryAddSingleton<IImportOperation, ImportOperation>();
