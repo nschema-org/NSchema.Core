@@ -2,18 +2,17 @@
 
 Everything in the pipeline is registered through DI. You can replace defaults or add to the enumerable extension points.
 
-| Interface                          | Purpose                                                                                      | Registered via                                                                                                     |
-|------------------------------------|----------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
-| `ISchemaProvider` (desired)        | Contribute schemas to the desired state. Usually via `AbstractSchemaProvider`.               | `AddSchema<T>()`                                                                                                   |
-| `ISchemaProvider` (online current) | Read the current live database schema.                                                       | `UseCurrentSchema<T>()` (or via a provider package, e.g. `UsePostgres(...)`)                                       |
-| `ISchemaPolicy`                    | Validate the merged desired schema.                                                          | `AddSchemaPolicy<T>()`                                                                                             |
-| `IPlanTransformer`                 | Rewrite or reorder the generated plan.                                                       | `AddPlanTransformer<T>()`                                                                                          |
-| `IPlanPolicy`                      | Validate the final plan before execution.                                                    | `AddPlanPolicy<T>()`                                                                                               |
-| `IScriptProvider`                  | Supply raw SQL to run pre- or post-deployment.                                               | `AddScriptProvider<T>()`, `AddScriptFromFile(...)`, `AddScriptsFromEmbeddedResources(...)`                         |
-| `ISqlGenerator`                    | Generate the SQL for a migration plan, keyed by `Dialect`. Add support for another database. | `AddSqlGenerator<T>(dialect)` (or via a provider package, e.g. `UsePostgres(...)`); select with `WithDialect(...)` |
-| `ISchemaSerializer`                | Read/write a desired-schema file format (JSON built-in), keyed by `Format`.                  | `AddSchemaSerializer<T>(format)` (first-wins); `UseSchemaSerializer<T>(format)` to replace the built-in            |
-| `ISchemaImportTarget`              | Output destination for the `Import` operation, keyed by name.                                | `AddImportTarget<T>(name)` / `AddFileImportTarget(opts => ...)`                                                    |
-| `ISchemaStateStore`                | Optional backend state store for tracking the last applied schema.                           | `UseStateStore<T>()` / `UseStateStore(instance)` / `UseFileStateStore(path)`                                       |
+| Interface                          | Purpose                                                                                                             | Registered via                                                                                                     |
+|------------------------------------|---------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
+| `ISchemaProvider` (desired)        | Contribute schemas to the desired state. Usually via `AbstractSchemaProvider`.                                      | `AddSchema<T>()`                                                                                                   |
+| `ISchemaProvider` (online current) | Read the current live database schema.                                                                              | `UseCurrentSchema<T>()` (or via a provider package, e.g. `UsePostgres(...)`)                                       |
+| `ISchemaPolicy`                    | Validate the merged desired schema.                                                                                 | `AddSchemaPolicy<T>()`                                                                                             |
+| `IPlanTransformer`                 | Rewrite or reorder the generated plan.                                                                              | `AddPlanTransformer<T>()`                                                                                          |
+| `IPlanPolicy`                      | Validate the final plan before execution.                                                                           | `AddPlanPolicy<T>()`                                                                                               |
+| `IScriptProvider`                  | Supply raw SQL to run pre- or post-deployment.                                                                      | `AddScriptProvider<T>()`, `AddScriptFromFile(...)`, `AddScriptsFromEmbeddedResources(...)`                         |
+| `ISqlGenerator`                    | Generate the SQL for a migration plan, keyed by `Dialect`. Add support for another database.                        | `AddSqlGenerator<T>(dialect)` (or via a provider package, e.g. `UsePostgres(...)`); select with `WithDialect(...)` |
+| `ISchemaSerializer`                | Read/write a desired-schema file format (JSON built-in), keyed by `Format`. Also used to serialize `Import` output. | `AddSchemaSerializer<T>(format)` (first-wins); `UseSchemaSerializer<T>(format)` to replace the built-in            |
+| `ISchemaStateStore`                | Optional backend state store for tracking the last applied schema.                                                  | `UseStateStore<T>()` / `UseStateStore(instance)` / `UseFileStateStore(path)`                                       |
 
 ## Less commonly used extension points
 
@@ -32,11 +31,10 @@ These extension points are less commonly used, but still available for advanced 
 
 ## Selecting one of many by key
 
-A few seams let you register several implementations and pick one per run by a string key. All four are backed by `IKeyedResolver<TValue>`, which is injected directly into consumers.
+A few seams let you register several implementations and pick one per run by a string key. All are backed by `IKeyedResolver<TValue>`, which is injected directly into consumers.
 
-| Seam                  | Key       | Registered via                   | Selected by                                               |
-|-----------------------|-----------|----------------------------------|-----------------------------------------------------------|
-| `IOperationReporter`  | `Format`  | `AddReporter<T>(format)`         | `NSchemaApplicationOptions.Reporter`                      |
-| `ISqlGenerator`       | `Dialect` | `AddSqlGenerator<T>(dialect)`    | `WithDialect(...)` / `SqlOptions.Dialect`                 |
-| `ISchemaSerializer`   | `Format`  | `AddSchemaSerializer<T>(format)` | the consumer (e.g. a file extension or CLI flag)          |
-| `ISchemaImportTarget` | name      | `AddImportTarget<T>(name)`       | `ImportArguments.Target` (resolved explicitly per run)    |
+| Seam                 | Key       | Registered via                   | Selected by                                                                 |
+|----------------------|-----------|----------------------------------|-----------------------------------------------------------------------------|
+| `IOperationReporter` | `Format`  | `AddReporter<T>(format)`         | `NSchemaApplicationOptions.Reporter`                                        |
+| `ISqlGenerator`      | `Dialect` | `AddSqlGenerator<T>(dialect)`    | `WithDialect(...)` / `SqlOptions.Dialect`                                   |
+| `ISchemaSerializer`  | `Format`  | `AddSchemaSerializer<T>(format)` | the consumer (e.g. a file extension, CLI flag, or `ImportArguments.Format`) |

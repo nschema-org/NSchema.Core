@@ -25,9 +25,7 @@ Planning and applying behavior are the same as before, but most public types hav
 - Selectable SQL dialects. `ISqlGenerator` now carries a `Dialect`, so several generators can be registered with `AddSqlGenerator<T>(dialect)` and one chosen per run via `WithDialect(...)` (`SqlOptions.Dialect`).
 - Pluggable schema document formats. A new `ISchemaSerializer` reads and writes a desired-schema file format (JSON built-in); register more with `AddSchemaSerializer<T>(format)`. `FileSchemaProvider` now delegates parsing to one.
 - `IKeyedResolver<TValue>` a new shared resolver interface injected directly to consumers of any named-service seam (reporters, SQL generators, schema serializers, import targets). Exposes `Current`, `HasCurrent`, `Resolve(key)`, and `TryResolve(key, out value)`.
-- `Import` operation. Reads the live database schema and writes it to a registered `ISchemaImportTarget`. Triggered via `app.Import(...)`. Partial imports are supported via `ImportArguments.Schemas` and `ImportArguments.Tables`.
-- `ISchemaImportTarget` the output abstraction for the `Import` operation. Register with `AddImportTarget<T>(name)` / `AddFileImportTarget(...)`. The target is selected per run via `ImportArguments.Target`.
-- `FileSchemaImportTarget` a built-in file-backed import target. Registered with `AddFileImportTarget(opts => ...)`. Supports `ImportPartitionMode` of `None` (single file), `Schema` (one file per schema), or `Table` (one file per table).
+- `Import` operation. Reads the live database schema and writes it to the local filesystem as desired-schema source files. Triggered via `app.Import(...)`.
 - `Validate` operation. Reads the desired schema and validates it against all registered `ISchemaPolicy` implementations. Triggered via `app.Validate(...)`.
 - `Destroy` operation. Destroys all managed objects in the target database. Triggered via `app.Destroy(...)`. Use with extreme caution.
 - A new set of structural and linting schema policies that include checks for common issues like missing primary keys or invalid indexes.
