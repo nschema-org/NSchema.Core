@@ -75,6 +75,37 @@ public sealed class FileStateLockTests : IDisposable
     }
 
     [Fact]
+    public async Task ForceUnlock_RemovesAHeldLockAndReturnsItsInfo()
+    {
+        // A handle is held but we forcibly remove it (as if from another process recovering a stale lock).
+        await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
+
+        var removed = await _sut.ForceUnlock(TestContext.Current.CancellationToken);
+
+        removed.ShouldNotBeNull();
+        removed.Operation.ShouldBe("apply");
+        File.Exists(_path).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task ForceUnlock_WhenNothingHeld_ReturnsNull()
+    {
+        var removed = await _sut.ForceUnlock(TestContext.Current.CancellationToken);
+
+        removed.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task ForceUnlock_ThenAcquire_Succeeds()
+    {
+        await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
+        await _sut.ForceUnlock(TestContext.Current.CancellationToken);
+
+        await using var reacquired = await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
+        File.Exists(_path).ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task Dispose_DoesNotDeleteALockHeldByAnother()
     {
         // Acquire, then simulate a force-unlock (the file is removed by hand) and a fresh acquire by another

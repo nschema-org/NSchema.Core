@@ -13,4 +13,11 @@ public interface IStateLock
     /// <returns>A handle that releases the lock when disposed.</returns>
     /// <exception cref="StateLockedException">The lock is already held by another operation.</exception>
     Task<IStateLockHandle> Acquire(StateLockRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Forcibly removes the current lock regardless of who holds it, for recovering from a stale lock.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>The info of the lock that was removed, or <see langword="null"/> if nothing was locked.</returns>
+    Task<StateLockInfo?> ForceUnlock(CancellationToken cancellationToken = default);
 }

@@ -45,6 +45,27 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
         return new Handle(path, info.Id);
     }
 
+    public async Task<StateLockInfo?> ForceUnlock(CancellationToken cancellationToken = default)
+    {
+        var path = options.Value.Path;
+        if (!File.Exists(path))
+        {
+            return null;
+        }
+
+        var info = await TryReadInfo(path, cancellationToken);
+        try
+        {
+            File.Delete(path);
+        }
+        catch (IOException)
+        {
+            // Best-effort; a leftover file can be removed by hand.
+        }
+
+        return info;
+    }
+
     private static async Task<StateLockInfo?> TryReadInfo(string path, CancellationToken cancellationToken)
     {
         try
