@@ -12,7 +12,7 @@ namespace NSchema.Tests.Helpers;
 /// </summary>
 /// <remarks>
 /// Uses a distinct <see cref="Format"/> so it coexists with the built-in human reporter without colliding;
-/// end-to-end tests select it via <c>WithOutputFormat(RecordingReporter.FormatName)</c>.
+/// end-to-end tests select it via <c>new NSchemaApplicationOptions { Reporter = RecordingReporter.FormatName }</c>.
 /// </remarks>
 internal sealed class RecordingReporter : IOperationReporter
 {

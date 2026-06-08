@@ -29,13 +29,12 @@ public sealed class ApplyEndToEndTests : IDisposable
     }
 
     private NSchemaApplication BuildApp(DatabaseSchema current, string desiredJsonPath) =>
-        NSchemaApplication.CreateBuilder()
+        NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions { Reporter = RecordingReporter.FormatName })
             .AddJsonSchema(desiredJsonPath)
             .UseStateStore(_store)
             .AddSqlGenerator<StubSqlGenerator>(StubSqlGenerator.DialectName)
             .WithDialect(StubSqlGenerator.DialectName)
             .AddReporter(RecordingReporter.FormatName, _reporter)
-            .WithRenderer(RecordingReporter.FormatName)
             .Tap(b =>
             {
                 b.Services.AddSingleton<ISqlExecutor>(_executor);

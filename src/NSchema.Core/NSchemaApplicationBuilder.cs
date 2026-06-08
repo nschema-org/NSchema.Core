@@ -4,14 +4,19 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.Metrics;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NSchema.Diff;
 using NSchema.Diff.Policies;
 using NSchema.Import;
-using NSchema.Migration;
 using NSchema.Operations;
+using NSchema.Operations.Apply;
 using NSchema.Operations.Confirmation;
-using NSchema.Operations.Operations;
+using NSchema.Operations.Destroy;
+using NSchema.Operations.Import;
+using NSchema.Operations.Plan;
+using NSchema.Operations.Refresh;
 using NSchema.Operations.Services;
+using NSchema.Operations.Validate;
 using NSchema.Plan;
 using NSchema.Resolution;
 using NSchema.Schema;
@@ -50,9 +55,9 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Drop the default console logger so third-party libraries don't spam the terminal.
         _innerBuilder.Logging.ClearProviders();
 
-        _innerBuilder.Services.AddOptions<OperationOptions>();
-        _innerBuilder.Services.AddOptions<MigrationOptions>();
-        _innerBuilder.Services.AddOptions<ImportOptions>();
+        // The user-supplied application options are the source of ambient run config (reporter, exception behavior).
+        _innerBuilder.Services.AddSingleton(Options.Create(options));
+        _innerBuilder.Services.AddOptions<DestructiveActionOptions>();
         _innerBuilder.Services.AddOptions<TerraformDiffRendererOptions>();
 
         // Register built-in keyed implementations (last-registration-wins).
@@ -107,22 +112,22 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IDiffRenderer, TerraformDiffRenderer>();
 
         // Import
-        services.TryAddSingleton<IKeyedResolver<ISchemaImportTarget>>(sp => new DefaultKeyedResolver<ISchemaImportTarget, ImportOptions>(sp, o => o.Target));
-
-        // Migration
-        services.TryAddSingleton<IPlanLinearizer, DefaultPlanLinearizer>();
-        services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
+        services.TryAddSingleton<IKeyedResolver<ISchemaImportTarget>, DefaultKeyedResolver<ISchemaImportTarget, object>>();
 
         // Operations
-        services.TryAddSingleton<IMigrationHelper, MigrationHelper>();
+        services.TryAddSingleton<IMigrationWorkflow, MigrationWorkflow>();
         services.TryAddSingleton<IOperationConfirmation, AutoApproveConfirmation>();
-        services.TryAddSingleton<IKeyedResolver<IOperationReporter>>(sp => new DefaultKeyedResolver<IOperationReporter, OperationOptions>(sp, o => o.Reporter));
-        services.TryAddKeyedSingleton<IOperation, PlanOperation>(OperationKind.Plan);
-        services.TryAddKeyedSingleton<IOperation, ApplyOperation>(OperationKind.Apply);
-        services.TryAddKeyedSingleton<IOperation, RefreshOperation>(OperationKind.Refresh);
-        services.TryAddKeyedSingleton<IOperation, ImportOperation>(OperationKind.Import);
-        services.TryAddKeyedSingleton<IOperation, ValidateOperation>(OperationKind.Validate);
-        services.TryAddKeyedSingleton<IOperation, DestroyOperation>(OperationKind.Destroy);
+        services.TryAddSingleton<IKeyedResolver<IOperationReporter>>(sp => new DefaultKeyedResolver<IOperationReporter, NSchemaApplicationOptions>(sp, o => o.Reporter));
+        services.TryAddSingleton<IPlanOperation, PlanOperation>();
+        services.TryAddSingleton<IApplyOperation, ApplyOperation>();
+        services.TryAddSingleton<IRefreshOperation, RefreshOperation>();
+        services.TryAddSingleton<IImportOperation, ImportOperation>();
+        services.TryAddSingleton<IValidateOperation, ValidateOperation>();
+        services.TryAddSingleton<IDestroyOperation, DestroyOperation>();
+
+        // Plan
+        services.TryAddSingleton<IPlanLinearizer, DefaultPlanLinearizer>();
+        services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
 
         // Schemas
         services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();

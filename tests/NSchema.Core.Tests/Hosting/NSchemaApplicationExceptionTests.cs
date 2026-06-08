@@ -1,20 +1,20 @@
 using Microsoft.Extensions.DependencyInjection;
 using NSchema.Operations;
+using NSchema.Operations.Apply;
 using NSubstitute.ExceptionExtensions;
 
 namespace NSchema.Tests.Hosting;
 
 public sealed class NSchemaApplicationExceptionTests
 {
-    private readonly IOperation _applyOp = Substitute.For<IOperation>();
+    private readonly IApplyOperation _applyOp = Substitute.For<IApplyOperation>();
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
 
-    private NSchemaApplication BuildApp(Action<NSchemaApplicationBuilder>? configure = null)
+    private NSchemaApplication BuildApp(ExceptionBehavior behavior = ExceptionBehavior.ReportAndThrow)
     {
-        var builder = NSchemaApplication.CreateBuilder();
-        builder.Services.AddKeyedSingleton<IOperation>(OperationKind.Apply, (_, _) => _applyOp);
+        var builder = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions { ExceptionBehavior = behavior });
+        builder.Services.AddSingleton(_applyOp);
         builder.AddReporter(DefaultOperationReporter.ReporterName, _reporter);
-        configure?.Invoke(builder);
         return builder.Build();
     }
 
@@ -22,12 +22,25 @@ public sealed class NSchemaApplicationExceptionTests
     public async Task Operation_ThrowsToCaller_AndReports_OnReportAndThrow()
     {
         var boom = new InvalidOperationException("boom");
-        _applyOp.Execute(Arg.Any<CancellationToken>()).ThrowsAsync(boom);
+        _applyOp.Execute(Arg.Any<ApplyArguments>(), Arg.Any<CancellationToken>()).ThrowsAsync(boom);
         using var app = BuildApp();
 
         var thrown = await Should.ThrowAsync<InvalidOperationException>(() => app.Apply(TestContext.Current.CancellationToken));
 
         thrown.ShouldBe(boom);
         _reporter.Received(1).ReportException(boom);
+    }
+
+    [Fact]
+    public async Task Operation_ThrowsToCaller_WithoutReporting_OnThrowBehavior()
+    {
+        var boom = new InvalidOperationException("boom");
+        _applyOp.Execute(Arg.Any<ApplyArguments>(), Arg.Any<CancellationToken>()).ThrowsAsync(boom);
+        using var app = BuildApp(ExceptionBehavior.Throw);
+
+        var thrown = await Should.ThrowAsync<InvalidOperationException>(() => app.Apply(TestContext.Current.CancellationToken));
+
+        thrown.ShouldBe(boom);
+        _reporter.DidNotReceive().ReportException(Arg.Any<Exception>());
     }
 }
