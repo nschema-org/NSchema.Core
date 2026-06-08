@@ -16,7 +16,7 @@ public sealed class ValidateOperationTests
 
     public ValidateOperationTests()
     {
-        _helper.Validate(Arg.Any<CancellationToken>()).Returns(DatabaseSchema.Create([]));
+        _helper.Validate(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(DatabaseSchema.Create([]));
         _sut = BuildSut();
     }
 
@@ -27,14 +27,14 @@ public sealed class ValidateOperationTests
         await _sut.Execute(new ValidateArguments(), TestContext.Current.CancellationToken);
 
         // Assert
-        await _helper.Received(1).Validate(Arg.Any<CancellationToken>());
+        await _helper.Received(1).Validate(Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Execute_ValidationThrows_Propagates()
     {
         // Arrange
-        _helper.Validate(Arg.Any<CancellationToken>())
+        _helper.Validate(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
             .Returns<DatabaseSchema>(_ => throw new InvalidOperationException("boom"));
 
         // Act

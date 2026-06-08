@@ -23,7 +23,7 @@ internal sealed class ApplyOperation(
 
         reporters.Current.Info("Applying schema migration. Changes will be applied to the database.");
 
-        var plan = await helper.Plan(SchemaSourceMode.Online, required: true, cancellationToken);
+        var plan = await helper.Plan(SchemaSourceMode.Online, required: true, arguments.Schemas, cancellationToken);
 
         reporters.Current.Info("Generating SQL...");
         var sqlPlan = sqlGenerators.Current.Generate(plan);

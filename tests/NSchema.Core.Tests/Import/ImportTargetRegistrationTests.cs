@@ -52,30 +52,10 @@ public sealed class ImportTargetRegistrationTests
     }
 
     [Fact]
-    public void AddImportTarget_SetsDefaultTarget_OnFirstRegistration()
-    {
-        var resolver = Resolve(b => b.AddImportTarget<StubImportTarget>("stub"));
-
-        resolver.HasCurrent.ShouldBeTrue();
-        resolver.Current.ShouldBeOfType<StubImportTarget>();
-    }
-
-    [Fact]
-    public void AddImportTarget_DoesNotOverrideDefaultTarget_WhenAlreadySet()
-    {
-        var resolver = Resolve(b => b
-            .AddImportTarget<StubImportTarget>("first")
-            .AddImportTarget<OtherStubImportTarget>("second"));
-
-        resolver.Current.ShouldBeOfType<StubImportTarget>();
-    }
-
-    [Fact]
     public void AddFileImportTarget_RegistersFileTarget()
     {
         var resolver = Resolve(b => b.AddFileImportTarget(_ => { }));
 
-        resolver.HasCurrent.ShouldBeTrue();
-        resolver.Current.ShouldBeOfType<FileSchemaImportTarget>();
+        resolver.Resolve(FileSchemaImportTarget.TargetName).ShouldBeOfType<FileSchemaImportTarget>();
     }
 }

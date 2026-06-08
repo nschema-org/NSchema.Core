@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Options;
 using NSchema.Migration;
 using NSchema.Plan.Model;
 using NSchema.Policies;
@@ -12,7 +11,6 @@ using NSchema.State;
 namespace NSchema.Operations.Services;
 
 internal sealed class MigrationHelper(
-    IOptions<MigrationOptions> options,
     IMigrationPlanner planner,
     IEnumerable<IScriptProvider> scriptProviders,
     IKeyedResolver<IOperationReporter> reporters,
@@ -24,10 +22,10 @@ internal sealed class MigrationHelper(
 {
     public bool HasStore => store is not null;
 
-    public async Task<DatabaseSchema> Validate(CancellationToken cancellationToken = default)
+    public async Task<DatabaseSchema> Validate(string[]? schemas, CancellationToken cancellationToken = default)
     {
         reporters.Current.Info("Loading desired schema...");
-        var desiredSchema = await desiredProvider.GetSchema(options.Value.SchemaNames, cancellationToken);
+        var desiredSchema = await desiredProvider.GetSchema(schemas, cancellationToken);
 
         reporters.Current.Info("Validating schema...");
         var schemaDiagnostics = new PolicyDiagnostics(schemaPolicies.SelectMany(p => p.Validate(desiredSchema)));
@@ -44,10 +42,10 @@ internal sealed class MigrationHelper(
         return desiredSchema;
     }
 
-    public async Task<MigrationPlan> Plan(SchemaSourceMode currentSource, bool required, CancellationToken cancellationToken = default)
+    public async Task<MigrationPlan> Plan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default)
     {
-        var desiredSchema = await Validate(cancellationToken);
-        var schemasInScope = options.Value.SchemaNames ?? desiredSchema.AllSchemaNames;
+        var desiredSchema = await Validate(schemas, cancellationToken);
+        var schemasInScope = schemas ?? desiredSchema.AllSchemaNames;
 
         reporters.Current.Info($"Migration will be scoped to the following schemas: {string.Join(", ", schemasInScope)}");
 
@@ -81,8 +79,8 @@ internal sealed class MigrationHelper(
         // The managed schema is what we tear down: recorded state when we have it, otherwise the declared desired schema.
         // GetSchema applies the schema transformers, so a transform that adds an object is reflected here and therefore gets dropped.
         var managedSchema = store is not null
-            ? await currentProvider.GetSchema(SchemaSourceMode.Offline, options.Value.SchemaNames, required: true, cancellationToken)
-            : await desiredProvider.GetSchema(options.Value.SchemaNames, cancellationToken);
+            ? await currentProvider.GetSchema(SchemaSourceMode.Offline, null, required: true, cancellationToken)
+            : await desiredProvider.GetSchema(null, cancellationToken);
 
         reporters.Current.Info("Computing teardown plan...");
         var result = planner.PlanTeardown(managedSchema);

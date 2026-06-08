@@ -8,7 +8,7 @@ internal sealed class ValidateOperation(IMigrationHelper helper, IKeyedResolver<
     public async Task Execute(ValidateArguments arguments, CancellationToken cancellationToken = default)
     {
         reporters.Current.Info("Validating schema. No database or state store will be contacted.");
-        await helper.Validate(cancellationToken);
+        await helper.Validate(arguments.Schemas, cancellationToken);
         reporters.Current.Info("Schema is valid.");
     }
 }

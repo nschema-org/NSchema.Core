@@ -24,7 +24,7 @@ public sealed class PlanOperationTests
 
     public PlanOperationTests()
     {
-        _helper.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(_plan);
+        _helper.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(_plan);
         _generator.Generate(Arg.Any<MigrationPlan>()).Returns(_sqlPlan);
 
         _sut = BuildSut(_generator);
@@ -35,7 +35,7 @@ public sealed class PlanOperationTests
     {
         await _sut.Execute(new PlanArguments(), TestContext.Current.CancellationToken);
 
-        await _helper.Received(1).Plan(SchemaSourceMode.Offline, required: false, Arg.Any<CancellationToken>());
+        await _helper.Received(1).Plan(SchemaSourceMode.Offline, required: false, Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -54,14 +54,14 @@ public sealed class PlanOperationTests
 
         await sut.Execute(new PlanArguments(), TestContext.Current.CancellationToken);
 
-        await _helper.Received(1).Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+        await _helper.Received(1).Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
         _reporter.DidNotReceive().ReportSqlPlan(Arg.Any<SqlPlan>());
     }
 
     [Fact]
     public async Task Execute_PrepareThrows_DoesNotGenerateSql()
     {
-        _helper.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+        _helper.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
             .Returns<MigrationPlan>(_ => throw new InvalidOperationException("boom"));
 
         await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(new PlanArguments()));

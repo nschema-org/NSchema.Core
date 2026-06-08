@@ -1,6 +1,7 @@
 using NSchema.Import;
 using NSchema.Operations;
 using NSchema.Operations.Import;
+using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 
@@ -10,6 +11,7 @@ public sealed class ImportOperationTests
 {
     private readonly ICurrentSchemaProvider _currentSchema = Substitute.For<ICurrentSchemaProvider>();
     private readonly ISchemaImportTarget _target = Substitute.For<ISchemaImportTarget>();
+    private readonly IKeyedResolver<ISchemaImportTarget> _targets;
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
 
     private readonly DatabaseSchema _schema = DatabaseSchema.Create([SchemaDefinition.Create("app",
@@ -17,11 +19,12 @@ public sealed class ImportOperationTests
 
     private ImportOperation BuildSut() => new(
         _currentSchema,
-        Helpers.TestImportTargets.ResolverFor(_target),
+        _targets,
         Helpers.TestReporters.ResolverFor(_reporter));
 
     public ImportOperationTests()
     {
+        _targets = Helpers.TestImportTargets.ResolverFor(_target);
         _currentSchema
             .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromResult(_schema));
@@ -53,6 +56,14 @@ public sealed class ImportOperationTests
         await BuildSut().Execute(new ImportArguments(), TestContext.Current.CancellationToken);
 
         await _target.Received(1).Write(_schema, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Execute_ResolvesTargetFromArguments()
+    {
+        await BuildSut().Execute(new ImportArguments { Target = "warehouse" }, TestContext.Current.CancellationToken);
+
+        _targets.Received(1).Resolve("warehouse");
     }
 
     [Fact]

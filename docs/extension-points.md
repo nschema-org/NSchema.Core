@@ -39,4 +39,4 @@ A few seams let you register several implementations and pick one per run by a s
 | `IOperationReporter`  | `Format`  | `AddReporter<T>(format)`         | `WithOutputFormat(...)` / `OperationOptions.OutputFormat` |
 | `ISqlGenerator`       | `Dialect` | `AddSqlGenerator<T>(dialect)`    | `WithDialect(...)` / `OperationOptions.Dialect`           |
 | `ISchemaSerializer`   | `Format`  | `AddSchemaSerializer<T>(format)` | the consumer (e.g. a file extension or CLI flag)          |
-| `ISchemaImportTarget` | name      | `AddImportTarget<T>(name)`       | `ImportOptions.Target` / defaults to first registered     |
+| `ISchemaImportTarget` | name      | `AddImportTarget<T>(name)`       | `ImportArguments.Target` (resolved explicitly per run)    |

@@ -133,21 +133,21 @@ Providers are registered with `builder.AddSchema<T>()` or `builder.AddSchemasFro
 | `IOperationReporter` (keyed by name)                      | `AddReporter<T>(format)` / `AddReporter(format, instance)` (last-wins per key); select via `OperationOptions.Reporter`    |
 | `ISqlGenerator` (keyed by `Dialect`)                      | `AddSqlGenerator<T>(dialect)`, typically a database-provider extension; select with `WithDialect(...)`                    |
 | `ISchemaSerializer` (keyed by `Format`)                   | `AddSchemaSerializer<T>(format)` (first-wins); `UseSchemaSerializer<T>(format)` to replace (JSON built-in)                |
-| `ISchemaImportTarget` (keyed by name)                     | `AddImportTarget<T>(name)` / `AddFileImportTarget(opts => ...)` (last-wins per key; first registered is default)          |
+| `ISchemaImportTarget` (keyed by name)                     | `AddImportTarget<T>(name)` / `AddFileImportTarget(opts => ...)` (last-wins per key); resolved per run by `ImportArguments.Target` |
 | `ISchemaComparer`, `IPlanLinearizer`, `IMigrationPlanner` | Override via `Services.AddSingleton<...>()` before `Build()` (defaults registered with `TryAdd`)                          |
 | `IDiffRenderer`                                           | `UseTerraformRenderer(...)` / `UseRenderer<TRenderer>()`, or override via `Services.AddSingleton<...>()` before `Build()` |
 | `ISqlPlanRenderer`                                        | Override via `Services.AddSingleton<...>()` before `Build()` (default `DefaultSqlPlanRenderer`)                           |
 
 ### Resolving one of many (resolver pattern)
 
-Several seams let you register multiple implementations and select one per run by a key: `IOperationReporter` (by reporter name), `ISqlGenerator` (by `Dialect`), `ISchemaSerializer` (by `Format`), and `ISchemaImportTarget` (by name). All four share a single `IKeyedResolver<TValue>` interface (`Resolution/`), backed by DI keyed services. `IOperationReporter` and `ISchemaImportTarget` use last-wins registration (`Services.Replace`); `ISqlGenerator` and `ISchemaSerializer` use first-wins (`TryAddKeyedSingleton`), and `ISchemaSerializer` has a `UseSchemaSerializer<T>(format)` method to replace the built-in.
+Several seams let you register multiple implementations and select one by key, sharing a single `IKeyedResolver<TValue>` interface (`Resolution/`) backed by DI keyed services. `IOperationReporter` (by reporter name), `ISqlGenerator` (by `Dialect`), and `ISchemaSerializer` (by `Format`) read the key for the current run from options (via `Current`). `ISchemaImportTarget` (by name) is instead resolved **explicitly** from `ImportArguments.Target` (via `Resolve(key)`), so it has no ambient `Current`. `IOperationReporter` and `ISchemaImportTarget` use last-wins registration (`Services.Replace`); `ISqlGenerator` and `ISchemaSerializer` use first-wins (`TryAddKeyedSingleton`), and `ISchemaSerializer` has a `UseSchemaSerializer<T>(format)` method to replace the built-in.
 
 `IKeyedResolver<TValue>` is injected directly into consumers and exposes:
-- `Current` — resolves the implementation for the current run's configured key (e.g. `OperationOptions.Reporter`, `SqlOptions.Dialect`, `ImportOptions.Target`). Throws if no key is configured or the key isn't registered.
+- `Current` — resolves the implementation for the current run's configured key (e.g. `OperationOptions.Reporter`, `SqlOptions.Dialect`). Throws if no key is configured or the key isn't registered.
 - `HasCurrent` — returns `true` if `Current` would succeed; use this to guard optional seams (e.g. SQL generators).
-- `Resolve(key)` / `TryResolve(key, out value)` — resolve by explicit key.
+- `Resolve(key)` / `TryResolve(key, out value)` — resolve by explicit key (how the import operation selects its target).
 
-The `DefaultKeyedResolver<TValue, TOptions>` implementation reads the current key from `IOptions<TOptions>` via a selector delegate supplied at registration time.
+The `DefaultKeyedResolver<TValue, TOptions>` implementation reads the current key from `IOptions<TOptions>` via a selector delegate supplied at registration time; the import-target resolver is registered without a selector, so it has no `Current` and is used only via `Resolve`.
 
 ### Diff rendering
 
@@ -165,7 +165,8 @@ Schemas, tables, and columns support rename detection via the fluent `RenamedFro
 
 **`MigrationOptions`** (`NSchema.Migration`) — what to migrate:
 - `DestructiveActionPolicy` — `Error` (default), `Warn`, or `Allow`. Enforced by `DestructiveActionDiffPolicy`. Configured via `WithDestructiveActionPolicy(...)`.
-- `SchemaNames` — optional `string[]` scope filter. When set, only these schemas are read, validated, and diffed. When unset, scope is derived from declared and dropped schemas. Configured via `ForSchemas(...)`.
+
+Schema scope is **not** an option — it's a per-invocation argument. `PlanArguments` / `ApplyArguments` / `ValidateArguments` carry a `Schemas` filter; when `null`, scope is derived from the desired schema. `IMigrationHelper` takes the scope as an explicit parameter rather than reading ambient options. (`Destroy` is unscoped — it always tears down the whole managed schema.)
 
 **`NSchemaApplicationOptions`** (`NSchema`) — how the application is constructed and run. Passed to `CreateBuilder(options)` and registered as a singleton; its values are fixed at build time (`init`-only):
 - `Args` / `ApplicationName` / `EnvironmentName` / `ContentRootPath` — consumed by the builder constructor to configure the underlying `HostApplicationBuilder`.
@@ -183,6 +184,4 @@ The operation to run is **not** an option — it's chosen by which method you ca
 **`ImportArguments`** (`NSchema.Operations.Import`) — per-invocation import inputs, passed to `Import(...)`:
 - `Schemas` — optional `string[]` scope filter; only these schemas are fetched from the live database.
 - `Tables` — optional `string[]` table filter applied after fetching.
-
-**`ImportOptions`** (`NSchema.Import`) — ambient import config:
-- `Target` — the key of the registered `ISchemaImportTarget` to write to. When unset, auto-selected if exactly one target is registered; throws if none or multiple. Configured via `WithImportOptions(...)`.
+- `Target` — the key of the registered `ISchemaImportTarget` to write to, resolved via `IKeyedResolver<ISchemaImportTarget>.Resolve(...)`.

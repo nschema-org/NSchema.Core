@@ -13,13 +13,4 @@ public class MigrationOptions
     /// The policy determines how the migrator should handle such actions, whether to allow them, block them, or raise an error.
     /// </remarks>
     public DestructiveActionPolicy DestructiveActionPolicy { get; set; } = DestructiveActionPolicy.Error;
-
-    /// <summary>
-    /// The set of schema names the migration is scoped to.
-    /// </summary>
-    /// <remarks>
-    /// When non-empty, only these schemas are read from the database, validated, and diffed;
-    /// declared or dropped schemas outside this set are ignored.
-    /// </remarks>
-    public string[]? SchemaNames { get; set; }
 }

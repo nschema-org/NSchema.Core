@@ -78,13 +78,4 @@ public partial class NSchemaApplicationBuilder
     /// Configures the output format used to render run output.
     /// </summary>
     public NSchemaApplicationBuilder WithRenderer(string format) => WithOperationOptions(o => o.Reporter = format);
-
-    /// <summary>
-    /// Scopes the migration to a specific set of schema names.
-    /// </summary>
-    public NSchemaApplicationBuilder ForSchemas(params string[] schemaNames)
-    {
-        Services.Configure<MigrationOptions>(o => o.SchemaNames = schemaNames);
-        return this;
-    }
 }

@@ -32,7 +32,7 @@ public sealed class ApplyOperationTests
 
     public ApplyOperationTests()
     {
-        _helper.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(_plan);
+        _helper.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(_plan);
         _helper.HasStore.Returns(true);
         _generator.Generate(Arg.Any<MigrationPlan>()).Returns(_sqlPlan);
         _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(true);
@@ -45,7 +45,7 @@ public sealed class ApplyOperationTests
     {
         await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
 
-        await _helper.Received(1).Plan(SchemaSourceMode.Online, required: true, Arg.Any<CancellationToken>());
+        await _helper.Received(1).Plan(SchemaSourceMode.Online, required: true, Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public sealed class ApplyOperationTests
         var sut = BuildSut(planner: null, executor: _executor);
 
         await Should.ThrowAsync<InvalidOperationException>(() => sut.Execute(new ApplyArguments()));
-        await _helper.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+        await _helper.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -72,7 +72,7 @@ public sealed class ApplyOperationTests
         var sut = BuildSut(planner: _generator, executor: null);
 
         await Should.ThrowAsync<InvalidOperationException>(() => sut.Execute(new ApplyArguments()));
-        await _helper.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+        await _helper.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

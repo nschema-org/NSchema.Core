@@ -11,17 +11,19 @@ internal interface IMigrationHelper
     /// <summary>
     /// Validates the desired schema against the schema policies, throwing on errors.
     /// </summary>
+    /// <param name="schemas">The schemas to scope to, or <see langword="null"/> to derive scope from the desired schema.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The loaded, validated desired schema.</returns>
-    Task<DatabaseSchema> Validate(CancellationToken cancellationToken = default);
+    Task<DatabaseSchema> Validate(string[]? schemas, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Loads the desired and current schemas, computes the migration plan, and reports it.
     /// </summary>
     /// <param name="currentSource">Which source to read the current schema from.</param>
     /// <param name="required">Whether <paramref name="currentSource"/> must be available, or may fall back to the other source.</param>
+    /// <param name="schemas">The schemas to scope to, or <see langword="null"/> to derive scope from the desired schema.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<MigrationPlan> Plan(SchemaSourceMode currentSource, bool required, CancellationToken cancellationToken = default);
+    Task<MigrationPlan> Plan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Builds a plan that tears down the managed schema.

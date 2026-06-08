@@ -51,16 +51,18 @@ If you need more advanced control, you can implement your own `IPlanPolicy` and 
 
 ## Scoping to specific schemas
 
-Set `MigrationOptions.SchemaNames` to scope a run to a subset of schemas. Useful for deploying schemas independently of one another:
+Pass a `Schemas` filter on the operation arguments to scope a run to a subset of schemas. Useful for deploying schemas independently of one another:
 
 ```csharp
-builder
+var app = builder
     .AddSchemasFromAssemblyContaining<Program>()
     .UsePostgres(connectionString)
-    .ForSchemas("app");   // only "app" is read, validated, and diffed
+    .Build();
+
+await app.Plan(new PlanArguments { Schemas = ["app"] });   // only "app" is read, validated, and diffed
 ```
 
-Declarations or drops for schemas outside the scope are ignored, so unmanaged schemas in the database are never touched.
+Scope is a per-invocation argument (`PlanArguments` / `ApplyArguments` / `ValidateArguments` / `DestroyArguments`), not ambient configuration. Declarations or drops for schemas outside the scope are ignored, so unmanaged schemas in the database are never touched.
 
 ## Configuring desired schemas
 
