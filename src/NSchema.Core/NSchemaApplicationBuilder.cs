@@ -144,5 +144,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
         // State
         services.TryAddSingleton<ISchemaStateSerializer, DefaultSchemaStateSerializer>();
+        services.TryAddSingleton<IStateLock, NoOpStateLock>();
     }
 }

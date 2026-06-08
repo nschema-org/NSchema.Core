@@ -2,6 +2,7 @@ using NSchema.Operations.Confirmation;
 using NSchema.Operations.Services;
 using NSchema.Resolution;
 using NSchema.Sql;
+using NSchema.State;
 
 namespace NSchema.Operations.Destroy;
 
@@ -10,6 +11,7 @@ internal sealed class DestroyOperation(
     IOperationConfirmation confirmation,
     IMigrationWorkflow workflow,
     IKeyedResolver<ISqlGenerator> sqlGenerators,
+    IStateLock stateLock,
     ISqlExecutor? sqlExecutor = null
 ) : IDestroyOperation
 {
@@ -21,6 +23,10 @@ internal sealed class DestroyOperation(
         }
 
         reporters.Current.Info("Destroying schema. All managed objects will be dropped from the database.");
+
+        // Hold the state lock for the whole teardown so a concurrent apply/destroy/refresh can't run against the
+        // same state. Released when the handle is disposed at the end of the method (no-op unless a lock is registered).
+        await using var stateLockHandle = await stateLock.Acquire(new StateLockRequest("destroy"), cancellationToken);
 
         var plan = await workflow.PlanDestroy(cancellationToken);
 

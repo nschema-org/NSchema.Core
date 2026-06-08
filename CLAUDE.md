@@ -80,6 +80,12 @@ The internal `DefaultCurrentSchemaProvider` wires both sources together. Registe
 
 `ISchemaStateStore` deals only in **serialized payloads** (`Task<ReadOnlyMemory<byte>?> Read(...)` / `Task Write(ReadOnlyMemory<byte>, ...)`) — it's a persistence sink (file, blob, …) and never sees the schema model. The core owns the format: it serializes via the internal `ISchemaStateSerializer` before writing (in `IMigrationWorkflow.Refresh`) and deserializes after reading (in `StateBackedSchemaProvider`). A custom store therefore only implements load/save of an opaque byte payload.
 
+### State locking
+
+`IStateLock` (`src/NSchema.Core/State/IStateLock.cs`) coordinates exclusive access to the shared state so two state-mutating operations can't run against it concurrently. It is a **separate seam** from `ISchemaStateStore` (single responsibility, independently optional), but a single backend may implement **both** — e.g. a future S3 backend that persists state and holds the lock in the same bucket, registered once for both seams. `Acquire(StateLockRequest, ct)` returns an `IStateLockHandle` (an `IAsyncDisposable`); disposing it releases the lock. When the lock is already held, `Acquire` throws `StateLockedException` (carrying the holder's `StateLockInfo` when the implementation can read it).
+
+The three **state-mutating** operations acquire the lock for the whole run via `await using`: `ApplyOperation` (`"apply"`), `DestroyOperation` (`"destroy"`), and `RefreshOperation` (`"refresh"`). Read-only operations (`Plan`, `PlanDestroy`, `Show`, `Drift`, `Validate`) never lock. The default `NoOpStateLock` makes acquisition a no-op, so **locking is off until you register a real implementation** (`UseStateLock<T>()` / `UseStateLock(instance)`, or `UseFileStateLock(path)` — a local-dev lock-file, not a distributed lock). The lock is independent of the store: operations acquire unconditionally and the no-op default does nothing.
+
 ### Planner
 
 `DefaultMigrationPlanner` (`src/NSchema.Core/Plan/DefaultMigrationPlanner.cs`) is a pure domain service. It takes two pre-resolved `DatabaseSchema` values and produces a `MigrationPlanResult` (which carries the executable `MigrationPlan`, its structured `DatabaseDiff`, and any `PolicyDiagnostic`s). The **structured diff is the primary artifact**: the comparer emits it directly, and the linearizer derives the ordered plan from it. The pipeline is three stages, each of which transforms its representation and then validates it:
@@ -134,6 +140,7 @@ Providers are registered with `builder.AddSchema<T>()` or `builder.AddSchemasFro
 | `IScriptProvider`                       | `AddScripts(provider)` / `AddScriptFromFile(...)` / `AddScriptsFromEmbeddedResources(...)`                                      |
 | `ISqlExecutor`                          | `UseSqlExecutor<T>()` (replaces default)                                                                                        |
 | `ISchemaStateStore`                     | `UseStateStore<T>()` / `UseStateStore(instance)` / `UseFileStateStore(path)`                                                    |
+| `IStateLock`                            | `UseStateLock<T>()` / `UseStateLock(instance)` / `UseFileStateLock(path)` (default no-op `NoOpStateLock`)                       |
 | `IOperationReporter` (keyed by name)    | `AddReporter<T>(format)` / `AddReporter(format, instance)` (last-wins per key); select via `NSchemaApplicationOptions.Reporter` |
 | `ISqlGenerator` (keyed by `Dialect`)    | `AddSqlGenerator<T>(dialect)`, typically a database-provider extension; select with `WithDialect(...)`                          |
 | `ISchemaSerializer` (keyed by `Format`) | `AddSchemaSerializer<T>(format)` (first-wins); `UseSchemaSerializer<T>(format)` to replace (JSON built-in)                      |
