@@ -44,7 +44,7 @@ internal sealed class MigrationWorkflow(
 
         reporters.Current.Info("Loading scripts...");
         List<Script> scripts = [];
-        var scriptTasks = scriptProviders.Select(p => p.GetScripts(cancellationToken));
+        var scriptTasks = scriptProviders.Select(p => p.GetScripts(cancellationToken)).ToList();
         foreach (var task in scriptTasks)
         {
             scripts.AddRange(await task);

@@ -36,10 +36,17 @@ internal sealed class DestroyOperation(
         }
 
         reporters.Current.Info("Running schema teardown...");
-        await sqlExecutor.Execute(sqlPlan, cancellationToken);
-        reporters.Current.Info("Schema destroyed successfully.");
 
-        // Capture the resulting state when a store is configured; a no-op otherwise.
-        await workflow.Refresh(RefreshMode.Optional, cancellationToken);
+        try
+        {
+            await sqlExecutor.Execute(sqlPlan, cancellationToken);
+            reporters.Current.Info("Schema destroyed successfully.");
+        }
+        finally
+        {
+            // Capture the resulting state when a store is configured; a no-op otherwise. This runs even when
+            // teardown failed partway (e.g. an un-transacted plan) so the store reflects what was actually dropped.
+            await workflow.Refresh(RefreshMode.Optional, cancellationToken);
+        }
     }
 }

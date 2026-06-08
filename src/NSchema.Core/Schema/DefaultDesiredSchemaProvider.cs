@@ -14,10 +14,10 @@ internal sealed class DefaultDesiredSchemaProvider(IEnumerable<ISchemaProvider> 
 
         // Task.WhenAll has no ValueTask overload; materialize each call to a Task to fan out concurrently.
         List<DatabaseSchema> schemas = [];
-        var schemaTasks = providerList.Select(provider => provider.GetSchema(schemaNames, cancellationToken));
+        var schemaTasks = providerList.Select(provider => provider.GetSchema(schemaNames, cancellationToken)).ToList();
         foreach (var schemaTask in schemaTasks)
         {
-            schemas.AddRange(await schemaTask);
+            schemas.Add(await schemaTask);
         }
         var aggregated = schemas.Aggregate(DatabaseSchema.Create([]), (acc, schema) => acc.Combine(schema));
         return transformers.Aggregate(aggregated, (schema, transformer) => transformer.Transform(schema));

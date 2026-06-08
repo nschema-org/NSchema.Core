@@ -75,13 +75,15 @@ public sealed class DestroyOperationTests
     }
 
     [Fact]
-    public async Task Execute_ExecutionFails_DoesNotRefresh()
+    public async Task Execute_ExecutionFails_StillRefreshesAndRethrows()
     {
         _executor.Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("boom"));
 
-        await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(new DestroyArguments(), TestContext.Current.CancellationToken));
+        // Teardown may fail partway (e.g. an un-transacted plan), so we still capture state, but the original failure propagates.
+        var ex = await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(new DestroyArguments(), TestContext.Current.CancellationToken));
+        ex.Message.ShouldBe("boom");
 
-        await _workflow.DidNotReceive().Refresh(Arg.Any<RefreshMode>(), Arg.Any<CancellationToken>());
+        await _workflow.Received(1).Refresh(RefreshMode.Optional, Arg.Any<CancellationToken>());
     }
 
     [Fact]
