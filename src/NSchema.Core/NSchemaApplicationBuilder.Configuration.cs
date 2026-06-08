@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.Diff;
-using NSchema.Migration;
+using NSchema.Diff.Policies;
 using NSchema.Operations;
 using NSchema.Sql;
 
@@ -14,7 +14,7 @@ public partial class NSchemaApplicationBuilder
     /// </summary>
     public NSchemaApplicationBuilder WithDestructiveActionPolicy(DestructiveActionPolicy policy)
     {
-        Services.Configure<MigrationOptions>(o => o.DestructiveActionPolicy = policy);
+        Services.Configure<DestructiveActionOptions>(o => o.Policy = policy);
         return this;
     }
 

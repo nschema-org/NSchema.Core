@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Options;
 using NSchema.Diff.Policies;
-using NSchema.Migration;
 using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Tests.Helpers;
@@ -9,7 +8,7 @@ namespace NSchema.Tests.Diff.Policies;
 
 public class DestructiveActionDiffPolicyTests
 {
-    private readonly IOptions<MigrationOptions> _options = Options.Create(new MigrationOptions());
+    private readonly IOptions<DestructiveActionOptions> _options = Options.Create(new DestructiveActionOptions());
 
     private readonly DestructiveActionDiffPolicy _sut;
 
@@ -22,7 +21,7 @@ public class DestructiveActionDiffPolicyTests
     public void Validate_WhenPolicyIsError_ReturnsErrorForDestructiveAction()
     {
         // Arrange
-        _options.Value.DestructiveActionPolicy = DestructiveActionPolicy.Error;
+        _options.Value.Policy = DestructiveActionPolicy.Error;
 
         // Act
         var errors = _sut.Validate(TestData.DestructiveDiff).ToList();
@@ -38,7 +37,7 @@ public class DestructiveActionDiffPolicyTests
     public void Validate_WhenPolicyIsAllow_ReturnsInfoDiagnostic()
     {
         // Arrange
-        _options.Value.DestructiveActionPolicy = DestructiveActionPolicy.Allow;
+        _options.Value.Policy = DestructiveActionPolicy.Allow;
 
         // Act
         var results = _sut.Validate(TestData.DestructiveDiff).ToList();
@@ -52,7 +51,7 @@ public class DestructiveActionDiffPolicyTests
     public void Validate_WhenPolicyIsWarn_ReturnsWarningDiagnostic()
     {
         // Arrange
-        _options.Value.DestructiveActionPolicy = DestructiveActionPolicy.Warn;
+        _options.Value.Policy = DestructiveActionPolicy.Warn;
 
         // Act
         var results = _sut.Validate(TestData.DestructiveDiff).ToList();
@@ -67,7 +66,7 @@ public class DestructiveActionDiffPolicyTests
     public void Validate_NonDestructiveAction_ReturnsNothingRegardlessOfPolicy()
     {
         // Arrange
-        _options.Value.DestructiveActionPolicy = DestructiveActionPolicy.Error;
+        _options.Value.Policy = DestructiveActionPolicy.Error;
 
         // Act
         var results = _sut.Validate(TestData.NonDestructiveDiff).ToList();
@@ -81,7 +80,7 @@ public class DestructiveActionDiffPolicyTests
     {
         // Arrange
         var diff = TestData.DiffWithDroppedTables("users", "accounts");
-        _options.Value.DestructiveActionPolicy = DestructiveActionPolicy.Error;
+        _options.Value.Policy = DestructiveActionPolicy.Error;
 
         // Act
         var errors = _sut.Validate(diff).ToList();

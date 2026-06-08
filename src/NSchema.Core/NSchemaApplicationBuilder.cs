@@ -57,8 +57,8 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         _innerBuilder.Logging.ClearProviders();
 
         // The user-supplied application options are the source of ambient run config (reporter, exception behavior).
-        _innerBuilder.Services.AddSingleton<IOptions<NSchemaApplicationOptions>>(Options.Create(options));
-        _innerBuilder.Services.AddOptions<MigrationOptions>();
+        _innerBuilder.Services.AddSingleton(Options.Create(options));
+        _innerBuilder.Services.AddOptions<DestructiveActionOptions>();
         _innerBuilder.Services.AddOptions<TerraformDiffRendererOptions>();
 
         // Register built-in keyed implementations (last-registration-wins).

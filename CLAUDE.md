@@ -31,7 +31,7 @@ The codebase is split into a **domain layer** and an **application layer**:
   - `Schema/` — the schema model, desired/current providers, `ISchemaTransformer`, `ISchemaPolicy`.
   - `Diff/` — the structured diff model (`Diff/Model/`, rooted at `DatabaseDiff`), `ISchemaComparer`, `IDiffTransformer`, `IDiffPolicy`, and the diff renderer.
   - `Plan/` — the executable plan model (`Plan/Model/`, rooted at `MigrationPlan`), `IPlanLinearizer`, `IPlanTransformer`, `IPlanPolicy`.
-  - `Migration/` — the orchestrator that runs the three stages: `IMigrationPlanner`, `MigrationPlanResult`, `MigrationOptions`. No knowledge of operations or how a run is orchestrated.
+  - `Migration/` — the orchestrator that runs the three stages: `IMigrationPlanner`, `MigrationPlanResult`. No knowledge of operations or how a run is orchestrated.
 - **Application layer.** Orchestration of a run:
   - `Operations/` — one vertical slice per operation (`Operations/Plan/`, `Operations/Apply/`, `Operations/Refresh/`, `Operations/Import/`, `Operations/Validate/`, `Operations/Destroy/`), each holding a public interface (`IPlanOperation`, …), a public arguments record (`PlanArguments`, …, empty where the operation has no inputs yet), and the internal handler. Also `IMigrationHelper` (schema resolution, planning, and state capture, under `Operations/Services/`), the default `IOperationReporter` (`DefaultOperationReporter`), the default `IOperationConfirmation` (`AutoApproveConfirmation`), and `IOperationConfirmation` itself (`Operations/Confirmation/`).
 
@@ -81,7 +81,7 @@ The internal `DefaultCurrentSchemaProvider` wires both sources together. Registe
 `DefaultMigrationPlanner` (`src/NSchema.Core/Migration/DefaultMigrationPlanner.cs`) is a pure domain service. It takes two pre-resolved `DatabaseSchema` values and produces a `MigrationPlanResult` (which carries the executable `MigrationPlan`, its structured `DatabaseDiff`, and any `PolicyDiagnostic`s). The **structured diff is the primary artifact**: the comparer emits it directly, and the linearizer derives the ordered plan from it. The pipeline is three stages, each of which transforms its representation and then validates it:
 
 1. **Schema stage** — `ISchemaTransformer`s run in registration order against the desired schema, then every `ISchemaPolicy` validates it. A schema-policy error is fatal and skips the rest.
-2. **Diff stage** — `ISchemaComparer` produces the structured `DatabaseDiff` directly (no flat-action intermediate). `IDiffTransformer`s then run in registration order, and every `IDiffPolicy` validates the result. The built-in `DestructiveActionDiffPolicy` runs here (it reasons over `ChangeKind.Remove` and narrowing column changes) and enforces `MigrationOptions.DestructiveActionPolicy`.
+2. **Diff stage** — `ISchemaComparer` produces the structured `DatabaseDiff` directly (no flat-action intermediate). `IDiffTransformer`s then run in registration order, and every `IDiffPolicy` validates the result. The built-in `DestructiveActionDiffPolicy` runs here (it reasons over `ChangeKind.Remove` and narrowing column changes) and enforces its own `DestructiveActionDiffPolicyOptions.Policy`.
 3. **Plan stage** — `IPlanLinearizer` (default `DefaultPlanLinearizer`) walks the diff and emits the migration actions in a safe dependency order. The planner then attaches the collected deployment scripts to the `MigrationPlan` as its `PreDeploymentScripts` / `PostDeploymentScripts` (scripts aren't a diff concept, so they live on the plan rather than in `Actions`). `IPlanTransformer`s then run in registration order, and every `IPlanPolicy` validates the final plan. At execution time the script SQL is composed around the generated statements (pre first, post last) — scripts are raw SQL and need no dialect translation.
 
 The planner has no knowledge of operations, online/offline routing, or the application/operation options.
@@ -163,8 +163,8 @@ Schemas, tables, and columns support rename detection via the fluent `RenamedFro
 
 ### Configuration options
 
-**`MigrationOptions`** (`NSchema.Migration`) — what to migrate:
-- `DestructiveActionPolicy` — `Error` (default), `Warn`, or `Allow`. Enforced by `DestructiveActionDiffPolicy`. Configured via `WithDestructiveActionPolicy(...)`.
+**`DestructiveActionDiffPolicyOptions`** (`NSchema.Diff.Policies`) — owned by the diff policy it configures:
+- `Policy` — a `DestructiveActionPolicy`: `Error` (default), `Warn`, or `Allow`. Enforced by `DestructiveActionDiffPolicy` (which reads `IOptions<DestructiveActionDiffPolicyOptions>`). Configured via `WithDestructiveActionPolicy(...)`.
 
 Schema scope is **not** an option — it's a per-invocation argument. `PlanArguments` / `ApplyArguments` / `ValidateArguments` carry a `Schemas` filter; when `null`, scope is derived from the desired schema. `IMigrationHelper` takes the scope as an explicit parameter rather than reading ambient options. (`Destroy` is unscoped — it always tears down the whole managed schema.)
 
