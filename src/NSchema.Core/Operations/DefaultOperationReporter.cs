@@ -2,6 +2,8 @@ using NSchema.Diff;
 using NSchema.Diff.Model;
 using NSchema.Plan.Model;
 using NSchema.Policies;
+using NSchema.Schema;
+using NSchema.Schema.Model;
 using NSchema.Scripts.Model;
 using NSchema.Sql;
 using NSchema.Sql.Model;
@@ -18,28 +20,32 @@ internal sealed class DefaultOperationReporter : IOperationReporter
     private readonly TextWriter _output;
     private readonly TextWriter _error;
     private readonly IDiffRenderer _diffRenderer;
+    private readonly ISchemaRenderer _schemaRenderer;
     private readonly ISqlPlanRenderer _sqlPlanRenderer;
 
     /// <summary>
     /// Default <see cref="IOperationReporter"/> that presents user-facing output.
     /// </summary>
     /// <param name="diffRenderer">Renders the migration diff as human-readable text.</param>
+    /// <param name="schemaRenderer">Renders a single schema state as human-readable text.</param>
     /// <param name="sqlPlanRenderer">Renders the SQL plan as human-readable text.</param>
-    public DefaultOperationReporter(IDiffRenderer diffRenderer, ISqlPlanRenderer sqlPlanRenderer)
-        : this(diffRenderer, sqlPlanRenderer, Console.Out, Console.Error) { }
+    public DefaultOperationReporter(IDiffRenderer diffRenderer, ISchemaRenderer schemaRenderer, ISqlPlanRenderer sqlPlanRenderer)
+        : this(diffRenderer, schemaRenderer, sqlPlanRenderer, Console.Out, Console.Error) { }
 
     /// <summary>
     /// Default <see cref="IOperationReporter"/> that presents user-facing output.
     /// </summary>
     /// <param name="diffRenderer">Renders the migration diff as human-readable text.</param>
+    /// <param name="schemaRenderer">Renders a single schema state as human-readable text.</param>
     /// <param name="sqlPlanRenderer">Renders the SQL plan as human-readable text.</param>
     /// <param name="output">The writer for informational output (typically stdout).</param>
     /// <param name="error">The writer for errors and warnings (typically stderr).</param>
-    public DefaultOperationReporter(IDiffRenderer diffRenderer, ISqlPlanRenderer sqlPlanRenderer, TextWriter output, TextWriter error)
+    public DefaultOperationReporter(IDiffRenderer diffRenderer, ISchemaRenderer schemaRenderer, ISqlPlanRenderer sqlPlanRenderer, TextWriter output, TextWriter error)
     {
         _output = output;
         _error = error;
         _diffRenderer = diffRenderer;
+        _schemaRenderer = schemaRenderer;
         _sqlPlanRenderer = sqlPlanRenderer;
     }
 
@@ -56,6 +62,13 @@ internal sealed class DefaultOperationReporter : IOperationReporter
         {
             _error.WriteLine($"Operation failed: {exception.Message}");
         }
+    }
+
+    public void ReportSchema(DatabaseSchema schema)
+    {
+        var render = _schemaRenderer.Render(schema);
+        _output.WriteLine(render);
+        _output.WriteLine();
     }
 
     public void ReportDiff(DatabaseDiff diff)

@@ -3,6 +3,8 @@ using NSchema.Diff.Model;
 using NSchema.Operations;
 using NSchema.Plan.Model;
 using NSchema.Policies;
+using NSchema.Schema;
+using NSchema.Schema.Model;
 using NSchema.Scripts.Model;
 using NSchema.Sql;
 using NSchema.Sql.Model;
@@ -14,13 +16,14 @@ public sealed class DefaultOperationReporterTests
     private readonly StringWriter _output = new();
     private readonly StringWriter _error = new();
     private readonly IDiffRenderer _diffRenderer = Substitute.For<IDiffRenderer>();
+    private readonly ISchemaRenderer _schemaRenderer = Substitute.For<ISchemaRenderer>();
     private readonly ISqlPlanRenderer _sqlPlanRenderer = Substitute.For<ISqlPlanRenderer>();
 
     private readonly DefaultOperationReporter _sut;
 
     public DefaultOperationReporterTests()
     {
-        _sut = new DefaultOperationReporter(_diffRenderer, _sqlPlanRenderer, _output, _error);
+        _sut = new DefaultOperationReporter(_diffRenderer, _schemaRenderer, _sqlPlanRenderer, _output, _error);
     }
 
     [Fact]
@@ -73,6 +76,18 @@ public sealed class DefaultOperationReporterTests
         _sut.ReportDiff(diff);
 
         _output.ToString().ShouldContain("rendered diff");
+        _error.ToString().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void ReportSchema_WritesRenderedSchemaToOutput()
+    {
+        var schema = DatabaseSchema.Create([]);
+        _schemaRenderer.Render(schema).Returns("rendered schema");
+
+        _sut.ReportSchema(schema);
+
+        _output.ToString().ShouldContain("rendered schema");
         _error.ToString().ShouldBeEmpty();
     }
 

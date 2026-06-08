@@ -26,6 +26,9 @@ Planning and applying behavior are the same as before, but most public types hav
 - `Import` operation. Reads the live database schema and writes it to the local filesystem as desired-schema source files. Triggered via `app.Import(...)`.
 - `Validate` operation. Reads the desired schema and validates it against all registered `ISchemaPolicy` implementations. Triggered via `app.Validate(...)`.
 - `Destroy` operation. Destroys all managed objects in the target database. Triggered via `app.Destroy(...)`. Use with extreme caution.
+- `Show` operation. Reads the recorded (offline) state from the state store and renders it, without planning or contacting the live database. Triggered via `app.Show(...)`. The schema-management analogue of `terraform show`; requires a configured state store.
+- `Drift` operation. Compares the recorded (offline) state against the live database and reports how the live database has drifted from the recorded state, without planning or applying. Triggered via `app.Drift(...)`. The analogue of `terraform plan -refresh-only`; requires both a configured state store and a live database provider.
+- `ISchemaRenderer`, the schema-side counterpart to `IDiffRenderer`: it renders a single `DatabaseSchema` as text (default `DefaultSchemaRenderer`, an indented tree). Replace it via `UseSchemaRenderer<T>()`. The `Show` operation renders through it via the new `IOperationReporter.ReportSchema(DatabaseSchema)`.
 - A new set of structural and linting schema policies that include checks for common issues like missing primary keys or invalid indexes.
 
 ### Changed
@@ -41,6 +44,7 @@ Planning and applying behavior are the same as before, but most public types hav
 - **Breaking:** `FileSchemaProvider` is no longer abstract with a `Parse(Stream)` method; it now takes an `ISchemaSerializer`. Implement a new file format by implementing `ISchemaSerializer` rather than subclassing `FileSchemaProvider`.
 - **Breaking:** `IOperationReporter.ReportPreview(IReadOnlyList<string>)` is now `ReportSqlPlan(SqlPlan)`, so the reporter receives the structured plan and renders it via `ISqlPlanRenderer` rather than a pre-flattened list of strings.
 - **Breaking:** `IOperationReporter`'s `ReportPlan(MigrationPlan)` has been replaced by `ReportDiff(DatabaseDiff)`. The plan is converted to a structured diff before it is reported.
+- **Breaking:** `IOperationReporter` gained a `ReportSchema(DatabaseSchema)` method, which presents a single schema state (used by the `Show` operation). Custom reporters must implement it.
 - **Breaking:** `PolicyError` is now `PolicyDiagnostic`, and `PolicySeverity` is now `PolicyDiagnosticSeverity`. Custom `ISchemaPolicy` / `IPlanPolicy` implementations return `PolicyDiagnostic`s.
 - **Breaking:** The `DestructiveActionPolicy` enum moved to `NSchema.Diff.Policies`, alongside the `DestructiveActionOptions` it configures (set via `WithDestructiveActionPolicy(...)`).
 - **Breaking:** Most async surfaces now use `ValueTask` instead of `Task` for better performance in the common synchronous case.
