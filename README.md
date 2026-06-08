@@ -43,7 +43,7 @@ Wire up and run the application:
 
 ```csharp
 using NSchema;
-using NSchema.Migration;
+using NSchema.Diff.Policies;
 using NSchema.Postgres;
 
 var builder = NSchemaApplication.CreateBuilder(args);
@@ -59,7 +59,7 @@ await app.Apply();
 
 On startup, NSchema introspects the database, compares it with your desired schema, and applies the resulting plan.
 
-A run performs one of three operations:
+A run performs one of several operations; the common ones are:
 
 - **`Plan`** (default) computes the plan and renders it without touching the database.
 - **`Apply`** computes the plan and applies it.
