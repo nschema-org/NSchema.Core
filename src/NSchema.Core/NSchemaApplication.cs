@@ -6,6 +6,7 @@ using NSchema.Operations.Destroy;
 using NSchema.Operations.Drift;
 using NSchema.Operations.Import;
 using NSchema.Operations.Plan;
+using NSchema.Operations.PlanDestroy;
 using NSchema.Operations.Refresh;
 using NSchema.Operations.Show;
 using NSchema.Operations.Validate;
@@ -42,6 +43,17 @@ public sealed class NSchemaApplication : IDisposable
     {
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IPlanOperation>().Execute(arguments, cancellationToken));
+    }
+
+    /// <summary>
+    /// Computes and renders the teardown plan (the plan to drop the managed schema) without applying it.
+    /// </summary>
+    /// <param name="arguments">The arguments controlling the teardown plan.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    public Task PlanDestroy(PlanDestroyArguments arguments, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(arguments);
+        return Run(() => Resolve<IPlanDestroyOperation>().Execute(arguments, cancellationToken));
     }
 
     /// <summary>
