@@ -19,7 +19,7 @@ public sealed class MigrationHelperTests
     private readonly IDesiredSchemaProvider _desiredProvider = Substitute.For<IDesiredSchemaProvider>();
 
     private MigrationHelper BuildSut(ISchemaStateStore? store = null) =>
-        new(_planner, [], Helpers.TestReporters.ResolverFor(_reporter), _currentProvider, _desiredProvider, [], store);
+        new(_planner, [], Helpers.TestReporters.ResolverFor(_reporter), _currentProvider, _desiredProvider, store);
 
     private readonly MigrationHelper _sut;
 
@@ -32,6 +32,8 @@ public sealed class MigrationHelperTests
         _desiredProvider
             .GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
             .Returns(DatabaseSchema.Create([]));
+
+        _planner.Validate(Arg.Any<DatabaseSchema>()).Returns(new PolicyDiagnostics());
 
         _planner
             .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
@@ -62,13 +64,10 @@ public sealed class MigrationHelperTests
     public async Task ValidateDesiredSchema_PolicyViolation_ThrowsWithoutReporting()
     {
         // Arrange
-        var policy = Substitute.For<ISchemaPolicy>();
-        policy.Validate(Arg.Any<DatabaseSchema>()).Returns([PolicyDiagnostic.Error("P1", "msg")]);
-        var sut = new MigrationHelper(
-            _planner, [], Helpers.TestReporters.ResolverFor(_reporter), _currentProvider, _desiredProvider, [policy]);
+        _planner.Validate(Arg.Any<DatabaseSchema>()).Returns(new PolicyDiagnostics([PolicyDiagnostic.Error("P1", "msg")]));
 
         // Act
-        var act = () => sut.Validate(null, TestContext.Current.CancellationToken);
+        var act = () => _sut.Validate(null, TestContext.Current.CancellationToken);
 
         // Assert
         await act.ShouldThrowAsync<PolicyViolationException>();
@@ -79,14 +78,11 @@ public sealed class MigrationHelperTests
     public async Task ValidateDesiredSchema_NonErrorDiagnostics_AreReported()
     {
         // Arrange
-        var policy = Substitute.For<ISchemaPolicy>();
-        policy.Validate(Arg.Any<DatabaseSchema>())
-            .Returns([new PolicyDiagnostic("P1", "info", PolicyDiagnosticSeverity.Info)]);
-        var sut = new MigrationHelper(
-            _planner, [], Helpers.TestReporters.ResolverFor(_reporter), _currentProvider, _desiredProvider, [policy]);
+        _planner.Validate(Arg.Any<DatabaseSchema>())
+            .Returns(new PolicyDiagnostics([new PolicyDiagnostic("P1", "info", PolicyDiagnosticSeverity.Info)]));
 
         // Act
-        await sut.Validate(null, TestContext.Current.CancellationToken);
+        await _sut.Validate(null, TestContext.Current.CancellationToken);
 
         // Assert
         _reporter.Received(1).ReportDiagnostics(Arg.Any<PolicyDiagnostics>());

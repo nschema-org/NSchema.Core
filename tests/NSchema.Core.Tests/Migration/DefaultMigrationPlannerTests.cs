@@ -4,6 +4,7 @@ using NSchema.Migration;
 using NSchema.Plan;
 using NSchema.Plan.Model;
 using NSchema.Policies;
+using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Scripts.Model;
 
@@ -17,6 +18,7 @@ public sealed class DefaultMigrationPlannerTests
 
     private readonly ISchemaComparer _comparer = Substitute.For<ISchemaComparer>();
     private readonly IPlanLinearizer _linearizer = Substitute.For<IPlanLinearizer>();
+    private readonly List<ISchemaPolicy> _schemaPolicies = [];
     private readonly List<IDiffTransformer> _diffTransformers = [];
     private readonly List<IDiffPolicy> _diffPolicies = [];
     private readonly List<IPlanTransformer> _transformers = [];
@@ -25,6 +27,7 @@ public sealed class DefaultMigrationPlannerTests
     private DefaultMigrationPlanner Sut => new(
         _comparer,
         _linearizer,
+        _schemaPolicies,
         _diffTransformers,
         _diffPolicies,
         _transformers,
@@ -36,6 +39,58 @@ public sealed class DefaultMigrationPlannerTests
         _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(_emptyDiff);
         _linearizer.Linearize(Arg.Any<DatabaseDiff>())
             .Returns(_ => []);
+    }
+
+    [Fact]
+    public void Validate_RunsSchemaPoliciesAgainstDesiredSchema()
+    {
+        // Arrange
+        var desired = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
+        var policy = Substitute.For<ISchemaPolicy>();
+        policy.Validate(desired).Returns([PolicyDiagnostic.Error("Test", "bad schema")]);
+        _schemaPolicies.Add(policy);
+
+        // Act
+        var diagnostics = Sut.Validate(desired);
+
+        // Assert
+        diagnostics.ShouldHaveSingleItem().Message.ShouldBe("bad schema");
+        policy.Received(1).Validate(desired);
+    }
+
+    [Fact]
+    public void Plan_SchemaPolicyError_ShortCircuitsBeforeDiffing()
+    {
+        // Arrange
+        var policy = Substitute.For<ISchemaPolicy>();
+        policy.Validate(Arg.Any<DatabaseSchema>()).Returns([PolicyDiagnostic.Error("Test", "bad schema")]);
+        _schemaPolicies.Add(policy);
+
+        // Act
+        var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
+
+        // Assert: the schema stage is fatal — no diff, no plan.
+        result.HasErrors.ShouldBeTrue();
+        result.Plan.ShouldBeNull();
+        result.Diff.ShouldBeNull();
+        _comparer.DidNotReceive().Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>());
+    }
+
+    [Fact]
+    public void Plan_NonFatalSchemaDiagnostics_FlowIntoResult()
+    {
+        // Arrange
+        var policy = Substitute.For<ISchemaPolicy>();
+        policy.Validate(Arg.Any<DatabaseSchema>())
+            .Returns([new PolicyDiagnostic("Test", "lint", PolicyDiagnosticSeverity.Warning)]);
+        _schemaPolicies.Add(policy);
+
+        // Act
+        var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
+
+        // Assert: a non-error schema finding is carried through alongside the plan.
+        result.HasErrors.ShouldBeFalse();
+        result.Diagnostics.ShouldHaveSingleItem().Message.ShouldBe("lint");
     }
 
     [Fact]

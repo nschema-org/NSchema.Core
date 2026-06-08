@@ -1,6 +1,8 @@
 using NSchema.Diff;
 using NSchema.Plan;
 using NSchema.Plan.Model;
+using NSchema.Policies;
+using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Scripts.Model;
 
@@ -11,6 +13,7 @@ namespace NSchema.Migration;
 /// </summary>
 /// <param name="comparer">Produces the structured diff by comparing the two schemas.</param>
 /// <param name="linearizer">Derives the ordered executable plan from the diff.</param>
+/// <param name="schemaPolicies">Policies that validate the desired schema.</param>
 /// <param name="diffTransformers">Transformers applied to the diff before linearization, in registration order.</param>
 /// <param name="diffPolicies">Policies that validate the structured diff (e.g. destructive-change checks).</param>
 /// <param name="planTransformers">Transformers applied to the linearized plan in registration order.</param>
@@ -18,20 +21,32 @@ namespace NSchema.Migration;
 internal sealed class DefaultMigrationPlanner(
     ISchemaComparer comparer,
     IPlanLinearizer linearizer,
+    IEnumerable<ISchemaPolicy> schemaPolicies,
     IEnumerable<IDiffTransformer> diffTransformers,
     IEnumerable<IDiffPolicy> diffPolicies,
     IEnumerable<IPlanTransformer> planTransformers,
     IEnumerable<IPlanPolicy> migrationPolicies
 ) : IMigrationPlanner
 {
+    public PolicyDiagnostics Validate(DatabaseSchema desiredSchema) =>
+        new(schemaPolicies.SelectMany(p => p.Validate(desiredSchema)));
+
     public MigrationPlanResult Plan(DatabaseSchema currentSchema, DatabaseSchema desiredSchema, IReadOnlyList<Script> scripts)
     {
+        // Validate the desired schema. A schema-policy error is fatal and skips the rest.
+        var schemaDiagnostics = Validate(desiredSchema);
+        if (schemaDiagnostics.HasErrors)
+        {
+            return new MigrationPlanResult(null, null, schemaDiagnostics);
+        }
+
         // Diff the schemas.
         var diff = comparer.Compare(currentSchema, desiredSchema);
 
         // Transform and validate the diff.
         diff = diffTransformers.Aggregate(diff, (d, t) => t.Transform(d));
-        var diagnostics = diffPolicies.SelectMany(p => p.Validate(diff)).ToList();
+        var diagnostics = new List<PolicyDiagnostic>(schemaDiagnostics);
+        diagnostics.AddRange(diffPolicies.SelectMany(p => p.Validate(diff)));
 
         // Convert the diff into a migration plan.
         var actions = linearizer.Linearize(diff);

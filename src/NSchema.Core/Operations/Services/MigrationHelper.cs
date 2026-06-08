@@ -16,7 +16,6 @@ internal sealed class MigrationHelper(
     IKeyedResolver<IOperationReporter> reporters,
     ICurrentSchemaProvider currentProvider,
     IDesiredSchemaProvider desiredProvider,
-    IEnumerable<ISchemaPolicy> schemaPolicies,
     ISchemaStateStore? store = null
 ) : IMigrationHelper
 {
@@ -28,23 +27,15 @@ internal sealed class MigrationHelper(
         var desiredSchema = await desiredProvider.GetSchema(schemas, cancellationToken);
 
         reporters.Current.Info("Validating schema...");
-        var schemaDiagnostics = new PolicyDiagnostics(schemaPolicies.SelectMany(p => p.Validate(desiredSchema)));
-        if (schemaDiagnostics.HasErrors)
-        {
-            throw new PolicyViolationException(schemaDiagnostics.Errors.ToList());
-        }
-
-        if (schemaDiagnostics.Count > 0)
-        {
-            reporters.Current.ReportDiagnostics(schemaDiagnostics);
-        }
+        ReportOrThrow(planner.Validate(desiredSchema));
 
         return desiredSchema;
     }
 
     public async Task<MigrationPlan> Plan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default)
     {
-        var desiredSchema = await Validate(schemas, cancellationToken);
+        reporters.Current.Info("Loading desired schema...");
+        var desiredSchema = await desiredProvider.GetSchema(schemas, cancellationToken);
         var schemasInScope = schemas ?? desiredSchema.AllSchemaNames;
 
         reporters.Current.Info($"Migration will be scoped to the following schemas: {string.Join(", ", schemasInScope)}");
@@ -61,17 +52,7 @@ internal sealed class MigrationHelper(
         }
 
         reporters.Current.Info("Computing migration plan...");
-        var result = planner.Plan(currentSchema, desiredSchema, scripts);
-        if (result.HasErrors)
-        {
-            throw new PolicyViolationException(result.Diagnostics.Errors.ToList());
-        }
-
-        reporters.Current.ReportDiff(result.Diff);
-        reporters.Current.ReportPlan(result.Plan);
-        reporters.Current.ReportDiagnostics(result.Diagnostics);
-
-        return result.Plan;
+        return ReportOrThrow(planner.Plan(currentSchema, desiredSchema, scripts));
     }
 
     public async Task<MigrationPlan> PlanDestroy(CancellationToken cancellationToken = default)
@@ -83,7 +64,30 @@ internal sealed class MigrationHelper(
             : await desiredProvider.GetSchema(null, cancellationToken);
 
         reporters.Current.Info("Computing teardown plan...");
-        var result = planner.PlanTeardown(managedSchema);
+        return ReportOrThrow(planner.PlanTeardown(managedSchema));
+    }
+
+    /// <summary>
+    /// Throws on schema-policy errors; otherwise reports any non-error diagnostics.
+    /// </summary>
+    private void ReportOrThrow(PolicyDiagnostics diagnostics)
+    {
+        if (diagnostics.HasErrors)
+        {
+            throw new PolicyViolationException(diagnostics.Errors.ToList());
+        }
+
+        if (diagnostics.Count > 0)
+        {
+            reporters.Current.ReportDiagnostics(diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Throws on planning errors; otherwise reports the diff, plan, and diagnostics, and returns the plan.
+    /// </summary>
+    private MigrationPlan ReportOrThrow(MigrationPlanResult result)
+    {
         if (result.HasErrors)
         {
             throw new PolicyViolationException(result.Diagnostics.Errors.ToList());

@@ -1,4 +1,5 @@
 using NSchema.Plan.Model;
+using NSchema.Policies;
 using NSchema.Schema.Model;
 using NSchema.Scripts.Model;
 
@@ -9,6 +10,13 @@ namespace NSchema.Migration;
 /// </summary>
 public interface IMigrationPlanner
 {
+    /// <summary>
+    /// Runs the schema stage in isolation: validates the desired schema against the registered schema policies.
+    /// </summary>
+    /// <param name="desiredSchema">The desired schema to validate (already aggregated and transformed).</param>
+    /// <returns>The schema-policy diagnostics; the caller decides how to surface any errors.</returns>
+    PolicyDiagnostics Validate(DatabaseSchema desiredSchema);
+
     /// <summary>
     /// Generates a migration plan that outlines the necessary steps to migrate the database from its current state to the desired state.
     /// </summary>
