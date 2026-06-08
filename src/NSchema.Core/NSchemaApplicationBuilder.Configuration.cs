@@ -19,15 +19,6 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
-    /// Configures the operation options.
-    /// </summary>
-    public NSchemaApplicationBuilder WithOperationOptions(Action<OperationOptions> configure)
-    {
-        Services.Configure(configure);
-        return this;
-    }
-
-    /// <summary>
     /// Configures the transaction mode to use when executing the migration plan.
     /// </summary>
     public NSchemaApplicationBuilder WithTransactionMode(TransactionMode mode)
@@ -74,8 +65,4 @@ public partial class NSchemaApplicationBuilder
         return this;
     }
 
-    /// <summary>
-    /// Configures the output format used to render run output.
-    /// </summary>
-    public NSchemaApplicationBuilder WithRenderer(string format) => WithOperationOptions(o => o.Reporter = format);
 }

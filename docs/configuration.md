@@ -119,7 +119,7 @@ builder.AddScriptProvider<CustomScriptProvider>();
 
 By default, NSchema runs the entire migration inside a single transaction to ensure that either all changes are applied successfully or none at all. However, some databases don't support DDL statements inside transactions, or you may have specific statements that need to run outside of a transaction.
 
-You can configure the transaction mode with `OperationOptions.TransactionMode`:
+You can configure the transaction mode with `WithTransactionMode(...)`:
 
 ```csharp
 builder.WithTransactionMode(TransactionMode.Single); // run the entire migration in a single transaction (default)
@@ -128,12 +128,13 @@ builder.WithTransactionMode(TransactionMode.None); // run all statements outside
 
 ## Output format
 
-Run output is produced by an `IOperationReporter`. The built-in `default` reporter writes human-readable output to the terminal. You can register additional reporters (each declaring a `Format`) and select one per run:
+Run output is produced by an `IOperationReporter`. The built-in `default` reporter writes human-readable output to the terminal. Register additional reporters by format key on the builder, and select which one a run uses via `NSchemaApplicationOptions.Reporter`:
 
 ```csharp
-builder
-    .AddReporter<JsonReporter>("json")   // register by explicit format key
-    .WithOutputFormat("json");           // or set OperationOptions.OutputFormat
+var app = NSchemaApplication
+    .CreateBuilder(new NSchemaApplicationOptions { Reporter = "json" })  // select the reporter for this run
+    .AddReporter<JsonReporter>("json")                                   // register it under that key
+    .Build();
 ```
 
 ## SQL dialect
@@ -144,7 +145,7 @@ When more than one `ISqlGenerator` is registered (each declaring a `Dialect`), c
 builder
     .AddSqlGenerator<PostgresGenerator>("postgres")
     .AddSqlGenerator<MySqlGenerator>("mysql")
-    .WithDialect("postgres");    // or set OperationOptions.Dialect
+    .WithDialect("postgres");    // or set SqlOptions.Dialect
 ```
 
 ## Schema policies

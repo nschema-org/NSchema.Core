@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.Metrics;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NSchema.Diff;
 using NSchema.Diff.Policies;
 using NSchema.Import;
@@ -55,7 +56,8 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Drop the default console logger so third-party libraries don't spam the terminal.
         _innerBuilder.Logging.ClearProviders();
 
-        _innerBuilder.Services.AddOptions<OperationOptions>();
+        // The user-supplied application options are the source of ambient run config (reporter, exception behavior).
+        _innerBuilder.Services.AddSingleton<IOptions<NSchemaApplicationOptions>>(Options.Create(options));
         _innerBuilder.Services.AddOptions<MigrationOptions>();
         _innerBuilder.Services.AddOptions<TerraformDiffRendererOptions>();
 
@@ -120,7 +122,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Operations
         services.TryAddSingleton<IMigrationHelper, MigrationHelper>();
         services.TryAddSingleton<IOperationConfirmation, AutoApproveConfirmation>();
-        services.TryAddSingleton<IKeyedResolver<IOperationReporter>>(sp => new DefaultKeyedResolver<IOperationReporter, OperationOptions>(sp, o => o.Reporter));
+        services.TryAddSingleton<IKeyedResolver<IOperationReporter>>(sp => new DefaultKeyedResolver<IOperationReporter, NSchemaApplicationOptions>(sp, o => o.Reporter));
         services.TryAddSingleton<IPlanOperation, PlanOperation>();
         services.TryAddSingleton<IApplyOperation, ApplyOperation>();
         services.TryAddSingleton<IRefreshOperation, RefreshOperation>();

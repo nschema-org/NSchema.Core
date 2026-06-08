@@ -1,3 +1,5 @@
+using NSchema.Operations;
+
 namespace NSchema;
 
 /// <summary>
@@ -29,4 +31,10 @@ public class NSchemaApplicationOptions
     /// Controls how exceptions are surfaced.
     /// </summary>
     public ExceptionBehavior ExceptionBehavior { get; init; } = ExceptionBehavior.ReportAndThrow;
+
+    /// <summary>
+    /// The output reporter key, resolved to an <see cref="IOperationReporter"/> at runtime.
+    /// Defaults to the human-readable terminal reporter.
+    /// </summary>
+    public string Reporter { get; init; } = DefaultOperationReporter.ReporterName;
 }

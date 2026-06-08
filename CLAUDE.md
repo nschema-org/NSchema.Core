@@ -33,7 +33,7 @@ The codebase is split into a **domain layer** and an **application layer**:
   - `Plan/` — the executable plan model (`Plan/Model/`, rooted at `MigrationPlan`), `IPlanLinearizer`, `IPlanTransformer`, `IPlanPolicy`.
   - `Migration/` — the orchestrator that runs the three stages: `IMigrationPlanner`, `MigrationPlanResult`, `MigrationOptions`. No knowledge of operations or how a run is orchestrated.
 - **Application layer.** Orchestration of a run:
-  - `Operations/` — one vertical slice per operation (`Operations/Plan/`, `Operations/Apply/`, `Operations/Refresh/`, `Operations/Import/`, `Operations/Validate/`, `Operations/Destroy/`), each holding a public interface (`IPlanOperation`, …), a public arguments record (`PlanArguments`, …, empty where the operation has no inputs yet), and the internal handler. Also `OperationOptions`, `IMigrationHelper` (schema resolution, planning, and state capture, under `Operations/Services/`), the default `IOperationReporter` (`DefaultOperationReporter`), the default `IOperationConfirmation` (`AutoApproveConfirmation`), and `IOperationConfirmation` itself (`Operations/Confirmation/`).
+  - `Operations/` — one vertical slice per operation (`Operations/Plan/`, `Operations/Apply/`, `Operations/Refresh/`, `Operations/Import/`, `Operations/Validate/`, `Operations/Destroy/`), each holding a public interface (`IPlanOperation`, …), a public arguments record (`PlanArguments`, …, empty where the operation has no inputs yet), and the internal handler. Also `IMigrationHelper` (schema resolution, planning, and state capture, under `Operations/Services/`), the default `IOperationReporter` (`DefaultOperationReporter`), the default `IOperationConfirmation` (`AutoApproveConfirmation`), and `IOperationConfirmation` itself (`Operations/Confirmation/`).
 
 ### Operations
 
@@ -115,35 +115,35 @@ Providers are registered with `builder.AddSchema<T>()` or `builder.AddSchemasFro
 
 ### Extension points
 
-| Interface                                                 | Registered via                                                                                                            |
-|-----------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
-| `ISchemaProvider` (desired)                               | `AddSchema<T>()` / `AddSchemasFromAssembly[Containing]<T>()`                                                              |
-| `ISchemaProvider` (online current)                        | `UseCurrentSchema<T>()` — typically called from a database-provider extension (e.g. `UsePostgres(...)`)                   |
-| `I{Name}Operation` (one per operation)                    | `TryAddSingleton<I{Name}Operation, {Name}Operation>()` (built-in; replace before `Build()` to override)                  |
-| `IOperationConfirmation`                                  | `Services.AddSingleton<IOperationConfirmation, T>()` (default `AutoApproveConfirmation`, registered with `TryAdd`)        |
-| `ISchemaTransformer`                                      | `AddSchemaTransformer<T>()` / `AddSchemaTransformersFromAssembly[Containing]<T>()`                                        |
-| `ISchemaPolicy`                                           | `AddSchemaPolicy<T>()`                                                                                                    |
-| `IDiffTransformer`                                        | `AddDiffTransformer<T>()` / `AddDiffTransformersFromAssembly[Containing]<T>()`                                            |
-| `IDiffPolicy`                                             | `AddDiffPolicy<T>()` / `AddDiffPoliciesFromAssembly[Containing]<T>()`                                                     |
-| `IPlanTransformer`                                        | `AddPlanTransformer<T>()` / `AddPlanTransformersFromAssembly[Containing]<T>()`                                            |
-| `IPlanPolicy`                                             | `AddPlanPolicy<T>()` / `AddPlanPoliciesFromAssembly[Containing]<T>()`                                                     |
-| `IScriptProvider`                                         | `AddScripts(provider)` / `AddScriptFromFile(...)` / `AddScriptsFromEmbeddedResources(...)`                                |
-| `ISqlExecutor`                                            | `UseSqlExecutor<T>()` (replaces default)                                                                                  |
-| `ISchemaStateStore`                                       | `UseStateStore<T>()` / `UseStateStore(instance)` / `UseFileStateStore(path)`                                              |
-| `IOperationReporter` (keyed by name)                      | `AddReporter<T>(format)` / `AddReporter(format, instance)` (last-wins per key); select via `OperationOptions.Reporter`    |
-| `ISqlGenerator` (keyed by `Dialect`)                      | `AddSqlGenerator<T>(dialect)`, typically a database-provider extension; select with `WithDialect(...)`                    |
-| `ISchemaSerializer` (keyed by `Format`)                   | `AddSchemaSerializer<T>(format)` (first-wins); `UseSchemaSerializer<T>(format)` to replace (JSON built-in)                |
+| Interface                                                 | Registered via                                                                                                                    |
+|-----------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| `ISchemaProvider` (desired)                               | `AddSchema<T>()` / `AddSchemasFromAssembly[Containing]<T>()`                                                                      |
+| `ISchemaProvider` (online current)                        | `UseCurrentSchema<T>()` — typically called from a database-provider extension (e.g. `UsePostgres(...)`)                           |
+| `I{Name}Operation` (one per operation)                    | `TryAddSingleton<I{Name}Operation, {Name}Operation>()` (built-in; replace before `Build()` to override)                           |
+| `IOperationConfirmation`                                  | `Services.AddSingleton<IOperationConfirmation, T>()` (default `AutoApproveConfirmation`, registered with `TryAdd`)                |
+| `ISchemaTransformer`                                      | `AddSchemaTransformer<T>()` / `AddSchemaTransformersFromAssembly[Containing]<T>()`                                                |
+| `ISchemaPolicy`                                           | `AddSchemaPolicy<T>()`                                                                                                            |
+| `IDiffTransformer`                                        | `AddDiffTransformer<T>()` / `AddDiffTransformersFromAssembly[Containing]<T>()`                                                    |
+| `IDiffPolicy`                                             | `AddDiffPolicy<T>()` / `AddDiffPoliciesFromAssembly[Containing]<T>()`                                                             |
+| `IPlanTransformer`                                        | `AddPlanTransformer<T>()` / `AddPlanTransformersFromAssembly[Containing]<T>()`                                                    |
+| `IPlanPolicy`                                             | `AddPlanPolicy<T>()` / `AddPlanPoliciesFromAssembly[Containing]<T>()`                                                             |
+| `IScriptProvider`                                         | `AddScripts(provider)` / `AddScriptFromFile(...)` / `AddScriptsFromEmbeddedResources(...)`                                        |
+| `ISqlExecutor`                                            | `UseSqlExecutor<T>()` (replaces default)                                                                                          |
+| `ISchemaStateStore`                                       | `UseStateStore<T>()` / `UseStateStore(instance)` / `UseFileStateStore(path)`                                                      |
+| `IOperationReporter` (keyed by name)                      | `AddReporter<T>(format)` / `AddReporter(format, instance)` (last-wins per key); select via `NSchemaApplicationOptions.Reporter`   |
+| `ISqlGenerator` (keyed by `Dialect`)                      | `AddSqlGenerator<T>(dialect)`, typically a database-provider extension; select with `WithDialect(...)`                            |
+| `ISchemaSerializer` (keyed by `Format`)                   | `AddSchemaSerializer<T>(format)` (first-wins); `UseSchemaSerializer<T>(format)` to replace (JSON built-in)                        |
 | `ISchemaImportTarget` (keyed by name)                     | `AddImportTarget<T>(name)` / `AddFileImportTarget(opts => ...)` (last-wins per key); resolved per run by `ImportArguments.Target` |
-| `ISchemaComparer`, `IPlanLinearizer`, `IMigrationPlanner` | Override via `Services.AddSingleton<...>()` before `Build()` (defaults registered with `TryAdd`)                          |
-| `IDiffRenderer`                                           | `UseTerraformRenderer(...)` / `UseRenderer<TRenderer>()`, or override via `Services.AddSingleton<...>()` before `Build()` |
-| `ISqlPlanRenderer`                                        | Override via `Services.AddSingleton<...>()` before `Build()` (default `DefaultSqlPlanRenderer`)                           |
+| `ISchemaComparer`, `IPlanLinearizer`, `IMigrationPlanner` | Override via `Services.AddSingleton<...>()` before `Build()` (defaults registered with `TryAdd`)                                  |
+| `IDiffRenderer`                                           | `UseTerraformRenderer(...)` / `UseRenderer<TRenderer>()`, or override via `Services.AddSingleton<...>()` before `Build()`         |
+| `ISqlPlanRenderer`                                        | Override via `Services.AddSingleton<...>()` before `Build()` (default `DefaultSqlPlanRenderer`)                                   |
 
 ### Resolving one of many (resolver pattern)
 
 Several seams let you register multiple implementations and select one by key, sharing a single `IKeyedResolver<TValue>` interface (`Resolution/`) backed by DI keyed services. `IOperationReporter` (by reporter name), `ISqlGenerator` (by `Dialect`), and `ISchemaSerializer` (by `Format`) read the key for the current run from options (via `Current`). `ISchemaImportTarget` (by name) is instead resolved **explicitly** from `ImportArguments.Target` (via `Resolve(key)`), so it has no ambient `Current`. `IOperationReporter` and `ISchemaImportTarget` use last-wins registration (`Services.Replace`); `ISqlGenerator` and `ISchemaSerializer` use first-wins (`TryAddKeyedSingleton`), and `ISchemaSerializer` has a `UseSchemaSerializer<T>(format)` method to replace the built-in.
 
 `IKeyedResolver<TValue>` is injected directly into consumers and exposes:
-- `Current` — resolves the implementation for the current run's configured key (e.g. `OperationOptions.Reporter`, `SqlOptions.Dialect`). Throws if no key is configured or the key isn't registered.
+- `Current` — resolves the implementation for the current run's configured key (e.g. `NSchemaApplicationOptions.Reporter`, `SqlOptions.Dialect`). Throws if no key is configured or the key isn't registered.
 - `HasCurrent` — returns `true` if `Current` would succeed; use this to guard optional seams (e.g. SQL generators).
 - `Resolve(key)` / `TryResolve(key, out value)` — resolve by explicit key (how the import operation selects its target).
 
@@ -171,11 +171,9 @@ Schema scope is **not** an option — it's a per-invocation argument. `PlanArgum
 **`NSchemaApplicationOptions`** (`NSchema`) — how the application is constructed and run. Passed to `CreateBuilder(options)` and registered as a singleton; its values are fixed at build time (`init`-only):
 - `Args` / `ApplicationName` / `EnvironmentName` / `ContentRootPath` — consumed by the builder constructor to configure the underlying `HostApplicationBuilder`.
 - `ExceptionBehavior` — `ReportAndThrow` (default) or `Throw`. Read by `NSchemaApplication` when an operation throws: `ReportAndThrow` reports via the resolved `IOperationReporter` before rethrowing, `Throw` just rethrows.
+- `Reporter` — the `IOperationReporter` key to render with (defaults to `DefaultOperationReporter.ReporterName`, `"default"`); resolved through `IKeyedResolver<IOperationReporter>.Current`.
 
 The operation to run is **not** an option — it's chosen by which method you call on the built `NSchemaApplication` (`Plan()` / `Apply()` / `Refresh()` / `Import()` / `Validate()` / `Destroy()`). Each method has a no-arguments overload and an overload taking that operation's arguments record (e.g. `Import(ImportArguments)`).
-
-**`OperationOptions`** (`NSchema.Operations`) — output:
-- `Reporter` — the `IOperationReporter` key to render with (defaults to `DefaultOperationReporter.ReporterName`, `"default"`). Configured via `WithOperationOptions(o => o.Reporter = ...)`; resolved through `IKeyedResolver<IOperationReporter>.Current`.
 
 **`SqlOptions`** (`NSchema.Sql`) — SQL generation and execution:
 - `Dialect` — the `ISqlGenerator` dialect to generate (must be set explicitly when a generator is registered). Configured via `WithDialect(...)`; resolved through `IKeyedResolver<ISqlGenerator>.Current`.
