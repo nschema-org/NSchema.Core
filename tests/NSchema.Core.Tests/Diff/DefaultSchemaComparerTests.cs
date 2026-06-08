@@ -275,10 +275,10 @@ public class DefaultSchemaComparerTests
     }
 
     [Fact]
-    public void Compare_TableRenamedAndOldNameReused_RenamesAndCreatesWithoutDropping()
+    public void Compare_TableRenamedButOldNameStillDeclared_Throws()
     {
-        // 'people' is renamed to 'users', and a brand-new 'people' table reuses the freed-up name in the same diff.
-        // The single current 'people' must be claimed by the rename only; the new 'people' must be an Add, not a Modify.
+        // 'people' is renamed to 'users' while 'people' is also still declared. This is indistinguishable from
+        // "keep people, add users" and cannot be ordered safely, so it must be rejected rather than guessed.
         var current = Db(SchemaDefinition.Create("app", tables:
         [
             Table.Create("people", columns: [Column.Create("id", SqlType.Int)]),
@@ -289,22 +289,33 @@ public class DefaultSchemaComparerTests
             Table.Create("people", columns: [Column.Create("id", SqlType.Int)]),
         ]));
 
-        var tables = _sut.Compare(current, desired).Schemas.ShouldHaveSingleItem().Tables;
-
-        var renamed = tables.Single(t => t.Name == "users");
-        renamed.Kind.ShouldBe(ChangeKind.Modify);
-        renamed.RenamedFrom.ShouldBe("people");
-
-        var created = tables.Single(t => t.Name == "people");
-        created.Kind.ShouldBe(ChangeKind.Add);
-
-        tables.ShouldNotContain(t => t.Kind == ChangeKind.Remove);
+        var ex = Should.Throw<InvalidOperationException>(() => _sut.Compare(current, desired));
+        ex.Message.ShouldContain("app.users");
+        ex.Message.ShouldContain("people");
     }
 
     [Fact]
-    public void Compare_ColumnRenamedAndOldNameReused_RenamesAndCreatesWithoutDropping()
+    public void Compare_TableRenamedOntoExistingName_Throws()
     {
-        var renamedThenReused = DiffTable(
+        // Renaming 'a' to 'b' while a distinct 'b' already exists collides on the target name.
+        var current = Db(SchemaDefinition.Create("app", tables:
+        [
+            Table.Create("a", columns: [Column.Create("id", SqlType.Int)]),
+            Table.Create("b", columns: [Column.Create("id", SqlType.Int)]),
+        ]));
+        var desired = Db(SchemaDefinition.Create("app", tables:
+        [
+            Table.Create("b", oldName: "a", columns: [Column.Create("id", SqlType.Int)]),
+        ]));
+
+        var ex = Should.Throw<InvalidOperationException>(() => _sut.Compare(current, desired));
+        ex.Message.ShouldContain("app.b");
+    }
+
+    [Fact]
+    public void Compare_ColumnRenamedButOldNameStillDeclared_Throws()
+    {
+        var act = () => DiffTable(
             Table.Create("t", columns: [Column.Create("mail", SqlType.Text)]),
             Table.Create("t", columns:
             [
@@ -312,10 +323,21 @@ public class DefaultSchemaComparerTests
                 Column.Create("mail", SqlType.Text),
             ]));
 
-        var columns = renamedThenReused.ShouldNotBeNull().Columns;
-        columns.Single(c => c.Name == "email").RenamedFrom.ShouldBe("mail");
-        columns.Single(c => c.Name == "mail").Kind.ShouldBe(ChangeKind.Add);
-        columns.ShouldNotContain(c => c.Kind == ChangeKind.Remove);
+        var ex = act.ShouldThrow<InvalidOperationException>();
+        ex.Message.ShouldContain("app.t.email");
+    }
+
+    [Fact]
+    public void Compare_PlainRename_IsNotTreatedAsAmbiguous()
+    {
+        // A rename whose old name is gone and whose new name is free is unambiguous and must still work.
+        var table = DiffTable(
+            Table.Create("people", columns: [Column.Create("id", SqlType.Int)]),
+            Table.Create("users", oldName: "people", columns: [Column.Create("id", SqlType.Int)]));
+
+        table.ShouldNotBeNull();
+        table.Kind.ShouldBe(ChangeKind.Modify);
+        table.RenamedFrom.ShouldBe("people");
     }
 
     [Fact]

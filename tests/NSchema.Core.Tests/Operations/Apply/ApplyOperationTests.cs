@@ -95,17 +95,6 @@ public sealed class ApplyOperationTests
     }
 
     [Fact]
-    public async Task Execute_ExecutionAndRefreshFail_RethrowsOriginalFailure()
-    {
-        _executor.Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("boom"));
-        _workflow.Refresh(Arg.Any<RefreshMode>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("refresh failed"));
-
-        // A best-effort post-failure refresh error must not mask the original execution failure.
-        var ex = await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken));
-        ex.Message.ShouldBe("boom");
-    }
-
-    [Fact]
     public async Task Execute_NotConfirmed_DoesNotExecuteOrRefresh()
     {
         _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(false);

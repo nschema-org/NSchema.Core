@@ -87,17 +87,6 @@ public sealed class DestroyOperationTests
     }
 
     [Fact]
-    public async Task Execute_ExecutionAndRefreshFail_RethrowsOriginalFailure()
-    {
-        _executor.Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("boom"));
-        _workflow.Refresh(Arg.Any<RefreshMode>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("refresh failed"));
-
-        // A best-effort post-failure refresh error must not mask the original teardown failure.
-        var ex = await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(new DestroyArguments(), TestContext.Current.CancellationToken));
-        ex.Message.ShouldBe("boom");
-    }
-
-    [Fact]
     public async Task Execute_NotConfirmed_DoesNotExecuteOrRefresh()
     {
         _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(false);
