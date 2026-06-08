@@ -1,8 +1,9 @@
-using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NSchema.Hosting;
+using NSchema.Operations;
+using NSchema.Resolution;
 using HostOptions = NSchema.Hosting.HostOptions;
 
 namespace NSchema;
@@ -10,7 +11,7 @@ namespace NSchema;
 /// <summary>
 /// The main entry point for an NSchema application.
 /// </summary>
-public sealed class NSchemaApplication : IHost
+public sealed class NSchemaApplication : IDisposable
 {
     private bool _hasRun;
     private readonly IHost _host;
@@ -20,32 +21,17 @@ public sealed class NSchemaApplication : IHost
         _host = host;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// The application's service provider.
+    /// </summary>
     public IServiceProvider Services => _host.Services;
 
-    /// <inheritdoc />
-    public Task StartAsync(CancellationToken cancellationToken)
-    {
-        if (_hasRun)
-        {
-            throw new InvalidOperationException("The application can only be started once.");
-        }
-        _hasRun = true;
-        return _host.StartAsync(cancellationToken);
-    }
-
-    /// <inheritdoc />
-    public async Task StopAsync(CancellationToken cancellationToken)
-    {
-        await _host.StopAsync(cancellationToken);
-
-        // The migration runs as a background service, so unhandled exceptions terminate the host but aren't surfaced.
-        // We rethrow it here with its original stacktrace, so it isn't lost.
-        if (_host.Services.GetRequiredService<OperationResult>().Exception is { } failure)
-        {
-            ExceptionDispatchInfo.Throw(failure);
-        }
-    }
+    /// <summary>
+    /// Runs the operation configured via <see cref="NSchemaApplicationBuilder.RunOperation"/> (defaults to <see cref="HostOperation.Plan"/>).
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    public Task RunAsync(CancellationToken cancellationToken = default) =>
+        RunOperation(_host.Services.GetRequiredService<IOptions<HostOptions>>().Value.Operation, cancellationToken);
 
     /// <summary>
     /// Computes and renders the plan without applying it to the target.
@@ -83,16 +69,33 @@ public sealed class NSchemaApplication : IHost
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     public Task Destroy(CancellationToken cancellationToken = default) => RunOperation(HostOperation.Destroy, cancellationToken);
 
-    private Task RunOperation(HostOperation operation, CancellationToken cancellationToken)
+    private async Task RunOperation(HostOperation operation, CancellationToken cancellationToken)
     {
-        _host.Services.GetRequiredService<IOptions<HostOptions>>().Value.Operation = operation;
-        return this.RunAsync(cancellationToken);
+        if (_hasRun)
+        {
+            throw new InvalidOperationException("The application can only be run once.");
+        }
+        _hasRun = true;
+
+        var op = _host.Services.GetRequiredKeyedService<IOperation>(operation);
+        try
+        {
+            await op.Execute(cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Surface the exception via the reporter (when configured to) before letting it propagate to the caller.
+            if (_host.Services.GetRequiredService<IOptions<HostOptions>>().Value.ExceptionBehavior == ExceptionBehavior.ReportAndThrow)
+            {
+                _host.Services.GetRequiredService<IKeyedResolver<IOperationReporter>>().Current.ReportException(ex);
+            }
+            throw;
+        }
     }
 
     /// <inheritdoc />
     public void Dispose()
     {
-        GC.SuppressFinalize(this);
         _host.Dispose();
     }
 

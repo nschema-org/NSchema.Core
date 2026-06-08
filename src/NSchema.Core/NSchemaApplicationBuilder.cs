@@ -113,7 +113,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
 
         // Operations
-        services.TryAddSingleton<OperationResult>();
         services.TryAddSingleton<IMigrationHelper, MigrationHelper>();
         services.TryAddSingleton<IOperationConfirmation, AutoApproveConfirmation>();
         services.TryAddSingleton<IKeyedResolver<IOperationReporter>>(sp => new DefaultKeyedResolver<IOperationReporter, OperationOptions>(sp, o => o.Reporter));
@@ -136,8 +135,5 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
         // State
         services.TryAddSingleton<ISchemaStateSerializer, DefaultSchemaStateSerializer>();
-
-        // This is the service responsible for running the migration.
-        services.AddHostedService<NSchemaHost>();
     }
 }
