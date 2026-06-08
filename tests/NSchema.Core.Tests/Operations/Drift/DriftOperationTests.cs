@@ -1,40 +1,59 @@
+using NSchema.Diff;
+using NSchema.Diff.Model;
 using NSchema.Operations;
 using NSchema.Operations.Drift;
-using NSchema.Operations.Services;
+using NSchema.Schema;
+using NSchema.Schema.Model;
 
 namespace NSchema.Tests.Operations.Drift;
 
 public sealed class DriftOperationTests
 {
-    private readonly IMigrationWorkflow _workflow = Substitute.For<IMigrationWorkflow>();
+    private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
+    private readonly ISchemaComparer _comparer = Substitute.For<ISchemaComparer>();
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
 
-    private DriftOperation BuildSut() => new(_workflow, Helpers.TestReporters.ResolverFor(_reporter));
+    private DriftOperation BuildSut() => new(_currentProvider, Helpers.TestReporters.ResolverFor(_reporter), _comparer);
 
-    [Fact]
-    public async Task Execute_DelegatesToWorkflowDriftWithScope()
+    public DriftOperationTests()
     {
-        var schemas = new[] { "app" };
-
-        await BuildSut().Execute(new DriftArguments { Schemas = schemas }, TestContext.Current.CancellationToken);
-
-        await _workflow.Received(1).Drift(schemas, Arg.Any<CancellationToken>());
+        _currentProvider
+            .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(DatabaseSchema.Create([]));
+        _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(new DatabaseDiff([]));
     }
 
     [Fact]
-    public async Task Execute_WhenDrifted_ReportsDriftDetected()
+    public async Task Execute_ComparesRecordedOfflineStateAgainstLiveOnlineSchema()
     {
-        _workflow.Drift(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(true);
+        var recorded = DatabaseSchema.Create([SchemaDefinition.Create("recorded")]);
+        var live = DatabaseSchema.Create([SchemaDefinition.Create("live")]);
+        var schemas = new[] { "app" };
+        _currentProvider.GetSchema(SchemaSourceMode.Offline, schemas, Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(recorded);
+        _currentProvider.GetSchema(SchemaSourceMode.Online, schemas, Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(live);
+
+        await BuildSut().Execute(new DriftArguments { Schemas = schemas }, TestContext.Current.CancellationToken);
+
+        // Diff direction is recorded -> live, so drift reads as how the live database differs from what we recorded.
+        _comparer.Received(1).Compare(recorded, live);
+    }
+
+    [Fact]
+    public async Task Execute_WhenDiffHasChanges_ReportsDriftAndTheDiff()
+    {
+        var diff = new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add, null, null, [], [])]);
+        _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(diff);
 
         await BuildSut().Execute(new DriftArguments(), TestContext.Current.CancellationToken);
 
+        _reporter.Received(1).ReportDiff(diff);
         _reporter.Received().Info("Drift detected.");
     }
 
     [Fact]
-    public async Task Execute_WhenNotDrifted_ReportsNoDrift()
+    public async Task Execute_WhenDiffIsEmpty_ReportsNoDrift()
     {
-        _workflow.Drift(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(false);
+        _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(new DatabaseDiff([]));
 
         await BuildSut().Execute(new DriftArguments(), TestContext.Current.CancellationToken);
 
