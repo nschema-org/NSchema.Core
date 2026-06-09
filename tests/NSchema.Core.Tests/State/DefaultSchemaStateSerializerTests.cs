@@ -110,4 +110,43 @@ public sealed class DefaultSchemaStateSerializerTests
         // Assert
         act.ShouldThrow<NotSupportedException>();
     }
+
+    [Fact]
+    public void Deserialize_MalformedJson_ThrowsStateDeserializationException()
+    {
+        // Arrange: not valid JSON at all.
+        var act = () => _sut.Deserialize(Encoding.UTF8.GetBytes("{ not json"));
+
+        // Act + Assert: a parse failure surfaces as the dedicated exception with the cause preserved.
+        var ex = act.ShouldThrow<StateDeserializationException>();
+        ex.InnerException.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void Deserialize_StructurallyValidButInvalidModel_ThrowsStateDeserializationException()
+    {
+        // Arrange: well-formed JSON whose column type has no name, so SqlType's constructor would NRE
+        // deep inside the parameterized-constructor converter. The dedicated exception wraps that.
+        const string json =
+            """
+            {
+              "version": 1,
+              "schema": {
+                "schemas": [
+                  { "name": "app", "tables": [
+                    { "name": "t", "columns": [ { "name": "c", "type": {} } ] }
+                  ] }
+                ],
+                "droppedSchemas": []
+              }
+            }
+            """;
+
+        // Act
+        var act = () => _sut.Deserialize(Encoding.UTF8.GetBytes(json));
+
+        // Assert: the caller gets a meaningful exception instead of a bare NullReferenceException.
+        var ex = act.ShouldThrow<StateDeserializationException>();
+        ex.InnerException.ShouldNotBeNull();
+    }
 }
