@@ -1,4 +1,5 @@
 using NSchema.Operations.Services;
+using NSchema.Plan.PlanFile;
 using NSchema.Resolution;
 using NSchema.Sql;
 
@@ -7,7 +8,8 @@ namespace NSchema.Operations.PlanDestroy;
 internal sealed class PlanDestroyOperation(
     IKeyedResolver<IOperationReporter> reporters,
     IMigrationWorkflow workflow,
-    IKeyedResolver<ISqlGenerator> sqlGenerator
+    IKeyedResolver<ISqlGenerator> sqlGenerator,
+    IPlanFileWriter handler
 ) : IPlanDestroyOperation
 {
     public async Task Execute(PlanDestroyArguments arguments, CancellationToken cancellationToken = default)
@@ -19,11 +21,29 @@ internal sealed class PlanDestroyOperation(
         var plan = await workflow.PlanDestroy(cancellationToken);
         if (!sqlGenerator.HasCurrent)
         {
+            if (arguments.OutFile is not null)
+            {
+                throw new InvalidOperationException("Saving a plan to a file requires a database provider to generate SQL, but none is registered.");
+            }
+
             reporters.Current.Info("Unable to generate SQL preview. No provider is configured.");
             return;
         }
 
         var sqlPlan = sqlGenerator.Current.Generate(plan);
         reporters.Current.ReportSqlPlan(sqlPlan);
+
+        if (arguments.OutFile is not null)
+        {
+            var envelope = new PlanFileEnvelope(
+                PlanFileEnvelope.CurrentVersion,
+                plan,
+                sqlPlan,
+                DateTimeOffset.UtcNow
+            );
+
+            await handler.Write(arguments.OutFile, envelope, cancellationToken);
+            reporters.Current.Info($"Planned destroy saved to {arguments.OutFile}. Apply it later with this file to execute exactly this plan.");
+        }
     }
 }

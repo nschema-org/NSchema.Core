@@ -21,6 +21,7 @@ using NSchema.Operations.Services;
 using NSchema.Operations.Show;
 using NSchema.Operations.Validate;
 using NSchema.Plan;
+using NSchema.Plan.PlanFile;
 using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Schema.Policies;
@@ -132,6 +133,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Plan
         services.TryAddSingleton<IPlanLinearizer, DefaultPlanLinearizer>();
         services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
+        services.TryAddSingleton<IPlanFileWriter, PlanFileWriter>();
 
         // Schemas
         services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();

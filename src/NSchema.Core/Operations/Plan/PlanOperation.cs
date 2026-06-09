@@ -1,4 +1,5 @@
 using NSchema.Operations.Services;
+using NSchema.Plan.PlanFile;
 using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Sql;
@@ -8,7 +9,8 @@ namespace NSchema.Operations.Plan;
 internal sealed class PlanOperation(
     IKeyedResolver<IOperationReporter> reporters,
     IMigrationWorkflow workflow,
-    IKeyedResolver<ISqlGenerator> sqlGenerator
+    IKeyedResolver<ISqlGenerator> sqlGenerator,
+    IPlanFileWriter handler
 ) : IPlanOperation
 {
     public async Task Execute(PlanArguments arguments, CancellationToken cancellationToken = default)
@@ -17,11 +19,28 @@ internal sealed class PlanOperation(
         var plan = await workflow.Plan(SchemaSourceMode.Offline, required: false, arguments.Schemas, cancellationToken);
         if (!sqlGenerator.HasCurrent)
         {
+            if (arguments.OutFile is not null)
+            {
+                throw new InvalidOperationException("Saving a plan to a file requires a database provider to generate SQL, but none is registered.");
+            }
+
             reporters.Current.Info("Unable to generate SQL preview. No provider is configured.");
             return;
         }
 
         var sqlPlan = sqlGenerator.Current.Generate(plan);
         reporters.Current.ReportSqlPlan(sqlPlan);
+
+        if (arguments.OutFile is not null)
+        {
+            var envelope = new PlanFileEnvelope(
+                PlanFileEnvelope.CurrentVersion,
+                plan,
+                sqlPlan,
+                DateTimeOffset.UtcNow
+            );
+            await handler.Write(arguments.OutFile, envelope, cancellationToken);
+            reporters.Current.Info($"Plan saved to {arguments.OutFile}. Apply it later with this file to execute exactly this plan.");
+        }
     }
 }
