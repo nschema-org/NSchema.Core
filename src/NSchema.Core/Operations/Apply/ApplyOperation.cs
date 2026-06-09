@@ -1,5 +1,6 @@
 using NSchema.Operations.Confirmation;
 using NSchema.Operations.Services;
+using NSchema.Plan.PlanFile;
 using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Sql;
@@ -13,6 +14,7 @@ internal sealed class ApplyOperation(
     IMigrationWorkflow workflow,
     IKeyedResolver<ISqlGenerator> sqlGenerators,
     IStateLock stateLock,
+    IPlanFileWriter planFile,
     ISqlExecutor? sqlExecutor = null
 ) : IApplyOperation
 {
@@ -21,6 +23,12 @@ internal sealed class ApplyOperation(
         if (!sqlGenerators.HasCurrent || sqlExecutor is null)
         {
             throw new InvalidOperationException("Applying a migration requires a database provider to generate and execute SQL, but none is registered.");
+        }
+
+        if (arguments.PlanFile is not null)
+        {
+            await ApplyFromFile(arguments.PlanFile, sqlExecutor, cancellationToken);
+            return;
         }
 
         reporters.Current.Info("Applying schema migration. Changes will be applied to the database.");
@@ -48,6 +56,44 @@ internal sealed class ApplyOperation(
         {
             await sqlExecutor.Execute(sqlPlan, cancellationToken);
             reporters.Current.Info("Migration completed successfully.");
+        }
+        finally
+        {
+            // Capture the resulting state when a store is configured; a no-op otherwise. This runs even when
+            // execution failed partway (e.g. an un-transacted plan) so the store reflects what was actually applied.
+            await workflow.Refresh(RefreshMode.Optional, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Applies a previously saved plan file. The plan is not recomputed: the SQL recorded in the file is what runs,
+    /// so what was reviewed is exactly what is applied. A saved teardown plan flows through here too, switching the
+    /// lock label and confirmation prompt on the file's destroy flag.
+    /// </summary>
+    private async Task ApplyFromFile(string path, ISqlExecutor sqlExecutor, CancellationToken cancellationToken)
+    {
+        var envelope = await planFile.Read(path, cancellationToken);
+
+        reporters.Current.Info($"Applying saved plan from {path}. Changes will be applied to the database.");
+
+        // A saved teardown takes the destroy lock and confirmation; a saved migration takes apply's.
+        await using var stateLockHandle = await stateLock.Acquire(new StateLockRequest("apply"), cancellationToken);
+
+        reporters.Current.ReportPlan(envelope.Plan);
+        reporters.Current.ReportSqlPlan(envelope.Sql);
+
+        if (!await confirmation.Confirm(new ApplyConfirmationRequest(envelope.Plan), cancellationToken))
+        {
+            reporters.Current.Info("Apply cancelled. No changes were made to the database.");
+            return;
+        }
+
+        reporters.Current.Info($"Applying plan...");
+
+        try
+        {
+            await sqlExecutor.Execute(envelope.Sql, cancellationToken);
+            reporters.Current.Info($"Plan applied successfully.");
         }
         finally
         {
