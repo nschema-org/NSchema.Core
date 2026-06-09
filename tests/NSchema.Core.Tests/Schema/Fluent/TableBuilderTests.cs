@@ -142,13 +142,14 @@ public sealed class TableBuilderTests
         // Arrange
 
         // Act
-        var result = _sut.Unique("users_email_uq", ["email"]);
+        var result = _sut.Unique("users_email_uq", ["email"], comment: "external code");
 
         // Assert
         result.ShouldBeSameAs(_sut);
         var unique = _sut.Build().UniqueConstraints.ShouldHaveSingleItem();
         unique.Name.ShouldBe("users_email_uq");
         unique.ColumnNames.ShouldBe(["email"]);
+        unique.Comment.ShouldBe("external code");
     }
 
     [Fact]
@@ -157,13 +158,24 @@ public sealed class TableBuilderTests
         // Arrange
 
         // Act
-        var result = _sut.Check("users_age_chk", "age >= 0");
+        var result = _sut.Check("users_age_chk", "age >= 0", comment: "no negatives");
 
         // Assert
         result.ShouldBeSameAs(_sut);
         var check = _sut.Build().CheckConstraints.ShouldHaveSingleItem();
         check.Name.ShouldBe("users_age_chk");
         check.Expression.ShouldBe("age >= 0");
+        check.Comment.ShouldBe("no negatives");
+    }
+
+    [Fact]
+    public void ForeignKey_Comment_SetsCommentOnBuiltForeignKey()
+    {
+        // Arrange / Act
+        _sut.ForeignKey("fk", ["user_id"], "public", "users", ["id"], f => f.Comment("owning user"));
+
+        // Assert
+        _sut.Build().ForeignKeys.ShouldHaveSingleItem().Comment.ShouldBe("owning user");
     }
 
     [Fact]

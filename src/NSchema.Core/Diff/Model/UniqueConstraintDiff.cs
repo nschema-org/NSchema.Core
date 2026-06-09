@@ -8,4 +8,5 @@ namespace NSchema.Diff.Model;
 /// <param name="Kind">The change to the unique constraint.</param>
 /// <param name="Name">The unique constraint name.</param>
 /// <param name="Definition">The unique constraint definition for an added constraint; otherwise <see langword="null"/>.</param>
-public sealed record UniqueConstraintDiff(ChangeKind Kind, string Name, UniqueConstraint? Definition);
+/// <param name="Comment">The change to the constraint's comment, if any (carried on a comment-only <see cref="ChangeKind.Modify"/>).</param>
+public sealed record UniqueConstraintDiff(ChangeKind Kind, string Name, UniqueConstraint? Definition, ValueChange<string>? Comment = null);

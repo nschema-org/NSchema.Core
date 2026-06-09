@@ -7,8 +7,9 @@ namespace NSchema.Schema.Model;
 /// </summary>
 /// <param name="Name">The name of the primary key constraint.</param>
 /// <param name="ColumnNames">A list of column names that are part of the primary key constraint.</param>
+/// <param name="Comment">An optional comment or description for the constraint.</param>
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public record PrimaryKey(string Name, IReadOnlyList<string> ColumnNames)
+public record PrimaryKey(string Name, IReadOnlyList<string> ColumnNames, string? Comment = null)
 {
     /// <summary>
     /// A list of column names that are part of the primary key constraint.

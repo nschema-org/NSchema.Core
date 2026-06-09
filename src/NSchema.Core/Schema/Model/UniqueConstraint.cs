@@ -7,8 +7,9 @@ namespace NSchema.Schema.Model;
 /// </summary>
 /// <param name="Name">The name of the unique constraint.</param>
 /// <param name="ColumnNames">A list of column names that are part of the unique constraint.</param>
+/// <param name="Comment">An optional comment or description for the constraint.</param>
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public record UniqueConstraint(string Name, IReadOnlyList<string> ColumnNames)
+public record UniqueConstraint(string Name, IReadOnlyList<string> ColumnNames, string? Comment = null)
 {
     /// <summary>
     /// A list of column names that are part of the unique constraint.

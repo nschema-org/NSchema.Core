@@ -63,10 +63,11 @@ public sealed class TableBuilder
     /// </summary>
     /// <param name="name">The name of the primary key constraint to define for the table.</param>
     /// <param name="columnNames">A list of column names that make up the primary key constraint for the table.</param>
+    /// <param name="comment">An optional comment or description for the primary key constraint.</param>
     /// <returns>The current <see cref="TableBuilder"/> instance, allowing for method chaining.</returns>
-    public TableBuilder PrimaryKey(string name, IReadOnlyList<string> columnNames)
+    public TableBuilder PrimaryKey(string name, IReadOnlyList<string> columnNames, string? comment = null)
     {
-        _primaryKey = new PrimaryKey(name, columnNames);
+        _primaryKey = new PrimaryKey(name, columnNames, comment);
         return this;
     }
 
@@ -111,10 +112,11 @@ public sealed class TableBuilder
     /// </summary>
     /// <param name="name">The name of the unique constraint to define.</param>
     /// <param name="columnNames">A list of column names that make up the unique constraint.</param>
+    /// <param name="comment">An optional comment or description for the unique constraint.</param>
     /// <returns>The current <see cref="TableBuilder"/> instance, allowing for method chaining.</returns>
-    public TableBuilder Unique(string name, IReadOnlyList<string> columnNames)
+    public TableBuilder Unique(string name, IReadOnlyList<string> columnNames, string? comment = null)
     {
-        _uniqueConstraints.Add(new UniqueConstraint(name, columnNames));
+        _uniqueConstraints.Add(new UniqueConstraint(name, columnNames, comment));
         return this;
     }
 
@@ -123,10 +125,11 @@ public sealed class TableBuilder
     /// </summary>
     /// <param name="name">The name of the check constraint to define.</param>
     /// <param name="expression">The SQL boolean expression the constraint enforces.</param>
+    /// <param name="comment">An optional comment or description for the check constraint.</param>
     /// <returns>The current <see cref="TableBuilder"/> instance, allowing for method chaining.</returns>
-    public TableBuilder Check(string name, string expression)
+    public TableBuilder Check(string name, string expression, string? comment = null)
     {
-        _checkConstraints.Add(new CheckConstraint(name, expression));
+        _checkConstraints.Add(new CheckConstraint(name, expression, comment));
         return this;
     }
 

@@ -39,7 +39,7 @@ public static class TestData
                     Table.Create(
                         name: "users",
                         oldName: "members",
-                        primaryKey: new PrimaryKey("users_pkey", ["id"]),
+                        primaryKey: new PrimaryKey("users_pkey", ["id"], Comment: "surrogate key"),
                         comment: "all users",
                         columns:
                         [
@@ -53,15 +53,15 @@ public static class TestData
                         foreignKeys:
                         [
                             ForeignKey.Create("users_org_fk", ["org_id"], "app", "orgs", ["id"],
-                                ReferentialAction.Cascade, ReferentialAction.SetNull),
+                                ReferentialAction.Cascade, ReferentialAction.SetNull, comment: "owning org"),
                         ],
                         uniqueConstraints:
                         [
-                            new UniqueConstraint("users_code_uq", ["code"]),
+                            new UniqueConstraint("users_code_uq", ["code"], Comment: "external code"),
                         ],
                         checkConstraints:
                         [
-                            new CheckConstraint("users_balance_chk", "balance >= 0"),
+                            new CheckConstraint("users_balance_chk", "balance >= 0", Comment: "no overdraft"),
                         ],
                         indexes:
                         [

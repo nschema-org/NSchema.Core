@@ -8,4 +8,5 @@ namespace NSchema.Diff.Model;
 /// <param name="Kind">The change to the check constraint.</param>
 /// <param name="Name">The check constraint name.</param>
 /// <param name="Definition">The check constraint definition for an added constraint; otherwise <see langword="null"/>.</param>
-public sealed record CheckConstraintDiff(ChangeKind Kind, string Name, CheckConstraint? Definition);
+/// <param name="Comment">The change to the constraint's comment, if any (carried on a comment-only <see cref="ChangeKind.Modify"/>).</param>
+public sealed record CheckConstraintDiff(ChangeKind Kind, string Name, CheckConstraint? Definition, ValueChange<string>? Comment = null);

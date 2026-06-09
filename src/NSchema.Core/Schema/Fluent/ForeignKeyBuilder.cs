@@ -14,6 +14,7 @@ public sealed class ForeignKeyBuilder
     private readonly IReadOnlyList<string> _referencedColumns;
     private ReferentialAction _onDelete = ReferentialAction.NoAction;
     private ReferentialAction _onUpdate = ReferentialAction.NoAction;
+    private string? _comment;
 
     internal ForeignKeyBuilder(
         string name,
@@ -44,5 +45,12 @@ public sealed class ForeignKeyBuilder
     /// <returns>The current <see cref="ForeignKeyBuilder"/> instance, allowing for method chaining.</returns>
     public ForeignKeyBuilder OnUpdate(ReferentialAction action) { _onUpdate = action; return this; }
 
-    internal ForeignKey Build() => new(_name, _columns, _referencedSchema, _referencedTable, _referencedColumns, _onDelete, _onUpdate);
+    /// <summary>
+    /// Adds an optional comment or description to the foreign key constraint.
+    /// </summary>
+    /// <param name="comment">The comment or description to associate with the foreign key constraint.</param>
+    /// <returns>The current <see cref="ForeignKeyBuilder"/> instance, allowing for method chaining.</returns>
+    public ForeignKeyBuilder Comment(string? comment) { _comment = comment; return this; }
+
+    internal ForeignKey Build() => new(_name, _columns, _referencedSchema, _referencedTable, _referencedColumns, _onDelete, _onUpdate, _comment);
 }
