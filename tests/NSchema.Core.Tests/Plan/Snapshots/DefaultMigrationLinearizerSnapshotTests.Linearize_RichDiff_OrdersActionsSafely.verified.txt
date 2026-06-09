@@ -111,6 +111,46 @@
     }
   },
   {
+    Type: AddUniqueConstraint,
+    Action: {
+      SchemaName: app,
+      TableName: users,
+      UniqueConstraint: {
+        Name: users_email_uq,
+        ColumnNames: [
+          email
+        ]
+      },
+      IsDestructive: false
+    }
+  },
+  {
+    Type: AddUniqueConstraint,
+    Action: {
+      SchemaName: app,
+      TableName: orders,
+      UniqueConstraint: {
+        Name: orders_code_uq,
+        ColumnNames: [
+          code
+        ]
+      },
+      IsDestructive: false
+    }
+  },
+  {
+    Type: AddCheckConstraint,
+    Action: {
+      SchemaName: app,
+      TableName: orders,
+      CheckConstraint: {
+        Name: orders_total_chk,
+        Expression: total >= 0
+      },
+      IsDestructive: false
+    }
+  },
+  {
     Type: CreateIndex,
     Action: {
       SchemaName: app,

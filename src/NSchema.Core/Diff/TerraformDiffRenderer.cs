@@ -68,16 +68,32 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
 
         // A new table renders its columns as a block, separated from the constraint/index/grant block by a
         // blank line. An existing table lists its column changes inline with everything that follows.
-        var hasTrailingBlock = table.Constraints.Count > 0 || table.Indexes.Count > 0 || table.Grants.Count > 0;
+        var hasTrailingBlock = table.PrimaryKey.Count > 0 || table.ForeignKeys.Count > 0
+            || table.UniqueConstraints.Count > 0 || table.Checks.Count > 0
+            || table.Indexes.Count > 0 || table.Grants.Count > 0;
         if (table.Kind == ChangeKind.Add && table.Columns.Count > 0 && hasTrailingBlock)
         {
             sb.AppendLine();
         }
 
-        foreach (var constraint in table.Constraints)
+        foreach (var pk in table.PrimaryKey)
         {
-            var label = constraint.Type == ConstraintType.PrimaryKey ? "primary key" : "foreign key";
-            AppendDetail(sb, constraint.Kind, $"{label} {constraint.Name}");
+            AppendDetail(sb, pk.Kind, ConstraintText("primary key", pk.Name, pk.Kind, pk.Comment));
+        }
+
+        foreach (var fk in table.ForeignKeys)
+        {
+            AppendDetail(sb, fk.Kind, ConstraintText("foreign key", fk.Name, fk.Kind, fk.Comment));
+        }
+
+        foreach (var unique in table.UniqueConstraints)
+        {
+            AppendDetail(sb, unique.Kind, ConstraintText("unique constraint", unique.Name, unique.Kind, unique.Comment));
+        }
+
+        foreach (var check in table.Checks)
+        {
+            AppendDetail(sb, check.Kind, ConstraintText("check constraint", check.Name, check.Kind, check.Comment));
         }
 
         foreach (var index in table.Indexes)
@@ -199,6 +215,12 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
     }
 
     private string FormatComment(string? comment) => comment is null ? "<none>" : $"\"{comment}\"";
+
+    // A constraint Modify is always a comment-only change (structural changes are Remove + Add).
+    private string ConstraintText(string label, string name, ChangeKind kind, ValueChange<string>? comment) =>
+        kind == ChangeKind.Modify
+            ? $"{label} {name} comment: {FormatComment(comment?.Old)} → {FormatComment(comment?.New)}"
+            : $"{label} {name}";
 
     private string FormatDefault(string? value) => value ?? "<none>";
 

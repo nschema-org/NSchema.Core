@@ -57,7 +57,8 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
         {
             sb.Append(Indent).Append(Indent)
                 .Append("primary key ").Append(pk.Name)
-                .Append(" (").Append(string.Join(", ", pk.ColumnNames)).AppendLine(")");
+                .Append(" (").Append(string.Join(", ", pk.ColumnNames)).Append(')')
+                .AppendLine(CommentSuffix(pk.Comment));
         }
 
         foreach (var fk in table.ForeignKeys)
@@ -66,7 +67,24 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
                 .Append("foreign key ").Append(fk.Name)
                 .Append(" (").Append(string.Join(", ", fk.ColumnNames)).Append(") -> ")
                 .Append(fk.ReferencedSchema).Append('.').Append(fk.ReferencedTable)
-                .Append(" (").Append(string.Join(", ", fk.ReferencedColumnNames)).AppendLine(")");
+                .Append(" (").Append(string.Join(", ", fk.ReferencedColumnNames)).Append(')')
+                .AppendLine(CommentSuffix(fk.Comment));
+        }
+
+        foreach (var unique in table.UniqueConstraints)
+        {
+            sb.Append(Indent).Append(Indent)
+                .Append("unique ").Append(unique.Name)
+                .Append(" (").Append(string.Join(", ", unique.ColumnNames)).Append(')')
+                .AppendLine(CommentSuffix(unique.Comment));
+        }
+
+        foreach (var check in table.CheckConstraints)
+        {
+            sb.Append(Indent).Append(Indent)
+                .Append("check ").Append(check.Name)
+                .Append(" (").Append(check.Expression).Append(')')
+                .AppendLine(CommentSuffix(check.Comment));
         }
 
         foreach (var index in table.Indexes)

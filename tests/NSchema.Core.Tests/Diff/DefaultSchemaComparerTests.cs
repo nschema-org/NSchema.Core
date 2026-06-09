@@ -136,14 +136,18 @@ public class DefaultSchemaComparerTests
                 columns: columns,
                 primaryKey: new PrimaryKey("orders_pkey", ["id"]),
                 foreignKeys: [ForeignKey.Create("orders_user_fk", ["user_id"], "app", "users", ["id"])],
+                uniqueConstraints: [new UniqueConstraint("orders_user_uq", ["user_id"])],
+                checkConstraints: [new CheckConstraint("orders_id_chk", "id > 0")],
                 indexes: [TableIndex.Create("orders_user_ix", ["user_id"])],
                 grants: [new TableGrant("reader", TablePrivilege.Insert)]),
         ]));
 
         var table = _sut.Compare(current, desired).Schemas.Single().Tables.Single();
 
-        table.Constraints.Select(c => (c.Type, c.Name)).ShouldBe(
-            [(ConstraintType.PrimaryKey, "orders_pkey"), (ConstraintType.ForeignKey, "orders_user_fk")]);
+        table.PrimaryKey.Select(c => (c.Kind, c.Name)).ShouldBe([(ChangeKind.Add, "orders_pkey")]);
+        table.ForeignKeys.Select(c => (c.Kind, c.Name)).ShouldBe([(ChangeKind.Add, "orders_user_fk")]);
+        table.UniqueConstraints.Select(c => (c.Kind, c.Name)).ShouldBe([(ChangeKind.Add, "orders_user_uq")]);
+        table.Checks.Select(c => (c.Kind, c.Name)).ShouldBe([(ChangeKind.Add, "orders_id_chk")]);
         table.Indexes.ShouldHaveSingleItem().Name.ShouldBe("orders_user_ix");
         var grant = table.Grants.ShouldHaveSingleItem();
         grant.Role.ShouldBe("reader");
@@ -362,7 +366,7 @@ public class DefaultSchemaComparerTests
         var table = _sut.Compare(Db(SchemaDefinition.Create("app")),
             Db(SchemaDefinition.Create("app", tables: [desired]))).Schemas.Single().Tables.Single();
 
-        table.Constraints.ShouldHaveSingleItem().ShouldBe(new ConstraintDiff(ChangeKind.Add, ConstraintType.ForeignKey, "orders_user_fk", null,
+        table.ForeignKeys.ShouldHaveSingleItem().ShouldBe(new ForeignKeyDiff(ChangeKind.Add, "orders_user_fk",
             ForeignKey.Create("orders_user_fk", ["user_id"], "app", "users", ["id"])));
         table.Grants.ShouldHaveSingleItem().Privileges.ShouldBe(TablePrivilege.Select);
         // A new index carries both its definition and a folded comment change.
@@ -462,8 +466,8 @@ public class DefaultSchemaComparerTests
             Table.Create("users", columns: [Column.Create("id", SqlType.Int)]),
             Table.Create("users", primaryKey: new PrimaryKey("users_pkey", ["id"]), columns: [Column.Create("id", SqlType.Int)]));
 
-        table!.Constraints.ShouldHaveSingleItem().ShouldBe(
-            new ConstraintDiff(ChangeKind.Add, ConstraintType.PrimaryKey, "users_pkey", new PrimaryKey("users_pkey", ["id"]), null));
+        table!.PrimaryKey.ShouldHaveSingleItem().ShouldBe(
+            new PrimaryKeyDiff(ChangeKind.Add, "users_pkey", new PrimaryKey("users_pkey", ["id"])));
     }
 
     [Fact]
@@ -473,7 +477,7 @@ public class DefaultSchemaComparerTests
             Table.Create("users", primaryKey: new PrimaryKey("users_pkey", ["id"]), columns: [Column.Create("id", SqlType.Int)]),
             Table.Create("users", columns: [Column.Create("id", SqlType.Int)]));
 
-        table!.Constraints.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
+        table!.PrimaryKey.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
     }
 
     [Fact]
@@ -483,7 +487,19 @@ public class DefaultSchemaComparerTests
             Table.Create("users", primaryKey: new PrimaryKey("users_pkey", ["id"]), columns: [Column.Create("id", SqlType.Int)]),
             Table.Create("users", primaryKey: new PrimaryKey("users_pkey", ["id", "tenant"]), columns: [Column.Create("id", SqlType.Int)]));
 
-        table!.Constraints.Select(c => c.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
+        table!.PrimaryKey.Select(c => c.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
+    }
+
+    [Fact]
+    public void Compare_PrimaryKeyCommentOnlyChanged_EmitsModifyNotRecreate()
+    {
+        var table = DiffTable(
+            Table.Create("users", primaryKey: new PrimaryKey("users_pkey", ["id"], Comment: "old"), columns: [Column.Create("id", SqlType.Int)]),
+            Table.Create("users", primaryKey: new PrimaryKey("users_pkey", ["id"], Comment: "new"), columns: [Column.Create("id", SqlType.Int)]));
+
+        var pk = table!.PrimaryKey.ShouldHaveSingleItem();
+        pk.Kind.ShouldBe(ChangeKind.Modify);
+        pk.Comment.ShouldBe(new ValueChange<string>("old", "new"));
     }
 
     // -------------------------------------------------------------------------
@@ -498,9 +514,7 @@ public class DefaultSchemaComparerTests
             Table.Create("orders", columns: [Column.Create("user_id", SqlType.Int)], foreignKeys: [fk]),
             Table.Create("orders", columns: [Column.Create("user_id", SqlType.Int)]));
 
-        var constraint = table!.Constraints.ShouldHaveSingleItem();
-        constraint.Kind.ShouldBe(ChangeKind.Remove);
-        constraint.Type.ShouldBe(ConstraintType.ForeignKey);
+        table!.ForeignKeys.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
     }
 
     [Fact]
@@ -512,7 +526,174 @@ public class DefaultSchemaComparerTests
             Table.Create("orders", columns: [Column.Create("user_id", SqlType.Int)],
                 foreignKeys: [ForeignKey.Create("orders_user_fk", ["user_id"], "app", "users", ["id"], onDelete: ReferentialAction.Cascade)]));
 
-        table!.Constraints.Select(c => c.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
+        table!.ForeignKeys.Select(c => c.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Unique constraints
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Compare_UniqueConstraintAdded_EmitsAdd()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)]),
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)],
+                uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"])]));
+
+        table!.UniqueConstraints.ShouldHaveSingleItem().ShouldBe(
+            new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint("users_email_uq", ["email"])));
+    }
+
+    [Fact]
+    public void Compare_UniqueConstraintRemoved_EmitsRemove()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)],
+                uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"])]),
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)]));
+
+        var unique = table!.UniqueConstraints.ShouldHaveSingleItem();
+        unique.Kind.ShouldBe(ChangeKind.Remove);
+        unique.Definition.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Compare_UniqueConstraintColumnsChanged_EmitsRemoveThenAdd()
+    {
+        var columns = new[] { Column.Create("email", SqlType.Text), Column.Create("tenant", SqlType.Int) };
+        var table = DiffTable(
+            Table.Create("users", columns: columns,
+                uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"])]),
+            Table.Create("users", columns: columns,
+                uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email", "tenant"])]));
+
+        table!.UniqueConstraints.Select(c => c.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
+    }
+
+    [Fact]
+    public void Compare_UniqueConstraintCommentOnlyChanged_EmitsModifyNotRecreate()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)],
+                uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"], Comment: "old")]),
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)],
+                uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"], Comment: "new")]));
+
+        var unique = table!.UniqueConstraints.ShouldHaveSingleItem();
+        unique.Kind.ShouldBe(ChangeKind.Modify);
+        unique.Comment.ShouldBe(new ValueChange<string>("old", "new"));
+    }
+
+    [Fact]
+    public void Compare_NewUniqueConstraintWithComment_FoldsCommentAsModify()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)]),
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)],
+                uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"], Comment: "lookup")]));
+
+        table!.UniqueConstraints.Select(c => (c.Kind, c.Comment?.New))
+            .ShouldBe([(ChangeKind.Add, null), (ChangeKind.Modify, "lookup")]);
+    }
+
+    [Fact]
+    public void Compare_UniqueConstraintUnchanged_ProducesNoDiff()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)],
+                uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"])]),
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)],
+                uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"])]));
+
+        table.ShouldBeNull();
+    }
+
+    // -------------------------------------------------------------------------
+    // Check constraints
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Compare_CheckConstraintAdded_EmitsAdd()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)]),
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)],
+                checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0")]));
+
+        table!.Checks.ShouldHaveSingleItem().ShouldBe(
+            new CheckConstraintDiff(ChangeKind.Add, "users_age_chk", new CheckConstraint("users_age_chk", "age >= 0")));
+    }
+
+    [Fact]
+    public void Compare_CheckConstraintRemoved_EmitsRemove()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)],
+                checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0")]),
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)]));
+
+        var check = table!.Checks.ShouldHaveSingleItem();
+        check.Kind.ShouldBe(ChangeKind.Remove);
+        check.Definition.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Compare_CheckConstraintExpressionChanged_EmitsRemoveThenAdd()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)],
+                checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0")]),
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)],
+                checkConstraints: [new CheckConstraint("users_age_chk", "age > 0")]));
+
+        table!.Checks.Select(c => c.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
+    }
+
+    [Fact]
+    public void Compare_CheckConstraintCommentOnlyChanged_EmitsModifyNotRecreate()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)],
+                checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0", Comment: "old")]),
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)],
+                checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0", Comment: "new")]));
+
+        var check = table!.Checks.ShouldHaveSingleItem();
+        check.Kind.ShouldBe(ChangeKind.Modify);
+        check.Comment.ShouldBe(new ValueChange<string>("old", "new"));
+    }
+
+    [Fact]
+    public void Compare_CheckConstraintUnchanged_ProducesNoDiff()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)],
+                checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0")]),
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)],
+                checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0")]));
+
+        table.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Compare_NewTable_FoldsUniqueAndCheckConstraintsAsAdds()
+    {
+        // On a new table the primary key is created inline (carried on Definition), but unique and check
+        // constraints arrive as separate adds, mirroring how foreign keys fold.
+        var desired = Table.Create("users",
+            columns: [Column.Create("email", SqlType.Text), Column.Create("age", SqlType.Int)],
+            uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"])],
+            checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0")]);
+
+        var table = _sut.Compare(Db(SchemaDefinition.Create("app")),
+            Db(SchemaDefinition.Create("app", tables: [desired]))).Schemas.Single().Tables.Single();
+
+        table.Kind.ShouldBe(ChangeKind.Add);
+        table.UniqueConstraints.ShouldHaveSingleItem().ShouldBe(
+            new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint("users_email_uq", ["email"])));
+        table.Checks.ShouldHaveSingleItem().ShouldBe(
+            new CheckConstraintDiff(ChangeKind.Add, "users_age_chk", new CheckConstraint("users_age_chk", "age >= 0")));
     }
 
     // -------------------------------------------------------------------------

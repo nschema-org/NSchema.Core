@@ -6,6 +6,8 @@
     [32m+[0m name varchar(255) not null
 
     [32m+[0m primary key users_pkey
+    [32m+[0m unique constraint users_email_uq
+    [32m+[0m check constraint users_age_chk
     [32m+[0m index users_name_ix
     [32m+[0m grant SELECT to readers
 
@@ -13,9 +15,12 @@
     [33m~[0m total type: int → bigint
     [33m~[0m total nullable: null → not null
     [31m-[0m legacy_flag boolean not null
+    [33m~[0m primary key orders_pkey comment: "old note" → "new note"
     [31m-[0m foreign key orders_user_fk
+    [31m-[0m unique constraint orders_code_uq
+    [31m-[0m check constraint orders_total_chk
     [31m-[0m revoke INSERT from writers
 
 [31m-[0m schema scratch
 
-Plan: 6 to add, 2 to change, 3 to destroy.
+Plan: 8 to add, 3 to change, 5 to destroy.

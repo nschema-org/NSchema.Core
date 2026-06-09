@@ -12,6 +12,7 @@ namespace NSchema.Schema.Model;
 /// <param name="ReferencedColumnNames">A list of column names in the referenced table that are part of the foreign key constraint.</param>
 /// <param name="OnDelete">The referential action to be taken when a referenced row is deleted (e.g., CASCADE, SET NULL, NO ACTION).</param>
 /// <param name="OnUpdate">The referential action to be taken when a referenced row is updated (e.g., CASCADE, SET NULL, NO ACTION).</param>
+/// <param name="Comment">An optional comment or description for the constraint.</param>
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
 public record ForeignKey(
     string Name,
@@ -20,7 +21,8 @@ public record ForeignKey(
     string ReferencedTable,
     IReadOnlyList<string> ReferencedColumnNames,
     ReferentialAction OnDelete,
-    ReferentialAction OnUpdate
+    ReferentialAction OnUpdate,
+    string? Comment = null
 )
 {
     /// <summary>
@@ -43,6 +45,7 @@ public record ForeignKey(
     /// <param name="referencedColumnNames">A list of column names in the referenced table that are part of the foreign key constraint.</param>
     /// <param name="onDelete">The referential action to be taken when a referenced row is deleted (e.g., CASCADE, SET NULL, NO ACTION).</param>
     /// <param name="onUpdate">The referential action to be taken when a referenced row is updated (e.g., CASCADE, SET NULL, NO ACTION).</param>
+    /// <param name="comment">An optional comment or description for the constraint.</param>
     public static ForeignKey Create(
         string name,
         IReadOnlyList<string> columnNames,
@@ -50,8 +53,9 @@ public record ForeignKey(
         string referencedTable,
         IReadOnlyList<string> referencedColumnNames,
         ReferentialAction onDelete = ReferentialAction.NoAction,
-        ReferentialAction onUpdate = ReferentialAction.NoAction
-    ) => new(name, columnNames, referencedSchema, referencedTable, referencedColumnNames, onDelete, onUpdate);
+        ReferentialAction onUpdate = ReferentialAction.NoAction,
+        string? comment = null
+    ) => new(name, columnNames, referencedSchema, referencedTable, referencedColumnNames, onDelete, onUpdate, comment);
 
     private string DebuggerDisplay =>
         $"{Name}: ({string.Join(", ", ColumnNames)}) -> {ReferencedSchema}.{ReferencedTable} ({string.Join(", ", ReferencedColumnNames)})";

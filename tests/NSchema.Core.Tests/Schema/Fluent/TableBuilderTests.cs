@@ -22,6 +22,8 @@ public sealed class TableBuilderTests
         table.Comment.ShouldBeNull();
         table.Columns.ShouldBeEmpty();
         table.ForeignKeys.ShouldBeEmpty();
+        table.UniqueConstraints.ShouldBeEmpty();
+        table.CheckConstraints.ShouldBeEmpty();
         table.Indexes.ShouldBeEmpty();
         table.Grants.ShouldBeEmpty();
     }
@@ -135,6 +137,48 @@ public sealed class TableBuilderTests
     }
 
     [Fact]
+    public void Unique_AddsUniqueConstraintToBuiltTable()
+    {
+        // Arrange
+
+        // Act
+        var result = _sut.Unique("users_email_uq", ["email"], comment: "external code");
+
+        // Assert
+        result.ShouldBeSameAs(_sut);
+        var unique = _sut.Build().UniqueConstraints.ShouldHaveSingleItem();
+        unique.Name.ShouldBe("users_email_uq");
+        unique.ColumnNames.ShouldBe(["email"]);
+        unique.Comment.ShouldBe("external code");
+    }
+
+    [Fact]
+    public void Check_AddsCheckConstraintToBuiltTable()
+    {
+        // Arrange
+
+        // Act
+        var result = _sut.Check("users_age_chk", "age >= 0", comment: "no negatives");
+
+        // Assert
+        result.ShouldBeSameAs(_sut);
+        var check = _sut.Build().CheckConstraints.ShouldHaveSingleItem();
+        check.Name.ShouldBe("users_age_chk");
+        check.Expression.ShouldBe("age >= 0");
+        check.Comment.ShouldBe("no negatives");
+    }
+
+    [Fact]
+    public void ForeignKey_Comment_SetsCommentOnBuiltForeignKey()
+    {
+        // Arrange / Act
+        _sut.ForeignKey("fk", ["user_id"], "public", "users", ["id"], f => f.Comment("owning user"));
+
+        // Assert
+        _sut.Build().ForeignKeys.ShouldHaveSingleItem().Comment.ShouldBe("owning user");
+    }
+
+    [Fact]
     public void Index_ReturnsBuilder_AndIncludesItInBuild()
     {
         // Arrange
@@ -210,6 +254,8 @@ public sealed class TableBuilderTests
             .Comment("c")
             .RenamedFrom("old")
             .PrimaryKey("pk", ["id"])
+            .Unique("uq", ["id"])
+            .Check("chk", "id > 0")
             .Grant("role", TablePrivilege.All)
             .Dropped();
 

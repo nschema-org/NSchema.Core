@@ -27,7 +27,7 @@ public sealed class DefaultMigrationLinearizerSnapshotTests
             Columns: [],
             Grants: [new GrantChange(ChangeKind.Add, "readers", TablePrivilege.Select)],
             Indexes: [new IndexDiff(ChangeKind.Add, "users_name_ix", TableIndex.Create("users_name_ix", ["name"], isUnique: true), null)],
-            Constraints: [],
+            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint("users_email_uq", ["email"]))],
             Definition: Table.Create("users",
                 primaryKey: new PrimaryKey("users_pkey", ["id"]),
                 columns:
@@ -47,7 +47,9 @@ public sealed class DefaultMigrationLinearizerSnapshotTests
             ],
             Grants: [],
             Indexes: [new IndexDiff(ChangeKind.Add, "orders_total_ix", TableIndex.Create("orders_total_ix", ["total"]), null)],
-            Constraints: [new ConstraintDiff(ChangeKind.Remove, ConstraintType.ForeignKey, "orders_user_fk", null, null)]);
+            ForeignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null)],
+            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "orders_code_uq", new UniqueConstraint("orders_code_uq", ["code"]))],
+            Checks: [new CheckConstraintDiff(ChangeKind.Add, "orders_total_chk", new CheckConstraint("orders_total_chk", "total >= 0"))]);
 
         var diff = new DatabaseDiff(
             Schemas:
