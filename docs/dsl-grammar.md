@@ -120,17 +120,20 @@ config-value   = string | integer | "true" | "false" | ident ;
 
 ```sql
 nschema {
-  dialect = "postgres"
+  dialect = 'postgres'
 }
 
-backend "file" {
-  path = "state/app.nsstate"
+backend 'file' {
+  path = 'state/app.nsstate'
 }
 
-provider "postgres" {
-  schema_search_path = "app"
+provider 'postgres' {
+  schema_search_path = 'app'
 }
 ```
+
+(Strings are single-quoted throughout NSchema DDL, SQL-style — double quotes are not used. The config-block
+label is a `string`, so `backend 'file'`, not `backend "file"`.)
 
 This is deliberately distinct from the schema statements, and three rules keep it tractable:
 
