@@ -136,14 +136,18 @@ public class DefaultSchemaComparerTests
                 columns: columns,
                 primaryKey: new PrimaryKey("orders_pkey", ["id"]),
                 foreignKeys: [ForeignKey.Create("orders_user_fk", ["user_id"], "app", "users", ["id"])],
+                uniqueConstraints: [new UniqueConstraint("orders_user_uq", ["user_id"])],
+                checkConstraints: [new CheckConstraint("orders_id_chk", "id > 0")],
                 indexes: [TableIndex.Create("orders_user_ix", ["user_id"])],
                 grants: [new TableGrant("reader", TablePrivilege.Insert)]),
         ]));
 
         var table = _sut.Compare(current, desired).Schemas.Single().Tables.Single();
 
-        table.Constraints.Select(c => (c.Type, c.Name)).ShouldBe(
-            [(ConstraintType.PrimaryKey, "orders_pkey"), (ConstraintType.ForeignKey, "orders_user_fk")]);
+        table.PrimaryKey.Select(c => (c.Kind, c.Name)).ShouldBe([(ChangeKind.Add, "orders_pkey")]);
+        table.ForeignKeys.Select(c => (c.Kind, c.Name)).ShouldBe([(ChangeKind.Add, "orders_user_fk")]);
+        table.UniqueConstraints.Select(c => (c.Kind, c.Name)).ShouldBe([(ChangeKind.Add, "orders_user_uq")]);
+        table.Checks.Select(c => (c.Kind, c.Name)).ShouldBe([(ChangeKind.Add, "orders_id_chk")]);
         table.Indexes.ShouldHaveSingleItem().Name.ShouldBe("orders_user_ix");
         var grant = table.Grants.ShouldHaveSingleItem();
         grant.Role.ShouldBe("reader");
@@ -362,7 +366,7 @@ public class DefaultSchemaComparerTests
         var table = _sut.Compare(Db(SchemaDefinition.Create("app")),
             Db(SchemaDefinition.Create("app", tables: [desired]))).Schemas.Single().Tables.Single();
 
-        table.Constraints.ShouldHaveSingleItem().ShouldBe(new ConstraintDiff(ChangeKind.Add, ConstraintType.ForeignKey, "orders_user_fk", null,
+        table.ForeignKeys.ShouldHaveSingleItem().ShouldBe(new ForeignKeyDiff(ChangeKind.Add, "orders_user_fk",
             ForeignKey.Create("orders_user_fk", ["user_id"], "app", "users", ["id"])));
         table.Grants.ShouldHaveSingleItem().Privileges.ShouldBe(TablePrivilege.Select);
         // A new index carries both its definition and a folded comment change.
@@ -462,8 +466,8 @@ public class DefaultSchemaComparerTests
             Table.Create("users", columns: [Column.Create("id", SqlType.Int)]),
             Table.Create("users", primaryKey: new PrimaryKey("users_pkey", ["id"]), columns: [Column.Create("id", SqlType.Int)]));
 
-        table!.Constraints.ShouldHaveSingleItem().ShouldBe(
-            new ConstraintDiff(ChangeKind.Add, ConstraintType.PrimaryKey, "users_pkey", new PrimaryKey("users_pkey", ["id"]), null));
+        table!.PrimaryKey.ShouldHaveSingleItem().ShouldBe(
+            new PrimaryKeyDiff(ChangeKind.Add, "users_pkey", new PrimaryKey("users_pkey", ["id"])));
     }
 
     [Fact]
@@ -473,7 +477,7 @@ public class DefaultSchemaComparerTests
             Table.Create("users", primaryKey: new PrimaryKey("users_pkey", ["id"]), columns: [Column.Create("id", SqlType.Int)]),
             Table.Create("users", columns: [Column.Create("id", SqlType.Int)]));
 
-        table!.Constraints.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
+        table!.PrimaryKey.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
     }
 
     [Fact]
@@ -483,7 +487,7 @@ public class DefaultSchemaComparerTests
             Table.Create("users", primaryKey: new PrimaryKey("users_pkey", ["id"]), columns: [Column.Create("id", SqlType.Int)]),
             Table.Create("users", primaryKey: new PrimaryKey("users_pkey", ["id", "tenant"]), columns: [Column.Create("id", SqlType.Int)]));
 
-        table!.Constraints.Select(c => c.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
+        table!.PrimaryKey.Select(c => c.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
     }
 
     // -------------------------------------------------------------------------
@@ -498,9 +502,7 @@ public class DefaultSchemaComparerTests
             Table.Create("orders", columns: [Column.Create("user_id", SqlType.Int)], foreignKeys: [fk]),
             Table.Create("orders", columns: [Column.Create("user_id", SqlType.Int)]));
 
-        var constraint = table!.Constraints.ShouldHaveSingleItem();
-        constraint.Kind.ShouldBe(ChangeKind.Remove);
-        constraint.Type.ShouldBe(ConstraintType.ForeignKey);
+        table!.ForeignKeys.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
     }
 
     [Fact]
@@ -512,7 +514,7 @@ public class DefaultSchemaComparerTests
             Table.Create("orders", columns: [Column.Create("user_id", SqlType.Int)],
                 foreignKeys: [ForeignKey.Create("orders_user_fk", ["user_id"], "app", "users", ["id"], onDelete: ReferentialAction.Cascade)]));
 
-        table!.Constraints.Select(c => c.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
+        table!.ForeignKeys.Select(c => c.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
     }
 
     // -------------------------------------------------------------------------

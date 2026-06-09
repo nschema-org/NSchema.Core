@@ -252,7 +252,7 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
     }
 
     private static TableDiff RemovedTable(string schema, string name) =>
-        new(schema, name, ChangeKind.Remove, null, null, [], [], [], []);
+        new(schema, name, ChangeKind.Remove, null, null, [], [], [], [], [], [], []);
 
     private TableDiff BuildNewTable(string schemaName, Table table)
     {
@@ -265,11 +265,25 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
                 Comment: column.Comment is not null ? new ValueChange<string>(null, column.Comment) : null))
             .ToList();
 
-        var constraints = new List<ConstraintDiff>();
+        var foreignKeys = new List<ForeignKeyDiff>();
         foreach (var fk in table.ForeignKeys)
         {
             LogForeignKeyAddingToNewTable(fk.Name, schemaName, table.Name);
-            constraints.Add(new ConstraintDiff(ChangeKind.Add, ConstraintType.ForeignKey, fk.Name, null, fk));
+            foreignKeys.Add(new ForeignKeyDiff(ChangeKind.Add, fk.Name, fk));
+        }
+
+        var uniqueConstraints = new List<UniqueConstraintDiff>();
+        foreach (var uq in table.UniqueConstraints)
+        {
+            LogUniqueConstraintAddingToNewTable(uq.Name, schemaName, table.Name);
+            uniqueConstraints.Add(new UniqueConstraintDiff(ChangeKind.Add, uq.Name, uq));
+        }
+
+        var checks = new List<CheckConstraintDiff>();
+        foreach (var ck in table.CheckConstraints)
+        {
+            LogCheckConstraintAddingToNewTable(ck.Name, schemaName, table.Name);
+            checks.Add(new CheckConstraintDiff(ChangeKind.Add, ck.Name, ck));
         }
 
         var indexes = new List<IndexDiff>();
@@ -293,8 +307,9 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
         var comment = table.Comment is not null ? new ValueChange<string>(null, table.Comment) : null;
 
         // The full table definition rides along so the linearizer can emit a single CREATE TABLE (with the
-        // primary key and columns inline) without reconstructing it from the column diffs.
-        return new TableDiff(schemaName, table.Name, ChangeKind.Add, null, comment, columns, grants, indexes, constraints, table);
+        // primary key and columns inline) without reconstructing it from the column diffs. The primary key is
+        // therefore created inline (no PrimaryKeyDiff); everything else arrives as a separate add.
+        return new TableDiff(schemaName, table.Name, ChangeKind.Add, null, comment, columns, grants, indexes, [], foreignKeys, uniqueConstraints, checks, table);
     }
 
     private TableDiff? BuildModifiedTable(string schemaName, Table current, Table desired)
@@ -319,21 +334,23 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
 
         var columns = CompareColumns(schemaName, desired.Name, current.Columns, desired.Columns);
 
-        var constraints = new List<ConstraintDiff>();
-        constraints.AddRange(ComparePrimaryKey(schemaName, desired.Name, current.PrimaryKey, desired.PrimaryKey));
-        constraints.AddRange(CompareForeignKeys(schemaName, desired.Name, current.ForeignKeys, desired.ForeignKeys));
+        var primaryKey = ComparePrimaryKey(schemaName, desired.Name, current.PrimaryKey, desired.PrimaryKey);
+        var foreignKeys = CompareForeignKeys(schemaName, desired.Name, current.ForeignKeys, desired.ForeignKeys);
+        var uniqueConstraints = CompareUniqueConstraints(schemaName, desired.Name, current.UniqueConstraints, desired.UniqueConstraints);
+        var checks = CompareChecks(schemaName, desired.Name, current.CheckConstraints, desired.CheckConstraints);
 
         var indexes = CompareIndexes(schemaName, desired.Name, current.Indexes, desired.Indexes);
         var grants = CompareTableGrants(schemaName, desired.Name, current.Grants, desired.Grants);
 
-        var hasChange = renamedFrom is not null || comment is not null
-            || columns.Count > 0 || constraints.Count > 0 || indexes.Count > 0 || grants.Count > 0;
+        var hasChange = renamedFrom is not null || comment is not null || columns.Count > 0
+            || primaryKey.Count > 0 || foreignKeys.Count > 0 || uniqueConstraints.Count > 0 || checks.Count > 0
+            || indexes.Count > 0 || grants.Count > 0;
         if (!hasChange)
         {
             return null;
         }
 
-        return new TableDiff(schemaName, desired.Name, ChangeKind.Modify, renamedFrom, comment, columns, grants, indexes, constraints);
+        return new TableDiff(schemaName, desired.Name, ChangeKind.Modify, renamedFrom, comment, columns, grants, indexes, primaryKey, foreignKeys, uniqueConstraints, checks);
     }
 
     private List<ColumnDiff> CompareColumns(string schemaName, string tableName, IReadOnlyList<Column> current, IReadOnlyList<Column> desired)
@@ -449,7 +466,7 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
         return new ColumnDiff(desired.Name, ChangeKind.Modify, null, renamedFrom, type, nullability, @default, identity, comment);
     }
 
-    private List<ConstraintDiff> ComparePrimaryKey(string schemaName, string tableName, PrimaryKey? current, PrimaryKey? desired)
+    private List<PrimaryKeyDiff> ComparePrimaryKey(string schemaName, string tableName, PrimaryKey? current, PrimaryKey? desired)
     {
         if (current?.Equals(desired) ?? desired == null)
         {
@@ -457,23 +474,23 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
             return [];
         }
 
-        var result = new List<ConstraintDiff>();
+        var result = new List<PrimaryKeyDiff>();
         if (current is not null)
         {
             LogPrimaryKeyDropping(current.Name, schemaName, tableName);
-            result.Add(new ConstraintDiff(ChangeKind.Remove, ConstraintType.PrimaryKey, current.Name, null, null));
+            result.Add(new PrimaryKeyDiff(ChangeKind.Remove, current.Name, null));
         }
         if (desired is not null)
         {
             LogPrimaryKeyAdding(desired.Name, schemaName, tableName);
-            result.Add(new ConstraintDiff(ChangeKind.Add, ConstraintType.PrimaryKey, desired.Name, desired, null));
+            result.Add(new PrimaryKeyDiff(ChangeKind.Add, desired.Name, desired));
         }
         return result;
     }
 
-    private List<ConstraintDiff> CompareForeignKeys(string schemaName, string tableName, IReadOnlyList<ForeignKey> current, IReadOnlyList<ForeignKey> desired)
+    private List<ForeignKeyDiff> CompareForeignKeys(string schemaName, string tableName, IReadOnlyList<ForeignKey> current, IReadOnlyList<ForeignKey> desired)
     {
-        var result = new List<ConstraintDiff>();
+        var result = new List<ForeignKeyDiff>();
 
         foreach (var currentFk in current)
         {
@@ -481,7 +498,7 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
             if (matchingDesired is null || !currentFk.Equals(matchingDesired))
             {
                 LogForeignKeyMissingOrChanged(currentFk.Name, schemaName, tableName);
-                result.Add(new ConstraintDiff(ChangeKind.Remove, ConstraintType.ForeignKey, currentFk.Name, null, null));
+                result.Add(new ForeignKeyDiff(ChangeKind.Remove, currentFk.Name, null));
             }
             else
             {
@@ -495,11 +512,81 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
             if (matchingCurrent is null || !matchingCurrent.Equals(desiredFk))
             {
                 LogForeignKeyNewOrChanged(desiredFk.Name, schemaName, tableName);
-                result.Add(new ConstraintDiff(ChangeKind.Add, ConstraintType.ForeignKey, desiredFk.Name, null, desiredFk));
+                result.Add(new ForeignKeyDiff(ChangeKind.Add, desiredFk.Name, desiredFk));
             }
             else
             {
                 LogForeignKeyUnchanged(desiredFk.Name, schemaName, tableName);
+            }
+        }
+
+        return result;
+    }
+
+    private List<UniqueConstraintDiff> CompareUniqueConstraints(string schemaName, string tableName, IReadOnlyList<UniqueConstraint> current, IReadOnlyList<UniqueConstraint> desired)
+    {
+        var result = new List<UniqueConstraintDiff>();
+
+        foreach (var currentUq in current)
+        {
+            var matchingDesired = desired.FirstOrDefault(d => d.Name == currentUq.Name);
+            if (matchingDesired is null || !currentUq.Equals(matchingDesired))
+            {
+                LogUniqueConstraintMissingOrChanged(currentUq.Name, schemaName, tableName);
+                result.Add(new UniqueConstraintDiff(ChangeKind.Remove, currentUq.Name, null));
+            }
+            else
+            {
+                LogUniqueConstraintUnchanged(currentUq.Name, schemaName, tableName);
+            }
+        }
+
+        foreach (var desiredUq in desired)
+        {
+            var matchingCurrent = current.FirstOrDefault(c => c.Name == desiredUq.Name);
+            if (matchingCurrent is null || !matchingCurrent.Equals(desiredUq))
+            {
+                LogUniqueConstraintNewOrChanged(desiredUq.Name, schemaName, tableName);
+                result.Add(new UniqueConstraintDiff(ChangeKind.Add, desiredUq.Name, desiredUq));
+            }
+            else
+            {
+                LogUniqueConstraintUnchanged(desiredUq.Name, schemaName, tableName);
+            }
+        }
+
+        return result;
+    }
+
+    private List<CheckConstraintDiff> CompareChecks(string schemaName, string tableName, IReadOnlyList<CheckConstraint> current, IReadOnlyList<CheckConstraint> desired)
+    {
+        var result = new List<CheckConstraintDiff>();
+
+        foreach (var currentCk in current)
+        {
+            var matchingDesired = desired.FirstOrDefault(d => d.Name == currentCk.Name);
+            if (matchingDesired is null || !currentCk.Equals(matchingDesired))
+            {
+                LogCheckConstraintMissingOrChanged(currentCk.Name, schemaName, tableName);
+                result.Add(new CheckConstraintDiff(ChangeKind.Remove, currentCk.Name, null));
+            }
+            else
+            {
+                LogCheckConstraintUnchanged(currentCk.Name, schemaName, tableName);
+            }
+        }
+
+        foreach (var desiredCk in desired)
+        {
+            var matchingCurrent = current.FirstOrDefault(c => c.Name == desiredCk.Name);
+            if (matchingCurrent is null || !matchingCurrent.Equals(desiredCk))
+            {
+                LogCheckConstraintNewOrChanged(desiredCk.Name, schemaName, tableName);
+                result.Add(new CheckConstraintDiff(ChangeKind.Add, desiredCk.Name, desiredCk));
+            }
+            else
+            {
+                LogCheckConstraintUnchanged(desiredCk.Name, schemaName, tableName);
             }
         }
 

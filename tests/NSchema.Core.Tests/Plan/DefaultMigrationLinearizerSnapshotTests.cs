@@ -27,7 +27,6 @@ public sealed class DefaultMigrationLinearizerSnapshotTests
             Columns: [],
             Grants: [new GrantChange(ChangeKind.Add, "readers", TablePrivilege.Select)],
             Indexes: [new IndexDiff(ChangeKind.Add, "users_name_ix", TableIndex.Create("users_name_ix", ["name"], isUnique: true), null)],
-            Constraints: [],
             Definition: Table.Create("users",
                 primaryKey: new PrimaryKey("users_pkey", ["id"]),
                 columns:
@@ -47,7 +46,7 @@ public sealed class DefaultMigrationLinearizerSnapshotTests
             ],
             Grants: [],
             Indexes: [new IndexDiff(ChangeKind.Add, "orders_total_ix", TableIndex.Create("orders_total_ix", ["total"]), null)],
-            Constraints: [new ConstraintDiff(ChangeKind.Remove, ConstraintType.ForeignKey, "orders_user_fk", null, null)]);
+            ForeignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null)]);
 
         var diff = new DatabaseDiff(
             Schemas:

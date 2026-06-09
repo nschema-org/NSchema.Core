@@ -10,6 +10,8 @@ public sealed class TableBuilder
     private readonly string _name;
     private readonly List<ColumnBuilder> _columns = [];
     private readonly List<ForeignKeyBuilder> _foreignKeys = [];
+    private readonly List<UniqueConstraint> _uniqueConstraints = [];
+    private readonly List<CheckConstraint> _checkConstraints = [];
     private readonly List<IndexBuilder> _indexes = [];
     private readonly List<TableGrant> _grants = [];
     private PrimaryKey? _primaryKey;
@@ -103,6 +105,32 @@ public sealed class TableBuilder
     }
 
     /// <summary>
+    /// Defines a unique constraint on the table. A unique constraint is distinct from a unique index
+    /// (<see cref="Index(string, IReadOnlyList{string})"/> with <c>Unique()</c>): it may be referenced by a
+    /// foreign key. Use a unique index instead when the uniqueness is partial or expression-based.
+    /// </summary>
+    /// <param name="name">The name of the unique constraint to define.</param>
+    /// <param name="columnNames">A list of column names that make up the unique constraint.</param>
+    /// <returns>The current <see cref="TableBuilder"/> instance, allowing for method chaining.</returns>
+    public TableBuilder Unique(string name, IReadOnlyList<string> columnNames)
+    {
+        _uniqueConstraints.Add(new UniqueConstraint(name, columnNames));
+        return this;
+    }
+
+    /// <summary>
+    /// Defines a check constraint on the table.
+    /// </summary>
+    /// <param name="name">The name of the check constraint to define.</param>
+    /// <param name="expression">The SQL boolean expression the constraint enforces.</param>
+    /// <returns>The current <see cref="TableBuilder"/> instance, allowing for method chaining.</returns>
+    public TableBuilder Check(string name, string expression)
+    {
+        _checkConstraints.Add(new CheckConstraint(name, expression));
+        return this;
+    }
+
+    /// <summary>
     /// Defines an index on the table.
     /// </summary>
     /// <param name="name">The name of the index to define.</param>
@@ -170,6 +198,8 @@ public sealed class TableBuilder
         _comment,
         _columns.Select(c => c.Build()).ToList(),
         _foreignKeys.Select(f => f.Build()).ToList(),
+        _uniqueConstraints,
+        _checkConstraints,
         _indexes.Select(i => i.Build()).ToList(),
         _grants
     );

@@ -68,16 +68,32 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
 
         // A new table renders its columns as a block, separated from the constraint/index/grant block by a
         // blank line. An existing table lists its column changes inline with everything that follows.
-        var hasTrailingBlock = table.Constraints.Count > 0 || table.Indexes.Count > 0 || table.Grants.Count > 0;
+        var hasTrailingBlock = table.PrimaryKey.Count > 0 || table.ForeignKeys.Count > 0
+            || table.UniqueConstraints.Count > 0 || table.Checks.Count > 0
+            || table.Indexes.Count > 0 || table.Grants.Count > 0;
         if (table.Kind == ChangeKind.Add && table.Columns.Count > 0 && hasTrailingBlock)
         {
             sb.AppendLine();
         }
 
-        foreach (var constraint in table.Constraints)
+        foreach (var pk in table.PrimaryKey)
         {
-            var label = constraint.Type == ConstraintType.PrimaryKey ? "primary key" : "foreign key";
-            AppendDetail(sb, constraint.Kind, $"{label} {constraint.Name}");
+            AppendDetail(sb, pk.Kind, $"primary key {pk.Name}");
+        }
+
+        foreach (var fk in table.ForeignKeys)
+        {
+            AppendDetail(sb, fk.Kind, $"foreign key {fk.Name}");
+        }
+
+        foreach (var unique in table.UniqueConstraints)
+        {
+            AppendDetail(sb, unique.Kind, $"unique constraint {unique.Name}");
+        }
+
+        foreach (var check in table.Checks)
+        {
+            AppendDetail(sb, check.Kind, $"check constraint {check.Name}");
         }
 
         foreach (var index in table.Indexes)

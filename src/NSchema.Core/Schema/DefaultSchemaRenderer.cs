@@ -69,6 +69,20 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
                 .Append(" (").Append(string.Join(", ", fk.ReferencedColumnNames)).AppendLine(")");
         }
 
+        foreach (var unique in table.UniqueConstraints)
+        {
+            sb.Append(Indent).Append(Indent)
+                .Append("unique ").Append(unique.Name)
+                .Append(" (").Append(string.Join(", ", unique.ColumnNames)).AppendLine(")");
+        }
+
+        foreach (var check in table.CheckConstraints)
+        {
+            sb.Append(Indent).Append(Indent)
+                .Append("check ").Append(check.Name)
+                .Append(" (").Append(check.Expression).AppendLine(")");
+        }
+
         foreach (var index in table.Indexes)
         {
             sb.Append(Indent).Append(Indent)

@@ -36,9 +36,13 @@ public sealed class DefaultPlanLinearizerTests
         IReadOnlyList<ColumnDiff>? columns = null,
         IReadOnlyList<GrantChange>? grants = null,
         IReadOnlyList<IndexDiff>? indexes = null,
-        IReadOnlyList<ConstraintDiff>? constraints = null,
+        IReadOnlyList<PrimaryKeyDiff>? primaryKey = null,
+        IReadOnlyList<ForeignKeyDiff>? foreignKeys = null,
+        IReadOnlyList<UniqueConstraintDiff>? uniqueConstraints = null,
+        IReadOnlyList<CheckConstraintDiff>? checks = null,
         Table? definition = null)
-        => new(schema, name, kind, renamedFrom, comment, columns ?? [], grants ?? [], indexes ?? [], constraints ?? [], definition);
+        => new(schema, name, kind, renamedFrom, comment, columns ?? [], grants ?? [], indexes ?? [],
+            primaryKey ?? [], foreignKeys ?? [], uniqueConstraints ?? [], checks ?? [], definition);
 
     private static ColumnDiff AddedColumn(Column definition, ValueChange<string>? comment = null)
         => new(definition.Name, ChangeKind.Add, definition, null, null, null, null, null, comment);
@@ -295,18 +299,18 @@ public sealed class DefaultPlanLinearizerTests
     public void Linearize_AddPrimaryKey_EmitsAddPrimaryKey()
     {
         var pk = new PrimaryKey("users_pkey", ["id"]);
-        var constraint = new ConstraintDiff(ChangeKind.Add, ConstraintType.PrimaryKey, "users_pkey", pk, null);
+        var constraint = new PrimaryKeyDiff(ChangeKind.Add, "users_pkey", pk);
 
-        LinearizeTable(TableNode("users", ChangeKind.Modify, constraints: [constraint]))
+        LinearizeTable(TableNode("users", ChangeKind.Modify, primaryKey: [constraint]))
             .OfType<AddPrimaryKey>().ShouldHaveSingleItem().PrimaryKey.Name.ShouldBe("users_pkey");
     }
 
     [Fact]
     public void Linearize_RemovePrimaryKey_EmitsDropPrimaryKey()
     {
-        var constraint = new ConstraintDiff(ChangeKind.Remove, ConstraintType.PrimaryKey, "users_pkey", null, null);
+        var constraint = new PrimaryKeyDiff(ChangeKind.Remove, "users_pkey", null);
 
-        LinearizeTable(TableNode("users", ChangeKind.Modify, constraints: [constraint]))
+        LinearizeTable(TableNode("users", ChangeKind.Modify, primaryKey: [constraint]))
             .OfType<DropPrimaryKey>().ShouldHaveSingleItem().PrimaryKeyName.ShouldBe("users_pkey");
     }
 
@@ -314,19 +318,57 @@ public sealed class DefaultPlanLinearizerTests
     public void Linearize_AddForeignKey_EmitsAddForeignKey()
     {
         var fk = ForeignKey.Create("orders_user_fk", ["user_id"], "app", "users", ["id"]);
-        var constraint = new ConstraintDiff(ChangeKind.Add, ConstraintType.ForeignKey, "orders_user_fk", null, fk);
+        var constraint = new ForeignKeyDiff(ChangeKind.Add, "orders_user_fk", fk);
 
-        LinearizeTable(TableNode("orders", ChangeKind.Modify, constraints: [constraint]))
+        LinearizeTable(TableNode("orders", ChangeKind.Modify, foreignKeys: [constraint]))
             .OfType<AddForeignKey>().ShouldHaveSingleItem().ForeignKey.Name.ShouldBe("orders_user_fk");
     }
 
     [Fact]
     public void Linearize_RemoveForeignKey_EmitsDropForeignKey()
     {
-        var constraint = new ConstraintDiff(ChangeKind.Remove, ConstraintType.ForeignKey, "orders_user_fk", null, null);
+        var constraint = new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null);
 
-        LinearizeTable(TableNode("orders", ChangeKind.Modify, constraints: [constraint]))
+        LinearizeTable(TableNode("orders", ChangeKind.Modify, foreignKeys: [constraint]))
             .OfType<DropForeignKey>().ShouldHaveSingleItem().ForeignKeyName.ShouldBe("orders_user_fk");
+    }
+
+    [Fact]
+    public void Linearize_AddUniqueConstraint_EmitsAddUniqueConstraint()
+    {
+        var unique = new UniqueConstraint("users_email_uq", ["email"]);
+        var constraint = new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", unique);
+
+        LinearizeTable(TableNode("users", ChangeKind.Modify, uniqueConstraints: [constraint]))
+            .OfType<AddUniqueConstraint>().ShouldHaveSingleItem().UniqueConstraint.Name.ShouldBe("users_email_uq");
+    }
+
+    [Fact]
+    public void Linearize_RemoveUniqueConstraint_EmitsDropUniqueConstraint()
+    {
+        var constraint = new UniqueConstraintDiff(ChangeKind.Remove, "users_email_uq", null);
+
+        LinearizeTable(TableNode("users", ChangeKind.Modify, uniqueConstraints: [constraint]))
+            .OfType<DropUniqueConstraint>().ShouldHaveSingleItem().ConstraintName.ShouldBe("users_email_uq");
+    }
+
+    [Fact]
+    public void Linearize_AddCheckConstraint_EmitsAddCheckConstraint()
+    {
+        var check = new CheckConstraint("users_age_chk", "age >= 0");
+        var constraint = new CheckConstraintDiff(ChangeKind.Add, "users_age_chk", check);
+
+        LinearizeTable(TableNode("users", ChangeKind.Modify, checks: [constraint]))
+            .OfType<AddCheckConstraint>().ShouldHaveSingleItem().CheckConstraint.Name.ShouldBe("users_age_chk");
+    }
+
+    [Fact]
+    public void Linearize_RemoveCheckConstraint_EmitsDropCheckConstraint()
+    {
+        var constraint = new CheckConstraintDiff(ChangeKind.Remove, "users_age_chk", null);
+
+        LinearizeTable(TableNode("users", ChangeKind.Modify, checks: [constraint]))
+            .OfType<DropCheckConstraint>().ShouldHaveSingleItem().ConstraintName.ShouldBe("users_age_chk");
     }
 
     [Fact]
@@ -403,7 +445,7 @@ public sealed class DefaultPlanLinearizerTests
     {
         var plan = LinearizeTable(TableNode("users", ChangeKind.Modify,
             columns: [AddedColumn(Column.Create("id", SqlType.Int))],
-            constraints: [new ConstraintDiff(ChangeKind.Add, ConstraintType.PrimaryKey, "users_pkey", new PrimaryKey("users_pkey", ["id"]), null)]));
+            primaryKey: [new PrimaryKeyDiff(ChangeKind.Add, "users_pkey", new PrimaryKey("users_pkey", ["id"]))]));
 
         IndexOf<AddColumn>(plan).ShouldBeLessThan(IndexOf<AddPrimaryKey>(plan));
     }
@@ -411,10 +453,10 @@ public sealed class DefaultPlanLinearizerTests
     [Fact]
     public void Linearize_OrdersConstraintRemovalBeforeAddition_WhenReplacingAPrimaryKey()
     {
-        var plan = LinearizeTable(TableNode("users", ChangeKind.Modify, constraints:
+        var plan = LinearizeTable(TableNode("users", ChangeKind.Modify, primaryKey:
         [
-            new ConstraintDiff(ChangeKind.Remove, ConstraintType.PrimaryKey, "users_pkey", null, null),
-            new ConstraintDiff(ChangeKind.Add, ConstraintType.PrimaryKey, "users_pkey", new PrimaryKey("users_pkey", ["id", "tenant"]), null),
+            new PrimaryKeyDiff(ChangeKind.Remove, "users_pkey", null),
+            new PrimaryKeyDiff(ChangeKind.Add, "users_pkey", new PrimaryKey("users_pkey", ["id", "tenant"])),
         ]));
 
         IndexOf<DropPrimaryKey>(plan).ShouldBeLessThan(IndexOf<AddPrimaryKey>(plan));
@@ -439,7 +481,7 @@ public sealed class DefaultPlanLinearizerTests
     {
         var plan = Linearize(SchemaNode("app", tables:
         [
-            TableNode("orders", ChangeKind.Modify, constraints: [new ConstraintDiff(ChangeKind.Remove, ConstraintType.ForeignKey, "orders_user_fk", null, null)]),
+            TableNode("orders", ChangeKind.Modify, foreignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null)]),
             TableNode("users", ChangeKind.Remove),
         ]));
 

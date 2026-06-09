@@ -64,6 +64,20 @@
               ]
             }
           ],
+          uniqueConstraints: [
+            {
+              name: users_code_uq,
+              columnNames: [
+                code
+              ]
+            }
+          ],
+          checkConstraints: [
+            {
+              name: users_balance_chk,
+              expression: balance >= 0
+            }
+          ],
           indexes: [
             {
               name: users_name_ix,

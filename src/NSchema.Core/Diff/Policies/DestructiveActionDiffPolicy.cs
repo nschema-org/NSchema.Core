@@ -75,17 +75,21 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
                     }
                 }
 
-                foreach (var constraint in table.Constraints.Where(g => g.Kind == ChangeKind.Remove))
+                foreach (var pk in table.PrimaryKey.Where(c => c.Kind == ChangeKind.Remove))
                 {
-                    switch (constraint.Type)
-                    {
-                        case ConstraintType.PrimaryKey:
-                            yield return nameof(DropPrimaryKey);
-                            break;
-                        case ConstraintType.ForeignKey:
-                            yield return nameof(DropForeignKey);
-                            break;
-                    }
+                    yield return nameof(DropPrimaryKey);
+                }
+
+                foreach (var fk in table.ForeignKeys.Where(c => c.Kind == ChangeKind.Remove))
+                {
+                    yield return nameof(DropForeignKey);
+                }
+
+                // Dropping a unique constraint removes a structural guarantee (and may be a foreign-key target),
+                // so it is destructive; dropping a check only loosens validation and is not.
+                foreach (var unique in table.UniqueConstraints.Where(c => c.Kind == ChangeKind.Remove))
+                {
+                    yield return nameof(DropUniqueConstraint);
                 }
             }
         }

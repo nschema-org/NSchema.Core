@@ -55,6 +55,14 @@ public static class TestData
                             ForeignKey.Create("users_org_fk", ["org_id"], "app", "orgs", ["id"],
                                 ReferentialAction.Cascade, ReferentialAction.SetNull),
                         ],
+                        uniqueConstraints:
+                        [
+                            new UniqueConstraint("users_code_uq", ["code"]),
+                        ],
+                        checkConstraints:
+                        [
+                            new CheckConstraint("users_balance_chk", "balance >= 0"),
+                        ],
                         indexes:
                         [
                             TableIndex.Create("users_name_ix", ["name"], isUnique: true,
