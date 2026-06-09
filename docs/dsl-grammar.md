@@ -94,11 +94,60 @@ CREATE TABLE app.users (
 ## Document and statements
 
 ```ebnf
-document   = { [ doc-comment ] , statement } ;
+document   = { [ doc-comment ] , ( statement | config-block ) } ;
 statement  = ( create-schema | create-table | drop-schema | drop-table | grant ) , ";" ;
 ```
 
 A flat statement list; schema membership is by qualified name, exactly like SQL — no nesting.
+
+A document may also contain top-level **configuration blocks** (`config-block`), which are *reserved* — see
+[Configuration blocks](#configuration-blocks-reserved). The schema parser **ignores** them; they are not part of
+the desired-state model.
+
+## Configuration blocks (reserved)
+
+> **Reserved, not yet parsed.** This section fixes the shape so the grammar is forward-compatible. No
+> configuration block is implemented or interpreted yet; until then a parser should *accept and skip* them.
+
+Following Terraform's model, orchestration configuration (the state backend, the live-database provider, project
+settings) may eventually live in the DSL alongside the schema, in dedicated brace-delimited blocks:
+
+```ebnf
+config-block   = ident , [ string ] , "{" , { config-attr | config-block } , "}" ;
+config-attr    = ident , "=" , config-value , [ ";" ] ;
+config-value   = string | integer | "true" | "false" | ident ;
+```
+
+```sql
+nschema {
+  dialect = "postgres"
+}
+
+backend "file" {
+  path = "state/app.nsstate"
+}
+
+provider "postgres" {
+  schema_search_path = "app"
+}
+```
+
+This is deliberately distinct from the schema statements, and three rules keep it tractable:
+
+1. **The schema parser skips them.** A single lexer feeds two consumers: the `DdlSchemaSerializer` (in the core)
+   consumes only schema statements and silently ignores top-level config blocks; a separate front-end config
+   loader (in the CLI) consumes only the config blocks. This is how one file can hold both, à la Terraform's
+   intermixed `terraform` / `provider` / `resource` blocks.
+2. **Config blocks are static — no interpolation.** They must be resolvable in a lightweight bootstrap pass
+   *before* the core is configured (the analogue of `terraform init`), so they cannot reference variables or
+   computed values. This is also why Terraform forbids interpolation in its `backend` block.
+3. **No secrets.** Connection strings and credentials stay in environment variables / CLI overlay, never in a
+   committed config block. Only stable, non-secret settings (backend *type* and path, dialect, search paths)
+   belong here. Configuration precedence remains CLI args > environment > config block > defaults.
+
+The matching forward-compatibility rule for the parser: **an unrecognised top-level brace-delimited block is
+skipped, not an error** — so reserving these costs nothing today and adding their semantics later touches only
+the CLI, never the core.
 
 ### Schemas
 
@@ -177,22 +226,22 @@ table-priv = "SELECT" | "INSERT" | "UPDATE" | "DELETE" ;
 
 ## Construct → model mapping
 
-| DDL construct                          | Model target                                              |
-|----------------------------------------|-----------------------------------------------------------|
-| `CREATE [PARTIAL] SCHEMA s`            | `SchemaDefinition` (`IsPartial`)                          |
-| `CREATE TABLE s.t (…)`                 | `SchemaDefinition` + `Table`                              |
-| `RENAMED FROM x` (schema/table/column) | `OldName`                                                 |
-| `name type [NOT NULL] [DEFAULT e]`     | `Column` (`Type`→`SqlType`, `IsNullable`, `DefaultExpression`) |
-| `IDENTITY (…)`                         | `Column.IsIdentity` + `IdentityOptions`                  |
-| `CONSTRAINT n PRIMARY KEY (…)`         | `Table.PrimaryKey` (`PrimaryKey`)                        |
-| `CONSTRAINT n FOREIGN KEY … REFERENCES …` | `ForeignKey` (`OnDelete`/`OnUpdate`→`ReferentialAction`) |
-| `CONSTRAINT n UNIQUE (…)`              | `UniqueConstraint`                                        |
-| `CONSTRAINT n CHECK (e)`               | `CheckConstraint` (`Expression` = `e`, opaque)           |
-| `[UNIQUE] INDEX n (…) [WHERE e]`       | `TableIndex` (`IsUnique`, `Predicate`)                   |
-| `GRANT … ON s.t TO r`                  | `TableGrant`                                              |
-| `GRANT USAGE ON SCHEMA s TO r`         | `SchemaGrant`                                             |
-| `DROP TABLE s.t` / `DROP SCHEMA s`     | `DroppedTables` / `DroppedSchemas`                       |
-| `---` / `/** */` before a declaration  | that object's `Comment`                                  |
+| DDL construct                             | Model target                                                   |
+|-------------------------------------------|----------------------------------------------------------------|
+| `CREATE [PARTIAL] SCHEMA s`               | `SchemaDefinition` (`IsPartial`)                               |
+| `CREATE TABLE s.t (…)`                    | `SchemaDefinition` + `Table`                                   |
+| `RENAMED FROM x` (schema/table/column)    | `OldName`                                                      |
+| `name type [NOT NULL] [DEFAULT e]`        | `Column` (`Type`→`SqlType`, `IsNullable`, `DefaultExpression`) |
+| `IDENTITY (…)`                            | `Column.IsIdentity` + `IdentityOptions`                        |
+| `CONSTRAINT n PRIMARY KEY (…)`            | `Table.PrimaryKey` (`PrimaryKey`)                              |
+| `CONSTRAINT n FOREIGN KEY … REFERENCES …` | `ForeignKey` (`OnDelete`/`OnUpdate`→`ReferentialAction`)       |
+| `CONSTRAINT n UNIQUE (…)`                 | `UniqueConstraint`                                             |
+| `CONSTRAINT n CHECK (e)`                  | `CheckConstraint` (`Expression` = `e`, opaque)                 |
+| `[UNIQUE] INDEX n (…) [WHERE e]`          | `TableIndex` (`IsUnique`, `Predicate`)                         |
+| `GRANT … ON s.t TO r`                     | `TableGrant`                                                   |
+| `GRANT USAGE ON SCHEMA s TO r`            | `SchemaGrant`                                                  |
+| `DROP TABLE s.t` / `DROP SCHEMA s`        | `DroppedTables` / `DroppedSchemas`                             |
+| `---` / `/** */` before a declaration     | that object's `Comment`                                        |
 
 ## Worked example
 
