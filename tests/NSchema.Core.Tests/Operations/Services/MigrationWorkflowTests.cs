@@ -114,7 +114,8 @@ public sealed class MigrationWorkflowTests
         var result = await _sut.Plan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
 
         // Assert
-        result.ShouldBe(plan);
+        result.Plan.ShouldBe(plan);
+        result.Diff.ShouldBe(diff);
         _reporter.Received(1).ReportDiff(diff);
     }
 
@@ -286,7 +287,8 @@ public sealed class MigrationWorkflowTests
         var result = await _sut.PlanDestroy(TestContext.Current.CancellationToken);
 
         // Assert
-        result.ShouldBe(plan);
+        result.Plan.ShouldBe(plan);
+        result.Diff.ShouldBe(diff);
         _reporter.Received(1).ReportDiff(diff);
     }
 

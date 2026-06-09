@@ -1,8 +1,10 @@
+using NSchema.Diff.Model;
 using NSchema.Operations;
 using NSchema.Operations.Apply;
 using NSchema.Operations.Confirmation;
 using NSchema.Operations.Services;
 using NSchema.Plan.Model;
+using NSchema.Plan.PlanFile;
 using NSchema.Schema;
 using NSchema.Sql;
 using NSchema.Sql.Model;
@@ -22,6 +24,7 @@ public sealed class ApplyOperationTests
     private readonly RecordingStateLock _stateLock = new();
 
     private readonly MigrationPlan _plan = new([new CreateSchema("app")], [], []);
+    private readonly DatabaseDiff _diff = new([]);
     private readonly SqlPlan _sqlPlan = new([new SqlStatement("CREATE SCHEMA app")]);
 
     private ApplyOperation BuildSut(ISqlGenerator? planner, ISqlExecutor? executor) => new(
@@ -29,6 +32,7 @@ public sealed class ApplyOperationTests
         _confirmation, _workflow,
         Helpers.TestSqlGenerators.ResolverFor(planner),
         _stateLock,
+        new PlanFileWriter(),
         executor
     );
 
@@ -36,7 +40,7 @@ public sealed class ApplyOperationTests
 
     public ApplyOperationTests()
     {
-        _workflow.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(_plan);
+        _workflow.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(new PlannedMigration(_plan, _diff));
         _generator.Generate(Arg.Any<MigrationPlan>()).Returns(_sqlPlan);
         _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(true);
 
@@ -161,5 +165,85 @@ public sealed class ApplyOperationTests
         await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
 
         callOrder.ShouldBe(["sql", "confirm"]);
+    }
+
+    private string WritePlanFile(SqlPlan? savedSql = null)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"nschema-plan-{Guid.NewGuid():N}.json");
+        var envelope = new PlanFileEnvelope(_plan, savedSql ?? _sqlPlan, _diff, DateTimeOffset.UnixEpoch);
+        File.WriteAllBytes(path, new PlanFileWriter().Serialize(envelope).ToArray());
+        return path;
+    }
+
+    [Fact]
+    public async Task Execute_WithPlanFile_ExecutesSavedSqlWithoutReplanning()
+    {
+        var path = WritePlanFile();
+        try
+        {
+            await _sut.Execute(new ApplyArguments { PlanFile = path }, TestContext.Current.CancellationToken);
+
+            // The whole point: no fresh plan is computed; the saved SQL is what runs, then state is captured.
+            await _workflow.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+            await _executor.Received(1).Execute(Arg.Is<SqlPlan>(p => p.Statements.SequenceEqual(_sqlPlan.Statements)), Arg.Any<CancellationToken>());
+            await _workflow.Received(1).Refresh(RefreshMode.Optional, Arg.Any<CancellationToken>());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task Execute_WithPlanFile_AcquiresLockAndConfirmsBeforeExecuting()
+    {
+        var path = WritePlanFile();
+        try
+        {
+            await _sut.Execute(new ApplyArguments { PlanFile = path }, TestContext.Current.CancellationToken);
+
+            _stateLock.Acquisitions.ShouldHaveSingleItem().Operation.ShouldBe("apply");
+            await _confirmation.Received(1).Confirm(Arg.Any<ApplyConfirmationRequest>(), Arg.Any<CancellationToken>());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task Execute_WithPlanFile_ReportsSavedDiffPlanAndSql()
+    {
+        var path = WritePlanFile();
+        try
+        {
+            await _sut.Execute(new ApplyArguments { PlanFile = path }, TestContext.Current.CancellationToken);
+
+            // Applying a saved plan shows the same diff/plan/SQL view the plan step produced.
+            _reporter.Received(1).ReportDiff(Arg.Any<DatabaseDiff>());
+            _reporter.Received(1).ReportPlan(Arg.Any<MigrationPlan>());
+            _reporter.Received(1).ReportSqlPlan(Arg.Any<SqlPlan>());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task Execute_WithPlanFile_NotConfirmed_DoesNotExecute()
+    {
+        _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(false);
+        var path = WritePlanFile();
+        try
+        {
+            await _sut.Execute(new ApplyArguments { PlanFile = path }, TestContext.Current.CancellationToken);
+
+            await _executor.DidNotReceive().Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 }

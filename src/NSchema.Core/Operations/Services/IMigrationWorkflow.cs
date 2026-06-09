@@ -1,4 +1,3 @@
-using NSchema.Plan.Model;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 
@@ -25,13 +24,13 @@ internal interface IMigrationWorkflow
     /// <param name="required">Whether <paramref name="currentSource"/> must be available, or may fall back to the other source.</param>
     /// <param name="schemas">The schemas to scope to, or <see langword="null"/> to derive scope from the desired schema.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<MigrationPlan> Plan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default);
+    Task<PlannedMigration> Plan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Builds a plan that tears down the managed schema.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<MigrationPlan> PlanDestroy(CancellationToken cancellationToken = default);
+    Task<PlannedMigration> PlanDestroy(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Captures the live schema into the state store.

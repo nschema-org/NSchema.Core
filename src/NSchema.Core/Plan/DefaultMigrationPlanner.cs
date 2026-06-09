@@ -1,5 +1,4 @@
 using NSchema.Diff;
-using NSchema.Diff.Model;
 using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Schema;
