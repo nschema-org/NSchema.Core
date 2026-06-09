@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using NSchema.Schema.Model;
 using NSchema.State;
 
 namespace NSchema.Tests.State;

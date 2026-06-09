@@ -28,14 +28,14 @@ internal sealed class DestroyOperation(
         // same state. Released when the handle is disposed at the end of the method (no-op unless a lock is registered).
         await using var stateLockHandle = await stateLock.Acquire(new StateLockRequest("destroy"), cancellationToken);
 
-        var plan = await workflow.PlanDestroy(cancellationToken);
+        var planned = await workflow.PlanDestroy(cancellationToken);
 
         reporters.Current.Info("Generating SQL...");
-        var sqlPlan = sqlGenerators.Current.Generate(plan);
+        var sqlPlan = sqlGenerators.Current.Generate(planned.Plan);
         reporters.Current.ReportSqlPlan(sqlPlan);
 
         // Offer an interactive front-end the chance to prompt before any changes are made.
-        if (!await confirmation.Confirm(new DestroyConfirmationRequest(plan), cancellationToken))
+        if (!await confirmation.Confirm(new DestroyConfirmationRequest(planned.Plan), cancellationToken))
         {
             reporters.Current.Info("Destroy cancelled. No changes were made to the database.");
             return;

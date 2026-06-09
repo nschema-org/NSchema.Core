@@ -1,5 +1,6 @@
 using NSchema.Operations.Confirmation;
 using NSchema.Operations.Services;
+using NSchema.Plan.PlanFile;
 using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Sql;
@@ -13,6 +14,7 @@ internal sealed class ApplyOperation(
     IMigrationWorkflow workflow,
     IKeyedResolver<ISqlGenerator> sqlGenerators,
     IStateLock stateLock,
+    IPlanFileWriter planFile,
     ISqlExecutor? sqlExecutor = null
 ) : IApplyOperation
 {
@@ -23,20 +25,26 @@ internal sealed class ApplyOperation(
             throw new InvalidOperationException("Applying a migration requires a database provider to generate and execute SQL, but none is registered.");
         }
 
+        if (arguments.PlanFile is not null)
+        {
+            await ApplyFromFile(arguments.PlanFile, sqlExecutor, cancellationToken);
+            return;
+        }
+
         reporters.Current.Info("Applying schema migration. Changes will be applied to the database.");
 
         // Hold the state lock for the whole operation so a concurrent apply/destroy/refresh can't run against the
         // same state. Released when the handle is disposed at the end of the method (no-op unless a lock is registered).
         await using var stateLockHandle = await stateLock.Acquire(new StateLockRequest("apply"), cancellationToken);
 
-        var plan = await workflow.Plan(SchemaSourceMode.Online, required: true, arguments.Schemas, cancellationToken);
+        var planned = await workflow.Plan(SchemaSourceMode.Online, required: true, arguments.Schemas, cancellationToken);
 
         reporters.Current.Info("Generating SQL...");
-        var sqlPlan = sqlGenerators.Current.Generate(plan);
+        var sqlPlan = sqlGenerators.Current.Generate(planned.Plan);
         reporters.Current.ReportSqlPlan(sqlPlan);
 
         // Offer an interactive front-end the chance to prompt before any changes are made.
-        if (!await confirmation.Confirm(new ApplyConfirmationRequest(plan), cancellationToken))
+        if (!await confirmation.Confirm(new ApplyConfirmationRequest(planned.Plan), cancellationToken))
         {
             reporters.Current.Info("Apply cancelled. No changes were made to the database.");
             return;
@@ -48,6 +56,43 @@ internal sealed class ApplyOperation(
         {
             await sqlExecutor.Execute(sqlPlan, cancellationToken);
             reporters.Current.Info("Migration completed successfully.");
+        }
+        finally
+        {
+            // Capture the resulting state when a store is configured; a no-op otherwise. This runs even when
+            // execution failed partway (e.g. an un-transacted plan) so the store reflects what was actually applied.
+            await workflow.Refresh(RefreshMode.Optional, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Applies a previously saved plan file.
+    /// </summary>
+    private async Task ApplyFromFile(string path, ISqlExecutor sqlExecutor, CancellationToken cancellationToken)
+    {
+        var envelope = await planFile.Read(path, cancellationToken);
+
+        reporters.Current.Info($"Applying saved plan from {path}. Changes will be applied to the database.");
+
+        await using var stateLockHandle = await stateLock.Acquire(new StateLockRequest("apply"), cancellationToken);
+
+        // Report the same diff/plan/SQL view the plan step produced, so applying a saved plan looks identical.
+        reporters.Current.ReportDiff(envelope.Diff);
+        reporters.Current.ReportPlan(envelope.Plan);
+        reporters.Current.ReportSqlPlan(envelope.Sql);
+
+        if (!await confirmation.Confirm(new ApplyConfirmationRequest(envelope.Plan), cancellationToken))
+        {
+            reporters.Current.Info("Apply cancelled. No changes were made to the database.");
+            return;
+        }
+
+        reporters.Current.Info($"Applying plan...");
+
+        try
+        {
+            await sqlExecutor.Execute(envelope.Sql, cancellationToken);
+            reporters.Current.Info($"Plan applied successfully.");
         }
         finally
         {

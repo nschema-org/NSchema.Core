@@ -1,3 +1,4 @@
+using NSchema.Diff.Model;
 using NSchema.Operations;
 using NSchema.Operations.Confirmation;
 using NSchema.Operations.Destroy;
@@ -21,6 +22,7 @@ public sealed class DestroyOperationTests
     private readonly RecordingStateLock _stateLock = new();
 
     private readonly MigrationPlan _plan = new([new DropSchema("app")], [], []);
+    private readonly DatabaseDiff _diff = new([]);
     private readonly SqlPlan _sqlPlan = new([new SqlStatement("DROP SCHEMA app")]);
 
     private DestroyOperation BuildSut(ISqlGenerator? generator, ISqlExecutor? executor) => new(
@@ -35,7 +37,7 @@ public sealed class DestroyOperationTests
 
     public DestroyOperationTests()
     {
-        _workflow.PlanDestroy(Arg.Any<CancellationToken>()).Returns(_plan);
+        _workflow.PlanDestroy(Arg.Any<CancellationToken>()).Returns(new PlannedMigration(_plan, _diff));
         _generator.Generate(Arg.Any<MigrationPlan>()).Returns(_sqlPlan);
         _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(true);
 

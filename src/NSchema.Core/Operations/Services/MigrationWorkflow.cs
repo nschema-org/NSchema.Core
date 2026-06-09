@@ -1,5 +1,4 @@
 using NSchema.Plan;
-using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Resolution;
 using NSchema.Schema;
@@ -31,7 +30,7 @@ internal sealed class MigrationWorkflow(
         return desiredSchema;
     }
 
-    public async Task<MigrationPlan> Plan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default)
+    public async Task<PlannedMigration> Plan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default)
     {
         reporters.Current.Info("Loading desired schema...");
         var desiredSchema = await desiredProvider.GetSchema(schemas, cancellationToken);
@@ -54,7 +53,7 @@ internal sealed class MigrationWorkflow(
         return ReportOrThrow(planner.Plan(currentSchema, desiredSchema, scripts));
     }
 
-    public async Task<MigrationPlan> PlanDestroy(CancellationToken cancellationToken = default)
+    public async Task<PlannedMigration> PlanDestroy(CancellationToken cancellationToken = default)
     {
         // The managed schema is what we tear down: recorded state when we have it, otherwise the declared desired schema.
         // GetSchema applies the schema transformers, so a transform that adds an object is reflected here and therefore gets dropped.
@@ -83,9 +82,9 @@ internal sealed class MigrationWorkflow(
     }
 
     /// <summary>
-    /// Throws on planning errors; otherwise reports the diff, plan, and diagnostics, and returns the plan.
+    /// Throws on planning errors; otherwise reports the diff, plan, and diagnostics, and returns the planned migration.
     /// </summary>
-    private MigrationPlan ReportOrThrow(MigrationPlanResult result)
+    private PlannedMigration ReportOrThrow(MigrationPlanResult result)
     {
         if (result.HasErrors)
         {
@@ -96,7 +95,7 @@ internal sealed class MigrationWorkflow(
         reporters.Current.ReportPlan(result.Plan);
         reporters.Current.ReportDiagnostics(result.Diagnostics);
 
-        return result.Plan;
+        return new PlannedMigration(result.Plan, result.Diff);
     }
 
     public async Task Refresh(RefreshMode mode, CancellationToken cancellationToken = default)
