@@ -1,0 +1,27 @@
+﻿--- application schema
+CREATE PARTIAL SCHEMA app RENAMED FROM legacy_app;
+GRANT USAGE ON SCHEMA app TO app_role;
+
+--- all users
+CREATE TABLE app.users RENAMED FROM members (
+  id bigint NOT NULL IDENTITY (START 1, INCREMENT 1, MINVALUE 1),
+  --- display name
+  name varchar(255) NOT NULL,
+  balance decimal(18,2) DEFAULT 0,
+  code char(8) NOT NULL RENAMED FROM short_code,
+  metadata jsonb,
+  --- surrogate key
+  CONSTRAINT users_pkey PRIMARY KEY (id),
+  --- owning org
+  CONSTRAINT users_org_fk FOREIGN KEY (org_id) REFERENCES app.orgs (id) ON DELETE CASCADE ON UPDATE SET NULL,
+  --- external code
+  CONSTRAINT users_code_uq UNIQUE (code),
+  --- no overdraft
+  CONSTRAINT users_balance_chk CHECK (balance >= 0),
+  --- unique names
+  UNIQUE INDEX users_name_ix (name) WHERE (name IS NOT NULL)
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON app.users TO readers;
+DROP TABLE app.old_table;
+
+DROP SCHEMA scratch;
