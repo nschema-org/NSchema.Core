@@ -1,15 +1,12 @@
-using NSchema.Plan.Model;
-
 namespace NSchema.Operations.Confirmation;
 
 /// <summary>
-/// Describes an operation awaiting user confirmation before it makes changes to the database.
+/// Describes an operation awaiting user confirmation before performs an action the caller may want to review first.
 /// </summary>
-/// <param name="Plan">The computed migration plan awaiting confirmation.</param>
-public abstract record OperationConfirmationRequest(MigrationPlan Plan)
+public abstract record OperationConfirmationRequest
 {
     /// <summary>
-    /// <see langword="true"/> when the action drops managed objects (e.g. a teardown).
+    /// <see langword="true"/> when the action destroys or removes data.
     /// </summary>
     public virtual bool IsDestructive => false;
 }

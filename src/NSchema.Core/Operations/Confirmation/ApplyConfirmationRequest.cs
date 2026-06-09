@@ -6,4 +6,4 @@ namespace NSchema.Operations.Confirmation;
 /// A request to confirm an apply, which applies the plan to the database.
 /// </summary>
 /// <param name="Plan">The computed migration plan awaiting confirmation.</param>
-public sealed record ApplyConfirmationRequest(MigrationPlan Plan) : OperationConfirmationRequest(Plan);
+public sealed record ApplyConfirmationRequest(MigrationPlan Plan) : OperationConfirmationRequest;
