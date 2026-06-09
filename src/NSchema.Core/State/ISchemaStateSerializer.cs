@@ -15,6 +15,7 @@ internal interface ISchemaStateSerializer
     /// <summary>
     /// Deserializes a schema snapshot from a stored string.
     /// </summary>
+    /// <exception cref="StateDeserializationException">The payload is corrupt, truncated, or otherwise could not be deserialized.</exception>
     /// <exception cref="NotSupportedException">The payload was written by an incompatible newer format version.</exception>
     DatabaseSchema Deserialize(ReadOnlyMemory<byte> value);
 }
