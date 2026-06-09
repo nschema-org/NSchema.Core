@@ -1,0 +1,73 @@
+namespace NSchema.Schema.Serialization.Ddl;
+
+/// <summary>
+/// The kinds of token the <see cref="DslLexer"/> produces for NSchema DDL. Keywords are not distinguished here —
+/// they are lexed as <see cref="Identifier"/> and matched case-insensitively by the parser.
+/// </summary>
+internal enum TokenKind
+{
+    /// <summary>
+    /// An identifier or keyword (e.g. <c>users</c>, <c>CREATE</c>). Keywords are matched by the parser.
+    /// </summary>
+    Identifier,
+
+    /// <summary>
+    /// A single-quoted string literal. The token text is the unescaped value (without the quotes).
+    /// </summary>
+    String,
+
+    /// <summary>
+    /// A run of digits. The token text is the raw digits.
+    /// </summary>
+    Integer,
+
+    /// <summary>
+    /// A doc-comment (<c>---</c> line or <c>/** … */</c> block). The token text is the trimmed comment body.
+    /// </summary>
+    DocComment,
+
+    /// <summary>
+    /// <c>(</c>
+    /// </summary>
+    LeftParen,
+
+    /// <summary>
+    /// <c>)</c>
+    /// </summary>
+    RightParen,
+
+    /// <summary>
+    /// <c>{</c>
+    /// </summary>
+    LeftBrace,
+
+    /// <summary>
+    /// <c>}</c>
+    /// </summary>
+    RightBrace,
+
+    /// <summary>
+    /// <c>,</c>
+    /// </summary>
+    Comma,
+
+    /// <summary>
+    /// <c>;</c>
+    /// </summary>
+    Semicolon,
+
+    /// <summary>
+    /// <c>.</c>
+    /// </summary>
+    Dot,
+
+    /// <summary>
+    /// <c>=</c>
+    /// </summary>
+    Equals,
+
+    /// <summary>
+    /// The end of the input.
+    /// </summary>
+    EndOfFile,
+}
