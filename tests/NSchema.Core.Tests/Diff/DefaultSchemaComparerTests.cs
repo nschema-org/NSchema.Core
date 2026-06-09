@@ -518,6 +518,133 @@ public class DefaultSchemaComparerTests
     }
 
     // -------------------------------------------------------------------------
+    // Unique constraints
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Compare_UniqueConstraintAdded_EmitsAdd()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)]),
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)],
+                uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"])]));
+
+        table!.UniqueConstraints.ShouldHaveSingleItem().ShouldBe(
+            new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint("users_email_uq", ["email"])));
+    }
+
+    [Fact]
+    public void Compare_UniqueConstraintRemoved_EmitsRemove()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)],
+                uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"])]),
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)]));
+
+        var unique = table!.UniqueConstraints.ShouldHaveSingleItem();
+        unique.Kind.ShouldBe(ChangeKind.Remove);
+        unique.Definition.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Compare_UniqueConstraintColumnsChanged_EmitsRemoveThenAdd()
+    {
+        var columns = new[] { Column.Create("email", SqlType.Text), Column.Create("tenant", SqlType.Int) };
+        var table = DiffTable(
+            Table.Create("users", columns: columns,
+                uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"])]),
+            Table.Create("users", columns: columns,
+                uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email", "tenant"])]));
+
+        table!.UniqueConstraints.Select(c => c.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
+    }
+
+    [Fact]
+    public void Compare_UniqueConstraintUnchanged_ProducesNoDiff()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)],
+                uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"])]),
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)],
+                uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"])]));
+
+        table.ShouldBeNull();
+    }
+
+    // -------------------------------------------------------------------------
+    // Check constraints
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Compare_CheckConstraintAdded_EmitsAdd()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)]),
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)],
+                checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0")]));
+
+        table!.Checks.ShouldHaveSingleItem().ShouldBe(
+            new CheckConstraintDiff(ChangeKind.Add, "users_age_chk", new CheckConstraint("users_age_chk", "age >= 0")));
+    }
+
+    [Fact]
+    public void Compare_CheckConstraintRemoved_EmitsRemove()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)],
+                checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0")]),
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)]));
+
+        var check = table!.Checks.ShouldHaveSingleItem();
+        check.Kind.ShouldBe(ChangeKind.Remove);
+        check.Definition.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Compare_CheckConstraintExpressionChanged_EmitsRemoveThenAdd()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)],
+                checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0")]),
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)],
+                checkConstraints: [new CheckConstraint("users_age_chk", "age > 0")]));
+
+        table!.Checks.Select(c => c.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
+    }
+
+    [Fact]
+    public void Compare_CheckConstraintUnchanged_ProducesNoDiff()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)],
+                checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0")]),
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)],
+                checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0")]));
+
+        table.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Compare_NewTable_FoldsUniqueAndCheckConstraintsAsAdds()
+    {
+        // On a new table the primary key is created inline (carried on Definition), but unique and check
+        // constraints arrive as separate adds, mirroring how foreign keys fold.
+        var desired = Table.Create("users",
+            columns: [Column.Create("email", SqlType.Text), Column.Create("age", SqlType.Int)],
+            uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"])],
+            checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0")]);
+
+        var table = _sut.Compare(Db(SchemaDefinition.Create("app")),
+            Db(SchemaDefinition.Create("app", tables: [desired]))).Schemas.Single().Tables.Single();
+
+        table.Kind.ShouldBe(ChangeKind.Add);
+        table.UniqueConstraints.ShouldHaveSingleItem().ShouldBe(
+            new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint("users_email_uq", ["email"])));
+        table.Checks.ShouldHaveSingleItem().ShouldBe(
+            new CheckConstraintDiff(ChangeKind.Add, "users_age_chk", new CheckConstraint("users_age_chk", "age >= 0")));
+    }
+
+    // -------------------------------------------------------------------------
     // Indexes
     // -------------------------------------------------------------------------
 

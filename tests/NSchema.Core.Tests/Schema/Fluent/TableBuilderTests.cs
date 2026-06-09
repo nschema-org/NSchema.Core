@@ -22,6 +22,8 @@ public sealed class TableBuilderTests
         table.Comment.ShouldBeNull();
         table.Columns.ShouldBeEmpty();
         table.ForeignKeys.ShouldBeEmpty();
+        table.UniqueConstraints.ShouldBeEmpty();
+        table.CheckConstraints.ShouldBeEmpty();
         table.Indexes.ShouldBeEmpty();
         table.Grants.ShouldBeEmpty();
     }
@@ -135,6 +137,36 @@ public sealed class TableBuilderTests
     }
 
     [Fact]
+    public void Unique_AddsUniqueConstraintToBuiltTable()
+    {
+        // Arrange
+
+        // Act
+        var result = _sut.Unique("users_email_uq", ["email"]);
+
+        // Assert
+        result.ShouldBeSameAs(_sut);
+        var unique = _sut.Build().UniqueConstraints.ShouldHaveSingleItem();
+        unique.Name.ShouldBe("users_email_uq");
+        unique.ColumnNames.ShouldBe(["email"]);
+    }
+
+    [Fact]
+    public void Check_AddsCheckConstraintToBuiltTable()
+    {
+        // Arrange
+
+        // Act
+        var result = _sut.Check("users_age_chk", "age >= 0");
+
+        // Assert
+        result.ShouldBeSameAs(_sut);
+        var check = _sut.Build().CheckConstraints.ShouldHaveSingleItem();
+        check.Name.ShouldBe("users_age_chk");
+        check.Expression.ShouldBe("age >= 0");
+    }
+
+    [Fact]
     public void Index_ReturnsBuilder_AndIncludesItInBuild()
     {
         // Arrange
@@ -210,6 +242,8 @@ public sealed class TableBuilderTests
             .Comment("c")
             .RenamedFrom("old")
             .PrimaryKey("pk", ["id"])
+            .Unique("uq", ["id"])
+            .Check("chk", "id > 0")
             .Grant("role", TablePrivilege.All)
             .Dropped();
 

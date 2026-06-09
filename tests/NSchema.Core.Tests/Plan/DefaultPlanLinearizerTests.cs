@@ -487,4 +487,26 @@ public sealed class DefaultPlanLinearizerTests
 
         IndexOf<DropForeignKey>(plan).ShouldBeLessThan(IndexOf<DropTable>(plan));
     }
+
+    [Fact]
+    public void Linearize_OrdersAddUniqueConstraintBeforeAddForeignKey()
+    {
+        // A foreign key may target a unique constraint, so the constraint must be created first.
+        var plan = LinearizeTable(TableNode("orders", ChangeKind.Modify,
+            uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "orders_code_uq", new UniqueConstraint("orders_code_uq", ["code"]))],
+            foreignKeys: [new ForeignKeyDiff(ChangeKind.Add, "orders_user_fk", ForeignKey.Create("orders_user_fk", ["user_id"], "app", "users", ["id"]))]));
+
+        IndexOf<AddUniqueConstraint>(plan).ShouldBeLessThan(IndexOf<AddForeignKey>(plan));
+    }
+
+    [Fact]
+    public void Linearize_OrdersDropForeignKeyBeforeDropUniqueConstraint()
+    {
+        // The mirror of the add ordering: a referencing foreign key is dropped before the constraint it targets.
+        var plan = LinearizeTable(TableNode("orders", ChangeKind.Modify,
+            foreignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null)],
+            uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Remove, "orders_code_uq", null)]));
+
+        IndexOf<DropForeignKey>(plan).ShouldBeLessThan(IndexOf<DropUniqueConstraint>(plan));
+    }
 }

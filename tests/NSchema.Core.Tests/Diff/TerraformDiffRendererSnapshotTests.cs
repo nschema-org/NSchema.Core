@@ -29,7 +29,9 @@ public sealed class TerraformDiffRendererSnapshotTests
             ],
             Grants: [new GrantChange(ChangeKind.Add, "readers", TablePrivilege.Select)],
             Indexes: [new IndexDiff(ChangeKind.Add, "users_name_ix", TableIndex.Create("users_name_ix", ["name"], isUnique: true), null)],
-            PrimaryKey: [new PrimaryKeyDiff(ChangeKind.Add, "users_pkey", null)]);
+            PrimaryKey: [new PrimaryKeyDiff(ChangeKind.Add, "users_pkey", null)],
+            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", null)],
+            Checks: [new CheckConstraintDiff(ChangeKind.Add, "users_age_chk", null)]);
 
         var modifiedTable = new TableDiff(
             Schema: "app", Name: "orders", Kind: ChangeKind.Modify, RenamedFrom: "purchases",
@@ -43,7 +45,9 @@ public sealed class TerraformDiffRendererSnapshotTests
             ],
             Grants: [new GrantChange(ChangeKind.Remove, "writers", TablePrivilege.Insert)],
             Indexes: [],
-            ForeignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null)]);
+            ForeignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null)],
+            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Remove, "orders_code_uq", null)],
+            Checks: [new CheckConstraintDiff(ChangeKind.Remove, "orders_total_chk", null)]);
 
         return new DatabaseDiff(
             Schemas:
