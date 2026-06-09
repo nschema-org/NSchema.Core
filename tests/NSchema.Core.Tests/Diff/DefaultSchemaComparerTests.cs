@@ -655,9 +655,9 @@ public class DefaultSchemaComparerTests
     {
         var table = DiffTable(
             Table.Create("users", columns: [Column.Create("age", SqlType.Int)],
-                checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0", Comment:"old")]),
+                checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0", Comment: "old")]),
             Table.Create("users", columns: [Column.Create("age", SqlType.Int)],
-                checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0", Comment:"new")]));
+                checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0", Comment: "new")]));
 
         var check = table!.Checks.ShouldHaveSingleItem();
         check.Kind.ShouldBe(ChangeKind.Modify);
