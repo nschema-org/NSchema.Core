@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using NSchema.Schema.Model;
 
-namespace NSchema.Schema.Serialization;
+namespace NSchema.Schema.Serialization.Json;
 
 /// <summary>
 /// Reads and writes a <see cref="DatabaseSchema"/> as an indented, camel-cased JSON document.

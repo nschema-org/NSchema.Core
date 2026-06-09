@@ -27,6 +27,7 @@ using NSchema.Schema;
 using NSchema.Schema.Policies;
 using NSchema.Schema.Serialization;
 using NSchema.Schema.Serialization.Ddl;
+using NSchema.Schema.Serialization.Json;
 using NSchema.Sql;
 using NSchema.State;
 

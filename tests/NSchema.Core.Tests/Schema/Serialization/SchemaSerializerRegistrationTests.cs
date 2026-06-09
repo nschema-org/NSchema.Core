@@ -3,6 +3,7 @@ using NSchema.Resolution;
 using NSchema.Schema.Model;
 using NSchema.Schema.Serialization;
 using NSchema.Schema.Serialization.Ddl;
+using NSchema.Schema.Serialization.Json;
 
 namespace NSchema.Tests.Schema.Serialization;
 
