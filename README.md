@@ -67,6 +67,14 @@ A run performs one of several operations; the common ones are:
 
 Run an operation by calling the matching method on the built application — `app.Plan()` / `app.Apply()` / `app.Refresh()`. See [Configuration](docs/configuration.md#operations) for the full list.
 
+You can also save a plan to a file and apply it later, unchanged so what was reviewed is exactly what runs:
+
+```csharp
+await app.Plan(new PlanArguments { OutFile = "migration.nplan" });
+// ...review the saved plan, then later (e.g. in a separate CI step):
+await app.Apply(new ApplyArguments { PlanFile = "migration.nplan" });
+```
+
 ## Documentation
 
 - **[Configuration](docs/configuration.md).** Building and running, operations, destructive-action policy, scoping, registering schemas, scripts, and policies.

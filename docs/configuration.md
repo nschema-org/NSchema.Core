@@ -12,8 +12,8 @@ Call `builder.Build()` to get an `NSchemaApplication`. It is not a long-running 
 
 Each run performs one of the following operations, selected by the method you call on the built application:
 
-- **`Plan()`** computes and renders the plan, without touching the database.
-- **`Apply()`** computes the plan and applies it to the database. After a successful apply, the resulting schema is captured to the [state store](#backend-state-store) if one is configured.
+- **`Plan()`** computes and renders the plan, without touching the database. Can also write the plan to a file to apply later — see [Saved plan files](#saved-plan-files).
+- **`Apply()`** computes the plan and applies it to the database. After a successful apply, the resulting schema is captured to the [state store](#backend-state-store) if one is configured. Can also apply a previously [saved plan file](#saved-plan-files) instead of recomputing.
 - **`Refresh()`** reads the current schema from the live database and writes it to the state store, without planning or applying anything. Requires a state store.
 - **`Import()`** reads the live database schema and writes it to the local filesystem as desired-schema source files (destination, partitioning, and format are set per run via `ImportArguments`). Useful for bootstrapping a project from an existing database.
 - **`Validate()`** loads the desired schema and validates it against the configured schema policies, without planning or applying.
@@ -23,6 +23,31 @@ Each run performs one of the following operations, selected by the method you ca
 var app = builder.Build();
 await app.Apply(); // Runs the apply.
 ```
+
+## Saved plan files
+
+By default `Apply` recomputes the plan when it runs. You can instead save the plan from one run and apply that exact file later — the analogue of `terraform plan -out` followed by `terraform apply <planfile>`. This guarantees that what was reviewed is exactly what is applied, which is useful when planning and applying happen in separate steps (for example, plan in a pull request, apply after approval in CI).
+
+Write a plan to a file with `PlanArguments.OutFile`, then apply it with `ApplyArguments.PlanFile`:
+
+```csharp
+// Step 1 — compute and save the plan (requires a registered SQL generator):
+await app.Plan(new PlanArguments { OutFile = "migration.nplan" });
+
+// Step 2 — later, apply exactly that plan without recomputing:
+await app.Apply(new ApplyArguments { PlanFile = "migration.nplan" });
+```
+
+The file records the structured diff, the migration plan, and the generated SQL. Applying from it reports the same diff/plan/SQL view a normal run would, then executes the saved SQL — it does not re-read the database or re-plan. When `PlanFile` is set, `ApplyArguments.Schemas` is ignored, since the saved plan already fixes its scope.
+
+A teardown plan works the same way: save it with `PlanDestroyArguments.OutFile`, then apply it through `Apply` (a saved teardown is just a saved plan):
+
+```csharp
+await app.PlanDestroy(new PlanDestroyArguments { OutFile = "teardown.nplan" });
+await app.Apply(new ApplyArguments { PlanFile = "teardown.nplan" });
+```
+
+Saving a plan requires a registered SQL generator (to produce the SQL stored in the file). Plan files are written to the local filesystem; they are not routed through the [state store](#backend-state-store).
 
 ## Backend state store
 
