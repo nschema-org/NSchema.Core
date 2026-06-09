@@ -66,9 +66,7 @@ internal sealed class ApplyOperation(
     }
 
     /// <summary>
-    /// Applies a previously saved plan file. The plan is not recomputed: the SQL recorded in the file is what runs,
-    /// so what was reviewed is exactly what is applied. A saved teardown plan flows through here too, switching the
-    /// lock label and confirmation prompt on the file's destroy flag.
+    /// Applies a previously saved plan file.
     /// </summary>
     private async Task ApplyFromFile(string path, ISqlExecutor sqlExecutor, CancellationToken cancellationToken)
     {
@@ -76,7 +74,6 @@ internal sealed class ApplyOperation(
 
         reporters.Current.Info($"Applying saved plan from {path}. Changes will be applied to the database.");
 
-        // A saved teardown takes the destroy lock and confirmation; a saved migration takes apply's.
         await using var stateLockHandle = await stateLock.Acquire(new StateLockRequest("apply"), cancellationToken);
 
         reporters.Current.ReportPlan(envelope.Plan);

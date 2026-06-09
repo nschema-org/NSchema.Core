@@ -30,13 +30,11 @@ internal sealed class PlanFileSerializer
         },
     };
 
-    /// <inheritdoc />
     public ReadOnlyMemory<byte> Serialize(PlanFileEnvelope envelope)
     {
         return JsonSerializer.SerializeToUtf8Bytes(envelope, _options);
     }
 
-    /// <inheritdoc />
     public PlanFileEnvelope Deserialize(ReadOnlyMemory<byte> value)
     {
         PlanFileEnvelope? envelope;

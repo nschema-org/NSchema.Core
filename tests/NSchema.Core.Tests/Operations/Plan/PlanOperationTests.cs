@@ -2,6 +2,7 @@ using NSchema.Operations;
 using NSchema.Operations.Plan;
 using NSchema.Operations.Services;
 using NSchema.Plan.Model;
+using NSchema.Plan.PlanFile;
 using NSchema.Schema;
 using NSchema.Sql;
 using NSchema.Sql.Model;
@@ -18,7 +19,8 @@ public sealed class PlanOperationTests
     private readonly SqlPlan _sqlPlan = new([new SqlStatement("CREATE SCHEMA app")]);
 
     private PlanOperation BuildSut(ISqlGenerator? planner) =>
-        new(Helpers.TestReporters.ResolverFor(_reporter), _workflow, Helpers.TestSqlGenerators.ResolverFor(planner));
+        new(Helpers.TestReporters.ResolverFor(_reporter), _workflow, Helpers.TestSqlGenerators.ResolverFor(planner),
+            new PlanFileWriter());
 
     private readonly PlanOperation _sut;
 
@@ -67,5 +69,33 @@ public sealed class PlanOperationTests
         await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(new PlanArguments()));
 
         _generator.DidNotReceive().Generate(Arg.Any<MigrationPlan>());
+    }
+
+    [Fact]
+    public async Task Execute_WithOutFile_WritesAnApplyablePlanFile()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"nschema-plan-{Guid.NewGuid():N}.json");
+        try
+        {
+            await _sut.Execute(new PlanArguments { OutFile = path }, TestContext.Current.CancellationToken);
+
+            File.Exists(path).ShouldBeTrue();
+            var envelope = new PlanFileSerializer().Deserialize(await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken));
+            envelope.Sql.Statements.ShouldBe(_sqlPlan.Statements);
+            envelope.Plan.Actions.ShouldBe(_plan.Actions);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task Execute_WithOutFileButNoGenerator_Throws()
+    {
+        var sut = BuildSut(planner: null);
+
+        await Should.ThrowAsync<InvalidOperationException>(
+            () => sut.Execute(new PlanArguments { OutFile = "unused.json" }));
     }
 }

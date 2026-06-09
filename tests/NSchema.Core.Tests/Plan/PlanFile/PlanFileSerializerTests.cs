@@ -1,0 +1,88 @@
+using System.Text;
+using NSchema.Plan.Model;
+using NSchema.Plan.PlanFile;
+using NSchema.Scripts.Model;
+using NSchema.Sql.Model;
+using NSchema.Tests.Helpers;
+
+namespace NSchema.Tests.Plan.PlanFile;
+
+public sealed class PlanFileSerializerTests
+{
+    private static readonly PlanFileSerializer _sut = new PlanFileSerializer();
+
+    private static string Json(PlanFileEnvelope envelope) => Encoding.UTF8.GetString(_sut.Serialize(envelope).Span);
+
+    private static PlanFileEnvelope SampleEnvelope()
+    {
+        // A plan mixing several action types (including one carrying a full Table definition) so the round-trip
+        // exercises the polymorphic MigrationAction hierarchy and the nested schema model together.
+        var table = TestData.RichSchema().Schemas[0].Tables[0];
+
+        var plan = new MigrationPlan(
+            [
+                new CreateSchema("app"),
+                new CreateTable("app", table),
+                new AddColumn("app", "users", table.Columns[1]),
+                new DropTable("app", "legacy"),
+            ],
+            [new Script("seed", "INSERT INTO app.config VALUES (1)", ScriptType.PreDeployment)],
+            [new Script("reindex", "REINDEX TABLE app.users", ScriptType.PostDeployment) { RunOutsideTransaction = true }]);
+
+        var sql = new SqlPlan([
+            new SqlStatement("CREATE SCHEMA app"),
+            new SqlStatement("CREATE INDEX CONCURRENTLY ...", RunOutsideTransaction: true),
+        ]);
+
+        return new PlanFileEnvelope(PlanFileEnvelope.CurrentVersion, plan, sql, DateTimeOffset.UnixEpoch);
+    }
+
+    [Fact]
+    public void Serialize_ThenDeserialize_RoundTripsTheWholeEnvelope()
+    {
+        var original = SampleEnvelope();
+
+        var json = Json(original);
+        var roundTripped = _sut.Deserialize(_sut.Serialize(original));
+
+        // A read + write cycle reproduces the exact same document, including the polymorphic actions.
+        Json(roundTripped).ShouldBe(json);
+    }
+
+    [Fact]
+    public void Deserialize_PreservesEnvelopeMetadata()
+    {
+        var roundTripped = _sut.Deserialize(_sut.Serialize(SampleEnvelope()));
+
+        roundTripped.Version.ShouldBe(PlanFileEnvelope.CurrentVersion);
+        roundTripped.CreatedAt.ShouldBe(DateTimeOffset.UnixEpoch);
+    }
+
+    [Fact]
+    public void Deserialize_RestoresConcreteActionTypesInOrder()
+    {
+        var roundTripped = _sut.Deserialize(_sut.Serialize(SampleEnvelope()));
+
+        // The discriminator must reconstruct each concrete record, not the abstract base, and keep order.
+        roundTripped.Plan.Actions.Select(a => a.GetType()).ShouldBe(
+            [typeof(CreateSchema), typeof(CreateTable), typeof(AddColumn), typeof(DropTable)]);
+    }
+
+    [Fact]
+    public void Deserialize_RestoresSqlAndScriptDetail()
+    {
+        var roundTripped = _sut.Deserialize(_sut.Serialize(SampleEnvelope()));
+
+        roundTripped.Sql.Statements[1].RunOutsideTransaction.ShouldBeTrue();
+        roundTripped.Plan.PostDeploymentScripts[0].RunOutsideTransaction.ShouldBeTrue();
+        roundTripped.Plan.PreDeploymentScripts[0].Type.ShouldBe(ScriptType.PreDeployment);
+    }
+
+    [Fact]
+    public void Deserialize_Garbage_ThrowsPlanFileDeserializationException()
+    {
+        var garbage = Encoding.UTF8.GetBytes("not json at all");
+
+        Should.Throw<PlanFileDeserializationException>(() => _sut.Deserialize(garbage));
+    }
+}

@@ -1,8 +1,7 @@
 namespace NSchema.Plan.PlanFile;
 
 /// <summary>
-/// Shared helper that writes a saved plan file. Used by the plan and plan-destroy operations so the
-/// dialect requirement, envelope construction, and file write live in one place.
+/// Reads and writes saved plan files.
 /// </summary>
 internal class PlanFileWriter : IPlanFileWriter
 {

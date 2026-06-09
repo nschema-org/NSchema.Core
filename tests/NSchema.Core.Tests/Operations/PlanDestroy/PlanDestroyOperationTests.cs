@@ -2,6 +2,7 @@ using NSchema.Operations;
 using NSchema.Operations.PlanDestroy;
 using NSchema.Operations.Services;
 using NSchema.Plan.Model;
+using NSchema.Plan.PlanFile;
 using NSchema.Sql;
 using NSchema.Sql.Model;
 
@@ -17,7 +18,8 @@ public sealed class PlanDestroyOperationTests
     private readonly SqlPlan _sqlPlan = new([new SqlStatement("DROP SCHEMA app")]);
 
     private PlanDestroyOperation BuildSut(ISqlGenerator? generator) =>
-        new(Helpers.TestReporters.ResolverFor(_reporter), _workflow, Helpers.TestSqlGenerators.ResolverFor(generator));
+        new(Helpers.TestReporters.ResolverFor(_reporter), _workflow, Helpers.TestSqlGenerators.ResolverFor(generator),
+            new PlanFileWriter());
 
     private readonly PlanDestroyOperation _sut;
 
@@ -75,5 +77,23 @@ public sealed class PlanDestroyOperationTests
         await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(new PlanDestroyArguments()));
 
         _generator.DidNotReceive().Generate(Arg.Any<MigrationPlan>());
+    }
+
+    [Fact]
+    public async Task Execute_WithOutFile_WritesTheTeardownPlanFile()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"nschema-destroy-{Guid.NewGuid():N}.json");
+        try
+        {
+            await _sut.Execute(new PlanDestroyArguments { OutFile = path }, TestContext.Current.CancellationToken);
+
+            var envelope = new PlanFileSerializer().Deserialize(await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken));
+            envelope.Plan.Actions.ShouldBe(_plan.Actions);
+            envelope.Sql.Statements.ShouldBe(_sqlPlan.Statements);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 }

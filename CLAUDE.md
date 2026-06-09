@@ -40,9 +40,9 @@ Each operation is its own seam: an **internal** `I{Name}Operation` interface wit
 
 Built-in operations (`src/NSchema.Core/Operations/`):
 
-- **`PlanOperation`** — plans against the offline source (preferred), reports the plan and the SQL preview (if an `ISqlGenerator` dialect is registered). Does not execute.
-- **`PlanDestroyOperation`** — previews the teardown plan: calls `IMigrationWorkflow.PlanDestroy` (the same trusted `PlanTeardown` path `Destroy` uses, bypassing the diff/plan transformers and policies) and reports the SQL preview (if a generator is registered). The preview-half of `Destroy`, mirroring how `Plan` previews `Apply`. Does not confirm, execute, or capture state. The analogue of `terraform plan -destroy`.
-- **`ApplyOperation`** — plans against the online source (required), generates SQL via `ISqlGenerator`, previews it, executes via `ISqlExecutor`, and captures state.
+- **`PlanOperation`** — plans against the offline source (preferred), reports the plan and the SQL preview (if an `ISqlGenerator` dialect is registered). Does not execute. When `PlanArguments.OutFile` is set, it also writes a **saved plan file** (requires a generator) — see *Saved plan files* below.
+- **`PlanDestroyOperation`** — previews the teardown plan: calls `IMigrationWorkflow.PlanDestroy` (the same trusted `PlanTeardown` path `Destroy` uses, bypassing the diff/plan transformers and policies) and reports the SQL preview (if a generator is registered). The preview-half of `Destroy`, mirroring how `Plan` previews `Apply`. Does not confirm, execute, or capture state. The analogue of `terraform plan -destroy`. When `PlanDestroyArguments.OutFile` is set, it writes a saved plan file of the teardown.
+- **`ApplyOperation`** — plans against the online source (required), generates SQL via `ISqlGenerator`, previews it, executes via `ISqlExecutor`, and captures state. When `ApplyArguments.PlanFile` is set, it instead **applies a saved plan file** without recomputing: it reads the file, confirms, and executes the saved SQL exactly as reviewed. A saved teardown plan flows through this same path (a saved plan is just a plan), so there is no apply-from-file path on `Destroy`. The analogue of `terraform apply <planfile>`.
 - **`RefreshOperation`** — captures the live schema to the state store without planning or applying.
 - **`ImportOperation`** — fetches the live schema (optionally filtered by `ImportArguments.Schemas` / `ImportArguments.Tables`), then writes it to the local filesystem as desired-schema source files. The destination is per-invocation: `ImportArguments.OutputFile` (when `Partition` is `None`) or `ImportArguments.OutputDirectory` (for the partitioned modes), serialized via `IKeyedResolver<ISchemaSerializer>` keyed by `ImportArguments.Format`. Import is additive: existing tables in the target files are preserved. The file-writing logic (partitioning + additive merge) lives directly in the handler — there is no `ISchemaImportTarget` seam.
 - **`ValidateOperation`** — loads the desired schema and validates it against the registered `ISchemaPolicy` implementations, without planning or applying.
@@ -107,6 +107,15 @@ Generating SQL and executing it are deliberately separate, so a plan can be prev
 - **`ISqlExecutor`** (default `DefaultSqlExecutor`) executes the `SqlPlan` against a `DbDataSource`. It reads `SqlOptions.TransactionMode` to decide whether to wrap everything in one transaction. It is the only online step.
 
 The operations consume these two seams directly — there is no separate compiler abstraction. The `SqlPlan` reaches the reporter as a structured value via `IOperationReporter.ReportSqlPlan(SqlPlan)`, which renders it through **`ISqlPlanRenderer`** (default `DefaultSqlPlanRenderer`), mirroring the diff side's `IDiffRenderer`.
+
+### Saved plan files
+
+A plan can be saved to a file and applied later, unchanged — the analogue of `terraform plan -out` + `terraform apply <planfile>`. This closes the gap where a re-plan at apply time might diverge from what was reviewed. The artifact lives in `Plan/PlanFile/`:
+
+- **`PlanFileEnvelope`** (internal, versioned like `SchemaStateEnvelope`) carries the structured `MigrationPlan`, the generated `SqlPlan`, and a `CreatedAt`. Storing **both** the plan and its SQL means apply can re-render and confirm the structured plan *and* execute the exact SQL that was reviewed.
+- **`PlanFileSerializer`** (internal) serializes the envelope as JSON, reusing `DomainModelJson.IgnoreComputedProperties`. It additionally configures **polymorphic** serialization for the `MigrationAction` hierarchy (discriminator `$action` = the concrete type name), discovered by reflection so a new action type needs no registration. Polymorphism is set on the contract resolver, not via attributes, keeping the domain model serialization-free.
+- **`IPlanFileWriter`** (default `PlanFileWriter`, registered with `TryAddSingleton`) is the seam the operations depend on: it wraps the serializer with file I/O (`Read` / `Write`), so `PlanOperation`, `PlanDestroyOperation`, and `ApplyOperation` inject one dependency rather than a serializer plus file handling. Saving requires a registered generator (to produce the `SqlPlan`).
+- Applying (`ApplyOperation.ApplyFromFile`, triggered by `ApplyArguments.PlanFile`) does **not** recompute the plan: it reads the file, takes the `"apply"` lock, confirms with `ApplyConfirmationRequest`, executes the saved SQL, and captures state. A saved teardown is just a saved plan and flows through the same path. Plan files are local file paths, not routed through `ISchemaStateStore` — they're ephemeral CI artifacts with a different lifecycle from state.
 
 ### Defining a schema
 
