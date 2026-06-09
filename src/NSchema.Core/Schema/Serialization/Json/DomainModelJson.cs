@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization.Metadata;
 
-namespace NSchema.Schema.Serialization;
+namespace NSchema.Schema.Serialization.Json;
 
 /// <summary>
 /// Shared JSON shaping for the domain model that both the user-facing

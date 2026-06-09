@@ -1,9 +1,9 @@
 using System.Text;
 using NSchema.Schema.Model;
-using NSchema.Schema.Serialization;
+using NSchema.Schema.Serialization.Json;
 using NSchema.Tests.Helpers;
 
-namespace NSchema.Tests.Schema.Serialization;
+namespace NSchema.Tests.Schema.Serialization.Json;
 
 public sealed class JsonSchemaSerializerTests
 {

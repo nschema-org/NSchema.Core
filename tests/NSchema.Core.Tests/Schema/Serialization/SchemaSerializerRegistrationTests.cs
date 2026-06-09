@@ -2,6 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 using NSchema.Resolution;
 using NSchema.Schema.Model;
 using NSchema.Schema.Serialization;
+using NSchema.Schema.Serialization.Ddl;
+using NSchema.Schema.Serialization.Json;
 
 namespace NSchema.Tests.Schema.Serialization;
 
@@ -10,8 +12,6 @@ public sealed class SchemaSerializerRegistrationTests
     /// <summary>A no-op serializer for the 'yaml' format, for registration tests.</summary>
     private sealed class YamlStubSerializer : ISchemaSerializer
     {
-        public string Format => "yaml";
-
         public ValueTask Write(DatabaseSchema schema, Stream destination, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
@@ -44,6 +44,14 @@ public sealed class SchemaSerializerRegistrationTests
         var resolver = Resolve(_ => { });
 
         resolver.Resolve("json").ShouldBeOfType<JsonSchemaSerializer>();
+    }
+
+    [Fact]
+    public void Default_RegistersDdlSerializer()
+    {
+        var resolver = Resolve(_ => { });
+
+        resolver.Resolve("sql").ShouldBeOfType<DdlSchemaSerializer>();
     }
 
     [Fact]

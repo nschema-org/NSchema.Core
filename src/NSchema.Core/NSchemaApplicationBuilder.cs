@@ -26,6 +26,8 @@ using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Schema.Policies;
 using NSchema.Schema.Serialization;
+using NSchema.Schema.Serialization.Ddl;
+using NSchema.Schema.Serialization.Json;
 using NSchema.Sql;
 using NSchema.State;
 
@@ -67,6 +69,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Register built-in keyed implementations (last-registration-wins).
         AddReporter<DefaultOperationReporter>(DefaultOperationReporter.ReporterName);
         AddSchemaSerializer<JsonSchemaSerializer>(JsonSchemaSerializer.FormatName);
+        AddSchemaSerializer<DdlSchemaSerializer>(DdlSchemaSerializer.FormatName);
 
         // Policies registered up front so users can remove them before Build().
         AddSchemaPolicy<StructuralIntegritySchemaPolicy>();

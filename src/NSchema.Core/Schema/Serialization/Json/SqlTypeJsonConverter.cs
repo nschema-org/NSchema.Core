@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using NSchema.Schema.Model;
 
-namespace NSchema.Schema.Serialization;
+namespace NSchema.Schema.Serialization.Json;
 
 /// <summary>
 /// Serializes <see cref="SqlType"/> as its compact canonical string (e.g. <c>"varchar(255)"</c>).
