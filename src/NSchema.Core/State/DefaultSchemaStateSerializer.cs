@@ -32,8 +32,23 @@ internal sealed class DefaultSchemaStateSerializer : ISchemaStateSerializer
     /// <inheritdoc />
     public DatabaseSchema Deserialize(ReadOnlyMemory<byte> state)
     {
-        var envelope = JsonSerializer.Deserialize<SchemaStateEnvelope>(state.Span, _options)
-            ?? throw new JsonException("State payload deserialized to null.");
+        SchemaStateEnvelope? envelope;
+        try
+        {
+            envelope = JsonSerializer.Deserialize<SchemaStateEnvelope>(state.Span, _options);
+        }
+        catch (Exception ex)
+        {
+            throw new StateDeserializationException(
+                "The stored state payload could not be deserialized; it may be corrupt, truncated, or written by an incompatible version of NSchema.",
+                ex
+            );
+        }
+
+        if (envelope is null)
+        {
+            throw new StateDeserializationException("State payload deserialized to null.");
+        }
 
         if (envelope.Version > SchemaStateEnvelope.CurrentVersion)
         {
