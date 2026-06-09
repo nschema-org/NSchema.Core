@@ -224,4 +224,91 @@ public sealed class DslLexerTests
     public void ReadParenthesizedExpression_Unterminated_Throws()
         => Should.Throw<DslSyntaxException>(() => new DslLexer("(a > 0").ReadParenthesizedExpression())
             .Message.ShouldContain("Unterminated expression");
+
+    // -------------------------------------------------------------------------
+    // Bare default-expression capture
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void ReadDefaultExpression_Literal_ReturnsTrimmedValue()
+        => new DslLexer("  42  ").ReadDefaultExpression().ShouldBe("42");
+
+    [Fact]
+    public void ReadDefaultExpression_FunctionCall_KeepsItsParens()
+        => new DslLexer("now()").ReadDefaultExpression().ShouldBe("now()");
+
+    [Fact]
+    public void ReadDefaultExpression_CommaInsideParens_IsNotATerminator()
+        => new DslLexer("coalesce(a, b)").ReadDefaultExpression().ShouldBe("coalesce(a, b)");
+
+    [Fact]
+    public void ReadDefaultExpression_ParenthesisedValue_PreservesOuterParens()
+        => new DslLexer("(a + b)").ReadDefaultExpression().ShouldBe("(a + b)");
+
+    [Fact]
+    public void ReadDefaultExpression_StopsAtTopLevelComma_WithoutConsumingIt()
+    {
+        var lexer = new DslLexer("0, next");
+        lexer.ReadDefaultExpression().ShouldBe("0");
+        lexer.Next().Kind.ShouldBe(TokenKind.Comma);
+    }
+
+    [Fact]
+    public void ReadDefaultExpression_StopsAtTopLevelCloseParen_WithoutConsumingIt()
+    {
+        var lexer = new DslLexer("5)");
+        lexer.ReadDefaultExpression().ShouldBe("5");
+        lexer.Next().Kind.ShouldBe(TokenKind.RightParen);
+    }
+
+    [Theory]
+    [InlineData("0 RENAMED FROM old")]
+    [InlineData("0 renamed from old")]
+    public void ReadDefaultExpression_StopsAtRenamedKeyword(string source)
+    {
+        var lexer = new DslLexer(source);
+        lexer.ReadDefaultExpression().ShouldBe("0");
+        lexer.Next().IsKeyword("RENAMED").ShouldBeTrue();
+    }
+
+    [Fact]
+    public void ReadDefaultExpression_RenamedInsideIdentifier_DoesNotStop()
+    {
+        // 'RENAMED' is only a terminator at a word boundary — embedded in an identifier it is just text.
+        new DslLexer("col_RENAMED_at").ReadDefaultExpression().ShouldBe("col_RENAMED_at");
+    }
+
+    [Fact]
+    public void ReadDefaultExpression_DelimitersInsideString_AreIgnored()
+        => new DslLexer("'a, b) RENAMED'").ReadDefaultExpression().ShouldBe("'a, b) RENAMED'");
+
+    [Fact]
+    public void ReadDefaultExpression_Empty_Throws()
+        => Should.Throw<DslSyntaxException>(() => new DslLexer(", rest").ReadDefaultExpression())
+            .Message.ShouldContain("Expected a default expression");
+
+    // -------------------------------------------------------------------------
+    // ResetTo (rewind / re-read)
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void ResetTo_RewindsToATokenAndReReadsIt()
+    {
+        var lexer = new DslLexer("alpha beta");
+        lexer.Next();
+        var second = lexer.Next();
+        lexer.ResetTo(second.Position);
+        lexer.Next().Text.ShouldBe("beta");
+    }
+
+    [Fact]
+    public void ResetTo_ThenRawCapture_MirrorsParserUsage()
+    {
+        // The parser holds a one-token lookahead, so it rewinds to that token before capturing raw expression text.
+        var lexer = new DslLexer("now() RENAMED FROM old");
+        var firstToken = lexer.Next();          // pulled as lookahead; the scanner is now past 'now'
+        lexer.ResetTo(firstToken.Position);     // rewind to where the expression starts
+        lexer.ReadDefaultExpression().ShouldBe("now()");
+        lexer.Next().IsKeyword("RENAMED").ShouldBeTrue();   // stream resumes cleanly at the boundary
+    }
 }

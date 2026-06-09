@@ -202,7 +202,7 @@ fk-def     = "CONSTRAINT" , ident , "FOREIGN" , "KEY" , "(" , col-list , ")" ,
 unique-def = "CONSTRAINT" , ident , "UNIQUE" , "(" , col-list , ")" ;
 check-def  = "CONSTRAINT" , ident , "CHECK" , paren-expr ;
 
-ref-action = "NO" , "ACTION" | "CASCADE" | "SET" , "NULL" | "RESTRICT" | "SET" , "DEFAULT" ;
+ref-action = "NO" , "ACTION" | "CASCADE" | "SET" , "NULL" | "SET" , "DEFAULT" ;
 col-list   = ident , { "," , ident } ;
 ```
 
@@ -253,7 +253,7 @@ table-priv = "SELECT" | "INSERT" | "UPDATE" | "DELETE" ;
 CREATE SCHEMA shop;
 
 --- Line items for an order.
-CREATE TABLE shop.order_items RENAMED FROM shop.line_items (
+CREATE TABLE shop.order_items RENAMED FROM line_items (
   order_id    int           NOT NULL,
   product_id  int           NOT NULL,
   quantity    int           NOT NULL DEFAULT 1,

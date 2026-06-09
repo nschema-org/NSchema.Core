@@ -149,6 +149,93 @@ internal sealed class DslLexer(string source)
         }
     }
 
+    /// <summary>
+    /// Captures an unparenthesised <c>DEFAULT</c> expression as raw text, preserving any parentheses the author
+    /// wrote. Tracks paren depth (so a comma inside <c>coalesce(a, b)</c> is not a terminator) and string literals,
+    /// and stops — without consuming the terminator — at a depth-0 <c>,</c> or <c>)</c> (the enclosing column
+    /// list) or the <c>RENAMED</c> keyword.
+    /// </summary>
+    public string ReadDefaultExpression()
+    {
+        SkipInlineWhitespace();
+        var pos = Position;
+        var start = _offset;
+        var depth = 0;
+        while (!AtEnd)
+        {
+            var c = Current;
+            if (c == '\'')
+            {
+                ConsumeStringLiteral(pos);
+                continue;
+            }
+
+            if (c == '(')
+            {
+                depth++;
+            }
+            else if (c == ')')
+            {
+                if (depth == 0)
+                {
+                    break;
+                }
+                depth--;
+            }
+            else if (depth == 0)
+            {
+                if (c == ',')
+                {
+                    break;
+                }
+                if (IsIdentifierStart(c) && AtWordStart() && MatchesKeyword("RENAMED"))
+                {
+                    break;
+                }
+            }
+
+            Advance();
+        }
+
+        var text = _source[start.._offset].Trim();
+        if (text.Length == 0)
+        {
+            throw new DslSyntaxException("Expected a default expression", pos);
+        }
+        return text;
+    }
+
+    /// <summary>
+    /// Rewinds the scanner to a previously-observed position. The parser uses this to re-read a token it had
+    /// already pulled as lookahead so that an opaque expression can be captured as raw text from the right offset.
+    /// </summary>
+    public void ResetTo(SourcePosition position)
+    {
+        _offset = position.Offset;
+        _line = position.Line;
+        _column = position.Column;
+    }
+
+    private bool AtWordStart() => _offset == 0 || !IsIdentifierPart(_source[_offset - 1]);
+
+    /// <summary>Whether the (upper-cased) keyword sits at the current offset, bounded by a non-identifier character.</summary>
+    private bool MatchesKeyword(string keyword)
+    {
+        if (_offset + keyword.Length > _source.Length)
+        {
+            return false;
+        }
+        for (var i = 0; i < keyword.Length; i++)
+        {
+            if (char.ToUpperInvariant(_source[_offset + i]) != keyword[i])
+            {
+                return false;
+            }
+        }
+        var after = _offset + keyword.Length;
+        return after >= _source.Length || !IsIdentifierPart(_source[after]);
+    }
+
     private Token ReadDocLine()
     {
         var pos = Position;

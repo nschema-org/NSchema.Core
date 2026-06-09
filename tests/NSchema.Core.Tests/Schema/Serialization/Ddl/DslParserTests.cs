@@ -173,9 +173,9 @@ public sealed class DslParserTests
 
     [Fact]
     public void Parse_PartialTable_Throws()
-        => Should.Throw<DslSyntaxException>(() => Parse("CREATE PARTIAL TABLE app.t ();")).Message.ShouldContain("PARTIAL applies to SCHEMA");
+        => Should.Throw<DslSyntaxException>(() => Parse("CREATE PARTIAL TABLE app.t (id int);")).Message.ShouldContain("PARTIAL applies to SCHEMA");
 
     [Fact]
-    public void Parse_CreateTable_NotYetSupported()
-        => Should.Throw<DslSyntaxException>(() => Parse("CREATE TABLE app.users ();")).Message.ShouldContain("not yet supported");
+    public void Parse_EmptyTableBody_Throws()
+        => Should.Throw<DslSyntaxException>(() => Parse("CREATE TABLE app.users ();")).Message.ShouldContain("column or constraint");
 }
