@@ -6,6 +6,8 @@
     + name varchar(255) not null
 
     + primary key users_pkey
+    + unique constraint users_email_uq
+    + check constraint users_age_chk
     + index users_name_ix
     + grant SELECT to readers
 
@@ -13,9 +15,12 @@
     ~ total type: int → bigint
     ~ total nullable: null → not null
     - legacy_flag boolean not null
+    ~ primary key orders_pkey comment: "old note" → "new note"
     - foreign key orders_user_fk
+    - unique constraint orders_code_uq
+    - check constraint orders_total_chk
     - revoke INSERT from writers
 
 - schema scratch
 
-Plan: 6 to add, 2 to change, 3 to destroy.
+Plan: 8 to add, 3 to change, 5 to destroy.

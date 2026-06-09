@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using NSchema.Diff.Model;
 using NSchema.Diff.Policies;
 using NSchema.Plan.Model;
 using NSchema.Policies;
@@ -88,4 +89,35 @@ public class DestructiveActionDiffPolicyTests
         // Assert
         errors.Count.ShouldBe(1);
     }
+
+    [Fact]
+    public void Validate_DroppedUniqueConstraint_IsDestructive()
+    {
+        // Arrange — dropping a unique constraint removes a structural guarantee (and a possible FK target).
+        _options.Value.Policy = DestructiveActionPolicy.Error;
+        var diff = TableChange(new TableDiff("app", "users", ChangeKind.Modify, null, null, [], [], [],
+            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Remove, "users_email_uq", null)]));
+
+        // Act
+        var errors = _sut.Validate(diff).ToList();
+
+        // Assert
+        errors.ShouldHaveSingleItem();
+        errors[0].Message.ShouldContain(nameof(DropUniqueConstraint));
+    }
+
+    [Fact]
+    public void Validate_DroppedCheckConstraint_IsNotDestructive()
+    {
+        // Arrange — dropping a check only loosens validation; no data is lost, so it is not destructive.
+        _options.Value.Policy = DestructiveActionPolicy.Error;
+        var diff = TableChange(new TableDiff("app", "users", ChangeKind.Modify, null, null, [], [], [],
+            Checks: [new CheckConstraintDiff(ChangeKind.Remove, "users_age_chk", null)]));
+
+        // Act / Assert
+        _sut.Validate(diff).ShouldBeEmpty();
+    }
+
+    private static DatabaseDiff TableChange(TableDiff table) =>
+        new([new SchemaDiff("app", null, null, null, [], [table])]);
 }

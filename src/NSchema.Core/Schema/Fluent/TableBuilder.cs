@@ -10,6 +10,8 @@ public sealed class TableBuilder
     private readonly string _name;
     private readonly List<ColumnBuilder> _columns = [];
     private readonly List<ForeignKeyBuilder> _foreignKeys = [];
+    private readonly List<UniqueConstraint> _uniqueConstraints = [];
+    private readonly List<CheckConstraint> _checkConstraints = [];
     private readonly List<IndexBuilder> _indexes = [];
     private readonly List<TableGrant> _grants = [];
     private PrimaryKey? _primaryKey;
@@ -61,10 +63,11 @@ public sealed class TableBuilder
     /// </summary>
     /// <param name="name">The name of the primary key constraint to define for the table.</param>
     /// <param name="columnNames">A list of column names that make up the primary key constraint for the table.</param>
+    /// <param name="comment">An optional comment or description for the primary key constraint.</param>
     /// <returns>The current <see cref="TableBuilder"/> instance, allowing for method chaining.</returns>
-    public TableBuilder PrimaryKey(string name, IReadOnlyList<string> columnNames)
+    public TableBuilder PrimaryKey(string name, IReadOnlyList<string> columnNames, string? comment = null)
     {
-        _primaryKey = new PrimaryKey(name, columnNames);
+        _primaryKey = new PrimaryKey(name, columnNames, comment);
         return this;
     }
 
@@ -99,6 +102,34 @@ public sealed class TableBuilder
         var builder = new ForeignKeyBuilder(name, columnNames, referencedSchema, referencedTable, referencedColumnNames);
         _foreignKeys.Add(builder);
         configure.Invoke(builder);
+        return this;
+    }
+
+    /// <summary>
+    /// Defines a unique constraint on the table. A unique constraint is distinct from a unique index
+    /// (<see cref="Index(string, IReadOnlyList{string})"/> with <c>Unique()</c>): it may be referenced by a
+    /// foreign key. Use a unique index instead when the uniqueness is partial or expression-based.
+    /// </summary>
+    /// <param name="name">The name of the unique constraint to define.</param>
+    /// <param name="columnNames">A list of column names that make up the unique constraint.</param>
+    /// <param name="comment">An optional comment or description for the unique constraint.</param>
+    /// <returns>The current <see cref="TableBuilder"/> instance, allowing for method chaining.</returns>
+    public TableBuilder Unique(string name, IReadOnlyList<string> columnNames, string? comment = null)
+    {
+        _uniqueConstraints.Add(new UniqueConstraint(name, columnNames, comment));
+        return this;
+    }
+
+    /// <summary>
+    /// Defines a check constraint on the table.
+    /// </summary>
+    /// <param name="name">The name of the check constraint to define.</param>
+    /// <param name="expression">The SQL boolean expression the constraint enforces.</param>
+    /// <param name="comment">An optional comment or description for the check constraint.</param>
+    /// <returns>The current <see cref="TableBuilder"/> instance, allowing for method chaining.</returns>
+    public TableBuilder Check(string name, string expression, string? comment = null)
+    {
+        _checkConstraints.Add(new CheckConstraint(name, expression, comment));
         return this;
     }
 
@@ -170,6 +201,8 @@ public sealed class TableBuilder
         _comment,
         _columns.Select(c => c.Build()).ToList(),
         _foreignKeys.Select(f => f.Build()).ToList(),
+        _uniqueConstraints,
+        _checkConstraints,
         _indexes.Select(i => i.Build()).ToList(),
         _grants
     );

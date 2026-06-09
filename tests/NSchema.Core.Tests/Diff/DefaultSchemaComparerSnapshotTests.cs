@@ -34,7 +34,8 @@ public sealed class DefaultSchemaComparerSnapshotTests
             SchemaDefinition.Create("scratch"),
         ]);
 
-        // Desired: id widened, email renamed + retyped, legacy_flag dropped, a new index, a new "reporting" schema.
+        // Desired: id widened, email renamed + retyped, legacy_flag dropped, a new index, a new unique
+        // constraint, a new check constraint, and a new "reporting" schema.
         var desired = DatabaseSchema.Create(
         [
             SchemaDefinition.Create("app", tables:
@@ -46,6 +47,8 @@ public sealed class DefaultSchemaComparerSnapshotTests
                         Column.Create("id", SqlType.BigInt),
                         Column.Create("email_address", SqlType.Text, oldName: "email"),
                     ],
+                    uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email_address"])],
+                    checkConstraints: [new CheckConstraint("users_id_chk", "id > 0")],
                     indexes: [TableIndex.Create("users_email_ix", ["email_address"], isUnique: true)]),
             ]),
             SchemaDefinition.Create("reporting", comment: "analytics"),

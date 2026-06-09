@@ -11,6 +11,8 @@ internal sealed class DefaultPlanLinearizer : IPlanLinearizer
 {
     private static readonly IReadOnlyDictionary<Type, int> _actionPriorities = new List<Type> {
         typeof(DropForeignKey),
+        typeof(DropCheckConstraint),
+        typeof(DropUniqueConstraint),
         typeof(DropIndex),
         typeof(DropPrimaryKey),
         typeof(RevokeSchemaUsage),
@@ -27,7 +29,9 @@ internal sealed class DefaultPlanLinearizer : IPlanLinearizer
         typeof(AlterIdentitySequence),
         typeof(SetColumnDefault),
         typeof(AddPrimaryKey),
+        typeof(AddUniqueConstraint),
         typeof(AddForeignKey),
+        typeof(AddCheckConstraint),
         typeof(CreateIndex),
         typeof(GrantSchemaUsage),
         typeof(GrantTablePrivileges),
@@ -35,6 +39,7 @@ internal sealed class DefaultPlanLinearizer : IPlanLinearizer
         typeof(SetTableComment),
         typeof(SetColumnComment),
         typeof(SetIndexComment),
+        typeof(SetConstraintComment),
         typeof(DropTable),
         typeof(DropSchema),
     }.Index().ToFrozenDictionary(x => x.Item, x => x.Index);
@@ -190,15 +195,43 @@ internal sealed class DefaultPlanLinearizer : IPlanLinearizer
 
     private static void EmitConstraints(TableDiff table, List<MigrationAction> actions)
     {
-        foreach (var constraint in table.Constraints)
+        foreach (var pk in table.PrimaryKey)
         {
-            actions.Add((constraint.Kind, constraint.Type) switch
+            actions.Add(pk.Kind switch
             {
-                (ChangeKind.Add, ConstraintType.PrimaryKey) => new AddPrimaryKey(table.Schema, table.Name, constraint.PrimaryKey!),
-                (ChangeKind.Remove, ConstraintType.PrimaryKey) => new DropPrimaryKey(table.Schema, table.Name, constraint.Name),
-                (ChangeKind.Add, ConstraintType.ForeignKey) => new AddForeignKey(table.Schema, table.Name, constraint.ForeignKey!),
-                (ChangeKind.Remove, ConstraintType.ForeignKey) => new DropForeignKey(table.Schema, table.Name, constraint.Name),
-                _ => throw new NotSupportedException($"Cannot linearize constraint change {constraint.Kind} {constraint.Type}."),
+                ChangeKind.Add => new AddPrimaryKey(table.Schema, table.Name, pk.Definition!),
+                ChangeKind.Remove => new DropPrimaryKey(table.Schema, table.Name, pk.Name),
+                _ => new SetConstraintComment(table.Schema, table.Name, pk.Name, pk.Comment!.Old, pk.Comment.New),
+            });
+        }
+
+        foreach (var fk in table.ForeignKeys)
+        {
+            actions.Add(fk.Kind switch
+            {
+                ChangeKind.Add => new AddForeignKey(table.Schema, table.Name, fk.Definition!),
+                ChangeKind.Remove => new DropForeignKey(table.Schema, table.Name, fk.Name),
+                _ => new SetConstraintComment(table.Schema, table.Name, fk.Name, fk.Comment!.Old, fk.Comment.New),
+            });
+        }
+
+        foreach (var uq in table.UniqueConstraints)
+        {
+            actions.Add(uq.Kind switch
+            {
+                ChangeKind.Add => new AddUniqueConstraint(table.Schema, table.Name, uq.Definition!),
+                ChangeKind.Remove => new DropUniqueConstraint(table.Schema, table.Name, uq.Name),
+                _ => new SetConstraintComment(table.Schema, table.Name, uq.Name, uq.Comment!.Old, uq.Comment.New),
+            });
+        }
+
+        foreach (var ck in table.Checks)
+        {
+            actions.Add(ck.Kind switch
+            {
+                ChangeKind.Add => new AddCheckConstraint(table.Schema, table.Name, ck.Definition!),
+                ChangeKind.Remove => new DropCheckConstraint(table.Schema, table.Name, ck.Name),
+                _ => new SetConstraintComment(table.Schema, table.Name, ck.Name, ck.Comment!.Old, ck.Comment.New),
             });
         }
     }

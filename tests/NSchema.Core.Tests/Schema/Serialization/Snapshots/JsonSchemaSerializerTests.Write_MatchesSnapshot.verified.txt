@@ -11,6 +11,7 @@
           oldName: members,
           primaryKey: {
             name: users_pkey,
+            comment: surrogate key,
             columnNames: [
               id
             ]
@@ -56,12 +57,29 @@
               referencedTable: orgs,
               onDelete: Cascade,
               onUpdate: SetNull,
+              comment: owning org,
               columnNames: [
                 org_id
               ],
               referencedColumnNames: [
                 id
               ]
+            }
+          ],
+          uniqueConstraints: [
+            {
+              name: users_code_uq,
+              comment: external code,
+              columnNames: [
+                code
+              ]
+            }
+          ],
+          checkConstraints: [
+            {
+              name: users_balance_chk,
+              expression: balance >= 0,
+              comment: no overdraft
             }
           ],
           indexes: [

@@ -42,8 +42,12 @@ public sealed class TerraformDiffRendererTests
         IReadOnlyList<ColumnDiff>? columns = null,
         IReadOnlyList<GrantChange>? grants = null,
         IReadOnlyList<IndexDiff>? indexes = null,
-        IReadOnlyList<ConstraintDiff>? constraints = null)
-        => new(schema, name, kind, renamedFrom, comment, columns ?? [], grants ?? [], indexes ?? [], constraints ?? []);
+        IReadOnlyList<PrimaryKeyDiff>? primaryKey = null,
+        IReadOnlyList<ForeignKeyDiff>? foreignKeys = null,
+        IReadOnlyList<UniqueConstraintDiff>? uniqueConstraints = null,
+        IReadOnlyList<CheckConstraintDiff>? checks = null)
+        => new(schema, name, kind, renamedFrom, comment, columns ?? [], grants ?? [], indexes ?? [],
+            primaryKey ?? [], foreignKeys ?? [], uniqueConstraints ?? [], checks ?? []);
 
     private static ColumnDiff AddColumn(Column definition, ValueChange<string>? comment = null)
         => new(definition.Name, ChangeKind.Add, definition, null, null, null, null, null, comment);
@@ -256,17 +260,42 @@ public sealed class TerraformDiffRendererTests
     [Fact]
     public void Render_PrimaryKeyConstraint_RendersLabel()
     {
-        var pk = new ConstraintDiff(ChangeKind.Add, ConstraintType.PrimaryKey, "users_pkey", null, null);
+        var pk = new PrimaryKeyDiff(ChangeKind.Add, "users_pkey", null);
 
-        Render(WithTable(Table("users", ChangeKind.Modify, constraints: [pk]))).ShouldContain("+ primary key users_pkey");
+        Render(WithTable(Table("users", ChangeKind.Modify, primaryKey: [pk]))).ShouldContain("+ primary key users_pkey");
     }
 
     [Fact]
     public void Render_ForeignKeyConstraint_RendersLabel()
     {
-        var fk = new ConstraintDiff(ChangeKind.Remove, ConstraintType.ForeignKey, "orders_user_fk", null, null);
+        var fk = new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null);
 
-        Render(WithTable(Table("orders", ChangeKind.Modify, constraints: [fk]))).ShouldContain("- foreign key orders_user_fk");
+        Render(WithTable(Table("orders", ChangeKind.Modify, foreignKeys: [fk]))).ShouldContain("- foreign key orders_user_fk");
+    }
+
+    [Fact]
+    public void Render_UniqueConstraint_RendersLabel()
+    {
+        var unique = new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", null);
+
+        Render(WithTable(Table("users", ChangeKind.Modify, uniqueConstraints: [unique]))).ShouldContain("+ unique constraint users_email_uq");
+    }
+
+    [Fact]
+    public void Render_CheckConstraint_RendersLabel()
+    {
+        var check = new CheckConstraintDiff(ChangeKind.Remove, "users_age_chk", null);
+
+        Render(WithTable(Table("users", ChangeKind.Modify, checks: [check]))).ShouldContain("- check constraint users_age_chk");
+    }
+
+    [Fact]
+    public void Render_ConstraintCommentChange_RendersCommentDiff()
+    {
+        var unique = new UniqueConstraintDiff(ChangeKind.Modify, "users_email_uq", null, new ValueChange<string>("old", "new"));
+
+        Render(WithTable(Table("users", ChangeKind.Modify, uniqueConstraints: [unique])))
+            .ShouldContain("unique constraint users_email_uq comment: \"old\" → \"new\"");
     }
 
     [Fact]

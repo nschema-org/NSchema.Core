@@ -40,9 +40,24 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff> Schemas)
                     Tally(index.Kind);
                 }
 
-                foreach (var constraint in table.Constraints)
+                foreach (var pk in table.PrimaryKey)
                 {
-                    Tally(constraint.Kind);
+                    Tally(pk.Kind);
+                }
+
+                foreach (var fk in table.ForeignKeys)
+                {
+                    Tally(fk.Kind);
+                }
+
+                foreach (var unique in table.UniqueConstraints)
+                {
+                    Tally(unique.Kind);
+                }
+
+                foreach (var check in table.Checks)
+                {
+                    Tally(check.Kind);
                 }
             }
         }

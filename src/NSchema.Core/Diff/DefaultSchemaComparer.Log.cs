@@ -116,6 +116,42 @@ internal sealed partial class DefaultSchemaComparer
     [LoggerMessage(EventId = 63, Level = LogLevel.Information, Message = "Adding foreign key '{FkName}' to new table '{Schema}.{Table}'")]
     private partial void LogForeignKeyAddingToNewTable(string fkName, string schema, string table);
 
+    [LoggerMessage(EventId = 64, Level = LogLevel.Information, Message = "Unique constraint '{Name}' on '{Schema}.{Table}' is missing or changed")]
+    private partial void LogUniqueConstraintMissingOrChanged(string name, string schema, string table);
+
+    [LoggerMessage(EventId = 65, Level = LogLevel.Debug, Message = "Unique constraint '{Name}' on '{Schema}.{Table}' is unchanged")]
+    private partial void LogUniqueConstraintUnchanged(string name, string schema, string table);
+
+    [LoggerMessage(EventId = 66, Level = LogLevel.Information, Message = "Unique constraint '{Name}' on '{Schema}.{Table}' is new or changed")]
+    private partial void LogUniqueConstraintNewOrChanged(string name, string schema, string table);
+
+    [LoggerMessage(EventId = 67, Level = LogLevel.Information, Message = "Adding unique constraint '{Name}' to new table '{Schema}.{Table}'")]
+    private partial void LogUniqueConstraintAddingToNewTable(string name, string schema, string table);
+
+    [LoggerMessage(EventId = 68, Level = LogLevel.Information, Message = "Primary key '{Name}' on '{Schema}.{Table}' comment changed")]
+    private partial void LogPrimaryKeyCommentChanged(string name, string schema, string table);
+
+    [LoggerMessage(EventId = 69, Level = LogLevel.Information, Message = "Foreign key '{Name}' on '{Schema}.{Table}' comment changed")]
+    private partial void LogForeignKeyCommentChanged(string name, string schema, string table);
+
+    [LoggerMessage(EventId = 94, Level = LogLevel.Information, Message = "Unique constraint '{Name}' on '{Schema}.{Table}' comment changed")]
+    private partial void LogUniqueConstraintCommentChanged(string name, string schema, string table);
+
+    [LoggerMessage(EventId = 95, Level = LogLevel.Information, Message = "Check constraint '{Name}' on '{Schema}.{Table}' comment changed")]
+    private partial void LogCheckConstraintCommentChanged(string name, string schema, string table);
+
+    [LoggerMessage(EventId = 90, Level = LogLevel.Information, Message = "Check constraint '{Name}' on '{Schema}.{Table}' is missing or changed")]
+    private partial void LogCheckConstraintMissingOrChanged(string name, string schema, string table);
+
+    [LoggerMessage(EventId = 91, Level = LogLevel.Debug, Message = "Check constraint '{Name}' on '{Schema}.{Table}' is unchanged")]
+    private partial void LogCheckConstraintUnchanged(string name, string schema, string table);
+
+    [LoggerMessage(EventId = 92, Level = LogLevel.Information, Message = "Check constraint '{Name}' on '{Schema}.{Table}' is new or changed")]
+    private partial void LogCheckConstraintNewOrChanged(string name, string schema, string table);
+
+    [LoggerMessage(EventId = 93, Level = LogLevel.Information, Message = "Adding check constraint '{Name}' to new table '{Schema}.{Table}'")]
+    private partial void LogCheckConstraintAddingToNewTable(string name, string schema, string table);
+
     [LoggerMessage(EventId = 70, Level = LogLevel.Information, Message = "Index '{IndexName}' on '{Schema}.{Table}' is missing or changed")]
     private partial void LogIndexMissingOrChanged(string indexName, string schema, string table);
 

@@ -47,6 +47,26 @@
                 ]
               }
             }
+          ],
+          UniqueConstraints: [
+            {
+              Name: users_email_uq,
+              Definition: {
+                Name: users_email_uq,
+                ColumnNames: [
+                  email_address
+                ]
+              }
+            }
+          ],
+          Checks: [
+            {
+              Name: users_id_chk,
+              Definition: {
+                Name: users_id_chk,
+                Expression: id > 0
+              }
+            }
           ]
         }
       ]

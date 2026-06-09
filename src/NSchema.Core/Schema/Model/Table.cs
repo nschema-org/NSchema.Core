@@ -11,6 +11,8 @@ namespace NSchema.Schema.Model;
 /// <param name="Comment">An optional comment or description for the table.</param>
 /// <param name="Columns">A list of columns that are part of the table.</param>
 /// <param name="ForeignKeys">A list of foreign keys that define the relationships between this table and other tables in the database schema.</param>
+/// <param name="UniqueConstraints">A list of unique constraints defined on the table.</param>
+/// <param name="CheckConstraints">A list of check constraints defined on the table.</param>
 /// <param name="Indexes">A list of indexes that are defined on the table.</param>
 /// <param name="Grants">A list of grants that define the permissions associated with the table.</param>
 [DebuggerDisplay("{Name,nq} ({Columns.Count} columns)")]
@@ -21,6 +23,8 @@ public record Table(
     string? Comment,
     IReadOnlyList<Column> Columns,
     IReadOnlyList<ForeignKey> ForeignKeys,
+    IReadOnlyList<UniqueConstraint> UniqueConstraints,
+    IReadOnlyList<CheckConstraint> CheckConstraints,
     IReadOnlyList<TableIndex> Indexes,
     IReadOnlyList<TableGrant> Grants
 )
@@ -34,6 +38,16 @@ public record Table(
     /// A list of foreign keys that define the relationships between this table and other tables in the database schema.
     /// </summary>
     public IReadOnlyList<ForeignKey> ForeignKeys { get; init; } = ForeignKeys ?? [];
+
+    /// <summary>
+    /// A list of unique constraints defined on the table.
+    /// </summary>
+    public IReadOnlyList<UniqueConstraint> UniqueConstraints { get; init; } = UniqueConstraints ?? [];
+
+    /// <summary>
+    /// A list of check constraints defined on the table.
+    /// </summary>
+    public IReadOnlyList<CheckConstraint> CheckConstraints { get; init; } = CheckConstraints ?? [];
 
     /// <summary>
     /// A list of indexes that are defined on the table.
@@ -54,6 +68,8 @@ public record Table(
     /// <param name="comment">An optional comment or description for the table.</param>
     /// <param name="columns">A list of columns that are part of the table.</param>
     /// <param name="foreignKeys">A list of foreign keys that define the relationships between this table and other tables in the database schema.</param>
+    /// <param name="uniqueConstraints">A list of unique constraints defined on the table.</param>
+    /// <param name="checkConstraints">A list of check constraints defined on the table.</param>
     /// <param name="indexes">A list of indexes that are defined on the table.</param>
     /// <param name="grants">A list of grants that define the permissions associated with the table.</param>
     public static Table Create(
@@ -63,7 +79,9 @@ public record Table(
         string? comment = null,
         IReadOnlyList<Column>? columns = null,
         IReadOnlyList<ForeignKey>? foreignKeys = null,
+        IReadOnlyList<UniqueConstraint>? uniqueConstraints = null,
+        IReadOnlyList<CheckConstraint>? checkConstraints = null,
         IReadOnlyList<TableIndex>? indexes = null,
         IReadOnlyList<TableGrant>? grants = null
-    ) => new(name, oldName, primaryKey, comment, columns ?? [], foreignKeys ?? [], indexes ?? [], grants ?? []);
+    ) => new(name, oldName, primaryKey, comment, columns ?? [], foreignKeys ?? [], uniqueConstraints ?? [], checkConstraints ?? [], indexes ?? [], grants ?? []);
 }
