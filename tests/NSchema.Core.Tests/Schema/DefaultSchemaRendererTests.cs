@@ -41,13 +41,13 @@ public sealed class DefaultSchemaRendererTests
         var users = Table.Create(
             "users",
             columns: [Column.Create("email", SqlType.Text), Column.Create("age", SqlType.Int)],
-            uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"])],
+            uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"], Comment: "external code")],
             checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0")]);
         var schema = DatabaseSchema.Create([SchemaDefinition.Create("app", tables: [users])]);
 
         var output = _sut.Render(schema);
 
-        output.ShouldContain("unique users_email_uq (email)");
+        output.ShouldContain("unique users_email_uq (email) (\"external code\")");
         output.ShouldContain("check users_age_chk (age >= 0)");
     }
 }

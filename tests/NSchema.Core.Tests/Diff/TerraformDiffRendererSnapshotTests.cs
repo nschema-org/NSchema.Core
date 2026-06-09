@@ -45,6 +45,7 @@ public sealed class TerraformDiffRendererSnapshotTests
             ],
             Grants: [new GrantChange(ChangeKind.Remove, "writers", TablePrivilege.Insert)],
             Indexes: [],
+            PrimaryKey: [new PrimaryKeyDiff(ChangeKind.Modify, "orders_pkey", null, new ValueChange<string>("old note", "new note"))],
             ForeignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null)],
             UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Remove, "orders_code_uq", null)],
             Checks: [new CheckConstraintDiff(ChangeKind.Remove, "orders_total_chk", null)]);

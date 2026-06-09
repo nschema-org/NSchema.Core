@@ -490,6 +490,18 @@ public class DefaultSchemaComparerTests
         table!.PrimaryKey.Select(c => c.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
     }
 
+    [Fact]
+    public void Compare_PrimaryKeyCommentOnlyChanged_EmitsModifyNotRecreate()
+    {
+        var table = DiffTable(
+            Table.Create("users", primaryKey: new PrimaryKey("users_pkey", ["id"], Comment: "old"), columns: [Column.Create("id", SqlType.Int)]),
+            Table.Create("users", primaryKey: new PrimaryKey("users_pkey", ["id"], Comment: "new"), columns: [Column.Create("id", SqlType.Int)]));
+
+        var pk = table!.PrimaryKey.ShouldHaveSingleItem();
+        pk.Kind.ShouldBe(ChangeKind.Modify);
+        pk.Comment.ShouldBe(new ValueChange<string>("old", "new"));
+    }
+
     // -------------------------------------------------------------------------
     // Foreign keys
     // -------------------------------------------------------------------------
@@ -560,6 +572,32 @@ public class DefaultSchemaComparerTests
     }
 
     [Fact]
+    public void Compare_UniqueConstraintCommentOnlyChanged_EmitsModifyNotRecreate()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)],
+                uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"], Comment: "old")]),
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)],
+                uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"], Comment: "new")]));
+
+        var unique = table!.UniqueConstraints.ShouldHaveSingleItem();
+        unique.Kind.ShouldBe(ChangeKind.Modify);
+        unique.Comment.ShouldBe(new ValueChange<string>("old", "new"));
+    }
+
+    [Fact]
+    public void Compare_NewUniqueConstraintWithComment_FoldsCommentAsModify()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)]),
+            Table.Create("users", columns: [Column.Create("email", SqlType.Text)],
+                uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email"], Comment: "lookup")]));
+
+        table!.UniqueConstraints.Select(c => (c.Kind, c.Comment?.New))
+            .ShouldBe([(ChangeKind.Add, null), (ChangeKind.Modify, "lookup")]);
+    }
+
+    [Fact]
     public void Compare_UniqueConstraintUnchanged_ProducesNoDiff()
     {
         var table = DiffTable(
@@ -610,6 +648,20 @@ public class DefaultSchemaComparerTests
                 checkConstraints: [new CheckConstraint("users_age_chk", "age > 0")]));
 
         table!.Checks.Select(c => c.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
+    }
+
+    [Fact]
+    public void Compare_CheckConstraintCommentOnlyChanged_EmitsModifyNotRecreate()
+    {
+        var table = DiffTable(
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)],
+                checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0", Comment:"old")]),
+            Table.Create("users", columns: [Column.Create("age", SqlType.Int)],
+                checkConstraints: [new CheckConstraint("users_age_chk", "age >= 0", Comment:"new")]));
+
+        var check = table!.Checks.ShouldHaveSingleItem();
+        check.Kind.ShouldBe(ChangeKind.Modify);
+        check.Comment.ShouldBe(new ValueChange<string>("old", "new"));
     }
 
     [Fact]

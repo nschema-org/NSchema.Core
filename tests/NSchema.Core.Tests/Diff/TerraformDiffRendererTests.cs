@@ -290,6 +290,15 @@ public sealed class TerraformDiffRendererTests
     }
 
     [Fact]
+    public void Render_ConstraintCommentChange_RendersCommentDiff()
+    {
+        var unique = new UniqueConstraintDiff(ChangeKind.Modify, "users_email_uq", null, new ValueChange<string>("old", "new"));
+
+        Render(WithTable(Table("users", ChangeKind.Modify, uniqueConstraints: [unique])))
+            .ShouldContain("unique constraint users_email_uq comment: \"old\" → \"new\"");
+    }
+
+    [Fact]
     public void Render_IndexAdd_RendersName()
     {
         var index = new IndexDiff(ChangeKind.Add, "users_email_ux", TableIndex.Create("users_email_ux", ["email"], isUnique: true), null);

@@ -128,6 +128,18 @@ internal sealed partial class DefaultSchemaComparer
     [LoggerMessage(EventId = 67, Level = LogLevel.Information, Message = "Adding unique constraint '{Name}' to new table '{Schema}.{Table}'")]
     private partial void LogUniqueConstraintAddingToNewTable(string name, string schema, string table);
 
+    [LoggerMessage(EventId = 68, Level = LogLevel.Information, Message = "Primary key '{Name}' on '{Schema}.{Table}' comment changed")]
+    private partial void LogPrimaryKeyCommentChanged(string name, string schema, string table);
+
+    [LoggerMessage(EventId = 69, Level = LogLevel.Information, Message = "Foreign key '{Name}' on '{Schema}.{Table}' comment changed")]
+    private partial void LogForeignKeyCommentChanged(string name, string schema, string table);
+
+    [LoggerMessage(EventId = 94, Level = LogLevel.Information, Message = "Unique constraint '{Name}' on '{Schema}.{Table}' comment changed")]
+    private partial void LogUniqueConstraintCommentChanged(string name, string schema, string table);
+
+    [LoggerMessage(EventId = 95, Level = LogLevel.Information, Message = "Check constraint '{Name}' on '{Schema}.{Table}' comment changed")]
+    private partial void LogCheckConstraintCommentChanged(string name, string schema, string table);
+
     [LoggerMessage(EventId = 90, Level = LogLevel.Information, Message = "Check constraint '{Name}' on '{Schema}.{Table}' is missing or changed")]
     private partial void LogCheckConstraintMissingOrChanged(string name, string schema, string table);
 

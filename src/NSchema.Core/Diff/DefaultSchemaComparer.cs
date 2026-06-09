@@ -265,11 +265,17 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
                 Comment: column.Comment is not null ? new ValueChange<string>(null, column.Comment) : null))
             .ToList();
 
+        // A constraint comment is never set inline by CREATE TABLE / ADD CONSTRAINT; it folds in as a separate
+        // comment change, mirroring how a new index carries its comment as a trailing Modify.
         var foreignKeys = new List<ForeignKeyDiff>();
         foreach (var fk in table.ForeignKeys)
         {
             LogForeignKeyAddingToNewTable(fk.Name, schemaName, table.Name);
             foreignKeys.Add(new ForeignKeyDiff(ChangeKind.Add, fk.Name, fk));
+            if (fk.Comment is not null)
+            {
+                foreignKeys.Add(new ForeignKeyDiff(ChangeKind.Modify, fk.Name, null, new ValueChange<string>(null, fk.Comment)));
+            }
         }
 
         var uniqueConstraints = new List<UniqueConstraintDiff>();
@@ -277,6 +283,10 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
         {
             LogUniqueConstraintAddingToNewTable(uq.Name, schemaName, table.Name);
             uniqueConstraints.Add(new UniqueConstraintDiff(ChangeKind.Add, uq.Name, uq));
+            if (uq.Comment is not null)
+            {
+                uniqueConstraints.Add(new UniqueConstraintDiff(ChangeKind.Modify, uq.Name, null, new ValueChange<string>(null, uq.Comment)));
+            }
         }
 
         var checks = new List<CheckConstraintDiff>();
@@ -284,6 +294,17 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
         {
             LogCheckConstraintAddingToNewTable(ck.Name, schemaName, table.Name);
             checks.Add(new CheckConstraintDiff(ChangeKind.Add, ck.Name, ck));
+            if (ck.Comment is not null)
+            {
+                checks.Add(new CheckConstraintDiff(ChangeKind.Modify, ck.Name, null, new ValueChange<string>(null, ck.Comment)));
+            }
+        }
+
+        // The primary key is created inline by CREATE TABLE, but its comment still needs a separate set.
+        var primaryKey = new List<PrimaryKeyDiff>();
+        if (table.PrimaryKey is { Comment: not null } pk)
+        {
+            primaryKey.Add(new PrimaryKeyDiff(ChangeKind.Modify, pk.Name, null, new ValueChange<string>(null, pk.Comment)));
         }
 
         var indexes = new List<IndexDiff>();
@@ -309,7 +330,7 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
         // The full table definition rides along so the linearizer can emit a single CREATE TABLE (with the
         // primary key and columns inline) without reconstructing it from the column diffs. The primary key is
         // therefore created inline (no PrimaryKeyDiff); everything else arrives as a separate add.
-        return new TableDiff(schemaName, table.Name, ChangeKind.Add, null, comment, columns, grants, indexes, [], foreignKeys, uniqueConstraints, checks, table);
+        return new TableDiff(schemaName, table.Name, ChangeKind.Add, null, comment, columns, grants, indexes, primaryKey, foreignKeys, uniqueConstraints, checks, table);
     }
 
     private TableDiff? BuildModifiedTable(string schemaName, Table current, Table desired)
@@ -468,13 +489,29 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
 
     private List<PrimaryKeyDiff> ComparePrimaryKey(string schemaName, string tableName, PrimaryKey? current, PrimaryKey? desired)
     {
-        if (current?.Equals(desired) ?? desired == null)
+        var result = new List<PrimaryKeyDiff>();
+
+        // Structurally identical (Equals excludes the comment): at most a comment-only change, applied in place.
+        if (current is not null && desired is not null && current.Equals(desired))
         {
-            LogPrimaryKeyUnchanged(schemaName, tableName);
-            return [];
+            if (current.Comment != desired.Comment)
+            {
+                LogPrimaryKeyCommentChanged(desired.Name, schemaName, tableName);
+                result.Add(new PrimaryKeyDiff(ChangeKind.Modify, desired.Name, null, new ValueChange<string>(current.Comment, desired.Comment)));
+            }
+            else
+            {
+                LogPrimaryKeyUnchanged(schemaName, tableName);
+            }
+            return result;
         }
 
-        var result = new List<PrimaryKeyDiff>();
+        if (current is null && desired is null)
+        {
+            LogPrimaryKeyUnchanged(schemaName, tableName);
+            return result;
+        }
+
         if (current is not null)
         {
             LogPrimaryKeyDropping(current.Name, schemaName, tableName);
@@ -484,6 +521,10 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
         {
             LogPrimaryKeyAdding(desired.Name, schemaName, tableName);
             result.Add(new PrimaryKeyDiff(ChangeKind.Add, desired.Name, desired));
+            if (desired.Comment is not null)
+            {
+                result.Add(new PrimaryKeyDiff(ChangeKind.Modify, desired.Name, null, new ValueChange<string>(null, desired.Comment)));
+            }
         }
         return result;
     }
@@ -500,6 +541,11 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
                 LogForeignKeyMissingOrChanged(currentFk.Name, schemaName, tableName);
                 result.Add(new ForeignKeyDiff(ChangeKind.Remove, currentFk.Name, null));
             }
+            else if (currentFk.Comment != matchingDesired.Comment)
+            {
+                LogForeignKeyCommentChanged(currentFk.Name, schemaName, tableName);
+                result.Add(new ForeignKeyDiff(ChangeKind.Modify, currentFk.Name, null, new ValueChange<string>(currentFk.Comment, matchingDesired.Comment)));
+            }
             else
             {
                 LogForeignKeyUnchanged(currentFk.Name, schemaName, tableName);
@@ -513,6 +559,10 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
             {
                 LogForeignKeyNewOrChanged(desiredFk.Name, schemaName, tableName);
                 result.Add(new ForeignKeyDiff(ChangeKind.Add, desiredFk.Name, desiredFk));
+                if (desiredFk.Comment is not null)
+                {
+                    result.Add(new ForeignKeyDiff(ChangeKind.Modify, desiredFk.Name, null, new ValueChange<string>(null, desiredFk.Comment)));
+                }
             }
             else
             {
@@ -535,6 +585,11 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
                 LogUniqueConstraintMissingOrChanged(currentUq.Name, schemaName, tableName);
                 result.Add(new UniqueConstraintDiff(ChangeKind.Remove, currentUq.Name, null));
             }
+            else if (currentUq.Comment != matchingDesired.Comment)
+            {
+                LogUniqueConstraintCommentChanged(currentUq.Name, schemaName, tableName);
+                result.Add(new UniqueConstraintDiff(ChangeKind.Modify, currentUq.Name, null, new ValueChange<string>(currentUq.Comment, matchingDesired.Comment)));
+            }
             else
             {
                 LogUniqueConstraintUnchanged(currentUq.Name, schemaName, tableName);
@@ -548,6 +603,10 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
             {
                 LogUniqueConstraintNewOrChanged(desiredUq.Name, schemaName, tableName);
                 result.Add(new UniqueConstraintDiff(ChangeKind.Add, desiredUq.Name, desiredUq));
+                if (desiredUq.Comment is not null)
+                {
+                    result.Add(new UniqueConstraintDiff(ChangeKind.Modify, desiredUq.Name, null, new ValueChange<string>(null, desiredUq.Comment)));
+                }
             }
             else
             {
@@ -570,6 +629,11 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
                 LogCheckConstraintMissingOrChanged(currentCk.Name, schemaName, tableName);
                 result.Add(new CheckConstraintDiff(ChangeKind.Remove, currentCk.Name, null));
             }
+            else if (currentCk.Comment != matchingDesired.Comment)
+            {
+                LogCheckConstraintCommentChanged(currentCk.Name, schemaName, tableName);
+                result.Add(new CheckConstraintDiff(ChangeKind.Modify, currentCk.Name, null, new ValueChange<string>(currentCk.Comment, matchingDesired.Comment)));
+            }
             else
             {
                 LogCheckConstraintUnchanged(currentCk.Name, schemaName, tableName);
@@ -583,6 +647,10 @@ internal sealed partial class DefaultSchemaComparer(ILogger<DefaultSchemaCompare
             {
                 LogCheckConstraintNewOrChanged(desiredCk.Name, schemaName, tableName);
                 result.Add(new CheckConstraintDiff(ChangeKind.Add, desiredCk.Name, desiredCk));
+                if (desiredCk.Comment is not null)
+                {
+                    result.Add(new CheckConstraintDiff(ChangeKind.Modify, desiredCk.Name, null, new ValueChange<string>(null, desiredCk.Comment)));
+                }
             }
             else
             {

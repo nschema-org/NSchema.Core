@@ -15,6 +15,7 @@
     ~ total type: int → bigint
     ~ total nullable: null → not null
     - legacy_flag boolean not null
+    ~ primary key orders_pkey comment: "old note" → "new note"
     - foreign key orders_user_fk
     - unique constraint orders_code_uq
     - check constraint orders_total_chk
@@ -22,4 +23,4 @@
 
 - schema scratch
 
-Plan: 8 to add, 2 to change, 5 to destroy.
+Plan: 8 to add, 3 to change, 5 to destroy.

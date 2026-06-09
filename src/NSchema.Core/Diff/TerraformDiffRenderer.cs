@@ -78,22 +78,22 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
 
         foreach (var pk in table.PrimaryKey)
         {
-            AppendDetail(sb, pk.Kind, $"primary key {pk.Name}");
+            AppendDetail(sb, pk.Kind, ConstraintText("primary key", pk.Name, pk.Kind, pk.Comment));
         }
 
         foreach (var fk in table.ForeignKeys)
         {
-            AppendDetail(sb, fk.Kind, $"foreign key {fk.Name}");
+            AppendDetail(sb, fk.Kind, ConstraintText("foreign key", fk.Name, fk.Kind, fk.Comment));
         }
 
         foreach (var unique in table.UniqueConstraints)
         {
-            AppendDetail(sb, unique.Kind, $"unique constraint {unique.Name}");
+            AppendDetail(sb, unique.Kind, ConstraintText("unique constraint", unique.Name, unique.Kind, unique.Comment));
         }
 
         foreach (var check in table.Checks)
         {
-            AppendDetail(sb, check.Kind, $"check constraint {check.Name}");
+            AppendDetail(sb, check.Kind, ConstraintText("check constraint", check.Name, check.Kind, check.Comment));
         }
 
         foreach (var index in table.Indexes)
@@ -215,6 +215,12 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
     }
 
     private string FormatComment(string? comment) => comment is null ? "<none>" : $"\"{comment}\"";
+
+    // A constraint Modify is always a comment-only change (structural changes are Remove + Add).
+    private string ConstraintText(string label, string name, ChangeKind kind, ValueChange<string>? comment) =>
+        kind == ChangeKind.Modify
+            ? $"{label} {name} comment: {FormatComment(comment?.Old)} → {FormatComment(comment?.New)}"
+            : $"{label} {name}";
 
     private string FormatDefault(string? value) => value ?? "<none>";
 

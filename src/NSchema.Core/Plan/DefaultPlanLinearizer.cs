@@ -39,6 +39,7 @@ internal sealed class DefaultPlanLinearizer : IPlanLinearizer
         typeof(SetTableComment),
         typeof(SetColumnComment),
         typeof(SetIndexComment),
+        typeof(SetConstraintComment),
         typeof(DropTable),
         typeof(DropSchema),
     }.Index().ToFrozenDictionary(x => x.Item, x => x.Index);
@@ -200,7 +201,7 @@ internal sealed class DefaultPlanLinearizer : IPlanLinearizer
             {
                 ChangeKind.Add => new AddPrimaryKey(table.Schema, table.Name, pk.Definition!),
                 ChangeKind.Remove => new DropPrimaryKey(table.Schema, table.Name, pk.Name),
-                _ => throw new NotSupportedException($"Cannot linearize primary key change {pk.Kind}."),
+                _ => new SetConstraintComment(table.Schema, table.Name, pk.Name, pk.Comment!.Old, pk.Comment.New),
             });
         }
 
@@ -210,7 +211,7 @@ internal sealed class DefaultPlanLinearizer : IPlanLinearizer
             {
                 ChangeKind.Add => new AddForeignKey(table.Schema, table.Name, fk.Definition!),
                 ChangeKind.Remove => new DropForeignKey(table.Schema, table.Name, fk.Name),
-                _ => throw new NotSupportedException($"Cannot linearize foreign key change {fk.Kind}."),
+                _ => new SetConstraintComment(table.Schema, table.Name, fk.Name, fk.Comment!.Old, fk.Comment.New),
             });
         }
 
@@ -220,7 +221,7 @@ internal sealed class DefaultPlanLinearizer : IPlanLinearizer
             {
                 ChangeKind.Add => new AddUniqueConstraint(table.Schema, table.Name, uq.Definition!),
                 ChangeKind.Remove => new DropUniqueConstraint(table.Schema, table.Name, uq.Name),
-                _ => throw new NotSupportedException($"Cannot linearize unique constraint change {uq.Kind}."),
+                _ => new SetConstraintComment(table.Schema, table.Name, uq.Name, uq.Comment!.Old, uq.Comment.New),
             });
         }
 
@@ -230,7 +231,7 @@ internal sealed class DefaultPlanLinearizer : IPlanLinearizer
             {
                 ChangeKind.Add => new AddCheckConstraint(table.Schema, table.Name, ck.Definition!),
                 ChangeKind.Remove => new DropCheckConstraint(table.Schema, table.Name, ck.Name),
-                _ => throw new NotSupportedException($"Cannot linearize check constraint change {ck.Kind}."),
+                _ => new SetConstraintComment(table.Schema, table.Name, ck.Name, ck.Comment!.Old, ck.Comment.New),
             });
         }
     }

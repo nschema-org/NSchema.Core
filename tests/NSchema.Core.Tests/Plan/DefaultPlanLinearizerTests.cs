@@ -372,6 +372,27 @@ public sealed class DefaultPlanLinearizerTests
     }
 
     [Fact]
+    public void Linearize_UniqueConstraintCommentChange_EmitsSetConstraintComment()
+    {
+        var constraint = new UniqueConstraintDiff(ChangeKind.Modify, "users_email_uq", null, new ValueChange<string>("old", "new"));
+
+        var action = LinearizeTable(TableNode("users", ChangeKind.Modify, uniqueConstraints: [constraint]))
+            .OfType<SetConstraintComment>().ShouldHaveSingleItem();
+        action.ConstraintName.ShouldBe("users_email_uq");
+        action.OldComment.ShouldBe("old");
+        action.NewComment.ShouldBe("new");
+    }
+
+    [Fact]
+    public void Linearize_PrimaryKeyCommentChange_EmitsSetConstraintComment()
+    {
+        var constraint = new PrimaryKeyDiff(ChangeKind.Modify, "users_pkey", null, new ValueChange<string>(null, "surrogate key"));
+
+        LinearizeTable(TableNode("users", ChangeKind.Modify, primaryKey: [constraint]))
+            .OfType<SetConstraintComment>().ShouldHaveSingleItem().NewComment.ShouldBe("surrogate key");
+    }
+
+    [Fact]
     public void Linearize_AddIndex_EmitsCreateIndex()
     {
         var index = new IndexDiff(ChangeKind.Add, "users_email_ix", TableIndex.Create("users_email_ix", ["email"]), null);
