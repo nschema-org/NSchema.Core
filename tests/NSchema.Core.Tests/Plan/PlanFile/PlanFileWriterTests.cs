@@ -7,9 +7,9 @@ using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Plan.PlanFile;
 
-public sealed class PlanFileSerializerTests
+public sealed class PlanFileWriterTests
 {
-    private static readonly PlanFileSerializer _sut = new PlanFileSerializer();
+    private static readonly PlanFileWriter _sut = new();
 
     private static string Json(PlanFileEnvelope envelope) => Encoding.UTF8.GetString(_sut.Serialize(envelope).Span);
 
@@ -34,7 +34,7 @@ public sealed class PlanFileSerializerTests
             new SqlStatement("CREATE INDEX CONCURRENTLY ...", RunOutsideTransaction: true),
         ]);
 
-        return new PlanFileEnvelope(PlanFileEnvelope.CurrentVersion, plan, sql, DateTimeOffset.UnixEpoch);
+        return new PlanFileEnvelope(plan, sql, TestData.DestructiveDiff, DateTimeOffset.UnixEpoch);
     }
 
     [Fact]
@@ -45,13 +45,14 @@ public sealed class PlanFileSerializerTests
         var json = Json(original);
         var roundTripped = _sut.Deserialize(_sut.Serialize(original));
 
-        // A read + write cycle reproduces the exact same document, including the polymorphic actions.
+        // A read + write cycle reproduces the exact same document, including the polymorphic actions and the diff.
         Json(roundTripped).ShouldBe(json);
     }
 
     [Fact]
-    public void Deserialize_PreservesEnvelopeMetadata()
+    public void Serialize_StampsTheCurrentVersion_WithoutTheCallerSupplyingIt()
     {
+        // The caller never passes a version; the format owns it.
         var roundTripped = _sut.Deserialize(_sut.Serialize(SampleEnvelope()));
 
         roundTripped.Version.ShouldBe(PlanFileEnvelope.CurrentVersion);
@@ -76,6 +77,23 @@ public sealed class PlanFileSerializerTests
         roundTripped.Sql.Statements[1].RunOutsideTransaction.ShouldBeTrue();
         roundTripped.Plan.PostDeploymentScripts[0].RunOutsideTransaction.ShouldBeTrue();
         roundTripped.Plan.PreDeploymentScripts[0].Type.ShouldBe(ScriptType.PreDeployment);
+    }
+
+    [Fact]
+    public async Task Write_ThenRead_RoundTripsThroughAFile()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"nschema-plan-{Guid.NewGuid():N}.json");
+        try
+        {
+            await _sut.Write(path, SampleEnvelope(), TestContext.Current.CancellationToken);
+            var roundTripped = await _sut.Read(path, TestContext.Current.CancellationToken);
+
+            Json(roundTripped).ShouldBe(Json(SampleEnvelope()));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 
     [Fact]

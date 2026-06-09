@@ -1,3 +1,4 @@
+using NSchema.Diff.Model;
 using NSchema.Operations;
 using NSchema.Operations.Plan;
 using NSchema.Operations.Services;
@@ -16,6 +17,7 @@ public sealed class PlanOperationTests
     private readonly ISqlGenerator _generator = Substitute.For<ISqlGenerator>();
 
     private readonly MigrationPlan _plan = new([new CreateSchema("app")], [], []);
+    private readonly DatabaseDiff _diff = new([]);
     private readonly SqlPlan _sqlPlan = new([new SqlStatement("CREATE SCHEMA app")]);
 
     private PlanOperation BuildSut(ISqlGenerator? planner) =>
@@ -26,7 +28,7 @@ public sealed class PlanOperationTests
 
     public PlanOperationTests()
     {
-        _workflow.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(_plan);
+        _workflow.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(new PlannedMigration(_plan, _diff));
         _generator.Generate(Arg.Any<MigrationPlan>()).Returns(_sqlPlan);
 
         _sut = BuildSut(_generator);
@@ -64,7 +66,7 @@ public sealed class PlanOperationTests
     public async Task Execute_PrepareThrows_DoesNotGenerateSql()
     {
         _workflow.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns<MigrationPlan>(_ => throw new InvalidOperationException("boom"));
+            .Returns<PlannedMigration>(_ => throw new InvalidOperationException("boom"));
 
         await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(new PlanArguments()));
 
@@ -80,7 +82,8 @@ public sealed class PlanOperationTests
             await _sut.Execute(new PlanArguments { OutFile = path }, TestContext.Current.CancellationToken);
 
             File.Exists(path).ShouldBeTrue();
-            var envelope = new PlanFileSerializer().Deserialize(await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken));
+            var envelope = new PlanFileWriter().Deserialize(await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken));
+            envelope.Version.ShouldBe(PlanFileEnvelope.CurrentVersion);
             envelope.Sql.Statements.ShouldBe(_sqlPlan.Statements);
             envelope.Plan.Actions.ShouldBe(_plan.Actions);
         }

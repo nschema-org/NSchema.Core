@@ -37,14 +37,14 @@ internal sealed class ApplyOperation(
         // same state. Released when the handle is disposed at the end of the method (no-op unless a lock is registered).
         await using var stateLockHandle = await stateLock.Acquire(new StateLockRequest("apply"), cancellationToken);
 
-        var plan = await workflow.Plan(SchemaSourceMode.Online, required: true, arguments.Schemas, cancellationToken);
+        var planned = await workflow.Plan(SchemaSourceMode.Online, required: true, arguments.Schemas, cancellationToken);
 
         reporters.Current.Info("Generating SQL...");
-        var sqlPlan = sqlGenerators.Current.Generate(plan);
+        var sqlPlan = sqlGenerators.Current.Generate(planned.Plan);
         reporters.Current.ReportSqlPlan(sqlPlan);
 
         // Offer an interactive front-end the chance to prompt before any changes are made.
-        if (!await confirmation.Confirm(new ApplyConfirmationRequest(plan), cancellationToken))
+        if (!await confirmation.Confirm(new ApplyConfirmationRequest(planned.Plan), cancellationToken))
         {
             reporters.Current.Info("Apply cancelled. No changes were made to the database.");
             return;
@@ -76,6 +76,8 @@ internal sealed class ApplyOperation(
 
         await using var stateLockHandle = await stateLock.Acquire(new StateLockRequest("apply"), cancellationToken);
 
+        // Report the same diff/plan/SQL view the plan step produced, so applying a saved plan looks identical.
+        reporters.Current.ReportDiff(envelope.Diff);
         reporters.Current.ReportPlan(envelope.Plan);
         reporters.Current.ReportSqlPlan(envelope.Sql);
 

@@ -18,7 +18,7 @@ internal sealed class PlanDestroyOperation(
 
         // Same trusted teardown path Destroy uses (bypasses the diff/plan transformers and policies); we just
         // preview it instead of executing, so there is no confirmation and no state capture.
-        var plan = await workflow.PlanDestroy(cancellationToken);
+        var planned = await workflow.PlanDestroy(cancellationToken);
         if (!sqlGenerator.HasCurrent)
         {
             if (arguments.OutFile is not null)
@@ -30,18 +30,12 @@ internal sealed class PlanDestroyOperation(
             return;
         }
 
-        var sqlPlan = sqlGenerator.Current.Generate(plan);
+        var sqlPlan = sqlGenerator.Current.Generate(planned.Plan);
         reporters.Current.ReportSqlPlan(sqlPlan);
 
         if (arguments.OutFile is not null)
         {
-            var envelope = new PlanFileEnvelope(
-                PlanFileEnvelope.CurrentVersion,
-                plan,
-                sqlPlan,
-                DateTimeOffset.UtcNow
-            );
-
+            var envelope = new PlanFileEnvelope(planned.Plan, sqlPlan, planned.Diff, DateTimeOffset.UtcNow);
             await handler.Write(arguments.OutFile, envelope, cancellationToken);
             reporters.Current.Info($"Planned destroy saved to {arguments.OutFile}. Apply it later with this file to execute exactly this plan.");
         }
