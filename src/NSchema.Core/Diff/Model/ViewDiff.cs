@@ -23,7 +23,7 @@ public sealed record ViewDiff(
     View? Definition = null,
     ValueChange<string>? Comment = null,
     IReadOnlyList<ViewDependency>? DependsOn = null
-)
+) : ISchemaObjectDiff
 {
     /// <summary>
     /// The objects the view reads, used to order it relative to other views in the plan.

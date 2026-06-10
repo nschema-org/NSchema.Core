@@ -1,6 +1,5 @@
 using System.Reflection;
 using NSchema.Schema.Model;
-using NSchema.Schema.Serialization;
 using NSchema.Schema.Serialization.Json;
 using NSchema.State;
 

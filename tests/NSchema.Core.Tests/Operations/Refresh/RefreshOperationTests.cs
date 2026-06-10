@@ -1,6 +1,5 @@
 using NSchema.Operations.Refresh;
 using NSchema.Operations.Services;
-using NSchema.State;
 using NSchema.State.Model;
 using NSchema.Tests.Helpers;
 

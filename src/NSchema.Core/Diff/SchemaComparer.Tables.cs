@@ -9,7 +9,7 @@ internal sealed partial class SchemaComparer
     {
         var result = new List<TableDiff>();
         var droppedTables = desired.DroppedTables;
-        var (forDesired, currentMatched) = MatchEntities(current, desired.Tables, t => t.Name, t => t.OldName, "table", schemaName);
+        var (forDesired, currentMatched) = MatchEntities(current, desired.Tables, "table", schemaName);
 
         for (var j = 0; j < current.Count; j++)
         {

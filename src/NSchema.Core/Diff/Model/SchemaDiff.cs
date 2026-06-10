@@ -62,4 +62,17 @@ public sealed record SchemaDiff(
     /// The changed procedures within this schema, ordered by name.
     /// </summary>
     public IReadOnlyList<ProcedureDiff> Procedures { get; init; } = Procedures ?? [];
+
+    /// <summary>
+    /// Enumerates every changed object in this schema across all kinds, for kind-agnostic consumers (change
+    /// summaries, destructive-change detection). A method rather than a property so serializers and snapshot
+    /// tooling do not duplicate the per-kind collections.
+    /// </summary>
+    public IEnumerable<ISchemaObjectDiff> EnumerateObjects() =>
+        Tables.Cast<ISchemaObjectDiff>()
+            .Concat(Views)
+            .Concat(Enums)
+            .Concat(Sequences)
+            .Concat(Functions)
+            .Concat(Procedures);
 }

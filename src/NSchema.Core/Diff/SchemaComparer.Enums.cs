@@ -5,47 +5,15 @@ namespace NSchema.Diff;
 
 internal sealed partial class SchemaComparer
 {
-    private List<EnumDiff> CompareEnums(string schemaName, IReadOnlyList<EnumType> current, SchemaDefinition desired)
-    {
-        var result = new List<EnumDiff>();
-        var droppedEnums = desired.DroppedEnums;
-        var (forDesired, currentMatched) = MatchEntities(current, desired.Enums, e => e.Name, e => e.OldName, "enum", schemaName);
-
-        for (var j = 0; j < current.Count; j++)
-        {
-            var currentEnum = current[j];
-            if (currentMatched[j])
-            {
-                continue;
-            }
-
-            // An enum absent from the desired set is dropped — unless the schema is partial and it was not named
-            // in an explicit DROP ENUM, mirroring how unmanaged tables are left alone.
-            if (droppedEnums.Contains(currentEnum.Name, StringComparer.OrdinalIgnoreCase) || !desired.IsPartial)
-            {
-                result.Add(new EnumDiff(schemaName, currentEnum.Name, ChangeKind.Remove));
-            }
-        }
-
-        for (var i = 0; i < desired.Enums.Count; i++)
-        {
-            var desiredEnum = desired.Enums[i];
-            if (forDesired[i] is not { } matchingCurrent)
-            {
-                result.Add(BuildNewEnum(schemaName, desiredEnum));
-            }
-            else if (BuildModifiedEnum(schemaName, matchingCurrent, desiredEnum) is { } diff)
-            {
-                result.Add(diff);
-            }
-        }
-
-        return result;
-    }
+    private static List<EnumDiff> CompareEnums(string schemaName, IReadOnlyList<EnumType> current, SchemaDefinition desired) =>
+        CompareObjects(schemaName, "enum", current, desired.Enums, desired.DroppedEnums, desired.IsPartial,
+            enumType => new EnumDiff(schemaName, enumType.Name, ChangeKind.Remove),
+            enumType => BuildNewEnum(schemaName, enumType),
+            (currentEnum, desiredEnum) => BuildModifiedEnum(schemaName, currentEnum, desiredEnum));
 
     private static EnumDiff BuildNewEnum(string schema, EnumType enumType) =>
         new(schema, enumType.Name, ChangeKind.Add, Definition: enumType,
-            Comment: enumType.Comment is not null ? new ValueChange<string>(null, enumType.Comment) : null);
+            Comment: ValueChanges.Changed(null, enumType.Comment));
 
     // Enum values are additions-only: a value-compatible change carries the anchored additions, while a removal
     // or reorder carries only the old/new value lists (AddedValues stays empty, so RequiresRecreate is true).
@@ -53,7 +21,7 @@ internal sealed partial class SchemaComparer
     private static EnumDiff? BuildModifiedEnum(string schema, EnumType current, EnumType desired)
     {
         var renamedFrom = current.Name == desired.Name ? null : current.Name;
-        var comment = current.Comment != desired.Comment ? new ValueChange<string>(current.Comment, desired.Comment) : null;
+        var comment = ValueChanges.Changed(current.Comment, desired.Comment);
 
         ValueChange<IReadOnlyList<string>>? values = null;
         List<EnumValueAddition>? additions = null;

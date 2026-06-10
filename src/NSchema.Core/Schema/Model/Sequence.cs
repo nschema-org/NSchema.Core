@@ -15,7 +15,7 @@ public sealed record Sequence(
     SequenceOptions? Options = null,
     string? OldName = null,
     string? Comment = null
-)
+) : IRenameableObject
 {
     /// <summary>
     /// The sequence's options; unset options use the provider's defaults.

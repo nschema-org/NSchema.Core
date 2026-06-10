@@ -8,7 +8,7 @@ internal sealed partial class SchemaComparer
     private List<ColumnDiff> CompareColumns(string schemaName, string tableName, IReadOnlyList<Column> current, IReadOnlyList<Column> desired)
     {
         var result = new List<ColumnDiff>();
-        var (forDesired, currentMatched) = MatchEntities(current, desired, c => c.Name, c => c.OldName, "column", $"{schemaName}.{tableName}");
+        var (forDesired, currentMatched) = MatchEntities(current, desired, "column", $"{schemaName}.{tableName}");
 
         for (var j = 0; j < current.Count; j++)
         {

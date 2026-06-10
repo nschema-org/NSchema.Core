@@ -20,4 +20,4 @@ public sealed record SequenceDiff(
     Sequence? Definition = null,
     ValueChange<SequenceOptions>? Options = null,
     ValueChange<string>? Comment = null
-);
+) : ISchemaObjectDiff;

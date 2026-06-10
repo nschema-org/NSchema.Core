@@ -20,4 +20,4 @@ public sealed record Function(
     string Definition,
     string? OldName = null,
     string? Comment = null
-);
+) : IRenameableObject;
