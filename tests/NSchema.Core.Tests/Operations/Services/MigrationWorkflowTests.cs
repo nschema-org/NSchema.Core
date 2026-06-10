@@ -163,6 +163,24 @@ public sealed class MigrationWorkflowTests
     }
 
     [Fact]
+    public async Task Prepare_DiffPolicyViolation_ReportsDiffBeforeThrowing()
+    {
+        // Arrange: a diff policy (e.g. destructive-action on a dropped table) fails, so the result
+        // carries errors but also the diff that triggered them. The user must see that diff.
+        var diff = new DatabaseDiff([]);
+        var errors = new[] { PolicyDiagnostic.Error("destructive", "drops table") };
+        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
+            .Returns(new MigrationPlanResult(new MigrationPlan([], [], []), diff, errors));
+
+        // Act
+        var act = () => _sut.Plan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
+
+        // Assert
+        await act.ShouldThrowAsync<PolicyViolationException>();
+        _reporter.Received(1).ReportDiff(diff);
+    }
+
+    [Fact]
     public async Task Prepare_NonErrorDiagnostics_ReportedAfterDiff()
     {
         // Arrange
