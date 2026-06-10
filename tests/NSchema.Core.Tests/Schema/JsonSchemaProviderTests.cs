@@ -195,7 +195,9 @@ public sealed class JsonSchemaProviderTests : IDisposable
         { "decimal(10,2)",  SqlType.Decimal(10, 2) },
         { "decimal(18, 4)", SqlType.Decimal(18, 4) },
         { "jsonb",          SqlType.Custom("jsonb") },
-        { "uuid",           SqlType.Custom("uuid") },
+        // "uuid" is a SQL spelling alias of the canonical "guid" (which renders back to Postgres uuid), so it
+        // normalizes rather than being preserved as a custom type. "jsonb" above covers the genuine custom path.
+        { "uuid",           SqlType.Guid },
     };
 
     [Theory]

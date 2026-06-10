@@ -187,7 +187,10 @@ type         = ident , [ "(" , integer , [ "," , integer ] , ")" ] ;
 
 Absence of `NOT NULL` means nullable (SQL default). `type` maps to `SqlType`: known names (`int`, `bigint`,
 `text`, `boolean`, …), parametrised `varchar(n)` / `char(n)` / `decimal(p,s)`, and any unknown name →
-`SqlType.Custom(raw)`. The modifier order above is fixed.
+`SqlType.Custom(raw)`. Common SQL spelling aliases normalize to the canonical name so a SQL-flavoured schema
+round-trips against introspection — e.g. `integer`→`int`, `bool`→`boolean`, `real`→`float`, `numeric(p,s)`→
+`decimal(p,s)`, `timestamp`→`datetime`, `timestamptz`→`datetimeoffset`, `uuid`→`guid`, `bytea`→`varbinary`
+(plus the Postgres `int2`/`int4`/`int8`/`float4`/`float8` spellings). The modifier order above is fixed.
 
 ### Constraints
 
