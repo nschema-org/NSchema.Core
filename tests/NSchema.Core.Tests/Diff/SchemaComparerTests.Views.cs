@@ -71,6 +71,30 @@ public partial class SchemaComparerTests
     public void Compare_UnchangedView_ProducesNoDiff()
         => DiffViews([View("active", "SELECT * FROM app.users")], [View("active", "SELECT * FROM app.users")]).ShouldBeNull();
 
+    // A database stores a view's definition and re-emits it in its own canonical form. Insignificant
+    // whitespace and a trailing terminator are cosmetic and must not read as drift, or a clean
+    // import → plan would show a phantom change. (Semantic rewrites — qualification, * expansion,
+    // injected casts — are reconciled provider-side and are out of scope here.)
+    [Fact]
+    public void Compare_ViewBodyDifferingOnlyInWhitespace_ProducesNoDiff()
+        => DiffViews(
+            [View("active", "SELECT id, name\n  FROM app.users\n  WHERE balance > 0")],
+            [View("active", "SELECT id, name FROM app.users WHERE balance > 0")]).ShouldBeNull();
+
+    [Fact]
+    public void Compare_ViewBodyDifferingOnlyInTrailingSemicolon_ProducesNoDiff()
+        => DiffViews(
+            [View("active", "SELECT * FROM app.users;")],
+            [View("active", "SELECT * FROM app.users")]).ShouldBeNull();
+
+    // Whitespace *inside* a string literal is significant — normalization must not conflate the two,
+    // or we would silently miss a real change.
+    [Fact]
+    public void Compare_ViewBodyWhitespaceInsideStringLiteral_IsSignificant()
+        => DiffViews(
+            [View("labelled", "SELECT 'a  b' AS label FROM app.users")],
+            [View("labelled", "SELECT 'a b' AS label FROM app.users")])!.Kind.ShouldBe(ChangeKind.Modify);
+
     [Fact]
     public void Compare_ViewDependencies_AreDerivedFromTheBodyThroughTheComparer()
     {
