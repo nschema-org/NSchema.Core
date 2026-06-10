@@ -86,12 +86,19 @@ internal sealed class MigrationWorkflow(
     /// </summary>
     private PlannedMigration ReportOrThrow(MigrationPlanResult result)
     {
+        // Show the diff first, even on error: a failing diff policy (e.g. the destructive-action
+        // policy on a dropped table) is only actionable if the user can see the offending change.
+        // A schema-policy failure has no diff (it's computed after that gate), so guard for null.
+        if (result.Diff is not null)
+        {
+            reporters.Current.ReportDiff(result.Diff);
+        }
+
         if (result.HasErrors)
         {
             throw new PolicyViolationException(result.Diagnostics.Errors.ToList());
         }
 
-        reporters.Current.ReportDiff(result.Diff);
         reporters.Current.ReportPlan(result.Plan);
         reporters.Current.ReportDiagnostics(result.Diagnostics);
 
