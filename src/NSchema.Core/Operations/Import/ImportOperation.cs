@@ -47,14 +47,14 @@ internal sealed class ImportOperation(
                 {
                     throw new InvalidOperationException("OutputDirectory must be set when Partition mode is Schema.");
                 }
-                return schema.Schemas.Select(s => (Path.Combine(args.OutputDirectory, $"{s.Name}.{args.Format}"), DatabaseSchema.Create([s])));
+                return schema.Schemas.Select(s => (Path.Combine(args.OutputDirectory, $"{s.Name}.{args.Format}"), new DatabaseSchema([s])));
             case ImportPartitionMode.Table:
                 if (args.OutputDirectory is null)
                 {
                     throw new InvalidOperationException("OutputDirectory must be set when Partition mode is Table.");
                 }
                 return schema.Schemas.SelectMany(s => s.Tables.Select(t => (Path.Combine(args.OutputDirectory, s.Name, $"{t.Name}.{args.Format}"),
-                    DatabaseSchema.Create([s with { Tables = [t] }]))));
+                    new DatabaseSchema([s with { Tables = [t] }]))));
             default:
                 throw new InvalidOperationException($"Unknown partition mode: {args.Partition}");
         }
@@ -101,7 +101,7 @@ internal sealed class ImportOperation(
                 : s)
             .ToList();
 
-        var pruned = DatabaseSchema.Create(prunedSchemas, existing.DroppedSchemas.ToList());
+        var pruned = new DatabaseSchema(prunedSchemas, existing.DroppedSchemas.ToList());
         return pruned.Combine(incoming);
     }
 }

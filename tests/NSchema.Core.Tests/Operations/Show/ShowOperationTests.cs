@@ -16,7 +16,7 @@ public sealed class ShowOperationTests
     {
         _currentProvider
             .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-            .Returns(DatabaseSchema.Create([]));
+            .Returns(new DatabaseSchema([]));
     }
 
     [Fact]
@@ -33,7 +33,7 @@ public sealed class ShowOperationTests
     [Fact]
     public async Task Execute_ReportsTheRecordedSchema()
     {
-        var recorded = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
+        var recorded = new DatabaseSchema([new SchemaDefinition("app")]);
         _currentProvider
             .GetSchema(SchemaSourceMode.Offline, Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(recorded);

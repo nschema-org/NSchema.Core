@@ -22,6 +22,12 @@ CREATE TABLE app.users RENAMED FROM members (
   UNIQUE INDEX users_name_ix (name) WHERE (name IS NOT NULL)
 );
 GRANT SELECT, INSERT, UPDATE, DELETE ON app.users TO readers;
+
+--- currently active users
+CREATE VIEW app.active_users AS SELECT id, name FROM app.users WHERE balance > 0;
+
+CREATE VIEW app.user_directory RENAMED FROM legacy_directory AS SELECT name FROM app.active_users;
 DROP TABLE app.old_table;
+DROP VIEW app.stale_report;
 
 DROP SCHEMA scratch;

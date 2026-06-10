@@ -288,6 +288,68 @@ public sealed class DslLexerTests
             .Message.ShouldContain("Expected a default expression");
 
     // -------------------------------------------------------------------------
+    // Statement-body capture (view definitions)
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void ReadStatementBody_ReturnsTextUpToTerminator_TrimmedWithoutConsumingSemicolon()
+    {
+        var lexer = new DslLexer("SELECT id FROM app.users ;");
+        lexer.ReadStatementBody().ShouldBe("SELECT id FROM app.users");
+        lexer.Next().Kind.ShouldBe(TokenKind.Semicolon);
+    }
+
+    [Fact]
+    public void ReadStatementBody_SemicolonInsideString_IsNotATerminator()
+        => new DslLexer("SELECT ';' AS marker FROM app.t;").ReadStatementBody()
+            .ShouldBe("SELECT ';' AS marker FROM app.t");
+
+    [Fact]
+    public void ReadStatementBody_ParensAreBalanced_AndPreserved()
+        => new DslLexer("SELECT (a + b) FROM app.t;").ReadStatementBody()
+            .ShouldBe("SELECT (a + b) FROM app.t");
+
+    [Fact]
+    public void ReadStatementBody_SemicolonInLineComment_IsNotATerminator()
+    {
+        var lexer = new DslLexer("SELECT 1 -- a; b\nFROM app.t;");
+        lexer.ReadStatementBody().ShouldBe("SELECT 1 -- a; b\nFROM app.t");
+        lexer.Next().Kind.ShouldBe(TokenKind.Semicolon);
+    }
+
+    [Fact]
+    public void ReadStatementBody_SemicolonInBlockComment_IsNotATerminator()
+        => new DslLexer("SELECT 1 /* a; b */ FROM app.t;").ReadStatementBody()
+            .ShouldBe("SELECT 1 /* a; b */ FROM app.t");
+
+    [Fact]
+    public void ReadStatementBody_StopsAtTopLevelSemicolon_IgnoringParenthesisedSemicolonless()
+    {
+        // A nested SELECT inside parens does not terminate the outer body; the first top-level ';' does.
+        var lexer = new DslLexer("SELECT * FROM (SELECT id FROM app.inner_t) s; CREATE");
+        lexer.ReadStatementBody().ShouldBe("SELECT * FROM (SELECT id FROM app.inner_t) s");
+        lexer.Next().Kind.ShouldBe(TokenKind.Semicolon);
+        lexer.Next().IsKeyword("CREATE").ShouldBeTrue();
+    }
+
+    [Fact]
+    public void ReadStatementBody_Empty_Throws()
+        => Should.Throw<DslSyntaxException>(() => new DslLexer(";").ReadStatementBody())
+            .Message.ShouldContain("Expected a view body");
+
+    [Fact]
+    public void ReadStatementBody_AfterResetTo_MirrorsParserUsage()
+    {
+        // The parser consumes 'AS' then rewinds to its one-token lookahead before capturing the body verbatim.
+        var lexer = new DslLexer("AS SELECT id FROM app.users;");
+        lexer.Next().IsKeyword("AS").ShouldBeTrue();
+        var lookahead = lexer.Next();                 // 'SELECT', pulled as lookahead
+        lexer.ResetTo(lookahead.Position);
+        lexer.ReadStatementBody().ShouldBe("SELECT id FROM app.users");
+        lexer.Next().Kind.ShouldBe(TokenKind.Semicolon);
+    }
+
+    // -------------------------------------------------------------------------
     // ResetTo (rewind / re-read)
     // -------------------------------------------------------------------------
 

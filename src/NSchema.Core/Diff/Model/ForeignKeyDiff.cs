@@ -9,4 +9,4 @@ namespace NSchema.Diff.Model;
 /// <param name="Name">The foreign key constraint name.</param>
 /// <param name="Definition">The foreign key definition for an added foreign key; otherwise <see langword="null"/>.</param>
 /// <param name="Comment">The change to the constraint's comment, if any (carried on a comment-only <see cref="ChangeKind.Modify"/>).</param>
-public sealed record ForeignKeyDiff(ChangeKind Kind, string Name, ForeignKey? Definition, ValueChange<string>? Comment = null);
+public sealed record ForeignKeyDiff(ChangeKind Kind, string Name, ForeignKey? Definition = null, ValueChange<string>? Comment = null);

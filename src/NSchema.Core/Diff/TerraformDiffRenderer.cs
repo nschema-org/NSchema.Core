@@ -32,6 +32,11 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
             {
                 RenderTable(sb, table);
             }
+
+            foreach (var view in schema.Views)
+            {
+                RenderView(sb, view);
+            }
         }
 
         sb.AppendLine();
@@ -112,6 +117,22 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
                 : $"revoke {privileges} from {grant.Role}";
             AppendDetail(sb, grant.Kind, text);
         }
+    }
+
+    private void RenderView(StringBuilder sb, ViewDiff view)
+    {
+        var name = view.RenamedFrom is null
+            ? $"{view.Schema}.{view.Name}"
+            : $"{view.Schema}.{view.RenamedFrom} → {view.Name}";
+
+        // A comment-only modify (no body change) reports the comment transition rather than a bare header.
+        if (view is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only })
+        {
+            AppendHeader(sb, ChangeKind.Modify, $"view {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            return;
+        }
+
+        AppendHeader(sb, view.Kind, $"view {name}{CommentSuffix(view.Comment)}");
     }
 
     private void RenderColumn(StringBuilder sb, ColumnDiff column)

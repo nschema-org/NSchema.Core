@@ -38,8 +38,8 @@ public sealed class PlanEndToEndTests : IDisposable
     public async Task Plan_ReportsStructuredDiffBetweenCurrentAndDesired()
     {
         // Current: app.users(id). Desired: app.users(id, email) + a new app.orders table.
-        var current = DatabaseSchema.Create([SchemaDefinition.Create("app", tables:
-            [Table.Create("users", columns: [Column.Create("id", SqlType.Int)])])]);
+        var current = new DatabaseSchema([new SchemaDefinition("app", Tables:
+            [new Table("users", Columns: [new Column("id", SqlType.Int)])])]);
 
         var desired = WriteJson("schema.json",
             """
@@ -74,8 +74,8 @@ public sealed class PlanEndToEndTests : IDisposable
     [Fact]
     public async Task Plan_WithNoChanges_ReportsEmptyDiff()
     {
-        var schema = DatabaseSchema.Create([SchemaDefinition.Create("app", tables:
-            [Table.Create("users", columns: [Column.Create("id", SqlType.Int)])])]);
+        var schema = new DatabaseSchema([new SchemaDefinition("app", Tables:
+            [new Table("users", Columns: [new Column("id", SqlType.Int)])])]);
 
         var desired = WriteJson("schema.json",
             """
@@ -92,7 +92,7 @@ public sealed class PlanEndToEndTests : IDisposable
     [Fact]
     public async Task Plan_WithGeneratorRegistered_ReportsSqlPreview()
     {
-        var current = DatabaseSchema.Create([]);
+        var current = new DatabaseSchema([]);
         var desired = WriteJson("schema.json",
             """
             { "schemas": [{ "name": "app", "tables": [] }], "droppedSchemas": [] }
@@ -113,7 +113,7 @@ public sealed class PlanEndToEndTests : IDisposable
     [Fact]
     public async Task Plan_WithoutGenerator_ReportsNoSqlPreview()
     {
-        var current = DatabaseSchema.Create([]);
+        var current = new DatabaseSchema([]);
         var desired = WriteJson("schema.json",
             """
             { "schemas": [{ "name": "app", "tables": [] }], "droppedSchemas": [] }

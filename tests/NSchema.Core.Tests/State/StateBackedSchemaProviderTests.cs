@@ -6,7 +6,7 @@ namespace NSchema.Tests.State;
 public sealed class StateBackedSchemaProviderTests
 {
     private readonly ISchemaStateStore _store = Substitute.For<ISchemaStateStore>();
-    private readonly ISchemaStateSerializer _serializer = new DefaultSchemaStateSerializer();
+    private readonly ISchemaStateSerializer _serializer = new SchemaStateSerializer();
 
     private StateBackedSchemaProvider BuildSut() => new(_store, _serializer);
 
@@ -32,7 +32,7 @@ public sealed class StateBackedSchemaProviderTests
     public async Task GetSchema_WithState_ReturnsPersistedSchema()
     {
         // Arrange
-        Persisted(DatabaseSchema.Create([SchemaDefinition.Create("app")]));
+        Persisted(new DatabaseSchema([new SchemaDefinition("app")]));
         var sut = BuildSut();
 
         // Act
@@ -46,7 +46,7 @@ public sealed class StateBackedSchemaProviderTests
     public async Task GetSchema_EmptyScope_ReturnsPersistedSchema()
     {
         // Arrange: an empty scope means "return everything", same as null.
-        Persisted(DatabaseSchema.Create([SchemaDefinition.Create("app")]));
+        Persisted(new DatabaseSchema([new SchemaDefinition("app")]));
         var sut = BuildSut();
 
         // Act
@@ -62,10 +62,10 @@ public sealed class StateBackedSchemaProviderTests
         // Arrange: the store snapshots the whole database (e.g. includes the default "public"
         // schema), but a scoped read must only return the managed schemas — otherwise the diff
         // would plan to drop the unmanaged ones.
-        Persisted(DatabaseSchema.Create(
+        Persisted(new DatabaseSchema(
         [
-            SchemaDefinition.Create("my_schema"),
-            SchemaDefinition.Create("public")
+            new SchemaDefinition("my_schema"),
+            new SchemaDefinition("public")
         ]));
         var sut = BuildSut();
 
@@ -80,7 +80,7 @@ public sealed class StateBackedSchemaProviderTests
     public async Task GetSchema_WithScope_MatchesSchemaNamesCaseInsensitively()
     {
         // Arrange: scope matching mirrors the comparer's OrdinalIgnoreCase comparison.
-        Persisted(DatabaseSchema.Create([SchemaDefinition.Create("My_Schema")]));
+        Persisted(new DatabaseSchema([new SchemaDefinition("My_Schema")]));
         var sut = BuildSut();
 
         // Act

@@ -19,15 +19,15 @@ public sealed class DriftOperationTests
     {
         _currentProvider
             .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-            .Returns(DatabaseSchema.Create([]));
+            .Returns(new DatabaseSchema([]));
         _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(new DatabaseDiff([]));
     }
 
     [Fact]
     public async Task Execute_ComparesRecordedOfflineStateAgainstLiveOnlineSchema()
     {
-        var recorded = DatabaseSchema.Create([SchemaDefinition.Create("recorded")]);
-        var live = DatabaseSchema.Create([SchemaDefinition.Create("live")]);
+        var recorded = new DatabaseSchema([new SchemaDefinition("recorded")]);
+        var live = new DatabaseSchema([new SchemaDefinition("live")]);
         var schemas = new[] { "app" };
         _currentProvider.GetSchema(SchemaSourceMode.Offline, schemas, Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(recorded);
         _currentProvider.GetSchema(SchemaSourceMode.Online, schemas, Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(live);

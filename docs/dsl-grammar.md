@@ -68,9 +68,9 @@ depth ≥ 1). The canonical **writer** always parenthesises non-trivial defaults
 There are two kinds of comment, distinguished lexically — the same `//` vs `///` mental model as Rust/JSDoc/C# XML
 docs:
 
-| Syntax        | Meaning                                                                            |
-|---------------|------------------------------------------------------------------------------------|
-| `--`, `/* */` | **Source comment.** A note for whoever reads the file. Stripped; never persisted.  |
+| Syntax          | Meaning                                                                                                                                                                      |
+|-----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `--`, `/* */`   | **Source comment.** A note for whoever reads the file. Stripped; never persisted.                                                                                            |
 | `---`, `/** */` | **Doc-comment.** Attaches to the *immediately following declaration* and becomes that object's **catalog comment** (`COMMENT ON …`), flowing to the model's `Comment` field. |
 
 A doc-comment may precede any commentable declaration: a `CREATE SCHEMA`, a `CREATE TABLE`, a column, or a
@@ -83,11 +83,12 @@ clean and puts documentation inline next to the thing it documents.
 ```sql
 -- internal: revisit index strategy           (stripped)
 --- All registered users.                       (becomes the table's catalog comment)
-CREATE TABLE app.users (
-  --- Primary contact; verified at signup.      (becomes the column's catalog comment)
-  email text NOT NULL,
-  --- Enforced at the app tier too.             (becomes the constraint's catalog comment)
-  CONSTRAINT users_age_chk CHECK (age >= 0)
+CREATE TABLE app.users
+(
+    --- Primary contact; verified at signup.      (becomes the column's catalog comment)
+    email text NOT NULL,
+    --- Enforced at the app tier too.             (becomes the constraint's catalog comment)
+    CONSTRAINT users_age_chk CHECK (age >= 0)
 );
 ```
 
@@ -230,24 +231,44 @@ table-priv = "SELECT" | "INSERT" | "UPDATE" | "DELETE" ;
 
 `GRANT … ON <table>` → `TableGrant`; `GRANT USAGE ON SCHEMA <schema>` → `SchemaGrant`.
 
+### Views
+
+```ebnf
+create-view = "CREATE" , "VIEW" , qualified-name , [ "RENAMED" , "FROM" , ident ] ,
+              "AS" , view-body ;                            (* view-body: opaque text up to the top-level ';' *)
+drop-view   = "DROP" , "VIEW" , qualified-name ;            (* -> DroppedViews (explicit drop, partial schema) *)
+```
+
+The `view-body` is everything after `AS` up to the terminating top-level `;` — captured **verbatim** and never
+interpreted, exactly like a `CHECK` expression. Parentheses are balanced and string literals/comments are skipped,
+so a `;` inside them does not end the definition.
+
+NSchema does scan the body for the objects the view reads — the targets of its `FROM` and `JOIN` clauses, at any
+nesting depth, minus names bound by a `WITH` CTE — and records them as `View.DependsOn`. These drive ordering: a
+view is **created after** the tables and views it reads and **dropped before** them, with views ordered amongst
+themselves by their dependency graph (a cycle is rejected). The scan is deliberately shallow; it over-collects
+rather than under-collects, since a reference that names no planned object simply produces no ordering edge.
+
 ## Construct → model mapping
 
-| DDL construct                             | Model target                                                   |
-|-------------------------------------------|----------------------------------------------------------------|
-| `CREATE [PARTIAL] SCHEMA s`               | `SchemaDefinition` (`IsPartial`)                               |
-| `CREATE TABLE s.t (…)`                    | `SchemaDefinition` + `Table`                                   |
-| `RENAMED FROM x` (schema/table/column)    | `OldName`                                                      |
-| `name type [NOT NULL] [DEFAULT e]`        | `Column` (`Type`→`SqlType`, `IsNullable`, `DefaultExpression`) |
-| `IDENTITY (…)`                            | `Column.IsIdentity` + `IdentityOptions`                        |
-| `CONSTRAINT n PRIMARY KEY (…)`            | `Table.PrimaryKey` (`PrimaryKey`)                              |
-| `CONSTRAINT n FOREIGN KEY … REFERENCES …` | `ForeignKey` (`OnDelete`/`OnUpdate`→`ReferentialAction`)       |
-| `CONSTRAINT n UNIQUE (…)`                 | `UniqueConstraint`                                             |
-| `CONSTRAINT n CHECK (e)`                  | `CheckConstraint` (`Expression` = `e`, opaque)                 |
-| `[UNIQUE] INDEX n (…) [WHERE e]`          | `TableIndex` (`IsUnique`, `Predicate`)                         |
-| `GRANT … ON s.t TO r`                     | `TableGrant`                                                   |
-| `GRANT USAGE ON SCHEMA s TO r`            | `SchemaGrant`                                                  |
-| `DROP TABLE s.t` / `DROP SCHEMA s`        | `DroppedTables` / `DroppedSchemas`                             |
-| `---` / `/** */` before a declaration     | that object's `Comment`                                        |
+| DDL construct                             | Model target                                                     |
+|-------------------------------------------|------------------------------------------------------------------|
+| `CREATE [PARTIAL] SCHEMA s`               | `SchemaDefinition` (`IsPartial`)                                 |
+| `CREATE TABLE s.t (…)`                    | `SchemaDefinition` + `Table`                                     |
+| `CREATE VIEW s.v AS …`                    | `SchemaDefinition` + `View` (`Body` opaque, `DependsOn` derived) |
+| `RENAMED FROM x` (schema/table/column)    | `OldName`                                                        |
+| `name type [NOT NULL] [DEFAULT e]`        | `Column` (`Type`→`SqlType`, `IsNullable`, `DefaultExpression`)   |
+| `IDENTITY (…)`                            | `Column.IsIdentity` + `IdentityOptions`                          |
+| `CONSTRAINT n PRIMARY KEY (…)`            | `Table.PrimaryKey` (`PrimaryKey`)                                |
+| `CONSTRAINT n FOREIGN KEY … REFERENCES …` | `ForeignKey` (`OnDelete`/`OnUpdate`→`ReferentialAction`)         |
+| `CONSTRAINT n UNIQUE (…)`                 | `UniqueConstraint`                                               |
+| `CONSTRAINT n CHECK (e)`                  | `CheckConstraint` (`Expression` = `e`, opaque)                   |
+| `[UNIQUE] INDEX n (…) [WHERE e]`          | `TableIndex` (`IsUnique`, `Predicate`)                           |
+| `GRANT … ON s.t TO r`                     | `TableGrant`                                                     |
+| `GRANT USAGE ON SCHEMA s TO r`            | `SchemaGrant`                                                    |
+| `DROP TABLE s.t` / `DROP SCHEMA s`        | `DroppedTables` / `DroppedSchemas`                               |
+| `DROP VIEW s.v`                           | `DroppedViews`                                                   |
+| `---` / `/** */` before a declaration     | that object's `Comment`                                          |
 
 ## Worked example
 
@@ -256,28 +277,75 @@ table-priv = "SELECT" | "INSERT" | "UPDATE" | "DELETE" ;
 CREATE SCHEMA shop;
 
 --- Line items for an order.
-CREATE TABLE shop.order_items RENAMED FROM line_items (
-  order_id    int           NOT NULL,
-  product_id  int           NOT NULL,
-  quantity    int           NOT NULL DEFAULT 1,
-  unit_price  numeric(12,2) NOT NULL,
-  --- Free-text note; was previously called "comment".
-  note        text          RENAMED FROM comment,
+CREATE TABLE shop.order_items RENAMED FROM line_items
+(
+    order_id
+    int
+    NOT
+    NULL,
+    product_id
+    int
+    NOT
+    NULL,
+    quantity
+    int
+    NOT
+    NULL
+    DEFAULT
+    1,
+    unit_price
+    numeric
+(
+    12,
+    2
+) NOT NULL,
+    --- Free-text note; was previously called "comment".
+    note text RENAMED FROM comment,
+    CONSTRAINT order_items_pkey PRIMARY KEY
+(
+    order_id,
+    product_id
+),
+    CONSTRAINT fk_order_items_order
+    FOREIGN KEY
+(
+    order_id
+) REFERENCES shop.orders
+(
+    id
+) ON DELETE CASCADE,
+    CONSTRAINT fk_order_items_product
+    FOREIGN KEY
+(
+    product_id
+) REFERENCES shop.products
+(
+    id
+)
+  ON DELETE RESTRICT,
 
-  CONSTRAINT order_items_pkey PRIMARY KEY (order_id, product_id),
-
-  CONSTRAINT fk_order_items_order
-    FOREIGN KEY (order_id)   REFERENCES shop.orders (id)   ON DELETE CASCADE,
-  CONSTRAINT fk_order_items_product
-    FOREIGN KEY (product_id) REFERENCES shop.products (id) ON DELETE RESTRICT,
-
-  --- Quantity must be positive.
-  CONSTRAINT chk_order_items_qty CHECK (quantity > 0),
-
-  INDEX ix_order_items_product (product_id),
-  INDEX ix_order_items_flagged (order_id) WHERE (note IS NOT NULL)
-);
+    --- Quantity must be positive.
+    CONSTRAINT chk_order_items_qty CHECK
+(
+    quantity >
+    0
+),
+    INDEX ix_order_items_product
+(
+    product_id
+),
+    INDEX ix_order_items_flagged
+(
+    order_id
+) WHERE
+(
+    note
+    IS
+    NOT
+    NULL
+)
+    );
 
 GRANT SELECT, INSERT, UPDATE ON shop.order_items TO app_rw;
-GRANT SELECT                 ON shop.order_items TO app_ro;
+GRANT SELECT ON shop.order_items TO app_ro;
 ```

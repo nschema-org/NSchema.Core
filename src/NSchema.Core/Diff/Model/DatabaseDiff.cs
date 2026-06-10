@@ -4,8 +4,13 @@ namespace NSchema.Diff.Model;
 /// A representation of the changes between two database schemas.
 /// </summary>
 /// <param name="Schemas">The changed schemas.</param>
-public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff> Schemas)
+public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null)
 {
+    /// <summary>
+    /// The changed schemas.
+    /// </summary>
+    public IReadOnlyList<SchemaDiff> Schemas { get; init; } = Schemas ?? [];
+
     /// <summary>
     /// Gets a value indicating whether the diff contains no changes at all.
     /// </summary>
@@ -59,6 +64,11 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff> Schemas)
                 {
                     Tally(check.Kind);
                 }
+            }
+
+            foreach (var view in schema.Views)
+            {
+                Tally(view.Kind);
             }
         }
 

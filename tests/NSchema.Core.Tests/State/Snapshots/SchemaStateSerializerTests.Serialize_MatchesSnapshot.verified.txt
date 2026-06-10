@@ -1,0 +1,197 @@
+﻿{
+  version: 1,
+  schema: {
+    schemas: [
+      {
+        name: app,
+        oldName: legacy_app,
+        isPartial: true,
+        comment: application schema,
+        tables: [
+          {
+            name: users,
+            oldName: members,
+            primaryKey: {
+              name: users_pkey,
+              comment: surrogate key,
+              columnNames: [
+                id
+              ]
+            },
+            comment: all users,
+            columns: [
+              {
+                name: id,
+                type: {
+                  name: bigint,
+                  length: null,
+                  precision: null,
+                  scale: null
+                },
+                isNullable: false,
+                isIdentity: true,
+                defaultExpression: null,
+                oldName: null,
+                comment: null,
+                identityOptions: {
+                  startWith: 1,
+                  minValue: 1,
+                  incrementBy: 1
+                }
+              },
+              {
+                name: name,
+                type: {
+                  name: varchar,
+                  length: 255,
+                  precision: null,
+                  scale: null
+                },
+                isNullable: false,
+                isIdentity: false,
+                defaultExpression: null,
+                oldName: null,
+                comment: display name,
+                identityOptions: null
+              },
+              {
+                name: balance,
+                type: {
+                  name: decimal,
+                  length: null,
+                  precision: 18,
+                  scale: 2
+                },
+                isNullable: true,
+                isIdentity: false,
+                defaultExpression: 0,
+                oldName: null,
+                comment: null,
+                identityOptions: null
+              },
+              {
+                name: code,
+                type: {
+                  name: char,
+                  length: 8,
+                  precision: null,
+                  scale: null
+                },
+                isNullable: false,
+                isIdentity: false,
+                defaultExpression: null,
+                oldName: short_code,
+                comment: null,
+                identityOptions: null
+              },
+              {
+                name: metadata,
+                type: {
+                  name: jsonb,
+                  length: null,
+                  precision: null,
+                  scale: null
+                },
+                isNullable: true,
+                isIdentity: false,
+                defaultExpression: null,
+                oldName: null,
+                comment: null,
+                identityOptions: null
+              }
+            ],
+            foreignKeys: [
+              {
+                name: users_org_fk,
+                referencedSchema: app,
+                referencedTable: orgs,
+                onDelete: Cascade,
+                onUpdate: SetNull,
+                comment: owning org,
+                columnNames: [
+                  org_id
+                ],
+                referencedColumnNames: [
+                  id
+                ]
+              }
+            ],
+            uniqueConstraints: [
+              {
+                name: users_code_uq,
+                comment: external code,
+                columnNames: [
+                  code
+                ]
+              }
+            ],
+            checkConstraints: [
+              {
+                name: users_balance_chk,
+                expression: balance >= 0,
+                comment: no overdraft
+              }
+            ],
+            indexes: [
+              {
+                name: users_name_ix,
+                isUnique: true,
+                comment: unique names,
+                predicate: name IS NOT NULL,
+                columnNames: [
+                  name
+                ]
+              }
+            ],
+            grants: [
+              {
+                role: readers,
+                privileges: All
+              }
+            ]
+          }
+        ],
+        droppedTables: [
+          old_table
+        ],
+        views: [
+          {
+            name: active_users,
+            body: SELECT id, name FROM app.users WHERE balance > 0,
+            oldName: null,
+            comment: currently active users,
+            dependsOn: [
+              {
+                schema: app,
+                name: users
+              }
+            ]
+          },
+          {
+            name: user_directory,
+            body: SELECT name FROM app.active_users,
+            oldName: legacy_directory,
+            comment: null,
+            dependsOn: [
+              {
+                schema: app,
+                name: active_users
+              }
+            ]
+          }
+        ],
+        droppedViews: [
+          stale_report
+        ],
+        grants: [
+          {
+            role: app_role
+          }
+        ]
+      }
+    ],
+    droppedSchemas: [
+      scratch
+    ]
+  }
+}

@@ -47,7 +47,7 @@ public sealed class ApplyEndToEndTests : IDisposable
     public async Task Apply_GeneratesSql_Executes_AndRefreshesState()
     {
         // Current live DB: an empty app schema. Desired: app.users(id) — i.e. create the table.
-        var current = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
+        var current = new DatabaseSchema([new SchemaDefinition("app")]);
         var desired = WriteJson("schema.json",
             """
             { "schemas": [{ "name": "app", "tables": [{ "name": "users", "columns": [{ "name": "id", "type": "int" }] }] }], "droppedSchemas": [] }
@@ -68,8 +68,8 @@ public sealed class ApplyEndToEndTests : IDisposable
     [Fact]
     public async Task Apply_WithNoChanges_ExecutesEmptyPlan()
     {
-        var schema = DatabaseSchema.Create([SchemaDefinition.Create("app", tables:
-            [Table.Create("users", columns: [Column.Create("id", SqlType.Int)])])]);
+        var schema = new DatabaseSchema([new SchemaDefinition("app", Tables:
+            [new Table("users", Columns: [new Column("id", SqlType.Int)])])]);
         var desired = WriteJson("schema.json",
             """
             { "schemas": [{ "name": "app", "tables": [{ "name": "users", "columns": [{ "name": "id", "type": "int" }] }] }], "droppedSchemas": [] }

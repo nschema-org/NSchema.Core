@@ -34,6 +34,7 @@ Planning and applying behavior are the same as before, but most public types hav
 - `ForceUnlock` operation. Removes a stale state lock regardless of holder, reporting who held it. Triggered via `app.ForceUnlock(...)`; backed by `IStateLock.ForceUnlock`.
 - Saved plan files. `Plan` and `PlanDestroy` can write the computed plan to a file via `PlanArguments.OutFile` / `PlanDestroyArguments.OutFile`, and `Apply` can execute a saved file via `ApplyArguments.PlanFile` instead of recomputing, so what was reviewed is exactly what is applied. The file stores the structured diff, the plan, and the generated SQL; applying from it reports the same diff/plan/SQL view and runs the saved SQL.
 - A new set of structural and linting schema policies that include checks for common issues like missing primary keys or invalid indexes.
+- View support. The schema model now includes views, declared in the SQL DSL with `CREATE VIEW s.v AS <query>` (and `DROP VIEW s.v`). A view's defining query is stored verbatim; the objects it reads are derived from the query's `FROM`/`JOIN` clauses (sub-queries and CTEs included) and drive ordering.
 
 ### Changed
 

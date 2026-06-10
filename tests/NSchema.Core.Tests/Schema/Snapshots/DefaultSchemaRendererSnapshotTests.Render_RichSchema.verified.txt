@@ -12,3 +12,8 @@
     id bigint not null
     user_id bigint not null
     foreign key orders_user_fk (user_id) -> app.users (id)
+  view active_users ("currently active users")
+    reads app.users
+  view user_orders
+    reads app.active_users
+    reads app.orders

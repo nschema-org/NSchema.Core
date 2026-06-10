@@ -8,21 +8,21 @@ public sealed class StructuralIntegritySchemaPolicyTests
 {
     private readonly StructuralIntegritySchemaPolicy _sut = new();
 
-    private static Column Col(string name) => Column.Create(name, SqlType.BigInt);
+    private static Column Col(string name) => new Column(name, SqlType.BigInt);
 
     private static DatabaseSchema Db(params Table[] tables) =>
-        DatabaseSchema.Create([SchemaDefinition.Create("public", tables: tables)]);
+        new DatabaseSchema([new SchemaDefinition("public", Tables: tables)]);
 
     [Fact]
     public void NoDiagnostics_ForAConsistentSchema()
     {
         // Arrange
-        var users = Table.Create("users", primaryKey: new PrimaryKey("users_pk", ["id"]), columns: [Col("id")]);
-        var orders = Table.Create(
+        var users = new Table("users", PrimaryKey: new PrimaryKey("users_pk", ["id"]), Columns: [Col("id")]);
+        var orders = new Table(
             "orders",
-            primaryKey: new PrimaryKey("orders_pk", ["id"]),
-            columns: [Col("id"), Col("user_id")],
-            foreignKeys: [ForeignKey.Create("orders_users_fk", ["user_id"], "public", "users", ["id"])]);
+            PrimaryKey: new PrimaryKey("orders_pk", ["id"]),
+            Columns: [Col("id"), Col("user_id")],
+            ForeignKeys: [new ForeignKey("orders_users_fk", ["user_id"], "public", "users", ["id"])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(users, orders)).ToList();
@@ -35,7 +35,7 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenTableHasNoColumns()
     {
         // Act
-        var diagnostics = _sut.Validate(Db(Table.Create("empty"))).ToList();
+        var diagnostics = _sut.Validate(Db(new Table("empty"))).ToList();
 
         // Assert
         diagnostics.ShouldContain(d => d.Severity == PolicyDiagnosticSeverity.Error && d.Message.Contains("no columns"));
@@ -45,7 +45,7 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenColumnDeclaredTwice()
     {
         // Act
-        var diagnostics = _sut.Validate(Db(Table.Create("t", columns: [Col("id"), Col("ID")]))).ToList();
+        var diagnostics = _sut.Validate(Db(new Table("t", Columns: [Col("id"), Col("ID")]))).ToList();
 
         // Assert
         diagnostics.ShouldContain(d => d.Message.Contains("more than once"));
@@ -55,7 +55,7 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenPrimaryKeyReferencesUnknownColumn()
     {
         // Arrange
-        var table = Table.Create("t", primaryKey: new PrimaryKey("pk", ["missing"]), columns: [Col("id")]);
+        var table = new Table("t", PrimaryKey: new PrimaryKey("pk", ["missing"]), Columns: [Col("id")]);
 
         // Act
         var diagnostics = _sut.Validate(Db(table)).ToList();
@@ -68,7 +68,7 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenIndexReferencesUnknownColumn()
     {
         // Arrange
-        var table = Table.Create("t", columns: [Col("id")], indexes: [TableIndex.Create("ix", ["nope"])]);
+        var table = new Table("t", Columns: [Col("id")], Indexes: [new TableIndex("ix", ["nope"])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(table)).ToList();
@@ -81,9 +81,9 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenForeignKeyReferencesUnknownLocalColumn()
     {
         // Arrange
-        var table = Table.Create(
-            "t", columns: [Col("id")],
-            foreignKeys: [ForeignKey.Create("fk", ["ghost"], "public", "t", ["id"])]);
+        var table = new Table(
+            "t", Columns: [Col("id")],
+            ForeignKeys: [new ForeignKey("fk", ["ghost"], "public", "t", ["id"])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(table)).ToList();
@@ -96,11 +96,11 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenForeignKeyArityMismatches()
     {
         // Arrange
-        var table = Table.Create(
+        var table = new Table(
             "t",
-            primaryKey: new PrimaryKey("pk", ["id"]),
-            columns: [Col("id"), Col("a"), Col("b")],
-            foreignKeys: [ForeignKey.Create("fk", ["a", "b"], "public", "t", ["id"])]);
+            PrimaryKey: new PrimaryKey("pk", ["id"]),
+            Columns: [Col("id"), Col("a"), Col("b")],
+            ForeignKeys: [new ForeignKey("fk", ["a", "b"], "public", "t", ["id"])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(table)).ToList();
@@ -113,9 +113,9 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenForeignKeyTargetTableMissingInManagedSchema()
     {
         // Arrange
-        var table = Table.Create(
-            "t", columns: [Col("id"), Col("ref")],
-            foreignKeys: [ForeignKey.Create("fk", ["ref"], "public", "absent", ["id"])]);
+        var table = new Table(
+            "t", Columns: [Col("id"), Col("ref")],
+            ForeignKeys: [new ForeignKey("fk", ["ref"], "public", "absent", ["id"])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(table)).ToList();
@@ -128,10 +128,10 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void NoError_WhenForeignKeyTargetMissingInPartialSchema()
     {
         // Arrange
-        var table = Table.Create(
-            "t", columns: [Col("id"), Col("ref")],
-            foreignKeys: [ForeignKey.Create("fk", ["ref"], "public", "absent", ["id"])]);
-        var schema = DatabaseSchema.Create([SchemaDefinition.Create("public", isPartial: true, tables: [table])]);
+        var table = new Table(
+            "t", Columns: [Col("id"), Col("ref")],
+            ForeignKeys: [new ForeignKey("fk", ["ref"], "public", "absent", ["id"])]);
+        var schema = new DatabaseSchema([new SchemaDefinition("public", IsPartial: true, Tables: [table])]);
 
         // Act
         var diagnostics = _sut.Validate(schema).ToList();
@@ -144,9 +144,9 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void NoError_WhenForeignKeyTargetSchemaIsUnmanaged()
     {
         // Arrange — "external" schema is not present in the document at all.
-        var table = Table.Create(
-            "t", columns: [Col("id"), Col("ref")],
-            foreignKeys: [ForeignKey.Create("fk", ["ref"], "external", "other", ["id"])]);
+        var table = new Table(
+            "t", Columns: [Col("id"), Col("ref")],
+            ForeignKeys: [new ForeignKey("fk", ["ref"], "external", "other", ["id"])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(table)).ToList();
@@ -159,10 +159,10 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenForeignKeyReferencesNonUniqueColumns()
     {
         // Arrange — target column exists but is neither a PK nor a unique index.
-        var target = Table.Create("target", primaryKey: new PrimaryKey("pk", ["id"]), columns: [Col("id"), Col("code")]);
-        var source = Table.Create(
-            "source", columns: [Col("id"), Col("code")],
-            foreignKeys: [ForeignKey.Create("fk", ["code"], "public", "target", ["code"])]);
+        var target = new Table("target", PrimaryKey: new PrimaryKey("pk", ["id"]), Columns: [Col("id"), Col("code")]);
+        var source = new Table(
+            "source", Columns: [Col("id"), Col("code")],
+            ForeignKeys: [new ForeignKey("fk", ["code"], "public", "target", ["code"])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(target, source)).ToList();
@@ -175,14 +175,14 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void NoError_WhenForeignKeyReferencesUniqueIndex()
     {
         // Arrange
-        var target = Table.Create(
+        var target = new Table(
             "target",
-            primaryKey: new PrimaryKey("pk", ["id"]),
-            columns: [Col("id"), Col("code")],
-            indexes: [TableIndex.Create("uq", ["code"], isUnique: true)]);
-        var source = Table.Create(
-            "source", columns: [Col("id"), Col("code")],
-            foreignKeys: [ForeignKey.Create("fk", ["code"], "public", "target", ["code"])]);
+            PrimaryKey: new PrimaryKey("pk", ["id"]),
+            Columns: [Col("id"), Col("code")],
+            Indexes: [new TableIndex("uq", ["code"], IsUnique: true)]);
+        var source = new Table(
+            "source", Columns: [Col("id"), Col("code")],
+            ForeignKeys: [new ForeignKey("fk", ["code"], "public", "target", ["code"])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(target, source)).ToList();
@@ -195,14 +195,14 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenForeignKeyReferencesPredicatedUniqueIndex()
     {
         // Arrange — a partial (predicated) unique index cannot back a foreign key.
-        var target = Table.Create(
+        var target = new Table(
             "target",
-            primaryKey: new PrimaryKey("pk", ["id"]),
-            columns: [Col("id"), Col("code")],
-            indexes: [TableIndex.Create("uq", ["code"], isUnique: true, predicate: "code IS NOT NULL")]);
-        var source = Table.Create(
-            "source", columns: [Col("id"), Col("code")],
-            foreignKeys: [ForeignKey.Create("fk", ["code"], "public", "target", ["code"])]);
+            PrimaryKey: new PrimaryKey("pk", ["id"]),
+            Columns: [Col("id"), Col("code")],
+            Indexes: [new TableIndex("uq", ["code"], IsUnique: true, Predicate: "code IS NOT NULL")]);
+        var source = new Table(
+            "source", Columns: [Col("id"), Col("code")],
+            ForeignKeys: [new ForeignKey("fk", ["code"], "public", "target", ["code"])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(target, source)).ToList();

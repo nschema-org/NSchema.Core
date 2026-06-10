@@ -4,7 +4,7 @@ This page goes over the core concepts in NSchema in more detail.
 
 ## Domain model
 
-NSchema works around a simple domain model of schemas, tables, columns, indexes, and constraints. The model is designed to be flexible enough to represent the features of any relational database, while still being simple and intuitive to work with.
+NSchema works around a simple domain model of schemas, tables, columns, indexes, constraints, and views. The model is designed to be flexible enough to represent the features of any relational database, while still being simple and intuitive to work with.
 
 These models are used to represent both the desired state (what you want) and the current state (what the database has), so they can be compared symmetrically and transformed as needed.
 

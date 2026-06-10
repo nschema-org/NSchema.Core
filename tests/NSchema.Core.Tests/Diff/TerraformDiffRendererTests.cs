@@ -69,6 +69,10 @@ public sealed class TerraformDiffRendererTests
     private static DatabaseDiff WithTable(TableDiff table)
         => DiffOf([Schema("app", tables: [table])]);
 
+    /// <summary>Wraps a single view-changing schema (null schema kind) for brevity.</summary>
+    private static DatabaseDiff WithView(ViewDiff view)
+        => DiffOf([new SchemaDiff("app", Views: [view])]);
+
     // -------------------------------------------------------------------------
     // Empty / summary
     // -------------------------------------------------------------------------
@@ -163,8 +167,8 @@ public sealed class TerraformDiffRendererTests
     public void Render_AddedTable_SeparatesColumnBlockFromTrailingBlockWithBlankLine()
     {
         var table = Table("users", ChangeKind.Add,
-            columns: [AddColumn(Column.Create("id", SqlType.Int))],
-            indexes: [new IndexDiff(ChangeKind.Add, "users_id_ix", TableIndex.Create("users_id_ix", ["id"]), null)]);
+            columns: [AddColumn(new Column("id", SqlType.Int))],
+            indexes: [new IndexDiff(ChangeKind.Add, "users_id_ix", new TableIndex("users_id_ix", ["id"]), null)]);
 
         var lines = Render(WithTable(table)).Split('\n');
         var columnLine = Array.FindIndex(lines, l => l.Contains("+ id int not null"));
@@ -183,7 +187,7 @@ public sealed class TerraformDiffRendererTests
     [Fact]
     public void Render_ColumnAdd_RendersDefinitionAndCommentSuffix()
     {
-        var column = AddColumn(Column.Create("id", SqlType.Int), comment: new ValueChange<string>(null, "identifier"));
+        var column = AddColumn(new Column("id", SqlType.Int), comment: new ValueChange<string>(null, "identifier"));
 
         Render(WithTable(Table("users", ChangeKind.Add, columns: [column])))
             .ShouldContain("+ id int not null (\"identifier\")");
@@ -191,12 +195,12 @@ public sealed class TerraformDiffRendererTests
 
     [Fact]
     public void Render_ColumnAdd_NullableRendersNull()
-        => Render(WithTable(Table("users", ChangeKind.Add, columns: [AddColumn(Column.Create("bio", SqlType.Text, isNullable: true))])))
+        => Render(WithTable(Table("users", ChangeKind.Add, columns: [AddColumn(new Column("bio", SqlType.Text, IsNullable: true))])))
             .ShouldContain("+ bio text null");
 
     [Fact]
     public void Render_ColumnRemove_RendersDefinition()
-        => Render(WithTable(Table("users", ChangeKind.Modify, columns: [RemoveColumn(Column.Create("id", SqlType.Int))])))
+        => Render(WithTable(Table("users", ChangeKind.Modify, columns: [RemoveColumn(new Column("id", SqlType.Int))])))
             .ShouldContain("- id int not null");
 
     [Fact]
@@ -301,7 +305,7 @@ public sealed class TerraformDiffRendererTests
     [Fact]
     public void Render_IndexAdd_RendersName()
     {
-        var index = new IndexDiff(ChangeKind.Add, "users_email_ux", TableIndex.Create("users_email_ux", ["email"], isUnique: true), null);
+        var index = new IndexDiff(ChangeKind.Add, "users_email_ux", new TableIndex("users_email_ux", ["email"], IsUnique: true), null);
 
         Render(WithTable(Table("users", ChangeKind.Modify, indexes: [index]))).ShouldContain("+ index users_email_ux");
     }
@@ -347,6 +351,42 @@ public sealed class TerraformDiffRendererTests
     }
 
     // -------------------------------------------------------------------------
+    // Views
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Render_ViewAdd_RendersSchemaQualifiedName()
+        => Render(WithView(new ViewDiff("app", "active_users", ChangeKind.Add, Definition: new View("active_users", "SELECT 1"))))
+            .ShouldContain("+ view app.active_users");
+
+    [Fact]
+    public void Render_ViewAdd_AppendsCommentSuffix()
+        => Render(WithView(new ViewDiff("app", "active_users", ChangeKind.Add,
+                Definition: new View("active_users", "SELECT 1"), Comment: new ValueChange<string>(null, "active"))))
+            .ShouldContain("+ view app.active_users (\"active\")");
+
+    [Fact]
+    public void Render_ViewBodyReplace_RendersModifyHeader()
+        => Render(WithView(new ViewDiff("app", "daily_totals", ChangeKind.Modify,
+                Definition: new View("daily_totals", "SELECT sum(x) FROM app.sales"))))
+            .ShouldContain("~ view app.daily_totals");
+
+    [Fact]
+    public void Render_ViewCommentOnlyChange_RendersCommentDiff()
+        => Render(WithView(new ViewDiff("app", "summary", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new"))))
+            .ShouldContain("~ view app.summary comment: \"old\" → \"new\"");
+
+    [Fact]
+    public void Render_ViewRename_RendersArrowWithSchemaQualifier()
+        => Render(WithView(new ViewDiff("app", "report", ChangeKind.Modify, RenamedFrom: "legacy_report")))
+            .ShouldContain("view app.legacy_report → report");
+
+    [Fact]
+    public void Render_ViewRemove_RendersRemoveMarker()
+        => Render(WithView(new ViewDiff("app", "stale_view", ChangeKind.Remove)))
+            .ShouldContain("- view app.stale_view");
+
+    // -------------------------------------------------------------------------
     // Colour / formatting options
     // -------------------------------------------------------------------------
 
@@ -371,7 +411,7 @@ public sealed class TerraformDiffRendererTests
     [Fact]
     public void Render_RespectsCustomIndent()
     {
-        var diff = WithTable(Table("users", ChangeKind.Modify, columns: [RemoveColumn(Column.Create("id", SqlType.Int))]));
+        var diff = WithTable(Table("users", ChangeKind.Modify, columns: [RemoveColumn(new Column("id", SqlType.Int))]));
 
         var output = Render(diff, indent: ">>");
 

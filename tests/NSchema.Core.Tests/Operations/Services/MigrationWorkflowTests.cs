@@ -17,7 +17,7 @@ public sealed class MigrationWorkflowTests
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
     private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
     private readonly IDesiredSchemaProvider _desiredProvider = Substitute.For<IDesiredSchemaProvider>();
-    private readonly ISchemaStateSerializer _stateSerializer = new DefaultSchemaStateSerializer();
+    private readonly ISchemaStateSerializer _stateSerializer = new SchemaStateSerializer();
 
     private MigrationWorkflow BuildSut(ISchemaStateStore? store = null) =>
         new(_planner, [], Helpers.TestReporters.ResolverFor(_reporter), _currentProvider, _desiredProvider, _stateSerializer, store);
@@ -28,11 +28,11 @@ public sealed class MigrationWorkflowTests
     {
         _currentProvider
             .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-            .Returns(DatabaseSchema.Create([]));
+            .Returns(new DatabaseSchema([]));
 
         _desiredProvider
             .GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(DatabaseSchema.Create([]));
+            .Returns(new DatabaseSchema([]));
 
         _planner.Validate(Arg.Any<DatabaseSchema>()).Returns(new PolicyDiagnostics());
 
@@ -51,7 +51,7 @@ public sealed class MigrationWorkflowTests
     public async Task ValidateDesiredSchema_ReturnsLoadedSchema_WhenNoPolicyErrors()
     {
         // Arrange
-        var desired = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
+        var desired = new DatabaseSchema([new SchemaDefinition("app")]);
         _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(desired);
 
         // Act
@@ -205,14 +205,14 @@ public sealed class MigrationWorkflowTests
     public async Task Prepare_DerivesScopeFromDesiredSchema_WhenNoExplicitScope()
     {
         // Arrange
-        var desired = DatabaseSchema.Create(
-            [SchemaDefinition.Create("app"), SchemaDefinition.Create("admin")],
-            droppedSchemas: ["legacy"]);
+        var desired = new DatabaseSchema(
+            [new SchemaDefinition("app"), new SchemaDefinition("admin")],
+            DroppedSchemas: ["legacy"]);
         _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(desired);
         string[]? capturedScope = null;
         _currentProvider
             .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-            .Returns(call => { capturedScope = call.ArgAt<string[]?>(1); return DatabaseSchema.Create([]); });
+            .Returns(call => { capturedScope = call.ArgAt<string[]?>(1); return new DatabaseSchema([]); });
 
         // Act
         await _sut.Plan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
@@ -229,10 +229,10 @@ public sealed class MigrationWorkflowTests
         string[]? desiredScope = null;
         string[]? currentScope = null;
         _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(call => { desiredScope = call.Arg<string[]?>(); return DatabaseSchema.Create([]); });
+            .Returns(call => { desiredScope = call.Arg<string[]?>(); return new DatabaseSchema([]); });
         _currentProvider
             .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-            .Returns(call => { currentScope = call.ArgAt<string[]?>(1); return DatabaseSchema.Create([]); });
+            .Returns(call => { currentScope = call.ArgAt<string[]?>(1); return new DatabaseSchema([]); });
         // Act
         await _sut.Plan(SchemaSourceMode.Offline, required: false, ["app", "legacy"], TestContext.Current.CancellationToken);
 
@@ -247,7 +247,7 @@ public sealed class MigrationWorkflowTests
         // Arrange
         string[]? desiredScope = [];
         _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(call => { desiredScope = call.Arg<string[]?>(); return DatabaseSchema.Create([]); });
+            .Returns(call => { desiredScope = call.Arg<string[]?>(); return new DatabaseSchema([]); });
 
         // Act
         await _sut.Plan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
@@ -260,7 +260,7 @@ public sealed class MigrationWorkflowTests
     public async Task PlanDestroy_WithStore_TearsDownOfflineSchema()
     {
         // Arrange
-        var managed = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
+        var managed = new DatabaseSchema([new SchemaDefinition("app")]);
         _currentProvider
             .GetSchema(SchemaSourceMode.Offline, Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(managed);
@@ -280,7 +280,7 @@ public sealed class MigrationWorkflowTests
     public async Task PlanDestroy_WithoutStore_TearsDownDesiredSchema()
     {
         // Arrange
-        var managed = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
+        var managed = new DatabaseSchema([new SchemaDefinition("app")]);
         _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(managed);
         var sut = BuildSut(store: null);
 
@@ -314,7 +314,7 @@ public sealed class MigrationWorkflowTests
     public async Task Refresh_WritesLiveSchemaToStore_Unscoped()
     {
         // Arrange
-        var schema = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
+        var schema = new DatabaseSchema([new SchemaDefinition("app")]);
         var store = Substitute.For<ISchemaStateStore>();
         _currentProvider
             .GetSchema(SchemaSourceMode.Online, Arg.Any<string[]?>(), required: true, Arg.Any<CancellationToken>())

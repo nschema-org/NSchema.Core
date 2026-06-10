@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Options;
 using NSchema.State;
+using NSchema.State.File;
+using NSchema.State.Model;
 
 namespace NSchema.Tests.State;
 
