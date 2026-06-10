@@ -56,7 +56,9 @@ internal sealed partial class SchemaComparer
     private static ViewDiff? BuildModifiedView(string schema, View current, View desired)
     {
         var renamedFrom = current.Name == desired.Name ? null : current.Name;
-        var bodyChanged = current.Body != desired.Body;
+        // Compare bodies for *equivalence*, not byte-equality, so a database's cosmetic re-emission
+        // (whitespace, trailing terminator) does not read as a change. See ViewBodyNormalizer.
+        var bodyChanged = !ViewBodyNormalizer.AreEquivalent(current.Body, desired.Body);
         var comment = current.Comment != desired.Comment ? new ValueChange<string>(current.Comment, desired.Comment) : null;
 
         if (renamedFrom is null && !bodyChanged && comment is null)
