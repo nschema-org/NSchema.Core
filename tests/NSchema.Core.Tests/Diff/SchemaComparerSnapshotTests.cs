@@ -11,7 +11,7 @@ namespace NSchema.Tests.Diff;
 /// to the projection (a new field, a reordering, a different <c>ChangeKind</c>) surfaces as a readable
 /// diff. The per-element assertions in <see cref="SchemaComparerTests"/> stay as the precise spec.
 /// </summary>
-public sealed class DefaultSchemaComparerSnapshotTests
+public sealed class SchemaComparerSnapshotTests
 {
     private readonly SchemaComparer _sut = new(NullLogger<SchemaComparer>.Instance);
 

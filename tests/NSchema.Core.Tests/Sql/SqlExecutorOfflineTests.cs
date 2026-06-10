@@ -8,7 +8,7 @@ namespace NSchema.Tests.Sql;
 /// Covers <see cref="SqlExecutor"/> when no <c>DbDataSource</c> is configured — i.e. the executor was
 /// registered (it always is) but no database provider supplied a connection. No container needed.
 /// </summary>
-public sealed class DefaultSqlExecutorOfflineTests
+public sealed class SqlExecutorOfflineTests
 {
     private static SqlExecutor WithoutDataSource() => new(Options.Create(new SqlOptions()));
 
