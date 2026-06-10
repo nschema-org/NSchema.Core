@@ -40,16 +40,35 @@ public sealed class SqlTypeTests
     }
 
     [Theory]
-    [InlineData("integer")]
-    [InlineData("INTEGER")]
-    public void Parse_IntegerSpelling_AliasesToCanonicalInt(string input)
+    // The DSL is SQL-flavoured, so common SQL spellings are accepted as aliases of the canonical type. Aliasing here
+    // (rather than preserving them as Custom types) keeps SQL-spelt schemas from drifting against introspection,
+    // which always reports the canonical type.
+    [InlineData("bool", "boolean")]
+    [InlineData("integer", "int")]
+    [InlineData("INTEGER", "int")]
+    [InlineData("int2", "smallint")]
+    [InlineData("int4", "int")]
+    [InlineData("int8", "bigint")]
+    [InlineData("real", "float")]
+    [InlineData("float4", "float")]
+    [InlineData("float8", "double")]
+    [InlineData("timestamp", "datetime")]
+    [InlineData("timestamptz", "datetimeoffset")]
+    [InlineData("uuid", "guid")]
+    [InlineData("bytea", "varbinary")]
+    public void Parse_SqlSpellingAlias_NormalizesToCanonical(string input, string canonical)
     {
-        // The DSL is SQL-flavoured, so "integer" is accepted as a spelling of the canonical "int". Aliasing here
-        // (rather than preserving it as a Custom type) keeps schemas spelt "integer" from drifting against
-        // introspection, which always reports the canonical SqlType.Int.
         var parsed = SqlType.Parse(input);
 
-        parsed.ShouldBe(SqlType.Int);
-        parsed.ToString().ShouldBe("int");
+        parsed.ShouldBe(SqlType.Parse(canonical));
+        parsed.ToString().ShouldBe(canonical);
+    }
+
+    [Theory]
+    [InlineData("numeric(10, 2)", "decimal(10,2)")]
+    [InlineData("character(8)", "char(8)")]
+    public void Parse_ParameterisedSqlSpellingAlias_NormalizesToCanonical(string input, string canonical)
+    {
+        SqlType.Parse(input).ToString().ShouldBe(canonical);
     }
 }
