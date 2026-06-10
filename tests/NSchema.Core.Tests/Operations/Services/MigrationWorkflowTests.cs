@@ -17,7 +17,7 @@ public sealed class MigrationWorkflowTests
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
     private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
     private readonly IDesiredSchemaProvider _desiredProvider = Substitute.For<IDesiredSchemaProvider>();
-    private readonly ISchemaStateSerializer _stateSerializer = new DefaultSchemaStateSerializer();
+    private readonly ISchemaStateSerializer _stateSerializer = new SchemaStateSerializer();
 
     private MigrationWorkflow BuildSut(ISchemaStateStore? store = null) =>
         new(_planner, [], Helpers.TestReporters.ResolverFor(_reporter), _currentProvider, _desiredProvider, _stateSerializer, store);

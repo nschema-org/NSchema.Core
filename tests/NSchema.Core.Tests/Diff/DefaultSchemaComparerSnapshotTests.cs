@@ -6,14 +6,14 @@ using NSchema.Schema.Serialization.Ddl;
 namespace NSchema.Tests.Diff;
 
 /// <summary>
-/// Snapshot coverage for <see cref="DefaultSchemaComparer"/>. Demonstrates Verify diffing a complex
+/// Snapshot coverage for <see cref="SchemaComparer"/>. Demonstrates Verify diffing a complex
 /// object graph: the comparer's whole <c>MigrationDiff</c> tree is serialized and pinned, so a change
 /// to the projection (a new field, a reordering, a different <c>ChangeKind</c>) surfaces as a readable
-/// diff. The per-element assertions in <see cref="DefaultSchemaComparerTests"/> stay as the precise spec.
+/// diff. The per-element assertions in <see cref="SchemaComparerTests"/> stay as the precise spec.
 /// </summary>
 public sealed class DefaultSchemaComparerSnapshotTests
 {
-    private readonly DefaultSchemaComparer _sut = new(NullLogger<DefaultSchemaComparer>.Instance);
+    private readonly SchemaComparer _sut = new(NullLogger<SchemaComparer>.Instance);
 
     [Fact]
     public Task Compare_RichSchemas_ProjectsFullDiffTree()

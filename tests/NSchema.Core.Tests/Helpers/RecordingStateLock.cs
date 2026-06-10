@@ -1,4 +1,5 @@
 using NSchema.State;
+using NSchema.State.Model;
 
 namespace NSchema.Tests.Helpers;
 

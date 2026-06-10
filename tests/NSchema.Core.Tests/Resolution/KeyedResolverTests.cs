@@ -4,7 +4,7 @@ using NSchema.Resolution;
 namespace NSchema.Tests.Resolution;
 
 /// <summary>
-/// Tests <see cref="DefaultKeyedResolver{TValue,TOptions}"/> — the shared resolver backing every keyed-service seam.
+/// Tests <see cref="KeyedResolver{TValue,TOptions}"/> — the shared resolver backing every keyed-service seam.
 /// </summary>
 public sealed class KeyedResolverTests
 {
@@ -21,7 +21,7 @@ public sealed class KeyedResolverTests
         configure?.Invoke(services);
         services.Configure<Options>(o => o.Key = selectedKey);
         services.AddSingleton<IKeyedResolver<string>>(sp =>
-            new DefaultKeyedResolver<string, Options>(sp, o => o.Key));
+            new KeyedResolver<string, Options>(sp, o => o.Key));
         var provider = services.BuildServiceProvider();
         return (provider.GetRequiredService<IKeyedResolver<string>>(), provider);
     }
@@ -101,7 +101,7 @@ public sealed class KeyedResolverTests
         var services = new ServiceCollection();
         services.AddKeyedSingleton<string>("json", (_, _) => "j");
         services.AddSingleton<IKeyedResolver<string>>(sp =>
-            new DefaultKeyedResolver<string, Options>(sp, selector: null));
+            new KeyedResolver<string, Options>(sp, selector: null));
         var sut = services.BuildServiceProvider().GetRequiredService<IKeyedResolver<string>>();
 
         sut.HasCurrent.ShouldBeFalse();

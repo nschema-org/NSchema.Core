@@ -19,15 +19,6 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
-    /// Registers a custom SQL executor that will be used to execute the generated migration scripts against the database.
-    /// </summary>
-    public NSchemaApplicationBuilder UseSqlExecutor<T>() where T : class, ISqlExecutor
-    {
-        Services.Replace(ServiceDescriptor.Singleton<ISqlExecutor, T>());
-        return this;
-    }
-
-    /// <summary>
     /// Selects the SQL dialect to generate, when more than one <see cref="ISqlGenerator"/> is registered.
     /// </summary>
     public NSchemaApplicationBuilder WithDialect(string dialect)

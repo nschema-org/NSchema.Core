@@ -3,7 +3,7 @@ using NSchema.Schema.Model;
 
 namespace NSchema.Tests.Diff;
 
-public partial class DefaultSchemaComparerTests
+public partial class SchemaComparerTests
 {
     // -------------------------------------------------------------------------
     // Views

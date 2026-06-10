@@ -3,6 +3,7 @@ using NSchema.Operations.Services;
 using NSchema.Resolution;
 using NSchema.Sql;
 using NSchema.State;
+using NSchema.State.Model;
 
 namespace NSchema.Operations.Destroy;
 

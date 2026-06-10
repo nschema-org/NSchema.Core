@@ -6,7 +6,7 @@ namespace NSchema.Tests.State;
 public sealed class StateBackedSchemaProviderTests
 {
     private readonly ISchemaStateStore _store = Substitute.For<ISchemaStateStore>();
-    private readonly ISchemaStateSerializer _serializer = new DefaultSchemaStateSerializer();
+    private readonly ISchemaStateSerializer _serializer = new SchemaStateSerializer();
 
     private StateBackedSchemaProvider BuildSut() => new(_store, _serializer);
 
