@@ -13,30 +13,47 @@ public sealed class DatabaseSchemaSnapshotTests
     [Fact]
     public Task Aggregate_MultipleProviders_MergesIntoSingleGraph()
     {
-        // Two providers contribute to "app" (tables merged); a third owns "reporting" on its own.
-        var core = DatabaseSchema.Create(
+        // Two providers contribute to "app" (tables and views merged); a third owns "reporting" on its own.
+        var core = new DatabaseSchema(
         [
-            SchemaDefinition.Create("app", comment: "application schema", tables:
-            [
-                Table.Create("users",
-                    primaryKey: new PrimaryKey("users_pkey", ["id"]),
-                    columns: [Column.Create("id", SqlType.BigInt), Column.Create("name", SqlType.VarChar(255))]),
-            ]),
+            new SchemaDefinition("app", Comment: "application schema",
+                Tables:
+                [
+                    new Table("users",
+                        PrimaryKey: new PrimaryKey("users_pkey", ["id"]),
+                        Columns: [new Column("id", SqlType.BigInt), new Column("name", SqlType.VarChar(255))]),
+                ],
+                Views:
+                [
+                    new View("active_users", "SELECT id, name FROM app.users", Comment: "currently active users",
+                        DependsOn: [new ViewDependency("app", "users")]),
+                ]),
         ]);
 
-        var billing = DatabaseSchema.Create(
+        var billing = new DatabaseSchema(
         [
-            SchemaDefinition.Create("app", tables:
-            [
-                Table.Create("invoices",
-                    columns: [Column.Create("id", SqlType.BigInt), Column.Create("amount", SqlType.Decimal(18, 2))]),
-            ]),
+            new SchemaDefinition("app",
+                Tables:
+                [
+                    new Table("invoices",
+                        Columns: [new Column("id", SqlType.BigInt), new Column("amount", SqlType.Decimal(18, 2))]),
+                ],
+                Views:
+                [
+                    new View("invoice_totals", "SELECT id, amount FROM app.invoices",
+                        DependsOn: [new ViewDependency("app", "invoices")]),
+                ]),
         ]);
 
-        var reporting = DatabaseSchema.Create(
+        var reporting = new DatabaseSchema(
         [
-            SchemaDefinition.Create("reporting", comment: "analytics",
-                tables: [Table.Create("daily_totals", columns: [Column.Create("day", SqlType.Date)])]),
+            new SchemaDefinition("reporting", Comment: "analytics",
+                Tables: [new Table("daily_totals", Columns: [new Column("day", SqlType.Date)])],
+                Views:
+                [
+                    new View("weekly_rollup", "SELECT day FROM reporting.daily_totals",
+                        DependsOn: [new ViewDependency("reporting", "daily_totals")]),
+                ]),
         ]);
 
         return Verify(core.Combine(billing).Combine(reporting));

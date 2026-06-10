@@ -1,6 +1,7 @@
 using NSchema.Diff.Model;
 using NSchema.Plan.Model;
 using NSchema.Schema.Model;
+using NSchema.Schema.Serialization.Ddl;
 
 namespace NSchema.Tests.Helpers;
 
@@ -26,52 +27,62 @@ public static class TestData
     /// indexes, grants, dropped tables and schemas), for serializer round-trip and snapshot coverage.
     /// Shared so the state and document serializers are pinned against the same input.
     /// </summary>
-    public static DatabaseSchema RichSchema() => DatabaseSchema.Create(
-        schemas:
+    public static DatabaseSchema RichSchema() => new(
+        Schemas:
         [
-            SchemaDefinition.Create(
-                name: "app",
-                oldName: "legacy_app",
-                isPartial: true,
-                comment: "application schema",
-                tables:
+            new SchemaDefinition(
+                Name: "app",
+                OldName: "legacy_app",
+                IsPartial: true,
+                Comment: "application schema",
+                Tables:
                 [
-                    Table.Create(
-                        name: "users",
-                        oldName: "members",
-                        primaryKey: new PrimaryKey("users_pkey", ["id"], Comment: "surrogate key"),
-                        comment: "all users",
-                        columns:
+                    new Table(
+                        Name: "users",
+                        OldName: "members",
+                        PrimaryKey: new PrimaryKey("users_pkey", ["id"], Comment: "surrogate key"),
+                        Comment: "all users",
+                        Columns:
                         [
-                            Column.Create("id", SqlType.BigInt, isIdentity: true,
-                                identityOptions: new IdentityOptions(1, 1, 1)),
-                            Column.Create("name", SqlType.VarChar(255), comment: "display name"),
-                            Column.Create("balance", SqlType.Decimal(18, 2), isNullable: true, defaultExpression: "0"),
-                            Column.Create("code", SqlType.Char(8), oldName: "short_code"),
-                            Column.Create("metadata", SqlType.Custom("jsonb"), isNullable: true),
+                            new Column("id", SqlType.BigInt, IsIdentity: true,
+                                IdentityOptions: new IdentityOptions(1, 1, 1)),
+                            new Column("name", SqlType.VarChar(255), Comment: "display name"),
+                            new Column("balance", SqlType.Decimal(18, 2), IsNullable: true, DefaultExpression: "0"),
+                            new Column("code", SqlType.Char(8), OldName: "short_code"),
+                            new Column("metadata", SqlType.Custom("jsonb"), IsNullable: true),
                         ],
-                        foreignKeys:
+                        ForeignKeys:
                         [
-                            ForeignKey.Create("users_org_fk", ["org_id"], "app", "orgs", ["id"],
-                                ReferentialAction.Cascade, ReferentialAction.SetNull, comment: "owning org"),
+                            new ForeignKey("users_org_fk", ["org_id"], "app", "orgs", ["id"],
+                                ReferentialAction.Cascade, ReferentialAction.SetNull, Comment: "owning org"),
                         ],
-                        uniqueConstraints:
+                        UniqueConstraints:
                         [
                             new UniqueConstraint("users_code_uq", ["code"], Comment: "external code"),
                         ],
-                        checkConstraints:
+                        CheckConstraints:
                         [
                             new CheckConstraint("users_balance_chk", "balance >= 0", Comment: "no overdraft"),
                         ],
-                        indexes:
+                        Indexes:
                         [
-                            TableIndex.Create("users_name_ix", ["name"], isUnique: true,
-                                comment: "unique names", predicate: "name IS NOT NULL"),
+                            new TableIndex("users_name_ix", ["name"], IsUnique: true,
+                                Comment: "unique names", Predicate: "name IS NOT NULL"),
                         ],
-                        grants: [new TableGrant("readers", TablePrivilege.All)]),
+                        Grants: [new TableGrant("readers", TablePrivilege.All)]),
                 ],
-                droppedTables: ["old_table"],
-                grants: [new SchemaGrant("app_role")]),
+                DroppedTables: ["old_table"],
+                Grants: [new SchemaGrant("app_role")],
+                Views:
+                [
+                    View("active_users", "SELECT id, name FROM app.users WHERE balance > 0", comment: "currently active users"),
+                    View("user_directory", "SELECT name FROM app.active_users", oldName: "legacy_directory"),
+                ],
+                DroppedViews: ["stale_report"]),
         ],
-        droppedSchemas: ["scratch"]);
+        DroppedSchemas: ["scratch"]);
+
+    /// <summary>Builds a view with dependencies derived from its body, exactly as the DSL parser would.</summary>
+    private static View View(string name, string body, string? comment = null, string? oldName = null) =>
+        new(name, body, oldName, comment, ViewDependencyExtractor.Extract(body, "app"));
 }

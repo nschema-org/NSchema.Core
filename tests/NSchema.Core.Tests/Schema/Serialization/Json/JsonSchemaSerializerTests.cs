@@ -41,8 +41,8 @@ public sealed class JsonSchemaSerializerTests
     public async Task RoundTrip_PreservesSqlType(SqlType type)
     {
         // Arrange
-        var schema = DatabaseSchema.Create(
-            [SchemaDefinition.Create("app", tables: [Table.Create("t", columns: [Column.Create("c", type)])])]);
+        var schema = new DatabaseSchema(
+            [new SchemaDefinition("app", Tables: [new Table("t", Columns: [new Column("c", type)])])]);
 
         // Act
         var roundTripped = await Deserialize(await Serialize(schema));
@@ -62,13 +62,13 @@ public sealed class JsonSchemaSerializerTests
     public async Task Write_WritesEnumsAsNames()
     {
         // Arrange
-        var schema = DatabaseSchema.Create(
+        var schema = new DatabaseSchema(
         [
-            SchemaDefinition.Create("app", tables:
+            new SchemaDefinition("app", Tables:
             [
-                Table.Create("users", foreignKeys:
+                new Table("users", ForeignKeys:
                 [
-                    ForeignKey.Create("fk", ["org_id"], "app", "orgs", ["id"], ReferentialAction.Cascade),
+                    new ForeignKey("fk", ["org_id"], "app", "orgs", ["id"], ReferentialAction.Cascade),
                 ]),
             ]),
         ]);
@@ -85,8 +85,8 @@ public sealed class JsonSchemaSerializerTests
     public async Task Write_WritesSqlTypeAsCompactString()
     {
         // Arrange
-        var schema = DatabaseSchema.Create(
-            [SchemaDefinition.Create("app", tables: [Table.Create("t", columns: [Column.Create("c", SqlType.VarChar(255))])])]);
+        var schema = new DatabaseSchema(
+            [new SchemaDefinition("app", Tables: [new Table("t", Columns: [new Column("c", SqlType.VarChar(255))])])]);
 
         // Act
         var json = await Serialize(schema);

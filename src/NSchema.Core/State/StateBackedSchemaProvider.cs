@@ -19,6 +19,6 @@ internal sealed class StateBackedSchemaProvider(ISchemaStateStore store, ISchema
     {
         var snapshot = await store.Read(cancellationToken);
         // Ensure we return an empty schema for a bootstrap run.
-        return snapshot is null ? DatabaseSchema.Create([]) : serializer.Deserialize(snapshot.Value).Filter(schemaNames);
+        return snapshot is null ? new DatabaseSchema() : serializer.Deserialize(snapshot.Value).Filter(schemaNames);
     }
 }

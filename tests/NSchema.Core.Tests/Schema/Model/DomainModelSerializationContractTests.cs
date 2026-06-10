@@ -9,7 +9,7 @@ namespace NSchema.Tests.Schema.Model;
 /// <summary>
 /// Ensures the domain model carries no serialization contract whatsoever: every JSON shaping
 /// decision is owned by a serializer's <c>JsonSerializerOptions</c> — user-facing serialization by
-/// <see cref="JsonSchemaSerializer"/>, state serialization by <see cref="DefaultSchemaStateSerializer"/>.
+/// <see cref="JsonSchemaSerializer"/>, state serialization by <see cref="SchemaStateSerializer"/>.
 /// An attribute on the shared model would silently bind both formats together, so none is allowed.
 /// </summary>
 public sealed class DomainModelSerializationContractTests

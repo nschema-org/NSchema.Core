@@ -1,3 +1,5 @@
+using NSchema.State.Model;
+
 namespace NSchema.State;
 
 /// <summary>

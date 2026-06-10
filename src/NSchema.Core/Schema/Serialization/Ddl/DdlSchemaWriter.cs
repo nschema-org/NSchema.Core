@@ -4,10 +4,7 @@ using NSchema.Schema.Model;
 namespace NSchema.Schema.Serialization.Ddl;
 
 /// <summary>
-/// Emits a <see cref="DatabaseSchema"/> as canonical NSchema DDL (see <c>docs/dsl-grammar.md</c>). The output is
-/// designed to round-trip: parsing the emitted text reproduces the same model. Comments become <c>---</c>
-/// doc-comments, expressions are written back verbatim (wrapped in parens for CHECK/WHERE), and members are
-/// emitted in a stable order (columns, primary key, foreign keys, unique, check, indexes).
+/// Emits a <see cref="DatabaseSchema"/> as canonical NSchema DDL (see <c>docs/dsl-grammar.md</c>).
 /// </summary>
 internal static class DdlSchemaWriter
 {
@@ -65,10 +62,32 @@ internal static class DdlSchemaWriter
             WriteTable(sb, schema.Name, table);
         }
 
+        foreach (var view in schema.Views)
+        {
+            sb.AppendLine();
+            WriteView(sb, schema.Name, view);
+        }
+
         foreach (var dropped in schema.DroppedTables)
         {
             sb.Append("DROP TABLE ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
         }
+
+        foreach (var dropped in schema.DroppedViews)
+        {
+            sb.Append("DROP VIEW ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
+        }
+    }
+
+    private static void WriteView(StringBuilder sb, string schemaName, View view)
+    {
+        WriteDocComment(sb, view.Comment, indent: "");
+        sb.Append("CREATE VIEW ").Append(schemaName).Append('.').Append(view.Name);
+        if (view.OldName is { } oldName)
+        {
+            sb.Append(" RENAMED FROM ").Append(oldName);
+        }
+        sb.Append(" AS ").Append(view.Body).AppendLine(";");
     }
 
     private static void WriteTable(StringBuilder sb, string schemaName, Table table)

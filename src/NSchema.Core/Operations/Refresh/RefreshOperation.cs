@@ -1,5 +1,6 @@
 using NSchema.Operations.Services;
 using NSchema.State;
+using NSchema.State.Model;
 
 namespace NSchema.Operations.Refresh;
 

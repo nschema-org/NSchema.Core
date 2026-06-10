@@ -5,6 +5,7 @@ using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Sql;
 using NSchema.State;
+using NSchema.State.Model;
 
 namespace NSchema.Operations.Apply;
 

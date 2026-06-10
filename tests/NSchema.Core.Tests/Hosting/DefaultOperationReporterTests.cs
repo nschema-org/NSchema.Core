@@ -82,7 +82,7 @@ public sealed class DefaultOperationReporterTests
     [Fact]
     public void ReportSchema_WritesRenderedSchemaToOutput()
     {
-        var schema = DatabaseSchema.Create([]);
+        var schema = new DatabaseSchema();
         _schemaRenderer.Render(schema).Returns("rendered schema");
 
         _sut.ReportSchema(schema);

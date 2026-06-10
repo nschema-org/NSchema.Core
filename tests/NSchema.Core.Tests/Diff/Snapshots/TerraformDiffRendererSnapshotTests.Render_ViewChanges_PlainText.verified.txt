@@ -1,0 +1,11 @@
+﻿+ view app.active_users ("currently active users")
+
+~ view app.daily_totals
+
+~ view app.summary comment: "old summary" → "new summary"
+
+~ view app.legacy_report → report
+
+- view app.stale_view
+
+Plan: 1 to add, 3 to change, 1 to destroy.

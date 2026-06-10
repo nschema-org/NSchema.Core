@@ -115,13 +115,13 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
     private static void ApplyServices(IServiceCollection services)
     {
         // Diffing
-        services.TryAddSingleton<ISchemaComparer, DefaultSchemaComparer>();
+        services.TryAddSingleton<ISchemaComparer, SchemaComparer>();
         services.TryAddSingleton<IDiffRenderer, TerraformDiffRenderer>();
 
         // Operations
         services.TryAddSingleton<IMigrationWorkflow, MigrationWorkflow>();
         services.TryAddSingleton<IOperationConfirmation, AutoApproveConfirmation>();
-        services.TryAddSingleton<IKeyedResolver<IOperationReporter>>(sp => new DefaultKeyedResolver<IOperationReporter, NSchemaApplicationOptions>(sp, o => o.Reporter));
+        services.TryAddSingleton<IKeyedResolver<IOperationReporter>>(sp => new KeyedResolver<IOperationReporter, NSchemaApplicationOptions>(sp, o => o.Reporter));
         services.TryAddSingleton<IPlanOperation, PlanOperation>();
         services.TryAddSingleton<IPlanDestroyOperation, PlanDestroyOperation>();
         services.TryAddSingleton<IApplyOperation, ApplyOperation>();
@@ -134,23 +134,23 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IForceUnlockOperation, ForceUnlockOperation>();
 
         // Plan
-        services.TryAddSingleton<IPlanLinearizer, DefaultPlanLinearizer>();
-        services.TryAddSingleton<IMigrationPlanner, DefaultMigrationPlanner>();
+        services.TryAddSingleton<IPlanLinearizer, PlanLinearizer>();
+        services.TryAddSingleton<IMigrationPlanner, MigrationPlanner>();
         services.TryAddSingleton<IPlanFileWriter, PlanFileWriter>();
 
         // Schemas
-        services.TryAddSingleton<ICurrentSchemaProvider, DefaultCurrentSchemaProvider>();
-        services.TryAddSingleton<IDesiredSchemaProvider, DefaultDesiredSchemaProvider>();
-        services.TryAddSingleton<IKeyedResolver<ISchemaSerializer>, DefaultKeyedResolver<ISchemaSerializer, object>>();
+        services.TryAddSingleton<ICurrentSchemaProvider, CurrentSchemaProvider>();
+        services.TryAddSingleton<IDesiredSchemaProvider, DesiredSchemaProvider>();
+        services.TryAddSingleton<IKeyedResolver<ISchemaSerializer>, KeyedResolver<ISchemaSerializer, object>>();
         services.TryAddSingleton<ISchemaRenderer, DefaultSchemaRenderer>();
 
         // SQL
         services.TryAddSingleton<ISqlPlanRenderer, DefaultSqlPlanRenderer>();
-        services.TryAddSingleton<ISqlExecutor, DefaultSqlExecutor>();
-        services.TryAddSingleton<IKeyedResolver<ISqlGenerator>>(sp => new DefaultKeyedResolver<ISqlGenerator, SqlOptions>(sp, o => o.Dialect));
+        services.TryAddSingleton<ISqlExecutor, SqlExecutor>();
+        services.TryAddSingleton<IKeyedResolver<ISqlGenerator>>(sp => new KeyedResolver<ISqlGenerator, SqlOptions>(sp, o => o.Dialect));
 
         // State
-        services.TryAddSingleton<ISchemaStateSerializer, DefaultSchemaStateSerializer>();
+        services.TryAddSingleton<ISchemaStateSerializer, SchemaStateSerializer>();
         services.TryAddSingleton<IStateLock, NoOpStateLock>();
     }
 }

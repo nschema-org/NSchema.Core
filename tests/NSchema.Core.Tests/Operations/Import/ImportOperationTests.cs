@@ -15,8 +15,8 @@ public sealed class ImportOperationTests : IDisposable
     private readonly IKeyedResolver<ISchemaSerializer> _serializers = Substitute.For<IKeyedResolver<ISchemaSerializer>>();
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
 
-    private readonly DatabaseSchema _schema = DatabaseSchema.Create([SchemaDefinition.Create("app",
-        tables: [Table.Create("users"), Table.Create("orders")])]);
+    private readonly DatabaseSchema _schema = new DatabaseSchema([new SchemaDefinition("app",
+        Tables: [new Table("users"), new Table("orders")])]);
 
     public ImportOperationTests()
     {
@@ -109,10 +109,10 @@ public sealed class ImportOperationTests : IDisposable
     [Fact]
     public async Task Execute_None_ExistingFile_PreservesTablesNotInIncoming()
     {
-        Source(DatabaseSchema.Create([SchemaDefinition.Create("app", tables: [Table.Create("audit_log")])]));
+        Source(new DatabaseSchema([new SchemaDefinition("app", Tables: [new Table("audit_log")])]));
         await Execute(new ImportArguments { OutputFile = FilePath });
 
-        Source(DatabaseSchema.Create([SchemaDefinition.Create("app", tables: [Table.Create("users")])]));
+        Source(new DatabaseSchema([new SchemaDefinition("app", Tables: [new Table("users")])]));
         await Execute(new ImportArguments { OutputFile = FilePath });
 
         var result = await ReadSchema(FilePath);
@@ -122,12 +122,12 @@ public sealed class ImportOperationTests : IDisposable
     [Fact]
     public async Task Execute_None_ExistingFile_IncomingTableReplacesExisting()
     {
-        Source(DatabaseSchema.Create([SchemaDefinition.Create("app",
-            tables: [Table.Create("users", columns: [Column.Create("old_col", SqlType.Text)])])]));
+        Source(new DatabaseSchema([new SchemaDefinition("app",
+            Tables: [new Table("users", Columns: [new Column("old_col", SqlType.Text)])])]));
         await Execute(new ImportArguments { OutputFile = FilePath });
 
-        Source(DatabaseSchema.Create([SchemaDefinition.Create("app",
-            tables: [Table.Create("users", columns: [Column.Create("new_col", SqlType.Text)])])]));
+        Source(new DatabaseSchema([new SchemaDefinition("app",
+            Tables: [new Table("users", Columns: [new Column("new_col", SqlType.Text)])])]));
         await Execute(new ImportArguments { OutputFile = FilePath });
 
         var result = await ReadSchema(FilePath);
@@ -139,7 +139,7 @@ public sealed class ImportOperationTests : IDisposable
     public async Task Execute_None_CreatesDirectoryIfMissing()
     {
         var filePath = Path.Combine(_dir, "nested", "deep", "schema.json");
-        Source(DatabaseSchema.Create([]));
+        Source(new DatabaseSchema([]));
 
         await Execute(new ImportArguments { OutputFile = filePath });
 
@@ -151,9 +151,9 @@ public sealed class ImportOperationTests : IDisposable
     [Fact]
     public async Task Execute_Schema_CreatesOneFilePerSchema()
     {
-        Source(DatabaseSchema.Create([
-            SchemaDefinition.Create("app"),
-            SchemaDefinition.Create("audit"),
+        Source(new DatabaseSchema([
+            new SchemaDefinition("app"),
+            new SchemaDefinition("audit"),
         ]));
 
         await Execute(new ImportArguments { OutputDirectory = _dir, Partition = ImportPartitionMode.Schema });
@@ -165,9 +165,9 @@ public sealed class ImportOperationTests : IDisposable
     [Fact]
     public async Task Execute_Schema_EachFileContainsOnlyItsSchema()
     {
-        Source(DatabaseSchema.Create([
-            SchemaDefinition.Create("app", tables: [Table.Create("users")]),
-            SchemaDefinition.Create("audit", tables: [Table.Create("logs")]),
+        Source(new DatabaseSchema([
+            new SchemaDefinition("app", Tables: [new Table("users")]),
+            new SchemaDefinition("audit", Tables: [new Table("logs")]),
         ]));
 
         await Execute(new ImportArguments { OutputDirectory = _dir, Partition = ImportPartitionMode.Schema });

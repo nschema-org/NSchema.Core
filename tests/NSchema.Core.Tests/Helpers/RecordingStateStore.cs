@@ -9,7 +9,7 @@ namespace NSchema.Tests.Helpers;
 /// </summary>
 internal sealed class RecordingStateStore : ISchemaStateStore
 {
-    private static readonly DefaultSchemaStateSerializer _serializer = new();
+    private static readonly SchemaStateSerializer _serializer = new();
 
     public DatabaseSchema? Written { get; private set; }
 

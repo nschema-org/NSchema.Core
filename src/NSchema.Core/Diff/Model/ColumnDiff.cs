@@ -17,11 +17,11 @@ namespace NSchema.Diff.Model;
 public sealed record ColumnDiff(
     string Name,
     ChangeKind Kind,
-    Column? Definition,
-    string? RenamedFrom,
-    ValueChange<SqlType>? Type,
-    ValueChange<bool>? Nullability,
-    ValueChange<string>? Default,
-    ValueChange<IdentityOptions>? Identity,
-    ValueChange<string>? Comment
+    Column? Definition = null,
+    string? RenamedFrom = null,
+    ValueChange<SqlType>? Type = null,
+    ValueChange<bool>? Nullability = null,
+    ValueChange<string>? Default = null,
+    ValueChange<IdentityOptions>? Identity = null,
+    ValueChange<string>? Comment = null
 );

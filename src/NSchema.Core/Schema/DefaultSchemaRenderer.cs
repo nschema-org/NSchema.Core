@@ -42,6 +42,20 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
         {
             RenderTable(sb, table);
         }
+
+        foreach (var view in schema.Views)
+        {
+            RenderView(sb, view);
+        }
+    }
+
+    private static void RenderView(StringBuilder sb, View view)
+    {
+        sb.Append(Indent).Append("view ").Append(view.Name).AppendLine(CommentSuffix(view.Comment));
+        foreach (var dependency in view.DependsOn)
+        {
+            sb.Append(Indent).Append(Indent).Append("reads ").Append(dependency.Schema).Append('.').AppendLine(dependency.Name);
+        }
     }
 
     private static void RenderTable(StringBuilder sb, Table table)

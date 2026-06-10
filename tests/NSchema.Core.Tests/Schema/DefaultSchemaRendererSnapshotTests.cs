@@ -1,5 +1,6 @@
 using NSchema.Schema;
 using NSchema.Schema.Model;
+using NSchema.Schema.Serialization.Ddl;
 
 namespace NSchema.Tests.Schema;
 
@@ -10,44 +11,54 @@ public sealed class DefaultSchemaRendererSnapshotTests
 {
     private static string Render(DatabaseSchema schema) => new DefaultSchemaRenderer().Render(schema);
 
+    /// <summary>Builds a view with dependencies derived from its body, exactly as the DSL parser would.</summary>
+    private static View View(string name, string body, string? comment = null) =>
+        new(name, body, null, comment, ViewDependencyExtractor.Extract(body, "app"));
+
     /// <summary>
     /// A schema exercising schema comments and grants, identity/default/nullable/commented columns,
-    /// a primary key, a foreign key, unique and partial indexes, and table grants.
+    /// a primary key, a foreign key, unique and partial indexes, table grants, and views (including a
+    /// view that reads another view).
     /// </summary>
     private static DatabaseSchema RichSchema()
     {
-        var users = Table.Create(
+        var users = new Table(
             "users",
-            comment: "all users",
-            primaryKey: new PrimaryKey("users_pkey", ["id"]),
-            columns:
+            Comment: "all users",
+            PrimaryKey: new PrimaryKey("users_pkey", ["id"]),
+            Columns:
             [
-                Column.Create("id", SqlType.BigInt, isIdentity: true, identityOptions: new IdentityOptions(1, 1, 1)),
-                Column.Create("email", SqlType.VarChar(255), comment: "contact address"),
-                Column.Create("status", SqlType.Text, isNullable: true, defaultExpression: "'active'"),
+                new Column("id", SqlType.BigInt, IsIdentity: true, IdentityOptions: new IdentityOptions(1, 1, 1)),
+                new Column("email", SqlType.VarChar(255), Comment: "contact address"),
+                new Column("status", SqlType.Text, IsNullable: true, DefaultExpression: "'active'"),
             ],
-            indexes:
+            Indexes:
             [
-                TableIndex.Create("users_email_ix", ["email"], isUnique: true),
-                TableIndex.Create("users_active_ix", ["status"], predicate: "status = 'active'"),
+                new TableIndex("users_email_ix", ["email"], IsUnique: true),
+                new TableIndex("users_active_ix", ["status"], Predicate: "status = 'active'"),
             ],
-            grants: [new TableGrant("readers", TablePrivilege.Select | TablePrivilege.Insert)]);
+            Grants: [new TableGrant("readers", TablePrivilege.Select | TablePrivilege.Insert)]);
 
-        var orders = Table.Create(
+        var orders = new Table(
             "orders",
-            columns: [Column.Create("id", SqlType.BigInt), Column.Create("user_id", SqlType.BigInt)],
-            foreignKeys:
+            Columns: [new Column("id", SqlType.BigInt), new Column("user_id", SqlType.BigInt)],
+            ForeignKeys:
             [
-                ForeignKey.Create("orders_user_fk", ["user_id"], "app", "users", ["id"]),
+                new ForeignKey("orders_user_fk", ["user_id"], "app", "users", ["id"]),
             ]);
 
-        return DatabaseSchema.Create(
+        return new DatabaseSchema(
         [
-            SchemaDefinition.Create(
+            new SchemaDefinition(
                 "app",
-                comment: "application schema",
-                tables: [users, orders],
-                grants: [new SchemaGrant("readers")]),
+                Comment: "application schema",
+                Tables: [users, orders],
+                Grants: [new SchemaGrant("readers")],
+                Views:
+                [
+                    View("active_users", "SELECT id, email FROM app.users WHERE status = 'active'", comment: "currently active users"),
+                    View("user_orders", "SELECT u.email, o.id FROM app.active_users u JOIN app.orders o ON o.user_id = u.id"),
+                ]),
         ]);
     }
 
@@ -55,5 +66,5 @@ public sealed class DefaultSchemaRendererSnapshotTests
     public Task Render_RichSchema() => Verify(Render(RichSchema()));
 
     [Fact]
-    public Task Render_EmptySchema() => Verify(Render(DatabaseSchema.Create([])));
+    public Task Render_EmptySchema() => Verify(Render(new DatabaseSchema([])));
 }

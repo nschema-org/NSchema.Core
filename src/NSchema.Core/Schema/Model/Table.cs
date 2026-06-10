@@ -18,15 +18,15 @@ namespace NSchema.Schema.Model;
 [DebuggerDisplay("{Name,nq} ({Columns.Count} columns)")]
 public record Table(
     string Name,
-    string? OldName,
-    PrimaryKey? PrimaryKey,
-    string? Comment,
-    IReadOnlyList<Column> Columns,
-    IReadOnlyList<ForeignKey> ForeignKeys,
-    IReadOnlyList<UniqueConstraint> UniqueConstraints,
-    IReadOnlyList<CheckConstraint> CheckConstraints,
-    IReadOnlyList<TableIndex> Indexes,
-    IReadOnlyList<TableGrant> Grants
+    string? OldName = null,
+    PrimaryKey? PrimaryKey = null,
+    string? Comment = null,
+    IReadOnlyList<Column>? Columns = null,
+    IReadOnlyList<ForeignKey>? ForeignKeys = null,
+    IReadOnlyList<UniqueConstraint>? UniqueConstraints = null,
+    IReadOnlyList<CheckConstraint>? CheckConstraints = null,
+    IReadOnlyList<TableIndex>? Indexes = null,
+    IReadOnlyList<TableGrant>? Grants = null
 )
 {
     /// <summary>
@@ -58,30 +58,4 @@ public record Table(
     /// A list of grants that define the permissions associated with the table.
     /// </summary>
     public IReadOnlyList<TableGrant> Grants { get; init; } = Grants ?? [];
-
-    /// <summary>
-    /// Creates a new <see cref="Table"/> with the given options, defaulting unspecified members.
-    /// </summary>
-    /// <param name="name">The name of the table.</param>
-    /// <param name="oldName">The previous name of the table, if it has been renamed.</param>
-    /// <param name="primaryKey">The primary key of the table.</param>
-    /// <param name="comment">An optional comment or description for the table.</param>
-    /// <param name="columns">A list of columns that are part of the table.</param>
-    /// <param name="foreignKeys">A list of foreign keys that define the relationships between this table and other tables in the database schema.</param>
-    /// <param name="uniqueConstraints">A list of unique constraints defined on the table.</param>
-    /// <param name="checkConstraints">A list of check constraints defined on the table.</param>
-    /// <param name="indexes">A list of indexes that are defined on the table.</param>
-    /// <param name="grants">A list of grants that define the permissions associated with the table.</param>
-    public static Table Create(
-        string name,
-        string? oldName = null,
-        PrimaryKey? primaryKey = null,
-        string? comment = null,
-        IReadOnlyList<Column>? columns = null,
-        IReadOnlyList<ForeignKey>? foreignKeys = null,
-        IReadOnlyList<UniqueConstraint>? uniqueConstraints = null,
-        IReadOnlyList<CheckConstraint>? checkConstraints = null,
-        IReadOnlyList<TableIndex>? indexes = null,
-        IReadOnlyList<TableGrant>? grants = null
-    ) => new(name, oldName, primaryKey, comment, columns ?? [], foreignKeys ?? [], uniqueConstraints ?? [], checkConstraints ?? [], indexes ?? [], grants ?? []);
 }

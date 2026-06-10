@@ -47,7 +47,7 @@ public sealed class FileSchemaProviderTests : IDisposable
     }
 
     private static DatabaseSchema Schemas(params string[] names)
-        => DatabaseSchema.Create([.. names.Select(n => SchemaDefinition.Create(n))]);
+        => new DatabaseSchema([.. names.Select(n => new SchemaDefinition(n))]);
 
     // -------------------------------------------------------------------------
     // Construction
