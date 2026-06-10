@@ -13,7 +13,7 @@ namespace NSchema.Tests.Plan;
 /// Each action is projected as <c>{ Type, Action }</c> because the action list is polymorphic: without the
 /// concrete type name many records are ambiguous (e.g. CreateSchema vs CreateTable both show just a schema).
 /// </summary>
-public sealed class MigrationLinearizerSnapshotTests
+public sealed class LinearizerSnapshotTests
 {
     private readonly PlanLinearizer _linearizer = new();
 
