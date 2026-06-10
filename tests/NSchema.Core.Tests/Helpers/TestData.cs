@@ -92,7 +92,24 @@ public static class TestData
                         new SequenceOptions(SqlType.BigInt, StartWith: 100, IncrementBy: 5, MinValue: -10, MaxValue: 999999, Cache: 10, Cycle: true),
                         Comment: "order numbers"),
                 ],
-                DroppedSequences: ["stale_seq"]),
+                DroppedSequences: ["stale_seq"],
+                Functions:
+                [
+                    new Function("add_tax", "amount numeric, rate numeric",
+                        "RETURNS numeric LANGUAGE sql AS $$\n  SELECT amount * (1 + rate);\n$$",
+                        Comment: "adds tax"),
+                    new Function("normalize_code", "code text DEFAULT 'N/A'",
+                        "RETURNS text LANGUAGE sql AS $body$ SELECT upper(code || ';suffix'); $body$",
+                        OldName: "clean_code"),
+                ],
+                DroppedFunctions: ["stale_fn"],
+                Procedures:
+                [
+                    new Procedure("archive_users", "",
+                        "LANGUAGE sql AS $$\n  DELETE FROM app.users WHERE name <> 'a;b';\n$$",
+                        Comment: "archival job"),
+                ],
+                DroppedProcedures: ["stale_proc"]),
         ],
         DroppedSchemas: ["scratch"]);
 

@@ -83,11 +83,28 @@ public sealed class PlanLinearizerSnapshotTests
             new("app", "stale_seq", ChangeKind.Remove),
         };
 
+        // Functions/procedures: an add, a rename + signature change (rename then recreate), and drops.
+        var functions = new FunctionDiff[]
+        {
+            new("app", "add_tax", ChangeKind.Add,
+                Definition: new Function("add_tax", "amount numeric", "RETURNS numeric AS $$ SELECT amount $$")),
+            new("app", "score", ChangeKind.Modify, RenamedFrom: "old_score",
+                Definition: new Function("score", "user_id bigint, weight numeric", "RETURNS numeric AS $$ SELECT 1 $$"),
+                Arguments: new ValueChange<string>("user_id bigint", "user_id bigint, weight numeric")),
+            new("app", "stale_fn", ChangeKind.Remove),
+        };
+        var procedures = new ProcedureDiff[]
+        {
+            new("app", "archive", ChangeKind.Add,
+                Definition: new Procedure("archive", "before date", "LANGUAGE sql AS $$ DELETE $$")),
+            new("app", "stale_proc", ChangeKind.Remove),
+        };
+
         var diff = new DatabaseDiff(
             Schemas:
             [
                 new SchemaDiff("reporting", ChangeKind.Add, null, null, [], []),
-                new SchemaDiff("app", null, null, null, [], [newTable, modifiedTable], views, enums, sequences),
+                new SchemaDiff("app", null, null, null, [], [newTable, modifiedTable], views, enums, sequences, functions, procedures),
                 new SchemaDiff("scratch", ChangeKind.Remove, null, null, [], []),
             ]);
 

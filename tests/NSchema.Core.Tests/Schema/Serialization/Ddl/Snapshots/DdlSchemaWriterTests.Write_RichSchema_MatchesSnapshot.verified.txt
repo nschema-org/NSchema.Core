@@ -12,6 +12,18 @@ CREATE SEQUENCE app.invoice_id RENAMED FROM bill_id;
 --- order numbers
 CREATE SEQUENCE app.order_id (AS bigint, START 100, INCREMENT 5, MINVALUE -10, MAXVALUE 999999, CACHE 10, CYCLE);
 
+--- adds tax
+CREATE FUNCTION app.add_tax(amount numeric, rate numeric) RETURNS numeric LANGUAGE sql AS $$
+  SELECT amount * (1 + rate);
+$$;
+
+CREATE FUNCTION app.normalize_code RENAMED FROM clean_code(code text DEFAULT 'N/A') RETURNS text LANGUAGE sql AS $body$ SELECT upper(code || ';suffix'); $body$;
+
+--- archival job
+CREATE PROCEDURE app.archive_users() LANGUAGE sql AS $$
+  DELETE FROM app.users WHERE name <> 'a;b';
+$$;
+
 --- all users
 CREATE TABLE app.users RENAMED FROM members (
   id bigint NOT NULL IDENTITY (START 1, INCREMENT 1, MINVALUE 1),
@@ -41,5 +53,7 @@ DROP TABLE app.old_table;
 DROP VIEW app.stale_report;
 DROP ENUM app.stale_enum;
 DROP SEQUENCE app.stale_seq;
+DROP FUNCTION app.stale_fn;
+DROP PROCEDURE app.stale_proc;
 
 DROP SCHEMA scratch;

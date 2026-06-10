@@ -97,7 +97,9 @@ CREATE TABLE app.users
 ```ebnf
 document   = { [ doc-comment ] , ( statement | config-block ) } ;
 statement  = ( create-schema | create-table | create-view | create-enum | create-sequence
-             | drop-schema | drop-table | drop-view | drop-enum | drop-sequence | grant ) , ";" ;
+             | create-function | create-procedure
+             | drop-schema | drop-table | drop-view | drop-enum | drop-sequence
+             | drop-function | drop-procedure | grant ) , ";" ;
 ```
 
 A flat statement list; schema membership is by qualified name, exactly like SQL — no nesting.
@@ -285,6 +287,38 @@ CREATE SEQUENCE app.order_id (AS bigint, START 100, INCREMENT 5, MAXVALUE 999999
 The option style mirrors a column's `IDENTITY (…)` clause. An omitted option means the database provider's
 default applies. Each option may appear at most once.
 
+### Functions and procedures
+
+```ebnf
+create-function  = "CREATE" , "FUNCTION" , qualified-name , [ "RENAMED" , "FROM" , ident ] ,
+                   "(" , [ arg-text ] , ")" , definition-text ;
+create-procedure = "CREATE" , "PROCEDURE" , qualified-name , [ "RENAMED" , "FROM" , ident ] ,
+                   "(" , [ arg-text ] , ")" , definition-text ;
+drop-function    = "DROP" , "FUNCTION" , qualified-name ;   (* -> DroppedFunctions (explicit drop, partial schema) *)
+drop-procedure   = "DROP" , "PROCEDURE" , qualified-name ;  (* -> DroppedProcedures (explicit drop, partial schema) *)
+```
+
+```sql
+CREATE FUNCTION app.add_tax(amount numeric, rate numeric) RETURNS numeric LANGUAGE sql AS $$
+  SELECT amount * (1 + rate);
+$$;
+```
+
+Both captures are **opaque**: `arg-text` is the verbatim text inside the parentheses (quote- and paren-aware,
+but **not** dollar-quote aware), and `definition-text` is everything after the closing parenthesis up to the
+top-level `;` — **dollar-quote aware**, so a `;` inside `$$ … $$` (or a tagged `$body$ … $body$`) does not end
+the statement. A procedure is identical except its definition has no `RETURNS` clause.
+
+Two rules carry over from the database:
+
+1. **No overloading** — one routine per name. Declaring the same name twice is an error.
+2. **Functions and procedures share one name space** within a schema (they live in the same catalog), so a
+   function and a procedure with the same name is an error.
+
+The argument list is part of the routine's identity: changing it plans a **drop + recreate** (replacing in
+place under a different signature would create a separate overload in the database). A definition-only change
+replaces in place, like a view body change.
+
 ## Construct → model mapping
 
 | DDL construct                             | Model target                                                     |
@@ -307,6 +341,9 @@ default applies. Each option may appear at most once.
 | `CREATE ENUM s.e ('a', 'b')`              | `SchemaDefinition` + `EnumType` (ordered `Values`)               |
 | `CREATE SEQUENCE s.q (…)`                 | `SchemaDefinition` + `Sequence` (`SequenceOptions`)              |
 | `DROP ENUM s.e` / `DROP SEQUENCE s.q`     | `DroppedEnums` / `DroppedSequences`                              |
+| `CREATE FUNCTION s.f(…) …`                | `SchemaDefinition` + `Function` (`Arguments`/`Definition` opaque)|
+| `CREATE PROCEDURE s.p(…) …`               | `SchemaDefinition` + `Procedure` (`Arguments`/`Definition` opaque)|
+| `DROP FUNCTION s.f` / `DROP PROCEDURE s.p`| `DroppedFunctions` / `DroppedProcedures`                         |
 | `---` / `/** */` before a declaration     | that object's `Comment`                                          |
 
 ## Worked example

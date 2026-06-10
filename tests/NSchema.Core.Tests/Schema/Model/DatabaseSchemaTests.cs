@@ -111,6 +111,42 @@ public sealed class DatabaseSchemaTests
         ex.Message.ShouldContain("public");
     }
 
+    // ── Routines share one name space across documents ────────────────────────
+
+    [Fact]
+    public void Combine_DuplicateFunctionInSameSchema_Throws()
+    {
+        var db1 = Db(new SchemaDefinition("public", Functions: [new Function("f", "", "RETURNS int AS $$ SELECT 1 $$")]));
+        var db2 = Db(new SchemaDefinition("public", Functions: [new Function("f", "", "RETURNS int AS $$ SELECT 2 $$")]));
+
+        var act = () => db1.Combine(db2);
+
+        act.ShouldThrow<InvalidOperationException>().Message.ShouldContain("Duplicate routine 'f'");
+    }
+
+    [Fact]
+    public void Combine_DuplicateProcedureInSameSchema_Throws()
+    {
+        var db1 = Db(new SchemaDefinition("public", Procedures: [new Procedure("p", "", "AS $$ SELECT 1 $$")]));
+        var db2 = Db(new SchemaDefinition("public", Procedures: [new Procedure("p", "", "AS $$ SELECT 2 $$")]));
+
+        var act = () => db1.Combine(db2);
+
+        act.ShouldThrow<InvalidOperationException>().Message.ShouldContain("Duplicate routine 'p'");
+    }
+
+    [Fact]
+    public void Combine_FunctionAndProcedureWithSameName_Throws()
+    {
+        // Functions and procedures share one name pool, as they do in the database's catalog.
+        var db1 = Db(new SchemaDefinition("public", Functions: [new Function("r", "", "RETURNS int AS $$ SELECT 1 $$")]));
+        var db2 = Db(new SchemaDefinition("public", Procedures: [new Procedure("r", "", "AS $$ SELECT 1 $$")]));
+
+        var act = () => db1.Combine(db2);
+
+        act.ShouldThrow<InvalidOperationException>().Message.ShouldContain("share one name space");
+    }
+
     // ── Partial schemas ───────────────────────────────────────────────────────
 
     [Fact]

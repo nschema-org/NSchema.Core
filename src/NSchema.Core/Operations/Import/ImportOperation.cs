@@ -100,6 +100,8 @@ internal sealed class ImportOperation(
                     Views = PruneByName(s.Views, i.Views, v => v.Name),
                     Enums = PruneByName(s.Enums, i.Enums, e => e.Name),
                     Sequences = PruneByName(s.Sequences, i.Sequences, q => q.Name),
+                    Functions = PruneByName(s.Functions, i.Functions, f => f.Name),
+                    Procedures = PruneByName(s.Procedures, i.Procedures, p => p.Name),
                 }
                 : s)
             .ToList();

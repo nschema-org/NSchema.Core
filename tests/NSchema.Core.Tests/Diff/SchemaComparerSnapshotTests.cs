@@ -49,6 +49,12 @@ public sealed class SchemaComparerSnapshotTests
                 [
                     new Sequence("order_id", new SequenceOptions(StartWith: 1, IncrementBy: 1)),
                     new Sequence("stale_seq"),
+                ],
+                Functions:
+                [
+                    new Function("add_tax", "amount numeric", "RETURNS numeric AS $$ SELECT amount * 1.1 $$"),
+                    new Function("score", "user_id bigint", "RETURNS numeric AS $$ SELECT 1 $$"),
+                    new Function("stale_fn", "", "RETURNS int AS $$ SELECT 0 $$"),
                 ]),
             new SchemaDefinition("scratch"),
         ]);
@@ -91,7 +97,15 @@ public sealed class SchemaComparerSnapshotTests
                 [
                     new Sequence("order_id", new SequenceOptions(StartWith: 1000, IncrementBy: 10, Cycle: true)),
                     new Sequence("batch_id"),
-                ]),
+                ],
+                // Functions: a body replace, a signature change (recreate), and an addition.
+                Functions:
+                [
+                    new Function("add_tax", "amount numeric", "RETURNS numeric AS $$ SELECT amount * 1.2 $$"),
+                    new Function("score", "user_id bigint, weight numeric", "RETURNS numeric AS $$ SELECT 1 $$"),
+                    new Function("brand_new", "", "RETURNS int AS $$ SELECT 42 $$"),
+                ],
+                Procedures: [new Procedure("archive", "before date", "LANGUAGE sql AS $$ DELETE $$")]),
             new SchemaDefinition("reporting", Comment: "analytics"),
         ]);
 

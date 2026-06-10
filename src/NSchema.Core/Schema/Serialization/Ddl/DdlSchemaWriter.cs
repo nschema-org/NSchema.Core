@@ -68,6 +68,18 @@ internal static class DdlSchemaWriter
             WriteSequence(sb, schema.Name, sequence);
         }
 
+        foreach (var function in schema.Functions)
+        {
+            sb.AppendLine();
+            WriteFunction(sb, schema.Name, function);
+        }
+
+        foreach (var procedure in schema.Procedures)
+        {
+            sb.AppendLine();
+            WriteProcedure(sb, schema.Name, procedure);
+        }
+
         foreach (var table in schema.Tables)
         {
             sb.AppendLine();
@@ -98,6 +110,16 @@ internal static class DdlSchemaWriter
         foreach (var dropped in schema.DroppedSequences)
         {
             sb.Append("DROP SEQUENCE ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
+        }
+
+        foreach (var dropped in schema.DroppedFunctions)
+        {
+            sb.Append("DROP FUNCTION ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
+        }
+
+        foreach (var dropped in schema.DroppedProcedures)
+        {
+            sb.Append("DROP PROCEDURE ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
         }
     }
 
@@ -159,6 +181,30 @@ internal static class DdlSchemaWriter
             parts.Add("CYCLE");
         }
         return parts.Count == 0 ? null : string.Join(", ", parts);
+    }
+
+    private static void WriteFunction(StringBuilder sb, string schemaName, Function function)
+    {
+        WriteDocComment(sb, function.Comment, indent: "");
+        sb.Append("CREATE FUNCTION ").Append(schemaName).Append('.').Append(function.Name);
+        if (function.OldName is { } oldName)
+        {
+            sb.Append(" RENAMED FROM ").Append(oldName);
+        }
+        // The definition is emitted verbatim (multi-line bodies keep their newlines); TrimEnd guards a
+        // code-built definition ending in whitespace so the ';' lands directly after the last character.
+        sb.Append('(').Append(function.Arguments).Append(") ").Append(function.Definition.TrimEnd()).AppendLine(";");
+    }
+
+    private static void WriteProcedure(StringBuilder sb, string schemaName, Procedure procedure)
+    {
+        WriteDocComment(sb, procedure.Comment, indent: "");
+        sb.Append("CREATE PROCEDURE ").Append(schemaName).Append('.').Append(procedure.Name);
+        if (procedure.OldName is { } oldName)
+        {
+            sb.Append(" RENAMED FROM ").Append(oldName);
+        }
+        sb.Append('(').Append(procedure.Arguments).Append(") ").Append(procedure.Definition.TrimEnd()).AppendLine(";");
     }
 
     private static void WriteView(StringBuilder sb, string schemaName, View view)

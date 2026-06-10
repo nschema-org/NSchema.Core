@@ -47,6 +47,16 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
             {
                 RenderSequence(sb, sequence);
             }
+
+            foreach (var function in schema.Functions)
+            {
+                RenderFunction(sb, function);
+            }
+
+            foreach (var procedure in schema.Procedures)
+            {
+                RenderProcedure(sb, procedure);
+            }
         }
 
         sb.AppendLine();
@@ -204,6 +214,50 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
         if (sequence.Options is { } change)
         {
             AppendDetail(sb, ChangeKind.Modify, $"options: {FormatSequenceOptions(change.Old)} → {FormatSequenceOptions(change.New)}");
+        }
+    }
+
+    private void RenderFunction(StringBuilder sb, FunctionDiff function)
+    {
+        var name = function.RenamedFrom is null
+            ? $"{function.Schema}.{function.Name}"
+            : $"{function.Schema}.{function.RenamedFrom} → {function.Name}";
+
+        // A comment-only modify reports the comment transition rather than a bare header.
+        if (function is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only })
+        {
+            AppendHeader(sb, ChangeKind.Modify, $"function {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            return;
+        }
+
+        var arguments = function is { Kind: ChangeKind.Add, Definition: { } definition } ? $"({definition.Arguments})" : string.Empty;
+        AppendHeader(sb, function.Kind, $"function {name}{arguments}{CommentSuffix(function.Comment)}");
+
+        if (function.Arguments is { } change)
+        {
+            AppendDetail(sb, ChangeKind.Modify, $"arguments: ({change.Old}) → ({change.New}) (recreate)");
+        }
+    }
+
+    private void RenderProcedure(StringBuilder sb, ProcedureDiff procedure)
+    {
+        var name = procedure.RenamedFrom is null
+            ? $"{procedure.Schema}.{procedure.Name}"
+            : $"{procedure.Schema}.{procedure.RenamedFrom} → {procedure.Name}";
+
+        // A comment-only modify reports the comment transition rather than a bare header.
+        if (procedure is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only })
+        {
+            AppendHeader(sb, ChangeKind.Modify, $"procedure {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            return;
+        }
+
+        var arguments = procedure is { Kind: ChangeKind.Add, Definition: { } definition } ? $"({definition.Arguments})" : string.Empty;
+        AppendHeader(sb, procedure.Kind, $"procedure {name}{arguments}{CommentSuffix(procedure.Comment)}");
+
+        if (procedure.Arguments is { } change)
+        {
+            AppendDetail(sb, ChangeKind.Modify, $"arguments: ({change.Old}) → ({change.New}) (recreate)");
         }
     }
 

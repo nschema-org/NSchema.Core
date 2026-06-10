@@ -175,6 +175,40 @@
       droppedSequences: [
         stale_seq
       ],
+      functions: [
+        {
+          name: add_tax,
+          arguments: amount numeric, rate numeric,
+          definition:
+RETURNS numeric LANGUAGE sql AS $$
+  SELECT amount * (1 + rate);
+$$,
+          comment: adds tax
+        },
+        {
+          name: normalize_code,
+          arguments: code text DEFAULT 'N/A',
+          definition: RETURNS text LANGUAGE sql AS $body$ SELECT upper(code || ';suffix'); $body$,
+          oldName: clean_code
+        }
+      ],
+      droppedFunctions: [
+        stale_fn
+      ],
+      procedures: [
+        {
+          name: archive_users,
+          arguments: ,
+          definition:
+LANGUAGE sql AS $$
+  DELETE FROM app.users WHERE name <> 'a;b';
+$$,
+          comment: archival job
+        }
+      ],
+      droppedProcedures: [
+        stale_proc
+      ],
       grants: [
         {
           role: app_role

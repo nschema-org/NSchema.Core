@@ -117,9 +117,25 @@ internal sealed class DslParser
             }
             ParseCreateSequence(schemas, doc);
         }
+        else if (_current.IsKeyword("FUNCTION"))
+        {
+            if (partial)
+            {
+                throw Error("PARTIAL applies to SCHEMA, not FUNCTION.");
+            }
+            ParseCreateFunction(schemas, doc);
+        }
+        else if (_current.IsKeyword("PROCEDURE"))
+        {
+            if (partial)
+            {
+                throw Error("PARTIAL applies to SCHEMA, not PROCEDURE.");
+            }
+            ParseCreateProcedure(schemas, doc);
+        }
         else
         {
-            throw Error($"Expected SCHEMA, TABLE, VIEW, ENUM or SEQUENCE after CREATE, found '{_current.Text}'.");
+            throw Error($"Expected SCHEMA, TABLE, VIEW, ENUM, SEQUENCE, FUNCTION or PROCEDURE after CREATE, found '{_current.Text}'.");
         }
     }
 
@@ -172,6 +188,43 @@ internal sealed class DslParser
 
         var dependsOn = ViewDependencyExtractor.Extract(body, schemaName);
         schemas.AddView(schemaName, new View(viewName, body, oldName, doc, dependsOn), namePosition);
+    }
+
+    private void ParseCreateFunction(SchemaAccumulator schemas, string? doc)
+    {
+        Advance(); // FUNCTION
+        var namePosition = _current.Position;
+        var (schemaName, functionName) = ParseQualifiedName();
+        var oldName = TryParseRenamedFrom();
+        var (arguments, definition) = ReadRoutineArgumentsAndDefinition("a function definition");
+        Expect(TokenKind.Semicolon, "';' to end the function definition");
+
+        schemas.AddFunction(schemaName, new Function(functionName, arguments, definition, oldName, doc), namePosition);
+    }
+
+    private void ParseCreateProcedure(SchemaAccumulator schemas, string? doc)
+    {
+        Advance(); // PROCEDURE
+        var namePosition = _current.Position;
+        var (schemaName, procedureName) = ParseQualifiedName();
+        var oldName = TryParseRenamedFrom();
+        var (arguments, definition) = ReadRoutineArgumentsAndDefinition("a procedure definition");
+        Expect(TokenKind.Semicolon, "';' to end the procedure definition");
+
+        schemas.AddProcedure(schemaName, new Procedure(procedureName, arguments, definition, oldName, doc), namePosition);
+    }
+
+    /// <summary>
+    /// Captures a routine's argument list (the verbatim text inside the parentheses) and its definition (the
+    /// verbatim, dollar-quote-aware text up to the top-level <c>;</c>).
+    /// </summary>
+    private (string Arguments, string Definition) ReadRoutineArgumentsAndDefinition(string what)
+    {
+        _lexer.ResetTo(_current.Position);
+        var arguments = _lexer.ReadParenthesizedExpression();
+        var definition = _lexer.ReadStatementBody(what);
+        _current = _lexer.Next();
+        return (arguments, definition);
     }
 
     private void ParseCreateEnum(SchemaAccumulator schemas, string? doc)
@@ -632,9 +685,23 @@ internal sealed class DslParser
             Expect(TokenKind.Semicolon, "';'");
             schemas.DropSequence(schema, sequence);
         }
+        else if (_current.IsKeyword("FUNCTION"))
+        {
+            Advance();
+            var (schema, function) = ParseQualifiedName();
+            Expect(TokenKind.Semicolon, "';'");
+            schemas.DropFunction(schema, function);
+        }
+        else if (_current.IsKeyword("PROCEDURE"))
+        {
+            Advance();
+            var (schema, procedure) = ParseQualifiedName();
+            Expect(TokenKind.Semicolon, "';'");
+            schemas.DropProcedure(schema, procedure);
+        }
         else
         {
-            throw Error($"Expected SCHEMA, TABLE, VIEW, ENUM or SEQUENCE after DROP, found '{_current.Text}'.");
+            throw Error($"Expected SCHEMA, TABLE, VIEW, ENUM, SEQUENCE, FUNCTION or PROCEDURE after DROP, found '{_current.Text}'.");
         }
     }
 
@@ -831,6 +898,38 @@ internal sealed class DslParser
             entry.Sequences.Add(sequence);
         }
 
+        // Functions and procedures share one name space, as they do in the database: a function and a procedure
+        // with the same name cannot coexist in a schema.
+        public void AddFunction(string schema, Function function, SourcePosition position)
+        {
+            var entry = GetOrAdd(schema);
+            if (entry.Functions.Any(f => f.Name == function.Name))
+            {
+                throw new DslSyntaxException($"Function '{schema}.{function.Name}' is already declared.", position);
+            }
+            if (entry.Procedures.Any(p => p.Name == function.Name))
+            {
+                throw new DslSyntaxException(
+                    $"Function '{schema}.{function.Name}' conflicts with a procedure of the same name; functions and procedures share one name space.", position);
+            }
+            entry.Functions.Add(function);
+        }
+
+        public void AddProcedure(string schema, Procedure procedure, SourcePosition position)
+        {
+            var entry = GetOrAdd(schema);
+            if (entry.Procedures.Any(p => p.Name == procedure.Name))
+            {
+                throw new DslSyntaxException($"Procedure '{schema}.{procedure.Name}' is already declared.", position);
+            }
+            if (entry.Functions.Any(f => f.Name == procedure.Name))
+            {
+                throw new DslSyntaxException(
+                    $"Procedure '{schema}.{procedure.Name}' conflicts with a function of the same name; functions and procedures share one name space.", position);
+            }
+            entry.Procedures.Add(procedure);
+        }
+
         public void AddSchemaGrant(string schema, string role)
         {
             var entry = GetOrAdd(schema);
@@ -888,12 +987,31 @@ internal sealed class DslParser
             }
         }
 
+        public void DropFunction(string schema, string function)
+        {
+            var entry = GetOrAdd(schema);
+            if (!entry.DroppedFunctions.Contains(function, StringComparer.OrdinalIgnoreCase))
+            {
+                entry.DroppedFunctions.Add(function);
+            }
+        }
+
+        public void DropProcedure(string schema, string procedure)
+        {
+            var entry = GetOrAdd(schema);
+            if (!entry.DroppedProcedures.Contains(procedure, StringComparer.OrdinalIgnoreCase))
+            {
+                entry.DroppedProcedures.Add(procedure);
+            }
+        }
+
         public DatabaseSchema Build()
         {
             ApplyTableGrants();
             var schemas = _entries
                 .Select(e => new SchemaDefinition(e.Name, e.OldName, e.IsPartial, e.Comment, e.Tables, e.DroppedTables, e.Grants, e.Views, e.DroppedViews,
-                    e.Enums, e.DroppedEnums, e.Sequences, e.DroppedSequences))
+                    e.Enums, e.DroppedEnums, e.Sequences, e.DroppedSequences,
+                    e.Functions, e.DroppedFunctions, e.Procedures, e.DroppedProcedures))
                 .ToList();
             return new DatabaseSchema(schemas, _droppedSchemas);
         }
@@ -946,6 +1064,10 @@ internal sealed class DslParser
             public List<string> DroppedEnums { get; } = [];
             public List<Sequence> Sequences { get; } = [];
             public List<string> DroppedSequences { get; } = [];
+            public List<Function> Functions { get; } = [];
+            public List<string> DroppedFunctions { get; } = [];
+            public List<Procedure> Procedures { get; } = [];
+            public List<string> DroppedProcedures { get; } = [];
         }
 
         private readonly record struct PendingGrant(string Schema, string Table, TableGrant Grant, SourcePosition Position);

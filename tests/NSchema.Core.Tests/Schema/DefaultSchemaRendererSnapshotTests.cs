@@ -70,6 +70,15 @@ public sealed class DefaultSchemaRendererSnapshotTests
                         new SequenceOptions(SqlType.BigInt, StartWith: 100, IncrementBy: 5, Cache: 10, Cycle: true),
                         Comment: "order numbers"),
                     new Sequence("invoice_id"),
+                ],
+                Functions:
+                [
+                    new Function("add_tax", "amount numeric, rate numeric",
+                        "RETURNS numeric LANGUAGE sql AS $$ SELECT amount * (1 + rate) $$", Comment: "adds tax"),
+                ],
+                Procedures:
+                [
+                    new Procedure("archive_users", "before date", "LANGUAGE sql AS $$ DELETE FROM app.users $$"),
                 ]),
         ]);
     }
