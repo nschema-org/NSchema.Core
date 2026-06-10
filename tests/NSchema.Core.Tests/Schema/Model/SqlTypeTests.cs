@@ -38,4 +38,18 @@ public sealed class SqlTypeTests
 
         SqlType.Parse(original.ToString()).ShouldBe(original);
     }
+
+    [Theory]
+    [InlineData("integer")]
+    [InlineData("INTEGER")]
+    public void Parse_IntegerSpelling_AliasesToCanonicalInt(string input)
+    {
+        // The DSL is SQL-flavoured, so "integer" is accepted as a spelling of the canonical "int". Aliasing here
+        // (rather than preserving it as a Custom type) keeps schemas spelt "integer" from drifting against
+        // introspection, which always reports the canonical SqlType.Int.
+        var parsed = SqlType.Parse(input);
+
+        parsed.ShouldBe(SqlType.Int);
+        parsed.ToString().ShouldBe("int");
+    }
 }
