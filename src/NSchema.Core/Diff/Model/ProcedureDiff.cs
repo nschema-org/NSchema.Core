@@ -20,7 +20,7 @@ public sealed record ProcedureDiff(
     Procedure? Definition = null,
     ValueChange<string>? Arguments = null,
     ValueChange<string>? Comment = null
-)
+) : ISchemaObjectDiff
 {
     /// <summary>
     /// The signature changed, so the procedure must be dropped and recreated: replacing in place would leave

@@ -1,0 +1,29 @@
+namespace NSchema.Diff.Model;
+
+/// <summary>
+/// The members every named-object diff shares. Implemented by the per-kind diff records so kind-agnostic
+/// consumers (change summaries, destructive-change detection) can walk one heterogeneous sequence — see
+/// <see cref="SchemaDiff.EnumerateObjects"/> — instead of repeating a loop per kind.
+/// </summary>
+public interface ISchemaObjectDiff
+{
+    /// <summary>
+    /// The name of the schema the object belongs to.
+    /// </summary>
+    string Schema { get; }
+
+    /// <summary>
+    /// The object name.
+    /// </summary>
+    string Name { get; }
+
+    /// <summary>
+    /// The change to the object.
+    /// </summary>
+    ChangeKind Kind { get; }
+
+    /// <summary>
+    /// The previous object name when the object is being renamed; otherwise <see langword="null"/>.
+    /// </summary>
+    string? RenamedFrom { get; }
+}

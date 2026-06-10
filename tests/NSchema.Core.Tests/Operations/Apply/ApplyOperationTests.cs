@@ -8,7 +8,6 @@ using NSchema.Plan.PlanFile;
 using NSchema.Schema;
 using NSchema.Sql;
 using NSchema.Sql.Model;
-using NSchema.State;
 using NSchema.State.Model;
 using NSchema.Tests.Helpers;
 using NSubstitute.ExceptionExtensions;

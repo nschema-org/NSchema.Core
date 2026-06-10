@@ -23,7 +23,7 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
     private List<SchemaDiff> CompareSchemas(IReadOnlyList<SchemaDefinition> current, IReadOnlyList<SchemaDefinition> desired)
     {
         var result = new List<SchemaDiff>();
-        var (forDesired, currentMatched) = MatchEntities(current, desired, s => s.Name, s => s.OldName, "schema");
+        var (forDesired, currentMatched) = MatchEntities(current, desired, "schema");
 
         for (var j = 0; j < current.Count; j++)
         {
@@ -69,8 +69,6 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
     /// </remarks>
     /// <param name="current">The current-state entities.</param>
     /// <param name="desired">The desired-state entities.</param>
-    /// <param name="name">Projects an entity's name.</param>
-    /// <param name="oldName">Projects an entity's previous name (its rename source), or <c>null</c>.</param>
     /// <param name="entityKind">The noun used in the ambiguity error (e.g. <c>"table"</c>).</param>
     /// <param name="container">An optional qualifier for the entity in the error (e.g. the schema name).</param>
     /// <returns>
@@ -80,11 +78,9 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
     private static (T?[] ForDesired, bool[] CurrentMatched) MatchEntities<T>(
         IReadOnlyList<T> current,
         IReadOnlyList<T> desired,
-        Func<T, string> name,
-        Func<T, string?> oldName,
         string entityKind,
         string? container = null
-    ) where T : class
+    ) where T : class, INamedSchemaObject
     {
         var forDesired = new T?[desired.Count];
         var currentMatched = new bool[current.Count];
@@ -93,14 +89,14 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
         // Pass 1: explicit renames take priority.
         for (var i = 0; i < desired.Count; i++)
         {
-            if (oldName(desired[i]) is not { } renamedFrom)
+            if (desired[i].OldName is not { } renamedFrom)
             {
                 continue;
             }
 
             for (var j = 0; j < current.Count; j++)
             {
-                if (!currentMatched[j] && name(current[j]) == renamedFrom)
+                if (!currentMatched[j] && current[j].Name == renamedFrom)
                 {
                     forDesired[i] = current[j];
                     currentMatched[j] = true;
@@ -120,7 +116,7 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
 
             for (var j = 0; j < current.Count; j++)
             {
-                if (!currentMatched[j] && name(current[j]) == name(desired[i]))
+                if (!currentMatched[j] && current[j].Name == desired[i].Name)
                 {
                     forDesired[i] = current[j];
                     currentMatched[j] = true;
@@ -137,12 +133,12 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
                 continue;
             }
 
-            var newName = name(desired[i]);
-            var renamedFrom = oldName(desired[i])!;
+            var newName = desired[i].Name;
+            var renamedFrom = desired[i].OldName!;
             var index = i;
 
-            var oldNameStillDeclared = desired.Where((_, d) => d != index).Any(d => name(d) == renamedFrom);
-            var newNameAlreadyTaken = current.Any(c => name(c) == newName && !ReferenceEquals(c, forDesired[index]));
+            var oldNameStillDeclared = desired.Where((_, d) => d != index).Any(d => d.Name == renamedFrom);
+            var newNameAlreadyTaken = current.Any(c => c.Name == newName && !ReferenceEquals(c, forDesired[index]));
 
             if (oldNameStillDeclared || newNameAlreadyTaken)
             {
@@ -157,6 +153,56 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
         }
 
         return (forDesired, currentMatched);
+    }
+
+    /// <summary>
+    /// The shared per-kind diffing skeleton: pairs current and desired objects via
+    /// <see cref="MatchEntities{T}"/>, treats an unmatched current object as removed — unless the schema is
+    /// partial and the object was not explicitly dropped, mirroring how unmanaged tables are left alone — and
+    /// builds an add for each unmatched desired object or delegates to <paramref name="buildModified"/> for a
+    /// pair. Only the per-kind build logic varies; the matching and partial-schema semantics live here, once.
+    /// </summary>
+    private static List<TDiff> CompareObjects<TModel, TDiff>(
+        string schemaName,
+        string entityKind,
+        IReadOnlyList<TModel> current,
+        IReadOnlyList<TModel> desired,
+        IReadOnlyList<string> droppedNames,
+        bool isPartial,
+        Func<TModel, TDiff> buildRemoved,
+        Func<TModel, TDiff> buildNew,
+        Func<TModel, TModel, TDiff?> buildModified
+    ) where TModel : class, INamedSchemaObject where TDiff : class
+    {
+        var result = new List<TDiff>();
+        var (forDesired, currentMatched) = MatchEntities(current, desired, entityKind, schemaName);
+
+        for (var j = 0; j < current.Count; j++)
+        {
+            if (currentMatched[j])
+            {
+                continue;
+            }
+
+            if (droppedNames.Contains(current[j].Name, StringComparer.OrdinalIgnoreCase) || !isPartial)
+            {
+                result.Add(buildRemoved(current[j]));
+            }
+        }
+
+        for (var i = 0; i < desired.Count; i++)
+        {
+            if (forDesired[i] is not { } matchingCurrent)
+            {
+                result.Add(buildNew(desired[i]));
+            }
+            else if (buildModified(matchingCurrent, desired[i]) is { } diff)
+            {
+                result.Add(diff);
+            }
+        }
+
+        return result;
     }
 
     private SchemaDiff BuildNewSchema(SchemaDefinition desired)

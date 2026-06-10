@@ -34,7 +34,7 @@ public sealed record TableDiff(
     IReadOnlyList<UniqueConstraintDiff>? UniqueConstraints = null,
     IReadOnlyList<CheckConstraintDiff>? Checks = null,
     Table? Definition = null
-)
+) : ISchemaObjectDiff
 {
     /// <summary>
     /// The changed columns, ordered as encountered in the plan.

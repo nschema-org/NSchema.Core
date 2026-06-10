@@ -17,7 +17,7 @@ public sealed record View(
     string? OldName = null,
     string? Comment = null,
     IReadOnlyList<ViewDependency>? DependsOn = null
-)
+) : INamedSchemaObject
 {
     /// <summary>
     /// The objects the view reads, derived from <see cref="Body"/>.

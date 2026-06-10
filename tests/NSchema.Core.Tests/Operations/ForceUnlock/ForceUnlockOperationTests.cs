@@ -1,7 +1,6 @@
 using NSchema.Operations;
 using NSchema.Operations.Confirmation;
 using NSchema.Operations.ForceUnlock;
-using NSchema.State;
 using NSchema.State.Model;
 using NSchema.Tests.Helpers;
 
