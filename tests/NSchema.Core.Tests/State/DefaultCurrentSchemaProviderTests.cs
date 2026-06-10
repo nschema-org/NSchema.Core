@@ -7,8 +7,8 @@ namespace NSchema.Tests.State;
 
 public sealed class DefaultCurrentSchemaProviderTests
 {
-    private static readonly DatabaseSchema _onlineSchema = DatabaseSchema.Create([SchemaDefinition.Create("online")]);
-    private static readonly DatabaseSchema _offlineSchema = DatabaseSchema.Create([SchemaDefinition.Create("offline")]);
+    private static readonly DatabaseSchema _onlineSchema = new DatabaseSchema([new SchemaDefinition("online")]);
+    private static readonly DatabaseSchema _offlineSchema = new DatabaseSchema([new SchemaDefinition("offline")]);
     private static readonly ISchemaStateSerializer _serializer = new DefaultSchemaStateSerializer();
 
     private static DefaultCurrentSchemaProvider Create(ISchemaProvider? online = null, ISchemaStateStore? store = null) =>

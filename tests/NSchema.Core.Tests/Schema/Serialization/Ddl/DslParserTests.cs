@@ -169,7 +169,7 @@ public sealed class DslParserTests
 
     [Fact]
     public void Parse_UnknownAfterCreate_Throws()
-        => Should.Throw<DslSyntaxException>(() => Parse("CREATE THING app;")).Message.ShouldContain("Expected SCHEMA or TABLE");
+        => Should.Throw<DslSyntaxException>(() => Parse("CREATE THING app;")).Message.ShouldContain("Expected SCHEMA, TABLE or VIEW");
 
     [Fact]
     public void Parse_PartialTable_Throws()
@@ -178,4 +178,63 @@ public sealed class DslParserTests
     [Fact]
     public void Parse_EmptyTableBody_Throws()
         => Should.Throw<DslSyntaxException>(() => Parse("CREATE TABLE app.users ();")).Message.ShouldContain("column or constraint");
+
+    // -------------------------------------------------------------------------
+    // Views
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Parse_CreateView_CapturesBodyVerbatim()
+    {
+        var schema = ParseSingleSchema("CREATE SCHEMA app; CREATE VIEW app.active AS SELECT id, name FROM app.users WHERE active;");
+        var view = schema.Views.ShouldHaveSingleItem();
+        view.Name.ShouldBe("active");
+        view.Body.ShouldBe("SELECT id, name FROM app.users WHERE active");
+    }
+
+    [Fact]
+    public void Parse_CreateView_ExtractsDependencies()
+    {
+        var schema = ParseSingleSchema("CREATE SCHEMA app; CREATE VIEW app.report AS SELECT * FROM app.orders o JOIN app.customers c ON o.cid = c.id;");
+        var view = schema.Views.ShouldHaveSingleItem();
+        view.DependsOn.Select(d => $"{d.Schema}.{d.Name}").ShouldBe(["app.orders", "app.customers"]);
+    }
+
+    [Fact]
+    public void Parse_CreateView_RenamedFrom_SetsOldName()
+    {
+        var schema = ParseSingleSchema("CREATE SCHEMA app; CREATE VIEW app.v RENAMED FROM old_v AS SELECT 1 FROM app.t;");
+        schema.Views.ShouldHaveSingleItem().OldName.ShouldBe("old_v");
+    }
+
+    [Fact]
+    public void Parse_CreateView_WithDocComment_AttachesComment()
+    {
+        var schema = ParseSingleSchema("CREATE SCHEMA app;\n--- active users\nCREATE VIEW app.active AS SELECT * FROM app.users;");
+        schema.Views.ShouldHaveSingleItem().Comment.ShouldBe("active users");
+    }
+
+    [Fact]
+    public void Parse_DropView_RecordsDroppedView()
+    {
+        var schema = ParseSingleSchema("CREATE SCHEMA app; DROP VIEW app.stale;");
+        schema.DroppedViews.ShouldHaveSingleItem().ShouldBe("stale");
+    }
+
+    [Fact]
+    public void Parse_DuplicateView_Throws()
+        => Should.Throw<DslSyntaxException>(() =>
+            Parse("CREATE SCHEMA app; CREATE VIEW app.v AS SELECT 1 FROM app.t; CREATE VIEW app.v AS SELECT 2 FROM app.t;"))
+            .Message.ShouldContain("already declared");
+
+    [Fact]
+    public void Parse_PartialView_Throws()
+        => Should.Throw<DslSyntaxException>(() => Parse("CREATE PARTIAL VIEW app.v AS SELECT 1 FROM app.t;")).Message.ShouldContain("PARTIAL applies to SCHEMA");
+
+    [Fact]
+    public void Parse_ViewBodyWithSemicolonInString_StopsAtRealTerminator()
+    {
+        var schema = ParseSingleSchema("CREATE SCHEMA app; CREATE VIEW app.v AS SELECT ';' AS marker FROM app.t;");
+        schema.Views.ShouldHaveSingleItem().Body.ShouldBe("SELECT ';' AS marker FROM app.t");
+    }
 }

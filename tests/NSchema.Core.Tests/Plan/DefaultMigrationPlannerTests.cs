@@ -11,7 +11,7 @@ namespace NSchema.Tests.Plan;
 
 public sealed class DefaultMigrationPlannerTests
 {
-    private static readonly DatabaseSchema _emptySchema = DatabaseSchema.Create([]);
+    private static readonly DatabaseSchema _emptySchema = new([]);
     private static readonly DatabaseDiff _emptyDiff = new([]);
     private static readonly IReadOnlyList<Script> _noScripts = [];
 
@@ -44,7 +44,7 @@ public sealed class DefaultMigrationPlannerTests
     public void Validate_RunsSchemaPoliciesAgainstDesiredSchema()
     {
         // Arrange
-        var desired = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
+        var desired = new DatabaseSchema([new SchemaDefinition("app")]);
         var policy = Substitute.For<ISchemaPolicy>();
         policy.Validate(desired).Returns([PolicyDiagnostic.Error("Test", "bad schema")]);
         _schemaPolicies.Add(policy);
@@ -96,8 +96,8 @@ public sealed class DefaultMigrationPlannerTests
     public void Plan_PassesBothSchemasToComparer()
     {
         // Arrange
-        var current = DatabaseSchema.Create([SchemaDefinition.Create("current")]);
-        var desired = DatabaseSchema.Create([SchemaDefinition.Create("desired")]);
+        var current = new DatabaseSchema([new SchemaDefinition("current")]);
+        var desired = new DatabaseSchema([new SchemaDefinition("desired")]);
 
         // Act
         Sut.Plan(current, desired, _noScripts);
@@ -229,7 +229,7 @@ public sealed class DefaultMigrationPlannerTests
     public void PlanTeardown_DiffsManagedSchemaAgainstEmpty()
     {
         // Arrange
-        var managed = DatabaseSchema.Create([SchemaDefinition.Create("app")]);
+        var managed = new DatabaseSchema([new SchemaDefinition("app")]);
 
         // Act
         Sut.PlanTeardown(managed);
@@ -246,7 +246,7 @@ public sealed class DefaultMigrationPlannerTests
         _linearizer.Linearize(_emptyDiff).Returns(actions);
 
         // Act
-        var result = Sut.PlanTeardown(DatabaseSchema.Create([SchemaDefinition.Create("app")]));
+        var result = Sut.PlanTeardown(new DatabaseSchema([new SchemaDefinition("app")]));
 
         // Assert
         result.Plan!.Actions.ShouldBe(actions);
@@ -269,7 +269,7 @@ public sealed class DefaultMigrationPlannerTests
         _planPolicies.Add(planPolicy);
 
         // Act
-        Sut.PlanTeardown(DatabaseSchema.Create([SchemaDefinition.Create("app")]));
+        Sut.PlanTeardown(new DatabaseSchema([new SchemaDefinition("app")]));
 
         // Assert: none of the user-extensible steps are consulted on a teardown.
         diffTransformer.DidNotReceive().Transform(Arg.Any<DatabaseDiff>());

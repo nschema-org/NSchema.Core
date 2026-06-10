@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using NSchema.Diff;
 using NSchema.Schema.Model;
+using NSchema.Schema.Serialization.Ddl;
 
 namespace NSchema.Tests.Diff;
 
@@ -17,43 +18,63 @@ public sealed class DefaultSchemaComparerSnapshotTests
     [Fact]
     public Task Compare_RichSchemas_ProjectsFullDiffTree()
     {
-        // Current: an "app" schema with a users table and a soon-to-be-dropped "scratch" schema.
-        var current = DatabaseSchema.Create(
+        // Current: an "app" schema with a users table, three views, and a soon-to-be-dropped "scratch" schema.
+        var current = new DatabaseSchema(
         [
-            SchemaDefinition.Create("app", tables:
-            [
-                Table.Create("users",
-                    primaryKey: new PrimaryKey("users_pkey", ["id"]),
-                    columns:
-                    [
-                        Column.Create("id", SqlType.Int),
-                        Column.Create("email", SqlType.VarChar(100)),
-                        Column.Create("legacy_flag", SqlType.Boolean),
-                    ]),
-            ]),
-            SchemaDefinition.Create("scratch"),
+            new SchemaDefinition("app",
+                Tables:
+                [
+                    new Table("users",
+                        PrimaryKey: new PrimaryKey("users_pkey", ["id"]),
+                        Columns:
+                        [
+                            new Column("id", SqlType.Int),
+                            new Column("email", SqlType.VarChar(100)),
+                            new Column("legacy_flag", SqlType.Boolean),
+                        ]),
+                ],
+                Views:
+                [
+                    View("active_users", "SELECT id FROM app.users WHERE active"),
+                    View("legacy_report", "SELECT * FROM app.users"),
+                    View("old_summary", "SELECT count(*) FROM app.users"),
+                ]),
+            new SchemaDefinition("scratch"),
         ]);
 
         // Desired: id widened, email renamed + retyped, legacy_flag dropped, a new index, a new unique
-        // constraint, a new check constraint, and a new "reporting" schema.
-        var desired = DatabaseSchema.Create(
+        // constraint, a new check constraint, and a new "reporting" schema. Views: active_users' body changes
+        // (a replace), legacy_report is renamed to report, old_summary is dropped, and user_emails is added
+        // (reading another view, so it carries a dependency).
+        var desired = new DatabaseSchema(
         [
-            SchemaDefinition.Create("app", tables:
-            [
-                Table.Create("users",
-                    primaryKey: new PrimaryKey("users_pkey", ["id"]),
-                    columns:
-                    [
-                        Column.Create("id", SqlType.BigInt),
-                        Column.Create("email_address", SqlType.Text, oldName: "email"),
-                    ],
-                    uniqueConstraints: [new UniqueConstraint("users_email_uq", ["email_address"])],
-                    checkConstraints: [new CheckConstraint("users_id_chk", "id > 0")],
-                    indexes: [TableIndex.Create("users_email_ix", ["email_address"], isUnique: true)]),
-            ]),
-            SchemaDefinition.Create("reporting", comment: "analytics"),
+            new SchemaDefinition("app",
+                Tables:
+                [
+                    new Table("users",
+                        PrimaryKey: new PrimaryKey("users_pkey", ["id"]),
+                        Columns:
+                        [
+                            new Column("id", SqlType.BigInt),
+                            new Column("email_address", SqlType.Text, OldName: "email"),
+                        ],
+                        UniqueConstraints: [new UniqueConstraint("users_email_uq", ["email_address"])],
+                        CheckConstraints: [new CheckConstraint("users_id_chk", "id > 0")],
+                        Indexes: [new TableIndex("users_email_ix", ["email_address"], IsUnique: true)]),
+                ],
+                Views:
+                [
+                    View("active_users", "SELECT id, email_address FROM app.users WHERE active"),
+                    View("report", "SELECT * FROM app.users", oldName: "legacy_report"),
+                    View("user_emails", "SELECT email_address FROM app.active_users"),
+                ]),
+            new SchemaDefinition("reporting", Comment: "analytics"),
         ]);
 
         return Verify(_sut.Compare(current, desired));
     }
+
+    // Builds a view with its dependencies derived from the body, exactly as the DSL parser would.
+    private static View View(string name, string body, string? oldName = null) =>
+        new(name, body, oldName, null, ViewDependencyExtractor.Extract(body, "app"));
 }

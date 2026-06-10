@@ -4,11 +4,62 @@ namespace NSchema.Tests.Schema.Model;
 
 public sealed class DatabaseSchemaTests
 {
-    private static DatabaseSchema Db(params SchemaDefinition[] schemas) => DatabaseSchema.Create(schemas);
+    private static DatabaseSchema Db(params SchemaDefinition[] schemas) => new DatabaseSchema(schemas);
 
-    private static SchemaDefinition Schema(string name, params Table[] tables) => SchemaDefinition.Create(name, tables: tables);
+    private static SchemaDefinition Schema(string name, params Table[] tables) => new SchemaDefinition(name, Tables: tables);
 
-    private static Table Table(string name) => NSchema.Schema.Model.Table.Create(name);
+    private static Table Table(string name) => new(name);
+
+    private static View View(string name) => new(name, $"SELECT * FROM {name}_source");
+
+    private static DatabaseSchema Sample() => new(
+        [new SchemaDefinition("app"), new SchemaDefinition("audit"), new SchemaDefinition("legacy")],
+        ["old", "scratch"]);
+
+    [Fact]
+    public void Filter_RestrictsBothSchemasAndDroppedSchemas()
+    {
+        var result = Sample().Filter(["app", "old"]);
+
+        result.Schemas.Select(s => s.Name).ShouldBe(["app"]);
+        result.DroppedSchemas.ShouldBe(["old"]);
+    }
+
+    [Fact]
+    public void Filter_IsCaseInsensitive()
+    {
+        var schema = new DatabaseSchema([new SchemaDefinition("App")], ["Old"]);
+
+        var result = schema.Filter(["app", "old"]);
+
+        result.Schemas.Select(s => s.Name).ShouldBe(["App"]);
+        result.DroppedSchemas.ShouldBe(["Old"]);
+    }
+
+    [Fact]
+    public void Filter_NamesNotPresent_AreIgnored()
+    {
+        var result = Sample().Filter(["app", "does-not-exist"]);
+
+        result.Schemas.Select(s => s.Name).ShouldBe(["app"]);
+        result.DroppedSchemas.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Filter_NullScope_ReturnsEverything()
+    {
+        var schema = Sample();
+
+        schema.Filter(null).ShouldBe(schema);
+    }
+
+    [Fact]
+    public void Filter_EmptyScope_ReturnsEverything()
+    {
+        var schema = Sample();
+
+        schema.Filter([]).ShouldBe(schema);
+    }
 
     // ── Multiple providers, distinct schema names ─────────────────────────────
 
@@ -66,7 +117,7 @@ public sealed class DatabaseSchemaTests
     public void Combine_AnyProviderPartial_ResultIsPartial()
     {
         // Arrange
-        var db1 = Db(SchemaDefinition.Create("public", isPartial: true));
+        var db1 = Db(new SchemaDefinition("public", IsPartial: true));
         var db2 = Db(Schema("public", Table("posts")));
 
         // Act
@@ -94,8 +145,8 @@ public sealed class DatabaseSchemaTests
     public void Combine_DroppedTables_AreCombinedAcrossProviders()
     {
         // Arrange
-        var db1 = Db(SchemaDefinition.Create("public", droppedTables: ["old_users"]));
-        var db2 = Db(SchemaDefinition.Create("public", droppedTables: ["legacy_data"]));
+        var db1 = Db(new SchemaDefinition("public", DroppedTables: ["old_users"]));
+        var db2 = Db(new SchemaDefinition("public", DroppedTables: ["legacy_data"]));
 
         // Act
         var result = db1.Combine(db2);
@@ -108,8 +159,8 @@ public sealed class DatabaseSchemaTests
     public void Combine_DroppedSchemas_AreCombinedAcrossProviders()
     {
         // Arrange
-        var db1 = DatabaseSchema.Create([], ["old_schema"]);
-        var db2 = DatabaseSchema.Create([], ["legacy"]);
+        var db1 = new DatabaseSchema([], ["old_schema"]);
+        var db2 = new DatabaseSchema([], ["legacy"]);
 
         // Act
         var result = db1.Combine(db2);
@@ -124,7 +175,7 @@ public sealed class DatabaseSchemaTests
     public void Combine_Comment_FromOneOfMultipleProviders_IsPreserved()
     {
         // Arrange
-        var db1 = Db(SchemaDefinition.Create("public", comment: "App schema"));
+        var db1 = Db(new SchemaDefinition("public", Comment: "App schema"));
         var db2 = Db(Schema("public", Table("posts")));
 
         // Act
@@ -139,8 +190,8 @@ public sealed class DatabaseSchemaTests
     public void Combine_SameCommentFromMultipleProviders_IsPreserved()
     {
         // Arrange
-        var db1 = Db(SchemaDefinition.Create("public", comment: "App schema"));
-        var db2 = Db(SchemaDefinition.Create("public", comment: "App schema"));
+        var db1 = Db(new SchemaDefinition("public", Comment: "App schema"));
+        var db2 = Db(new SchemaDefinition("public", Comment: "App schema"));
 
         // Act
         var result = db1.Combine(db2);
@@ -153,8 +204,8 @@ public sealed class DatabaseSchemaTests
     public void Combine_ConflictingComments_Throws()
     {
         // Arrange
-        var db1 = Db(SchemaDefinition.Create("public", comment: "App schema"));
-        var db2 = Db(SchemaDefinition.Create("public", comment: "Different comment"));
+        var db1 = Db(new SchemaDefinition("public", Comment: "App schema"));
+        var db2 = Db(new SchemaDefinition("public", Comment: "Different comment"));
 
         // Act
         var act = () => db1.Combine(db2);
@@ -168,8 +219,8 @@ public sealed class DatabaseSchemaTests
     public void Combine_ConflictingOldNames_Throws()
     {
         // Arrange — two providers disagree on what the schema was renamed from.
-        var db1 = Db(SchemaDefinition.Create("public", oldName: "legacy"));
-        var db2 = Db(SchemaDefinition.Create("public", oldName: "old_public"));
+        var db1 = Db(new SchemaDefinition("public", OldName: "legacy"));
+        var db2 = Db(new SchemaDefinition("public", OldName: "old_public"));
 
         // Act
         var act = () => db1.Combine(db2);
@@ -183,8 +234,8 @@ public sealed class DatabaseSchemaTests
     public void Combine_MatchingOldNames_AreCombined()
     {
         // Arrange — agreeing (or one-sided) rename sources combine without complaint.
-        var db1 = Db(SchemaDefinition.Create("public", oldName: "legacy"));
-        var db2 = Db(SchemaDefinition.Create("public"));
+        var db1 = Db(new SchemaDefinition("public", OldName: "legacy"));
+        var db2 = Db(new SchemaDefinition("public"));
 
         // Act
         var result = db1.Combine(db2);
@@ -199,8 +250,8 @@ public sealed class DatabaseSchemaTests
     public void Combine_Grants_AreCombinedAcrossProviders()
     {
         // Arrange
-        var db1 = Db(SchemaDefinition.Create("public", grants: [new SchemaGrant("app_user")]));
-        var db2 = Db(SchemaDefinition.Create("public", grants: [new SchemaGrant("reporting")]));
+        var db1 = Db(new SchemaDefinition("public", Grants: [new SchemaGrant("app_user")]));
+        var db2 = Db(new SchemaDefinition("public", Grants: [new SchemaGrant("reporting")]));
 
         // Act
         var result = db1.Combine(db2);
@@ -213,13 +264,59 @@ public sealed class DatabaseSchemaTests
     public void Combine_DuplicateGrants_AreDeduplicated()
     {
         // Arrange
-        var db1 = Db(SchemaDefinition.Create("public", grants: [new SchemaGrant("app_user")]));
-        var db2 = Db(SchemaDefinition.Create("public", grants: [new SchemaGrant("app_user")]));
+        var db1 = Db(new SchemaDefinition("public", Grants: [new SchemaGrant("app_user")]));
+        var db2 = Db(new SchemaDefinition("public", Grants: [new SchemaGrant("app_user")]));
 
         // Act
         var result = db1.Combine(db2);
 
         // Assert
         result.Schemas[0].Grants.Select(g => g.Role).ShouldBe(["app_user"]);
+    }
+
+    // ── Views ─────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Combine_MultipleProviders_SameSchemaName_MergesViews()
+    {
+        // Arrange
+        var db1 = Db(new SchemaDefinition("public", Views: [View("active_users")]));
+        var db2 = Db(new SchemaDefinition("public", Views: [View("user_summary")]));
+
+        // Act
+        var result = db1.Combine(db2);
+
+        // Assert
+        result.Schemas[0].Views.Select(v => v.Name).ShouldBe(["active_users", "user_summary"]);
+    }
+
+    [Fact]
+    public void Combine_DuplicateViewInSameSchema_Throws()
+    {
+        // Arrange
+        var db1 = Db(new SchemaDefinition("public", Views: [View("active_users")]));
+        var db2 = Db(new SchemaDefinition("public", Views: [View("active_users")]));
+
+        // Act
+        var act = () => db1.Combine(db2);
+
+        // Assert
+        var ex = act.ShouldThrow<InvalidOperationException>();
+        ex.Message.ShouldContain("active_users");
+        ex.Message.ShouldContain("public");
+    }
+
+    [Fact]
+    public void Combine_DroppedViews_AreCombinedAcrossProviders()
+    {
+        // Arrange
+        var db1 = Db(new SchemaDefinition("public", DroppedViews: ["old_view"]));
+        var db2 = Db(new SchemaDefinition("public", DroppedViews: ["legacy_view"]));
+
+        // Act
+        var result = db1.Combine(db2);
+
+        // Assert
+        result.Schemas[0].DroppedViews.ShouldBe(["old_view", "legacy_view"], ignoreOrder: true);
     }
 }

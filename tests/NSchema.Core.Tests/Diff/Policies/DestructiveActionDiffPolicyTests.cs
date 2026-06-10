@@ -118,6 +118,37 @@ public class DestructiveActionDiffPolicyTests
         _sut.Validate(diff).ShouldBeEmpty();
     }
 
+    [Fact]
+    public void Validate_DroppedView_IsDestructive()
+    {
+        // Arrange — dropping a view is destructive (its definition is lost from managed state).
+        _options.Value.Policy = DestructiveActionPolicy.Error;
+        var diff = new DatabaseDiff([
+            new SchemaDiff("app", null, null, null, [], [], [new ViewDiff("app", "active_users", ChangeKind.Remove)]),
+        ]);
+
+        // Act
+        var errors = _sut.Validate(diff).ToList();
+
+        // Assert
+        errors.ShouldHaveSingleItem();
+        errors[0].Message.ShouldContain(nameof(DropView));
+    }
+
+    [Fact]
+    public void Validate_AddedView_IsNotDestructive()
+    {
+        // Arrange — creating a view loses nothing.
+        _options.Value.Policy = DestructiveActionPolicy.Error;
+        var view = new NSchema.Schema.Model.View("active_users", "SELECT * FROM app.users");
+        var diff = new DatabaseDiff([
+            new SchemaDiff("app", null, null, null, [], [], [new ViewDiff("app", "active_users", ChangeKind.Add, Definition: view)]),
+        ]);
+
+        // Act / Assert
+        _sut.Validate(diff).ShouldBeEmpty();
+    }
+
     private static DatabaseDiff TableChange(TableDiff table) =>
         new([new SchemaDiff("app", null, null, null, [], [table])]);
 }

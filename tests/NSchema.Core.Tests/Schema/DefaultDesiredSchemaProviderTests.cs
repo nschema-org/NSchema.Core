@@ -18,9 +18,9 @@ public sealed class DefaultDesiredSchemaProviderTests
     [Fact]
     public async Task GetSchema_AggregatesAllProviders()
     {
-        var s1 = DatabaseSchema.Create([SchemaDefinition.Create("a")]);
-        var s2 = DatabaseSchema.Create([SchemaDefinition.Create("b")]);
-        var merged = DatabaseSchema.Create([SchemaDefinition.Create("a"), SchemaDefinition.Create("b")]);
+        var s1 = new DatabaseSchema([new SchemaDefinition("a")]);
+        var s2 = new DatabaseSchema([new SchemaDefinition("b")]);
+        var merged = new DatabaseSchema([new SchemaDefinition("a"), new SchemaDefinition("b")]);
         var p1 = Substitute.For<ISchemaProvider>();
         var p2 = Substitute.For<ISchemaProvider>();
         p1.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(s1);
@@ -37,9 +37,9 @@ public sealed class DefaultDesiredSchemaProviderTests
     public async Task GetSchema_AppliesTransformersAfterAggregation()
     {
 
-        var transformed = DatabaseSchema.Create([SchemaDefinition.Create("transformed")]);
+        var transformed = new DatabaseSchema([new SchemaDefinition("transformed")]);
         var provider = Substitute.For<ISchemaProvider>();
-        provider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(DatabaseSchema.Create([]));
+        provider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(new DatabaseSchema([]));
         var transformer = Substitute.For<ISchemaTransformer>();
         transformer.Transform(Arg.Any<DatabaseSchema>()).Returns(transformed);
         var sut = new DefaultDesiredSchemaProvider([provider], [transformer]);
@@ -58,9 +58,9 @@ public sealed class DefaultDesiredSchemaProviderTests
         var p1 = Substitute.For<ISchemaProvider>();
         var p2 = Substitute.For<ISchemaProvider>();
         p1.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(call => { captured1 = call.Arg<string[]?>(); return DatabaseSchema.Create([]); });
+            .Returns(call => { captured1 = call.Arg<string[]?>(); return new DatabaseSchema([]); });
         p2.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(call => { captured2 = call.Arg<string[]?>(); return DatabaseSchema.Create([]); });
+            .Returns(call => { captured2 = call.Arg<string[]?>(); return new DatabaseSchema([]); });
         var sut = new DefaultDesiredSchemaProvider([p1, p2], []);
 
         await sut.GetSchema(scope, TestContext.Current.CancellationToken);

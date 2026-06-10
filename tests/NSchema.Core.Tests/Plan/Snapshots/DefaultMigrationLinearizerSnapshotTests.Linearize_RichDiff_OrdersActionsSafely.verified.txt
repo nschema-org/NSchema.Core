@@ -1,5 +1,13 @@
 ﻿[
   {
+    Type: DropView,
+    Action: {
+      SchemaName: app,
+      ViewName: stale_view,
+      IsDestructive: true
+    }
+  },
+  {
     Type: DropForeignKey,
     Action: {
       SchemaName: app,
@@ -21,6 +29,15 @@
       SchemaName: app,
       OldName: purchases,
       NewName: orders,
+      IsDestructive: false
+    }
+  },
+  {
+    Type: RenameView,
+    Action: {
+      SchemaName: app,
+      OldName: legacy_report,
+      NewName: report,
       IsDestructive: false
     }
   },
@@ -175,6 +192,40 @@
         IsUnique: false,
         ColumnNames: [
           total
+        ]
+      },
+      IsDestructive: false
+    }
+  },
+  {
+    Type: CreateView,
+    Action: {
+      SchemaName: app,
+      View: {
+        Name: active_users,
+        Body: SELECT * FROM app.users,
+        DependsOn: [
+          {
+            Schema: app,
+            Name: users
+          }
+        ]
+      },
+      IsDestructive: false
+    }
+  },
+  {
+    Type: CreateView,
+    Action: {
+      SchemaName: app,
+      View: {
+        Name: user_summary,
+        Body: SELECT * FROM app.active_users,
+        DependsOn: [
+          {
+            Schema: app,
+            Name: active_users
+          }
         ]
       },
       IsDestructive: false

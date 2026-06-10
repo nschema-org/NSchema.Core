@@ -24,11 +24,11 @@ public sealed record TableDiff(
     string Schema,
     string Name,
     ChangeKind Kind,
-    string? RenamedFrom,
-    ValueChange<string>? Comment,
-    IReadOnlyList<ColumnDiff> Columns,
-    IReadOnlyList<GrantChange> Grants,
-    IReadOnlyList<IndexDiff> Indexes,
+    string? RenamedFrom = null,
+    ValueChange<string>? Comment = null,
+    IReadOnlyList<ColumnDiff>? Columns = null,
+    IReadOnlyList<GrantChange>? Grants = null,
+    IReadOnlyList<IndexDiff>? Indexes = null,
     IReadOnlyList<PrimaryKeyDiff>? PrimaryKey = null,
     IReadOnlyList<ForeignKeyDiff>? ForeignKeys = null,
     IReadOnlyList<UniqueConstraintDiff>? UniqueConstraints = null,
@@ -36,6 +36,21 @@ public sealed record TableDiff(
     Table? Definition = null
 )
 {
+    /// <summary>
+    /// The changed columns, ordered as encountered in the plan.
+    /// </summary>
+    public IReadOnlyList<ColumnDiff> Columns { get; init; } = Columns ?? [];
+
+    /// <summary>
+    /// Privileges granted or revoked on the table.
+    /// </summary>
+    public IReadOnlyList<GrantChange> Grants { get; init; } = Grants ?? [];
+
+    /// <summary>
+    /// Index changes on the table.
+    /// </summary>
+    public IReadOnlyList<IndexDiff> Indexes { get; init; } = Indexes ?? [];
+
     /// <summary>
     /// Primary key changes on the table.
     /// </summary>

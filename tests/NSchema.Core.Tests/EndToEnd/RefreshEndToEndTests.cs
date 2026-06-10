@@ -31,8 +31,8 @@ public sealed class RefreshEndToEndTests : IDisposable
         return path;
     }
 
-    private static DatabaseSchema LiveSchema() => DatabaseSchema.Create([SchemaDefinition.Create("app", tables:
-        [Table.Create("users", columns: [Column.Create("id", SqlType.Int)])])]);
+    private static DatabaseSchema LiveSchema() => new([new SchemaDefinition("app", Tables:
+        [new Table("users", Columns: [new Column("id", SqlType.Int)])])]);
 
     [Fact]
     public async Task Refresh_WritesLiveSchemaToStateStore()

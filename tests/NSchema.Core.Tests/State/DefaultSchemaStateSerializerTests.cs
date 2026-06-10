@@ -30,8 +30,8 @@ public sealed class DefaultSchemaStateSerializerTests
     public void RoundTrip_PreservesSqlType(SqlType type)
     {
         // Arrange
-        var schema = DatabaseSchema.Create(
-            [SchemaDefinition.Create("app", tables: [Table.Create("t", columns: [Column.Create("c", type)])])]);
+        var schema = new DatabaseSchema(
+            [new SchemaDefinition("app", Tables: [new Table("t", Columns: [new Column("c", type)])])]);
 
         // Act
         var roundTripped = _sut.Deserialize(_sut.Serialize(schema));
@@ -52,13 +52,13 @@ public sealed class DefaultSchemaStateSerializerTests
     public void Serialize_WritesEnumsAsNames()
     {
         // Arrange
-        var schema = DatabaseSchema.Create(
+        var schema = new DatabaseSchema(
         [
-            SchemaDefinition.Create("app", tables:
+            new SchemaDefinition("app", Tables:
             [
-                Table.Create("users", foreignKeys:
+                new Table("users", ForeignKeys:
                 [
-                    ForeignKey.Create("fk", ["org_id"], "app", "orgs", ["id"], ReferentialAction.Cascade),
+                    new ForeignKey("fk", ["org_id"], "app", "orgs", ["id"], ReferentialAction.Cascade),
                 ]),
             ]),
         ]);
@@ -77,11 +77,11 @@ public sealed class DefaultSchemaStateSerializerTests
         // The state store is a fact store: a member at its default value must still be recorded, so that
         // "absent" can never be mistaken for "present and equal to today's default". This is the inverse
         // of the user-facing serializer, which omits defaults. See DomainModelSerializationContractTests.
-        var schema = DatabaseSchema.Create(
+        var schema = new DatabaseSchema(
         [
-            SchemaDefinition.Create("app", tables:
+            new SchemaDefinition("app", Tables:
             [
-                Table.Create("t", columns: [Column.Create("c", SqlType.Int)]),
+                new Table("t", Columns: [new Column("c", SqlType.Int)]),
             ]),
         ]);
 

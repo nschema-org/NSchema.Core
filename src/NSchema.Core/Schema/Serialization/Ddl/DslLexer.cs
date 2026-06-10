@@ -206,6 +206,75 @@ internal sealed class DslLexer(string source)
     }
 
     /// <summary>
+    /// Captures the verbatim body of a statement (a view's defining query) as raw text up to, but not consuming, the terminating top-level <c>;</c>.
+    ///
+    /// </summary>
+    public string ReadStatementBody()
+    {
+        SkipInlineWhitespace();
+        var pos = Position;
+        var start = _offset;
+        var depth = 0;
+        while (!AtEnd)
+        {
+            var c = Current;
+            if (c == '\'')
+            {
+                ConsumeStringLiteral(pos);
+                continue;
+            }
+
+            // Skip line/block comments verbatim so a ';' or quote inside them is not treated as structural.
+            if (c == '-' && Peek(1) == '-')
+            {
+                while (!AtEnd && Current != '\n')
+                {
+                    Advance();
+                }
+                continue;
+            }
+            if (c == '/' && Peek(1) == '*')
+            {
+                Advance(); Advance();
+                while (!AtEnd && !(Current == '*' && Peek(1) == '/'))
+                {
+                    Advance();
+                }
+                if (!AtEnd)
+                {
+                    Advance(); Advance();
+                }
+                continue;
+            }
+
+            if (c == '(')
+            {
+                depth++;
+            }
+            else if (c == ')')
+            {
+                if (depth > 0)
+                {
+                    depth--;
+                }
+            }
+            else if (c == ';' && depth == 0)
+            {
+                break;
+            }
+
+            Advance();
+        }
+
+        var text = _source[start.._offset].Trim();
+        if (text.Length == 0)
+        {
+            throw new DslSyntaxException("Expected a view body", pos);
+        }
+        return text;
+    }
+
+    /// <summary>
     /// Rewinds the scanner to a previously-observed position. The parser uses this to re-read a token it had
     /// already pulled as lookahead so that an opaque expression can be captured as raw text from the right offset.
     /// </summary>

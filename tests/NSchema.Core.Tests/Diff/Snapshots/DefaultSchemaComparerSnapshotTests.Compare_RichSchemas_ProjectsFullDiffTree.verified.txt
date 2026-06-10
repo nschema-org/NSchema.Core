@@ -69,6 +69,72 @@
             }
           ]
         }
+      ],
+      Views: [
+        {
+          Schema: app,
+          Name: active_users,
+          Kind: Modify,
+          Definition: {
+            Name: active_users,
+            Body: SELECT id, email_address FROM app.users WHERE active,
+            DependsOn: [
+              {
+                Schema: app,
+                Name: users
+              }
+            ]
+          },
+          DependsOn: [
+            {
+              Schema: app,
+              Name: users
+            }
+          ]
+        },
+        {
+          Schema: app,
+          Name: old_summary,
+          Kind: Remove,
+          DependsOn: [
+            {
+              Schema: app,
+              Name: users
+            }
+          ]
+        },
+        {
+          Schema: app,
+          Name: report,
+          Kind: Modify,
+          RenamedFrom: legacy_report,
+          DependsOn: [
+            {
+              Schema: app,
+              Name: users
+            }
+          ]
+        },
+        {
+          Schema: app,
+          Name: user_emails,
+          Definition: {
+            Name: user_emails,
+            Body: SELECT email_address FROM app.active_users,
+            DependsOn: [
+              {
+                Schema: app,
+                Name: active_users
+              }
+            ]
+          },
+          DependsOn: [
+            {
+              Schema: app,
+              Name: active_users
+            }
+          ]
+        }
       ]
     },
     {

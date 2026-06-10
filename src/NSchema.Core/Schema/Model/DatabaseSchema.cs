@@ -8,7 +8,7 @@ namespace NSchema.Schema.Model;
 /// <param name="Schemas">A list of SchemaDefinition objects, each representing a specific schema within the database.</param>
 /// <param name="DroppedSchemas">A list of schema names that have been dropped from the database.</param>
 [DebuggerDisplay("{Schemas.Count} schemas")]
-public record DatabaseSchema(IReadOnlyList<SchemaDefinition> Schemas, IReadOnlyList<string> DroppedSchemas)
+public record DatabaseSchema(IReadOnlyList<SchemaDefinition>? Schemas = null, IReadOnlyList<string>? DroppedSchemas = null)
 {
     /// <summary>
     /// A list of SchemaDefinition objects, each representing a specific schema within the database.
@@ -28,13 +28,6 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition> Schemas, IReadOnlyL
         .Concat(DroppedSchemas)
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .ToArray();
-
-    /// <summary>
-    /// Creates a new <see cref="DatabaseSchema"/> with the given options, defaulting unspecified members.
-    /// </summary>
-    /// <param name="schemas">A list of SchemaDefinition objects, each representing a specific schema within the database.</param>
-    /// <param name="droppedSchemas">A list of schema names that have been dropped from the database.</param>
-    public static DatabaseSchema Create(IReadOnlyList<SchemaDefinition> schemas, IReadOnlyList<string>? droppedSchemas = null) => new(schemas, droppedSchemas ?? []);
 
     /// <summary>
     /// Restricts the schema to tables matching the given names across all schema namespaces.
@@ -109,6 +102,21 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition> Schemas, IReadOnlyL
             }
         }
 
+        var views = new List<View>();
+        var seenViews = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var schema in schemas)
+        {
+            foreach (var view in schema.Views)
+            {
+                if (!seenViews.Add(view.Name))
+                {
+                    throw new InvalidOperationException($"Duplicate view '{view.Name}' found in schema '{schemaName}'.");
+                }
+
+                views.Add(view);
+            }
+        }
+
         var comments = schemas.Select(s => s.Comment).Where(c => c is not null).Distinct().ToList();
         if (comments.Count > 1)
         {
@@ -119,6 +127,10 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition> Schemas, IReadOnlyL
         var isPartial = schemas.Any(s => s.IsPartial);
         var droppedTables = schemas
             .SelectMany(s => s.DroppedTables)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var droppedViews = schemas
+            .SelectMany(s => s.DroppedViews)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         var oldNames = schemas.Select(s => s.OldName).Where(n => n is not null).Distinct().ToList();
@@ -133,6 +145,6 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition> Schemas, IReadOnlyL
             .Distinct()
             .ToList();
 
-        return new SchemaDefinition(schemaName, oldName, isPartial, comment, tables, droppedTables, grants);
+        return new SchemaDefinition(schemaName, oldName, isPartial, comment, tables, droppedTables, grants, views, droppedViews);
     }
 }

@@ -10,6 +10,8 @@ namespace NSchema.Plan;
 internal sealed class DefaultPlanLinearizer : IPlanLinearizer
 {
     private static readonly IReadOnlyDictionary<Type, int> _actionPriorities = new List<Type> {
+        // Views are dropped before anything they read (columns, tables) is dropped.
+        typeof(DropView),
         typeof(DropForeignKey),
         typeof(DropCheckConstraint),
         typeof(DropUniqueConstraint),
@@ -20,6 +22,7 @@ internal sealed class DefaultPlanLinearizer : IPlanLinearizer
         typeof(RenameSchema),
         typeof(CreateSchema),
         typeof(RenameTable),
+        typeof(RenameView),
         typeof(CreateTable),
         typeof(DropColumn),
         typeof(RenameColumn),
@@ -33,6 +36,8 @@ internal sealed class DefaultPlanLinearizer : IPlanLinearizer
         typeof(AddForeignKey),
         typeof(AddCheckConstraint),
         typeof(CreateIndex),
+        // Views are created after every table, constraint and index they might read exists.
+        typeof(CreateView),
         typeof(GrantSchemaUsage),
         typeof(GrantTablePrivileges),
         typeof(SetSchemaComment),
@@ -40,6 +45,7 @@ internal sealed class DefaultPlanLinearizer : IPlanLinearizer
         typeof(SetColumnComment),
         typeof(SetIndexComment),
         typeof(SetConstraintComment),
+        typeof(SetViewComment),
         typeof(DropTable),
         typeof(DropSchema),
     }.Index().ToFrozenDictionary(x => x.Item, x => x.Index);
@@ -52,9 +58,73 @@ internal sealed class DefaultPlanLinearizer : IPlanLinearizer
             EmitSchema(schema, actions);
         }
 
+        // Views are emitted in one cross-schema pass: their create/drop order is governed by a dependency sort
+        // (a view after what it reads, dropped before), which the per-schema walk above cannot express.
+        EmitViews(diff, actions);
+
         actions = actions.OrderBy(action => _actionPriorities[action.GetType()]).ToList();
         return actions;
     }
+
+    /// <summary>
+    /// Emits the view actions across every schema. <see cref="CreateView"/>s are appended in dependency order and
+    /// <see cref="DropView"/>s in the reverse, so that once the stable type sort above gathers each kind into its
+    /// band, a view is created after the views it reads and dropped before them.
+    /// </summary>
+    private static void EmitViews(DatabaseDiff diff, List<MigrationAction> actions)
+    {
+        var creates = new List<ViewDiff>();
+        var drops = new List<ViewDiff>();
+
+        foreach (var schema in diff.Schemas)
+        {
+            foreach (var view in schema.Views)
+            {
+                if (view.RenamedFrom is not null)
+                {
+                    actions.Add(new RenameView(view.Schema, view.RenamedFrom, view.Name));
+                }
+
+                if (view.Kind == ChangeKind.Remove)
+                {
+                    drops.Add(view);
+                }
+                else if (view.Definition is not null)
+                {
+                    // An Add, or a body change applied as a replace.
+                    creates.Add(view);
+                }
+
+                if (view.Comment is not null)
+                {
+                    actions.Add(new SetViewComment(view.Schema, view.Name, view.Comment.Old, view.Comment.New));
+                }
+            }
+        }
+
+        foreach (var view in OrderByDependency(creates))
+        {
+            actions.Add(new CreateView(view.Schema, view.Definition!));
+        }
+
+        // Dropped views go out dependents-first: the reverse of the create order.
+        foreach (var view in OrderByDependency(drops).Reverse())
+        {
+            actions.Add(new DropView(view.Schema, view.Name));
+        }
+    }
+
+    private static IReadOnlyList<ViewDiff> OrderByDependency(IReadOnlyList<ViewDiff> views) =>
+        TopologicalSort.Order(
+            views,
+            ViewKey,
+            view => view.DependsOn.Select(d => Key(d.Schema, d.Name)),
+            StringComparer.OrdinalIgnoreCase,
+            view => $"view {view.Schema}.{view.Name}");
+
+    private static string ViewKey(ViewDiff view) => Key(view.Schema, view.Name);
+
+    private static string Key(string schema, string name) => $"{schema}.{name}";
 
     private static void EmitSchema(SchemaDiff schema, List<MigrationAction> actions)
     {

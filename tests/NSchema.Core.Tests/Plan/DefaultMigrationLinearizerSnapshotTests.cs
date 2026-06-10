@@ -21,19 +21,20 @@ public sealed class DefaultMigrationLinearizerSnapshotTests
     public Task Linearize_RichDiff_OrdersActionsSafely()
     {
         // A new schema; a newly-added table (columns + PK carried inline on Definition, with a separate
-        // index and grant); a modified table (add/drop/retype columns, new index, dropped FK); a dropped
-        // schema. Enough cross-kind work to exercise the priority ordering.
+        // index and grant); a modified table (add/drop/retype columns, new index, dropped FK); two added
+        // views (one reading the other), a renamed view, and a dropped view; a dropped schema. Enough
+        // cross-kind work to exercise the priority ordering and the view dependency sort.
         var newTable = new TableDiff("app", "users", ChangeKind.Add, null, null,
             Columns: [],
             Grants: [new GrantChange(ChangeKind.Add, "readers", TablePrivilege.Select)],
-            Indexes: [new IndexDiff(ChangeKind.Add, "users_name_ix", TableIndex.Create("users_name_ix", ["name"], isUnique: true), null)],
+            Indexes: [new IndexDiff(ChangeKind.Add, "users_name_ix", new TableIndex("users_name_ix", ["name"], IsUnique: true), null)],
             UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint("users_email_uq", ["email"]))],
-            Definition: Table.Create("users",
-                primaryKey: new PrimaryKey("users_pkey", ["id"]),
-                columns:
+            Definition: new Table("users",
+                PrimaryKey: new PrimaryKey("users_pkey", ["id"]),
+                Columns:
                 [
-                    Column.Create("id", SqlType.BigInt, isIdentity: true, identityOptions: new IdentityOptions(1, 1, 1)),
-                    Column.Create("name", SqlType.VarChar(255)),
+                    new Column("id", SqlType.BigInt, IsIdentity: true, IdentityOptions: new IdentityOptions(1, 1, 1)),
+                    new Column("name", SqlType.VarChar(255)),
                 ]));
 
         var modifiedTable = new TableDiff("app", "orders", ChangeKind.Modify, "purchases", null,
@@ -42,20 +43,34 @@ public sealed class DefaultMigrationLinearizerSnapshotTests
                 new ColumnDiff("total", ChangeKind.Modify, null, null,
                     Type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
                     Nullability: new ValueChange<bool>(true, false), Default: null, Identity: null, Comment: null),
-                new ColumnDiff("notes", ChangeKind.Add, Column.Create("notes", SqlType.Text, isNullable: true), null, null, null, null, null, null),
-                new ColumnDiff("legacy_flag", ChangeKind.Remove, Column.Create("legacy_flag", SqlType.Boolean), null, null, null, null, null, null),
+                new ColumnDiff("notes", ChangeKind.Add, new Column("notes", SqlType.Text, IsNullable: true), null, null, null, null, null, null),
+                new ColumnDiff("legacy_flag", ChangeKind.Remove, new Column("legacy_flag", SqlType.Boolean), null, null, null, null, null, null),
             ],
             Grants: [],
-            Indexes: [new IndexDiff(ChangeKind.Add, "orders_total_ix", TableIndex.Create("orders_total_ix", ["total"]), null)],
+            Indexes: [new IndexDiff(ChangeKind.Add, "orders_total_ix", new TableIndex("orders_total_ix", ["total"]), null)],
             ForeignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null)],
             UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "orders_code_uq", new UniqueConstraint("orders_code_uq", ["code"]))],
             Checks: [new CheckConstraintDiff(ChangeKind.Add, "orders_total_chk", new CheckConstraint("orders_total_chk", "total >= 0"))]);
+
+        // Listed dependent-first on purpose: the dependency sort must reorder them so user_summary (which
+        // reads active_users) is created after it.
+        var views = new ViewDiff[]
+        {
+            new("app", "user_summary", ChangeKind.Add,
+                Definition: new View("user_summary", "SELECT * FROM app.active_users", DependsOn: [new ViewDependency("app", "active_users")]),
+                DependsOn: [new ViewDependency("app", "active_users")]),
+            new("app", "active_users", ChangeKind.Add,
+                Definition: new View("active_users", "SELECT * FROM app.users", DependsOn: [new ViewDependency("app", "users")]),
+                DependsOn: [new ViewDependency("app", "users")]),
+            new("app", "report", ChangeKind.Modify, RenamedFrom: "legacy_report"),
+            new("app", "stale_view", ChangeKind.Remove),
+        };
 
         var diff = new DatabaseDiff(
             Schemas:
             [
                 new SchemaDiff("reporting", ChangeKind.Add, null, null, [], []),
-                new SchemaDiff("app", null, null, null, [], [newTable, modifiedTable]),
+                new SchemaDiff("app", null, null, null, [], [newTable, modifiedTable], views),
                 new SchemaDiff("scratch", ChangeKind.Remove, null, null, [], []),
             ]);
 

@@ -19,7 +19,7 @@ internal sealed class DefaultDesiredSchemaProvider(IEnumerable<ISchemaProvider> 
         {
             schemas.Add(await schemaTask);
         }
-        var aggregated = schemas.Aggregate(DatabaseSchema.Create([]), (acc, schema) => acc.Combine(schema));
+        var aggregated = schemas.Aggregate(new DatabaseSchema(), (acc, schema) => acc.Combine(schema));
         return transformers.Aggregate(aggregated, (schema, transformer) => transformer.Transform(schema));
     }
 }

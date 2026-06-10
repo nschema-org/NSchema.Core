@@ -93,9 +93,17 @@ internal sealed class DslParser
             }
             ParseCreateTable(schemas, doc);
         }
+        else if (_current.IsKeyword("VIEW"))
+        {
+            if (partial)
+            {
+                throw Error("PARTIAL applies to SCHEMA, not VIEW.");
+            }
+            ParseCreateView(schemas, doc);
+        }
         else
         {
-            throw Error($"Expected SCHEMA or TABLE after CREATE, found '{_current.Text}'.");
+            throw Error($"Expected SCHEMA, TABLE or VIEW after CREATE, found '{_current.Text}'.");
         }
     }
 
@@ -127,9 +135,27 @@ internal sealed class DslParser
         Expect(TokenKind.RightParen, "')' or ',' after a table member");
         Expect(TokenKind.Semicolon, "';'");
 
-        var table = Table.Create(tableName, oldName, body.PrimaryKey, doc,
+        var table = new Table(tableName, oldName, body.PrimaryKey, doc,
             body.Columns, body.ForeignKeys, body.UniqueConstraints, body.CheckConstraints, body.Indexes);
         schemas.AddTable(schemaName, table, namePosition);
+    }
+
+    private void ParseCreateView(SchemaAccumulator schemas, string? doc)
+    {
+        Advance(); // VIEW
+        var namePosition = _current.Position;
+        var (schemaName, viewName) = ParseQualifiedName();
+        var oldName = TryParseRenamedFrom();
+        ExpectKeyword("AS");
+
+        // The body is captured verbatim; its FROM/JOIN targets become the view's dependencies.
+        _lexer.ResetTo(_current.Position);
+        var body = _lexer.ReadStatementBody();
+        _current = _lexer.Next();
+        Expect(TokenKind.Semicolon, "';' to end the view definition");
+
+        var dependsOn = ViewDependencyExtractor.Extract(body, schemaName);
+        schemas.AddView(schemaName, new View(viewName, body, oldName, doc, dependsOn), namePosition);
     }
 
     private void ParseTableItem(string? doc, TableBody body)
@@ -191,7 +217,7 @@ internal sealed class DslParser
 
         var oldName = TryParseRenamedFrom();
 
-        body.Columns.Add(Column.Create(name, type, isNullable, isIdentity, defaultExpression, oldName, doc, identity));
+        body.Columns.Add(new Column(name, type, isNullable, isIdentity, defaultExpression, oldName, doc, identity));
     }
 
     private SqlType ParseType()
@@ -457,9 +483,16 @@ internal sealed class DslParser
             Expect(TokenKind.Semicolon, "';'");
             schemas.DropTable(schema, table);
         }
+        else if (_current.IsKeyword("VIEW"))
+        {
+            Advance();
+            var (schema, view) = ParseQualifiedName();
+            Expect(TokenKind.Semicolon, "';'");
+            schemas.DropView(schema, view);
+        }
         else
         {
-            throw Error($"Expected SCHEMA or TABLE after DROP, found '{_current.Text}'.");
+            throw Error($"Expected SCHEMA, TABLE or VIEW after DROP, found '{_current.Text}'.");
         }
     }
 
@@ -619,6 +652,16 @@ internal sealed class DslParser
             entry.Tables.Add(table);
         }
 
+        public void AddView(string schema, View view, SourcePosition position)
+        {
+            var entry = GetOrAdd(schema);
+            if (entry.Views.Any(v => v.Name == view.Name))
+            {
+                throw new DslSyntaxException($"View '{schema}.{view.Name}' is already declared.", position);
+            }
+            entry.Views.Add(view);
+        }
+
         public void AddSchemaGrant(string schema, string role)
         {
             var entry = GetOrAdd(schema);
@@ -649,13 +692,22 @@ internal sealed class DslParser
             }
         }
 
+        public void DropView(string schema, string view)
+        {
+            var entry = GetOrAdd(schema);
+            if (!entry.DroppedViews.Contains(view, StringComparer.OrdinalIgnoreCase))
+            {
+                entry.DroppedViews.Add(view);
+            }
+        }
+
         public DatabaseSchema Build()
         {
             ApplyTableGrants();
             var schemas = _entries
-                .Select(e => SchemaDefinition.Create(e.Name, e.OldName, e.IsPartial, e.Comment, e.Tables, e.DroppedTables, e.Grants))
+                .Select(e => new SchemaDefinition(e.Name, e.OldName, e.IsPartial, e.Comment, e.Tables, e.DroppedTables, e.Grants, e.Views, e.DroppedViews))
                 .ToList();
-            return DatabaseSchema.Create(schemas, _droppedSchemas);
+            return new DatabaseSchema(schemas, _droppedSchemas);
         }
 
         private void ApplyTableGrants()
@@ -700,6 +752,8 @@ internal sealed class DslParser
             public List<Table> Tables { get; } = [];
             public List<string> DroppedTables { get; } = [];
             public List<SchemaGrant> Grants { get; } = [];
+            public List<View> Views { get; } = [];
+            public List<string> DroppedViews { get; } = [];
         }
 
         private readonly record struct PendingGrant(string Schema, string Table, TableGrant Grant, SourcePosition Position);

@@ -16,7 +16,7 @@ public sealed class ValidateOperationTests
 
     public ValidateOperationTests()
     {
-        _workflow.Validate(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(DatabaseSchema.Create([]));
+        _workflow.Validate(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(new DatabaseSchema([]));
         _sut = BuildSut();
     }
 

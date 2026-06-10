@@ -8,16 +8,16 @@ public sealed class SchemaLintPolicyTests
 {
     private readonly SchemaLintPolicy _sut = new();
 
-    private static Column Col(string name, bool nullable = false) => Column.Create(name, SqlType.BigInt, isNullable: nullable);
+    private static Column Col(string name, bool nullable = false) => new Column(name, SqlType.BigInt, IsNullable: nullable);
 
     private static DatabaseSchema Db(params Table[] tables) =>
-        DatabaseSchema.Create([SchemaDefinition.Create("public", tables: tables)]);
+        new DatabaseSchema([new SchemaDefinition("public", Tables: tables)]);
 
     [Fact]
     public void NoDiagnostics_ForATableWithANonNullablePrimaryKey()
     {
         // Arrange
-        var table = Table.Create("users", primaryKey: new PrimaryKey("pk", ["id"]), columns: [Col("id")]);
+        var table = new Table("users", PrimaryKey: new PrimaryKey("pk", ["id"]), Columns: [Col("id")]);
 
         // Act
         var diagnostics = _sut.Validate(Db(table)).ToList();
@@ -30,7 +30,7 @@ public sealed class SchemaLintPolicyTests
     public void Warns_WhenTableHasNoPrimaryKey()
     {
         // Act
-        var diagnostics = _sut.Validate(Db(Table.Create("events", columns: [Col("id")]))).ToList();
+        var diagnostics = _sut.Validate(Db(new Table("events", Columns: [Col("id")]))).ToList();
 
         // Assert
         var diagnostic = diagnostics.ShouldHaveSingleItem();
@@ -42,7 +42,7 @@ public sealed class SchemaLintPolicyTests
     public void Warns_WhenPrimaryKeyColumnIsNullable()
     {
         // Arrange
-        var table = Table.Create("t", primaryKey: new PrimaryKey("pk", ["id"]), columns: [Col("id", nullable: true)]);
+        var table = new Table("t", PrimaryKey: new PrimaryKey("pk", ["id"]), Columns: [Col("id", nullable: true)]);
 
         // Act
         var diagnostics = _sut.Validate(Db(table)).ToList();
@@ -56,11 +56,11 @@ public sealed class SchemaLintPolicyTests
     public void Warns_WhenIndexListsAColumnTwice()
     {
         // Arrange
-        var table = Table.Create(
+        var table = new Table(
             "t",
-            primaryKey: new PrimaryKey("pk", ["id"]),
-            columns: [Col("id"), Col("a")],
-            indexes: [TableIndex.Create("ix", ["a", "a"])]);
+            PrimaryKey: new PrimaryKey("pk", ["id"]),
+            Columns: [Col("id"), Col("a")],
+            Indexes: [new TableIndex("ix", ["a", "a"])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(table)).ToList();

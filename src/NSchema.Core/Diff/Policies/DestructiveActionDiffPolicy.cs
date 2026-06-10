@@ -92,6 +92,11 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
                     yield return nameof(DropUniqueConstraint);
                 }
             }
+
+            foreach (var view in schema.Views.Where(v => v.Kind == ChangeKind.Remove))
+            {
+                yield return nameof(DropView);
+            }
         }
     }
 }

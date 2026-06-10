@@ -24,8 +24,10 @@ public sealed class DefaultPlanLinearizerTests
         string? renamedFrom = null,
         ValueChange<string>? comment = null,
         IReadOnlyList<GrantChange>? grants = null,
-        IReadOnlyList<TableDiff>? tables = null)
-        => new(name, kind, renamedFrom, comment, grants ?? [], tables ?? []);
+        IReadOnlyList<TableDiff>? tables = null,
+        IReadOnlyList<ViewDiff>? views = null
+    )
+        => new(name, kind, renamedFrom, comment, grants ?? [], tables ?? [], views ?? []);
 
     private static TableDiff TableNode(
         string name,
@@ -59,6 +61,25 @@ public sealed class DefaultPlanLinearizerTests
         ValueChange<IdentityOptions>? identity = null,
         ValueChange<string>? comment = null)
         => new(name, ChangeKind.Modify, null, renamedFrom, type, nullability, @default, identity, comment);
+
+    private static ViewDiff AddView(string name, string schema = "app", params (string Schema, string Name)[] dependsOn)
+    {
+        var deps = dependsOn.Select(d => new ViewDependency(d.Schema, d.Name)).ToList();
+        var view = new View(name, $"SELECT * FROM source_of_{name}", DependsOn: deps);
+        return new ViewDiff(schema, name, ChangeKind.Add, Definition: view, DependsOn: deps);
+    }
+
+    private static ViewDiff RemoveView(string name, string schema = "app", params (string Schema, string Name)[] dependsOn)
+        => new(schema, name, ChangeKind.Remove, DependsOn: dependsOn.Select(d => new ViewDependency(d.Schema, d.Name)).ToList());
+
+    private static TableDiff AddTable(string name, string schema = "app")
+        => new(schema, name, ChangeKind.Add, Definition: new Table(name));
+
+    private static int IndexOfCreateView(IReadOnlyList<MigrationAction> plan, string name)
+        => plan.ToList().FindIndex(a => a is CreateView v && v.View.Name == name);
+
+    private static int IndexOfDropView(IReadOnlyList<MigrationAction> plan, string name)
+        => plan.ToList().FindIndex(a => a is DropView v && v.ViewName == name);
 
     /// <summary>Wraps a single table under a null-kind <c>app</c> schema (the common "only tables changed" case).</summary>
     private IReadOnlyList<MigrationAction> LinearizeTable(TableDiff table) => Linearize(SchemaNode("app", tables: [table]));
@@ -104,7 +125,7 @@ public sealed class DefaultPlanLinearizerTests
         // The Remove branch drops the schema wholesale; nested content must not produce its own actions.
         var schema = SchemaNode("app", ChangeKind.Remove,
             grants: [new GrantChange(ChangeKind.Add, "reader", null)],
-            tables: [TableNode("users", ChangeKind.Add, definition: Table.Create("users"))]);
+            tables: [TableNode("users", ChangeKind.Add, definition: new Table("users"))]);
 
         Linearize(schema).ShouldHaveSingleItem().ShouldBeOfType<DropSchema>();
     }
@@ -166,7 +187,7 @@ public sealed class DefaultPlanLinearizerTests
     [Fact]
     public void Linearize_AddTable_EmitsCreateTableFromDefinition()
     {
-        var plan = LinearizeTable(TableNode("users", ChangeKind.Add, definition: Table.Create("users")));
+        var plan = LinearizeTable(TableNode("users", ChangeKind.Add, definition: new Table("users")));
 
         plan.OfType<CreateTable>().ShouldHaveSingleItem()
             .ShouldSatisfyAllConditions(
@@ -199,8 +220,8 @@ public sealed class DefaultPlanLinearizerTests
     {
         // Columns of a new table are created inline by CREATE TABLE; only their comments arrive as separate actions.
         var table = TableNode("users", ChangeKind.Add,
-            definition: Table.Create("users", columns: [Column.Create("id", SqlType.Int, comment: "pk")]),
-            columns: [AddedColumn(Column.Create("id", SqlType.Int), comment: new ValueChange<string>(null, "pk"))]);
+            definition: new Table("users", Columns: [new Column("id", SqlType.Int, Comment: "pk")]),
+            columns: [AddedColumn(new Column("id", SqlType.Int), comment: new ValueChange<string>(null, "pk"))]);
 
         var plan = LinearizeTable(table);
 
@@ -219,7 +240,7 @@ public sealed class DefaultPlanLinearizerTests
     [Fact]
     public void Linearize_AddColumn_EmitsAddColumnAndComment()
     {
-        var plan = LinearizeColumn(AddedColumn(Column.Create("email", SqlType.Text), comment: new ValueChange<string>(null, "contact")));
+        var plan = LinearizeColumn(AddedColumn(new Column("email", SqlType.Text), comment: new ValueChange<string>(null, "contact")));
 
         plan.OfType<AddColumn>().ShouldHaveSingleItem().Column.Name.ShouldBe("email");
         plan.OfType<SetColumnComment>().ShouldHaveSingleItem().NewComment.ShouldBe("contact");
@@ -227,7 +248,7 @@ public sealed class DefaultPlanLinearizerTests
 
     [Fact]
     public void Linearize_RemoveColumn_EmitsDropColumn()
-        => LinearizeColumn(RemovedColumn(Column.Create("email", SqlType.Text)))
+        => LinearizeColumn(RemovedColumn(new Column("email", SqlType.Text)))
             .OfType<DropColumn>().ShouldHaveSingleItem().ColumnName.ShouldBe("email");
 
     [Fact]
@@ -317,7 +338,7 @@ public sealed class DefaultPlanLinearizerTests
     [Fact]
     public void Linearize_AddForeignKey_EmitsAddForeignKey()
     {
-        var fk = ForeignKey.Create("orders_user_fk", ["user_id"], "app", "users", ["id"]);
+        var fk = new ForeignKey("orders_user_fk", ["user_id"], "app", "users", ["id"]);
         var constraint = new ForeignKeyDiff(ChangeKind.Add, "orders_user_fk", fk);
 
         LinearizeTable(TableNode("orders", ChangeKind.Modify, foreignKeys: [constraint]))
@@ -395,7 +416,7 @@ public sealed class DefaultPlanLinearizerTests
     [Fact]
     public void Linearize_AddIndex_EmitsCreateIndex()
     {
-        var index = new IndexDiff(ChangeKind.Add, "users_email_ix", TableIndex.Create("users_email_ix", ["email"]), null);
+        var index = new IndexDiff(ChangeKind.Add, "users_email_ix", new TableIndex("users_email_ix", ["email"]), null);
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, indexes: [index]))
             .OfType<CreateIndex>().ShouldHaveSingleItem().Index.Name.ShouldBe("users_email_ix");
@@ -447,7 +468,7 @@ public sealed class DefaultPlanLinearizerTests
     public void Linearize_OrdersCreateSchemaBeforeItsTables()
     {
         var plan = Linearize(SchemaNode("app", ChangeKind.Add,
-            tables: [TableNode("users", ChangeKind.Add, definition: Table.Create("users"))]));
+            tables: [TableNode("users", ChangeKind.Add, definition: new Table("users"))]));
 
         IndexOf<CreateSchema>(plan).ShouldBeLessThan(IndexOf<CreateTable>(plan));
     }
@@ -456,7 +477,7 @@ public sealed class DefaultPlanLinearizerTests
     public void Linearize_OrdersDropColumnBeforeAddColumn()
     {
         var plan = LinearizeTable(TableNode("users", ChangeKind.Modify,
-            columns: [AddedColumn(Column.Create("new_col", SqlType.Text)), RemovedColumn(Column.Create("old_col", SqlType.Text))]));
+            columns: [AddedColumn(new Column("new_col", SqlType.Text)), RemovedColumn(new Column("old_col", SqlType.Text))]));
 
         IndexOf<DropColumn>(plan).ShouldBeLessThan(IndexOf<AddColumn>(plan));
     }
@@ -465,7 +486,7 @@ public sealed class DefaultPlanLinearizerTests
     public void Linearize_OrdersAddColumnBeforeAddPrimaryKey()
     {
         var plan = LinearizeTable(TableNode("users", ChangeKind.Modify,
-            columns: [AddedColumn(Column.Create("id", SqlType.Int))],
+            columns: [AddedColumn(new Column("id", SqlType.Int))],
             primaryKey: [new PrimaryKeyDiff(ChangeKind.Add, "users_pkey", new PrimaryKey("users_pkey", ["id"]))]));
 
         IndexOf<AddColumn>(plan).ShouldBeLessThan(IndexOf<AddPrimaryKey>(plan));
@@ -487,7 +508,7 @@ public sealed class DefaultPlanLinearizerTests
     public void Linearize_OrdersDropTableAndDropSchemaLast()
     {
         var plan = Linearize(
-            SchemaNode("new_app", ChangeKind.Add, tables: [TableNode("users", ChangeKind.Add, schema: "new_app", definition: Table.Create("users"))]),
+            SchemaNode("new_app", ChangeKind.Add, tables: [TableNode("users", ChangeKind.Add, schema: "new_app", definition: new Table("users"))]),
             SchemaNode("old_app", ChangeKind.Remove),
             SchemaNode("app", tables: [TableNode("stale", ChangeKind.Remove)]));
 
@@ -515,7 +536,7 @@ public sealed class DefaultPlanLinearizerTests
         // A foreign key may target a unique constraint, so the constraint must be created first.
         var plan = LinearizeTable(TableNode("orders", ChangeKind.Modify,
             uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "orders_code_uq", new UniqueConstraint("orders_code_uq", ["code"]))],
-            foreignKeys: [new ForeignKeyDiff(ChangeKind.Add, "orders_user_fk", ForeignKey.Create("orders_user_fk", ["user_id"], "app", "users", ["id"]))]));
+            foreignKeys: [new ForeignKeyDiff(ChangeKind.Add, "orders_user_fk", new ForeignKey("orders_user_fk", ["user_id"], "app", "users", ["id"]))]));
 
         IndexOf<AddUniqueConstraint>(plan).ShouldBeLessThan(IndexOf<AddForeignKey>(plan));
     }
@@ -529,5 +550,99 @@ public sealed class DefaultPlanLinearizerTests
             uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Remove, "orders_code_uq", null)]));
 
         IndexOf<DropForeignKey>(plan).ShouldBeLessThan(IndexOf<DropUniqueConstraint>(plan));
+    }
+
+    // -------------------------------------------------------------------------
+    // Views — the dependency-aware ordering layered on the fixed type order
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Linearize_CreatesViewAfterTheViewItReads_DespiteName()
+    {
+        // "a_top" reads "z_base"; alphabetically a_top sorts first, but it must be created second.
+        var plan = Linearize(SchemaNode("app", views: [AddView("a_top", "app", ("app", "z_base")), AddView("z_base")]));
+
+        IndexOfCreateView(plan, "z_base").ShouldBeLessThan(IndexOfCreateView(plan, "a_top"));
+    }
+
+    [Fact]
+    public void Linearize_CreatesViewsInTransitiveDependencyOrder()
+    {
+        // c -> b -> a
+        var plan = Linearize(SchemaNode("app", views:
+            [AddView("c", "app", ("app", "b")), AddView("b", "app", ("app", "a")), AddView("a")]));
+
+        IndexOfCreateView(plan, "a").ShouldBeLessThan(IndexOfCreateView(plan, "b"));
+        IndexOfCreateView(plan, "b").ShouldBeLessThan(IndexOfCreateView(plan, "c"));
+    }
+
+    [Fact]
+    public void Linearize_DropsDependentViewBeforeItsDependency()
+    {
+        // a_top reads z_base; dropping must remove a_top first (the reverse of create order).
+        var plan = Linearize(SchemaNode("app", views: [RemoveView("a_top", "app", ("app", "z_base")), RemoveView("z_base")]));
+
+        IndexOfDropView(plan, "a_top").ShouldBeLessThan(IndexOfDropView(plan, "z_base"));
+    }
+
+    [Fact]
+    public void Linearize_OrdersViewDependenciesAcrossSchemas()
+    {
+        // A view in "reporting" reads a view in "core"; the core view must be created first.
+        var plan = Linearize(
+            SchemaNode("reporting", views: [AddView("summary", "reporting", ("core", "base"))]),
+            SchemaNode("core", views: [AddView("base", "core")]));
+
+        IndexOfCreateView(plan, "base").ShouldBeLessThan(IndexOfCreateView(plan, "summary"));
+    }
+
+    [Fact]
+    public void Linearize_OrdersCreateViewAfterCreateTable()
+    {
+        var plan = Linearize(SchemaNode("app", tables: [AddTable("t")], views: [AddView("v", "app", ("app", "t"))]));
+
+        IndexOf<CreateTable>(plan).ShouldBeLessThan(IndexOfCreateView(plan, "v"));
+    }
+
+    [Fact]
+    public void Linearize_OrdersDropViewBeforeDropTable()
+    {
+        var plan = Linearize(SchemaNode("app",
+            tables: [TableNode("t", ChangeKind.Remove)],
+            views: [RemoveView("v", "app", ("app", "t"))]));
+
+        IndexOfDropView(plan, "v").ShouldBeLessThan(IndexOf<DropTable>(plan));
+    }
+
+    [Fact]
+    public void Linearize_EmitsRenameViewForRenamedView()
+    {
+        var plan = Linearize(SchemaNode("app", views: [new ViewDiff("app", "active", ChangeKind.Modify, RenamedFrom: "legacy")]));
+
+        var rename = plan.OfType<RenameView>().ShouldHaveSingleItem();
+        rename.OldName.ShouldBe("legacy");
+        rename.NewName.ShouldBe("active");
+        plan.OfType<CreateView>().ShouldBeEmpty(); // a rename-only change is not a replace
+    }
+
+    [Fact]
+    public void Linearize_EmitsSetViewCommentForCommentChange()
+    {
+        var plan = Linearize(SchemaNode("app", views:
+            [new ViewDiff("app", "active", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new"))]));
+
+        var comment = plan.OfType<SetViewComment>().ShouldHaveSingleItem();
+        comment.ViewName.ShouldBe("active");
+        comment.OldComment.ShouldBe("old");
+        comment.NewComment.ShouldBe("new");
+    }
+
+    [Fact]
+    public void Linearize_IndependentViews_KeepStableOrder()
+    {
+        var plan = Linearize(SchemaNode("app", views: [AddView("x"), AddView("y"), AddView("z")]));
+
+        IndexOfCreateView(plan, "x").ShouldBeLessThan(IndexOfCreateView(plan, "y"));
+        IndexOfCreateView(plan, "y").ShouldBeLessThan(IndexOfCreateView(plan, "z"));
     }
 }

@@ -154,6 +154,35 @@
         droppedTables: [
           old_table
         ],
+        views: [
+          {
+            name: active_users,
+            body: SELECT id, name FROM app.users WHERE balance > 0,
+            oldName: null,
+            comment: currently active users,
+            dependsOn: [
+              {
+                schema: app,
+                name: users
+              }
+            ]
+          },
+          {
+            name: user_directory,
+            body: SELECT name FROM app.active_users,
+            oldName: legacy_directory,
+            comment: null,
+            dependsOn: [
+              {
+                schema: app,
+                name: active_users
+              }
+            ]
+          }
+        ],
+        droppedViews: [
+          stale_report
+        ],
         grants: [
           {
             role: app_role

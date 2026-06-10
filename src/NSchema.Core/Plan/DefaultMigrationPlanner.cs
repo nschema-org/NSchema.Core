@@ -64,7 +64,7 @@ internal sealed class DefaultMigrationPlanner(
     {
         // Don't run transformers/policies for teardown.
         // This is a purely destructive action, and needs to be available as an escape.
-        var diff = comparer.Compare(currentSchema, DatabaseSchema.Create([]));
+        var diff = comparer.Compare(currentSchema, new DatabaseSchema());
         var actions = linearizer.Linearize(diff);
         var plan = new MigrationPlan(actions, [], []);
         return new MigrationPlanResult(plan, diff, []);
