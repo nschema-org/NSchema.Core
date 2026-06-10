@@ -70,4 +70,17 @@ public sealed record TableDiff(
     /// Check constraint changes on the table.
     /// </summary>
     public IReadOnlyList<CheckConstraintDiff> Checks { get; init; } = Checks ?? [];
+
+    /// <summary>
+    /// Enumerates every changed member of this table across all kinds (columns, indexes, constraints), for
+    /// kind-agnostic consumers. A method rather than a property so serializers and snapshot tooling do not
+    /// duplicate the per-kind collections. Grants are not members (they are keyed by role, not name).
+    /// </summary>
+    public IEnumerable<INamedObjectDiff> EnumerateMembers() =>
+        Columns.Cast<INamedObjectDiff>()
+            .Concat(Indexes)
+            .Concat(PrimaryKey)
+            .Concat(ForeignKeys)
+            .Concat(UniqueConstraints)
+            .Concat(Checks);
 }

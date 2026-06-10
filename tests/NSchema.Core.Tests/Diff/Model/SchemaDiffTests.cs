@@ -21,6 +21,22 @@ public sealed class SchemaDiffTests
     }
 
     [Fact]
+    public void EnumerateMembers_YieldsEveryTableMemberKindOnce()
+    {
+        // Kind-agnostic consumers (GetSummary, the destructive policy) rely on this covering every member
+        // collection — a new member kind must be added here, which this test makes loud.
+        var table = new TableDiff("app", "users", ChangeKind.Modify,
+            Columns: [new ColumnDiff("id", ChangeKind.Add, null, null, null, null, null, null, null)],
+            Indexes: [new IndexDiff(ChangeKind.Add, "ix", null, null)],
+            PrimaryKey: [new PrimaryKeyDiff(ChangeKind.Add, "pk", null)],
+            ForeignKeys: [new ForeignKeyDiff(ChangeKind.Add, "fk", null)],
+            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "uq", null)],
+            Checks: [new CheckConstraintDiff(ChangeKind.Add, "ck", null)]);
+
+        table.EnumerateMembers().Select(m => m.Name).ShouldBe(["id", "ix", "pk", "fk", "uq", "ck"]);
+    }
+
+    [Fact]
     public void GetSummary_CountsEveryObjectKind()
     {
         var diff = new DatabaseDiff([

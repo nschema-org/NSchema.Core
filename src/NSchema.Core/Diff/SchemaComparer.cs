@@ -80,7 +80,7 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
         IReadOnlyList<T> desired,
         string entityKind,
         string? container = null
-    ) where T : class, INamedSchemaObject
+    ) where T : class, IRenameableObject
     {
         var forDesired = new T?[desired.Count];
         var currentMatched = new bool[current.Count];
@@ -172,7 +172,7 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
         Func<TModel, TDiff> buildRemoved,
         Func<TModel, TDiff> buildNew,
         Func<TModel, TModel, TDiff?> buildModified
-    ) where TModel : class, INamedSchemaObject where TDiff : class
+    ) where TModel : class, IRenameableObject where TDiff : class
     {
         var result = new List<TDiff>();
         var (forDesired, currentMatched) = MatchEntities(current, desired, entityKind, schemaName);
@@ -199,6 +199,64 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
             else if (buildModified(matchingCurrent, desired[i]) is { } diff)
             {
                 result.Add(diff);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// The shared diffing skeleton for a table's list members (foreign keys, unique and check constraints,
+    /// indexes): match by exact name — members don't rename — then a structurally changed or missing member is
+    /// removed, a changed or new one is added (with its comment folded in as a trailing Modify), and a
+    /// comment-only change is a Modify in place. Relies on <typeparamref name="TModel"/>'s equality
+    /// <em>excluding</em> <see cref="INamedObject.Comment"/>, or the comment-only branch is unreachable.
+    /// </summary>
+    private List<TDiff> CompareTableMembers<TModel, TDiff>(
+        string schemaName,
+        string tableName,
+        string memberKind,
+        IReadOnlyList<TModel> current,
+        IReadOnlyList<TModel> desired,
+        Func<ChangeKind, string, TModel?, ValueChange<string>?, TDiff> diff
+    ) where TModel : class, INamedObject
+    {
+        var result = new List<TDiff>();
+
+        foreach (var currentMember in current)
+        {
+            var matchingDesired = desired.FirstOrDefault(d => d.Name == currentMember.Name);
+            if (matchingDesired is null || !currentMember.Equals(matchingDesired))
+            {
+                LogTableMemberMissingOrChanged(memberKind, currentMember.Name, schemaName, tableName);
+                result.Add(diff(ChangeKind.Remove, currentMember.Name, null, null));
+            }
+            else if (currentMember.Comment != matchingDesired.Comment)
+            {
+                LogTableMemberCommentChanged(memberKind, currentMember.Name, schemaName, tableName);
+                result.Add(diff(ChangeKind.Modify, currentMember.Name, null, new ValueChange<string>(currentMember.Comment, matchingDesired.Comment)));
+            }
+            else
+            {
+                LogTableMemberUnchanged(memberKind, currentMember.Name, schemaName, tableName);
+            }
+        }
+
+        foreach (var desiredMember in desired)
+        {
+            var matchingCurrent = current.FirstOrDefault(c => c.Name == desiredMember.Name);
+            if (matchingCurrent is null || !matchingCurrent.Equals(desiredMember))
+            {
+                LogTableMemberNewOrChanged(memberKind, desiredMember.Name, schemaName, tableName);
+                result.Add(diff(ChangeKind.Add, desiredMember.Name, desiredMember, null));
+                if (desiredMember.Comment is not null)
+                {
+                    result.Add(diff(ChangeKind.Modify, desiredMember.Name, null, new ValueChange<string>(null, desiredMember.Comment)));
+                }
+            }
+            else
+            {
+                LogTableMemberUnchanged(memberKind, desiredMember.Name, schemaName, tableName);
             }
         }
 

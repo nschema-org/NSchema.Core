@@ -27,7 +27,7 @@ public record Table(
     IReadOnlyList<CheckConstraint>? CheckConstraints = null,
     IReadOnlyList<TableIndex>? Indexes = null,
     IReadOnlyList<TableGrant>? Grants = null
-) : INamedSchemaObject
+) : IRenameableObject
 {
     /// <summary>
     /// A list of columns that are part of the table.

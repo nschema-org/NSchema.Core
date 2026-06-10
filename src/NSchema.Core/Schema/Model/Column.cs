@@ -23,7 +23,7 @@ public record Column(
     string? OldName = null,
     string? Comment = null,
     IdentityOptions? IdentityOptions = null
-) : INamedSchemaObject
+) : IRenameableObject
 {
     private string DebuggerDisplay =>
         $"{Name} {Type}" +

@@ -24,4 +24,4 @@ public sealed record ColumnDiff(
     ValueChange<string>? Default = null,
     ValueChange<IdentityOptions>? Identity = null,
     ValueChange<string>? Comment = null
-);
+) : INamedObjectDiff;

@@ -32,43 +32,15 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null)
                 Tally(kind);
             }
 
-            // Every changed object counts once, regardless of kind; a table's children then count individually.
+            // Every changed object counts once, regardless of kind; a table's members then count individually.
             foreach (var obj in schema.EnumerateObjects())
             {
                 Tally(obj.Kind);
             }
 
-            foreach (var table in schema.Tables)
+            foreach (var member in schema.Tables.SelectMany(t => t.EnumerateMembers()))
             {
-                foreach (var column in table.Columns)
-                {
-                    Tally(column.Kind);
-                }
-
-                foreach (var index in table.Indexes)
-                {
-                    Tally(index.Kind);
-                }
-
-                foreach (var pk in table.PrimaryKey)
-                {
-                    Tally(pk.Kind);
-                }
-
-                foreach (var fk in table.ForeignKeys)
-                {
-                    Tally(fk.Kind);
-                }
-
-                foreach (var unique in table.UniqueConstraints)
-                {
-                    Tally(unique.Kind);
-                }
-
-                foreach (var check in table.Checks)
-                {
-                    Tally(check.Kind);
-                }
+                Tally(member.Kind);
             }
         }
 

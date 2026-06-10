@@ -15,7 +15,7 @@ public sealed record EnumType(
     IReadOnlyList<string>? Values = null,
     string? OldName = null,
     string? Comment = null
-) : INamedSchemaObject
+) : IRenameableObject
 {
     /// <summary>
     /// The allowed values, in order.

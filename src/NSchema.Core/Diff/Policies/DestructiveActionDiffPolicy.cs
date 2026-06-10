@@ -70,6 +70,8 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
                     yield return nameof(RevokeTablePrivileges);
                 }
 
+                // A column may also be destructively *modified* (narrowing its type or tightening nullability),
+                // not just removed.
                 foreach (var column in table.Columns)
                 {
                     if (column.Kind == ChangeKind.Remove)
@@ -88,21 +90,23 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
                     }
                 }
 
-                foreach (var pk in table.PrimaryKey.Where(c => c.Kind == ChangeKind.Remove))
+                // Dropping a key or unique constraint removes a structural guarantee (and a unique constraint
+                // may be a foreign-key target), so those are destructive; dropping a check only loosens
+                // validation and an index can be rebuilt, so neither is flagged.
+                foreach (var member in table.EnumerateMembers().Where(m => m.Kind == ChangeKind.Remove))
                 {
-                    yield return nameof(DropPrimaryKey);
-                }
+                    var actionName = member switch
+                    {
+                        PrimaryKeyDiff => nameof(DropPrimaryKey),
+                        ForeignKeyDiff => nameof(DropForeignKey),
+                        UniqueConstraintDiff => nameof(DropUniqueConstraint),
+                        _ => null, // columns are flagged above; checks and indexes are not destructive
+                    };
 
-                foreach (var fk in table.ForeignKeys.Where(c => c.Kind == ChangeKind.Remove))
-                {
-                    yield return nameof(DropForeignKey);
-                }
-
-                // Dropping a unique constraint removes a structural guarantee (and may be a foreign-key target),
-                // so it is destructive; dropping a check only loosens validation and is not.
-                foreach (var unique in table.UniqueConstraints.Where(c => c.Kind == ChangeKind.Remove))
-                {
-                    yield return nameof(DropUniqueConstraint);
+                    if (actionName is not null)
+                    {
+                        yield return actionName;
+                    }
                 }
             }
         }
