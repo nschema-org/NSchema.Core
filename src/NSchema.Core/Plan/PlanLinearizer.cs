@@ -21,6 +21,14 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(RevokeTablePrivileges),
         typeof(RenameSchema),
         typeof(CreateSchema),
+        // Enums and sequences are created (and renamed, and gain values) before any table change can reference
+        // them: a column may use the enum type, and a default may call the sequence.
+        typeof(RenameEnum),
+        typeof(RenameSequence),
+        typeof(CreateEnum),
+        typeof(CreateSequence),
+        typeof(AddEnumValue),
+        typeof(AlterSequence),
         typeof(RenameTable),
         typeof(RenameView),
         typeof(CreateTable),
@@ -46,7 +54,12 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(SetIndexComment),
         typeof(SetConstraintComment),
         typeof(SetViewComment),
+        typeof(SetEnumComment),
+        typeof(SetSequenceComment),
         typeof(DropTable),
+        // Enums and sequences are dropped after the tables (and column alterations) that used them.
+        typeof(DropEnum),
+        typeof(DropSequence),
         typeof(DropSchema),
     }.Index().ToFrozenDictionary(x => x.Item, x => x.Index);
 
@@ -133,6 +146,8 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             case ChangeKind.Add:
                 actions.Add(new CreateSchema(schema.Name));
                 EmitSchemaAttributes(schema, actions);
+                EmitEnums(schema, actions);
+                EmitSequences(schema, actions);
                 foreach (var table in schema.Tables)
                 {
                     EmitTable(table, actions);
@@ -149,11 +164,82 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                     actions.Add(new RenameSchema(schema.RenamedFrom, schema.Name));
                 }
                 EmitSchemaAttributes(schema, actions);
+                EmitEnums(schema, actions);
+                EmitSequences(schema, actions);
                 foreach (var table in schema.Tables)
                 {
                     EmitTable(table, actions);
                 }
                 break;
+        }
+    }
+
+    private static void EmitEnums(SchemaDiff schema, List<MigrationAction> actions)
+    {
+        foreach (var enumDiff in schema.Enums)
+        {
+            switch (enumDiff.Kind)
+            {
+                case ChangeKind.Add:
+                    actions.Add(new CreateEnum(enumDiff.Schema, enumDiff.Definition!));
+                    break;
+
+                case ChangeKind.Remove:
+                    actions.Add(new DropEnum(enumDiff.Schema, enumDiff.Name));
+                    break;
+
+                default: // Modify
+                    if (enumDiff.RenamedFrom is not null)
+                    {
+                        actions.Add(new RenameEnum(enumDiff.Schema, enumDiff.RenamedFrom, enumDiff.Name));
+                    }
+                    // Additions are emitted in list order so each anchor exists when its addition runs (the
+                    // stable priority sort preserves this). A removal/reorder has no AddedValues — it cannot be
+                    // planned, and the always-on EnumValueRemovalDiffPolicy fails the run before execution.
+                    foreach (var addition in enumDiff.AddedValues)
+                    {
+                        actions.Add(new AddEnumValue(enumDiff.Schema, enumDiff.Name, addition.Value, addition.Before, addition.After));
+                    }
+                    break;
+            }
+
+            if (enumDiff.Kind != ChangeKind.Remove && enumDiff.Comment is not null)
+            {
+                actions.Add(new SetEnumComment(enumDiff.Schema, enumDiff.Name, enumDiff.Comment.Old, enumDiff.Comment.New));
+            }
+        }
+    }
+
+    private static void EmitSequences(SchemaDiff schema, List<MigrationAction> actions)
+    {
+        foreach (var sequence in schema.Sequences)
+        {
+            switch (sequence.Kind)
+            {
+                case ChangeKind.Add:
+                    actions.Add(new CreateSequence(sequence.Schema, sequence.Definition!));
+                    break;
+
+                case ChangeKind.Remove:
+                    actions.Add(new DropSequence(sequence.Schema, sequence.Name));
+                    break;
+
+                default: // Modify
+                    if (sequence.RenamedFrom is not null)
+                    {
+                        actions.Add(new RenameSequence(sequence.Schema, sequence.RenamedFrom, sequence.Name));
+                    }
+                    if (sequence.Options is not null)
+                    {
+                        actions.Add(new AlterSequence(sequence.Schema, sequence.Name, sequence.Options.Old!, sequence.Options.New!));
+                    }
+                    break;
+            }
+
+            if (sequence.Kind != ChangeKind.Remove && sequence.Comment is not null)
+            {
+                actions.Add(new SetSequenceComment(sequence.Schema, sequence.Name, sequence.Comment.Old, sequence.Comment.New));
+            }
         }
     }
 

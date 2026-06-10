@@ -117,6 +117,36 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition>? Schemas = null, IR
             }
         }
 
+        var enums = new List<EnumType>();
+        var seenEnums = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var schema in schemas)
+        {
+            foreach (var enumType in schema.Enums)
+            {
+                if (!seenEnums.Add(enumType.Name))
+                {
+                    throw new InvalidOperationException($"Duplicate enum '{enumType.Name}' found in schema '{schemaName}'.");
+                }
+
+                enums.Add(enumType);
+            }
+        }
+
+        var sequences = new List<Sequence>();
+        var seenSequences = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var schema in schemas)
+        {
+            foreach (var sequence in schema.Sequences)
+            {
+                if (!seenSequences.Add(sequence.Name))
+                {
+                    throw new InvalidOperationException($"Duplicate sequence '{sequence.Name}' found in schema '{schemaName}'.");
+                }
+
+                sequences.Add(sequence);
+            }
+        }
+
         var comments = schemas.Select(s => s.Comment).Where(c => c is not null).Distinct().ToList();
         if (comments.Count > 1)
         {
@@ -133,6 +163,14 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition>? Schemas = null, IR
             .SelectMany(s => s.DroppedViews)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+        var droppedEnums = schemas
+            .SelectMany(s => s.DroppedEnums)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var droppedSequences = schemas
+            .SelectMany(s => s.DroppedSequences)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
         var oldNames = schemas.Select(s => s.OldName).Where(n => n is not null).Distinct().ToList();
         if (oldNames.Count > 1)
         {
@@ -145,6 +183,8 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition>? Schemas = null, IR
             .Distinct()
             .ToList();
 
-        return new SchemaDefinition(schemaName, oldName, isPartial, comment, tables, droppedTables, grants, views, droppedViews);
+        return new SchemaDefinition(
+            schemaName, oldName, isPartial, comment, tables, droppedTables, grants, views, droppedViews,
+            enums, droppedEnums, sequences, droppedSequences);
     }
 }

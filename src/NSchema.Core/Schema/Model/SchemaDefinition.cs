@@ -14,6 +14,10 @@ namespace NSchema.Schema.Model;
 /// <param name="Grants">A list of grants that define the permissions associated with the schema.</param>
 /// <param name="Views">A list of views that are part of the schema.</param>
 /// <param name="DroppedViews">A list of views that have been dropped from the schema.</param>
+/// <param name="Enums">A list of enum types that are part of the schema.</param>
+/// <param name="DroppedEnums">A list of enum types that have been dropped from the schema.</param>
+/// <param name="Sequences">A list of sequences that are part of the schema.</param>
+/// <param name="DroppedSequences">A list of sequences that have been dropped from the schema.</param>
 [DebuggerDisplay("{Name,nq} ({Tables.Count} tables)")]
 public record SchemaDefinition(
     string Name,
@@ -24,7 +28,11 @@ public record SchemaDefinition(
     IReadOnlyList<string>? DroppedTables = null,
     IReadOnlyList<SchemaGrant>? Grants = null,
     IReadOnlyList<View>? Views = null,
-    IReadOnlyList<string>? DroppedViews = null
+    IReadOnlyList<string>? DroppedViews = null,
+    IReadOnlyList<EnumType>? Enums = null,
+    IReadOnlyList<string>? DroppedEnums = null,
+    IReadOnlyList<Sequence>? Sequences = null,
+    IReadOnlyList<string>? DroppedSequences = null
 )
 {
     /// <summary>
@@ -46,6 +54,26 @@ public record SchemaDefinition(
     /// A list of views that have been dropped from the schema.
     /// </summary>
     public IReadOnlyList<string> DroppedViews { get; init; } = DroppedViews ?? [];
+
+    /// <summary>
+    /// A list of enum types that are part of the schema.
+    /// </summary>
+    public IReadOnlyList<EnumType> Enums { get; init; } = Enums ?? [];
+
+    /// <summary>
+    /// A list of enum types that have been dropped from the schema.
+    /// </summary>
+    public IReadOnlyList<string> DroppedEnums { get; init; } = DroppedEnums ?? [];
+
+    /// <summary>
+    /// A list of sequences that are part of the schema.
+    /// </summary>
+    public IReadOnlyList<Sequence> Sequences { get; init; } = Sequences ?? [];
+
+    /// <summary>
+    /// A list of sequences that have been dropped from the schema.
+    /// </summary>
+    public IReadOnlyList<string> DroppedSequences { get; init; } = DroppedSequences ?? [];
 
     /// <summary>
     /// A list of grants that define the permissions associated with the schema.

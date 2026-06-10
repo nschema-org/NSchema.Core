@@ -25,9 +25,11 @@ public sealed class PlanLinearizerTests
         ValueChange<string>? comment = null,
         IReadOnlyList<GrantChange>? grants = null,
         IReadOnlyList<TableDiff>? tables = null,
-        IReadOnlyList<ViewDiff>? views = null
+        IReadOnlyList<ViewDiff>? views = null,
+        IReadOnlyList<EnumDiff>? enums = null,
+        IReadOnlyList<SequenceDiff>? sequences = null
     )
-        => new(name, kind, renamedFrom, comment, grants ?? [], tables ?? [], views ?? []);
+        => new(name, kind, renamedFrom, comment, grants ?? [], tables ?? [], views ?? [], enums ?? [], sequences ?? []);
 
     private static TableDiff TableNode(
         string name,
@@ -644,5 +646,180 @@ public sealed class PlanLinearizerTests
 
         IndexOfCreateView(plan, "x").ShouldBeLessThan(IndexOfCreateView(plan, "y"));
         IndexOfCreateView(plan, "y").ShouldBeLessThan(IndexOfCreateView(plan, "z"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Enums
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Linearize_AddEnum_EmitsCreateEnumFromDefinition()
+    {
+        var plan = Linearize(SchemaNode("app", enums:
+            [new EnumDiff("app", "status", ChangeKind.Add, Definition: new EnumType("status", ["a", "b"]))]));
+
+        plan.ShouldHaveSingleItem().ShouldBeOfType<CreateEnum>().Enum.Values.ShouldBe(["a", "b"]);
+    }
+
+    [Fact]
+    public void Linearize_RemoveEnum_EmitsDropEnum()
+        => Linearize(SchemaNode("app", enums: [new EnumDiff("app", "status", ChangeKind.Remove)]))
+            .ShouldHaveSingleItem().ShouldBeOfType<DropEnum>().EnumName.ShouldBe("status");
+
+    [Fact]
+    public void Linearize_RenamedEnum_EmitsRenameEnum_NotCreateOrDrop()
+    {
+        var plan = Linearize(SchemaNode("app", enums:
+            [new EnumDiff("app", "status", ChangeKind.Modify, RenamedFrom: "state")]));
+
+        plan.ShouldHaveSingleItem().ShouldBeOfType<RenameEnum>()
+            .ShouldSatisfyAllConditions(r => r.OldName.ShouldBe("state"), r => r.NewName.ShouldBe("status"));
+    }
+
+    [Fact]
+    public void Linearize_EnumValueAdditions_EmitOneActionEach_InListOrder()
+    {
+        var plan = Linearize(SchemaNode("app", enums:
+        [
+            new EnumDiff("app", "status", ChangeKind.Modify, AddedValues:
+            [
+                new EnumValueAddition("a", Before: "c"),
+                new EnumValueAddition("b", After: "a"),
+            ]),
+        ]));
+
+        var additions = plan.OfType<AddEnumValue>().ToList();
+        additions.Select(a => (a.Value, a.Before, a.After)).ShouldBe(
+            [("a", "c", null), ("b", null, "a")]);
+    }
+
+    [Fact]
+    public void Linearize_EnumComment_EmitsSetEnumComment()
+        => Linearize(SchemaNode("app", enums:
+            [new EnumDiff("app", "status", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new"))]))
+            .ShouldHaveSingleItem().ShouldBeOfType<SetEnumComment>()
+            .ShouldSatisfyAllConditions(c => c.OldComment.ShouldBe("old"), c => c.NewComment.ShouldBe("new"));
+
+    [Fact]
+    public void Linearize_EnumRequiringRecreate_EmitsNoValueActions_AndDoesNotThrow()
+    {
+        // A removal/reorder cannot be planned; the linearizer stays silent and the always-on
+        // EnumValueRemovalDiffPolicy fails the run at the workflow level instead.
+        var plan = Linearize(SchemaNode("app", enums:
+        [
+            new EnumDiff("app", "status", ChangeKind.Modify,
+                Values: new ValueChange<IReadOnlyList<string>>(["a", "b"], ["a"])),
+        ]));
+
+        plan.ShouldBeEmpty();
+    }
+
+    // -------------------------------------------------------------------------
+    // Sequences
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Linearize_AddSequence_EmitsCreateSequenceFromDefinition()
+    {
+        var plan = Linearize(SchemaNode("app", sequences:
+            [new SequenceDiff("app", "order_id", ChangeKind.Add, Definition: new Sequence("order_id", new SequenceOptions(StartWith: 100)))]));
+
+        plan.ShouldHaveSingleItem().ShouldBeOfType<CreateSequence>().Sequence.Options.StartWith.ShouldBe(100);
+    }
+
+    [Fact]
+    public void Linearize_RemoveSequence_EmitsDropSequence()
+        => Linearize(SchemaNode("app", sequences: [new SequenceDiff("app", "order_id", ChangeKind.Remove)]))
+            .ShouldHaveSingleItem().ShouldBeOfType<DropSequence>().SequenceName.ShouldBe("order_id");
+
+    [Fact]
+    public void Linearize_RenamedSequence_EmitsRenameSequence()
+        => Linearize(SchemaNode("app", sequences:
+            [new SequenceDiff("app", "invoice_id", ChangeKind.Modify, RenamedFrom: "bill_id")]))
+            .ShouldHaveSingleItem().ShouldBeOfType<RenameSequence>()
+            .ShouldSatisfyAllConditions(r => r.OldName.ShouldBe("bill_id"), r => r.NewName.ShouldBe("invoice_id"));
+
+    [Fact]
+    public void Linearize_SequenceOptionsChange_EmitsAlterSequence()
+    {
+        var options = new ValueChange<SequenceOptions>(
+            new SequenceOptions(StartWith: 1), new SequenceOptions(StartWith: 100));
+
+        Linearize(SchemaNode("app", sequences: [new SequenceDiff("app", "order_id", ChangeKind.Modify, Options: options)]))
+            .ShouldHaveSingleItem().ShouldBeOfType<AlterSequence>()
+            .ShouldSatisfyAllConditions(
+                a => a.OldOptions.StartWith.ShouldBe(1),
+                a => a.NewOptions.StartWith.ShouldBe(100));
+    }
+
+    [Fact]
+    public void Linearize_SequenceComment_EmitsSetSequenceComment()
+        => Linearize(SchemaNode("app", sequences:
+            [new SequenceDiff("app", "order_id", ChangeKind.Modify, Comment: new ValueChange<string>(null, "order numbers"))]))
+            .ShouldHaveSingleItem().ShouldBeOfType<SetSequenceComment>().NewComment.ShouldBe("order numbers");
+
+    // -------------------------------------------------------------------------
+    // Enum/sequence ordering relative to tables
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Linearize_OrdersCreateEnumAndSequenceBeforeCreateTable()
+    {
+        // A column may use the enum type and a default may call the sequence, so both exist first.
+        var plan = Linearize(SchemaNode("app", ChangeKind.Add,
+            tables: [TableNode("users", ChangeKind.Add, definition: new Table("users"))],
+            enums: [new EnumDiff("app", "status", ChangeKind.Add, Definition: new EnumType("status", ["a"]))],
+            sequences: [new SequenceDiff("app", "order_id", ChangeKind.Add, Definition: new Sequence("order_id"))]));
+
+        IndexOf<CreateSchema>(plan).ShouldBeLessThan(IndexOf<CreateEnum>(plan));
+        IndexOf<CreateEnum>(plan).ShouldBeLessThan(IndexOf<CreateTable>(plan));
+        IndexOf<CreateSequence>(plan).ShouldBeLessThan(IndexOf<CreateTable>(plan));
+    }
+
+    [Fact]
+    public void Linearize_OrdersAddEnumValueBeforeColumnChanges()
+    {
+        // A column being retyped to the enum (or defaulted to a new value) needs the value to exist first.
+        var plan = Linearize(SchemaNode("app",
+            tables:
+            [
+                TableNode("users", ChangeKind.Modify, columns:
+                [
+                    ModifiedColumn("status",
+                        type: new ValueChange<SqlType>(SqlType.Text, SqlType.Custom("status")),
+                        @default: new ValueChange<string>(null, "'a'")),
+                ]),
+            ],
+            enums: [new EnumDiff("app", "status", ChangeKind.Modify, AddedValues: [new EnumValueAddition("a")])]));
+
+        IndexOf<AddEnumValue>(plan).ShouldBeLessThan(IndexOf<AlterColumnType>(plan));
+        IndexOf<AddEnumValue>(plan).ShouldBeLessThan(IndexOf<SetColumnDefault>(plan));
+    }
+
+    [Fact]
+    public void Linearize_OrdersEnumAndSequenceDropsAfterDropTable_BeforeDropSchema()
+    {
+        var plan = Linearize(
+            SchemaNode("app",
+                tables: [TableNode("users", ChangeKind.Remove)],
+                enums: [new EnumDiff("app", "status", ChangeKind.Remove)],
+                sequences: [new SequenceDiff("app", "order_id", ChangeKind.Remove)]),
+            SchemaNode("scratch", ChangeKind.Remove));
+
+        IndexOf<DropTable>(plan).ShouldBeLessThan(IndexOf<DropEnum>(plan));
+        IndexOf<DropTable>(plan).ShouldBeLessThan(IndexOf<DropSequence>(plan));
+        IndexOf<DropEnum>(plan).ShouldBeLessThan(IndexOf<DropSchema>(plan));
+        IndexOf<DropSequence>(plan).ShouldBeLessThan(IndexOf<DropSchema>(plan));
+    }
+
+    [Fact]
+    public void Linearize_OrdersRenameEnumBeforeCreateTable()
+    {
+        // A new table's columns reference the enum by its new name, so the rename must land first.
+        var plan = Linearize(SchemaNode("app",
+            tables: [TableNode("users", ChangeKind.Add, definition: new Table("users"))],
+            enums: [new EnumDiff("app", "status", ChangeKind.Modify, RenamedFrom: "state")]));
+
+        IndexOf<RenameEnum>(plan).ShouldBeLessThan(IndexOf<CreateTable>(plan));
     }
 }

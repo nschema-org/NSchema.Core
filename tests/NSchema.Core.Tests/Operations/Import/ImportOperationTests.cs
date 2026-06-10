@@ -136,6 +136,37 @@ public sealed class ImportOperationTests : IDisposable
     }
 
     [Fact]
+    public async Task Execute_None_ExistingFile_ReimportReplacesViewsEnumsAndSequences()
+    {
+        // A re-import must replace (not duplicate) schema-level objects already in the target file —
+        // previously the merge pruned only tables, so this threw "Duplicate view".
+        var schema = new DatabaseSchema([new SchemaDefinition("app",
+            Tables: [new Table("users")],
+            Views: [new View("active", "SELECT 1")],
+            Enums: [new EnumType("status", ["a"])],
+            Sequences: [new Sequence("order_id", new SequenceOptions(StartWith: 1))])]);
+
+        Source(schema);
+        await Execute(new ImportArguments { OutputFile = FilePath });
+
+        Source(schema with
+        {
+            Schemas = [schema.Schemas[0] with
+            {
+                Enums = [new EnumType("status", ["a", "b"])],
+                Sequences = [new Sequence("order_id", new SequenceOptions(StartWith: 100))],
+            }],
+        });
+        await Execute(new ImportArguments { OutputFile = FilePath });
+
+        var result = await ReadSchema(FilePath);
+        var app = result.Schemas.Single();
+        app.Views.ShouldHaveSingleItem().Name.ShouldBe("active");
+        app.Enums.ShouldHaveSingleItem().Values.ShouldBe(["a", "b"]); // incoming wins
+        app.Sequences.ShouldHaveSingleItem().Options.StartWith.ShouldBe(100);
+    }
+
+    [Fact]
     public async Task Execute_None_CreatesDirectoryIfMissing()
     {
         var filePath = Path.Combine(_dir, "nested", "deep", "schema.json");

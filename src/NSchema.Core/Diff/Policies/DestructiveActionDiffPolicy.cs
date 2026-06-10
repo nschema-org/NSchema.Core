@@ -97,6 +97,16 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
             {
                 yield return nameof(DropView);
             }
+
+            foreach (var enumDiff in schema.Enums.Where(e => e.Kind == ChangeKind.Remove))
+            {
+                yield return nameof(DropEnum);
+            }
+
+            foreach (var sequence in schema.Sequences.Where(s => s.Kind == ChangeKind.Remove))
+            {
+                yield return nameof(DropSequence);
+            }
         }
     }
 }

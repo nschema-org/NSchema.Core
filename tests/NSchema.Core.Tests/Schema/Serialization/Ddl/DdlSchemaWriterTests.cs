@@ -179,4 +179,46 @@ public sealed class DdlSchemaWriterTests
         view.Body.ShouldBe("SELECT id, name FROM app.users WHERE active");
         view.DependsOn.ShouldHaveSingleItem().ShouldBe(new ViewDependency("app", "users"));
     }
+
+    // -------------------------------------------------------------------------
+    // Enums and sequences
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Write_Enum_EmitsQuotedValueList()
+        => DdlSchemaWriter.Write(new DatabaseSchema([
+            new SchemaDefinition("app", Enums: [new EnumType("status", ["pending", "shipped"])]),
+        ])).ShouldContain("CREATE ENUM app.status ('pending', 'shipped');");
+
+    [Fact]
+    public void Write_EnumValueWithQuote_EscapesIt()
+        => DdlSchemaWriter.Write(new DatabaseSchema([
+            new SchemaDefinition("app", Enums: [new EnumType("status", ["it's"])]),
+        ])).ShouldContain("CREATE ENUM app.status ('it''s');");
+
+    [Fact]
+    public void Write_Sequence_WithoutOptions_OmitsParens()
+        => DdlSchemaWriter.Write(new DatabaseSchema([
+            new SchemaDefinition("app", Sequences: [new Sequence("order_id")]),
+        ])).ShouldContain("CREATE SEQUENCE app.order_id;");
+
+    [Fact]
+    public void Write_Sequence_EmitsOptionsInCanonicalOrder()
+        => DdlSchemaWriter.Write(new DatabaseSchema([
+            new SchemaDefinition("app", Sequences:
+            [
+                new Sequence("order_id", new SequenceOptions(SqlType.BigInt, StartWith: 100, IncrementBy: 5,
+                    MinValue: -10, MaxValue: 999999, Cache: 10, Cycle: true)),
+            ]),
+        ])).ShouldContain("CREATE SEQUENCE app.order_id (AS bigint, START 100, INCREMENT 5, MINVALUE -10, MAXVALUE 999999, CACHE 10, CYCLE);");
+
+    [Fact]
+    public void Write_EnumAndSequenceDrops_AreEmitted()
+    {
+        var ddl = DdlSchemaWriter.Write(new DatabaseSchema([
+            new SchemaDefinition("app", DroppedEnums: ["stale_enum"], DroppedSequences: ["stale_seq"]),
+        ]));
+        ddl.ShouldContain("DROP ENUM app.stale_enum;");
+        ddl.ShouldContain("DROP SEQUENCE app.stale_seq;");
+    }
 }

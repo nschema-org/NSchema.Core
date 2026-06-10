@@ -96,7 +96,8 @@ CREATE TABLE app.users
 
 ```ebnf
 document   = { [ doc-comment ] , ( statement | config-block ) } ;
-statement  = ( create-schema | create-table | drop-schema | drop-table | grant ) , ";" ;
+statement  = ( create-schema | create-table | create-view | create-enum | create-sequence
+             | drop-schema | drop-table | drop-view | drop-enum | drop-sequence | grant ) , ";" ;
 ```
 
 A flat statement list; schema membership is by qualified name, exactly like SQL — no nesting.
@@ -249,6 +250,41 @@ view is **created after** the tables and views it reads and **dropped before** t
 themselves by their dependency graph (a cycle is rejected). The scan is deliberately shallow; it over-collects
 rather than under-collects, since a reference that names no planned object simply produces no ordering edge.
 
+### Enums
+
+```ebnf
+create-enum = "CREATE" , "ENUM" , qualified-name , [ "RENAMED" , "FROM" , ident ] ,
+              "(" , [ string , { "," , string } ] , ")" ;
+drop-enum   = "DROP" , "ENUM" , qualified-name ;            (* -> DroppedEnums (explicit drop, partial schema) *)
+```
+
+```sql
+CREATE ENUM app.order_status ('pending', 'shipped', 'delivered');
+```
+
+The values are an **ordered** list (the order is the type's comparison order, as in Postgres) and must be unique
+within the enum. A column uses the enum by naming it as its type (`status order_status`). Enum evolution is
+additions-only: new values may be inserted anywhere, but removing or reordering existing values cannot be planned —
+it requires manually recreating the type.
+
+### Sequences
+
+```ebnf
+create-sequence = "CREATE" , "SEQUENCE" , qualified-name , [ "RENAMED" , "FROM" , ident ] ,
+                  [ "(" , seq-option , { "," , seq-option } , ")" ] ;
+seq-option      = "AS" , ident
+                | ( "START" | "INCREMENT" | "MINVALUE" | "MAXVALUE" | "CACHE" ) , [ "-" ] , integer
+                | "CYCLE" ;
+drop-sequence   = "DROP" , "SEQUENCE" , qualified-name ;    (* -> DroppedSequences (explicit drop, partial schema) *)
+```
+
+```sql
+CREATE SEQUENCE app.order_id (AS bigint, START 100, INCREMENT 5, MAXVALUE 999999, CACHE 10, CYCLE);
+```
+
+The option style mirrors a column's `IDENTITY (…)` clause. An omitted option means the database provider's
+default applies. Each option may appear at most once.
+
 ## Construct → model mapping
 
 | DDL construct                             | Model target                                                     |
@@ -268,6 +304,9 @@ rather than under-collects, since a reference that names no planned object simpl
 | `GRANT USAGE ON SCHEMA s TO r`            | `SchemaGrant`                                                    |
 | `DROP TABLE s.t` / `DROP SCHEMA s`        | `DroppedTables` / `DroppedSchemas`                               |
 | `DROP VIEW s.v`                           | `DroppedViews`                                                   |
+| `CREATE ENUM s.e ('a', 'b')`              | `SchemaDefinition` + `EnumType` (ordered `Values`)               |
+| `CREATE SEQUENCE s.q (…)`                 | `SchemaDefinition` + `Sequence` (`SequenceOptions`)              |
+| `DROP ENUM s.e` / `DROP SEQUENCE s.q`     | `DroppedEnums` / `DroppedSequences`                              |
 | `---` / `/** */` before a declaration     | that object's `Comment`                                          |
 
 ## Worked example

@@ -56,6 +56,18 @@ internal static class DdlSchemaWriter
             sb.Append("GRANT USAGE ON SCHEMA ").Append(schema.Name).Append(" TO ").Append(grant.Role).AppendLine(";");
         }
 
+        foreach (var enumType in schema.Enums)
+        {
+            sb.AppendLine();
+            WriteEnum(sb, schema.Name, enumType);
+        }
+
+        foreach (var sequence in schema.Sequences)
+        {
+            sb.AppendLine();
+            WriteSequence(sb, schema.Name, sequence);
+        }
+
         foreach (var table in schema.Tables)
         {
             sb.AppendLine();
@@ -77,6 +89,76 @@ internal static class DdlSchemaWriter
         {
             sb.Append("DROP VIEW ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
         }
+
+        foreach (var dropped in schema.DroppedEnums)
+        {
+            sb.Append("DROP ENUM ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
+        }
+
+        foreach (var dropped in schema.DroppedSequences)
+        {
+            sb.Append("DROP SEQUENCE ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
+        }
+    }
+
+    private static void WriteEnum(StringBuilder sb, string schemaName, EnumType enumType)
+    {
+        WriteDocComment(sb, enumType.Comment, indent: "");
+        sb.Append("CREATE ENUM ").Append(schemaName).Append('.').Append(enumType.Name);
+        if (enumType.OldName is { } oldName)
+        {
+            sb.Append(" RENAMED FROM ").Append(oldName);
+        }
+        sb.Append(" (").Append(string.Join(", ", enumType.Values.Select(v => $"'{v.Replace("'", "''")}'"))).AppendLine(");");
+    }
+
+    private static void WriteSequence(StringBuilder sb, string schemaName, Sequence sequence)
+    {
+        WriteDocComment(sb, sequence.Comment, indent: "");
+        sb.Append("CREATE SEQUENCE ").Append(schemaName).Append('.').Append(sequence.Name);
+        if (sequence.OldName is { } oldName)
+        {
+            sb.Append(" RENAMED FROM ").Append(oldName);
+        }
+        if (SequenceOptionsText(sequence.Options) is { } options)
+        {
+            sb.Append(" (").Append(options).Append(')');
+        }
+        sb.AppendLine(";");
+    }
+
+    private static string? SequenceOptionsText(SequenceOptions options)
+    {
+        var parts = new List<string>();
+        if (options.DataType is { } type)
+        {
+            parts.Add($"AS {type}");
+        }
+        if (options.StartWith is { } start)
+        {
+            parts.Add($"START {start}");
+        }
+        if (options.IncrementBy is { } increment)
+        {
+            parts.Add($"INCREMENT {increment}");
+        }
+        if (options.MinValue is { } min)
+        {
+            parts.Add($"MINVALUE {min}");
+        }
+        if (options.MaxValue is { } max)
+        {
+            parts.Add($"MAXVALUE {max}");
+        }
+        if (options.Cache is { } cache)
+        {
+            parts.Add($"CACHE {cache}");
+        }
+        if (options.Cycle)
+        {
+            parts.Add("CYCLE");
+        }
+        return parts.Count == 0 ? null : string.Join(", ", parts);
     }
 
     private static void WriteView(StringBuilder sb, string schemaName, View view)

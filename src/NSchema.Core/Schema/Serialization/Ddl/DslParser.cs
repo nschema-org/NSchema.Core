@@ -101,9 +101,25 @@ internal sealed class DslParser
             }
             ParseCreateView(schemas, doc);
         }
+        else if (_current.IsKeyword("ENUM"))
+        {
+            if (partial)
+            {
+                throw Error("PARTIAL applies to SCHEMA, not ENUM.");
+            }
+            ParseCreateEnum(schemas, doc);
+        }
+        else if (_current.IsKeyword("SEQUENCE"))
+        {
+            if (partial)
+            {
+                throw Error("PARTIAL applies to SCHEMA, not SEQUENCE.");
+            }
+            ParseCreateSequence(schemas, doc);
+        }
         else
         {
-            throw Error($"Expected SCHEMA, TABLE or VIEW after CREATE, found '{_current.Text}'.");
+            throw Error($"Expected SCHEMA, TABLE, VIEW, ENUM or SEQUENCE after CREATE, found '{_current.Text}'.");
         }
     }
 
@@ -156,6 +172,118 @@ internal sealed class DslParser
 
         var dependsOn = ViewDependencyExtractor.Extract(body, schemaName);
         schemas.AddView(schemaName, new View(viewName, body, oldName, doc, dependsOn), namePosition);
+    }
+
+    private void ParseCreateEnum(SchemaAccumulator schemas, string? doc)
+    {
+        Advance(); // ENUM
+        var namePosition = _current.Position;
+        var (schemaName, enumName) = ParseQualifiedName();
+        var oldName = TryParseRenamedFrom();
+
+        Expect(TokenKind.LeftParen, "'(' to begin the enum values");
+        var values = new List<string>();
+        if (_current.Kind != TokenKind.RightParen)
+        {
+            do
+            {
+                var valuePosition = _current.Position;
+                var value = Expect(TokenKind.String, "an enum value (a quoted string)").Text;
+                if (values.Contains(value, StringComparer.Ordinal))
+                {
+                    throw new DslSyntaxException($"Enum value '{value}' is declared more than once.", valuePosition);
+                }
+                values.Add(value);
+            }
+            while (Match(TokenKind.Comma));
+        }
+        Expect(TokenKind.RightParen, "')' or ',' after an enum value");
+        Expect(TokenKind.Semicolon, "';'");
+
+        schemas.AddEnum(schemaName, new EnumType(enumName, values, oldName, doc), namePosition);
+    }
+
+    private void ParseCreateSequence(SchemaAccumulator schemas, string? doc)
+    {
+        Advance(); // SEQUENCE
+        var namePosition = _current.Position;
+        var (schemaName, sequenceName) = ParseQualifiedName();
+        var oldName = TryParseRenamedFrom();
+        var options = TryParseSequenceOptions();
+        Expect(TokenKind.Semicolon, "';'");
+
+        schemas.AddSequence(schemaName, new Sequence(sequenceName, options, oldName, doc), namePosition);
+    }
+
+    private SequenceOptions? TryParseSequenceOptions()
+    {
+        if (_current.Kind != TokenKind.LeftParen)
+        {
+            return null;
+        }
+        Advance();
+
+        SqlType? dataType = null;
+        long? start = null, increment = null, min = null, max = null, cache = null;
+        var cycle = false;
+        do
+        {
+            var optionPosition = _current.Position;
+            var option = ExpectIdentifier("a sequence option");
+
+            void RejectDuplicate(bool alreadySet)
+            {
+                if (alreadySet)
+                {
+                    throw new DslSyntaxException($"Sequence option '{option.ToUpperInvariant()}' is specified more than once.", optionPosition);
+                }
+            }
+
+            if (string.Equals(option, "AS", StringComparison.OrdinalIgnoreCase))
+            {
+                RejectDuplicate(dataType is not null);
+                dataType = SqlType.Parse(ExpectIdentifier("a type name"));
+            }
+            else if (string.Equals(option, "START", StringComparison.OrdinalIgnoreCase))
+            {
+                RejectDuplicate(start is not null);
+                start = ExpectSignedIntegerValue();
+            }
+            else if (string.Equals(option, "INCREMENT", StringComparison.OrdinalIgnoreCase))
+            {
+                RejectDuplicate(increment is not null);
+                increment = ExpectSignedIntegerValue();
+            }
+            else if (string.Equals(option, "MINVALUE", StringComparison.OrdinalIgnoreCase))
+            {
+                RejectDuplicate(min is not null);
+                min = ExpectSignedIntegerValue();
+            }
+            else if (string.Equals(option, "MAXVALUE", StringComparison.OrdinalIgnoreCase))
+            {
+                RejectDuplicate(max is not null);
+                max = ExpectSignedIntegerValue();
+            }
+            else if (string.Equals(option, "CACHE", StringComparison.OrdinalIgnoreCase))
+            {
+                RejectDuplicate(cache is not null);
+                cache = ExpectSignedIntegerValue();
+            }
+            else if (string.Equals(option, "CYCLE", StringComparison.OrdinalIgnoreCase))
+            {
+                RejectDuplicate(cycle);
+                cycle = true;
+            }
+            else
+            {
+                throw new DslSyntaxException(
+                    $"Unknown sequence option '{option}'; expected AS, START, INCREMENT, MINVALUE, MAXVALUE, CACHE or CYCLE.", optionPosition);
+            }
+        }
+        while (Match(TokenKind.Comma));
+        Expect(TokenKind.RightParen, "')'");
+
+        return new SequenceOptions(dataType, start, increment, min, max, cache, cycle);
     }
 
     private void ParseTableItem(string? doc, TableBody body)
@@ -490,9 +618,23 @@ internal sealed class DslParser
             Expect(TokenKind.Semicolon, "';'");
             schemas.DropView(schema, view);
         }
+        else if (_current.IsKeyword("ENUM"))
+        {
+            Advance();
+            var (schema, enumName) = ParseQualifiedName();
+            Expect(TokenKind.Semicolon, "';'");
+            schemas.DropEnum(schema, enumName);
+        }
+        else if (_current.IsKeyword("SEQUENCE"))
+        {
+            Advance();
+            var (schema, sequence) = ParseQualifiedName();
+            Expect(TokenKind.Semicolon, "';'");
+            schemas.DropSequence(schema, sequence);
+        }
         else
         {
-            throw Error($"Expected SCHEMA, TABLE or VIEW after DROP, found '{_current.Text}'.");
+            throw Error($"Expected SCHEMA, TABLE, VIEW, ENUM or SEQUENCE after DROP, found '{_current.Text}'.");
         }
     }
 
@@ -583,6 +725,13 @@ internal sealed class DslParser
 
     private long ExpectIntegerValue() => long.Parse(ExpectInteger());
 
+    private long ExpectSignedIntegerValue()
+    {
+        var negative = Match(TokenKind.Minus);
+        var value = ExpectIntegerValue();
+        return negative ? -value : value;
+    }
+
     private bool Match(TokenKind kind)
     {
         if (_current.Kind != kind)
@@ -662,6 +811,26 @@ internal sealed class DslParser
             entry.Views.Add(view);
         }
 
+        public void AddEnum(string schema, EnumType enumType, SourcePosition position)
+        {
+            var entry = GetOrAdd(schema);
+            if (entry.Enums.Any(e => e.Name == enumType.Name))
+            {
+                throw new DslSyntaxException($"Enum '{schema}.{enumType.Name}' is already declared.", position);
+            }
+            entry.Enums.Add(enumType);
+        }
+
+        public void AddSequence(string schema, Sequence sequence, SourcePosition position)
+        {
+            var entry = GetOrAdd(schema);
+            if (entry.Sequences.Any(s => s.Name == sequence.Name))
+            {
+                throw new DslSyntaxException($"Sequence '{schema}.{sequence.Name}' is already declared.", position);
+            }
+            entry.Sequences.Add(sequence);
+        }
+
         public void AddSchemaGrant(string schema, string role)
         {
             var entry = GetOrAdd(schema);
@@ -701,11 +870,30 @@ internal sealed class DslParser
             }
         }
 
+        public void DropEnum(string schema, string enumName)
+        {
+            var entry = GetOrAdd(schema);
+            if (!entry.DroppedEnums.Contains(enumName, StringComparer.OrdinalIgnoreCase))
+            {
+                entry.DroppedEnums.Add(enumName);
+            }
+        }
+
+        public void DropSequence(string schema, string sequence)
+        {
+            var entry = GetOrAdd(schema);
+            if (!entry.DroppedSequences.Contains(sequence, StringComparer.OrdinalIgnoreCase))
+            {
+                entry.DroppedSequences.Add(sequence);
+            }
+        }
+
         public DatabaseSchema Build()
         {
             ApplyTableGrants();
             var schemas = _entries
-                .Select(e => new SchemaDefinition(e.Name, e.OldName, e.IsPartial, e.Comment, e.Tables, e.DroppedTables, e.Grants, e.Views, e.DroppedViews))
+                .Select(e => new SchemaDefinition(e.Name, e.OldName, e.IsPartial, e.Comment, e.Tables, e.DroppedTables, e.Grants, e.Views, e.DroppedViews,
+                    e.Enums, e.DroppedEnums, e.Sequences, e.DroppedSequences))
                 .ToList();
             return new DatabaseSchema(schemas, _droppedSchemas);
         }
@@ -754,6 +942,10 @@ internal sealed class DslParser
             public List<SchemaGrant> Grants { get; } = [];
             public List<View> Views { get; } = [];
             public List<string> DroppedViews { get; } = [];
+            public List<EnumType> Enums { get; } = [];
+            public List<string> DroppedEnums { get; } = [];
+            public List<Sequence> Sequences { get; } = [];
+            public List<string> DroppedSequences { get; } = [];
         }
 
         private readonly record struct PendingGrant(string Schema, string Table, TableGrant Grant, SourcePosition Position);

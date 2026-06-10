@@ -1,0 +1,17 @@
+﻿+ enum app.order_status (pending, shipped, delivered) ("order lifecycle")
+
+~ enum app.priority
+    + value 'lowest' (before 'low')
+    + value 'medium' (after 'low')
+    + value 'highest' (append)
+
+~ enum app.severity
+    ~ values: [info, warn, error] → [warn, error] (removal/reorder; requires manual recreate)
+
+~ enum app.kind comment: "old note" → "new note"
+
+~ enum app.state → status
+
+- enum app.stale_enum
+
+Plan: 1 to add, 4 to change, 1 to destroy.

@@ -2,6 +2,16 @@
 CREATE PARTIAL SCHEMA app RENAMED FROM legacy_app;
 GRANT USAGE ON SCHEMA app TO app_role;
 
+--- order lifecycle
+CREATE ENUM app.order_status ('pending', 'shipped', 'delivered');
+
+CREATE ENUM app.priority RENAMED FROM importance ('low', 'high');
+
+CREATE SEQUENCE app.invoice_id RENAMED FROM bill_id;
+
+--- order numbers
+CREATE SEQUENCE app.order_id (AS bigint, START 100, INCREMENT 5, MINVALUE -10, MAXVALUE 999999, CACHE 10, CYCLE);
+
 --- all users
 CREATE TABLE app.users RENAMED FROM members (
   id bigint NOT NULL IDENTITY (START 1, INCREMENT 1, MINVALUE 1),
@@ -29,5 +39,7 @@ CREATE VIEW app.active_users AS SELECT id, name FROM app.users WHERE balance > 0
 CREATE VIEW app.user_directory RENAMED FROM legacy_directory AS SELECT name FROM app.active_users;
 DROP TABLE app.old_table;
 DROP VIEW app.stale_report;
+DROP ENUM app.stale_enum;
+DROP SEQUENCE app.stale_seq;
 
 DROP SCHEMA scratch;
