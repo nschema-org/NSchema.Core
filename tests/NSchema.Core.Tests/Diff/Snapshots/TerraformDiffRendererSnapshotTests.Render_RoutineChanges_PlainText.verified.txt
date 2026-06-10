@@ -1,0 +1,21 @@
+﻿+ function app.add_tax(amount numeric, rate numeric) ("adds tax")
+
+~ function app.normalize
+
+~ function app.score
+    ~ arguments: (user_id bigint) → (user_id bigint, weight numeric) (recreate)
+
+~ function app.old_fn → renamed_fn
+
+~ function app.noted comment: "old note" → "new note"
+
+- function app.stale_fn
+
++ procedure app.archive(before date)
+
+~ procedure app.cleanup
+    ~ arguments: (batch int) → () (recreate)
+
+- procedure app.stale_proc
+
+Plan: 2 to add, 5 to change, 2 to destroy.

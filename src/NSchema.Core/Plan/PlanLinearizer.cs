@@ -29,6 +29,15 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(CreateSequence),
         typeof(AddEnumValue),
         typeof(AlterSequence),
+        // Routines are created/recreated/renamed before any table change because column DEFAULTs and CHECK
+        // constraints may call them, and after enums/sequences because their args and bodies may use those.
+        // Renames precede creates/recreates so a recreate targets the final name.
+        typeof(RenameFunction),
+        typeof(RenameProcedure),
+        typeof(CreateFunction),
+        typeof(CreateProcedure),
+        typeof(RecreateFunction),
+        typeof(RecreateProcedure),
         typeof(RenameTable),
         typeof(RenameView),
         typeof(CreateTable),
@@ -56,8 +65,13 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(SetViewComment),
         typeof(SetEnumComment),
         typeof(SetSequenceComment),
+        typeof(SetFunctionComment),
+        typeof(SetProcedureComment),
         typeof(DropTable),
-        // Enums and sequences are dropped after the tables (and column alterations) that used them.
+        // Routines are dropped after the tables whose defaults/checks called them, and before the enums their
+        // signatures may use; enums and sequences then drop after everything that referenced them.
+        typeof(DropFunction),
+        typeof(DropProcedure),
         typeof(DropEnum),
         typeof(DropSequence),
         typeof(DropSchema),
@@ -148,6 +162,8 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitSchemaAttributes(schema, actions);
                 EmitEnums(schema, actions);
                 EmitSequences(schema, actions);
+                EmitFunctions(schema, actions);
+                EmitProcedures(schema, actions);
                 foreach (var table in schema.Tables)
                 {
                     EmitTable(table, actions);
@@ -166,11 +182,89 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitSchemaAttributes(schema, actions);
                 EmitEnums(schema, actions);
                 EmitSequences(schema, actions);
+                EmitFunctions(schema, actions);
+                EmitProcedures(schema, actions);
                 foreach (var table in schema.Tables)
                 {
                     EmitTable(table, actions);
                 }
                 break;
+        }
+    }
+
+    private static void EmitFunctions(SchemaDiff schema, List<MigrationAction> actions)
+    {
+        foreach (var function in schema.Functions)
+        {
+            switch (function.Kind)
+            {
+                case ChangeKind.Add:
+                    actions.Add(new CreateFunction(function.Schema, function.Definition!));
+                    break;
+
+                case ChangeKind.Remove:
+                    actions.Add(new DropFunction(function.Schema, function.Name));
+                    break;
+
+                default: // Modify
+                    if (function.RenamedFrom is not null)
+                    {
+                        actions.Add(new RenameFunction(function.Schema, function.RenamedFrom, function.Name));
+                    }
+                    // A signature change recreates (a replace under different arguments would create a separate
+                    // overload); a definition-only change replaces in place.
+                    if (function.RequiresRecreate)
+                    {
+                        actions.Add(new RecreateFunction(function.Schema, function.Definition!));
+                    }
+                    else if (function.Definition is not null)
+                    {
+                        actions.Add(new CreateFunction(function.Schema, function.Definition));
+                    }
+                    break;
+            }
+
+            if (function.Kind != ChangeKind.Remove && function.Comment is not null)
+            {
+                actions.Add(new SetFunctionComment(function.Schema, function.Name, function.Comment.Old, function.Comment.New));
+            }
+        }
+    }
+
+    private static void EmitProcedures(SchemaDiff schema, List<MigrationAction> actions)
+    {
+        foreach (var procedure in schema.Procedures)
+        {
+            switch (procedure.Kind)
+            {
+                case ChangeKind.Add:
+                    actions.Add(new CreateProcedure(procedure.Schema, procedure.Definition!));
+                    break;
+
+                case ChangeKind.Remove:
+                    actions.Add(new DropProcedure(procedure.Schema, procedure.Name));
+                    break;
+
+                default: // Modify
+                    if (procedure.RenamedFrom is not null)
+                    {
+                        actions.Add(new RenameProcedure(procedure.Schema, procedure.RenamedFrom, procedure.Name));
+                    }
+                    if (procedure.RequiresRecreate)
+                    {
+                        actions.Add(new RecreateProcedure(procedure.Schema, procedure.Definition!));
+                    }
+                    else if (procedure.Definition is not null)
+                    {
+                        actions.Add(new CreateProcedure(procedure.Schema, procedure.Definition));
+                    }
+                    break;
+            }
+
+            if (procedure.Kind != ChangeKind.Remove && procedure.Comment is not null)
+            {
+                actions.Add(new SetProcedureComment(procedure.Schema, procedure.Name, procedure.Comment.Old, procedure.Comment.New));
+            }
         }
     }
 

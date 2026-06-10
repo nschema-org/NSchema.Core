@@ -80,6 +80,16 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null)
             {
                 Tally(sequence.Kind);
             }
+
+            foreach (var function in schema.Functions)
+            {
+                Tally(function.Kind);
+            }
+
+            foreach (var procedure in schema.Procedures)
+            {
+                Tally(procedure.Kind);
+            }
         }
 
         return new DiffSummary(added, modified, removed);

@@ -156,8 +156,47 @@ public sealed class TerraformDiffRendererSnapshotTests
     [Fact]
     public Task Render_ViewChanges_PlainText() => Verify(Render(ViewChangesDiff(), colour: false));
 
+    /// <summary>
+    /// A diff exercising every function change kind: an add (showing arguments), a body-only replace, a
+    /// signature change (recreate), a rename, a comment-only change, and a removal — plus a procedure variant.
+    /// </summary>
+    private static DatabaseDiff RoutineChangesDiff()
+    {
+        var addTax = new Function("add_tax", "amount numeric, rate numeric", "RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$");
+        return new DatabaseDiff(
+            Schemas:
+            [
+                new SchemaDiff("app",
+                    Functions:
+                    [
+                        new FunctionDiff("app", "add_tax", ChangeKind.Add, Definition: addTax,
+                            Comment: new ValueChange<string>(null, "adds tax")),
+                        new FunctionDiff("app", "normalize", ChangeKind.Modify,
+                            Definition: new Function("normalize", "code text", "RETURNS text AS $$ SELECT lower(code) $$")),
+                        new FunctionDiff("app", "score", ChangeKind.Modify,
+                            Definition: new Function("score", "user_id bigint, weight numeric", "RETURNS numeric AS $$ SELECT 1 $$"),
+                            Arguments: new ValueChange<string>("user_id bigint", "user_id bigint, weight numeric")),
+                        new FunctionDiff("app", "renamed_fn", ChangeKind.Modify, RenamedFrom: "old_fn"),
+                        new FunctionDiff("app", "noted", ChangeKind.Modify, Comment: new ValueChange<string>("old note", "new note")),
+                        new FunctionDiff("app", "stale_fn", ChangeKind.Remove),
+                    ],
+                    Procedures:
+                    [
+                        new ProcedureDiff("app", "archive", ChangeKind.Add,
+                            Definition: new Procedure("archive", "before date", "LANGUAGE sql AS $$ DELETE $$")),
+                        new ProcedureDiff("app", "cleanup", ChangeKind.Modify,
+                            Definition: new Procedure("cleanup", "", "LANGUAGE sql AS $$ TRUNCATE $$"),
+                            Arguments: new ValueChange<string>("batch int", "")),
+                        new ProcedureDiff("app", "stale_proc", ChangeKind.Remove),
+                    ]),
+            ]);
+    }
+
     [Fact]
     public Task Render_EnumChanges_PlainText() => Verify(Render(EnumChangesDiff(), colour: false));
+
+    [Fact]
+    public Task Render_RoutineChanges_PlainText() => Verify(Render(RoutineChangesDiff(), colour: false));
 
     [Fact]
     public Task Render_SequenceChanges_PlainText() => Verify(Render(SequenceChangesDiff(), colour: false));

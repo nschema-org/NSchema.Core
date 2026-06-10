@@ -21,3 +21,5 @@
   enum priority (low, high)
   sequence order_id (as=bigint, start=100, step=5, cache=10, cycle) ("order numbers")
   sequence invoice_id
+  function add_tax(amount numeric, rate numeric) ("adds tax")
+  procedure archive_users(before date)

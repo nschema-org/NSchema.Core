@@ -12,6 +12,8 @@ namespace NSchema.Diff.Model;
 /// <param name="Views">The changed views within this schema, ordered by name.</param>
 /// <param name="Enums">The changed enum types within this schema, ordered by name.</param>
 /// <param name="Sequences">The changed sequences within this schema, ordered by name.</param>
+/// <param name="Functions">The changed functions within this schema, ordered by name.</param>
+/// <param name="Procedures">The changed procedures within this schema, ordered by name.</param>
 public sealed record SchemaDiff(
     string Name,
     ChangeKind? Kind = null,
@@ -21,7 +23,9 @@ public sealed record SchemaDiff(
     IReadOnlyList<TableDiff>? Tables = null,
     IReadOnlyList<ViewDiff>? Views = null,
     IReadOnlyList<EnumDiff>? Enums = null,
-    IReadOnlyList<SequenceDiff>? Sequences = null
+    IReadOnlyList<SequenceDiff>? Sequences = null,
+    IReadOnlyList<FunctionDiff>? Functions = null,
+    IReadOnlyList<ProcedureDiff>? Procedures = null
 )
 {
     /// <summary>
@@ -48,4 +52,14 @@ public sealed record SchemaDiff(
     /// The changed sequences within this schema, ordered by name.
     /// </summary>
     public IReadOnlyList<SequenceDiff> Sequences { get; init; } = Sequences ?? [];
+
+    /// <summary>
+    /// The changed functions within this schema, ordered by name.
+    /// </summary>
+    public IReadOnlyList<FunctionDiff> Functions { get; init; } = Functions ?? [];
+
+    /// <summary>
+    /// The changed procedures within this schema, ordered by name.
+    /// </summary>
+    public IReadOnlyList<ProcedureDiff> Procedures { get; init; } = Procedures ?? [];
 }

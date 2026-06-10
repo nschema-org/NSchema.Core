@@ -198,6 +198,45 @@ public class DestructiveActionDiffPolicyTests
         _sut.Validate(diff).ShouldBeEmpty();
     }
 
+    [Fact]
+    public void Validate_DroppedFunctionAndProcedure_AreDestructive()
+    {
+        // Arrange — dropping a routine loses its definition from managed state.
+        _options.Value.Policy = DestructiveActionPolicy.Error;
+        var diff = new DatabaseDiff([
+            new SchemaDiff("app",
+                Functions: [new FunctionDiff("app", "f", ChangeKind.Remove)],
+                Procedures: [new ProcedureDiff("app", "p", ChangeKind.Remove)]),
+        ]);
+
+        // Act
+        var errors = _sut.Validate(diff).ToList();
+
+        // Assert
+        errors.ShouldHaveSingleItem();
+        errors[0].Message.ShouldContain(nameof(DropFunction));
+        errors[0].Message.ShouldContain(nameof(DropProcedure));
+    }
+
+    [Fact]
+    public void Validate_FunctionSignatureRecreate_IsNotDestructive()
+    {
+        // Arrange — a signature change is a declared edit; the database blocks the underlying drop loudly if
+        // dependents exist, so the policy does not gate it.
+        _options.Value.Policy = DestructiveActionPolicy.Error;
+        var fn = new NSchema.Schema.Model.Function("f", "a int, b text", "RETURNS int AS $$ SELECT 1 $$");
+        var diff = new DatabaseDiff([
+            new SchemaDiff("app", Functions:
+            [
+                new FunctionDiff("app", "f", ChangeKind.Modify, Definition: fn,
+                    Arguments: new ValueChange<string>("a int", "a int, b text")),
+            ]),
+        ]);
+
+        // Act / Assert
+        _sut.Validate(diff).ShouldBeEmpty();
+    }
+
     private static DatabaseDiff TableChange(TableDiff table) =>
         new([new SchemaDiff("app", null, null, null, [], [table])]);
 }

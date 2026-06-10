@@ -87,6 +87,51 @@
     }
   },
   {
+    Type: RenameFunction,
+    Action: {
+      SchemaName: app,
+      OldName: old_score,
+      NewName: score,
+      IsDestructive: false
+    }
+  },
+  {
+    Type: CreateFunction,
+    Action: {
+      SchemaName: app,
+      Function: {
+        Name: add_tax,
+        Arguments: amount numeric,
+        Definition: RETURNS numeric AS $$ SELECT amount $$
+      },
+      IsDestructive: false
+    }
+  },
+  {
+    Type: CreateProcedure,
+    Action: {
+      SchemaName: app,
+      Procedure: {
+        Name: archive,
+        Arguments: before date,
+        Definition: LANGUAGE sql AS $$ DELETE $$
+      },
+      IsDestructive: false
+    }
+  },
+  {
+    Type: RecreateFunction,
+    Action: {
+      SchemaName: app,
+      Function: {
+        Name: score,
+        Arguments: user_id bigint, weight numeric,
+        Definition: RETURNS numeric AS $$ SELECT 1 $$
+      },
+      IsDestructive: true
+    }
+  },
+  {
     Type: RenameTable,
     Action: {
       SchemaName: app,
@@ -302,6 +347,22 @@
       Role: readers,
       Privileges: ReadOnly,
       IsDestructive: false
+    }
+  },
+  {
+    Type: DropFunction,
+    Action: {
+      SchemaName: app,
+      FunctionName: stale_fn,
+      IsDestructive: true
+    }
+  },
+  {
+    Type: DropProcedure,
+    Action: {
+      SchemaName: app,
+      ProcedureName: stale_proc,
+      IsDestructive: true
     }
   },
   {
