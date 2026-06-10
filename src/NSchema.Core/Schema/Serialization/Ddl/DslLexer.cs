@@ -72,6 +72,7 @@ internal sealed class DslLexer(string source)
             case ';': Advance(); return new Token(TokenKind.Semicolon, ";", pos);
             case '.': Advance(); return new Token(TokenKind.Dot, ".", pos);
             case '=': Advance(); return new Token(TokenKind.Equals, "=", pos);
+            case '-': Advance(); return new Token(TokenKind.Minus, "-", pos);
             case '\'': return ReadString(pos);
         }
 

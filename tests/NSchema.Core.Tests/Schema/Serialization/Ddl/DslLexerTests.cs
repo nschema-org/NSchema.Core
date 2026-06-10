@@ -36,6 +36,14 @@ public sealed class DslLexerTests
     }
 
     [Fact]
+    public void Lex_LoneMinus_IsAMinusToken()
+    {
+        // A lone '-' signs a numeric value (sequence options); '--' still starts a comment.
+        Kinds("-1").ShouldBe([TokenKind.Minus, TokenKind.Integer]);
+        Tokens("-- comment\n-").ShouldHaveSingleItem().Kind.ShouldBe(TokenKind.Minus);
+    }
+
+    [Fact]
     public void Lex_Identifier_PreservesCase()
     {
         var token = Tokens("Users_42").ShouldHaveSingleItem();

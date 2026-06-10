@@ -149,6 +149,55 @@ public class DestructiveActionDiffPolicyTests
         _sut.Validate(diff).ShouldBeEmpty();
     }
 
+    [Fact]
+    public void Validate_DroppedEnum_IsDestructive()
+    {
+        // Arrange — dropping an enum is destructive (columns using it would lose their type definition).
+        _options.Value.Policy = DestructiveActionPolicy.Error;
+        var diff = new DatabaseDiff([
+            new SchemaDiff("app", Enums: [new EnumDiff("app", "status", ChangeKind.Remove)]),
+        ]);
+
+        // Act
+        var errors = _sut.Validate(diff).ToList();
+
+        // Assert
+        errors.ShouldHaveSingleItem();
+        errors[0].Message.ShouldContain(nameof(DropEnum));
+    }
+
+    [Fact]
+    public void Validate_DroppedSequence_IsDestructive()
+    {
+        // Arrange — dropping a sequence loses its current position.
+        _options.Value.Policy = DestructiveActionPolicy.Error;
+        var diff = new DatabaseDiff([
+            new SchemaDiff("app", Sequences: [new SequenceDiff("app", "order_id", ChangeKind.Remove)]),
+        ]);
+
+        // Act
+        var errors = _sut.Validate(diff).ToList();
+
+        // Assert
+        errors.ShouldHaveSingleItem();
+        errors[0].Message.ShouldContain(nameof(DropSequence));
+    }
+
+    [Fact]
+    public void Validate_AddedEnumAndSequence_AreNotDestructive()
+    {
+        // Arrange — creating an enum or sequence loses nothing.
+        _options.Value.Policy = DestructiveActionPolicy.Error;
+        var diff = new DatabaseDiff([
+            new SchemaDiff("app",
+                Enums: [new EnumDiff("app", "status", ChangeKind.Add, Definition: new NSchema.Schema.Model.EnumType("status", ["a"]))],
+                Sequences: [new SequenceDiff("app", "order_id", ChangeKind.Add, Definition: new NSchema.Schema.Model.Sequence("order_id"))]),
+        ]);
+
+        // Act / Assert
+        _sut.Validate(diff).ShouldBeEmpty();
+    }
+
     private static DatabaseDiff TableChange(TableDiff table) =>
         new([new SchemaDiff("app", null, null, null, [], [table])]);
 }

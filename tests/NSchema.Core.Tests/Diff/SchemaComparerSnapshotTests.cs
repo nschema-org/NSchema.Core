@@ -38,6 +38,17 @@ public sealed class SchemaComparerSnapshotTests
                     View("active_users", "SELECT id FROM app.users WHERE active"),
                     View("legacy_report", "SELECT * FROM app.users"),
                     View("old_summary", "SELECT count(*) FROM app.users"),
+                ],
+                Enums:
+                [
+                    new EnumType("order_status", ["pending", "shipped"]),
+                    new EnumType("importance", ["low", "high"]),
+                    new EnumType("stale_enum", ["x"]),
+                ],
+                Sequences:
+                [
+                    new Sequence("order_id", new SequenceOptions(StartWith: 1, IncrementBy: 1)),
+                    new Sequence("stale_seq"),
                 ]),
             new SchemaDefinition("scratch"),
         ]);
@@ -67,6 +78,19 @@ public sealed class SchemaComparerSnapshotTests
                     View("active_users", "SELECT id, email_address FROM app.users WHERE active"),
                     View("report", "SELECT * FROM app.users", oldName: "legacy_report"),
                     View("user_emails", "SELECT email_address FROM app.active_users"),
+                ],
+                // Enums: a value appended, a rename, a drop, and an addition.
+                Enums:
+                [
+                    new EnumType("order_status", ["pending", "shipped", "delivered"]),
+                    new EnumType("priority", ["low", "high"], OldName: "importance"),
+                    new EnumType("severity", ["info", "error"]),
+                ],
+                // Sequences: an options change, a drop, and an addition.
+                Sequences:
+                [
+                    new Sequence("order_id", new SequenceOptions(StartWith: 1000, IncrementBy: 10, Cycle: true)),
+                    new Sequence("batch_id"),
                 ]),
             new SchemaDefinition("reporting", Comment: "analytics"),
         ]);

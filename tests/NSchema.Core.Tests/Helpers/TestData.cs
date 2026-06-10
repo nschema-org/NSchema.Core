@@ -78,7 +78,21 @@ public static class TestData
                     View("active_users", "SELECT id, name FROM app.users WHERE balance > 0", comment: "currently active users"),
                     View("user_directory", "SELECT name FROM app.active_users", oldName: "legacy_directory"),
                 ],
-                DroppedViews: ["stale_report"]),
+                DroppedViews: ["stale_report"],
+                Enums:
+                [
+                    new EnumType("order_status", ["pending", "shipped", "delivered"], Comment: "order lifecycle"),
+                    new EnumType("priority", ["low", "high"], OldName: "importance"),
+                ],
+                DroppedEnums: ["stale_enum"],
+                Sequences:
+                [
+                    new Sequence("invoice_id", OldName: "bill_id"),
+                    new Sequence("order_id",
+                        new SequenceOptions(SqlType.BigInt, StartWith: 100, IncrementBy: 5, MinValue: -10, MaxValue: 999999, Cache: 10, Cycle: true),
+                        Comment: "order numbers"),
+                ],
+                DroppedSequences: ["stale_seq"]),
         ],
         DroppedSchemas: ["scratch"]);
 

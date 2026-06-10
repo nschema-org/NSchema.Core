@@ -88,20 +88,29 @@ internal sealed class ImportOperation(
 
     private static DatabaseSchema Merge(DatabaseSchema existing, DatabaseSchema incoming)
     {
-        // Strip any tables from existing that appear in the incoming import so the
-        // aggregator sees no duplicates, then aggregate. Incoming tables win on conflict.
-        var incomingTablesBySchema = incoming.Schemas.ToDictionary(
-            s => s.Name,
-            s => new HashSet<string>(s.Tables.Select(t => t.Name), StringComparer.OrdinalIgnoreCase),
-            StringComparer.OrdinalIgnoreCase);
+        // Strip any objects from existing that appear in the incoming import so the
+        // aggregator sees no duplicates, then aggregate. Incoming objects win on conflict.
+        var incomingBySchema = incoming.Schemas.ToDictionary(s => s.Name, s => s, StringComparer.OrdinalIgnoreCase);
 
         var prunedSchemas = existing.Schemas
-            .Select(s => incomingTablesBySchema.TryGetValue(s.Name, out var incomingTables)
-                ? s with { Tables = s.Tables.Where(t => !incomingTables.Contains(t.Name)).ToList() }
+            .Select(s => incomingBySchema.TryGetValue(s.Name, out var i)
+                ? s with
+                {
+                    Tables = PruneByName(s.Tables, i.Tables, t => t.Name),
+                    Views = PruneByName(s.Views, i.Views, v => v.Name),
+                    Enums = PruneByName(s.Enums, i.Enums, e => e.Name),
+                    Sequences = PruneByName(s.Sequences, i.Sequences, q => q.Name),
+                }
                 : s)
             .ToList();
 
         var pruned = new DatabaseSchema(prunedSchemas, existing.DroppedSchemas.ToList());
         return pruned.Combine(incoming);
+    }
+
+    private static List<T> PruneByName<T>(IReadOnlyList<T> existing, IReadOnlyList<T> incoming, Func<T, string> name)
+    {
+        var incomingNames = new HashSet<string>(incoming.Select(name), StringComparer.OrdinalIgnoreCase);
+        return existing.Where(item => !incomingNames.Contains(name(item))).ToList();
     }
 }

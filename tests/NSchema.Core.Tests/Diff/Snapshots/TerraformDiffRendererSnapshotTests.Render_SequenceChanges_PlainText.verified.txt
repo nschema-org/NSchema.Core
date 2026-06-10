@@ -1,0 +1,14 @@
+﻿+ sequence app.order_id (as=bigint, start=100, step=5, max=999999, cache=10, cycle) ("order numbers")
+
++ sequence app.invoice_id
+
+~ sequence app.ticket_id
+    ~ options: start=1, step=1 → start=1000, step=10, cycle
+
+~ sequence app.audit_id comment: "old note" → "new note"
+
+~ sequence app.job_id → batch_id
+
+- sequence app.stale_seq
+
+Plan: 2 to add, 3 to change, 1 to destroy.

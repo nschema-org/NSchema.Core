@@ -10,6 +10,8 @@ namespace NSchema.Diff.Model;
 /// <param name="Grants">Usage grants and revocations on the schema.</param>
 /// <param name="Tables">The changed tables within this schema, ordered by name.</param>
 /// <param name="Views">The changed views within this schema, ordered by name.</param>
+/// <param name="Enums">The changed enum types within this schema, ordered by name.</param>
+/// <param name="Sequences">The changed sequences within this schema, ordered by name.</param>
 public sealed record SchemaDiff(
     string Name,
     ChangeKind? Kind = null,
@@ -17,7 +19,9 @@ public sealed record SchemaDiff(
     ValueChange<string>? Comment = null,
     IReadOnlyList<GrantChange>? Grants = null,
     IReadOnlyList<TableDiff>? Tables = null,
-    IReadOnlyList<ViewDiff>? Views = null
+    IReadOnlyList<ViewDiff>? Views = null,
+    IReadOnlyList<EnumDiff>? Enums = null,
+    IReadOnlyList<SequenceDiff>? Sequences = null
 )
 {
     /// <summary>
@@ -34,4 +38,14 @@ public sealed record SchemaDiff(
     /// The changed views within this schema, ordered by name.
     /// </summary>
     public IReadOnlyList<ViewDiff> Views { get; init; } = Views ?? [];
+
+    /// <summary>
+    /// The changed enum types within this schema, ordered by name.
+    /// </summary>
+    public IReadOnlyList<EnumDiff> Enums { get; init; } = Enums ?? [];
+
+    /// <summary>
+    /// The changed sequences within this schema, ordered by name.
+    /// </summary>
+    public IReadOnlyList<SequenceDiff> Sequences { get; init; } = Sequences ?? [];
 }

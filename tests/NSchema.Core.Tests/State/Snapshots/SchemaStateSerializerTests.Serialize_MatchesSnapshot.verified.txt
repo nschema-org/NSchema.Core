@@ -183,6 +183,68 @@
         droppedViews: [
           stale_report
         ],
+        enums: [
+          {
+            name: order_status,
+            oldName: null,
+            comment: order lifecycle,
+            values: [
+              pending,
+              shipped,
+              delivered
+            ]
+          },
+          {
+            name: priority,
+            oldName: importance,
+            comment: null,
+            values: [
+              low,
+              high
+            ]
+          }
+        ],
+        droppedEnums: [
+          stale_enum
+        ],
+        sequences: [
+          {
+            name: invoice_id,
+            oldName: bill_id,
+            comment: null,
+            options: {
+              dataType: null,
+              startWith: null,
+              incrementBy: null,
+              minValue: null,
+              maxValue: null,
+              cache: null,
+              cycle: false
+            }
+          },
+          {
+            name: order_id,
+            oldName: null,
+            comment: order numbers,
+            options: {
+              dataType: {
+                name: bigint,
+                length: null,
+                precision: null,
+                scale: null
+              },
+              startWith: 100,
+              incrementBy: 5,
+              minValue: -10,
+              maxValue: 999999,
+              cache: 10,
+              cycle: true
+            }
+          }
+        ],
+        droppedSequences: [
+          stale_seq
+        ],
         grants: [
           {
             role: app_role

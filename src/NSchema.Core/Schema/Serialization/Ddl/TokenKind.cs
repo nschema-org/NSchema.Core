@@ -67,6 +67,11 @@ internal enum TokenKind
     Equals,
 
     /// <summary>
+    /// <c>-</c> (a sign on a numeric value; <c>--</c> starts a comment instead).
+    /// </summary>
+    Minus,
+
+    /// <summary>
     /// The end of the input.
     /// </summary>
     EndOfFile,

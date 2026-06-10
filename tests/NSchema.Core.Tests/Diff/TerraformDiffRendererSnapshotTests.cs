@@ -86,6 +86,67 @@ public sealed class TerraformDiffRendererSnapshotTests
             ]);
     }
 
+    /// <summary>
+    /// A diff exercising every enum change kind: an added enum, anchored value additions, a removal/reorder
+    /// (requiring a manual recreate), a comment-only change, a rename, and a removal.
+    /// </summary>
+    private static DatabaseDiff EnumChangesDiff()
+    {
+        return new DatabaseDiff(
+            Schemas:
+            [
+                new SchemaDiff("app", Enums:
+                [
+                    new EnumDiff("app", "order_status", ChangeKind.Add,
+                        Definition: new EnumType("order_status", ["pending", "shipped", "delivered"]),
+                        Comment: new ValueChange<string>(null, "order lifecycle")),
+                    new EnumDiff("app", "priority", ChangeKind.Modify,
+                        AddedValues:
+                        [
+                            new EnumValueAddition("lowest", Before: "low"),
+                            new EnumValueAddition("medium", After: "low"),
+                            new EnumValueAddition("highest"),
+                        ],
+                        Values: new ValueChange<IReadOnlyList<string>>(["low", "high"], ["lowest", "low", "medium", "high", "highest"])),
+                    new EnumDiff("app", "severity", ChangeKind.Modify,
+                        Values: new ValueChange<IReadOnlyList<string>>(["info", "warn", "error"], ["warn", "error"])),
+                    new EnumDiff("app", "kind", ChangeKind.Modify,
+                        Comment: new ValueChange<string>("old note", "new note")),
+                    new EnumDiff("app", "status", ChangeKind.Modify, RenamedFrom: "state"),
+                    new EnumDiff("app", "stale_enum", ChangeKind.Remove),
+                ]),
+            ]);
+    }
+
+    /// <summary>
+    /// A diff exercising every sequence change kind: an added sequence (with and without options), an options
+    /// change, a comment-only change, a rename, and a removal.
+    /// </summary>
+    private static DatabaseDiff SequenceChangesDiff()
+    {
+        return new DatabaseDiff(
+            Schemas:
+            [
+                new SchemaDiff("app", Sequences:
+                [
+                    new SequenceDiff("app", "order_id", ChangeKind.Add,
+                        Definition: new Sequence("order_id",
+                            new SequenceOptions(SqlType.BigInt, StartWith: 100, IncrementBy: 5, MaxValue: 999999, Cache: 10, Cycle: true)),
+                        Comment: new ValueChange<string>(null, "order numbers")),
+                    new SequenceDiff("app", "invoice_id", ChangeKind.Add,
+                        Definition: new Sequence("invoice_id")),
+                    new SequenceDiff("app", "ticket_id", ChangeKind.Modify,
+                        Options: new ValueChange<SequenceOptions>(
+                            new SequenceOptions(StartWith: 1, IncrementBy: 1),
+                            new SequenceOptions(StartWith: 1000, IncrementBy: 10, Cycle: true))),
+                    new SequenceDiff("app", "audit_id", ChangeKind.Modify,
+                        Comment: new ValueChange<string>("old note", "new note")),
+                    new SequenceDiff("app", "batch_id", ChangeKind.Modify, RenamedFrom: "job_id"),
+                    new SequenceDiff("app", "stale_seq", ChangeKind.Remove),
+                ]),
+            ]);
+    }
+
     [Fact]
     public Task Render_RichDiff_PlainText() => Verify(Render(RichDiff(), colour: false));
 
@@ -94,6 +155,12 @@ public sealed class TerraformDiffRendererSnapshotTests
 
     [Fact]
     public Task Render_ViewChanges_PlainText() => Verify(Render(ViewChangesDiff(), colour: false));
+
+    [Fact]
+    public Task Render_EnumChanges_PlainText() => Verify(Render(EnumChangesDiff(), colour: false));
+
+    [Fact]
+    public Task Render_SequenceChanges_PlainText() => Verify(Render(SequenceChangesDiff(), colour: false));
 
     [Fact]
     public Task Render_EmptyDiff() => Verify(Render(new DatabaseDiff([]), colour: false));

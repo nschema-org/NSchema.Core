@@ -66,11 +66,28 @@ public sealed class PlanLinearizerSnapshotTests
             new("app", "stale_view", ChangeKind.Remove),
         };
 
+        // Enums and sequences: additions (created before tables), an anchored value addition, a rename,
+        // an options change, and drops (after tables, before the schema drop).
+        var enums = new EnumDiff[]
+        {
+            new("app", "order_status", ChangeKind.Add, Definition: new EnumType("order_status", ["pending", "shipped"])),
+            new("app", "priority", ChangeKind.Modify, RenamedFrom: "importance",
+                AddedValues: [new EnumValueAddition("medium", After: "low")]),
+            new("app", "stale_enum", ChangeKind.Remove),
+        };
+        var sequences = new SequenceDiff[]
+        {
+            new("app", "order_id", ChangeKind.Add, Definition: new Sequence("order_id", new SequenceOptions(StartWith: 100))),
+            new("app", "ticket_id", ChangeKind.Modify,
+                Options: new ValueChange<SequenceOptions>(new SequenceOptions(StartWith: 1), new SequenceOptions(StartWith: 1000))),
+            new("app", "stale_seq", ChangeKind.Remove),
+        };
+
         var diff = new DatabaseDiff(
             Schemas:
             [
                 new SchemaDiff("reporting", ChangeKind.Add, null, null, [], []),
-                new SchemaDiff("app", null, null, null, [], [newTable, modifiedTable], views),
+                new SchemaDiff("app", null, null, null, [], [newTable, modifiedTable], views, enums, sequences),
                 new SchemaDiff("scratch", ChangeKind.Remove, null, null, [], []),
             ]);
 

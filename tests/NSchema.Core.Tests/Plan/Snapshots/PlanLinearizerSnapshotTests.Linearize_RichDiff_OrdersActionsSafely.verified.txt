@@ -24,6 +24,69 @@
     }
   },
   {
+    Type: RenameEnum,
+    Action: {
+      SchemaName: app,
+      OldName: importance,
+      NewName: priority,
+      IsDestructive: false
+    }
+  },
+  {
+    Type: CreateEnum,
+    Action: {
+      SchemaName: app,
+      Enum: {
+        Name: order_status,
+        Values: [
+          pending,
+          shipped
+        ]
+      },
+      IsDestructive: false
+    }
+  },
+  {
+    Type: CreateSequence,
+    Action: {
+      SchemaName: app,
+      Sequence: {
+        Name: order_id,
+        Options: {
+          StartWith: 100,
+          Cycle: false
+        }
+      },
+      IsDestructive: false
+    }
+  },
+  {
+    Type: AddEnumValue,
+    Action: {
+      SchemaName: app,
+      EnumName: priority,
+      Value: medium,
+      After: low,
+      IsDestructive: false
+    }
+  },
+  {
+    Type: AlterSequence,
+    Action: {
+      SchemaName: app,
+      SequenceName: ticket_id,
+      OldOptions: {
+        StartWith: 1,
+        Cycle: false
+      },
+      NewOptions: {
+        StartWith: 1000,
+        Cycle: false
+      },
+      IsDestructive: false
+    }
+  },
+  {
     Type: RenameTable,
     Action: {
       SchemaName: app,
@@ -239,6 +302,22 @@
       Role: readers,
       Privileges: ReadOnly,
       IsDestructive: false
+    }
+  },
+  {
+    Type: DropEnum,
+    Action: {
+      SchemaName: app,
+      EnumName: stale_enum,
+      IsDestructive: true
+    }
+  },
+  {
+    Type: DropSequence,
+    Action: {
+      SchemaName: app,
+      SequenceName: stale_seq,
+      IsDestructive: true
     }
   },
   {

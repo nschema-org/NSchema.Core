@@ -135,6 +135,90 @@
             }
           ]
         }
+      ],
+      Enums: [
+        {
+          Schema: app,
+          Name: order_status,
+          Kind: Modify,
+          Values: {
+            Old: [
+              pending,
+              shipped
+            ],
+            New: [
+              pending,
+              shipped,
+              delivered
+            ]
+          },
+          AddedValues: [
+            {
+              Value: delivered,
+              After: shipped
+            }
+          ],
+          RequiresRecreate: false
+        },
+        {
+          Schema: app,
+          Name: priority,
+          Kind: Modify,
+          RenamedFrom: importance,
+          RequiresRecreate: false
+        },
+        {
+          Schema: app,
+          Name: severity,
+          Definition: {
+            Name: severity,
+            Values: [
+              info,
+              error
+            ]
+          },
+          RequiresRecreate: false
+        },
+        {
+          Schema: app,
+          Name: stale_enum,
+          Kind: Remove,
+          RequiresRecreate: false
+        }
+      ],
+      Sequences: [
+        {
+          Schema: app,
+          Name: batch_id,
+          Definition: {
+            Name: batch_id,
+            Options: {
+              Cycle: false
+            }
+          }
+        },
+        {
+          Schema: app,
+          Name: order_id,
+          Kind: Modify,
+          Options: {
+            Old: {
+              StartWith: 1,
+              IncrementBy: 1,
+              Cycle: false
+            },
+            New: {
+              StartWith: 1000,
+              IncrementBy: 10,
+              Cycle: true
+            }
+          }
+        },
+        {
+          Schema: app,
+          Name: stale_seq,
+          Kind: Remove
+        }
       ]
     },
     {

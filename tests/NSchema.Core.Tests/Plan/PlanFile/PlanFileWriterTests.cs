@@ -1,6 +1,7 @@
 using System.Text;
 using NSchema.Plan.Model;
 using NSchema.Plan.PlanFile;
+using NSchema.Schema.Model;
 using NSchema.Scripts.Model;
 using NSchema.Sql.Model;
 using NSchema.Tests.Helpers;
@@ -22,9 +23,19 @@ public sealed class PlanFileWriterTests
         var plan = new MigrationPlan(
             [
                 new CreateSchema("app"),
+                new CreateEnum("app", new EnumType("status", ["pending", "shipped"])),
+                new RenameEnum("app", "importance", "priority"),
+                new AddEnumValue("app", "priority", "medium", After: "low"),
+                new SetEnumComment("app", "priority", null, "ranking"),
+                new CreateSequence("app", new Sequence("order_id", new SequenceOptions(StartWith: 100, IncrementBy: 5, Cycle: true))),
+                new RenameSequence("app", "bill_id", "invoice_id"),
+                new AlterSequence("app", "order_id", new SequenceOptions(StartWith: 100), new SequenceOptions(StartWith: 1000)),
+                new SetSequenceComment("app", "order_id", null, "order numbers"),
                 new CreateTable("app", table),
                 new AddColumn("app", "users", table.Columns[1]),
                 new DropTable("app", "legacy"),
+                new DropEnum("app", "stale_enum"),
+                new DropSequence("app", "stale_seq"),
             ],
             [new Script("seed", "INSERT INTO app.config VALUES (1)", ScriptType.PreDeployment)],
             [new Script("reindex", "REINDEX TABLE app.users", ScriptType.PostDeployment) { RunOutsideTransaction = true }]);
@@ -66,7 +77,13 @@ public sealed class PlanFileWriterTests
 
         // The discriminator must reconstruct each concrete record, not the abstract base, and keep order.
         roundTripped.Plan.Actions.Select(a => a.GetType()).ShouldBe(
-            [typeof(CreateSchema), typeof(CreateTable), typeof(AddColumn), typeof(DropTable)]);
+            [
+                typeof(CreateSchema),
+                typeof(CreateEnum), typeof(RenameEnum), typeof(AddEnumValue), typeof(SetEnumComment),
+                typeof(CreateSequence), typeof(RenameSequence), typeof(AlterSequence), typeof(SetSequenceComment),
+                typeof(CreateTable), typeof(AddColumn), typeof(DropTable),
+                typeof(DropEnum), typeof(DropSequence),
+            ]);
     }
 
     [Fact]

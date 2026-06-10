@@ -169,7 +169,7 @@ public sealed class DslParserTests
 
     [Fact]
     public void Parse_UnknownAfterCreate_Throws()
-        => Should.Throw<DslSyntaxException>(() => Parse("CREATE THING app;")).Message.ShouldContain("Expected SCHEMA, TABLE or VIEW");
+        => Should.Throw<DslSyntaxException>(() => Parse("CREATE THING app;")).Message.ShouldContain("Expected SCHEMA, TABLE, VIEW, ENUM or SEQUENCE");
 
     [Fact]
     public void Parse_PartialTable_Throws()
@@ -237,4 +237,129 @@ public sealed class DslParserTests
         var schema = ParseSingleSchema("CREATE SCHEMA app; CREATE VIEW app.v AS SELECT ';' AS marker FROM app.t;");
         schema.Views.ShouldHaveSingleItem().Body.ShouldBe("SELECT ';' AS marker FROM app.t");
     }
+
+    // -------------------------------------------------------------------------
+    // Enums
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Parse_CreateEnum_CapturesOrderedValues()
+    {
+        var schema = ParseSingleSchema("CREATE SCHEMA app; CREATE ENUM app.status ('pending', 'shipped', 'delivered');");
+        var enumType = schema.Enums.ShouldHaveSingleItem();
+        enumType.Name.ShouldBe("status");
+        enumType.Values.ShouldBe(["pending", "shipped", "delivered"]);
+    }
+
+    [Fact]
+    public void Parse_CreateEnum_WithEmptyValueList_IsAllowed()
+        => ParseSingleSchema("CREATE SCHEMA app; CREATE ENUM app.status ();")
+            .Enums.ShouldHaveSingleItem().Values.ShouldBeEmpty();
+
+    [Fact]
+    public void Parse_CreateEnum_UnescapesQuotedQuote()
+        => ParseSingleSchema("CREATE SCHEMA app; CREATE ENUM app.status ('it''s');")
+            .Enums.ShouldHaveSingleItem().Values.ShouldBe(["it's"]);
+
+    [Fact]
+    public void Parse_CreateEnum_RenamedFrom_SetsOldName()
+        => ParseSingleSchema("CREATE SCHEMA app; CREATE ENUM app.status RENAMED FROM state ('a');")
+            .Enums.ShouldHaveSingleItem().OldName.ShouldBe("state");
+
+    [Fact]
+    public void Parse_CreateEnum_WithDocComment_AttachesComment()
+        => ParseSingleSchema("CREATE SCHEMA app;\n--- order lifecycle\nCREATE ENUM app.status ('a');")
+            .Enums.ShouldHaveSingleItem().Comment.ShouldBe("order lifecycle");
+
+    [Fact]
+    public void Parse_DropEnum_RecordsDroppedEnum()
+        => ParseSingleSchema("CREATE SCHEMA app; DROP ENUM app.stale;")
+            .DroppedEnums.ShouldHaveSingleItem().ShouldBe("stale");
+
+    [Fact]
+    public void Parse_DuplicateEnum_Throws()
+        => Should.Throw<DslSyntaxException>(() =>
+            Parse("CREATE SCHEMA app; CREATE ENUM app.e ('a'); CREATE ENUM app.e ('b');"))
+            .Message.ShouldContain("already declared");
+
+    [Fact]
+    public void Parse_DuplicateEnumValue_Throws()
+        => Should.Throw<DslSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE ENUM app.e ('a', 'a');"))
+            .Message.ShouldContain("more than once");
+
+    [Fact]
+    public void Parse_EnumValueMustBeQuoted_Throws()
+        => Should.Throw<DslSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE ENUM app.e (pending);"))
+            .Message.ShouldContain("an enum value");
+
+    [Fact]
+    public void Parse_PartialEnum_Throws()
+        => Should.Throw<DslSyntaxException>(() => Parse("CREATE PARTIAL ENUM app.e ('a');"))
+            .Message.ShouldContain("PARTIAL applies to SCHEMA");
+
+    // -------------------------------------------------------------------------
+    // Sequences
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Parse_CreateSequence_WithoutOptions_HasEmptyOptions()
+    {
+        var schema = ParseSingleSchema("CREATE SCHEMA app; CREATE SEQUENCE app.order_id;");
+        var sequence = schema.Sequences.ShouldHaveSingleItem();
+        sequence.Name.ShouldBe("order_id");
+        sequence.Options.ShouldBe(new SequenceOptions());
+    }
+
+    [Fact]
+    public void Parse_CreateSequence_WithEveryOption_CapturesThemAll()
+    {
+        var schema = ParseSingleSchema(
+            "CREATE SCHEMA app; CREATE SEQUENCE app.order_id (AS bigint, START 100, INCREMENT 5, MINVALUE 1, MAXVALUE 999999, CACHE 10, CYCLE);");
+        schema.Sequences.ShouldHaveSingleItem().Options.ShouldBe(
+            new SequenceOptions(SqlType.BigInt, StartWith: 100, IncrementBy: 5, MinValue: 1, MaxValue: 999999, Cache: 10, Cycle: true));
+    }
+
+    [Fact]
+    public void Parse_CreateSequence_WithNegativeValues_ParsesSign()
+    {
+        var schema = ParseSingleSchema("CREATE SCHEMA app; CREATE SEQUENCE app.countdown (START -1, INCREMENT -1, MINVALUE -100);");
+        schema.Sequences.ShouldHaveSingleItem().Options.ShouldBe(
+            new SequenceOptions(StartWith: -1, IncrementBy: -1, MinValue: -100));
+    }
+
+    [Fact]
+    public void Parse_CreateSequence_RenamedFrom_SetsOldName()
+        => ParseSingleSchema("CREATE SCHEMA app; CREATE SEQUENCE app.invoice_id RENAMED FROM bill_id;")
+            .Sequences.ShouldHaveSingleItem().OldName.ShouldBe("bill_id");
+
+    [Fact]
+    public void Parse_CreateSequence_WithDocComment_AttachesComment()
+        => ParseSingleSchema("CREATE SCHEMA app;\n--- order numbers\nCREATE SEQUENCE app.order_id;")
+            .Sequences.ShouldHaveSingleItem().Comment.ShouldBe("order numbers");
+
+    [Fact]
+    public void Parse_DropSequence_RecordsDroppedSequence()
+        => ParseSingleSchema("CREATE SCHEMA app; DROP SEQUENCE app.stale;")
+            .DroppedSequences.ShouldHaveSingleItem().ShouldBe("stale");
+
+    [Fact]
+    public void Parse_DuplicateSequence_Throws()
+        => Should.Throw<DslSyntaxException>(() =>
+            Parse("CREATE SCHEMA app; CREATE SEQUENCE app.q; CREATE SEQUENCE app.q;"))
+            .Message.ShouldContain("already declared");
+
+    [Fact]
+    public void Parse_UnknownSequenceOption_Throws()
+        => Should.Throw<DslSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE SEQUENCE app.q (WIBBLE 1);"))
+            .Message.ShouldContain("Unknown sequence option 'WIBBLE'");
+
+    [Fact]
+    public void Parse_DuplicateSequenceOption_Throws()
+        => Should.Throw<DslSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE SEQUENCE app.q (START 1, START 2);"))
+            .Message.ShouldContain("more than once");
+
+    [Fact]
+    public void Parse_PartialSequence_Throws()
+        => Should.Throw<DslSyntaxException>(() => Parse("CREATE PARTIAL SEQUENCE app.q;"))
+            .Message.ShouldContain("PARTIAL applies to SCHEMA");
 }

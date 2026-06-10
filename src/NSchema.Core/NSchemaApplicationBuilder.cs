@@ -75,6 +75,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         AddSchemaPolicy<StructuralIntegritySchemaPolicy>();
         AddSchemaPolicy<SchemaLintPolicy>();
         AddDiffPolicy<DestructiveActionDiffPolicy>();
+        AddDiffPolicy<EnumValueRemovalDiffPolicy>();
     }
 
     /// <inheritdoc />
