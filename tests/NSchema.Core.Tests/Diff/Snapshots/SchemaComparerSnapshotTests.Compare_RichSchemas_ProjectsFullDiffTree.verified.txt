@@ -219,6 +219,62 @@
           Name: stale_seq,
           Kind: Remove
         }
+      ],
+      Functions: [
+        {
+          Schema: app,
+          Name: add_tax,
+          Kind: Modify,
+          Definition: {
+            Name: add_tax,
+            Arguments: amount numeric,
+            Definition: RETURNS numeric AS $$ SELECT amount * 1.2 $$
+          },
+          RequiresRecreate: false
+        },
+        {
+          Schema: app,
+          Name: brand_new,
+          Definition: {
+            Name: brand_new,
+            Arguments: ,
+            Definition: RETURNS int AS $$ SELECT 42 $$
+          },
+          RequiresRecreate: false
+        },
+        {
+          Schema: app,
+          Name: score,
+          Kind: Modify,
+          Definition: {
+            Name: score,
+            Arguments: user_id bigint, weight numeric,
+            Definition: RETURNS numeric AS $$ SELECT 1 $$
+          },
+          Arguments: {
+            Old: user_id bigint,
+            New: user_id bigint, weight numeric
+          },
+          RequiresRecreate: true
+        },
+        {
+          Schema: app,
+          Name: stale_fn,
+          Kind: Remove,
+          RequiresRecreate: false
+        }
+      ],
+      Procedures: [
+        {
+          Schema: app,
+          Name: archive,
+          Definition: {
+            Name: archive,
+            Arguments: before date,
+            Definition: LANGUAGE sql AS $$ DELETE $$
+          },
+          RequiresRecreate: false
+        }
       ]
     },
     {

@@ -221,4 +221,45 @@ public sealed class DdlSchemaWriterTests
         ddl.ShouldContain("DROP ENUM app.stale_enum;");
         ddl.ShouldContain("DROP SEQUENCE app.stale_seq;");
     }
+
+    // -------------------------------------------------------------------------
+    // Functions and procedures
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Write_Function_EmitsArgumentsAndDefinitionVerbatim()
+        => DdlSchemaWriter.Write(new DatabaseSchema([
+            new SchemaDefinition("app", Functions:
+                [new Function("add_tax", "amount numeric", "RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$")]),
+        ])).ShouldContain("CREATE FUNCTION app.add_tax(amount numeric) RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$;");
+
+    [Fact]
+    public void Write_Function_MultiLineDefinition_KeepsNewlines()
+        => DdlSchemaWriter.Write(new DatabaseSchema([
+            new SchemaDefinition("app", Functions:
+                [new Function("f", "", "RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$")]),
+        ])).ShouldContain("CREATE FUNCTION app.f() RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$;");
+
+    [Fact]
+    public void Write_Function_TrailingWhitespaceInDefinition_IsTrimmed()
+        // A code-built definition ending in whitespace must not push the ';' onto dangling whitespace.
+        => DdlSchemaWriter.Write(new DatabaseSchema([
+            new SchemaDefinition("app", Functions: [new Function("f", "", "RETURNS int AS $$ SELECT 1 $$  \n")]),
+        ])).ShouldContain("AS $$ SELECT 1 $$;");
+
+    [Fact]
+    public void Write_Procedure_IsEmitted()
+        => DdlSchemaWriter.Write(new DatabaseSchema([
+            new SchemaDefinition("app", Procedures: [new Procedure("archive", "before date", "LANGUAGE sql AS $$ DELETE $$")]),
+        ])).ShouldContain("CREATE PROCEDURE app.archive(before date) LANGUAGE sql AS $$ DELETE $$;");
+
+    [Fact]
+    public void Write_FunctionAndProcedureDrops_AreEmitted()
+    {
+        var ddl = DdlSchemaWriter.Write(new DatabaseSchema([
+            new SchemaDefinition("app", DroppedFunctions: ["stale_fn"], DroppedProcedures: ["stale_proc"]),
+        ]));
+        ddl.ShouldContain("DROP FUNCTION app.stale_fn;");
+        ddl.ShouldContain("DROP PROCEDURE app.stale_proc;");
+    }
 }

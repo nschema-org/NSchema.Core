@@ -18,6 +18,10 @@ namespace NSchema.Schema.Model;
 /// <param name="DroppedEnums">A list of enum types that have been dropped from the schema.</param>
 /// <param name="Sequences">A list of sequences that are part of the schema.</param>
 /// <param name="DroppedSequences">A list of sequences that have been dropped from the schema.</param>
+/// <param name="Functions">A list of functions that are part of the schema.</param>
+/// <param name="DroppedFunctions">A list of functions that have been dropped from the schema.</param>
+/// <param name="Procedures">A list of procedures that are part of the schema.</param>
+/// <param name="DroppedProcedures">A list of procedures that have been dropped from the schema.</param>
 [DebuggerDisplay("{Name,nq} ({Tables.Count} tables)")]
 public record SchemaDefinition(
     string Name,
@@ -32,7 +36,11 @@ public record SchemaDefinition(
     IReadOnlyList<EnumType>? Enums = null,
     IReadOnlyList<string>? DroppedEnums = null,
     IReadOnlyList<Sequence>? Sequences = null,
-    IReadOnlyList<string>? DroppedSequences = null
+    IReadOnlyList<string>? DroppedSequences = null,
+    IReadOnlyList<Function>? Functions = null,
+    IReadOnlyList<string>? DroppedFunctions = null,
+    IReadOnlyList<Procedure>? Procedures = null,
+    IReadOnlyList<string>? DroppedProcedures = null
 )
 {
     /// <summary>
@@ -74,6 +82,26 @@ public record SchemaDefinition(
     /// A list of sequences that have been dropped from the schema.
     /// </summary>
     public IReadOnlyList<string> DroppedSequences { get; init; } = DroppedSequences ?? [];
+
+    /// <summary>
+    /// A list of functions that are part of the schema.
+    /// </summary>
+    public IReadOnlyList<Function> Functions { get; init; } = Functions ?? [];
+
+    /// <summary>
+    /// A list of functions that have been dropped from the schema.
+    /// </summary>
+    public IReadOnlyList<string> DroppedFunctions { get; init; } = DroppedFunctions ?? [];
+
+    /// <summary>
+    /// A list of procedures that are part of the schema.
+    /// </summary>
+    public IReadOnlyList<Procedure> Procedures { get; init; } = Procedures ?? [];
+
+    /// <summary>
+    /// A list of procedures that have been dropped from the schema.
+    /// </summary>
+    public IReadOnlyList<string> DroppedProcedures { get; init; } = DroppedProcedures ?? [];
 
     /// <summary>
     /// A list of grants that define the permissions associated with the schema.

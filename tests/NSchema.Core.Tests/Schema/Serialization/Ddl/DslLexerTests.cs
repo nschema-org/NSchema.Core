@@ -193,6 +193,42 @@ public sealed class DslLexerTests
     // Balanced expression capture
     // -------------------------------------------------------------------------
 
+    // -------------------------------------------------------------------------
+    // ReadStatementBody — dollar-quoted strings (routine definitions)
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void ReadStatementBody_DollarQuote_SwallowsInternalSemicolons()
+        => new DslLexer("RETURNS int AS $$ SELECT 1; $$;").ReadStatementBody()
+            .ShouldBe("RETURNS int AS $$ SELECT 1; $$");
+
+    [Fact]
+    public void ReadStatementBody_TaggedDollarQuote_MatchesOnlyItsOwnTag()
+        // The inner $$ is just content; only the opening $body$ tag closes the string.
+        => new DslLexer("AS $body$ SELECT '$$'; $$ ; $body$;").ReadStatementBody()
+            .ShouldBe("AS $body$ SELECT '$$'; $$ ; $body$");
+
+    [Fact]
+    public void ReadStatementBody_DollarQuote_ContainingQuotesAndComments()
+        => new DslLexer("AS $$ -- don't stop; here\n SELECT 'a;b'; $$;").ReadStatementBody()
+            .ShouldBe("AS $$ -- don't stop; here\n SELECT 'a;b'; $$");
+
+    [Fact]
+    public void ReadStatementBody_DollarSignThatIsNotATag_IsOrdinaryText()
+        // $1 is a parameter reference, not a dollar-quote tag; the body still ends at the top-level ';'.
+        => new DslLexer("AS RETURN $1 + 1;").ReadStatementBody()
+            .ShouldBe("AS RETURN $1 + 1");
+
+    [Fact]
+    public void ReadStatementBody_NestedDifferentTags_OuterWins()
+        => new DslLexer("AS $outer$ a $inner$ b; $inner$ c $outer$;").ReadStatementBody()
+            .ShouldBe("AS $outer$ a $inner$ b; $inner$ c $outer$");
+
+    [Fact]
+    public void ReadStatementBody_UnterminatedDollarQuote_Throws()
+        => Should.Throw<DslSyntaxException>(() => new DslLexer("AS $$ SELECT 1;").ReadStatementBody())
+            .Message.ShouldContain("Unterminated dollar-quoted string");
+
     [Fact]
     public void ReadParenthesizedExpression_ReturnsInnerTextTrimmed()
         => new DslLexer("(  age >= 0  )").ReadParenthesizedExpression().ShouldBe("age >= 0");

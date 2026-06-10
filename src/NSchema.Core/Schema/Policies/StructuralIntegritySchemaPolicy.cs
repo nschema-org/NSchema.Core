@@ -28,9 +28,34 @@ public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
             {
                 ValidateTable(definition, table, managedSchemas, partialSchemas, tablesByKey, diagnostics);
             }
+
+            ValidateRoutineNames(definition, diagnostics);
         }
 
         return diagnostics;
+    }
+
+    // Functions and procedures share one name space, as they do in the database. The DSL parser and document
+    // aggregation enforce this for parsed schemas; this is the catch-all for JSON-sourced and code-built ones.
+    private static void ValidateRoutineNames(SchemaDefinition definition, List<PolicyDiagnostic> diagnostics)
+    {
+        foreach (var duplicate in Duplicates(definition.Functions.Select(f => f.Name)))
+        {
+            diagnostics.Add(Error($"Schema '{definition.Name}' declares function '{duplicate}' more than once."));
+        }
+
+        foreach (var duplicate in Duplicates(definition.Procedures.Select(p => p.Name)))
+        {
+            diagnostics.Add(Error($"Schema '{definition.Name}' declares procedure '{duplicate}' more than once."));
+        }
+
+        var functionNames = new HashSet<string>(definition.Functions.Select(f => f.Name), StringComparer.OrdinalIgnoreCase);
+        foreach (var collision in definition.Procedures.Where(p => functionNames.Contains(p.Name)))
+        {
+            diagnostics.Add(Error(
+                $"Schema '{definition.Name}' declares both a function and a procedure named '{collision.Name}'; " +
+                "functions and procedures share a single name space."));
+        }
     }
 
     private static void ValidateTable(

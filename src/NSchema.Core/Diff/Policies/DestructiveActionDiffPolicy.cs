@@ -107,6 +107,18 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
             {
                 yield return nameof(DropSequence);
             }
+
+            // Only whole-routine removals are destructive. A signature-change recreate is a declared edit — the
+            // database blocks the underlying drop loudly if dependent objects exist — so it is not flagged.
+            foreach (var function in schema.Functions.Where(f => f.Kind == ChangeKind.Remove))
+            {
+                yield return nameof(DropFunction);
+            }
+
+            foreach (var procedure in schema.Procedures.Where(p => p.Kind == ChangeKind.Remove))
+            {
+                yield return nameof(DropProcedure);
+            }
         }
     }
 }

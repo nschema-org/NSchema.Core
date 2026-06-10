@@ -64,6 +64,21 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
             }
             sb.AppendLine(CommentSuffix(sequence.Comment));
         }
+
+        // Routines render as name + arguments only; the definition is opaque and arbitrarily long.
+        foreach (var function in schema.Functions)
+        {
+            sb.Append(Indent).Append("function ").Append(function.Name)
+                .Append('(').Append(function.Arguments).Append(')')
+                .AppendLine(CommentSuffix(function.Comment));
+        }
+
+        foreach (var procedure in schema.Procedures)
+        {
+            sb.Append(Indent).Append("procedure ").Append(procedure.Name)
+                .Append('(').Append(procedure.Arguments).Append(')')
+                .AppendLine(CommentSuffix(procedure.Comment));
+        }
     }
 
     private static string? FormatSequenceOptions(SequenceOptions options)

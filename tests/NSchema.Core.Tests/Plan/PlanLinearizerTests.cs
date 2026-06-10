@@ -27,9 +27,12 @@ public sealed class PlanLinearizerTests
         IReadOnlyList<TableDiff>? tables = null,
         IReadOnlyList<ViewDiff>? views = null,
         IReadOnlyList<EnumDiff>? enums = null,
-        IReadOnlyList<SequenceDiff>? sequences = null
+        IReadOnlyList<SequenceDiff>? sequences = null,
+        IReadOnlyList<FunctionDiff>? functions = null,
+        IReadOnlyList<ProcedureDiff>? procedures = null
     )
-        => new(name, kind, renamedFrom, comment, grants ?? [], tables ?? [], views ?? [], enums ?? [], sequences ?? []);
+        => new(name, kind, renamedFrom, comment, grants ?? [], tables ?? [], views ?? [], enums ?? [], sequences ?? [],
+            functions ?? [], procedures ?? []);
 
     private static TableDiff TableNode(
         string name,
@@ -821,5 +824,127 @@ public sealed class PlanLinearizerTests
             enums: [new EnumDiff("app", "status", ChangeKind.Modify, RenamedFrom: "state")]));
 
         IndexOf<RenameEnum>(plan).ShouldBeLessThan(IndexOf<CreateTable>(plan));
+    }
+
+    // -------------------------------------------------------------------------
+    // Functions and procedures
+    // -------------------------------------------------------------------------
+
+    private static readonly Function Fn = new("f", "a int", "RETURNS int LANGUAGE sql AS $$ SELECT 1; $$");
+    private static readonly Procedure Proc = new("p", "", "LANGUAGE sql AS $$ DELETE FROM app.t; $$");
+
+    [Fact]
+    public void Linearize_AddFunction_EmitsCreateFunctionFromDefinition()
+        => Linearize(SchemaNode("app", functions: [new FunctionDiff("app", "f", ChangeKind.Add, Definition: Fn)]))
+            .ShouldHaveSingleItem().ShouldBeOfType<CreateFunction>().Function.Arguments.ShouldBe("a int");
+
+    [Fact]
+    public void Linearize_RemoveFunction_EmitsDropFunction()
+        => Linearize(SchemaNode("app", functions: [new FunctionDiff("app", "f", ChangeKind.Remove)]))
+            .ShouldHaveSingleItem().ShouldBeOfType<DropFunction>().FunctionName.ShouldBe("f");
+
+    [Fact]
+    public void Linearize_FunctionBodyChange_EmitsCreateFunction_NotRecreate()
+    {
+        // A definition-only change replaces in place (CREATE OR REPLACE semantics, like a view body change).
+        var plan = Linearize(SchemaNode("app", functions:
+            [new FunctionDiff("app", "f", ChangeKind.Modify, Definition: Fn)]));
+
+        plan.ShouldHaveSingleItem().ShouldBeOfType<CreateFunction>();
+        plan.OfType<RecreateFunction>().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Linearize_FunctionSignatureChange_EmitsRecreateFunction()
+        => Linearize(SchemaNode("app", functions:
+            [new FunctionDiff("app", "f", ChangeKind.Modify, Definition: Fn,
+                Arguments: new ValueChange<string>("a int", "a int, b text"))]))
+            .ShouldHaveSingleItem().ShouldBeOfType<RecreateFunction>();
+
+    [Fact]
+    public void Linearize_RenamedFunction_EmitsRenameFunction()
+        => Linearize(SchemaNode("app", functions:
+            [new FunctionDiff("app", "f", ChangeKind.Modify, RenamedFrom: "old_f")]))
+            .ShouldHaveSingleItem().ShouldBeOfType<RenameFunction>()
+            .ShouldSatisfyAllConditions(r => r.OldName.ShouldBe("old_f"), r => r.NewName.ShouldBe("f"));
+
+    [Fact]
+    public void Linearize_RenameWithSignatureChange_RenamesBeforeRecreating()
+    {
+        // The recreate targets the final name, so the rename must land first.
+        var plan = Linearize(SchemaNode("app", functions:
+            [new FunctionDiff("app", "f", ChangeKind.Modify, RenamedFrom: "old_f", Definition: Fn,
+                Arguments: new ValueChange<string>("a int", "a int, b text"))]));
+
+        IndexOf<RenameFunction>(plan).ShouldBeLessThan(IndexOf<RecreateFunction>(plan));
+    }
+
+    [Fact]
+    public void Linearize_FunctionComment_EmitsSetFunctionComment()
+        => Linearize(SchemaNode("app", functions:
+            [new FunctionDiff("app", "f", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new"))]))
+            .ShouldHaveSingleItem().ShouldBeOfType<SetFunctionComment>()
+            .ShouldSatisfyAllConditions(c => c.OldComment.ShouldBe("old"), c => c.NewComment.ShouldBe("new"));
+
+    [Fact]
+    public void Linearize_ProcedureLifecycle_EmitsProcedureActions()
+    {
+        var plan = Linearize(SchemaNode("app", procedures:
+        [
+            new ProcedureDiff("app", "p", ChangeKind.Add, Definition: Proc),
+            new ProcedureDiff("app", "q", ChangeKind.Modify, RenamedFrom: "old_q",
+                Definition: Proc, Arguments: new ValueChange<string>("", "before date")),
+            new ProcedureDiff("app", "stale", ChangeKind.Remove),
+        ]));
+
+        plan.OfType<CreateProcedure>().ShouldHaveSingleItem();
+        plan.OfType<RenameProcedure>().ShouldHaveSingleItem();
+        plan.OfType<RecreateProcedure>().ShouldHaveSingleItem();
+        plan.OfType<DropProcedure>().ShouldHaveSingleItem().ProcedureName.ShouldBe("stale");
+    }
+
+    [Fact]
+    public void Linearize_OrdersRoutineCreatesBeforeCreateTable_AndAfterEnums()
+    {
+        // Column DEFAULTs and CHECKs may call routines, and routine args may use enum types.
+        var plan = Linearize(SchemaNode("app", ChangeKind.Add,
+            tables: [TableNode("users", ChangeKind.Add, definition: new Table("users"))],
+            enums: [new EnumDiff("app", "status", ChangeKind.Add, Definition: new EnumType("status", ["a"]))],
+            functions: [new FunctionDiff("app", "f", ChangeKind.Add, Definition: Fn)],
+            procedures: [new ProcedureDiff("app", "p", ChangeKind.Add, Definition: Proc)]));
+
+        IndexOf<CreateEnum>(plan).ShouldBeLessThan(IndexOf<CreateFunction>(plan));
+        IndexOf<CreateFunction>(plan).ShouldBeLessThan(IndexOf<CreateTable>(plan));
+        IndexOf<CreateProcedure>(plan).ShouldBeLessThan(IndexOf<CreateTable>(plan));
+    }
+
+    [Fact]
+    public void Linearize_OrdersRoutineDropsAfterDropTable_BeforeDropEnum()
+    {
+        var plan = Linearize(SchemaNode("app",
+            tables: [TableNode("users", ChangeKind.Remove)],
+            enums: [new EnumDiff("app", "status", ChangeKind.Remove)],
+            functions: [new FunctionDiff("app", "f", ChangeKind.Remove)],
+            procedures: [new ProcedureDiff("app", "p", ChangeKind.Remove)]));
+
+        IndexOf<DropTable>(plan).ShouldBeLessThan(IndexOf<DropFunction>(plan));
+        IndexOf<DropTable>(plan).ShouldBeLessThan(IndexOf<DropProcedure>(plan));
+        IndexOf<DropFunction>(plan).ShouldBeLessThan(IndexOf<DropEnum>(plan));
+    }
+
+    [Fact]
+    public void Linearize_OrdersViewsAroundFunctions()
+    {
+        // A view may call a function: views are created after functions and dropped before them.
+        var plan = Linearize(SchemaNode("app",
+            views: [AddView("v"), RemoveView("stale_v")],
+            functions:
+            [
+                new FunctionDiff("app", "f", ChangeKind.Add, Definition: Fn),
+                new FunctionDiff("app", "stale_f", ChangeKind.Remove),
+            ]));
+
+        IndexOf<CreateFunction>(plan).ShouldBeLessThan(IndexOfCreateView(plan, "v"));
+        IndexOfDropView(plan, "stale_v").ShouldBeLessThan(IndexOf<DropFunction>(plan));
     }
 }

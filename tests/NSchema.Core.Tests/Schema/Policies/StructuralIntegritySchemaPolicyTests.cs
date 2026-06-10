@@ -210,4 +210,41 @@ public sealed class StructuralIntegritySchemaPolicyTests
         // Assert
         diagnostics.ShouldContain(d => d.Message.Contains("not the primary key or a unique index"));
     }
+
+    [Fact]
+    public void Error_WhenFunctionAndProcedureShareAName()
+    {
+        // Arrange — the parser and aggregation enforce this for parsed schemas; the policy is the catch-all
+        // for JSON-sourced and code-built schemas.
+        var schema = new DatabaseSchema([
+            new SchemaDefinition("public",
+                Functions: [new Function("r", "", "RETURNS int AS $$ SELECT 1 $$")],
+                Procedures: [new Procedure("r", "", "AS $$ SELECT 1 $$")]),
+        ]);
+
+        // Act
+        var diagnostics = _sut.Validate(schema).ToList();
+
+        // Assert
+        diagnostics.ShouldContain(d => d.Message.Contains("share a single name space"));
+    }
+
+    [Fact]
+    public void Error_WhenFunctionDeclaredTwice()
+    {
+        // Arrange
+        var schema = new DatabaseSchema([
+            new SchemaDefinition("public", Functions:
+            [
+                new Function("f", "", "RETURNS int AS $$ SELECT 1 $$"),
+                new Function("f", "a int", "RETURNS int AS $$ SELECT 2 $$"),
+            ]),
+        ]);
+
+        // Act
+        var diagnostics = _sut.Validate(schema).ToList();
+
+        // Assert — overloading is not supported: one routine per name.
+        diagnostics.ShouldContain(d => d.Message.Contains("declares function 'f' more than once"));
+    }
 }

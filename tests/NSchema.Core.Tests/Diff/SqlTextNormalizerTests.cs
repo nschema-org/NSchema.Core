@@ -2,7 +2,7 @@ using NSchema.Diff;
 
 namespace NSchema.Tests.Diff;
 
-public sealed class ViewBodyNormalizerTests
+public sealed class SqlTextNormalizerTests
 {
     [Theory]
     [InlineData("SELECT id FROM app.users", "SELECT  id   FROM\tapp.users")]            // collapsed whitespace
@@ -12,7 +12,7 @@ public sealed class ViewBodyNormalizerTests
     [InlineData("SELECT * FROM app.users", "SELECT * FROM app.users ;")]                 // terminator after space
     [InlineData("SELECT 'a  b' AS l", "SELECT  'a  b'  AS  l")]                          // literal kept, gaps collapsed
     public void AreEquivalent_CosmeticDifferences_AreEqual(string current, string desired)
-        => ViewBodyNormalizer.AreEquivalent(current, desired).ShouldBeTrue();
+        => SqlTextNormalizer.AreEquivalent(current, desired).ShouldBeTrue();
 
     [Theory]
     [InlineData("SELECT 'a  b'", "SELECT 'a b'")]                                        // whitespace inside literal
@@ -21,9 +21,9 @@ public sealed class ViewBodyNormalizerTests
     [InlineData("SELECT id FROM app.users", "SELECT id FROM app.members")]               // genuinely different
     [InlineData("SELECT a;b", "SELECT a")]                                               // interior ';' is significant
     public void AreEquivalent_SignificantDifferences_AreNotEqual(string current, string desired)
-        => ViewBodyNormalizer.AreEquivalent(current, desired).ShouldBeFalse();
+        => SqlTextNormalizer.AreEquivalent(current, desired).ShouldBeFalse();
 
     [Fact]
     public void AreEquivalent_IsReflexive_ForBodyWithEmbeddedQuotesAndSemicolon()
-        => ViewBodyNormalizer.AreEquivalent("SELECT 'a;b', \"Col\" FROM app.t", "SELECT 'a;b',  \"Col\"  FROM app.t").ShouldBeTrue();
+        => SqlTextNormalizer.AreEquivalent("SELECT 'a;b', \"Col\" FROM app.t", "SELECT 'a;b',  \"Col\"  FROM app.t").ShouldBeTrue();
 }

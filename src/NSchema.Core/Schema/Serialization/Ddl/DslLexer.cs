@@ -207,10 +207,13 @@ internal sealed class DslLexer(string source)
     }
 
     /// <summary>
-    /// Captures the verbatim body of a statement (a view's defining query) as raw text up to, but not consuming, the terminating top-level <c>;</c>.
-    ///
+    /// Captures the verbatim body of a statement (a view's defining query or a routine's definition) as raw
+    /// text up to, but not consuming, the terminating top-level <c>;</c>. Single-quoted strings, comments and
+    /// dollar-quoted strings (<c>$$…$$</c> / <c>$tag$…$tag$</c>) are consumed verbatim, so a <c>;</c> inside
+    /// them does not end the statement.
     /// </summary>
-    public string ReadStatementBody()
+    /// <param name="what">What the body is, for the empty-body error (e.g. "a view body").</param>
+    public string ReadStatementBody(string what = "a view body")
     {
         SkipInlineWhitespace();
         var pos = Position;
@@ -222,6 +225,11 @@ internal sealed class DslLexer(string source)
             if (c == '\'')
             {
                 ConsumeStringLiteral(pos);
+                continue;
+            }
+
+            if (c == '$' && TryConsumeDollarQuote(pos))
+            {
                 continue;
             }
 
@@ -270,9 +278,57 @@ internal sealed class DslLexer(string source)
         var text = _source[start.._offset].Trim();
         if (text.Length == 0)
         {
-            throw new DslSyntaxException("Expected a view body", pos);
+            throw new DslSyntaxException($"Expected {what}", pos);
         }
         return text;
+    }
+
+    /// <summary>
+    /// Consumes a dollar-quoted string (<c>$$…$$</c> or <c>$tag$…$tag$</c>, Postgres tag rules: empty, or an
+    /// identifier) starting at the current <c>$</c>, including its closing tag. Returns <see langword="false"/>
+    /// without consuming anything when the <c>$</c> does not open a valid tag (e.g. <c>$1</c> or a lone
+    /// <c>$</c>) — the caller treats it as ordinary text. A differently-tagged quote inside is just content;
+    /// only the opening tag closes the string.
+    /// </summary>
+    private bool TryConsumeDollarQuote(SourcePosition statementStart)
+    {
+        var i = 1;
+        if (IsIdentifierStart(Peek(1)))
+        {
+            i++;
+            while (IsIdentifierPart(Peek(i)))
+            {
+                i++;
+            }
+        }
+
+        if (Peek(i) != '$')
+        {
+            return false;
+        }
+
+        var tag = _source.Substring(_offset, i + 1);
+        for (var j = 0; j < tag.Length; j++)
+        {
+            Advance();
+        }
+
+        while (!AtEnd)
+        {
+            if (Current == '$' && _offset + tag.Length <= _source.Length
+                && string.CompareOrdinal(_source, _offset, tag, 0, tag.Length) == 0)
+            {
+                for (var j = 0; j < tag.Length; j++)
+                {
+                    Advance();
+                }
+                return true;
+            }
+
+            Advance();
+        }
+
+        throw new DslSyntaxException("Unterminated dollar-quoted string", statementStart);
     }
 
     /// <summary>

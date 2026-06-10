@@ -3,8 +3,9 @@ using System.Text;
 namespace NSchema.Diff;
 
 /// <summary>
-/// Decides whether two view definitions are <em>equivalent</em> for diffing, so the cosmetic differences a
-/// database introduces when it stores and re-emits a view do not surface as phantom drift.
+/// Decides whether two pieces of opaque SQL text — view bodies, routine argument lists and routine
+/// definitions are <em>equivalent</em> for diffing, so the cosmetic differences a database introduces when
+/// it stores and re-emits a definition do not surface as phantom drift.
 /// </summary>
 /// <remarks>
 /// This handles only <strong>cosmetic</strong> differences — insignificant whitespace and a trailing
@@ -18,9 +19,9 @@ namespace NSchema.Diff;
 /// canonicalize the definition and are reconciled provider-side (by storing/importing the DB-reported form).
 /// </para>
 /// </remarks>
-internal static class ViewBodyNormalizer
+internal static class SqlTextNormalizer
 {
-    /// <summary>Returns <c>true</c> when two view bodies differ only cosmetically.</summary>
+    /// <summary>Returns <c>true</c> when two pieces of SQL text differ only cosmetically.</summary>
     public static bool AreEquivalent(string current, string desired) =>
         string.Equals(Normalize(current), Normalize(desired), StringComparison.Ordinal);
 
