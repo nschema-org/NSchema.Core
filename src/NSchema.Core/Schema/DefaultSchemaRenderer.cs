@@ -47,6 +47,64 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
         {
             RenderView(sb, view);
         }
+
+        foreach (var enumType in schema.Enums)
+        {
+            sb.Append(Indent).Append("enum ").Append(enumType.Name)
+                .Append(" (").Append(string.Join(", ", enumType.Values)).Append(')')
+                .AppendLine(CommentSuffix(enumType.Comment));
+        }
+
+        foreach (var sequence in schema.Sequences)
+        {
+            sb.Append(Indent).Append("sequence ").Append(sequence.Name);
+            if (FormatSequenceOptions(sequence.Options) is { } options)
+            {
+                sb.Append(" (").Append(options).Append(')');
+            }
+            sb.AppendLine(CommentSuffix(sequence.Comment));
+        }
+    }
+
+    private static string? FormatSequenceOptions(SequenceOptions options)
+    {
+        var parts = new List<string>(7);
+        if (options.DataType is { } type)
+        {
+            parts.Add($"as={type}");
+        }
+
+        if (options.StartWith.HasValue)
+        {
+            parts.Add($"start={options.StartWith}");
+        }
+
+        if (options.IncrementBy.HasValue)
+        {
+            parts.Add($"step={options.IncrementBy}");
+        }
+
+        if (options.MinValue.HasValue)
+        {
+            parts.Add($"min={options.MinValue}");
+        }
+
+        if (options.MaxValue.HasValue)
+        {
+            parts.Add($"max={options.MaxValue}");
+        }
+
+        if (options.Cache.HasValue)
+        {
+            parts.Add($"cache={options.Cache}");
+        }
+
+        if (options.Cycle)
+        {
+            parts.Add("cycle");
+        }
+
+        return parts.Count > 0 ? string.Join(", ", parts) : null;
     }
 
     private static void RenderView(StringBuilder sb, View view)

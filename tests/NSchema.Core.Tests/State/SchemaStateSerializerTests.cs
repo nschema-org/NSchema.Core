@@ -96,6 +96,29 @@ public sealed class SchemaStateSerializerTests
     }
 
     [Fact]
+    public void Deserialize_PayloadWithoutEnumOrSequenceCollections_ProducesEmptyCollections()
+    {
+        // A state file written before enums/sequences existed must still load (the collections default empty).
+        const string json =
+            """
+            {
+              "version": 1,
+              "schema": {
+                "schemas": [ { "name": "app", "tables": [] } ],
+                "droppedSchemas": []
+              }
+            }
+            """;
+
+        var schema = _sut.Deserialize(Encoding.UTF8.GetBytes(json)).Schemas.ShouldHaveSingleItem();
+
+        schema.Enums.ShouldBeEmpty();
+        schema.DroppedEnums.ShouldBeEmpty();
+        schema.Sequences.ShouldBeEmpty();
+        schema.DroppedSequences.ShouldBeEmpty();
+    }
+
+    [Fact]
     public void Deserialize_FutureFormatVersion_Throws()
     {
         // Arrange

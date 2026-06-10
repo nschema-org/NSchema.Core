@@ -58,6 +58,18 @@ public sealed class DefaultSchemaRendererSnapshotTests
                 [
                     View("active_users", "SELECT id, email FROM app.users WHERE status = 'active'", comment: "currently active users"),
                     View("user_orders", "SELECT u.email, o.id FROM app.active_users u JOIN app.orders o ON o.user_id = u.id"),
+                ],
+                Enums:
+                [
+                    new EnumType("order_status", ["pending", "shipped", "delivered"], Comment: "order lifecycle"),
+                    new EnumType("priority", ["low", "high"]),
+                ],
+                Sequences:
+                [
+                    new Sequence("order_id",
+                        new SequenceOptions(SqlType.BigInt, StartWith: 100, IncrementBy: 5, Cache: 10, Cycle: true),
+                        Comment: "order numbers"),
+                    new Sequence("invoice_id"),
                 ]),
         ]);
     }

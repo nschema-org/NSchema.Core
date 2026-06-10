@@ -35,6 +35,8 @@ Planning and applying behavior are the same as before, but most public types hav
 - Saved plan files. `Plan` and `PlanDestroy` can write the computed plan to a file via `PlanArguments.OutFile` / `PlanDestroyArguments.OutFile`, and `Apply` can execute a saved file via `ApplyArguments.PlanFile` instead of recomputing, so what was reviewed is exactly what is applied. The file stores the structured diff, the plan, and the generated SQL; applying from it reports the same diff/plan/SQL view and runs the saved SQL.
 - A new set of structural and linting schema policies that include checks for common issues like missing primary keys or invalid indexes.
 - View support. The schema model now includes views, declared in the SQL DSL with `CREATE VIEW s.v AS <query>` (and `DROP VIEW s.v`). A view's defining query is stored verbatim; the objects it reads are derived from the query's `FROM`/`JOIN` clauses (sub-queries and CTEs included) and drive ordering.
+- Enum type support. The schema model now includes enum types, declared in the SQL DSL with `CREATE ENUM s.e ('a', 'b')` (and `DROP ENUM s.e`). Values are ordered, and evolution is additions-only: new values may be inserted anywhere (planned as anchored add-value actions), while a removal or reorder is reported in the diff but rejected at planning by the always-on `enum-value-removal` policy — the type must be recreated manually. Enums are created before, and dropped after, the tables that may use them.
+- Sequence support. The schema model now includes standalone sequences, declared in the SQL DSL with `CREATE SEQUENCE s.q (AS bigint, START 100, INCREMENT 5, MINVALUE 1, MAXVALUE 999999, CACHE 10, CYCLE)` (and `DROP SEQUENCE s.q`) — the option style mirrors a column's `IDENTITY (…)` clause, and every option is optional. Option changes plan an `AlterSequence`. Sequences are created before, and dropped after, the tables whose defaults may use them.
 
 ### Changed
 
@@ -69,6 +71,7 @@ Planning and applying behavior are the same as before, but most public types hav
 
 - Toggling a column into or out of an identity column is now detected and emitted as a change. Previously only changes between two already-identity columns were picked up.
 - Table privilege grants are now rendered by decomposing the privilege flags (e.g. `SELECT, INSERT`) instead of using the enum name, which could surface aliases like `ReadOnly` for `SELECT`.
+- Re-importing into an existing schema file no longer fails with a duplicate-object error when the file already contains views (or the new enums/sequences); the merge now replaces them with the incoming definitions, as it always did for tables.
 - Fixed an issue with the schema domain models where deserializing them could leave collection properties as `null` instead of empty.
 - Fixed an issue where exceptions thrown during a migration were being swallowed silently by the host.
 - Fixed a regression where apply and refresh were scoping the final schema snapshot to the filtered schemas rather than the full set.

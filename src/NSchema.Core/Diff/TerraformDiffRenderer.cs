@@ -37,6 +37,16 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
             {
                 RenderView(sb, view);
             }
+
+            foreach (var enumDiff in schema.Enums)
+            {
+                RenderEnum(sb, enumDiff);
+            }
+
+            foreach (var sequence in schema.Sequences)
+            {
+                RenderSequence(sb, sequence);
+            }
         }
 
         sb.AppendLine();
@@ -133,6 +143,68 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
         }
 
         AppendHeader(sb, view.Kind, $"view {name}{CommentSuffix(view.Comment)}");
+    }
+
+    private void RenderEnum(StringBuilder sb, EnumDiff enumDiff)
+    {
+        var name = enumDiff.RenamedFrom is null
+            ? $"{enumDiff.Schema}.{enumDiff.Name}"
+            : $"{enumDiff.Schema}.{enumDiff.RenamedFrom} → {enumDiff.Name}";
+
+        // A comment-only modify reports the comment transition rather than a bare header.
+        if (enumDiff is { Kind: ChangeKind.Modify, Values: null, RenamedFrom: null, Comment: { } only })
+        {
+            AppendHeader(sb, ChangeKind.Modify, $"enum {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            return;
+        }
+
+        var values = enumDiff is { Kind: ChangeKind.Add, Definition: { } definition }
+            ? $" ({string.Join(", ", definition.Values)})"
+            : string.Empty;
+        AppendHeader(sb, enumDiff.Kind, $"enum {name}{values}{CommentSuffix(enumDiff.Comment)}");
+
+        foreach (var addition in enumDiff.AddedValues)
+        {
+            var anchor = addition switch
+            {
+                { After: { } after } => $" (after '{after}')",
+                { Before: { } before } => $" (before '{before}')",
+                _ => " (append)",
+            };
+            AppendDetail(sb, ChangeKind.Add, $"value '{addition.Value}'{anchor}");
+        }
+
+        if (enumDiff.RequiresRecreate)
+        {
+            AppendDetail(sb, ChangeKind.Modify,
+                $"values: [{string.Join(", ", enumDiff.Values!.Old ?? [])}] → [{string.Join(", ", enumDiff.Values!.New ?? [])}]"
+                + " (removal/reorder; requires manual recreate)");
+        }
+    }
+
+    private void RenderSequence(StringBuilder sb, SequenceDiff sequence)
+    {
+        var name = sequence.RenamedFrom is null
+            ? $"{sequence.Schema}.{sequence.Name}"
+            : $"{sequence.Schema}.{sequence.RenamedFrom} → {sequence.Name}";
+
+        // A comment-only modify reports the comment transition rather than a bare header.
+        if (sequence is { Kind: ChangeKind.Modify, Options: null, RenamedFrom: null, Comment: { } only })
+        {
+            AppendHeader(sb, ChangeKind.Modify, $"sequence {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            return;
+        }
+
+        var options = sequence is { Kind: ChangeKind.Add, Definition: { } definition }
+            && FormatSequenceOptions(definition.Options) != "<default>"
+            ? $" ({FormatSequenceOptions(definition.Options)})"
+            : string.Empty;
+        AppendHeader(sb, sequence.Kind, $"sequence {name}{options}{CommentSuffix(sequence.Comment)}");
+
+        if (sequence.Options is { } change)
+        {
+            AppendDetail(sb, ChangeKind.Modify, $"options: {FormatSequenceOptions(change.Old)} → {FormatSequenceOptions(change.New)}");
+        }
     }
 
     private void RenderColumn(StringBuilder sb, ColumnDiff column)
@@ -268,6 +340,52 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
         if (options.IncrementBy.HasValue)
         {
             parts.Add($"step={options.IncrementBy}");
+        }
+
+        return parts.Count > 0 ? string.Join(", ", parts) : "<default>";
+    }
+
+    private static string FormatSequenceOptions(SequenceOptions? options)
+    {
+        if (options is null)
+        {
+            return "<none>";
+        }
+
+        var parts = new List<string>(7);
+        if (options.DataType is { } type)
+        {
+            parts.Add($"as={type}");
+        }
+
+        if (options.StartWith.HasValue)
+        {
+            parts.Add($"start={options.StartWith}");
+        }
+
+        if (options.IncrementBy.HasValue)
+        {
+            parts.Add($"step={options.IncrementBy}");
+        }
+
+        if (options.MinValue.HasValue)
+        {
+            parts.Add($"min={options.MinValue}");
+        }
+
+        if (options.MaxValue.HasValue)
+        {
+            parts.Add($"max={options.MaxValue}");
+        }
+
+        if (options.Cache.HasValue)
+        {
+            parts.Add($"cache={options.Cache}");
+        }
+
+        if (options.Cycle)
+        {
+            parts.Add("cycle");
         }
 
         return parts.Count > 0 ? string.Join(", ", parts) : "<default>";

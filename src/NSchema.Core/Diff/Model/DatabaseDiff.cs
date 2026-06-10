@@ -70,6 +70,16 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null)
             {
                 Tally(view.Kind);
             }
+
+            foreach (var enumDiff in schema.Enums)
+            {
+                Tally(enumDiff.Kind);
+            }
+
+            foreach (var sequence in schema.Sequences)
+            {
+                Tally(sequence.Kind);
+            }
         }
 
         return new DiffSummary(added, modified, removed);
