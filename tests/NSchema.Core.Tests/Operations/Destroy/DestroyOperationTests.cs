@@ -6,7 +6,6 @@ using NSchema.Operations.Services;
 using NSchema.Plan.Model;
 using NSchema.Sql;
 using NSchema.Sql.Model;
-using NSchema.State;
 using NSchema.State.Model;
 using NSchema.Tests.Helpers;
 using NSubstitute.ExceptionExtensions;

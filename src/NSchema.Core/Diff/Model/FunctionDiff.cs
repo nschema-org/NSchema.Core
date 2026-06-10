@@ -20,7 +20,7 @@ public sealed record FunctionDiff(
     Function? Definition = null,
     ValueChange<string>? Arguments = null,
     ValueChange<string>? Comment = null
-)
+) : ISchemaObjectDiff
 {
     /// <summary>
     /// The signature changed, so the function must be dropped and recreated: replacing in place would leave the

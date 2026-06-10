@@ -20,4 +20,4 @@ public sealed record Procedure(
     string Definition,
     string? OldName = null,
     string? Comment = null
-);
+) : IRenameableObject;

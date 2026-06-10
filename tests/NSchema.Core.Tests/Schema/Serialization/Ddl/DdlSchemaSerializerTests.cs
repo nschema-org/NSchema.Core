@@ -1,6 +1,5 @@
 using System.Text;
 using NSchema.Schema.Model;
-using NSchema.Schema.Serialization;
 using NSchema.Schema.Serialization.Ddl;
 using NSchema.Schema.Serialization.Json;
 using NSchema.Tests.Helpers;

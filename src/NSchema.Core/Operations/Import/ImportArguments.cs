@@ -1,4 +1,3 @@
-using NSchema.Schema.Serialization;
 using NSchema.Schema.Serialization.Json;
 
 namespace NSchema.Operations.Import;

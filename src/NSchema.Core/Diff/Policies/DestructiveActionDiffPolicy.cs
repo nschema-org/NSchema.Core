@@ -45,18 +45,33 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
                 yield return nameof(RevokeSchemaUsage);
             }
 
+            // A removal of any named object is destructive: its definition (and, for tables, its data) is lost
+            // from managed state. Only whole-object removals count — a routine's signature-change recreate is a
+            // declared edit (the database blocks the underlying drop loudly if dependents exist), and dropping
+            // a check constraint only loosens validation, so neither is flagged here.
+            foreach (var obj in schema.EnumerateObjects().Where(o => o.Kind == ChangeKind.Remove))
+            {
+                yield return obj switch
+                {
+                    TableDiff => nameof(DropTable),
+                    ViewDiff => nameof(DropView),
+                    EnumDiff => nameof(DropEnum),
+                    SequenceDiff => nameof(DropSequence),
+                    FunctionDiff => nameof(DropFunction),
+                    ProcedureDiff => nameof(DropProcedure),
+                    _ => throw new ArgumentOutOfRangeException(nameof(diff), $"Unhandled object diff type: {obj.GetType().Name}"),
+                };
+            }
+
             foreach (var table in schema.Tables)
             {
-                if (table.Kind == ChangeKind.Remove)
-                {
-                    yield return nameof(DropTable);
-                }
-
                 foreach (var grant in table.Grants.Where(g => g.Kind == ChangeKind.Remove))
                 {
                     yield return nameof(RevokeTablePrivileges);
                 }
 
+                // A column may also be destructively *modified* (narrowing its type or tightening nullability),
+                // not just removed.
                 foreach (var column in table.Columns)
                 {
                     if (column.Kind == ChangeKind.Remove)
@@ -75,49 +90,24 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
                     }
                 }
 
-                foreach (var pk in table.PrimaryKey.Where(c => c.Kind == ChangeKind.Remove))
+                // Dropping a key or unique constraint removes a structural guarantee (and a unique constraint
+                // may be a foreign-key target), so those are destructive; dropping a check only loosens
+                // validation and an index can be rebuilt, so neither is flagged.
+                foreach (var member in table.EnumerateMembers().Where(m => m.Kind == ChangeKind.Remove))
                 {
-                    yield return nameof(DropPrimaryKey);
+                    var actionName = member switch
+                    {
+                        PrimaryKeyDiff => nameof(DropPrimaryKey),
+                        ForeignKeyDiff => nameof(DropForeignKey),
+                        UniqueConstraintDiff => nameof(DropUniqueConstraint),
+                        _ => null, // columns are flagged above; checks and indexes are not destructive
+                    };
+
+                    if (actionName is not null)
+                    {
+                        yield return actionName;
+                    }
                 }
-
-                foreach (var fk in table.ForeignKeys.Where(c => c.Kind == ChangeKind.Remove))
-                {
-                    yield return nameof(DropForeignKey);
-                }
-
-                // Dropping a unique constraint removes a structural guarantee (and may be a foreign-key target),
-                // so it is destructive; dropping a check only loosens validation and is not.
-                foreach (var unique in table.UniqueConstraints.Where(c => c.Kind == ChangeKind.Remove))
-                {
-                    yield return nameof(DropUniqueConstraint);
-                }
-            }
-
-            foreach (var view in schema.Views.Where(v => v.Kind == ChangeKind.Remove))
-            {
-                yield return nameof(DropView);
-            }
-
-            foreach (var enumDiff in schema.Enums.Where(e => e.Kind == ChangeKind.Remove))
-            {
-                yield return nameof(DropEnum);
-            }
-
-            foreach (var sequence in schema.Sequences.Where(s => s.Kind == ChangeKind.Remove))
-            {
-                yield return nameof(DropSequence);
-            }
-
-            // Only whole-routine removals are destructive. A signature-change recreate is a declared edit — the
-            // database blocks the underlying drop loudly if dependent objects exist — so it is not flagged.
-            foreach (var function in schema.Functions.Where(f => f.Kind == ChangeKind.Remove))
-            {
-                yield return nameof(DropFunction);
-            }
-
-            foreach (var procedure in schema.Procedures.Where(p => p.Kind == ChangeKind.Remove))
-            {
-                yield return nameof(DropProcedure);
             }
         }
     }

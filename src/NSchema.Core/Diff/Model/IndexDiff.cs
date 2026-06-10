@@ -9,4 +9,4 @@ namespace NSchema.Diff.Model;
 /// <param name="Name">The index name.</param>
 /// <param name="Definition">The full index definition for a created index; otherwise <see langword="null"/>.</param>
 /// <param name="Comment">The change to the index's comment, if any.</param>
-public sealed record IndexDiff(ChangeKind Kind, string Name, TableIndex? Definition = null, ValueChange<string>? Comment = null);
+public sealed record IndexDiff(ChangeKind Kind, string Name, TableIndex? Definition = null, ValueChange<string>? Comment = null) : INamedObjectDiff;

@@ -41,7 +41,7 @@ public record SchemaDefinition(
     IReadOnlyList<string>? DroppedFunctions = null,
     IReadOnlyList<Procedure>? Procedures = null,
     IReadOnlyList<string>? DroppedProcedures = null
-)
+) : IRenameableObject
 {
     /// <summary>
     /// A list of tables that are part of the schema.

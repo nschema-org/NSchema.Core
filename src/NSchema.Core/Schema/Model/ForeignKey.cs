@@ -23,7 +23,7 @@ public record ForeignKey(
     ReferentialAction OnDelete = ReferentialAction.NoAction,
     ReferentialAction OnUpdate = ReferentialAction.NoAction,
     string? Comment = null
-)
+) : INamedObject
 {
     /// <summary>
     /// A list of column names in the current table that are part of the foreign key constraint.

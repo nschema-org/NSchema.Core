@@ -23,7 +23,7 @@ public sealed record EnumDiff(
     IReadOnlyList<EnumValueAddition>? AddedValues = null,
     ValueChange<IReadOnlyList<string>>? Values = null,
     ValueChange<string>? Comment = null
-)
+) : ISchemaObjectDiff
 {
     /// <summary>
     /// The values being added for a value-compatible modification, in execution order.
