@@ -49,6 +49,10 @@ public sealed class DslParserTableTests
         => Column("amount decimal(18, 2)").Type.ShouldBe(SqlType.Decimal(18, 2));
 
     [Fact]
+    public void Column_IntegerSpelling_AliasesToCanonicalInt()
+        => Column("balance integer NOT NULL").Type.ShouldBe(SqlType.Int);
+
+    [Fact]
     public void Column_UnknownType_BecomesCustom()
         => Column("data jsonb").Type.ShouldBe(SqlType.Custom("jsonb"));
 

@@ -171,7 +171,7 @@ public sealed record SqlType(string Name)
             "boolean" => Boolean,
             "tinyint" => TinyInt,
             "smallint" => SmallInt,
-            "int" => Int,
+            "int" or "integer" => Int,
             "bigint" => BigInt,
             "float" => Float,
             "double" => Double,
