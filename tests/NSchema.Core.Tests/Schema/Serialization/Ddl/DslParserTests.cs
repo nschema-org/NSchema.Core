@@ -1,3 +1,4 @@
+using NSchema.Configuration;
 using NSchema.Schema.Model;
 using NSchema.Schema.Serialization.Ddl;
 
@@ -6,6 +7,8 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 public sealed class DslParserTests
 {
     private static DatabaseSchema Parse(string source) => new DslParser(source).Parse();
+
+    private static IReadOnlyList<ConfigBlock> ReadConfig(string source) => DslConfigReader.Read(source);
 
     private static SchemaDefinition ParseSingleSchema(string source) => Parse(source).Schemas.ShouldHaveSingleItem();
 
@@ -80,62 +83,154 @@ public sealed class DslParserTests
     }
 
     // -------------------------------------------------------------------------
-    // Configuration blocks (reserved — skipped)
+    // Configuration blocks (captured, not interpreted)
     // -------------------------------------------------------------------------
 
     [Fact]
-    public void Parse_ConfigBlock_IsSkipped()
+    public void Parse_ConfigBlock_IsIgnoredByTheSchemaPath()
     {
+        // The schema consumer (Parse -> DatabaseSchema) sees only the schema statements.
         var schema = Parse(
             """
-            nschema {
+            NSCHEMA (
               dialect = 'postgres'
-            }
+            );
             CREATE SCHEMA app;
             """);
         schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
     }
 
     [Fact]
-    public void Parse_LabelledConfigBlock_IsSkipped()
+    public void Parse_UnlabelledConfigBlock_CapturesTypeAndAttributes()
     {
-        var schema = Parse(
+        var block = ReadConfig(
             """
-            backend 'file' {
-              path = 'state/app.nsstate'
-            }
-            CREATE SCHEMA app;
-            """);
-        schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
+            NSCHEMA (
+              dialect = 'postgres',
+              transaction_mode = 'single'
+            );
+            """).ShouldHaveSingleItem();
+
+        block.Type.ShouldBe("nschema");
+        block.Label.ShouldBeNull();
+        block.Attribute("dialect")!.AsString().ShouldBe("postgres");
+        block.Attribute("transaction_mode")!.AsString().ShouldBe("single");
     }
 
     [Fact]
-    public void Parse_NestedConfigBlock_IsSkippedWholesale()
+    public void Parse_LabelledConfigBlock_CapturesLabel()
     {
-        var schema = Parse(
+        var block = ReadConfig("BACKEND file ( path = 'state/app.nsstate' );").ShouldHaveSingleItem();
+
+        block.Type.ShouldBe("backend");
+        block.Label.ShouldBe("file");
+        block.Attribute("path")!.AsString().ShouldBe("state/app.nsstate");
+    }
+
+    [Fact]
+    public void Parse_ConfigBlock_KeywordTypeIsLowerCased()
+        => ReadConfig("Provider postgres ( x = 1 );").ShouldHaveSingleItem().Type.ShouldBe("provider");
+
+    [Fact]
+    public void Parse_ConfigBlock_CapturesValueKinds()
+    {
+        var block = ReadConfig(
             """
-            provider 'postgres' {
-              pool {
-                max = 10
-              }
-            }
-            CREATE SCHEMA app;
-            """);
-        schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
+            PROVIDER postgres (
+              schema_search_path = 'app',
+              connection_timeout = 1000,
+              statement_cache = -1,
+              prefer_simple = true,
+              ssl = false,
+              transaction_mode = single
+            );
+            """).ShouldHaveSingleItem();
+
+        block.Attribute("schema_search_path")!.Kind.ShouldBe(ConfigValueKind.String);
+        block.Attribute("connection_timeout")!.AsInteger().ShouldBe(1000);
+        block.Attribute("statement_cache")!.AsInteger().ShouldBe(-1);
+        block.Attribute("prefer_simple")!.AsBoolean().ShouldBeTrue();
+        block.Attribute("ssl")!.AsBoolean().ShouldBeFalse();
+        block.Attribute("transaction_mode")!.Kind.ShouldBe(ConfigValueKind.Identifier);
     }
 
     [Fact]
-    public void Parse_ConfigBlockWithBraceInString_BalancesCorrectly()
+    public void Parse_ConfigBlock_CapturesDottedKeyVerbatim()
+        => ReadConfig("PROVIDER postgres ( pool.max = 10 );")
+            .ShouldHaveSingleItem().Attribute("pool.max")!.AsInteger().ShouldBe(10);
+
+    [Fact]
+    public void Parse_ConfigBlock_LookupIsCaseInsensitive()
+        => ReadConfig("NSCHEMA ( Dialect = 'postgres' );")
+            .ShouldHaveSingleItem().Attribute("dialect")!.AsString().ShouldBe("postgres");
+
+    [Fact]
+    public void Parse_ConfigBlock_EmptyAttributeListIsAllowed()
     {
-        // A '}' inside a string is a String token, not a closing brace, so balancing must not be fooled by it.
-        var schema = Parse("provider 'p' { note = '}' } CREATE SCHEMA app;");
-        schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
+        var block = ReadConfig("NSCHEMA ();").ShouldHaveSingleItem();
+        block.Type.ShouldBe("nschema");
+        block.Attributes.ShouldBeEmpty();
     }
 
     [Fact]
-    public void Parse_UnterminatedConfigBlock_Throws()
-        => Should.Throw<DslSyntaxException>(() => Parse("backend 'file' { path = 'x'"))
-            .Message.ShouldContain("Unterminated configuration block");
+    public void Parse_MultipleConfigBlocks_CapturedInDeclarationOrder()
+    {
+        var blocks = ReadConfig(
+            """
+            NSCHEMA ( dialect = 'postgres' );
+            BACKEND file ( path = 'state/app.nsstate' );
+            PROVIDER postgres ( schema_search_path = 'app' );
+            """);
+
+        blocks.Select(b => b.Type).ShouldBe(["nschema", "backend", "provider"]);
+    }
+
+    [Fact]
+    public void Parse_ConfigAndSchema_Intermixed_BothSurface()
+    {
+        var document = new DslParser(
+            """
+            NSCHEMA ( dialect = 'postgres' );
+            CREATE SCHEMA app;
+            PROVIDER postgres ( schema_search_path = 'app' );
+            """).ParseDocument();
+
+        document.Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
+        document.Config.Select(b => b.Type).ShouldBe(["nschema", "provider"]);
+    }
+
+    [Fact]
+    public void Parse_UnknownConfigKeyword_IsCapturedNotRejected()
+    {
+        // Forward-compatibility: a config type the core has never heard of is still captured generically.
+        var block = ReadConfig("WORKSPACE staging ( region = 'eu' );").ShouldHaveSingleItem();
+        block.Type.ShouldBe("workspace");
+        block.Label.ShouldBe("staging");
+    }
+
+    [Fact]
+    public void Parse_ConfigBlock_DuplicateAttribute_Throws()
+        => Should.Throw<DslSyntaxException>(() => ReadConfig("NSCHEMA ( dialect = 'a', dialect = 'b' );"))
+            .Message.ShouldContain("specified more than once");
+
+    [Fact]
+    public void Parse_ConfigBlock_MissingEquals_Throws()
+        => Should.Throw<DslSyntaxException>(() => ReadConfig("NSCHEMA ( dialect 'postgres' );"))
+            .Message.ShouldContain("'='");
+
+    [Fact]
+    public void Parse_ConfigBlock_MissingValue_Throws()
+        => Should.Throw<DslSyntaxException>(() => ReadConfig("NSCHEMA ( dialect = );"))
+            .Message.ShouldContain("configuration value");
+
+    [Fact]
+    public void Parse_ConfigBlock_Unterminated_Throws()
+        => Should.Throw<DslSyntaxException>(() => ReadConfig("BACKEND file ( path = 'x'"));
+
+    [Fact]
+    public void Parse_ConfigBlock_MissingSemicolon_Throws()
+        => Should.Throw<DslSyntaxException>(() => ReadConfig("NSCHEMA ( dialect = 'postgres' )"))
+            .Message.ShouldContain("';'");
 
     // -------------------------------------------------------------------------
     // Multiple statements
