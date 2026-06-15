@@ -1,13 +1,9 @@
 # NSchema DDL grammar
 
-> **Status: design specification.** This describes the canonical NSchema DDL — a declarative,
-> dialect-agnostic schema language that the (not-yet-built) `DdlSchemaSerializer` will parse and emit. It is the
-> reference the parser is implemented against, not yet a shipped feature.
-
 NSchema DDL borrows SQL's `CREATE TABLE` shape and column grammar so it reads instantly to anyone who works with
 databases, but it is its own bounded, normalized language — **not** a SQL dialect. It describes *desired state*:
 you write the final shape of the schema, never `ALTER`/migration steps. Every construct maps 1:1 onto the
-`DatabaseSchema` domain model, so the parser is a thin front-end over the same model the fluent API produces.
+`DatabaseSchema` domain model, so the parser is a thin front-end over that model.
 
 It is dialect-agnostic by construction: dialect-specific spelling (type names like `serial`, expression
 functions like `now()`) is an *output* concern owned by the `ISqlGenerator`, never the input grammar. The two
@@ -104,47 +100,58 @@ statement  = ( create-schema | create-table | create-view | create-enum | create
 
 A flat statement list; schema membership is by qualified name, exactly like SQL — no nesting.
 
-A document may also contain top-level **configuration blocks** (`config-block`), which are *reserved* — see
-[Configuration blocks](#configuration-blocks-reserved). The schema parser **ignores** them; they are not part of
-the desired-state model.
+A document may also contain top-level **configuration blocks** (`config-block`) — see
+[Configuration blocks](#configuration-blocks). The schema parser **ignores** them; they are not part of the
+desired-state model.
 
-## Configuration blocks (reserved)
-
-> **Reserved, not yet parsed.** This section fixes the shape so the grammar is forward-compatible. No
-> configuration block is implemented or interpreted yet; until then a parser should *accept and skip* them.
+## Configuration blocks
 
 Following Terraform's model, orchestration configuration (the state backend, the live-database provider, project
-settings) may eventually live in the DSL alongside the schema, in dedicated brace-delimited blocks:
+settings) may live in the DSL alongside the schema. Unlike Terraform's HCL, the blocks are **SQL-statement
+shaped** — keeping one consistent grammar in the file — mirroring Postgres storage parameters
+(`CREATE TABLE … WITH (option = value, …)`):
 
 ```ebnf
-config-block   = ident , [ string ] , "{" , { config-attr | config-block } , "}" ;
-config-attr    = ident , "=" , config-value , [ ";" ] ;
-config-value   = string | integer | "true" | "false" | ident ;
+config-block   = ident , [ ident ] , "(" , [ config-attr , { "," , config-attr } ] , ")" , ";" ;
+config-attr    = config-key , "=" , config-value ;
+config-key     = ident , { "." , ident } ;
+config-value   = string | [ "-" ] , integer | "true" | "false" | ident ;
 ```
 
 ```sql
-nschema {
-  dialect = 'postgres'
-}
+NSCHEMA (
+  dialect = 'postgres',
+  transaction_mode = 'single'
+);
 
-backend 'file' {
+BACKEND file (
   path = 'state/app.nsstate'
-}
+);
 
-provider 'postgres' {
-  schema_search_path = 'app'
-}
+PROVIDER postgres (
+  schema_search_path = 'app',
+  connection_timeout = 1000
+);
 ```
 
-(Strings are single-quoted throughout NSchema DDL, SQL-style — double quotes are not used. The config-block
-label is a `string`, so `backend 'file'`, not `backend "file"`.)
+Notes on the shape:
+
+- The block keyword (`NSCHEMA` / `BACKEND` / `PROVIDER`) and the optional label (`file`, `postgres`) are **bare
+  identifiers** — consistent with bare identifiers everywhere else in the DSL; double quotes are still unused.
+  `NSCHEMA` has no label.
+- String **values** are single-quoted (`'postgres'`), SQL-style. Values may also be integers (optionally
+  negative), `true`/`false`, or a bare identifier (`transaction_mode = single`).
+- Attributes are a **flat** comma-separated list — no nested blocks. Group related settings with a dotted key
+  (`pool.max = 10`), which is captured verbatim as a single key.
 
 This is deliberately distinct from the schema statements, and three rules keep it tractable:
 
-1. **The schema parser skips them.** A single lexer feeds two consumers: the `DdlSchemaSerializer` (in the core)
-   consumes only schema statements and silently ignores top-level config blocks; a separate front-end config
-   loader (in the CLI) consumes only the config blocks. This is how one file can hold both, à la Terraform's
-   intermixed `terraform` / `provider` / `resource` blocks.
+1. **The schema parser ignores them.** A single lexer feeds two consumers: the `DdlSchemaSerializer` (in the core)
+   consumes only schema statements; `DslConfigReader` (also in the core, but a separate seam a front-end calls)
+   consumes only the config blocks. The core captures config blocks into a generic `ConfigBlock` model but never
+   *interprets* them — interpretation (mapping a block to provider/state/dialect registration) lives in the
+   front-end. This is how one file can hold both, à la Terraform's intermixed `terraform` / `provider` /
+   `resource` blocks.
 2. **Config blocks are static — no interpolation.** They must be resolvable in a lightweight bootstrap pass
    *before* the core is configured (the analogue of `terraform init`), so they cannot reference variables or
    computed values. This is also why Terraform forbids interpolation in its `backend` block.
@@ -152,9 +159,9 @@ This is deliberately distinct from the schema statements, and three rules keep i
    committed config block. Only stable, non-secret settings (backend *type* and path, dialect, search paths)
    belong here. Configuration precedence remains CLI args > environment > config block > defaults.
 
-The matching forward-compatibility rule for the parser: **an unrecognised top-level brace-delimited block is
-skipped, not an error** — so reserving these costs nothing today and adding their semantics later touches only
-the CLI, never the core.
+The matching forward-compatibility rule for the parser: **an unrecognised top-level block keyword is captured, not
+an error** — so a config type a front-end adds later (e.g. `WORKSPACE`) parses today, and adding its semantics
+touches only the front-end, never the core.
 
 ### Schemas
 
@@ -321,30 +328,30 @@ replaces in place, like a view body change.
 
 ## Construct → model mapping
 
-| DDL construct                             | Model target                                                     |
-|-------------------------------------------|------------------------------------------------------------------|
-| `CREATE [PARTIAL] SCHEMA s`               | `SchemaDefinition` (`IsPartial`)                                 |
-| `CREATE TABLE s.t (…)`                    | `SchemaDefinition` + `Table`                                     |
-| `CREATE VIEW s.v AS …`                    | `SchemaDefinition` + `View` (`Body` opaque, `DependsOn` derived) |
-| `RENAMED FROM x` (schema/table/column)    | `OldName`                                                        |
-| `name type [NOT NULL] [DEFAULT e]`        | `Column` (`Type`→`SqlType`, `IsNullable`, `DefaultExpression`)   |
-| `IDENTITY (…)`                            | `Column.IsIdentity` + `IdentityOptions`                          |
-| `CONSTRAINT n PRIMARY KEY (…)`            | `Table.PrimaryKey` (`PrimaryKey`)                                |
-| `CONSTRAINT n FOREIGN KEY … REFERENCES …` | `ForeignKey` (`OnDelete`/`OnUpdate`→`ReferentialAction`)         |
-| `CONSTRAINT n UNIQUE (…)`                 | `UniqueConstraint`                                               |
-| `CONSTRAINT n CHECK (e)`                  | `CheckConstraint` (`Expression` = `e`, opaque)                   |
-| `[UNIQUE] INDEX n (…) [WHERE e]`          | `TableIndex` (`IsUnique`, `Predicate`)                           |
-| `GRANT … ON s.t TO r`                     | `TableGrant`                                                     |
-| `GRANT USAGE ON SCHEMA s TO r`            | `SchemaGrant`                                                    |
-| `DROP TABLE s.t` / `DROP SCHEMA s`        | `DroppedTables` / `DroppedSchemas`                               |
-| `DROP VIEW s.v`                           | `DroppedViews`                                                   |
-| `CREATE ENUM s.e ('a', 'b')`              | `SchemaDefinition` + `EnumType` (ordered `Values`)               |
-| `CREATE SEQUENCE s.q (…)`                 | `SchemaDefinition` + `Sequence` (`SequenceOptions`)              |
-| `DROP ENUM s.e` / `DROP SEQUENCE s.q`     | `DroppedEnums` / `DroppedSequences`                              |
-| `CREATE FUNCTION s.f(…) …`                | `SchemaDefinition` + `Function` (`Arguments`/`Definition` opaque)|
-| `CREATE PROCEDURE s.p(…) …`               | `SchemaDefinition` + `Procedure` (`Arguments`/`Definition` opaque)|
-| `DROP FUNCTION s.f` / `DROP PROCEDURE s.p`| `DroppedFunctions` / `DroppedProcedures`                         |
-| `---` / `/** */` before a declaration     | that object's `Comment`                                          |
+| DDL construct                              | Model target                                                       |
+|--------------------------------------------|--------------------------------------------------------------------|
+| `CREATE [PARTIAL] SCHEMA s`                | `SchemaDefinition` (`IsPartial`)                                   |
+| `CREATE TABLE s.t (…)`                     | `SchemaDefinition` + `Table`                                       |
+| `CREATE VIEW s.v AS …`                     | `SchemaDefinition` + `View` (`Body` opaque, `DependsOn` derived)   |
+| `RENAMED FROM x` (schema/table/column)     | `OldName`                                                          |
+| `name type [NOT NULL] [DEFAULT e]`         | `Column` (`Type`→`SqlType`, `IsNullable`, `DefaultExpression`)     |
+| `IDENTITY (…)`                             | `Column.IsIdentity` + `IdentityOptions`                            |
+| `CONSTRAINT n PRIMARY KEY (…)`             | `Table.PrimaryKey` (`PrimaryKey`)                                  |
+| `CONSTRAINT n FOREIGN KEY … REFERENCES …`  | `ForeignKey` (`OnDelete`/`OnUpdate`→`ReferentialAction`)           |
+| `CONSTRAINT n UNIQUE (…)`                  | `UniqueConstraint`                                                 |
+| `CONSTRAINT n CHECK (e)`                   | `CheckConstraint` (`Expression` = `e`, opaque)                     |
+| `[UNIQUE] INDEX n (…) [WHERE e]`           | `TableIndex` (`IsUnique`, `Predicate`)                             |
+| `GRANT … ON s.t TO r`                      | `TableGrant`                                                       |
+| `GRANT USAGE ON SCHEMA s TO r`             | `SchemaGrant`                                                      |
+| `DROP TABLE s.t` / `DROP SCHEMA s`         | `DroppedTables` / `DroppedSchemas`                                 |
+| `DROP VIEW s.v`                            | `DroppedViews`                                                     |
+| `CREATE ENUM s.e ('a', 'b')`               | `SchemaDefinition` + `EnumType` (ordered `Values`)                 |
+| `CREATE SEQUENCE s.q (…)`                  | `SchemaDefinition` + `Sequence` (`SequenceOptions`)                |
+| `DROP ENUM s.e` / `DROP SEQUENCE s.q`      | `DroppedEnums` / `DroppedSequences`                                |
+| `CREATE FUNCTION s.f(…) …`                 | `SchemaDefinition` + `Function` (`Arguments`/`Definition` opaque)  |
+| `CREATE PROCEDURE s.p(…) …`                | `SchemaDefinition` + `Procedure` (`Arguments`/`Definition` opaque) |
+| `DROP FUNCTION s.f` / `DROP PROCEDURE s.p` | `DroppedFunctions` / `DroppedProcedures`                           |
+| `---` / `/** */` before a declaration      | that object's `Comment`                                            |
 
 ## Worked example
 

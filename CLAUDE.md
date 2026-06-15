@@ -19,7 +19,7 @@ Note: the Postgres provider was extracted to its own repository (see commit `dd3
 
 ## Architecture
 
-NSchema is a declarative database schema migration library for .NET. The user describes the schema they want via `AbstractSchemaProvider`; NSchema introspects the database, diffs, and applies the difference.
+NSchema is a declarative database schema migration library for .NET. The user describes the schema they want in the SQL DSL (see *Defining a schema* below); NSchema introspects the database, diffs, and applies the difference.
 
 `NSchemaApplication.CreateBuilder()` returns an `NSchemaApplicationBuilder`, which uses a `HostApplicationBuilder` internally purely to compose configuration, logging, metrics, and the DI container. `Build()` produces an `NSchemaApplication` (a plain `IDisposable`, not an `IHost`). It does **not** run as a host: calling `Plan()`/`PlanDestroy()`/`Apply()`/`Refresh()`/`Import()`/`Validate()`/`Destroy()`/`Show()`/`Drift()`/`ForceUnlock()` resolves that operation's dedicated interface (`IPlanOperation`, `IApplyOperation`, …) from DI and `await`s its `Execute(arguments, ct)` directly, passing the matching arguments record. Exceptions propagate to the caller. There is no `BackgroundService` and no host lifecycle. The app is single-run — a second invocation throws.
 
@@ -119,21 +119,24 @@ A plan can be saved to a file and applied later, unchanged — the analogue of `
 
 ### Defining a schema
 
-Subclass `AbstractSchemaProvider` and call `Schema()` / `Table()` / `Column()` etc. via the fluent builders. The fluent API supports both a return style and a delegate style:
+The primary input is the **SQL DSL** — declarative `CREATE` statements describing desired state (no `ALTER`). It is parsed by `DslParser` / `DdlSchemaSerializer` (format key `"sql"`) in `Schema/Serialization/Ddl/`, and the full grammar lives in `docs/dsl-grammar.md`. The old fluent `AbstractSchemaProvider` builder API has been **removed** — the DSL (and JSON) are the input formats.
 
-```csharp
-public class MySchema : AbstractSchemaProvider
-{
-    public MySchema()
-    {
-        var users = Schema("app").Table("users");
-        users.Column("id", SqlType.Int).PrimaryKey("users_pkey");
-        users.Column("name", SqlType.Text).NotNull();
-    }
-}
+```sql
+CREATE SCHEMA app;
+
+CREATE TABLE app.users
+(
+    id bigint NOT NULL IDENTITY,
+    name text NOT NULL,
+    CONSTRAINT users_pkey PRIMARY KEY (id)
+);
 ```
 
-Providers are registered with `builder.AddSchema<T>()` or `builder.AddSchemasFromAssemblyContaining<T>()`.
+DSL files are registered as desired providers via `AddSqlSchema(path)` / `AddSqlSchemasFromGlob(pattern)` / `AddSqlSchemasFromDirectory(dir)` (each wraps a file in the internal `DdlSchemaProvider`, a `FileSchemaProvider` over `DdlSchemaSerializer.Instance` — mirroring the `AddJsonSchema*` helpers). JSON schemas use `AddJsonSchema(...)`. A schema can also be supplied in code by implementing `ISchemaProvider` and registering it with `AddSchema<T>()`.
+
+#### Config-in-SQL
+
+DSL files may also carry top-level **configuration blocks** — `NSCHEMA ( … )`, `BACKEND file ( … )`, `PROVIDER postgres ( … )` — orchestration metadata (dialect, state backend, live provider) declared alongside the schema, à la Terraform's `terraform`/`provider` blocks but in SQL-statement form (mirroring Postgres `WITH (option = value, …)`). The core **captures but never interprets** them: `DslParser.ParseDocument()` returns a `DslDocument` (schema + `IReadOnlyList<ConfigBlock>`), `DdlSchemaSerializer.Read` still returns only the schema, and the public `DslConfigReader.Read(text/stream)` surfaces the blocks for a front-end. `ConfigBlock` / `ConfigValue` (in `NSchema.Configuration`) are a generic, flat model (`Type`, optional `Label`, `key = value` attributes; nesting via dotted keys). Interpretation — precedence (CLI > env > config > defaults), mapping a block to builder registration, provider dispatch, secrets-from-env — lives in the front-end/CLI, not the core.
 
 ### Extension points
 
@@ -185,7 +188,7 @@ There is a parallel seam for rendering a **single schema state** (rather than a 
 
 ### Renaming
 
-Schemas, tables, and columns support rename detection via the fluent `RenamedFrom(oldName)` method, which sets the `OldName` property on the domain model. The comparer matches on `OldName` when the current name isn't found.
+Schemas, tables, and columns support rename detection via the DSL's `RENAMED FROM <old>` clause, which sets the `OldName` property on the domain model. The comparer matches on `OldName` when the current name isn't found.
 
 ### Configuration options
 
