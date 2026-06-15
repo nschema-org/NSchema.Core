@@ -1,168 +1,66 @@
 # Defining schemas
 
-The easiest way to declare a schema is to subclass `AbstractSchemaProvider`, as in the [README](../README.md) quickstart. This page is the full reference for the fluent declaration API.
+The primary way to declare a schema is in a **SQL DSL file** using a declarative, dialect-agnostic schema language that borrows SQL's `CREATE TABLE` shape. You describe the *desired state* (the final shape of the schema), NSchema diffs it against the database and works out the changes.
 
-You can also declare schemas in a [JSON file](#defining-schemas-in-json) instead of C#, which is useful when you don't want a compiled project just to describe a schema.
+This page is a practical introduction. The [grammar reference](dsl-grammar.md) is the complete specification.
 
-## Schema declaration
+You can also declare schemas in a [JSON file](#defining-schemas-in-json), which mirrors the domain model directly.
 
-Schemas are declared as follows:
+## A schema in the DSL
 
-```csharp
-using NSchema.Schema;
-using NSchema.Schema.Fluent;
+```sql
+--- The application schema.
+CREATE SCHEMA app;
 
-public class AppSchema : AbstractSchemaProvider
-{
-    public AppSchema()
-    {
-        Schema("app", s =>
-        {
-            // Configure schema here.
-            s.Comment("This is the app schema.");
-            s.RenamedFrom("old_app");
-            s.AsPartial();
-        });
+--- All registered users.
+CREATE TABLE app.users
+(
+    id bigint NOT NULL IDENTITY,
+    --- Primary contact; verified at signup.
+    email varchar(255) NOT NULL,
+    name text NOT NULL,
+    role_id bigint NOT NULL,
+    balance decimal(18, 2) DEFAULT (0),
+    CONSTRAINT users_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_users_role_id FOREIGN KEY (role_id) REFERENCES app.roles (id) ON DELETE CASCADE,
+    UNIQUE INDEX uc_users_email (email)
+);
 
-        Schema("old_schema", s => s.Dropped());
-    }
-}
+GRANT SELECT, INSERT ON app.users TO app_rw;
 ```
 
-- `Name` declares the name of the schema in the database.
-- `Table(...)` declares a table within the schema.
-- `Grant(...)` grants a role usage on the schema.
-- `Comment(...)` adds a comment to the schema.
-- `RenamedFrom(...)` marks the schema as renamed from an existing one, so the comparer can match it instead of dropping and recreating.
-- `AsPartial()` marks the schema as partial, meaning that tables not declared here won't be dropped. This is useful for shared schemas, or when you want to manage some tables manually.
-- `Dropped()` marks the schema as dropped, meaning it will be dropped if it exists.
+A few things to note, each covered in full by the [grammar reference](dsl-grammar.md):
 
-## Table declaration
+- **It describes desired state, not migrations.** There is no `ALTER` — you write the final shape, and the planner derives the change. Type names (`bigint`, `varchar(255)`, `decimal(18,2)`) are canonical and dialect-agnostic; the `ISqlGenerator` maps them to the target database's spelling on output.
+- **Constraints are always named** (`CONSTRAINT <name> …`) — the name is the comparer's match key, so changes diff stably. Indexes are written **inline** in the table body.
+- **Comments are doc-comments.** A `---` line (or `/** … */` block) immediately above a declaration becomes that object's catalog comment (`COMMENT ON …`); a plain `--` comment is stripped.
+- **Renames** use `RENAMED FROM <old>` on a schema, table, or column, so the comparer matches the existing object instead of dropping and recreating it.
+- **Partial schemas** (`CREATE PARTIAL SCHEMA …`) leave undeclared tables alone rather than dropping them — useful for shared schemas. A `DROP TABLE app.x;` statement records an explicit drop.
+- **Other objects** — views (`CREATE VIEW`), enums (`CREATE ENUM`), sequences (`CREATE SEQUENCE`), and functions/procedures (`CREATE FUNCTION` / `CREATE PROCEDURE`) — are declared with their own statements. See the grammar reference.
 
-Tables are declared within a schema:
+## Registering DSL files
 
-```csharp
-public class AppSchema : AbstractSchemaProvider
-{
-    public AppSchema()
-    {
-        Schema("app", s =>
-        {
-            s.Table("users", t => {
-                // Configure table here.
-                t.Column("id", SqlType.Text, c => c.PrimaryKey("users_pkey"));
-                t.Column("email", SqlType.Text, c => c.NotNull());
-                t.Column("name", SqlType.Text, c => c.NotNull());
-                t.Index("uc_users_email", ["email"], i => i.Unique());
-
-                t.Comment("This is the users table.");
-                t.RenamedFrom("old_users");
-            });
-        });
-    }
-}
-```
-
-- `Name` declares the name of the table in the database.
-- `Column(...)` declares a column with the table.
-- `PrimaryKey(...)` declares a primary key constraint on the table.
-- `ForeignKey(...)` declares a foreign key constraint on the table.
-- `Index(...)` declares an index on the table.
-- `Grant(...)` grants a role SELECT, INSERT, UPDATE or DELETE on the table.
-- `Comment(...)` adds a comment to the table.
-- `RenamedFrom(...)` marks the table as renamed from an existing one, so the comparer can match it instead of dropping and recreating.
-- `Dropped()` marks the table as dropped, meaning it will be dropped if it exists. Only necessary when dropping a table from a partial schema, otherwise the comparer will detect it as missing and drop it automatically.
-
-## Column declaration
+Load `.sql` files with `AddSqlSchemasFromGlob` (or `AddSqlSchema(path)` for a single file, `AddSqlSchemasFromDirectory(dir)` for a directory):
 
 ```csharp
-public class AppSchema : AbstractSchemaProvider
-{
-    public AppSchema()
-    {
-        Schema("app", s =>
-        {
-            s.Table("users", t => {
-                t.Column("id", SqlType.Text, c => {
-                    c.NotNull();
-                    c.PrimaryKey("users_pkey");
-                });
-            });
-        });
-    }
-}
+builder.AddSqlSchemasFromGlob("schemas/**/*.sql");
 ```
 
-- `Name` declares the name of the column in the database.
-- `SqlType` declares the SQL type of the column. This is an abstract type that the database provider will map to a concrete type.
-- `NotNull()` marks the column as not nullable.
-- `Nullable()` marks the column as nullable.
-- `Default(...)` declares a default value for the column.
-- `Comment(...)` adds a comment to the column.
-- `RenamedFrom(...)` marks the column as renamed from an existing one, so the comparer can match it instead of dropping and recreating.
-- `Identity(...)` marks the column as an identity/auto-increment column, with optional configuration for seed and increment values.
-- `PrimaryKey(...)` declares a primary key constraint on the column.
+Every matched file becomes a provider, and all providers are aggregated before planning — so you can split one schema across many files (one per table, per object, or per namespace) and they merge by qualified name. You can mix DSL and JSON files freely.
 
-## Foreign key declaration
+> Under the hood these wrap each file in a `FileSchemaProvider` over the built-in `DdlSchemaSerializer`; you can do that directly (or implement `ISchemaProvider`) for full control.
 
-```csharp
-public class AppSchema : AbstractSchemaProvider
-{
-    public AppSchema()
-    {
-        Schema("app", s =>
-        {
-            s.Table("users", t => {
-                t.ForeignKey("FK_users_role_id", ["role_id"], "app", "roles", ["id"], fk =>
-                {
-                    fk.OnUpdate(ReferentialAction.SetDefault);
-                    fk.OnDelete(ReferentialAction.Cascade);
-                });
-            });
-        });
-    }
-}
-```
-
-- `Name` declares the name of the foreign key constraint in the database.
-- `ColumnNames` declares the columns in the source table that are part of the foreign key.
-- `ReferencedSchema` declares the schema of the referenced table.
-- `ReferencedTable` declares the name of the referenced table.
-- `ReferencedColumns` declares the columns in the referenced table that are part of the foreign key.
-- `OnUpdate(...)` declares the referential action to take on updates (e.g. `Cascade`, `SetNull`, `SetDefault`, `Restrict`, `NoAction`).
-- `OnDelete(...)` declares the referential action to take on deletes.
-- `Comment(...)` adds a comment to the foreign key.
-
-## Index declaration
-
-```csharp
-public class AppSchema : AbstractSchemaProvider
-{
-    public AppSchema()
-    {
-        Schema("app", s =>
-        {
-            s.Table("users", t => {
-                t.Index("idx_users_email", ["email"], i => i.Unique());
-            });
-        });
-    }
-}
-```
-
-- `Name` declares the name of the index in the database.
-- `ColumnNames` declares the columns that are part of the index.
-- `Unique()` marks the index as unique.
+To bootstrap a DSL (or JSON) project from an existing database, use the [`Import` operation](configuration.md#operations), which writes the live schema out as DSL/JSON source files.
 
 ## Defining schemas in JSON
 
-Instead of writing a C# class, you can declare the desired schema in a JSON file and register it with `AddJsonSchema`:
+Instead of the SQL DSL, you can declare the desired schema in a JSON file that mirrors the domain model, and register it with `AddJsonSchema`:
 
 ```csharp
 builder.AddJsonSchema("schema.json");
 ```
 
-You can register multiple JSON files, mix them with `AbstractSchemaProvider` classes, or use them on their own; all registered providers are aggregated before planning.
+You can register multiple JSON files, mix them with DSL files, or use them on their own; all registered providers are aggregated before planning.
 
 To register every JSON file in a directory at once, use `AddJsonSchemasFromDirectory`:
 
@@ -212,7 +110,7 @@ The document mirrors the schema model:
 }
 ```
 
-Renames use `oldName` (the JSON equivalent of `RenamedFrom(...)`) on a schema, table, or column. A schema can be marked partial with `"isPartial": true`, dropped tables are listed in a schema's `droppedTables` array, and dropped schemas in the top-level `droppedSchemas` array. Referential actions (`onDelete` / `onUpdate`) and table privileges are written as their enum names (`Cascade`, `SetNull`, `Select`, `All`, ...).
+Renames use `oldName` (the JSON equivalent of `RENAMED FROM`) on a schema, table, or column. A schema can be marked partial with `"isPartial": true`, dropped tables are listed in a schema's `droppedTables` array, and dropped schemas in the top-level `droppedSchemas` array. Referential actions (`onDelete` / `onUpdate`) and table privileges are written as their enum names (`Cascade`, `SetNull`, `Select`, `All`, ...).
 
 ### SQL types
 
@@ -230,4 +128,4 @@ SQL types are written as compact strings rather than objects. Parameterless type
 | `varbinary`, `varbinary(32)`                                 | `SqlType.VarBinary()`, `SqlType.VarBinary(32)`              |
 | any other value, e.g. `jsonb`                                | `SqlType.Custom("jsonb")`                                   |
 
-Any string that isn't a recognized built-in type becomes a custom type, which is how you target database-specific types like `jsonb` or `uuid`.
+Any string that isn't a recognized built-in type becomes a custom type, which is how you target database-specific types like `jsonb` or a schema-qualified enum (`app.status`).

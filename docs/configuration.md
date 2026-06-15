@@ -91,19 +91,19 @@ Scope is a per-invocation argument (`PlanArguments` / `ApplyArguments` / `Valida
 
 ## Configuring desired schemas
 
-The desired schema(s) are configured by registering one or more `ISchemaProvider` implementations that can supply the target schema. The most common way to do this is to subclass `AbstractSchemaProvider`, but you can also implement `ISchemaProvider` directly if you need more control.
+The desired schema(s) are configured by registering one or more `ISchemaProvider` implementations that supply the target schema. The usual source is one or more SQL DSL files (see [Defining schemas](schemas.md) and the [grammar reference](dsl-grammar.md)), loaded with `AddSqlSchema` / `AddSqlSchemasFromGlob` / `AddSqlSchemasFromDirectory`:
 
 ```csharp
-builder
-    .AddSchema<AppSchema>() // register a single schema provider
-    .AddSchemasFromAssemblyContaining<AppSchema>(); // register all providers in the assembly
+builder.AddSqlSchemasFromGlob("schemas/**/*.sql");
 ```
 
-Schemas can also be loaded from a JSON file instead of C#, with no extra package required:
+Schemas can also be loaded from a JSON file:
 
 ```csharp
 builder.AddJsonSchema("schema.json");
 ```
+
+All registered providers are aggregated before planning, so you can split a schema across many files (and mix DSL and JSON) freely. For full control you can also implement `ISchemaProvider` directly and register it with `AddSchema<T>()`.
 
 See [Defining schemas](schemas.md) for the full declaration reference, including the [JSON format](schemas.md#defining-schemas-in-json).
 

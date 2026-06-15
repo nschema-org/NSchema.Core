@@ -1,12 +1,10 @@
+using NSchema.Configuration;
 using NSchema.Schema.Model;
 
 namespace NSchema.Schema.Serialization.Ddl;
 
 /// <summary>
-/// Recursive-descent parser for NSchema DDL (see <c>docs/dsl-grammar.md</c>). Turns a source document into a
-/// <see cref="DatabaseSchema"/>. This is the schema consumer of the token stream: it understands
-/// <c>CREATE</c>/<c>DROP</c>/<c>GRANT</c> statements and <em>skips</em> top-level configuration blocks (which are
-/// reserved for a future front-end config loader, never the core).
+/// Recursive-descent parser for NSchema DDL (see <c>docs/dsl-grammar.md</c>). Turns a source document into a <see cref="DslDocument"/>.
 /// </summary>
 internal sealed class DslParser
 {
@@ -22,9 +20,15 @@ internal sealed class DslParser
     /// <summary>
     /// Parses the whole document into a <see cref="DatabaseSchema"/>.
     /// </summary>
-    public DatabaseSchema Parse()
+    public DatabaseSchema Parse() => ParseDocument().Schema;
+
+    /// <summary>
+    /// Parses the whole document into a <see cref="DslDocument"/>.
+    /// </summary>
+    public DslDocument ParseDocument()
     {
         var schemas = new SchemaAccumulator();
+        var config = new List<ConfigBlock>();
         string? pendingDoc = null;
 
         while (_current.Kind != TokenKind.EndOfFile)
@@ -37,14 +41,14 @@ internal sealed class DslParser
                 continue;
             }
 
-            ParseStatement(schemas, pendingDoc);
+            ParseStatement(schemas, config, pendingDoc);
             pendingDoc = null;
         }
 
-        return schemas.Build();
+        return new DslDocument(schemas.Build(), config);
     }
 
-    private void ParseStatement(SchemaAccumulator schemas, string? doc)
+    private void ParseStatement(SchemaAccumulator schemas, List<ConfigBlock> config, string? doc)
     {
         if (_current.IsKeyword("CREATE"))
         {
@@ -60,9 +64,10 @@ internal sealed class DslParser
         }
         else if (_current.Kind == TokenKind.Identifier)
         {
-            // An unrecognised top-level block is a (reserved) configuration block — accept and skip it, so the
-            // grammar stays forward-compatible and the core never has to understand config.
-            SkipConfigBlock();
+            // Any other top-level keyword introduces a configuration block (NSCHEMA / BACKEND / PROVIDER …).
+            // The core captures it but never interprets it, so an unknown block keyword is captured rather than
+            // rejected.
+            config.Add(ParseConfigBlock());
         }
         else
         {
@@ -710,31 +715,74 @@ internal sealed class DslParser
         }
     }
 
-    /// <summary>Skips a reserved configuration block: <c>ident [string] {{ … }}</c>, balancing nested braces.</summary>
-    private void SkipConfigBlock()
+    /// <summary>
+    /// Parses a configuration block: <c>keyword [label] ( key = value , … ) ;</c>. The keyword and optional label
+    /// are bare identifiers; attributes are a flat, comma-separated list.
+    /// </summary>
+    private ConfigBlock ParseConfigBlock()
     {
-        Advance(); // the block-type identifier (e.g. nschema, backend, provider)
-        if (_current.Kind == TokenKind.String)
-        {
-            Advance(); // optional label, e.g. backend "file"
-        }
-        Expect(TokenKind.LeftBrace, "'{' to begin a configuration block");
+        var type = ExpectIdentifier("a configuration block keyword").ToLowerInvariant();
 
-        var depth = 1;
-        while (depth > 0)
+        // An optional bare-identifier label, e.g. the 'postgres' in `PROVIDER postgres ( … )`. None for `NSCHEMA`.
+        string? label = null;
+        if (_current.Kind == TokenKind.Identifier)
         {
-            switch (_current.Kind)
+            label = Advance().Text;
+        }
+
+        Expect(TokenKind.LeftParen, "'(' to begin the configuration attributes");
+        var attributes = new Dictionary<string, ConfigValue>(StringComparer.OrdinalIgnoreCase);
+        if (_current.Kind != TokenKind.RightParen)
+        {
+            do
             {
-                case TokenKind.EndOfFile:
-                    throw Error("Unterminated configuration block.");
-                case TokenKind.LeftBrace:
-                    depth++;
-                    break;
-                case TokenKind.RightBrace:
-                    depth--;
-                    break;
+                var keyPosition = _current.Position;
+                var key = ParseConfigKey();
+                Expect(TokenKind.Equals, "'=' after a configuration attribute name");
+                var value = ParseConfigValue();
+                if (!attributes.TryAdd(key, value))
+                {
+                    throw new DslSyntaxException($"Configuration attribute '{key}' is specified more than once.", keyPosition);
+                }
             }
-            Advance();
+            while (Match(TokenKind.Comma));
+        }
+        Expect(TokenKind.RightParen, "')' or ',' after a configuration attribute");
+        Expect(TokenKind.Semicolon, "';'");
+
+        return new ConfigBlock(type, label, attributes);
+    }
+
+    /// <summary>
+    /// Parses a (possibly dotted) configuration attribute name, e.g. <c>path</c> or <c>pool.max</c>.
+    /// </summary>
+    private string ParseConfigKey()
+    {
+        var key = ExpectIdentifier("a configuration attribute name");
+        while (Match(TokenKind.Dot))
+        {
+            key += "." + ExpectIdentifier("a configuration attribute name segment");
+        }
+        return key;
+    }
+
+    /// <summary>Parses a configuration scalar: string, (signed) integer, <c>true</c>/<c>false</c>, or bare identifier.</summary>
+    private ConfigValue ParseConfigValue()
+    {
+        switch (_current.Kind)
+        {
+            case TokenKind.String:
+                return ConfigValue.OfString(Advance().Text);
+            case TokenKind.Integer:
+            case TokenKind.Minus:
+                return ConfigValue.OfInteger(ExpectSignedIntegerValue());
+            case TokenKind.Identifier:
+                var text = Advance().Text;
+                if (string.Equals(text, "true", StringComparison.OrdinalIgnoreCase)) { return ConfigValue.OfBoolean(true); }
+                if (string.Equals(text, "false", StringComparison.OrdinalIgnoreCase)) { return ConfigValue.OfBoolean(false); }
+                return ConfigValue.OfIdentifier(text);
+            default:
+                throw Error("Expected a configuration value (a string, integer, true, false, or identifier).");
         }
     }
 
