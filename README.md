@@ -2,11 +2,11 @@
 
 [![NSchema.Core](https://github.com/nschema-org/NSchema.Core/actions/workflows/cicd.yml/badge.svg)](https://github.com/nschema-org/NSchema.Core/actions/workflows/cicd.yml)
 
-NSchema is a declarative database schema migration library for .NET.
+NSchema.Core is the engine behind the [NSchema CLI](https://github.com/nschema-org/NSchema), a declarative database schema migration tool. While this library is designed to be consumed directly, I'd recommend using the CLI tool, unless you have a specific reason to build your own harness around the Core package.
 
-You describe the schema you want in C#. NSchema compares it against the current state of your database, then runs the SQL to bring it in line.
+NSchema works by describing the schema you want using familiar SQL syntax. The library then compares it against the current state of your database, then runs the SQL to bring it in line.
 
-Designed to be familiar to .NET devs, with extensibility and safety features to support many different workflows.
+Designed to be familiar to anyone who works with databases, with extensibility and safety features to support many different workflows.
 
 ## Getting started
 
@@ -17,29 +17,22 @@ dotnet add package NSchema.Core
 dotnet add package NSchema.Postgres   # or another provider
 ```
 
-Declare a schema by subclassing `AbstractSchemaProvider`:
+Declare a schema in a `.sql` file using the NSchema DSL. Write declarative `CREATE` statements describing the *desired* shape:
 
-```csharp
-using NSchema.Schema;
-using NSchema.Schema.Fluent;
+```sql
+CREATE SCHEMA app;
 
-public class AppSchema : AbstractSchemaProvider
-{
-    public AppSchema()
-    {
-        Schema("app", s => s
-            .Table("users", t => t
-                .Column("id", SqlType.Text, c => c.PrimaryKey("users_pkey"))
-                .Column("email", SqlType.Text, c => c.NotNull())
-                .Column("name", SqlType.Text, c => c.NotNull())
-                .Index("uc_users_email", ["email"], i => i.Unique())
-            )
-        );
-    }
-}
+CREATE TABLE app.users
+(
+    id bigint NOT NULL IDENTITY,
+    email text NOT NULL,
+    name text NOT NULL,
+    CONSTRAINT users_pkey PRIMARY KEY (id),
+    UNIQUE INDEX uc_users_email (email)
+);
 ```
 
-Wire up and run the application:
+Wire up and run the application, loading the DSL files and a database provider:
 
 ```csharp
 using NSchema;
@@ -49,7 +42,7 @@ using NSchema.Postgres;
 var builder = NSchemaApplication.CreateBuilder(args);
 
 builder
-    .AddSchema<AppSchema>()
+    .AddSqlSchemasFromGlob("schemas/**/*.sql")
     .UsePostgres(connectionString)
     .WithDestructiveActionPolicy(DestructiveActionPolicy.Warn);
 
@@ -78,7 +71,8 @@ await app.Apply(new ApplyArguments { PlanFile = "migration.nplan" });
 ## Documentation
 
 - **[Configuration](docs/configuration.md).** Building and running, operations, destructive-action policy, scoping, registering schemas, scripts, and policies.
-- **[Defining schemas](docs/schemas.md).** The full fluent reference for schemas, tables, columns, foreign keys, and indexes.
+- **[Defining schemas](docs/schemas.md).** Declaring schemas in the SQL DSL (and JSON) — a practical introduction.
+- **[DSL grammar](docs/dsl-grammar.md).** The complete reference for the NSchema DDL: every statement, type, and the reserved configuration blocks.
 - **[Concepts](docs/concepts.md).** The domain model, the pipeline, and how the pieces fit together.
 - **[Extension points](docs/extension-points.md).** Every interface you can swap or extend, and how to register it.
 - **[Samples](samples/).** Complete sample applications and reference implementations.

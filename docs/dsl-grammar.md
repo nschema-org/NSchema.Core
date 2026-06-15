@@ -1,13 +1,9 @@
 # NSchema DDL grammar
 
-> **Status: design specification.** This describes the canonical NSchema DDL — a declarative,
-> dialect-agnostic schema language that the (not-yet-built) `DdlSchemaSerializer` will parse and emit. It is the
-> reference the parser is implemented against, not yet a shipped feature.
-
 NSchema DDL borrows SQL's `CREATE TABLE` shape and column grammar so it reads instantly to anyone who works with
 databases, but it is its own bounded, normalized language — **not** a SQL dialect. It describes *desired state*:
 you write the final shape of the schema, never `ALTER`/migration steps. Every construct maps 1:1 onto the
-`DatabaseSchema` domain model, so the parser is a thin front-end over the same model the fluent API produces.
+`DatabaseSchema` domain model, so the parser is a thin front-end over that model.
 
 It is dialect-agnostic by construction: dialect-specific spelling (type names like `serial`, expression
 functions like `now()`) is an *output* concern owned by the `ISqlGenerator`, never the input grammar. The two
