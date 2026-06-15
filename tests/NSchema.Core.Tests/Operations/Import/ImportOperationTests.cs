@@ -212,26 +212,94 @@ public sealed class ImportOperationTests : IDisposable
         audit.Schemas.Single().Tables.Single().Name.ShouldBe("logs");
     }
 
-    // ── Partition mode: Table (one file per table) ──────────────────────────
+    // ── Partition mode: Object (one file per major object) ──────────────────
+
+    private string ObjectPath(string type, string name) =>
+        Path.Combine(_dir, "app", type, $"{name}.{JsonSchemaSerializer.FormatName}");
+
+    private string HeaderPath => Path.Combine(_dir, $"app.{JsonSchemaSerializer.FormatName}");
 
     [Fact]
-    public async Task Execute_Table_CreatesOneFilePerTable()
+    public async Task Execute_Object_CreatesOneFilePerMajorObjectGroupedByType()
     {
-        await Execute(new ImportArguments { OutputDirectory = _dir, Partition = ImportPartitionMode.Table });
+        Source(RichSchema());
 
-        File.Exists(Path.Combine(_dir, "app", $"users.{JsonSchemaSerializer.FormatName}")).ShouldBeTrue();
-        File.Exists(Path.Combine(_dir, "app", $"orders.{JsonSchemaSerializer.FormatName}")).ShouldBeTrue();
+        await Execute(new ImportArguments { OutputDirectory = _dir, Partition = ImportPartitionMode.Object });
+
+        File.Exists(ObjectPath("tables", "users")).ShouldBeTrue();
+        File.Exists(ObjectPath("tables", "orders")).ShouldBeTrue();
+        File.Exists(ObjectPath("views", "active")).ShouldBeTrue();
+        File.Exists(ObjectPath("functions", "calc")).ShouldBeTrue();
+        File.Exists(ObjectPath("procedures", "sync")).ShouldBeTrue();
     }
 
     [Fact]
-    public async Task Execute_Table_EachFileContainsOnlyItsTable()
+    public async Task Execute_Object_EachFileContainsOnlyItsObject()
     {
-        await Execute(new ImportArguments { OutputDirectory = _dir, Partition = ImportPartitionMode.Table });
+        Source(RichSchema());
 
-        var usersSchema = await ReadSchema(Path.Combine(_dir, "app", $"users.{JsonSchemaSerializer.FormatName}"));
-        usersSchema.Schemas.Single().Tables.Single().Name.ShouldBe("users");
+        await Execute(new ImportArguments { OutputDirectory = _dir, Partition = ImportPartitionMode.Object });
 
-        var ordersSchema = await ReadSchema(Path.Combine(_dir, "app", $"orders.{JsonSchemaSerializer.FormatName}"));
-        ordersSchema.Schemas.Single().Tables.Single().Name.ShouldBe("orders");
+        (await ReadSchema(ObjectPath("tables", "users"))).Schemas.Single().Tables.Single().Name.ShouldBe("users");
+        (await ReadSchema(ObjectPath("views", "active"))).Schemas.Single().Views.Single().Name.ShouldBe("active");
+        (await ReadSchema(ObjectPath("functions", "calc"))).Schemas.Single().Functions.Single().Name.ShouldBe("calc");
+        (await ReadSchema(ObjectPath("procedures", "sync"))).Schemas.Single().Procedures.Single().Name.ShouldBe("sync");
+
+        // An object file carries nothing but its own object.
+        var users = (await ReadSchema(ObjectPath("tables", "users"))).Schemas.Single();
+        users.Views.ShouldBeEmpty();
+        users.Functions.ShouldBeEmpty();
+        users.Enums.ShouldBeEmpty();
+        users.Sequences.ShouldBeEmpty();
     }
+
+    [Fact]
+    public async Task Execute_Object_WritesLeftoverObjectsToPerSchemaHeaderFile()
+    {
+        Source(RichSchema());
+
+        await Execute(new ImportArguments { OutputDirectory = _dir, Partition = ImportPartitionMode.Object });
+
+        var header = (await ReadSchema(HeaderPath)).Schemas.Single();
+        header.Enums.ShouldHaveSingleItem().Name.ShouldBe("status");
+        header.Sequences.ShouldHaveSingleItem().Name.ShouldBe("order_id");
+        // The major objects live in their own files, not the header.
+        header.Tables.ShouldBeEmpty();
+        header.Views.ShouldBeEmpty();
+        header.Functions.ShouldBeEmpty();
+        header.Procedures.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Execute_Object_AllFilesCombineWithoutDuplicates()
+    {
+        // Loading every emitted file together (as desired-schema providers do) must reconstruct the
+        // original schema without tripping the aggregator's duplicate detection.
+        Source(RichSchema());
+
+        await Execute(new ImportArguments { OutputDirectory = _dir, Partition = ImportPartitionMode.Object });
+
+        var files = Directory.EnumerateFiles(_dir, $"*.{JsonSchemaSerializer.FormatName}", SearchOption.AllDirectories);
+        var combined = new DatabaseSchema([]);
+        foreach (var file in files)
+        {
+            combined = combined.Combine(await ReadSchema(file));
+        }
+
+        var app = combined.Schemas.Single();
+        app.Tables.Select(t => t.Name).ShouldBe(["users", "orders"], ignoreOrder: true);
+        app.Views.ShouldHaveSingleItem().Name.ShouldBe("active");
+        app.Functions.ShouldHaveSingleItem().Name.ShouldBe("calc");
+        app.Procedures.ShouldHaveSingleItem().Name.ShouldBe("sync");
+        app.Enums.ShouldHaveSingleItem().Name.ShouldBe("status");
+        app.Sequences.ShouldHaveSingleItem().Name.ShouldBe("order_id");
+    }
+
+    private static DatabaseSchema RichSchema() => new([new SchemaDefinition("app",
+        Tables: [new Table("users"), new Table("orders")],
+        Views: [new View("active", "SELECT 1")],
+        Functions: [new Function("calc", "", "RETURNS int LANGUAGE sql AS $$ SELECT 1 $$")],
+        Procedures: [new Procedure("sync", "", "LANGUAGE sql AS $$ SELECT 1 $$")],
+        Enums: [new EnumType("status", ["a"])],
+        Sequences: [new Sequence("order_id", new SequenceOptions(StartWith: 1))])]);
 }

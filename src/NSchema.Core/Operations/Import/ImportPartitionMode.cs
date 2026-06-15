@@ -16,7 +16,7 @@ public enum ImportPartitionMode
     Schema,
 
     /// <summary>
-    /// One file is written per table.
+    /// One file is written per major object.
     /// </summary>
-    Table,
+    Object,
 }
