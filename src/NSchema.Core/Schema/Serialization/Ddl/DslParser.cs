@@ -404,6 +404,11 @@ internal sealed class DslParser
     private SqlType ParseType()
     {
         var text = ExpectIdentifier("a column type");
+        if (Match(TokenKind.Dot))
+        {
+            // A schema-qualified user-defined type, e.g. an enum referenced as `app.status`.
+            text += "." + ExpectIdentifier("a schema-qualified type name");
+        }
         if (_current.Kind == TokenKind.LeftParen)
         {
             Advance();
