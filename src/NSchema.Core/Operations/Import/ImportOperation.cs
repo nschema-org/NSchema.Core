@@ -48,15 +48,47 @@ internal sealed class ImportOperation(
                     throw new InvalidOperationException("OutputDirectory must be set when Partition mode is Schema.");
                 }
                 return schema.Schemas.Select(s => (Path.Combine(args.OutputDirectory, $"{s.Name}.{args.Format}"), new DatabaseSchema([s])));
-            case ImportPartitionMode.Table:
+            case ImportPartitionMode.Object:
                 if (args.OutputDirectory is null)
                 {
-                    throw new InvalidOperationException("OutputDirectory must be set when Partition mode is Table.");
+                    throw new InvalidOperationException("OutputDirectory must be set when Partition mode is Object.");
                 }
-                return schema.Schemas.SelectMany(s => s.Tables.Select(t => (Path.Combine(args.OutputDirectory, s.Name, $"{t.Name}.{args.Format}"),
-                    new DatabaseSchema([s with { Tables = [t] }]))));
+                return schema.Schemas.SelectMany(s => ObjectPartitions(s, args.OutputDirectory, args.Format));
             default:
                 throw new InvalidOperationException($"Unknown partition mode: {args.Partition}");
+        }
+    }
+
+    private static IEnumerable<(string path, DatabaseSchema schema)> ObjectPartitions(SchemaDefinition s, string directory, string format)
+    {
+        // Each major object (table, view, function, procedure) gets its own file, grouped by type under
+        // the schema's directory. The leftover schema-level objects (enums, sequences, grants, comment)
+        // share a single per-schema "header" file alongside that directory. Splitting this way keeps any
+        // one object out of every other object's file, so loading them all as desired-schema providers
+        // never trips the aggregator's duplicate detection. Type subfolders also avoid collisions where a
+        // table and a function share a name (they occupy distinct namespaces in the database).
+        var header = s with { Tables = [], Views = [], Functions = [], Procedures = [] };
+        yield return (Path.Combine(directory, $"{s.Name}.{format}"), new DatabaseSchema([header]));
+
+        foreach (var table in s.Tables)
+        {
+            yield return (Path.Combine(directory, s.Name, "tables", $"{table.Name}.{format}"),
+                new DatabaseSchema([new SchemaDefinition(s.Name, Tables: [table])]));
+        }
+        foreach (var view in s.Views)
+        {
+            yield return (Path.Combine(directory, s.Name, "views", $"{view.Name}.{format}"),
+                new DatabaseSchema([new SchemaDefinition(s.Name, Views: [view])]));
+        }
+        foreach (var function in s.Functions)
+        {
+            yield return (Path.Combine(directory, s.Name, "functions", $"{function.Name}.{format}"),
+                new DatabaseSchema([new SchemaDefinition(s.Name, Functions: [function])]));
+        }
+        foreach (var procedure in s.Procedures)
+        {
+            yield return (Path.Combine(directory, s.Name, "procedures", $"{procedure.Name}.{format}"),
+                new DatabaseSchema([new SchemaDefinition(s.Name, Procedures: [procedure])]));
         }
     }
 

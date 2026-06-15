@@ -209,6 +209,6 @@ The operation to run is **not** an option — it's chosen by which method you ca
 - `Schemas` — optional `string[]` scope filter; only these schemas are fetched from the live database.
 - `Tables` — optional `string[]` table filter applied after fetching.
 - `OutputFile` — the file to write to when `Partition` is `None` (defaults to `schema.json`).
-- `OutputDirectory` — the root directory to write into when `Partition` is `Schema` or `Table` (defaults to `.`).
-- `Partition` — an `ImportPartitionMode` (`None` / `Schema` / `Table`) controlling how the import is split across files.
+- `OutputDirectory` — the root directory to write into when `Partition` is `Schema` or `Object` (defaults to `.`).
+- `Partition` — an `ImportPartitionMode` (`None` / `Schema` / `Object`) controlling how the import is split across files. `Object` writes one file per major object (table, view, function, procedure), grouped by type under each schema's directory (e.g. `app/tables/users.json`), with the leftover schema-level objects (enums, sequences, grants, comment) sharing a per-schema header file (e.g. `app.json`).
 - `Format` — the `ISchemaSerializer` format key to write with, resolved via `IKeyedResolver<ISchemaSerializer>.Resolve(...)` (defaults to `json`).

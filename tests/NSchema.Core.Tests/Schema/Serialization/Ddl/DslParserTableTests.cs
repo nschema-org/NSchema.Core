@@ -57,6 +57,18 @@ public sealed class DslParserTableTests
         => Column("data jsonb").Type.ShouldBe(SqlType.Custom("jsonb"));
 
     [Fact]
+    public void Column_SchemaQualifiedType_CapturesQualifiedName()
+        => Column("state app.status").Type.ShouldBe(SqlType.Custom("app.status"));
+
+    [Fact]
+    public void Column_SchemaQualifiedType_WithConstraint_Parses()
+    {
+        var column = Column("state app.status NOT NULL");
+        column.Type.ShouldBe(SqlType.Custom("app.status"));
+        column.IsNullable.ShouldBeFalse();
+    }
+
+    [Fact]
     public void Column_DefaultLiteral_CapturesExpression()
         => Column("quantity int NOT NULL DEFAULT 1").DefaultExpression.ShouldBe("1");
 
