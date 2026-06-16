@@ -101,7 +101,7 @@ internal sealed class DslLexer(string source)
     }
 
     /// <summary>
-    /// Captures a parenthesised opaque expression (e.g. a <c>CHECK</c> body or index <c>WHERE</c> predicate) as
+    /// Captures a parenthesized opaque expression (e.g. a <c>CHECK</c> body or index <c>WHERE</c> predicate) as
     /// raw text. Skips leading whitespace, requires the next character to be <c>(</c>, and returns the inner text
     /// (between the outer parentheses) trimmed. Parentheses inside single-quoted strings do not affect nesting.
     /// </summary>
