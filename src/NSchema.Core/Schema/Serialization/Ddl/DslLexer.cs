@@ -151,69 +151,12 @@ internal sealed class DslLexer(string source)
     }
 
     /// <summary>
-    /// Captures an unparenthesised <c>DEFAULT</c> expression as raw text, preserving any parentheses the author
-    /// wrote. Tracks paren depth (so a comma inside <c>coalesce(a, b)</c> is not a terminator) and string literals,
-    /// and stops — without consuming the terminator — at a depth-0 <c>,</c> or <c>)</c> (the enclosing column
-    /// list) or the <c>RENAMED</c> keyword.
+    /// Captures a raw, opaque span of source as verbatim text.
     /// </summary>
-    public string ReadDefaultExpression()
-    {
-        SkipInlineWhitespace();
-        var pos = Position;
-        var start = _offset;
-        var depth = 0;
-        while (!AtEnd)
-        {
-            var c = Current;
-            if (c == '\'')
-            {
-                ConsumeStringLiteral(pos);
-                continue;
-            }
-
-            if (c == '(')
-            {
-                depth++;
-            }
-            else if (c == ')')
-            {
-                if (depth == 0)
-                {
-                    break;
-                }
-                depth--;
-            }
-            else if (depth == 0)
-            {
-                if (c == ',')
-                {
-                    break;
-                }
-                if (IsIdentifierStart(c) && AtWordStart() && MatchesKeyword("RENAMED"))
-                {
-                    break;
-                }
-            }
-
-            Advance();
-        }
-
-        var text = _source[start.._offset].Trim();
-        if (text.Length == 0)
-        {
-            throw new DslSyntaxException("Expected a default expression", pos);
-        }
-        return text;
-    }
-
-    /// <summary>
-    /// Captures the verbatim body of a statement (a view's defining query or a routine's definition) as raw
-    /// text up to, but not consuming, the terminating top-level <c>;</c>. Single-quoted strings, comments and
-    /// dollar-quoted strings (<c>$$…$$</c> / <c>$tag$…$tag$</c>) are consumed verbatim, so a <c>;</c> inside
-    /// them does not end the statement.
-    /// </summary>
-    /// <param name="what">What the body is, for the empty-body error (e.g. "a view body").</param>
-    public string ReadStatementBody(string what = "a view body")
+    /// <param name="what">What the span is, for the empty-span error (e.g. "a view body", "a default expression").</param>
+    /// <param name="terminators">The depth-zero characters that end the span (e.g. <c>";"</c>, or <c>",)"</c>).</param>
+    /// <param name="terminatorKeyword">An optional upper-cased keyword that also ends the span at a word boundary.</param>
+    public string ReadRawSpan(string what, string terminators, string? terminatorKeyword = null)
     {
         SkipInlineWhitespace();
         var pos = Position;
@@ -233,26 +176,15 @@ internal sealed class DslLexer(string source)
                 continue;
             }
 
-            // Skip line/block comments verbatim so a ';' or quote inside them is not treated as structural.
+            // Consume comments verbatim so a terminator inside them is not treated as structural.
             if (c == '-' && Peek(1) == '-')
             {
-                while (!AtEnd && Current != '\n')
-                {
-                    Advance();
-                }
+                SkipLineComment();
                 continue;
             }
             if (c == '/' && Peek(1) == '*')
             {
-                Advance(); Advance();
-                while (!AtEnd && !(Current == '*' && Peek(1) == '/'))
-                {
-                    Advance();
-                }
-                if (!AtEnd)
-                {
-                    Advance(); Advance();
-                }
+                SkipBlockComment();
                 continue;
             }
 
@@ -266,10 +198,21 @@ internal sealed class DslLexer(string source)
                 {
                     depth--;
                 }
+                else if (terminators.Contains(')'))
+                {
+                    break;
+                }
             }
-            else if (c == ';' && depth == 0)
+            else if (depth == 0)
             {
-                break;
+                if (terminators.Contains(c))
+                {
+                    break;
+                }
+                if (terminatorKeyword is not null && IsIdentifierStart(c) && AtWordStart() && MatchesKeyword(terminatorKeyword))
+                {
+                    break;
+                }
             }
 
             Advance();
@@ -281,6 +224,17 @@ internal sealed class DslLexer(string source)
             throw new DslSyntaxException($"Expected {what}", pos);
         }
         return text;
+    }
+
+    /// <summary>
+    /// Rewinds the scanner to a previously-observed position. The parser uses this to re-read a token it had
+    /// already pulled as lookahead so that an opaque expression can be captured as raw text from the right offset.
+    /// </summary>
+    public void ResetTo(SourcePosition position)
+    {
+        _offset = position.Offset;
+        _line = position.Line;
+        _column = position.Column;
     }
 
     /// <summary>
@@ -329,17 +283,6 @@ internal sealed class DslLexer(string source)
         }
 
         throw new DslSyntaxException("Unterminated dollar-quoted string", statementStart);
-    }
-
-    /// <summary>
-    /// Rewinds the scanner to a previously-observed position. The parser uses this to re-read a token it had
-    /// already pulled as lookahead so that an opaque expression can be captured as raw text from the right offset.
-    /// </summary>
-    public void ResetTo(SourcePosition position)
-    {
-        _offset = position.Offset;
-        _line = position.Line;
-        _column = position.Column;
     }
 
     private bool AtWordStart() => _offset == 0 || !IsIdentifierPart(_source[_offset - 1]);
