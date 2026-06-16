@@ -187,7 +187,7 @@ internal sealed class DslParser
 
         // The body is captured verbatim; its FROM/JOIN targets become the view's dependencies.
         _lexer.ResetTo(_current.Position);
-        var body = _lexer.ReadStatementBody();
+        var body = _lexer.ReadRawSpan("a view body", ";");
         _current = _lexer.Next();
         Expect(TokenKind.Semicolon, "';' to end the view definition");
 
@@ -227,7 +227,7 @@ internal sealed class DslParser
     {
         _lexer.ResetTo(_current.Position);
         var arguments = _lexer.ReadParenthesizedExpression();
-        var definition = _lexer.ReadStatementBody(what);
+        var definition = _lexer.ReadRawSpan(what, ";");
         _current = _lexer.Next();
         return (arguments, definition);
     }
@@ -646,12 +646,15 @@ internal sealed class DslParser
     /// <summary>
     /// Captures an opaque SQL expression as raw text by rewinding the scanner to the current lookahead token and
     /// re-reading from there: a balanced <c>( … )</c> when <paramref name="parenthesised"/> (CHECK / WHERE), or an
-    /// unparenthesised DEFAULT value otherwise. Re-syncs the lookahead afterwards.
+    /// unparenthesised DEFAULT value otherwise (terminated by the enclosing column list's <c>,</c> / <c>)</c> or a
+    /// <c>RENAMED</c> clause). Re-syncs the lookahead afterwards.
     /// </summary>
     private string ReadRawExpression(bool parenthesised)
     {
         _lexer.ResetTo(_current.Position);
-        var expression = parenthesised ? _lexer.ReadParenthesizedExpression() : _lexer.ReadDefaultExpression();
+        var expression = parenthesised
+            ? _lexer.ReadParenthesizedExpression()
+            : _lexer.ReadRawSpan("a default expression", ",)", "RENAMED");
         _current = _lexer.Next();
         return expression;
     }

@@ -199,34 +199,34 @@ public sealed class DslLexerTests
 
     [Fact]
     public void ReadStatementBody_DollarQuote_SwallowsInternalSemicolons()
-        => new DslLexer("RETURNS int AS $$ SELECT 1; $$;").ReadStatementBody()
+        => new DslLexer("RETURNS int AS $$ SELECT 1; $$;").ReadRawSpan("a view body", ";")
             .ShouldBe("RETURNS int AS $$ SELECT 1; $$");
 
     [Fact]
     public void ReadStatementBody_TaggedDollarQuote_MatchesOnlyItsOwnTag()
         // The inner $$ is just content; only the opening $body$ tag closes the string.
-        => new DslLexer("AS $body$ SELECT '$$'; $$ ; $body$;").ReadStatementBody()
+        => new DslLexer("AS $body$ SELECT '$$'; $$ ; $body$;").ReadRawSpan("a view body", ";")
             .ShouldBe("AS $body$ SELECT '$$'; $$ ; $body$");
 
     [Fact]
     public void ReadStatementBody_DollarQuote_ContainingQuotesAndComments()
-        => new DslLexer("AS $$ -- don't stop; here\n SELECT 'a;b'; $$;").ReadStatementBody()
+        => new DslLexer("AS $$ -- don't stop; here\n SELECT 'a;b'; $$;").ReadRawSpan("a view body", ";")
             .ShouldBe("AS $$ -- don't stop; here\n SELECT 'a;b'; $$");
 
     [Fact]
     public void ReadStatementBody_DollarSignThatIsNotATag_IsOrdinaryText()
         // $1 is a parameter reference, not a dollar-quote tag; the body still ends at the top-level ';'.
-        => new DslLexer("AS RETURN $1 + 1;").ReadStatementBody()
+        => new DslLexer("AS RETURN $1 + 1;").ReadRawSpan("a view body", ";")
             .ShouldBe("AS RETURN $1 + 1");
 
     [Fact]
     public void ReadStatementBody_NestedDifferentTags_OuterWins()
-        => new DslLexer("AS $outer$ a $inner$ b; $inner$ c $outer$;").ReadStatementBody()
+        => new DslLexer("AS $outer$ a $inner$ b; $inner$ c $outer$;").ReadRawSpan("a view body", ";")
             .ShouldBe("AS $outer$ a $inner$ b; $inner$ c $outer$");
 
     [Fact]
     public void ReadStatementBody_UnterminatedDollarQuote_Throws()
-        => Should.Throw<DslSyntaxException>(() => new DslLexer("AS $$ SELECT 1;").ReadStatementBody())
+        => Should.Throw<DslSyntaxException>(() => new DslLexer("AS $$ SELECT 1;").ReadRawSpan("a view body", ";"))
             .Message.ShouldContain("Unterminated dollar-quoted string");
 
     [Fact]
@@ -275,25 +275,25 @@ public sealed class DslLexerTests
 
     [Fact]
     public void ReadDefaultExpression_Literal_ReturnsTrimmedValue()
-        => new DslLexer("  42  ").ReadDefaultExpression().ShouldBe("42");
+        => new DslLexer("  42  ").ReadRawSpan("a default expression", ",)", "RENAMED").ShouldBe("42");
 
     [Fact]
     public void ReadDefaultExpression_FunctionCall_KeepsItsParens()
-        => new DslLexer("now()").ReadDefaultExpression().ShouldBe("now()");
+        => new DslLexer("now()").ReadRawSpan("a default expression", ",)", "RENAMED").ShouldBe("now()");
 
     [Fact]
     public void ReadDefaultExpression_CommaInsideParens_IsNotATerminator()
-        => new DslLexer("coalesce(a, b)").ReadDefaultExpression().ShouldBe("coalesce(a, b)");
+        => new DslLexer("coalesce(a, b)").ReadRawSpan("a default expression", ",)", "RENAMED").ShouldBe("coalesce(a, b)");
 
     [Fact]
     public void ReadDefaultExpression_ParenthesisedValue_PreservesOuterParens()
-        => new DslLexer("(a + b)").ReadDefaultExpression().ShouldBe("(a + b)");
+        => new DslLexer("(a + b)").ReadRawSpan("a default expression", ",)", "RENAMED").ShouldBe("(a + b)");
 
     [Fact]
     public void ReadDefaultExpression_StopsAtTopLevelComma_WithoutConsumingIt()
     {
         var lexer = new DslLexer("0, next");
-        lexer.ReadDefaultExpression().ShouldBe("0");
+        lexer.ReadRawSpan("a default expression", ",)", "RENAMED").ShouldBe("0");
         lexer.Next().Kind.ShouldBe(TokenKind.Comma);
     }
 
@@ -301,7 +301,7 @@ public sealed class DslLexerTests
     public void ReadDefaultExpression_StopsAtTopLevelCloseParen_WithoutConsumingIt()
     {
         var lexer = new DslLexer("5)");
-        lexer.ReadDefaultExpression().ShouldBe("5");
+        lexer.ReadRawSpan("a default expression", ",)", "RENAMED").ShouldBe("5");
         lexer.Next().Kind.ShouldBe(TokenKind.RightParen);
     }
 
@@ -311,7 +311,7 @@ public sealed class DslLexerTests
     public void ReadDefaultExpression_StopsAtRenamedKeyword(string source)
     {
         var lexer = new DslLexer(source);
-        lexer.ReadDefaultExpression().ShouldBe("0");
+        lexer.ReadRawSpan("a default expression", ",)", "RENAMED").ShouldBe("0");
         lexer.Next().IsKeyword("RENAMED").ShouldBeTrue();
     }
 
@@ -319,16 +319,16 @@ public sealed class DslLexerTests
     public void ReadDefaultExpression_RenamedInsideIdentifier_DoesNotStop()
     {
         // 'RENAMED' is only a terminator at a word boundary — embedded in an identifier it is just text.
-        new DslLexer("col_RENAMED_at").ReadDefaultExpression().ShouldBe("col_RENAMED_at");
+        new DslLexer("col_RENAMED_at").ReadRawSpan("a default expression", ",)", "RENAMED").ShouldBe("col_RENAMED_at");
     }
 
     [Fact]
     public void ReadDefaultExpression_DelimitersInsideString_AreIgnored()
-        => new DslLexer("'a, b) RENAMED'").ReadDefaultExpression().ShouldBe("'a, b) RENAMED'");
+        => new DslLexer("'a, b) RENAMED'").ReadRawSpan("a default expression", ",)", "RENAMED").ShouldBe("'a, b) RENAMED'");
 
     [Fact]
     public void ReadDefaultExpression_Empty_Throws()
-        => Should.Throw<DslSyntaxException>(() => new DslLexer(", rest").ReadDefaultExpression())
+        => Should.Throw<DslSyntaxException>(() => new DslLexer(", rest").ReadRawSpan("a default expression", ",)", "RENAMED"))
             .Message.ShouldContain("Expected a default expression");
 
     // -------------------------------------------------------------------------
@@ -339,31 +339,31 @@ public sealed class DslLexerTests
     public void ReadStatementBody_ReturnsTextUpToTerminator_TrimmedWithoutConsumingSemicolon()
     {
         var lexer = new DslLexer("SELECT id FROM app.users ;");
-        lexer.ReadStatementBody().ShouldBe("SELECT id FROM app.users");
+        lexer.ReadRawSpan("a view body", ";").ShouldBe("SELECT id FROM app.users");
         lexer.Next().Kind.ShouldBe(TokenKind.Semicolon);
     }
 
     [Fact]
     public void ReadStatementBody_SemicolonInsideString_IsNotATerminator()
-        => new DslLexer("SELECT ';' AS marker FROM app.t;").ReadStatementBody()
+        => new DslLexer("SELECT ';' AS marker FROM app.t;").ReadRawSpan("a view body", ";")
             .ShouldBe("SELECT ';' AS marker FROM app.t");
 
     [Fact]
     public void ReadStatementBody_ParensAreBalanced_AndPreserved()
-        => new DslLexer("SELECT (a + b) FROM app.t;").ReadStatementBody()
+        => new DslLexer("SELECT (a + b) FROM app.t;").ReadRawSpan("a view body", ";")
             .ShouldBe("SELECT (a + b) FROM app.t");
 
     [Fact]
     public void ReadStatementBody_SemicolonInLineComment_IsNotATerminator()
     {
         var lexer = new DslLexer("SELECT 1 -- a; b\nFROM app.t;");
-        lexer.ReadStatementBody().ShouldBe("SELECT 1 -- a; b\nFROM app.t");
+        lexer.ReadRawSpan("a view body", ";").ShouldBe("SELECT 1 -- a; b\nFROM app.t");
         lexer.Next().Kind.ShouldBe(TokenKind.Semicolon);
     }
 
     [Fact]
     public void ReadStatementBody_SemicolonInBlockComment_IsNotATerminator()
-        => new DslLexer("SELECT 1 /* a; b */ FROM app.t;").ReadStatementBody()
+        => new DslLexer("SELECT 1 /* a; b */ FROM app.t;").ReadRawSpan("a view body", ";")
             .ShouldBe("SELECT 1 /* a; b */ FROM app.t");
 
     [Fact]
@@ -371,14 +371,14 @@ public sealed class DslLexerTests
     {
         // A nested SELECT inside parens does not terminate the outer body; the first top-level ';' does.
         var lexer = new DslLexer("SELECT * FROM (SELECT id FROM app.inner_t) s; CREATE");
-        lexer.ReadStatementBody().ShouldBe("SELECT * FROM (SELECT id FROM app.inner_t) s");
+        lexer.ReadRawSpan("a view body", ";").ShouldBe("SELECT * FROM (SELECT id FROM app.inner_t) s");
         lexer.Next().Kind.ShouldBe(TokenKind.Semicolon);
         lexer.Next().IsKeyword("CREATE").ShouldBeTrue();
     }
 
     [Fact]
     public void ReadStatementBody_Empty_Throws()
-        => Should.Throw<DslSyntaxException>(() => new DslLexer(";").ReadStatementBody())
+        => Should.Throw<DslSyntaxException>(() => new DslLexer(";").ReadRawSpan("a view body", ";"))
             .Message.ShouldContain("Expected a view body");
 
     [Fact]
@@ -389,7 +389,7 @@ public sealed class DslLexerTests
         lexer.Next().IsKeyword("AS").ShouldBeTrue();
         var lookahead = lexer.Next();                 // 'SELECT', pulled as lookahead
         lexer.ResetTo(lookahead.Position);
-        lexer.ReadStatementBody().ShouldBe("SELECT id FROM app.users");
+        lexer.ReadRawSpan("a view body", ";").ShouldBe("SELECT id FROM app.users");
         lexer.Next().Kind.ShouldBe(TokenKind.Semicolon);
     }
 
@@ -414,7 +414,7 @@ public sealed class DslLexerTests
         var lexer = new DslLexer("now() RENAMED FROM old");
         var firstToken = lexer.Next();          // pulled as lookahead; the scanner is now past 'now'
         lexer.ResetTo(firstToken.Position);     // rewind to where the expression starts
-        lexer.ReadDefaultExpression().ShouldBe("now()");
+        lexer.ReadRawSpan("a default expression", ",)", "RENAMED").ShouldBe("now()");
         lexer.Next().IsKeyword("RENAMED").ShouldBeTrue();   // stream resumes cleanly at the boundary
     }
 }
