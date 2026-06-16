@@ -101,9 +101,11 @@ internal sealed class DslLexer(string source)
     }
 
     /// <summary>
-    /// Captures a parenthesized opaque expression (e.g. a <c>CHECK</c> body or index <c>WHERE</c> predicate) as
-    /// raw text. Skips leading whitespace, requires the next character to be <c>(</c>, and returns the inner text
-    /// (between the outer parentheses) trimmed. Parentheses inside single-quoted strings do not affect nesting.
+    /// Captures a parenthesized opaque expression (e.g. a <c>CHECK</c> body or index <c>WHERE</c> predicate, or a
+    /// routine's argument list) as raw text. Skips leading whitespace, requires and consumes the surrounding
+    /// parentheses, and returns the inner text trimmed — which may be empty (e.g. an empty argument list). The scan
+    /// itself delegates to <see cref="ReadRawSpan"/>, so strings, comments and dollar-quoted sections inside the
+    /// expression are honoured and any nested parentheses are balanced.
     /// </summary>
     public string ReadParenthesizedExpression()
     {
@@ -115,39 +117,15 @@ internal sealed class DslLexer(string source)
         }
 
         Advance(); // consume '('
-        var start = _offset;
-        var depth = 1;
-        while (true)
+        var inner = ReadRawSpan("an expression", ")", allowEmpty: true);
+        if (AtEnd)
         {
-            if (AtEnd)
-            {
-                throw new DslSyntaxException("Unterminated expression", pos);
-            }
-
-            var c = Current;
-            if (c == '\'')
-            {
-                ConsumeStringLiteral(pos);
-                continue;
-            }
-
-            if (c == '(')
-            {
-                depth++;
-            }
-            else if (c == ')')
-            {
-                depth--;
-                if (depth == 0)
-                {
-                    var inner = _source[start.._offset];
-                    Advance(); // consume ')'
-                    return inner.Trim();
-                }
-            }
-
-            Advance();
+            // The scan reached end-of-source without finding the matching depth-zero ')'.
+            throw new DslSyntaxException("Unterminated expression", pos);
         }
+
+        Advance(); // consume ')'
+        return inner;
     }
 
     /// <summary>
@@ -156,7 +134,8 @@ internal sealed class DslLexer(string source)
     /// <param name="what">What the span is, for the empty-span error (e.g. "a view body", "a default expression").</param>
     /// <param name="terminators">The depth-zero characters that end the span (e.g. <c>";"</c>, or <c>",)"</c>).</param>
     /// <param name="terminatorKeyword">An optional upper-cased keyword that also ends the span at a word boundary.</param>
-    public string ReadRawSpan(string what, string terminators, string? terminatorKeyword = null)
+    /// <param name="allowEmpty">When <see langword="true"/>, an empty span is returned as-is instead of throwing (e.g. an empty argument list).</param>
+    public string ReadRawSpan(string what, string terminators, string? terminatorKeyword = null, bool allowEmpty = false)
     {
         SkipInlineWhitespace();
         var pos = Position;
@@ -219,7 +198,7 @@ internal sealed class DslLexer(string source)
         }
 
         var text = _source[start.._offset].Trim();
-        if (text.Length == 0)
+        if (!allowEmpty && text.Length == 0)
         {
             throw new DslSyntaxException($"Expected {what}", pos);
         }
