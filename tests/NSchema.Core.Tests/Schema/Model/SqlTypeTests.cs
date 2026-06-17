@@ -40,7 +40,7 @@ public sealed class SqlTypeTests
     }
 
     [Theory]
-    // The DSL is SQL-flavoured, so common SQL spellings are accepted as aliases of the canonical type. Aliasing here
+    // The DDL is provider-agnostic, so common SQL spellings are accepted as aliases of the canonical type. Aliasing here
     // (rather than preserving them as Custom types) keeps SQL-spelt schemas from drifting against introspection,
     // which always reports the canonical type.
     [InlineData("bool", "boolean")]

@@ -112,7 +112,7 @@ public sealed class SchemaComparerSnapshotTests
         return Verify(_sut.Compare(current, desired));
     }
 
-    // Builds a view with its dependencies derived from the body, exactly as the DSL parser would.
+    // Builds a view with its dependencies derived from the body, exactly as the DDL parser would.
     private static View View(string name, string body, string? oldName = null) =>
         new(name, body, oldName, null, ViewDependencyExtractor.Extract(body, "app"));
 }

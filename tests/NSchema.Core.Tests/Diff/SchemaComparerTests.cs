@@ -30,7 +30,7 @@ public partial class SchemaComparerTests
         .Compare(Db(new SchemaDefinition("app", Views: current)), Db(new SchemaDefinition("app", Views: desired)))
         .Schemas.SingleOrDefault()?.Views.SingleOrDefault();
 
-    /// <summary>Builds a view with dependencies derived from its body, exactly as the DSL parser would.</summary>
+    /// <summary>Builds a view with dependencies derived from its body, exactly as the DDL parser would.</summary>
     private static View View(string name, string body, string? comment = null, string? oldName = null) =>
         new(name, body, oldName, comment, ViewDependencyExtractor.Extract(body, "app"));
 

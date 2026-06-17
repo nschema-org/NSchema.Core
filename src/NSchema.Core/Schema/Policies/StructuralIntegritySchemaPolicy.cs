@@ -35,7 +35,7 @@ public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
         return diagnostics;
     }
 
-    // Functions and procedures share one name space, as they do in the database. The DSL parser and document
+    // Functions and procedures share one name space, as they do in the database. The DDL parser and document
     // aggregation enforce this for parsed schemas; this is the catch-all for JSON-sourced and code-built ones.
     private static void ValidateRoutineNames(SchemaDefinition definition, List<PolicyDiagnostic> diagnostics)
     {

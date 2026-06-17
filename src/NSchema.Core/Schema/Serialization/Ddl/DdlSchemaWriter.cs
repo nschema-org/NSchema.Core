@@ -4,7 +4,7 @@ using NSchema.Schema.Model;
 namespace NSchema.Schema.Serialization.Ddl;
 
 /// <summary>
-/// Emits a <see cref="DatabaseSchema"/> as canonical NSchema DDL (see <c>docs/dsl-grammar.md</c>).
+/// Emits a <see cref="DatabaseSchema"/> as canonical NSchema DDL.
 /// </summary>
 internal static class DdlSchemaWriter
 {

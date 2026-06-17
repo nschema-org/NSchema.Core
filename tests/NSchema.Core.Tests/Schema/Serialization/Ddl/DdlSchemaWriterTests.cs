@@ -138,7 +138,7 @@ public sealed class DdlSchemaWriterTests
     public async Task Write_ThenParse_PreservesModelStructurally()
     {
         var original = TestData.RichSchema();
-        var reparsed = new DslParser(DdlSchemaWriter.Write(original)).Parse();
+        var reparsed = new DdlParser(DdlSchemaWriter.Write(original)).Parse();
         (await Json(reparsed)).ShouldBe(await Json(original));
     }
 
@@ -146,7 +146,7 @@ public sealed class DdlSchemaWriterTests
     public void Write_IsStableThroughParseRoundTrip()
     {
         var ddl = DdlSchemaWriter.Write(TestData.RichSchema());
-        var reEmitted = DdlSchemaWriter.Write(new DslParser(ddl).Parse());
+        var reEmitted = DdlSchemaWriter.Write(new DdlParser(ddl).Parse());
         reEmitted.ShouldBe(ddl);
     }
 
@@ -170,8 +170,8 @@ public sealed class DdlSchemaWriterTests
     public void Write_View_RoundTripsThroughParse()
     {
         var source = "CREATE SCHEMA app;\n\nCREATE VIEW app.active AS SELECT id, name FROM app.users WHERE active;\n";
-        var reEmitted = DdlSchemaWriter.Write(new DslParser(source).Parse());
-        var reparsed = new DslParser(reEmitted).Parse();
+        var reEmitted = DdlSchemaWriter.Write(new DdlParser(source).Parse());
+        var reparsed = new DdlParser(reEmitted).Parse();
 
         var view = reparsed.Schemas.ShouldHaveSingleItem().Views.ShouldHaveSingleItem();
         view.Name.ShouldBe("active");

@@ -23,7 +23,7 @@ public sealed class DdlSchemaSerializer : ISchemaSerializer
     {
         using var reader = new StreamReader(source, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
         var text = await reader.ReadToEndAsync(cancellationToken);
-        return new DslParser(text).Parse();
+        return new DdlParser(text).Parse();
     }
 
     /// <inheritdoc/>

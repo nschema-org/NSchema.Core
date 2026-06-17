@@ -107,7 +107,7 @@ desired-state model.
 ## Configuration blocks
 
 Following Terraform's model, orchestration configuration (the state backend, the live-database provider, project
-settings) may live in the DSL alongside the schema. Unlike Terraform's HCL, the blocks are **SQL-statement
+settings) may live in the DDL alongside the schema. Unlike Terraform's HCL, the blocks are **SQL-statement
 shaped** — keeping one consistent grammar in the file — mirroring Postgres storage parameters
 (`CREATE TABLE … WITH (option = value, …)`):
 
@@ -137,7 +137,7 @@ PROVIDER postgres (
 Notes on the shape:
 
 - The block keyword (`NSCHEMA` / `BACKEND` / `PROVIDER`) and the optional label (`file`, `postgres`) are **bare
-  identifiers** — consistent with bare identifiers everywhere else in the DSL; double quotes are still unused.
+  identifiers** — consistent with bare identifiers everywhere else in the DDL; double quotes are still unused.
   `NSCHEMA` has no label.
 - String **values** are single-quoted (`'postgres'`), SQL-style. Values may also be integers (optionally
   negative), `true`/`false`, or a bare identifier (`transaction_mode = single`).
@@ -147,7 +147,7 @@ Notes on the shape:
 This is deliberately distinct from the schema statements, and three rules keep it tractable:
 
 1. **The schema parser ignores them.** A single lexer feeds two consumers: the `DdlSchemaSerializer` (in the core)
-   consumes only schema statements; `DslConfigReader` (also in the core, but a separate seam a front-end calls)
+   consumes only schema statements; `DdlConfigReader` (also in the core, but a separate seam a front-end calls)
    consumes only the config blocks. The core captures config blocks into a generic `ConfigBlock` model but never
    *interprets* them — interpretation (mapping a block to provider/state/dialect registration) lives in the
    front-end. This is how one file can hold both, à la Terraform's intermixed `terraform` / `provider` /

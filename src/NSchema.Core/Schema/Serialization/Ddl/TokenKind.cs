@@ -1,7 +1,7 @@
 namespace NSchema.Schema.Serialization.Ddl;
 
 /// <summary>
-/// The kinds of token the <see cref="DslLexer"/> produces for NSchema DDL. Keywords are not distinguished here —
+/// The kinds of token the <see cref="DdlLexer"/> produces for NSchema DDL. Keywords are not distinguished here —
 /// they are lexed as <see cref="Identifier"/> and matched case-insensitively by the parser.
 /// </summary>
 internal enum TokenKind

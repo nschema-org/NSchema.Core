@@ -113,7 +113,7 @@ public static class TestData
         ],
         DroppedSchemas: ["scratch"]);
 
-    /// <summary>Builds a view with dependencies derived from its body, exactly as the DSL parser would.</summary>
+    /// <summary>Builds a view with dependencies derived from its body, exactly as the DDL parser would.</summary>
     private static View View(string name, string body, string? comment = null, string? oldName = null) =>
         new(name, body, oldName, comment, ViewDependencyExtractor.Extract(body, "app"));
 }

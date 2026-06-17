@@ -19,7 +19,7 @@ Note: the Postgres provider was extracted to its own repository (see commit `dd3
 
 ## Architecture
 
-NSchema is a declarative database schema migration library for .NET. The user describes the schema they want in the SQL DSL (see *Defining a schema* below); NSchema introspects the database, diffs, and applies the difference.
+NSchema is a declarative database schema migration library for .NET. The user describes the schema they want in DDL (see *Defining a schema* below); NSchema introspects the database, diffs, and applies the difference.
 
 `NSchemaApplication.CreateBuilder()` returns an `NSchemaApplicationBuilder`, which uses a `HostApplicationBuilder` internally purely to compose configuration, logging, metrics, and the DI container. `Build()` produces an `NSchemaApplication` (a plain `IDisposable`, not an `IHost`). It does **not** run as a host: calling `Plan()`/`PlanDestroy()`/`Apply()`/`Refresh()`/`Import()`/`Validate()`/`Destroy()`/`Show()`/`Drift()`/`ForceUnlock()` resolves that operation's dedicated interface (`IPlanOperation`, `IApplyOperation`, …) from DI and `await`s its `Execute(arguments, ct)` directly, passing the matching arguments record. Exceptions propagate to the caller. There is no `BackgroundService` and no host lifecycle. The app is single-run — a second invocation throws.
 
@@ -119,7 +119,7 @@ A plan can be saved to a file and applied later, unchanged — the analogue of `
 
 ### Defining a schema
 
-The primary input is the **SQL DSL** — declarative `CREATE` statements describing desired state (no `ALTER`). It is parsed by `DslParser` / `DdlSchemaSerializer` (format key `"sql"`) in `Schema/Serialization/Ddl/`, and the full grammar lives in `docs/dsl-grammar.md`. The old fluent `AbstractSchemaProvider` builder API has been **removed** — the DSL (and JSON) are the input formats.
+Schemas are defined using SQL DDL. Declarative `CREATE` statements describing desired state (no `ALTER`). It is parsed by `DslParser` / `DdlSchemaSerializer` (format key `"sql"`) in `Schema/Serialization/Ddl/`, and the full grammar lives in `docs/dsl-grammar.md`. The old fluent `AbstractSchemaProvider` builder API has been **removed** — the DSL (and JSON) are the input formats.
 
 ```sql
 CREATE SCHEMA app;

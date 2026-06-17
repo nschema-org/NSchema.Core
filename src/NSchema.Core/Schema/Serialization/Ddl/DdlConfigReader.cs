@@ -4,15 +4,15 @@ using NSchema.Configuration;
 namespace NSchema.Schema.Serialization.Ddl;
 
 /// <summary>
-/// Reads the top-level configuration blocks from NSchema DSL source, ignoring the schema statements.
+/// Reads the top-level configuration blocks from NSchema DDL source, ignoring the schema statements.
 /// </summary>
-public static class DslConfigReader
+public static class DdlConfigReader
 {
     /// <summary>
     /// Parses <paramref name="source"/> and returns its configuration blocks in declaration order.
     /// </summary>
     public static IReadOnlyList<ConfigBlock> Read(string source) =>
-        new DslParser(source).ParseDocument().Config;
+        new DdlParser(source).ParseDocument().Config;
 
     /// <summary>
     /// Reads <paramref name="source"/> to the end and parses its configuration blocks in declaration order.

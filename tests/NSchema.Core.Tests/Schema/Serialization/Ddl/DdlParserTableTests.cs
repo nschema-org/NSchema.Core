@@ -3,11 +3,11 @@ using NSchema.Schema.Serialization.Ddl;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
-public sealed class DslParserTableTests
+public sealed class DdlParserTableTests
 {
     private static Table ParseTable(string body, string qualifiedName = "app.users")
     {
-        var schema = new DslParser($"CREATE TABLE {qualifiedName} ({body});").Parse().Schemas.Single();
+        var schema = new DdlParser($"CREATE TABLE {qualifiedName} ({body});").Parse().Schemas.Single();
         return schema.Tables.Single();
     }
 
@@ -123,7 +123,7 @@ public sealed class DslParserTableTests
 
     [Fact]
     public void Constraint_TwoPrimaryKeys_Throws()
-        => Should.Throw<DslSyntaxException>(() => ParseTable("id int, CONSTRAINT pk1 PRIMARY KEY (id), CONSTRAINT pk2 PRIMARY KEY (id)"))
+        => Should.Throw<DdlSyntaxException>(() => ParseTable("id int, CONSTRAINT pk1 PRIMARY KEY (id), CONSTRAINT pk2 PRIMARY KEY (id)"))
             .Message.ShouldContain("only one primary key");
 
     [Fact]
@@ -204,7 +204,7 @@ public sealed class DslParserTableTests
     [Fact]
     public void Grant_TablePrivileges_AttachToTable()
     {
-        var schema = new DslParser(
+        var schema = new DdlParser(
             """
             CREATE TABLE app.users (id int);
             GRANT SELECT, INSERT ON app.users TO readers;
@@ -218,7 +218,7 @@ public sealed class DslParserTableTests
     public void Grant_BeforeTable_IsResolvedAtBuild()
     {
         // Grants are order-independent: a grant may precede the CREATE TABLE it targets.
-        var schema = new DslParser(
+        var schema = new DdlParser(
             """
             GRANT SELECT ON app.users TO readers;
             CREATE TABLE app.users (id int);
@@ -229,18 +229,18 @@ public sealed class DslParserTableTests
     [Fact]
     public void Grant_SchemaUsage_AttachesToSchema()
     {
-        var schema = new DslParser("CREATE SCHEMA app; GRANT USAGE ON SCHEMA app TO app_role;").Parse().Schemas.Single();
+        var schema = new DdlParser("CREATE SCHEMA app; GRANT USAGE ON SCHEMA app TO app_role;").Parse().Schemas.Single();
         schema.Grants.Single().Role.ShouldBe("app_role");
     }
 
     [Fact]
     public void Grant_UnknownTable_Throws()
-        => Should.Throw<DslSyntaxException>(() => new DslParser("GRANT SELECT ON app.ghost TO readers;").Parse())
+        => Should.Throw<DdlSyntaxException>(() => new DdlParser("GRANT SELECT ON app.ghost TO readers;").Parse())
             .Message.ShouldContain("unknown table");
 
     [Fact]
     public void Grant_UnknownPrivilege_Throws()
-        => Should.Throw<DslSyntaxException>(() => new DslParser("CREATE TABLE app.t (id int); GRANT TRUNCATE ON app.t TO r;").Parse())
+        => Should.Throw<DdlSyntaxException>(() => new DdlParser("CREATE TABLE app.t (id int); GRANT TRUNCATE ON app.t TO r;").Parse())
             .Message.ShouldContain("privilege");
 
     // -------------------------------------------------------------------------
@@ -250,7 +250,7 @@ public sealed class DslParserTableTests
     [Fact]
     public void Parse_RichTable_AssemblesEveryMember()
     {
-        var table = new DslParser(
+        var table = new DdlParser(
             """
             --- Line items for an order.
             CREATE TABLE shop.order_items RENAMED FROM line_items (
