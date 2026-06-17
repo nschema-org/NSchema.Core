@@ -46,6 +46,16 @@ builder.AddSqlSchemas("schemas");            // every .sql under "schemas/", rec
 // builder.AddSqlSchemas("schemas", "app.sql");     // or a single file
 ```
 
+For finer control — for example to exclude files reserved for other purposes — pass a configured `Microsoft.Extensions.FileSystemGlobbing.Matcher`, which supports excludes as well as includes:
+
+```csharp
+var matcher = new Matcher();
+matcher.AddInclude("**/*.sql");
+matcher.AddExclude("**/*.pre.sql");   // pre/post-deployment scripts, not schema files
+matcher.AddExclude("**/*.post.sql");
+builder.AddSqlSchemas("schemas", matcher);
+```
+
 To bootstrap a project from an existing database, use the [`Import` operation](configuration.md#operations), which writes the live schema out as DDL source files.
 
 ### SQL types

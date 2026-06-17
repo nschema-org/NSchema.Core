@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileSystemGlobbing;
 using NSchema.Schema;
 
 namespace NSchema.Tests;
@@ -55,6 +56,24 @@ public sealed class AddSqlSchemasTests : IDisposable
         var names = await ResolveSchemaNames(b => b.AddSqlSchemas(_root));
 
         names.ShouldBe(["a", "b", "c"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task AddSqlSchemas_WithMatcher_HonoursExcludes()
+    {
+        // The CLI's case: include every .sql but exclude the pre/post deployment scripts.
+        WriteSchemaFile("app.sql", "app");
+        WriteSchemaFile("app.pre.sql", "pre");
+        WriteSchemaFile("app.post.sql", "post");
+
+        var matcher = new Matcher();
+        matcher.AddInclude("**/*.sql");
+        matcher.AddExclude("**/*.pre.sql");
+        matcher.AddExclude("**/*.post.sql");
+
+        var names = await ResolveSchemaNames(b => b.AddSqlSchemas(_root, matcher));
+
+        names.ShouldBe(["app"]);
     }
 
     [Fact]

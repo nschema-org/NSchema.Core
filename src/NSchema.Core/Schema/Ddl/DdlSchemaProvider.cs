@@ -10,25 +10,22 @@ namespace NSchema.Schema.Ddl;
 internal sealed class DdlSchemaProvider : ISchemaProvider
 {
     private readonly string _baseDirectory;
-    private readonly string _globPattern;
+    private readonly Matcher _matcher;
 
-    /// <param name="baseDirectory">The directory the glob is matched against.</param>
-    /// <param name="globPattern">A glob pattern relative to <paramref name="baseDirectory"/>, e.g. <c>**/*.sql</c>.</param>
-    public DdlSchemaProvider(string baseDirectory, string globPattern)
+    /// <param name="baseDirectory">The directory the matcher is run against.</param>
+    /// <param name="matcher">The glob matcher selecting files (relative to <paramref name="baseDirectory"/>); may carry excludes.</param>
+    public DdlSchemaProvider(string baseDirectory, Matcher matcher)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(baseDirectory);
-        ArgumentException.ThrowIfNullOrWhiteSpace(globPattern);
+        ArgumentNullException.ThrowIfNull(matcher);
         _baseDirectory = baseDirectory;
-        _globPattern = globPattern;
+        _matcher = matcher;
     }
 
     /// <inheritdoc/>
     public async ValueTask<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default)
     {
-        var matcher = new Matcher();
-        matcher.AddInclude(_globPattern);
-
-        var files = matcher
+        var files = _matcher
             .Execute(new DirectoryInfoWrapper(new DirectoryInfo(_baseDirectory)))
             .Files
             .Select(match => Path.GetFullPath(match.Path, _baseDirectory))
@@ -37,7 +34,7 @@ internal sealed class DdlSchemaProvider : ISchemaProvider
 
         if (files.Count == 0)
         {
-            throw new FileNotFoundException($"No SQL DDL files matched \"{_globPattern}\" under \"{_baseDirectory}\".");
+            throw new FileNotFoundException($"No SQL DDL files matched under \"{_baseDirectory}\".");
         }
 
         // Read the matched files concurrently, then combine in a deterministic (sorted) order so duplicate
