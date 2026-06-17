@@ -1,25 +1,52 @@
+using Microsoft.Extensions.FileSystemGlobbing;
+using NSchema.Schema.Ddl;
+using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
 
 namespace NSchema.Schema;
 
-internal sealed class DesiredSchemaProvider(IEnumerable<ISchemaProvider> providers, IEnumerable<ISchemaTransformer> transformers) : IDesiredSchemaProvider
+/// <summary>
+/// The default <see cref="IDesiredSchemaProvider"/>: reads each registered <see cref="DdlSchemaSource"/>, reads the matched <c>.sql</c> files with <see cref="DdlReader"/>.
+/// </summary>
+internal sealed class DesiredSchemaProvider(IEnumerable<DdlSchemaSource> sources) : IDesiredSchemaProvider
 {
-    public async ValueTask<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default)
+    public async ValueTask<DesiredProject> GetProject(string[]? schemaNames = null, CancellationToken cancellationToken = default)
     {
-        var providerList = providers.ToList();
-        if (providerList.Count == 0)
+        var sourceList = sources.ToList();
+        if (sourceList.Count == 0)
         {
-            throw new InvalidOperationException("No schema providers are registered.");
+            throw new InvalidOperationException("No SQL schema sources are registered.");
         }
 
-        // Task.WhenAll has no ValueTask overload; materialize each call to a Task to fan out concurrently.
-        List<DatabaseSchema> schemas = [];
-        var schemaTasks = providerList.Select(provider => provider.GetSchema(schemaNames, cancellationToken)).ToList();
-        foreach (var schemaTask in schemaTasks)
+        // Each source contributes its matched files in sorted order; sources stay in registration order (so an
+        // environment overlay layers after the base). Reads fan out, then combine in that deterministic order so
+        // duplicate detection and script ordering are stable.
+        var files = sourceList.SelectMany(ResolveFiles).ToList();
+        if (files.Count == 0)
         {
-            schemas.Add(await schemaTask);
+            throw new FileNotFoundException("No SQL DDL files matched the registered schema sources.");
         }
-        var aggregated = schemas.Aggregate(new DatabaseSchema(), (acc, schema) => acc.Combine(schema));
-        return transformers.Aggregate(aggregated, (schema, transformer) => transformer.Transform(schema));
+
+        var documents = await Task.WhenAll(files.Select(file => ReadDocument(file, cancellationToken)));
+
+        var schema = new DatabaseSchema();
+        var scripts = new List<Script>();
+        foreach (var document in documents)
+        {
+            schema = schema.Combine(document.Schema);
+            scripts.AddRange(document.Scripts);
+        }
+
+        return new DesiredProject(schema.Filter(schemaNames), scripts);
+    }
+
+    private static IEnumerable<string> ResolveFiles(DdlSchemaSource source) => source.Matcher
+        .GetResultsInFullPath(source.BaseDirectory)
+        .OrderBy(path => path, StringComparer.Ordinal);
+
+    private static async Task<DdlDocument> ReadDocument(string path, CancellationToken cancellationToken)
+    {
+        var text = await File.ReadAllTextAsync(path, cancellationToken);
+        return DdlReader.Instance.Read(text);
     }
 }

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileSystemGlobbing;
 using NSchema.Schema;
+using NSchema.Schema.Model;
 
 namespace NSchema.Tests;
 
@@ -19,21 +20,17 @@ public sealed class AddSqlSchemasTests : IDisposable
         return path;
     }
 
-    // Registers the providers and returns the names of every schema they collectively yield.
-    private static async Task<List<string>> ResolveSchemaNames(Action<NSchemaApplicationBuilder> configure)
+    // Resolves the desired project the way the operations do — through the aggregated IDesiredSchemaProvider.
+    private static async Task<DesiredProject> ResolveProject(Action<NSchemaApplicationBuilder> configure, string[]? scope = null)
     {
         var builder = NSchemaApplication.CreateBuilder();
         configure(builder);
         using var app = builder.Build();
-
-        var names = new List<string>();
-        foreach (var provider in app.Services.GetServices<ISchemaProvider>())
-        {
-            var schema = await provider.GetSchema();
-            names.AddRange(schema.Schemas.Select(s => s.Name));
-        }
-        return names;
+        return await app.Services.GetRequiredService<IDesiredSchemaProvider>().GetProject(scope, TestContext.Current.CancellationToken);
     }
+
+    private static async Task<List<string>> ResolveSchemaNames(Action<NSchemaApplicationBuilder> configure) =>
+        (await ResolveProject(configure)).Schema.Schemas.Select(s => s.Name).ToList();
 
     [Fact]
     public async Task AddSqlSchemas_LoadsSingleFile()
@@ -41,7 +38,7 @@ public sealed class AddSqlSchemasTests : IDisposable
         // A wildcard-free pattern names a single file under the base directory.
         WriteSchemaFile("app.sql", "app");
 
-        var names = await ResolveSchemaNames(b => b.AddSqlSchemas(_root, "app.sql"));
+        var names = await ResolveSchemaNames(b => b.AddDdlSchemas(_root, "app.sql"));
 
         names.ShouldBe(["app"]);
     }
@@ -53,7 +50,7 @@ public sealed class AddSqlSchemasTests : IDisposable
         WriteSchemaFile("nested/b.sql", "b");
         WriteSchemaFile("nested/deep/c.sql", "c");
 
-        var names = await ResolveSchemaNames(b => b.AddSqlSchemas(_root));
+        var names = await ResolveSchemaNames(b => b.AddDdlSchemas(_root));
 
         names.ShouldBe(["a", "b", "c"], ignoreOrder: true);
     }
@@ -71,9 +68,21 @@ public sealed class AddSqlSchemasTests : IDisposable
         matcher.AddExclude("**/*.pre.sql");
         matcher.AddExclude("**/*.post.sql");
 
-        var names = await ResolveSchemaNames(b => b.AddSqlSchemas(_root, matcher));
+        var names = await ResolveSchemaNames(b => b.AddDdlSchemas(_root, matcher));
 
         names.ShouldBe(["app"]);
+    }
+
+    [Fact]
+    public async Task AddSqlSchemas_AggregatesMultipleCalls()
+    {
+        // Multiple AddSqlSchemas calls aggregate — the shape the CLI's environment overlay relies on.
+        WriteSchemaFile("base.sql", "app");
+        WriteSchemaFile("extra.sql", "audit");
+
+        var names = await ResolveSchemaNames(b => b.AddDdlSchemas(_root, "base.sql").AddDdlSchemas(_root, "extra.sql"));
+
+        names.ShouldBe(["app", "audit"], ignoreOrder: true);
     }
 
     [Fact]
@@ -82,9 +91,9 @@ public sealed class AddSqlSchemasTests : IDisposable
         // Planning against an empty desired schema would read as "drop everything", so a pattern that
         // resolves to no files is a configuration error rather than an empty schema.
         var ex = await Should.ThrowAsync<FileNotFoundException>(
-            () => ResolveSchemaNames(b => b.AddSqlSchemas(_root)));
+            () => ResolveSchemaNames(b => b.AddDdlSchemas(_root)));
 
-        ex.Message.ShouldContain(_root);
+        ex.Message.ShouldContain("No SQL DDL files matched");
     }
 
     [Fact]
@@ -92,29 +101,48 @@ public sealed class AddSqlSchemasTests : IDisposable
     {
         File.WriteAllText(Path.Combine(_root, "multi.sql"), "CREATE SCHEMA app; CREATE SCHEMA audit;");
 
-        var builder = NSchemaApplication.CreateBuilder();
-        builder.AddSqlSchemas(_root);
-        using var app = builder.Build();
+        var project = await ResolveProject(b => b.AddDdlSchemas(_root), scope: ["app"]);
 
-        var provider = app.Services.GetServices<ISchemaProvider>().ShouldHaveSingleItem();
-        var schema = await provider.GetSchema(["app"], TestContext.Current.CancellationToken);
-
-        schema.Schemas.Select(s => s.Name).ShouldBe(["app"]);
+        project.Schema.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
 
     [Fact]
-    public async Task AddSqlSchemas_RegistersOneProvider_AndMatchesAtReadTime()
+    public async Task AddSqlSchemas_SurfacesInlineDeploymentScripts()
     {
-        // The glob is evaluated when the schema is read, not at registration: a single provider is
-        // registered, and a file written after the builder is configured is still picked up.
+        File.WriteAllText(Path.Combine(_root, "schema.sql"),
+            """
+            CREATE SCHEMA app;
+            POST DEPLOYMENT 'backfill' AS $$ UPDATE app.t SET x = 1; $$;
+            """);
+
+        var project = await ResolveProject(b => b.AddDdlSchemas(_root));
+
+        var script = project.Scripts.ShouldHaveSingleItem();
+        script.Name.ShouldBe("backfill");
+        script.Type.ShouldBe(ScriptType.PostDeployment);
+    }
+
+    [Fact]
+    public async Task AddSqlSchemas_WithNoDeploymentBlocks_YieldsNoScripts()
+    {
+        WriteSchemaFile("app.sql", "app");
+
+        (await ResolveProject(b => b.AddDdlSchemas(_root))).Scripts.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AddSqlSchemas_RegistersOneSource_AndMatchesAtReadTime()
+    {
+        // The glob is evaluated when the project is read, not at registration: one source is registered, and a file
+        // written after the builder is configured is still picked up.
         var builder = NSchemaApplication.CreateBuilder();
-        builder.AddSqlSchemas(_root);
+        builder.AddDdlSchemas(_root);
         using var app = builder.Build();
 
+        app.Services.GetServices<DdlSchemaSource>().ShouldHaveSingleItem();
         WriteSchemaFile("late.sql", "late");
 
-        var provider = app.Services.GetServices<ISchemaProvider>().ShouldHaveSingleItem();
-        var schema = await provider.GetSchema(cancellationToken: TestContext.Current.CancellationToken);
-        schema.Schemas.Select(s => s.Name).ShouldBe(["late"]);
+        var project = await app.Services.GetRequiredService<IDesiredSchemaProvider>().GetProject(cancellationToken: TestContext.Current.CancellationToken);
+        project.Schema.Schemas.Select(s => s.Name).ShouldBe(["late"]);
     }
 }

@@ -6,7 +6,6 @@ using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Schema;
 using NSchema.Schema.Model;
-using NSchema.Scripts.Model;
 using NSchema.State;
 
 namespace NSchema.Tests.Operations.Services;
@@ -20,7 +19,9 @@ public sealed class MigrationWorkflowTests
     private readonly ISchemaStateSerializer _stateSerializer = new SchemaStateSerializer();
 
     private MigrationWorkflow BuildSut(ISchemaStateStore? store = null) =>
-        new(_planner, [], Helpers.TestReporters.ResolverFor(_reporter), _currentProvider, _desiredProvider, _stateSerializer, store);
+        new(_planner, Helpers.TestReporters.ResolverFor(_reporter), _currentProvider, _desiredProvider, _stateSerializer, store);
+
+    private static DesiredProject Project(DatabaseSchema schema) => new(schema, []);
 
     private readonly MigrationWorkflow _sut;
 
@@ -31,8 +32,8 @@ public sealed class MigrationWorkflowTests
             .Returns(new DatabaseSchema([]));
 
         _desiredProvider
-            .GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(new DatabaseSchema([]));
+            .GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
+            .Returns(Project(new DatabaseSchema([])));
 
         _planner.Validate(Arg.Any<DatabaseSchema>()).Returns(new PolicyDiagnostics());
 
@@ -52,7 +53,7 @@ public sealed class MigrationWorkflowTests
     {
         // Arrange
         var desired = new DatabaseSchema([new SchemaDefinition("app")]);
-        _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(desired);
+        _desiredProvider.GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(Project(desired));
 
         // Act
         var result = await _sut.Validate(TestContext.Current.CancellationToken);
@@ -208,7 +209,7 @@ public sealed class MigrationWorkflowTests
         var desired = new DatabaseSchema(
             [new SchemaDefinition("app"), new SchemaDefinition("admin")],
             DroppedSchemas: ["legacy"]);
-        _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(desired);
+        _desiredProvider.GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(Project(desired));
         string[]? capturedScope = null;
         _currentProvider
             .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
@@ -228,8 +229,8 @@ public sealed class MigrationWorkflowTests
         // Arrange
         string[]? desiredScope = null;
         string[]? currentScope = null;
-        _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(call => { desiredScope = call.Arg<string[]?>(); return new DatabaseSchema([]); });
+        _desiredProvider.GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
+            .Returns(call => { desiredScope = call.Arg<string[]?>(); return Project(new DatabaseSchema([])); });
         _currentProvider
             .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(call => { currentScope = call.ArgAt<string[]?>(1); return new DatabaseSchema([]); });
@@ -246,8 +247,8 @@ public sealed class MigrationWorkflowTests
     {
         // Arrange
         string[]? desiredScope = [];
-        _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(call => { desiredScope = call.Arg<string[]?>(); return new DatabaseSchema([]); });
+        _desiredProvider.GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
+            .Returns(call => { desiredScope = call.Arg<string[]?>(); return Project(new DatabaseSchema([])); });
 
         // Act
         await _sut.Plan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
@@ -273,7 +274,7 @@ public sealed class MigrationWorkflowTests
         await _currentProvider.Received(1).GetSchema(
             SchemaSourceMode.Offline, Arg.Any<string[]?>(), required: true, Arg.Any<CancellationToken>());
         _planner.Received(1).PlanTeardown(managed);
-        await _desiredProvider.DidNotReceive().GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+        await _desiredProvider.DidNotReceive().GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -281,7 +282,7 @@ public sealed class MigrationWorkflowTests
     {
         // Arrange
         var managed = new DatabaseSchema([new SchemaDefinition("app")]);
-        _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(managed);
+        _desiredProvider.GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(Project(managed));
         var sut = BuildSut(store: null);
 
         // Act

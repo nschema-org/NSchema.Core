@@ -1,4 +1,4 @@
-using NSchema.Scripts.Model;
+using NSchema.Schema.Model;
 
 namespace NSchema.Plan.Model;
 
@@ -12,10 +12,4 @@ public sealed record MigrationPlan(
     IReadOnlyList<MigrationAction> Actions,
     IReadOnlyList<Script> PreDeploymentScripts,
     IReadOnlyList<Script> PostDeploymentScripts
-)
-{
-    /// <summary>
-    /// Indicates whether the migration plan contains any actions or scripts to execute.
-    /// </summary>
-    public bool IsEmpty => Actions.Count == 0 && PreDeploymentScripts.Count == 0 && PostDeploymentScripts.Count == 0;
-}
+);

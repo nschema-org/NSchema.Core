@@ -3,15 +3,12 @@ using NSchema.Policies;
 using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Schema.Model;
-using NSchema.Scripts;
-using NSchema.Scripts.Model;
 using NSchema.State;
 
 namespace NSchema.Operations.Services;
 
 internal sealed class MigrationWorkflow(
     IMigrationPlanner planner,
-    IEnumerable<IScriptProvider> scriptProviders,
     IKeyedResolver<IOperationReporter> reporters,
     ICurrentSchemaProvider currentProvider,
     IDesiredSchemaProvider desiredProvider,
@@ -22,44 +19,35 @@ internal sealed class MigrationWorkflow(
     public async Task<DatabaseSchema> Validate(CancellationToken cancellationToken = default)
     {
         reporters.Current.Progress("Loading desired schema...");
-        var desiredSchema = await desiredProvider.GetSchema(null, cancellationToken);
+        var desired = await desiredProvider.GetProject(null, cancellationToken);
 
         reporters.Current.Progress("Validating schema...");
-        ReportOrThrow(planner.Validate(desiredSchema));
+        ReportOrThrow(planner.Validate(desired.Schema));
 
-        return desiredSchema;
+        return desired.Schema;
     }
 
     public async Task<PlannedMigration> Plan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default)
     {
         reporters.Current.Progress("Loading desired schema...");
-        var desiredSchema = await desiredProvider.GetSchema(schemas, cancellationToken);
-        var schemasInScope = schemas ?? desiredSchema.AllSchemaNames;
+        var desired = await desiredProvider.GetProject(schemas, cancellationToken);
+        var schemasInScope = schemas ?? desired.Schema.AllSchemaNames;
 
         reporters.Current.Progress($"Migration will be scoped to the following schemas: {string.Join(", ", schemasInScope)}");
 
         reporters.Current.Progress("Loading provider schema...");
         var currentSchema = await currentProvider.GetSchema(currentSource, schemasInScope, required, cancellationToken);
 
-        reporters.Current.Progress("Loading scripts...");
-        List<Script> scripts = [];
-        var scriptTasks = scriptProviders.Select(p => p.GetScripts(cancellationToken)).ToList();
-        foreach (var task in scriptTasks)
-        {
-            scripts.AddRange(await task);
-        }
-
         reporters.Current.Progress("Computing migration plan...");
-        return ReportOrThrow(planner.Plan(currentSchema, desiredSchema, scripts));
+        return ReportOrThrow(planner.Plan(currentSchema, desired.Schema, desired.Scripts));
     }
 
     public async Task<PlannedMigration> PlanDestroy(CancellationToken cancellationToken = default)
     {
         // The managed schema is what we tear down: recorded state when we have it, otherwise the declared desired schema.
-        // GetSchema applies the schema transformers, so a transform that adds an object is reflected here and therefore gets dropped.
         var managedSchema = store is not null
             ? await currentProvider.GetSchema(SchemaSourceMode.Offline, null, required: true, cancellationToken)
-            : await desiredProvider.GetSchema(null, cancellationToken);
+            : (await desiredProvider.GetProject(null, cancellationToken)).Schema;
 
         reporters.Current.Progress("Computing teardown plan...");
         return ReportOrThrow(planner.PlanTeardown(managedSchema));

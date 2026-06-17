@@ -72,7 +72,7 @@ builder.WithDestructiveActionPolicy(DestructiveActionPolicy.Warn); // log a warn
 builder.WithDestructiveActionPolicy(DestructiveActionPolicy.Allow); // allow destructive actions without warning
 ```
 
-If you need more advanced control, you can implement your own `IPlanPolicy` and register it with `AddPlanPolicy<T>()`.
+If you need more advanced control, you can implement your own `IDiffPolicy` and register it with `AddDiffPolicy<T>()`.
 
 ## Scoping to specific schemas
 
@@ -80,7 +80,7 @@ Pass a `Schemas` filter on the operation arguments to scope a run to a subset of
 
 ```csharp
 var app = builder
-    .AddSchemasFromAssemblyContaining<Program>()
+    .AddDdlSchemas("schemas")
     .UsePostgres(connectionString)
     .Build();
 
@@ -91,13 +91,13 @@ Scope is a per-invocation argument (`PlanArguments` / `ApplyArguments` / `Valida
 
 ## Configuring desired schemas
 
-The desired schema(s) are configured by registering one or more `ISchemaProvider` implementations that supply the target schema. The usual source is one or more SQL DDL files (see [Defining schemas](schemas.md) and the [grammar reference](ddl-grammar.md)), loaded with `AddSqlSchemas`, which takes a base directory and a glob pattern relative to it (the pattern defaults to `**/*.sql`):
+The desired schema is declared in SQL DDL files (see [Defining schemas](schemas.md) and the [grammar reference](ddl-grammar.md)), loaded with `AddDdlSchemas`, which takes a base directory and a glob pattern relative to it (the pattern defaults to `**/*.sql`):
 
 ```csharp
-builder.AddSqlSchemas("schemas");
+builder.AddDdlSchemas("schemas");
 ```
 
-All registered providers are aggregated before planning, so you can split a schema across many files freely. For full control you can also implement `ISchemaProvider` directly and register it with `AddSchema<T>()`.
+`AddDdlSchemas` may be called more than once and the sources are aggregated before planning, so you can split a schema across many files (and directories) freely. Deployment scripts declared inline in those files (`PRE/POST DEPLOYMENT`) are loaded at the same time.
 
 See [Defining schemas](schemas.md) for the full declaration reference.
 
@@ -114,25 +114,6 @@ builder.UseCurrentSchema<PostgresSchemaProvider>();
 ```
 
 See [Backend state store](#backend-state-store) for how to configure offline planning against a persisted snapshot.
-
-## Adding scripts
-
-You can add pre- or post-deployment scripts to run alongside the generated migration SQL. This is useful for data migrations, cache invalidation, or any other custom logic that needs to run as part of the deployment.
-
-Scripts can also be added from embedded resources, or by implementing `IScriptProvider` directly for more complex scenarios:
-
-```csharp
-// Add scripts from files:
-builder
-    .AddScriptFromFile(ScriptType.PreDeployment, "pre_deploy.sql")
-    .AddScriptFromFile(ScriptType.PostDeployment, "post_deploy.sql");
-
-// Add scripts from embedded resources:
-builder.AddScriptsFromEmbeddedResources(ScriptType.PreDeployment, typeof(Program).Assembly, "MyNamespace.Scripts.PreDeployment.");
-
-// Add a custom script provider:
-builder.AddScriptProvider<CustomScriptProvider>();
-```
 
 ## Transaction mode
 
@@ -175,20 +156,12 @@ Schema policies are used to validate the desired schema before any comparison or
 builder.AddSchemaPolicy<TableNamesMustBePluralPolicy>();
 ```
 
-## Plan policies
+## Diff policies
 
-Plan policies are used to validate the generated migration plan before it's executed:
-
-```csharp
-builder.AddPlanPolicy<NoDestructiveActionsPolicy>();
-```
-
-## Plan transformers
-
-Plan transformers are used to rewrite or reorder the generated migration plan before it's validated and executed:
+Diff policies validate the structured diff between the current and desired schema before a plan is built — this is where the built-in destructive-action policy runs. Register your own to enforce additional rules:
 
 ```csharp
-builder.AddPlanTransformer<DependencyOrderingPlanTransformer>();
+builder.AddDiffPolicy<NoDestructiveActionsPolicy>();
 ```
 
 ## Exception behavior
