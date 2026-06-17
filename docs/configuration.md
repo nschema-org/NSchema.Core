@@ -115,25 +115,6 @@ builder.UseCurrentSchema<PostgresSchemaProvider>();
 
 See [Backend state store](#backend-state-store) for how to configure offline planning against a persisted snapshot.
 
-## Adding scripts
-
-You can add pre- or post-deployment scripts to run alongside the generated migration SQL. This is useful for data migrations, cache invalidation, or any other custom logic that needs to run as part of the deployment.
-
-Scripts can also be added from embedded resources, or by implementing `IScriptProvider` directly for more complex scenarios:
-
-```csharp
-// Add scripts from files:
-builder
-    .AddScriptFromFile(ScriptType.PreDeployment, "pre_deploy.sql")
-    .AddScriptFromFile(ScriptType.PostDeployment, "post_deploy.sql");
-
-// Add scripts from embedded resources:
-builder.AddScriptsFromEmbeddedResources(ScriptType.PreDeployment, typeof(Program).Assembly, "MyNamespace.Scripts.PreDeployment.");
-
-// Add a custom script provider:
-builder.AddScriptProvider<CustomScriptProvider>();
-```
-
 ## Transaction mode
 
 By default, NSchema runs the entire migration inside a single transaction to ensure that either all changes are applied successfully or none at all. However, some databases don't support DDL statements inside transactions, or you may have specific statements that need to run outside of a transaction.

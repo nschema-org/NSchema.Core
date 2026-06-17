@@ -1,71 +1,88 @@
+using Microsoft.Extensions.FileSystemGlobbing;
 using NSchema.Schema;
-using NSchema.Schema.Model;
 
 namespace NSchema.Tests.Schema;
 
-public sealed class DesiredSchemaProviderTests
+public sealed class DesiredSchemaProviderTests : IDisposable
 {
-    [Fact]
-    public async Task GetSchema_NoProviders_Throws()
+    private readonly string _root = Directory.CreateTempSubdirectory("nschema-desired-").FullName;
+
+    public void Dispose() => Directory.Delete(_root, recursive: true);
+
+    private void Write(string relativePath, string sql)
     {
-        var sut = new DesiredSchemaProvider([], []);
+        var path = Path.Combine(_root, relativePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, sql);
+    }
 
-        var act = () => sut.GetSchema().AsTask();
-
-        await Should.ThrowAsync<InvalidOperationException>(act);
+    private static DdlSchemaSource Source(string root, string glob)
+    {
+        var matcher = new Matcher();
+        matcher.AddInclude(glob);
+        return new DdlSchemaSource(root, matcher);
     }
 
     [Fact]
-    public async Task GetSchema_AggregatesAllProviders()
+    public async Task GetProject_NoSources_Throws()
+        => await Should.ThrowAsync<InvalidOperationException>(() => new DesiredSchemaProvider([]).GetProject().AsTask());
+
+    [Fact]
+    public async Task GetProject_NoMatchingFiles_Throws()
     {
-        var s1 = new DatabaseSchema([new SchemaDefinition("a")]);
-        var s2 = new DatabaseSchema([new SchemaDefinition("b")]);
-        var merged = new DatabaseSchema([new SchemaDefinition("a"), new SchemaDefinition("b")]);
-        var p1 = Substitute.For<ISchemaProvider>();
-        var p2 = Substitute.For<ISchemaProvider>();
-        p1.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(s1);
-        p2.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(s2);
-        var sut = new DesiredSchemaProvider([p1, p2], []);
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
 
-        var result = await sut.GetSchema(null, TestContext.Current.CancellationToken);
-
-        result.Schemas.Count.ShouldBe(2);
-        result.Schemas.Select(s => s.Name).ShouldBe(["a", "b"]);
+        await Should.ThrowAsync<FileNotFoundException>(() => sut.GetProject(cancellationToken: TestContext.Current.CancellationToken).AsTask());
     }
 
     [Fact]
-    public async Task GetSchema_AppliesTransformersAfterAggregation()
+    public async Task GetProject_AggregatesAllSources()
     {
+        Write("a.sql", "CREATE SCHEMA a;");
+        Write("b.sql", "CREATE SCHEMA b;");
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
 
-        var transformed = new DatabaseSchema([new SchemaDefinition("transformed")]);
-        var provider = Substitute.For<ISchemaProvider>();
-        provider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(new DatabaseSchema([]));
-        var transformer = Substitute.For<ISchemaTransformer>();
-        transformer.Transform(Arg.Any<DatabaseSchema>()).Returns(transformed);
-        var sut = new DesiredSchemaProvider([provider], [transformer]);
+        var project = await sut.GetProject(null, TestContext.Current.CancellationToken);
 
-        var result = await sut.GetSchema(null, TestContext.Current.CancellationToken);
-
-        result.ShouldBe(transformed);
+        project.Schema.Schemas.Select(s => s.Name).ShouldBe(["a", "b"], ignoreOrder: true);
     }
 
     [Fact]
-    public async Task GetSchema_PassesScopeToAllProviders()
+    public async Task GetProject_LayersMultipleSources()
     {
-        var scope = new[] { "app", "admin" };
-        string[]? captured1 = null;
-        string[]? captured2 = null;
-        var p1 = Substitute.For<ISchemaProvider>();
-        var p2 = Substitute.For<ISchemaProvider>();
-        p1.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(call => { captured1 = call.Arg<string[]?>(); return new DatabaseSchema([]); });
-        p2.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(call => { captured2 = call.Arg<string[]?>(); return new DatabaseSchema([]); });
-        var sut = new DesiredSchemaProvider([p1, p2], []);
+        // Mirrors the CLI's base + environment-overlay registration: two sources aggregate.
+        Write("base.sql", "CREATE SCHEMA app;");
+        Write("overlay.sql", "CREATE SCHEMA audit;");
+        var sut = new DesiredSchemaProvider([Source(_root, "base.sql"), Source(_root, "overlay.sql")]);
 
-        await sut.GetSchema(scope, TestContext.Current.CancellationToken);
+        var project = await sut.GetProject(null, TestContext.Current.CancellationToken);
 
-        captured1.ShouldBe(scope);
-        captured2.ShouldBe(scope);
+        project.Schema.Schemas.Select(s => s.Name).ShouldBe(["app", "audit"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task GetProject_SurfacesDeploymentScripts()
+    {
+        Write("schema.sql",
+            """
+            CREATE SCHEMA app;
+            POST DEPLOYMENT 'backfill' AS $$ UPDATE app.t SET x = 1; $$;
+            """);
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        var project = await sut.GetProject(null, TestContext.Current.CancellationToken);
+
+        project.Scripts.ShouldHaveSingleItem().Name.ShouldBe("backfill");
+    }
+
+    [Fact]
+    public async Task GetProject_FiltersSchemaByScope()
+    {
+        Write("schema.sql", "CREATE SCHEMA app; CREATE SCHEMA audit;");
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        var project = await sut.GetProject(["app"], TestContext.Current.CancellationToken);
+
+        project.Schema.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
 }

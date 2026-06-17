@@ -1,6 +1,5 @@
 using NSchema.Configuration;
 using NSchema.Schema.Model;
-using NSchema.Scripts.Model;
 
 namespace NSchema.Schema.Ddl.Model;
 
