@@ -67,23 +67,17 @@ The schema comparer is responsible for taking the current and desired schemas an
 
 The default comparer supports all the core features of the domain model, but you can replace it with your own implementation of `ISchemaComparer` if you have special requirements.
 
-## Plan transformation
+## Diff policies
 
-The plan transformation step allows the migration plan to be modified before it's validated and executed. This is where actions are re-ordered to respect dependencies, or custom actions can be injected that aren't directly related to schema changes (e.g. data migrations, cache invalidation, etc.)
+Diff policies validate the structured diff between the current and desired schema before a plan is built. This is where you enforce rules about what kinds of changes are allowed — for example, preventing destructive actions like dropping tables or columns (the built-in destructive-action policy lives here).
 
-Transformations are implemented by creating a class that implements `IPlanTransformer`, and registered with `AddPlanTransformer<T>()`.
-
-## Plan policies
-
-Plan policies are used to validate the generated migration plan before it's executed. This is where you can enforce rules about what kinds of changes are allowed, e.g. preventing destructive actions like dropping tables or columns.
-
-Plan policies are implemented using `IPlanPolicy` and registered with `AddPlanPolicy<T>()`. If any policy returns errors, execution will halt, preventing bad plans from being applied.
+Diff policies are implemented using `IDiffPolicy` and registered with `AddDiffPolicy<T>()`. If any policy returns errors, execution will halt, preventing bad changes from being applied.
 
 ## SQL generation and execution
 
 Once the plan is validated, NSchema turns it into SQL and, for an apply, runs it. These are two separate steps, so a plan can be previewed without a live connection:
 
 - `ISqlGenerator` turns the plan into a `SqlPlan`. This is pure string-building, so the SQL preview works offline; it's typically implemented in database providers like `NSchema.Postgres` and registered with `AddSqlGenerator<T>()`. Each generator declares a `Dialect`; register several and choose one per run with `WithDialect(...)`.
-- `ISqlExecutor` runs the `SqlPlan` against the database. The default implementation has simple transaction management, but you could replace it (via `UseSqlExecutor<T>()`) with one that adds logging, retries, or other features.
+- `ISqlExecutor` runs the `SqlPlan` against the database, applying the configured transaction mode. It is the only online step.
 
 The rendered preview is produced by `ISqlPlanRenderer` (default `DefaultSqlPlanRenderer`), which the reporter owns — register a custom one to change the preview format, mirroring how `IDiffRenderer` controls the diff output.

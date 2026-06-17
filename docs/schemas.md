@@ -38,23 +38,24 @@ A few things to note, each covered in full by the [grammar reference](ddl-gramma
 
 ## Registering DDL files
 
-Load `.sql` files with `AddSqlSchemas`, passing a base directory and a glob pattern relative to it. The pattern defaults to `**/*.sql` (every SQL file, recursively); a wildcard-free pattern names a single file. The glob is matched when the schema is read, and a pattern that matches no files throws:
+Load `.sql` files with `AddDdlSchemas`, passing a base directory and a glob pattern relative to it. The pattern defaults to `**/*.sql` (every SQL file, recursively); a wildcard-free pattern names a single file. The glob is matched when the schema is read, and a pattern that matches no files throws:
 
 ```csharp
-builder.AddSqlSchemas("schemas");            // every .sql under "schemas/", recursively
-// builder.AddSqlSchemas("schemas", "app/*.sql");   // or a relative glob
-// builder.AddSqlSchemas("schemas", "app.sql");     // or a single file
+builder.AddDdlSchemas("schemas");            // every .sql under "schemas/", recursively
+// builder.AddDdlSchemas("schemas", "app/*.sql");   // or a relative glob
+// builder.AddDdlSchemas("schemas", "app.sql");     // or a single file
 ```
 
-For finer control — for example to exclude files reserved for other purposes — pass a configured `Microsoft.Extensions.FileSystemGlobbing.Matcher`, which supports excludes as well as includes:
+For finer control — for example to exclude files a front-end reserves for other purposes — pass a configured `Microsoft.Extensions.FileSystemGlobbing.Matcher`, which supports excludes as well as includes:
 
 ```csharp
 var matcher = new Matcher();
 matcher.AddInclude("**/*.sql");
-matcher.AddExclude("**/*.pre.sql");   // pre/post-deployment scripts, not schema files
-matcher.AddExclude("**/*.post.sql");
-builder.AddSqlSchemas("schemas", matcher);
+matcher.AddExclude("**/*.env.*.sql");   // e.g. environment-overlay files, layered in separately
+builder.AddDdlSchemas("schemas", matcher);
 ```
+
+`AddDdlSchemas` may be called more than once; the sources are aggregated. Deployment scripts are declared inline in the same `.sql` files (`PRE/POST DEPLOYMENT` — see the [grammar reference](ddl-grammar.md)), so there are no separate script files to exclude.
 
 To bootstrap a project from an existing database, use the [`Import` operation](configuration.md#operations), which writes the live schema out as DDL source files.
 
