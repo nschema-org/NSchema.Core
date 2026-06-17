@@ -78,24 +78,6 @@ public sealed class ImportOperationTests : IDisposable
     }
 
     [Fact]
-    public async Task Execute_WithTableFilter_FiltersSchemaBeforeWriting()
-    {
-        await Execute(new ImportArguments { OutputDirectory = _dir, Tables = ["users"] });
-
-        File.Exists(ObjectPath("tables", "users")).ShouldBeTrue();
-        File.Exists(ObjectPath("tables", "orders")).ShouldBeFalse();
-    }
-
-    [Fact]
-    public async Task Execute_WithEmptyTableFilter_WritesSchemaUnfiltered()
-    {
-        await Execute(new ImportArguments { OutputDirectory = _dir, Tables = [] });
-
-        File.Exists(ObjectPath("tables", "users")).ShouldBeTrue();
-        File.Exists(ObjectPath("tables", "orders")).ShouldBeTrue();
-    }
-
-    [Fact]
     public async Task Execute_ReportsProgress()
     {
         await Execute(new ImportArguments { OutputDirectory = _dir });

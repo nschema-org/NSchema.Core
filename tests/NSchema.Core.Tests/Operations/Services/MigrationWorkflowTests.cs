@@ -55,7 +55,7 @@ public sealed class MigrationWorkflowTests
         _desiredProvider.GetSchema(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(desired);
 
         // Act
-        var result = await _sut.Validate(null, TestContext.Current.CancellationToken);
+        var result = await _sut.Validate(TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBe(desired);
@@ -68,7 +68,7 @@ public sealed class MigrationWorkflowTests
         _planner.Validate(Arg.Any<DatabaseSchema>()).Returns(new PolicyDiagnostics([PolicyDiagnostic.Error("P1", "msg")]));
 
         // Act
-        var act = () => _sut.Validate(null, TestContext.Current.CancellationToken);
+        var act = () => _sut.Validate(TestContext.Current.CancellationToken);
 
         // Assert
         await act.ShouldThrowAsync<PolicyViolationException>();
@@ -83,7 +83,7 @@ public sealed class MigrationWorkflowTests
             .Returns(new PolicyDiagnostics([new PolicyDiagnostic("P1", "info", PolicyDiagnosticSeverity.Info)]));
 
         // Act
-        await _sut.Validate(null, TestContext.Current.CancellationToken);
+        await _sut.Validate(TestContext.Current.CancellationToken);
 
         // Assert
         _reporter.Received(1).ReportDiagnostics(Arg.Any<PolicyDiagnostics>());
@@ -93,7 +93,7 @@ public sealed class MigrationWorkflowTests
     public async Task ValidateDesiredSchema_DoesNotContactCurrentProvider()
     {
         // Act
-        await _sut.Validate(null, TestContext.Current.CancellationToken);
+        await _sut.Validate(TestContext.Current.CancellationToken);
 
         // Assert
         await _currentProvider.DidNotReceive().GetSchema(

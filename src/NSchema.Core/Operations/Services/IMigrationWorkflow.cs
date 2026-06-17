@@ -12,10 +12,9 @@ internal interface IMigrationWorkflow
     /// <summary>
     /// Validates the desired schema against the schema policies, throwing on errors.
     /// </summary>
-    /// <param name="schemas">The schemas to scope to, or <see langword="null"/> to derive scope from the desired schema.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The loaded, validated desired schema.</returns>
-    Task<DatabaseSchema> Validate(string[]? schemas, CancellationToken cancellationToken = default);
+    Task<DatabaseSchema> Validate(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Loads the desired and current schemas, computes the migration plan, and reports it.
