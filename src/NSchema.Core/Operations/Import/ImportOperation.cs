@@ -18,7 +18,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IKey
             schema = schema.FilterTables(arguments.Tables);
         }
 
-        foreach (var (path, partition) in BuildPartitions(schema, arguments))
+        foreach (var (path, partition) in schema.Schemas.SelectMany(s => ObjectPartitions(s, arguments.OutputDirectory)))
         {
             await WritePartition(path, partition, cancellationToken);
         }
@@ -26,41 +26,11 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IKey
         reporters.Current.Info("Schema imported successfully.");
     }
 
-    private IEnumerable<(string path, DatabaseSchema schema)> BuildPartitions(DatabaseSchema schema, ImportArguments args)
-    {
-        switch (args.Partition)
-        {
-            case ImportPartitionMode.None:
-                if (args.OutputFile is null)
-                {
-                    throw new InvalidOperationException("OutputFile must be set when Partition mode is None.");
-                }
-                return [(args.OutputFile, schema)];
-            case ImportPartitionMode.Schema:
-                if (args.OutputDirectory is null)
-                {
-                    throw new InvalidOperationException("OutputDirectory must be set when Partition mode is Schema.");
-                }
-                return schema.Schemas.Select(s => (Path.Combine(args.OutputDirectory, $"{s.Name}.sql"), new DatabaseSchema([s])));
-            case ImportPartitionMode.Object:
-                if (args.OutputDirectory is null)
-                {
-                    throw new InvalidOperationException("OutputDirectory must be set when Partition mode is Object.");
-                }
-                return schema.Schemas.SelectMany(s => ObjectPartitions(s, args.OutputDirectory));
-            default:
-                throw new InvalidOperationException($"Unknown partition mode: {args.Partition}");
-        }
-    }
-
+    // Each major object (table, view, function, procedure) gets its own file, grouped by type under the schema's
+    // directory; the remaining schema-level objects (enums, sequences, grants, comment) share a per-schema
+    // "header" file alongside that directory.
     private static IEnumerable<(string path, DatabaseSchema schema)> ObjectPartitions(SchemaDefinition s, string directory)
     {
-        // Each major object (table, view, function, procedure) gets its own file, grouped by type under
-        // the schema's directory. The leftover schema-level objects (enums, sequences, grants, comment)
-        // share a single per-schema "header" file alongside that directory. Splitting this way keeps any
-        // one object out of every other object's file, so loading them all as desired-schema providers
-        // never trips the aggregator's duplicate detection. Type subfolders also avoid collisions where a
-        // table and a function share a name (they occupy distinct namespaces in the database).
         var header = s with { Tables = [], Views = [], Functions = [], Procedures = [] };
         yield return (Path.Combine(directory, $"{s.Name}.sql"), new DatabaseSchema([header]));
 

@@ -16,17 +16,7 @@ public sealed record ImportArguments
     public string[]? Tables { get; init; }
 
     /// <summary>
-    /// The file to write to.
+    /// The root directory to write the imported schema into. Defaults to the current directory.
     /// </summary>
-    public string? OutputFile { get; init; }
-
-    /// <summary>
-    /// The root directory to.
-    /// </summary>
-    public string? OutputDirectory { get; init; }
-
-    /// <summary>
-    /// Controls how the imported schema is split across output files.
-    /// </summary>
-    public ImportPartitionMode Partition { get; init; } = ImportPartitionMode.None;
+    public string OutputDirectory { get; init; } = ".";
 }
