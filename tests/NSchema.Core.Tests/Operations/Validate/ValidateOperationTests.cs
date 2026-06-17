@@ -16,7 +16,7 @@ public sealed class ValidateOperationTests
 
     public ValidateOperationTests()
     {
-        _workflow.Validate(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(new DatabaseSchema([]));
+        _workflow.Validate(Arg.Any<CancellationToken>()).Returns(new DatabaseSchema([]));
         _sut = BuildSut();
     }
 
@@ -27,14 +27,14 @@ public sealed class ValidateOperationTests
         await _sut.Execute(new ValidateArguments(), TestContext.Current.CancellationToken);
 
         // Assert
-        await _workflow.Received(1).Validate(Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+        await _workflow.Received(1).Validate(Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Execute_ValidationThrows_Propagates()
     {
         // Arrange
-        _workflow.Validate(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
+        _workflow.Validate(Arg.Any<CancellationToken>())
             .Returns<DatabaseSchema>(_ => throw new InvalidOperationException("boom"));
 
         // Act
