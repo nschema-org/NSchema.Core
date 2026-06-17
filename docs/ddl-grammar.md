@@ -91,7 +91,7 @@ CREATE TABLE app.users
 ## Document and statements
 
 ```ebnf
-document   = { [ doc-comment ] , ( statement | config-block ) } ;
+document   = { [ doc-comment ] , ( statement | config-block | deployment-script ) } ;
 statement  = ( create-schema | create-table | create-view | create-enum | create-sequence
              | create-function | create-procedure
              | drop-schema | drop-table | drop-view | drop-enum | drop-sequence
@@ -101,7 +101,8 @@ statement  = ( create-schema | create-table | create-view | create-enum | create
 A flat statement list; schema membership is by qualified name, exactly like SQL — no nesting.
 
 A document may also contain top-level **configuration blocks** (`config-block`) — see
-[Configuration blocks](#configuration-blocks). The schema parser **ignores** them; they are not part of the
+[Configuration blocks](#configuration-blocks) — and **deployment scripts** (`deployment-script`) — see
+[Deployment scripts](#deployment-scripts). The schema parser **ignores** both; neither is part of the
 desired-state model.
 
 ## Configuration blocks
@@ -162,6 +163,47 @@ This is deliberately distinct from the schema statements, and three rules keep i
 The matching forward-compatibility rule for the parser: **an unrecognised top-level block keyword is captured, not
 an error** — so a config type a front-end adds later (e.g. `WORKSPACE`) parses today, and adding its semantics
 touches only the front-end, never the core.
+
+## Deployment scripts
+
+Some migration steps are imperative and can't be expressed declaratively — backfills, `CREATE EXTENSION`, data
+fixes, `CREATE INDEX CONCURRENTLY`. These are declared inline as **deployment scripts** that run as raw SQL around
+the computed migration: every `PRE DEPLOYMENT` body runs before the migration's statements, every `POST DEPLOYMENT`
+body after.
+
+```ebnf
+deployment-script = ( "PRE" | "POST" ) , "DEPLOYMENT" , string ,
+                    [ "(" , [ script-option , { "," , script-option } ] , ")" ] ,
+                    "AS" , dollar-body , ";" ;
+script-option     = ident , "=" , config-value ;
+dollar-body       = "$$" , … , "$$" | "$" , tag , "$" , … , "$" , tag , "$" ;
+```
+
+```sql
+PRE DEPLOYMENT 'enable_citext' AS $$
+    CREATE EXTENSION IF NOT EXISTS citext;
+$$;
+
+POST DEPLOYMENT 'reindex' (run_outside_transaction = true) AS $$
+    CREATE INDEX CONCURRENTLY idx_widgets_name ON app.widgets (name);
+$$;
+```
+
+Notes on the shape:
+
+- The **name** is a single-quoted string, used in plan output and logs.
+- An optional `( … )` clause carries script options. The only option today is
+  `run_outside_transaction = true`, for statements the database forbids inside a transaction (e.g.
+  `CREATE INDEX CONCURRENTLY`). An unknown option is an error.
+- `AS` introduces the body, exactly as for a view (`CREATE VIEW … AS …`).
+- The **body** is a dollar-quoted block (`$$ … $$` or `$tag$ … $tag$`) — the same opaque-SQL device used for
+  function bodies. Dollar-quoting lets the body contain its own `;` and single quotes without escaping; the inner
+  content is taken verbatim (delimiters stripped, surrounding whitespace trimmed) and is **not** dialect-translated.
+
+Like configuration blocks, deployment scripts are **not part of the desired-state schema**: the same
+`DdlReader.Instance.Read(source)` returns them on `DdlDocument.Scripts` (alongside `Schema` and `Config`). They are
+plan orchestration, so they live on the migration plan rather than in the diff, and are never emitted by the schema
+writer.
 
 ### Schemas
 

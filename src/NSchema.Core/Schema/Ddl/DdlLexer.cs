@@ -226,6 +226,62 @@ internal sealed class DdlLexer(string source)
     /// </summary>
     private bool TryConsumeDollarQuote(SourcePosition statementStart)
     {
+        if (PeekDollarTag() is not { } tag)
+        {
+            return false;
+        }
+
+        ConsumeLength(tag.Length); // opening tag
+        while (!AtEnd)
+        {
+            if (Current == '$' && MatchesAt(tag))
+            {
+                ConsumeLength(tag.Length); // closing tag
+                return true;
+            }
+            Advance();
+        }
+
+        throw new DdlSyntaxException("Unterminated dollar-quoted string", statementStart);
+    }
+
+    /// <summary>
+    /// Captures a dollar-quoted body (<c>$$ … $$</c> or <c>$tag$ … $tag$</c>) and returns its <em>inner</em> content
+    /// with the delimiters stripped — the dollar-quoted counterpart of <see cref="ReadParenthesizedExpression"/>, for
+    /// an opaque SQL body (e.g. a deployment script). Skips leading whitespace, then requires the opening tag.
+    /// </summary>
+    /// <param name="what">What the body is, for the error message (e.g. "a deployment script body").</param>
+    public string ReadDollarQuotedBody(string what)
+    {
+        SkipWhitespace();
+        var pos = Position;
+        if (PeekDollarTag() is not { } tag)
+        {
+            throw new DdlSyntaxException($"Expected {what} as a dollar-quoted block ($$ … $$)", pos);
+        }
+
+        ConsumeLength(tag.Length); // opening tag
+        var start = _offset;
+        while (!AtEnd)
+        {
+            if (Current == '$' && MatchesAt(tag))
+            {
+                var inner = _source[start.._offset];
+                ConsumeLength(tag.Length); // closing tag
+                return inner;
+            }
+            Advance();
+        }
+
+        throw new DdlSyntaxException("Unterminated dollar-quoted string", pos);
+    }
+
+    /// <summary>
+    /// Returns the dollar-quote tag (<c>$$</c> or <c>$tag$</c>) opening at the current offset, or <see langword="null"/>
+    /// when the <c>$</c> does not open a valid tag (Postgres rules: empty, or an identifier).
+    /// </summary>
+    private string? PeekDollarTag()
+    {
         var i = 1;
         if (IsIdentifierStart(Peek(1)))
         {
@@ -236,33 +292,19 @@ internal sealed class DdlLexer(string source)
             }
         }
 
-        if (Peek(i) != '$')
-        {
-            return false;
-        }
+        return Peek(i) == '$' ? _source.Substring(_offset, i + 1) : null;
+    }
 
-        var tag = _source.Substring(_offset, i + 1);
-        for (var j = 0; j < tag.Length; j++)
+    /// <summary>Whether <paramref name="text"/> sits verbatim at the current offset.</summary>
+    private bool MatchesAt(string text) =>
+        _offset + text.Length <= _source.Length && string.CompareOrdinal(_source, _offset, text, 0, text.Length) == 0;
+
+    private void ConsumeLength(int count)
+    {
+        for (var i = 0; i < count; i++)
         {
             Advance();
         }
-
-        while (!AtEnd)
-        {
-            if (Current == '$' && _offset + tag.Length <= _source.Length
-                && string.CompareOrdinal(_source, _offset, tag, 0, tag.Length) == 0)
-            {
-                for (var j = 0; j < tag.Length; j++)
-                {
-                    Advance();
-                }
-                return true;
-            }
-
-            Advance();
-        }
-
-        throw new DdlSyntaxException("Unterminated dollar-quoted string", statementStart);
     }
 
     private bool AtWordStart() => _offset == 0 || !IsIdentifierPart(_source[_offset - 1]);
@@ -443,6 +485,14 @@ internal sealed class DdlLexer(string source)
     private void SkipInlineWhitespace()
     {
         while (!AtEnd && Current is ' ' or '\t' or '\r')
+        {
+            Advance();
+        }
+    }
+
+    private void SkipWhitespace()
+    {
+        while (!AtEnd && Current is ' ' or '\t' or '\r' or '\n')
         {
             Advance();
         }
