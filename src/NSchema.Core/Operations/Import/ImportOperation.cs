@@ -9,7 +9,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IKey
 {
     public async Task Execute(ImportArguments arguments, CancellationToken cancellationToken = default)
     {
-        reporters.Current.Info("Importing schema from database...");
+        reporters.Current.Announce("Importing schema from database...");
 
         var schema = await currentSchema.GetSchema(SchemaSourceMode.Online, arguments.Schemas, cancellationToken: cancellationToken);
 
@@ -23,7 +23,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IKey
             await WritePartition(path, partition, cancellationToken);
         }
 
-        reporters.Current.Info("Schema imported successfully.");
+        reporters.Current.Success("Schema imported successfully.");
     }
 
     // Each major object (table, view, function, procedure) gets its own file, grouped by type under the schema's

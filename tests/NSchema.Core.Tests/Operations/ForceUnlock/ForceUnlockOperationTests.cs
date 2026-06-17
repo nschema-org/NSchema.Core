@@ -34,7 +34,7 @@ public sealed class ForceUnlockOperationTests
 
         await BuildSut().Execute(new ForceUnlockArguments(), TestContext.Current.CancellationToken);
 
-        _reporter.Received().Info(Arg.Is<string>(s => s.Contains("tom@dev") && s.Contains("apply")));
+        _reporter.Received().Report(MessageKind.Success, Arg.Is<string>(s => s.Contains("tom@dev") && s.Contains("apply")));
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public sealed class ForceUnlockOperationTests
 
         await BuildSut().Execute(new ForceUnlockArguments(), TestContext.Current.CancellationToken);
 
-        _reporter.Received().Info("No state lock was held.");
+        _reporter.Received().Report(MessageKind.Announcement, "No state lock was held.");
     }
 
     [Fact]

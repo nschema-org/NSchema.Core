@@ -100,7 +100,7 @@ public sealed class ImportOperationTests : IDisposable
     {
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
-        _reporter.Received(2).Info(Arg.Any<string>());
+        _reporter.Received(2).Report(Arg.Any<MessageKind>(), Arg.Any<string>());
     }
 
     [Fact]

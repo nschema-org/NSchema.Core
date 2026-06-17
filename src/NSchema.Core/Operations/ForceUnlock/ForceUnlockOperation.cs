@@ -16,15 +16,20 @@ internal sealed class ForceUnlockOperation(
         // another operation legitimately holds the lock can corrupt the shared state.
         if (!await confirmation.Confirm(new ForceUnlockConfirmationRequest(), cancellationToken))
         {
-            reporters.Current.Info("Force-unlock cancelled. The state lock was left untouched.");
+            reporters.Current.Announce("Force-unlock cancelled. The state lock was left untouched.");
             return;
         }
 
-        reporters.Current.Info("Forcibly releasing the state lock...");
+        reporters.Current.Progress("Forcibly releasing the state lock...");
 
         var removed = await stateLock.ForceUnlock(cancellationToken);
-        reporters.Current.Info(removed is null
-            ? "No state lock was held."
-            : $"Removed state lock held by {removed.Who} (operation '{removed.Operation}', since {removed.CreatedUtc:u}).");
+        if (removed is null)
+        {
+            reporters.Current.Announce("No state lock was held.");
+        }
+        else
+        {
+            reporters.Current.Success($"Removed state lock held by {removed.Who} (operation '{removed.Operation}', since {removed.CreatedUtc:u}).");
+        }
     }
 }

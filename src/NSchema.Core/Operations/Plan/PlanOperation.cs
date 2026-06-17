@@ -15,7 +15,7 @@ internal sealed class PlanOperation(
 {
     public async Task Execute(PlanArguments arguments, CancellationToken cancellationToken = default)
     {
-        reporters.Current.Info("Planning schema migration. No changes will be applied to the database.");
+        reporters.Current.Announce("Planning schema migration. No changes will be applied to the database.");
         var planned = await workflow.Plan(SchemaSourceMode.Offline, required: false, arguments.Schemas, cancellationToken);
         if (!sqlGenerator.HasCurrent)
         {
@@ -24,7 +24,7 @@ internal sealed class PlanOperation(
                 throw new InvalidOperationException("Saving a plan to a file requires a database provider to generate SQL, but none is registered.");
             }
 
-            reporters.Current.Info("Unable to generate SQL preview. No provider is configured.");
+            reporters.Current.Warn("Unable to generate SQL preview. No provider is configured.");
             return;
         }
 
@@ -35,7 +35,7 @@ internal sealed class PlanOperation(
         {
             var envelope = new PlanFileEnvelope(planned.Plan, sqlPlan, planned.Diff, DateTimeOffset.UtcNow);
             await handler.Write(arguments.OutFile, envelope, cancellationToken);
-            reporters.Current.Info($"Plan saved to {arguments.OutFile}. Apply it later with this file to execute exactly this plan.");
+            reporters.Current.Success($"Plan saved to {arguments.OutFile}. Apply it later with this file to execute exactly this plan.");
         }
     }
 }
