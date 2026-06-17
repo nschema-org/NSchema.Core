@@ -35,11 +35,12 @@ public sealed class AddSqlSchemasTests : IDisposable
     }
 
     [Fact]
-    public async Task AddSqlSchema_LoadsSingleFile()
+    public async Task AddSqlSchemasFromGlob_LoadsSingleLiteralFile()
     {
+        // A wildcard-free pattern is a single literal file path.
         var path = WriteSchemaFile("app.sql", "app");
 
-        var names = await ResolveSchemaNames(b => b.AddSqlSchema(path));
+        var names = await ResolveSchemaNames(b => b.AddSqlSchemas(path));
 
         names.ShouldBe(["app"]);
     }
@@ -51,19 +52,50 @@ public sealed class AddSqlSchemasTests : IDisposable
         WriteSchemaFile("nested/b.sql", "b");
         WriteSchemaFile("nested/deep/c.sql", "c");
 
-        var names = await ResolveSchemaNames(b => b.AddSqlSchemasFromGlob($"{_root}/**/*.sql"));
+        var names = await ResolveSchemaNames(b => b.AddSqlSchemas($"{_root}/**/*.sql"));
 
         names.ShouldBe(["a", "b", "c"], ignoreOrder: true);
     }
 
     [Fact]
-    public async Task AddSqlSchemasFromDirectory_PicksUpMatchingFiles()
+    public async Task AddSqlSchemasFromGlob_MatchingNothing_Throws()
     {
-        WriteSchemaFile("a.sql", "a");
-        WriteSchemaFile("nested/b.sql", "b");
+        // Planning against an empty desired schema would read as "drop everything", so a pattern that
+        // resolves to no files is a configuration error rather than an empty schema.
+        var ex = await Should.ThrowAsync<FileNotFoundException>(
+            () => ResolveSchemaNames(b => b.AddSqlSchemas($"{_root}/**/*.sql")));
 
-        var names = await ResolveSchemaNames(b => b.AddSqlSchemasFromDirectory(_root));
+        ex.Message.ShouldContain(_root);
+    }
 
-        names.ShouldBe(["a", "b"], ignoreOrder: true);
+    [Fact]
+    public async Task AddSqlSchemasFromGlob_FiltersBySchemaNames()
+    {
+        File.WriteAllText(Path.Combine(_root, "multi.sql"), "CREATE SCHEMA app; CREATE SCHEMA audit;");
+
+        var builder = NSchemaApplication.CreateBuilder();
+        builder.AddSqlSchemas($"{_root}/**/*.sql");
+        using var app = builder.Build();
+
+        var provider = app.Services.GetServices<ISchemaProvider>().ShouldHaveSingleItem();
+        var schema = await provider.GetSchema(["app"], TestContext.Current.CancellationToken);
+
+        schema.Schemas.Select(s => s.Name).ShouldBe(["app"]);
+    }
+
+    [Fact]
+    public async Task AddSqlSchemasFromGlob_RegistersOneProvider_AndMatchesAtReadTime()
+    {
+        // The glob is evaluated when the schema is read, not at registration: a single provider is
+        // registered, and a file written after the builder is configured is still picked up.
+        var builder = NSchemaApplication.CreateBuilder();
+        builder.AddSqlSchemas($"{_root}/**/*.sql");
+        using var app = builder.Build();
+
+        WriteSchemaFile("late.sql", "late");
+
+        var provider = app.Services.GetServices<ISchemaProvider>().ShouldHaveSingleItem();
+        var schema = await provider.GetSchema(cancellationToken: TestContext.Current.CancellationToken);
+        schema.Schemas.Select(s => s.Name).ShouldBe(["late"]);
     }
 }

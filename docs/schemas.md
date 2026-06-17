@@ -38,10 +38,10 @@ A few things to note, each covered in full by the [grammar reference](ddl-gramma
 
 ## Registering DDL files
 
-Load `.sql` files with `AddSqlSchemasFromGlob` (or `AddSqlSchema(path)` for a single file, `AddSqlSchemasFromDirectory(dir)` for a directory):
+Load `.sql` files with `AddSqlSchemas` (a wildcard-free pattern loads a single file; scan a directory with `dir/**/*.sql`). The glob is matched when the schema is read, and a pattern that matches no files throws:
 
 ```csharp
-builder.AddSqlSchemasFromGlob("schemas/**/*.sql");
+builder.AddSqlSchemas("schemas/**/*.sql");
 ```
 
 To bootstrap a project from an existing database, use the [`Import` operation](configuration.md#operations), which writes the live schema out as DDL source files.

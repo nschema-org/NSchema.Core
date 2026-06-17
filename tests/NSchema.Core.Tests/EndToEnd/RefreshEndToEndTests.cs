@@ -73,7 +73,7 @@ public sealed class RefreshEndToEndTests : IDisposable
 
         using var planner = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions { Reporter = RecordingReporter.FormatName })
             .UseFileStateStore(_statePath)
-            .AddSqlSchema(desired)
+            .AddSqlSchemas(desired)
             .AddReporter(RecordingReporter.FormatName, reporter)
             .Build();
 

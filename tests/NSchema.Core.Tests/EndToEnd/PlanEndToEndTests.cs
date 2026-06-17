@@ -55,7 +55,7 @@ public sealed class PlanEndToEndTests : IDisposable
             );
             """);
 
-        using var app = NewBuilder(current).AddSqlSchema(desired).Build();
+        using var app = NewBuilder(current).AddSqlSchemas(desired).Build();
 
         await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
@@ -86,7 +86,7 @@ public sealed class PlanEndToEndTests : IDisposable
             );
             """);
 
-        using var app = NewBuilder(schema).AddSqlSchema(desired).Build();
+        using var app = NewBuilder(schema).AddSqlSchemas(desired).Build();
 
         await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
@@ -100,7 +100,7 @@ public sealed class PlanEndToEndTests : IDisposable
         var desired = WriteDdl("schema.sql", "CREATE SCHEMA app;");
 
         using var app = NewBuilder(current)
-            .AddSqlSchema(desired)
+            .AddSqlSchemas(desired)
             .AddSqlGenerator<StubSqlGenerator>(StubSqlGenerator.DialectName)
             .WithDialect(StubSqlGenerator.DialectName)
             .Build();
@@ -117,7 +117,7 @@ public sealed class PlanEndToEndTests : IDisposable
         var current = new DatabaseSchema([]);
         var desired = WriteDdl("schema.sql", "CREATE SCHEMA app;");
 
-        using var app = NewBuilder(current).AddSqlSchema(desired).Build();
+        using var app = NewBuilder(current).AddSqlSchemas(desired).Build();
 
         await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 

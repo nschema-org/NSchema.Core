@@ -42,7 +42,7 @@ using NSchema.Postgres;
 var builder = NSchemaApplication.CreateBuilder(args);
 
 builder
-    .AddSqlSchemasFromGlob("schemas/**/*.sql")
+    .AddSqlSchemas("schemas/**/*.sql")
     .UsePostgres(connectionString)
     .WithDestructiveActionPolicy(DestructiveActionPolicy.Warn);
 

@@ -132,7 +132,7 @@ CREATE TABLE app.users
 );
 ```
 
-DSL files are registered as desired providers via `AddSqlSchema(path)` / `AddSqlSchemasFromGlob(pattern)` / `AddSqlSchemasFromDirectory(dir)` (each wraps a file in the internal `DdlSchemaProvider`, an `ISchemaProvider` that reads the file and parses it with `DdlReader`, then filters by schema name). A schema can also be supplied in code by implementing `ISchemaProvider` and registering it with `AddSchema<T>()`.
+DSL files are registered as desired providers via `AddSqlSchemasFromGlob(pattern)` — the single registration entry point — which registers one internal `DdlSchemaProvider`. It evaluates the glob **when the schema is read** (not at registration), reading every matching file with `DdlReader` and combining them — so the file set reflects the filesystem at plan/apply time. A **wildcard-free pattern is a single literal file** (so there is no separate single-file or directory helper — a directory scan is just `dir/**/*.sql`). A pattern that matches **no files throws** (`FileNotFoundException`): planning against an empty desired schema would read as "drop everything", so an unmatched pattern is treated as a configuration error rather than an empty schema. A schema can also be supplied in code by implementing `ISchemaProvider` and registering it with `AddSchema<T>()`.
 
 #### Config-in-SQL
 
