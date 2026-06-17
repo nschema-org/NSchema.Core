@@ -146,9 +146,9 @@ Notes on the shape:
 
 This is deliberately distinct from the schema statements, and three rules keep it tractable:
 
-1. **The schema parser ignores them.** A single lexer feeds two consumers: the `DdlSchemaSerializer` (in the core)
-   consumes only schema statements; `DdlConfigReader` (also in the core, but a separate seam a front-end calls)
-   consumes only the config blocks. The core captures config blocks into a generic `ConfigBlock` model but never
+1. **The schema parser ignores them.** `DdlReader` produces both from one read: `DdlReader.Instance.Read(source)`
+   returns a `DdlDocument` whose `Schema` holds the schema statements and whose `Config` holds the config blocks
+   for a front-end to read. The core captures config blocks into a generic `ConfigBlock` model but never
    *interprets* them — interpretation (mapping a block to provider/state/dialect registration) lives in the
    front-end. This is how one file can hold both, à la Terraform's intermixed `terraform` / `provider` /
    `resource` blocks.

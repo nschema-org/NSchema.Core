@@ -1,14 +1,14 @@
 using NSchema.Configuration;
+using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
-using NSchema.Schema.Serialization.Ddl;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
 public sealed class DdlParserTests
 {
-    private static DatabaseSchema Parse(string source) => new DdlParser(source).Parse();
+    private static DatabaseSchema Parse(string source) => new DdlParser(source).Parse().Schema;
 
-    private static IReadOnlyList<ConfigBlock> ReadConfig(string source) => DdlConfigReader.Read(source);
+    private static IReadOnlyList<ConfigBlock> ReadConfig(string source) => DdlReader.Instance.Read(source).Config;
 
     private static SchemaDefinition ParseSingleSchema(string source) => Parse(source).Schemas.ShouldHaveSingleItem();
 
@@ -188,12 +188,12 @@ public sealed class DdlParserTests
     [Fact]
     public void Parse_ConfigAndSchema_Intermixed_BothSurface()
     {
-        var document = new DdlParser(
+        var document = DdlReader.Instance.Read(
             """
             NSCHEMA ( dialect = 'postgres' );
             CREATE SCHEMA app;
             PROVIDER postgres ( schema_search_path = 'app' );
-            """).ParseDocument();
+            """);
 
         document.Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
         document.Config.Select(b => b.Type).ShouldBe(["nschema", "provider"]);

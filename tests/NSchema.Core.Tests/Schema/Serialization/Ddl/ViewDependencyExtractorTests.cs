@@ -1,4 +1,4 @@
-using NSchema.Schema.Serialization.Ddl;
+using NSchema.Schema.Ddl;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 

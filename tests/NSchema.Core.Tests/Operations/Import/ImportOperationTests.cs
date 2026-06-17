@@ -1,10 +1,8 @@
 using NSchema.Operations;
 using NSchema.Operations.Import;
-using NSchema.Resolution;
 using NSchema.Schema;
+using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
-using NSchema.Schema.Serialization;
-using NSchema.Schema.Serialization.Json;
 
 namespace NSchema.Tests.Operations.Import;
 
@@ -12,16 +10,17 @@ public sealed class ImportOperationTests : IDisposable
 {
     private readonly string _dir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
     private readonly ICurrentSchemaProvider _currentSchema = Substitute.For<ICurrentSchemaProvider>();
-    private readonly IKeyedResolver<ISchemaSerializer> _serializers = Substitute.For<IKeyedResolver<ISchemaSerializer>>();
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
 
+    // Tables carry a column because the DDL grammar has no empty-table form.
+    private static Table MakeTable(string name) => new(name, Columns: [new Column("id", SqlType.Int)]);
+
     private readonly DatabaseSchema _schema = new DatabaseSchema([new SchemaDefinition("app",
-        Tables: [new Table("users"), new Table("orders")])]);
+        Tables: [MakeTable("users"), MakeTable("orders")])]);
 
     public ImportOperationTests()
     {
         Directory.CreateDirectory(_dir);
-        _serializers.Resolve(JsonSchemaSerializer.FormatName).Returns(JsonSchemaSerializer.Instance);
         Source(_schema);
     }
 
@@ -31,20 +30,17 @@ public sealed class ImportOperationTests : IDisposable
         .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
         .Returns(ValueTask.FromResult(schema));
 
-    private ImportOperation BuildSut() => new(
-        _currentSchema,
-        _serializers,
-        Helpers.TestReporters.ResolverFor(_reporter));
+    private ImportOperation BuildSut() => new(_currentSchema, Helpers.TestReporters.ResolverFor(_reporter));
 
-    private string FilePath => Path.Combine(_dir, "schema.json");
+    private string FilePath => Path.Combine(_dir, "schema.sql");
 
     private Task Execute(ImportArguments arguments) =>
         BuildSut().Execute(arguments, TestContext.Current.CancellationToken);
 
     private static async Task<DatabaseSchema> ReadSchema(string path)
     {
-        await using var stream = File.OpenRead(path);
-        return await JsonSchemaSerializer.Instance.Read(stream);
+        var text = await File.ReadAllTextAsync(path);
+        return DdlReader.Instance.Read(text).Schema;
     }
 
     // ── Source fetching ─────────────────────────────────────────────────────
@@ -109,10 +105,10 @@ public sealed class ImportOperationTests : IDisposable
     [Fact]
     public async Task Execute_None_ExistingFile_PreservesTablesNotInIncoming()
     {
-        Source(new DatabaseSchema([new SchemaDefinition("app", Tables: [new Table("audit_log")])]));
+        Source(new DatabaseSchema([new SchemaDefinition("app", Tables: [MakeTable("audit_log")])]));
         await Execute(new ImportArguments { OutputFile = FilePath });
 
-        Source(new DatabaseSchema([new SchemaDefinition("app", Tables: [new Table("users")])]));
+        Source(new DatabaseSchema([new SchemaDefinition("app", Tables: [MakeTable("users")])]));
         await Execute(new ImportArguments { OutputFile = FilePath });
 
         var result = await ReadSchema(FilePath);
@@ -141,7 +137,7 @@ public sealed class ImportOperationTests : IDisposable
         // A re-import must replace (not duplicate) schema-level objects already in the target file —
         // previously the merge pruned only tables, so this threw "Duplicate view".
         var schema = new DatabaseSchema([new SchemaDefinition("app",
-            Tables: [new Table("users")],
+            Tables: [MakeTable("users")],
             Views: [new View("active", "SELECT 1")],
             Enums: [new EnumType("status", ["a"])],
             Sequences: [new Sequence("order_id", new SequenceOptions(StartWith: 1))])]);
@@ -169,7 +165,7 @@ public sealed class ImportOperationTests : IDisposable
     [Fact]
     public async Task Execute_None_CreatesDirectoryIfMissing()
     {
-        var filePath = Path.Combine(_dir, "nested", "deep", "schema.json");
+        var filePath = Path.Combine(_dir, "nested", "deep", "schema.sql");
         Source(new DatabaseSchema([]));
 
         await Execute(new ImportArguments { OutputFile = filePath });
@@ -189,25 +185,25 @@ public sealed class ImportOperationTests : IDisposable
 
         await Execute(new ImportArguments { OutputDirectory = _dir, Partition = ImportPartitionMode.Schema });
 
-        File.Exists(Path.Combine(_dir, $"app.{JsonSchemaSerializer.FormatName}")).ShouldBeTrue();
-        File.Exists(Path.Combine(_dir, $"audit.{JsonSchemaSerializer.FormatName}")).ShouldBeTrue();
+        File.Exists(Path.Combine(_dir, $"app.sql")).ShouldBeTrue();
+        File.Exists(Path.Combine(_dir, $"audit.sql")).ShouldBeTrue();
     }
 
     [Fact]
     public async Task Execute_Schema_EachFileContainsOnlyItsSchema()
     {
         Source(new DatabaseSchema([
-            new SchemaDefinition("app", Tables: [new Table("users")]),
-            new SchemaDefinition("audit", Tables: [new Table("logs")]),
+            new SchemaDefinition("app", Tables: [MakeTable("users")]),
+            new SchemaDefinition("audit", Tables: [MakeTable("logs")]),
         ]));
 
         await Execute(new ImportArguments { OutputDirectory = _dir, Partition = ImportPartitionMode.Schema });
 
-        var app = await ReadSchema(Path.Combine(_dir, $"app.{JsonSchemaSerializer.FormatName}"));
+        var app = await ReadSchema(Path.Combine(_dir, $"app.sql"));
         app.Schemas.Single().Name.ShouldBe("app");
         app.Schemas.Single().Tables.Single().Name.ShouldBe("users");
 
-        var audit = await ReadSchema(Path.Combine(_dir, $"audit.{JsonSchemaSerializer.FormatName}"));
+        var audit = await ReadSchema(Path.Combine(_dir, $"audit.sql"));
         audit.Schemas.Single().Name.ShouldBe("audit");
         audit.Schemas.Single().Tables.Single().Name.ShouldBe("logs");
     }
@@ -215,9 +211,9 @@ public sealed class ImportOperationTests : IDisposable
     // ── Partition mode: Object (one file per major object) ──────────────────
 
     private string ObjectPath(string type, string name) =>
-        Path.Combine(_dir, "app", type, $"{name}.{JsonSchemaSerializer.FormatName}");
+        Path.Combine(_dir, "app", type, $"{name}.sql");
 
-    private string HeaderPath => Path.Combine(_dir, $"app.{JsonSchemaSerializer.FormatName}");
+    private string HeaderPath => Path.Combine(_dir, $"app.sql");
 
     [Fact]
     public async Task Execute_Object_CreatesOneFilePerMajorObjectGroupedByType()
@@ -279,7 +275,7 @@ public sealed class ImportOperationTests : IDisposable
 
         await Execute(new ImportArguments { OutputDirectory = _dir, Partition = ImportPartitionMode.Object });
 
-        var files = Directory.EnumerateFiles(_dir, $"*.{JsonSchemaSerializer.FormatName}", SearchOption.AllDirectories);
+        var files = Directory.EnumerateFiles(_dir, $"*.sql", SearchOption.AllDirectories);
         var combined = new DatabaseSchema([]);
         foreach (var file in files)
         {
@@ -296,7 +292,7 @@ public sealed class ImportOperationTests : IDisposable
     }
 
     private static DatabaseSchema RichSchema() => new([new SchemaDefinition("app",
-        Tables: [new Table("users"), new Table("orders")],
+        Tables: [MakeTable("users"), MakeTable("orders")],
         Views: [new View("active", "SELECT 1")],
         Functions: [new Function("calc", "", "RETURNS int LANGUAGE sql AS $$ SELECT 1 $$")],
         Procedures: [new Procedure("sync", "", "LANGUAGE sql AS $$ SELECT 1 $$")],

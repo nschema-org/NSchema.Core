@@ -1,6 +1,6 @@
 using NSchema.Schema.Model;
 
-namespace NSchema.Schema.Serialization.Ddl;
+namespace NSchema.Schema.Ddl;
 
 /// <summary>
 /// Extracts the objects a view reads from its (opaque) body, by scanning for the targets of <c>FROM</c> and

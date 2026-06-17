@@ -1,4 +1,4 @@
-namespace NSchema.Schema.Serialization.Ddl;
+namespace NSchema.Schema.Ddl.Model;
 
 /// <summary>
 /// The kinds of token the <see cref="DdlLexer"/> produces for NSchema DDL. Keywords are not distinguished here —

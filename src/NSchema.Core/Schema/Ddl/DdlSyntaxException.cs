@@ -1,9 +1,11 @@
-namespace NSchema.Schema.Serialization.Ddl;
+using NSchema.Schema.Ddl.Model;
+
+namespace NSchema.Schema.Ddl;
 
 /// <summary>
 /// Thrown when NSchema DDL cannot be lexed or parsed.
 /// </summary>
-internal sealed class DdlSyntaxException : Exception
+public sealed class DdlSyntaxException : Exception
 {
     /// <summary>
     /// The position in the source where the error was detected.

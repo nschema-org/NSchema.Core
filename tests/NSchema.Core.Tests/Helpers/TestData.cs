@@ -1,7 +1,7 @@
 using NSchema.Diff.Model;
 using NSchema.Plan.Model;
+using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
-using NSchema.Schema.Serialization.Ddl;
 
 namespace NSchema.Tests.Helpers;
 

@@ -4,8 +4,6 @@ The primary way to declare a schema is in a **SQL DDL file** using a declarative
 
 This page is a practical introduction. The [grammar reference](ddl-grammar.md) is the complete specification.
 
-You can also declare schemas in a [JSON file](#defining-schemas-in-json), which mirrors the domain model directly.
-
 ## A schema in DDL
 
 ```sql

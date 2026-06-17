@@ -44,7 +44,7 @@ Built-in operations (`src/NSchema.Core/Operations/`):
 - **`PlanDestroyOperation`** — previews the teardown plan: calls `IMigrationWorkflow.PlanDestroy` (the same trusted `PlanTeardown` path `Destroy` uses, bypassing the diff/plan transformers and policies) and reports the SQL preview (if a generator is registered). The preview-half of `Destroy`, mirroring how `Plan` previews `Apply`. Does not confirm, execute, or capture state. The analogue of `terraform plan -destroy`. When `PlanDestroyArguments.OutFile` is set, it writes a saved plan file of the teardown.
 - **`ApplyOperation`** — plans against the online source (required), generates SQL via `ISqlGenerator`, previews it, executes via `ISqlExecutor`, and captures state. When `ApplyArguments.PlanFile` is set, it instead **applies a saved plan file** without recomputing: it reads the file, confirms, and executes the saved SQL exactly as reviewed. A saved teardown plan flows through this same path (a saved plan is just a plan), so there is no apply-from-file path on `Destroy`. The analogue of `terraform apply <planfile>`.
 - **`RefreshOperation`** — captures the live schema to the state store without planning or applying.
-- **`ImportOperation`** — fetches the live schema (optionally filtered by `ImportArguments.Schemas` / `ImportArguments.Tables`), then writes it to the local filesystem as desired-schema source files. The destination is per-invocation: `ImportArguments.OutputFile` (when `Partition` is `None`) or `ImportArguments.OutputDirectory` (for the partitioned modes), serialized via `IKeyedResolver<ISchemaSerializer>` keyed by `ImportArguments.Format`. Import is additive: existing tables in the target files are preserved. The file-writing logic (partitioning + additive merge) lives directly in the handler — there is no `ISchemaImportTarget` seam.
+- **`ImportOperation`** — fetches the live schema (optionally filtered by `ImportArguments.Schemas` / `ImportArguments.Tables`), then writes it to the local filesystem as desired-schema source files. The destination is per-invocation: `ImportArguments.OutputFile` (when `Partition` is `None`) or `ImportArguments.OutputDirectory` (for the partitioned modes), written as SQL DDL via `DdlWriter` to `.sql` files. Import is additive: existing tables in the target files are preserved. The file-writing logic (partitioning + additive merge) lives directly in the handler — there is no `ISchemaImportTarget` seam.
 - **`ValidateOperation`** — loads the desired schema and validates it against the registered `ISchemaPolicy` implementations, without planning or applying.
 - **`DestroyOperation`** — tears down the managed schema. It reads the managed schema from the state store (offline) when one is configured, otherwise from the declared desired schema, and diffs it against an empty schema to produce drops, then generates SQL and executes it (online required), like `ApplyOperation`. Destroy uses `IMigrationPlanner.PlanTeardown`, a **trusted path that bypasses the diff/plan transformers and policies** (so a custom policy can't block teardown and a transformer can't silently alter it); the destructive-action policy therefore never runs. `IOperationConfirmation` still gates execution.
 - **`ShowOperation`** — reads the recorded (offline) state from the state store and reports it via `IOperationReporter.ReportSchema`, without planning or contacting the live database. The analogue of `terraform show`. Requires a state store (offline read throws otherwise).
@@ -119,7 +119,7 @@ A plan can be saved to a file and applied later, unchanged — the analogue of `
 
 ### Defining a schema
 
-Schemas are defined using SQL DDL. Declarative `CREATE` statements describing desired state (no `ALTER`). It is parsed by `DslParser` / `DdlSchemaSerializer` (format key `"sql"`) in `Schema/Serialization/Ddl/`, and the full grammar lives in `docs/dsl-grammar.md`. The old fluent `AbstractSchemaProvider` builder API has been **removed** — the DSL (and JSON) are the input formats.
+Schemas are defined using SQL DDL. Declarative `CREATE` statements describing desired state (no `ALTER`). DDL text is read by the public, stateless `DdlReader` (`DdlReader.Instance.Read(source)` — a thin facade over the internal single-use `DdlParser`) and written by the public, stateless `DdlWriter` (`DdlWriter.Instance.Write(schema)`), both in `Schema/Ddl/`; the full grammar lives in `docs/ddl-grammar.md`. The old fluent `AbstractSchemaProvider` builder API and the JSON schema format have both been **removed** — the DSL is the only file input format.
 
 ```sql
 CREATE SCHEMA app;
@@ -132,11 +132,11 @@ CREATE TABLE app.users
 );
 ```
 
-DSL files are registered as desired providers via `AddSqlSchema(path)` / `AddSqlSchemasFromGlob(pattern)` / `AddSqlSchemasFromDirectory(dir)` (each wraps a file in the internal `DdlSchemaProvider`, a `FileSchemaProvider` over `DdlSchemaSerializer.Instance` — mirroring the `AddJsonSchema*` helpers). JSON schemas use `AddJsonSchema(...)`. A schema can also be supplied in code by implementing `ISchemaProvider` and registering it with `AddSchema<T>()`.
+DSL files are registered as desired providers via `AddSqlSchema(path)` / `AddSqlSchemasFromGlob(pattern)` / `AddSqlSchemasFromDirectory(dir)` (each wraps a file in the internal `DdlSchemaProvider`, an `ISchemaProvider` that reads the file and parses it with `DdlReader`, then filters by schema name). A schema can also be supplied in code by implementing `ISchemaProvider` and registering it with `AddSchema<T>()`.
 
 #### Config-in-SQL
 
-DSL files may also carry top-level **configuration blocks** — `NSCHEMA ( … )`, `BACKEND file ( … )`, `PROVIDER postgres ( … )` — orchestration metadata (dialect, state backend, live provider) declared alongside the schema, à la Terraform's `terraform`/`provider` blocks but in SQL-statement form (mirroring Postgres `WITH (option = value, …)`). The core **captures but never interprets** them: `DslParser.ParseDocument()` returns a `DslDocument` (schema + `IReadOnlyList<ConfigBlock>`), `DdlSchemaSerializer.Read` still returns only the schema, and the public `DslConfigReader.Read(text/stream)` surfaces the blocks for a front-end. `ConfigBlock` / `ConfigValue` (in `NSchema.Configuration`) are a generic, flat model (`Type`, optional `Label`, `key = value` attributes; nesting via dotted keys). Interpretation — precedence (CLI > env > config > defaults), mapping a block to builder registration, provider dispatch, secrets-from-env — lives in the front-end/CLI, not the core.
+DSL files may also carry top-level **configuration blocks** — `NSCHEMA ( … )`, `BACKEND file ( … )`, `PROVIDER postgres ( … )` — orchestration metadata (dialect, state backend, live provider) declared alongside the schema, à la Terraform's `terraform`/`provider` blocks but in SQL-statement form (mirroring Postgres `WITH (option = value, …)`). The core **captures but never interprets** them: `DdlReader.Instance.Read(source)` returns a `DdlDocument` (schema + `IReadOnlyList<ConfigBlock>`). A front-end reads the blocks from `Read(source).Config` (and the desired schema from `.Schema`) — `DdlReader` and `DdlDocument` are public for exactly this. `ConfigBlock` / `ConfigValue` (in `NSchema.Configuration`) are a generic, flat model (`Type`, optional `Label`, `key = value` attributes; nesting via dotted keys). Interpretation — precedence (CLI > env > config > defaults), mapping a block to builder registration, provider dispatch, secrets-from-env — lives in the front-end/CLI, not the core.
 
 ### Extension points
 
@@ -158,7 +158,6 @@ DSL files may also carry top-level **configuration blocks** — `NSCHEMA ( … )
 | `IStateLock`                            | auto co-located with the store; override with `UseStateLock<T>()` / `UseStateLock(instance)` / `UseFileStateLock(path)`         |
 | `IOperationReporter` (keyed by name)    | `AddReporter<T>(format)` / `AddReporter(format, instance)` (last-wins per key); select via `NSchemaApplicationOptions.Reporter` |
 | `ISqlGenerator` (keyed by `Dialect`)    | `AddSqlGenerator<T>(dialect)`, typically a database-provider extension; select with `WithDialect(...)`                          |
-| `ISchemaSerializer` (keyed by `Format`) | `AddSchemaSerializer<T>(format)` (first-wins); `UseSchemaSerializer<T>(format)` to replace (JSON built-in)                      |
 | `IDiffRenderer`                         | `UseTerraformRenderer(...)` / `UseDiffRenderer<TRenderer>()`                                                                    |
 | `ISchemaRenderer`                       | `UseSchemaRenderer<TRenderer>()` (default `DefaultSchemaRenderer`)                                                              |
 | `ISqlPlanRenderer`                      | `UseSqlPlanRenderer<TRenderer>()` (default `DefaultSqlPlanRenderer`)                                                            |
@@ -167,14 +166,14 @@ The planning algorithm and aggregators — `ISchemaComparer`, `IPlanLinearizer`,
 
 ### Resolving one of many (resolver pattern)
 
-Several public seams let you register multiple implementations and select one by key. Selection goes through the shared `IKeyedResolver<TValue>` interface (`Resolution/`), backed by DI keyed services; it's injected into consumers (including front-ends — e.g. the CLI's init command injects `IKeyedResolver<ISchemaSerializer>` to write a demo schema). `IOperationReporter` (by reporter name), `ISqlGenerator` (by `Dialect`), and `ISchemaSerializer` (by `Format`) read the key for the current run from options (via `Current`). The import operation also resolves `ISchemaSerializer` **explicitly** from `ImportArguments.Format` (via `Resolve(key)`). `IOperationReporter` uses last-wins registration (`Services.Replace`); `ISqlGenerator` and `ISchemaSerializer` use first-wins (`TryAddKeyedSingleton`), and `ISchemaSerializer` has a `UseSchemaSerializer<T>(format)` method to replace the built-in.
+Several public seams let you register multiple implementations and select one by key. Selection goes through the shared `IKeyedResolver<TValue>` interface (`Resolution/`), backed by DI keyed services. `IOperationReporter` (by reporter name) and `ISqlGenerator` (by `Dialect`) read the key for the current run from options (via `Current`). `IOperationReporter` uses last-wins registration (`Services.Replace`); `ISqlGenerator` uses first-wins (`TryAddKeyedSingleton`). (Schema reading/writing is not a keyed seam — there is one format, SQL DDL, handled directly by `DdlReader` / `DdlWriter`.)
 
 `IKeyedResolver<TValue>` is injected directly into consumers and exposes:
 - `Current` — resolves the implementation for the current run's configured key (e.g. `NSchemaApplicationOptions.Reporter`, `SqlOptions.Dialect`). Throws if no key is configured or the key isn't registered.
 - `HasCurrent` — returns `true` if `Current` would succeed; use this to guard optional seams (e.g. SQL generators).
-- `Resolve(key)` / `TryResolve(key, out value)` — resolve by explicit key (how the import operation selects its target).
+- `Resolve(key)` / `TryResolve(key, out value)` — resolve by an explicit key rather than the current run's configured one.
 
-The `DefaultKeyedResolver<TValue, TOptions>` implementation reads the current key from `IOptions<TOptions>` via a selector delegate supplied at registration time; a resolver registered without a selector (e.g. `ISchemaSerializer`) has no `Current` and is used only via `Resolve` (how the import operation selects its serializer by `ImportArguments.Format`).
+The `DefaultKeyedResolver<TValue, TOptions>` implementation reads the current key from `IOptions<TOptions>` via a selector delegate supplied at registration time; a resolver registered without a selector has no `Current` and is usable only via `Resolve(key)`.
 
 ### Diff rendering
 
@@ -211,7 +210,8 @@ The operation to run is **not** an option — it's chosen by which method you ca
 **`ImportArguments`** (`NSchema.Operations.Import`) — per-invocation import inputs, passed to `Import(...)`:
 - `Schemas` — optional `string[]` scope filter; only these schemas are fetched from the live database.
 - `Tables` — optional `string[]` table filter applied after fetching.
-- `OutputFile` — the file to write to when `Partition` is `None` (defaults to `schema.json`).
+- `OutputFile` — the file to write to when `Partition` is `None` (defaults to `schema.sql`).
 - `OutputDirectory` — the root directory to write into when `Partition` is `Schema` or `Object` (defaults to `.`).
-- `Partition` — an `ImportPartitionMode` (`None` / `Schema` / `Object`) controlling how the import is split across files. `Object` writes one file per major object (table, view, function, procedure), grouped by type under each schema's directory (e.g. `app/tables/users.json`), with the leftover schema-level objects (enums, sequences, grants, comment) sharing a per-schema header file (e.g. `app.json`).
-- `Format` — the `ISchemaSerializer` format key to write with, resolved via `IKeyedResolver<ISchemaSerializer>.Resolve(...)` (defaults to `json`).
+- `Partition` — an `ImportPartitionMode` (`None` / `Schema` / `Object`) controlling how the import is split across files. `Object` writes one file per major object (table, view, function, procedure), grouped by type under each schema's directory (e.g. `app/tables/users.sql`), with the leftover schema-level objects (enums, sequences, grants, comment) sharing a per-schema header file (e.g. `app.sql`).
+
+The output is always written as SQL DDL via `DdlWriter` (there is no format choice — JSON was removed); files use the `.sql` extension.

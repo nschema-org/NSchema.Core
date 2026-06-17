@@ -1,15 +1,11 @@
 using NSchema.Resolution;
 using NSchema.Schema;
+using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
-using NSchema.Schema.Serialization;
 
 namespace NSchema.Operations.Import;
 
-internal sealed class ImportOperation(
-    ICurrentSchemaProvider currentSchema,
-    IKeyedResolver<ISchemaSerializer> serializers,
-    IKeyedResolver<IOperationReporter> reporters
-) : IImportOperation
+internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IKeyedResolver<IOperationReporter> reporters) : IImportOperation
 {
     public async Task Execute(ImportArguments arguments, CancellationToken cancellationToken = default)
     {
@@ -22,17 +18,15 @@ internal sealed class ImportOperation(
             schema = schema.FilterTables(arguments.Tables);
         }
 
-        var serializer = serializers.Resolve(arguments.Format);
-
         foreach (var (path, partition) in BuildPartitions(schema, arguments))
         {
-            await WritePartition(path, partition, serializer, cancellationToken);
+            await WritePartition(path, partition, cancellationToken);
         }
 
         reporters.Current.Info("Schema imported successfully.");
     }
 
-    private static IEnumerable<(string path, DatabaseSchema schema)> BuildPartitions(DatabaseSchema schema, ImportArguments args)
+    private IEnumerable<(string path, DatabaseSchema schema)> BuildPartitions(DatabaseSchema schema, ImportArguments args)
     {
         switch (args.Partition)
         {
@@ -47,19 +41,19 @@ internal sealed class ImportOperation(
                 {
                     throw new InvalidOperationException("OutputDirectory must be set when Partition mode is Schema.");
                 }
-                return schema.Schemas.Select(s => (Path.Combine(args.OutputDirectory, $"{s.Name}.{args.Format}"), new DatabaseSchema([s])));
+                return schema.Schemas.Select(s => (Path.Combine(args.OutputDirectory, $"{s.Name}.sql"), new DatabaseSchema([s])));
             case ImportPartitionMode.Object:
                 if (args.OutputDirectory is null)
                 {
                     throw new InvalidOperationException("OutputDirectory must be set when Partition mode is Object.");
                 }
-                return schema.Schemas.SelectMany(s => ObjectPartitions(s, args.OutputDirectory, args.Format));
+                return schema.Schemas.SelectMany(s => ObjectPartitions(s, args.OutputDirectory));
             default:
                 throw new InvalidOperationException($"Unknown partition mode: {args.Partition}");
         }
     }
 
-    private static IEnumerable<(string path, DatabaseSchema schema)> ObjectPartitions(SchemaDefinition s, string directory, string format)
+    private static IEnumerable<(string path, DatabaseSchema schema)> ObjectPartitions(SchemaDefinition s, string directory)
     {
         // Each major object (table, view, function, procedure) gets its own file, grouped by type under
         // the schema's directory. The leftover schema-level objects (enums, sequences, grants, comment)
@@ -68,33 +62,33 @@ internal sealed class ImportOperation(
         // never trips the aggregator's duplicate detection. Type subfolders also avoid collisions where a
         // table and a function share a name (they occupy distinct namespaces in the database).
         var header = s with { Tables = [], Views = [], Functions = [], Procedures = [] };
-        yield return (Path.Combine(directory, $"{s.Name}.{format}"), new DatabaseSchema([header]));
+        yield return (Path.Combine(directory, $"{s.Name}.sql"), new DatabaseSchema([header]));
 
         foreach (var table in s.Tables)
         {
-            yield return (Path.Combine(directory, s.Name, "tables", $"{table.Name}.{format}"),
+            yield return (Path.Combine(directory, s.Name, "tables", $"{table.Name}.sql"),
                 new DatabaseSchema([new SchemaDefinition(s.Name, Tables: [table])]));
         }
         foreach (var view in s.Views)
         {
-            yield return (Path.Combine(directory, s.Name, "views", $"{view.Name}.{format}"),
+            yield return (Path.Combine(directory, s.Name, "views", $"{view.Name}.sql"),
                 new DatabaseSchema([new SchemaDefinition(s.Name, Views: [view])]));
         }
         foreach (var function in s.Functions)
         {
-            yield return (Path.Combine(directory, s.Name, "functions", $"{function.Name}.{format}"),
+            yield return (Path.Combine(directory, s.Name, "functions", $"{function.Name}.sql"),
                 new DatabaseSchema([new SchemaDefinition(s.Name, Functions: [function])]));
         }
         foreach (var procedure in s.Procedures)
         {
-            yield return (Path.Combine(directory, s.Name, "procedures", $"{procedure.Name}.{format}"),
+            yield return (Path.Combine(directory, s.Name, "procedures", $"{procedure.Name}.sql"),
                 new DatabaseSchema([new SchemaDefinition(s.Name, Procedures: [procedure])]));
         }
     }
 
-    private static async Task WritePartition(string path, DatabaseSchema incoming, ISchemaSerializer serializer, CancellationToken cancellationToken)
+    private async Task WritePartition(string path, DatabaseSchema incoming, CancellationToken cancellationToken)
     {
-        var existing = await TryReadExisting(path, serializer, cancellationToken);
+        var existing = await TryReadExisting(path, cancellationToken);
         var merged = existing is null ? incoming : Merge(existing, incoming);
 
         var directory = Path.GetDirectoryName(Path.GetFullPath(path));
@@ -103,19 +97,19 @@ internal sealed class ImportOperation(
             Directory.CreateDirectory(directory);
         }
 
-        await using var stream = File.Open(path, FileMode.Create, FileAccess.Write);
-        await serializer.Write(merged, stream, cancellationToken);
+        var ddl = DdlWriter.Instance.Write(merged);
+        await File.WriteAllTextAsync(path, ddl, cancellationToken);
     }
 
-    private static async Task<DatabaseSchema?> TryReadExisting(string path, ISchemaSerializer serializer, CancellationToken cancellationToken)
+    private async Task<DatabaseSchema?> TryReadExisting(string path, CancellationToken cancellationToken)
     {
         if (!File.Exists(path))
         {
             return null;
         }
 
-        await using var stream = File.OpenRead(path);
-        return await serializer.Read(stream, cancellationToken);
+        var text = await File.ReadAllTextAsync(path, cancellationToken);
+        return DdlReader.Instance.Read(text).Schema;
     }
 
     private static DatabaseSchema Merge(DatabaseSchema existing, DatabaseSchema incoming)

@@ -1,10 +1,11 @@
 using NSchema.Configuration;
+using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
 
-namespace NSchema.Schema.Serialization.Ddl;
+namespace NSchema.Schema.Ddl;
 
 /// <summary>
-/// Recursive-descent parser for NSchema DDL
+/// Recursive-descent parser for NSchema DDL.
 /// </summary>
 internal sealed class DdlParser
 {
@@ -18,14 +19,9 @@ internal sealed class DdlParser
     }
 
     /// <summary>
-    /// Parses the whole document into a <see cref="DatabaseSchema"/>.
-    /// </summary>
-    public DatabaseSchema Parse() => ParseDocument().Schema;
-
-    /// <summary>
     /// Parses the whole document into a <see cref="DdlDocument"/>.
     /// </summary>
-    public DdlDocument ParseDocument()
+    public DdlDocument Parse()
     {
         var schemas = new SchemaAccumulator();
         var config = new List<ConfigBlock>();

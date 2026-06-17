@@ -1,8 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using NSchema.Helpers;
 using NSchema.Plan.Model;
-using NSchema.Schema.Serialization.Json;
 
 namespace NSchema.Plan.PlanFile;
 
@@ -26,7 +26,7 @@ internal class PlanFileWriter : IPlanFileWriter
         Converters = { new JsonStringEnumConverter() },
         TypeInfoResolver = new DefaultJsonTypeInfoResolver
         {
-            Modifiers = { DomainModelJson.IgnoreComputedProperties, ConfigureActionPolymorphism },
+            Modifiers = { JsonHelpers.IgnoreComputedProperties, ConfigureActionPolymorphism },
         },
     };
 

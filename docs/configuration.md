@@ -97,12 +97,6 @@ The desired schema(s) are configured by registering one or more `ISchemaProvider
 builder.AddSqlSchemasFromGlob("schemas/**/*.sql");
 ```
 
-Schemas can also be loaded from a JSON file:
-
-```csharp
-builder.AddJsonSchema("schema.json");
-```
-
 All registered providers are aggregated before planning, so you can split a schema across many files freely. For full control you can also implement `ISchemaProvider` directly and register it with `AddSchema<T>()`.
 
 See [Defining schemas](schemas.md) for the full declaration reference.

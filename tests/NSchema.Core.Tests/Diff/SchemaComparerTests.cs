@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using NSchema.Diff;
 using NSchema.Diff.Model;
+using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
-using NSchema.Schema.Serialization.Ddl;
 
 namespace NSchema.Tests.Diff;
 

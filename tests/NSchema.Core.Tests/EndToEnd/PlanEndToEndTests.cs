@@ -8,7 +8,7 @@ using NSchema.Tests.Helpers;
 namespace NSchema.Tests.EndToEnd;
 
 /// <summary>
-/// Drives <c>Plan</c> through a real <see cref="NSchemaApplication"/>: desired schema from a JSON file on disk,
+/// Drives <c>Plan</c> through a real <see cref="NSchemaApplication"/>: desired schema from a DDL file on disk,
 /// current schema from an in-memory provider, asserting on the structured diff the pipeline reports.
 /// </summary>
 public sealed class PlanEndToEndTests : IDisposable
@@ -19,7 +19,7 @@ public sealed class PlanEndToEndTests : IDisposable
     public PlanEndToEndTests() => Directory.CreateDirectory(_tempDir);
     public void Dispose() => Directory.Delete(_tempDir, recursive: true);
 
-    private string WriteJson(string name, string content)
+    private string WriteDdl(string name, string content)
     {
         var path = Path.Combine(_tempDir, name);
         File.WriteAllText(path, content);
@@ -41,21 +41,21 @@ public sealed class PlanEndToEndTests : IDisposable
         var current = new DatabaseSchema([new SchemaDefinition("app", Tables:
             [new Table("users", Columns: [new Column("id", SqlType.Int)])])]);
 
-        var desired = WriteJson("schema.json",
+        var desired = WriteDdl("schema.sql",
             """
-            {
-              "schemas": [{
-                "name": "app",
-                "tables": [
-                  { "name": "users",  "columns": [{ "name": "id", "type": "int" }, { "name": "email", "type": "text" }] },
-                  { "name": "orders", "columns": [{ "name": "id", "type": "int" }] }
-                ]
-              }],
-              "droppedSchemas": []
-            }
+            CREATE SCHEMA app;
+            CREATE TABLE app.users
+            (
+                id int NOT NULL,
+                email text NOT NULL
+            );
+            CREATE TABLE app.orders
+            (
+                id int NOT NULL
+            );
             """);
 
-        using var app = NewBuilder(current).AddJsonSchema(desired).Build();
+        using var app = NewBuilder(current).AddSqlSchema(desired).Build();
 
         await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
@@ -77,12 +77,16 @@ public sealed class PlanEndToEndTests : IDisposable
         var schema = new DatabaseSchema([new SchemaDefinition("app", Tables:
             [new Table("users", Columns: [new Column("id", SqlType.Int)])])]);
 
-        var desired = WriteJson("schema.json",
+        var desired = WriteDdl("schema.sql",
             """
-            { "schemas": [{ "name": "app", "tables": [{ "name": "users", "columns": [{ "name": "id", "type": "int" }] }] }], "droppedSchemas": [] }
+            CREATE SCHEMA app;
+            CREATE TABLE app.users
+            (
+                id int NOT NULL
+            );
             """);
 
-        using var app = NewBuilder(schema).AddJsonSchema(desired).Build();
+        using var app = NewBuilder(schema).AddSqlSchema(desired).Build();
 
         await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
@@ -93,13 +97,10 @@ public sealed class PlanEndToEndTests : IDisposable
     public async Task Plan_WithGeneratorRegistered_ReportsSqlPreview()
     {
         var current = new DatabaseSchema([]);
-        var desired = WriteJson("schema.json",
-            """
-            { "schemas": [{ "name": "app", "tables": [] }], "droppedSchemas": [] }
-            """);
+        var desired = WriteDdl("schema.sql", "CREATE SCHEMA app;");
 
         using var app = NewBuilder(current)
-            .AddJsonSchema(desired)
+            .AddSqlSchema(desired)
             .AddSqlGenerator<StubSqlGenerator>(StubSqlGenerator.DialectName)
             .WithDialect(StubSqlGenerator.DialectName)
             .Build();
@@ -114,12 +115,9 @@ public sealed class PlanEndToEndTests : IDisposable
     public async Task Plan_WithoutGenerator_ReportsNoSqlPreview()
     {
         var current = new DatabaseSchema([]);
-        var desired = WriteJson("schema.json",
-            """
-            { "schemas": [{ "name": "app", "tables": [] }], "droppedSchemas": [] }
-            """);
+        var desired = WriteDdl("schema.sql", "CREATE SCHEMA app;");
 
-        using var app = NewBuilder(current).AddJsonSchema(desired).Build();
+        using var app = NewBuilder(current).AddSqlSchema(desired).Build();
 
         await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 

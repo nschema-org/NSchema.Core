@@ -1,5 +1,3 @@
-using NSchema.Schema.Serialization.Json;
-
 namespace NSchema.Operations.Import;
 
 /// <summary>
@@ -31,9 +29,4 @@ public sealed record ImportArguments
     /// Controls how the imported schema is split across output files.
     /// </summary>
     public ImportPartitionMode Partition { get; init; } = ImportPartitionMode.None;
-
-    /// <summary>
-    /// The serializer format key (e.g. <c>json</c>) to write with. Defaults to <c>json</c>.
-    /// </summary>
-    public string Format { get; init; } = JsonSchemaSerializer.FormatName;
 }

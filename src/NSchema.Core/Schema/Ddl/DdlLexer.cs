@@ -1,6 +1,7 @@
 using System.Text;
+using NSchema.Schema.Ddl.Model;
 
-namespace NSchema.Schema.Serialization.Ddl;
+namespace NSchema.Schema.Ddl;
 
 /// <summary>
 /// Scanner for NSchema DDL.
