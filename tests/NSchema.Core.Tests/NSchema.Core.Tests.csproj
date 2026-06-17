@@ -37,13 +37,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Deterministic logical names so the embedded-resource script-provider tests can address them. -->
-    <EmbeddedResource Include="Scripts\Resources\pre_001.sql" LogicalName="NSchema.Tests.Resources.pre_001.sql" />
-    <EmbeddedResource Include="Scripts\Resources\pre_002.sql" LogicalName="NSchema.Tests.Resources.pre_002.sql" />
-    <EmbeddedResource Include="Scripts\Resources\post_001.sql" LogicalName="NSchema.Tests.Resources.post_001.sql" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\src\NSchema.Core\NSchema.Core.csproj" />
   </ItemGroup>
 
