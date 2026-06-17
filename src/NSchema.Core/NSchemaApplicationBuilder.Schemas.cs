@@ -28,12 +28,14 @@ public partial class NSchemaApplicationBuilder
     /// <summary>
     /// Adds schemas from the given SQL files.
     /// </summary>
-    /// <param name="globPattern">A glob pattern, e.g. <c>schemas/**/*.sql</c>, or a single file path.</param>
+    /// <param name="baseDirectory">The directory the glob is matched against.</param>
+    /// <param name="globPattern">A glob pattern relative to <paramref name="baseDirectory"/>. Defaults to <c>**/*.sql</c> (every SQL file, recursively). A wildcard-free pattern names a single file.</param>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder AddSqlSchemas(string globPattern)
+    public NSchemaApplicationBuilder AddSqlSchemas(string baseDirectory, string globPattern = "**/*.sql")
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(baseDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(globPattern);
-        return AddSchema(_ => new DdlSchemaProvider(globPattern));
+        return AddSchema(_ => new DdlSchemaProvider(baseDirectory, globPattern));
     }
 
     /// <summary>

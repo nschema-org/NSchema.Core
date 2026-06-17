@@ -91,10 +91,10 @@ Scope is a per-invocation argument (`PlanArguments` / `ApplyArguments` / `Valida
 
 ## Configuring desired schemas
 
-The desired schema(s) are configured by registering one or more `ISchemaProvider` implementations that supply the target schema. The usual source is one or more SQL DDL files (see [Defining schemas](schemas.md) and the [grammar reference](ddl-grammar.md)), loaded with `AddSqlSchemas` (a wildcard-free pattern loads a single file; a directory is `dir/**/*.sql`):
+The desired schema(s) are configured by registering one or more `ISchemaProvider` implementations that supply the target schema. The usual source is one or more SQL DDL files (see [Defining schemas](schemas.md) and the [grammar reference](ddl-grammar.md)), loaded with `AddSqlSchemas`, which takes a base directory and a glob pattern relative to it (the pattern defaults to `**/*.sql`):
 
 ```csharp
-builder.AddSqlSchemas("schemas/**/*.sql");
+builder.AddSqlSchemas("schemas");
 ```
 
 All registered providers are aggregated before planning, so you can split a schema across many files freely. For full control you can also implement `ISchemaProvider` directly and register it with `AddSchema<T>()`.
