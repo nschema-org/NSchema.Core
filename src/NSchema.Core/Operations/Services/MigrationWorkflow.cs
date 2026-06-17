@@ -19,10 +19,10 @@ internal sealed class MigrationWorkflow(
     ISchemaStateStore? store = null
 ) : IMigrationWorkflow
 {
-    public async Task<DatabaseSchema> Validate(string[]? schemas, CancellationToken cancellationToken = default)
+    public async Task<DatabaseSchema> Validate(CancellationToken cancellationToken = default)
     {
         reporters.Current.Progress("Loading desired schema...");
-        var desiredSchema = await desiredProvider.GetSchema(schemas, cancellationToken);
+        var desiredSchema = await desiredProvider.GetSchema(null, cancellationToken);
 
         reporters.Current.Progress("Validating schema...");
         ReportOrThrow(planner.Validate(desiredSchema));

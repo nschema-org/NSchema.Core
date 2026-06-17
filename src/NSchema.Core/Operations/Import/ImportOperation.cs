@@ -13,11 +13,6 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IKey
 
         var schema = await currentSchema.GetSchema(SchemaSourceMode.Online, arguments.Schemas, cancellationToken: cancellationToken);
 
-        if (arguments.Tables is { Length: > 0 })
-        {
-            schema = schema.FilterTables(arguments.Tables);
-        }
-
         foreach (var (path, partition) in schema.Schemas.SelectMany(s => ObjectPartitions(s, arguments.OutputDirectory)))
         {
             await WritePartition(path, partition, cancellationToken);

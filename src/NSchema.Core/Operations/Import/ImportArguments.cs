@@ -11,11 +11,6 @@ public sealed record ImportArguments
     public string[]? Schemas { get; init; }
 
     /// <summary>
-    /// The table names to import. When <see langword="null"/>, all tables are imported.
-    /// </summary>
-    public string[]? Tables { get; init; }
-
-    /// <summary>
     /// The root directory to write the imported schema into. Defaults to the current directory.
     /// </summary>
     public string OutputDirectory { get; init; } = ".";

@@ -30,21 +30,6 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition>? Schemas = null, IR
         .ToArray();
 
     /// <summary>
-    /// Restricts the schema to tables matching the given names across all schema namespaces.
-    /// Schema namespaces with no matching tables are excluded from the result.
-    /// </summary>
-    /// <param name="tableNames">The names of the tables to include.</param>
-    public DatabaseSchema FilterTables(string[] tableNames)
-    {
-        var scope = new HashSet<string>(tableNames, StringComparer.OrdinalIgnoreCase);
-        var filtered = Schemas
-            .Select(s => s with { Tables = s.Tables.Where(t => scope.Contains(t.Name)).ToList() })
-            .Where(s => s.Tables.Count > 0)
-            .ToList();
-        return new DatabaseSchema(filtered, DroppedSchemas);
-    }
-
-    /// <summary>
     /// Restricts the schema to the named schemas.
     /// </summary>
     /// <param name="schemaNames">The names of the schemas to include in the filtered result.</param>
