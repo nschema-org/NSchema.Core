@@ -14,7 +14,7 @@ public sealed class ReporterRegistrationTests
     /// <summary>A no-op reporter that only carries a format, for registration tests.</summary>
     private sealed class StubReporter : IOperationReporter
     {
-        public void Info(string message) { }
+        public void Report(MessageKind kind, string message) { }
         public void ReportException(Exception exception) { }
         public void ReportSchema(DatabaseSchema schema) { }
         public void ReportDiff(DatabaseDiff diff) { }

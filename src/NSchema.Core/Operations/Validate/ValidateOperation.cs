@@ -7,8 +7,8 @@ internal sealed class ValidateOperation(IMigrationWorkflow workflow, IKeyedResol
 {
     public async Task Execute(ValidateArguments arguments, CancellationToken cancellationToken = default)
     {
-        reporters.Current.Info("Validating schema. No database or state store will be contacted.");
+        reporters.Current.Announce("Validating schema. No database or state store will be contacted.");
         await workflow.Validate(arguments.Schemas, cancellationToken);
-        reporters.Current.Info("Schema is valid.");
+        reporters.Current.Success("Schema is valid.");
     }
 }

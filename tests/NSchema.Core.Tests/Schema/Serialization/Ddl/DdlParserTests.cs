@@ -1,14 +1,14 @@
 using NSchema.Configuration;
+using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
-using NSchema.Schema.Serialization.Ddl;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
-public sealed class DslParserTests
+public sealed class DdlParserTests
 {
-    private static DatabaseSchema Parse(string source) => new DslParser(source).Parse();
+    private static DatabaseSchema Parse(string source) => new DdlParser(source).Parse().Schema;
 
-    private static IReadOnlyList<ConfigBlock> ReadConfig(string source) => DslConfigReader.Read(source);
+    private static IReadOnlyList<ConfigBlock> ReadConfig(string source) => DdlReader.Instance.Read(source).Config;
 
     private static SchemaDefinition ParseSingleSchema(string source) => Parse(source).Schemas.ShouldHaveSingleItem();
 
@@ -188,12 +188,12 @@ public sealed class DslParserTests
     [Fact]
     public void Parse_ConfigAndSchema_Intermixed_BothSurface()
     {
-        var document = new DslParser(
+        var document = DdlReader.Instance.Read(
             """
             NSCHEMA ( dialect = 'postgres' );
             CREATE SCHEMA app;
             PROVIDER postgres ( schema_search_path = 'app' );
-            """).ParseDocument();
+            """);
 
         document.Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
         document.Config.Select(b => b.Type).ShouldBe(["nschema", "provider"]);
@@ -210,26 +210,26 @@ public sealed class DslParserTests
 
     [Fact]
     public void Parse_ConfigBlock_DuplicateAttribute_Throws()
-        => Should.Throw<DslSyntaxException>(() => ReadConfig("NSCHEMA ( dialect = 'a', dialect = 'b' );"))
+        => Should.Throw<DdlSyntaxException>(() => ReadConfig("NSCHEMA ( dialect = 'a', dialect = 'b' );"))
             .Message.ShouldContain("specified more than once");
 
     [Fact]
     public void Parse_ConfigBlock_MissingEquals_Throws()
-        => Should.Throw<DslSyntaxException>(() => ReadConfig("NSCHEMA ( dialect 'postgres' );"))
+        => Should.Throw<DdlSyntaxException>(() => ReadConfig("NSCHEMA ( dialect 'postgres' );"))
             .Message.ShouldContain("'='");
 
     [Fact]
     public void Parse_ConfigBlock_MissingValue_Throws()
-        => Should.Throw<DslSyntaxException>(() => ReadConfig("NSCHEMA ( dialect = );"))
+        => Should.Throw<DdlSyntaxException>(() => ReadConfig("NSCHEMA ( dialect = );"))
             .Message.ShouldContain("configuration value");
 
     [Fact]
     public void Parse_ConfigBlock_Unterminated_Throws()
-        => Should.Throw<DslSyntaxException>(() => ReadConfig("BACKEND file ( path = 'x'"));
+        => Should.Throw<DdlSyntaxException>(() => ReadConfig("BACKEND file ( path = 'x'"));
 
     [Fact]
     public void Parse_ConfigBlock_MissingSemicolon_Throws()
-        => Should.Throw<DslSyntaxException>(() => ReadConfig("NSCHEMA ( dialect = 'postgres' )"))
+        => Should.Throw<DdlSyntaxException>(() => ReadConfig("NSCHEMA ( dialect = 'postgres' )"))
             .Message.ShouldContain("';'");
 
     // -------------------------------------------------------------------------
@@ -255,24 +255,24 @@ public sealed class DslParserTests
 
     [Fact]
     public void Parse_MissingSemicolon_Throws()
-        => Should.Throw<DslSyntaxException>(() => Parse("CREATE SCHEMA app")).Message.ShouldContain("';'");
+        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE SCHEMA app")).Message.ShouldContain("';'");
 
     [Fact]
     public void Parse_DuplicateSchema_Throws()
-        => Should.Throw<DslSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE SCHEMA app;"))
+        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE SCHEMA app;"))
             .Message.ShouldContain("already declared");
 
     [Fact]
     public void Parse_UnknownAfterCreate_Throws()
-        => Should.Throw<DslSyntaxException>(() => Parse("CREATE THING app;")).Message.ShouldContain("Expected SCHEMA, TABLE, VIEW, ENUM, SEQUENCE, FUNCTION or PROCEDURE");
+        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE THING app;")).Message.ShouldContain("Expected SCHEMA, TABLE, VIEW, ENUM, SEQUENCE, FUNCTION or PROCEDURE");
 
     [Fact]
     public void Parse_PartialTable_Throws()
-        => Should.Throw<DslSyntaxException>(() => Parse("CREATE PARTIAL TABLE app.t (id int);")).Message.ShouldContain("PARTIAL applies to SCHEMA");
+        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE PARTIAL TABLE app.t (id int);")).Message.ShouldContain("PARTIAL applies to SCHEMA");
 
     [Fact]
     public void Parse_EmptyTableBody_Throws()
-        => Should.Throw<DslSyntaxException>(() => Parse("CREATE TABLE app.users ();")).Message.ShouldContain("column or constraint");
+        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE TABLE app.users ();")).Message.ShouldContain("column or constraint");
 
     // -------------------------------------------------------------------------
     // Views
@@ -318,13 +318,13 @@ public sealed class DslParserTests
 
     [Fact]
     public void Parse_DuplicateView_Throws()
-        => Should.Throw<DslSyntaxException>(() =>
+        => Should.Throw<DdlSyntaxException>(() =>
             Parse("CREATE SCHEMA app; CREATE VIEW app.v AS SELECT 1 FROM app.t; CREATE VIEW app.v AS SELECT 2 FROM app.t;"))
             .Message.ShouldContain("already declared");
 
     [Fact]
     public void Parse_PartialView_Throws()
-        => Should.Throw<DslSyntaxException>(() => Parse("CREATE PARTIAL VIEW app.v AS SELECT 1 FROM app.t;")).Message.ShouldContain("PARTIAL applies to SCHEMA");
+        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE PARTIAL VIEW app.v AS SELECT 1 FROM app.t;")).Message.ShouldContain("PARTIAL applies to SCHEMA");
 
     [Fact]
     public void Parse_ViewBodyWithSemicolonInString_StopsAtRealTerminator()
@@ -373,23 +373,23 @@ public sealed class DslParserTests
 
     [Fact]
     public void Parse_DuplicateEnum_Throws()
-        => Should.Throw<DslSyntaxException>(() =>
+        => Should.Throw<DdlSyntaxException>(() =>
             Parse("CREATE SCHEMA app; CREATE ENUM app.e ('a'); CREATE ENUM app.e ('b');"))
             .Message.ShouldContain("already declared");
 
     [Fact]
     public void Parse_DuplicateEnumValue_Throws()
-        => Should.Throw<DslSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE ENUM app.e ('a', 'a');"))
+        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE ENUM app.e ('a', 'a');"))
             .Message.ShouldContain("more than once");
 
     [Fact]
     public void Parse_EnumValueMustBeQuoted_Throws()
-        => Should.Throw<DslSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE ENUM app.e (pending);"))
+        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE ENUM app.e (pending);"))
             .Message.ShouldContain("an enum value");
 
     [Fact]
     public void Parse_PartialEnum_Throws()
-        => Should.Throw<DslSyntaxException>(() => Parse("CREATE PARTIAL ENUM app.e ('a');"))
+        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE PARTIAL ENUM app.e ('a');"))
             .Message.ShouldContain("PARTIAL applies to SCHEMA");
 
     // -------------------------------------------------------------------------
@@ -439,23 +439,23 @@ public sealed class DslParserTests
 
     [Fact]
     public void Parse_DuplicateSequence_Throws()
-        => Should.Throw<DslSyntaxException>(() =>
+        => Should.Throw<DdlSyntaxException>(() =>
             Parse("CREATE SCHEMA app; CREATE SEQUENCE app.q; CREATE SEQUENCE app.q;"))
             .Message.ShouldContain("already declared");
 
     [Fact]
     public void Parse_UnknownSequenceOption_Throws()
-        => Should.Throw<DslSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE SEQUENCE app.q (WIBBLE 1);"))
+        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE SEQUENCE app.q (WIBBLE 1);"))
             .Message.ShouldContain("Unknown sequence option 'WIBBLE'");
 
     [Fact]
     public void Parse_DuplicateSequenceOption_Throws()
-        => Should.Throw<DslSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE SEQUENCE app.q (START 1, START 2);"))
+        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE SEQUENCE app.q (START 1, START 2);"))
             .Message.ShouldContain("more than once");
 
     [Fact]
     public void Parse_PartialSequence_Throws()
-        => Should.Throw<DslSyntaxException>(() => Parse("CREATE PARTIAL SEQUENCE app.q;"))
+        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE PARTIAL SEQUENCE app.q;"))
             .Message.ShouldContain("PARTIAL applies to SCHEMA");
 
     // -------------------------------------------------------------------------
@@ -494,7 +494,7 @@ public sealed class DslParserTests
 
     [Fact]
     public void Parse_CreateFunction_MissingDefinition_Throws()
-        => Should.Throw<DslSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE FUNCTION app.f();"))
+        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE FUNCTION app.f();"))
             .Message.ShouldContain("Expected a function definition");
 
     [Fact]
@@ -509,7 +509,7 @@ public sealed class DslParserTests
 
     [Fact]
     public void Parse_PartialFunction_Throws()
-        => Should.Throw<DslSyntaxException>(() => Parse("CREATE PARTIAL FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$;"))
+        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE PARTIAL FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$;"))
             .Message.ShouldContain("PARTIAL applies to SCHEMA");
 
     [Fact]
@@ -524,25 +524,25 @@ public sealed class DslParserTests
 
     [Fact]
     public void Parse_DuplicateFunction_Throws()
-        => Should.Throw<DslSyntaxException>(() =>
+        => Should.Throw<DdlSyntaxException>(() =>
             Parse("CREATE SCHEMA app; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 2 $$;"))
             .Message.ShouldContain("already declared");
 
     [Fact]
     public void Parse_DuplicateProcedure_Throws()
-        => Should.Throw<DslSyntaxException>(() =>
+        => Should.Throw<DdlSyntaxException>(() =>
             Parse("CREATE SCHEMA app; CREATE PROCEDURE app.p() AS $$ SELECT 1 $$; CREATE PROCEDURE app.p() AS $$ SELECT 2 $$;"))
             .Message.ShouldContain("already declared");
 
     [Fact]
     public void Parse_ProcedureNamedLikeAFunction_Throws()
-        => Should.Throw<DslSyntaxException>(() =>
+        => Should.Throw<DdlSyntaxException>(() =>
             Parse("CREATE SCHEMA app; CREATE FUNCTION app.r() RETURNS int AS $$ SELECT 1 $$; CREATE PROCEDURE app.r() AS $$ SELECT 1 $$;"))
             .Message.ShouldContain("share one name space");
 
     [Fact]
     public void Parse_FunctionNamedLikeAProcedure_Throws()
-        => Should.Throw<DslSyntaxException>(() =>
+        => Should.Throw<DdlSyntaxException>(() =>
             Parse("CREATE SCHEMA app; CREATE PROCEDURE app.r() AS $$ SELECT 1 $$; CREATE FUNCTION app.r() RETURNS int AS $$ SELECT 1 $$;"))
             .Message.ShouldContain("share one name space");
 

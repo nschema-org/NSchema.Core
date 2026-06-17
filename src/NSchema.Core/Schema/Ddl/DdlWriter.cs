@@ -1,14 +1,24 @@
 using System.Text;
 using NSchema.Schema.Model;
 
-namespace NSchema.Schema.Serialization.Ddl;
+namespace NSchema.Schema.Ddl;
 
 /// <summary>
-/// Emits a <see cref="DatabaseSchema"/> as canonical NSchema DDL (see <c>docs/dsl-grammar.md</c>).
+/// Emits a <see cref="DatabaseSchema"/> as canonical NSchema DDL.
 /// </summary>
-internal static class DdlSchemaWriter
+public sealed class DdlWriter
 {
-    public static string Write(DatabaseSchema schema)
+    /// <summary>
+    /// The singleton instance of <see cref="DdlWriter"/> for convenience.
+    /// </summary>
+    public static readonly DdlWriter Instance = new();
+
+    /// <summary>
+    /// Writes <paramref name="schema"/> as canonical NSchema DDL.
+    /// </summary>
+    /// <param name="schema">The schema to write.</param>
+    /// <returns>The canonical NSchema DDL for <paramref name="schema"/>.</returns>
+    public string Write(DatabaseSchema schema)
     {
         var sb = new StringBuilder();
         var first = true;

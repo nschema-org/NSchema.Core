@@ -19,6 +19,10 @@ internal sealed class RecordingReporter : IOperationReporter
 {
     public const string FormatName = "recording";
 
+    /// <summary>Every reported message, in order, paired with its <see cref="MessageKind"/>.</summary>
+    public List<(MessageKind Kind, string Message)> Messages { get; } = [];
+
+    /// <summary>The text of every reported message, regardless of kind.</summary>
     public List<string> Infos { get; } = [];
     public List<Exception> Exceptions { get; } = [];
     public DatabaseSchema? Schema { get; private set; }
@@ -27,7 +31,11 @@ internal sealed class RecordingReporter : IOperationReporter
     public SqlPlan? SqlPlan { get; private set; }
     public List<PolicyDiagnostic> Diagnostics { get; } = [];
 
-    public void Info(string message) => Infos.Add(message);
+    public void Report(MessageKind kind, string message)
+    {
+        Messages.Add((kind, message));
+        Infos.Add(message);
+    }
     public void ReportException(Exception exception) => Exceptions.Add(exception);
     public void ReportSchema(DatabaseSchema schema) => Schema = schema;
     public void ReportDiff(DatabaseDiff diff) => Diff = diff;

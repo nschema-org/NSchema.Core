@@ -17,7 +17,7 @@ dotnet add package NSchema.Core
 dotnet add package NSchema.Postgres   # or another provider
 ```
 
-Declare a schema in a `.sql` file using the NSchema DSL. Write declarative `CREATE` statements describing the *desired* shape:
+Declare a schema in a `.sql` file using DDL. Write declarative `CREATE` statements describing the *desired* shape:
 
 ```sql
 CREATE SCHEMA app;
@@ -32,7 +32,7 @@ CREATE TABLE app.users
 );
 ```
 
-Wire up and run the application, loading the DSL files and a database provider:
+Wire up and run the application, loading the DDL files and a database provider:
 
 ```csharp
 using NSchema;
@@ -42,7 +42,7 @@ using NSchema.Postgres;
 var builder = NSchemaApplication.CreateBuilder(args);
 
 builder
-    .AddSqlSchemasFromGlob("schemas/**/*.sql")
+    .AddSqlSchemas("schemas")
     .UsePostgres(connectionString)
     .WithDestructiveActionPolicy(DestructiveActionPolicy.Warn);
 
@@ -71,8 +71,8 @@ await app.Apply(new ApplyArguments { PlanFile = "migration.nplan" });
 ## Documentation
 
 - **[Configuration](docs/configuration.md).** Building and running, operations, destructive-action policy, scoping, registering schemas, scripts, and policies.
-- **[Defining schemas](docs/schemas.md).** Declaring schemas in the SQL DSL (and JSON) — a practical introduction.
-- **[DSL grammar](docs/dsl-grammar.md).** The complete reference for the NSchema DDL: every statement, type, and the reserved configuration blocks.
+- **[Defining schemas](docs/schemas.md).** Declaring schemas in DDL — a practical introduction.
+- **[DDL grammar](docs/ddl-grammar.md).** The complete reference for the NSchema DDL: every statement, type, and the reserved configuration blocks.
 - **[Concepts](docs/concepts.md).** The domain model, the pipeline, and how the pieces fit together.
 - **[Extension points](docs/extension-points.md).** Every interface you can swap or extend, and how to register it.
 - **[Samples](samples/).** Complete sample applications and reference implementations.

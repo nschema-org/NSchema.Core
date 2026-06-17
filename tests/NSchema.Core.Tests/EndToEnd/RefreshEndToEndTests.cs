@@ -24,7 +24,7 @@ public sealed class RefreshEndToEndTests : IDisposable
 
     public void Dispose() => Directory.Delete(_tempDir, recursive: true);
 
-    private string WriteJson(string name, string content)
+    private string WriteDdl(string name, string content)
     {
         var path = Path.Combine(_tempDir, name);
         File.WriteAllText(path, content);
@@ -62,14 +62,18 @@ public sealed class RefreshEndToEndTests : IDisposable
 
         // 2. Plan offline against the captured state with a matching desired schema — no live database involved.
         var reporter = new RecordingReporter();
-        var desired = WriteJson("schema.json",
+        var desired = WriteDdl("schema.sql",
             """
-            { "schemas": [{ "name": "app", "tables": [{ "name": "users", "columns": [{ "name": "id", "type": "int" }] }] }], "droppedSchemas": [] }
+            CREATE SCHEMA app;
+            CREATE TABLE app.users
+            (
+                id int NOT NULL
+            );
             """);
 
         using var planner = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions { Reporter = RecordingReporter.FormatName })
             .UseFileStateStore(_statePath)
-            .AddJsonSchema(desired)
+            .AddSqlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired))
             .AddReporter(RecordingReporter.FormatName, reporter)
             .Build();
 

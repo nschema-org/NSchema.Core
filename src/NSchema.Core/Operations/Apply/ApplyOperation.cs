@@ -32,7 +32,7 @@ internal sealed class ApplyOperation(
             return;
         }
 
-        reporters.Current.Info("Applying schema migration. Changes will be applied to the database.");
+        reporters.Current.Announce("Applying schema migration. Changes will be applied to the database.");
 
         // Hold the state lock for the whole operation so a concurrent apply/destroy/refresh can't run against the
         // same state. Released when the handle is disposed at the end of the method (no-op unless a lock is registered).
@@ -40,23 +40,23 @@ internal sealed class ApplyOperation(
 
         var planned = await workflow.Plan(SchemaSourceMode.Online, required: true, arguments.Schemas, cancellationToken);
 
-        reporters.Current.Info("Generating SQL...");
+        reporters.Current.Progress("Generating SQL...");
         var sqlPlan = sqlGenerators.Current.Generate(planned.Plan);
         reporters.Current.ReportSqlPlan(sqlPlan);
 
         // Offer an interactive front-end the chance to prompt before any changes are made.
         if (!await confirmation.Confirm(new ApplyConfirmationRequest(planned.Plan), cancellationToken))
         {
-            reporters.Current.Info("Apply cancelled. No changes were made to the database.");
+            reporters.Current.Announce("Apply cancelled. No changes were made to the database.");
             return;
         }
 
-        reporters.Current.Info("Running schema migration...");
+        reporters.Current.Progress("Running schema migration...");
 
         try
         {
             await sqlExecutor.Execute(sqlPlan, cancellationToken);
-            reporters.Current.Info("Migration completed successfully.");
+            reporters.Current.Success("Migration completed successfully.");
         }
         finally
         {
@@ -73,7 +73,7 @@ internal sealed class ApplyOperation(
     {
         var envelope = await planFile.Read(path, cancellationToken);
 
-        reporters.Current.Info($"Applying saved plan from {path}. Changes will be applied to the database.");
+        reporters.Current.Announce($"Applying saved plan from {path}. Changes will be applied to the database.");
 
         await using var stateLockHandle = await stateLock.Acquire(new StateLockRequest("apply"), cancellationToken);
 
@@ -84,16 +84,16 @@ internal sealed class ApplyOperation(
 
         if (!await confirmation.Confirm(new ApplyConfirmationRequest(envelope.Plan), cancellationToken))
         {
-            reporters.Current.Info("Apply cancelled. No changes were made to the database.");
+            reporters.Current.Announce("Apply cancelled. No changes were made to the database.");
             return;
         }
 
-        reporters.Current.Info($"Applying plan...");
+        reporters.Current.Progress("Applying plan...");
 
         try
         {
             await sqlExecutor.Execute(envelope.Sql, cancellationToken);
-            reporters.Current.Info($"Plan applied successfully.");
+            reporters.Current.Success("Plan applied successfully.");
         }
         finally
         {

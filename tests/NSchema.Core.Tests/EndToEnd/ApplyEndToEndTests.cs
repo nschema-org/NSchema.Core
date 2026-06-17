@@ -22,16 +22,16 @@ public sealed class ApplyEndToEndTests : IDisposable
 
     public void Dispose() => Directory.Delete(_tempDir, recursive: true);
 
-    private string WriteJson(string name, string content)
+    private string WriteDdl(string name, string content)
     {
         var path = Path.Combine(_tempDir, name);
         File.WriteAllText(path, content);
         return path;
     }
 
-    private NSchemaApplication BuildApp(DatabaseSchema current, string desiredJsonPath) =>
+    private NSchemaApplication BuildApp(DatabaseSchema current, string desiredPath) =>
         NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions { Reporter = RecordingReporter.FormatName })
-            .AddJsonSchema(desiredJsonPath)
+            .AddSqlSchemas(Path.GetDirectoryName(desiredPath)!, Path.GetFileName(desiredPath))
             .UseStateStore(_store)
             .AddSqlGenerator<StubSqlGenerator>(StubSqlGenerator.DialectName)
             .WithDialect(StubSqlGenerator.DialectName)
@@ -48,9 +48,13 @@ public sealed class ApplyEndToEndTests : IDisposable
     {
         // Current live DB: an empty app schema. Desired: app.users(id) — i.e. create the table.
         var current = new DatabaseSchema([new SchemaDefinition("app")]);
-        var desired = WriteJson("schema.json",
+        var desired = WriteDdl("schema.sql",
             """
-            { "schemas": [{ "name": "app", "tables": [{ "name": "users", "columns": [{ "name": "id", "type": "int" }] }] }], "droppedSchemas": [] }
+            CREATE SCHEMA app;
+            CREATE TABLE app.users
+            (
+                id int NOT NULL
+            );
             """);
 
         using var app = BuildApp(current, desired);
@@ -70,9 +74,13 @@ public sealed class ApplyEndToEndTests : IDisposable
     {
         var schema = new DatabaseSchema([new SchemaDefinition("app", Tables:
             [new Table("users", Columns: [new Column("id", SqlType.Int)])])]);
-        var desired = WriteJson("schema.json",
+        var desired = WriteDdl("schema.sql",
             """
-            { "schemas": [{ "name": "app", "tables": [{ "name": "users", "columns": [{ "name": "id", "type": "int" }] }] }], "droppedSchemas": [] }
+            CREATE SCHEMA app;
+            CREATE TABLE app.users
+            (
+                id int NOT NULL
+            );
             """);
 
         using var app = BuildApp(schema, desired);

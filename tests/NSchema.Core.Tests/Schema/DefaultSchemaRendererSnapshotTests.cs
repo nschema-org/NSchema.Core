@@ -1,6 +1,6 @@
 using NSchema.Schema;
+using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
-using NSchema.Schema.Serialization.Ddl;
 
 namespace NSchema.Tests.Schema;
 
@@ -11,7 +11,7 @@ public sealed class DefaultSchemaRendererSnapshotTests
 {
     private static string Render(DatabaseSchema schema) => new DefaultSchemaRenderer().Render(schema);
 
-    /// <summary>Builds a view with dependencies derived from its body, exactly as the DSL parser would.</summary>
+    /// <summary>Builds a view with dependencies derived from its body, exactly as the DDL parser would.</summary>
     private static View View(string name, string body, string? comment = null) =>
         new(name, body, null, comment, ViewDependencyExtractor.Extract(body, "app"));
 

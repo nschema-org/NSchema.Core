@@ -23,7 +23,7 @@ internal sealed class DestroyOperation(
             throw new InvalidOperationException("Destroying a schema requires a database provider to generate and execute SQL, but none is registered.");
         }
 
-        reporters.Current.Info("Destroying schema. All managed objects will be dropped from the database.");
+        reporters.Current.Announce("Destroying schema. All managed objects will be dropped from the database.");
 
         // Hold the state lock for the whole teardown so a concurrent apply/destroy/refresh can't run against the
         // same state. Released when the handle is disposed at the end of the method (no-op unless a lock is registered).
@@ -31,23 +31,23 @@ internal sealed class DestroyOperation(
 
         var planned = await workflow.PlanDestroy(cancellationToken);
 
-        reporters.Current.Info("Generating SQL...");
+        reporters.Current.Progress("Generating SQL...");
         var sqlPlan = sqlGenerators.Current.Generate(planned.Plan);
         reporters.Current.ReportSqlPlan(sqlPlan);
 
         // Offer an interactive front-end the chance to prompt before any changes are made.
         if (!await confirmation.Confirm(new DestroyConfirmationRequest(planned.Plan), cancellationToken))
         {
-            reporters.Current.Info("Destroy cancelled. No changes were made to the database.");
+            reporters.Current.Announce("Destroy cancelled. No changes were made to the database.");
             return;
         }
 
-        reporters.Current.Info("Running schema teardown...");
+        reporters.Current.Progress("Running schema teardown...");
 
         try
         {
             await sqlExecutor.Execute(sqlPlan, cancellationToken);
-            reporters.Current.Info("Schema destroyed successfully.");
+            reporters.Current.Success("Schema destroyed successfully.");
         }
         finally
         {

@@ -1,12 +1,10 @@
 # Defining schemas
 
-The primary way to declare a schema is in a **SQL DSL file** using a declarative, dialect-agnostic schema language that borrows SQL's `CREATE TABLE` shape. You describe the *desired state* (the final shape of the schema), NSchema diffs it against the database and works out the changes.
+The primary way to declare a schema is in a **SQL DDL file** using a declarative, dialect-agnostic schema language that borrows SQL's `CREATE TABLE` shape. You describe the *desired state* (the final shape of the schema), NSchema diffs it against the database and works out the changes.
 
-This page is a practical introduction. The [grammar reference](dsl-grammar.md) is the complete specification.
+This page is a practical introduction. The [grammar reference](ddl-grammar.md) is the complete specification.
 
-You can also declare schemas in a [JSON file](#defining-schemas-in-json), which mirrors the domain model directly.
-
-## A schema in the DSL
+## A schema in DDL
 
 ```sql
 --- The application schema.
@@ -29,7 +27,7 @@ CREATE TABLE app.users
 GRANT SELECT, INSERT ON app.users TO app_rw;
 ```
 
-A few things to note, each covered in full by the [grammar reference](dsl-grammar.md):
+A few things to note, each covered in full by the [grammar reference](ddl-grammar.md):
 
 - **It describes desired state, not migrations.** There is no `ALTER` — you write the final shape, and the planner derives the change. Type names (`bigint`, `varchar(255)`, `decimal(18,2)`) are canonical and dialect-agnostic; the `ISqlGenerator` maps them to the target database's spelling on output.
 - **Constraints are always named** (`CONSTRAINT <name> …`) — the name is the comparer's match key, so changes diff stably. Indexes are written **inline** in the table body.
@@ -38,79 +36,27 @@ A few things to note, each covered in full by the [grammar reference](dsl-gramma
 - **Partial schemas** (`CREATE PARTIAL SCHEMA …`) leave undeclared tables alone rather than dropping them — useful for shared schemas. A `DROP TABLE app.x;` statement records an explicit drop.
 - **Other objects** — views (`CREATE VIEW`), enums (`CREATE ENUM`), sequences (`CREATE SEQUENCE`), and functions/procedures (`CREATE FUNCTION` / `CREATE PROCEDURE`) — are declared with their own statements. See the grammar reference.
 
-## Registering DSL files
+## Registering DDL files
 
-Load `.sql` files with `AddSqlSchemasFromGlob` (or `AddSqlSchema(path)` for a single file, `AddSqlSchemasFromDirectory(dir)` for a directory):
-
-```csharp
-builder.AddSqlSchemasFromGlob("schemas/**/*.sql");
-```
-
-Every matched file becomes a provider, and all providers are aggregated before planning — so you can split one schema across many files (one per table, per object, or per namespace) and they merge by qualified name. You can mix DSL and JSON files freely.
-
-> Under the hood these wrap each file in a `FileSchemaProvider` over the built-in `DdlSchemaSerializer`; you can do that directly (or implement `ISchemaProvider`) for full control.
-
-To bootstrap a DSL (or JSON) project from an existing database, use the [`Import` operation](configuration.md#operations), which writes the live schema out as DSL/JSON source files.
-
-## Defining schemas in JSON
-
-Instead of the SQL DSL, you can declare the desired schema in a JSON file that mirrors the domain model, and register it with `AddJsonSchema`:
+Load `.sql` files with `AddSqlSchemas`, passing a base directory and a glob pattern relative to it. The pattern defaults to `**/*.sql` (every SQL file, recursively); a wildcard-free pattern names a single file. The glob is matched when the schema is read, and a pattern that matches no files throws:
 
 ```csharp
-builder.AddJsonSchema("schema.json");
+builder.AddSqlSchemas("schemas");            // every .sql under "schemas/", recursively
+// builder.AddSqlSchemas("schemas", "app/*.sql");   // or a relative glob
+// builder.AddSqlSchemas("schemas", "app.sql");     // or a single file
 ```
 
-You can register multiple JSON files, mix them with DSL files, or use them on their own; all registered providers are aggregated before planning.
-
-To register every JSON file in a directory at once, use `AddJsonSchemasFromDirectory`:
+For finer control — for example to exclude files reserved for other purposes — pass a configured `Microsoft.Extensions.FileSystemGlobbing.Matcher`, which supports excludes as well as includes:
 
 ```csharp
-builder.AddJsonSchemasFromDirectory("schemas");
+var matcher = new Matcher();
+matcher.AddInclude("**/*.sql");
+matcher.AddExclude("**/*.pre.sql");   // pre/post-deployment scripts, not schema files
+matcher.AddExclude("**/*.post.sql");
+builder.AddSqlSchemas("schemas", matcher);
 ```
 
-By default this picks up `*.json` files recursively, including subdirectories.
-
-The document mirrors the schema model:
-
-```json
-{
-  "schemas": [
-    {
-      "name": "app",
-      "comment": "The application schema.",
-      "tables": [
-        {
-          "name": "users",
-          "primaryKey": { "name": "users_pkey", "columnNames": ["id"] },
-          "columns": [
-            { "name": "id", "type": "bigint", "isIdentity": true },
-            { "name": "email", "type": "varchar(255)" },
-            { "name": "name", "type": "text" },
-            { "name": "balance", "type": "decimal(18,2)", "isNullable": true, "defaultExpression": "0" }
-          ],
-          "indexes": [
-            { "name": "uc_users_email", "columnNames": ["email"], "isUnique": true }
-          ],
-          "foreignKeys": [
-            {
-              "name": "FK_users_role_id",
-              "columnNames": ["role_id"],
-              "referencedSchema": "app",
-              "referencedTable": "roles",
-              "referencedColumnNames": ["id"],
-              "onDelete": "Cascade",
-              "onUpdate": "NoAction"
-            }
-          ]
-        }
-      ]
-    }
-  ],
-  "droppedSchemas": []
-}
-```
-
-Renames use `oldName` (the JSON equivalent of `RENAMED FROM`) on a schema, table, or column. A schema can be marked partial with `"isPartial": true`, dropped tables are listed in a schema's `droppedTables` array, and dropped schemas in the top-level `droppedSchemas` array. Referential actions (`onDelete` / `onUpdate`) and table privileges are written as their enum names (`Cascade`, `SetNull`, `Select`, `All`, ...).
+To bootstrap a project from an existing database, use the [`Import` operation](configuration.md#operations), which writes the live schema out as DDL source files.
 
 ### SQL types
 

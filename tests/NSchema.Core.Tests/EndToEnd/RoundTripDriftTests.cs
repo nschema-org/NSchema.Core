@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using NSchema.Diff;
-using NSchema.Schema.Serialization.Ddl;
+using NSchema.Schema.Ddl;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.EndToEnd;
@@ -20,9 +20,9 @@ public sealed class RoundTripDriftTests
     [Fact]
     public void DdlRoundTrip_OfRichSchema_ProducesNoDiff()
     {
-        // Serialize every domain feature to DSL and read it straight back: the comparer must see no change.
+        // Serialize every domain feature to DDL and read it straight back: the comparer must see no change.
         var original = TestData.RichSchema();
-        var reparsed = new DslParser(DdlSchemaWriter.Write(original)).Parse();
+        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(original)).Schema;
 
         _comparer.Compare(original, reparsed).IsEmpty.ShouldBeTrue();
     }

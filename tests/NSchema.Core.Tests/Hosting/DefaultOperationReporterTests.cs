@@ -26,10 +26,16 @@ public sealed class DefaultOperationReporterTests
         _sut = new DefaultOperationReporter(_diffRenderer, _schemaRenderer, _sqlPlanRenderer, _output, _error);
     }
 
-    [Fact]
-    public void Info_WritesToOutput()
+    [Theory]
+    [InlineData(MessageKind.Announcement)]
+    [InlineData(MessageKind.Progress)]
+    [InlineData(MessageKind.Success)]
+    [InlineData(MessageKind.Warning)]
+    public void Report_WritesMessageToOutput_RegardlessOfKind(MessageKind kind)
     {
-        _sut.Info("hello");
+        // The default reporter is plain text: it presents every kind identically.
+        // A colour-aware reporter (e.g. the CLI's ANSI one) is where kind drives presentation.
+        _sut.Report(kind, "hello");
 
         _output.ToString().ShouldBe("hello" + Environment.NewLine);
         _error.ToString().ShouldBeEmpty();

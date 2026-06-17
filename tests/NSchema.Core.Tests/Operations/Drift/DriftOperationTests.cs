@@ -47,7 +47,7 @@ public sealed class DriftOperationTests
         await BuildSut().Execute(new DriftArguments(), TestContext.Current.CancellationToken);
 
         _reporter.Received(1).ReportDiff(diff);
-        _reporter.Received().Info("Drift detected.");
+        _reporter.Received().Report(MessageKind.Warning, "Drift detected.");
     }
 
     [Fact]
@@ -57,6 +57,6 @@ public sealed class DriftOperationTests
 
         await BuildSut().Execute(new DriftArguments(), TestContext.Current.CancellationToken);
 
-        _reporter.Received().Info("No drift detected.");
+        _reporter.Received().Report(MessageKind.Success, "No drift detected.");
     }
 }
