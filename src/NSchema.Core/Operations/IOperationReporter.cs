@@ -14,7 +14,9 @@ public interface IOperationReporter
     /// <summary>
     /// Reports a status / progress message to the user.
     /// </summary>
-    void Info(string message);
+    /// <param name="kind">The nature of the message.</param>
+    /// <param name="message">The text to present.</param>
+    void Report(MessageKind kind, string message);
 
     /// <summary>
     /// Reports an error to the user. Receives the original <see cref="Exception"/> so the reporter can present it however suits its output format.

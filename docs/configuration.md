@@ -15,7 +15,7 @@ Each run performs one of the following operations, selected by the method you ca
 - **`Plan()`** computes and renders the plan, without touching the database. Can also write the plan to a file to apply later — see [Saved plan files](#saved-plan-files).
 - **`Apply()`** computes the plan and applies it to the database. After a successful apply, the resulting schema is captured to the [state store](#backend-state-store) if one is configured. Can also apply a previously [saved plan file](#saved-plan-files) instead of recomputing.
 - **`Refresh()`** reads the current schema from the live database and writes it to the state store, without planning or applying anything. Requires a state store.
-- **`Import()`** reads the live database schema and writes it to the local filesystem as desired-schema source files (destination, partitioning, and format are set per run via `ImportArguments`). Useful for bootstrapping a project from an existing database.
+- **`Import()`** reads the live database schema and writes it to the local filesystem as desired-schema source files — one `.sql` file per major object under `ImportArguments.OutputDirectory`. Useful for bootstrapping a project from an existing database.
 - **`Validate()`** loads the desired schema and validates it against the configured schema policies, without planning or applying.
 - **`Destroy()`** drops the managed schema objects from the database.
 
@@ -91,21 +91,15 @@ Scope is a per-invocation argument (`PlanArguments` / `ApplyArguments` / `Valida
 
 ## Configuring desired schemas
 
-The desired schema(s) are configured by registering one or more `ISchemaProvider` implementations that supply the target schema. The usual source is one or more SQL DSL files (see [Defining schemas](schemas.md) and the [grammar reference](dsl-grammar.md)), loaded with `AddSqlSchema` / `AddSqlSchemasFromGlob` / `AddSqlSchemasFromDirectory`:
+The desired schema(s) are configured by registering one or more `ISchemaProvider` implementations that supply the target schema. The usual source is one or more SQL DDL files (see [Defining schemas](schemas.md) and the [grammar reference](ddl-grammar.md)), loaded with `AddSqlSchemas`, which takes a base directory and a glob pattern relative to it (the pattern defaults to `**/*.sql`):
 
 ```csharp
-builder.AddSqlSchemasFromGlob("schemas/**/*.sql");
+builder.AddSqlSchemas("schemas");
 ```
 
-Schemas can also be loaded from a JSON file:
+All registered providers are aggregated before planning, so you can split a schema across many files freely. For full control you can also implement `ISchemaProvider` directly and register it with `AddSchema<T>()`.
 
-```csharp
-builder.AddJsonSchema("schema.json");
-```
-
-All registered providers are aggregated before planning, so you can split a schema across many files (and mix DSL and JSON) freely. For full control you can also implement `ISchemaProvider` directly and register it with `AddSchema<T>()`.
-
-See [Defining schemas](schemas.md) for the full declaration reference, including the [JSON format](schemas.md#defining-schemas-in-json).
+See [Defining schemas](schemas.md) for the full declaration reference.
 
 ## Configuring the current schema
 

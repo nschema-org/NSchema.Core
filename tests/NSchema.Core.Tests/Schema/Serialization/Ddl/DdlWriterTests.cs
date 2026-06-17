@@ -1,22 +1,20 @@
 using System.Text;
+using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
-using NSchema.Schema.Serialization.Ddl;
-using NSchema.Schema.Serialization.Json;
+using NSchema.State;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
-public sealed class DdlSchemaWriterTests
+public sealed class DdlWriterTests
 {
     private static string WriteOneTable(Table table)
-        => DdlSchemaWriter.Write(new DatabaseSchema([new SchemaDefinition("app", Tables: [table])]));
+        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app", Tables: [table])]));
 
-    private static async Task<string> Json(DatabaseSchema schema)
-    {
-        using var stream = new MemoryStream();
-        await JsonSchemaSerializer.Instance.Write(schema, stream, TestContext.Current.CancellationToken);
-        return Encoding.UTF8.GetString(stream.ToArray());
-    }
+    // Canonicalize a schema to a deterministic string for structural-equality comparison,
+    // using the internal state serializer (independent of the DDL writer under test).
+    private static string Canonical(DatabaseSchema schema)
+        => Encoding.UTF8.GetString(new SchemaStateSerializer().Serialize(schema).Span);
 
     // -------------------------------------------------------------------------
     // Columns
@@ -106,7 +104,7 @@ public sealed class DdlSchemaWriterTests
 
     [Fact]
     public void Write_PartialSchemaWithRename_IsEmitted()
-        => DdlSchemaWriter.Write(new DatabaseSchema([new SchemaDefinition("app", OldName: "legacy", IsPartial: true)]))
+        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app", OldName: "legacy", IsPartial: true)]))
             .ShouldContain("CREATE PARTIAL SCHEMA app RENAMED FROM legacy;");
 
     [Fact]
@@ -117,13 +115,13 @@ public sealed class DdlSchemaWriterTests
 
     [Fact]
     public void Write_SchemaGrant_IsEmitted()
-        => DdlSchemaWriter.Write(new DatabaseSchema([new SchemaDefinition("app", Grants: [new SchemaGrant("app_role")])]))
+        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app", Grants: [new SchemaGrant("app_role")])]))
             .ShouldContain("GRANT USAGE ON SCHEMA app TO app_role;");
 
     [Fact]
     public void Write_Drops_AreEmitted()
     {
-        var ddl = DdlSchemaWriter.Write(new DatabaseSchema(
+        var ddl = DdlWriter.Instance.Write(new DatabaseSchema(
             [new SchemaDefinition("app", DroppedTables: ["old_table"])],
             DroppedSchemas: ["scratch"]));
         ddl.ShouldContain("DROP TABLE app.old_table;");
@@ -135,23 +133,23 @@ public sealed class DdlSchemaWriterTests
     // -------------------------------------------------------------------------
 
     [Fact]
-    public async Task Write_ThenParse_PreservesModelStructurally()
+    public void Write_ThenParse_PreservesModelStructurally()
     {
         var original = TestData.RichSchema();
-        var reparsed = new DslParser(DdlSchemaWriter.Write(original)).Parse();
-        (await Json(reparsed)).ShouldBe(await Json(original));
+        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(original)).Schema;
+        Canonical(reparsed).ShouldBe(Canonical(original));
     }
 
     [Fact]
     public void Write_IsStableThroughParseRoundTrip()
     {
-        var ddl = DdlSchemaWriter.Write(TestData.RichSchema());
-        var reEmitted = DdlSchemaWriter.Write(new DslParser(ddl).Parse());
+        var ddl = DdlWriter.Instance.Write(TestData.RichSchema());
+        var reEmitted = DdlWriter.Instance.Write(DdlReader.Instance.Read(ddl).Schema);
         reEmitted.ShouldBe(ddl);
     }
 
     [Fact]
-    public Task Write_RichSchema_MatchesSnapshot() => Verify(DdlSchemaWriter.Write(TestData.RichSchema()));
+    public Task Write_RichSchema_MatchesSnapshot() => Verify(DdlWriter.Instance.Write(TestData.RichSchema()));
 
     // -------------------------------------------------------------------------
     // Views
@@ -163,15 +161,15 @@ public sealed class DdlSchemaWriterTests
         var schema = new DatabaseSchema([
             new SchemaDefinition("app", Views: [new View("active", "SELECT id FROM app.users WHERE active")]),
         ]);
-        DdlSchemaWriter.Write(schema).ShouldContain("CREATE VIEW app.active AS SELECT id FROM app.users WHERE active;");
+        DdlWriter.Instance.Write(schema).ShouldContain("CREATE VIEW app.active AS SELECT id FROM app.users WHERE active;");
     }
 
     [Fact]
     public void Write_View_RoundTripsThroughParse()
     {
         var source = "CREATE SCHEMA app;\n\nCREATE VIEW app.active AS SELECT id, name FROM app.users WHERE active;\n";
-        var reEmitted = DdlSchemaWriter.Write(new DslParser(source).Parse());
-        var reparsed = new DslParser(reEmitted).Parse();
+        var reEmitted = DdlWriter.Instance.Write(DdlReader.Instance.Read(source).Schema);
+        var reparsed = DdlReader.Instance.Read(reEmitted).Schema;
 
         var view = reparsed.Schemas.ShouldHaveSingleItem().Views.ShouldHaveSingleItem();
         view.Name.ShouldBe("active");
@@ -185,25 +183,25 @@ public sealed class DdlSchemaWriterTests
 
     [Fact]
     public void Write_Enum_EmitsQuotedValueList()
-        => DdlSchemaWriter.Write(new DatabaseSchema([
+        => DdlWriter.Instance.Write(new DatabaseSchema([
             new SchemaDefinition("app", Enums: [new EnumType("status", ["pending", "shipped"])]),
         ])).ShouldContain("CREATE ENUM app.status ('pending', 'shipped');");
 
     [Fact]
     public void Write_EnumValueWithQuote_EscapesIt()
-        => DdlSchemaWriter.Write(new DatabaseSchema([
+        => DdlWriter.Instance.Write(new DatabaseSchema([
             new SchemaDefinition("app", Enums: [new EnumType("status", ["it's"])]),
         ])).ShouldContain("CREATE ENUM app.status ('it''s');");
 
     [Fact]
     public void Write_Sequence_WithoutOptions_OmitsParens()
-        => DdlSchemaWriter.Write(new DatabaseSchema([
+        => DdlWriter.Instance.Write(new DatabaseSchema([
             new SchemaDefinition("app", Sequences: [new Sequence("order_id")]),
         ])).ShouldContain("CREATE SEQUENCE app.order_id;");
 
     [Fact]
     public void Write_Sequence_EmitsOptionsInCanonicalOrder()
-        => DdlSchemaWriter.Write(new DatabaseSchema([
+        => DdlWriter.Instance.Write(new DatabaseSchema([
             new SchemaDefinition("app", Sequences:
             [
                 new Sequence("order_id", new SequenceOptions(SqlType.BigInt, StartWith: 100, IncrementBy: 5,
@@ -214,7 +212,7 @@ public sealed class DdlSchemaWriterTests
     [Fact]
     public void Write_EnumAndSequenceDrops_AreEmitted()
     {
-        var ddl = DdlSchemaWriter.Write(new DatabaseSchema([
+        var ddl = DdlWriter.Instance.Write(new DatabaseSchema([
             new SchemaDefinition("app", DroppedEnums: ["stale_enum"], DroppedSequences: ["stale_seq"]),
         ]));
         ddl.ShouldContain("DROP ENUM app.stale_enum;");
@@ -227,14 +225,14 @@ public sealed class DdlSchemaWriterTests
 
     [Fact]
     public void Write_Function_EmitsArgumentsAndDefinitionVerbatim()
-        => DdlSchemaWriter.Write(new DatabaseSchema([
+        => DdlWriter.Instance.Write(new DatabaseSchema([
             new SchemaDefinition("app", Functions:
                 [new Function("add_tax", "amount numeric", "RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$")]),
         ])).ShouldContain("CREATE FUNCTION app.add_tax(amount numeric) RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$;");
 
     [Fact]
     public void Write_Function_MultiLineDefinition_KeepsNewlines()
-        => DdlSchemaWriter.Write(new DatabaseSchema([
+        => DdlWriter.Instance.Write(new DatabaseSchema([
             new SchemaDefinition("app", Functions:
                 [new Function("f", "", "RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$")]),
         ])).ShouldContain("CREATE FUNCTION app.f() RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$;");
@@ -242,20 +240,20 @@ public sealed class DdlSchemaWriterTests
     [Fact]
     public void Write_Function_TrailingWhitespaceInDefinition_IsTrimmed()
         // A code-built definition ending in whitespace must not push the ';' onto dangling whitespace.
-        => DdlSchemaWriter.Write(new DatabaseSchema([
+        => DdlWriter.Instance.Write(new DatabaseSchema([
             new SchemaDefinition("app", Functions: [new Function("f", "", "RETURNS int AS $$ SELECT 1 $$  \n")]),
         ])).ShouldContain("AS $$ SELECT 1 $$;");
 
     [Fact]
     public void Write_Procedure_IsEmitted()
-        => DdlSchemaWriter.Write(new DatabaseSchema([
+        => DdlWriter.Instance.Write(new DatabaseSchema([
             new SchemaDefinition("app", Procedures: [new Procedure("archive", "before date", "LANGUAGE sql AS $$ DELETE $$")]),
         ])).ShouldContain("CREATE PROCEDURE app.archive(before date) LANGUAGE sql AS $$ DELETE $$;");
 
     [Fact]
     public void Write_FunctionAndProcedureDrops_AreEmitted()
     {
-        var ddl = DdlSchemaWriter.Write(new DatabaseSchema([
+        var ddl = DdlWriter.Instance.Write(new DatabaseSchema([
             new SchemaDefinition("app", DroppedFunctions: ["stale_fn"], DroppedProcedures: ["stale_proc"]),
         ]));
         ddl.ShouldContain("DROP FUNCTION app.stale_fn;");

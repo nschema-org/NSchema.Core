@@ -1,7 +1,7 @@
 namespace NSchema.Configuration;
 
 /// <summary>
-/// A top-level configuration block declared in the DSL, e.g. <c>PROVIDER postgres ( … );</c>.
+/// A top-level configuration block declared in the DDL, e.g. <c>PROVIDER postgres ( … );</c>.
 /// </summary>
 /// <param name="Type">The block keyword, lower-cased for stable matching (e.g. <c>"nschema"</c>, <c>"backend"</c>, <c>"provider"</c>).</param>
 /// <param name="Label">The optional bare-identifier label following the keyword (e.g. <c>"postgres"</c> in <c>PROVIDER postgres</c>, <c>"file"</c> in <c>BACKEND file</c>). </param>

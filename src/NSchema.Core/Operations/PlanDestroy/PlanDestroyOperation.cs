@@ -14,7 +14,7 @@ internal sealed class PlanDestroyOperation(
 {
     public async Task Execute(PlanDestroyArguments arguments, CancellationToken cancellationToken = default)
     {
-        reporters.Current.Info("Planning schema teardown. No changes will be applied to the database.");
+        reporters.Current.Announce("Planning schema teardown. No changes will be applied to the database.");
 
         // Same trusted teardown path Destroy uses (bypasses the diff/plan transformers and policies); we just
         // preview it instead of executing, so there is no confirmation and no state capture.
@@ -26,7 +26,7 @@ internal sealed class PlanDestroyOperation(
                 throw new InvalidOperationException("Saving a plan to a file requires a database provider to generate SQL, but none is registered.");
             }
 
-            reporters.Current.Info("Unable to generate SQL preview. No provider is configured.");
+            reporters.Current.Warn("Unable to generate SQL preview. No provider is configured.");
             return;
         }
 
@@ -37,7 +37,7 @@ internal sealed class PlanDestroyOperation(
         {
             var envelope = new PlanFileEnvelope(planned.Plan, sqlPlan, planned.Diff, DateTimeOffset.UtcNow);
             await handler.Write(arguments.OutFile, envelope, cancellationToken);
-            reporters.Current.Info($"Planned destroy saved to {arguments.OutFile}. Apply it later with this file to execute exactly this plan.");
+            reporters.Current.Success($"Planned destroy saved to {arguments.OutFile}. Apply it later with this file to execute exactly this plan.");
         }
     }
 }

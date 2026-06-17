@@ -1,11 +1,12 @@
 using System.Text;
+using NSchema.Schema.Ddl.Model;
 
-namespace NSchema.Schema.Serialization.Ddl;
+namespace NSchema.Schema.Ddl;
 
 /// <summary>
 /// Scanner for NSchema DDL.
 /// </summary>
-internal sealed class DslLexer(string source)
+internal sealed class DdlLexer(string source)
 {
     private readonly string _source = source ?? throw new ArgumentNullException(nameof(source));
     private int _offset;
@@ -86,7 +87,7 @@ internal sealed class DslLexer(string source)
             return ReadIdentifier(pos);
         }
 
-        throw new DslSyntaxException($"Unexpected character '{ch}'", pos);
+        throw new DdlSyntaxException($"Unexpected character '{ch}'", pos);
     }
 
     /// <summary>
@@ -113,7 +114,7 @@ internal sealed class DslLexer(string source)
         var pos = Position;
         if (Current != '(')
         {
-            throw new DslSyntaxException("Expected '(' to begin an expression", pos);
+            throw new DdlSyntaxException("Expected '(' to begin an expression", pos);
         }
 
         Advance(); // consume '('
@@ -121,7 +122,7 @@ internal sealed class DslLexer(string source)
         if (AtEnd)
         {
             // The scan reached end-of-source without finding the matching depth-zero ')'.
-            throw new DslSyntaxException("Unterminated expression", pos);
+            throw new DdlSyntaxException("Unterminated expression", pos);
         }
 
         Advance(); // consume ')'
@@ -200,7 +201,7 @@ internal sealed class DslLexer(string source)
         var text = _source[start.._offset].Trim();
         if (!allowEmpty && text.Length == 0)
         {
-            throw new DslSyntaxException($"Expected {what}", pos);
+            throw new DdlSyntaxException($"Expected {what}", pos);
         }
         return text;
     }
@@ -261,7 +262,7 @@ internal sealed class DslLexer(string source)
             Advance();
         }
 
-        throw new DslSyntaxException("Unterminated dollar-quoted string", statementStart);
+        throw new DdlSyntaxException("Unterminated dollar-quoted string", statementStart);
     }
 
     private bool AtWordStart() => _offset == 0 || !IsIdentifierPart(_source[_offset - 1]);
@@ -324,7 +325,7 @@ internal sealed class DslLexer(string source)
         {
             if (AtEnd)
             {
-                throw new DslSyntaxException("Unterminated doc-comment", pos);
+                throw new DdlSyntaxException("Unterminated doc-comment", pos);
             }
             if (Current == '*' && Peek(1) == '/')
             {
@@ -344,7 +345,7 @@ internal sealed class DslLexer(string source)
         {
             if (AtEnd)
             {
-                throw new DslSyntaxException("Unterminated string literal", pos);
+                throw new DdlSyntaxException("Unterminated string literal", pos);
             }
 
             var c = Current;
@@ -396,7 +397,7 @@ internal sealed class DslLexer(string source)
         {
             if (AtEnd)
             {
-                throw new DslSyntaxException("Unterminated string literal in expression", exprStart);
+                throw new DdlSyntaxException("Unterminated string literal in expression", exprStart);
             }
             if (Current == '\'')
             {
@@ -428,7 +429,7 @@ internal sealed class DslLexer(string source)
         {
             if (AtEnd)
             {
-                throw new DslSyntaxException("Unterminated block comment", pos);
+                throw new DdlSyntaxException("Unterminated block comment", pos);
             }
             if (Current == '*' && Peek(1) == '/')
             {

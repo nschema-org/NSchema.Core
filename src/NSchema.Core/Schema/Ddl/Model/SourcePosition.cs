@@ -1,4 +1,4 @@
-namespace NSchema.Schema.Serialization.Ddl;
+namespace NSchema.Schema.Ddl.Model;
 
 /// <summary>
 /// A position in a DDL source document. <see cref="Line"/> and <see cref="Column"/> are 1-based (for error
@@ -7,7 +7,7 @@ namespace NSchema.Schema.Serialization.Ddl;
 /// <param name="Offset">The 0-based character offset into the source.</param>
 /// <param name="Line">The 1-based line number.</param>
 /// <param name="Column">The 1-based column number.</param>
-internal readonly record struct SourcePosition(int Offset, int Line, int Column)
+public readonly record struct SourcePosition(int Offset, int Line, int Column)
 {
     /// <inheritdoc/>
     public override string ToString() => $"line {Line}, column {Column}";

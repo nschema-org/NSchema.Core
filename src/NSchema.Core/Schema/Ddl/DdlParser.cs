@@ -1,31 +1,27 @@
 using NSchema.Configuration;
+using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
 
-namespace NSchema.Schema.Serialization.Ddl;
+namespace NSchema.Schema.Ddl;
 
 /// <summary>
-/// Recursive-descent parser for NSchema DDL (see <c>docs/dsl-grammar.md</c>). Turns a source document into a <see cref="DslDocument"/>.
+/// Recursive-descent parser for NSchema DDL.
 /// </summary>
-internal sealed class DslParser
+internal sealed class DdlParser
 {
-    private readonly DslLexer _lexer;
+    private readonly DdlLexer _lexer;
     private Token _current;
 
-    public DslParser(string source)
+    public DdlParser(string source)
     {
-        _lexer = new DslLexer(source);
+        _lexer = new DdlLexer(source);
         _current = _lexer.Next();
     }
 
     /// <summary>
-    /// Parses the whole document into a <see cref="DatabaseSchema"/>.
+    /// Parses the whole document into a <see cref="DdlDocument"/>.
     /// </summary>
-    public DatabaseSchema Parse() => ParseDocument().Schema;
-
-    /// <summary>
-    /// Parses the whole document into a <see cref="DslDocument"/>.
-    /// </summary>
-    public DslDocument ParseDocument()
+    public DdlDocument Parse()
     {
         var schemas = new SchemaAccumulator();
         var config = new List<ConfigBlock>();
@@ -45,7 +41,7 @@ internal sealed class DslParser
             pendingDoc = null;
         }
 
-        return new DslDocument(schemas.Build(), config);
+        return new DdlDocument(schemas.Build(), config);
     }
 
     private void ParseStatement(SchemaAccumulator schemas, List<ConfigBlock> config, string? doc)
@@ -249,7 +245,7 @@ internal sealed class DslParser
                 var value = Expect(TokenKind.String, "an enum value (a quoted string)").Text;
                 if (values.Contains(value, StringComparer.Ordinal))
                 {
-                    throw new DslSyntaxException($"Enum value '{value}' is declared more than once.", valuePosition);
+                    throw new DdlSyntaxException($"Enum value '{value}' is declared more than once.", valuePosition);
                 }
                 values.Add(value);
             }
@@ -293,7 +289,7 @@ internal sealed class DslParser
             {
                 if (alreadySet)
                 {
-                    throw new DslSyntaxException($"Sequence option '{option.ToUpperInvariant()}' is specified more than once.", optionPosition);
+                    throw new DdlSyntaxException($"Sequence option '{option.ToUpperInvariant()}' is specified more than once.", optionPosition);
                 }
             }
 
@@ -334,7 +330,7 @@ internal sealed class DslParser
             }
             else
             {
-                throw new DslSyntaxException(
+                throw new DdlSyntaxException(
                     $"Unknown sequence option '{option}'; expected AS, START, INCREMENT, MINVALUE, MAXVALUE, CACHE or CYCLE.", optionPosition);
             }
         }
@@ -745,7 +741,7 @@ internal sealed class DslParser
                 var value = ParseConfigValue();
                 if (!attributes.TryAdd(key, value))
                 {
-                    throw new DslSyntaxException($"Configuration attribute '{key}' is specified more than once.", keyPosition);
+                    throw new DdlSyntaxException($"Configuration attribute '{key}' is specified more than once.", keyPosition);
                 }
             }
             while (Match(TokenKind.Comma));
@@ -877,7 +873,7 @@ internal sealed class DslParser
         return doc;
     }
 
-    private DslSyntaxException Error(string message) => new(message, _current.Position);
+    private DdlSyntaxException Error(string message) => new(message, _current.Position);
 
     /// <summary>Mutable scratch space for the members of one table as its body is parsed.</summary>
     private sealed class TableBody
@@ -906,7 +902,7 @@ internal sealed class DslParser
             var entry = GetOrAdd(name);
             if (entry.Declared)
             {
-                throw new DslSyntaxException($"Schema '{name}' is already declared.", position);
+                throw new DdlSyntaxException($"Schema '{name}' is already declared.", position);
             }
             entry.Declared = true;
             entry.OldName = oldName;
@@ -919,7 +915,7 @@ internal sealed class DslParser
             var entry = GetOrAdd(schema);
             if (entry.Tables.Any(t => t.Name == table.Name))
             {
-                throw new DslSyntaxException($"Table '{schema}.{table.Name}' is already declared.", position);
+                throw new DdlSyntaxException($"Table '{schema}.{table.Name}' is already declared.", position);
             }
             entry.Tables.Add(table);
         }
@@ -929,7 +925,7 @@ internal sealed class DslParser
             var entry = GetOrAdd(schema);
             if (entry.Views.Any(v => v.Name == view.Name))
             {
-                throw new DslSyntaxException($"View '{schema}.{view.Name}' is already declared.", position);
+                throw new DdlSyntaxException($"View '{schema}.{view.Name}' is already declared.", position);
             }
             entry.Views.Add(view);
         }
@@ -939,7 +935,7 @@ internal sealed class DslParser
             var entry = GetOrAdd(schema);
             if (entry.Enums.Any(e => e.Name == enumType.Name))
             {
-                throw new DslSyntaxException($"Enum '{schema}.{enumType.Name}' is already declared.", position);
+                throw new DdlSyntaxException($"Enum '{schema}.{enumType.Name}' is already declared.", position);
             }
             entry.Enums.Add(enumType);
         }
@@ -949,7 +945,7 @@ internal sealed class DslParser
             var entry = GetOrAdd(schema);
             if (entry.Sequences.Any(s => s.Name == sequence.Name))
             {
-                throw new DslSyntaxException($"Sequence '{schema}.{sequence.Name}' is already declared.", position);
+                throw new DdlSyntaxException($"Sequence '{schema}.{sequence.Name}' is already declared.", position);
             }
             entry.Sequences.Add(sequence);
         }
@@ -961,11 +957,11 @@ internal sealed class DslParser
             var entry = GetOrAdd(schema);
             if (entry.Functions.Any(f => f.Name == function.Name))
             {
-                throw new DslSyntaxException($"Function '{schema}.{function.Name}' is already declared.", position);
+                throw new DdlSyntaxException($"Function '{schema}.{function.Name}' is already declared.", position);
             }
             if (entry.Procedures.Any(p => p.Name == function.Name))
             {
-                throw new DslSyntaxException(
+                throw new DdlSyntaxException(
                     $"Function '{schema}.{function.Name}' conflicts with a procedure of the same name; functions and procedures share one name space.", position);
             }
             entry.Functions.Add(function);
@@ -976,11 +972,11 @@ internal sealed class DslParser
             var entry = GetOrAdd(schema);
             if (entry.Procedures.Any(p => p.Name == procedure.Name))
             {
-                throw new DslSyntaxException($"Procedure '{schema}.{procedure.Name}' is already declared.", position);
+                throw new DdlSyntaxException($"Procedure '{schema}.{procedure.Name}' is already declared.", position);
             }
             if (entry.Functions.Any(f => f.Name == procedure.Name))
             {
-                throw new DslSyntaxException(
+                throw new DdlSyntaxException(
                     $"Procedure '{schema}.{procedure.Name}' conflicts with a function of the same name; functions and procedures share one name space.", position);
             }
             entry.Procedures.Add(procedure);
@@ -1078,13 +1074,13 @@ internal sealed class DslParser
             {
                 if (!_byName.TryGetValue(pending.Schema, out var entry))
                 {
-                    throw new DslSyntaxException($"GRANT references unknown table '{pending.Schema}.{pending.Table}'.", pending.Position);
+                    throw new DdlSyntaxException($"GRANT references unknown table '{pending.Schema}.{pending.Table}'.", pending.Position);
                 }
 
                 var index = entry.Tables.FindIndex(t => t.Name == pending.Table);
                 if (index < 0)
                 {
-                    throw new DslSyntaxException($"GRANT references unknown table '{pending.Schema}.{pending.Table}'.", pending.Position);
+                    throw new DdlSyntaxException($"GRANT references unknown table '{pending.Schema}.{pending.Table}'.", pending.Position);
                 }
 
                 var table = entry.Tables[index];

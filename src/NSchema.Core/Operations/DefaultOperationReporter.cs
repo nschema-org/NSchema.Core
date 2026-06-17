@@ -49,7 +49,7 @@ internal sealed class DefaultOperationReporter : IOperationReporter
         _sqlPlanRenderer = sqlPlanRenderer;
     }
 
-    public void Info(string message) => _output.WriteLine(message);
+    public void Report(MessageKind kind, string message) => _output.WriteLine(message);
 
     public void ReportException(Exception exception)
     {

@@ -8,7 +8,7 @@ NSchema works around a simple domain model of schemas, tables, columns, indexes,
 
 These models are used to represent both the desired state (what you want) and the current state (what the database has), so they can be compared symmetrically and transformed as needed.
 
-Because they're just .NET objects, the schema can be constructed in any way you like. The usual source is a SQL DSL file (see [Defining schemas](schemas.md)), but you could just as easily read from a JSON file, generate it from code, or even construct it from the database itself.
+Because they're just .NET objects, the schema can be constructed in any way you like. The usual source is a SQL DDL file (see [Defining schemas](schemas.md)), but you could just as easily generate it from code, or even construct it from the database itself.
 
 ## Pipeline
 

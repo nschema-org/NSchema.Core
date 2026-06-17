@@ -21,10 +21,10 @@ internal sealed class MigrationWorkflow(
 {
     public async Task<DatabaseSchema> Validate(string[]? schemas, CancellationToken cancellationToken = default)
     {
-        reporters.Current.Info("Loading desired schema...");
+        reporters.Current.Progress("Loading desired schema...");
         var desiredSchema = await desiredProvider.GetSchema(schemas, cancellationToken);
 
-        reporters.Current.Info("Validating schema...");
+        reporters.Current.Progress("Validating schema...");
         ReportOrThrow(planner.Validate(desiredSchema));
 
         return desiredSchema;
@@ -32,16 +32,16 @@ internal sealed class MigrationWorkflow(
 
     public async Task<PlannedMigration> Plan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default)
     {
-        reporters.Current.Info("Loading desired schema...");
+        reporters.Current.Progress("Loading desired schema...");
         var desiredSchema = await desiredProvider.GetSchema(schemas, cancellationToken);
         var schemasInScope = schemas ?? desiredSchema.AllSchemaNames;
 
-        reporters.Current.Info($"Migration will be scoped to the following schemas: {string.Join(", ", schemasInScope)}");
+        reporters.Current.Progress($"Migration will be scoped to the following schemas: {string.Join(", ", schemasInScope)}");
 
-        reporters.Current.Info("Loading provider schema...");
+        reporters.Current.Progress("Loading provider schema...");
         var currentSchema = await currentProvider.GetSchema(currentSource, schemasInScope, required, cancellationToken);
 
-        reporters.Current.Info("Loading scripts...");
+        reporters.Current.Progress("Loading scripts...");
         List<Script> scripts = [];
         var scriptTasks = scriptProviders.Select(p => p.GetScripts(cancellationToken)).ToList();
         foreach (var task in scriptTasks)
@@ -49,7 +49,7 @@ internal sealed class MigrationWorkflow(
             scripts.AddRange(await task);
         }
 
-        reporters.Current.Info("Computing migration plan...");
+        reporters.Current.Progress("Computing migration plan...");
         return ReportOrThrow(planner.Plan(currentSchema, desiredSchema, scripts));
     }
 
@@ -61,7 +61,7 @@ internal sealed class MigrationWorkflow(
             ? await currentProvider.GetSchema(SchemaSourceMode.Offline, null, required: true, cancellationToken)
             : await desiredProvider.GetSchema(null, cancellationToken);
 
-        reporters.Current.Info("Computing teardown plan...");
+        reporters.Current.Progress("Computing teardown plan...");
         return ReportOrThrow(planner.PlanTeardown(managedSchema));
     }
 
@@ -118,10 +118,10 @@ internal sealed class MigrationWorkflow(
             return;
         }
 
-        reporters.Current.Info("Updating state store...");
+        reporters.Current.Progress("Updating state store...");
         var schema = await currentProvider.GetSchema(SchemaSourceMode.Online, null, required: true, cancellationToken);
         var snapshot = stateSerializer.Serialize(schema);
         await store.Write(snapshot, cancellationToken);
-        reporters.Current.Info("State store updated successfully.");
+        reporters.Current.Success("State store updated successfully.");
     }
 }

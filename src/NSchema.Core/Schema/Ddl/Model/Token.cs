@@ -1,4 +1,4 @@
-namespace NSchema.Schema.Serialization.Ddl;
+namespace NSchema.Schema.Ddl.Model;
 
 /// <summary>
 /// A single lexical token from a DDL source document.
