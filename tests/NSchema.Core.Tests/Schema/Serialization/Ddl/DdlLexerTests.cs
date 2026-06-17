@@ -418,4 +418,44 @@ public sealed class DdlLexerTests
         lexer.ReadRawSpan("a default expression", ",)", "RENAMED").ShouldBe("now()");
         lexer.Next().IsKeyword("RENAMED").ShouldBeTrue();   // stream resumes cleanly at the boundary
     }
+
+    // -------------------------------------------------------------------------
+    // Dollar-quoted bodies (ReadDollarQuotedBody)
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void ReadDollarQuotedBody_ReturnsInnerContentWithoutDelimiters()
+        => new DdlLexer("$$ SELECT 1; $$").ReadDollarQuotedBody("a body").ShouldBe(" SELECT 1; ");
+
+    [Fact]
+    public void ReadDollarQuotedBody_SkipsLeadingWhitespaceIncludingNewlines()
+    {
+        // The body may sit on the line after its 'AS' anchor.
+        new DdlLexer("\n   $$ x $$").ReadDollarQuotedBody("a body").ShouldBe(" x ");
+    }
+
+    [Fact]
+    public void ReadDollarQuotedBody_TaggedBody_OnlyClosesOnItsOwnTag()
+    {
+        // A $$ inside a $body$-tagged block is content, not a terminator.
+        new DdlLexer("$body$ a $$ b $body$").ReadDollarQuotedBody("a body").ShouldBe(" a $$ b ");
+    }
+
+    [Fact]
+    public void ReadDollarQuotedBody_StreamResumesAfterClosingTag()
+    {
+        var lexer = new DdlLexer("$$ x $$;");
+        lexer.ReadDollarQuotedBody("a body").ShouldBe(" x ");
+        lexer.Next().Kind.ShouldBe(TokenKind.Semicolon);
+    }
+
+    [Fact]
+    public void ReadDollarQuotedBody_NotADollarQuote_Throws()
+        => Should.Throw<DdlSyntaxException>(() => new DdlLexer("SELECT 1").ReadDollarQuotedBody("a body"))
+            .Message.ShouldContain("a body");
+
+    [Fact]
+    public void ReadDollarQuotedBody_Unterminated_Throws()
+        => Should.Throw<DdlSyntaxException>(() => new DdlLexer("$$ SELECT 1;").ReadDollarQuotedBody("a body"))
+            .Message.ShouldContain("Unterminated");
 }

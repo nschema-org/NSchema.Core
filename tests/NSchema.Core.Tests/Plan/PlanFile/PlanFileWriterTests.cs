@@ -2,7 +2,6 @@ using System.Text;
 using NSchema.Plan.Model;
 using NSchema.Plan.PlanFile;
 using NSchema.Schema.Model;
-using NSchema.Scripts.Model;
 using NSchema.Sql.Model;
 using NSchema.Tests.Helpers;
 

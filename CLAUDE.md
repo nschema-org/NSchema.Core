@@ -28,9 +28,9 @@ NSchema is a declarative database schema migration library for .NET. The user de
 The codebase is split into a **domain layer** and an **application layer**:
 
 - **Domain layer.** Pure planning logic, organized as one namespace per pipeline stage:
-  - `Schema/` — the schema model, desired/current providers, `ISchemaTransformer`, `ISchemaPolicy`.
-  - `Diff/` — the structured diff model (`Diff/Model/`, rooted at `DatabaseDiff`), `ISchemaComparer`, `IDiffTransformer`, `IDiffPolicy`, and the diff renderer.
-  - `Plan/` — the executable plan model (`Plan/Model/`, rooted at `MigrationPlan`), `IPlanLinearizer`, `IPlanTransformer`, `IPlanPolicy`, and the planner that runs all three stages: `IMigrationPlanner` (default `DefaultMigrationPlanner`) and its `MigrationPlanResult`. The planner has no knowledge of operations or how a run is orchestrated.
+  - `Schema/` — the schema model, the desired-state DDL reader (`DesiredSchemaProvider`), the current-schema provider, and `ISchemaPolicy`.
+  - `Diff/` — the structured diff model (`Diff/Model/`, rooted at `DatabaseDiff`), `ISchemaComparer`, `IDiffPolicy`, and the diff renderer.
+  - `Plan/` — the executable plan model (`Plan/Model/`, rooted at `MigrationPlan`), `IPlanLinearizer`, and the planner that runs all three stages: `IMigrationPlanner` (default `DefaultMigrationPlanner`) and its `MigrationPlanResult`. The planner has no knowledge of operations or how a run is orchestrated.
 - **Application layer.** Orchestration of a run:
   - `Operations/` — one vertical slice per operation (`Operations/Plan/`, `Operations/PlanDestroy/`, `Operations/Apply/`, `Operations/Refresh/`, `Operations/Import/`, `Operations/Validate/`, `Operations/Destroy/`, `Operations/Show/`, `Operations/Drift/`, `Operations/ForceUnlock/`), each holding a public interface (`IPlanOperation`, …), a public arguments record (`PlanArguments`, …, empty where the operation has no inputs yet), and the internal handler. Also `IMigrationWorkflow` (the imperative shell operations share — schema resolution, planning, and state capture, under `Operations/Services/`), the default `IOperationReporter` (`DefaultOperationReporter`), the default `IOperationConfirmation` (`AutoApproveConfirmation`), and `IOperationConfirmation` itself (`Operations/Confirmation/`).
 
@@ -59,15 +59,9 @@ The shared orchestration used by `PlanOperation`, `PlanDestroyOperation`, `Apply
 
 ### Schema providers
 
-`ISchemaProvider` (`src/NSchema.Core/Schema/ISchemaProvider.cs`) is used for **desired-state** providers only:
+**Desired-state** schema comes exclusively from SQL DDL files. `AddDdlSchemas(baseDirectory, glob|Matcher)` registers a `DdlSchemaSource` (a base directory + matcher); the internal `IDesiredSchemaProvider` (`DesiredSchemaProvider`) globs every registered source, reads the matched files with `DdlReader`, and aggregates them into a single `DesiredProject` — the desired `DatabaseSchema` **plus** the deployment scripts declared inline in those files. `GetProject(scope, ct)` is its one method; there is no in-code desired-schema seam and no `ISchemaTransformer`. Multiple `AddDdlSchemas` calls aggregate (e.g. a base set plus an environment overlay).
 
-```csharp
-ValueTask<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default);
-```
-
-Desired providers are registered as an enumerable `ISchemaProvider` via `AddSchema<T>()` or assembly scanning, and aggregated into a single schema by `IDesiredSchemaProvider`.
-
-**Current-state** schema access goes through `ICurrentSchemaProvider` (`src/NSchema.Core/Schema/ICurrentSchemaProvider.cs`):
+**Current-state** schema access goes through `ICurrentSchemaProvider` (`src/NSchema.Core/Schema/ICurrentSchemaProvider.cs`). The live source implements the public `ISchemaProvider` (`src/NSchema.Core/Schema/ISchemaProvider.cs`), which is now used **only** for current-state sources:
 
 ```csharp
 ValueTask<DatabaseSchema> GetSchema(SchemaSourceMode preferred, string[]? schemaNames, bool required = true, CancellationToken cancellationToken = default);
@@ -91,11 +85,13 @@ The three **state-mutating** operations acquire the lock for the whole run via `
 
 ### Planner
 
-`DefaultMigrationPlanner` (`src/NSchema.Core/Plan/DefaultMigrationPlanner.cs`) is a pure domain service. It takes two pre-resolved `DatabaseSchema` values and produces a `MigrationPlanResult` (which carries the executable `MigrationPlan`, its structured `DatabaseDiff`, and any `PolicyDiagnostic`s). The **structured diff is the primary artifact**: the comparer emits it directly, and the linearizer derives the ordered plan from it. The pipeline is three stages, each of which transforms its representation and then validates it:
+`DefaultMigrationPlanner` (`src/NSchema.Core/Plan/DefaultMigrationPlanner.cs`) is a pure domain service. It takes two pre-resolved `DatabaseSchema` values and produces a `MigrationPlanResult` (which carries the executable `MigrationPlan`, its structured `DatabaseDiff`, and any `PolicyDiagnostic`s). The **structured diff is the primary artifact**: the comparer emits it directly, and the linearizer derives the ordered plan from it. The pipeline is three stages:
 
-1. **Schema stage** — `ISchemaTransformer`s are applied upstream by `IDesiredSchemaProvider` when it produces the desired schema; the planner then runs every `ISchemaPolicy` against it. A schema-policy error is fatal and skips the rest. This stage is also exposed on its own as `IMigrationPlanner.Validate(desired)`, which the validate operation uses.
-2. **Diff stage** — `ISchemaComparer` produces the structured `DatabaseDiff` directly (no flat-action intermediate). `IDiffTransformer`s then run in registration order, and every `IDiffPolicy` validates the result. The built-in `DestructiveActionDiffPolicy` runs here (it reasons over `ChangeKind.Remove` and narrowing column changes) and enforces its own `DestructiveActionOptions.Policy`.
-3. **Plan stage** — `IPlanLinearizer` (default `DefaultPlanLinearizer`) walks the diff and emits the migration actions in a safe dependency order. The planner then attaches the collected deployment scripts to the `MigrationPlan` as its `PreDeploymentScripts` / `PostDeploymentScripts` (scripts aren't a diff concept, so they live on the plan rather than in `Actions`). `IPlanTransformer`s then run in registration order, and every `IPlanPolicy` validates the final plan. At execution time the script SQL is composed around the generated statements (pre first, post last) — scripts are raw SQL and need no dialect translation.
+1. **Schema stage** — the planner runs every `ISchemaPolicy` against the desired schema. A schema-policy error is fatal and skips the rest. This stage is also exposed on its own as `IMigrationPlanner.Validate(desired)`, which the validate operation uses.
+2. **Diff stage** — `ISchemaComparer` produces the structured `DatabaseDiff` directly (no flat-action intermediate), and every `IDiffPolicy` validates the result. The built-in `DestructiveActionDiffPolicy` runs here (it reasons over `ChangeKind.Remove` and narrowing column changes) and enforces its own `DestructiveActionOptions.Policy`.
+3. **Plan stage** — `IPlanLinearizer` (default `DefaultPlanLinearizer`) walks the diff and emits the migration actions in a safe dependency order. The planner then attaches the deployment scripts to the `MigrationPlan` as its `PreDeploymentScripts` / `PostDeploymentScripts` (scripts aren't a diff concept, so they live on the plan rather than in `Actions`). At execution time the script SQL is composed around the generated statements (pre first, post last) — scripts are raw SQL and need no dialect translation.
+
+(There are no transformer seams: the desired schema, diff, and plan are each validated by policies but never rewritten by the pipeline.)
 
 The planner has no knowledge of operations, online/offline routing, or the application/operation options.
 
@@ -132,7 +128,7 @@ CREATE TABLE app.users
 );
 ```
 
-DSL files are registered as desired providers via `AddSqlSchemas(baseDirectory, globPattern)` — the single registration entry point — which registers one internal `DdlSchemaProvider`. The base directory is the matcher root and `globPattern` (defaulting to `**/*.sql`) is relative to it — so there is no glob-splitting logic; a wildcard-free pattern simply names a single file. There is also an `AddSqlSchemas(baseDirectory, Matcher)` overload taking a fully-configured `Microsoft.Extensions.FileSystemGlobbing.Matcher` directly, so callers can add **excludes** (e.g. the CLI includes `**/*.sql` but excludes `**/*.pre.sql` / `**/*.post.sql`, which it reserves for pre/post-deployment scripts); the string overload just builds a one-include `Matcher` and delegates. It evaluates the matcher **when the schema is read** (not at registration), reading every matched file with `DdlReader` and combining them — so the file set reflects the filesystem at plan/apply time. A matcher that selects **no files throws** (`FileNotFoundException`): planning against an empty desired schema would read as "drop everything", so an unmatched pattern is treated as a configuration error rather than an empty schema. A schema can also be supplied in code by implementing `ISchemaProvider` and registering it with `AddSchema<T>()`.
+DSL files are registered via `AddDdlSchemas(baseDirectory, globPattern)`, which records a `DdlSchemaSource` (the base directory + a matcher). The base directory is the matcher root and `globPattern` (defaulting to `**/*.sql`) is relative to it — so there is no glob-splitting logic; a wildcard-free pattern simply names a single file. There is also an `AddDdlSchemas(baseDirectory, Matcher)` overload taking a fully-configured `Microsoft.Extensions.FileSystemGlobbing.Matcher` directly, so callers can add **excludes** (e.g. the CLI excludes its environment-overlay files from the base set); the string overload just builds a one-include `Matcher` and delegates. **`AddDdlSchemas` may be called more than once** — the sources aggregate (e.g. a base set plus an environment overlay). The internal `IDesiredSchemaProvider` (`DesiredSchemaProvider`) evaluates every source's matcher **when the project is read** (not at registration), reads each matched file once with `DdlReader`, and combines them into a `DesiredProject` (schema + inline deployment scripts) — so the file set reflects the filesystem at plan/apply time. When **no source matches any file** it throws (`FileNotFoundException`): planning against an empty desired schema would read as "drop everything", so an unmatched set of sources is a configuration error. There is no in-code desired-schema seam.
 
 #### Config-in-SQL
 
@@ -142,18 +138,12 @@ DSL files may also carry top-level **configuration blocks** — `NSCHEMA ( … )
 
 | Interface                               | Registered via                                                                                                                  |
 |-----------------------------------------|---------------------------------------------------------------------------------------------------------------------------------|
-| `ISchemaProvider` (desired)             | `AddSchema<T>()` / `AddSchemasFromAssembly[Containing]<T>()`                                                                    |
+| SQL DDL files (desired schema)          | `AddDdlSchemas(baseDirectory, glob)` / `AddDdlSchemas(baseDirectory, Matcher)` (may be called more than once; sources aggregate) |
 | `ISchemaProvider` (online current)      | `UseCurrentSchema<T>()` — typically called from a database-provider extension (e.g. `UsePostgres(...)`)                         |
 | `I{Name}Operation` (one per operation)  | `TryAddSingleton<I{Name}Operation, {Name}Operation>()` (built-in; replace before `Build()` to override)                         |
 | `IOperationConfirmation`                | `Services.AddSingleton<IOperationConfirmation, T>()` (default `AutoApproveConfirmation`, registered with `TryAdd`)              |
-| `ISchemaTransformer`                    | `AddSchemaTransformer<T>()` / `AddSchemaTransformersFromAssembly[Containing]<T>()`                                              |
 | `ISchemaPolicy`                         | `AddSchemaPolicy<T>()`                                                                                                          |
-| `IDiffTransformer`                      | `AddDiffTransformer<T>()` / `AddDiffTransformersFromAssembly[Containing]<T>()`                                                  |
-| `IDiffPolicy`                           | `AddDiffPolicy<T>()` / `AddDiffPoliciesFromAssembly[Containing]<T>()`                                                           |
-| `IPlanTransformer`                      | `AddPlanTransformer<T>()` / `AddPlanTransformersFromAssembly[Containing]<T>()`                                                  |
-| `IPlanPolicy`                           | `AddPlanPolicy<T>()` / `AddPlanPoliciesFromAssembly[Containing]<T>()`                                                           |
-| `IScriptProvider`                       | `AddScripts(provider)` / `AddScriptFromFile(...)` / `AddScriptsFromEmbeddedResources(...)`                                      |
-| `ISqlExecutor`                          | `UseSqlExecutor<T>()` (replaces default)                                                                                        |
+| `IDiffPolicy`                           | `AddDiffPolicy<T>()`                                                                                                            |
 | `ISchemaStateStore`                     | `UseStateStore<T>()` / `UseStateStore(instance)` / `UseFileStateStore(path)`                                                    |
 | `IStateLock`                            | auto co-located with the store; override with `UseStateLock<T>()` / `UseStateLock(instance)` / `UseFileStateLock(path)`         |
 | `IOperationReporter` (keyed by name)    | `AddReporter<T>(format)` / `AddReporter(format, instance)` (last-wins per key); select via `NSchemaApplicationOptions.Reporter` |
