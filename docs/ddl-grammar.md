@@ -202,8 +202,10 @@ Notes on the shape:
 
 Like configuration blocks, deployment scripts are **not part of the desired-state schema**: the same
 `DdlReader.Instance.Read(source)` returns them on `DdlDocument.Scripts` (alongside `Schema` and `Config`). They are
-plan orchestration, so they live on the migration plan rather than in the diff, and are never emitted by the schema
-writer.
+plan orchestration, so they live on the migration plan rather than in the diff. The schema-only writer
+(`DdlWriter.Instance.Write(DatabaseSchema)`) does not emit them; the full-document writer
+(`Write(DdlDocument)`) does — it round-trips config blocks, schema, and scripts losslessly (config first, then
+schema, then scripts), which is what `fmt` uses to reformat a file in place.
 
 ### Schemas
 

@@ -1,4 +1,7 @@
+using System.Globalization;
 using System.Text;
+using NSchema.Configuration;
+using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
 
 namespace NSchema.Schema.Ddl;
@@ -18,32 +21,118 @@ public sealed class DdlWriter
     /// </summary>
     /// <param name="schema">The schema to write.</param>
     /// <returns>The canonical NSchema DDL for <paramref name="schema"/>.</returns>
-    public string Write(DatabaseSchema schema)
+    public string Write(DatabaseSchema schema) => Write(new DdlDocument(schema, [], []));
+
+    /// <summary>
+    /// Writes a full <see cref="DdlDocument"/> as canonical NSchema DDL.
+    /// </summary>
+    /// <param name="document">The document to write.</param>
+    /// <returns>The canonical NSchema DDL for <paramref name="document"/>.</returns>
+    public string Write(DdlDocument document)
     {
         var sb = new StringBuilder();
         var first = true;
 
-        foreach (var definition in schema.Schemas)
+        foreach (var block in document.Config)
         {
-            if (!first)
-            {
-                sb.AppendLine();
-            }
-            first = false;
+            Separate(sb, ref first);
+            WriteConfigBlock(sb, block);
+        }
+
+        foreach (var definition in document.Schema.Schemas)
+        {
+            Separate(sb, ref first);
             WriteSchema(sb, definition);
         }
 
-        foreach (var dropped in schema.DroppedSchemas)
+        foreach (var dropped in document.Schema.DroppedSchemas)
         {
-            if (!first)
-            {
-                sb.AppendLine();
-            }
-            first = false;
+            Separate(sb, ref first);
             sb.Append("DROP SCHEMA ").Append(dropped).AppendLine(";");
         }
 
+        foreach (var script in document.Scripts)
+        {
+            Separate(sb, ref first);
+            WriteScript(sb, script);
+        }
+
         return sb.ToString();
+    }
+
+    private static void Separate(StringBuilder sb, ref bool first)
+    {
+        if (!first)
+        {
+            sb.AppendLine();
+        }
+        first = false;
+    }
+
+    private static void WriteConfigBlock(StringBuilder sb, ConfigBlock block)
+    {
+        sb.Append(block.Type.ToUpperInvariant());
+        if (block.Label is { } label)
+        {
+            sb.Append(' ').Append(label);
+        }
+        if (block.Attributes.Count == 0)
+        {
+            sb.AppendLine(" ();");
+            return;
+        }
+
+        sb.AppendLine(" (");
+        var i = 0;
+        foreach (var (key, value) in block.Attributes)
+        {
+            sb.Append("  ").Append(key).Append(" = ").Append(ConfigValueText(value));
+            sb.AppendLine(++i < block.Attributes.Count ? "," : string.Empty);
+        }
+        sb.AppendLine(");");
+    }
+
+    private static string ConfigValueText(ConfigValue value) => value.Kind switch
+    {
+        ConfigValueKind.String => $"'{value.AsString().Replace("'", "''")}'",
+        ConfigValueKind.Integer => value.AsInteger().ToString(CultureInfo.InvariantCulture),
+        ConfigValueKind.Boolean => value.AsBoolean() ? "true" : "false",
+        ConfigValueKind.Identifier => value.AsString(),
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value.Kind, "Unknown configuration value kind."),
+    };
+
+    private static void WriteScript(StringBuilder sb, Script script)
+    {
+        sb.Append(script.Type == ScriptType.PreDeployment ? "PRE" : "POST")
+            .Append(" DEPLOYMENT '").Append(script.Name.Replace("'", "''")).Append('\'');
+        if (script.RunOutsideTransaction)
+        {
+            sb.Append(" (run_outside_transaction = true)");
+        }
+
+        // Emit the body in a dollar-quoted block, choosing a tag that doesn't occur in the body so it is
+        // taken verbatim. The reader strips the delimiters and trims surrounding whitespace, so a body
+        // stored without its delimiters round-trips back to the same text.
+        var delimiter = DollarDelimiter(script.Sql);
+        sb.Append(" AS ").AppendLine(delimiter);
+        sb.AppendLine(script.Sql);
+        sb.Append(delimiter).AppendLine(";");
+    }
+
+    private static string DollarDelimiter(string body)
+    {
+        if (!body.Contains("$$", StringComparison.Ordinal))
+        {
+            return "$$";
+        }
+        for (var i = 1; ; i++)
+        {
+            var tag = $"$body{i.ToString(CultureInfo.InvariantCulture)}$";
+            if (!body.Contains(tag, StringComparison.Ordinal))
+            {
+                return tag;
+            }
+        }
     }
 
     private static void WriteSchema(StringBuilder sb, SchemaDefinition schema)
