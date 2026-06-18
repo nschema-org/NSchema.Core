@@ -289,5 +289,29 @@
       Kind: Remove
     }
   ],
+  Extensions: [
+    {
+      Name: legacy_ext,
+      Kind: Remove
+    },
+    {
+      Name: postgis,
+      Kind: Modify,
+      Version: {
+        Old: 3.3,
+        New: 3.4
+      }
+    },
+    {
+      Name: vector,
+      Definition: {
+        Name: vector,
+        Comment: embeddings
+      },
+      Comment: {
+        New: embeddings
+      }
+    }
+  ],
   IsEmpty: false
 }

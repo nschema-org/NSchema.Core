@@ -204,9 +204,17 @@ internal sealed class DdlParser
             }
             ParseCreateProcedure(schemas, doc);
         }
+        else if (_current.IsKeyword("EXTENSION"))
+        {
+            if (partial)
+            {
+                throw Error("PARTIAL applies to SCHEMA, not EXTENSION.");
+            }
+            ParseCreateExtension(schemas, doc);
+        }
         else
         {
-            throw Error($"Expected SCHEMA, TABLE, VIEW, ENUM, SEQUENCE, FUNCTION or PROCEDURE after CREATE, found '{_current.Text}'.");
+            throw Error($"Expected SCHEMA, TABLE, VIEW, ENUM, SEQUENCE, FUNCTION, PROCEDURE or EXTENSION after CREATE, found '{_current.Text}'.");
         }
     }
 
@@ -409,6 +417,30 @@ internal sealed class DdlParser
 
         return new SequenceOptions(dataType, start, increment, min, max, cache, cycle);
     }
+
+    private void ParseCreateExtension(SchemaAccumulator schemas, string? doc)
+    {
+        Advance(); // EXTENSION
+        var namePosition = _current.Position;
+        var name = ParseExtensionName();
+        string? version = null;
+        if (_current.IsKeyword("VERSION"))
+        {
+            Advance();
+            version = Expect(TokenKind.String, "a version string after VERSION").Text;
+        }
+        Expect(TokenKind.Semicolon, "';'");
+
+        schemas.AddExtension(new Extension(name, version, doc), namePosition);
+    }
+
+    /// <summary>
+    /// Reads an extension name, which may be a bare identifier (<c>citext</c>) or a quoted string
+    /// (<c>'uuid-ossp'</c>) — extension names commonly contain characters, such as a hyphen, that a bare
+    /// identifier cannot.
+    /// </summary>
+    private string ParseExtensionName() =>
+        _current.Kind == TokenKind.String ? Advance().Text : ExpectIdentifier("an extension name");
 
     private void ParseTableItem(string? doc, TableBody body)
     {
@@ -778,9 +810,16 @@ internal sealed class DdlParser
             Expect(TokenKind.Semicolon, "';'");
             schemas.DropProcedure(schema, procedure);
         }
+        else if (_current.IsKeyword("EXTENSION"))
+        {
+            Advance();
+            var name = ParseExtensionName();
+            Expect(TokenKind.Semicolon, "';'");
+            schemas.DropExtension(name);
+        }
         else
         {
-            throw Error($"Expected SCHEMA, TABLE, VIEW, ENUM, SEQUENCE, FUNCTION or PROCEDURE after DROP, found '{_current.Text}'.");
+            throw Error($"Expected SCHEMA, TABLE, VIEW, ENUM, SEQUENCE, FUNCTION, PROCEDURE or EXTENSION after DROP, found '{_current.Text}'.");
         }
     }
 
@@ -965,6 +1004,8 @@ internal sealed class DdlParser
         private readonly List<Entry> _entries = [];
         private readonly Dictionary<string, Entry> _byName = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<string> _droppedSchemas = [];
+        private readonly List<Extension> _extensions = [];
+        private readonly List<string> _droppedExtensions = [];
         private readonly List<PendingGrant> _tableGrants = [];
 
         public void DeclareSchema(string name, string? oldName, bool isPartial, string? comment, SourcePosition position)
@@ -1065,11 +1106,29 @@ internal sealed class DdlParser
         public void AddTableGrant(string schema, string table, TableGrant grant, SourcePosition position)
             => _tableGrants.Add(new PendingGrant(schema, table, grant, position));
 
+        // Extensions are database-global, so they live on the accumulator itself rather than a per-schema entry.
+        public void AddExtension(Extension extension, SourcePosition position)
+        {
+            if (_extensions.Any(e => string.Equals(e.Name, extension.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new DdlSyntaxException($"Extension '{extension.Name}' is already declared.", position);
+            }
+            _extensions.Add(extension);
+        }
+
         public void DropSchema(string name)
         {
             if (!_droppedSchemas.Contains(name, StringComparer.OrdinalIgnoreCase))
             {
                 _droppedSchemas.Add(name);
+            }
+        }
+
+        public void DropExtension(string name)
+        {
+            if (!_droppedExtensions.Contains(name, StringComparer.OrdinalIgnoreCase))
+            {
+                _droppedExtensions.Add(name);
             }
         }
 
@@ -1135,7 +1194,7 @@ internal sealed class DdlParser
                     e.Enums, e.DroppedEnums, e.Sequences, e.DroppedSequences,
                     e.Functions, e.DroppedFunctions, e.Procedures, e.DroppedProcedures))
                 .ToList();
-            return new DatabaseSchema(schemas, _droppedSchemas);
+            return new DatabaseSchema(schemas, _droppedSchemas, _extensions, _droppedExtensions);
         }
 
         private void ApplyTableGrants()

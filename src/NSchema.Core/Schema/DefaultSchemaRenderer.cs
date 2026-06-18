@@ -13,12 +13,24 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
 
     public string Render(DatabaseSchema schema)
     {
-        if (schema.Schemas.Count == 0)
+        if (schema.Schemas.Count == 0 && schema.Extensions.Count == 0)
         {
             return "Schema is empty.";
         }
 
         var sb = new StringBuilder();
+
+        // Extensions are database-global, so they render at the root before any schema.
+        foreach (var extension in schema.Extensions)
+        {
+            sb.AppendLine();
+            sb.Append("extension ").Append(extension.Name);
+            if (extension.Version is { } version)
+            {
+                sb.Append(" (version ").Append(version).Append(')');
+            }
+            sb.AppendLine(CommentSuffix(extension.Comment));
+        }
 
         foreach (var definition in schema.Schemas)
         {

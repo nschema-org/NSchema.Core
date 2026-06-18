@@ -111,7 +111,14 @@ public static class TestData
                 ],
                 DroppedProcedures: ["stale_proc"]),
         ],
-        DroppedSchemas: ["scratch"]);
+        DroppedSchemas: ["scratch"],
+        Extensions:
+        [
+            new Extension("citext"),
+            new Extension("postgis", Version: "3.4", Comment: "spatial types"),
+            new Extension("uuid-ossp", Comment: "uuid generation"),
+        ],
+        DroppedExtensions: ["stale_ext"]);
 
     /// <summary>Builds a view with dependencies derived from its body, exactly as the DDL parser would.</summary>
     private static View View(string name, string body, string? comment = null, string? oldName = null) =>

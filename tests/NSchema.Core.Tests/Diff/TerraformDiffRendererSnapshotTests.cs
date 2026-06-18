@@ -192,8 +192,29 @@ public sealed class TerraformDiffRendererSnapshotTests
             ]);
     }
 
+    /// <summary>
+    /// A diff exercising every extension change kind: an add (showing version), a bare add, a version change, a
+    /// comment-only change, and a removal — all at the root, since extensions are database-global.
+    /// </summary>
+    private static DatabaseDiff ExtensionChangesDiff()
+    {
+        return new DatabaseDiff(
+            Extensions:
+            [
+                new ExtensionDiff("postgis", ChangeKind.Add, Definition: new Extension("postgis", "3.4"),
+                    Comment: new ValueChange<string>(null, "spatial types")),
+                new ExtensionDiff("citext", ChangeKind.Add, Definition: new Extension("citext")),
+                new ExtensionDiff("vector", ChangeKind.Modify, Version: new ValueChange<string>("0.6.0", "0.7.0")),
+                new ExtensionDiff("hstore", ChangeKind.Modify, Comment: new ValueChange<string>("old note", "new note")),
+                new ExtensionDiff("legacy_ext", ChangeKind.Remove),
+            ]);
+    }
+
     [Fact]
     public Task Render_EnumChanges_PlainText() => Verify(Render(EnumChangesDiff(), colour: false));
+
+    [Fact]
+    public Task Render_ExtensionChanges_PlainText() => Verify(Render(ExtensionChangesDiff(), colour: false));
 
     [Fact]
     public Task Render_RoutineChanges_PlainText() => Verify(Render(RoutineChangesDiff(), colour: false));

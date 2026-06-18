@@ -1,4 +1,12 @@
-﻿--- application schema
+﻿CREATE EXTENSION citext;
+
+--- spatial types
+CREATE EXTENSION postgis VERSION '3.4';
+
+--- uuid generation
+CREATE EXTENSION 'uuid-ossp';
+
+--- application schema
 CREATE PARTIAL SCHEMA app RENAMED FROM legacy_app;
 GRANT USAGE ON SCHEMA app TO app_role;
 
@@ -57,3 +65,5 @@ DROP FUNCTION app.stale_fn;
 DROP PROCEDURE app.stale_proc;
 
 DROP SCHEMA scratch;
+
+DROP EXTENSION stale_ext;

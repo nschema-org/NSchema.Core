@@ -14,10 +14,11 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
         LogBeginningComparison();
 
         var schemas = CompareSchemas(current.Schemas, desired.Schemas);
+        var extensions = CompareExtensions(current.Extensions, desired.Extensions, desired.DroppedExtensions);
 
         LogComparisonComplete(schemas.Count);
 
-        return new DatabaseDiff(schemas);
+        return new DatabaseDiff(schemas, extensions);
     }
 
     private List<SchemaDiff> CompareSchemas(IReadOnlyList<SchemaDefinition> current, IReadOnlyList<SchemaDefinition> desired)

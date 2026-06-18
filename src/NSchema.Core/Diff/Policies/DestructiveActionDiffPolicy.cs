@@ -33,6 +33,13 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
 
     private static IEnumerable<string> DestructiveChanges(DatabaseDiff diff)
     {
+        // Dropping a database-global extension removes shared infrastructure (and anything that depended on it),
+        // so it is destructive.
+        foreach (var extension in diff.Extensions.Where(e => e.Kind == ChangeKind.Remove))
+        {
+            yield return nameof(DropExtension);
+        }
+
         foreach (var schema in diff.Schemas)
         {
             if (schema.Kind == ChangeKind.Remove)

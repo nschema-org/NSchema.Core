@@ -19,6 +19,10 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(DropPrimaryKey),
         typeof(RevokeSchemaUsage),
         typeof(RevokeTablePrivileges),
+        // Extensions are database-global infrastructure: they are created (and version-updated) before any schema
+        // or object that might depend on a type, function or operator the extension provides.
+        typeof(CreateExtension),
+        typeof(AlterExtension),
         typeof(RenameSchema),
         typeof(CreateSchema),
         // Enums and sequences are created (and renamed, and gain values) before any table change can reference
@@ -67,6 +71,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(SetSequenceComment),
         typeof(SetFunctionComment),
         typeof(SetProcedureComment),
+        typeof(SetExtensionComment),
         typeof(DropTable),
         // Routines are dropped after the tables whose defaults/checks called them, and before the enums their
         // signatures may use; enums and sequences then drop after everything that referenced them.
@@ -75,11 +80,15 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(DropEnum),
         typeof(DropSequence),
         typeof(DropSchema),
+        // Extensions drop last — after every schema object that might depend on them is gone, so the drop can't
+        // fail on a lingering dependency.
+        typeof(DropExtension),
     }.Index().ToFrozenDictionary(x => x.Item, x => x.Index);
 
     public IReadOnlyList<MigrationAction> Linearize(DatabaseDiff diff)
     {
         var actions = new List<MigrationAction>();
+        EmitExtensions(diff, actions);
         foreach (var schema in diff.Schemas)
         {
             EmitSchema(schema, actions);
@@ -152,6 +161,40 @@ internal sealed class PlanLinearizer : IPlanLinearizer
     private static string ViewKey(ViewDiff view) => Key(view.Schema, view.Name);
 
     private static string Key(string schema, string name) => $"{schema}.{name}";
+
+    /// <summary>
+    /// Emits the root-level extension actions. Ordering (extensions created/updated before schemas, dropped after
+    /// everything) is governed by the priority table above; this just maps each <see cref="ExtensionDiff"/> to its
+    /// action(s).
+    /// </summary>
+    private static void EmitExtensions(DatabaseDiff diff, List<MigrationAction> actions)
+    {
+        foreach (var extension in diff.Extensions)
+        {
+            switch (extension.Kind)
+            {
+                case ChangeKind.Add:
+                    actions.Add(new CreateExtension(extension.Definition!));
+                    break;
+
+                case ChangeKind.Remove:
+                    actions.Add(new DropExtension(extension.Name));
+                    break;
+
+                default: // Modify
+                    if (extension.Version is not null)
+                    {
+                        actions.Add(new AlterExtension(extension.Name, extension.Version.Old, extension.Version.New));
+                    }
+                    break;
+            }
+
+            if (extension.Kind != ChangeKind.Remove && extension.Comment is not null)
+            {
+                actions.Add(new SetExtensionComment(extension.Name, extension.Comment.Old, extension.Comment.New));
+            }
+        }
+    }
 
     private static void EmitSchema(SchemaDiff schema, List<MigrationAction> actions)
     {

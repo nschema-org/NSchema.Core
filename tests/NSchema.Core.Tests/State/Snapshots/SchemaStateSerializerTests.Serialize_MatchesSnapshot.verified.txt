@@ -291,6 +291,26 @@ $$,
     ],
     droppedSchemas: [
       scratch
+    ],
+    extensions: [
+      {
+        name: citext,
+        version: null,
+        comment: null
+      },
+      {
+        name: postgis,
+        version: 3.4,
+        comment: spatial types
+      },
+      {
+        name: uuid-ossp,
+        version: null,
+        comment: uuid generation
+      }
+    ],
+    droppedExtensions: [
+      stale_ext
     ]
   }
 }

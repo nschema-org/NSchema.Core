@@ -21,6 +21,12 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
 
         var sb = new StringBuilder();
 
+        // Extensions are database-global, so they render at the root before any schema.
+        foreach (var extension in diff.Extensions)
+        {
+            RenderExtension(sb, extension);
+        }
+
         foreach (var schema in diff.Schemas)
         {
             if (schema.Kind is { } kind)
@@ -261,6 +267,24 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
         }
     }
 
+    private void RenderExtension(StringBuilder sb, ExtensionDiff extension)
+    {
+        // A comment-only modify reports the comment transition rather than a bare header.
+        if (extension is { Kind: ChangeKind.Modify, Version: null, Comment: { } only })
+        {
+            AppendHeader(sb, ChangeKind.Modify, $"extension {extension.Name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            return;
+        }
+
+        var version = extension is { Kind: ChangeKind.Add, Definition.Version: { } added } ? $" version {added}" : string.Empty;
+        AppendHeader(sb, extension.Kind, $"extension {extension.Name}{version}{CommentSuffix(extension.Comment)}");
+
+        if (extension.Version is { } change)
+        {
+            AppendDetail(sb, ChangeKind.Modify, $"version: {FormatVersion(change.Old)} → {FormatVersion(change.New)}");
+        }
+    }
+
     private void RenderColumn(StringBuilder sb, ColumnDiff column)
     {
         if (column.Kind == ChangeKind.Add && column.Definition is { } added)
@@ -362,6 +386,8 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
     }
 
     private string FormatComment(string? comment) => comment is null ? "<none>" : $"\"{comment}\"";
+
+    private static string FormatVersion(string? version) => version ?? "<default>";
 
     // A constraint Modify is always a comment-only change (structural changes are Remove + Add).
     private string ConstraintText(string label, string name, ChangeKind kind, ValueChange<string>? comment) =>

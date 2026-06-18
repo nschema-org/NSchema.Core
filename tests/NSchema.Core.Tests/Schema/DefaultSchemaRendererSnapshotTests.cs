@@ -80,6 +80,11 @@ public sealed class DefaultSchemaRendererSnapshotTests
                 [
                     new Procedure("archive_users", "before date", "LANGUAGE sql AS $$ DELETE FROM app.users $$"),
                 ]),
+        ],
+        Extensions:
+        [
+            new Extension("citext"),
+            new Extension("postgis", Version: "3.4", Comment: "spatial types"),
         ]);
     }
 

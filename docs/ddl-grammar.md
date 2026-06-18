@@ -93,9 +93,9 @@ CREATE TABLE app.users
 ```ebnf
 document   = { [ doc-comment ] , ( statement | config-block | deployment-script ) } ;
 statement  = ( create-schema | create-table | create-view | create-enum | create-sequence
-             | create-function | create-procedure
+             | create-function | create-procedure | create-extension
              | drop-schema | drop-table | drop-view | drop-enum | drop-sequence
-             | drop-function | drop-procedure | grant ) , ";" ;
+             | drop-function | drop-procedure | drop-extension | grant ) , ";" ;
 ```
 
 A flat statement list; schema membership is by qualified name, exactly like SQL — no nesting.
@@ -338,6 +338,30 @@ CREATE SEQUENCE app.order_id (AS bigint, START 100, INCREMENT 5, MAXVALUE 999999
 The option style mirrors a column's `IDENTITY (…)` clause. An omitted option means the database provider's
 default applies. Each option may appear at most once.
 
+### Extensions
+
+```ebnf
+create-extension = "CREATE" , "EXTENSION" , ext-name , [ "VERSION" , string ] ;
+drop-extension   = "DROP" , "EXTENSION" , ext-name ;       (* -> DroppedExtensions (explicit drop only) *)
+ext-name         = ident | string ;
+```
+
+```sql
+CREATE EXTENSION citext;
+CREATE EXTENSION postgis VERSION '3.4';
+CREATE EXTENSION 'uuid-ossp';
+```
+
+Extensions are **database-global**, not schema-scoped: an extension is named once per database, so it is declared
+at the top level (not inside a `CREATE SCHEMA`) and is never qualified by a schema. The name may be a quoted
+string when it is not a bare identifier (e.g. `'uuid-ossp'`). `VERSION` is optional; when omitted, whatever
+version the provider installs is accepted, and the version is never compared (so an omitted version cannot show
+as drift). A version change plans an update in place.
+
+Unlike every other object, an extension that exists in the database but is absent from the desired schema is
+**left alone** — it is removed only by an explicit `DROP EXTENSION`. Extensions are shared infrastructure (a
+database always has some installed by default), so absence must never imply a drop.
+
 ### Functions and procedures
 
 ```ebnf
@@ -395,6 +419,8 @@ replaces in place, like a view body change.
 | `CREATE FUNCTION s.f(…) …`                 | `SchemaDefinition` + `Function` (`Arguments`/`Definition` opaque)  |
 | `CREATE PROCEDURE s.p(…) …`                | `SchemaDefinition` + `Procedure` (`Arguments`/`Definition` opaque) |
 | `DROP FUNCTION s.f` / `DROP PROCEDURE s.p` | `DroppedFunctions` / `DroppedProcedures`                           |
+| `CREATE EXTENSION e [VERSION 'v']`         | `DatabaseSchema` + `Extension` (root-level, `Version` optional)    |
+| `DROP EXTENSION e`                         | `DroppedExtensions` (root-level; explicit drop only)               |
 | `---` / `/** */` before a declaration      | that object's `Comment`                                            |
 
 ## Worked example

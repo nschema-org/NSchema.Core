@@ -237,6 +237,33 @@ public class DestructiveActionDiffPolicyTests
         _sut.Validate(diff).ShouldBeEmpty();
     }
 
+    [Fact]
+    public void Validate_DroppedExtension_IsDestructive()
+    {
+        // Arrange — dropping a database-global extension removes shared infrastructure (and its dependents).
+        _options.Value.Policy = DestructiveActionPolicy.Error;
+        var diff = new DatabaseDiff(Extensions: [new ExtensionDiff("citext", ChangeKind.Remove)]);
+
+        // Act
+        var errors = _sut.Validate(diff).ToList();
+
+        // Assert
+        errors.ShouldHaveSingleItem();
+        errors[0].Message.ShouldContain(nameof(DropExtension));
+    }
+
+    [Fact]
+    public void Validate_AddedExtension_IsNotDestructive()
+    {
+        // Arrange — installing an extension loses nothing.
+        _options.Value.Policy = DestructiveActionPolicy.Error;
+        var diff = new DatabaseDiff(Extensions:
+            [new ExtensionDiff("citext", ChangeKind.Add, Definition: new NSchema.Schema.Model.Extension("citext"))]);
+
+        // Act / Assert
+        _sut.Validate(diff).ShouldBeEmpty();
+    }
+
     private static DatabaseDiff TableChange(TableDiff table) =>
         new([new SchemaDiff("app", null, null, null, [], [table])]);
 }

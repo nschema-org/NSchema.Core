@@ -39,6 +39,13 @@ public sealed class DdlWriter
             WriteConfigBlock(sb, block);
         }
 
+        // Extensions are database-global and are created first, so they precede the schemas.
+        foreach (var extension in document.Schema.Extensions)
+        {
+            Separate(sb, ref first);
+            WriteExtension(sb, extension);
+        }
+
         foreach (var definition in document.Schema.Schemas)
         {
             Separate(sb, ref first);
@@ -49,6 +56,13 @@ public sealed class DdlWriter
         {
             Separate(sb, ref first);
             sb.Append("DROP SCHEMA ").Append(dropped).AppendLine(";");
+        }
+
+        // Extensions are dropped last, so their drops trail the schema drops.
+        foreach (var dropped in document.Schema.DroppedExtensions)
+        {
+            Separate(sb, ref first);
+            sb.Append("DROP EXTENSION ").Append(ExtensionName(dropped)).AppendLine(";");
         }
 
         foreach (var script in document.Scripts)
@@ -221,6 +235,29 @@ public sealed class DdlWriter
             sb.Append("DROP PROCEDURE ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
         }
     }
+
+    private static void WriteExtension(StringBuilder sb, Extension extension)
+    {
+        WriteDocComment(sb, extension.Comment, indent: "");
+        sb.Append("CREATE EXTENSION ").Append(ExtensionName(extension.Name));
+        if (extension.Version is { } version)
+        {
+            sb.Append(" VERSION '").Append(version.Replace("'", "''")).Append('\'');
+        }
+        sb.AppendLine(";");
+    }
+
+    /// <summary>
+    /// Renders an extension name: bare when it is a valid identifier, otherwise single-quoted (e.g.
+    /// <c>'uuid-ossp'</c>) so it round-trips through the parser.
+    /// </summary>
+    private static string ExtensionName(string name) =>
+        IsBareIdentifier(name) ? name : $"'{name.Replace("'", "''")}'";
+
+    private static bool IsBareIdentifier(string name) =>
+        name.Length > 0
+        && (char.IsAsciiLetter(name[0]) || name[0] == '_')
+        && name.All(c => char.IsAsciiLetterOrDigit(c) || c == '_');
 
     private static void WriteEnum(StringBuilder sb, string schemaName, EnumType enumType)
     {

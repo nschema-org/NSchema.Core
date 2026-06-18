@@ -57,6 +57,12 @@ public sealed class SchemaComparerSnapshotTests
                     new Function("stale_fn", "", "RETURNS int AS $$ SELECT 0 $$"),
                 ]),
             new SchemaDefinition("scratch"),
+        ],
+        Extensions:
+        [
+            new Extension("citext"),
+            new Extension("postgis", Version: "3.3"),
+            new Extension("legacy_ext"),
         ]);
 
         // Desired: id widened, email renamed + retyped, legacy_flag dropped, a new index, a new unique
@@ -107,7 +113,15 @@ public sealed class SchemaComparerSnapshotTests
                 ],
                 Procedures: [new Procedure("archive", "before date", "LANGUAGE sql AS $$ DELETE $$")]),
             new SchemaDefinition("reporting", Comment: "analytics"),
-        ]);
+        ],
+        // Extensions: citext unchanged, postgis version bump, legacy_ext dropped, vector added.
+        Extensions:
+        [
+            new Extension("citext"),
+            new Extension("postgis", Version: "3.4"),
+            new Extension("vector", Comment: "embeddings"),
+        ],
+        DroppedExtensions: ["legacy_ext"]);
 
         return Verify(_sut.Compare(current, desired));
     }

@@ -152,6 +152,45 @@ public sealed class DdlWriterTests
     public Task Write_RichSchema_MatchesSnapshot() => Verify(DdlWriter.Instance.Write(TestData.RichSchema()));
 
     // -------------------------------------------------------------------------
+    // Extensions (database-global, root-level)
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Write_Extension_EmitsCreateExtension()
+        => DdlWriter.Instance.Write(new DatabaseSchema(Extensions: [new Extension("citext")]))
+            .ShouldContain("CREATE EXTENSION citext;");
+
+    [Fact]
+    public void Write_ExtensionWithVersion_EmitsVersionClause()
+        => DdlWriter.Instance.Write(new DatabaseSchema(Extensions: [new Extension("postgis", Version: "3.4")]))
+            .ShouldContain("CREATE EXTENSION postgis VERSION '3.4';");
+
+    [Fact]
+    public void Write_ExtensionWithNonIdentifierName_QuotesIt()
+        // A hyphenated name (e.g. uuid-ossp) must be quoted so it round-trips through the parser.
+        => DdlWriter.Instance.Write(new DatabaseSchema(Extensions: [new Extension("uuid-ossp")]))
+            .ShouldContain("CREATE EXTENSION 'uuid-ossp';");
+
+    [Fact]
+    public void Write_ExtensionComment_EmitsDocComment()
+        => DdlWriter.Instance.Write(new DatabaseSchema(Extensions: [new Extension("postgis", Comment: "spatial types")]))
+            .ShouldContain("--- spatial types\nCREATE EXTENSION postgis;");
+
+    [Fact]
+    public void Write_DroppedExtension_IsEmitted()
+        => DdlWriter.Instance.Write(new DatabaseSchema(DroppedExtensions: ["stale_ext"]))
+            .ShouldContain("DROP EXTENSION stale_ext;");
+
+    [Fact]
+    public void Write_Extension_RoundTripsThroughParse()
+    {
+        var schema = new DatabaseSchema(Extensions:
+            [new Extension("citext"), new Extension("uuid-ossp", Comment: "ids"), new Extension("postgis", Version: "3.4")]);
+        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema;
+        reparsed.Extensions.ShouldBe(schema.Extensions);
+    }
+
+    // -------------------------------------------------------------------------
     // Views
     // -------------------------------------------------------------------------
 

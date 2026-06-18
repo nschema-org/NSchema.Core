@@ -1,4 +1,8 @@
-﻿schema app ("application schema")
+﻿extension citext
+
+extension postgis (version 3.4) ("spatial types")
+
+schema app ("application schema")
   grant usage to readers
   table users ("all users")
     id bigint not null identity

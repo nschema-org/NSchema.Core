@@ -17,6 +17,16 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IOpe
             await WritePartition(path, partition, cancellationToken);
         }
 
+        // Extensions are database-global, not schema-scoped, so they go to a single top-level file rather than
+        // any per-schema directory.
+        if (schema.Extensions.Count > 0)
+        {
+            await WritePartition(
+                Path.Combine(arguments.OutputDirectory, "extensions.sql"),
+                new DatabaseSchema(Extensions: schema.Extensions),
+                cancellationToken);
+        }
+
         reporter.Success("Schema imported successfully.");
     }
 
@@ -96,7 +106,14 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IOpe
                 : s)
             .ToList();
 
-        var pruned = new DatabaseSchema(prunedSchemas, existing.DroppedSchemas.ToList());
+        // Root-level extensions are pruned by name too, so a re-imported extension merges in (incoming wins)
+        // rather than tripping the aggregator's duplicate detection.
+        var pruned = new DatabaseSchema(
+            prunedSchemas,
+            existing.DroppedSchemas.ToList(),
+            PruneByName(existing.Extensions, incoming.Extensions, e => e.Name),
+            existing.DroppedExtensions.ToList()
+        );
         return pruned.Combine(incoming);
     }
 

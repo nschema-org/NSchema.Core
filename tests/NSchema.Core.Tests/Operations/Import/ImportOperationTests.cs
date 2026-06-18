@@ -231,6 +231,44 @@ public sealed class ImportOperationTests : IDisposable
         header.Sequences.ShouldHaveSingleItem().Options.StartWith.ShouldBe(100);
     }
 
+    // ── Extensions (database-global, root-level) ─────────────────────────────
+
+    [Fact]
+    public async Task Execute_WritesExtensionsToTopLevelFile()
+    {
+        Source(new DatabaseSchema([new SchemaDefinition("app", Tables: [MakeTable("users")])],
+            Extensions: [new Extension("citext"), new Extension("postgis", Version: "3.4")]));
+
+        await Execute(new ImportArguments { OutputDirectory = _dir });
+
+        // Extensions land in a single top-level file, not under any per-schema directory.
+        var extensions = (await ReadSchema(Path.Combine(_dir, "extensions.sql"))).Extensions;
+        extensions.Select(e => e.Name).ShouldBe(["citext", "postgis"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task Execute_NoExtensions_WritesNoExtensionsFile()
+    {
+        await Execute(new ImportArguments { OutputDirectory = _dir });
+
+        File.Exists(Path.Combine(_dir, "extensions.sql")).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Execute_ReimportMergesExtensionsAdditively()
+    {
+        Source(new DatabaseSchema([new SchemaDefinition("app", Tables: [MakeTable("users")])],
+            Extensions: [new Extension("citext")]));
+        await Execute(new ImportArguments { OutputDirectory = _dir });
+
+        Source(new DatabaseSchema([new SchemaDefinition("app", Tables: [MakeTable("users")])],
+            Extensions: [new Extension("postgis", Version: "3.4")]));
+        await Execute(new ImportArguments { OutputDirectory = _dir });
+
+        var extensions = (await ReadSchema(Path.Combine(_dir, "extensions.sql"))).Extensions;
+        extensions.Select(e => e.Name).ShouldBe(["citext", "postgis"], ignoreOrder: true);
+    }
+
     private static DatabaseSchema RichSchema() => new([new SchemaDefinition("app",
         Tables: [MakeTable("users"), MakeTable("orders")],
         Views: [new View("active", "SELECT 1")],
