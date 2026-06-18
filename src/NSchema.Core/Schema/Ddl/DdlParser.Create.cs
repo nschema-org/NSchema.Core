@@ -1,5 +1,6 @@
 using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.CompositeTypes;
 using NSchema.Schema.Model.Constraints;
 using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
@@ -73,6 +74,14 @@ internal sealed partial class DdlParser
             }
             ParseCreateDomain(schemas, doc);
         }
+        else if (_current.IsKeyword("TYPE"))
+        {
+            if (partial)
+            {
+                throw Error("PARTIAL applies to SCHEMA, not TYPE.");
+            }
+            ParseCreateCompositeType(schemas, doc);
+        }
         else if (_current.IsKeyword("SEQUENCE"))
         {
             if (partial)
@@ -132,7 +141,7 @@ internal sealed partial class DdlParser
         }
         else
         {
-            throw Error($"Expected SCHEMA, TABLE, VIEW, MATERIALIZED VIEW, ENUM, DOMAIN, SEQUENCE, FUNCTION, PROCEDURE, EXTENSION, TRIGGER or INDEX after CREATE, found '{_current.Text}'.");
+            throw Error($"Expected SCHEMA, TABLE, VIEW, MATERIALIZED VIEW, ENUM, DOMAIN, TYPE, SEQUENCE, FUNCTION, PROCEDURE, EXTENSION, TRIGGER or INDEX after CREATE, found '{_current.Text}'.");
         }
     }
 
@@ -324,6 +333,37 @@ internal sealed partial class DdlParser
         Expect(TokenKind.Semicolon, "';'");
 
         schemas.AddDomain(schemaName, new Domain(domainName, dataType, @default, notNull, checks, oldName, doc), namePosition);
+    }
+
+    /// <summary>
+    /// Parses a composite type: <c>CREATE TYPE s.t AS (field &lt;type&gt;, field &lt;type&gt;, …)</c>. Every attribute is a
+    /// plain name + type pair — composite types carry no constraints, defaults or nullability.
+    /// </summary>
+    private void ParseCreateCompositeType(SchemaAccumulator schemas, string? doc)
+    {
+        Advance(); // TYPE
+        var namePosition = _current.Position;
+        var (schemaName, typeName) = ParseQualifiedName();
+        var oldName = TryParseRenamedFrom();
+        ExpectKeyword("AS");
+        Expect(TokenKind.LeftParen, "'(' to begin the composite type fields");
+
+        var fields = new List<CompositeField>();
+        if (_current.Kind != TokenKind.RightParen)
+        {
+            do
+            {
+                var fieldName = ExpectIdentifier("a field name");
+                var fieldType = ParseType();
+                fields.Add(new CompositeField(fieldName, fieldType));
+            }
+            while (Match(TokenKind.Comma));
+        }
+
+        Expect(TokenKind.RightParen, "')' or ',' after a composite type field");
+        Expect(TokenKind.Semicolon, "';'");
+
+        schemas.AddCompositeType(schemaName, new CompositeType(typeName, fields, oldName, doc), namePosition);
     }
 
     private void ParseCreateSequence(SchemaAccumulator schemas, string? doc)

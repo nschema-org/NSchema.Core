@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using NSchema.Schema.Model.CompositeTypes;
 using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
@@ -194,6 +195,21 @@ public record DatabaseSchema(
             }
         }
 
+        var compositeTypes = new List<CompositeType>();
+        var seenCompositeTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var schema in schemas)
+        {
+            foreach (var compositeType in schema.CompositeTypes)
+            {
+                if (!seenCompositeTypes.Add(compositeType.Name))
+                {
+                    throw new InvalidOperationException($"Duplicate composite type '{compositeType.Name}' found in schema '{schemaName}'.");
+                }
+
+                compositeTypes.Add(compositeType);
+            }
+        }
+
         // Functions and procedures are one routine pool sharing a single name space, as in the database (e.g.
         // Postgres's pg_proc): a function and a procedure with the same name cannot coexist in a schema. Modeling
         // them as one list makes that fall out of a single duplicate check.
@@ -245,6 +261,10 @@ public record DatabaseSchema(
             .SelectMany(s => s.DroppedDomains)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+        var droppedCompositeTypes = schemas
+            .SelectMany(s => s.DroppedCompositeTypes)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
         var oldNames = schemas.Select(s => s.OldName).Where(n => n is not null).Distinct().ToList();
         if (oldNames.Count > 1)
         {
@@ -260,6 +280,6 @@ public record DatabaseSchema(
         return new SchemaDefinition(
             schemaName, oldName, isPartial, comment, tables, droppedTables, grants, views, droppedViews,
             enums, droppedEnums, sequences, droppedSequences,
-            routines, droppedRoutines, domains, droppedDomains);
+            routines, droppedRoutines, domains, droppedDomains, compositeTypes, droppedCompositeTypes);
     }
 }

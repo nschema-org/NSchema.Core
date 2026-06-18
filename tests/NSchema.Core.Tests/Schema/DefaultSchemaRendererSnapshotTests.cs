@@ -2,6 +2,7 @@ using NSchema.Schema;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.CompositeTypes;
 using NSchema.Schema.Model.Constraints;
 using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
@@ -90,6 +91,12 @@ public sealed class DefaultSchemaRendererSnapshotTests
                     new Domain("typeid", SqlType.Text, Comment: "unique id as text"),
                     new Domain("positive_amount", SqlType.Decimal(18, 2), Default: "0", NotNull: true,
                         Checks: [new CheckConstraint("positive_amount_chk", "VALUE >= 0")]),
+                ],
+                CompositeTypes:
+                [
+                    new CompositeType("address", [new CompositeField("street", SqlType.Text), new CompositeField("zip", SqlType.Int)],
+                        Comment: "a postal address"),
+                    new CompositeType("money_amount", [new CompositeField("amount", SqlType.Decimal(18, 2)), new CompositeField("currency", SqlType.Text)]),
                 ],
                 Sequences:
                 [

@@ -1,5 +1,6 @@
 using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.CompositeTypes;
 using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
@@ -91,6 +92,16 @@ internal sealed partial class DdlParser
                 throw new DdlSyntaxException($"Domain '{schema}.{domain.Name}' is already declared.", position);
             }
             entry.Domains.Add(domain);
+        }
+
+        public void AddCompositeType(string schema, CompositeType compositeType, SourcePosition position)
+        {
+            var entry = GetOrAdd(schema);
+            if (entry.CompositeTypes.Any(t => t.Name == compositeType.Name))
+            {
+                throw new DdlSyntaxException($"Composite type '{schema}.{compositeType.Name}' is already declared.", position);
+            }
+            entry.CompositeTypes.Add(compositeType);
         }
 
         // Functions and procedures are one routine pool sharing a single name space, as they do in the database:
@@ -191,6 +202,15 @@ internal sealed partial class DdlParser
             }
         }
 
+        public void DropCompositeType(string schema, string compositeType)
+        {
+            var entry = GetOrAdd(schema);
+            if (!entry.DroppedCompositeTypes.Contains(compositeType, StringComparer.OrdinalIgnoreCase))
+            {
+                entry.DroppedCompositeTypes.Add(compositeType);
+            }
+        }
+
         public void DropSequence(string schema, string sequence)
         {
             var entry = GetOrAdd(schema);
@@ -217,7 +237,7 @@ internal sealed partial class DdlParser
             var schemas = _entries
                 .Select(e => new SchemaDefinition(e.Name, e.OldName, e.IsPartial, e.Comment, e.Tables, e.DroppedTables, e.Grants, e.Views, e.DroppedViews,
                     e.Enums, e.DroppedEnums, e.Sequences, e.DroppedSequences,
-                    e.Routines, e.DroppedRoutines, e.Domains, e.DroppedDomains))
+                    e.Routines, e.DroppedRoutines, e.Domains, e.DroppedDomains, e.CompositeTypes, e.DroppedCompositeTypes))
                 .ToList();
             return new DatabaseSchema(schemas, _droppedSchemas, _extensions, _droppedExtensions);
         }
@@ -342,6 +362,8 @@ internal sealed partial class DdlParser
             public List<string> DroppedRoutines { get; } = [];
             public List<Domain> Domains { get; } = [];
             public List<string> DroppedDomains { get; } = [];
+            public List<CompositeType> CompositeTypes { get; } = [];
+            public List<string> DroppedCompositeTypes { get; } = [];
         }
 
         private readonly record struct PendingGrant(string Schema, string Table, TableGrant Grant, SourcePosition Position);

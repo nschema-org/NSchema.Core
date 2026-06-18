@@ -94,6 +94,13 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
             }
         }
 
+        foreach (var compositeType in schema.CompositeTypes)
+        {
+            sb.Append(Indent).Append("type ").Append(compositeType.Name)
+                .Append(" (").Append(string.Join(", ", compositeType.Fields.Select(f => $"{f.Name} {f.DataType}"))).Append(')')
+                .AppendLine(CommentSuffix(compositeType.Comment));
+        }
+
         foreach (var sequence in schema.Sequences)
         {
             sb.Append(Indent).Append("sequence ").Append(sequence.Name);

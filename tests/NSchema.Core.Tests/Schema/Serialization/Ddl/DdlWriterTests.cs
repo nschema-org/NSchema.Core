@@ -2,6 +2,7 @@ using System.Text;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.CompositeTypes;
 using NSchema.Schema.Model.Constraints;
 using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
@@ -307,6 +308,36 @@ public sealed class DdlWriterTests
         domain.NotNull.ShouldBeTrue();
         domain.Default.ShouldBe("'x@y'");
         domain.Checks.ShouldHaveSingleItem().Name.ShouldBe("email_fmt");
+    }
+
+    // -------------------------------------------------------------------------
+    // Composite types
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Write_SimpleCompositeType_EmitsCreateType()
+        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app",
+            CompositeTypes: [new CompositeType("address", [new CompositeField("street", SqlType.Text), new CompositeField("zip", SqlType.Int)])])]))
+            .ShouldContain("CREATE TYPE app.address AS (street text, zip int);");
+
+    [Fact]
+    public void Write_DroppedCompositeType_IsEmitted()
+        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app", DroppedCompositeTypes: ["stale"])]))
+            .ShouldContain("DROP TYPE app.stale;");
+
+    [Fact]
+    public void Write_CompositeType_RoundTripsThroughParse()
+    {
+        var schema = new DatabaseSchema([new SchemaDefinition("app",
+            CompositeTypes: [new CompositeType("address", [new CompositeField("street", SqlType.Text), new CompositeField("zip", SqlType.Int)],
+                OldName: "legacy_address", Comment: "a postal address")])]);
+
+        var type = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema
+            .Schemas.ShouldHaveSingleItem().CompositeTypes.ShouldHaveSingleItem();
+        type.Name.ShouldBe("address");
+        type.Fields.Count.ShouldBe(2);
+        type.Fields[0].DataType.ShouldBe(SqlType.Text);
+        type.Fields[1].DataType.ShouldBe(SqlType.Int);
     }
 
     // -------------------------------------------------------------------------

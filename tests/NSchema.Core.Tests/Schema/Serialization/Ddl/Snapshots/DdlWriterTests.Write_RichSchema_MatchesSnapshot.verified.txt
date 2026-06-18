@@ -20,6 +20,11 @@ CREATE DOMAIN app.typeid RENAMED FROM legacy_id AS text;
 
 CREATE DOMAIN app.positive_amount AS decimal(18,2) NOT NULL CONSTRAINT positive_amount_chk CHECK (VALUE >= 0) DEFAULT 0;
 
+--- a postal address
+CREATE TYPE app.address RENAMED FROM legacy_address AS (street text, zip int);
+
+CREATE TYPE app.money_amount AS (amount decimal(18,2), currency text);
+
 CREATE SEQUENCE app.invoice_id RENAMED FROM bill_id;
 
 --- order numbers
@@ -74,6 +79,7 @@ DROP TABLE app.old_table;
 DROP VIEW app.stale_report;
 DROP ENUM app.stale_enum;
 DROP DOMAIN app.stale_domain;
+DROP TYPE app.stale_type;
 DROP SEQUENCE app.stale_seq;
 DROP ROUTINE app.stale_fn;
 DROP ROUTINE app.stale_proc;

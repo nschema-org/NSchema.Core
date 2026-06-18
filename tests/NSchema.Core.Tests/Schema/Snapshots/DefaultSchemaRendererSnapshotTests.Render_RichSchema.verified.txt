@@ -30,6 +30,8 @@ schema app ("application schema")
   domain typeid (text) ("unique id as text")
   domain positive_amount (decimal(18,2) not null default 0)
     check positive_amount_chk (VALUE >= 0)
+  type address (street text, zip int) ("a postal address")
+  type money_amount (amount decimal(18,2), currency text)
   sequence order_id (as=bigint, start=100, step=5, cache=10, cycle) ("order numbers")
   sequence invoice_id
   function add_tax(amount numeric, rate numeric) ("adds tax")

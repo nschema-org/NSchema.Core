@@ -4,6 +4,7 @@ using NSchema.Configuration;
 using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.CompositeTypes;
 using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
@@ -193,6 +194,12 @@ public sealed class DdlWriter
             WriteDomain(sb, schema.Name, domain);
         }
 
+        foreach (var compositeType in schema.CompositeTypes)
+        {
+            sb.AppendLine();
+            WriteCompositeType(sb, schema.Name, compositeType);
+        }
+
         foreach (var sequence in schema.Sequences)
         {
             sb.AppendLine();
@@ -235,6 +242,11 @@ public sealed class DdlWriter
         foreach (var dropped in schema.DroppedDomains)
         {
             sb.Append("DROP DOMAIN ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
+        }
+
+        foreach (var dropped in schema.DroppedCompositeTypes)
+        {
+            sb.Append("DROP TYPE ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
         }
 
         foreach (var dropped in schema.DroppedSequences)
@@ -307,6 +319,17 @@ public sealed class DdlWriter
             sb.Append(" DEFAULT ").Append(@default);
         }
         sb.AppendLine(";");
+    }
+
+    private static void WriteCompositeType(StringBuilder sb, string schemaName, CompositeType compositeType)
+    {
+        WriteDocComment(sb, compositeType.Comment, indent: "");
+        sb.Append("CREATE TYPE ").Append(schemaName).Append('.').Append(compositeType.Name);
+        if (compositeType.OldName is { } oldName)
+        {
+            sb.Append(" RENAMED FROM ").Append(oldName);
+        }
+        sb.Append(" AS (").Append(string.Join(", ", compositeType.Fields.Select(f => $"{f.Name} {f.DataType}"))).AppendLine(");");
     }
 
     private static void WriteSequence(StringBuilder sb, string schemaName, Sequence sequence)

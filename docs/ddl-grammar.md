@@ -361,6 +361,27 @@ Because a domain is depended on by columns, changes are applied **in place** wit
 possible: a default, not-null, or check change never drops the domain. Only a **base-type change** forces a drop
 + recreate (Postgres has no `ALTER DOMAIN … TYPE`), which fails loudly if a column still uses the domain.
 
+### Composite types
+
+```ebnf
+create-type = "CREATE" , "TYPE" , qualified-name , [ "RENAMED" , "FROM" , ident ] ,
+              "AS" , "(" , [ field , { "," , field } ] , ")" ;
+field       = ident , type ;
+drop-type   = "DROP" , "TYPE" , qualified-name ;             (* -> DroppedCompositeTypes (explicit drop, partial schema) *)
+```
+
+```sql
+CREATE TYPE app.address AS (street text, zip int);
+```
+
+A composite type is a schema-scoped named tuple of `field name + type` pairs (no constraints, defaults or
+nullability — those belong to columns, not to the type). Like a domain, a column uses it by naming it as its
+type, so a composite type is **created before**, and **dropped after**, the tables that may use it.
+
+Every change applies **in place** with `ALTER TYPE` — there is no recreate. Fields are matched **by name**: a
+field absent from the new definition is dropped, a new field is added, and a matched field whose type differs is
+retyped (`ALTER TYPE … ALTER ATTRIBUTE … TYPE`). A rename uses `RENAMED FROM`, exactly as for tables and domains.
+
 ### Sequences
 
 ```ebnf
@@ -494,6 +515,8 @@ structural change is planned as a drop + recreate (only a comment-only change is
 | `CREATE ENUM s.e ('a', 'b')`               | `SchemaDefinition` + `EnumType` (ordered `Values`)                 |
 | `CREATE DOMAIN s.d AS t [NOT NULL] [CHECK] [DEFAULT]` | `Domain` (`DataType`, `NotNull`, `Checks`, `Default`)    |
 | `DROP DOMAIN s.d`                          | `DroppedDomains` (explicit drop, partial schema)                   |
+| `CREATE TYPE s.t AS (f1 t1, f2 t2)`        | `CompositeType` (ordered `Fields` of `name`/`DataType`)            |
+| `DROP TYPE s.t`                            | `DroppedCompositeTypes` (explicit drop, partial schema)            |
 | `CREATE SEQUENCE s.q (…)`                  | `SchemaDefinition` + `Sequence` (`SequenceOptions`)                |
 | `DROP ENUM s.e` / `DROP SEQUENCE s.q`      | `DroppedEnums` / `DroppedSequences`                                |
 | `CREATE FUNCTION s.f(…) …`                 | `Routine` (`Kind` = `Function`; `Arguments`/`Definition` opaque)   |
