@@ -88,7 +88,7 @@
     }
   },
   {
-    Type: RenameFunction,
+    Type: RenameRoutine,
     Action: {
       SchemaName: app,
       OldName: old_score,
@@ -97,10 +97,10 @@
     }
   },
   {
-    Type: CreateFunction,
+    Type: CreateRoutine,
     Action: {
       SchemaName: app,
-      Function: {
+      Routine: {
         Name: add_tax,
         Arguments: amount numeric,
         Definition: RETURNS numeric AS $$ SELECT amount $$
@@ -109,11 +109,12 @@
     }
   },
   {
-    Type: CreateProcedure,
+    Type: CreateRoutine,
     Action: {
       SchemaName: app,
-      Procedure: {
+      Routine: {
         Name: archive,
+        Kind: Procedure,
         Arguments: before date,
         Definition: LANGUAGE sql AS $$ DELETE $$
       },
@@ -121,10 +122,10 @@
     }
   },
   {
-    Type: RecreateFunction,
+    Type: RecreateRoutine,
     Action: {
       SchemaName: app,
-      Function: {
+      Routine: {
         Name: score,
         Arguments: user_id bigint, weight numeric,
         Definition: RETURNS numeric AS $$ SELECT 1 $$
@@ -354,18 +355,19 @@
     }
   },
   {
-    Type: DropFunction,
+    Type: DropRoutine,
     Action: {
       SchemaName: app,
-      FunctionName: stale_fn,
+      RoutineName: stale_fn,
       IsDestructive: true
     }
   },
   {
-    Type: DropProcedure,
+    Type: DropRoutine,
     Action: {
       SchemaName: app,
-      ProcedureName: stale_proc,
+      RoutineName: stale_proc,
+      Kind: Procedure,
       IsDestructive: true
     }
   },

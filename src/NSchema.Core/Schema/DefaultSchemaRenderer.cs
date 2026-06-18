@@ -1,6 +1,7 @@
 using System.Text;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Sequences;
 using NSchema.Schema.Model.Tables;
@@ -83,19 +84,13 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
             sb.AppendLine(CommentSuffix(sequence.Comment));
         }
 
-        // Routines render as name + arguments only; the definition is opaque and arbitrarily long.
-        foreach (var function in schema.Functions)
+        // Routines render as kind + name + arguments only; the definition is opaque and arbitrarily long.
+        foreach (var routine in schema.Routines)
         {
-            sb.Append(Indent).Append("function ").Append(function.Name)
-                .Append('(').Append(function.Arguments).Append(')')
-                .AppendLine(CommentSuffix(function.Comment));
-        }
-
-        foreach (var procedure in schema.Procedures)
-        {
-            sb.Append(Indent).Append("procedure ").Append(procedure.Name)
-                .Append('(').Append(procedure.Arguments).Append(')')
-                .AppendLine(CommentSuffix(procedure.Comment));
+            var label = routine.Kind == RoutineKind.Procedure ? "procedure" : "function";
+            sb.Append(Indent).Append(label).Append(' ').Append(routine.Name)
+                .Append('(').Append(routine.Arguments).Append(')')
+                .AppendLine(CommentSuffix(routine.Comment));
         }
     }
 

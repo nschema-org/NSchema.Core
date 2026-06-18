@@ -8,9 +8,8 @@ using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Constraints;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
-using NSchema.Schema.Model.Functions;
+using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Procedures;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Sequences;
 using NSchema.Schema.Model.Tables;
@@ -119,23 +118,19 @@ public static class TestData
                         Comment: "order numbers"),
                 ],
                 DroppedSequences: ["stale_seq"],
-                Functions:
+                Routines:
                 [
-                    new Function("add_tax", "amount numeric, rate numeric",
+                    new Routine("add_tax", RoutineKind.Function, "amount numeric, rate numeric",
                         "RETURNS numeric LANGUAGE sql AS $$\n  SELECT amount * (1 + rate);\n$$",
                         Comment: "adds tax"),
-                    new Function("normalize_code", "code text DEFAULT 'N/A'",
+                    new Routine("normalize_code", RoutineKind.Function, "code text DEFAULT 'N/A'",
                         "RETURNS text LANGUAGE sql AS $body$ SELECT upper(code || ';suffix'); $body$",
                         OldName: "clean_code"),
-                ],
-                DroppedFunctions: ["stale_fn"],
-                Procedures:
-                [
-                    new Procedure("archive_users", "",
+                    new Routine("archive_users", RoutineKind.Procedure, "",
                         "LANGUAGE sql AS $$\n  DELETE FROM app.users WHERE name <> 'a;b';\n$$",
                         Comment: "archival job"),
                 ],
-                DroppedProcedures: ["stale_proc"]),
+                DroppedRoutines: ["stale_fn", "stale_proc"]),
         ],
         DroppedSchemas: ["scratch"],
         Extensions:

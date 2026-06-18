@@ -5,9 +5,8 @@ using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Constraints;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
-using NSchema.Schema.Model.Functions;
+using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Procedures;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Sequences;
 using NSchema.Schema.Model.Tables;
@@ -350,37 +349,38 @@ public sealed class DdlWriterTests
     [Fact]
     public void Write_Function_EmitsArgumentsAndDefinitionVerbatim()
         => DdlWriter.Instance.Write(new DatabaseSchema([
-            new SchemaDefinition("app", Functions:
-                [new Function("add_tax", "amount numeric", "RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$")]),
+            new SchemaDefinition("app", Routines:
+                [new Routine("add_tax", RoutineKind.Function, "amount numeric", "RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$")]),
         ])).ShouldContain("CREATE FUNCTION app.add_tax(amount numeric) RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$;");
 
     [Fact]
     public void Write_Function_MultiLineDefinition_KeepsNewlines()
         => DdlWriter.Instance.Write(new DatabaseSchema([
-            new SchemaDefinition("app", Functions:
-                [new Function("f", "", "RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$")]),
+            new SchemaDefinition("app", Routines:
+                [new Routine("f", RoutineKind.Function, "", "RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$")]),
         ])).ShouldContain("CREATE FUNCTION app.f() RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$;");
 
     [Fact]
     public void Write_Function_TrailingWhitespaceInDefinition_IsTrimmed()
         // A code-built definition ending in whitespace must not push the ';' onto dangling whitespace.
         => DdlWriter.Instance.Write(new DatabaseSchema([
-            new SchemaDefinition("app", Functions: [new Function("f", "", "RETURNS int AS $$ SELECT 1 $$  \n")]),
+            new SchemaDefinition("app", Routines: [new Routine("f", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 1 $$  \n")]),
         ])).ShouldContain("AS $$ SELECT 1 $$;");
 
     [Fact]
     public void Write_Procedure_IsEmitted()
         => DdlWriter.Instance.Write(new DatabaseSchema([
-            new SchemaDefinition("app", Procedures: [new Procedure("archive", "before date", "LANGUAGE sql AS $$ DELETE $$")]),
+            new SchemaDefinition("app", Routines: [new Routine("archive", RoutineKind.Procedure, "before date", "LANGUAGE sql AS $$ DELETE $$")]),
         ])).ShouldContain("CREATE PROCEDURE app.archive(before date) LANGUAGE sql AS $$ DELETE $$;");
 
     [Fact]
-    public void Write_FunctionAndProcedureDrops_AreEmitted()
+    public void Write_RoutineDrops_AreEmitted()
     {
+        // Routines are recorded by name only (one name space), so they are emitted with kind-agnostic DROP ROUTINE.
         var ddl = DdlWriter.Instance.Write(new DatabaseSchema([
-            new SchemaDefinition("app", DroppedFunctions: ["stale_fn"], DroppedProcedures: ["stale_proc"]),
+            new SchemaDefinition("app", DroppedRoutines: ["stale_fn", "stale_proc"]),
         ]));
-        ddl.ShouldContain("DROP FUNCTION app.stale_fn;");
-        ddl.ShouldContain("DROP PROCEDURE app.stale_proc;");
+        ddl.ShouldContain("DROP ROUTINE app.stale_fn;");
+        ddl.ShouldContain("DROP ROUTINE app.stale_proc;");
     }
 }

@@ -5,9 +5,8 @@ using NSchema.Plan.Model.Columns;
 using NSchema.Plan.Model.Constraints;
 using NSchema.Plan.Model.Enums;
 using NSchema.Plan.Model.Extensions;
-using NSchema.Plan.Model.Functions;
+using NSchema.Plan.Model.Routines;
 using NSchema.Plan.Model.Indexes;
-using NSchema.Plan.Model.Procedures;
 using NSchema.Plan.Model.Schemas;
 using NSchema.Plan.Model.Sequence;
 using NSchema.Plan.Model.Tables;
@@ -50,12 +49,9 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         // Routines are created/recreated/renamed before any table change because column DEFAULTs and CHECK
         // constraints may call them, and after enums/sequences because their args and bodies may use those.
         // Renames precede creates/recreates so a recreate targets the final name.
-        typeof(RenameFunction),
-        typeof(RenameProcedure),
-        typeof(CreateFunction),
-        typeof(CreateProcedure),
-        typeof(RecreateFunction),
-        typeof(RecreateProcedure),
+        typeof(RenameRoutine),
+        typeof(CreateRoutine),
+        typeof(RecreateRoutine),
         typeof(RenameTable),
         typeof(RenameView),
         typeof(CreateTable),
@@ -87,14 +83,12 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(SetViewComment),
         typeof(SetEnumComment),
         typeof(SetSequenceComment),
-        typeof(SetFunctionComment),
-        typeof(SetProcedureComment),
+        typeof(SetRoutineComment),
         typeof(SetExtensionComment),
         typeof(DropTable),
         // Routines are dropped after the tables whose defaults/checks called them, and before the enums their
         // signatures may use; enums and sequences then drop after everything that referenced them.
-        typeof(DropFunction),
-        typeof(DropProcedure),
+        typeof(DropRoutine),
         typeof(DropEnum),
         typeof(DropSequence),
         typeof(DropSchema),
@@ -242,8 +236,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitSchemaAttributes(schema, actions);
                 EmitEnums(schema, actions);
                 EmitSequences(schema, actions);
-                EmitFunctions(schema, actions);
-                EmitProcedures(schema, actions);
+                EmitRoutines(schema, actions);
                 foreach (var table in schema.Tables)
                 {
                     EmitTable(table, actions);
@@ -262,8 +255,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitSchemaAttributes(schema, actions);
                 EmitEnums(schema, actions);
                 EmitSequences(schema, actions);
-                EmitFunctions(schema, actions);
-                EmitProcedures(schema, actions);
+                EmitRoutines(schema, actions);
                 foreach (var table in schema.Tables)
                 {
                     EmitTable(table, actions);
@@ -272,78 +264,41 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         }
     }
 
-    private static void EmitFunctions(SchemaDiff schema, List<MigrationAction> actions)
+    private static void EmitRoutines(SchemaDiff schema, List<MigrationAction> actions)
     {
-        foreach (var function in schema.Functions)
+        foreach (var routine in schema.Routines)
         {
-            switch (function.Kind)
+            switch (routine.Kind)
             {
                 case ChangeKind.Add:
-                    actions.Add(new CreateFunction(function.Schema, function.Definition!));
+                    actions.Add(new CreateRoutine(routine.Schema, routine.Definition!));
                     break;
 
                 case ChangeKind.Remove:
-                    actions.Add(new DropFunction(function.Schema, function.Name));
+                    actions.Add(new DropRoutine(routine.Schema, routine.Name, routine.RoutineKind));
                     break;
 
                 default: // Modify
-                    if (function.RenamedFrom is not null)
+                    if (routine.RenamedFrom is not null)
                     {
-                        actions.Add(new RenameFunction(function.Schema, function.RenamedFrom, function.Name));
+                        actions.Add(new RenameRoutine(routine.Schema, routine.RenamedFrom, routine.Name, routine.RoutineKind));
                     }
-                    // A signature change recreates (a replace under different arguments would create a separate
-                    // overload); a definition-only change replaces in place.
-                    if (function.RequiresRecreate)
+                    // A signature (or kind) change recreates (a replace under different arguments would create a
+                    // separate overload); a definition-only change replaces in place.
+                    if (routine.RequiresRecreate)
                     {
-                        actions.Add(new RecreateFunction(function.Schema, function.Definition!));
+                        actions.Add(new RecreateRoutine(routine.Schema, routine.Definition!));
                     }
-                    else if (function.Definition is not null)
+                    else if (routine.Definition is not null)
                     {
-                        actions.Add(new CreateFunction(function.Schema, function.Definition));
-                    }
-                    break;
-            }
-
-            if (function.Kind != ChangeKind.Remove && function.Comment is not null)
-            {
-                actions.Add(new SetFunctionComment(function.Schema, function.Name, function.Comment.Old, function.Comment.New));
-            }
-        }
-    }
-
-    private static void EmitProcedures(SchemaDiff schema, List<MigrationAction> actions)
-    {
-        foreach (var procedure in schema.Procedures)
-        {
-            switch (procedure.Kind)
-            {
-                case ChangeKind.Add:
-                    actions.Add(new CreateProcedure(procedure.Schema, procedure.Definition!));
-                    break;
-
-                case ChangeKind.Remove:
-                    actions.Add(new DropProcedure(procedure.Schema, procedure.Name));
-                    break;
-
-                default: // Modify
-                    if (procedure.RenamedFrom is not null)
-                    {
-                        actions.Add(new RenameProcedure(procedure.Schema, procedure.RenamedFrom, procedure.Name));
-                    }
-                    if (procedure.RequiresRecreate)
-                    {
-                        actions.Add(new RecreateProcedure(procedure.Schema, procedure.Definition!));
-                    }
-                    else if (procedure.Definition is not null)
-                    {
-                        actions.Add(new CreateProcedure(procedure.Schema, procedure.Definition));
+                        actions.Add(new CreateRoutine(routine.Schema, routine.Definition));
                     }
                     break;
             }
 
-            if (procedure.Kind != ChangeKind.Remove && procedure.Comment is not null)
+            if (routine.Kind != ChangeKind.Remove && routine.Comment is not null)
             {
-                actions.Add(new SetProcedureComment(procedure.Schema, procedure.Name, procedure.Comment.Old, procedure.Comment.New));
+                actions.Add(new SetRoutineComment(routine.Schema, routine.Name, routine.Comment.Old, routine.Comment.New, routine.RoutineKind));
             }
         }
     }

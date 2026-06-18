@@ -297,9 +297,10 @@
         droppedSequences: [
           stale_seq
         ],
-        functions: [
+        routines: [
           {
             name: add_tax,
+            kind: Function,
             arguments: amount numeric, rate numeric,
             definition:
 RETURNS numeric LANGUAGE sql AS $$
@@ -310,18 +311,15 @@ $$,
           },
           {
             name: normalize_code,
+            kind: Function,
             arguments: code text DEFAULT 'N/A',
             definition: RETURNS text LANGUAGE sql AS $body$ SELECT upper(code || ';suffix'); $body$,
             oldName: clean_code,
             comment: null
-          }
-        ],
-        droppedFunctions: [
-          stale_fn
-        ],
-        procedures: [
+          },
           {
             name: archive_users,
+            kind: Procedure,
             arguments: ,
             definition:
 LANGUAGE sql AS $$
@@ -331,7 +329,8 @@ $$,
             comment: archival job
           }
         ],
-        droppedProcedures: [
+        droppedRoutines: [
+          stale_fn,
           stale_proc
         ],
         grants: [

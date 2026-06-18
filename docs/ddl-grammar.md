@@ -95,7 +95,7 @@ document   = { [ doc-comment ] , ( statement | config-block | deployment-script 
 statement  = ( create-schema | create-table | create-view | create-enum | create-sequence
              | create-function | create-procedure | create-extension | create-trigger | create-index
              | drop-schema | drop-table | drop-view | drop-enum | drop-sequence
-             | drop-function | drop-procedure | drop-extension | grant ) , ";" ;
+             | drop-function | drop-extension | grant ) , ";" ;
 ```
 
 A flat statement list; schema membership is by qualified name, exactly like SQL — no nesting.
@@ -388,8 +388,7 @@ create-function  = "CREATE" , "FUNCTION" , qualified-name , [ "RENAMED" , "FROM"
                    "(" , [ arg-text ] , ")" , definition-text ;
 create-procedure = "CREATE" , "PROCEDURE" , qualified-name , [ "RENAMED" , "FROM" , ident ] ,
                    "(" , [ arg-text ] , ")" , definition-text ;
-drop-function    = "DROP" , "FUNCTION" , qualified-name ;   (* -> DroppedFunctions (explicit drop, partial schema) *)
-drop-procedure   = "DROP" , "PROCEDURE" , qualified-name ;  (* -> DroppedProcedures (explicit drop, partial schema) *)
+drop-function    = "DROP" , ( "FUNCTION" | "PROCEDURE" | "ROUTINE" ) , qualified-name ; (* -> DroppedRoutines (explicit drop, partial schema) *)
 ```
 
 ```sql
@@ -398,16 +397,21 @@ CREATE FUNCTION app.add_tax(amount numeric, rate numeric) RETURNS numeric LANGUA
 $$;
 ```
 
-Both captures are **opaque**: `arg-text` is the verbatim text inside the parentheses (quote- and paren-aware,
-but **not** dollar-quote aware), and `definition-text` is everything after the closing parenthesis up to the
-top-level `;` — **dollar-quote aware**, so a `;` inside `$$ … $$` (or a tagged `$body$ … $body$`) does not end
-the statement. A procedure is identical except its definition has no `RETURNS` clause.
+Functions and procedures are **one object kind** — a *routine* — distinguished by which keyword created it
+(matching the database, where both live in one catalog, e.g. Postgres's `pg_proc`). Both captures are
+**opaque**: `arg-text` is the verbatim text inside the parentheses (quote- and paren-aware, but **not**
+dollar-quote aware), and `definition-text` is everything after the closing parenthesis up to the top-level `;`
+— **dollar-quote aware**, so a `;` inside `$$ … $$` (or a tagged `$body$ … $body$`) does not end the statement.
+A procedure is identical except its definition has no `RETURNS` clause.
 
 Two rules carry over from the database:
 
 1. **No overloading** — one routine per name. Declaring the same name twice is an error.
-2. **Functions and procedures share one name space** within a schema (they live in the same catalog), so a
-   function and a procedure with the same name is an error.
+2. **Functions and procedures share one name space** within a schema, so a function and a procedure with the
+   same name is an error — they are the same routine pool.
+
+A drop uses `DROP FUNCTION`, `DROP PROCEDURE`, or the kind-agnostic `DROP ROUTINE` (all equivalent — a routine
+is recorded by name only, and the kind is resolved from the current state when the drop is planned).
 
 The argument list is part of the routine's identity: changing it plans a **drop + recreate** (replacing in
 place under a different signature would create a separate overload in the database). A definition-only change
@@ -468,9 +472,9 @@ structural change is planned as a drop + recreate (only a comment-only change is
 | `CREATE ENUM s.e ('a', 'b')`               | `SchemaDefinition` + `EnumType` (ordered `Values`)                 |
 | `CREATE SEQUENCE s.q (…)`                  | `SchemaDefinition` + `Sequence` (`SequenceOptions`)                |
 | `DROP ENUM s.e` / `DROP SEQUENCE s.q`      | `DroppedEnums` / `DroppedSequences`                                |
-| `CREATE FUNCTION s.f(…) …`                 | `SchemaDefinition` + `Function` (`Arguments`/`Definition` opaque)  |
-| `CREATE PROCEDURE s.p(…) …`                | `SchemaDefinition` + `Procedure` (`Arguments`/`Definition` opaque) |
-| `DROP FUNCTION s.f` / `DROP PROCEDURE s.p` | `DroppedFunctions` / `DroppedProcedures`                           |
+| `CREATE FUNCTION s.f(…) …`                 | `Routine` (`Kind` = `Function`; `Arguments`/`Definition` opaque)   |
+| `CREATE PROCEDURE s.p(…) …`                | `Routine` (`Kind` = `Procedure`; `Arguments`/`Definition` opaque)  |
+| `DROP {FUNCTION\|PROCEDURE\|ROUTINE} s.r`  | `DroppedRoutines`                                                  |
 | `CREATE EXTENSION e [VERSION 'v']`         | `DatabaseSchema` + `Extension` (root-level, `Version` optional)    |
 | `DROP EXTENSION e`                         | `DroppedExtensions` (root-level; explicit drop only)               |
 | `CREATE TRIGGER t … ON s.tbl …`            | `Trigger` on the named table (`Table.Triggers`; no drop statement) |

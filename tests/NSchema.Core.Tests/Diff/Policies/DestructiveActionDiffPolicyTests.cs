@@ -4,15 +4,14 @@ using NSchema.Diff.Policies;
 using NSchema.Plan.Model.Constraints;
 using NSchema.Plan.Model.Enums;
 using NSchema.Plan.Model.Extensions;
-using NSchema.Plan.Model.Functions;
-using NSchema.Plan.Model.Procedures;
+using NSchema.Plan.Model.Routines;
 using NSchema.Plan.Model.Sequence;
 using NSchema.Plan.Model.Tables;
 using NSchema.Plan.Model.Views;
 using NSchema.Policies;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
-using NSchema.Schema.Model.Functions;
+using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Sequences;
 using NSchema.Schema.Model.Views;
 using NSchema.Tests.Helpers;
@@ -211,14 +210,16 @@ public class DestructiveActionDiffPolicyTests
     }
 
     [Fact]
-    public void Validate_DroppedFunctionAndProcedure_AreDestructive()
+    public void Validate_DroppedRoutines_AreDestructive()
     {
         // Arrange — dropping a routine loses its definition from managed state.
         _options.Value.Policy = DestructiveActionPolicy.Error;
         var diff = new DatabaseDiff([
-            new SchemaDiff("app",
-                Functions: [new FunctionDiff("app", "f", ChangeKind.Remove)],
-                Procedures: [new ProcedureDiff("app", "p", ChangeKind.Remove)]),
+            new SchemaDiff("app", Routines:
+            [
+                new RoutineDiff("app", "f", ChangeKind.Remove, RoutineKind.Function),
+                new RoutineDiff("app", "p", ChangeKind.Remove, RoutineKind.Procedure),
+            ]),
         ]);
 
         // Act
@@ -226,8 +227,7 @@ public class DestructiveActionDiffPolicyTests
 
         // Assert
         errors.ShouldHaveSingleItem();
-        errors[0].Message.ShouldContain(nameof(DropFunction));
-        errors[0].Message.ShouldContain(nameof(DropProcedure));
+        errors[0].Message.ShouldContain(nameof(DropRoutine));
     }
 
     [Fact]
@@ -236,11 +236,11 @@ public class DestructiveActionDiffPolicyTests
         // Arrange — a signature change is a declared edit; the database blocks the underlying drop loudly if
         // dependents exist, so the policy does not gate it.
         _options.Value.Policy = DestructiveActionPolicy.Error;
-        var fn = new Function("f", "a int, b text", "RETURNS int AS $$ SELECT 1 $$");
+        var fn = new Routine("f", RoutineKind.Function, "a int, b text", "RETURNS int AS $$ SELECT 1 $$");
         var diff = new DatabaseDiff([
-            new SchemaDiff("app", Functions:
+            new SchemaDiff("app", Routines:
             [
-                new FunctionDiff("app", "f", ChangeKind.Modify, Definition: fn,
+                new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function, Definition: fn,
                     Arguments: new ValueChange<string>("a int", "a int, b text")),
             ]),
         ]);

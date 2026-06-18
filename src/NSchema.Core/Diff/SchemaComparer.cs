@@ -287,20 +287,15 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
             .OrderBy(sequence => sequence.Name, StringComparer.Ordinal)
             .ToList();
 
-        var functions = desired.Functions
-            .Select(function => BuildNewFunction(desired.Name, function))
-            .OrderBy(function => function.Name, StringComparer.Ordinal)
-            .ToList();
-
-        var procedures = desired.Procedures
-            .Select(procedure => BuildNewProcedure(desired.Name, procedure))
-            .OrderBy(procedure => procedure.Name, StringComparer.Ordinal)
+        var routines = desired.Routines
+            .Select(routine => BuildNewRoutine(desired.Name, routine))
+            .OrderBy(routine => routine.Name, StringComparer.Ordinal)
             .ToList();
 
         var comment = desired.Comment is not null ? new ValueChange<string>(null, desired.Comment) : null;
         var grants = desired.Grants.Select(grant => new GrantChange(ChangeKind.Add, grant.Role, null)).ToList();
 
-        return new SchemaDiff(desired.Name, ChangeKind.Add, null, comment, grants, tables, views, enums, sequences, functions, procedures);
+        return new SchemaDiff(desired.Name, ChangeKind.Add, null, comment, grants, tables, views, enums, sequences, routines);
     }
 
     private SchemaDiff? BuildModifiedSchema(SchemaDefinition current, SchemaDefinition desired)
@@ -336,22 +331,19 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
         var sequences = CompareSequences(desired.Name, current.Sequences, desired)
             .OrderBy(sequence => sequence.Name, StringComparer.Ordinal)
             .ToList();
-        var functions = CompareFunctions(desired.Name, current.Functions, desired)
-            .OrderBy(function => function.Name, StringComparer.Ordinal)
-            .ToList();
-        var procedures = CompareProcedures(desired.Name, current.Procedures, desired)
-            .OrderBy(procedure => procedure.Name, StringComparer.Ordinal)
+        var routines = CompareRoutines(desired.Name, current.Routines, desired)
+            .OrderBy(routine => routine.Name, StringComparer.Ordinal)
             .ToList();
 
         // The schema entity itself only changes when it is renamed or its comment/grants change; a schema that
         // merely contains changed tables or views has a null Kind.
         var schemaLevelChange = renamedFrom is not null || comment is not null || grants.Count > 0;
         if (!schemaLevelChange && tables.Count == 0 && views.Count == 0 && enums.Count == 0 && sequences.Count == 0
-            && functions.Count == 0 && procedures.Count == 0)
+            && routines.Count == 0)
         {
             return null;
         }
 
-        return new SchemaDiff(desired.Name, schemaLevelChange ? ChangeKind.Modify : null, renamedFrom, comment, grants, tables, views, enums, sequences, functions, procedures);
+        return new SchemaDiff(desired.Name, schemaLevelChange ? ChangeKind.Modify : null, renamedFrom, comment, grants, tables, views, enums, sequences, routines);
     }
 }

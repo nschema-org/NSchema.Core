@@ -1,9 +1,8 @@
 using NSchema.Policies;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Functions;
+using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Procedures;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Tables;
 using NSchema.Schema.Policies;
@@ -223,9 +222,11 @@ public sealed class StructuralIntegritySchemaPolicyTests
         // Arrange — the parser and aggregation enforce this for parsed schemas; the policy is the catch-all
         // for JSON-sourced and code-built schemas.
         var schema = new DatabaseSchema([
-            new SchemaDefinition("public",
-                Functions: [new Function("r", "", "RETURNS int AS $$ SELECT 1 $$")],
-                Procedures: [new Procedure("r", "", "AS $$ SELECT 1 $$")]),
+            new SchemaDefinition("public", Routines:
+            [
+                new Routine("r", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 1 $$"),
+                new Routine("r", RoutineKind.Procedure, "", "AS $$ SELECT 1 $$"),
+            ]),
         ]);
 
         // Act
@@ -240,10 +241,10 @@ public sealed class StructuralIntegritySchemaPolicyTests
     {
         // Arrange
         var schema = new DatabaseSchema([
-            new SchemaDefinition("public", Functions:
+            new SchemaDefinition("public", Routines:
             [
-                new Function("f", "", "RETURNS int AS $$ SELECT 1 $$"),
-                new Function("f", "a int", "RETURNS int AS $$ SELECT 2 $$"),
+                new Routine("f", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 1 $$"),
+                new Routine("f", RoutineKind.Function, "a int", "RETURNS int AS $$ SELECT 2 $$"),
             ]),
         ]);
 
@@ -251,6 +252,6 @@ public sealed class StructuralIntegritySchemaPolicyTests
         var diagnostics = _sut.Validate(schema).ToList();
 
         // Assert — overloading is not supported: one routine per name.
-        diagnostics.ShouldContain(d => d.Message.Contains("declares function 'f' more than once"));
+        diagnostics.ShouldContain(d => d.Message.Contains("declares routine 'f' more than once"));
     }
 }

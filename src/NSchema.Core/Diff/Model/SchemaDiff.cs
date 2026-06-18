@@ -12,8 +12,7 @@ namespace NSchema.Diff.Model;
 /// <param name="Views">The changed views within this schema, ordered by name.</param>
 /// <param name="Enums">The changed enum types within this schema, ordered by name.</param>
 /// <param name="Sequences">The changed sequences within this schema, ordered by name.</param>
-/// <param name="Functions">The changed functions within this schema, ordered by name.</param>
-/// <param name="Procedures">The changed procedures within this schema, ordered by name.</param>
+/// <param name="Routines">The changed routines (functions and procedures) within this schema, ordered by name.</param>
 public sealed record SchemaDiff(
     string Name,
     ChangeKind? Kind = null,
@@ -24,8 +23,7 @@ public sealed record SchemaDiff(
     IReadOnlyList<ViewDiff>? Views = null,
     IReadOnlyList<EnumDiff>? Enums = null,
     IReadOnlyList<SequenceDiff>? Sequences = null,
-    IReadOnlyList<FunctionDiff>? Functions = null,
-    IReadOnlyList<ProcedureDiff>? Procedures = null
+    IReadOnlyList<RoutineDiff>? Routines = null
 )
 {
     /// <summary>
@@ -54,14 +52,9 @@ public sealed record SchemaDiff(
     public IReadOnlyList<SequenceDiff> Sequences { get; init; } = Sequences ?? [];
 
     /// <summary>
-    /// The changed functions within this schema, ordered by name.
+    /// The changed routines (functions and procedures) within this schema, ordered by name.
     /// </summary>
-    public IReadOnlyList<FunctionDiff> Functions { get; init; } = Functions ?? [];
-
-    /// <summary>
-    /// The changed procedures within this schema, ordered by name.
-    /// </summary>
-    public IReadOnlyList<ProcedureDiff> Procedures { get; init; } = Procedures ?? [];
+    public IReadOnlyList<RoutineDiff> Routines { get; init; } = Routines ?? [];
 
     /// <summary>
     /// Enumerates every changed object in this schema across all kinds, for kind-agnostic consumers (change
@@ -73,6 +66,5 @@ public sealed record SchemaDiff(
             .Concat(Views)
             .Concat(Enums)
             .Concat(Sequences)
-            .Concat(Functions)
-            .Concat(Procedures);
+            .Concat(Routines);
 }

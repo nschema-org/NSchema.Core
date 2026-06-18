@@ -510,7 +510,7 @@ public sealed class DdlParserTests
     {
         var schema = ParseSingleSchema(
             "CREATE SCHEMA app; CREATE FUNCTION app.add_tax(amount numeric, rate numeric) RETURNS numeric LANGUAGE sql AS $$ SELECT amount * (1 + rate); $$;");
-        var function = schema.Functions.ShouldHaveSingleItem();
+        var function = schema.Routines.ShouldHaveSingleItem();
         function.Name.ShouldBe("add_tax");
         function.Arguments.ShouldBe("amount numeric, rate numeric");
         function.Definition.ShouldBe("RETURNS numeric LANGUAGE sql AS $$ SELECT amount * (1 + rate); $$");
@@ -521,19 +521,19 @@ public sealed class DdlParserTests
     {
         var schema = ParseSingleSchema(
             "CREATE SCHEMA app; CREATE FUNCTION app.f() RETURNS int LANGUAGE plpgsql AS $body$ BEGIN RETURN 1; END; $body$; CREATE TABLE app.t (id int);");
-        schema.Functions.ShouldHaveSingleItem().Definition.ShouldContain("BEGIN RETURN 1; END;");
+        schema.Routines.ShouldHaveSingleItem().Definition.ShouldContain("BEGIN RETURN 1; END;");
         schema.Tables.ShouldHaveSingleItem(); // parsing resumed correctly after the function
     }
 
     [Fact]
     public void Parse_CreateFunction_ArgumentsWithQuotedDefault_AreCapturedVerbatim()
         => ParseSingleSchema("CREATE SCHEMA app; CREATE FUNCTION app.f(code text DEFAULT 'a;b)') RETURNS int AS $$ SELECT 1 $$;")
-            .Functions.ShouldHaveSingleItem().Arguments.ShouldBe("code text DEFAULT 'a;b)'");
+            .Routines.ShouldHaveSingleItem().Arguments.ShouldBe("code text DEFAULT 'a;b)'");
 
     [Fact]
     public void Parse_CreateFunction_EmptyArguments_AreEmptyString()
         => ParseSingleSchema("CREATE SCHEMA app; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$;")
-            .Functions.ShouldHaveSingleItem().Arguments.ShouldBe("");
+            .Routines.ShouldHaveSingleItem().Arguments.ShouldBe("");
 
     [Fact]
     public void Parse_CreateFunction_MissingDefinition_Throws()
@@ -543,12 +543,12 @@ public sealed class DdlParserTests
     [Fact]
     public void Parse_CreateFunction_RenamedFrom_SetsOldName()
         => ParseSingleSchema("CREATE SCHEMA app; CREATE FUNCTION app.f RENAMED FROM old_f() RETURNS int AS $$ SELECT 1 $$;")
-            .Functions.ShouldHaveSingleItem().OldName.ShouldBe("old_f");
+            .Routines.ShouldHaveSingleItem().OldName.ShouldBe("old_f");
 
     [Fact]
     public void Parse_CreateFunction_WithDocComment_AttachesComment()
         => ParseSingleSchema("CREATE SCHEMA app;\n--- adds tax\nCREATE FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$;")
-            .Functions.ShouldHaveSingleItem().Comment.ShouldBe("adds tax");
+            .Routines.ShouldHaveSingleItem().Comment.ShouldBe("adds tax");
 
     [Fact]
     public void Parse_PartialFunction_Throws()
@@ -559,7 +559,7 @@ public sealed class DdlParserTests
     public void Parse_CreateProcedure_ParsesWithoutReturns()
     {
         var schema = ParseSingleSchema("CREATE SCHEMA app; CREATE PROCEDURE app.archive(before date) LANGUAGE sql AS $$ DELETE FROM app.t; $$;");
-        var procedure = schema.Procedures.ShouldHaveSingleItem();
+        var procedure = schema.Routines.ShouldHaveSingleItem();
         procedure.Name.ShouldBe("archive");
         procedure.Arguments.ShouldBe("before date");
         procedure.Definition.ShouldBe("LANGUAGE sql AS $$ DELETE FROM app.t; $$");
@@ -593,7 +593,6 @@ public sealed class DdlParserTests
     public void Parse_DropFunctionAndProcedure_RecordDrops()
     {
         var schema = ParseSingleSchema("CREATE SCHEMA app; DROP FUNCTION app.stale_fn; DROP PROCEDURE app.stale_proc;");
-        schema.DroppedFunctions.ShouldHaveSingleItem().ShouldBe("stale_fn");
-        schema.DroppedProcedures.ShouldHaveSingleItem().ShouldBe("stale_proc");
+        schema.DroppedRoutines.ShouldBe(["stale_fn", "stale_proc"], ignoreOrder: true);
     }
 }

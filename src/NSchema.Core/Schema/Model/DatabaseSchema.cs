@@ -1,8 +1,7 @@
 using System.Diagnostics;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
-using NSchema.Schema.Model.Functions;
-using NSchema.Schema.Model.Procedures;
+using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Sequences;
 using NSchema.Schema.Model.Tables;
@@ -179,33 +178,22 @@ public record DatabaseSchema(
             }
         }
 
-        // Functions and procedures share one name pool, as they do in the database (e.g. Postgres's pg_proc):
-        // a function and a procedure with the same name cannot coexist in a schema.
-        var functions = new List<Function>();
-        var procedures = new List<Procedure>();
+        // Functions and procedures are one routine pool sharing a single name space, as in the database (e.g.
+        // Postgres's pg_proc): a function and a procedure with the same name cannot coexist in a schema. Modeling
+        // them as one list makes that fall out of a single duplicate check.
+        var routines = new List<Routine>();
         var seenRoutines = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var schema in schemas)
         {
-            foreach (var function in schema.Functions)
+            foreach (var routine in schema.Routines)
             {
-                if (!seenRoutines.Add(function.Name))
+                if (!seenRoutines.Add(routine.Name))
                 {
                     throw new InvalidOperationException(
-                        $"Duplicate routine '{function.Name}' found in schema '{schemaName}': functions and procedures share one name space.");
+                        $"Duplicate routine '{routine.Name}' found in schema '{schemaName}': functions and procedures share one name space.");
                 }
 
-                functions.Add(function);
-            }
-
-            foreach (var procedure in schema.Procedures)
-            {
-                if (!seenRoutines.Add(procedure.Name))
-                {
-                    throw new InvalidOperationException(
-                        $"Duplicate routine '{procedure.Name}' found in schema '{schemaName}': functions and procedures share one name space.");
-                }
-
-                procedures.Add(procedure);
+                routines.Add(routine);
             }
         }
 
@@ -233,12 +221,8 @@ public record DatabaseSchema(
             .SelectMany(s => s.DroppedSequences)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-        var droppedFunctions = schemas
-            .SelectMany(s => s.DroppedFunctions)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        var droppedProcedures = schemas
-            .SelectMany(s => s.DroppedProcedures)
+        var droppedRoutines = schemas
+            .SelectMany(s => s.DroppedRoutines)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         var oldNames = schemas.Select(s => s.OldName).Where(n => n is not null).Distinct().ToList();
@@ -256,6 +240,6 @@ public record DatabaseSchema(
         return new SchemaDefinition(
             schemaName, oldName, isPartial, comment, tables, droppedTables, grants, views, droppedViews,
             enums, droppedEnums, sequences, droppedSequences,
-            functions, droppedFunctions, procedures, droppedProcedures);
+            routines, droppedRoutines);
     }
 }

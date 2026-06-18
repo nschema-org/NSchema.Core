@@ -6,9 +6,8 @@ using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
-using NSchema.Schema.Model.Functions;
 using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Procedures;
+using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Scripts;
 using NSchema.Schema.Model.Sequences;
@@ -193,16 +192,10 @@ public sealed class DdlWriter
             WriteSequence(sb, schema.Name, sequence);
         }
 
-        foreach (var function in schema.Functions)
+        foreach (var routine in schema.Routines)
         {
             sb.AppendLine();
-            WriteFunction(sb, schema.Name, function);
-        }
-
-        foreach (var procedure in schema.Procedures)
-        {
-            sb.AppendLine();
-            WriteProcedure(sb, schema.Name, procedure);
+            WriteRoutine(sb, schema.Name, routine);
         }
 
         foreach (var table in schema.Tables)
@@ -237,14 +230,11 @@ public sealed class DdlWriter
             sb.Append("DROP SEQUENCE ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
         }
 
-        foreach (var dropped in schema.DroppedFunctions)
+        // A dropped routine is recorded by name only (functions and procedures share one name space), so it is
+        // emitted with the kind-agnostic DROP ROUTINE.
+        foreach (var dropped in schema.DroppedRoutines)
         {
-            sb.Append("DROP FUNCTION ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
-        }
-
-        foreach (var dropped in schema.DroppedProcedures)
-        {
-            sb.Append("DROP PROCEDURE ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
+            sb.Append("DROP ROUTINE ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
         }
     }
 
@@ -331,28 +321,18 @@ public sealed class DdlWriter
         return parts.Count == 0 ? null : string.Join(", ", parts);
     }
 
-    private static void WriteFunction(StringBuilder sb, string schemaName, Function function)
+    private static void WriteRoutine(StringBuilder sb, string schemaName, Routine routine)
     {
-        WriteDocComment(sb, function.Comment, indent: "");
-        sb.Append("CREATE FUNCTION ").Append(schemaName).Append('.').Append(function.Name);
-        if (function.OldName is { } oldName)
+        WriteDocComment(sb, routine.Comment, indent: "");
+        sb.Append(routine.Kind == RoutineKind.Procedure ? "CREATE PROCEDURE " : "CREATE FUNCTION ")
+            .Append(schemaName).Append('.').Append(routine.Name);
+        if (routine.OldName is { } oldName)
         {
             sb.Append(" RENAMED FROM ").Append(oldName);
         }
         // The definition is emitted verbatim (multi-line bodies keep their newlines); TrimEnd guards a
         // code-built definition ending in whitespace so the ';' lands directly after the last character.
-        sb.Append('(').Append(function.Arguments).Append(") ").Append(function.Definition.TrimEnd()).AppendLine(";");
-    }
-
-    private static void WriteProcedure(StringBuilder sb, string schemaName, Procedure procedure)
-    {
-        WriteDocComment(sb, procedure.Comment, indent: "");
-        sb.Append("CREATE PROCEDURE ").Append(schemaName).Append('.').Append(procedure.Name);
-        if (procedure.OldName is { } oldName)
-        {
-            sb.Append(" RENAMED FROM ").Append(oldName);
-        }
-        sb.Append('(').Append(procedure.Arguments).Append(") ").Append(procedure.Definition.TrimEnd()).AppendLine(";");
+        sb.Append('(').Append(routine.Arguments).Append(") ").Append(routine.Definition.TrimEnd()).AppendLine(";");
     }
 
     private static void WriteView(StringBuilder sb, string schemaName, View view)

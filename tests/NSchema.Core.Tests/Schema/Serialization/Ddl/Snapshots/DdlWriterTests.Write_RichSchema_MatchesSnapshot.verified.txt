@@ -69,8 +69,8 @@ DROP TABLE app.old_table;
 DROP VIEW app.stale_report;
 DROP ENUM app.stale_enum;
 DROP SEQUENCE app.stale_seq;
-DROP FUNCTION app.stale_fn;
-DROP PROCEDURE app.stale_proc;
+DROP ROUTINE app.stale_fn;
+DROP ROUTINE app.stale_proc;
 
 DROP SCHEMA scratch;
 

@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.Extensions.Options;
 using NSchema.Diff.Model;
 using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Sequences;
 using NSchema.Schema.Model.Tables;
 
@@ -56,14 +57,9 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
                 RenderSequence(sb, sequence);
             }
 
-            foreach (var function in schema.Functions)
+            foreach (var routine in schema.Routines)
             {
-                RenderFunction(sb, function);
-            }
-
-            foreach (var procedure in schema.Procedures)
-            {
-                RenderProcedure(sb, procedure);
+                RenderRoutine(sb, routine);
             }
         }
 
@@ -243,45 +239,24 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
         }
     }
 
-    private void RenderFunction(StringBuilder sb, FunctionDiff function)
+    private void RenderRoutine(StringBuilder sb, RoutineDiff routine)
     {
-        var name = function.RenamedFrom is null
-            ? $"{function.Schema}.{function.Name}"
-            : $"{function.Schema}.{function.RenamedFrom} → {function.Name}";
+        var label = routine.RoutineKind == RoutineKind.Procedure ? "procedure" : "function";
+        var name = routine.RenamedFrom is null
+            ? $"{routine.Schema}.{routine.Name}"
+            : $"{routine.Schema}.{routine.RenamedFrom} → {routine.Name}";
 
         // A comment-only modify reports the comment transition rather than a bare header.
-        if (function is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only })
+        if (routine is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only })
         {
-            AppendHeader(sb, ChangeKind.Modify, $"function {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            AppendHeader(sb, ChangeKind.Modify, $"{label} {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
             return;
         }
 
-        var arguments = function is { Kind: ChangeKind.Add, Definition: { } definition } ? $"({definition.Arguments})" : string.Empty;
-        AppendHeader(sb, function.Kind, $"function {name}{arguments}{CommentSuffix(function.Comment)}");
+        var arguments = routine is { Kind: ChangeKind.Add, Definition: { } definition } ? $"({definition.Arguments})" : string.Empty;
+        AppendHeader(sb, routine.Kind, $"{label} {name}{arguments}{CommentSuffix(routine.Comment)}");
 
-        if (function.Arguments is { } change)
-        {
-            AppendDetail(sb, ChangeKind.Modify, $"arguments: ({change.Old}) → ({change.New}) (recreate)");
-        }
-    }
-
-    private void RenderProcedure(StringBuilder sb, ProcedureDiff procedure)
-    {
-        var name = procedure.RenamedFrom is null
-            ? $"{procedure.Schema}.{procedure.Name}"
-            : $"{procedure.Schema}.{procedure.RenamedFrom} → {procedure.Name}";
-
-        // A comment-only modify reports the comment transition rather than a bare header.
-        if (procedure is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only })
-        {
-            AppendHeader(sb, ChangeKind.Modify, $"procedure {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
-            return;
-        }
-
-        var arguments = procedure is { Kind: ChangeKind.Add, Definition: { } definition } ? $"({definition.Arguments})" : string.Empty;
-        AppendHeader(sb, procedure.Kind, $"procedure {name}{arguments}{CommentSuffix(procedure.Comment)}");
-
-        if (procedure.Arguments is { } change)
+        if (routine.Arguments is { } change)
         {
             AppendDetail(sb, ChangeKind.Modify, $"arguments: ({change.Old}) → ({change.New}) (recreate)");
         }

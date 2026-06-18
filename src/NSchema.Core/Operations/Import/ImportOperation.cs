@@ -31,12 +31,12 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IOpe
         reporter.Success("Schema imported successfully.");
     }
 
-    // Each major object (table, view, function, procedure) gets its own file, grouped by type under the schema's
-    // directory; the remaining schema-level objects (enums, sequences, grants, comment) share a per-schema
-    // "header" file alongside that directory.
+    // Each major object (table, view, routine) gets its own file, grouped by type under the schema's directory;
+    // the remaining schema-level objects (enums, sequences, grants, comment) share a per-schema "header" file
+    // alongside that directory.
     private static IEnumerable<(string path, DatabaseSchema schema)> ObjectPartitions(SchemaDefinition s, string directory)
     {
-        var header = s with { Tables = [], Views = [], Functions = [], Procedures = [] };
+        var header = s with { Tables = [], Views = [], Routines = [] };
         yield return (Path.Combine(directory, $"{s.Name}.sql"), new DatabaseSchema([header]));
 
         foreach (var table in s.Tables)
@@ -49,15 +49,11 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IOpe
             yield return (Path.Combine(directory, s.Name, "views", $"{view.Name}.sql"),
                 new DatabaseSchema([new SchemaDefinition(s.Name, Views: [view])]));
         }
-        foreach (var function in s.Functions)
+        // Functions and procedures share one name space, so they share one directory.
+        foreach (var routine in s.Routines)
         {
-            yield return (Path.Combine(directory, s.Name, "functions", $"{function.Name}.sql"),
-                new DatabaseSchema([new SchemaDefinition(s.Name, Functions: [function])]));
-        }
-        foreach (var procedure in s.Procedures)
-        {
-            yield return (Path.Combine(directory, s.Name, "procedures", $"{procedure.Name}.sql"),
-                new DatabaseSchema([new SchemaDefinition(s.Name, Procedures: [procedure])]));
+            yield return (Path.Combine(directory, s.Name, "routines", $"{routine.Name}.sql"),
+                new DatabaseSchema([new SchemaDefinition(s.Name, Routines: [routine])]));
         }
     }
 
@@ -101,8 +97,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IOpe
                     Views = PruneByName(s.Views, i.Views, v => v.Name),
                     Enums = PruneByName(s.Enums, i.Enums, e => e.Name),
                     Sequences = PruneByName(s.Sequences, i.Sequences, q => q.Name),
-                    Functions = PruneByName(s.Functions, i.Functions, f => f.Name),
-                    Procedures = PruneByName(s.Procedures, i.Procedures, p => p.Name),
+                    Routines = PruneByName(s.Routines, i.Routines, r => r.Name),
                 }
                 : s)
             .ToList();

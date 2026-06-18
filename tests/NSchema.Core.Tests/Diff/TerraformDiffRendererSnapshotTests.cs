@@ -4,9 +4,8 @@ using NSchema.Diff.Model;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
-using NSchema.Schema.Model.Functions;
+using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Procedures;
 using NSchema.Schema.Model.Sequences;
 using NSchema.Schema.Model.Tables;
 using NSchema.Schema.Model.Triggers;
@@ -181,32 +180,29 @@ public sealed class TerraformDiffRendererSnapshotTests
     /// </summary>
     private static DatabaseDiff RoutineChangesDiff()
     {
-        var addTax = new Function("add_tax", "amount numeric, rate numeric", "RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$");
+        var addTax = new Routine("add_tax", RoutineKind.Function, "amount numeric, rate numeric", "RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$");
         return new DatabaseDiff(
             Schemas:
             [
                 new SchemaDiff("app",
-                    Functions:
+                    Routines:
                     [
-                        new FunctionDiff("app", "add_tax", ChangeKind.Add, Definition: addTax,
+                        new RoutineDiff("app", "add_tax", ChangeKind.Add, RoutineKind.Function, Definition: addTax,
                             Comment: new ValueChange<string>(null, "adds tax")),
-                        new FunctionDiff("app", "normalize", ChangeKind.Modify,
-                            Definition: new Function("normalize", "code text", "RETURNS text AS $$ SELECT lower(code) $$")),
-                        new FunctionDiff("app", "score", ChangeKind.Modify,
-                            Definition: new Function("score", "user_id bigint, weight numeric", "RETURNS numeric AS $$ SELECT 1 $$"),
+                        new RoutineDiff("app", "normalize", ChangeKind.Modify, RoutineKind.Function,
+                            Definition: new Routine("normalize", RoutineKind.Function, "code text", "RETURNS text AS $$ SELECT lower(code) $$")),
+                        new RoutineDiff("app", "score", ChangeKind.Modify, RoutineKind.Function,
+                            Definition: new Routine("score", RoutineKind.Function, "user_id bigint, weight numeric", "RETURNS numeric AS $$ SELECT 1 $$"),
                             Arguments: new ValueChange<string>("user_id bigint", "user_id bigint, weight numeric")),
-                        new FunctionDiff("app", "renamed_fn", ChangeKind.Modify, RenamedFrom: "old_fn"),
-                        new FunctionDiff("app", "noted", ChangeKind.Modify, Comment: new ValueChange<string>("old note", "new note")),
-                        new FunctionDiff("app", "stale_fn", ChangeKind.Remove),
-                    ],
-                    Procedures:
-                    [
-                        new ProcedureDiff("app", "archive", ChangeKind.Add,
-                            Definition: new Procedure("archive", "before date", "LANGUAGE sql AS $$ DELETE $$")),
-                        new ProcedureDiff("app", "cleanup", ChangeKind.Modify,
-                            Definition: new Procedure("cleanup", "", "LANGUAGE sql AS $$ TRUNCATE $$"),
+                        new RoutineDiff("app", "renamed_fn", ChangeKind.Modify, RoutineKind.Function, RenamedFrom: "old_fn"),
+                        new RoutineDiff("app", "noted", ChangeKind.Modify, RoutineKind.Function, Comment: new ValueChange<string>("old note", "new note")),
+                        new RoutineDiff("app", "stale_fn", ChangeKind.Remove, RoutineKind.Function),
+                        new RoutineDiff("app", "archive", ChangeKind.Add, RoutineKind.Procedure,
+                            Definition: new Routine("archive", RoutineKind.Procedure, "before date", "LANGUAGE sql AS $$ DELETE $$")),
+                        new RoutineDiff("app", "cleanup", ChangeKind.Modify, RoutineKind.Procedure,
+                            Definition: new Routine("cleanup", RoutineKind.Procedure, "", "LANGUAGE sql AS $$ TRUNCATE $$"),
                             Arguments: new ValueChange<string>("batch int", "")),
-                        new ProcedureDiff("app", "stale_proc", ChangeKind.Remove),
+                        new RoutineDiff("app", "stale_proc", ChangeKind.Remove, RoutineKind.Procedure),
                     ]),
             ]);
     }

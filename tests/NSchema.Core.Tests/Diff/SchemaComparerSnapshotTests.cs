@@ -6,9 +6,8 @@ using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Constraints;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
-using NSchema.Schema.Model.Functions;
+using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Procedures;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Sequences;
 using NSchema.Schema.Model.Tables;
@@ -61,11 +60,11 @@ public sealed class SchemaComparerSnapshotTests
                     new Sequence("order_id", new SequenceOptions(StartWith: 1, IncrementBy: 1)),
                     new Sequence("stale_seq"),
                 ],
-                Functions:
+                Routines:
                 [
-                    new Function("add_tax", "amount numeric", "RETURNS numeric AS $$ SELECT amount * 1.1 $$"),
-                    new Function("score", "user_id bigint", "RETURNS numeric AS $$ SELECT 1 $$"),
-                    new Function("stale_fn", "", "RETURNS int AS $$ SELECT 0 $$"),
+                    new Routine("add_tax", RoutineKind.Function, "amount numeric", "RETURNS numeric AS $$ SELECT amount * 1.1 $$"),
+                    new Routine("score", RoutineKind.Function, "user_id bigint", "RETURNS numeric AS $$ SELECT 1 $$"),
+                    new Routine("stale_fn", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 0 $$"),
                 ]),
             new SchemaDefinition("scratch"),
         ],
@@ -115,14 +114,14 @@ public sealed class SchemaComparerSnapshotTests
                     new Sequence("order_id", new SequenceOptions(StartWith: 1000, IncrementBy: 10, Cycle: true)),
                     new Sequence("batch_id"),
                 ],
-                // Functions: a body replace, a signature change (recreate), and an addition.
-                Functions:
+                // Routines: a body replace, a signature change (recreate), an addition, and a procedure.
+                Routines:
                 [
-                    new Function("add_tax", "amount numeric", "RETURNS numeric AS $$ SELECT amount * 1.2 $$"),
-                    new Function("score", "user_id bigint, weight numeric", "RETURNS numeric AS $$ SELECT 1 $$"),
-                    new Function("brand_new", "", "RETURNS int AS $$ SELECT 42 $$"),
-                ],
-                Procedures: [new Procedure("archive", "before date", "LANGUAGE sql AS $$ DELETE $$")]),
+                    new Routine("add_tax", RoutineKind.Function, "amount numeric", "RETURNS numeric AS $$ SELECT amount * 1.2 $$"),
+                    new Routine("score", RoutineKind.Function, "user_id bigint, weight numeric", "RETURNS numeric AS $$ SELECT 1 $$"),
+                    new Routine("brand_new", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 42 $$"),
+                    new Routine("archive", RoutineKind.Procedure, "before date", "LANGUAGE sql AS $$ DELETE $$"),
+                ]),
             new SchemaDefinition("reporting", Comment: "analytics"),
         ],
         // Extensions: citext unchanged, postgis version bump, legacy_ext dropped, vector added.

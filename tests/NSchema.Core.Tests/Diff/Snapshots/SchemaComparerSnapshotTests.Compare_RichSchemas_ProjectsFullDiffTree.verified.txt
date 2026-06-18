@@ -230,7 +230,7 @@
           Kind: Remove
         }
       ],
-      Functions: [
+      Routines: [
         {
           Schema: app,
           Name: add_tax,
@@ -239,6 +239,18 @@
             Name: add_tax,
             Arguments: amount numeric,
             Definition: RETURNS numeric AS $$ SELECT amount * 1.2 $$
+          },
+          RequiresRecreate: false
+        },
+        {
+          Schema: app,
+          Name: archive,
+          RoutineKind: Procedure,
+          Definition: {
+            Name: archive,
+            Kind: Procedure,
+            Arguments: before date,
+            Definition: LANGUAGE sql AS $$ DELETE $$
           },
           RequiresRecreate: false
         },
@@ -271,18 +283,6 @@
           Schema: app,
           Name: stale_fn,
           Kind: Remove,
-          RequiresRecreate: false
-        }
-      ],
-      Procedures: [
-        {
-          Schema: app,
-          Name: archive,
-          Definition: {
-            Name: archive,
-            Arguments: before date,
-            Definition: LANGUAGE sql AS $$ DELETE $$
-          },
           RequiresRecreate: false
         }
       ]

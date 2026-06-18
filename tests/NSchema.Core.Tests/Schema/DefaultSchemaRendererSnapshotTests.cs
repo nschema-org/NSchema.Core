@@ -4,9 +4,8 @@ using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
-using NSchema.Schema.Model.Functions;
+using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Procedures;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Sequences;
 using NSchema.Schema.Model.Tables;
@@ -91,14 +90,11 @@ public sealed class DefaultSchemaRendererSnapshotTests
                         Comment: "order numbers"),
                     new Sequence("invoice_id"),
                 ],
-                Functions:
+                Routines:
                 [
-                    new Function("add_tax", "amount numeric, rate numeric",
+                    new Routine("add_tax", RoutineKind.Function, "amount numeric, rate numeric",
                         "RETURNS numeric LANGUAGE sql AS $$ SELECT amount * (1 + rate) $$", Comment: "adds tax"),
-                ],
-                Procedures:
-                [
-                    new Procedure("archive_users", "before date", "LANGUAGE sql AS $$ DELETE FROM app.users $$"),
+                    new Routine("archive_users", RoutineKind.Procedure, "before date", "LANGUAGE sql AS $$ DELETE FROM app.users $$"),
                 ]),
         ],
         Extensions:
