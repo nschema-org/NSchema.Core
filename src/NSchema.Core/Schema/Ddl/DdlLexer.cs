@@ -6,9 +6,12 @@ namespace NSchema.Schema.Ddl;
 /// <summary>
 /// Scanner for NSchema DDL.
 /// </summary>
-internal sealed class DdlLexer(string source)
+internal sealed class DdlLexer(string source, bool emitComments = false)
 {
     private readonly string _source = source ?? throw new ArgumentNullException(nameof(source));
+
+    // When true (the formatter), source comments are returned as LineComment/BlockComment tokens instead of skipped.
+    // The parser leaves this false, so its token stream is unchanged.
     private int _offset;
     private int _line = 1;
     private int _column = 1;
@@ -48,6 +51,10 @@ internal sealed class DdlLexer(string source)
                 {
                     return ReadDocLine();
                 }
+                if (emitComments)
+                {
+                    return ReadLineComment();
+                }
                 SkipLineComment();
                 continue;
             }
@@ -58,6 +65,10 @@ internal sealed class DdlLexer(string source)
                 if (Peek(2) == '*' && Peek(3) != '/')
                 {
                     return ReadDocBlock();
+                }
+                if (emitComments)
+                {
+                    return ReadBlockComment();
                 }
                 SkipBlockComment();
                 continue;
@@ -276,6 +287,37 @@ internal sealed class DdlLexer(string source)
     {
         while (!AtEnd && Current != '\n')
         {
+            Advance();
+        }
+    }
+
+    private Token ReadLineComment()
+    {
+        var pos = Position;
+        var start = _offset;
+        while (!AtEnd && Current != '\n')
+        {
+            Advance();
+        }
+        return new Token(TokenKind.LineComment, _source[start.._offset].TrimEnd(), pos);
+    }
+
+    private Token ReadBlockComment()
+    {
+        var pos = Position;
+        var start = _offset;
+        Advance(); Advance(); // consume '/*'
+        while (true)
+        {
+            if (AtEnd)
+            {
+                throw new DdlSyntaxException("Unterminated block comment", pos);
+            }
+            if (Current == '*' && Peek(1) == '/')
+            {
+                Advance(); Advance(); // consume '*/'
+                return new Token(TokenKind.BlockComment, _source[start.._offset], pos);
+            }
             Advance();
         }
     }

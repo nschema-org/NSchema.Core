@@ -32,6 +32,16 @@ internal enum TokenKind
     DollarString,
 
     /// <summary>
+    /// A source line comment (<c>-- …</c>, not a <c>---</c> doc-comment), end-trimmed and keeping its <c>--</c>.
+    /// </summary>
+    LineComment,
+
+    /// <summary>
+    /// A source block comment (<c>/* … */</c>, not a <c>/** … */</c> doc-comment), kept verbatim with its delimiters.
+    /// </summary>
+    BlockComment,
+
+    /// <summary>
     /// <c>(</c>
     /// </summary>
     LeftParen,
