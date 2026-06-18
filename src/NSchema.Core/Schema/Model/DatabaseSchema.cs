@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
 using NSchema.Schema.Model.Routines;
@@ -178,6 +179,21 @@ public record DatabaseSchema(
             }
         }
 
+        var domains = new List<Domain>();
+        var seenDomains = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var schema in schemas)
+        {
+            foreach (var domain in schema.Domains)
+            {
+                if (!seenDomains.Add(domain.Name))
+                {
+                    throw new InvalidOperationException($"Duplicate domain '{domain.Name}' found in schema '{schemaName}'.");
+                }
+
+                domains.Add(domain);
+            }
+        }
+
         // Functions and procedures are one routine pool sharing a single name space, as in the database (e.g.
         // Postgres's pg_proc): a function and a procedure with the same name cannot coexist in a schema. Modeling
         // them as one list makes that fall out of a single duplicate check.
@@ -225,6 +241,10 @@ public record DatabaseSchema(
             .SelectMany(s => s.DroppedRoutines)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+        var droppedDomains = schemas
+            .SelectMany(s => s.DroppedDomains)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
         var oldNames = schemas.Select(s => s.OldName).Where(n => n is not null).Distinct().ToList();
         if (oldNames.Count > 1)
         {
@@ -240,6 +260,6 @@ public record DatabaseSchema(
         return new SchemaDefinition(
             schemaName, oldName, isPartial, comment, tables, droppedTables, grants, views, droppedViews,
             enums, droppedEnums, sequences, droppedSequences,
-            routines, droppedRoutines);
+            routines, droppedRoutines, domains, droppedDomains);
     }
 }

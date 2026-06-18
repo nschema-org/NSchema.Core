@@ -52,6 +52,11 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
                 RenderEnum(sb, enumDiff);
             }
 
+            foreach (var domain in schema.Domains)
+            {
+                RenderDomain(sb, domain);
+            }
+
             foreach (var sequence in schema.Sequences)
             {
                 RenderSequence(sb, sequence);
@@ -277,6 +282,41 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
         if (extension.Version is { } change)
         {
             AppendDetail(sb, ChangeKind.Modify, $"version: {FormatVersion(change.Old)} → {FormatVersion(change.New)}");
+        }
+    }
+
+    private void RenderDomain(StringBuilder sb, DomainDiff domain)
+    {
+        var name = domain.RenamedFrom is null
+            ? $"{domain.Schema}.{domain.Name}"
+            : $"{domain.Schema}.{domain.RenamedFrom} → {domain.Name}";
+
+        // A comment-only modify reports the comment transition rather than a bare header.
+        if (domain is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, DataType: null, Default: null, NotNull: null, Comment: { } only }
+            && domain.Checks.Count == 0)
+        {
+            AppendHeader(sb, ChangeKind.Modify, $"domain {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            return;
+        }
+
+        var type = domain is { Kind: ChangeKind.Add, Definition: { } definition } ? $" {definition.DataType}" : string.Empty;
+        AppendHeader(sb, domain.Kind, $"domain {name}{type}{CommentSuffix(domain.Comment)}");
+
+        if (domain.DataType is { } dataType)
+        {
+            AppendDetail(sb, ChangeKind.Modify, $"type: {dataType.Old} → {dataType.New} (recreate)");
+        }
+        if (domain.Default is { } @default)
+        {
+            AppendDetail(sb, ChangeKind.Modify, $"default: {FormatDefault(@default.Old)} → {FormatDefault(@default.New)}");
+        }
+        if (domain.NotNull is { } notNull)
+        {
+            AppendDetail(sb, ChangeKind.Modify, $"nullable: {FormatNullability(!notNull.Old)} → {FormatNullability(!notNull.New)}");
+        }
+        foreach (var check in domain.Checks)
+        {
+            AppendDetail(sb, check.Kind, $"check {check.Name}");
         }
     }
 

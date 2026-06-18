@@ -3,6 +3,7 @@ using NSchema.Diff.Model;
 using NSchema.Plan.Model;
 using NSchema.Plan.Model.Columns;
 using NSchema.Plan.Model.Constraints;
+using NSchema.Plan.Model.Domains;
 using NSchema.Plan.Model.Enums;
 using NSchema.Plan.Model.Extensions;
 using NSchema.Plan.Model.Indexes;
@@ -46,6 +47,16 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(CreateSequence),
         typeof(AddEnumValue),
         typeof(AlterSequence),
+        // Domains are types used by columns, so they are created (and renamed/altered) before any table change.
+        // A base-type change recreates; default/not-null/check changes apply in place. Renames precede so a
+        // recreate targets the final name.
+        typeof(RenameDomain),
+        typeof(CreateDomain),
+        typeof(RecreateDomain),
+        typeof(AlterDomainDefault),
+        typeof(AlterDomainNotNull),
+        typeof(AddDomainCheck),
+        typeof(DropDomainCheck),
         // Routines are created/recreated/renamed before any table change because column DEFAULTs and CHECK
         // constraints may call them, and after enums/sequences because their args and bodies may use those.
         // Renames precede creates/recreates so a recreate targets the final name.
@@ -84,11 +95,14 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(SetEnumComment),
         typeof(SetSequenceComment),
         typeof(SetRoutineComment),
+        typeof(SetDomainComment),
         typeof(SetExtensionComment),
         typeof(DropTable),
         // Routines are dropped after the tables whose defaults/checks called them, and before the enums their
         // signatures may use; enums and sequences then drop after everything that referenced them.
         typeof(DropRoutine),
+        // Domains are dropped after the tables whose columns used them, alongside enums and sequences.
+        typeof(DropDomain),
         typeof(DropEnum),
         typeof(DropSequence),
         typeof(DropSchema),
@@ -237,6 +251,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitEnums(schema, actions);
                 EmitSequences(schema, actions);
                 EmitRoutines(schema, actions);
+                EmitDomains(schema, actions);
                 foreach (var table in schema.Tables)
                 {
                     EmitTable(table, actions);
@@ -256,6 +271,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitEnums(schema, actions);
                 EmitSequences(schema, actions);
                 EmitRoutines(schema, actions);
+                EmitDomains(schema, actions);
                 foreach (var table in schema.Tables)
                 {
                     EmitTable(table, actions);
@@ -299,6 +315,58 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             if (routine.Kind != ChangeKind.Remove && routine.Comment is not null)
             {
                 actions.Add(new SetRoutineComment(routine.Schema, routine.Name, routine.Comment.Old, routine.Comment.New, routine.RoutineKind));
+            }
+        }
+    }
+
+    private static void EmitDomains(SchemaDiff schema, List<MigrationAction> actions)
+    {
+        foreach (var domain in schema.Domains)
+        {
+            switch (domain.Kind)
+            {
+                case ChangeKind.Add:
+                    actions.Add(new CreateDomain(domain.Schema, domain.Definition!));
+                    break;
+
+                case ChangeKind.Remove:
+                    actions.Add(new DropDomain(domain.Schema, domain.Name));
+                    break;
+
+                default: // Modify
+                    if (domain.RenamedFrom is not null)
+                    {
+                        actions.Add(new RenameDomain(domain.Schema, domain.RenamedFrom, domain.Name));
+                    }
+                    // A base-type change can't be altered in place, so it recreates (default/not-null/checks rebuild
+                    // with the definition); otherwise each facet is altered in place.
+                    if (domain.RequiresRecreate)
+                    {
+                        actions.Add(new RecreateDomain(domain.Schema, domain.Definition!));
+                    }
+                    else
+                    {
+                        if (domain.Default is not null)
+                        {
+                            actions.Add(new AlterDomainDefault(domain.Schema, domain.Name, domain.Default.Old, domain.Default.New));
+                        }
+                        if (domain.NotNull is not null)
+                        {
+                            actions.Add(new AlterDomainNotNull(domain.Schema, domain.Name, domain.NotNull.New));
+                        }
+                        foreach (var check in domain.Checks)
+                        {
+                            actions.Add(check.Kind == ChangeKind.Remove
+                                ? new DropDomainCheck(domain.Schema, domain.Name, check.Name)
+                                : new AddDomainCheck(domain.Schema, domain.Name, check.Definition!));
+                        }
+                    }
+                    break;
+            }
+
+            if (domain.Kind != ChangeKind.Remove && domain.Comment is not null)
+            {
+                actions.Add(new SetDomainComment(domain.Schema, domain.Name, domain.Comment.Old, domain.Comment.New));
             }
         }
     }

@@ -3,6 +3,7 @@ using NSchema.Operations.Import;
 using NSchema.Schema;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
@@ -219,22 +220,26 @@ public sealed class ImportOperationTests : IDisposable
     [Fact]
     public async Task Execute_ReimportReplacesHeaderObjects()
     {
-        // The header file holds schema-level objects; a re-import must replace (not duplicate) them.
+        // The header file holds schema-level objects (enums, sequences, domains); a re-import must replace (not
+        // duplicate) them.
         var schema = new DatabaseSchema([new SchemaDefinition("app",
             Enums: [new EnumType("status", ["a"])],
-            Sequences: [new Sequence("order_id", new SequenceOptions(StartWith: 1))])]);
+            Sequences: [new Sequence("order_id", new SequenceOptions(StartWith: 1))],
+            Domains: [new Domain("typeid", SqlType.Text)])]);
 
         Source(schema);
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
         Source(new DatabaseSchema([new SchemaDefinition("app",
             Enums: [new EnumType("status", ["a", "b"])],
-            Sequences: [new Sequence("order_id", new SequenceOptions(StartWith: 100))])]));
+            Sequences: [new Sequence("order_id", new SequenceOptions(StartWith: 100))],
+            Domains: [new Domain("typeid", SqlType.VarChar(64))])]));
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
         var header = (await ReadSchema(HeaderPath)).Schemas.Single();
         header.Enums.ShouldHaveSingleItem().Values.ShouldBe(["a", "b"]); // incoming wins
         header.Sequences.ShouldHaveSingleItem().Options.StartWith.ShouldBe(100);
+        header.Domains.ShouldHaveSingleItem().DataType.ShouldBe(SqlType.VarChar(64)); // incoming wins, no duplicate
     }
 
     // ── Extensions (database-global, root-level) ─────────────────────────────

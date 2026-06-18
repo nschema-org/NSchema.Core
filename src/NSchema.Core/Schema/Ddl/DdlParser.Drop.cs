@@ -41,6 +41,13 @@ internal sealed partial class DdlParser
             Expect(TokenKind.Semicolon, "';'");
             schemas.DropEnum(schema, enumName);
         }
+        else if (_current.IsKeyword("DOMAIN"))
+        {
+            Advance();
+            var (schema, domain) = ParseQualifiedName();
+            Expect(TokenKind.Semicolon, "';'");
+            schemas.DropDomain(schema, domain);
+        }
         else if (_current.IsKeyword("SEQUENCE"))
         {
             Advance();
@@ -66,7 +73,7 @@ internal sealed partial class DdlParser
         }
         else
         {
-            throw Error($"Expected SCHEMA, TABLE, VIEW, ENUM, SEQUENCE, FUNCTION, PROCEDURE, ROUTINE or EXTENSION after DROP, found '{_current.Text}'.");
+            throw Error($"Expected SCHEMA, TABLE, VIEW, ENUM, DOMAIN, SEQUENCE, FUNCTION, PROCEDURE, ROUTINE or EXTENSION after DROP, found '{_current.Text}'.");
         }
     }
 }

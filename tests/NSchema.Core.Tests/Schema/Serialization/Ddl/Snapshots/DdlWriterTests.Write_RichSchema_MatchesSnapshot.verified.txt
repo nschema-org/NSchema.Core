@@ -15,6 +15,11 @@ CREATE ENUM app.order_status ('pending', 'shipped', 'delivered');
 
 CREATE ENUM app.priority RENAMED FROM importance ('low', 'high');
 
+--- unique id as text
+CREATE DOMAIN app.typeid RENAMED FROM legacy_id AS text;
+
+CREATE DOMAIN app.positive_amount AS decimal(18,2) NOT NULL CONSTRAINT positive_amount_chk CHECK (VALUE >= 0) DEFAULT 0;
+
 CREATE SEQUENCE app.invoice_id RENAMED FROM bill_id;
 
 --- order numbers
@@ -68,6 +73,7 @@ CREATE UNIQUE INDEX daily_balances_name_ix ON app.daily_balances (name);
 DROP TABLE app.old_table;
 DROP VIEW app.stale_report;
 DROP ENUM app.stale_enum;
+DROP DOMAIN app.stale_domain;
 DROP SEQUENCE app.stale_seq;
 DROP ROUTINE app.stale_fn;
 DROP ROUTINE app.stale_proc;

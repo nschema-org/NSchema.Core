@@ -13,6 +13,7 @@ namespace NSchema.Diff.Model;
 /// <param name="Enums">The changed enum types within this schema, ordered by name.</param>
 /// <param name="Sequences">The changed sequences within this schema, ordered by name.</param>
 /// <param name="Routines">The changed routines (functions and procedures) within this schema, ordered by name.</param>
+/// <param name="Domains">The changed domains within this schema, ordered by name.</param>
 public sealed record SchemaDiff(
     string Name,
     ChangeKind? Kind = null,
@@ -23,7 +24,8 @@ public sealed record SchemaDiff(
     IReadOnlyList<ViewDiff>? Views = null,
     IReadOnlyList<EnumDiff>? Enums = null,
     IReadOnlyList<SequenceDiff>? Sequences = null,
-    IReadOnlyList<RoutineDiff>? Routines = null
+    IReadOnlyList<RoutineDiff>? Routines = null,
+    IReadOnlyList<DomainDiff>? Domains = null
 )
 {
     /// <summary>
@@ -57,6 +59,11 @@ public sealed record SchemaDiff(
     public IReadOnlyList<RoutineDiff> Routines { get; init; } = Routines ?? [];
 
     /// <summary>
+    /// The changed domains within this schema, ordered by name.
+    /// </summary>
+    public IReadOnlyList<DomainDiff> Domains { get; init; } = Domains ?? [];
+
+    /// <summary>
     /// Enumerates every changed object in this schema across all kinds, for kind-agnostic consumers (change
     /// summaries, destructive-change detection). A method rather than a property so serializers and snapshot
     /// tooling do not duplicate the per-kind collections.
@@ -66,5 +73,6 @@ public sealed record SchemaDiff(
             .Concat(Views)
             .Concat(Enums)
             .Concat(Sequences)
-            .Concat(Routines);
+            .Concat(Routines)
+            .Concat(Domains);
 }

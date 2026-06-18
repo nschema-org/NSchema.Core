@@ -285,6 +285,39 @@
           Kind: Remove,
           RequiresRecreate: false
         }
+      ],
+      Domains: [
+        {
+          Schema: app,
+          Name: code,
+          Kind: Modify,
+          Definition: {
+            Name: code,
+            DataType: varchar(8),
+            NotNull: false
+          },
+          DataType: {
+            Old: text,
+            New: varchar(8)
+          },
+          RequiresRecreate: true
+        },
+        {
+          Schema: app,
+          Name: postal_code,
+          Definition: {
+            Name: postal_code,
+            DataType: text,
+            NotNull: true
+          },
+          RequiresRecreate: false
+        },
+        {
+          Schema: app,
+          Name: stale_domain,
+          Kind: Remove,
+          RequiresRecreate: false
+        }
       ]
     },
     {

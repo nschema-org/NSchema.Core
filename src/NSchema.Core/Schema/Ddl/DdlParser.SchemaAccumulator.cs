@@ -1,5 +1,6 @@
 using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
 using NSchema.Schema.Model.Indexes;
@@ -80,6 +81,16 @@ internal sealed partial class DdlParser
                 throw new DdlSyntaxException($"Sequence '{schema}.{sequence.Name}' is already declared.", position);
             }
             entry.Sequences.Add(sequence);
+        }
+
+        public void AddDomain(string schema, Domain domain, SourcePosition position)
+        {
+            var entry = GetOrAdd(schema);
+            if (entry.Domains.Any(d => d.Name == domain.Name))
+            {
+                throw new DdlSyntaxException($"Domain '{schema}.{domain.Name}' is already declared.", position);
+            }
+            entry.Domains.Add(domain);
         }
 
         // Functions and procedures are one routine pool sharing a single name space, as they do in the database:
@@ -171,6 +182,15 @@ internal sealed partial class DdlParser
             }
         }
 
+        public void DropDomain(string schema, string domain)
+        {
+            var entry = GetOrAdd(schema);
+            if (!entry.DroppedDomains.Contains(domain, StringComparer.OrdinalIgnoreCase))
+            {
+                entry.DroppedDomains.Add(domain);
+            }
+        }
+
         public void DropSequence(string schema, string sequence)
         {
             var entry = GetOrAdd(schema);
@@ -197,7 +217,7 @@ internal sealed partial class DdlParser
             var schemas = _entries
                 .Select(e => new SchemaDefinition(e.Name, e.OldName, e.IsPartial, e.Comment, e.Tables, e.DroppedTables, e.Grants, e.Views, e.DroppedViews,
                     e.Enums, e.DroppedEnums, e.Sequences, e.DroppedSequences,
-                    e.Routines, e.DroppedRoutines))
+                    e.Routines, e.DroppedRoutines, e.Domains, e.DroppedDomains))
                 .ToList();
             return new DatabaseSchema(schemas, _droppedSchemas, _extensions, _droppedExtensions);
         }
@@ -320,6 +340,8 @@ internal sealed partial class DdlParser
             public List<string> DroppedSequences { get; } = [];
             public List<Routine> Routines { get; } = [];
             public List<string> DroppedRoutines { get; } = [];
+            public List<Domain> Domains { get; } = [];
+            public List<string> DroppedDomains { get; } = [];
         }
 
         private readonly record struct PendingGrant(string Schema, string Table, TableGrant Grant, SourcePosition Position);

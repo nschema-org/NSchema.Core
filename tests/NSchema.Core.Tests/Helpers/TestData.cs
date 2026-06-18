@@ -6,6 +6,7 @@ using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
 using NSchema.Schema.Model.Indexes;
@@ -130,7 +131,14 @@ public static class TestData
                         "LANGUAGE sql AS $$\n  DELETE FROM app.users WHERE name <> 'a;b';\n$$",
                         Comment: "archival job"),
                 ],
-                DroppedRoutines: ["stale_fn", "stale_proc"]),
+                DroppedRoutines: ["stale_fn", "stale_proc"],
+                Domains:
+                [
+                    new Domain("typeid", SqlType.Text, OldName: "legacy_id", Comment: "unique id as text"),
+                    new Domain("positive_amount", SqlType.Decimal(18, 2), Default: "0", NotNull: true,
+                        Checks: [new CheckConstraint("positive_amount_chk", "VALUE >= 0")]),
+                ],
+                DroppedDomains: ["stale_domain"]),
         ],
         DroppedSchemas: ["scratch"],
         Extensions:

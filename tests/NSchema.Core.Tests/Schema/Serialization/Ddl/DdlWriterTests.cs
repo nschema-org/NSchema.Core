@@ -3,6 +3,7 @@ using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
 using NSchema.Schema.Model.Indexes;
@@ -268,6 +269,44 @@ public sealed class DdlWriterTests
         view.Name.ShouldBe("active");
         view.Body.ShouldBe("SELECT id, name FROM app.users WHERE active");
         view.DependsOn.ShouldHaveSingleItem().ShouldBe(new ViewDependency("app", "users"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Domains
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Write_SimpleDomain_EmitsCreateDomain()
+        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app",
+            Domains: [new Domain("typeid", SqlType.Text)])]))
+            .ShouldContain("CREATE DOMAIN app.typeid AS text;");
+
+    [Fact]
+    public void Write_DomainWithEveryClause_EmitsInCanonicalOrder()
+        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app",
+            Domains: [new Domain("email", SqlType.Text, Default: "'x@y'", NotNull: true,
+                Checks: [new CheckConstraint("email_fmt", "VALUE ~ '@'")])])]))
+            // NOT NULL, then checks, then DEFAULT (last, so its opaque expr reads back to the ';').
+            .ShouldContain("CREATE DOMAIN app.email AS text NOT NULL CONSTRAINT email_fmt CHECK (VALUE ~ '@') DEFAULT 'x@y';");
+
+    [Fact]
+    public void Write_DroppedDomain_IsEmitted()
+        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app", DroppedDomains: ["stale"])]))
+            .ShouldContain("DROP DOMAIN app.stale;");
+
+    [Fact]
+    public void Write_Domain_RoundTripsThroughParse()
+    {
+        var schema = new DatabaseSchema([new SchemaDefinition("app",
+            Domains: [new Domain("email", SqlType.Text, Default: "'x@y'", NotNull: true,
+                Checks: [new CheckConstraint("email_fmt", "VALUE ~ '@'")], OldName: "addr", Comment: "an email")])]);
+
+        var domain = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema
+            .Schemas.ShouldHaveSingleItem().Domains.ShouldHaveSingleItem();
+        domain.DataType.ShouldBe(SqlType.Text);
+        domain.NotNull.ShouldBeTrue();
+        domain.Default.ShouldBe("'x@y'");
+        domain.Checks.ShouldHaveSingleItem().Name.ShouldBe("email_fmt");
     }
 
     // -------------------------------------------------------------------------

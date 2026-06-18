@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Sequences;
@@ -25,6 +26,8 @@ namespace NSchema.Schema.Model.Schemas;
 /// <param name="DroppedSequences">A list of sequences that have been dropped from the schema.</param>
 /// <param name="Routines">A list of routines (functions and procedures) that are part of the schema.</param>
 /// <param name="DroppedRoutines">A list of routines that have been dropped from the schema.</param>
+/// <param name="Domains">A list of domains that are part of the schema.</param>
+/// <param name="DroppedDomains">A list of domains that have been dropped from the schema.</param>
 [DebuggerDisplay("{Name,nq} ({Tables.Count} tables)")]
 public record SchemaDefinition(
     string Name,
@@ -41,7 +44,9 @@ public record SchemaDefinition(
     IReadOnlyList<Sequence>? Sequences = null,
     IReadOnlyList<string>? DroppedSequences = null,
     IReadOnlyList<Routine>? Routines = null,
-    IReadOnlyList<string>? DroppedRoutines = null
+    IReadOnlyList<string>? DroppedRoutines = null,
+    IReadOnlyList<Domain>? Domains = null,
+    IReadOnlyList<string>? DroppedDomains = null
 ) : IRenameableObject
 {
     /// <summary>
@@ -94,6 +99,16 @@ public record SchemaDefinition(
     /// A list of routines that have been dropped from the schema.
     /// </summary>
     public IReadOnlyList<string> DroppedRoutines { get; init; } = DroppedRoutines ?? [];
+
+    /// <summary>
+    /// A list of domains that are part of the schema.
+    /// </summary>
+    public IReadOnlyList<Domain> Domains { get; init; } = Domains ?? [];
+
+    /// <summary>
+    /// A list of domains that have been dropped from the schema.
+    /// </summary>
+    public IReadOnlyList<string> DroppedDomains { get; init; } = DroppedDomains ?? [];
 
     /// <summary>
     /// A list of grants that define the permissions associated with the schema.

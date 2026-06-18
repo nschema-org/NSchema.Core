@@ -4,6 +4,7 @@ using NSchema.Configuration;
 using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
 using NSchema.Schema.Model.Indexes;
@@ -186,6 +187,12 @@ public sealed class DdlWriter
             WriteEnum(sb, schema.Name, enumType);
         }
 
+        foreach (var domain in schema.Domains)
+        {
+            sb.AppendLine();
+            WriteDomain(sb, schema.Name, domain);
+        }
+
         foreach (var sequence in schema.Sequences)
         {
             sb.AppendLine();
@@ -223,6 +230,11 @@ public sealed class DdlWriter
         foreach (var dropped in schema.DroppedEnums)
         {
             sb.Append("DROP ENUM ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
+        }
+
+        foreach (var dropped in schema.DroppedDomains)
+        {
+            sb.Append("DROP DOMAIN ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
         }
 
         foreach (var dropped in schema.DroppedSequences)
@@ -270,6 +282,31 @@ public sealed class DdlWriter
             sb.Append(" RENAMED FROM ").Append(oldName);
         }
         sb.Append(" (").Append(string.Join(", ", enumType.Values.Select(v => $"'{v.Replace("'", "''")}'"))).AppendLine(");");
+    }
+
+    private static void WriteDomain(StringBuilder sb, string schemaName, Domain domain)
+    {
+        WriteDocComment(sb, domain.Comment, indent: "");
+        sb.Append("CREATE DOMAIN ").Append(schemaName).Append('.').Append(domain.Name);
+        if (domain.OldName is { } oldName)
+        {
+            sb.Append(" RENAMED FROM ").Append(oldName);
+        }
+        sb.Append(" AS ").Append(domain.DataType);
+        if (domain.NotNull)
+        {
+            sb.Append(" NOT NULL");
+        }
+        foreach (var check in domain.Checks)
+        {
+            sb.Append(" CONSTRAINT ").Append(check.Name).Append(" CHECK (").Append(check.Expression).Append(')');
+        }
+        // The default, if any, comes last: its opaque expression is read back up to the terminating ';'.
+        if (domain.Default is { } @default)
+        {
+            sb.Append(" DEFAULT ").Append(@default);
+        }
+        sb.AppendLine(";");
     }
 
     private static void WriteSequence(StringBuilder sb, string schemaName, Sequence sequence)

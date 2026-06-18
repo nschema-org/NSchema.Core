@@ -2,6 +2,8 @@ using Microsoft.Extensions.Options;
 using NSchema.Diff;
 using NSchema.Diff.Model;
 using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
 using NSchema.Schema.Model.Indexes;
@@ -246,8 +248,41 @@ public sealed class TerraformDiffRendererSnapshotTests
             ]);
     }
 
+    /// <summary>
+    /// A diff exercising domain changes: an add, a base-type change (recreate), a default change, a not-null
+    /// change, a check add + drop, a rename, a comment-only change, and a removal.
+    /// </summary>
+    private static DatabaseDiff DomainChangesDiff()
+    {
+        return new DatabaseDiff(
+            Schemas:
+            [
+                new SchemaDiff("app", Domains:
+                [
+                    new DomainDiff("app", "typeid", ChangeKind.Add,
+                        Definition: new Domain("typeid", SqlType.Text, NotNull: true),
+                        Comment: new ValueChange<string>(null, "id as text")),
+                    new DomainDiff("app", "code", ChangeKind.Modify,
+                        Definition: new Domain("code", SqlType.VarChar(8)),
+                        DataType: new ValueChange<SqlType>(SqlType.Text, SqlType.VarChar(8))),
+                    new DomainDiff("app", "amount", ChangeKind.Modify,
+                        Default: new ValueChange<string>(null, "0"),
+                        NotNull: new ValueChange<bool>(false, true),
+                        Checks: [new CheckConstraintDiff(ChangeKind.Add, "amount_pos", new CheckConstraint("amount_pos", "VALUE >= 0"))]),
+                    new DomainDiff("app", "email", ChangeKind.Modify,
+                        Checks: [new CheckConstraintDiff(ChangeKind.Remove, "email_fmt")]),
+                    new DomainDiff("app", "renamed_d", ChangeKind.Modify, RenamedFrom: "old_d"),
+                    new DomainDiff("app", "noted", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new")),
+                    new DomainDiff("app", "stale_d", ChangeKind.Remove),
+                ]),
+            ]);
+    }
+
     [Fact]
     public Task Render_EnumChanges_PlainText() => Verify(Render(EnumChangesDiff(), colour: false));
+
+    [Fact]
+    public Task Render_DomainChanges_PlainText() => Verify(Render(DomainChangesDiff(), colour: false));
 
     [Fact]
     public Task Render_ExtensionChanges_PlainText() => Verify(Render(ExtensionChangesDiff(), colour: false));

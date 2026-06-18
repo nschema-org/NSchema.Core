@@ -3,6 +3,7 @@ using NSchema.Diff.Model;
 using NSchema.Plan.Model.Columns;
 using NSchema.Plan.Model.Constraints;
 using NSchema.Plan.Model.Enums;
+using NSchema.Plan.Model.Domains;
 using NSchema.Plan.Model.Extensions;
 using NSchema.Plan.Model.Routines;
 using NSchema.Plan.Model.Schemas;
@@ -73,6 +74,7 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
                     EnumDiff => nameof(DropEnum),
                     SequenceDiff => nameof(DropSequence),
                     RoutineDiff => nameof(DropRoutine),
+                    DomainDiff => nameof(DropDomain),
                     _ => throw new ArgumentOutOfRangeException(nameof(diff), $"Unhandled object diff type: {obj.GetType().Name}"),
                 };
             }

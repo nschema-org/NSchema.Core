@@ -4,6 +4,7 @@ using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
 using NSchema.Schema.Model.Indexes;
@@ -65,6 +66,11 @@ public sealed class SchemaComparerSnapshotTests
                     new Routine("add_tax", RoutineKind.Function, "amount numeric", "RETURNS numeric AS $$ SELECT amount * 1.1 $$"),
                     new Routine("score", RoutineKind.Function, "user_id bigint", "RETURNS numeric AS $$ SELECT 1 $$"),
                     new Routine("stale_fn", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 0 $$"),
+                ],
+                Domains:
+                [
+                    new Domain("code", SqlType.Text),
+                    new Domain("stale_domain", SqlType.Int),
                 ]),
             new SchemaDefinition("scratch"),
         ],
@@ -121,6 +127,12 @@ public sealed class SchemaComparerSnapshotTests
                     new Routine("score", RoutineKind.Function, "user_id bigint, weight numeric", "RETURNS numeric AS $$ SELECT 1 $$"),
                     new Routine("brand_new", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 42 $$"),
                     new Routine("archive", RoutineKind.Procedure, "before date", "LANGUAGE sql AS $$ DELETE $$"),
+                ],
+                // Domains: code's base type changes (recreate), stale_domain is dropped, postal_code is added.
+                Domains:
+                [
+                    new Domain("code", SqlType.VarChar(8)),
+                    new Domain("postal_code", SqlType.Text, NotNull: true),
                 ]),
             new SchemaDefinition("reporting", Comment: "analytics"),
         ],

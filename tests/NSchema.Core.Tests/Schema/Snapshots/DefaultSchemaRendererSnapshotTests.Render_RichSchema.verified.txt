@@ -27,6 +27,9 @@ schema app ("application schema")
     index order_totals_user_ix (user_id) unique
   enum order_status (pending, shipped, delivered) ("order lifecycle")
   enum priority (low, high)
+  domain typeid (text) ("unique id as text")
+  domain positive_amount (decimal(18,2) not null default 0)
+    check positive_amount_chk (VALUE >= 0)
   sequence order_id (as=bigint, start=100, step=5, cache=10, cycle) ("order numbers")
   sequence invoice_id
   function add_tax(amount numeric, rate numeric) ("adds tax")

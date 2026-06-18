@@ -333,6 +333,44 @@ $$,
           stale_fn,
           stale_proc
         ],
+        domains: [
+          {
+            name: typeid,
+            dataType: {
+              name: text,
+              length: null,
+              precision: null,
+              scale: null
+            },
+            default: null,
+            notNull: false,
+            oldName: legacy_id,
+            comment: unique id as text
+          },
+          {
+            name: positive_amount,
+            dataType: {
+              name: decimal,
+              length: null,
+              precision: 18,
+              scale: 2
+            },
+            default: 0,
+            notNull: true,
+            oldName: null,
+            comment: null,
+            checks: [
+              {
+                name: positive_amount_chk,
+                expression: VALUE >= 0,
+                comment: null
+              }
+            ]
+          }
+        ],
+        droppedDomains: [
+          stale_domain
+        ],
         grants: [
           {
             role: app_role

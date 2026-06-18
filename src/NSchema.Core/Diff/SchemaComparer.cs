@@ -292,10 +292,15 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
             .OrderBy(routine => routine.Name, StringComparer.Ordinal)
             .ToList();
 
+        var domains = desired.Domains
+            .Select(domain => BuildNewDomain(desired.Name, domain))
+            .OrderBy(domain => domain.Name, StringComparer.Ordinal)
+            .ToList();
+
         var comment = desired.Comment is not null ? new ValueChange<string>(null, desired.Comment) : null;
         var grants = desired.Grants.Select(grant => new GrantChange(ChangeKind.Add, grant.Role, null)).ToList();
 
-        return new SchemaDiff(desired.Name, ChangeKind.Add, null, comment, grants, tables, views, enums, sequences, routines);
+        return new SchemaDiff(desired.Name, ChangeKind.Add, null, comment, grants, tables, views, enums, sequences, routines, domains);
     }
 
     private SchemaDiff? BuildModifiedSchema(SchemaDefinition current, SchemaDefinition desired)
@@ -334,16 +339,19 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
         var routines = CompareRoutines(desired.Name, current.Routines, desired)
             .OrderBy(routine => routine.Name, StringComparer.Ordinal)
             .ToList();
+        var domains = CompareDomains(desired.Name, current.Domains, desired)
+            .OrderBy(domain => domain.Name, StringComparer.Ordinal)
+            .ToList();
 
         // The schema entity itself only changes when it is renamed or its comment/grants change; a schema that
         // merely contains changed tables or views has a null Kind.
         var schemaLevelChange = renamedFrom is not null || comment is not null || grants.Count > 0;
         if (!schemaLevelChange && tables.Count == 0 && views.Count == 0 && enums.Count == 0 && sequences.Count == 0
-            && routines.Count == 0)
+            && routines.Count == 0 && domains.Count == 0)
         {
             return null;
         }
 
-        return new SchemaDiff(desired.Name, schemaLevelChange ? ChangeKind.Modify : null, renamedFrom, comment, grants, tables, views, enums, sequences, routines);
+        return new SchemaDiff(desired.Name, schemaLevelChange ? ChangeKind.Modify : null, renamedFrom, comment, grants, tables, views, enums, sequences, routines, domains);
     }
 }

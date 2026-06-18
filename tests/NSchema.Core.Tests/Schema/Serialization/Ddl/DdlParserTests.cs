@@ -267,7 +267,7 @@ public sealed class DdlParserTests
 
     [Fact]
     public void Parse_UnknownAfterCreate_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE THING app;")).Message.ShouldContain("Expected SCHEMA, TABLE, VIEW, MATERIALIZED VIEW, ENUM, SEQUENCE, FUNCTION, PROCEDURE, EXTENSION, TRIGGER or INDEX");
+        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE THING app;")).Message.ShouldContain("Expected SCHEMA, TABLE, VIEW, MATERIALIZED VIEW, ENUM, DOMAIN, SEQUENCE, FUNCTION, PROCEDURE, EXTENSION, TRIGGER or INDEX");
 
     [Fact]
     public void Parse_PartialTable_Throws()

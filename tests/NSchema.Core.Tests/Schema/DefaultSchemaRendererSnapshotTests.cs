@@ -2,6 +2,8 @@ using NSchema.Schema;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
 using NSchema.Schema.Model.Indexes;
@@ -82,6 +84,12 @@ public sealed class DefaultSchemaRendererSnapshotTests
                 [
                     new EnumType("order_status", ["pending", "shipped", "delivered"], Comment: "order lifecycle"),
                     new EnumType("priority", ["low", "high"]),
+                ],
+                Domains:
+                [
+                    new Domain("typeid", SqlType.Text, Comment: "unique id as text"),
+                    new Domain("positive_amount", SqlType.Decimal(18, 2), Default: "0", NotNull: true,
+                        Checks: [new CheckConstraint("positive_amount_chk", "VALUE >= 0")]),
                 ],
                 Sequences:
                 [

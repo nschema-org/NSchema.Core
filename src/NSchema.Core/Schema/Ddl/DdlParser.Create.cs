@@ -1,6 +1,7 @@
 using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
 using NSchema.Schema.Model.Indexes;
@@ -64,6 +65,14 @@ internal sealed partial class DdlParser
             }
             ParseCreateEnum(schemas, doc);
         }
+        else if (_current.IsKeyword("DOMAIN"))
+        {
+            if (partial)
+            {
+                throw Error("PARTIAL applies to SCHEMA, not DOMAIN.");
+            }
+            ParseCreateDomain(schemas, doc);
+        }
         else if (_current.IsKeyword("SEQUENCE"))
         {
             if (partial)
@@ -123,7 +132,7 @@ internal sealed partial class DdlParser
         }
         else
         {
-            throw Error($"Expected SCHEMA, TABLE, VIEW, MATERIALIZED VIEW, ENUM, SEQUENCE, FUNCTION, PROCEDURE, EXTENSION, TRIGGER or INDEX after CREATE, found '{_current.Text}'.");
+            throw Error($"Expected SCHEMA, TABLE, VIEW, MATERIALIZED VIEW, ENUM, DOMAIN, SEQUENCE, FUNCTION, PROCEDURE, EXTENSION, TRIGGER or INDEX after CREATE, found '{_current.Text}'.");
         }
     }
 
@@ -258,6 +267,63 @@ internal sealed partial class DdlParser
         Expect(TokenKind.Semicolon, "';'");
 
         schemas.AddEnum(schemaName, new EnumType(enumName, values, oldName, doc), namePosition);
+    }
+
+    /// <summary>
+    /// Parses a domain: <c>CREATE DOMAIN s.d AS &lt;type&gt; [NOT NULL | NULL] [CONSTRAINT n CHECK (e)]… [DEFAULT expr]</c>.
+    /// The optional <c>DEFAULT</c> clause, if present, must come last: its expression is opaque and read up to the
+    /// terminating <c>;</c>.
+    /// </summary>
+    private void ParseCreateDomain(SchemaAccumulator schemas, string? doc)
+    {
+        Advance(); // DOMAIN
+        var namePosition = _current.Position;
+        var (schemaName, domainName) = ParseQualifiedName();
+        var oldName = TryParseRenamedFrom();
+        ExpectKeyword("AS");
+        var dataType = ParseType();
+
+        string? @default = null;
+        var notNull = false;
+        var checks = new List<CheckConstraint>();
+
+        while (@default is null && _current.Kind != TokenKind.Semicolon)
+        {
+            if (_current.IsKeyword("NOT"))
+            {
+                Advance();
+                ExpectKeyword("NULL");
+                notNull = true;
+            }
+            else if (_current.IsKeyword("NULL"))
+            {
+                Advance();
+                notNull = false;
+            }
+            else if (_current.IsKeyword("CONSTRAINT"))
+            {
+                Advance();
+                var checkName = ExpectIdentifier("a constraint name");
+                ExpectKeyword("CHECK");
+                checks.Add(new CheckConstraint(checkName, ReadRawExpression(parenthesised: true)));
+            }
+            else if (_current.IsKeyword("DEFAULT"))
+            {
+                Advance();
+                // The default is opaque and read to the terminating ';', so it must be the final clause.
+                _lexer.ResetTo(_current.Position);
+                @default = _lexer.ReadRawSpan("a domain default", ";");
+                _current = _lexer.Next();
+            }
+            else
+            {
+                throw Error($"Expected NOT NULL, NULL, CONSTRAINT … CHECK, DEFAULT or ';', found '{_current.Text}'.");
+            }
+        }
+
+        Expect(TokenKind.Semicolon, "';'");
+
+        schemas.AddDomain(schemaName, new Domain(domainName, dataType, @default, notNull, checks, oldName, doc), namePosition);
     }
 
     private void ParseCreateSequence(SchemaAccumulator schemas, string? doc)

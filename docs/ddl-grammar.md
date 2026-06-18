@@ -92,9 +92,9 @@ CREATE TABLE app.users
 
 ```ebnf
 document   = { [ doc-comment ] , ( statement | config-block | deployment-script ) } ;
-statement  = ( create-schema | create-table | create-view | create-enum | create-sequence
+statement  = ( create-schema | create-table | create-view | create-enum | create-domain | create-sequence
              | create-function | create-procedure | create-extension | create-trigger | create-index
-             | drop-schema | drop-table | drop-view | drop-enum | drop-sequence
+             | drop-schema | drop-table | drop-view | drop-enum | drop-domain | drop-sequence
              | drop-function | drop-extension | grant ) , ";" ;
 ```
 
@@ -339,6 +339,28 @@ within the enum. A column uses the enum by naming it as its type (`status order_
 additions-only: new values may be inserted anywhere, but removing or reordering existing values cannot be planned —
 it requires manually recreating the type.
 
+### Domains
+
+```ebnf
+create-domain = "CREATE" , "DOMAIN" , qualified-name , [ "RENAMED" , "FROM" , ident ] , "AS" , type ,
+                { "NOT" , "NULL" | "NULL" | "CONSTRAINT" , ident , "CHECK" , "(" , expr , ")" } ,
+                [ "DEFAULT" , expr ] ;
+drop-domain   = "DROP" , "DOMAIN" , qualified-name ;          (* -> DroppedDomains (explicit drop, partial schema) *)
+```
+
+```sql
+CREATE DOMAIN app.email AS text NOT NULL CONSTRAINT email_fmt CHECK (VALUE ~ '@') DEFAULT 'x@y';
+```
+
+A domain is a schema-scoped named type over a base `type`, optionally constrained by `NOT NULL` and named
+`CHECK` constraints (whose expressions reference the domain's `VALUE`). A column uses it by naming it as its
+type, so a domain is **created before**, and **dropped after**, the tables that may use it. The optional
+`DEFAULT`, if present, must come **last** — its expression is opaque and read up to the terminating `;`.
+
+Because a domain is depended on by columns, changes are applied **in place** with `ALTER DOMAIN` wherever
+possible: a default, not-null, or check change never drops the domain. Only a **base-type change** forces a drop
++ recreate (Postgres has no `ALTER DOMAIN … TYPE`), which fails loudly if a column still uses the domain.
+
 ### Sequences
 
 ```ebnf
@@ -470,6 +492,8 @@ structural change is planned as a drop + recreate (only a comment-only change is
 | `CREATE MATERIALIZED VIEW s.v AS …`        | `View` with `IsMaterialized = true`                                |
 | `CREATE [UNIQUE] INDEX n ON s.rel (…)`     | `TableIndex` on the table (`Table.Indexes`) or materialized view (`View.Indexes`) `s.rel` |
 | `CREATE ENUM s.e ('a', 'b')`               | `SchemaDefinition` + `EnumType` (ordered `Values`)                 |
+| `CREATE DOMAIN s.d AS t [NOT NULL] [CHECK] [DEFAULT]` | `Domain` (`DataType`, `NotNull`, `Checks`, `Default`)    |
+| `DROP DOMAIN s.d`                          | `DroppedDomains` (explicit drop, partial schema)                   |
 | `CREATE SEQUENCE s.q (…)`                  | `SchemaDefinition` + `Sequence` (`SequenceOptions`)                |
 | `DROP ENUM s.e` / `DROP SEQUENCE s.q`      | `DroppedEnums` / `DroppedSequences`                                |
 | `CREATE FUNCTION s.f(…) …`                 | `Routine` (`Kind` = `Function`; `Arguments`/`Definition` opaque)   |

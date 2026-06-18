@@ -98,6 +98,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IOpe
                     Enums = PruneByName(s.Enums, i.Enums, e => e.Name),
                     Sequences = PruneByName(s.Sequences, i.Sequences, q => q.Name),
                     Routines = PruneByName(s.Routines, i.Routines, r => r.Name),
+                    Domains = PruneByName(s.Domains, i.Domains, d => d.Name),
                 }
                 : s)
             .ToList();

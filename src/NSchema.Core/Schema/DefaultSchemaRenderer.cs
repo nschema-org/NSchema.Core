@@ -74,6 +74,26 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
                 .AppendLine(CommentSuffix(enumType.Comment));
         }
 
+        foreach (var domain in schema.Domains)
+        {
+            sb.Append(Indent).Append("domain ").Append(domain.Name)
+                .Append(" (").Append(domain.DataType);
+            if (domain.NotNull)
+            {
+                sb.Append(" not null");
+            }
+            if (domain.Default is { } @default)
+            {
+                sb.Append(" default ").Append(@default);
+            }
+            sb.Append(')').AppendLine(CommentSuffix(domain.Comment));
+            foreach (var check in domain.Checks)
+            {
+                sb.Append(Indent).Append(Indent).Append("check ").Append(check.Name)
+                    .Append(" (").Append(check.Expression).Append(')').AppendLine();
+            }
+        }
+
         foreach (var sequence in schema.Sequences)
         {
             sb.Append(Indent).Append("sequence ").Append(sequence.Name);
