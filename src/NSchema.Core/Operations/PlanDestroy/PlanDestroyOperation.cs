@@ -1,6 +1,5 @@
 using NSchema.Operations.Services;
 using NSchema.Plan.PlanFile;
-using NSchema.Resolution;
 using NSchema.Sql;
 
 namespace NSchema.Operations.PlanDestroy;
@@ -8,8 +7,8 @@ namespace NSchema.Operations.PlanDestroy;
 internal sealed class PlanDestroyOperation(
     IOperationReporter reporter,
     IMigrationWorkflow workflow,
-    IKeyedResolver<ISqlGenerator> sqlGenerator,
-    IPlanFileWriter handler
+    IPlanFileWriter handler,
+    ISqlGenerator? sqlGenerator = null
 ) : IPlanDestroyOperation
 {
     public async Task Execute(PlanDestroyArguments arguments, CancellationToken cancellationToken = default)
@@ -19,7 +18,7 @@ internal sealed class PlanDestroyOperation(
         // Same trusted teardown path Destroy uses (bypasses the diff/plan transformers and policies); we just
         // preview it instead of executing, so there is no confirmation and no state capture.
         var planned = await workflow.PlanDestroy(cancellationToken);
-        if (!sqlGenerator.HasCurrent)
+        if (sqlGenerator is null)
         {
             if (arguments.OutFile is not null)
             {
@@ -30,7 +29,7 @@ internal sealed class PlanDestroyOperation(
             return;
         }
 
-        var sqlPlan = sqlGenerator.Current.Generate(planned.Plan);
+        var sqlPlan = sqlGenerator.Generate(planned.Plan);
         reporter.ReportSqlPlan(sqlPlan);
 
         if (arguments.OutFile is not null)

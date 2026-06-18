@@ -1,4 +1,3 @@
-using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;

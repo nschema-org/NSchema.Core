@@ -30,9 +30,9 @@ public sealed class ApplyOperationTests
     private ApplyOperation BuildSut(ISqlGenerator? planner, ISqlExecutor? executor) => new(
         _reporter,
         _confirmation, _workflow,
-        Helpers.TestSqlGenerators.ResolverFor(planner),
         _stateLock,
         new PlanFileWriter(),
+        planner,
         executor
     );
 

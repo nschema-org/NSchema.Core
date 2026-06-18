@@ -101,8 +101,7 @@ public sealed class PlanEndToEndTests : IDisposable
 
         using var app = NewBuilder(current)
             .AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired))
-            .AddSqlGenerator<StubSqlGenerator>(StubSqlGenerator.DialectName)
-            .WithDialect(StubSqlGenerator.DialectName)
+            .UseSqlGenerator<StubSqlGenerator>()
             .Build();
 
         await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);

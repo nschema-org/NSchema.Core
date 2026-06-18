@@ -28,8 +28,8 @@ public sealed class DestroyOperationTests
     private DestroyOperation BuildSut(ISqlGenerator? generator, ISqlExecutor? executor) => new(
         _reporter,
         _confirmation, _workflow,
-        Helpers.TestSqlGenerators.ResolverFor(generator),
         _stateLock,
+        generator,
         executor
     );
 

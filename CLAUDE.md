@@ -99,7 +99,7 @@ The planner has no knowledge of operations, online/offline routing, or the appli
 
 Generating SQL and executing it are deliberately separate, so a plan can be previewed offline:
 
-- **`ISqlGenerator`** (`AddSqlGenerator<T>(dialect)`, typically supplied by a database-provider extension) turns a `MigrationPlan` into a structured `SqlPlan` (an ordered list of `SqlStatement`s, each flagged if it `RunOutsideTransaction`). This is pure string-building — no connection — so the SQL preview works offline whenever a dialect is registered. Each generator declares a `Dialect`; operations resolve the one for the run via `IKeyedResolver<ISqlGenerator>`, keyed by `SqlOptions.Dialect`. The generator is optional: with none registered or no `WithDialect(...)` set, `HasCurrent` is `false` and `PlanOperation` reports the plan without a SQL preview.
+- **`ISqlGenerator`** (`UseSqlGenerator<T>()`, typically supplied by a database-provider extension) turns a `MigrationPlan` into a structured `SqlPlan` (an ordered list of `SqlStatement`s, each flagged if it `RunOutsideTransaction`). This is pure string-building — no connection — so the SQL preview works offline whenever a generator is registered. There is one generator per run; operations inject it directly as an optional `ISqlGenerator?`. The generator is optional: with none registered it is `null`, and `PlanOperation` reports the plan without a SQL preview.
 - **`ISqlExecutor`** (default `DefaultSqlExecutor`) executes the `SqlPlan` against a `DbDataSource`. It reads `SqlOptions.TransactionMode` to decide whether to wrap everything in one transaction. It is the only online step.
 
 The operations consume these two seams directly — there is no separate compiler abstraction. The `SqlPlan` reaches the reporter as a structured value via `IOperationReporter.ReportSqlPlan(SqlPlan)`, which renders it through **`ISqlPlanRenderer`** (default `DefaultSqlPlanRenderer`), mirroring the diff side's `IDiffRenderer`.
@@ -147,23 +147,16 @@ DSL files may also carry top-level **configuration blocks** — `NSCHEMA ( … )
 | `ISchemaStateStore`                     | `UseStateStore<T>()` / `UseStateStore(instance)` / `UseFileStateStore(path)`                                                    |
 | `IStateLock`                            | auto co-located with the store; override with `UseStateLock<T>()` / `UseStateLock(instance)` / `UseFileStateLock(path)`         |
 | `IOperationReporter`                    | `UseReporter<T>()` / `UseReporter(instance)` (last-wins; replaces the default `DefaultOperationReporter`)                        |
-| `ISqlGenerator` (keyed by `Dialect`)    | `AddSqlGenerator<T>(dialect)`, typically a database-provider extension; select with `WithDialect(...)`                          |
+| `ISqlGenerator`                         | `UseSqlGenerator<T>()`, typically a database-provider extension (one generator per run; optional)                               |
 | `IDiffRenderer`                         | `UseTerraformRenderer(...)` / `UseDiffRenderer<TRenderer>()`                                                                    |
 | `ISchemaRenderer`                       | `UseSchemaRenderer<TRenderer>()` (default `DefaultSchemaRenderer`)                                                              |
 | `ISqlPlanRenderer`                      | `UseSqlPlanRenderer<TRenderer>()` (default `DefaultSqlPlanRenderer`)                                                            |
 
-The planning algorithm and aggregators — `ISchemaComparer`, `IPlanLinearizer`, `IMigrationPlanner`, `ICurrentSchemaProvider`, `IDesiredSchemaProvider` — and the state serializer (`ISchemaStateSerializer`) are **internal**. They remain interfaces for DI wiring and test mocking, but they are not extension points and not replaceable from user code. (`IKeyedResolver<TValue>` is public — it's the resolver consumers inject to pick a keyed implementation — but the per-operation handler interfaces are internal.)
+The planning algorithm and aggregators — `ISchemaComparer`, `IPlanLinearizer`, `IMigrationPlanner`, `ICurrentSchemaProvider`, `IDesiredSchemaProvider` — and the state serializer (`ISchemaStateSerializer`) are **internal**. They remain interfaces for DI wiring and test mocking, but they are not extension points and not replaceable from user code. (The per-operation handler interfaces are internal too.)
 
-### Resolving one of many (resolver pattern)
+### One implementation per run
 
-Some public seams let you register multiple implementations and select one by key. Selection goes through the shared `IKeyedResolver<TValue>` interface (`Resolution/`), backed by DI keyed services. `ISqlGenerator` (by `Dialect`) reads the key for the current run from options (via `Current`) and uses first-wins registration (`TryAddKeyedSingleton`). (`IOperationReporter` is **not** a keyed seam — there is one reporter per run, registered directly and replaced via `UseReporter<T>()`. Schema reading/writing isn't keyed either — there is one format, SQL DDL, handled directly by `DdlReader` / `DdlWriter`.)
-
-`IKeyedResolver<TValue>` is injected directly into consumers and exposes:
-- `Current` — resolves the implementation for the current run's configured key (e.g. `SqlOptions.Dialect`). Throws if no key is configured or the key isn't registered.
-- `HasCurrent` — returns `true` if `Current` would succeed; use this to guard optional seams (e.g. SQL generators).
-- `Resolve(key)` / `TryResolve(key, out value)` — resolve by an explicit key rather than the current run's configured one.
-
-The `DefaultKeyedResolver<TValue, TOptions>` implementation reads the current key from `IOptions<TOptions>` via a selector delegate supplied at registration time; a resolver registered without a selector has no `Current` and is usable only via `Resolve(key)`.
+Every replaceable seam resolves to a **single** implementation per run, injected directly — there is no keyed-resolver indirection. The replaceable ones (`IOperationReporter`, `ISqlGenerator`, `IDiffRenderer`, `ISchemaRenderer`, `ISqlPlanRenderer`, the state store/lock, …) are registered with `TryAddSingleton`/`Services.Replace` and overridden via the matching `Use*` method (last-wins). A seam with no default — currently only `ISqlGenerator` — is injected as a nullable optional dependency (`ISqlGenerator? = null`), so an operation guards it with a null check and falls back (e.g. `PlanOperation` reports the plan without a SQL preview when none is registered). Schema reading/writing isn't a seam at all — there is one format, SQL DDL, handled directly by `DdlReader` / `DdlWriter`.
 
 ### Diff rendering
 
@@ -194,9 +187,10 @@ The reporter to render with is **not** an option — there is one `IOperationRep
 
 The operation to run is **not** an option — it's chosen by which method you call on the built `NSchemaApplication` (`Plan()` / `PlanDestroy()` / `Apply()` / `Refresh()` / `Import()` / `Validate()` / `Destroy()` / `Show()` / `Drift()` / `ForceUnlock()`). Each method takes that operation's arguments record (e.g. `Import(ImportArguments)`).
 
-**`SqlOptions`** (`NSchema.Sql`) — SQL generation and execution:
-- `Dialect` — the `ISqlGenerator` dialect to generate (must be set explicitly when a generator is registered). Configured via `WithDialect(...)`; resolved through `IKeyedResolver<ISqlGenerator>.Current`.
+**`SqlOptions`** (`NSchema.Sql`) — SQL execution:
 - `TransactionMode` — `Single` (default; whole plan in one transaction, with carve-outs for statements marked `RunOutsideTransaction`) or `None`. Configured via `WithTransactionMode(...)`.
+
+The SQL generator is **not** an option — there is one `ISqlGenerator` per run, registered directly via `UseSqlGenerator<T>()` (typically by a database-provider extension) and injected into operations as an optional `ISqlGenerator?`.
 
 **`ImportArguments`** (`NSchema.Operations.Import`) — per-invocation import inputs, passed to `Import(...)`:
 - `Schemas` — optional `string[]` scope filter; only these schemas are fetched from the live database. Import scopes by namespace only — there is no object-level filter; the per-object file layout makes post-import curation (delete the files you don't want; re-import merges additively) the way to select individual objects.

@@ -33,8 +33,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions())
             .AddDdlSchemas(Path.GetDirectoryName(desiredPath)!, Path.GetFileName(desiredPath))
             .UseStateStore(_store)
-            .AddSqlGenerator<StubSqlGenerator>(StubSqlGenerator.DialectName)
-            .WithDialect(StubSqlGenerator.DialectName)
+            .UseSqlGenerator<StubSqlGenerator>()
             .UseReporter(_reporter)
             .Tap(b =>
             {

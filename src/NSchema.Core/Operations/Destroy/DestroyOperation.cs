@@ -1,6 +1,5 @@
 using NSchema.Operations.Confirmation;
 using NSchema.Operations.Services;
-using NSchema.Resolution;
 using NSchema.Sql;
 using NSchema.State;
 using NSchema.State.Model;
@@ -11,14 +10,14 @@ internal sealed class DestroyOperation(
     IOperationReporter reporter,
     IOperationConfirmation confirmation,
     IMigrationWorkflow workflow,
-    IKeyedResolver<ISqlGenerator> sqlGenerators,
     IStateLock stateLock,
+    ISqlGenerator? sqlGenerator = null,
     ISqlExecutor? sqlExecutor = null
 ) : IDestroyOperation
 {
     public async Task Execute(DestroyArguments arguments, CancellationToken cancellationToken = default)
     {
-        if (!sqlGenerators.HasCurrent || sqlExecutor is null)
+        if (sqlGenerator is null || sqlExecutor is null)
         {
             throw new InvalidOperationException("Destroying a schema requires a database provider to generate and execute SQL, but none is registered.");
         }
@@ -32,7 +31,7 @@ internal sealed class DestroyOperation(
         var planned = await workflow.PlanDestroy(cancellationToken);
 
         reporter.Progress("Generating SQL...");
-        var sqlPlan = sqlGenerators.Current.Generate(planned.Plan);
+        var sqlPlan = sqlGenerator.Generate(planned.Plan);
         reporter.ReportSqlPlan(sqlPlan);
 
         // Offer an interactive front-end the chance to prompt before any changes are made.

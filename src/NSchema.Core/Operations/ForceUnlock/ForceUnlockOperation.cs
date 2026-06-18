@@ -1,5 +1,4 @@
 using NSchema.Operations.Confirmation;
-using NSchema.Resolution;
 using NSchema.State;
 
 namespace NSchema.Operations.ForceUnlock;

@@ -1,6 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
 using NSchema.Plan.Model;
-using NSchema.Resolution;
 using NSchema.Sql;
 using NSchema.Sql.Model;
 using NSchema.Tests.Helpers;
@@ -11,64 +10,34 @@ public sealed class SqlGeneratorRegistrationTests
 {
     private sealed class MySqlStubGenerator : ISqlGenerator
     {
-        public string Dialect => "mysql";
         public SqlPlan Generate(MigrationPlan plan) => new([]);
     }
 
-    private static IKeyedResolver<ISqlGenerator> Resolve(Action<NSchemaApplicationBuilder> configure)
+    private static ISqlGenerator? Resolve(Action<NSchemaApplicationBuilder> configure)
     {
         var builder = NSchemaApplication.CreateBuilder();
         configure(builder);
-        return builder.Build().Services.GetRequiredService<IKeyedResolver<ISqlGenerator>>();
+        return builder.Build().Services.GetService<ISqlGenerator>();
     }
 
     [Fact]
-    public void Default_HasNoCurrentGenerator()
+    public void Default_RegistersNoGenerator()
     {
-        var resolver = Resolve(_ => { });
-
-        resolver.HasCurrent.ShouldBeFalse();
-        Should.Throw<InvalidOperationException>(() => resolver.Current);
+        Resolve(_ => { }).ShouldBeNull();
     }
 
     [Fact]
-    public void AddSqlGenerator_IsResolvableByKey()
+    public void UseSqlGenerator_RegistersTheGenerator()
     {
-        var resolver = Resolve(b => b.AddSqlGenerator<StubSqlGenerator>(StubSqlGenerator.DialectName));
-
-        resolver.Resolve(StubSqlGenerator.DialectName).ShouldBeOfType<StubSqlGenerator>();
+        Resolve(b => b.UseSqlGenerator<StubSqlGenerator>()).ShouldBeOfType<StubSqlGenerator>();
     }
 
     [Fact]
-    public void WithDialect_SetsCurrent()
+    public void UseSqlGenerator_CalledTwice_KeepsLast()
     {
-        var resolver = Resolve(b => b
-            .AddSqlGenerator<StubSqlGenerator>(StubSqlGenerator.DialectName)
-            .WithDialect(StubSqlGenerator.DialectName));
-
-        resolver.HasCurrent.ShouldBeTrue();
-        resolver.Current.ShouldBeOfType<StubSqlGenerator>();
-    }
-
-    [Fact]
-    public void WithDialect_SelectsAmongMultipleGenerators()
-    {
-        var resolver = Resolve(b => b
-            .AddSqlGenerator<StubSqlGenerator>(StubSqlGenerator.DialectName)
-            .AddSqlGenerator<MySqlStubGenerator>("mysql")
-            .WithDialect("mysql"));
-
-        resolver.Current.ShouldBeOfType<MySqlStubGenerator>();
-    }
-
-    [Fact]
-    public void WithoutDialect_MultipleGenerators_FirstRegisteredBecomesDefault()
-    {
-        var resolver = Resolve(b => b
-            .AddSqlGenerator<StubSqlGenerator>(StubSqlGenerator.DialectName)
-            .AddSqlGenerator<MySqlStubGenerator>("mysql"));
-
-        resolver.HasCurrent.ShouldBeTrue();
-        resolver.Current.ShouldBeOfType<StubSqlGenerator>();
+        Resolve(b => b
+            .UseSqlGenerator<StubSqlGenerator>()
+            .UseSqlGenerator<MySqlStubGenerator>())
+            .ShouldBeOfType<MySqlStubGenerator>();
     }
 }

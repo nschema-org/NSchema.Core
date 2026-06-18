@@ -1,7 +1,6 @@
 using NSchema.Operations.Confirmation;
 using NSchema.Operations.Services;
 using NSchema.Plan.PlanFile;
-using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Sql;
 using NSchema.State;
@@ -13,15 +12,15 @@ internal sealed class ApplyOperation(
     IOperationReporter reporter,
     IOperationConfirmation confirmation,
     IMigrationWorkflow workflow,
-    IKeyedResolver<ISqlGenerator> sqlGenerators,
     IStateLock stateLock,
     IPlanFileWriter planFile,
+    ISqlGenerator? sqlGenerator = null,
     ISqlExecutor? sqlExecutor = null
 ) : IApplyOperation
 {
     public async Task Execute(ApplyArguments arguments, CancellationToken cancellationToken = default)
     {
-        if (!sqlGenerators.HasCurrent || sqlExecutor is null)
+        if (sqlGenerator is null || sqlExecutor is null)
         {
             throw new InvalidOperationException("Applying a migration requires a database provider to generate and execute SQL, but none is registered.");
         }
@@ -41,7 +40,7 @@ internal sealed class ApplyOperation(
         var planned = await workflow.Plan(SchemaSourceMode.Online, required: true, arguments.Schemas, cancellationToken);
 
         reporter.Progress("Generating SQL...");
-        var sqlPlan = sqlGenerators.Current.Generate(planned.Plan);
+        var sqlPlan = sqlGenerator.Generate(planned.Plan);
         reporter.ReportSqlPlan(sqlPlan);
 
         // Offer an interactive front-end the chance to prompt before any changes are made.

@@ -1,5 +1,4 @@
 using NSchema.Operations.Services;
-using NSchema.Resolution;
 
 namespace NSchema.Operations.Validate;
 

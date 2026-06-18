@@ -11,7 +11,6 @@ using NSchema.Operations.PlanDestroy;
 using NSchema.Operations.Refresh;
 using NSchema.Operations.Show;
 using NSchema.Operations.Validate;
-using NSchema.Resolution;
 
 namespace NSchema;
 

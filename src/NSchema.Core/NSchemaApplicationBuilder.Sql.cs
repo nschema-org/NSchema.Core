@@ -7,24 +7,12 @@ namespace NSchema;
 public partial class NSchemaApplicationBuilder
 {
     /// <summary>
-    /// Registers an <see cref="ISqlGenerator"/> for a SQL dialect.
-    /// Throws if <paramref name="dialect"/> is already registered.
+    /// Sets the <see cref="ISqlGenerator"/> the application generates SQL with, replacing any previously set one.
+    /// Typically called by a database-provider extension. With none set, plans are reported without a SQL preview.
     /// </summary>
-    public NSchemaApplicationBuilder AddSqlGenerator<T>(string dialect) where T : class, ISqlGenerator
+    public NSchemaApplicationBuilder UseSqlGenerator<T>() where T : class, ISqlGenerator
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(dialect);
-        Services.TryAddKeyedSingleton<ISqlGenerator, T>(dialect);
-        Services.Configure<SqlOptions>(o => o.Dialect ??= dialect);
-        return this;
-    }
-
-    /// <summary>
-    /// Selects the SQL dialect to generate, when more than one <see cref="ISqlGenerator"/> is registered.
-    /// </summary>
-    public NSchemaApplicationBuilder WithDialect(string dialect)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(dialect);
-        Services.Configure<SqlOptions>(o => o.Dialect = dialect);
+        Services.Replace(ServiceDescriptor.Singleton<ISqlGenerator, T>());
         return this;
     }
 }

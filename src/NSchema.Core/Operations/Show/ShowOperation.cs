@@ -1,4 +1,3 @@
-using NSchema.Resolution;
 using NSchema.Schema;
 
 namespace NSchema.Operations.Show;

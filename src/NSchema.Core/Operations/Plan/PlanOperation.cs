@@ -1,6 +1,5 @@
 using NSchema.Operations.Services;
 using NSchema.Plan.PlanFile;
-using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Sql;
 
@@ -9,15 +8,15 @@ namespace NSchema.Operations.Plan;
 internal sealed class PlanOperation(
     IOperationReporter reporter,
     IMigrationWorkflow workflow,
-    IKeyedResolver<ISqlGenerator> sqlGenerator,
-    IPlanFileWriter handler
+    IPlanFileWriter handler,
+    ISqlGenerator? sqlGenerator = null
 ) : IPlanOperation
 {
     public async Task Execute(PlanArguments arguments, CancellationToken cancellationToken = default)
     {
         reporter.Announce("Planning schema migration. No changes will be applied to the database.");
         var planned = await workflow.Plan(SchemaSourceMode.Offline, required: false, arguments.Schemas, cancellationToken);
-        if (!sqlGenerator.HasCurrent)
+        if (sqlGenerator is null)
         {
             if (arguments.OutFile is not null)
             {
@@ -28,7 +27,7 @@ internal sealed class PlanOperation(
             return;
         }
 
-        var sqlPlan = sqlGenerator.Current.Generate(planned.Plan);
+        var sqlPlan = sqlGenerator.Generate(planned.Plan);
         reporter.ReportSqlPlan(sqlPlan);
 
         if (arguments.OutFile is not null)

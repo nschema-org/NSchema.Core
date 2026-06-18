@@ -22,7 +22,6 @@ using NSchema.Operations.Show;
 using NSchema.Operations.Validate;
 using NSchema.Plan;
 using NSchema.Plan.PlanFile;
-using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Schema.Policies;
 using NSchema.Sql;
@@ -139,7 +138,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // SQL
         services.TryAddSingleton<ISqlPlanRenderer, DefaultSqlPlanRenderer>();
         services.TryAddSingleton<ISqlExecutor, SqlExecutor>();
-        services.TryAddSingleton<IKeyedResolver<ISqlGenerator>>(sp => new KeyedResolver<ISqlGenerator, SqlOptions>(sp, o => o.Dialect));
 
         // State
         services.TryAddSingleton<ISchemaStateSerializer, SchemaStateSerializer>();

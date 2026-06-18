@@ -1,6 +1,5 @@
 using NSchema.Plan;
 using NSchema.Policies;
-using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.State;
