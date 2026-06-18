@@ -30,7 +30,7 @@ public sealed class ImportOperationTests : IDisposable
         .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
         .Returns(ValueTask.FromResult(schema));
 
-    private ImportOperation BuildSut() => new(_currentSchema, Helpers.TestReporters.ResolverFor(_reporter));
+    private ImportOperation BuildSut() => new(_currentSchema, _reporter);
 
     private Task Execute(ImportArguments arguments) =>
         BuildSut().Execute(arguments, TestContext.Current.CancellationToken);

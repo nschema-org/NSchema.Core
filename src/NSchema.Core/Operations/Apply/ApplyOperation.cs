@@ -1,7 +1,6 @@
 using NSchema.Operations.Confirmation;
 using NSchema.Operations.Services;
 using NSchema.Plan.PlanFile;
-using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Sql;
 using NSchema.State;
@@ -10,18 +9,18 @@ using NSchema.State.Model;
 namespace NSchema.Operations.Apply;
 
 internal sealed class ApplyOperation(
-    IKeyedResolver<IOperationReporter> reporters,
+    IOperationReporter reporter,
     IOperationConfirmation confirmation,
     IMigrationWorkflow workflow,
-    IKeyedResolver<ISqlGenerator> sqlGenerators,
     IStateLock stateLock,
     IPlanFileWriter planFile,
+    ISqlGenerator? sqlGenerator = null,
     ISqlExecutor? sqlExecutor = null
 ) : IApplyOperation
 {
     public async Task Execute(ApplyArguments arguments, CancellationToken cancellationToken = default)
     {
-        if (!sqlGenerators.HasCurrent || sqlExecutor is null)
+        if (sqlGenerator is null || sqlExecutor is null)
         {
             throw new InvalidOperationException("Applying a migration requires a database provider to generate and execute SQL, but none is registered.");
         }
@@ -32,7 +31,7 @@ internal sealed class ApplyOperation(
             return;
         }
 
-        reporters.Current.Announce("Applying schema migration. Changes will be applied to the database.");
+        reporter.Announce("Applying schema migration. Changes will be applied to the database.");
 
         // Hold the state lock for the whole operation so a concurrent apply/destroy/refresh can't run against the
         // same state. Released when the handle is disposed at the end of the method (no-op unless a lock is registered).
@@ -40,23 +39,23 @@ internal sealed class ApplyOperation(
 
         var planned = await workflow.Plan(SchemaSourceMode.Online, required: true, arguments.Schemas, cancellationToken);
 
-        reporters.Current.Progress("Generating SQL...");
-        var sqlPlan = sqlGenerators.Current.Generate(planned.Plan);
-        reporters.Current.ReportSqlPlan(sqlPlan);
+        reporter.Progress("Generating SQL...");
+        var sqlPlan = sqlGenerator.Generate(planned.Plan);
+        reporter.ReportSqlPlan(sqlPlan);
 
         // Offer an interactive front-end the chance to prompt before any changes are made.
         if (!await confirmation.Confirm(new ApplyConfirmationRequest(planned.Plan), cancellationToken))
         {
-            reporters.Current.Announce("Apply cancelled. No changes were made to the database.");
+            reporter.Announce("Apply cancelled. No changes were made to the database.");
             return;
         }
 
-        reporters.Current.Progress("Running schema migration...");
+        reporter.Progress("Running schema migration...");
 
         try
         {
             await sqlExecutor.Execute(sqlPlan, cancellationToken);
-            reporters.Current.Success("Migration completed successfully.");
+            reporter.Success("Migration completed successfully.");
         }
         finally
         {
@@ -73,27 +72,27 @@ internal sealed class ApplyOperation(
     {
         var envelope = await planFile.Read(path, cancellationToken);
 
-        reporters.Current.Announce($"Applying saved plan from {path}. Changes will be applied to the database.");
+        reporter.Announce($"Applying saved plan from {path}. Changes will be applied to the database.");
 
         await using var stateLockHandle = await stateLock.Acquire(new StateLockRequest("apply"), cancellationToken);
 
         // Report the same diff/plan/SQL view the plan step produced, so applying a saved plan looks identical.
-        reporters.Current.ReportDiff(envelope.Diff);
-        reporters.Current.ReportPlan(envelope.Plan);
-        reporters.Current.ReportSqlPlan(envelope.Sql);
+        reporter.ReportDiff(envelope.Diff);
+        reporter.ReportPlan(envelope.Plan);
+        reporter.ReportSqlPlan(envelope.Sql);
 
         if (!await confirmation.Confirm(new ApplyConfirmationRequest(envelope.Plan), cancellationToken))
         {
-            reporters.Current.Announce("Apply cancelled. No changes were made to the database.");
+            reporter.Announce("Apply cancelled. No changes were made to the database.");
             return;
         }
 
-        reporters.Current.Progress("Applying plan...");
+        reporter.Progress("Applying plan...");
 
         try
         {
             await sqlExecutor.Execute(envelope.Sql, cancellationToken);
-            reporters.Current.Success("Plan applied successfully.");
+            reporter.Success("Plan applied successfully.");
         }
         finally
         {

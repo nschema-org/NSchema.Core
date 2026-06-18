@@ -1,6 +1,5 @@
 using NSchema.Plan;
 using NSchema.Policies;
-using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.State;
@@ -9,7 +8,7 @@ namespace NSchema.Operations.Services;
 
 internal sealed class MigrationWorkflow(
     IMigrationPlanner planner,
-    IKeyedResolver<IOperationReporter> reporters,
+    IOperationReporter reporter,
     ICurrentSchemaProvider currentProvider,
     IDesiredSchemaProvider desiredProvider,
     ISchemaStateSerializer stateSerializer,
@@ -18,10 +17,10 @@ internal sealed class MigrationWorkflow(
 {
     public async Task<DatabaseSchema> Validate(CancellationToken cancellationToken = default)
     {
-        reporters.Current.Progress("Loading desired schema...");
+        reporter.Progress("Loading desired schema...");
         var desired = await desiredProvider.GetProject(null, cancellationToken);
 
-        reporters.Current.Progress("Validating schema...");
+        reporter.Progress("Validating schema...");
         ReportOrThrow(planner.Validate(desired.Schema));
 
         return desired.Schema;
@@ -29,16 +28,16 @@ internal sealed class MigrationWorkflow(
 
     public async Task<PlannedMigration> Plan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default)
     {
-        reporters.Current.Progress("Loading desired schema...");
+        reporter.Progress("Loading desired schema...");
         var desired = await desiredProvider.GetProject(schemas, cancellationToken);
         var schemasInScope = schemas ?? desired.Schema.AllSchemaNames;
 
-        reporters.Current.Progress($"Migration will be scoped to the following schemas: {string.Join(", ", schemasInScope)}");
+        reporter.Progress($"Migration will be scoped to the following schemas: {string.Join(", ", schemasInScope)}");
 
-        reporters.Current.Progress("Loading provider schema...");
+        reporter.Progress("Loading provider schema...");
         var currentSchema = await currentProvider.GetSchema(currentSource, schemasInScope, required, cancellationToken);
 
-        reporters.Current.Progress("Computing migration plan...");
+        reporter.Progress("Computing migration plan...");
         return ReportOrThrow(planner.Plan(currentSchema, desired.Schema, desired.Scripts));
     }
 
@@ -49,7 +48,7 @@ internal sealed class MigrationWorkflow(
             ? await currentProvider.GetSchema(SchemaSourceMode.Offline, null, required: true, cancellationToken)
             : (await desiredProvider.GetProject(null, cancellationToken)).Schema;
 
-        reporters.Current.Progress("Computing teardown plan...");
+        reporter.Progress("Computing teardown plan...");
         return ReportOrThrow(planner.PlanTeardown(managedSchema));
     }
 
@@ -65,7 +64,7 @@ internal sealed class MigrationWorkflow(
 
         if (diagnostics.Count > 0)
         {
-            reporters.Current.ReportDiagnostics(diagnostics);
+            reporter.ReportDiagnostics(diagnostics);
         }
     }
 
@@ -79,7 +78,7 @@ internal sealed class MigrationWorkflow(
         // A schema-policy failure has no diff (it's computed after that gate), so guard for null.
         if (result.Diff is not null)
         {
-            reporters.Current.ReportDiff(result.Diff);
+            reporter.ReportDiff(result.Diff);
         }
 
         if (result.HasErrors)
@@ -87,8 +86,8 @@ internal sealed class MigrationWorkflow(
             throw new PolicyViolationException(result.Diagnostics.Errors.ToList());
         }
 
-        reporters.Current.ReportPlan(result.Plan);
-        reporters.Current.ReportDiagnostics(result.Diagnostics);
+        reporter.ReportPlan(result.Plan);
+        reporter.ReportDiagnostics(result.Diagnostics);
 
         return new PlannedMigration(result.Plan, result.Diff);
     }
@@ -106,10 +105,10 @@ internal sealed class MigrationWorkflow(
             return;
         }
 
-        reporters.Current.Progress("Updating state store...");
+        reporter.Progress("Updating state store...");
         var schema = await currentProvider.GetSchema(SchemaSourceMode.Online, null, required: true, cancellationToken);
         var snapshot = stateSerializer.Serialize(schema);
         await store.Write(snapshot, cancellationToken);
-        reporters.Current.Success("State store updated successfully.");
+        reporter.Success("State store updated successfully.");
     }
 }

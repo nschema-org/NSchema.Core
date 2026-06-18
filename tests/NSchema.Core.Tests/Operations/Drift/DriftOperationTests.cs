@@ -13,7 +13,7 @@ public sealed class DriftOperationTests
     private readonly ISchemaComparer _comparer = Substitute.For<ISchemaComparer>();
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
 
-    private DriftOperation BuildSut() => new(_currentProvider, Helpers.TestReporters.ResolverFor(_reporter), _comparer);
+    private DriftOperation BuildSut() => new(_currentProvider, _reporter, _comparer);
 
     public DriftOperationTests()
     {
