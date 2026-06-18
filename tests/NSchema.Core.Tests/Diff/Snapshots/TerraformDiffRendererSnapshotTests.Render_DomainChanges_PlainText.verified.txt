@@ -1,0 +1,20 @@
+﻿+ domain app.typeid text ("id as text")
+
+~ domain app.code
+    ~ type: text → varchar(8) (recreate)
+
+~ domain app.amount
+    ~ default: <none> → 0
+    ~ nullable: null → not null
+    + check amount_pos
+
+~ domain app.email
+    - check email_fmt
+
+~ domain app.old_d → renamed_d
+
+~ domain app.noted comment: "old" → "new"
+
+- domain app.stale_d
+
+Plan: 1 to add, 5 to change, 1 to destroy.

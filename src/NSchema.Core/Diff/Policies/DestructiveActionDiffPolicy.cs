@@ -1,6 +1,16 @@
 using Microsoft.Extensions.Options;
 using NSchema.Diff.Model;
-using NSchema.Plan.Model;
+using NSchema.Plan.Model.Columns;
+using NSchema.Plan.Model.CompositeTypes;
+using NSchema.Plan.Model.Constraints;
+using NSchema.Plan.Model.Domains;
+using NSchema.Plan.Model.Enums;
+using NSchema.Plan.Model.Extensions;
+using NSchema.Plan.Model.Routines;
+using NSchema.Plan.Model.Schemas;
+using NSchema.Plan.Model.Sequence;
+using NSchema.Plan.Model.Tables;
+using NSchema.Plan.Model.Views;
 using NSchema.Policies;
 
 namespace NSchema.Diff.Policies;
@@ -33,6 +43,13 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
 
     private static IEnumerable<string> DestructiveChanges(DatabaseDiff diff)
     {
+        // Dropping a database-global extension removes shared infrastructure (and anything that depended on it),
+        // so it is destructive.
+        foreach (var extension in diff.Extensions.Where(e => e.Kind == ChangeKind.Remove))
+        {
+            yield return nameof(DropExtension);
+        }
+
         foreach (var schema in diff.Schemas)
         {
             if (schema.Kind == ChangeKind.Remove)
@@ -57,10 +74,21 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
                     ViewDiff => nameof(DropView),
                     EnumDiff => nameof(DropEnum),
                     SequenceDiff => nameof(DropSequence),
-                    FunctionDiff => nameof(DropFunction),
-                    ProcedureDiff => nameof(DropProcedure),
+                    RoutineDiff => nameof(DropRoutine),
+                    DomainDiff => nameof(DropDomain),
+                    CompositeTypeDiff => nameof(DropCompositeType),
                     _ => throw new ArgumentOutOfRangeException(nameof(diff), $"Unhandled object diff type: {obj.GetType().Name}"),
                 };
+            }
+
+            // Dropping a field from a composite type removes that attribute from every row of every table whose
+            // column uses the type, so it is destructive — the analogue of dropping a column.
+            foreach (var type in schema.CompositeTypes.Where(t => t.Kind != ChangeKind.Remove))
+            {
+                foreach (var field in type.Fields.Where(f => f.Kind == ChangeKind.Remove))
+                {
+                    yield return nameof(DropCompositeField);
+                }
             }
 
             foreach (var table in schema.Tables)
@@ -100,6 +128,7 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
                         PrimaryKeyDiff => nameof(DropPrimaryKey),
                         ForeignKeyDiff => nameof(DropForeignKey),
                         UniqueConstraintDiff => nameof(DropUniqueConstraint),
+                        ExclusionConstraintDiff => nameof(DropExclusionConstraint),
                         _ => null, // columns are flagged above; checks and indexes are not destructive
                     };
 

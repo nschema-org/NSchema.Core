@@ -1,4 +1,5 @@
 using NSchema.Diff.Model;
+using NSchema.Schema.Model.Routines;
 
 namespace NSchema.Tests.Diff.Model;
 
@@ -14,8 +15,11 @@ public sealed class SchemaDiffTests
             Views: [new ViewDiff("app", "v", ChangeKind.Add)],
             Enums: [new EnumDiff("app", "e", ChangeKind.Add)],
             Sequences: [new SequenceDiff("app", "q", ChangeKind.Add)],
-            Functions: [new FunctionDiff("app", "f", ChangeKind.Add)],
-            Procedures: [new ProcedureDiff("app", "p", ChangeKind.Add)]);
+            Routines:
+            [
+                new RoutineDiff("app", "f", ChangeKind.Add, RoutineKind.Function),
+                new RoutineDiff("app", "p", ChangeKind.Add, RoutineKind.Procedure),
+            ]);
 
         diff.EnumerateObjects().Select(o => o.Name).ShouldBe(["users", "v", "e", "q", "f", "p"]);
     }
@@ -45,8 +49,11 @@ public sealed class SchemaDiffTests
                 Views: [new ViewDiff("app", "v", ChangeKind.Modify)],
                 Enums: [new EnumDiff("app", "e", ChangeKind.Remove)],
                 Sequences: [new SequenceDiff("app", "q", ChangeKind.Add)],
-                Functions: [new FunctionDiff("app", "f", ChangeKind.Modify)],
-                Procedures: [new ProcedureDiff("app", "p", ChangeKind.Remove)]),
+                Routines:
+                [
+                    new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function),
+                    new RoutineDiff("app", "p", ChangeKind.Remove, RoutineKind.Procedure),
+                ]),
         ]);
 
         diff.GetSummary().ShouldBe(new DiffSummary(Added: 2, Modified: 2, Removed: 2));

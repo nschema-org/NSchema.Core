@@ -1,7 +1,18 @@
 using Microsoft.Extensions.Options;
 using NSchema.Diff;
 using NSchema.Diff.Model;
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.CompositeTypes;
+using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Domains;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Extensions;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Routines;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Triggers;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Tests.Diff;
 
@@ -41,6 +52,8 @@ public sealed class TerraformDiffRendererSnapshotTests
                 new ColumnDiff("total", ChangeKind.Modify, null, null,
                     Type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
                     Nullability: new ValueChange<bool>(true, false), Default: null, Identity: null, Comment: null),
+                new ColumnDiff("total_label", ChangeKind.Modify, Generated: new ValueChange<string>(null, "total::text")),
+                new ColumnDiff("amount", ChangeKind.Add, new Column("amount", SqlType.Int, GeneratedExpression: "total * 100"), null, null, null, null, null, null),
                 new ColumnDiff("legacy_flag", ChangeKind.Remove, new Column("legacy_flag", SqlType.Boolean), null, null, null, null, null, null),
             ],
             Grants: [new GrantChange(ChangeKind.Remove, "writers", TablePrivilege.Insert)],
@@ -48,7 +61,12 @@ public sealed class TerraformDiffRendererSnapshotTests
             PrimaryKey: [new PrimaryKeyDiff(ChangeKind.Modify, "orders_pkey", null, new ValueChange<string>("old note", "new note"))],
             ForeignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null)],
             UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Remove, "orders_code_uq", null)],
-            Checks: [new CheckConstraintDiff(ChangeKind.Remove, "orders_total_chk", null)]);
+            Checks: [new CheckConstraintDiff(ChangeKind.Remove, "orders_total_chk", null)],
+            ExclusionConstraints:
+            [
+                new ExclusionConstraintDiff(ChangeKind.Add, "orders_slot_excl", new ExclusionConstraint("orders_slot_excl", [new ExclusionElement("slot", "&&")], "gist")),
+                new ExclusionConstraintDiff(ChangeKind.Remove, "orders_old_excl", null),
+            ]);
 
         return new DatabaseDiff(
             Schemas:
@@ -82,6 +100,16 @@ public sealed class TerraformDiffRendererSnapshotTests
                         Comment: new ValueChange<string>("old summary", "new summary")),
                     new ViewDiff("app", "report", ChangeKind.Modify, RenamedFrom: "legacy_report"),
                     new ViewDiff("app", "stale_view", ChangeKind.Remove),
+                    // Materialized views: an add (with index on the definition) and an in-place index change.
+                    new ViewDiff("app", "mv_sales", ChangeKind.Add,
+                        Definition: new View("mv_sales", "SELECT date, sum(amount) FROM app.sales GROUP BY date", IsMaterialized: true),
+                        Comment: new ValueChange<string>(null, "sales rollup"), IsMaterialized: true),
+                    new ViewDiff("app", "mv_active", ChangeKind.Modify, IsMaterialized: true,
+                        Indexes:
+                        [
+                            new IndexDiff(ChangeKind.Add, "mv_active_ix", new TableIndex("mv_active_ix", ["id"])),
+                            new IndexDiff(ChangeKind.Remove, "mv_active_old_ix"),
+                        ]),
                 ]),
             ]);
     }
@@ -162,38 +190,139 @@ public sealed class TerraformDiffRendererSnapshotTests
     /// </summary>
     private static DatabaseDiff RoutineChangesDiff()
     {
-        var addTax = new Function("add_tax", "amount numeric, rate numeric", "RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$");
+        var addTax = new Routine("add_tax", RoutineKind.Function, "amount numeric, rate numeric", "RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$");
         return new DatabaseDiff(
             Schemas:
             [
                 new SchemaDiff("app",
-                    Functions:
+                    Routines:
                     [
-                        new FunctionDiff("app", "add_tax", ChangeKind.Add, Definition: addTax,
+                        new RoutineDiff("app", "add_tax", ChangeKind.Add, RoutineKind.Function, Definition: addTax,
                             Comment: new ValueChange<string>(null, "adds tax")),
-                        new FunctionDiff("app", "normalize", ChangeKind.Modify,
-                            Definition: new Function("normalize", "code text", "RETURNS text AS $$ SELECT lower(code) $$")),
-                        new FunctionDiff("app", "score", ChangeKind.Modify,
-                            Definition: new Function("score", "user_id bigint, weight numeric", "RETURNS numeric AS $$ SELECT 1 $$"),
+                        new RoutineDiff("app", "normalize", ChangeKind.Modify, RoutineKind.Function,
+                            Definition: new Routine("normalize", RoutineKind.Function, "code text", "RETURNS text AS $$ SELECT lower(code) $$")),
+                        new RoutineDiff("app", "score", ChangeKind.Modify, RoutineKind.Function,
+                            Definition: new Routine("score", RoutineKind.Function, "user_id bigint, weight numeric", "RETURNS numeric AS $$ SELECT 1 $$"),
                             Arguments: new ValueChange<string>("user_id bigint", "user_id bigint, weight numeric")),
-                        new FunctionDiff("app", "renamed_fn", ChangeKind.Modify, RenamedFrom: "old_fn"),
-                        new FunctionDiff("app", "noted", ChangeKind.Modify, Comment: new ValueChange<string>("old note", "new note")),
-                        new FunctionDiff("app", "stale_fn", ChangeKind.Remove),
-                    ],
-                    Procedures:
-                    [
-                        new ProcedureDiff("app", "archive", ChangeKind.Add,
-                            Definition: new Procedure("archive", "before date", "LANGUAGE sql AS $$ DELETE $$")),
-                        new ProcedureDiff("app", "cleanup", ChangeKind.Modify,
-                            Definition: new Procedure("cleanup", "", "LANGUAGE sql AS $$ TRUNCATE $$"),
+                        new RoutineDiff("app", "renamed_fn", ChangeKind.Modify, RoutineKind.Function, RenamedFrom: "old_fn"),
+                        new RoutineDiff("app", "noted", ChangeKind.Modify, RoutineKind.Function, Comment: new ValueChange<string>("old note", "new note")),
+                        new RoutineDiff("app", "stale_fn", ChangeKind.Remove, RoutineKind.Function),
+                        new RoutineDiff("app", "archive", ChangeKind.Add, RoutineKind.Procedure,
+                            Definition: new Routine("archive", RoutineKind.Procedure, "before date", "LANGUAGE sql AS $$ DELETE $$")),
+                        new RoutineDiff("app", "cleanup", ChangeKind.Modify, RoutineKind.Procedure,
+                            Definition: new Routine("cleanup", RoutineKind.Procedure, "", "LANGUAGE sql AS $$ TRUNCATE $$"),
                             Arguments: new ValueChange<string>("batch int", "")),
-                        new ProcedureDiff("app", "stale_proc", ChangeKind.Remove),
+                        new RoutineDiff("app", "stale_proc", ChangeKind.Remove, RoutineKind.Procedure),
                     ]),
+            ]);
+    }
+
+    /// <summary>
+    /// A diff exercising every extension change kind: an add (showing version), a bare add, a version change, a
+    /// comment-only change, and a removal — all at the root, since extensions are database-global.
+    /// </summary>
+    private static DatabaseDiff ExtensionChangesDiff()
+    {
+        return new DatabaseDiff(
+            Extensions:
+            [
+                new ExtensionDiff("postgis", ChangeKind.Add, Definition: new Extension("postgis", "3.4"),
+                    Comment: new ValueChange<string>(null, "spatial types")),
+                new ExtensionDiff("citext", ChangeKind.Add, Definition: new Extension("citext")),
+                new ExtensionDiff("vector", ChangeKind.Modify, Version: new ValueChange<string>("0.6.0", "0.7.0")),
+                new ExtensionDiff("hstore", ChangeKind.Modify, Comment: new ValueChange<string>("old note", "new note")),
+                new ExtensionDiff("legacy_ext", ChangeKind.Remove),
+            ]);
+    }
+
+    /// <summary>
+    /// A diff exercising trigger changes on a table: an add, a comment-only modify, and a removal.
+    /// </summary>
+    private static DatabaseDiff TriggerChangesDiff()
+    {
+        var audit = new Trigger("audit", TriggerTiming.After, TriggerEvent.Insert | TriggerEvent.Update, "app.log", TriggerLevel.Row);
+        return new DatabaseDiff(
+            Schemas:
+            [
+                new SchemaDiff("app", Tables:
+                [
+                    new TableDiff("app", "users", ChangeKind.Modify, Triggers:
+                    [
+                        new TriggerDiff(ChangeKind.Add, "audit", audit),
+                        new TriggerDiff(ChangeKind.Modify, "noted", null, new ValueChange<string>("old note", "new note")),
+                        new TriggerDiff(ChangeKind.Remove, "stale_trg"),
+                    ]),
+                ]),
+            ]);
+    }
+
+    /// <summary>
+    /// A diff exercising domain changes: an add, a base-type change (recreate), a default change, a not-null
+    /// change, a check add + drop, a rename, a comment-only change, and a removal.
+    /// </summary>
+    private static DatabaseDiff DomainChangesDiff()
+    {
+        return new DatabaseDiff(
+            Schemas:
+            [
+                new SchemaDiff("app", Domains:
+                [
+                    new DomainDiff("app", "typeid", ChangeKind.Add,
+                        Definition: new Domain("typeid", SqlType.Text, NotNull: true),
+                        Comment: new ValueChange<string>(null, "id as text")),
+                    new DomainDiff("app", "code", ChangeKind.Modify,
+                        Definition: new Domain("code", SqlType.VarChar(8)),
+                        DataType: new ValueChange<SqlType>(SqlType.Text, SqlType.VarChar(8))),
+                    new DomainDiff("app", "amount", ChangeKind.Modify,
+                        Default: new ValueChange<string>(null, "0"),
+                        NotNull: new ValueChange<bool>(false, true),
+                        Checks: [new CheckConstraintDiff(ChangeKind.Add, "amount_pos", new CheckConstraint("amount_pos", "VALUE >= 0"))]),
+                    new DomainDiff("app", "email", ChangeKind.Modify,
+                        Checks: [new CheckConstraintDiff(ChangeKind.Remove, "email_fmt")]),
+                    new DomainDiff("app", "renamed_d", ChangeKind.Modify, RenamedFrom: "old_d"),
+                    new DomainDiff("app", "noted", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new")),
+                    new DomainDiff("app", "stale_d", ChangeKind.Remove),
+                ]),
             ]);
     }
 
     [Fact]
     public Task Render_EnumChanges_PlainText() => Verify(Render(EnumChangesDiff(), colour: false));
+
+    private static DatabaseDiff CompositeTypeChangesDiff()
+    {
+        return new DatabaseDiff(
+            Schemas:
+            [
+                new SchemaDiff("app", CompositeTypes:
+                [
+                    new CompositeTypeDiff("app", "address", ChangeKind.Add,
+                        Definition: new CompositeType("address", [new CompositeField("street", SqlType.Text), new CompositeField("zip", SqlType.Int)]),
+                        Comment: new ValueChange<string>(null, "a postal address")),
+                    new CompositeTypeDiff("app", "money", ChangeKind.Modify, Fields:
+                    [
+                        new CompositeFieldDiff(ChangeKind.Add, "currency", new CompositeField("currency", SqlType.Text)),
+                        new CompositeFieldDiff(ChangeKind.Modify, "amount", Type: new ValueChange<SqlType>(SqlType.Int, SqlType.Decimal(18, 2))),
+                        new CompositeFieldDiff(ChangeKind.Remove, "legacy"),
+                    ]),
+                    new CompositeTypeDiff("app", "renamed_t", ChangeKind.Modify, RenamedFrom: "old_t"),
+                    new CompositeTypeDiff("app", "noted", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new")),
+                    new CompositeTypeDiff("app", "stale_t", ChangeKind.Remove),
+                ]),
+            ]);
+    }
+
+    [Fact]
+    public Task Render_DomainChanges_PlainText() => Verify(Render(DomainChangesDiff(), colour: false));
+
+    [Fact]
+    public Task Render_CompositeTypeChanges_PlainText() => Verify(Render(CompositeTypeChangesDiff(), colour: false));
+
+    [Fact]
+    public Task Render_ExtensionChanges_PlainText() => Verify(Render(ExtensionChangesDiff(), colour: false));
+
+    [Fact]
+    public Task Render_TriggerChanges_PlainText() => Verify(Render(TriggerChangesDiff(), colour: false));
 
     [Fact]
     public Task Render_RoutineChanges_PlainText() => Verify(Render(RoutineChangesDiff(), colour: false));

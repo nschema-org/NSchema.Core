@@ -1,7 +1,16 @@
 using System.Text;
 using NSchema.Plan.Model;
+using NSchema.Plan.Model.Columns;
+using NSchema.Plan.Model.Enums;
+using NSchema.Plan.Model.Routines;
+using NSchema.Plan.Model.Schemas;
+using NSchema.Plan.Model.Sequence;
+using NSchema.Plan.Model.Tables;
 using NSchema.Plan.PlanFile;
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Routines;
+using NSchema.Schema.Model.Scripts;
+using NSchema.Schema.Model.Sequences;
 using NSchema.Sql.Model;
 using NSchema.Tests.Helpers;
 
@@ -30,21 +39,21 @@ public sealed class PlanFileWriterTests
                 new RenameSequence("app", "bill_id", "invoice_id"),
                 new AlterSequence("app", "order_id", new SequenceOptions(StartWith: 100), new SequenceOptions(StartWith: 1000)),
                 new SetSequenceComment("app", "order_id", null, "order numbers"),
-                new CreateFunction("app", new Function("add_tax", "amount numeric", "RETURNS numeric AS $$ SELECT amount; $$")),
-                new RecreateFunction("app", new Function("score", "a int, b int", "RETURNS int AS $$ SELECT a + b; $$", Comment: "scoring")),
-                new RenameFunction("app", "old_fn", "new_fn"),
-                new SetFunctionComment("app", "add_tax", null, "adds tax"),
-                new CreateProcedure("app", new Procedure("archive", "before date", "LANGUAGE sql AS $$ DELETE; $$")),
-                new RecreateProcedure("app", new Procedure("cleanup", "", "LANGUAGE sql AS $$ TRUNCATE; $$")),
-                new RenameProcedure("app", "old_proc", "new_proc"),
-                new SetProcedureComment("app", "archive", null, "archival"),
+                new CreateRoutine("app", new Routine("add_tax", RoutineKind.Function, "amount numeric", "RETURNS numeric AS $$ SELECT amount; $$")),
+                new RecreateRoutine("app", new Routine("score", RoutineKind.Function, "a int, b int", "RETURNS int AS $$ SELECT a + b; $$", Comment: "scoring")),
+                new RenameRoutine("app", "old_fn", "new_fn", RoutineKind.Function),
+                new SetRoutineComment("app", "add_tax", null, "adds tax", RoutineKind.Function),
+                new CreateRoutine("app", new Routine("archive", RoutineKind.Procedure, "before date", "LANGUAGE sql AS $$ DELETE; $$")),
+                new RecreateRoutine("app", new Routine("cleanup", RoutineKind.Procedure, "", "LANGUAGE sql AS $$ TRUNCATE; $$")),
+                new RenameRoutine("app", "old_proc", "new_proc", RoutineKind.Procedure),
+                new SetRoutineComment("app", "archive", null, "archival", RoutineKind.Procedure),
                 new CreateTable("app", table),
                 new AddColumn("app", "users", table.Columns[1]),
                 new DropTable("app", "legacy"),
                 new DropEnum("app", "stale_enum"),
                 new DropSequence("app", "stale_seq"),
-                new DropFunction("app", "stale_fn"),
-                new DropProcedure("app", "stale_proc"),
+                new DropRoutine("app", "stale_fn", RoutineKind.Function),
+                new DropRoutine("app", "stale_proc", RoutineKind.Procedure),
             ],
             [new Script("seed", "INSERT INTO app.config VALUES (1)", ScriptType.PreDeployment)],
             [new Script("reindex", "REINDEX TABLE app.users", ScriptType.PostDeployment) { RunOutsideTransaction = true }]);
@@ -90,10 +99,10 @@ public sealed class PlanFileWriterTests
                 typeof(CreateSchema),
                 typeof(CreateEnum), typeof(RenameEnum), typeof(AddEnumValue), typeof(SetEnumComment),
                 typeof(CreateSequence), typeof(RenameSequence), typeof(AlterSequence), typeof(SetSequenceComment),
-                typeof(CreateFunction), typeof(RecreateFunction), typeof(RenameFunction), typeof(SetFunctionComment),
-                typeof(CreateProcedure), typeof(RecreateProcedure), typeof(RenameProcedure), typeof(SetProcedureComment),
+                typeof(CreateRoutine), typeof(RecreateRoutine), typeof(RenameRoutine), typeof(SetRoutineComment),
+                typeof(CreateRoutine), typeof(RecreateRoutine), typeof(RenameRoutine), typeof(SetRoutineComment),
                 typeof(CreateTable), typeof(AddColumn), typeof(DropTable),
-                typeof(DropEnum), typeof(DropSequence), typeof(DropFunction), typeof(DropProcedure),
+                typeof(DropEnum), typeof(DropSequence), typeof(DropRoutine), typeof(DropRoutine),
             ]);
     }
 

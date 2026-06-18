@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileSystemGlobbing;
 using NSchema.Schema;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Scripts;
 
 namespace NSchema.Tests;
 

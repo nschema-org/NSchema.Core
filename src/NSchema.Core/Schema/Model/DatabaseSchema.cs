@@ -1,4 +1,13 @@
 using System.Diagnostics;
+using NSchema.Schema.Model.CompositeTypes;
+using NSchema.Schema.Model.Domains;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Extensions;
+using NSchema.Schema.Model.Routines;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Schema.Model;
 
@@ -7,8 +16,15 @@ namespace NSchema.Schema.Model;
 /// </summary>
 /// <param name="Schemas">A list of SchemaDefinition objects, each representing a specific schema within the database.</param>
 /// <param name="DroppedSchemas">A list of schema names that have been dropped from the database.</param>
+/// <param name="Extensions">A list of database-global extensions.</param>
+/// <param name="DroppedExtensions">A list of extension names that have been dropped from the database.</param>
 [DebuggerDisplay("{Schemas.Count} schemas")]
-public record DatabaseSchema(IReadOnlyList<SchemaDefinition>? Schemas = null, IReadOnlyList<string>? DroppedSchemas = null)
+public record DatabaseSchema(
+    IReadOnlyList<SchemaDefinition>? Schemas = null,
+    IReadOnlyList<string>? DroppedSchemas = null,
+    IReadOnlyList<Extension>? Extensions = null,
+    IReadOnlyList<string>? DroppedExtensions = null
+)
 {
     /// <summary>
     /// A list of SchemaDefinition objects, each representing a specific schema within the database.
@@ -19,6 +35,17 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition>? Schemas = null, IR
     /// A list of schema names that have been dropped from the database.
     /// </summary>
     public IReadOnlyList<string> DroppedSchemas { get; init; } = DroppedSchemas ?? [];
+
+    /// <summary>
+    /// A list of database-global extensions. Extensions are not schema-scoped, so they live at the root of the
+    /// database schema rather than inside a <see cref="SchemaDefinition"/>.
+    /// </summary>
+    public IReadOnlyList<Extension> Extensions { get; init; } = Extensions ?? [];
+
+    /// <summary>
+    /// A list of extension names that have been dropped from the database.
+    /// </summary>
+    public IReadOnlyList<string> DroppedExtensions { get; init; } = DroppedExtensions ?? [];
 
     /// <summary>
     /// Gets a combined list of all schema names, including both existing schemas and those that have been dropped.
@@ -36,15 +63,17 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition>? Schemas = null, IR
     /// <returns>A new <see cref="DatabaseSchema"/> containing only the schemas and dropped schemas that match the provided names.</returns>
     public DatabaseSchema Filter(string[]? schemaNames)
     {
+        // Extensions are database-global, not schema-scoped, so they pass through a namespace filter untouched:
+        // an extension is a prerequisite of the whole database regardless of which schemas are in scope.
         if (schemaNames is not { Length: > 0 })
         {
-            return new DatabaseSchema(Schemas, DroppedSchemas);
+            return new DatabaseSchema(Schemas, DroppedSchemas, Extensions, DroppedExtensions);
         }
 
         var scope = new HashSet<string>(schemaNames, StringComparer.OrdinalIgnoreCase);
         var filtered = Schemas.Where(s => scope.Contains(s.Name)).ToList();
         var filteredDropped = DroppedSchemas.Where(scope.Contains).ToList();
-        return new DatabaseSchema(filtered, filteredDropped);
+        return new DatabaseSchema(filtered, filteredDropped, Extensions, DroppedExtensions);
     }
 
     /// <summary>
@@ -65,7 +94,26 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition>? Schemas = null, IR
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        return new DatabaseSchema(mergedSchemas, droppedSchemas);
+        // Extensions are database-global, so they aggregate at the root (not per schema). A name declared by
+        // more than one source is a conflict, mirroring how duplicate tables/enums are rejected.
+        var extensions = new List<Extension>();
+        var seenExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var extension in Extensions.Concat(schema.Extensions))
+        {
+            if (!seenExtensions.Add(extension.Name))
+            {
+                throw new InvalidOperationException($"Duplicate extension '{extension.Name}' declared.");
+            }
+
+            extensions.Add(extension);
+        }
+
+        var droppedExtensions = DroppedExtensions
+            .Concat(schema.DroppedExtensions)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return new DatabaseSchema(mergedSchemas, droppedSchemas, extensions, droppedExtensions);
     }
 
     private static SchemaDefinition AggregateSchemaGroup(IReadOnlyList<SchemaDefinition> schemas)
@@ -132,33 +180,52 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition>? Schemas = null, IR
             }
         }
 
-        // Functions and procedures share one name pool, as they do in the database (e.g. Postgres's pg_proc):
-        // a function and a procedure with the same name cannot coexist in a schema.
-        var functions = new List<Function>();
-        var procedures = new List<Procedure>();
+        var domains = new List<Domain>();
+        var seenDomains = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var schema in schemas)
+        {
+            foreach (var domain in schema.Domains)
+            {
+                if (!seenDomains.Add(domain.Name))
+                {
+                    throw new InvalidOperationException($"Duplicate domain '{domain.Name}' found in schema '{schemaName}'.");
+                }
+
+                domains.Add(domain);
+            }
+        }
+
+        var compositeTypes = new List<CompositeType>();
+        var seenCompositeTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var schema in schemas)
+        {
+            foreach (var compositeType in schema.CompositeTypes)
+            {
+                if (!seenCompositeTypes.Add(compositeType.Name))
+                {
+                    throw new InvalidOperationException($"Duplicate composite type '{compositeType.Name}' found in schema '{schemaName}'.");
+                }
+
+                compositeTypes.Add(compositeType);
+            }
+        }
+
+        // Functions and procedures are one routine pool sharing a single name space, as in the database (e.g.
+        // Postgres's pg_proc): a function and a procedure with the same name cannot coexist in a schema. Modeling
+        // them as one list makes that fall out of a single duplicate check.
+        var routines = new List<Routine>();
         var seenRoutines = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var schema in schemas)
         {
-            foreach (var function in schema.Functions)
+            foreach (var routine in schema.Routines)
             {
-                if (!seenRoutines.Add(function.Name))
+                if (!seenRoutines.Add(routine.Name))
                 {
                     throw new InvalidOperationException(
-                        $"Duplicate routine '{function.Name}' found in schema '{schemaName}': functions and procedures share one name space.");
+                        $"Duplicate routine '{routine.Name}' found in schema '{schemaName}': functions and procedures share one name space.");
                 }
 
-                functions.Add(function);
-            }
-
-            foreach (var procedure in schema.Procedures)
-            {
-                if (!seenRoutines.Add(procedure.Name))
-                {
-                    throw new InvalidOperationException(
-                        $"Duplicate routine '{procedure.Name}' found in schema '{schemaName}': functions and procedures share one name space.");
-                }
-
-                procedures.Add(procedure);
+                routines.Add(routine);
             }
         }
 
@@ -186,12 +253,16 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition>? Schemas = null, IR
             .SelectMany(s => s.DroppedSequences)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-        var droppedFunctions = schemas
-            .SelectMany(s => s.DroppedFunctions)
+        var droppedRoutines = schemas
+            .SelectMany(s => s.DroppedRoutines)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-        var droppedProcedures = schemas
-            .SelectMany(s => s.DroppedProcedures)
+        var droppedDomains = schemas
+            .SelectMany(s => s.DroppedDomains)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var droppedCompositeTypes = schemas
+            .SelectMany(s => s.DroppedCompositeTypes)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         var oldNames = schemas.Select(s => s.OldName).Where(n => n is not null).Distinct().ToList();
@@ -209,6 +280,6 @@ public record DatabaseSchema(IReadOnlyList<SchemaDefinition>? Schemas = null, IR
         return new SchemaDefinition(
             schemaName, oldName, isPartial, comment, tables, droppedTables, grants, views, droppedViews,
             enums, droppedEnums, sequences, droppedSequences,
-            functions, droppedFunctions, procedures, droppedProcedures);
+            routines, droppedRoutines, domains, droppedDomains, compositeTypes, droppedCompositeTypes);
     }
 }

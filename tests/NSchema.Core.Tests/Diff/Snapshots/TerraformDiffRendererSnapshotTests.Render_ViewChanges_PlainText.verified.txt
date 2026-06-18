@@ -8,4 +8,10 @@
 
 - view app.stale_view
 
-Plan: 1 to add, 3 to change, 1 to destroy.
++ materialized view app.mv_sales ("sales rollup")
+
+~ materialized view app.mv_active
+    + index mv_active_ix
+    - index mv_active_old_ix
+
+Plan: 2 to add, 4 to change, 1 to destroy.

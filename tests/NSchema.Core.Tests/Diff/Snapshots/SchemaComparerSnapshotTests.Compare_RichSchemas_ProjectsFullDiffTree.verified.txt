@@ -34,6 +34,16 @@
                 Old: varchar(100),
                 New: text
               }
+            },
+            {
+              Name: email_upper,
+              Definition: {
+                Name: email_upper,
+                Type: text,
+                IsNullable: true,
+                IsIdentity: false,
+                GeneratedExpression: upper(email_address)
+              }
             }
           ],
           Indexes: [
@@ -42,8 +52,21 @@
               Definition: {
                 Name: users_email_ix,
                 IsUnique: true,
-                ColumnNames: [
-                  email_address
+                Method: btree,
+                Columns: [
+                  {
+                    Expression: email_address,
+                    IsExpression: false,
+                    Sort: Descending,
+                    Nulls: Last
+                  },
+                  {
+                    Expression: lower(email_address),
+                    IsExpression: true
+                  }
+                ],
+                Include: [
+                  id
                 ]
               }
             }
@@ -67,6 +90,22 @@
                 Expression: id > 0
               }
             }
+          ],
+          ExclusionConstraints: [
+            {
+              Name: users_span_excl,
+              Definition: {
+                Name: users_span_excl,
+                Method: gist,
+                Elements: [
+                  {
+                    Expression: int4range(0, id),
+                    Operator: &&,
+                    IsExpression: true
+                  }
+                ]
+              }
+            }
           ]
         }
       ],
@@ -78,6 +117,7 @@
           Definition: {
             Name: active_users,
             Body: SELECT id, email_address FROM app.users WHERE active,
+            IsMaterialized: false,
             DependsOn: [
               {
                 Schema: app,
@@ -85,6 +125,8 @@
               }
             ]
           },
+          IsMaterialized: false,
+          RequiresRecreate: false,
           DependsOn: [
             {
               Schema: app,
@@ -96,6 +138,8 @@
           Schema: app,
           Name: old_summary,
           Kind: Remove,
+          IsMaterialized: false,
+          RequiresRecreate: false,
           DependsOn: [
             {
               Schema: app,
@@ -108,6 +152,8 @@
           Name: report,
           Kind: Modify,
           RenamedFrom: legacy_report,
+          IsMaterialized: false,
+          RequiresRecreate: false,
           DependsOn: [
             {
               Schema: app,
@@ -121,6 +167,7 @@
           Definition: {
             Name: user_emails,
             Body: SELECT email_address FROM app.active_users,
+            IsMaterialized: false,
             DependsOn: [
               {
                 Schema: app,
@@ -128,6 +175,8 @@
               }
             ]
           },
+          IsMaterialized: false,
+          RequiresRecreate: false,
           DependsOn: [
             {
               Schema: app,
@@ -220,7 +269,7 @@
           Kind: Remove
         }
       ],
-      Functions: [
+      Routines: [
         {
           Schema: app,
           Name: add_tax,
@@ -229,6 +278,18 @@
             Name: add_tax,
             Arguments: amount numeric,
             Definition: RETURNS numeric AS $$ SELECT amount * 1.2 $$
+          },
+          RequiresRecreate: false
+        },
+        {
+          Schema: app,
+          Name: archive,
+          RoutineKind: Procedure,
+          Definition: {
+            Name: archive,
+            Kind: Procedure,
+            Arguments: before date,
+            Definition: LANGUAGE sql AS $$ DELETE $$
           },
           RequiresRecreate: false
         },
@@ -264,16 +325,87 @@
           RequiresRecreate: false
         }
       ],
-      Procedures: [
+      Domains: [
         {
           Schema: app,
-          Name: archive,
+          Name: code,
+          Kind: Modify,
           Definition: {
-            Name: archive,
-            Arguments: before date,
-            Definition: LANGUAGE sql AS $$ DELETE $$
+            Name: code,
+            DataType: varchar(8),
+            NotNull: false
+          },
+          DataType: {
+            Old: text,
+            New: varchar(8)
+          },
+          RequiresRecreate: true
+        },
+        {
+          Schema: app,
+          Name: postal_code,
+          Definition: {
+            Name: postal_code,
+            DataType: text,
+            NotNull: true
           },
           RequiresRecreate: false
+        },
+        {
+          Schema: app,
+          Name: stale_domain,
+          Kind: Remove,
+          RequiresRecreate: false
+        }
+      ],
+      CompositeTypes: [
+        {
+          Schema: app,
+          Name: address,
+          Kind: Modify,
+          Fields: [
+            {
+              Kind: Modify,
+              Name: street,
+              Type: {
+                Old: text,
+                New: varchar(120)
+              }
+            },
+            {
+              Kind: Remove,
+              Name: old_field
+            },
+            {
+              Name: country,
+              Definition: {
+                Name: country,
+                DataType: text
+              }
+            }
+          ]
+        },
+        {
+          Schema: app,
+          Name: coords,
+          Definition: {
+            Name: coords,
+            Fields: [
+              {
+                Name: lat,
+                DataType: decimal(9,6)
+              },
+              {
+                Name: lng,
+                DataType: decimal(9,6)
+              }
+            ]
+          }
+        },
+        {
+          Schema: app,
+          Name: stale_type,
+          Kind: Remove
         }
       ]
     },
@@ -287,6 +419,30 @@
     {
       Name: scratch,
       Kind: Remove
+    }
+  ],
+  Extensions: [
+    {
+      Name: legacy_ext,
+      Kind: Remove
+    },
+    {
+      Name: postgis,
+      Kind: Modify,
+      Version: {
+        Old: 3.3,
+        New: 3.4
+      }
+    },
+    {
+      Name: vector,
+      Definition: {
+        Name: vector,
+        Comment: embeddings
+      },
+      Comment: {
+        New: embeddings
+      }
     }
   ],
   IsEmpty: false

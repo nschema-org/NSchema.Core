@@ -4,6 +4,7 @@ using NSchema.Operations;
 using NSchema.Operations.Drift;
 using NSchema.Schema;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Schemas;
 
 namespace NSchema.Tests.Operations.Drift;
 

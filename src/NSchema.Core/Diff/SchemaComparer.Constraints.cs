@@ -1,5 +1,7 @@
 using NSchema.Diff.Model;
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Tables;
 
 namespace NSchema.Diff;
 
@@ -60,6 +62,10 @@ internal sealed partial class SchemaComparer
     private List<CheckConstraintDiff> CompareChecks(string schemaName, string tableName, IReadOnlyList<CheckConstraint> current, IReadOnlyList<CheckConstraint> desired) =>
         CompareTableMembers(schemaName, tableName, "Check constraint", current, desired,
             (kind, name, definition, comment) => new CheckConstraintDiff(kind, name, definition, comment));
+
+    private List<ExclusionConstraintDiff> CompareExclusionConstraints(string schemaName, string tableName, IReadOnlyList<ExclusionConstraint> current, IReadOnlyList<ExclusionConstraint> desired) =>
+        CompareTableMembers(schemaName, tableName, "Exclusion constraint", current, desired,
+            (kind, name, definition, comment) => new ExclusionConstraintDiff(kind, name, definition, comment));
 
     private List<IndexDiff> CompareIndexes(string schemaName, string tableName, IReadOnlyList<TableIndex> current, IReadOnlyList<TableIndex> desired) =>
         CompareTableMembers(schemaName, tableName, "Index", current, desired,

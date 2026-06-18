@@ -1,5 +1,7 @@
 using NSchema.Policies;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Tables;
 
 namespace NSchema.Schema.Policies;
 
@@ -29,32 +31,48 @@ public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
                 ValidateTable(definition, table, managedSchemas, partialSchemas, tablesByKey, diagnostics);
             }
 
+            ValidateObjectNames(definition, diagnostics);
             ValidateRoutineNames(definition, diagnostics);
         }
 
         return diagnostics;
     }
 
-    // Functions and procedures share one name space, as they do in the database. The DDL parser and document
-    // aggregation enforce this for parsed schemas; this is the catch-all for JSON-sourced and code-built ones.
+    // Tables, views, materialized views, sequences, and composite types all occupy a single name space per
+    // schema in the database (Postgres's pg_class), and they additionally share pg_type with enums and domains
+    // (every relation has a row type), so none of these kinds may reuse a name within a schema — a table and a
+    // view called 'foo' cannot coexist. Routines live in a separate name space (pg_proc) and are checked apart.
+    private static void ValidateObjectNames(SchemaDefinition definition, List<PolicyDiagnostic> diagnostics)
+    {
+        var named = definition.Tables.Select(t => (t.Name, Kind: "table"))
+            .Concat(definition.Views.Select(v => (v.Name, Kind: v.IsMaterialized ? "materialized view" : "view")))
+            .Concat(definition.Sequences.Select(s => (s.Name, Kind: "sequence")))
+            .Concat(definition.CompositeTypes.Select(c => (c.Name, Kind: "composite type")))
+            .Concat(definition.Enums.Select(e => (e.Name, Kind: "enum")))
+            .Concat(definition.Domains.Select(d => (d.Name, Kind: "domain")));
+
+        foreach (var collision in named.GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
+        {
+            var kinds = collision.Select(x => x.Kind).ToList();
+            // A single kind appearing twice (e.g. two sequences) reads as a plain duplicate; a mix of kinds reads
+            // as a name-space collision. Either way the database would reject it.
+            diagnostics.Add(kinds.Distinct().Count() == 1
+                ? Error($"Schema '{definition.Name}' declares {kinds[0]} '{collision.Key}' more than once.")
+                : Error($"Schema '{definition.Name}' reuses the name '{collision.Key}' across object kinds that share a name space ({string.Join(", ", kinds.OrderBy(k => k, StringComparer.Ordinal))})."));
+        }
+    }
+
+    // Functions and procedures share one name space, as they do in the database, so they live in a single
+    // routine list; a single duplicate-name check covers both same-kind duplicates and function/procedure
+    // collisions. The DDL parser and document aggregation enforce this for parsed schemas; this is the catch-all
+    // for code-built ones.
     private static void ValidateRoutineNames(SchemaDefinition definition, List<PolicyDiagnostic> diagnostics)
     {
-        foreach (var duplicate in Duplicates(definition.Functions.Select(f => f.Name)))
-        {
-            diagnostics.Add(Error($"Schema '{definition.Name}' declares function '{duplicate}' more than once."));
-        }
-
-        foreach (var duplicate in Duplicates(definition.Procedures.Select(p => p.Name)))
-        {
-            diagnostics.Add(Error($"Schema '{definition.Name}' declares procedure '{duplicate}' more than once."));
-        }
-
-        var functionNames = new HashSet<string>(definition.Functions.Select(f => f.Name), StringComparer.OrdinalIgnoreCase);
-        foreach (var collision in definition.Procedures.Where(p => functionNames.Contains(p.Name)))
+        foreach (var duplicate in Duplicates(definition.Routines.Select(r => r.Name)))
         {
             diagnostics.Add(Error(
-                $"Schema '{definition.Name}' declares both a function and a procedure named '{collision.Name}'; " +
-                "functions and procedures share a single name space."));
+                $"Schema '{definition.Name}' declares routine '{duplicate}' more than once " +
+                "(functions and procedures share a single name space)."));
         }
     }
 
@@ -79,6 +97,13 @@ public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
             diagnostics.Add(Error($"Table '{qualified}' declares column '{duplicate}' more than once."));
         }
 
+        // A generated column is computed from an expression, so it cannot also carry a default — the database
+        // rejects a column that declares both.
+        foreach (var column in table.Columns.Where(c => c.DefaultExpression is not null && c.GeneratedExpression is not null))
+        {
+            diagnostics.Add(Error($"Column '{qualified}.{column.Name}' has both a DEFAULT and a GENERATED expression; a generated column cannot have a default."));
+        }
+
         if (table.PrimaryKey is { } primaryKey)
         {
             foreach (var missing in primaryKey.ColumnNames.Where(c => !columns.Contains(c)))
@@ -89,7 +114,10 @@ public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
 
         foreach (var index in table.Indexes)
         {
-            foreach (var missing in index.ColumnNames.Where(c => !columns.Contains(c)))
+            // Only plain-column keys (and covering INCLUDE columns) reference table columns directly; an
+            // expression key (e.g. (lower(email))) names columns inside opaque text we don't parse.
+            var referenced = index.Columns.Where(c => !c.IsExpression).Select(c => c.Expression).Concat(index.Include);
+            foreach (var missing in referenced.Where(c => !columns.Contains(c)))
             {
                 diagnostics.Add(Error($"Index '{index.Name}' on '{qualified}' references unknown column '{missing}'."));
             }
@@ -165,8 +193,12 @@ public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
             return true;
         }
 
-        // A partial (predicated) unique index cannot back a foreign key, so it does not count.
-        return table.Indexes.Any(i => i is { IsUnique: true, Predicate: null } && referenced.SetEquals(i.ColumnNames));
+        // A partial (predicated) unique index cannot back a foreign key, and an expression index cannot either
+        // (its keys aren't plain columns), so neither counts. INCLUDE columns aren't part of the uniqueness key,
+        // so they don't affect the match.
+        return table.Indexes.Any(i => i is { IsUnique: true, Predicate: null }
+            && i.Columns.All(c => !c.IsExpression)
+            && referenced.SetEquals(i.Columns.Select(c => c.Expression)));
     }
 
     private static IEnumerable<string> Duplicates(IEnumerable<string> names) => names

@@ -1,6 +1,19 @@
 using System.Text;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.CompositeTypes;
+using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Domains;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Extensions;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Routines;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Triggers;
+using NSchema.Schema.Model.Views;
 using NSchema.State;
 using NSchema.Tests.Helpers;
 
@@ -152,6 +165,88 @@ public sealed class DdlWriterTests
     public Task Write_RichSchema_MatchesSnapshot() => Verify(DdlWriter.Instance.Write(TestData.RichSchema()));
 
     // -------------------------------------------------------------------------
+    // Triggers
+    // -------------------------------------------------------------------------
+
+    private static string WriteTriggerOn(Trigger trigger)
+        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app",
+            Tables: [new Table("users", Columns: [new Column("id", SqlType.Int)], Triggers: [trigger])])]));
+
+    [Fact]
+    public void Write_Trigger_EmitsStandaloneCreateTriggerAfterTable()
+    {
+        var ddl = WriteTriggerOn(new Trigger("audit", TriggerTiming.After,
+            TriggerEvent.Insert | TriggerEvent.Update, "app.log", TriggerLevel.Row));
+        ddl.ShouldContain("CREATE TRIGGER audit AFTER INSERT OR UPDATE ON app.users FOR EACH ROW EXECUTE FUNCTION app.log();");
+    }
+
+    [Fact]
+    public void Write_TriggerWithUpdateOfWhenAndComment_IsEmitted()
+    {
+        var ddl = WriteTriggerOn(new Trigger("audit", TriggerTiming.After, TriggerEvent.Update, "app.log",
+            TriggerLevel.Row, UpdateOfColumns: ["email"], When: "new.email IS NOT NULL", Comment: "audit"));
+        ddl.ShouldContain("--- audit\nCREATE TRIGGER audit AFTER UPDATE OF (email) ON app.users FOR EACH ROW WHEN (new.email IS NOT NULL) EXECUTE FUNCTION app.log();");
+    }
+
+    [Fact]
+    public void Write_InsteadOfTrigger_IsEmitted()
+        => WriteTriggerOn(new Trigger("v_ins", TriggerTiming.InsteadOf, TriggerEvent.Insert, "app.f", TriggerLevel.Row))
+            .ShouldContain("CREATE TRIGGER v_ins INSTEAD OF INSERT ON app.users FOR EACH ROW EXECUTE FUNCTION app.f();");
+
+    [Fact]
+    public void Write_Trigger_RoundTripsThroughParse()
+    {
+        var trigger = new Trigger("audit", TriggerTiming.After, TriggerEvent.Insert | TriggerEvent.Delete, "app.log",
+            TriggerLevel.Row, When: "true", FunctionArguments: "'x'", Comment: "note");
+        var schema = new DatabaseSchema([new SchemaDefinition("app",
+            Tables: [new Table("users", Columns: [new Column("id", SqlType.Int)], Triggers: [trigger])])]);
+
+        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema;
+        var roundTripped = reparsed.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Triggers.ShouldHaveSingleItem();
+        roundTripped.ShouldBe(trigger);            // structural equality (excludes the comment)
+        roundTripped.Comment.ShouldBe("note");     // ... so assert the comment round-tripped too
+    }
+
+    // -------------------------------------------------------------------------
+    // Extensions (database-global, root-level)
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Write_Extension_EmitsCreateExtension()
+        => DdlWriter.Instance.Write(new DatabaseSchema(Extensions: [new Extension("citext")]))
+            .ShouldContain("CREATE EXTENSION citext;");
+
+    [Fact]
+    public void Write_ExtensionWithVersion_EmitsVersionClause()
+        => DdlWriter.Instance.Write(new DatabaseSchema(Extensions: [new Extension("postgis", Version: "3.4")]))
+            .ShouldContain("CREATE EXTENSION postgis VERSION '3.4';");
+
+    [Fact]
+    public void Write_ExtensionWithNonIdentifierName_QuotesIt()
+        // A hyphenated name (e.g. uuid-ossp) must be quoted so it round-trips through the parser.
+        => DdlWriter.Instance.Write(new DatabaseSchema(Extensions: [new Extension("uuid-ossp")]))
+            .ShouldContain("CREATE EXTENSION 'uuid-ossp';");
+
+    [Fact]
+    public void Write_ExtensionComment_EmitsDocComment()
+        => DdlWriter.Instance.Write(new DatabaseSchema(Extensions: [new Extension("postgis", Comment: "spatial types")]))
+            .ShouldContain("--- spatial types\nCREATE EXTENSION postgis;");
+
+    [Fact]
+    public void Write_DroppedExtension_IsEmitted()
+        => DdlWriter.Instance.Write(new DatabaseSchema(DroppedExtensions: ["stale_ext"]))
+            .ShouldContain("DROP EXTENSION stale_ext;");
+
+    [Fact]
+    public void Write_Extension_RoundTripsThroughParse()
+    {
+        var schema = new DatabaseSchema(Extensions:
+            [new Extension("citext"), new Extension("uuid-ossp", Comment: "ids"), new Extension("postgis", Version: "3.4")]);
+        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema;
+        reparsed.Extensions.ShouldBe(schema.Extensions);
+    }
+
+    // -------------------------------------------------------------------------
     // Views
     // -------------------------------------------------------------------------
 
@@ -175,6 +270,104 @@ public sealed class DdlWriterTests
         view.Name.ShouldBe("active");
         view.Body.ShouldBe("SELECT id, name FROM app.users WHERE active");
         view.DependsOn.ShouldHaveSingleItem().ShouldBe(new ViewDependency("app", "users"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Domains
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Write_SimpleDomain_EmitsCreateDomain()
+        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app",
+            Domains: [new Domain("typeid", SqlType.Text)])]))
+            .ShouldContain("CREATE DOMAIN app.typeid AS text;");
+
+    [Fact]
+    public void Write_DomainWithEveryClause_EmitsInCanonicalOrder()
+        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app",
+            Domains: [new Domain("email", SqlType.Text, Default: "'x@y'", NotNull: true,
+                Checks: [new CheckConstraint("email_fmt", "VALUE ~ '@'")])])]))
+            // NOT NULL, then checks, then DEFAULT (last, so its opaque expr reads back to the ';').
+            .ShouldContain("CREATE DOMAIN app.email AS text NOT NULL CONSTRAINT email_fmt CHECK (VALUE ~ '@') DEFAULT 'x@y';");
+
+    [Fact]
+    public void Write_DroppedDomain_IsEmitted()
+        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app", DroppedDomains: ["stale"])]))
+            .ShouldContain("DROP DOMAIN app.stale;");
+
+    [Fact]
+    public void Write_Domain_RoundTripsThroughParse()
+    {
+        var schema = new DatabaseSchema([new SchemaDefinition("app",
+            Domains: [new Domain("email", SqlType.Text, Default: "'x@y'", NotNull: true,
+                Checks: [new CheckConstraint("email_fmt", "VALUE ~ '@'")], OldName: "addr", Comment: "an email")])]);
+
+        var domain = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema
+            .Schemas.ShouldHaveSingleItem().Domains.ShouldHaveSingleItem();
+        domain.DataType.ShouldBe(SqlType.Text);
+        domain.NotNull.ShouldBeTrue();
+        domain.Default.ShouldBe("'x@y'");
+        domain.Checks.ShouldHaveSingleItem().Name.ShouldBe("email_fmt");
+    }
+
+    // -------------------------------------------------------------------------
+    // Composite types
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Write_SimpleCompositeType_EmitsCreateType()
+        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app",
+            CompositeTypes: [new CompositeType("address", [new CompositeField("street", SqlType.Text), new CompositeField("zip", SqlType.Int)])])]))
+            .ShouldContain("CREATE TYPE app.address AS (street text, zip int);");
+
+    [Fact]
+    public void Write_DroppedCompositeType_IsEmitted()
+        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app", DroppedCompositeTypes: ["stale"])]))
+            .ShouldContain("DROP TYPE app.stale;");
+
+    [Fact]
+    public void Write_CompositeType_RoundTripsThroughParse()
+    {
+        var schema = new DatabaseSchema([new SchemaDefinition("app",
+            CompositeTypes: [new CompositeType("address", [new CompositeField("street", SqlType.Text), new CompositeField("zip", SqlType.Int)],
+                OldName: "legacy_address", Comment: "a postal address")])]);
+
+        var type = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema
+            .Schemas.ShouldHaveSingleItem().CompositeTypes.ShouldHaveSingleItem();
+        type.Name.ShouldBe("address");
+        type.Fields.Count.ShouldBe(2);
+        type.Fields[0].DataType.ShouldBe(SqlType.Text);
+        type.Fields[1].DataType.ShouldBe(SqlType.Int);
+    }
+
+    // -------------------------------------------------------------------------
+    // Materialized views
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Write_MaterializedView_EmitsMaterializedKeyword()
+        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app",
+            Views: [new View("daily", "SELECT 1", IsMaterialized: true)])]))
+            .ShouldContain("CREATE MATERIALIZED VIEW app.daily AS SELECT 1;");
+
+    [Fact]
+    public void Write_MaterializedViewIndex_EmitsStandaloneCreateIndex()
+        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app",
+            Views: [new View("daily", "SELECT x FROM app.t", IsMaterialized: true,
+                Indexes: [new TableIndex("daily_ix", ["x"], IsUnique: true, Predicate: "x IS NOT NULL")])])]))
+            .ShouldContain("CREATE UNIQUE INDEX daily_ix ON app.daily (x) WHERE (x IS NOT NULL);");
+
+    [Fact]
+    public void Write_MaterializedView_RoundTripsThroughParse()
+    {
+        var schema = new DatabaseSchema([new SchemaDefinition("app",
+            Views: [new View("daily", "SELECT x FROM app.t", IsMaterialized: true,
+                Indexes: [new TableIndex("daily_ix", ["x"])])])]);
+
+        var view = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema
+            .Schemas.ShouldHaveSingleItem().Views.ShouldHaveSingleItem();
+        view.IsMaterialized.ShouldBeTrue();
+        view.Indexes.ShouldHaveSingleItem().Name.ShouldBe("daily_ix");
     }
 
     // -------------------------------------------------------------------------
@@ -226,37 +419,38 @@ public sealed class DdlWriterTests
     [Fact]
     public void Write_Function_EmitsArgumentsAndDefinitionVerbatim()
         => DdlWriter.Instance.Write(new DatabaseSchema([
-            new SchemaDefinition("app", Functions:
-                [new Function("add_tax", "amount numeric", "RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$")]),
+            new SchemaDefinition("app", Routines:
+                [new Routine("add_tax", RoutineKind.Function, "amount numeric", "RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$")]),
         ])).ShouldContain("CREATE FUNCTION app.add_tax(amount numeric) RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$;");
 
     [Fact]
     public void Write_Function_MultiLineDefinition_KeepsNewlines()
         => DdlWriter.Instance.Write(new DatabaseSchema([
-            new SchemaDefinition("app", Functions:
-                [new Function("f", "", "RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$")]),
+            new SchemaDefinition("app", Routines:
+                [new Routine("f", RoutineKind.Function, "", "RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$")]),
         ])).ShouldContain("CREATE FUNCTION app.f() RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$;");
 
     [Fact]
     public void Write_Function_TrailingWhitespaceInDefinition_IsTrimmed()
         // A code-built definition ending in whitespace must not push the ';' onto dangling whitespace.
         => DdlWriter.Instance.Write(new DatabaseSchema([
-            new SchemaDefinition("app", Functions: [new Function("f", "", "RETURNS int AS $$ SELECT 1 $$  \n")]),
+            new SchemaDefinition("app", Routines: [new Routine("f", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 1 $$  \n")]),
         ])).ShouldContain("AS $$ SELECT 1 $$;");
 
     [Fact]
     public void Write_Procedure_IsEmitted()
         => DdlWriter.Instance.Write(new DatabaseSchema([
-            new SchemaDefinition("app", Procedures: [new Procedure("archive", "before date", "LANGUAGE sql AS $$ DELETE $$")]),
+            new SchemaDefinition("app", Routines: [new Routine("archive", RoutineKind.Procedure, "before date", "LANGUAGE sql AS $$ DELETE $$")]),
         ])).ShouldContain("CREATE PROCEDURE app.archive(before date) LANGUAGE sql AS $$ DELETE $$;");
 
     [Fact]
-    public void Write_FunctionAndProcedureDrops_AreEmitted()
+    public void Write_RoutineDrops_AreEmitted()
     {
+        // Routines are recorded by name only (one name space), so they are emitted with kind-agnostic DROP ROUTINE.
         var ddl = DdlWriter.Instance.Write(new DatabaseSchema([
-            new SchemaDefinition("app", DroppedFunctions: ["stale_fn"], DroppedProcedures: ["stale_proc"]),
+            new SchemaDefinition("app", DroppedRoutines: ["stale_fn", "stale_proc"]),
         ]));
-        ddl.ShouldContain("DROP FUNCTION app.stale_fn;");
-        ddl.ShouldContain("DROP PROCEDURE app.stale_proc;");
+        ddl.ShouldContain("DROP ROUTINE app.stale_fn;");
+        ddl.ShouldContain("DROP ROUTINE app.stale_proc;");
     }
 }

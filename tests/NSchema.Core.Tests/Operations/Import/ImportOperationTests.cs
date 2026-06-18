@@ -3,6 +3,15 @@ using NSchema.Operations.Import;
 using NSchema.Schema;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Domains;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Extensions;
+using NSchema.Schema.Model.Routines;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Tests.Operations.Import;
 
@@ -107,8 +116,8 @@ public sealed class ImportOperationTests : IDisposable
         File.Exists(ObjectPath("tables", "users")).ShouldBeTrue();
         File.Exists(ObjectPath("tables", "orders")).ShouldBeTrue();
         File.Exists(ObjectPath("views", "active")).ShouldBeTrue();
-        File.Exists(ObjectPath("functions", "calc")).ShouldBeTrue();
-        File.Exists(ObjectPath("procedures", "sync")).ShouldBeTrue();
+        File.Exists(ObjectPath("routines", "calc")).ShouldBeTrue();
+        File.Exists(ObjectPath("routines", "sync")).ShouldBeTrue();
     }
 
     [Fact]
@@ -120,13 +129,13 @@ public sealed class ImportOperationTests : IDisposable
 
         (await ReadSchema(ObjectPath("tables", "users"))).Schemas.Single().Tables.Single().Name.ShouldBe("users");
         (await ReadSchema(ObjectPath("views", "active"))).Schemas.Single().Views.Single().Name.ShouldBe("active");
-        (await ReadSchema(ObjectPath("functions", "calc"))).Schemas.Single().Functions.Single().Name.ShouldBe("calc");
-        (await ReadSchema(ObjectPath("procedures", "sync"))).Schemas.Single().Procedures.Single().Name.ShouldBe("sync");
+        (await ReadSchema(ObjectPath("routines", "calc"))).Schemas.Single().Routines.Single().Name.ShouldBe("calc");
+        (await ReadSchema(ObjectPath("routines", "sync"))).Schemas.Single().Routines.Single().Name.ShouldBe("sync");
 
         // An object file carries nothing but its own object.
         var users = (await ReadSchema(ObjectPath("tables", "users"))).Schemas.Single();
         users.Views.ShouldBeEmpty();
-        users.Functions.ShouldBeEmpty();
+        users.Routines.ShouldBeEmpty();
         users.Enums.ShouldBeEmpty();
         users.Sequences.ShouldBeEmpty();
     }
@@ -144,8 +153,7 @@ public sealed class ImportOperationTests : IDisposable
         // The major objects live in their own files, not the header.
         header.Tables.ShouldBeEmpty();
         header.Views.ShouldBeEmpty();
-        header.Functions.ShouldBeEmpty();
-        header.Procedures.ShouldBeEmpty();
+        header.Routines.ShouldBeEmpty();
     }
 
     [Fact]
@@ -160,8 +168,7 @@ public sealed class ImportOperationTests : IDisposable
         var app = (await ReadAll()).Schemas.Single();
         app.Tables.Select(t => t.Name).ShouldBe(["users", "orders"], ignoreOrder: true);
         app.Views.ShouldHaveSingleItem().Name.ShouldBe("active");
-        app.Functions.ShouldHaveSingleItem().Name.ShouldBe("calc");
-        app.Procedures.ShouldHaveSingleItem().Name.ShouldBe("sync");
+        app.Routines.Select(r => r.Name).ShouldBe(["calc", "sync"], ignoreOrder: true);
         app.Enums.ShouldHaveSingleItem().Name.ShouldBe("status");
         app.Sequences.ShouldHaveSingleItem().Name.ShouldBe("order_id");
     }
@@ -213,29 +220,74 @@ public sealed class ImportOperationTests : IDisposable
     [Fact]
     public async Task Execute_ReimportReplacesHeaderObjects()
     {
-        // The header file holds schema-level objects; a re-import must replace (not duplicate) them.
+        // The header file holds schema-level objects (enums, sequences, domains); a re-import must replace (not
+        // duplicate) them.
         var schema = new DatabaseSchema([new SchemaDefinition("app",
             Enums: [new EnumType("status", ["a"])],
-            Sequences: [new Sequence("order_id", new SequenceOptions(StartWith: 1))])]);
+            Sequences: [new Sequence("order_id", new SequenceOptions(StartWith: 1))],
+            Domains: [new Domain("typeid", SqlType.Text)])]);
 
         Source(schema);
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
         Source(new DatabaseSchema([new SchemaDefinition("app",
             Enums: [new EnumType("status", ["a", "b"])],
-            Sequences: [new Sequence("order_id", new SequenceOptions(StartWith: 100))])]));
+            Sequences: [new Sequence("order_id", new SequenceOptions(StartWith: 100))],
+            Domains: [new Domain("typeid", SqlType.VarChar(64))])]));
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
         var header = (await ReadSchema(HeaderPath)).Schemas.Single();
         header.Enums.ShouldHaveSingleItem().Values.ShouldBe(["a", "b"]); // incoming wins
         header.Sequences.ShouldHaveSingleItem().Options.StartWith.ShouldBe(100);
+        header.Domains.ShouldHaveSingleItem().DataType.ShouldBe(SqlType.VarChar(64)); // incoming wins, no duplicate
+    }
+
+    // ── Extensions (database-global, root-level) ─────────────────────────────
+
+    [Fact]
+    public async Task Execute_WritesExtensionsToTopLevelFile()
+    {
+        Source(new DatabaseSchema([new SchemaDefinition("app", Tables: [MakeTable("users")])],
+            Extensions: [new Extension("citext"), new Extension("postgis", Version: "3.4")]));
+
+        await Execute(new ImportArguments { OutputDirectory = _dir });
+
+        // Extensions land in a single top-level file, not under any per-schema directory.
+        var extensions = (await ReadSchema(Path.Combine(_dir, "extensions.sql"))).Extensions;
+        extensions.Select(e => e.Name).ShouldBe(["citext", "postgis"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task Execute_NoExtensions_WritesNoExtensionsFile()
+    {
+        await Execute(new ImportArguments { OutputDirectory = _dir });
+
+        File.Exists(Path.Combine(_dir, "extensions.sql")).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Execute_ReimportMergesExtensionsAdditively()
+    {
+        Source(new DatabaseSchema([new SchemaDefinition("app", Tables: [MakeTable("users")])],
+            Extensions: [new Extension("citext")]));
+        await Execute(new ImportArguments { OutputDirectory = _dir });
+
+        Source(new DatabaseSchema([new SchemaDefinition("app", Tables: [MakeTable("users")])],
+            Extensions: [new Extension("postgis", Version: "3.4")]));
+        await Execute(new ImportArguments { OutputDirectory = _dir });
+
+        var extensions = (await ReadSchema(Path.Combine(_dir, "extensions.sql"))).Extensions;
+        extensions.Select(e => e.Name).ShouldBe(["citext", "postgis"], ignoreOrder: true);
     }
 
     private static DatabaseSchema RichSchema() => new([new SchemaDefinition("app",
         Tables: [MakeTable("users"), MakeTable("orders")],
         Views: [new View("active", "SELECT 1")],
-        Functions: [new Function("calc", "", "RETURNS int LANGUAGE sql AS $$ SELECT 1 $$")],
-        Procedures: [new Procedure("sync", "", "LANGUAGE sql AS $$ SELECT 1 $$")],
+        Routines:
+        [
+            new Routine("calc", RoutineKind.Function, "", "RETURNS int LANGUAGE sql AS $$ SELECT 1 $$"),
+            new Routine("sync", RoutineKind.Procedure, "", "LANGUAGE sql AS $$ SELECT 1 $$"),
+        ],
         Enums: [new EnumType("status", ["a"])],
         Sequences: [new Sequence("order_id", new SequenceOptions(StartWith: 1))])]);
 }

@@ -1,0 +1,14 @@
+﻿+ type app.address (street text, zip int) ("a postal address")
+
+~ type app.money
+    + field currency text
+    ~ field amount type: int → decimal(18,2)
+    - field legacy
+
+~ type app.old_t → renamed_t
+
+~ type app.noted comment: "old" → "new"
+
+- type app.stale_t
+
+Plan: 1 to add, 3 to change, 1 to destroy.

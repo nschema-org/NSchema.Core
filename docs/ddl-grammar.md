@@ -92,10 +92,10 @@ CREATE TABLE app.users
 
 ```ebnf
 document   = { [ doc-comment ] , ( statement | config-block | deployment-script ) } ;
-statement  = ( create-schema | create-table | create-view | create-enum | create-sequence
-             | create-function | create-procedure
-             | drop-schema | drop-table | drop-view | drop-enum | drop-sequence
-             | drop-function | drop-procedure | grant ) , ";" ;
+statement  = ( create-schema | create-table | create-view | create-enum | create-domain | create-sequence
+             | create-function | create-procedure | create-extension | create-trigger | create-index
+             | drop-schema | drop-table | drop-view | drop-enum | drop-domain | drop-sequence
+             | drop-function | drop-extension | grant ) , ";" ;
 ```
 
 A flat statement list; schema membership is by qualified name, exactly like SQL — no nesting.
@@ -224,7 +224,7 @@ create-table = "CREATE" , "TABLE" , qualified-name , [ "RENAMED" , "FROM" , iden
                "(" , table-item , { "," , table-item } , ")" ;
 drop-table   = "DROP" , "TABLE" , qualified-name ;         (* -> DroppedTables (explicit drop, partial schema) *)
 
-table-item   = [ doc-comment ] , ( column-def | pk-def | fk-def | unique-def | check-def | index-def ) ;
+table-item   = [ doc-comment ] , ( column-def | pk-def | fk-def | unique-def | check-def | exclude-def | index-def ) ;
 ```
 
 ### Columns
@@ -234,6 +234,7 @@ column-def   = ident , type ,
                [ "NOT" , "NULL" | "NULL" ] ,
                [ "IDENTITY" , [ "(" , identity-opt , { "," , identity-opt } , ")" ] ] ,
                [ "DEFAULT" , ( paren-expr | default-expr ) ] ,
+               [ "GENERATED" , "ALWAYS" , "AS" , paren-expr , "STORED" ] ,
                [ "RENAMED" , "FROM" , ident ] ;
 
 identity-opt = ( "START" | "INCREMENT" | "MINVALUE" ) , integer ;
@@ -247,6 +248,10 @@ round-trips against introspection — e.g. `integer`→`int`, `bool`→`boolean`
 `decimal(p,s)`, `timestamp`→`datetime`, `timestamptz`→`datetimeoffset`, `uuid`→`guid`, `bytea`→`varbinary`
 (plus the Postgres `int2`/`int4`/`int8`/`float4`/`float8` spellings). The modifier order above is fixed.
 
+A **`GENERATED ALWAYS AS (expr) STORED`** column is computed from other columns and stored; its expression is
+opaque (read like a `CHECK`), and `STORED` is required (the only generation kind supported). It is mutually
+exclusive with `DEFAULT`. The generation expression maps to `Column.GeneratedExpression`.
+
 ### Constraints
 
 Names are mandatory; structural changes drop-and-recreate, but a doc-comment change alone is applied in place
@@ -259,20 +264,40 @@ fk-def     = "CONSTRAINT" , ident , "FOREIGN" , "KEY" , "(" , col-list , ")" ,
              [ "ON" , "DELETE" , ref-action ] , [ "ON" , "UPDATE" , ref-action ] ;
 unique-def = "CONSTRAINT" , ident , "UNIQUE" , "(" , col-list , ")" ;
 check-def  = "CONSTRAINT" , ident , "CHECK" , paren-expr ;
+exclude-def = "CONSTRAINT" , ident , "EXCLUDE" , [ "USING" , ident ] ,
+              "(" , excl-elem , { "," , excl-elem } , ")" , [ "WHERE" , paren-expr ] ;
+excl-elem  = ( ident | paren-expr ) , "WITH" , operator ;
 
 ref-action = "NO" , "ACTION" | "CASCADE" | "SET" , "NULL" | "SET" , "DEFAULT" ;
 col-list   = ident , { "," , ident } ;
 ```
 
+An **`EXCLUDE`** constraint (an `exclude-def`) guarantees that no two rows have all of the given operators
+returning true across the listed elements — e.g. `EXCLUDE USING gist (room WITH =, during WITH &&)` forbids
+overlapping bookings of the same room. Each element is a column or parenthesised expression paired with an
+`operator` (raw text up to the `,` or `)` — so `&&`, `<>`, … need no escaping); `USING method` is optional
+(omitted → database default), as is a partial `WHERE`. It maps to `ExclusionConstraint` (`Method`, `Elements`
+of `ExclusionElement { Expression, Operator }`, `Predicate`). Dropping one is a destructive change.
+
 ### Indexes (inline)
 
 ```ebnf
-index-def  = [ "UNIQUE" ] , "INDEX" , ident , "(" , col-list , ")" , [ "WHERE" , paren-expr ] ;
+index-def  = [ "UNIQUE" ] , "INDEX" , ident , [ "USING" , ident ] ,
+             "(" , index-key , { "," , index-key } , ")" ,
+             [ "INCLUDE" , "(" , col-list , ")" ] , [ "WHERE" , paren-expr ] ;
+index-key  = ( ident | paren-expr ) , [ "ASC" | "DESC" ] , [ "NULLS" , ( "FIRST" | "LAST" ) ] ;
 ```
 
 `UNIQUE (…)` (a `unique-def`) is a **unique constraint**; `UNIQUE INDEX` is a **unique index** — SQL's own
 distinction, mapping to the two distinct model concepts (`UniqueConstraint` vs `TableIndex { IsUnique }`). A
 unique index can be partial (`WHERE`); a unique constraint cannot.
+
+Each `index-key` is a plain column or a parenthesised **expression** (`(lower(email))` → `IndexColumn { IsExpression }`),
+with optional `ASC`/`DESC` and `NULLS FIRST`/`NULLS LAST` (omitted → database default, rendered without the
+keyword). `USING method` selects the access method (`gin`, `gist`, `brin`, …; omitted → B-tree), and `INCLUDE (…)`
+lists covering non-key columns. These map to `TableIndex` (`Method`, `Columns` of `IndexColumn`, `Include`). Any
+structural change (a key, its ordering, the method, or the include set) drops and recreates the index; a
+doc-comment change alone is applied in place.
 
 ### Grants
 
@@ -288,9 +313,12 @@ table-priv = "SELECT" | "INSERT" | "UPDATE" | "DELETE" ;
 ### Views
 
 ```ebnf
-create-view = "CREATE" , "VIEW" , qualified-name , [ "RENAMED" , "FROM" , ident ] ,
+create-view = "CREATE" , [ "MATERIALIZED" ] , "VIEW" , qualified-name , [ "RENAMED" , "FROM" , ident ] ,
               "AS" , view-body ;                            (* view-body: opaque text up to the top-level ';' *)
-drop-view   = "DROP" , "VIEW" , qualified-name ;            (* -> DroppedViews (explicit drop, partial schema) *)
+drop-view   = "DROP" , [ "MATERIALIZED" ] , "VIEW" , qualified-name ; (* -> DroppedViews (explicit drop, partial schema) *)
+create-index = "CREATE" , [ "UNIQUE" ] , "INDEX" , ident , "ON" , qualified-name , [ "USING" , ident ] ,
+               "(" , index-key , { "," , index-key } , ")" ,
+               [ "INCLUDE" , "(" , col-list , ")" ] , [ "WHERE" , paren-expr ] ;
 ```
 
 The `view-body` is everything after `AS` up to the terminating top-level `;` — captured **verbatim** and never
@@ -302,6 +330,23 @@ nesting depth, minus names bound by a `WITH` CTE — and records them as `View.D
 view is **created after** the tables and views it reads and **dropped before** them, with views ordered amongst
 themselves by their dependency graph (a cycle is rejected). The scan is deliberately shallow; it over-collects
 rather than under-collects, since a reference that names no planned object simply produces no ordering edge.
+
+A **materialized** view (`CREATE MATERIALIZED VIEW`) stores its result set and is the same model type as a plain
+view, distinguished by a flag (matching `pg_class`'s `relkind`). Because there is no `CREATE OR REPLACE
+MATERIALIZED VIEW`, a body change to a materialized view — or converting a view to/from materialized — is planned
+as a **drop + recreate**, whereas a plain view's body change is an in-place `CREATE OR REPLACE`.
+
+A standalone `CREATE [UNIQUE] INDEX … ON s.relation` statement attaches an index to its relation when the
+document is built (like a `GRANT`, which also names its target via `ON`): a **table** — equivalent to declaring
+the index inline in the table body — or a **materialized view**. A plain view cannot be indexed, and targeting
+an unknown relation is an error. A materialized view's indexes *must* be standalone (its body is opaque, so
+there is nowhere inline to put them); a table's may be written either way. There is no `DROP INDEX`: an index
+absent from its relation's declaration is dropped, the same as an inline table index.
+
+```sql
+CREATE MATERIALIZED VIEW app.daily_totals AS SELECT date, sum(amount) FROM app.sales GROUP BY date;
+CREATE UNIQUE INDEX daily_totals_date_ix ON app.daily_totals (date);
+```
 
 ### Enums
 
@@ -319,6 +364,49 @@ The values are an **ordered** list (the order is the type's comparison order, as
 within the enum. A column uses the enum by naming it as its type (`status order_status`). Enum evolution is
 additions-only: new values may be inserted anywhere, but removing or reordering existing values cannot be planned —
 it requires manually recreating the type.
+
+### Domains
+
+```ebnf
+create-domain = "CREATE" , "DOMAIN" , qualified-name , [ "RENAMED" , "FROM" , ident ] , "AS" , type ,
+                { "NOT" , "NULL" | "NULL" | "CONSTRAINT" , ident , "CHECK" , "(" , expr , ")" } ,
+                [ "DEFAULT" , expr ] ;
+drop-domain   = "DROP" , "DOMAIN" , qualified-name ;          (* -> DroppedDomains (explicit drop, partial schema) *)
+```
+
+```sql
+CREATE DOMAIN app.email AS text NOT NULL CONSTRAINT email_fmt CHECK (VALUE ~ '@') DEFAULT 'x@y';
+```
+
+A domain is a schema-scoped named type over a base `type`, optionally constrained by `NOT NULL` and named
+`CHECK` constraints (whose expressions reference the domain's `VALUE`). A column uses it by naming it as its
+type, so a domain is **created before**, and **dropped after**, the tables that may use it. The optional
+`DEFAULT`, if present, must come **last** — its expression is opaque and read up to the terminating `;`.
+
+Because a domain is depended on by columns, changes are applied **in place** with `ALTER DOMAIN` wherever
+possible: a default, not-null, or check change never drops the domain. Only a **base-type change** forces a drop
++ recreate (Postgres has no `ALTER DOMAIN … TYPE`), which fails loudly if a column still uses the domain.
+
+### Composite types
+
+```ebnf
+create-type = "CREATE" , "TYPE" , qualified-name , [ "RENAMED" , "FROM" , ident ] ,
+              "AS" , "(" , [ field , { "," , field } ] , ")" ;
+field       = ident , type ;
+drop-type   = "DROP" , "TYPE" , qualified-name ;             (* -> DroppedCompositeTypes (explicit drop, partial schema) *)
+```
+
+```sql
+CREATE TYPE app.address AS (street text, zip int);
+```
+
+A composite type is a schema-scoped named tuple of `field name + type` pairs (no constraints, defaults or
+nullability — those belong to columns, not to the type). Like a domain, a column uses it by naming it as its
+type, so a composite type is **created before**, and **dropped after**, the tables that may use it.
+
+Every change applies **in place** with `ALTER TYPE` — there is no recreate. Fields are matched **by name**: a
+field absent from the new definition is dropped, a new field is added, and a matched field whose type differs is
+retyped (`ALTER TYPE … ALTER ATTRIBUTE … TYPE`). A rename uses `RENAMED FROM`, exactly as for tables and domains.
 
 ### Sequences
 
@@ -338,6 +426,30 @@ CREATE SEQUENCE app.order_id (AS bigint, START 100, INCREMENT 5, MAXVALUE 999999
 The option style mirrors a column's `IDENTITY (…)` clause. An omitted option means the database provider's
 default applies. Each option may appear at most once.
 
+### Extensions
+
+```ebnf
+create-extension = "CREATE" , "EXTENSION" , ext-name , [ "VERSION" , string ] ;
+drop-extension   = "DROP" , "EXTENSION" , ext-name ;       (* -> DroppedExtensions (explicit drop only) *)
+ext-name         = ident | string ;
+```
+
+```sql
+CREATE EXTENSION citext;
+CREATE EXTENSION postgis VERSION '3.4';
+CREATE EXTENSION 'uuid-ossp';
+```
+
+Extensions are **database-global**, not schema-scoped: an extension is named once per database, so it is declared
+at the top level (not inside a `CREATE SCHEMA`) and is never qualified by a schema. The name may be a quoted
+string when it is not a bare identifier (e.g. `'uuid-ossp'`). `VERSION` is optional; when omitted, whatever
+version the provider installs is accepted, and the version is never compared (so an omitted version cannot show
+as drift). A version change plans an update in place.
+
+Unlike every other object, an extension that exists in the database but is absent from the desired schema is
+**left alone** — it is removed only by an explicit `DROP EXTENSION`. Extensions are shared infrastructure (a
+database always has some installed by default), so absence must never imply a drop.
+
 ### Functions and procedures
 
 ```ebnf
@@ -345,8 +457,7 @@ create-function  = "CREATE" , "FUNCTION" , qualified-name , [ "RENAMED" , "FROM"
                    "(" , [ arg-text ] , ")" , definition-text ;
 create-procedure = "CREATE" , "PROCEDURE" , qualified-name , [ "RENAMED" , "FROM" , ident ] ,
                    "(" , [ arg-text ] , ")" , definition-text ;
-drop-function    = "DROP" , "FUNCTION" , qualified-name ;   (* -> DroppedFunctions (explicit drop, partial schema) *)
-drop-procedure   = "DROP" , "PROCEDURE" , qualified-name ;  (* -> DroppedProcedures (explicit drop, partial schema) *)
+drop-function    = "DROP" , ( "FUNCTION" | "PROCEDURE" | "ROUTINE" ) , qualified-name ; (* -> DroppedRoutines (explicit drop, partial schema) *)
 ```
 
 ```sql
@@ -355,20 +466,56 @@ CREATE FUNCTION app.add_tax(amount numeric, rate numeric) RETURNS numeric LANGUA
 $$;
 ```
 
-Both captures are **opaque**: `arg-text` is the verbatim text inside the parentheses (quote- and paren-aware,
-but **not** dollar-quote aware), and `definition-text` is everything after the closing parenthesis up to the
-top-level `;` — **dollar-quote aware**, so a `;` inside `$$ … $$` (or a tagged `$body$ … $body$`) does not end
-the statement. A procedure is identical except its definition has no `RETURNS` clause.
+Functions and procedures are **one object kind** — a *routine* — distinguished by which keyword created it
+(matching the database, where both live in one catalog, e.g. Postgres's `pg_proc`). Both captures are
+**opaque**: `arg-text` is the verbatim text inside the parentheses (quote- and paren-aware, but **not**
+dollar-quote aware), and `definition-text` is everything after the closing parenthesis up to the top-level `;`
+— **dollar-quote aware**, so a `;` inside `$$ … $$` (or a tagged `$body$ … $body$`) does not end the statement.
+A procedure is identical except its definition has no `RETURNS` clause.
 
 Two rules carry over from the database:
 
 1. **No overloading** — one routine per name. Declaring the same name twice is an error.
-2. **Functions and procedures share one name space** within a schema (they live in the same catalog), so a
-   function and a procedure with the same name is an error.
+2. **Functions and procedures share one name space** within a schema, so a function and a procedure with the
+   same name is an error — they are the same routine pool.
+
+A drop uses `DROP FUNCTION`, `DROP PROCEDURE`, or the kind-agnostic `DROP ROUTINE` (all equivalent — a routine
+is recorded by name only, and the kind is resolved from the current state when the drop is planned).
 
 The argument list is part of the routine's identity: changing it plans a **drop + recreate** (replacing in
 place under a different signature would create a separate overload in the database). A definition-only change
 replaces in place, like a view body change.
+
+### Triggers
+
+```ebnf
+create-trigger = "CREATE" , "TRIGGER" , ident , timing , events , "ON" , qualified-name ,
+                 [ "FOR" , "EACH" , ( "ROW" | "STATEMENT" ) ] , [ "WHEN" , "(" , expr , ")" ] ,
+                 "EXECUTE" , ( "FUNCTION" | "PROCEDURE" ) , func-name , "(" , [ arg-text ] , ")" ;
+timing         = "BEFORE" | "AFTER" | "INSTEAD" , "OF" ;
+events         = event , { "OR" , event } ;
+event          = "INSERT" | "DELETE" | "TRUNCATE" | "UPDATE" , [ "OF" , "(" , ident , { "," , ident } , ")" ] ;
+func-name      = ident , [ "." , ident ] ;
+```
+
+```sql
+CREATE TRIGGER users_audit
+  AFTER INSERT OR UPDATE OF (email)
+  ON app.users
+  FOR EACH ROW
+  WHEN (new.email IS NOT NULL)
+  EXECUTE FUNCTION app.log_change();
+```
+
+A trigger is **table-scoped** but written as a standalone statement that names its table via `ON` — like a
+`GRANT`, it is attached to that table when the document is built (referencing an undeclared table is an error).
+The function the trigger executes must exist; the planner creates a trigger after both its table and the
+function it calls, and drops it before either. `FOR EACH` defaults to `STATEMENT` when omitted. The `WHEN`
+condition and the function `arg-text` are captured **opaque** (verbatim), like a `CHECK` expression.
+
+Triggers are **table members** (named uniquely per table), so — like indexes and constraints — they are not
+renameable and have no separate `DROP TRIGGER`: a trigger absent from a declared table's set is dropped, and a
+structural change is planned as a drop + recreate (only a comment-only change is applied in place).
 
 ## Construct → model mapping
 
@@ -380,21 +527,32 @@ replaces in place, like a view body change.
 | `RENAMED FROM x` (schema/table/column)     | `OldName`                                                          |
 | `name type [NOT NULL] [DEFAULT e]`         | `Column` (`Type`→`SqlType`, `IsNullable`, `DefaultExpression`)     |
 | `IDENTITY (…)`                             | `Column.IsIdentity` + `IdentityOptions`                            |
+| `GENERATED ALWAYS AS (e) STORED`           | `Column.GeneratedExpression` (opaque; excludes `DEFAULT`)          |
 | `CONSTRAINT n PRIMARY KEY (…)`             | `Table.PrimaryKey` (`PrimaryKey`)                                  |
 | `CONSTRAINT n FOREIGN KEY … REFERENCES …`  | `ForeignKey` (`OnDelete`/`OnUpdate`→`ReferentialAction`)           |
 | `CONSTRAINT n UNIQUE (…)`                  | `UniqueConstraint`                                                 |
 | `CONSTRAINT n CHECK (e)`                   | `CheckConstraint` (`Expression` = `e`, opaque)                     |
-| `[UNIQUE] INDEX n (…) [WHERE e]`           | `TableIndex` (`IsUnique`, `Predicate`)                             |
+| `CONSTRAINT n EXCLUDE [USING m] (c WITH op, …)` | `ExclusionConstraint` (`Method`, `Elements`, `Predicate`)     |
+| `[UNIQUE] INDEX n [USING m] (key, …) [INCLUDE (…)] [WHERE e]` | `TableIndex` (`IsUnique`, `Method`, `Columns`→`IndexColumn`, `Include`, `Predicate`) |
 | `GRANT … ON s.t TO r`                      | `TableGrant`                                                       |
 | `GRANT USAGE ON SCHEMA s TO r`             | `SchemaGrant`                                                      |
 | `DROP TABLE s.t` / `DROP SCHEMA s`         | `DroppedTables` / `DroppedSchemas`                                 |
 | `DROP VIEW s.v`                            | `DroppedViews`                                                     |
+| `CREATE MATERIALIZED VIEW s.v AS …`        | `View` with `IsMaterialized = true`                                |
+| `CREATE [UNIQUE] INDEX n ON s.rel (…)`     | `TableIndex` on the table (`Table.Indexes`) or materialized view (`View.Indexes`) `s.rel` |
 | `CREATE ENUM s.e ('a', 'b')`               | `SchemaDefinition` + `EnumType` (ordered `Values`)                 |
+| `CREATE DOMAIN s.d AS t [NOT NULL] [CHECK] [DEFAULT]` | `Domain` (`DataType`, `NotNull`, `Checks`, `Default`)    |
+| `DROP DOMAIN s.d`                          | `DroppedDomains` (explicit drop, partial schema)                   |
+| `CREATE TYPE s.t AS (f1 t1, f2 t2)`        | `CompositeType` (ordered `Fields` of `name`/`DataType`)            |
+| `DROP TYPE s.t`                            | `DroppedCompositeTypes` (explicit drop, partial schema)            |
 | `CREATE SEQUENCE s.q (…)`                  | `SchemaDefinition` + `Sequence` (`SequenceOptions`)                |
 | `DROP ENUM s.e` / `DROP SEQUENCE s.q`      | `DroppedEnums` / `DroppedSequences`                                |
-| `CREATE FUNCTION s.f(…) …`                 | `SchemaDefinition` + `Function` (`Arguments`/`Definition` opaque)  |
-| `CREATE PROCEDURE s.p(…) …`                | `SchemaDefinition` + `Procedure` (`Arguments`/`Definition` opaque) |
-| `DROP FUNCTION s.f` / `DROP PROCEDURE s.p` | `DroppedFunctions` / `DroppedProcedures`                           |
+| `CREATE FUNCTION s.f(…) …`                 | `Routine` (`Kind` = `Function`; `Arguments`/`Definition` opaque)   |
+| `CREATE PROCEDURE s.p(…) …`                | `Routine` (`Kind` = `Procedure`; `Arguments`/`Definition` opaque)  |
+| `DROP {FUNCTION\|PROCEDURE\|ROUTINE} s.r`  | `DroppedRoutines`                                                  |
+| `CREATE EXTENSION e [VERSION 'v']`         | `DatabaseSchema` + `Extension` (root-level, `Version` optional)    |
+| `DROP EXTENSION e`                         | `DroppedExtensions` (root-level; explicit drop only)               |
+| `CREATE TRIGGER t … ON s.tbl …`            | `Trigger` on the named table (`Table.Triggers`; no drop statement) |
 | `---` / `/** */` before a declaration      | that object's `Comment`                                            |
 
 ## Worked example

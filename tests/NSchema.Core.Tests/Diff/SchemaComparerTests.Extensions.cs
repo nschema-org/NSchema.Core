@@ -1,0 +1,80 @@
+using NSchema.Diff.Model;
+using NSchema.Schema.Model;
+using NSchema.Schema.Model.Extensions;
+
+namespace NSchema.Tests.Diff;
+
+public partial class SchemaComparerTests
+{
+    // -------------------------------------------------------------------------
+    // Extensions (database-global, root-level)
+    // -------------------------------------------------------------------------
+
+    /// <summary>Diffs two databases holding the given root-level extensions, returning the single extension diff.</summary>
+    private ExtensionDiff? DiffExtensions(
+        IReadOnlyList<Extension> current,
+        IReadOnlyList<Extension> desired,
+        IReadOnlyList<string>? dropped = null) => _sut
+        .Compare(
+            new DatabaseSchema(Extensions: current),
+            new DatabaseSchema(Extensions: desired, DroppedExtensions: dropped))
+        .Extensions.SingleOrDefault();
+
+    [Fact]
+    public void Compare_NewExtension_IsAddCarryingDefinition()
+    {
+        var diff = DiffExtensions([], [new Extension("postgis", Version: "3.4")]);
+
+        diff!.Kind.ShouldBe(ChangeKind.Add);
+        diff.Definition!.Name.ShouldBe("postgis");
+        diff.Definition.Version.ShouldBe("3.4");
+    }
+
+    [Fact]
+    public void Compare_ExtensionPresentButNotDesired_IsLeftAlone()
+        // Extensions are shared infrastructure (e.g. plpgsql is installed in every database); absence from the
+        // desired set must never imply a drop. Only an explicit DROP removes one.
+        => DiffExtensions([new Extension("plpgsql")], []).ShouldBeNull();
+
+    [Fact]
+    public void Compare_ExplicitlyDroppedExtension_IsRemove()
+    {
+        var diff = DiffExtensions([new Extension("citext")], [], dropped: ["citext"]);
+
+        diff!.Kind.ShouldBe(ChangeKind.Remove);
+        diff.Name.ShouldBe("citext");
+    }
+
+    [Fact]
+    public void Compare_DroppedExtensionNotInstalled_ProducesNoDiff()
+        // Dropping something that isn't there is a no-op, not a phantom removal.
+        => DiffExtensions([], [], dropped: ["citext"]).ShouldBeNull();
+
+    [Fact]
+    public void Compare_UnchangedExtension_ProducesNoDiff()
+        => DiffExtensions([new Extension("citext")], [new Extension("citext")]).ShouldBeNull();
+
+    [Fact]
+    public void Compare_OmittedDesiredVersion_IsNotComparedAgainstInstalledVersion()
+        // A null desired version means "accept whatever is installed", so an omitted version can never drift.
+        => DiffExtensions([new Extension("postgis", Version: "3.4")], [new Extension("postgis")]).ShouldBeNull();
+
+    [Fact]
+    public void Compare_ExtensionVersionChange_CarriesOldAndNewVersion()
+    {
+        var diff = DiffExtensions([new Extension("postgis", Version: "3.3")], [new Extension("postgis", Version: "3.4")]);
+
+        diff!.Kind.ShouldBe(ChangeKind.Modify);
+        diff.Version.ShouldBe(new ValueChange<string>("3.3", "3.4"));
+    }
+
+    [Fact]
+    public void Compare_ExtensionCommentOnlyChange_IsModify()
+    {
+        var diff = DiffExtensions([new Extension("citext", Comment: "old")], [new Extension("citext", Comment: "new")]);
+
+        diff!.Kind.ShouldBe(ChangeKind.Modify);
+        diff.Comment.ShouldBe(new ValueChange<string>("old", "new"));
+        diff.Version.ShouldBeNull();
+    }
+}

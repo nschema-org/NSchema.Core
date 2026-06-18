@@ -1,5 +1,6 @@
 using NSchema.Schema.Ddl;
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Tables;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
@@ -184,7 +185,7 @@ public sealed class DdlParserTableTests
     {
         var index = ParseTable("email text, INDEX ix_email (email)").Indexes.Single();
         index.Name.ShouldBe("ix_email");
-        index.ColumnNames.ShouldBe(["email"]);
+        index.Columns.Select(c => c.Expression).ShouldBe(["email"]);
         index.IsUnique.ShouldBeFalse();
         index.Predicate.ShouldBeNull();
     }

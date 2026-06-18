@@ -3,6 +3,7 @@ using NSchema.Operations;
 using NSchema.Operations.Plan;
 using NSchema.Operations.Services;
 using NSchema.Plan.Model;
+using NSchema.Plan.Model.Schemas;
 using NSchema.Plan.PlanFile;
 using NSchema.Schema;
 using NSchema.Sql;

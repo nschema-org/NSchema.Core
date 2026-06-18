@@ -1,5 +1,9 @@
 using NSchema.Diff.Model;
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Tables;
 
 namespace NSchema.Tests.Diff;
 
@@ -280,5 +284,78 @@ public partial class SchemaComparerTests
         var index = table!.Indexes.ShouldHaveSingleItem();
         index.Kind.ShouldBe(ChangeKind.Modify);
         index.Comment.ShouldBe(new ValueChange<string>("old", "new"));
+    }
+
+    [Fact]
+    public void Compare_IndexMethodChanged_EmitsRemoveThenAdd()
+    {
+        var table = DiffTable(
+            new Table("t", Columns: [new Column("tags", SqlType.Text)], Indexes: [new TableIndex("t_tags_ix", ["tags"])]),
+            new Table("t", Columns: [new Column("tags", SqlType.Text)], Indexes: [new TableIndex("t_tags_ix", ["tags"], Method: "gin")]));
+
+        table!.Indexes.Select(i => i.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
+    }
+
+    [Fact]
+    public void Compare_IndexIncludeChanged_EmitsRemoveThenAdd()
+    {
+        var table = DiffTable(
+            new Table("t", Columns: [new Column("a", SqlType.Int), new Column("b", SqlType.Int)], Indexes: [new TableIndex("t_ix", ["a"])]),
+            new Table("t", Columns: [new Column("a", SqlType.Int), new Column("b", SqlType.Int)], Indexes: [new TableIndex("t_ix", ["a"], Include: ["b"])]));
+
+        table!.Indexes.Select(i => i.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
+    }
+
+    [Fact]
+    public void Compare_IndexKeyOrderingChanged_EmitsRemoveThenAdd()
+    {
+        var table = DiffTable(
+            new Table("t", Columns: [new Column("a", SqlType.Int)], Indexes: [new TableIndex("t_ix", ["a"])]),
+            new Table("t", Columns: [new Column("a", SqlType.Int)], Indexes: [new TableIndex("t_ix", [new IndexColumn("a", Sort: IndexSort.Descending)])]));
+
+        table!.Indexes.Select(i => i.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Exclusion constraints
+    // -------------------------------------------------------------------------
+
+    private static ExclusionConstraint NoOverlap(string? method = "gist", string? comment = null) =>
+        new("no_overlap", [new ExclusionElement("room", "="), new ExclusionElement("during", "&&")], method, Comment: comment);
+
+    private static Table Bookings(params ExclusionConstraint[] exclusions) =>
+        new("bookings", Columns: [new Column("room", SqlType.Int), new Column("during", SqlType.Int)], ExclusionConstraints: exclusions);
+
+    [Fact]
+    public void Compare_ExclusionAdded_EmitsAdd()
+    {
+        var table = DiffTable(Bookings(), Bookings(NoOverlap()));
+
+        var exclusion = table!.ExclusionConstraints.ShouldHaveSingleItem();
+        exclusion.Kind.ShouldBe(ChangeKind.Add);
+        exclusion.Definition!.Method.ShouldBe("gist");
+    }
+
+    [Fact]
+    public void Compare_ExclusionDropped_EmitsRemove()
+        => DiffTable(Bookings(NoOverlap()), Bookings())!
+            .ExclusionConstraints.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
+
+    [Fact]
+    public void Compare_ExclusionUnchanged_ProducesNoDiff()
+        => DiffTable(Bookings(NoOverlap()), Bookings(NoOverlap())).ShouldBeNull();
+
+    [Fact]
+    public void Compare_ExclusionDefinitionChanged_EmitsRemoveThenAdd()
+        => DiffTable(Bookings(NoOverlap(method: "gist")), Bookings(NoOverlap(method: "spgist")))!
+            .ExclusionConstraints.Select(e => e.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
+
+    [Fact]
+    public void Compare_ExclusionCommentOnlyChange_EmitsModify()
+    {
+        var exclusion = DiffTable(Bookings(NoOverlap(comment: "old")), Bookings(NoOverlap(comment: "new")))!
+            .ExclusionConstraints.ShouldHaveSingleItem();
+        exclusion.Kind.ShouldBe(ChangeKind.Modify);
+        exclusion.Comment.ShouldBe(new ValueChange<string>("old", "new"));
     }
 }

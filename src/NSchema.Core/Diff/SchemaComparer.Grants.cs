@@ -1,5 +1,6 @@
 using NSchema.Diff.Model;
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Tables;
 
 namespace NSchema.Diff;
 

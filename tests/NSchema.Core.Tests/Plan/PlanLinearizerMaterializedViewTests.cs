@@ -1,0 +1,69 @@
+using NSchema.Diff.Model;
+using NSchema.Plan;
+using NSchema.Plan.Model;
+using NSchema.Plan.Model.Indexes;
+using NSchema.Plan.Model.Views;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Views;
+
+namespace NSchema.Tests.Plan;
+
+/// <summary>
+/// Pins how the linearizer turns materialized-view diffs into actions: a recreate is a drop + create (no
+/// CREATE OR REPLACE MATERIALIZED VIEW), in-place index changes become index actions against the view, and the
+/// materialized flag flows onto the view actions.
+/// </summary>
+public sealed class PlanLinearizerMaterializedViewTests
+{
+    private readonly PlanLinearizer _linearizer = new();
+
+    private IReadOnlyList<MigrationAction> Linearize(ViewDiff view) =>
+        _linearizer.Linearize(new DatabaseDiff([new SchemaDiff("app", Views: [view])]));
+
+    [Fact]
+    public void RecreatedMaterializedView_EmitsDropAndCreateBothMaterialized()
+    {
+        var mv = new View("daily", "SELECT 2", IsMaterialized: true);
+        var actions = Linearize(new ViewDiff("app", "daily", ChangeKind.Modify,
+            Definition: mv, IsMaterialized: true, RequiresRecreate: true));
+
+        actions.OfType<DropView>().ShouldHaveSingleItem().IsMaterialized.ShouldBeTrue();
+        actions.OfType<CreateView>().ShouldHaveSingleItem().View.IsMaterialized.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void RecreatedMaterializedView_DropsBeforeItCreates()
+    {
+        var mv = new View("daily", "SELECT 2", IsMaterialized: true);
+        var actions = Linearize(new ViewDiff("app", "daily", ChangeKind.Modify,
+            Definition: mv, IsMaterialized: true, RequiresRecreate: true));
+
+        var drop = actions.Select((a, i) => (a, i)).Single(x => x.a is DropView).i;
+        var create = actions.Select((a, i) => (a, i)).Single(x => x.a is CreateView).i;
+        drop.ShouldBeLessThan(create);
+    }
+
+    [Fact]
+    public void InPlaceIndexChange_EmitsIndexActionsAgainstTheView()
+    {
+        var actions = Linearize(new ViewDiff("app", "daily", ChangeKind.Modify, IsMaterialized: true,
+            Indexes:
+            [
+                new IndexDiff(ChangeKind.Add, "daily_ix", new TableIndex("daily_ix", ["x"])),
+                new IndexDiff(ChangeKind.Remove, "old_ix"),
+            ]));
+
+        actions.OfType<CreateIndex>().ShouldHaveSingleItem().TableName.ShouldBe("daily");
+        actions.OfType<DropIndex>().ShouldHaveSingleItem().IndexName.ShouldBe("old_ix");
+        actions.OfType<CreateView>().ShouldBeEmpty(); // body unchanged, no recreate
+    }
+
+    [Fact]
+    public void PlainViewBodyChange_EmitsOnlyCreateNoDrop()
+    {
+        var actions = Linearize(new ViewDiff("app", "v", ChangeKind.Modify, Definition: new View("v", "SELECT 2")));
+
+        actions.OfType<CreateView>().ShouldHaveSingleItem();
+        actions.OfType<DropView>().ShouldBeEmpty();
+    }
+}

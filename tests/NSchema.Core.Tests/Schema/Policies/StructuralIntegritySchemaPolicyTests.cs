@@ -1,5 +1,15 @@
 using NSchema.Policies;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.CompositeTypes;
+using NSchema.Schema.Model.Domains;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Routines;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Views;
 using NSchema.Schema.Policies;
 
 namespace NSchema.Tests.Schema.Policies;
@@ -217,9 +227,11 @@ public sealed class StructuralIntegritySchemaPolicyTests
         // Arrange — the parser and aggregation enforce this for parsed schemas; the policy is the catch-all
         // for JSON-sourced and code-built schemas.
         var schema = new DatabaseSchema([
-            new SchemaDefinition("public",
-                Functions: [new Function("r", "", "RETURNS int AS $$ SELECT 1 $$")],
-                Procedures: [new Procedure("r", "", "AS $$ SELECT 1 $$")]),
+            new SchemaDefinition("public", Routines:
+            [
+                new Routine("r", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 1 $$"),
+                new Routine("r", RoutineKind.Procedure, "", "AS $$ SELECT 1 $$"),
+            ]),
         ]);
 
         // Act
@@ -234,10 +246,10 @@ public sealed class StructuralIntegritySchemaPolicyTests
     {
         // Arrange
         var schema = new DatabaseSchema([
-            new SchemaDefinition("public", Functions:
+            new SchemaDefinition("public", Routines:
             [
-                new Function("f", "", "RETURNS int AS $$ SELECT 1 $$"),
-                new Function("f", "a int", "RETURNS int AS $$ SELECT 2 $$"),
+                new Routine("f", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 1 $$"),
+                new Routine("f", RoutineKind.Function, "a int", "RETURNS int AS $$ SELECT 2 $$"),
             ]),
         ]);
 
@@ -245,6 +257,79 @@ public sealed class StructuralIntegritySchemaPolicyTests
         var diagnostics = _sut.Validate(schema).ToList();
 
         // Assert — overloading is not supported: one routine per name.
-        diagnostics.ShouldContain(d => d.Message.Contains("declares function 'f' more than once"));
+        diagnostics.ShouldContain(d => d.Message.Contains("declares routine 'f' more than once"));
+    }
+
+    [Fact]
+    public void Error_WhenNameReusedAcrossObjectKinds()
+    {
+        // A table and a view called 'foo' cannot coexist — they share one name space in the database.
+        var schema = new DatabaseSchema([
+            new SchemaDefinition("public",
+                Tables: [new Table("foo", Columns: [Col("id")])],
+                Views: [new View("foo", "SELECT 1")]),
+        ]);
+
+        var diagnostics = _sut.Validate(schema).ToList();
+
+        diagnostics.ShouldContain(d => d.Message.Contains("reuses the name 'foo'") && d.Message.Contains("table") && d.Message.Contains("view"));
+    }
+
+    [Fact]
+    public void Error_WhenNameReusedAcrossTableAndEnum()
+    {
+        // Relations and types share pg_type (a relation has a row type), so a table and an enum collide too.
+        var schema = new DatabaseSchema([
+            new SchemaDefinition("public",
+                Tables: [new Table("status", Columns: [Col("id")])],
+                Enums: [new EnumType("status", ["a", "b"])]),
+        ]);
+
+        _sut.Validate(schema).ShouldContain(d => d.Message.Contains("reuses the name 'status'"));
+    }
+
+    [Fact]
+    public void Error_WhenSequenceDeclaredTwice()
+    {
+        var schema = new DatabaseSchema([
+            new SchemaDefinition("public", Sequences: [new Sequence("seq"), new Sequence("seq")]),
+        ]);
+
+        _sut.Validate(schema).ShouldContain(d => d.Message.Contains("declares sequence 'seq' more than once"));
+    }
+
+    [Fact]
+    public void NoDiagnostics_WhenNamesDifferAcrossKinds()
+    {
+        var schema = new DatabaseSchema([
+            new SchemaDefinition("public",
+                Tables: [new Table("t", Columns: [Col("id")])],
+                Views: [new View("v", "SELECT 1")],
+                Sequences: [new Sequence("s")],
+                CompositeTypes: [new CompositeType("c", [new CompositeField("f", SqlType.Int)])],
+                Enums: [new EnumType("e", ["a"])],
+                Domains: [new Domain("d", SqlType.Text)]),
+        ]);
+
+        _sut.Validate(schema).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Error_WhenColumnHasBothDefaultAndGenerated()
+    {
+        var table = new Table("t", Columns: [new Column("area", SqlType.Int, DefaultExpression: "0", GeneratedExpression: "w * h")]);
+
+        _sut.Validate(Db(table)).ShouldContain(d =>
+            d.Message.Contains("both a DEFAULT and a GENERATED") && d.Message.Contains("area"));
+    }
+
+    [Fact]
+    public void NoDiagnostics_ForGeneratedColumnWithoutDefault()
+    {
+        var table = new Table("t",
+            PrimaryKey: new PrimaryKey("t_pk", ["id"]),
+            Columns: [Col("id"), new Column("area", SqlType.Int, GeneratedExpression: "w * h")]);
+
+        _sut.Validate(Db(table)).ShouldBeEmpty();
     }
 }

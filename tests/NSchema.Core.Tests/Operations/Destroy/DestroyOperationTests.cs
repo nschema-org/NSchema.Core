@@ -4,6 +4,7 @@ using NSchema.Operations.Confirmation;
 using NSchema.Operations.Destroy;
 using NSchema.Operations.Services;
 using NSchema.Plan.Model;
+using NSchema.Plan.Model.Schemas;
 using NSchema.Sql;
 using NSchema.Sql.Model;
 using NSchema.State.Model;

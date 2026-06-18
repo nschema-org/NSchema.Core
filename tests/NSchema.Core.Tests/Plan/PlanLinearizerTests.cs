@@ -1,7 +1,23 @@
 using NSchema.Diff.Model;
 using NSchema.Plan;
 using NSchema.Plan.Model;
-using NSchema.Schema.Model;
+using NSchema.Plan.Model.Columns;
+using NSchema.Plan.Model.Constraints;
+using NSchema.Plan.Model.Enums;
+using NSchema.Plan.Model.Indexes;
+using NSchema.Plan.Model.Routines;
+using NSchema.Plan.Model.Schemas;
+using NSchema.Plan.Model.Sequence;
+using NSchema.Plan.Model.Tables;
+using NSchema.Plan.Model.Views;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Routines;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Tests.Plan;
 
@@ -28,11 +44,10 @@ public sealed class PlanLinearizerTests
         IReadOnlyList<ViewDiff>? views = null,
         IReadOnlyList<EnumDiff>? enums = null,
         IReadOnlyList<SequenceDiff>? sequences = null,
-        IReadOnlyList<FunctionDiff>? functions = null,
-        IReadOnlyList<ProcedureDiff>? procedures = null
+        IReadOnlyList<RoutineDiff>? routines = null
     )
         => new(name, kind, renamedFrom, comment, grants ?? [], tables ?? [], views ?? [], enums ?? [], sequences ?? [],
-            functions ?? [], procedures ?? []);
+            routines ?? []);
 
     private static TableDiff TableNode(
         string name,
@@ -47,9 +62,11 @@ public sealed class PlanLinearizerTests
         IReadOnlyList<ForeignKeyDiff>? foreignKeys = null,
         IReadOnlyList<UniqueConstraintDiff>? uniqueConstraints = null,
         IReadOnlyList<CheckConstraintDiff>? checks = null,
+        IReadOnlyList<ExclusionConstraintDiff>? exclusionConstraints = null,
+        IReadOnlyList<TriggerDiff>? triggers = null,
         Table? definition = null)
         => new(schema, name, kind, renamedFrom, comment, columns ?? [], grants ?? [], indexes ?? [],
-            primaryKey ?? [], foreignKeys ?? [], uniqueConstraints ?? [], checks ?? [], definition);
+            primaryKey ?? [], foreignKeys ?? [], uniqueConstraints ?? [], checks ?? [], exclusionConstraints ?? [], triggers ?? [], definition);
 
     private static ColumnDiff AddedColumn(Column definition, ValueChange<string>? comment = null)
         => new(definition.Name, ChangeKind.Add, definition, null, null, null, null, null, comment);
@@ -64,8 +81,9 @@ public sealed class PlanLinearizerTests
         ValueChange<bool>? nullability = null,
         ValueChange<string>? @default = null,
         ValueChange<IdentityOptions>? identity = null,
-        ValueChange<string>? comment = null)
-        => new(name, ChangeKind.Modify, null, renamedFrom, type, nullability, @default, identity, comment);
+        ValueChange<string>? comment = null,
+        ValueChange<string>? generated = null)
+        => new(name, ChangeKind.Modify, null, renamedFrom, type, nullability, @default, identity, comment, generated);
 
     private static ViewDiff AddView(string name, string schema = "app", params (string Schema, string Name)[] dependsOn)
     {
@@ -297,6 +315,12 @@ public sealed class PlanLinearizerTests
             .ShouldSatisfyAllConditions(c => c.OldComment.ShouldBe("old"), c => c.NewComment.ShouldBe("new"));
 
     [Fact]
+    public void Linearize_ColumnGenerationChange_EmitsSetColumnGenerated()
+        => LinearizeColumn(ModifiedColumn("area", generated: new ValueChange<string>(null, "w * h")))
+            .OfType<SetColumnGenerated>().ShouldHaveSingleItem()
+            .ShouldSatisfyAllConditions(a => a.OldExpression.ShouldBeNull(), a => a.NewExpression.ShouldBe("w * h"));
+
+    [Fact]
     public void Linearize_ColumnWithEveryModification_EmitsAllActions()
     {
         var column = ModifiedColumn("id",
@@ -357,6 +381,25 @@ public sealed class PlanLinearizerTests
 
         LinearizeTable(TableNode("orders", ChangeKind.Modify, foreignKeys: [constraint]))
             .OfType<DropForeignKey>().ShouldHaveSingleItem().ForeignKeyName.ShouldBe("orders_user_fk");
+    }
+
+    [Fact]
+    public void Linearize_AddExclusionConstraint_EmitsAddExclusionConstraint()
+    {
+        var exclusion = new ExclusionConstraint("no_overlap", [new ExclusionElement("during", "&&")], "gist");
+        var constraint = new ExclusionConstraintDiff(ChangeKind.Add, "no_overlap", exclusion);
+
+        LinearizeTable(TableNode("bookings", ChangeKind.Modify, exclusionConstraints: [constraint]))
+            .OfType<AddExclusionConstraint>().ShouldHaveSingleItem().ExclusionConstraint.Name.ShouldBe("no_overlap");
+    }
+
+    [Fact]
+    public void Linearize_RemoveExclusionConstraint_EmitsDropExclusionConstraint()
+    {
+        var constraint = new ExclusionConstraintDiff(ChangeKind.Remove, "no_overlap", null);
+
+        LinearizeTable(TableNode("bookings", ChangeKind.Modify, exclusionConstraints: [constraint]))
+            .OfType<DropExclusionConstraint>().ShouldHaveSingleItem().ConstraintName.ShouldBe("no_overlap");
     }
 
     [Fact]
@@ -830,77 +873,77 @@ public sealed class PlanLinearizerTests
     // Functions and procedures
     // -------------------------------------------------------------------------
 
-    private static readonly Function Fn = new("f", "a int", "RETURNS int LANGUAGE sql AS $$ SELECT 1; $$");
-    private static readonly Procedure Proc = new("p", "", "LANGUAGE sql AS $$ DELETE FROM app.t; $$");
+    private static readonly Routine Fn = new("f", RoutineKind.Function, "a int", "RETURNS int LANGUAGE sql AS $$ SELECT 1; $$");
+    private static readonly Routine Proc = new("p", RoutineKind.Procedure, "", "LANGUAGE sql AS $$ DELETE FROM app.t; $$");
 
     [Fact]
-    public void Linearize_AddFunction_EmitsCreateFunctionFromDefinition()
-        => Linearize(SchemaNode("app", functions: [new FunctionDiff("app", "f", ChangeKind.Add, Definition: Fn)]))
-            .ShouldHaveSingleItem().ShouldBeOfType<CreateFunction>().Function.Arguments.ShouldBe("a int");
+    public void Linearize_AddFunction_EmitsCreateRoutineFromDefinition()
+        => Linearize(SchemaNode("app", routines: [new RoutineDiff("app", "f", ChangeKind.Add, RoutineKind.Function, Definition: Fn)]))
+            .ShouldHaveSingleItem().ShouldBeOfType<CreateRoutine>().Routine.Arguments.ShouldBe("a int");
 
     [Fact]
-    public void Linearize_RemoveFunction_EmitsDropFunction()
-        => Linearize(SchemaNode("app", functions: [new FunctionDiff("app", "f", ChangeKind.Remove)]))
-            .ShouldHaveSingleItem().ShouldBeOfType<DropFunction>().FunctionName.ShouldBe("f");
+    public void Linearize_RemoveRoutine_EmitsDropRoutine()
+        => Linearize(SchemaNode("app", routines: [new RoutineDiff("app", "f", ChangeKind.Remove, RoutineKind.Function)]))
+            .ShouldHaveSingleItem().ShouldBeOfType<DropRoutine>().RoutineName.ShouldBe("f");
 
     [Fact]
-    public void Linearize_FunctionBodyChange_EmitsCreateFunction_NotRecreate()
+    public void Linearize_RoutineBodyChange_EmitsCreateRoutine_NotRecreate()
     {
         // A definition-only change replaces in place (CREATE OR REPLACE semantics, like a view body change).
-        var plan = Linearize(SchemaNode("app", functions:
-            [new FunctionDiff("app", "f", ChangeKind.Modify, Definition: Fn)]));
+        var plan = Linearize(SchemaNode("app", routines:
+            [new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function, Definition: Fn)]));
 
-        plan.ShouldHaveSingleItem().ShouldBeOfType<CreateFunction>();
-        plan.OfType<RecreateFunction>().ShouldBeEmpty();
+        plan.ShouldHaveSingleItem().ShouldBeOfType<CreateRoutine>();
+        plan.OfType<RecreateRoutine>().ShouldBeEmpty();
     }
 
     [Fact]
-    public void Linearize_FunctionSignatureChange_EmitsRecreateFunction()
-        => Linearize(SchemaNode("app", functions:
-            [new FunctionDiff("app", "f", ChangeKind.Modify, Definition: Fn,
+    public void Linearize_RoutineSignatureChange_EmitsRecreateRoutine()
+        => Linearize(SchemaNode("app", routines:
+            [new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function, Definition: Fn,
                 Arguments: new ValueChange<string>("a int", "a int, b text"))]))
-            .ShouldHaveSingleItem().ShouldBeOfType<RecreateFunction>();
+            .ShouldHaveSingleItem().ShouldBeOfType<RecreateRoutine>();
 
     [Fact]
-    public void Linearize_RenamedFunction_EmitsRenameFunction()
-        => Linearize(SchemaNode("app", functions:
-            [new FunctionDiff("app", "f", ChangeKind.Modify, RenamedFrom: "old_f")]))
-            .ShouldHaveSingleItem().ShouldBeOfType<RenameFunction>()
+    public void Linearize_RenamedRoutine_EmitsRenameRoutine()
+        => Linearize(SchemaNode("app", routines:
+            [new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function, RenamedFrom: "old_f")]))
+            .ShouldHaveSingleItem().ShouldBeOfType<RenameRoutine>()
             .ShouldSatisfyAllConditions(r => r.OldName.ShouldBe("old_f"), r => r.NewName.ShouldBe("f"));
 
     [Fact]
     public void Linearize_RenameWithSignatureChange_RenamesBeforeRecreating()
     {
         // The recreate targets the final name, so the rename must land first.
-        var plan = Linearize(SchemaNode("app", functions:
-            [new FunctionDiff("app", "f", ChangeKind.Modify, RenamedFrom: "old_f", Definition: Fn,
+        var plan = Linearize(SchemaNode("app", routines:
+            [new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function, RenamedFrom: "old_f", Definition: Fn,
                 Arguments: new ValueChange<string>("a int", "a int, b text"))]));
 
-        IndexOf<RenameFunction>(plan).ShouldBeLessThan(IndexOf<RecreateFunction>(plan));
+        IndexOf<RenameRoutine>(plan).ShouldBeLessThan(IndexOf<RecreateRoutine>(plan));
     }
 
     [Fact]
-    public void Linearize_FunctionComment_EmitsSetFunctionComment()
-        => Linearize(SchemaNode("app", functions:
-            [new FunctionDiff("app", "f", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new"))]))
-            .ShouldHaveSingleItem().ShouldBeOfType<SetFunctionComment>()
+    public void Linearize_RoutineComment_EmitsSetRoutineComment()
+        => Linearize(SchemaNode("app", routines:
+            [new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function, Comment: new ValueChange<string>("old", "new"))]))
+            .ShouldHaveSingleItem().ShouldBeOfType<SetRoutineComment>()
             .ShouldSatisfyAllConditions(c => c.OldComment.ShouldBe("old"), c => c.NewComment.ShouldBe("new"));
 
     [Fact]
-    public void Linearize_ProcedureLifecycle_EmitsProcedureActions()
+    public void Linearize_ProcedureLifecycle_EmitsRoutineActions()
     {
-        var plan = Linearize(SchemaNode("app", procedures:
+        var plan = Linearize(SchemaNode("app", routines:
         [
-            new ProcedureDiff("app", "p", ChangeKind.Add, Definition: Proc),
-            new ProcedureDiff("app", "q", ChangeKind.Modify, RenamedFrom: "old_q",
+            new RoutineDiff("app", "p", ChangeKind.Add, RoutineKind.Procedure, Definition: Proc),
+            new RoutineDiff("app", "q", ChangeKind.Modify, RoutineKind.Procedure, RenamedFrom: "old_q",
                 Definition: Proc, Arguments: new ValueChange<string>("", "before date")),
-            new ProcedureDiff("app", "stale", ChangeKind.Remove),
+            new RoutineDiff("app", "stale", ChangeKind.Remove, RoutineKind.Procedure),
         ]));
 
-        plan.OfType<CreateProcedure>().ShouldHaveSingleItem();
-        plan.OfType<RenameProcedure>().ShouldHaveSingleItem();
-        plan.OfType<RecreateProcedure>().ShouldHaveSingleItem();
-        plan.OfType<DropProcedure>().ShouldHaveSingleItem().ProcedureName.ShouldBe("stale");
+        plan.OfType<CreateRoutine>().ShouldHaveSingleItem();
+        plan.OfType<RenameRoutine>().ShouldHaveSingleItem();
+        plan.OfType<RecreateRoutine>().ShouldHaveSingleItem();
+        plan.OfType<DropRoutine>().ShouldHaveSingleItem().RoutineName.ShouldBe("stale");
     }
 
     [Fact]
@@ -910,12 +953,14 @@ public sealed class PlanLinearizerTests
         var plan = Linearize(SchemaNode("app", ChangeKind.Add,
             tables: [TableNode("users", ChangeKind.Add, definition: new Table("users"))],
             enums: [new EnumDiff("app", "status", ChangeKind.Add, Definition: new EnumType("status", ["a"]))],
-            functions: [new FunctionDiff("app", "f", ChangeKind.Add, Definition: Fn)],
-            procedures: [new ProcedureDiff("app", "p", ChangeKind.Add, Definition: Proc)]));
+            routines:
+            [
+                new RoutineDiff("app", "f", ChangeKind.Add, RoutineKind.Function, Definition: Fn),
+                new RoutineDiff("app", "p", ChangeKind.Add, RoutineKind.Procedure, Definition: Proc),
+            ]));
 
-        IndexOf<CreateEnum>(plan).ShouldBeLessThan(IndexOf<CreateFunction>(plan));
-        IndexOf<CreateFunction>(plan).ShouldBeLessThan(IndexOf<CreateTable>(plan));
-        IndexOf<CreateProcedure>(plan).ShouldBeLessThan(IndexOf<CreateTable>(plan));
+        IndexOf<CreateEnum>(plan).ShouldBeLessThan(IndexOf<CreateRoutine>(plan));
+        IndexOf<CreateRoutine>(plan).ShouldBeLessThan(IndexOf<CreateTable>(plan));
     }
 
     [Fact]
@@ -924,27 +969,25 @@ public sealed class PlanLinearizerTests
         var plan = Linearize(SchemaNode("app",
             tables: [TableNode("users", ChangeKind.Remove)],
             enums: [new EnumDiff("app", "status", ChangeKind.Remove)],
-            functions: [new FunctionDiff("app", "f", ChangeKind.Remove)],
-            procedures: [new ProcedureDiff("app", "p", ChangeKind.Remove)]));
+            routines: [new RoutineDiff("app", "f", ChangeKind.Remove, RoutineKind.Function)]));
 
-        IndexOf<DropTable>(plan).ShouldBeLessThan(IndexOf<DropFunction>(plan));
-        IndexOf<DropTable>(plan).ShouldBeLessThan(IndexOf<DropProcedure>(plan));
-        IndexOf<DropFunction>(plan).ShouldBeLessThan(IndexOf<DropEnum>(plan));
+        IndexOf<DropTable>(plan).ShouldBeLessThan(IndexOf<DropRoutine>(plan));
+        IndexOf<DropRoutine>(plan).ShouldBeLessThan(IndexOf<DropEnum>(plan));
     }
 
     [Fact]
-    public void Linearize_OrdersViewsAroundFunctions()
+    public void Linearize_OrdersViewsAroundRoutines()
     {
-        // A view may call a function: views are created after functions and dropped before them.
+        // A view may call a routine: views are created after routines and dropped before them.
         var plan = Linearize(SchemaNode("app",
             views: [AddView("v"), RemoveView("stale_v")],
-            functions:
+            routines:
             [
-                new FunctionDiff("app", "f", ChangeKind.Add, Definition: Fn),
-                new FunctionDiff("app", "stale_f", ChangeKind.Remove),
+                new RoutineDiff("app", "f", ChangeKind.Add, RoutineKind.Function, Definition: Fn),
+                new RoutineDiff("app", "stale_f", ChangeKind.Remove, RoutineKind.Function),
             ]));
 
-        IndexOf<CreateFunction>(plan).ShouldBeLessThan(IndexOfCreateView(plan, "v"));
-        IndexOfDropView(plan, "stale_v").ShouldBeLessThan(IndexOf<DropFunction>(plan));
+        IndexOf<CreateRoutine>(plan).ShouldBeLessThan(IndexOfCreateView(plan, "v"));
+        IndexOfDropView(plan, "stale_v").ShouldBeLessThan(IndexOf<DropRoutine>(plan));
     }
 }

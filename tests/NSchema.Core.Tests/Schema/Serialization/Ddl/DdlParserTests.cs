@@ -1,6 +1,9 @@
 using NSchema.Configuration;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Sequences;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
@@ -264,7 +267,7 @@ public sealed class DdlParserTests
 
     [Fact]
     public void Parse_UnknownAfterCreate_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE THING app;")).Message.ShouldContain("Expected SCHEMA, TABLE, VIEW, ENUM, SEQUENCE, FUNCTION or PROCEDURE");
+        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE THING app;")).Message.ShouldContain("Expected SCHEMA, TABLE, VIEW, MATERIALIZED VIEW, ENUM, DOMAIN, TYPE, SEQUENCE, FUNCTION, PROCEDURE, EXTENSION, TRIGGER or INDEX");
 
     [Fact]
     public void Parse_PartialTable_Throws()
@@ -273,6 +276,46 @@ public sealed class DdlParserTests
     [Fact]
     public void Parse_EmptyTableBody_Throws()
         => Should.Throw<DdlSyntaxException>(() => Parse("CREATE TABLE app.users ();")).Message.ShouldContain("column or constraint");
+
+    // -------------------------------------------------------------------------
+    // Standalone indexes (CREATE INDEX ... ON s.t) — equivalent to an inline table index
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Parse_StandaloneIndexOnTable_AttachesToTable()
+    {
+        var table = ParseSingleSchema(
+            "CREATE SCHEMA app; CREATE TABLE app.users (id int NOT NULL, email text NOT NULL); " +
+            "CREATE UNIQUE INDEX users_email_ix ON app.users (email) WHERE (email IS NOT NULL);")
+            .Tables.ShouldHaveSingleItem();
+        var index = table.Indexes.ShouldHaveSingleItem();
+        index.Name.ShouldBe("users_email_ix");
+        index.Columns.Select(c => c.Expression).ShouldBe(["email"]);
+        index.IsUnique.ShouldBeTrue();
+        index.Predicate.ShouldBe("email IS NOT NULL");
+    }
+
+    [Fact]
+    public void Parse_StandaloneAndInlineIndexes_Coexist()
+    {
+        var table = ParseSingleSchema(
+            "CREATE SCHEMA app; CREATE TABLE app.users (id int NOT NULL, email text NOT NULL, INDEX users_id_ix (id)); " +
+            "CREATE INDEX users_email_ix ON app.users (email);")
+            .Tables.ShouldHaveSingleItem();
+        table.Indexes.Select(i => i.Name).ShouldBe(["users_id_ix", "users_email_ix"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public void Parse_StandaloneIndexBeforeItsTable_StillAttaches()
+        // Build-time resolution: the index may be declared before the CREATE TABLE it targets.
+        => ParseSingleSchema("CREATE INDEX users_id_ix ON app.users (id); CREATE TABLE app.users (id int NOT NULL);")
+            .Tables.ShouldHaveSingleItem().Indexes.ShouldHaveSingleItem().Name.ShouldBe("users_id_ix");
+
+    [Fact]
+    public void Parse_StandaloneIndexDuplicatingInlineName_Throws()
+        => Should.Throw<DdlSyntaxException>(() => Parse(
+            "CREATE SCHEMA app; CREATE TABLE app.users (id int NOT NULL, INDEX dup (id)); CREATE INDEX dup ON app.users (id);"))
+            .Message.ShouldContain("already declared");
 
     // -------------------------------------------------------------------------
     // Views
@@ -467,7 +510,7 @@ public sealed class DdlParserTests
     {
         var schema = ParseSingleSchema(
             "CREATE SCHEMA app; CREATE FUNCTION app.add_tax(amount numeric, rate numeric) RETURNS numeric LANGUAGE sql AS $$ SELECT amount * (1 + rate); $$;");
-        var function = schema.Functions.ShouldHaveSingleItem();
+        var function = schema.Routines.ShouldHaveSingleItem();
         function.Name.ShouldBe("add_tax");
         function.Arguments.ShouldBe("amount numeric, rate numeric");
         function.Definition.ShouldBe("RETURNS numeric LANGUAGE sql AS $$ SELECT amount * (1 + rate); $$");
@@ -478,19 +521,19 @@ public sealed class DdlParserTests
     {
         var schema = ParseSingleSchema(
             "CREATE SCHEMA app; CREATE FUNCTION app.f() RETURNS int LANGUAGE plpgsql AS $body$ BEGIN RETURN 1; END; $body$; CREATE TABLE app.t (id int);");
-        schema.Functions.ShouldHaveSingleItem().Definition.ShouldContain("BEGIN RETURN 1; END;");
+        schema.Routines.ShouldHaveSingleItem().Definition.ShouldContain("BEGIN RETURN 1; END;");
         schema.Tables.ShouldHaveSingleItem(); // parsing resumed correctly after the function
     }
 
     [Fact]
     public void Parse_CreateFunction_ArgumentsWithQuotedDefault_AreCapturedVerbatim()
         => ParseSingleSchema("CREATE SCHEMA app; CREATE FUNCTION app.f(code text DEFAULT 'a;b)') RETURNS int AS $$ SELECT 1 $$;")
-            .Functions.ShouldHaveSingleItem().Arguments.ShouldBe("code text DEFAULT 'a;b)'");
+            .Routines.ShouldHaveSingleItem().Arguments.ShouldBe("code text DEFAULT 'a;b)'");
 
     [Fact]
     public void Parse_CreateFunction_EmptyArguments_AreEmptyString()
         => ParseSingleSchema("CREATE SCHEMA app; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$;")
-            .Functions.ShouldHaveSingleItem().Arguments.ShouldBe("");
+            .Routines.ShouldHaveSingleItem().Arguments.ShouldBe("");
 
     [Fact]
     public void Parse_CreateFunction_MissingDefinition_Throws()
@@ -500,12 +543,12 @@ public sealed class DdlParserTests
     [Fact]
     public void Parse_CreateFunction_RenamedFrom_SetsOldName()
         => ParseSingleSchema("CREATE SCHEMA app; CREATE FUNCTION app.f RENAMED FROM old_f() RETURNS int AS $$ SELECT 1 $$;")
-            .Functions.ShouldHaveSingleItem().OldName.ShouldBe("old_f");
+            .Routines.ShouldHaveSingleItem().OldName.ShouldBe("old_f");
 
     [Fact]
     public void Parse_CreateFunction_WithDocComment_AttachesComment()
         => ParseSingleSchema("CREATE SCHEMA app;\n--- adds tax\nCREATE FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$;")
-            .Functions.ShouldHaveSingleItem().Comment.ShouldBe("adds tax");
+            .Routines.ShouldHaveSingleItem().Comment.ShouldBe("adds tax");
 
     [Fact]
     public void Parse_PartialFunction_Throws()
@@ -516,7 +559,7 @@ public sealed class DdlParserTests
     public void Parse_CreateProcedure_ParsesWithoutReturns()
     {
         var schema = ParseSingleSchema("CREATE SCHEMA app; CREATE PROCEDURE app.archive(before date) LANGUAGE sql AS $$ DELETE FROM app.t; $$;");
-        var procedure = schema.Procedures.ShouldHaveSingleItem();
+        var procedure = schema.Routines.ShouldHaveSingleItem();
         procedure.Name.ShouldBe("archive");
         procedure.Arguments.ShouldBe("before date");
         procedure.Definition.ShouldBe("LANGUAGE sql AS $$ DELETE FROM app.t; $$");
@@ -550,7 +593,6 @@ public sealed class DdlParserTests
     public void Parse_DropFunctionAndProcedure_RecordDrops()
     {
         var schema = ParseSingleSchema("CREATE SCHEMA app; DROP FUNCTION app.stale_fn; DROP PROCEDURE app.stale_proc;");
-        schema.DroppedFunctions.ShouldHaveSingleItem().ShouldBe("stale_fn");
-        schema.DroppedProcedures.ShouldHaveSingleItem().ShouldBe("stale_proc");
+        schema.DroppedRoutines.ShouldBe(["stale_fn", "stale_proc"], ignoreOrder: true);
     }
 }

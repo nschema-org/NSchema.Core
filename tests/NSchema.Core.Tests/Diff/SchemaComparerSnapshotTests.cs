@@ -2,6 +2,18 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NSchema.Diff;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.CompositeTypes;
+using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Domains;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Extensions;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Routines;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Tests.Diff;
 
@@ -50,13 +62,29 @@ public sealed class SchemaComparerSnapshotTests
                     new Sequence("order_id", new SequenceOptions(StartWith: 1, IncrementBy: 1)),
                     new Sequence("stale_seq"),
                 ],
-                Functions:
+                Routines:
                 [
-                    new Function("add_tax", "amount numeric", "RETURNS numeric AS $$ SELECT amount * 1.1 $$"),
-                    new Function("score", "user_id bigint", "RETURNS numeric AS $$ SELECT 1 $$"),
-                    new Function("stale_fn", "", "RETURNS int AS $$ SELECT 0 $$"),
+                    new Routine("add_tax", RoutineKind.Function, "amount numeric", "RETURNS numeric AS $$ SELECT amount * 1.1 $$"),
+                    new Routine("score", RoutineKind.Function, "user_id bigint", "RETURNS numeric AS $$ SELECT 1 $$"),
+                    new Routine("stale_fn", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 0 $$"),
+                ],
+                Domains:
+                [
+                    new Domain("code", SqlType.Text),
+                    new Domain("stale_domain", SqlType.Int),
+                ],
+                CompositeTypes:
+                [
+                    new CompositeType("address", [new CompositeField("street", SqlType.Text), new CompositeField("zip", SqlType.Int), new CompositeField("old_field", SqlType.Text)]),
+                    new CompositeType("stale_type", [new CompositeField("a", SqlType.Int)]),
                 ]),
             new SchemaDefinition("scratch"),
+        ],
+        Extensions:
+        [
+            new Extension("citext"),
+            new Extension("postgis", Version: "3.3"),
+            new Extension("legacy_ext"),
         ]);
 
         // Desired: id widened, email renamed + retyped, legacy_flag dropped, a new index, a new unique
@@ -74,10 +102,16 @@ public sealed class SchemaComparerSnapshotTests
                         [
                             new Column("id", SqlType.BigInt),
                             new Column("email_address", SqlType.Text, OldName: "email"),
+                            new Column("email_upper", SqlType.Text, IsNullable: true, GeneratedExpression: "upper(email_address)"),
                         ],
                         UniqueConstraints: [new UniqueConstraint("users_email_uq", ["email_address"])],
                         CheckConstraints: [new CheckConstraint("users_id_chk", "id > 0")],
-                        Indexes: [new TableIndex("users_email_ix", ["email_address"], IsUnique: true)]),
+                        ExclusionConstraints: [new ExclusionConstraint("users_span_excl",
+                            [new ExclusionElement("int4range(0, id)", "&&", IsExpression: true)], Method: "gist")],
+                        // A covering, expression, descending index exercising the richer index grammar.
+                        Indexes: [new TableIndex("users_email_ix",
+                            [new IndexColumn("email_address", Sort: IndexSort.Descending, Nulls: IndexNulls.Last), new IndexColumn("lower(email_address)", IsExpression: true)],
+                            IsUnique: true, Method: "btree", Include: ["id"])]),
                 ],
                 Views:
                 [
@@ -98,16 +132,37 @@ public sealed class SchemaComparerSnapshotTests
                     new Sequence("order_id", new SequenceOptions(StartWith: 1000, IncrementBy: 10, Cycle: true)),
                     new Sequence("batch_id"),
                 ],
-                // Functions: a body replace, a signature change (recreate), and an addition.
-                Functions:
+                // Routines: a body replace, a signature change (recreate), an addition, and a procedure.
+                Routines:
                 [
-                    new Function("add_tax", "amount numeric", "RETURNS numeric AS $$ SELECT amount * 1.2 $$"),
-                    new Function("score", "user_id bigint, weight numeric", "RETURNS numeric AS $$ SELECT 1 $$"),
-                    new Function("brand_new", "", "RETURNS int AS $$ SELECT 42 $$"),
+                    new Routine("add_tax", RoutineKind.Function, "amount numeric", "RETURNS numeric AS $$ SELECT amount * 1.2 $$"),
+                    new Routine("score", RoutineKind.Function, "user_id bigint, weight numeric", "RETURNS numeric AS $$ SELECT 1 $$"),
+                    new Routine("brand_new", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 42 $$"),
+                    new Routine("archive", RoutineKind.Procedure, "before date", "LANGUAGE sql AS $$ DELETE $$"),
                 ],
-                Procedures: [new Procedure("archive", "before date", "LANGUAGE sql AS $$ DELETE $$")]),
+                // Domains: code's base type changes (recreate), stale_domain is dropped, postal_code is added.
+                Domains:
+                [
+                    new Domain("code", SqlType.VarChar(8)),
+                    new Domain("postal_code", SqlType.Text, NotNull: true),
+                ],
+                // Composite types: address retypes a field + adds one + drops one (all in place), stale_type
+                // is dropped, and coords is added.
+                CompositeTypes:
+                [
+                    new CompositeType("address", [new CompositeField("street", SqlType.VarChar(120)), new CompositeField("zip", SqlType.Int), new CompositeField("country", SqlType.Text)]),
+                    new CompositeType("coords", [new CompositeField("lat", SqlType.Decimal(9, 6)), new CompositeField("lng", SqlType.Decimal(9, 6))]),
+                ]),
             new SchemaDefinition("reporting", Comment: "analytics"),
-        ]);
+        ],
+        // Extensions: citext unchanged, postgis version bump, legacy_ext dropped, vector added.
+        Extensions:
+        [
+            new Extension("citext"),
+            new Extension("postgis", Version: "3.4"),
+            new Extension("vector", Comment: "embeddings"),
+        ],
+        DroppedExtensions: ["legacy_ext"]);
 
         return Verify(_sut.Compare(current, desired));
     }
