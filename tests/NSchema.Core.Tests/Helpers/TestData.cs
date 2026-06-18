@@ -1,7 +1,22 @@
 using NSchema.Diff.Model;
 using NSchema.Plan.Model;
+using NSchema.Plan.Model.Schemas;
+using NSchema.Plan.Model.Tables;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.CompositeTypes;
+using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Domains;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Extensions;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Routines;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Triggers;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Tests.Helpers;
 
@@ -50,6 +65,7 @@ public static class TestData
                             new Column("balance", SqlType.Decimal(18, 2), IsNullable: true, DefaultExpression: "0"),
                             new Column("code", SqlType.Char(8), OldName: "short_code"),
                             new Column("metadata", SqlType.Custom("jsonb"), IsNullable: true),
+                            new Column("name_upper", SqlType.Text, IsNullable: true, GeneratedExpression: "upper(name)"),
                         ],
                         ForeignKeys:
                         [
@@ -64,12 +80,30 @@ public static class TestData
                         [
                             new CheckConstraint("users_balance_chk", "balance >= 0", Comment: "no overdraft"),
                         ],
+                        ExclusionConstraints:
+                        [
+                            new ExclusionConstraint("users_code_excl",
+                                [new ExclusionElement("code", "="), new ExclusionElement("int4range(0, balance)", "&&", IsExpression: true)],
+                                Method: "gist", Predicate: "balance > 0", Comment: "no overlap"),
+                        ],
                         Indexes:
                         [
                             new TableIndex("users_name_ix", ["name"], IsUnique: true,
                                 Comment: "unique names", Predicate: "name IS NOT NULL"),
+                            new TableIndex("users_balance_ix",
+                                [new IndexColumn("balance", Sort: IndexSort.Descending, Nulls: IndexNulls.Last), new IndexColumn("lower(name)", IsExpression: true)],
+                                Method: "btree", Include: ["code"], Comment: "covering balance index"),
                         ],
-                        Grants: [new TableGrant("readers", TablePrivilege.All)]),
+                        Grants: [new TableGrant("readers", TablePrivilege.All)],
+                        Triggers:
+                        [
+                            new Trigger("users_audit", TriggerTiming.After,
+                                TriggerEvent.Insert | TriggerEvent.Update, "app.log_change",
+                                TriggerLevel.Row, UpdateOfColumns: ["name", "balance"],
+                                When: "new.balance > 0", Comment: "audit row changes"),
+                            new Trigger("users_stamp", TriggerTiming.Before, TriggerEvent.Update,
+                                "app.touch_updated_at"),
+                        ]),
                 ],
                 DroppedTables: ["old_table"],
                 Grants: [new SchemaGrant("app_role")],
@@ -77,6 +111,9 @@ public static class TestData
                 [
                     View("active_users", "SELECT id, name FROM app.users WHERE balance > 0", comment: "currently active users"),
                     View("user_directory", "SELECT name FROM app.active_users", oldName: "legacy_directory"),
+                    MaterializedView("daily_balances", "SELECT name, balance FROM app.users",
+                        comment: "balances rollup",
+                        indexes: [new TableIndex("daily_balances_name_ix", ["name"], IsUnique: true, Comment: "by name")]),
                 ],
                 DroppedViews: ["stale_report"],
                 Enums:
@@ -93,27 +130,48 @@ public static class TestData
                         Comment: "order numbers"),
                 ],
                 DroppedSequences: ["stale_seq"],
-                Functions:
+                Routines:
                 [
-                    new Function("add_tax", "amount numeric, rate numeric",
+                    new Routine("add_tax", RoutineKind.Function, "amount numeric, rate numeric",
                         "RETURNS numeric LANGUAGE sql AS $$\n  SELECT amount * (1 + rate);\n$$",
                         Comment: "adds tax"),
-                    new Function("normalize_code", "code text DEFAULT 'N/A'",
+                    new Routine("normalize_code", RoutineKind.Function, "code text DEFAULT 'N/A'",
                         "RETURNS text LANGUAGE sql AS $body$ SELECT upper(code || ';suffix'); $body$",
                         OldName: "clean_code"),
-                ],
-                DroppedFunctions: ["stale_fn"],
-                Procedures:
-                [
-                    new Procedure("archive_users", "",
+                    new Routine("archive_users", RoutineKind.Procedure, "",
                         "LANGUAGE sql AS $$\n  DELETE FROM app.users WHERE name <> 'a;b';\n$$",
                         Comment: "archival job"),
                 ],
-                DroppedProcedures: ["stale_proc"]),
+                DroppedRoutines: ["stale_fn", "stale_proc"],
+                Domains:
+                [
+                    new Domain("typeid", SqlType.Text, OldName: "legacy_id", Comment: "unique id as text"),
+                    new Domain("positive_amount", SqlType.Decimal(18, 2), Default: "0", NotNull: true,
+                        Checks: [new CheckConstraint("positive_amount_chk", "VALUE >= 0")]),
+                ],
+                DroppedDomains: ["stale_domain"],
+                CompositeTypes:
+                [
+                    new CompositeType("address", [new CompositeField("street", SqlType.Text), new CompositeField("zip", SqlType.Int)],
+                        OldName: "legacy_address", Comment: "a postal address"),
+                    new CompositeType("money_amount", [new CompositeField("amount", SqlType.Decimal(18, 2)), new CompositeField("currency", SqlType.Text)]),
+                ],
+                DroppedCompositeTypes: ["stale_type"]),
         ],
-        DroppedSchemas: ["scratch"]);
+        DroppedSchemas: ["scratch"],
+        Extensions:
+        [
+            new Extension("citext"),
+            new Extension("postgis", Version: "3.4", Comment: "spatial types"),
+            new Extension("uuid-ossp", Comment: "uuid generation"),
+        ],
+        DroppedExtensions: ["stale_ext"]);
 
     /// <summary>Builds a view with dependencies derived from its body, exactly as the DDL parser would.</summary>
     private static View View(string name, string body, string? comment = null, string? oldName = null) =>
         new(name, body, oldName, comment, ViewDependencyExtractor.Extract(body, "app"));
+
+    /// <summary>Builds a materialized view (optionally with indexes), dependencies derived from its body.</summary>
+    private static View MaterializedView(string name, string body, string? comment = null, IReadOnlyList<TableIndex>? indexes = null) =>
+        new(name, body, null, comment, ViewDependencyExtractor.Extract(body, "app"), IsMaterialized: true, Indexes: indexes);
 }

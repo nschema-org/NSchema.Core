@@ -1,6 +1,19 @@
 using System.Collections.Frozen;
 using NSchema.Diff.Model;
 using NSchema.Plan.Model;
+using NSchema.Plan.Model.Columns;
+using NSchema.Plan.Model.CompositeTypes;
+using NSchema.Plan.Model.Constraints;
+using NSchema.Plan.Model.Domains;
+using NSchema.Plan.Model.Enums;
+using NSchema.Plan.Model.Extensions;
+using NSchema.Plan.Model.Indexes;
+using NSchema.Plan.Model.Routines;
+using NSchema.Plan.Model.Schemas;
+using NSchema.Plan.Model.Sequence;
+using NSchema.Plan.Model.Tables;
+using NSchema.Plan.Model.Triggers;
+using NSchema.Plan.Model.Views;
 
 namespace NSchema.Plan;
 
@@ -12,13 +25,20 @@ internal sealed class PlanLinearizer : IPlanLinearizer
     private static readonly IReadOnlyDictionary<Type, int> _actionPriorities = new List<Type> {
         // Views are dropped before anything they read (columns, tables) is dropped.
         typeof(DropView),
+        // Triggers are dropped before their table and before the function they call (functions drop last).
+        typeof(DropTrigger),
         typeof(DropForeignKey),
         typeof(DropCheckConstraint),
+        typeof(DropExclusionConstraint),
         typeof(DropUniqueConstraint),
         typeof(DropIndex),
         typeof(DropPrimaryKey),
         typeof(RevokeSchemaUsage),
         typeof(RevokeTablePrivileges),
+        // Extensions are database-global infrastructure: they are created (and version-updated) before any schema
+        // or object that might depend on a type, function or operator the extension provides.
+        typeof(CreateExtension),
+        typeof(AlterExtension),
         typeof(RenameSchema),
         typeof(CreateSchema),
         // Enums and sequences are created (and renamed, and gain values) before any table change can reference
@@ -29,15 +49,30 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(CreateSequence),
         typeof(AddEnumValue),
         typeof(AlterSequence),
+        // Domains are types used by columns, so they are created (and renamed/altered) before any table change.
+        // A base-type change recreates; default/not-null/check changes apply in place. Renames precede so a
+        // recreate targets the final name.
+        typeof(RenameDomain),
+        typeof(CreateDomain),
+        typeof(RecreateDomain),
+        typeof(AlterDomainDefault),
+        typeof(AlterDomainNotNull),
+        typeof(AddDomainCheck),
+        typeof(DropDomainCheck),
+        // Composite types are types used by columns too, so they are created (and renamed/altered) before any
+        // table change. Every change applies in place (ALTER TYPE) — there is no recreate — and renames precede
+        // field changes so an add/retype targets the final name.
+        typeof(RenameCompositeType),
+        typeof(CreateCompositeType),
+        typeof(AddCompositeField),
+        typeof(AlterCompositeFieldType),
+        typeof(DropCompositeField),
         // Routines are created/recreated/renamed before any table change because column DEFAULTs and CHECK
         // constraints may call them, and after enums/sequences because their args and bodies may use those.
         // Renames precede creates/recreates so a recreate targets the final name.
-        typeof(RenameFunction),
-        typeof(RenameProcedure),
-        typeof(CreateFunction),
-        typeof(CreateProcedure),
-        typeof(RecreateFunction),
-        typeof(RecreateProcedure),
+        typeof(RenameRoutine),
+        typeof(CreateRoutine),
+        typeof(RecreateRoutine),
         typeof(RenameTable),
         typeof(RenameView),
         typeof(CreateTable),
@@ -48,11 +83,16 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(AlterColumnNullability),
         typeof(AlterIdentitySequence),
         typeof(SetColumnDefault),
+        typeof(SetColumnGenerated),
         typeof(AddPrimaryKey),
         typeof(AddUniqueConstraint),
         typeof(AddForeignKey),
         typeof(AddCheckConstraint),
+        typeof(AddExclusionConstraint),
         typeof(CreateIndex),
+        // Triggers are created once their table exists; the function they call was already created before any
+        // table (functions precede tables above).
+        typeof(CreateTrigger),
         // Views are created after every table, constraint and index they might read exists.
         typeof(CreateView),
         typeof(GrantSchemaUsage),
@@ -61,25 +101,35 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(SetTableComment),
         typeof(SetColumnComment),
         typeof(SetIndexComment),
+        typeof(SetTriggerComment),
         typeof(SetConstraintComment),
         typeof(SetViewComment),
         typeof(SetEnumComment),
         typeof(SetSequenceComment),
-        typeof(SetFunctionComment),
-        typeof(SetProcedureComment),
+        typeof(SetRoutineComment),
+        typeof(SetDomainComment),
+        typeof(SetCompositeTypeComment),
+        typeof(SetExtensionComment),
         typeof(DropTable),
         // Routines are dropped after the tables whose defaults/checks called them, and before the enums their
         // signatures may use; enums and sequences then drop after everything that referenced them.
-        typeof(DropFunction),
-        typeof(DropProcedure),
+        typeof(DropRoutine),
+        // Domains are dropped after the tables whose columns used them, alongside enums and sequences.
+        typeof(DropDomain),
+        // Composite types drop after the tables whose columns used them, alongside domains/enums/sequences.
+        typeof(DropCompositeType),
         typeof(DropEnum),
         typeof(DropSequence),
         typeof(DropSchema),
+        // Extensions drop last — after every schema object that might depend on them is gone, so the drop can't
+        // fail on a lingering dependency.
+        typeof(DropExtension),
     }.Index().ToFrozenDictionary(x => x.Item, x => x.Index);
 
     public IReadOnlyList<MigrationAction> Linearize(DatabaseDiff diff)
     {
         var actions = new List<MigrationAction>();
+        EmitExtensions(diff, actions);
         foreach (var schema in diff.Schemas)
         {
             EmitSchema(schema, actions);
@@ -109,22 +159,41 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             {
                 if (view.RenamedFrom is not null)
                 {
-                    actions.Add(new RenameView(view.Schema, view.RenamedFrom, view.Name));
+                    actions.Add(new RenameView(view.Schema, view.RenamedFrom, view.Name, view.IsMaterialized));
                 }
 
                 if (view.Kind == ChangeKind.Remove)
                 {
                     drops.Add(view);
                 }
+                else if (view.RequiresRecreate)
+                {
+                    // A materialized view's body change (or a view <-> materialized-view conversion) can't be
+                    // replaced in place, so it is both dropped and recreated; its indexes rebuild with it.
+                    drops.Add(view);
+                    creates.Add(view);
+                }
                 else if (view.Definition is not null)
                 {
-                    // An Add, or a body change applied as a replace.
+                    // A plain view's body change, applied as CREATE OR REPLACE.
                     creates.Add(view);
                 }
 
                 if (view.Comment is not null)
                 {
-                    actions.Add(new SetViewComment(view.Schema, view.Name, view.Comment.Old, view.Comment.New));
+                    actions.Add(new SetViewComment(view.Schema, view.Name, view.Comment.Old, view.Comment.New, view.IsMaterialized));
+                }
+
+                // In-place index changes on a materialized view whose body is unchanged; on a create/recreate the
+                // indexes ride along on the definition instead.
+                foreach (var index in view.Indexes)
+                {
+                    actions.Add(index.Kind switch
+                    {
+                        ChangeKind.Add => new CreateIndex(view.Schema, view.Name, index.Definition!),
+                        ChangeKind.Remove => new DropIndex(view.Schema, view.Name, index.Name),
+                        _ => new SetIndexComment(view.Schema, view.Name, index.Name, index.Comment!.Old, index.Comment.New),
+                    });
                 }
             }
         }
@@ -137,7 +206,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         // Dropped views go out dependents-first: the reverse of the create order.
         foreach (var view in OrderByDependency(drops).Reverse())
         {
-            actions.Add(new DropView(view.Schema, view.Name));
+            actions.Add(new DropView(view.Schema, view.Name, view.IsMaterialized));
         }
     }
 
@@ -153,6 +222,40 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
     private static string Key(string schema, string name) => $"{schema}.{name}";
 
+    /// <summary>
+    /// Emits the root-level extension actions. Ordering (extensions created/updated before schemas, dropped after
+    /// everything) is governed by the priority table above; this just maps each <see cref="ExtensionDiff"/> to its
+    /// action(s).
+    /// </summary>
+    private static void EmitExtensions(DatabaseDiff diff, List<MigrationAction> actions)
+    {
+        foreach (var extension in diff.Extensions)
+        {
+            switch (extension.Kind)
+            {
+                case ChangeKind.Add:
+                    actions.Add(new CreateExtension(extension.Definition!));
+                    break;
+
+                case ChangeKind.Remove:
+                    actions.Add(new DropExtension(extension.Name));
+                    break;
+
+                default: // Modify
+                    if (extension.Version is not null)
+                    {
+                        actions.Add(new AlterExtension(extension.Name, extension.Version.Old, extension.Version.New));
+                    }
+                    break;
+            }
+
+            if (extension.Kind != ChangeKind.Remove && extension.Comment is not null)
+            {
+                actions.Add(new SetExtensionComment(extension.Name, extension.Comment.Old, extension.Comment.New));
+            }
+        }
+    }
+
     private static void EmitSchema(SchemaDiff schema, List<MigrationAction> actions)
     {
         switch (schema.Kind)
@@ -162,8 +265,9 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitSchemaAttributes(schema, actions);
                 EmitEnums(schema, actions);
                 EmitSequences(schema, actions);
-                EmitFunctions(schema, actions);
-                EmitProcedures(schema, actions);
+                EmitRoutines(schema, actions);
+                EmitDomains(schema, actions);
+                EmitCompositeTypes(schema, actions);
                 foreach (var table in schema.Tables)
                 {
                     EmitTable(table, actions);
@@ -182,8 +286,9 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitSchemaAttributes(schema, actions);
                 EmitEnums(schema, actions);
                 EmitSequences(schema, actions);
-                EmitFunctions(schema, actions);
-                EmitProcedures(schema, actions);
+                EmitRoutines(schema, actions);
+                EmitDomains(schema, actions);
+                EmitCompositeTypes(schema, actions);
                 foreach (var table in schema.Tables)
                 {
                     EmitTable(table, actions);
@@ -192,78 +297,133 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         }
     }
 
-    private static void EmitFunctions(SchemaDiff schema, List<MigrationAction> actions)
+    private static void EmitRoutines(SchemaDiff schema, List<MigrationAction> actions)
     {
-        foreach (var function in schema.Functions)
+        foreach (var routine in schema.Routines)
         {
-            switch (function.Kind)
+            switch (routine.Kind)
             {
                 case ChangeKind.Add:
-                    actions.Add(new CreateFunction(function.Schema, function.Definition!));
+                    actions.Add(new CreateRoutine(routine.Schema, routine.Definition!));
                     break;
 
                 case ChangeKind.Remove:
-                    actions.Add(new DropFunction(function.Schema, function.Name));
+                    actions.Add(new DropRoutine(routine.Schema, routine.Name, routine.RoutineKind));
                     break;
 
                 default: // Modify
-                    if (function.RenamedFrom is not null)
+                    if (routine.RenamedFrom is not null)
                     {
-                        actions.Add(new RenameFunction(function.Schema, function.RenamedFrom, function.Name));
+                        actions.Add(new RenameRoutine(routine.Schema, routine.RenamedFrom, routine.Name, routine.RoutineKind));
                     }
-                    // A signature change recreates (a replace under different arguments would create a separate
-                    // overload); a definition-only change replaces in place.
-                    if (function.RequiresRecreate)
+                    // A signature (or kind) change recreates (a replace under different arguments would create a
+                    // separate overload); a definition-only change replaces in place.
+                    if (routine.RequiresRecreate)
                     {
-                        actions.Add(new RecreateFunction(function.Schema, function.Definition!));
+                        actions.Add(new RecreateRoutine(routine.Schema, routine.Definition!));
                     }
-                    else if (function.Definition is not null)
+                    else if (routine.Definition is not null)
                     {
-                        actions.Add(new CreateFunction(function.Schema, function.Definition));
+                        actions.Add(new CreateRoutine(routine.Schema, routine.Definition));
                     }
                     break;
             }
 
-            if (function.Kind != ChangeKind.Remove && function.Comment is not null)
+            if (routine.Kind != ChangeKind.Remove && routine.Comment is not null)
             {
-                actions.Add(new SetFunctionComment(function.Schema, function.Name, function.Comment.Old, function.Comment.New));
+                actions.Add(new SetRoutineComment(routine.Schema, routine.Name, routine.Comment.Old, routine.Comment.New, routine.RoutineKind));
             }
         }
     }
 
-    private static void EmitProcedures(SchemaDiff schema, List<MigrationAction> actions)
+    private static void EmitDomains(SchemaDiff schema, List<MigrationAction> actions)
     {
-        foreach (var procedure in schema.Procedures)
+        foreach (var domain in schema.Domains)
         {
-            switch (procedure.Kind)
+            switch (domain.Kind)
             {
                 case ChangeKind.Add:
-                    actions.Add(new CreateProcedure(procedure.Schema, procedure.Definition!));
+                    actions.Add(new CreateDomain(domain.Schema, domain.Definition!));
                     break;
 
                 case ChangeKind.Remove:
-                    actions.Add(new DropProcedure(procedure.Schema, procedure.Name));
+                    actions.Add(new DropDomain(domain.Schema, domain.Name));
                     break;
 
                 default: // Modify
-                    if (procedure.RenamedFrom is not null)
+                    if (domain.RenamedFrom is not null)
                     {
-                        actions.Add(new RenameProcedure(procedure.Schema, procedure.RenamedFrom, procedure.Name));
+                        actions.Add(new RenameDomain(domain.Schema, domain.RenamedFrom, domain.Name));
                     }
-                    if (procedure.RequiresRecreate)
+                    // A base-type change can't be altered in place, so it recreates (default/not-null/checks rebuild
+                    // with the definition); otherwise each facet is altered in place.
+                    if (domain.RequiresRecreate)
                     {
-                        actions.Add(new RecreateProcedure(procedure.Schema, procedure.Definition!));
+                        actions.Add(new RecreateDomain(domain.Schema, domain.Definition!));
                     }
-                    else if (procedure.Definition is not null)
+                    else
                     {
-                        actions.Add(new CreateProcedure(procedure.Schema, procedure.Definition));
+                        if (domain.Default is not null)
+                        {
+                            actions.Add(new AlterDomainDefault(domain.Schema, domain.Name, domain.Default.Old, domain.Default.New));
+                        }
+                        if (domain.NotNull is not null)
+                        {
+                            actions.Add(new AlterDomainNotNull(domain.Schema, domain.Name, domain.NotNull.New));
+                        }
+                        foreach (var check in domain.Checks)
+                        {
+                            actions.Add(check.Kind == ChangeKind.Remove
+                                ? new DropDomainCheck(domain.Schema, domain.Name, check.Name)
+                                : new AddDomainCheck(domain.Schema, domain.Name, check.Definition!));
+                        }
                     }
                     break;
             }
 
-            if (procedure.Kind != ChangeKind.Remove && procedure.Comment is not null)
+            if (domain.Kind != ChangeKind.Remove && domain.Comment is not null)
             {
-                actions.Add(new SetProcedureComment(procedure.Schema, procedure.Name, procedure.Comment.Old, procedure.Comment.New));
+                actions.Add(new SetDomainComment(domain.Schema, domain.Name, domain.Comment.Old, domain.Comment.New));
+            }
+        }
+    }
+
+    private static void EmitCompositeTypes(SchemaDiff schema, List<MigrationAction> actions)
+    {
+        foreach (var type in schema.CompositeTypes)
+        {
+            switch (type.Kind)
+            {
+                case ChangeKind.Add:
+                    actions.Add(new CreateCompositeType(type.Schema, type.Definition!));
+                    break;
+
+                case ChangeKind.Remove:
+                    actions.Add(new DropCompositeType(type.Schema, type.Name));
+                    break;
+
+                default: // Modify
+                    if (type.RenamedFrom is not null)
+                    {
+                        actions.Add(new RenameCompositeType(type.Schema, type.RenamedFrom, type.Name));
+                    }
+                    // Every field change applies in place: a matched field whose type differs is retyped, a missing
+                    // field is dropped, a new field is added. There is no recreate.
+                    foreach (var field in type.Fields)
+                    {
+                        actions.Add(field.Kind switch
+                        {
+                            ChangeKind.Remove => new DropCompositeField(type.Schema, type.Name, field.Name),
+                            ChangeKind.Modify => new AlterCompositeFieldType(type.Schema, type.Name, field.Name, field.Type!.Old!, field.Type.New!),
+                            _ => new AddCompositeField(type.Schema, type.Name, field.Definition!),
+                        });
+                    }
+                    break;
+            }
+
+            if (type.Kind != ChangeKind.Remove && type.Comment is not null)
+            {
+                actions.Add(new SetCompositeTypeComment(type.Schema, type.Name, type.Comment.Old, type.Comment.New));
             }
         }
     }
@@ -370,6 +530,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 }
                 EmitConstraints(table, actions);
                 EmitIndexes(table, actions);
+                EmitTriggers(table, actions);
                 EmitGrants(table, actions);
                 break;
 
@@ -392,6 +553,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 }
                 EmitConstraints(table, actions);
                 EmitIndexes(table, actions);
+                EmitTriggers(table, actions);
                 EmitGrants(table, actions);
                 break;
         }
@@ -429,6 +591,10 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 if (column.Default is not null)
                 {
                     actions.Add(new SetColumnDefault(table.Schema, table.Name, column.Name, column.Default.Old, column.Default.New));
+                }
+                if (column.Generated is not null)
+                {
+                    actions.Add(new SetColumnGenerated(table.Schema, table.Name, column.Name, column.Generated.Old, column.Generated.New));
                 }
                 if (column.Identity is not null)
                 {
@@ -484,6 +650,16 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 _ => new SetConstraintComment(table.Schema, table.Name, ck.Name, ck.Comment!.Old, ck.Comment.New),
             });
         }
+
+        foreach (var ex in table.ExclusionConstraints)
+        {
+            actions.Add(ex.Kind switch
+            {
+                ChangeKind.Add => new AddExclusionConstraint(table.Schema, table.Name, ex.Definition!),
+                ChangeKind.Remove => new DropExclusionConstraint(table.Schema, table.Name, ex.Name),
+                _ => new SetConstraintComment(table.Schema, table.Name, ex.Name, ex.Comment!.Old, ex.Comment.New),
+            });
+        }
     }
 
     private static void EmitIndexes(TableDiff table, List<MigrationAction> actions)
@@ -495,6 +671,19 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 ChangeKind.Add => new CreateIndex(table.Schema, table.Name, index.Definition!),
                 ChangeKind.Remove => new DropIndex(table.Schema, table.Name, index.Name),
                 _ => new SetIndexComment(table.Schema, table.Name, index.Name, index.Comment!.Old, index.Comment.New),
+            });
+        }
+    }
+
+    private static void EmitTriggers(TableDiff table, List<MigrationAction> actions)
+    {
+        foreach (var trigger in table.Triggers)
+        {
+            actions.Add(trigger.Kind switch
+            {
+                ChangeKind.Add => new CreateTrigger(table.Schema, table.Name, trigger.Definition!),
+                ChangeKind.Remove => new DropTrigger(table.Schema, table.Name, trigger.Name),
+                _ => new SetTriggerComment(table.Schema, table.Name, trigger.Name, trigger.Comment!.Old, trigger.Comment.New),
             });
         }
     }

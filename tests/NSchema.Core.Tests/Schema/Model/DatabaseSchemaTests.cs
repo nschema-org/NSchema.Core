@@ -1,4 +1,8 @@
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Routines;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Tests.Schema.Model;
 
@@ -116,8 +120,8 @@ public sealed class DatabaseSchemaTests
     [Fact]
     public void Combine_DuplicateFunctionInSameSchema_Throws()
     {
-        var db1 = Db(new SchemaDefinition("public", Functions: [new Function("f", "", "RETURNS int AS $$ SELECT 1 $$")]));
-        var db2 = Db(new SchemaDefinition("public", Functions: [new Function("f", "", "RETURNS int AS $$ SELECT 2 $$")]));
+        var db1 = Db(new SchemaDefinition("public", Routines: [new Routine("f", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 1 $$")]));
+        var db2 = Db(new SchemaDefinition("public", Routines: [new Routine("f", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 2 $$")]));
 
         var act = () => db1.Combine(db2);
 
@@ -127,8 +131,8 @@ public sealed class DatabaseSchemaTests
     [Fact]
     public void Combine_DuplicateProcedureInSameSchema_Throws()
     {
-        var db1 = Db(new SchemaDefinition("public", Procedures: [new Procedure("p", "", "AS $$ SELECT 1 $$")]));
-        var db2 = Db(new SchemaDefinition("public", Procedures: [new Procedure("p", "", "AS $$ SELECT 2 $$")]));
+        var db1 = Db(new SchemaDefinition("public", Routines: [new Routine("p", RoutineKind.Procedure, "", "AS $$ SELECT 1 $$")]));
+        var db2 = Db(new SchemaDefinition("public", Routines: [new Routine("p", RoutineKind.Procedure, "", "AS $$ SELECT 2 $$")]));
 
         var act = () => db1.Combine(db2);
 
@@ -139,8 +143,8 @@ public sealed class DatabaseSchemaTests
     public void Combine_FunctionAndProcedureWithSameName_Throws()
     {
         // Functions and procedures share one name pool, as they do in the database's catalog.
-        var db1 = Db(new SchemaDefinition("public", Functions: [new Function("r", "", "RETURNS int AS $$ SELECT 1 $$")]));
-        var db2 = Db(new SchemaDefinition("public", Procedures: [new Procedure("r", "", "AS $$ SELECT 1 $$")]));
+        var db1 = Db(new SchemaDefinition("public", Routines: [new Routine("r", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 1 $$")]));
+        var db2 = Db(new SchemaDefinition("public", Routines: [new Routine("r", RoutineKind.Procedure, "", "AS $$ SELECT 1 $$")]));
 
         var act = () => db1.Combine(db2);
 

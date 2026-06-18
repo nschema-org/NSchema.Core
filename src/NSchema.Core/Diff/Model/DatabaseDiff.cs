@@ -4,7 +4,11 @@ namespace NSchema.Diff.Model;
 /// A representation of the changes between two database schemas.
 /// </summary>
 /// <param name="Schemas">The changed schemas.</param>
-public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null)
+/// <param name="Extensions">The changed database-global extensions.</param>
+public sealed record DatabaseDiff(
+    IReadOnlyList<SchemaDiff>? Schemas = null,
+    IReadOnlyList<ExtensionDiff>? Extensions = null
+)
 {
     /// <summary>
     /// The changed schemas.
@@ -12,9 +16,14 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null)
     public IReadOnlyList<SchemaDiff> Schemas { get; init; } = Schemas ?? [];
 
     /// <summary>
+    /// The changed database-global extensions.
+    /// </summary>
+    public IReadOnlyList<ExtensionDiff> Extensions { get; init; } = Extensions ?? [];
+
+    /// <summary>
     /// Gets a value indicating whether the diff contains no changes at all.
     /// </summary>
-    public bool IsEmpty => Schemas.Count == 0;
+    public bool IsEmpty => Schemas.Count == 0 && Extensions.Count == 0;
 
     /// <summary>
     /// Gets the aggregate counts of every changed element, grouped by <see cref="ChangeKind"/>.
@@ -24,6 +33,11 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null)
         var added = 0;
         var modified = 0;
         var removed = 0;
+
+        foreach (var extension in Extensions)
+        {
+            Tally(extension.Kind);
+        }
 
         foreach (var schema in Schemas)
         {

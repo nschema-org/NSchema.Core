@@ -2,6 +2,7 @@ using Microsoft.Extensions.FileSystemGlobbing;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Scripts;
 
 namespace NSchema.Schema;
 

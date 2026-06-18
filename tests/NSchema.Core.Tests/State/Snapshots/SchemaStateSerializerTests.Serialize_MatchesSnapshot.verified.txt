@@ -37,7 +37,8 @@
                   startWith: 1,
                   minValue: 1,
                   incrementBy: 1
-                }
+                },
+                generatedExpression: null
               },
               {
                 name: name,
@@ -52,7 +53,8 @@
                 defaultExpression: null,
                 oldName: null,
                 comment: display name,
-                identityOptions: null
+                identityOptions: null,
+                generatedExpression: null
               },
               {
                 name: balance,
@@ -67,7 +69,8 @@
                 defaultExpression: 0,
                 oldName: null,
                 comment: null,
-                identityOptions: null
+                identityOptions: null,
+                generatedExpression: null
               },
               {
                 name: code,
@@ -82,7 +85,8 @@
                 defaultExpression: null,
                 oldName: short_code,
                 comment: null,
-                identityOptions: null
+                identityOptions: null,
+                generatedExpression: null
               },
               {
                 name: metadata,
@@ -97,7 +101,24 @@
                 defaultExpression: null,
                 oldName: null,
                 comment: null,
-                identityOptions: null
+                identityOptions: null,
+                generatedExpression: null
+              },
+              {
+                name: name_upper,
+                type: {
+                  name: text,
+                  length: null,
+                  precision: null,
+                  scale: null
+                },
+                isNullable: true,
+                isIdentity: false,
+                defaultExpression: null,
+                oldName: null,
+                comment: null,
+                identityOptions: null,
+                generatedExpression: upper(name)
               }
             ],
             foreignKeys: [
@@ -132,14 +153,64 @@
                 comment: no overdraft
               }
             ],
+            exclusionConstraints: [
+              {
+                name: users_code_excl,
+                method: gist,
+                predicate: balance > 0,
+                comment: no overlap,
+                elements: [
+                  {
+                    expression: code,
+                    operator: =,
+                    isExpression: false
+                  },
+                  {
+                    expression: int4range(0, balance),
+                    operator: &&,
+                    isExpression: true
+                  }
+                ]
+              }
+            ],
             indexes: [
               {
                 name: users_name_ix,
                 isUnique: true,
                 comment: unique names,
                 predicate: name IS NOT NULL,
-                columnNames: [
-                  name
+                method: null,
+                columns: [
+                  {
+                    expression: name,
+                    isExpression: false,
+                    sort: Default,
+                    nulls: Default
+                  }
+                ]
+              },
+              {
+                name: users_balance_ix,
+                isUnique: false,
+                comment: covering balance index,
+                predicate: null,
+                method: btree,
+                columns: [
+                  {
+                    expression: balance,
+                    isExpression: false,
+                    sort: Descending,
+                    nulls: Last
+                  },
+                  {
+                    expression: lower(name),
+                    isExpression: true,
+                    sort: Default,
+                    nulls: Default
+                  }
+                ],
+                include: [
+                  code
                 ]
               }
             ],
@@ -147,6 +218,32 @@
               {
                 role: readers,
                 privileges: All
+              }
+            ],
+            triggers: [
+              {
+                name: users_audit,
+                timing: After,
+                events: Insert, Update,
+                function: app.log_change,
+                level: Row,
+                when: new.balance > 0,
+                functionArguments: null,
+                comment: audit row changes,
+                updateOfColumns: [
+                  name,
+                  balance
+                ]
+              },
+              {
+                name: users_stamp,
+                timing: Before,
+                events: Update,
+                function: app.touch_updated_at,
+                level: Statement,
+                when: null,
+                functionArguments: null,
+                comment: null
               }
             ]
           }
@@ -160,6 +257,7 @@
             body: SELECT id, name FROM app.users WHERE balance > 0,
             oldName: null,
             comment: currently active users,
+            isMaterialized: false,
             dependsOn: [
               {
                 schema: app,
@@ -172,10 +270,41 @@
             body: SELECT name FROM app.active_users,
             oldName: legacy_directory,
             comment: null,
+            isMaterialized: false,
             dependsOn: [
               {
                 schema: app,
                 name: active_users
+              }
+            ]
+          },
+          {
+            name: daily_balances,
+            body: SELECT name, balance FROM app.users,
+            oldName: null,
+            comment: balances rollup,
+            isMaterialized: true,
+            dependsOn: [
+              {
+                schema: app,
+                name: users
+              }
+            ],
+            indexes: [
+              {
+                name: daily_balances_name_ix,
+                isUnique: true,
+                comment: by name,
+                predicate: null,
+                method: null,
+                columns: [
+                  {
+                    expression: name,
+                    isExpression: false,
+                    sort: Default,
+                    nulls: Default
+                  }
+                ]
               }
             ]
           }
@@ -245,9 +374,10 @@
         droppedSequences: [
           stale_seq
         ],
-        functions: [
+        routines: [
           {
             name: add_tax,
+            kind: Function,
             arguments: amount numeric, rate numeric,
             definition:
 RETURNS numeric LANGUAGE sql AS $$
@@ -258,18 +388,15 @@ $$,
           },
           {
             name: normalize_code,
+            kind: Function,
             arguments: code text DEFAULT 'N/A',
             definition: RETURNS text LANGUAGE sql AS $body$ SELECT upper(code || ';suffix'); $body$,
             oldName: clean_code,
             comment: null
-          }
-        ],
-        droppedFunctions: [
-          stale_fn
-        ],
-        procedures: [
+          },
           {
             name: archive_users,
+            kind: Procedure,
             arguments: ,
             definition:
 LANGUAGE sql AS $$
@@ -279,8 +406,102 @@ $$,
             comment: archival job
           }
         ],
-        droppedProcedures: [
+        droppedRoutines: [
+          stale_fn,
           stale_proc
+        ],
+        domains: [
+          {
+            name: typeid,
+            dataType: {
+              name: text,
+              length: null,
+              precision: null,
+              scale: null
+            },
+            default: null,
+            notNull: false,
+            oldName: legacy_id,
+            comment: unique id as text
+          },
+          {
+            name: positive_amount,
+            dataType: {
+              name: decimal,
+              length: null,
+              precision: 18,
+              scale: 2
+            },
+            default: 0,
+            notNull: true,
+            oldName: null,
+            comment: null,
+            checks: [
+              {
+                name: positive_amount_chk,
+                expression: VALUE >= 0,
+                comment: null
+              }
+            ]
+          }
+        ],
+        droppedDomains: [
+          stale_domain
+        ],
+        compositeTypes: [
+          {
+            name: address,
+            oldName: legacy_address,
+            comment: a postal address,
+            fields: [
+              {
+                name: street,
+                dataType: {
+                  name: text,
+                  length: null,
+                  precision: null,
+                  scale: null
+                }
+              },
+              {
+                name: zip,
+                dataType: {
+                  name: int,
+                  length: null,
+                  precision: null,
+                  scale: null
+                }
+              }
+            ]
+          },
+          {
+            name: money_amount,
+            oldName: null,
+            comment: null,
+            fields: [
+              {
+                name: amount,
+                dataType: {
+                  name: decimal,
+                  length: null,
+                  precision: 18,
+                  scale: 2
+                }
+              },
+              {
+                name: currency,
+                dataType: {
+                  name: text,
+                  length: null,
+                  precision: null,
+                  scale: null
+                }
+              }
+            ]
+          }
+        ],
+        droppedCompositeTypes: [
+          stale_type
         ],
         grants: [
           {
@@ -291,6 +512,26 @@ $$,
     ],
     droppedSchemas: [
       scratch
+    ],
+    extensions: [
+      {
+        name: citext,
+        version: null,
+        comment: null
+      },
+      {
+        name: postgis,
+        version: 3.4,
+        comment: spatial types
+      },
+      {
+        name: uuid-ossp,
+        version: null,
+        comment: uuid generation
+      }
+    ],
+    droppedExtensions: [
+      stale_ext
     ]
   }
 }

@@ -1,5 +1,5 @@
 using NSchema.Diff.Model;
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
 
 namespace NSchema.Diff;
 
@@ -94,6 +94,12 @@ internal sealed partial class SchemaComparer
             comment = new ValueChange<string>(current.Comment, desired.Comment);
         }
 
+        ValueChange<string>? generated = null;
+        if (current.GeneratedExpression != desired.GeneratedExpression)
+        {
+            generated = new ValueChange<string>(current.GeneratedExpression, desired.GeneratedExpression);
+        }
+
         // Identity changes when the column is toggled into or out of identity, or when both columns are
         // identity but their sequence options differ. Old/New options are null on the side that isn't identity.
         ValueChange<IdentityOptions>? identity = null;
@@ -110,11 +116,11 @@ internal sealed partial class SchemaComparer
             identity = new ValueChange<IdentityOptions>(oldOptions, newOptions);
         }
 
-        if (renamedFrom is null && type is null && nullability is null && @default is null && comment is null && identity is null)
+        if (renamedFrom is null && type is null && nullability is null && @default is null && comment is null && identity is null && generated is null)
         {
             return null;
         }
 
-        return new ColumnDiff(desired.Name, ChangeKind.Modify, null, renamedFrom, type, nullability, @default, identity, comment);
+        return new ColumnDiff(desired.Name, ChangeKind.Modify, null, renamedFrom, type, nullability, @default, identity, comment, generated);
     }
 }

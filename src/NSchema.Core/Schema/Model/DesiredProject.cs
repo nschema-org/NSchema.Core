@@ -1,3 +1,5 @@
+using NSchema.Schema.Model.Scripts;
+
 namespace NSchema.Schema.Model;
 
 /// <summary>

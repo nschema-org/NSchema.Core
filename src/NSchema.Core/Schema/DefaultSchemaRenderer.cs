@@ -1,5 +1,13 @@
 using System.Text;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Routines;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Triggers;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Schema;
 
@@ -13,12 +21,24 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
 
     public string Render(DatabaseSchema schema)
     {
-        if (schema.Schemas.Count == 0)
+        if (schema.Schemas.Count == 0 && schema.Extensions.Count == 0)
         {
             return "Schema is empty.";
         }
 
         var sb = new StringBuilder();
+
+        // Extensions are database-global, so they render at the root before any schema.
+        foreach (var extension in schema.Extensions)
+        {
+            sb.AppendLine();
+            sb.Append("extension ").Append(extension.Name);
+            if (extension.Version is { } version)
+            {
+                sb.Append(" (version ").Append(version).Append(')');
+            }
+            sb.AppendLine(CommentSuffix(extension.Comment));
+        }
 
         foreach (var definition in schema.Schemas)
         {
@@ -55,6 +75,33 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
                 .AppendLine(CommentSuffix(enumType.Comment));
         }
 
+        foreach (var domain in schema.Domains)
+        {
+            sb.Append(Indent).Append("domain ").Append(domain.Name)
+                .Append(" (").Append(domain.DataType);
+            if (domain.NotNull)
+            {
+                sb.Append(" not null");
+            }
+            if (domain.Default is { } @default)
+            {
+                sb.Append(" default ").Append(@default);
+            }
+            sb.Append(')').AppendLine(CommentSuffix(domain.Comment));
+            foreach (var check in domain.Checks)
+            {
+                sb.Append(Indent).Append(Indent).Append("check ").Append(check.Name)
+                    .Append(" (").Append(check.Expression).Append(')').AppendLine();
+            }
+        }
+
+        foreach (var compositeType in schema.CompositeTypes)
+        {
+            sb.Append(Indent).Append("type ").Append(compositeType.Name)
+                .Append(" (").Append(string.Join(", ", compositeType.Fields.Select(f => $"{f.Name} {f.DataType}"))).Append(')')
+                .AppendLine(CommentSuffix(compositeType.Comment));
+        }
+
         foreach (var sequence in schema.Sequences)
         {
             sb.Append(Indent).Append("sequence ").Append(sequence.Name);
@@ -65,19 +112,13 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
             sb.AppendLine(CommentSuffix(sequence.Comment));
         }
 
-        // Routines render as name + arguments only; the definition is opaque and arbitrarily long.
-        foreach (var function in schema.Functions)
+        // Routines render as kind + name + arguments only; the definition is opaque and arbitrarily long.
+        foreach (var routine in schema.Routines)
         {
-            sb.Append(Indent).Append("function ").Append(function.Name)
-                .Append('(').Append(function.Arguments).Append(')')
-                .AppendLine(CommentSuffix(function.Comment));
-        }
-
-        foreach (var procedure in schema.Procedures)
-        {
-            sb.Append(Indent).Append("procedure ").Append(procedure.Name)
-                .Append('(').Append(procedure.Arguments).Append(')')
-                .AppendLine(CommentSuffix(procedure.Comment));
+            var label = routine.Kind == RoutineKind.Procedure ? "procedure" : "function";
+            sb.Append(Indent).Append(label).Append(' ').Append(routine.Name)
+                .Append('(').Append(routine.Arguments).Append(')')
+                .AppendLine(CommentSuffix(routine.Comment));
         }
     }
 
@@ -124,10 +165,15 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
 
     private static void RenderView(StringBuilder sb, View view)
     {
-        sb.Append(Indent).Append("view ").Append(view.Name).AppendLine(CommentSuffix(view.Comment));
+        var label = view.IsMaterialized ? "materialized view" : "view";
+        sb.Append(Indent).Append(label).Append(' ').Append(view.Name).AppendLine(CommentSuffix(view.Comment));
         foreach (var dependency in view.DependsOn)
         {
             sb.Append(Indent).Append(Indent).Append("reads ").Append(dependency.Schema).Append('.').AppendLine(dependency.Name);
+        }
+        foreach (var index in view.Indexes)
+        {
+            RenderIndex(sb, index);
         }
     }
 
@@ -174,13 +220,30 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
                 .AppendLine(CommentSuffix(check.Comment));
         }
 
-        foreach (var index in table.Indexes)
+        foreach (var exclusion in table.ExclusionConstraints)
         {
             sb.Append(Indent).Append(Indent)
-                .Append("index ").Append(index.Name)
-                .Append(" (").Append(string.Join(", ", index.ColumnNames)).Append(')')
-                .Append(index.IsUnique ? " unique" : string.Empty)
-                .AppendLine(index.Predicate is { } p ? $" where {p}" : string.Empty);
+                .Append("exclude ").Append(exclusion.Name);
+            if (exclusion.Method is { } method)
+            {
+                sb.Append(" using ").Append(method);
+            }
+            sb.Append(" (").Append(string.Join(", ", exclusion.Elements.Select(e =>
+                $"{(e.IsExpression ? $"({e.Expression})" : e.Expression)} with {e.Operator}"))).Append(')');
+            sb.AppendLine(CommentSuffix(exclusion.Comment));
+        }
+
+        foreach (var index in table.Indexes)
+        {
+            RenderIndex(sb, index);
+        }
+
+        foreach (var trigger in table.Triggers)
+        {
+            sb.Append(Indent).Append(Indent)
+                .Append("trigger ").Append(trigger.Name)
+                .Append(' ').Append(FormatTrigger(trigger))
+                .AppendLine(CommentSuffix(trigger.Comment));
         }
 
         foreach (var grant in table.Grants)
@@ -189,6 +252,40 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
                 .Append("grant ").Append(FormatPrivileges(grant.Privileges))
                 .Append(" to ").AppendLine(grant.Role);
         }
+    }
+
+    private static string FormatTrigger(Trigger trigger)
+    {
+        var timing = trigger.Timing switch
+        {
+            TriggerTiming.Before => "before",
+            TriggerTiming.After => "after",
+            _ => "instead of",
+        };
+        var level = trigger.Level == TriggerLevel.Row ? "row" : "statement";
+        return $"{timing} {FormatTriggerEvents(trigger)} {level} -> {trigger.Function}";
+    }
+
+    private static string FormatTriggerEvents(Trigger trigger)
+    {
+        var parts = new List<string>(4);
+        if (trigger.Events.HasFlag(TriggerEvent.Insert))
+        {
+            parts.Add("insert");
+        }
+        if (trigger.Events.HasFlag(TriggerEvent.Update))
+        {
+            parts.Add(trigger.UpdateOfColumns.Count > 0 ? $"update of ({string.Join(", ", trigger.UpdateOfColumns)})" : "update");
+        }
+        if (trigger.Events.HasFlag(TriggerEvent.Delete))
+        {
+            parts.Add("delete");
+        }
+        if (trigger.Events.HasFlag(TriggerEvent.Truncate))
+        {
+            parts.Add("truncate");
+        }
+        return string.Join(", ", parts);
     }
 
     private static string FormatColumn(Column column)
@@ -204,7 +301,47 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
             text += $" default {@default}";
         }
 
+        if (column.GeneratedExpression is { } generated)
+        {
+            text += $" generated as ({generated})";
+        }
+
         return text + CommentSuffix(column.Comment);
+    }
+
+    private static void RenderIndex(StringBuilder sb, TableIndex index)
+    {
+        sb.Append(Indent).Append(Indent)
+            .Append("index ").Append(index.Name)
+            .Append(" (").Append(string.Join(", ", index.Columns.Select(FormatIndexKey))).Append(')');
+        if (index.Method is { } method)
+        {
+            sb.Append(" using ").Append(method);
+        }
+        if (index.Include.Count > 0)
+        {
+            sb.Append(" include (").Append(string.Join(", ", index.Include)).Append(')');
+        }
+        sb.Append(index.IsUnique ? " unique" : string.Empty)
+            .AppendLine(index.Predicate is { } p ? $" where {p}" : string.Empty);
+    }
+
+    private static string FormatIndexKey(IndexColumn column)
+    {
+        var text = column.IsExpression ? $"({column.Expression})" : column.Expression;
+        text += column.Sort switch
+        {
+            IndexSort.Ascending => " asc",
+            IndexSort.Descending => " desc",
+            _ => string.Empty,
+        };
+        text += column.Nulls switch
+        {
+            IndexNulls.First => " nulls first",
+            IndexNulls.Last => " nulls last",
+            _ => string.Empty,
+        };
+        return text;
     }
 
     private static string CommentSuffix(string? comment) => comment is null ? string.Empty : $" (\"{comment}\")";

@@ -1,8 +1,19 @@
 using Microsoft.Extensions.Options;
 using NSchema.Diff.Model;
 using NSchema.Diff.Policies;
-using NSchema.Plan.Model;
+using NSchema.Plan.Model.Constraints;
+using NSchema.Plan.Model.Enums;
+using NSchema.Plan.Model.Extensions;
+using NSchema.Plan.Model.Routines;
+using NSchema.Plan.Model.Sequence;
+using NSchema.Plan.Model.Tables;
+using NSchema.Plan.Model.Views;
 using NSchema.Policies;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Extensions;
+using NSchema.Schema.Model.Routines;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Views;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Diff.Policies;
@@ -107,6 +118,22 @@ public class DestructiveActionDiffPolicyTests
     }
 
     [Fact]
+    public void Validate_DroppedExclusionConstraint_IsDestructive()
+    {
+        // Arrange — dropping an exclusion constraint removes a structural guarantee, like a unique constraint.
+        _options.Value.Policy = DestructiveActionPolicy.Error;
+        var diff = TableChange(new TableDiff("app", "bookings", ChangeKind.Modify, null, null, [], [], [],
+            ExclusionConstraints: [new ExclusionConstraintDiff(ChangeKind.Remove, "no_overlap", null)]));
+
+        // Act
+        var errors = _sut.Validate(diff).ToList();
+
+        // Assert
+        errors.ShouldHaveSingleItem();
+        errors[0].Message.ShouldContain(nameof(DropExclusionConstraint));
+    }
+
+    [Fact]
     public void Validate_DroppedCheckConstraint_IsNotDestructive()
     {
         // Arrange — dropping a check only loosens validation; no data is lost, so it is not destructive.
@@ -140,7 +167,7 @@ public class DestructiveActionDiffPolicyTests
     {
         // Arrange — creating a view loses nothing.
         _options.Value.Policy = DestructiveActionPolicy.Error;
-        var view = new NSchema.Schema.Model.View("active_users", "SELECT * FROM app.users");
+        var view = new View("active_users", "SELECT * FROM app.users");
         var diff = new DatabaseDiff([
             new SchemaDiff("app", null, null, null, [], [], [new ViewDiff("app", "active_users", ChangeKind.Add, Definition: view)]),
         ]);
@@ -190,8 +217,8 @@ public class DestructiveActionDiffPolicyTests
         _options.Value.Policy = DestructiveActionPolicy.Error;
         var diff = new DatabaseDiff([
             new SchemaDiff("app",
-                Enums: [new EnumDiff("app", "status", ChangeKind.Add, Definition: new NSchema.Schema.Model.EnumType("status", ["a"]))],
-                Sequences: [new SequenceDiff("app", "order_id", ChangeKind.Add, Definition: new NSchema.Schema.Model.Sequence("order_id"))]),
+                Enums: [new EnumDiff("app", "status", ChangeKind.Add, Definition: new EnumType("status", ["a"]))],
+                Sequences: [new SequenceDiff("app", "order_id", ChangeKind.Add, Definition: new Sequence("order_id"))]),
         ]);
 
         // Act / Assert
@@ -199,14 +226,16 @@ public class DestructiveActionDiffPolicyTests
     }
 
     [Fact]
-    public void Validate_DroppedFunctionAndProcedure_AreDestructive()
+    public void Validate_DroppedRoutines_AreDestructive()
     {
         // Arrange — dropping a routine loses its definition from managed state.
         _options.Value.Policy = DestructiveActionPolicy.Error;
         var diff = new DatabaseDiff([
-            new SchemaDiff("app",
-                Functions: [new FunctionDiff("app", "f", ChangeKind.Remove)],
-                Procedures: [new ProcedureDiff("app", "p", ChangeKind.Remove)]),
+            new SchemaDiff("app", Routines:
+            [
+                new RoutineDiff("app", "f", ChangeKind.Remove, RoutineKind.Function),
+                new RoutineDiff("app", "p", ChangeKind.Remove, RoutineKind.Procedure),
+            ]),
         ]);
 
         // Act
@@ -214,8 +243,7 @@ public class DestructiveActionDiffPolicyTests
 
         // Assert
         errors.ShouldHaveSingleItem();
-        errors[0].Message.ShouldContain(nameof(DropFunction));
-        errors[0].Message.ShouldContain(nameof(DropProcedure));
+        errors[0].Message.ShouldContain(nameof(DropRoutine));
     }
 
     [Fact]
@@ -224,14 +252,41 @@ public class DestructiveActionDiffPolicyTests
         // Arrange — a signature change is a declared edit; the database blocks the underlying drop loudly if
         // dependents exist, so the policy does not gate it.
         _options.Value.Policy = DestructiveActionPolicy.Error;
-        var fn = new NSchema.Schema.Model.Function("f", "a int, b text", "RETURNS int AS $$ SELECT 1 $$");
+        var fn = new Routine("f", RoutineKind.Function, "a int, b text", "RETURNS int AS $$ SELECT 1 $$");
         var diff = new DatabaseDiff([
-            new SchemaDiff("app", Functions:
+            new SchemaDiff("app", Routines:
             [
-                new FunctionDiff("app", "f", ChangeKind.Modify, Definition: fn,
+                new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function, Definition: fn,
                     Arguments: new ValueChange<string>("a int", "a int, b text")),
             ]),
         ]);
+
+        // Act / Assert
+        _sut.Validate(diff).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Validate_DroppedExtension_IsDestructive()
+    {
+        // Arrange — dropping a database-global extension removes shared infrastructure (and its dependents).
+        _options.Value.Policy = DestructiveActionPolicy.Error;
+        var diff = new DatabaseDiff(Extensions: [new ExtensionDiff("citext", ChangeKind.Remove)]);
+
+        // Act
+        var errors = _sut.Validate(diff).ToList();
+
+        // Assert
+        errors.ShouldHaveSingleItem();
+        errors[0].Message.ShouldContain(nameof(DropExtension));
+    }
+
+    [Fact]
+    public void Validate_AddedExtension_IsNotDestructive()
+    {
+        // Arrange — installing an extension loses nothing.
+        _options.Value.Policy = DestructiveActionPolicy.Error;
+        var diff = new DatabaseDiff(Extensions:
+            [new ExtensionDiff("citext", ChangeKind.Add, Definition: new Extension("citext"))]);
 
         // Act / Assert
         _sut.Validate(diff).ShouldBeEmpty();

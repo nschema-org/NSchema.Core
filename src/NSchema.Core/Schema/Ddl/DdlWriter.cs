@@ -3,6 +3,20 @@ using System.Text;
 using NSchema.Configuration;
 using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.CompositeTypes;
+using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Domains;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Extensions;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Routines;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Scripts;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Triggers;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Schema.Ddl;
 
@@ -39,6 +53,13 @@ public sealed class DdlWriter
             WriteConfigBlock(sb, block);
         }
 
+        // Extensions are database-global and are created first, so they precede the schemas.
+        foreach (var extension in document.Schema.Extensions)
+        {
+            Separate(sb, ref first);
+            WriteExtension(sb, extension);
+        }
+
         foreach (var definition in document.Schema.Schemas)
         {
             Separate(sb, ref first);
@@ -49,6 +70,13 @@ public sealed class DdlWriter
         {
             Separate(sb, ref first);
             sb.Append("DROP SCHEMA ").Append(dropped).AppendLine(";");
+        }
+
+        // Extensions are dropped last, so their drops trail the schema drops.
+        foreach (var dropped in document.Schema.DroppedExtensions)
+        {
+            Separate(sb, ref first);
+            sb.Append("DROP EXTENSION ").Append(ExtensionName(dropped)).AppendLine(";");
         }
 
         foreach (var script in document.Scripts)
@@ -161,22 +189,28 @@ public sealed class DdlWriter
             WriteEnum(sb, schema.Name, enumType);
         }
 
+        foreach (var domain in schema.Domains)
+        {
+            sb.AppendLine();
+            WriteDomain(sb, schema.Name, domain);
+        }
+
+        foreach (var compositeType in schema.CompositeTypes)
+        {
+            sb.AppendLine();
+            WriteCompositeType(sb, schema.Name, compositeType);
+        }
+
         foreach (var sequence in schema.Sequences)
         {
             sb.AppendLine();
             WriteSequence(sb, schema.Name, sequence);
         }
 
-        foreach (var function in schema.Functions)
+        foreach (var routine in schema.Routines)
         {
             sb.AppendLine();
-            WriteFunction(sb, schema.Name, function);
-        }
-
-        foreach (var procedure in schema.Procedures)
-        {
-            sb.AppendLine();
-            WriteProcedure(sb, schema.Name, procedure);
+            WriteRoutine(sb, schema.Name, routine);
         }
 
         foreach (var table in schema.Tables)
@@ -206,21 +240,51 @@ public sealed class DdlWriter
             sb.Append("DROP ENUM ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
         }
 
+        foreach (var dropped in schema.DroppedDomains)
+        {
+            sb.Append("DROP DOMAIN ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
+        }
+
+        foreach (var dropped in schema.DroppedCompositeTypes)
+        {
+            sb.Append("DROP TYPE ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
+        }
+
         foreach (var dropped in schema.DroppedSequences)
         {
             sb.Append("DROP SEQUENCE ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
         }
 
-        foreach (var dropped in schema.DroppedFunctions)
+        // A dropped routine is recorded by name only (functions and procedures share one name space), so it is
+        // emitted with the kind-agnostic DROP ROUTINE.
+        foreach (var dropped in schema.DroppedRoutines)
         {
-            sb.Append("DROP FUNCTION ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
-        }
-
-        foreach (var dropped in schema.DroppedProcedures)
-        {
-            sb.Append("DROP PROCEDURE ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
+            sb.Append("DROP ROUTINE ").Append(schema.Name).Append('.').Append(dropped).AppendLine(";");
         }
     }
+
+    private static void WriteExtension(StringBuilder sb, Extension extension)
+    {
+        WriteDocComment(sb, extension.Comment, indent: "");
+        sb.Append("CREATE EXTENSION ").Append(ExtensionName(extension.Name));
+        if (extension.Version is { } version)
+        {
+            sb.Append(" VERSION '").Append(version.Replace("'", "''")).Append('\'');
+        }
+        sb.AppendLine(";");
+    }
+
+    /// <summary>
+    /// Renders an extension name: bare when it is a valid identifier, otherwise single-quoted (e.g.
+    /// <c>'uuid-ossp'</c>) so it round-trips through the parser.
+    /// </summary>
+    private static string ExtensionName(string name) =>
+        IsBareIdentifier(name) ? name : $"'{name.Replace("'", "''")}'";
+
+    private static bool IsBareIdentifier(string name) =>
+        name.Length > 0
+        && (char.IsAsciiLetter(name[0]) || name[0] == '_')
+        && name.All(c => char.IsAsciiLetterOrDigit(c) || c == '_');
 
     private static void WriteEnum(StringBuilder sb, string schemaName, EnumType enumType)
     {
@@ -231,6 +295,42 @@ public sealed class DdlWriter
             sb.Append(" RENAMED FROM ").Append(oldName);
         }
         sb.Append(" (").Append(string.Join(", ", enumType.Values.Select(v => $"'{v.Replace("'", "''")}'"))).AppendLine(");");
+    }
+
+    private static void WriteDomain(StringBuilder sb, string schemaName, Domain domain)
+    {
+        WriteDocComment(sb, domain.Comment, indent: "");
+        sb.Append("CREATE DOMAIN ").Append(schemaName).Append('.').Append(domain.Name);
+        if (domain.OldName is { } oldName)
+        {
+            sb.Append(" RENAMED FROM ").Append(oldName);
+        }
+        sb.Append(" AS ").Append(domain.DataType);
+        if (domain.NotNull)
+        {
+            sb.Append(" NOT NULL");
+        }
+        foreach (var check in domain.Checks)
+        {
+            sb.Append(" CONSTRAINT ").Append(check.Name).Append(" CHECK (").Append(check.Expression).Append(')');
+        }
+        // The default, if any, comes last: its opaque expression is read back up to the terminating ';'.
+        if (domain.Default is { } @default)
+        {
+            sb.Append(" DEFAULT ").Append(@default);
+        }
+        sb.AppendLine(";");
+    }
+
+    private static void WriteCompositeType(StringBuilder sb, string schemaName, CompositeType compositeType)
+    {
+        WriteDocComment(sb, compositeType.Comment, indent: "");
+        sb.Append("CREATE TYPE ").Append(schemaName).Append('.').Append(compositeType.Name);
+        if (compositeType.OldName is { } oldName)
+        {
+            sb.Append(" RENAMED FROM ").Append(oldName);
+        }
+        sb.Append(" AS (").Append(string.Join(", ", compositeType.Fields.Select(f => $"{f.Name} {f.DataType}"))).AppendLine(");");
     }
 
     private static void WriteSequence(StringBuilder sb, string schemaName, Sequence sequence)
@@ -282,39 +382,57 @@ public sealed class DdlWriter
         return parts.Count == 0 ? null : string.Join(", ", parts);
     }
 
-    private static void WriteFunction(StringBuilder sb, string schemaName, Function function)
+    private static void WriteRoutine(StringBuilder sb, string schemaName, Routine routine)
     {
-        WriteDocComment(sb, function.Comment, indent: "");
-        sb.Append("CREATE FUNCTION ").Append(schemaName).Append('.').Append(function.Name);
-        if (function.OldName is { } oldName)
+        WriteDocComment(sb, routine.Comment, indent: "");
+        sb.Append(routine.Kind == RoutineKind.Procedure ? "CREATE PROCEDURE " : "CREATE FUNCTION ")
+            .Append(schemaName).Append('.').Append(routine.Name);
+        if (routine.OldName is { } oldName)
         {
             sb.Append(" RENAMED FROM ").Append(oldName);
         }
         // The definition is emitted verbatim (multi-line bodies keep their newlines); TrimEnd guards a
         // code-built definition ending in whitespace so the ';' lands directly after the last character.
-        sb.Append('(').Append(function.Arguments).Append(") ").Append(function.Definition.TrimEnd()).AppendLine(";");
-    }
-
-    private static void WriteProcedure(StringBuilder sb, string schemaName, Procedure procedure)
-    {
-        WriteDocComment(sb, procedure.Comment, indent: "");
-        sb.Append("CREATE PROCEDURE ").Append(schemaName).Append('.').Append(procedure.Name);
-        if (procedure.OldName is { } oldName)
-        {
-            sb.Append(" RENAMED FROM ").Append(oldName);
-        }
-        sb.Append('(').Append(procedure.Arguments).Append(") ").Append(procedure.Definition.TrimEnd()).AppendLine(";");
+        sb.Append('(').Append(routine.Arguments).Append(") ").Append(routine.Definition.TrimEnd()).AppendLine(";");
     }
 
     private static void WriteView(StringBuilder sb, string schemaName, View view)
     {
         WriteDocComment(sb, view.Comment, indent: "");
-        sb.Append("CREATE VIEW ").Append(schemaName).Append('.').Append(view.Name);
+        sb.Append("CREATE ");
+        if (view.IsMaterialized)
+        {
+            sb.Append("MATERIALIZED ");
+        }
+        sb.Append("VIEW ").Append(schemaName).Append('.').Append(view.Name);
         if (view.OldName is { } oldName)
         {
             sb.Append(" RENAMED FROM ").Append(oldName);
         }
         sb.Append(" AS ").Append(view.Body).AppendLine(";");
+
+        // A materialized view's indexes are standalone statements emitted after it (a plain view has none).
+        foreach (var index in view.Indexes)
+        {
+            WriteDocComment(sb, index.Comment, indent: "");
+            sb.Append("CREATE ");
+            if (index.IsUnique)
+            {
+                sb.Append("UNIQUE ");
+            }
+            sb.Append("INDEX ").Append(index.Name)
+                .Append(" ON ").Append(schemaName).Append('.').Append(view.Name);
+            if (index.Method is { } method)
+            {
+                sb.Append(" USING ").Append(method);
+            }
+            sb.Append(" (").Append(IndexKeys(index.Columns)).Append(')').Append(IncludeClause(index.Include));
+            if (index.Predicate is { } predicate)
+            {
+                sb.Append(" WHERE (").Append(predicate).Append(')');
+            }
+            sb.AppendLine(";");
+        }
     }
 
     private static void WriteTable(StringBuilder sb, string schemaName, Table table)
@@ -348,6 +466,10 @@ public sealed class DdlWriter
         {
             members.Add((check.Comment, $"CONSTRAINT {check.Name} CHECK ({check.Expression})"));
         }
+        foreach (var exclusion in table.ExclusionConstraints)
+        {
+            members.Add((exclusion.Comment, ExclusionText(exclusion)));
+        }
         foreach (var index in table.Indexes)
         {
             members.Add((index.Comment, IndexText(index)));
@@ -366,6 +488,58 @@ public sealed class DdlWriter
                 .Append(" ON ").Append(schemaName).Append('.').Append(table.Name)
                 .Append(" TO ").Append(grant.Role).AppendLine(";");
         }
+
+        // Triggers are standalone statements (like grants), emitted after their table so the table exists when
+        // they are read back.
+        foreach (var trigger in table.Triggers)
+        {
+            WriteTrigger(sb, schemaName, table.Name, trigger);
+        }
+    }
+
+    private static void WriteTrigger(StringBuilder sb, string schemaName, string tableName, Trigger trigger)
+    {
+        WriteDocComment(sb, trigger.Comment, indent: "");
+        sb.Append("CREATE TRIGGER ").Append(trigger.Name).Append(' ').Append(TriggerTimingText(trigger.Timing))
+            .Append(' ').Append(TriggerEventsText(trigger))
+            .Append(" ON ").Append(schemaName).Append('.').Append(tableName)
+            .Append(" FOR EACH ").Append(trigger.Level == TriggerLevel.Row ? "ROW" : "STATEMENT");
+        if (trigger.When is { } when)
+        {
+            sb.Append(" WHEN (").Append(when).Append(')');
+        }
+        sb.Append(" EXECUTE FUNCTION ").Append(trigger.Function)
+            .Append('(').Append(trigger.FunctionArguments ?? string.Empty).Append(')').AppendLine(";");
+    }
+
+    private static string TriggerTimingText(TriggerTiming timing) => timing switch
+    {
+        TriggerTiming.Before => "BEFORE",
+        TriggerTiming.After => "AFTER",
+        TriggerTiming.InsteadOf => "INSTEAD OF",
+        _ => throw new ArgumentOutOfRangeException(nameof(timing), timing, "Unknown trigger timing."),
+    };
+
+    private static string TriggerEventsText(Trigger trigger)
+    {
+        var parts = new List<string>(4);
+        if (trigger.Events.HasFlag(TriggerEvent.Insert))
+        {
+            parts.Add("INSERT");
+        }
+        if (trigger.Events.HasFlag(TriggerEvent.Update))
+        {
+            parts.Add(trigger.UpdateOfColumns.Count > 0 ? $"UPDATE OF ({Columns(trigger.UpdateOfColumns)})" : "UPDATE");
+        }
+        if (trigger.Events.HasFlag(TriggerEvent.Delete))
+        {
+            parts.Add("DELETE");
+        }
+        if (trigger.Events.HasFlag(TriggerEvent.Truncate))
+        {
+            parts.Add("TRUNCATE");
+        }
+        return string.Join(" OR ", parts);
     }
 
     private static string ColumnText(Column column)
@@ -387,6 +561,10 @@ public sealed class DdlWriter
         if (column.DefaultExpression is { } @default)
         {
             sb.Append(" DEFAULT ").Append(@default);
+        }
+        if (column.GeneratedExpression is { } generated)
+        {
+            sb.Append(" GENERATED ALWAYS AS (").Append(generated).Append(") STORED");
         }
         if (column.OldName is { } oldName)
         {
@@ -435,6 +613,25 @@ public sealed class DdlWriter
         return sb.ToString();
     }
 
+    private static string ExclusionText(ExclusionConstraint exclusion)
+    {
+        var sb = new StringBuilder();
+        sb.Append("CONSTRAINT ").Append(exclusion.Name).Append(" EXCLUDE");
+        if (exclusion.Method is { } method)
+        {
+            sb.Append(" USING ").Append(method);
+        }
+        sb.Append(" (").Append(string.Join(", ", exclusion.Elements.Select(ExclusionElementText))).Append(')');
+        if (exclusion.Predicate is { } predicate)
+        {
+            sb.Append(" WHERE (").Append(predicate).Append(')');
+        }
+        return sb.ToString();
+    }
+
+    private static string ExclusionElementText(ExclusionElement element) =>
+        $"{(element.IsExpression ? $"({element.Expression})" : element.Expression)} WITH {element.Operator}";
+
     private static string IndexText(TableIndex index)
     {
         var sb = new StringBuilder();
@@ -442,7 +639,12 @@ public sealed class DdlWriter
         {
             sb.Append("UNIQUE ");
         }
-        sb.Append("INDEX ").Append(index.Name).Append(" (").Append(Columns(index.ColumnNames)).Append(')');
+        sb.Append("INDEX ").Append(index.Name);
+        if (index.Method is { } method)
+        {
+            sb.Append(" USING ").Append(method);
+        }
+        sb.Append(" (").Append(IndexKeys(index.Columns)).Append(')').Append(IncludeClause(index.Include));
         if (index.Predicate is { } predicate)
         {
             sb.Append(" WHERE (").Append(predicate).Append(')');
@@ -481,6 +683,31 @@ public sealed class DdlWriter
     }
 
     private static string Columns(IReadOnlyList<string> columns) => string.Join(", ", columns);
+
+    /// <summary>Renders an index's key list: each column or parenthesised expression with optional sort/null ordering.</summary>
+    private static string IndexKeys(IReadOnlyList<IndexColumn> columns) => string.Join(", ", columns.Select(IndexKey));
+
+    private static string IndexKey(IndexColumn column)
+    {
+        var sb = new StringBuilder();
+        sb.Append(column.IsExpression ? $"({column.Expression})" : column.Expression);
+        sb.Append(column.Sort switch
+        {
+            IndexSort.Ascending => " ASC",
+            IndexSort.Descending => " DESC",
+            _ => string.Empty,
+        });
+        sb.Append(column.Nulls switch
+        {
+            IndexNulls.First => " NULLS FIRST",
+            IndexNulls.Last => " NULLS LAST",
+            _ => string.Empty,
+        });
+        return sb.ToString();
+    }
+
+    private static string IncludeClause(IReadOnlyList<string> include) =>
+        include.Count > 0 ? $" INCLUDE ({Columns(include)})" : string.Empty;
 
     private static void WriteDocComment(StringBuilder sb, string? comment, string indent)
     {

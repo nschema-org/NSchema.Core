@@ -1,4 +1,4 @@
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Schema.Ddl;
 

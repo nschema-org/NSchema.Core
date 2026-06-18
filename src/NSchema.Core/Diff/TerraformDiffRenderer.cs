@@ -1,7 +1,10 @@
 using System.Text;
 using Microsoft.Extensions.Options;
 using NSchema.Diff.Model;
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Routines;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
 
 namespace NSchema.Diff;
 
@@ -20,6 +23,12 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
         }
 
         var sb = new StringBuilder();
+
+        // Extensions are database-global, so they render at the root before any schema.
+        foreach (var extension in diff.Extensions)
+        {
+            RenderExtension(sb, extension);
+        }
 
         foreach (var schema in diff.Schemas)
         {
@@ -43,19 +52,24 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
                 RenderEnum(sb, enumDiff);
             }
 
+            foreach (var domain in schema.Domains)
+            {
+                RenderDomain(sb, domain);
+            }
+
+            foreach (var compositeType in schema.CompositeTypes)
+            {
+                RenderCompositeType(sb, compositeType);
+            }
+
             foreach (var sequence in schema.Sequences)
             {
                 RenderSequence(sb, sequence);
             }
 
-            foreach (var function in schema.Functions)
+            foreach (var routine in schema.Routines)
             {
-                RenderFunction(sb, function);
-            }
-
-            foreach (var procedure in schema.Procedures)
-            {
-                RenderProcedure(sb, procedure);
+                RenderRoutine(sb, routine);
             }
         }
 
@@ -95,8 +109,8 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
         // blank line. An existing table lists its column changes inline with everything that follows.
         var hasTrailingBlock = table.PrimaryKey.Count > 0 || table.ForeignKeys.Count > 0
             || table.UniqueConstraints.Count > 0 || table.Checks.Count > 0
-            || table.Indexes.Count > 0 || table.Grants.Count > 0;
-        if (table.Kind == ChangeKind.Add && table.Columns.Count > 0 && hasTrailingBlock)
+            || table.Indexes.Count > 0 || table.Triggers.Count > 0 || table.Grants.Count > 0;
+        if (table is { Kind: ChangeKind.Add, Columns.Count: > 0 } && hasTrailingBlock)
         {
             sb.AppendLine();
         }
@@ -121,12 +135,25 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
             AppendDetail(sb, check.Kind, ConstraintText("check constraint", check.Name, check.Kind, check.Comment));
         }
 
+        foreach (var exclusion in table.ExclusionConstraints)
+        {
+            AppendDetail(sb, exclusion.Kind, ConstraintText("exclusion constraint", exclusion.Name, exclusion.Kind, exclusion.Comment));
+        }
+
         foreach (var index in table.Indexes)
         {
             var text = index.Kind == ChangeKind.Modify
                 ? $"index {index.Name} comment: {FormatComment(index.Comment?.Old)} → {FormatComment(index.Comment?.New)}"
                 : $"index {index.Name}";
             AppendDetail(sb, index.Kind, text);
+        }
+
+        foreach (var trigger in table.Triggers)
+        {
+            var text = trigger.Kind == ChangeKind.Modify
+                ? $"trigger {trigger.Name} comment: {FormatComment(trigger.Comment?.Old)} → {FormatComment(trigger.Comment?.New)}"
+                : $"trigger {trigger.Name}";
+            AppendDetail(sb, trigger.Kind, text);
         }
 
         foreach (var grant in table.Grants)
@@ -141,18 +168,28 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
 
     private void RenderView(StringBuilder sb, ViewDiff view)
     {
+        var label = view.IsMaterialized ? "materialized view" : "view";
         var name = view.RenamedFrom is null
             ? $"{view.Schema}.{view.Name}"
             : $"{view.Schema}.{view.RenamedFrom} → {view.Name}";
 
-        // A comment-only modify (no body change) reports the comment transition rather than a bare header.
-        if (view is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only })
+        // A comment-only modify (no body or index change) reports the comment transition rather than a bare header.
+        if (view is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only } && view.Indexes.Count == 0)
         {
-            AppendHeader(sb, ChangeKind.Modify, $"view {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            AppendHeader(sb, ChangeKind.Modify, $"{label} {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
             return;
         }
 
-        AppendHeader(sb, view.Kind, $"view {name}{CommentSuffix(view.Comment)}");
+        AppendHeader(sb, view.Kind, $"{label} {name}{CommentSuffix(view.Comment)}");
+
+        // In-place index changes on a materialized view.
+        foreach (var index in view.Indexes)
+        {
+            var text = index.Kind == ChangeKind.Modify
+                ? $"index {index.Name} comment: {FormatComment(index.Comment?.Old)} → {FormatComment(index.Comment?.New)}"
+                : $"index {index.Name}";
+            AppendDetail(sb, index.Kind, text);
+        }
     }
 
     private void RenderEnum(StringBuilder sb, EnumDiff enumDiff)
@@ -217,47 +254,109 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
         }
     }
 
-    private void RenderFunction(StringBuilder sb, FunctionDiff function)
+    private void RenderRoutine(StringBuilder sb, RoutineDiff routine)
     {
-        var name = function.RenamedFrom is null
-            ? $"{function.Schema}.{function.Name}"
-            : $"{function.Schema}.{function.RenamedFrom} → {function.Name}";
+        var label = routine.RoutineKind == RoutineKind.Procedure ? "procedure" : "function";
+        var name = routine.RenamedFrom is null
+            ? $"{routine.Schema}.{routine.Name}"
+            : $"{routine.Schema}.{routine.RenamedFrom} → {routine.Name}";
 
         // A comment-only modify reports the comment transition rather than a bare header.
-        if (function is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only })
+        if (routine is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only })
         {
-            AppendHeader(sb, ChangeKind.Modify, $"function {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            AppendHeader(sb, ChangeKind.Modify, $"{label} {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
             return;
         }
 
-        var arguments = function is { Kind: ChangeKind.Add, Definition: { } definition } ? $"({definition.Arguments})" : string.Empty;
-        AppendHeader(sb, function.Kind, $"function {name}{arguments}{CommentSuffix(function.Comment)}");
+        var arguments = routine is { Kind: ChangeKind.Add, Definition: { } definition } ? $"({definition.Arguments})" : string.Empty;
+        AppendHeader(sb, routine.Kind, $"{label} {name}{arguments}{CommentSuffix(routine.Comment)}");
 
-        if (function.Arguments is { } change)
+        if (routine.Arguments is { } change)
         {
             AppendDetail(sb, ChangeKind.Modify, $"arguments: ({change.Old}) → ({change.New}) (recreate)");
         }
     }
 
-    private void RenderProcedure(StringBuilder sb, ProcedureDiff procedure)
+    private void RenderExtension(StringBuilder sb, ExtensionDiff extension)
     {
-        var name = procedure.RenamedFrom is null
-            ? $"{procedure.Schema}.{procedure.Name}"
-            : $"{procedure.Schema}.{procedure.RenamedFrom} → {procedure.Name}";
-
         // A comment-only modify reports the comment transition rather than a bare header.
-        if (procedure is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only })
+        if (extension is { Kind: ChangeKind.Modify, Version: null, Comment: { } only })
         {
-            AppendHeader(sb, ChangeKind.Modify, $"procedure {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            AppendHeader(sb, ChangeKind.Modify, $"extension {extension.Name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
             return;
         }
 
-        var arguments = procedure is { Kind: ChangeKind.Add, Definition: { } definition } ? $"({definition.Arguments})" : string.Empty;
-        AppendHeader(sb, procedure.Kind, $"procedure {name}{arguments}{CommentSuffix(procedure.Comment)}");
+        var version = extension is { Kind: ChangeKind.Add, Definition.Version: { } added } ? $" version {added}" : string.Empty;
+        AppendHeader(sb, extension.Kind, $"extension {extension.Name}{version}{CommentSuffix(extension.Comment)}");
 
-        if (procedure.Arguments is { } change)
+        if (extension.Version is { } change)
         {
-            AppendDetail(sb, ChangeKind.Modify, $"arguments: ({change.Old}) → ({change.New}) (recreate)");
+            AppendDetail(sb, ChangeKind.Modify, $"version: {FormatVersion(change.Old)} → {FormatVersion(change.New)}");
+        }
+    }
+
+    private void RenderDomain(StringBuilder sb, DomainDiff domain)
+    {
+        var name = domain.RenamedFrom is null
+            ? $"{domain.Schema}.{domain.Name}"
+            : $"{domain.Schema}.{domain.RenamedFrom} → {domain.Name}";
+
+        // A comment-only modify reports the comment transition rather than a bare header.
+        if (domain is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, DataType: null, Default: null, NotNull: null, Comment: { } only }
+            && domain.Checks.Count == 0)
+        {
+            AppendHeader(sb, ChangeKind.Modify, $"domain {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            return;
+        }
+
+        var type = domain is { Kind: ChangeKind.Add, Definition: { } definition } ? $" {definition.DataType}" : string.Empty;
+        AppendHeader(sb, domain.Kind, $"domain {name}{type}{CommentSuffix(domain.Comment)}");
+
+        if (domain.DataType is { } dataType)
+        {
+            AppendDetail(sb, ChangeKind.Modify, $"type: {dataType.Old} → {dataType.New} (recreate)");
+        }
+        if (domain.Default is { } @default)
+        {
+            AppendDetail(sb, ChangeKind.Modify, $"default: {FormatDefault(@default.Old)} → {FormatDefault(@default.New)}");
+        }
+        if (domain.NotNull is { } notNull)
+        {
+            AppendDetail(sb, ChangeKind.Modify, $"nullable: {FormatNullability(!notNull.Old)} → {FormatNullability(!notNull.New)}");
+        }
+        foreach (var check in domain.Checks)
+        {
+            AppendDetail(sb, check.Kind, $"check {check.Name}");
+        }
+    }
+
+    private void RenderCompositeType(StringBuilder sb, CompositeTypeDiff type)
+    {
+        var name = type.RenamedFrom is null
+            ? $"{type.Schema}.{type.Name}"
+            : $"{type.Schema}.{type.RenamedFrom} → {type.Name}";
+
+        // A comment-only modify reports the comment transition rather than a bare header.
+        if (type is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only, Fields.Count: 0 })
+        {
+            AppendHeader(sb, ChangeKind.Modify, $"type {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            return;
+        }
+
+        var fields = type is { Kind: ChangeKind.Add, Definition: { } definition }
+            ? $" ({string.Join(", ", definition.Fields.Select(f => $"{f.Name} {f.DataType}"))})"
+            : string.Empty;
+        AppendHeader(sb, type.Kind, $"type {name}{fields}{CommentSuffix(type.Comment)}");
+
+        foreach (var field in type.Fields)
+        {
+            var text = field switch
+            {
+                { Kind: ChangeKind.Add, Definition: { } def } => $"field {def.Name} {def.DataType}",
+                { Kind: ChangeKind.Modify, Type: { } change } => $"field {field.Name} type: {change.Old} → {change.New}",
+                _ => $"field {field.Name}",
+            };
+            AppendDetail(sb, field.Kind, text);
         }
     }
 
@@ -295,6 +394,11 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
             AppendDetail(sb, ChangeKind.Modify, $"{column.Name} default: {FormatDefault(@default.Old)} → {FormatDefault(@default.New)}");
         }
 
+        if (column.Generated is { } generated)
+        {
+            AppendDetail(sb, ChangeKind.Modify, $"{column.Name} generated: {FormatDefault(generated.Old)} → {FormatDefault(generated.New)}");
+        }
+
         if (column.Identity is { } identity)
         {
             AppendDetail(sb, ChangeKind.Modify, $"{column.Name} identity: {FormatIdentity(identity.Old)} → {FormatIdentity(identity.New)}");
@@ -320,7 +424,8 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
     // -------------------------------------------------------------------------
 
     private string FormatColumn(Column column) =>
-        $"{column.Name} {column.Type} {(column.IsNullable ? "null" : "not null")}";
+        $"{column.Name} {column.Type} {(column.IsNullable ? "null" : "not null")}"
+        + (column.GeneratedExpression is { } generated ? $" generated as ({generated})" : string.Empty);
 
     private string CommentSuffix(ValueChange<string>? comment) => comment is null
         ? string.Empty
@@ -362,6 +467,8 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
     }
 
     private string FormatComment(string? comment) => comment is null ? "<none>" : $"\"{comment}\"";
+
+    private static string FormatVersion(string? version) => version ?? "<default>";
 
     // A constraint Modify is always a comment-only change (structural changes are Remove + Add).
     private string ConstraintText(string label, string name, ChangeKind kind, ValueChange<string>? comment) =>

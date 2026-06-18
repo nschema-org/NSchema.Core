@@ -4,6 +4,7 @@
     Action: {
       SchemaName: app,
       ViewName: stale_view,
+      IsMaterialized: false,
       IsDestructive: true
     }
   },
@@ -87,7 +88,7 @@
     }
   },
   {
-    Type: RenameFunction,
+    Type: RenameRoutine,
     Action: {
       SchemaName: app,
       OldName: old_score,
@@ -96,10 +97,10 @@
     }
   },
   {
-    Type: CreateFunction,
+    Type: CreateRoutine,
     Action: {
       SchemaName: app,
-      Function: {
+      Routine: {
         Name: add_tax,
         Arguments: amount numeric,
         Definition: RETURNS numeric AS $$ SELECT amount $$
@@ -108,11 +109,12 @@
     }
   },
   {
-    Type: CreateProcedure,
+    Type: CreateRoutine,
     Action: {
       SchemaName: app,
-      Procedure: {
+      Routine: {
         Name: archive,
+        Kind: Procedure,
         Arguments: before date,
         Definition: LANGUAGE sql AS $$ DELETE $$
       },
@@ -120,10 +122,10 @@
     }
   },
   {
-    Type: RecreateFunction,
+    Type: RecreateRoutine,
     Action: {
       SchemaName: app,
-      Function: {
+      Routine: {
         Name: score,
         Arguments: user_id bigint, weight numeric,
         Definition: RETURNS numeric AS $$ SELECT 1 $$
@@ -146,6 +148,7 @@
       SchemaName: app,
       OldName: legacy_report,
       NewName: report,
+      IsMaterialized: false,
       IsDestructive: false
     }
   },
@@ -236,6 +239,16 @@
     }
   },
   {
+    Type: SetColumnGenerated,
+    Action: {
+      SchemaName: app,
+      TableName: orders,
+      ColumnName: total_label,
+      NewExpression: total::text,
+      IsDestructive: false
+    }
+  },
+  {
     Type: AddUniqueConstraint,
     Action: {
       SchemaName: app,
@@ -276,6 +289,25 @@
     }
   },
   {
+    Type: AddExclusionConstraint,
+    Action: {
+      SchemaName: app,
+      TableName: orders,
+      ExclusionConstraint: {
+        Name: orders_slot_excl,
+        Method: gist,
+        Elements: [
+          {
+            Expression: slot,
+            Operator: &&,
+            IsExpression: false
+          }
+        ]
+      },
+      IsDestructive: false
+    }
+  },
+  {
     Type: CreateIndex,
     Action: {
       SchemaName: app,
@@ -283,8 +315,11 @@
       Index: {
         Name: users_name_ix,
         IsUnique: true,
-        ColumnNames: [
-          name
+        Columns: [
+          {
+            Expression: name,
+            IsExpression: false
+          }
         ]
       },
       IsDestructive: false
@@ -298,8 +333,16 @@
       Index: {
         Name: orders_total_ix,
         IsUnique: false,
-        ColumnNames: [
-          total
+        Method: btree,
+        Columns: [
+          {
+            Expression: total,
+            IsExpression: false,
+            Sort: Descending
+          }
+        ],
+        Include: [
+          code
         ]
       },
       IsDestructive: false
@@ -312,6 +355,7 @@
       View: {
         Name: active_users,
         Body: SELECT * FROM app.users,
+        IsMaterialized: false,
         DependsOn: [
           {
             Schema: app,
@@ -329,6 +373,7 @@
       View: {
         Name: user_summary,
         Body: SELECT * FROM app.active_users,
+        IsMaterialized: false,
         DependsOn: [
           {
             Schema: app,
@@ -350,18 +395,19 @@
     }
   },
   {
-    Type: DropFunction,
+    Type: DropRoutine,
     Action: {
       SchemaName: app,
-      FunctionName: stale_fn,
+      RoutineName: stale_fn,
       IsDestructive: true
     }
   },
   {
-    Type: DropProcedure,
+    Type: DropRoutine,
     Action: {
       SchemaName: app,
-      ProcedureName: stale_proc,
+      RoutineName: stale_proc,
+      Kind: Procedure,
       IsDestructive: true
     }
   },

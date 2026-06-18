@@ -1,6 +1,13 @@
 using NSchema.Diff.Model;
 using NSchema.Plan;
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Routines;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Tests.Plan;
 
@@ -44,13 +51,17 @@ public sealed class PlanLinearizerSnapshotTests
                     Type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
                     Nullability: new ValueChange<bool>(true, false), Default: null, Identity: null, Comment: null),
                 new ColumnDiff("notes", ChangeKind.Add, new Column("notes", SqlType.Text, IsNullable: true), null, null, null, null, null, null),
+                new ColumnDiff("total_label", ChangeKind.Modify, Generated: new ValueChange<string>(null, "total::text")),
                 new ColumnDiff("legacy_flag", ChangeKind.Remove, new Column("legacy_flag", SqlType.Boolean), null, null, null, null, null, null),
             ],
             Grants: [],
-            Indexes: [new IndexDiff(ChangeKind.Add, "orders_total_ix", new TableIndex("orders_total_ix", ["total"]), null)],
+            Indexes: [new IndexDiff(ChangeKind.Add, "orders_total_ix",
+                new TableIndex("orders_total_ix", [new IndexColumn("total", Sort: IndexSort.Descending)], Method: "btree", Include: ["code"]), null)],
             ForeignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null)],
             UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "orders_code_uq", new UniqueConstraint("orders_code_uq", ["code"]))],
-            Checks: [new CheckConstraintDiff(ChangeKind.Add, "orders_total_chk", new CheckConstraint("orders_total_chk", "total >= 0"))]);
+            Checks: [new CheckConstraintDiff(ChangeKind.Add, "orders_total_chk", new CheckConstraint("orders_total_chk", "total >= 0"))],
+            ExclusionConstraints: [new ExclusionConstraintDiff(ChangeKind.Add, "orders_slot_excl",
+                new ExclusionConstraint("orders_slot_excl", [new ExclusionElement("slot", "&&")], "gist"))]);
 
         // Listed dependent-first on purpose: the dependency sort must reorder them so user_summary (which
         // reads active_users) is created after it.
@@ -83,28 +94,25 @@ public sealed class PlanLinearizerSnapshotTests
             new("app", "stale_seq", ChangeKind.Remove),
         };
 
-        // Functions/procedures: an add, a rename + signature change (rename then recreate), and drops.
-        var functions = new FunctionDiff[]
+        // Routines: an add, a rename + signature change (rename then recreate), drops, and a procedure.
+        var routines = new RoutineDiff[]
         {
-            new("app", "add_tax", ChangeKind.Add,
-                Definition: new Function("add_tax", "amount numeric", "RETURNS numeric AS $$ SELECT amount $$")),
-            new("app", "score", ChangeKind.Modify, RenamedFrom: "old_score",
-                Definition: new Function("score", "user_id bigint, weight numeric", "RETURNS numeric AS $$ SELECT 1 $$"),
+            new("app", "add_tax", ChangeKind.Add, RoutineKind.Function,
+                Definition: new Routine("add_tax", RoutineKind.Function, "amount numeric", "RETURNS numeric AS $$ SELECT amount $$")),
+            new("app", "score", ChangeKind.Modify, RoutineKind.Function, RenamedFrom: "old_score",
+                Definition: new Routine("score", RoutineKind.Function, "user_id bigint, weight numeric", "RETURNS numeric AS $$ SELECT 1 $$"),
                 Arguments: new ValueChange<string>("user_id bigint", "user_id bigint, weight numeric")),
-            new("app", "stale_fn", ChangeKind.Remove),
-        };
-        var procedures = new ProcedureDiff[]
-        {
-            new("app", "archive", ChangeKind.Add,
-                Definition: new Procedure("archive", "before date", "LANGUAGE sql AS $$ DELETE $$")),
-            new("app", "stale_proc", ChangeKind.Remove),
+            new("app", "stale_fn", ChangeKind.Remove, RoutineKind.Function),
+            new("app", "archive", ChangeKind.Add, RoutineKind.Procedure,
+                Definition: new Routine("archive", RoutineKind.Procedure, "before date", "LANGUAGE sql AS $$ DELETE $$")),
+            new("app", "stale_proc", ChangeKind.Remove, RoutineKind.Procedure),
         };
 
         var diff = new DatabaseDiff(
             Schemas:
             [
                 new SchemaDiff("reporting", ChangeKind.Add, null, null, [], []),
-                new SchemaDiff("app", null, null, null, [], [newTable, modifiedTable], views, enums, sequences, functions, procedures),
+                new SchemaDiff("app", null, null, null, [], [newTable, modifiedTable], views, enums, sequences, routines),
                 new SchemaDiff("scratch", ChangeKind.Remove, null, null, [], []),
             ]);
 

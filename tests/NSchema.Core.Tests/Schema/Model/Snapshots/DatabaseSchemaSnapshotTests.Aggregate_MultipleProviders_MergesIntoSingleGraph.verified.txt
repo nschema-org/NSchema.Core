@@ -51,6 +51,7 @@
           Name: active_users,
           Body: SELECT id, name FROM app.users,
           Comment: currently active users,
+          IsMaterialized: false,
           DependsOn: [
             {
               Schema: app,
@@ -61,6 +62,7 @@
         {
           Name: invoice_totals,
           Body: SELECT id, amount FROM app.invoices,
+          IsMaterialized: false,
           DependsOn: [
             {
               Schema: app,
@@ -91,6 +93,7 @@
         {
           Name: weekly_rollup,
           Body: SELECT day FROM reporting.daily_totals,
+          IsMaterialized: false,
           DependsOn: [
             {
               Schema: reporting,

@@ -1,4 +1,4 @@
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
 
 namespace NSchema.Diff.Model;
 
@@ -14,6 +14,7 @@ namespace NSchema.Diff.Model;
 /// <param name="Default">The change to the column's default value, if any.</param>
 /// <param name="Identity">The change to the column's identity options, if any.</param>
 /// <param name="Comment">The change to the column's comment, if any.</param>
+/// <param name="Generated">The change to the column's stored generation expression, if any.</param>
 public sealed record ColumnDiff(
     string Name,
     ChangeKind Kind,
@@ -23,5 +24,6 @@ public sealed record ColumnDiff(
     ValueChange<bool>? Nullability = null,
     ValueChange<string>? Default = null,
     ValueChange<IdentityOptions>? Identity = null,
-    ValueChange<string>? Comment = null
+    ValueChange<string>? Comment = null,
+    ValueChange<string>? Generated = null
 ) : INamedObjectDiff;

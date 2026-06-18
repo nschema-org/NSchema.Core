@@ -1,9 +1,9 @@
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Diff.Model;
 
 /// <summary>
-/// Describes a change to a view.
+/// Describes a change to a view (plain or materialized).
 /// </summary>
 /// <param name="Schema">The name of the schema the view belongs to.</param>
 /// <param name="Name">The view name.</param>
@@ -11,10 +11,10 @@ namespace NSchema.Diff.Model;
 /// <param name="RenamedFrom">The previous view name when the view is being renamed; otherwise <see langword="null"/>.</param>
 /// <param name="Definition">The view definition for an added or body-modified view; otherwise <see langword="null"/>.</param>
 /// <param name="Comment">The change to the view's comment, if any.</param>
-/// <param name="DependsOn">
-/// The objects the view reads, used to order it relative to other views in the plan. Populated from the desired
-/// view for an add/modify and from the current view for a removal.
-/// </param>
+/// <param name="DependsOn">The objects the view reads, used to order it relative to other views in the plan.</param>
+/// <param name="IsMaterialized">Whether the view is materialized.</param>
+/// <param name="RequiresRecreate">Whether the change must be applied as a drop + recreate rather than an in-place replace</param>
+/// <param name="Indexes">In-place index changes on a materialized view whose body is unchanged.</param>
 public sealed record ViewDiff(
     string Schema,
     string Name,
@@ -22,11 +22,19 @@ public sealed record ViewDiff(
     string? RenamedFrom = null,
     View? Definition = null,
     ValueChange<string>? Comment = null,
-    IReadOnlyList<ViewDependency>? DependsOn = null
+    IReadOnlyList<ViewDependency>? DependsOn = null,
+    bool IsMaterialized = false,
+    bool RequiresRecreate = false,
+    IReadOnlyList<IndexDiff>? Indexes = null
 ) : ISchemaObjectDiff
 {
     /// <summary>
     /// The objects the view reads, used to order it relative to other views in the plan.
     /// </summary>
     public IReadOnlyList<ViewDependency> DependsOn { get; init; } = DependsOn ?? [];
+
+    /// <summary>
+    /// In-place index changes on a materialized view whose body is unchanged.
+    /// </summary>
+    public IReadOnlyList<IndexDiff> Indexes { get; init; } = Indexes ?? [];
 }
