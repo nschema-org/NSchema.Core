@@ -3,12 +3,12 @@ using NSchema.Resolution;
 
 namespace NSchema.Operations.Validate;
 
-internal sealed class ValidateOperation(IMigrationWorkflow workflow, IKeyedResolver<IOperationReporter> reporters) : IValidateOperation
+internal sealed class ValidateOperation(IMigrationWorkflow workflow, IOperationReporter reporter) : IValidateOperation
 {
     public async Task Execute(ValidateArguments arguments, CancellationToken cancellationToken = default)
     {
-        reporters.Current.Announce("Validating schema. No database or state store will be contacted.");
+        reporter.Announce("Validating schema. No database or state store will be contacted.");
         await workflow.Validate(cancellationToken);
-        reporters.Current.Success("Schema is valid.");
+        reporter.Success("Schema is valid.");
     }
 }

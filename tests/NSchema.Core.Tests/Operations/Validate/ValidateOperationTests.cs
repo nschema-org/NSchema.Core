@@ -10,7 +10,7 @@ public sealed class ValidateOperationTests
     private readonly IMigrationWorkflow _workflow = Substitute.For<IMigrationWorkflow>();
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
 
-    private ValidateOperation BuildSut() => new(_workflow, Helpers.TestReporters.ResolverFor(_reporter));
+    private ValidateOperation BuildSut() => new(_workflow, _reporter);
 
     private readonly ValidateOperation _sut;
 

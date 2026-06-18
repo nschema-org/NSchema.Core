@@ -30,12 +30,12 @@ public sealed class ApplyEndToEndTests : IDisposable
     }
 
     private NSchemaApplication BuildApp(DatabaseSchema current, string desiredPath) =>
-        NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions { Reporter = RecordingReporter.FormatName })
+        NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions())
             .AddDdlSchemas(Path.GetDirectoryName(desiredPath)!, Path.GetFileName(desiredPath))
             .UseStateStore(_store)
             .AddSqlGenerator<StubSqlGenerator>(StubSqlGenerator.DialectName)
             .WithDialect(StubSqlGenerator.DialectName)
-            .AddReporter(RecordingReporter.FormatName, _reporter)
+            .UseReporter(_reporter)
             .Tap(b =>
             {
                 b.Services.AddSingleton<ISqlExecutor>(_executor);

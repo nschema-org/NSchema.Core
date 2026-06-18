@@ -164,7 +164,7 @@ public sealed class NSchemaApplication : IDisposable
             // Surface the exception via the reporter (when configured to) before letting it propagate to the caller.
             if (_behavior == ExceptionBehavior.ReportAndThrow)
             {
-                _host.Services.GetRequiredService<IKeyedResolver<IOperationReporter>>().Current.ReportException(ex);
+                _host.Services.GetRequiredService<IOperationReporter>().ReportException(ex);
             }
             throw;
         }

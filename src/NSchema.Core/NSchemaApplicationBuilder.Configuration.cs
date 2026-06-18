@@ -65,22 +65,21 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
-    /// Registers an <see cref="IOperationReporter"/> for a new output format.
+    /// Replaces the <see cref="IOperationReporter"/> the application reports through.
     /// </summary>
-    public NSchemaApplicationBuilder AddReporter<T>(string format) where T : class, IOperationReporter
+    public NSchemaApplicationBuilder UseReporter<T>() where T : class, IOperationReporter
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(format);
-        Services.Replace(ServiceDescriptor.KeyedSingleton<IOperationReporter, T>(format));
+        Services.Replace(ServiceDescriptor.Singleton<IOperationReporter, T>());
         return this;
     }
 
     /// <summary>
-    /// Registers an <see cref="IOperationReporter"/> instance for a new output format.
+    /// Replaces the <see cref="IOperationReporter"/> the application reports through with a specific instance.
     /// </summary>
-    public NSchemaApplicationBuilder AddReporter(string format, IOperationReporter reporter)
+    public NSchemaApplicationBuilder UseReporter(IOperationReporter reporter)
     {
         ArgumentNullException.ThrowIfNull(reporter);
-        Services.Replace(ServiceDescriptor.KeyedSingleton(format, reporter));
+        Services.Replace(ServiceDescriptor.Singleton(reporter));
         return this;
     }
 }

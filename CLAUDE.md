@@ -146,7 +146,7 @@ DSL files may also carry top-level **configuration blocks** — `NSCHEMA ( … )
 | `IDiffPolicy`                           | `AddDiffPolicy<T>()`                                                                                                            |
 | `ISchemaStateStore`                     | `UseStateStore<T>()` / `UseStateStore(instance)` / `UseFileStateStore(path)`                                                    |
 | `IStateLock`                            | auto co-located with the store; override with `UseStateLock<T>()` / `UseStateLock(instance)` / `UseFileStateLock(path)`         |
-| `IOperationReporter` (keyed by name)    | `AddReporter<T>(format)` / `AddReporter(format, instance)` (last-wins per key); select via `NSchemaApplicationOptions.Reporter` |
+| `IOperationReporter`                    | `UseReporter<T>()` / `UseReporter(instance)` (last-wins; replaces the default `DefaultOperationReporter`)                        |
 | `ISqlGenerator` (keyed by `Dialect`)    | `AddSqlGenerator<T>(dialect)`, typically a database-provider extension; select with `WithDialect(...)`                          |
 | `IDiffRenderer`                         | `UseTerraformRenderer(...)` / `UseDiffRenderer<TRenderer>()`                                                                    |
 | `ISchemaRenderer`                       | `UseSchemaRenderer<TRenderer>()` (default `DefaultSchemaRenderer`)                                                              |
@@ -156,10 +156,10 @@ The planning algorithm and aggregators — `ISchemaComparer`, `IPlanLinearizer`,
 
 ### Resolving one of many (resolver pattern)
 
-Several public seams let you register multiple implementations and select one by key. Selection goes through the shared `IKeyedResolver<TValue>` interface (`Resolution/`), backed by DI keyed services. `IOperationReporter` (by reporter name) and `ISqlGenerator` (by `Dialect`) read the key for the current run from options (via `Current`). `IOperationReporter` uses last-wins registration (`Services.Replace`); `ISqlGenerator` uses first-wins (`TryAddKeyedSingleton`). (Schema reading/writing is not a keyed seam — there is one format, SQL DDL, handled directly by `DdlReader` / `DdlWriter`.)
+Some public seams let you register multiple implementations and select one by key. Selection goes through the shared `IKeyedResolver<TValue>` interface (`Resolution/`), backed by DI keyed services. `ISqlGenerator` (by `Dialect`) reads the key for the current run from options (via `Current`) and uses first-wins registration (`TryAddKeyedSingleton`). (`IOperationReporter` is **not** a keyed seam — there is one reporter per run, registered directly and replaced via `UseReporter<T>()`. Schema reading/writing isn't keyed either — there is one format, SQL DDL, handled directly by `DdlReader` / `DdlWriter`.)
 
 `IKeyedResolver<TValue>` is injected directly into consumers and exposes:
-- `Current` — resolves the implementation for the current run's configured key (e.g. `NSchemaApplicationOptions.Reporter`, `SqlOptions.Dialect`). Throws if no key is configured or the key isn't registered.
+- `Current` — resolves the implementation for the current run's configured key (e.g. `SqlOptions.Dialect`). Throws if no key is configured or the key isn't registered.
 - `HasCurrent` — returns `true` if `Current` would succeed; use this to guard optional seams (e.g. SQL generators).
 - `Resolve(key)` / `TryResolve(key, out value)` — resolve by an explicit key rather than the current run's configured one.
 
@@ -189,7 +189,8 @@ Schema scope is **not** an option — it's a per-invocation argument. `PlanArgum
 **`NSchemaApplicationOptions`** (`NSchema`) — how the application is constructed and run. Passed to `CreateBuilder(options)` and registered as a singleton; its values are fixed at build time (`init`-only):
 - `Args` / `ApplicationName` / `EnvironmentName` / `ContentRootPath` — consumed by the builder constructor to configure the underlying `HostApplicationBuilder`.
 - `ExceptionBehavior` — `ReportAndThrow` (default) or `Throw`. Read by `NSchemaApplication` when an operation throws: `ReportAndThrow` reports via the resolved `IOperationReporter` before rethrowing, `Throw` just rethrows.
-- `Reporter` — the `IOperationReporter` key to render with (defaults to `DefaultOperationReporter.ReporterName`, `"default"`); resolved through `IKeyedResolver<IOperationReporter>.Current`.
+
+The reporter to render with is **not** an option — there is one `IOperationReporter` per run, registered directly (default `DefaultOperationReporter`) and replaced via `UseReporter<T>()` / `UseReporter(instance)`. Operations and `NSchemaApplication` inject it directly, not through a resolver.
 
 The operation to run is **not** an option — it's chosen by which method you call on the built `NSchemaApplication` (`Plan()` / `PlanDestroy()` / `Apply()` / `Refresh()` / `Import()` / `Validate()` / `Destroy()` / `Show()` / `Drift()` / `ForceUnlock()`). Each method takes that operation's arguments record (e.g. `Import(ImportArguments)`).
 

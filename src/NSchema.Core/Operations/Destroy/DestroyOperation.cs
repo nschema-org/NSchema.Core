@@ -8,7 +8,7 @@ using NSchema.State.Model;
 namespace NSchema.Operations.Destroy;
 
 internal sealed class DestroyOperation(
-    IKeyedResolver<IOperationReporter> reporters,
+    IOperationReporter reporter,
     IOperationConfirmation confirmation,
     IMigrationWorkflow workflow,
     IKeyedResolver<ISqlGenerator> sqlGenerators,
@@ -23,7 +23,7 @@ internal sealed class DestroyOperation(
             throw new InvalidOperationException("Destroying a schema requires a database provider to generate and execute SQL, but none is registered.");
         }
 
-        reporters.Current.Announce("Destroying schema. All managed objects will be dropped from the database.");
+        reporter.Announce("Destroying schema. All managed objects will be dropped from the database.");
 
         // Hold the state lock for the whole teardown so a concurrent apply/destroy/refresh can't run against the
         // same state. Released when the handle is disposed at the end of the method (no-op unless a lock is registered).
@@ -31,23 +31,23 @@ internal sealed class DestroyOperation(
 
         var planned = await workflow.PlanDestroy(cancellationToken);
 
-        reporters.Current.Progress("Generating SQL...");
+        reporter.Progress("Generating SQL...");
         var sqlPlan = sqlGenerators.Current.Generate(planned.Plan);
-        reporters.Current.ReportSqlPlan(sqlPlan);
+        reporter.ReportSqlPlan(sqlPlan);
 
         // Offer an interactive front-end the chance to prompt before any changes are made.
         if (!await confirmation.Confirm(new DestroyConfirmationRequest(planned.Plan), cancellationToken))
         {
-            reporters.Current.Announce("Destroy cancelled. No changes were made to the database.");
+            reporter.Announce("Destroy cancelled. No changes were made to the database.");
             return;
         }
 
-        reporters.Current.Progress("Running schema teardown...");
+        reporter.Progress("Running schema teardown...");
 
         try
         {
             await sqlExecutor.Execute(sqlPlan, cancellationToken);
-            reporters.Current.Success("Schema destroyed successfully.");
+            reporter.Success("Schema destroyed successfully.");
         }
         finally
         {

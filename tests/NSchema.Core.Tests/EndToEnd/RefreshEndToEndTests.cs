@@ -71,10 +71,10 @@ public sealed class RefreshEndToEndTests : IDisposable
             );
             """);
 
-        using var planner = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions { Reporter = RecordingReporter.FormatName })
+        using var planner = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions())
             .UseFileStateStore(_statePath)
             .AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired))
-            .AddReporter(RecordingReporter.FormatName, reporter)
+            .UseReporter(reporter)
             .Build();
 
         await planner.Plan(new PlanArguments(), TestContext.Current.CancellationToken);

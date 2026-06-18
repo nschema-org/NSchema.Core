@@ -12,13 +12,10 @@ namespace NSchema.Tests.Helpers;
 /// orchestration without coupling to rendered text (which the renderer tests already cover).
 /// </summary>
 /// <remarks>
-/// Uses a distinct <see cref="Format"/> so it coexists with the built-in human reporter without colliding;
-/// end-to-end tests select it via <c>new NSchemaApplicationOptions { Reporter = RecordingReporter.FormatName }</c>.
+/// End-to-end tests register it via <c>builder.UseReporter(reporter)</c>, replacing the built-in human reporter.
 /// </remarks>
 internal sealed class RecordingReporter : IOperationReporter
 {
-    public const string FormatName = "recording";
-
     /// <summary>Every reported message, in order, paired with its <see cref="MessageKind"/>.</summary>
     public List<(MessageKind Kind, string Message)> Messages { get; } = [];
 

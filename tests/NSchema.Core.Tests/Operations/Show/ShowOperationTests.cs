@@ -10,7 +10,7 @@ public sealed class ShowOperationTests
     private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
 
-    private ShowOperation BuildSut() => new(_currentProvider, Helpers.TestReporters.ResolverFor(_reporter));
+    private ShowOperation BuildSut() => new(_currentProvider, _reporter);
 
     public ShowOperationTests()
     {

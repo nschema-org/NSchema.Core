@@ -7,7 +7,7 @@ using NSchema.Sql;
 namespace NSchema.Operations.Plan;
 
 internal sealed class PlanOperation(
-    IKeyedResolver<IOperationReporter> reporters,
+    IOperationReporter reporter,
     IMigrationWorkflow workflow,
     IKeyedResolver<ISqlGenerator> sqlGenerator,
     IPlanFileWriter handler
@@ -15,7 +15,7 @@ internal sealed class PlanOperation(
 {
     public async Task Execute(PlanArguments arguments, CancellationToken cancellationToken = default)
     {
-        reporters.Current.Announce("Planning schema migration. No changes will be applied to the database.");
+        reporter.Announce("Planning schema migration. No changes will be applied to the database.");
         var planned = await workflow.Plan(SchemaSourceMode.Offline, required: false, arguments.Schemas, cancellationToken);
         if (!sqlGenerator.HasCurrent)
         {
@@ -24,18 +24,18 @@ internal sealed class PlanOperation(
                 throw new InvalidOperationException("Saving a plan to a file requires a database provider to generate SQL, but none is registered.");
             }
 
-            reporters.Current.Warn("Unable to generate SQL preview. No provider is configured.");
+            reporter.Warn("Unable to generate SQL preview. No provider is configured.");
             return;
         }
 
         var sqlPlan = sqlGenerator.Current.Generate(planned.Plan);
-        reporters.Current.ReportSqlPlan(sqlPlan);
+        reporter.ReportSqlPlan(sqlPlan);
 
         if (arguments.OutFile is not null)
         {
             var envelope = new PlanFileEnvelope(planned.Plan, sqlPlan, planned.Diff, DateTimeOffset.UtcNow);
             await handler.Write(arguments.OutFile, envelope, cancellationToken);
-            reporters.Current.Success($"Plan saved to {arguments.OutFile}. Apply it later with this file to execute exactly this plan.");
+            reporter.Success($"Plan saved to {arguments.OutFile}. Apply it later with this file to execute exactly this plan.");
         }
     }
 }

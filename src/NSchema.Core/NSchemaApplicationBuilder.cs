@@ -63,9 +63,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         _innerBuilder.Services.AddOptions<DestructiveActionOptions>();
         _innerBuilder.Services.AddOptions<TerraformDiffRendererOptions>();
 
-        // Register built-in keyed implementations (last-registration-wins).
-        AddReporter<DefaultOperationReporter>(DefaultOperationReporter.ReporterName);
-
         // Policies registered up front so users can remove them before Build().
         AddSchemaPolicy<StructuralIntegritySchemaPolicy>();
         AddSchemaPolicy<SchemaLintPolicy>();
@@ -117,7 +114,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Operations
         services.TryAddSingleton<IMigrationWorkflow, MigrationWorkflow>();
         services.TryAddSingleton<IOperationConfirmation, AutoApproveConfirmation>();
-        services.TryAddSingleton<IKeyedResolver<IOperationReporter>>(sp => new KeyedResolver<IOperationReporter, NSchemaApplicationOptions>(sp, o => o.Reporter));
+        services.TryAddSingleton<IOperationReporter, DefaultOperationReporter>();
         services.TryAddSingleton<IPlanOperation, PlanOperation>();
         services.TryAddSingleton<IPlanDestroyOperation, PlanDestroyOperation>();
         services.TryAddSingleton<IApplyOperation, ApplyOperation>();

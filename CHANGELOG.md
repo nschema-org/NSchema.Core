@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 This release is a big rewrite converting `NSchema` package into `NSchema.Core` to allow the NSchema CLI tool to take the `NSchema` package name.
 
-Alongside new reporting, diff rendering, and interactive controls, I've reorganized the codebase into clearer top-level namespaces and split SQL generation from execution so that plans can be previewed entirely offline. Output formats, SQL dialects, and schema file formats are now pluggable: you register several implementations and select one per run by key.
+Alongside new reporting, diff rendering, and interactive controls, I've reorganized the codebase into clearer top-level namespaces and split SQL generation from execution so that plans can be previewed entirely offline. SQL dialects are pluggable: you register several generators and select one per run by `Dialect`. The reporter, diff renderer, and schema source are each replaceable, one per run.
 
 Planning and applying behavior are the same as before, but most public types have moved namespaces and a few have been renamed, so you'll need to update your `using` directives (and a handful of type names) when upgrading.
 
@@ -20,7 +20,7 @@ Planning and applying behavior are the same as before, but most public types hav
 - `UseTerraformRenderer(...)` to configure the default Terraform-style renderer.
 - SQL previews are now structured too. `ISqlPlanRenderer` renders a `SqlPlan` to text, mirroring `IDiffRenderer`.
 - `PolicyDiagnostics`, a collection type for policy results, with a `PolicyDiagnosticSeverity` of `Info`, `Warning`, or `Error`.
-- Pluggable output formats. `IOperationReporter` now carries a `Format`, so several reporters can be registered with `AddReporter<T>(format)` / `AddReporter(format, instance)` and one chosen per run via `NSchemaApplicationOptions.Reporter`. The built-in human-readable `default` reporter remains the default.
+- A pluggable `IOperationReporter`. The application reports through a single reporter, registered directly and replaced via `UseReporter<T>()` / `UseReporter(instance)`. The built-in human-readable `DefaultOperationReporter` is used unless replaced. (A front-end that offers multiple output formats — e.g. text vs. JSON — selects the reporter itself at build time; the core does not key reporters.)
 - Selectable SQL dialects. `ISqlGenerator` now carries a `Dialect`, so several generators can be registered with `AddSqlGenerator<T>(dialect)` and one chosen per run via `WithDialect(...)` (`SqlOptions.Dialect`).
 - `Import` operation. Reads the live database schema and writes it to the local filesystem as desired-schema source files. Triggered via `app.Import(...)`.
 - `Validate` operation. Reads the desired schema and validates it against all registered `ISchemaPolicy` implementations. Triggered via `app.Validate(...)`.
