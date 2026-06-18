@@ -8,9 +8,12 @@ schema app ("application schema")
     id bigint not null identity
     email varchar(255) not null ("contact address")
     status text null default 'active'
+    email_upper text null generated as (upper(email))
     primary key users_pkey (id)
+    exclude users_span_excl using gist ((int4range(0, id)) with &&)
     index users_email_ix (email) unique
     index users_active_ix (status) where status = 'active'
+    index users_email_low_ix (status desc nulls last, (lower(email))) using btree include (id)
     trigger users_audit after insert, update of (email) row -> app.log_change ("audit changes")
     grant SELECT, INSERT to readers
   table orders

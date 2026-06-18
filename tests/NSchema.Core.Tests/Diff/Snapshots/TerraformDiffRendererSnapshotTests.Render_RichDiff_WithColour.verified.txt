@@ -14,13 +14,17 @@
 [33m~[0m table app.purchases → orders
     [33m~[0m total type: int → bigint
     [33m~[0m total nullable: null → not null
+    [33m~[0m total_label generated: <none> → total::text
+    [32m+[0m amount int not null generated as (total * 100)
     [31m-[0m legacy_flag boolean not null
     [33m~[0m primary key orders_pkey comment: "old note" → "new note"
     [31m-[0m foreign key orders_user_fk
     [31m-[0m unique constraint orders_code_uq
     [31m-[0m check constraint orders_total_chk
+    [32m+[0m exclusion constraint orders_slot_excl
+    [31m-[0m exclusion constraint orders_old_excl
     [31m-[0m revoke INSERT from writers
 
 [31m-[0m schema scratch
 
-Plan: 8 to add, 3 to change, 5 to destroy.
+Plan: 10 to add, 4 to change, 6 to destroy.

@@ -17,6 +17,7 @@ namespace NSchema.Schema.Model.Tables;
 /// <param name="ForeignKeys">A list of foreign keys that define the relationships between this table and other tables in the database schema.</param>
 /// <param name="UniqueConstraints">A list of unique constraints defined on the table.</param>
 /// <param name="CheckConstraints">A list of check constraints defined on the table.</param>
+/// <param name="ExclusionConstraints">A list of exclusion constraints defined on the table.</param>
 /// <param name="Indexes">A list of indexes that are defined on the table.</param>
 /// <param name="Grants">A list of grants that define the permissions associated with the table.</param>
 /// <param name="Triggers">A list of triggers defined on the table.</param>
@@ -30,6 +31,7 @@ public record Table(
     IReadOnlyList<ForeignKey>? ForeignKeys = null,
     IReadOnlyList<UniqueConstraint>? UniqueConstraints = null,
     IReadOnlyList<CheckConstraint>? CheckConstraints = null,
+    IReadOnlyList<ExclusionConstraint>? ExclusionConstraints = null,
     IReadOnlyList<TableIndex>? Indexes = null,
     IReadOnlyList<TableGrant>? Grants = null,
     IReadOnlyList<Trigger>? Triggers = null
@@ -54,6 +56,11 @@ public record Table(
     /// A list of check constraints defined on the table.
     /// </summary>
     public IReadOnlyList<CheckConstraint> CheckConstraints { get; init; } = CheckConstraints ?? [];
+
+    /// <summary>
+    /// A list of exclusion constraints defined on the table.
+    /// </summary>
+    public IReadOnlyList<ExclusionConstraint> ExclusionConstraints { get; init; } = ExclusionConstraints ?? [];
 
     /// <summary>
     /// A list of indexes that are defined on the table.

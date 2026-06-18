@@ -224,7 +224,7 @@ create-table = "CREATE" , "TABLE" , qualified-name , [ "RENAMED" , "FROM" , iden
                "(" , table-item , { "," , table-item } , ")" ;
 drop-table   = "DROP" , "TABLE" , qualified-name ;         (* -> DroppedTables (explicit drop, partial schema) *)
 
-table-item   = [ doc-comment ] , ( column-def | pk-def | fk-def | unique-def | check-def | index-def ) ;
+table-item   = [ doc-comment ] , ( column-def | pk-def | fk-def | unique-def | check-def | exclude-def | index-def ) ;
 ```
 
 ### Columns
@@ -234,6 +234,7 @@ column-def   = ident , type ,
                [ "NOT" , "NULL" | "NULL" ] ,
                [ "IDENTITY" , [ "(" , identity-opt , { "," , identity-opt } , ")" ] ] ,
                [ "DEFAULT" , ( paren-expr | default-expr ) ] ,
+               [ "GENERATED" , "ALWAYS" , "AS" , paren-expr , "STORED" ] ,
                [ "RENAMED" , "FROM" , ident ] ;
 
 identity-opt = ( "START" | "INCREMENT" | "MINVALUE" ) , integer ;
@@ -247,6 +248,10 @@ round-trips against introspection — e.g. `integer`→`int`, `bool`→`boolean`
 `decimal(p,s)`, `timestamp`→`datetime`, `timestamptz`→`datetimeoffset`, `uuid`→`guid`, `bytea`→`varbinary`
 (plus the Postgres `int2`/`int4`/`int8`/`float4`/`float8` spellings). The modifier order above is fixed.
 
+A **`GENERATED ALWAYS AS (expr) STORED`** column is computed from other columns and stored; its expression is
+opaque (read like a `CHECK`), and `STORED` is required (the only generation kind supported). It is mutually
+exclusive with `DEFAULT`. The generation expression maps to `Column.GeneratedExpression`.
+
 ### Constraints
 
 Names are mandatory; structural changes drop-and-recreate, but a doc-comment change alone is applied in place
@@ -259,20 +264,40 @@ fk-def     = "CONSTRAINT" , ident , "FOREIGN" , "KEY" , "(" , col-list , ")" ,
              [ "ON" , "DELETE" , ref-action ] , [ "ON" , "UPDATE" , ref-action ] ;
 unique-def = "CONSTRAINT" , ident , "UNIQUE" , "(" , col-list , ")" ;
 check-def  = "CONSTRAINT" , ident , "CHECK" , paren-expr ;
+exclude-def = "CONSTRAINT" , ident , "EXCLUDE" , [ "USING" , ident ] ,
+              "(" , excl-elem , { "," , excl-elem } , ")" , [ "WHERE" , paren-expr ] ;
+excl-elem  = ( ident | paren-expr ) , "WITH" , operator ;
 
 ref-action = "NO" , "ACTION" | "CASCADE" | "SET" , "NULL" | "SET" , "DEFAULT" ;
 col-list   = ident , { "," , ident } ;
 ```
 
+An **`EXCLUDE`** constraint (an `exclude-def`) guarantees that no two rows have all of the given operators
+returning true across the listed elements — e.g. `EXCLUDE USING gist (room WITH =, during WITH &&)` forbids
+overlapping bookings of the same room. Each element is a column or parenthesised expression paired with an
+`operator` (raw text up to the `,` or `)` — so `&&`, `<>`, … need no escaping); `USING method` is optional
+(omitted → database default), as is a partial `WHERE`. It maps to `ExclusionConstraint` (`Method`, `Elements`
+of `ExclusionElement { Expression, Operator }`, `Predicate`). Dropping one is a destructive change.
+
 ### Indexes (inline)
 
 ```ebnf
-index-def  = [ "UNIQUE" ] , "INDEX" , ident , "(" , col-list , ")" , [ "WHERE" , paren-expr ] ;
+index-def  = [ "UNIQUE" ] , "INDEX" , ident , [ "USING" , ident ] ,
+             "(" , index-key , { "," , index-key } , ")" ,
+             [ "INCLUDE" , "(" , col-list , ")" ] , [ "WHERE" , paren-expr ] ;
+index-key  = ( ident | paren-expr ) , [ "ASC" | "DESC" ] , [ "NULLS" , ( "FIRST" | "LAST" ) ] ;
 ```
 
 `UNIQUE (…)` (a `unique-def`) is a **unique constraint**; `UNIQUE INDEX` is a **unique index** — SQL's own
 distinction, mapping to the two distinct model concepts (`UniqueConstraint` vs `TableIndex { IsUnique }`). A
 unique index can be partial (`WHERE`); a unique constraint cannot.
+
+Each `index-key` is a plain column or a parenthesised **expression** (`(lower(email))` → `IndexColumn { IsExpression }`),
+with optional `ASC`/`DESC` and `NULLS FIRST`/`NULLS LAST` (omitted → database default, rendered without the
+keyword). `USING method` selects the access method (`gin`, `gist`, `brin`, …; omitted → B-tree), and `INCLUDE (…)`
+lists covering non-key columns. These map to `TableIndex` (`Method`, `Columns` of `IndexColumn`, `Include`). Any
+structural change (a key, its ordering, the method, or the include set) drops and recreates the index; a
+doc-comment change alone is applied in place.
 
 ### Grants
 
@@ -291,8 +316,9 @@ table-priv = "SELECT" | "INSERT" | "UPDATE" | "DELETE" ;
 create-view = "CREATE" , [ "MATERIALIZED" ] , "VIEW" , qualified-name , [ "RENAMED" , "FROM" , ident ] ,
               "AS" , view-body ;                            (* view-body: opaque text up to the top-level ';' *)
 drop-view   = "DROP" , [ "MATERIALIZED" ] , "VIEW" , qualified-name ; (* -> DroppedViews (explicit drop, partial schema) *)
-create-index = "CREATE" , [ "UNIQUE" ] , "INDEX" , ident , "ON" , qualified-name ,
-               "(" , ident , { "," , ident } , ")" , [ "WHERE" , "(" , expr , ")" ] ;
+create-index = "CREATE" , [ "UNIQUE" ] , "INDEX" , ident , "ON" , qualified-name , [ "USING" , ident ] ,
+               "(" , index-key , { "," , index-key } , ")" ,
+               [ "INCLUDE" , "(" , col-list , ")" ] , [ "WHERE" , paren-expr ] ;
 ```
 
 The `view-body` is everything after `AS` up to the terminating top-level `;` — captured **verbatim** and never
@@ -501,11 +527,13 @@ structural change is planned as a drop + recreate (only a comment-only change is
 | `RENAMED FROM x` (schema/table/column)     | `OldName`                                                          |
 | `name type [NOT NULL] [DEFAULT e]`         | `Column` (`Type`→`SqlType`, `IsNullable`, `DefaultExpression`)     |
 | `IDENTITY (…)`                             | `Column.IsIdentity` + `IdentityOptions`                            |
+| `GENERATED ALWAYS AS (e) STORED`           | `Column.GeneratedExpression` (opaque; excludes `DEFAULT`)          |
 | `CONSTRAINT n PRIMARY KEY (…)`             | `Table.PrimaryKey` (`PrimaryKey`)                                  |
 | `CONSTRAINT n FOREIGN KEY … REFERENCES …`  | `ForeignKey` (`OnDelete`/`OnUpdate`→`ReferentialAction`)           |
 | `CONSTRAINT n UNIQUE (…)`                  | `UniqueConstraint`                                                 |
 | `CONSTRAINT n CHECK (e)`                   | `CheckConstraint` (`Expression` = `e`, opaque)                     |
-| `[UNIQUE] INDEX n (…) [WHERE e]`           | `TableIndex` (`IsUnique`, `Predicate`)                             |
+| `CONSTRAINT n EXCLUDE [USING m] (c WITH op, …)` | `ExclusionConstraint` (`Method`, `Elements`, `Predicate`)     |
+| `[UNIQUE] INDEX n [USING m] (key, …) [INCLUDE (…)] [WHERE e]` | `TableIndex` (`IsUnique`, `Method`, `Columns`→`IndexColumn`, `Include`, `Predicate`) |
 | `GRANT … ON s.t TO r`                      | `TableGrant`                                                       |
 | `GRANT USAGE ON SCHEMA s TO r`             | `SchemaGrant`                                                      |
 | `DROP TABLE s.t` / `DROP SCHEMA s`         | `DroppedTables` / `DroppedSchemas`                                 |

@@ -29,6 +29,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(DropTrigger),
         typeof(DropForeignKey),
         typeof(DropCheckConstraint),
+        typeof(DropExclusionConstraint),
         typeof(DropUniqueConstraint),
         typeof(DropIndex),
         typeof(DropPrimaryKey),
@@ -82,10 +83,12 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(AlterColumnNullability),
         typeof(AlterIdentitySequence),
         typeof(SetColumnDefault),
+        typeof(SetColumnGenerated),
         typeof(AddPrimaryKey),
         typeof(AddUniqueConstraint),
         typeof(AddForeignKey),
         typeof(AddCheckConstraint),
+        typeof(AddExclusionConstraint),
         typeof(CreateIndex),
         // Triggers are created once their table exists; the function they call was already created before any
         // table (functions precede tables above).
@@ -589,6 +592,10 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 {
                     actions.Add(new SetColumnDefault(table.Schema, table.Name, column.Name, column.Default.Old, column.Default.New));
                 }
+                if (column.Generated is not null)
+                {
+                    actions.Add(new SetColumnGenerated(table.Schema, table.Name, column.Name, column.Generated.Old, column.Generated.New));
+                }
                 if (column.Identity is not null)
                 {
                     actions.Add(new AlterIdentitySequence(table.Schema, table.Name, column.Name, column.Identity.Old, column.Identity.New));
@@ -641,6 +648,16 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 ChangeKind.Add => new AddCheckConstraint(table.Schema, table.Name, ck.Definition!),
                 ChangeKind.Remove => new DropCheckConstraint(table.Schema, table.Name, ck.Name),
                 _ => new SetConstraintComment(table.Schema, table.Name, ck.Name, ck.Comment!.Old, ck.Comment.New),
+            });
+        }
+
+        foreach (var ex in table.ExclusionConstraints)
+        {
+            actions.Add(ex.Kind switch
+            {
+                ChangeKind.Add => new AddExclusionConstraint(table.Schema, table.Name, ex.Definition!),
+                ChangeKind.Remove => new DropExclusionConstraint(table.Schema, table.Name, ex.Name),
+                _ => new SetConstraintComment(table.Schema, table.Name, ex.Name, ex.Comment!.Old, ex.Comment.New),
             });
         }
     }

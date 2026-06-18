@@ -52,7 +52,9 @@ public sealed class SchemaLintPolicy : ISchemaPolicy
 
         foreach (var index in table.Indexes)
         {
-            ReportDuplicates(diagnostics, qualified, $"index '{index.Name}'", index.ColumnNames);
+            // Duplicate-column linting applies to plain-column keys; expression keys are opaque.
+            ReportDuplicates(diagnostics, qualified, $"index '{index.Name}'",
+                index.Columns.Where(c => !c.IsExpression).Select(c => c.Expression).ToList());
         }
 
         foreach (var foreignKey in table.ForeignKeys)

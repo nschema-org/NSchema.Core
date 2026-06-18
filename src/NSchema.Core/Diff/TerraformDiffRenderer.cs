@@ -135,6 +135,11 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
             AppendDetail(sb, check.Kind, ConstraintText("check constraint", check.Name, check.Kind, check.Comment));
         }
 
+        foreach (var exclusion in table.ExclusionConstraints)
+        {
+            AppendDetail(sb, exclusion.Kind, ConstraintText("exclusion constraint", exclusion.Name, exclusion.Kind, exclusion.Comment));
+        }
+
         foreach (var index in table.Indexes)
         {
             var text = index.Kind == ChangeKind.Modify
@@ -389,6 +394,11 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
             AppendDetail(sb, ChangeKind.Modify, $"{column.Name} default: {FormatDefault(@default.Old)} → {FormatDefault(@default.New)}");
         }
 
+        if (column.Generated is { } generated)
+        {
+            AppendDetail(sb, ChangeKind.Modify, $"{column.Name} generated: {FormatDefault(generated.Old)} → {FormatDefault(generated.New)}");
+        }
+
         if (column.Identity is { } identity)
         {
             AppendDetail(sb, ChangeKind.Modify, $"{column.Name} identity: {FormatIdentity(identity.Old)} → {FormatIdentity(identity.New)}");
@@ -414,7 +424,8 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
     // -------------------------------------------------------------------------
 
     private string FormatColumn(Column column) =>
-        $"{column.Name} {column.Type} {(column.IsNullable ? "null" : "not null")}";
+        $"{column.Name} {column.Type} {(column.IsNullable ? "null" : "not null")}"
+        + (column.GeneratedExpression is { } generated ? $" generated as ({generated})" : string.Empty);
 
     private string CommentSuffix(ValueChange<string>? comment) => comment is null
         ? string.Empty

@@ -63,6 +63,10 @@ internal sealed partial class SchemaComparer
         CompareTableMembers(schemaName, tableName, "Check constraint", current, desired,
             (kind, name, definition, comment) => new CheckConstraintDiff(kind, name, definition, comment));
 
+    private List<ExclusionConstraintDiff> CompareExclusionConstraints(string schemaName, string tableName, IReadOnlyList<ExclusionConstraint> current, IReadOnlyList<ExclusionConstraint> desired) =>
+        CompareTableMembers(schemaName, tableName, "Exclusion constraint", current, desired,
+            (kind, name, definition, comment) => new ExclusionConstraintDiff(kind, name, definition, comment));
+
     private List<IndexDiff> CompareIndexes(string schemaName, string tableName, IReadOnlyList<TableIndex> current, IReadOnlyList<TableIndex> desired) =>
         CompareTableMembers(schemaName, tableName, "Index", current, desired,
             (kind, name, definition, comment) => new IndexDiff(kind, name, definition, comment));

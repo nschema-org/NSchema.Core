@@ -50,6 +50,7 @@ CREATE TABLE app.users RENAMED FROM members (
   balance decimal(18,2) DEFAULT 0,
   code char(8) NOT NULL RENAMED FROM short_code,
   metadata jsonb,
+  name_upper text GENERATED ALWAYS AS (upper(name)) STORED,
   --- surrogate key
   CONSTRAINT users_pkey PRIMARY KEY (id),
   --- owning org
@@ -58,8 +59,12 @@ CREATE TABLE app.users RENAMED FROM members (
   CONSTRAINT users_code_uq UNIQUE (code),
   --- no overdraft
   CONSTRAINT users_balance_chk CHECK (balance >= 0),
+  --- no overlap
+  CONSTRAINT users_code_excl EXCLUDE USING gist (code WITH =, (int4range(0, balance)) WITH &&) WHERE (balance > 0),
   --- unique names
-  UNIQUE INDEX users_name_ix (name) WHERE (name IS NOT NULL)
+  UNIQUE INDEX users_name_ix (name) WHERE (name IS NOT NULL),
+  --- covering balance index
+  INDEX users_balance_ix USING btree (balance DESC NULLS LAST, (lower(name))) INCLUDE (code)
 );
 GRANT SELECT, INSERT, UPDATE, DELETE ON app.users TO readers;
 --- audit row changes

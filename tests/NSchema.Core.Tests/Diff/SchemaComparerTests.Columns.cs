@@ -86,4 +86,30 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_UnchangedColumn_ProducesNoDiff()
         => DiffColumn(new Column("id", SqlType.Int), new Column("id", SqlType.Int)).ShouldBeNull();
+
+    [Fact]
+    public void Compare_GenerationExpressionAdded_IsReported()
+    {
+        var column = DiffColumn(
+            new Column("area", SqlType.Int),
+            new Column("area", SqlType.Int, GeneratedExpression: "w * h"));
+
+        column!.Generated.ShouldBe(new ValueChange<string>(null, "w * h"));
+    }
+
+    [Fact]
+    public void Compare_GenerationExpressionChanged_IsReported()
+    {
+        var column = DiffColumn(
+            new Column("area", SqlType.Int, GeneratedExpression: "w * h"),
+            new Column("area", SqlType.Int, GeneratedExpression: "w * h * 2"));
+
+        column!.Generated.ShouldBe(new ValueChange<string>("w * h", "w * h * 2"));
+    }
+
+    [Fact]
+    public void Compare_UnchangedGeneratedColumn_ProducesNoDiff()
+        => DiffColumn(
+            new Column("area", SqlType.Int, GeneratedExpression: "w * h"),
+            new Column("area", SqlType.Int, GeneratedExpression: "w * h")).ShouldBeNull();
 }

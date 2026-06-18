@@ -65,6 +65,7 @@ public static class TestData
                             new Column("balance", SqlType.Decimal(18, 2), IsNullable: true, DefaultExpression: "0"),
                             new Column("code", SqlType.Char(8), OldName: "short_code"),
                             new Column("metadata", SqlType.Custom("jsonb"), IsNullable: true),
+                            new Column("name_upper", SqlType.Text, IsNullable: true, GeneratedExpression: "upper(name)"),
                         ],
                         ForeignKeys:
                         [
@@ -79,10 +80,19 @@ public static class TestData
                         [
                             new CheckConstraint("users_balance_chk", "balance >= 0", Comment: "no overdraft"),
                         ],
+                        ExclusionConstraints:
+                        [
+                            new ExclusionConstraint("users_code_excl",
+                                [new ExclusionElement("code", "="), new ExclusionElement("int4range(0, balance)", "&&", IsExpression: true)],
+                                Method: "gist", Predicate: "balance > 0", Comment: "no overlap"),
+                        ],
                         Indexes:
                         [
                             new TableIndex("users_name_ix", ["name"], IsUnique: true,
                                 Comment: "unique names", Predicate: "name IS NOT NULL"),
+                            new TableIndex("users_balance_ix",
+                                [new IndexColumn("balance", Sort: IndexSort.Descending, Nulls: IndexNulls.Last), new IndexColumn("lower(name)", IsExpression: true)],
+                                Method: "btree", Include: ["code"], Comment: "covering balance index"),
                         ],
                         Grants: [new TableGrant("readers", TablePrivilege.All)],
                         Triggers:

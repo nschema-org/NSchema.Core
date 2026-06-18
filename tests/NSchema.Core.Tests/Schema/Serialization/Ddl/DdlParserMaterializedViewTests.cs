@@ -33,7 +33,7 @@ public sealed class DdlParserMaterializedViewTests
             "CREATE MATERIALIZED VIEW app.daily AS SELECT date FROM app.t; CREATE INDEX daily_ix ON app.daily (date);");
         var index = view.Indexes.ShouldHaveSingleItem();
         index.Name.ShouldBe("daily_ix");
-        index.ColumnNames.ShouldBe(["date"]);
+        index.Columns.Select(c => c.Expression).ShouldBe(["date"]);
         index.IsUnique.ShouldBeFalse();
     }
 

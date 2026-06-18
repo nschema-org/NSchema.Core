@@ -128,6 +128,7 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
                         PrimaryKeyDiff => nameof(DropPrimaryKey),
                         ForeignKeyDiff => nameof(DropForeignKey),
                         UniqueConstraintDiff => nameof(DropUniqueConstraint),
+                        ExclusionConstraintDiff => nameof(DropExclusionConstraint),
                         _ => null, // columns are flagged above; checks and indexes are not destructive
                     };
 

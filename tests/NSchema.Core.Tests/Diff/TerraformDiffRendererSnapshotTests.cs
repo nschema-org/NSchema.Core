@@ -52,6 +52,8 @@ public sealed class TerraformDiffRendererSnapshotTests
                 new ColumnDiff("total", ChangeKind.Modify, null, null,
                     Type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
                     Nullability: new ValueChange<bool>(true, false), Default: null, Identity: null, Comment: null),
+                new ColumnDiff("total_label", ChangeKind.Modify, Generated: new ValueChange<string>(null, "total::text")),
+                new ColumnDiff("amount", ChangeKind.Add, new Column("amount", SqlType.Int, GeneratedExpression: "total * 100"), null, null, null, null, null, null),
                 new ColumnDiff("legacy_flag", ChangeKind.Remove, new Column("legacy_flag", SqlType.Boolean), null, null, null, null, null, null),
             ],
             Grants: [new GrantChange(ChangeKind.Remove, "writers", TablePrivilege.Insert)],
@@ -59,7 +61,12 @@ public sealed class TerraformDiffRendererSnapshotTests
             PrimaryKey: [new PrimaryKeyDiff(ChangeKind.Modify, "orders_pkey", null, new ValueChange<string>("old note", "new note"))],
             ForeignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null)],
             UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Remove, "orders_code_uq", null)],
-            Checks: [new CheckConstraintDiff(ChangeKind.Remove, "orders_total_chk", null)]);
+            Checks: [new CheckConstraintDiff(ChangeKind.Remove, "orders_total_chk", null)],
+            ExclusionConstraints:
+            [
+                new ExclusionConstraintDiff(ChangeKind.Add, "orders_slot_excl", new ExclusionConstraint("orders_slot_excl", [new ExclusionElement("slot", "&&")], "gist")),
+                new ExclusionConstraintDiff(ChangeKind.Remove, "orders_old_excl", null),
+            ]);
 
         return new DatabaseDiff(
             Schemas:

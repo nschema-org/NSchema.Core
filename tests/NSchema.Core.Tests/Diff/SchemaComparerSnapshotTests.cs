@@ -102,10 +102,16 @@ public sealed class SchemaComparerSnapshotTests
                         [
                             new Column("id", SqlType.BigInt),
                             new Column("email_address", SqlType.Text, OldName: "email"),
+                            new Column("email_upper", SqlType.Text, IsNullable: true, GeneratedExpression: "upper(email_address)"),
                         ],
                         UniqueConstraints: [new UniqueConstraint("users_email_uq", ["email_address"])],
                         CheckConstraints: [new CheckConstraint("users_id_chk", "id > 0")],
-                        Indexes: [new TableIndex("users_email_ix", ["email_address"], IsUnique: true)]),
+                        ExclusionConstraints: [new ExclusionConstraint("users_span_excl",
+                            [new ExclusionElement("int4range(0, id)", "&&", IsExpression: true)], Method: "gist")],
+                        // A covering, expression, descending index exercising the richer index grammar.
+                        Indexes: [new TableIndex("users_email_ix",
+                            [new IndexColumn("email_address", Sort: IndexSort.Descending, Nulls: IndexNulls.Last), new IndexColumn("lower(email_address)", IsExpression: true)],
+                            IsUnique: true, Method: "btree", Include: ["id"])]),
                 ],
                 Views:
                 [

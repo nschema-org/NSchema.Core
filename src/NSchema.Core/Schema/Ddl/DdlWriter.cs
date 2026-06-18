@@ -5,6 +5,7 @@ using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.CompositeTypes;
+using NSchema.Schema.Model.Constraints;
 using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
@@ -420,8 +421,12 @@ public sealed class DdlWriter
                 sb.Append("UNIQUE ");
             }
             sb.Append("INDEX ").Append(index.Name)
-                .Append(" ON ").Append(schemaName).Append('.').Append(view.Name)
-                .Append(" (").Append(Columns(index.ColumnNames)).Append(')');
+                .Append(" ON ").Append(schemaName).Append('.').Append(view.Name);
+            if (index.Method is { } method)
+            {
+                sb.Append(" USING ").Append(method);
+            }
+            sb.Append(" (").Append(IndexKeys(index.Columns)).Append(')').Append(IncludeClause(index.Include));
             if (index.Predicate is { } predicate)
             {
                 sb.Append(" WHERE (").Append(predicate).Append(')');
@@ -460,6 +465,10 @@ public sealed class DdlWriter
         foreach (var check in table.CheckConstraints)
         {
             members.Add((check.Comment, $"CONSTRAINT {check.Name} CHECK ({check.Expression})"));
+        }
+        foreach (var exclusion in table.ExclusionConstraints)
+        {
+            members.Add((exclusion.Comment, ExclusionText(exclusion)));
         }
         foreach (var index in table.Indexes)
         {
@@ -553,6 +562,10 @@ public sealed class DdlWriter
         {
             sb.Append(" DEFAULT ").Append(@default);
         }
+        if (column.GeneratedExpression is { } generated)
+        {
+            sb.Append(" GENERATED ALWAYS AS (").Append(generated).Append(") STORED");
+        }
         if (column.OldName is { } oldName)
         {
             sb.Append(" RENAMED FROM ").Append(oldName);
@@ -600,6 +613,25 @@ public sealed class DdlWriter
         return sb.ToString();
     }
 
+    private static string ExclusionText(ExclusionConstraint exclusion)
+    {
+        var sb = new StringBuilder();
+        sb.Append("CONSTRAINT ").Append(exclusion.Name).Append(" EXCLUDE");
+        if (exclusion.Method is { } method)
+        {
+            sb.Append(" USING ").Append(method);
+        }
+        sb.Append(" (").Append(string.Join(", ", exclusion.Elements.Select(ExclusionElementText))).Append(')');
+        if (exclusion.Predicate is { } predicate)
+        {
+            sb.Append(" WHERE (").Append(predicate).Append(')');
+        }
+        return sb.ToString();
+    }
+
+    private static string ExclusionElementText(ExclusionElement element) =>
+        $"{(element.IsExpression ? $"({element.Expression})" : element.Expression)} WITH {element.Operator}";
+
     private static string IndexText(TableIndex index)
     {
         var sb = new StringBuilder();
@@ -607,7 +639,12 @@ public sealed class DdlWriter
         {
             sb.Append("UNIQUE ");
         }
-        sb.Append("INDEX ").Append(index.Name).Append(" (").Append(Columns(index.ColumnNames)).Append(')');
+        sb.Append("INDEX ").Append(index.Name);
+        if (index.Method is { } method)
+        {
+            sb.Append(" USING ").Append(method);
+        }
+        sb.Append(" (").Append(IndexKeys(index.Columns)).Append(')').Append(IncludeClause(index.Include));
         if (index.Predicate is { } predicate)
         {
             sb.Append(" WHERE (").Append(predicate).Append(')');
@@ -646,6 +683,31 @@ public sealed class DdlWriter
     }
 
     private static string Columns(IReadOnlyList<string> columns) => string.Join(", ", columns);
+
+    /// <summary>Renders an index's key list: each column or parenthesised expression with optional sort/null ordering.</summary>
+    private static string IndexKeys(IReadOnlyList<IndexColumn> columns) => string.Join(", ", columns.Select(IndexKey));
+
+    private static string IndexKey(IndexColumn column)
+    {
+        var sb = new StringBuilder();
+        sb.Append(column.IsExpression ? $"({column.Expression})" : column.Expression);
+        sb.Append(column.Sort switch
+        {
+            IndexSort.Ascending => " ASC",
+            IndexSort.Descending => " DESC",
+            _ => string.Empty,
+        });
+        sb.Append(column.Nulls switch
+        {
+            IndexNulls.First => " NULLS FIRST",
+            IndexNulls.Last => " NULLS LAST",
+            _ => string.Empty,
+        });
+        return sb.ToString();
+    }
+
+    private static string IncludeClause(IReadOnlyList<string> include) =>
+        include.Count > 0 ? $" INCLUDE ({Columns(include)})" : string.Empty;
 
     private static void WriteDocComment(StringBuilder sb, string? comment, string indent)
     {

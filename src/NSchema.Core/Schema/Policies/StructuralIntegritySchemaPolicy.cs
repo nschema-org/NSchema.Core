@@ -82,7 +82,10 @@ public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
 
         foreach (var index in table.Indexes)
         {
-            foreach (var missing in index.ColumnNames.Where(c => !columns.Contains(c)))
+            // Only plain-column keys (and covering INCLUDE columns) reference table columns directly; an
+            // expression key (e.g. (lower(email))) names columns inside opaque text we don't parse.
+            var referenced = index.Columns.Where(c => !c.IsExpression).Select(c => c.Expression).Concat(index.Include);
+            foreach (var missing in referenced.Where(c => !columns.Contains(c)))
             {
                 diagnostics.Add(Error($"Index '{index.Name}' on '{qualified}' references unknown column '{missing}'."));
             }
@@ -158,8 +161,12 @@ public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
             return true;
         }
 
-        // A partial (predicated) unique index cannot back a foreign key, so it does not count.
-        return table.Indexes.Any(i => i is { IsUnique: true, Predicate: null } && referenced.SetEquals(i.ColumnNames));
+        // A partial (predicated) unique index cannot back a foreign key, and an expression index cannot either
+        // (its keys aren't plain columns), so neither counts. INCLUDE columns aren't part of the uniqueness key,
+        // so they don't affect the match.
+        return table.Indexes.Any(i => i is { IsUnique: true, Predicate: null }
+            && i.Columns.All(c => !c.IsExpression)
+            && referenced.SetEquals(i.Columns.Select(c => c.Expression)));
     }
 
     private static IEnumerable<string> Duplicates(IEnumerable<string> names) => names

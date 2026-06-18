@@ -62,10 +62,11 @@ public sealed class PlanLinearizerTests
         IReadOnlyList<ForeignKeyDiff>? foreignKeys = null,
         IReadOnlyList<UniqueConstraintDiff>? uniqueConstraints = null,
         IReadOnlyList<CheckConstraintDiff>? checks = null,
+        IReadOnlyList<ExclusionConstraintDiff>? exclusionConstraints = null,
         IReadOnlyList<TriggerDiff>? triggers = null,
         Table? definition = null)
         => new(schema, name, kind, renamedFrom, comment, columns ?? [], grants ?? [], indexes ?? [],
-            primaryKey ?? [], foreignKeys ?? [], uniqueConstraints ?? [], checks ?? [], triggers ?? [], definition);
+            primaryKey ?? [], foreignKeys ?? [], uniqueConstraints ?? [], checks ?? [], exclusionConstraints ?? [], triggers ?? [], definition);
 
     private static ColumnDiff AddedColumn(Column definition, ValueChange<string>? comment = null)
         => new(definition.Name, ChangeKind.Add, definition, null, null, null, null, null, comment);
@@ -80,8 +81,9 @@ public sealed class PlanLinearizerTests
         ValueChange<bool>? nullability = null,
         ValueChange<string>? @default = null,
         ValueChange<IdentityOptions>? identity = null,
-        ValueChange<string>? comment = null)
-        => new(name, ChangeKind.Modify, null, renamedFrom, type, nullability, @default, identity, comment);
+        ValueChange<string>? comment = null,
+        ValueChange<string>? generated = null)
+        => new(name, ChangeKind.Modify, null, renamedFrom, type, nullability, @default, identity, comment, generated);
 
     private static ViewDiff AddView(string name, string schema = "app", params (string Schema, string Name)[] dependsOn)
     {
@@ -313,6 +315,12 @@ public sealed class PlanLinearizerTests
             .ShouldSatisfyAllConditions(c => c.OldComment.ShouldBe("old"), c => c.NewComment.ShouldBe("new"));
 
     [Fact]
+    public void Linearize_ColumnGenerationChange_EmitsSetColumnGenerated()
+        => LinearizeColumn(ModifiedColumn("area", generated: new ValueChange<string>(null, "w * h")))
+            .OfType<SetColumnGenerated>().ShouldHaveSingleItem()
+            .ShouldSatisfyAllConditions(a => a.OldExpression.ShouldBeNull(), a => a.NewExpression.ShouldBe("w * h"));
+
+    [Fact]
     public void Linearize_ColumnWithEveryModification_EmitsAllActions()
     {
         var column = ModifiedColumn("id",
@@ -373,6 +381,25 @@ public sealed class PlanLinearizerTests
 
         LinearizeTable(TableNode("orders", ChangeKind.Modify, foreignKeys: [constraint]))
             .OfType<DropForeignKey>().ShouldHaveSingleItem().ForeignKeyName.ShouldBe("orders_user_fk");
+    }
+
+    [Fact]
+    public void Linearize_AddExclusionConstraint_EmitsAddExclusionConstraint()
+    {
+        var exclusion = new ExclusionConstraint("no_overlap", [new ExclusionElement("during", "&&")], "gist");
+        var constraint = new ExclusionConstraintDiff(ChangeKind.Add, "no_overlap", exclusion);
+
+        LinearizeTable(TableNode("bookings", ChangeKind.Modify, exclusionConstraints: [constraint]))
+            .OfType<AddExclusionConstraint>().ShouldHaveSingleItem().ExclusionConstraint.Name.ShouldBe("no_overlap");
+    }
+
+    [Fact]
+    public void Linearize_RemoveExclusionConstraint_EmitsDropExclusionConstraint()
+    {
+        var constraint = new ExclusionConstraintDiff(ChangeKind.Remove, "no_overlap", null);
+
+        LinearizeTable(TableNode("bookings", ChangeKind.Modify, exclusionConstraints: [constraint]))
+            .OfType<DropExclusionConstraint>().ShouldHaveSingleItem().ConstraintName.ShouldBe("no_overlap");
     }
 
     [Fact]

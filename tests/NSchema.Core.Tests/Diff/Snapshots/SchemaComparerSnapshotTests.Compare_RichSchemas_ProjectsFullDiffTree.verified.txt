@@ -34,6 +34,16 @@
                 Old: varchar(100),
                 New: text
               }
+            },
+            {
+              Name: email_upper,
+              Definition: {
+                Name: email_upper,
+                Type: text,
+                IsNullable: true,
+                IsIdentity: false,
+                GeneratedExpression: upper(email_address)
+              }
             }
           ],
           Indexes: [
@@ -42,8 +52,21 @@
               Definition: {
                 Name: users_email_ix,
                 IsUnique: true,
-                ColumnNames: [
-                  email_address
+                Method: btree,
+                Columns: [
+                  {
+                    Expression: email_address,
+                    IsExpression: false,
+                    Sort: Descending,
+                    Nulls: Last
+                  },
+                  {
+                    Expression: lower(email_address),
+                    IsExpression: true
+                  }
+                ],
+                Include: [
+                  id
                 ]
               }
             }
@@ -65,6 +88,22 @@
               Definition: {
                 Name: users_id_chk,
                 Expression: id > 0
+              }
+            }
+          ],
+          ExclusionConstraints: [
+            {
+              Name: users_span_excl,
+              Definition: {
+                Name: users_span_excl,
+                Method: gist,
+                Elements: [
+                  {
+                    Expression: int4range(0, id),
+                    Operator: &&,
+                    IsExpression: true
+                  }
+                ]
               }
             }
           ]

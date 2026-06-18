@@ -1,6 +1,7 @@
 using System.Text;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Indexes;
 using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Sequences;
@@ -172,11 +173,7 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
         }
         foreach (var index in view.Indexes)
         {
-            sb.Append(Indent).Append(Indent)
-                .Append("index ").Append(index.Name)
-                .Append(" (").Append(string.Join(", ", index.ColumnNames)).Append(')')
-                .Append(index.IsUnique ? " unique" : string.Empty)
-                .AppendLine(index.Predicate is { } p ? $" where {p}" : string.Empty);
+            RenderIndex(sb, index);
         }
     }
 
@@ -223,13 +220,22 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
                 .AppendLine(CommentSuffix(check.Comment));
         }
 
-        foreach (var index in table.Indexes)
+        foreach (var exclusion in table.ExclusionConstraints)
         {
             sb.Append(Indent).Append(Indent)
-                .Append("index ").Append(index.Name)
-                .Append(" (").Append(string.Join(", ", index.ColumnNames)).Append(')')
-                .Append(index.IsUnique ? " unique" : string.Empty)
-                .AppendLine(index.Predicate is { } p ? $" where {p}" : string.Empty);
+                .Append("exclude ").Append(exclusion.Name);
+            if (exclusion.Method is { } method)
+            {
+                sb.Append(" using ").Append(method);
+            }
+            sb.Append(" (").Append(string.Join(", ", exclusion.Elements.Select(e =>
+                $"{(e.IsExpression ? $"({e.Expression})" : e.Expression)} with {e.Operator}"))).Append(')');
+            sb.AppendLine(CommentSuffix(exclusion.Comment));
+        }
+
+        foreach (var index in table.Indexes)
+        {
+            RenderIndex(sb, index);
         }
 
         foreach (var trigger in table.Triggers)
@@ -295,7 +301,47 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
             text += $" default {@default}";
         }
 
+        if (column.GeneratedExpression is { } generated)
+        {
+            text += $" generated as ({generated})";
+        }
+
         return text + CommentSuffix(column.Comment);
+    }
+
+    private static void RenderIndex(StringBuilder sb, TableIndex index)
+    {
+        sb.Append(Indent).Append(Indent)
+            .Append("index ").Append(index.Name)
+            .Append(" (").Append(string.Join(", ", index.Columns.Select(FormatIndexKey))).Append(')');
+        if (index.Method is { } method)
+        {
+            sb.Append(" using ").Append(method);
+        }
+        if (index.Include.Count > 0)
+        {
+            sb.Append(" include (").Append(string.Join(", ", index.Include)).Append(')');
+        }
+        sb.Append(index.IsUnique ? " unique" : string.Empty)
+            .AppendLine(index.Predicate is { } p ? $" where {p}" : string.Empty);
+    }
+
+    private static string FormatIndexKey(IndexColumn column)
+    {
+        var text = column.IsExpression ? $"({column.Expression})" : column.Expression;
+        text += column.Sort switch
+        {
+            IndexSort.Ascending => " asc",
+            IndexSort.Descending => " desc",
+            _ => string.Empty,
+        };
+        text += column.Nulls switch
+        {
+            IndexNulls.First => " nulls first",
+            IndexNulls.Last => " nulls last",
+            _ => string.Empty,
+        };
+        return text;
     }
 
     private static string CommentSuffix(string? comment) => comment is null ? string.Empty : $" (\"{comment}\")";

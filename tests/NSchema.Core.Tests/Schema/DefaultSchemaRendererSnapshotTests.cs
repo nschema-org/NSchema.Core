@@ -44,11 +44,19 @@ public sealed class DefaultSchemaRendererSnapshotTests
                 new Column("id", SqlType.BigInt, IsIdentity: true, IdentityOptions: new IdentityOptions(1, 1, 1)),
                 new Column("email", SqlType.VarChar(255), Comment: "contact address"),
                 new Column("status", SqlType.Text, IsNullable: true, DefaultExpression: "'active'"),
+                new Column("email_upper", SqlType.Text, IsNullable: true, GeneratedExpression: "upper(email)"),
             ],
             Indexes:
             [
                 new TableIndex("users_email_ix", ["email"], IsUnique: true),
                 new TableIndex("users_active_ix", ["status"], Predicate: "status = 'active'"),
+                new TableIndex("users_email_low_ix",
+                    [new IndexColumn("status", Sort: IndexSort.Descending, Nulls: IndexNulls.Last), new IndexColumn("lower(email)", IsExpression: true)],
+                    Method: "btree", Include: ["id"]),
+            ],
+            ExclusionConstraints:
+            [
+                new ExclusionConstraint("users_span_excl", [new ExclusionElement("int4range(0, id)", "&&", IsExpression: true)], Method: "gist"),
             ],
             Grants: [new TableGrant("readers", TablePrivilege.Select | TablePrivilege.Insert)],
             Triggers:

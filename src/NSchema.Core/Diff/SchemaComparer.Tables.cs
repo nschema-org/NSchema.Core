@@ -101,6 +101,16 @@ internal sealed partial class SchemaComparer
             }
         }
 
+        var exclusions = new List<ExclusionConstraintDiff>();
+        foreach (var ex in table.ExclusionConstraints)
+        {
+            exclusions.Add(new ExclusionConstraintDiff(ChangeKind.Add, ex.Name, ex));
+            if (ex.Comment is not null)
+            {
+                exclusions.Add(new ExclusionConstraintDiff(ChangeKind.Modify, ex.Name, null, new ValueChange<string>(null, ex.Comment)));
+            }
+        }
+
         // The primary key is created inline by CREATE TABLE, but its comment still needs a separate set.
         var primaryKey = new List<PrimaryKeyDiff>();
         if (table.PrimaryKey is { Comment: not null } pk)
@@ -141,7 +151,7 @@ internal sealed partial class SchemaComparer
         // The full table definition rides along so the linearizer can emit a single CREATE TABLE (with the
         // primary key and columns inline) without reconstructing it from the column diffs. The primary key is
         // therefore created inline (no PrimaryKeyDiff); everything else arrives as a separate add.
-        return new TableDiff(schemaName, table.Name, ChangeKind.Add, null, comment, columns, grants, indexes, primaryKey, foreignKeys, uniqueConstraints, checks, triggers, table);
+        return new TableDiff(schemaName, table.Name, ChangeKind.Add, null, comment, columns, grants, indexes, primaryKey, foreignKeys, uniqueConstraints, checks, exclusions, triggers, table);
     }
 
     private TableDiff? BuildModifiedTable(string schemaName, Table current, Table desired)
@@ -170,6 +180,7 @@ internal sealed partial class SchemaComparer
         var foreignKeys = CompareForeignKeys(schemaName, desired.Name, current.ForeignKeys, desired.ForeignKeys);
         var uniqueConstraints = CompareUniqueConstraints(schemaName, desired.Name, current.UniqueConstraints, desired.UniqueConstraints);
         var checks = CompareChecks(schemaName, desired.Name, current.CheckConstraints, desired.CheckConstraints);
+        var exclusions = CompareExclusionConstraints(schemaName, desired.Name, current.ExclusionConstraints, desired.ExclusionConstraints);
 
         var indexes = CompareIndexes(schemaName, desired.Name, current.Indexes, desired.Indexes);
         var grants = CompareTableGrants(schemaName, desired.Name, current.Grants, desired.Grants);
@@ -177,12 +188,12 @@ internal sealed partial class SchemaComparer
 
         var hasChange = renamedFrom is not null || comment is not null || columns.Count > 0
             || primaryKey.Count > 0 || foreignKeys.Count > 0 || uniqueConstraints.Count > 0 || checks.Count > 0
-            || indexes.Count > 0 || grants.Count > 0 || triggers.Count > 0;
+            || exclusions.Count > 0 || indexes.Count > 0 || grants.Count > 0 || triggers.Count > 0;
         if (!hasChange)
         {
             return null;
         }
 
-        return new TableDiff(schemaName, desired.Name, ChangeKind.Modify, renamedFrom, comment, columns, grants, indexes, primaryKey, foreignKeys, uniqueConstraints, checks, triggers);
+        return new TableDiff(schemaName, desired.Name, ChangeKind.Modify, renamedFrom, comment, columns, grants, indexes, primaryKey, foreignKeys, uniqueConstraints, checks, exclusions, triggers);
     }
 }

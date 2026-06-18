@@ -118,6 +118,22 @@ public class DestructiveActionDiffPolicyTests
     }
 
     [Fact]
+    public void Validate_DroppedExclusionConstraint_IsDestructive()
+    {
+        // Arrange — dropping an exclusion constraint removes a structural guarantee, like a unique constraint.
+        _options.Value.Policy = DestructiveActionPolicy.Error;
+        var diff = TableChange(new TableDiff("app", "bookings", ChangeKind.Modify, null, null, [], [], [],
+            ExclusionConstraints: [new ExclusionConstraintDiff(ChangeKind.Remove, "no_overlap", null)]));
+
+        // Act
+        var errors = _sut.Validate(diff).ToList();
+
+        // Assert
+        errors.ShouldHaveSingleItem();
+        errors[0].Message.ShouldContain(nameof(DropExclusionConstraint));
+    }
+
+    [Fact]
     public void Validate_DroppedCheckConstraint_IsNotDestructive()
     {
         // Arrange — dropping a check only loosens validation; no data is lost, so it is not destructive.

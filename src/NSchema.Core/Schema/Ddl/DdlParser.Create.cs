@@ -174,7 +174,7 @@ internal sealed partial class DdlParser
         Expect(TokenKind.Semicolon, "';'");
 
         var table = new Table(tableName, oldName, body.PrimaryKey, doc,
-            body.Columns, body.ForeignKeys, body.UniqueConstraints, body.CheckConstraints, body.Indexes);
+            body.Columns, body.ForeignKeys, body.UniqueConstraints, body.CheckConstraints, body.ExclusionConstraints, body.Indexes);
         schemas.AddTable(schemaName, table, namePosition);
     }
 
@@ -210,7 +210,9 @@ internal sealed partial class DdlParser
         var name = ExpectIdentifier("an index name");
         ExpectKeyword("ON");
         var (schemaName, relationName) = ParseQualifiedName();
-        var columns = ParseColumnList();
+        var method = TryParseIndexMethod();
+        var columns = ParseIndexColumns();
+        var include = TryParseIncludeColumns();
 
         string? predicate = null;
         if (_current.IsKeyword("WHERE"))
@@ -220,7 +222,7 @@ internal sealed partial class DdlParser
         }
         Expect(TokenKind.Semicolon, "';'");
 
-        schemas.AddIndex(schemaName, relationName, new TableIndex(name, columns, unique, doc, predicate), namePosition);
+        schemas.AddIndex(schemaName, relationName, new TableIndex(name, columns, unique, doc, predicate, method, include), namePosition);
     }
 
     private void ParseCreateRoutine(SchemaAccumulator schemas, string? doc, RoutineKind kind)
@@ -654,9 +656,19 @@ internal sealed partial class DdlParser
             defaultExpression = ReadRawExpression(parenthesised: false);
         }
 
+        string? generatedExpression = null;
+        if (_current.IsKeyword("GENERATED"))
+        {
+            Advance();
+            ExpectKeyword("ALWAYS");
+            ExpectKeyword("AS");
+            generatedExpression = ReadRawExpression(parenthesised: true);
+            ExpectKeyword("STORED");
+        }
+
         var oldName = TryParseRenamedFrom();
 
-        body.Columns.Add(new Column(name, type, isNullable, isIdentity, defaultExpression, oldName, doc, identity));
+        body.Columns.Add(new Column(name, type, isNullable, isIdentity, defaultExpression, oldName, doc, identity, generatedExpression));
     }
 
     private SqlType ParseType()
@@ -756,9 +768,14 @@ internal sealed partial class DdlParser
             var expression = ReadRawExpression(parenthesised: true);
             body.CheckConstraints.Add(new CheckConstraint(name, expression, doc));
         }
+        else if (_current.IsKeyword("EXCLUDE"))
+        {
+            Advance();
+            body.ExclusionConstraints.Add(ParseExclusion(name, doc));
+        }
         else
         {
-            throw Error($"Expected PRIMARY KEY, FOREIGN KEY, UNIQUE or CHECK, found '{_current.Text}'.");
+            throw Error($"Expected PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK or EXCLUDE, found '{_current.Text}'.");
         }
     }
 
@@ -818,15 +835,20 @@ internal sealed partial class DdlParser
         throw Error($"Expected a referential action (NO ACTION, CASCADE, SET NULL, SET DEFAULT), found '{_current.Text}'.");
     }
 
-    private void ParseIndex(string? doc, bool isUnique, TableBody body)
+    /// <summary>
+    /// Parses an exclusion constraint body (the <c>EXCLUDE</c> keyword is already consumed):
+    /// <c>[USING method] ( element WITH operator [, …] ) [WHERE (predicate)]</c>.
+    /// </summary>
+    private ExclusionConstraint ParseExclusion(string name, string? doc)
     {
-        if (isUnique)
+        var method = TryParseIndexMethod();
+        Expect(TokenKind.LeftParen, "'(' to begin the exclusion elements");
+        var elements = new List<ExclusionElement> { ParseExclusionElement() };
+        while (Match(TokenKind.Comma))
         {
-            Advance(); // UNIQUE
+            elements.Add(ParseExclusionElement());
         }
-        ExpectKeyword("INDEX");
-        var name = ExpectIdentifier("an index name");
-        var columns = ParseColumnList();
+        Expect(TokenKind.RightParen, "')' or ',' after an exclusion element");
 
         string? predicate = null;
         if (_current.IsKeyword("WHERE"))
@@ -835,7 +857,149 @@ internal sealed partial class DdlParser
             predicate = ReadRawExpression(parenthesised: true);
         }
 
-        body.Indexes.Add(new TableIndex(name, columns, isUnique, doc, predicate));
+        return new ExclusionConstraint(name, elements, method, predicate, doc);
+    }
+
+    private ExclusionElement ParseExclusionElement()
+    {
+        string expression;
+        bool isExpression;
+        if (_current.Kind == TokenKind.LeftParen)
+        {
+            expression = ReadRawExpression(parenthesised: true);
+            isExpression = true;
+        }
+        else
+        {
+            expression = ExpectIdentifier("a column name or expression");
+            isExpression = false;
+        }
+
+        if (!_current.IsKeyword("WITH"))
+        {
+            throw Error($"Expected WITH after an exclusion element, found '{_current.Text}'.");
+        }
+
+        // The operator is opaque (=, &&, <>, …) and may use characters the lexer does not tokenise (e.g. '&'), so
+        // "WITH <operator>" is read as raw text from the WITH keyword up to the element separator or list close,
+        // then the leading WITH is stripped. Reading raw avoids advancing the lexer onto the operator.
+        _lexer.ResetTo(_current.Position);
+        var raw = _lexer.ReadRawSpan("an exclusion operator", ",)");
+        _current = _lexer.Next();
+        var @operator = raw.TrimStart()["WITH".Length..].Trim();
+
+        return new ExclusionElement(expression, @operator, isExpression);
+    }
+
+    private void ParseIndex(string? doc, bool isUnique, TableBody body)
+    {
+        if (isUnique)
+        {
+            Advance(); // UNIQUE
+        }
+        ExpectKeyword("INDEX");
+        var name = ExpectIdentifier("an index name");
+        var method = TryParseIndexMethod();
+        var columns = ParseIndexColumns();
+        var include = TryParseIncludeColumns();
+
+        string? predicate = null;
+        if (_current.IsKeyword("WHERE"))
+        {
+            Advance();
+            predicate = ReadRawExpression(parenthesised: true);
+        }
+
+        body.Indexes.Add(new TableIndex(name, columns, isUnique, doc, predicate, method, include));
+    }
+
+    /// <summary>Parses the optional <c>USING &lt;method&gt;</c> clause of an index; returns <see langword="null"/> when absent (default B-tree).</summary>
+    private string? TryParseIndexMethod()
+    {
+        if (!_current.IsKeyword("USING"))
+        {
+            return null;
+        }
+        Advance();
+        return ExpectIdentifier("an index access method");
+    }
+
+    /// <summary>Parses the optional covering <c>INCLUDE (cols)</c> clause of an index; returns an empty list when absent.</summary>
+    private List<string> TryParseIncludeColumns()
+    {
+        if (!_current.IsKeyword("INCLUDE"))
+        {
+            return [];
+        }
+        Advance();
+        return ParseColumnList();
+    }
+
+    /// <summary>
+    /// Parses an index key list: each key is a column name or a parenthesised expression, with an optional
+    /// <c>ASC</c>/<c>DESC</c> and <c>NULLS FIRST</c>/<c>NULLS LAST</c>.
+    /// </summary>
+    private List<IndexColumn> ParseIndexColumns()
+    {
+        Expect(TokenKind.LeftParen, "'('");
+        var keys = new List<IndexColumn> { ParseIndexKey() };
+        while (Match(TokenKind.Comma))
+        {
+            keys.Add(ParseIndexKey());
+        }
+        Expect(TokenKind.RightParen, "')'");
+        return keys;
+    }
+
+    private IndexColumn ParseIndexKey()
+    {
+        string expression;
+        bool isExpression;
+        if (_current.Kind == TokenKind.LeftParen)
+        {
+            // A parenthesised expression key, e.g. (lower(email)).
+            expression = ReadRawExpression(parenthesised: true);
+            isExpression = true;
+        }
+        else
+        {
+            expression = ExpectIdentifier("a column name or expression");
+            isExpression = false;
+        }
+
+        var sort = IndexSort.Default;
+        if (_current.IsKeyword("ASC"))
+        {
+            Advance();
+            sort = IndexSort.Ascending;
+        }
+        else if (_current.IsKeyword("DESC"))
+        {
+            Advance();
+            sort = IndexSort.Descending;
+        }
+
+        var nulls = IndexNulls.Default;
+        if (_current.IsKeyword("NULLS"))
+        {
+            Advance();
+            if (_current.IsKeyword("FIRST"))
+            {
+                Advance();
+                nulls = IndexNulls.First;
+            }
+            else if (_current.IsKeyword("LAST"))
+            {
+                Advance();
+                nulls = IndexNulls.Last;
+            }
+            else
+            {
+                throw Error($"Expected FIRST or LAST after NULLS, found '{_current.Text}'.");
+            }
+        }
+
+        return new IndexColumn(expression, isExpression, sort, nulls);
     }
 
     private List<string> ParseColumnList()
@@ -885,6 +1049,7 @@ internal sealed partial class DdlParser
         public List<ForeignKey> ForeignKeys { get; } = [];
         public List<UniqueConstraint> UniqueConstraints { get; } = [];
         public List<CheckConstraint> CheckConstraints { get; } = [];
+        public List<ExclusionConstraint> ExclusionConstraints { get; } = [];
         public List<TableIndex> Indexes { get; } = [];
     }
 }

@@ -290,7 +290,7 @@ public sealed class DdlParserTests
             .Tables.ShouldHaveSingleItem();
         var index = table.Indexes.ShouldHaveSingleItem();
         index.Name.ShouldBe("users_email_ix");
-        index.ColumnNames.ShouldBe(["email"]);
+        index.Columns.Select(c => c.Expression).ShouldBe(["email"]);
         index.IsUnique.ShouldBeTrue();
         index.Predicate.ShouldBe("email IS NOT NULL");
     }

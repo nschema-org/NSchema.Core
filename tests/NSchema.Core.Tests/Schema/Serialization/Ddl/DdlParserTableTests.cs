@@ -185,7 +185,7 @@ public sealed class DdlParserTableTests
     {
         var index = ParseTable("email text, INDEX ix_email (email)").Indexes.Single();
         index.Name.ShouldBe("ix_email");
-        index.ColumnNames.ShouldBe(["email"]);
+        index.Columns.Select(c => c.Expression).ShouldBe(["email"]);
         index.IsUnique.ShouldBeFalse();
         index.Predicate.ShouldBeNull();
     }

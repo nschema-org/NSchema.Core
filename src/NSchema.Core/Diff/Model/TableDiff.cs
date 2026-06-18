@@ -17,6 +17,7 @@ namespace NSchema.Diff.Model;
 /// <param name="ForeignKeys">Foreign key changes on the table.</param>
 /// <param name="UniqueConstraints">Unique constraint changes on the table.</param>
 /// <param name="Checks">Check constraint changes on the table.</param>
+/// <param name="ExclusionConstraints">Exclusion constraint changes on the table.</param>
 /// <param name="Triggers">Trigger changes on the table.</param>
 /// <param name="Definition">
 /// The full table definition when the table is being created (<see cref="ChangeKind.Add"/>); otherwise <see langword="null"/>.
@@ -34,6 +35,7 @@ public sealed record TableDiff(
     IReadOnlyList<ForeignKeyDiff>? ForeignKeys = null,
     IReadOnlyList<UniqueConstraintDiff>? UniqueConstraints = null,
     IReadOnlyList<CheckConstraintDiff>? Checks = null,
+    IReadOnlyList<ExclusionConstraintDiff>? ExclusionConstraints = null,
     IReadOnlyList<TriggerDiff>? Triggers = null,
     Table? Definition = null
 ) : ISchemaObjectDiff
@@ -74,6 +76,11 @@ public sealed record TableDiff(
     public IReadOnlyList<CheckConstraintDiff> Checks { get; init; } = Checks ?? [];
 
     /// <summary>
+    /// Exclusion constraint changes on the table.
+    /// </summary>
+    public IReadOnlyList<ExclusionConstraintDiff> ExclusionConstraints { get; init; } = ExclusionConstraints ?? [];
+
+    /// <summary>
     /// Trigger changes on the table.
     /// </summary>
     public IReadOnlyList<TriggerDiff> Triggers { get; init; } = Triggers ?? [];
@@ -90,5 +97,6 @@ public sealed record TableDiff(
             .Concat(ForeignKeys)
             .Concat(UniqueConstraints)
             .Concat(Checks)
+            .Concat(ExclusionConstraints)
             .Concat(Triggers);
 }
