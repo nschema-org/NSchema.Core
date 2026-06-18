@@ -86,6 +86,11 @@ public sealed class DdlParserTableTests
     }
 
     [Fact]
+    public void Column_DefaultContainingRenamedAsIdentifierPrefix_DoesNotStop()
+        // 'RENAMED' only terminates the default at a word boundary; embedded in an identifier it is just text.
+        => Column("at int DEFAULT renamed_at").DefaultExpression.ShouldBe("renamed_at");
+
+    [Fact]
     public void Column_BareIdentity_SetsIdentityWithoutOptions()
     {
         var column = Column("id bigint IDENTITY");

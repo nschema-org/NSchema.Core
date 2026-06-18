@@ -6,9 +6,12 @@ namespace NSchema.Schema.Ddl;
 /// <summary>
 /// Scanner for NSchema DDL.
 /// </summary>
-internal sealed class DdlLexer(string source)
+internal sealed class DdlLexer(string source, bool emitComments = false)
 {
     private readonly string _source = source ?? throw new ArgumentNullException(nameof(source));
+
+    // When true (the formatter), source comments are returned as LineComment/BlockComment tokens instead of skipped.
+    // The parser leaves this false, so its token stream is unchanged.
     private int _offset;
     private int _line = 1;
     private int _column = 1;
@@ -17,6 +20,11 @@ internal sealed class DdlLexer(string source)
     private char Current => AtEnd ? '\0' : _source[_offset];
     private char Peek(int ahead) => _offset + ahead < _source.Length ? _source[_offset + ahead] : '\0';
     private SourcePosition Position => new(_offset, _line, _column);
+
+    /// <summary>
+    /// Returns the verbatim source between two offsets — the parser's hook for capturing opaque spans.
+    /// </summary>
+    public string Slice(int start, int end) => _source[start..end];
 
     /// <summary>
     /// Reads the next structural token, skipping whitespace and source comments.
@@ -43,6 +51,10 @@ internal sealed class DdlLexer(string source)
                 {
                     return ReadDocLine();
                 }
+                if (emitComments)
+                {
+                    return ReadLineComment();
+                }
                 SkipLineComment();
                 continue;
             }
@@ -54,6 +66,10 @@ internal sealed class DdlLexer(string source)
                 {
                     return ReadDocBlock();
                 }
+                if (emitComments)
+                {
+                    return ReadBlockComment();
+                }
                 SkipBlockComment();
                 continue;
             }
@@ -63,6 +79,14 @@ internal sealed class DdlLexer(string source)
 
         var pos = Position;
         var ch = Current;
+
+        // A dollar-quote ($$ … $$ or $tag$ … $tag$) is lexed whole; a bare '$' that opens no valid tag (e.g. $1)
+        // falls through to the Symbol catch-all below.
+        if (ch == '$' && PeekDollarTag() is { } tag)
+        {
+            return ReadDollarString(pos, tag);
+        }
+
         switch (ch)
         {
             case '(': Advance(); return new Token(TokenKind.LeftParen, "(", pos);
@@ -87,7 +111,10 @@ internal sealed class DdlLexer(string source)
             return ReadIdentifier(pos);
         }
 
-        throw new DdlSyntaxException($"Unexpected character '{ch}'", pos);
+        // Any other character (an operator inside an opaque expression) is a single Symbol token. The lexer never
+        // rejects it — the parser slices such expressions from the source rather than interpreting their tokens.
+        Advance();
+        return new Token(TokenKind.Symbol, ch.ToString(), pos);
     }
 
     /// <summary>
@@ -102,173 +129,20 @@ internal sealed class DdlLexer(string source)
     }
 
     /// <summary>
-    /// Captures a parenthesized opaque expression (e.g. a <c>CHECK</c> body or index <c>WHERE</c> predicate, or a
-    /// routine's argument list) as raw text. Skips leading whitespace, requires and consumes the surrounding
-    /// parentheses, and returns the inner text trimmed — which may be empty (e.g. an empty argument list). The scan
-    /// itself delegates to <see cref="ReadRawSpan"/>, so strings, comments and dollar-quoted sections inside the
-    /// expression are honoured and any nested parentheses are balanced.
+    /// Lexes a dollar-quoted string (<c>$$…$$</c> or <c>$tag$…$tag$</c>) starting at the current <c>$</c>, including
+    /// both delimiters, as a single token whose text is the verbatim source. A differently-tagged quote inside is
+    /// just content; only the opening tag closes the string.
     /// </summary>
-    public string ReadParenthesizedExpression()
+    private Token ReadDollarString(SourcePosition pos, string tag)
     {
-        SkipInlineWhitespace();
-        var pos = Position;
-        if (Current != '(')
-        {
-            throw new DdlSyntaxException("Expected '(' to begin an expression", pos);
-        }
-
-        Advance(); // consume '('
-        var inner = ReadRawSpan("an expression", ")", allowEmpty: true);
-        if (AtEnd)
-        {
-            // The scan reached end-of-source without finding the matching depth-zero ')'.
-            throw new DdlSyntaxException("Unterminated expression", pos);
-        }
-
-        Advance(); // consume ')'
-        return inner;
-    }
-
-    /// <summary>
-    /// Captures a raw, opaque span of source as verbatim text.
-    /// </summary>
-    /// <param name="what">What the span is, for the empty-span error (e.g. "a view body", "a default expression").</param>
-    /// <param name="terminators">The depth-zero characters that end the span (e.g. <c>";"</c>, or <c>",)"</c>).</param>
-    /// <param name="terminatorKeyword">An optional upper-cased keyword that also ends the span at a word boundary.</param>
-    /// <param name="allowEmpty">When <see langword="true"/>, an empty span is returned as-is instead of throwing (e.g. an empty argument list).</param>
-    public string ReadRawSpan(string what, string terminators, string? terminatorKeyword = null, bool allowEmpty = false)
-    {
-        SkipInlineWhitespace();
-        var pos = Position;
         var start = _offset;
-        var depth = 0;
-        while (!AtEnd)
-        {
-            var c = Current;
-            if (c == '\'')
-            {
-                ConsumeStringLiteral(pos);
-                continue;
-            }
-
-            if (c == '$' && TryConsumeDollarQuote(pos))
-            {
-                continue;
-            }
-
-            // Consume comments verbatim so a terminator inside them is not treated as structural.
-            if (c == '-' && Peek(1) == '-')
-            {
-                SkipLineComment();
-                continue;
-            }
-            if (c == '/' && Peek(1) == '*')
-            {
-                SkipBlockComment();
-                continue;
-            }
-
-            if (c == '(')
-            {
-                depth++;
-            }
-            else if (c == ')')
-            {
-                if (depth > 0)
-                {
-                    depth--;
-                }
-                else if (terminators.Contains(')'))
-                {
-                    break;
-                }
-            }
-            else if (depth == 0)
-            {
-                if (terminators.Contains(c))
-                {
-                    break;
-                }
-                if (terminatorKeyword is not null && IsIdentifierStart(c) && AtWordStart() && MatchesKeyword(terminatorKeyword))
-                {
-                    break;
-                }
-            }
-
-            Advance();
-        }
-
-        var text = _source[start.._offset].Trim();
-        if (!allowEmpty && text.Length == 0)
-        {
-            throw new DdlSyntaxException($"Expected {what}", pos);
-        }
-        return text;
-    }
-
-    /// <summary>
-    /// Rewinds the scanner to a previously-observed position. The parser uses this to re-read a token it had
-    /// already pulled as lookahead so that an opaque expression can be captured as raw text from the right offset.
-    /// </summary>
-    public void ResetTo(SourcePosition position)
-    {
-        _offset = position.Offset;
-        _line = position.Line;
-        _column = position.Column;
-    }
-
-    /// <summary>
-    /// Consumes a dollar-quoted string (<c>$$…$$</c> or <c>$tag$…$tag$</c>, Postgres tag rules: empty, or an
-    /// identifier) starting at the current <c>$</c>, including its closing tag. Returns <see langword="false"/>
-    /// without consuming anything when the <c>$</c> does not open a valid tag (e.g. <c>$1</c> or a lone
-    /// <c>$</c>) — the caller treats it as ordinary text. A differently-tagged quote inside is just content;
-    /// only the opening tag closes the string.
-    /// </summary>
-    private bool TryConsumeDollarQuote(SourcePosition statementStart)
-    {
-        if (PeekDollarTag() is not { } tag)
-        {
-            return false;
-        }
-
         ConsumeLength(tag.Length); // opening tag
         while (!AtEnd)
         {
             if (Current == '$' && MatchesAt(tag))
             {
                 ConsumeLength(tag.Length); // closing tag
-                return true;
-            }
-            Advance();
-        }
-
-        throw new DdlSyntaxException("Unterminated dollar-quoted string", statementStart);
-    }
-
-    /// <summary>
-    /// Captures a dollar-quoted body (<c>$$ … $$</c> or <c>$tag$ … $tag$</c>) and returns its <em>inner</em> content
-    /// with the delimiters stripped — the dollar-quoted counterpart of <see cref="ReadParenthesizedExpression"/>, for
-    /// an opaque SQL body (e.g. a deployment script). Skips leading whitespace, then requires the opening tag.
-    /// </summary>
-    /// <param name="what">What the body is, for the error message (e.g. "a deployment script body").</param>
-    public string ReadDollarQuotedBody(string what)
-    {
-        SkipWhitespace();
-        var pos = Position;
-        if (PeekDollarTag() is not { } tag)
-        {
-            throw new DdlSyntaxException($"Expected {what} as a dollar-quoted block ($$ … $$)", pos);
-        }
-
-        ConsumeLength(tag.Length); // opening tag
-        var start = _offset;
-        while (!AtEnd)
-        {
-            if (Current == '$' && MatchesAt(tag))
-            {
-                var inner = _source[start.._offset];
-                ConsumeLength(tag.Length); // closing tag
-                return inner;
+                return new Token(TokenKind.DollarString, _source[start.._offset], pos);
             }
             Advance();
         }
@@ -305,26 +179,6 @@ internal sealed class DdlLexer(string source)
         {
             Advance();
         }
-    }
-
-    private bool AtWordStart() => _offset == 0 || !IsIdentifierPart(_source[_offset - 1]);
-
-    /// <summary>Whether the (upper-cased) keyword sits at the current offset, bounded by a non-identifier character.</summary>
-    private bool MatchesKeyword(string keyword)
-    {
-        if (_offset + keyword.Length > _source.Length)
-        {
-            return false;
-        }
-        for (var i = 0; i < keyword.Length; i++)
-        {
-            if (char.ToUpperInvariant(_source[_offset + i]) != keyword[i])
-            {
-                return false;
-            }
-        }
-        var after = _offset + keyword.Length;
-        return after >= _source.Length || !IsIdentifierPart(_source[after]);
     }
 
     private Token ReadDocLine()
@@ -429,36 +283,41 @@ internal sealed class DdlLexer(string source)
         return new Token(TokenKind.Identifier, _source[start.._offset], pos);
     }
 
-    /// <summary>
-    /// Consumes a single-quoted literal during raw expression capture (so its parens are ignored).
-    /// </summary>
-    private void ConsumeStringLiteral(SourcePosition exprStart)
-    {
-        Advance(); // opening quote
-        while (true)
-        {
-            if (AtEnd)
-            {
-                throw new DdlSyntaxException("Unterminated string literal in expression", exprStart);
-            }
-            if (Current == '\'')
-            {
-                if (Peek(1) == '\'')
-                {
-                    Advance(); Advance();
-                    continue;
-                }
-                Advance(); // closing quote
-                return;
-            }
-            Advance();
-        }
-    }
-
     private void SkipLineComment()
     {
         while (!AtEnd && Current != '\n')
         {
+            Advance();
+        }
+    }
+
+    private Token ReadLineComment()
+    {
+        var pos = Position;
+        var start = _offset;
+        while (!AtEnd && Current != '\n')
+        {
+            Advance();
+        }
+        return new Token(TokenKind.LineComment, _source[start.._offset].TrimEnd(), pos);
+    }
+
+    private Token ReadBlockComment()
+    {
+        var pos = Position;
+        var start = _offset;
+        Advance(); Advance(); // consume '/*'
+        while (true)
+        {
+            if (AtEnd)
+            {
+                throw new DdlSyntaxException("Unterminated block comment", pos);
+            }
+            if (Current == '*' && Peek(1) == '/')
+            {
+                Advance(); Advance(); // consume '*/'
+                return new Token(TokenKind.BlockComment, _source[start.._offset], pos);
+            }
             Advance();
         }
     }
@@ -485,14 +344,6 @@ internal sealed class DdlLexer(string source)
     private void SkipInlineWhitespace()
     {
         while (!AtEnd && Current is ' ' or '\t' or '\r')
-        {
-            Advance();
-        }
-    }
-
-    private void SkipWhitespace()
-    {
-        while (!AtEnd && Current is ' ' or '\t' or '\r' or '\n')
         {
             Advance();
         }

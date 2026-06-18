@@ -27,6 +27,21 @@ internal enum TokenKind
     DocComment,
 
     /// <summary>
+    /// A dollar-quoted string (<c>$$ … $$</c> or <c>$tag$ … $tag$</c>).
+    /// </summary>
+    DollarString,
+
+    /// <summary>
+    /// A source line comment (<c>-- …</c>, not a <c>---</c> doc-comment), end-trimmed and keeping its <c>--</c>.
+    /// </summary>
+    LineComment,
+
+    /// <summary>
+    /// A source block comment (<c>/* … */</c>, not a <c>/** … */</c> doc-comment), kept verbatim with its delimiters.
+    /// </summary>
+    BlockComment,
+
+    /// <summary>
     /// <c>(</c>
     /// </summary>
     LeftParen,
@@ -70,6 +85,11 @@ internal enum TokenKind
     /// <c>-</c> (a sign on a numeric value; <c>--</c> starts a comment instead).
     /// </summary>
     Minus,
+
+    /// <summary>
+    /// Any other single punctuation character the lexer does not structurally recognise (e.g. <c>&gt;</c>, <c>&amp;</c>, <c>:</c>).
+    /// </summary>
+    Symbol,
 
     /// <summary>
     /// The end of the input.

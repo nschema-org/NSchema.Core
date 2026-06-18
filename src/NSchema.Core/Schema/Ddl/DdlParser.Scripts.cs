@@ -17,18 +17,28 @@ internal sealed partial class DdlParser
         var name = Expect(TokenKind.String, "a quoted script name").Text;
         var runOutsideTransaction = ParseDeploymentScriptOptions();
 
-        // The body is opaque (dollar-quoted) SQL, so — like a view body — it is captured by a raw lexer read rather
-        // than tokenised. The 'AS' keyword is the anchor: we verify it without advancing onto the un-tokenisable '$',
-        // leaving the lexer positioned right after it to read the body.
+        // The body is opaque (dollar-quoted) SQL lexed as a single DollarString token (so its own ';' is not a
+        // terminator). The 'AS' keyword is the anchor; the body's delimiters are then stripped.
         if (!_current.IsKeyword("AS"))
         {
             throw Error("Expected 'AS' before the deployment script body.");
         }
-        var body = _lexer.ReadDollarQuotedBody("a deployment script body").Trim();
-        _current = _lexer.Next();
+        Advance(); // AS
+        var dollar = Expect(TokenKind.DollarString, "a deployment script body as a dollar-quoted block ($$ … $$)");
+        var body = StripDollarQuote(dollar.Text).Trim();
         Expect(TokenKind.Semicolon, "';' to end the deployment script");
 
         return new Script(name, body, type) { RunOutsideTransaction = runOutsideTransaction };
+    }
+
+    /// <summary>
+    /// Strips the opening and closing delimiters from a <see cref="TokenKind.DollarString"/>'s verbatim text
+    /// (<c>$tag$ … $tag$</c>), returning its inner content. The lexer guarantees the tags are balanced.
+    /// </summary>
+    private static string StripDollarQuote(string text)
+    {
+        var tagLength = text.IndexOf('$', 1) + 1; // '$' … '$' opening tag, e.g. "$$" or "$body$"
+        return text[tagLength..^tagLength];
     }
 
     /// <summary>
