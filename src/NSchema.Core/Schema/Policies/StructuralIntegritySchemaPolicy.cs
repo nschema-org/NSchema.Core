@@ -31,10 +31,35 @@ public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
                 ValidateTable(definition, table, managedSchemas, partialSchemas, tablesByKey, diagnostics);
             }
 
+            ValidateObjectNames(definition, diagnostics);
             ValidateRoutineNames(definition, diagnostics);
         }
 
         return diagnostics;
+    }
+
+    // Tables, views, materialized views, sequences, and composite types all occupy a single name space per
+    // schema in the database (Postgres's pg_class), and they additionally share pg_type with enums and domains
+    // (every relation has a row type), so none of these kinds may reuse a name within a schema — a table and a
+    // view called 'foo' cannot coexist. Routines live in a separate name space (pg_proc) and are checked apart.
+    private static void ValidateObjectNames(SchemaDefinition definition, List<PolicyDiagnostic> diagnostics)
+    {
+        var named = definition.Tables.Select(t => (t.Name, Kind: "table"))
+            .Concat(definition.Views.Select(v => (v.Name, Kind: v.IsMaterialized ? "materialized view" : "view")))
+            .Concat(definition.Sequences.Select(s => (s.Name, Kind: "sequence")))
+            .Concat(definition.CompositeTypes.Select(c => (c.Name, Kind: "composite type")))
+            .Concat(definition.Enums.Select(e => (e.Name, Kind: "enum")))
+            .Concat(definition.Domains.Select(d => (d.Name, Kind: "domain")));
+
+        foreach (var collision in named.GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
+        {
+            var kinds = collision.Select(x => x.Kind).ToList();
+            // A single kind appearing twice (e.g. two sequences) reads as a plain duplicate; a mix of kinds reads
+            // as a name-space collision. Either way the database would reject it.
+            diagnostics.Add(kinds.Distinct().Count() == 1
+                ? Error($"Schema '{definition.Name}' declares {kinds[0]} '{collision.Key}' more than once.")
+                : Error($"Schema '{definition.Name}' reuses the name '{collision.Key}' across object kinds that share a name space ({string.Join(", ", kinds.OrderBy(k => k, StringComparer.Ordinal))})."));
+        }
     }
 
     // Functions and procedures share one name space, as they do in the database, so they live in a single
@@ -70,6 +95,13 @@ public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
         foreach (var duplicate in Duplicates(table.Columns.Select(c => c.Name)))
         {
             diagnostics.Add(Error($"Table '{qualified}' declares column '{duplicate}' more than once."));
+        }
+
+        // A generated column is computed from an expression, so it cannot also carry a default — the database
+        // rejects a column that declares both.
+        foreach (var column in table.Columns.Where(c => c.DefaultExpression is not null && c.GeneratedExpression is not null))
+        {
+            diagnostics.Add(Error($"Column '{qualified}.{column.Name}' has both a DEFAULT and a GENERATED expression; a generated column cannot have a default."));
         }
 
         if (table.PrimaryKey is { } primaryKey)
