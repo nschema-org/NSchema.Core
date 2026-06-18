@@ -278,6 +278,46 @@ public sealed class DdlParserTests
         => Should.Throw<DdlSyntaxException>(() => Parse("CREATE TABLE app.users ();")).Message.ShouldContain("column or constraint");
 
     // -------------------------------------------------------------------------
+    // Standalone indexes (CREATE INDEX ... ON s.t) — equivalent to an inline table index
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Parse_StandaloneIndexOnTable_AttachesToTable()
+    {
+        var table = ParseSingleSchema(
+            "CREATE SCHEMA app; CREATE TABLE app.users (id int NOT NULL, email text NOT NULL); " +
+            "CREATE UNIQUE INDEX users_email_ix ON app.users (email) WHERE (email IS NOT NULL);")
+            .Tables.ShouldHaveSingleItem();
+        var index = table.Indexes.ShouldHaveSingleItem();
+        index.Name.ShouldBe("users_email_ix");
+        index.ColumnNames.ShouldBe(["email"]);
+        index.IsUnique.ShouldBeTrue();
+        index.Predicate.ShouldBe("email IS NOT NULL");
+    }
+
+    [Fact]
+    public void Parse_StandaloneAndInlineIndexes_Coexist()
+    {
+        var table = ParseSingleSchema(
+            "CREATE SCHEMA app; CREATE TABLE app.users (id int NOT NULL, email text NOT NULL, INDEX users_id_ix (id)); " +
+            "CREATE INDEX users_email_ix ON app.users (email);")
+            .Tables.ShouldHaveSingleItem();
+        table.Indexes.Select(i => i.Name).ShouldBe(["users_id_ix", "users_email_ix"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public void Parse_StandaloneIndexBeforeItsTable_StillAttaches()
+        // Build-time resolution: the index may be declared before the CREATE TABLE it targets.
+        => ParseSingleSchema("CREATE INDEX users_id_ix ON app.users (id); CREATE TABLE app.users (id int NOT NULL);")
+            .Tables.ShouldHaveSingleItem().Indexes.ShouldHaveSingleItem().Name.ShouldBe("users_id_ix");
+
+    [Fact]
+    public void Parse_StandaloneIndexDuplicatingInlineName_Throws()
+        => Should.Throw<DdlSyntaxException>(() => Parse(
+            "CREATE SCHEMA app; CREATE TABLE app.users (id int NOT NULL, INDEX dup (id)); CREATE INDEX dup ON app.users (id);"))
+            .Message.ShouldContain("already declared");
+
+    // -------------------------------------------------------------------------
     // Views
     // -------------------------------------------------------------------------
 

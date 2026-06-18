@@ -60,10 +60,10 @@ public sealed class DdlParserMaterializedViewTests
             .Message.ShouldContain("not a materialized view");
 
     [Fact]
-    public void Parse_IndexOnUnknownView_Throws()
+    public void Parse_IndexOnUnknownRelation_Throws()
         => Should.Throw<DdlSyntaxException>(() =>
             new DdlParser("CREATE SCHEMA app; CREATE INDEX ix ON app.ghost (x);").Parse())
-            .Message.ShouldContain("unknown materialized view");
+            .Message.ShouldContain("unknown table or materialized view");
 
     [Fact]
     public void Parse_DuplicateIndexOnView_Throws()

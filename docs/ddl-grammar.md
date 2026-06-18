@@ -310,11 +310,12 @@ view, distinguished by a flag (matching `pg_class`'s `relkind`). Because there i
 MATERIALIZED VIEW`, a body change to a materialized view — or converting a view to/from materialized — is planned
 as a **drop + recreate**, whereas a plain view's body change is an in-place `CREATE OR REPLACE`.
 
-Only a materialized view may carry **indexes**, declared as standalone `CREATE [UNIQUE] INDEX … ON s.v`
-statements (a plain view or a table cannot — table indexes are inline). Like a `GRANT`, an index names its
-materialized view via `ON` and is attached to it when the document is built (targeting an unknown or
-non-materialized relation is an error). There is no `DROP INDEX`: an index absent from a materialized view's
-declaration is dropped, mirroring inline table indexes.
+A standalone `CREATE [UNIQUE] INDEX … ON s.relation` statement attaches an index to its relation when the
+document is built (like a `GRANT`, which also names its target via `ON`): a **table** — equivalent to declaring
+the index inline in the table body — or a **materialized view**. A plain view cannot be indexed, and targeting
+an unknown relation is an error. A materialized view's indexes *must* be standalone (its body is opaque, so
+there is nowhere inline to put them); a table's may be written either way. There is no `DROP INDEX`: an index
+absent from its relation's declaration is dropped, the same as an inline table index.
 
 ```sql
 CREATE MATERIALIZED VIEW app.daily_totals AS SELECT date, sum(amount) FROM app.sales GROUP BY date;
@@ -463,7 +464,7 @@ structural change is planned as a drop + recreate (only a comment-only change is
 | `DROP TABLE s.t` / `DROP SCHEMA s`         | `DroppedTables` / `DroppedSchemas`                                 |
 | `DROP VIEW s.v`                            | `DroppedViews`                                                     |
 | `CREATE MATERIALIZED VIEW s.v AS …`        | `View` with `IsMaterialized = true`                                |
-| `CREATE [UNIQUE] INDEX n ON s.v (…)`       | `TableIndex` on the materialized view `s.v` (`View.Indexes`)       |
+| `CREATE [UNIQUE] INDEX n ON s.rel (…)`     | `TableIndex` on the table (`Table.Indexes`) or materialized view (`View.Indexes`) `s.rel` |
 | `CREATE ENUM s.e ('a', 'b')`               | `SchemaDefinition` + `EnumType` (ordered `Values`)                 |
 | `CREATE SEQUENCE s.q (…)`                  | `SchemaDefinition` + `Sequence` (`SequenceOptions`)                |
 | `DROP ENUM s.e` / `DROP SEQUENCE s.q`      | `DroppedEnums` / `DroppedSequences`                                |

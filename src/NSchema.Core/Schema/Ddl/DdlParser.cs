@@ -320,9 +320,10 @@ internal sealed class DdlParser
     }
 
     /// <summary>
-    /// Parses a standalone index: <c>CREATE [UNIQUE] INDEX name ON s.v (cols) [WHERE (expr)]</c>. The "UNIQUE"
-    /// keyword (if present) has already been consumed by the dispatcher. Standalone indexes attach to a
-    /// materialized view at build time (a plain view or table cannot carry one — table indexes are inline).
+    /// Parses a standalone index: <c>CREATE [UNIQUE] INDEX name ON s.relation (cols) [WHERE (expr)]</c>. The
+    /// "UNIQUE" keyword (if present) has already been consumed by the dispatcher. Standalone indexes attach at
+    /// build time to the named relation — a table (equivalent to declaring it inline in the table body) or a
+    /// materialized view (a plain view cannot carry one).
     /// </summary>
     private void ParseCreateIndex(SchemaAccumulator schemas, string? doc, bool unique)
     {
@@ -330,7 +331,7 @@ internal sealed class DdlParser
         var namePosition = _current.Position;
         var name = ExpectIdentifier("an index name");
         ExpectKeyword("ON");
-        var (schemaName, viewName) = ParseQualifiedName();
+        var (schemaName, relationName) = ParseQualifiedName();
         var columns = ParseColumnList();
 
         string? predicate = null;
@@ -341,7 +342,7 @@ internal sealed class DdlParser
         }
         Expect(TokenKind.Semicolon, "';'");
 
-        schemas.AddViewIndex(schemaName, viewName, new TableIndex(name, columns, unique, doc, predicate), namePosition);
+        schemas.AddIndex(schemaName, relationName, new TableIndex(name, columns, unique, doc, predicate), namePosition);
     }
 
     private void ParseCreateFunction(SchemaAccumulator schemas, string? doc)
@@ -1212,7 +1213,7 @@ internal sealed class DdlParser
         private readonly List<string> _droppedExtensions = [];
         private readonly List<PendingGrant> _tableGrants = [];
         private readonly List<PendingTrigger> _triggers = [];
-        private readonly List<PendingViewIndex> _viewIndexes = [];
+        private readonly List<PendingIndex> _standaloneIndexes = [];
 
         public void DeclareSchema(string name, string? oldName, bool isPartial, string? comment, SourcePosition position)
         {
@@ -1317,10 +1318,10 @@ internal sealed class DdlParser
         public void AddTrigger(string schema, string table, Trigger trigger, SourcePosition position)
             => _triggers.Add(new PendingTrigger(schema, table, trigger, position));
 
-        // Standalone indexes attach to a materialized view at Build, so an index may appear before or after its
-        // CREATE MATERIALIZED VIEW.
-        public void AddViewIndex(string schema, string view, TableIndex index, SourcePosition position)
-            => _viewIndexes.Add(new PendingViewIndex(schema, view, index, position));
+        // Standalone indexes attach to their relation (a table or a materialized view) at Build, so an index may
+        // appear before or after the CREATE that declares its target.
+        public void AddIndex(string schema, string relation, TableIndex index, SourcePosition position)
+            => _standaloneIndexes.Add(new PendingIndex(schema, relation, index, position));
 
         // Extensions are database-global, so they live on the accumulator itself rather than a per-schema entry.
         public void AddExtension(Extension extension, SourcePosition position)
@@ -1406,7 +1407,7 @@ internal sealed class DdlParser
         {
             ApplyTableGrants();
             ApplyTriggers();
-            ApplyViewIndexes();
+            ApplyIndexes();
             var schemas = _entries
                 .Select(e => new SchemaDefinition(e.Name, e.OldName, e.IsPartial, e.Comment, e.Tables, e.DroppedTables, e.Grants, e.Views, e.DroppedViews,
                     e.Enums, e.DroppedEnums, e.Sequences, e.DroppedSequences,
@@ -1460,32 +1461,46 @@ internal sealed class DdlParser
             }
         }
 
-        private void ApplyViewIndexes()
+        private void ApplyIndexes()
         {
-            foreach (var pending in _viewIndexes)
+            foreach (var pending in _standaloneIndexes)
             {
+                var qualified = $"{pending.Schema}.{pending.Relation}";
                 if (!_byName.TryGetValue(pending.Schema, out var entry))
                 {
-                    throw new DdlSyntaxException($"CREATE INDEX references unknown materialized view '{pending.Schema}.{pending.View}'.", pending.Position);
+                    throw new DdlSyntaxException($"CREATE INDEX references unknown table or materialized view '{qualified}'.", pending.Position);
                 }
 
-                var index = entry.Views.FindIndex(v => v.Name == pending.View);
-                if (index < 0)
+                // A standalone index attaches to a table (the same as an inline index) or a materialized view.
+                var tableIndex = entry.Tables.FindIndex(t => t.Name == pending.Relation);
+                if (tableIndex >= 0)
                 {
-                    throw new DdlSyntaxException($"CREATE INDEX references unknown materialized view '{pending.Schema}.{pending.View}'.", pending.Position);
+                    var table = entry.Tables[tableIndex];
+                    if (table.Indexes.Any(i => string.Equals(i.Name, pending.Index.Name, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        throw new DdlSyntaxException($"Index '{pending.Index.Name}' on '{qualified}' is already declared.", pending.Position);
+                    }
+                    entry.Tables[tableIndex] = table with { Indexes = [.. table.Indexes, pending.Index] };
+                    continue;
                 }
 
-                var view = entry.Views[index];
+                var viewIndex = entry.Views.FindIndex(v => v.Name == pending.Relation);
+                if (viewIndex < 0)
+                {
+                    throw new DdlSyntaxException($"CREATE INDEX references unknown table or materialized view '{qualified}'.", pending.Position);
+                }
+
+                var view = entry.Views[viewIndex];
                 if (!view.IsMaterialized)
                 {
-                    throw new DdlSyntaxException($"CREATE INDEX targets '{pending.Schema}.{pending.View}', which is not a materialized view (only materialized views can carry standalone indexes; table indexes are inline).", pending.Position);
+                    throw new DdlSyntaxException($"CREATE INDEX targets '{qualified}', which is not a materialized view (a plain view cannot be indexed).", pending.Position);
                 }
                 if (view.Indexes.Any(i => string.Equals(i.Name, pending.Index.Name, StringComparison.OrdinalIgnoreCase)))
                 {
-                    throw new DdlSyntaxException($"Index '{pending.Index.Name}' on '{pending.Schema}.{pending.View}' is already declared.", pending.Position);
+                    throw new DdlSyntaxException($"Index '{pending.Index.Name}' on '{qualified}' is already declared.", pending.Position);
                 }
 
-                entry.Views[index] = view with { Indexes = [.. view.Indexes, pending.Index] };
+                entry.Views[viewIndex] = view with { Indexes = [.. view.Indexes, pending.Index] };
             }
         }
 
@@ -1527,6 +1542,6 @@ internal sealed class DdlParser
 
         private readonly record struct PendingTrigger(string Schema, string Table, Trigger Trigger, SourcePosition Position);
 
-        private readonly record struct PendingViewIndex(string Schema, string View, TableIndex Index, SourcePosition Position);
+        private readonly record struct PendingIndex(string Schema, string Relation, TableIndex Index, SourcePosition Position);
     }
 }
