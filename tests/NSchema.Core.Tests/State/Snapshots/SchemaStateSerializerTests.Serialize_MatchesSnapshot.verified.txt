@@ -371,6 +371,61 @@ $$,
         droppedDomains: [
           stale_domain
         ],
+        compositeTypes: [
+          {
+            name: address,
+            oldName: legacy_address,
+            comment: a postal address,
+            fields: [
+              {
+                name: street,
+                dataType: {
+                  name: text,
+                  length: null,
+                  precision: null,
+                  scale: null
+                }
+              },
+              {
+                name: zip,
+                dataType: {
+                  name: int,
+                  length: null,
+                  precision: null,
+                  scale: null
+                }
+              }
+            ]
+          },
+          {
+            name: money_amount,
+            oldName: null,
+            comment: null,
+            fields: [
+              {
+                name: amount,
+                dataType: {
+                  name: decimal,
+                  length: null,
+                  precision: 18,
+                  scale: 2
+                }
+              },
+              {
+                name: currency,
+                dataType: {
+                  name: text,
+                  length: null,
+                  precision: null,
+                  scale: null
+                }
+              }
+            ]
+          }
+        ],
+        droppedCompositeTypes: [
+          stale_type
+        ],
         grants: [
           {
             role: app_role

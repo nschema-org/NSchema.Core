@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using NSchema.Diff.Model;
 using NSchema.Plan.Model.Columns;
+using NSchema.Plan.Model.CompositeTypes;
 using NSchema.Plan.Model.Constraints;
 using NSchema.Plan.Model.Enums;
 using NSchema.Plan.Model.Domains;
@@ -75,8 +76,19 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
                     SequenceDiff => nameof(DropSequence),
                     RoutineDiff => nameof(DropRoutine),
                     DomainDiff => nameof(DropDomain),
+                    CompositeTypeDiff => nameof(DropCompositeType),
                     _ => throw new ArgumentOutOfRangeException(nameof(diff), $"Unhandled object diff type: {obj.GetType().Name}"),
                 };
+            }
+
+            // Dropping a field from a composite type removes that attribute from every row of every table whose
+            // column uses the type, so it is destructive — the analogue of dropping a column.
+            foreach (var type in schema.CompositeTypes.Where(t => t.Kind != ChangeKind.Remove))
+            {
+                foreach (var field in type.Fields.Where(f => f.Kind == ChangeKind.Remove))
+                {
+                    yield return nameof(DropCompositeField);
+                }
             }
 
             foreach (var table in schema.Tables)

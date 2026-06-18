@@ -5,6 +5,7 @@ using NSchema.Plan.Model.Tables;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.CompositeTypes;
 using NSchema.Schema.Model.Constraints;
 using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
@@ -138,7 +139,14 @@ public static class TestData
                     new Domain("positive_amount", SqlType.Decimal(18, 2), Default: "0", NotNull: true,
                         Checks: [new CheckConstraint("positive_amount_chk", "VALUE >= 0")]),
                 ],
-                DroppedDomains: ["stale_domain"]),
+                DroppedDomains: ["stale_domain"],
+                CompositeTypes:
+                [
+                    new CompositeType("address", [new CompositeField("street", SqlType.Text), new CompositeField("zip", SqlType.Int)],
+                        OldName: "legacy_address", Comment: "a postal address"),
+                    new CompositeType("money_amount", [new CompositeField("amount", SqlType.Decimal(18, 2)), new CompositeField("currency", SqlType.Text)]),
+                ],
+                DroppedCompositeTypes: ["stale_type"]),
         ],
         DroppedSchemas: ["scratch"],
         Extensions:

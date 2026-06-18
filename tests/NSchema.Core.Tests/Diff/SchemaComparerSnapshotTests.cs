@@ -3,6 +3,7 @@ using NSchema.Diff;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.CompositeTypes;
 using NSchema.Schema.Model.Constraints;
 using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
@@ -71,6 +72,11 @@ public sealed class SchemaComparerSnapshotTests
                 [
                     new Domain("code", SqlType.Text),
                     new Domain("stale_domain", SqlType.Int),
+                ],
+                CompositeTypes:
+                [
+                    new CompositeType("address", [new CompositeField("street", SqlType.Text), new CompositeField("zip", SqlType.Int), new CompositeField("old_field", SqlType.Text)]),
+                    new CompositeType("stale_type", [new CompositeField("a", SqlType.Int)]),
                 ]),
             new SchemaDefinition("scratch"),
         ],
@@ -133,6 +139,13 @@ public sealed class SchemaComparerSnapshotTests
                 [
                     new Domain("code", SqlType.VarChar(8)),
                     new Domain("postal_code", SqlType.Text, NotNull: true),
+                ],
+                // Composite types: address retypes a field + adds one + drops one (all in place), stale_type
+                // is dropped, and coords is added.
+                CompositeTypes:
+                [
+                    new CompositeType("address", [new CompositeField("street", SqlType.VarChar(120)), new CompositeField("zip", SqlType.Int), new CompositeField("country", SqlType.Text)]),
+                    new CompositeType("coords", [new CompositeField("lat", SqlType.Decimal(9, 6)), new CompositeField("lng", SqlType.Decimal(9, 6))]),
                 ]),
             new SchemaDefinition("reporting", Comment: "analytics"),
         ],

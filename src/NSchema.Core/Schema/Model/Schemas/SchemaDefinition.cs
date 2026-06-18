@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using NSchema.Schema.Model.CompositeTypes;
 using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Routines;
@@ -28,6 +29,8 @@ namespace NSchema.Schema.Model.Schemas;
 /// <param name="DroppedRoutines">A list of routines that have been dropped from the schema.</param>
 /// <param name="Domains">A list of domains that are part of the schema.</param>
 /// <param name="DroppedDomains">A list of domains that have been dropped from the schema.</param>
+/// <param name="CompositeTypes">A list of composite types that are part of the schema.</param>
+/// <param name="DroppedCompositeTypes">A list of composite types that have been dropped from the schema.</param>
 [DebuggerDisplay("{Name,nq} ({Tables.Count} tables)")]
 public record SchemaDefinition(
     string Name,
@@ -46,7 +49,9 @@ public record SchemaDefinition(
     IReadOnlyList<Routine>? Routines = null,
     IReadOnlyList<string>? DroppedRoutines = null,
     IReadOnlyList<Domain>? Domains = null,
-    IReadOnlyList<string>? DroppedDomains = null
+    IReadOnlyList<string>? DroppedDomains = null,
+    IReadOnlyList<CompositeType>? CompositeTypes = null,
+    IReadOnlyList<string>? DroppedCompositeTypes = null
 ) : IRenameableObject
 {
     /// <summary>
@@ -109,6 +114,16 @@ public record SchemaDefinition(
     /// A list of domains that have been dropped from the schema.
     /// </summary>
     public IReadOnlyList<string> DroppedDomains { get; init; } = DroppedDomains ?? [];
+
+    /// <summary>
+    /// A list of composite types that are part of the schema.
+    /// </summary>
+    public IReadOnlyList<CompositeType> CompositeTypes { get; init; } = CompositeTypes ?? [];
+
+    /// <summary>
+    /// A list of composite types that have been dropped from the schema.
+    /// </summary>
+    public IReadOnlyList<string> DroppedCompositeTypes { get; init; } = DroppedCompositeTypes ?? [];
 
     /// <summary>
     /// A list of grants that define the permissions associated with the schema.

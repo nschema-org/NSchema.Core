@@ -57,6 +57,11 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
                 RenderDomain(sb, domain);
             }
 
+            foreach (var compositeType in schema.CompositeTypes)
+            {
+                RenderCompositeType(sb, compositeType);
+            }
+
             foreach (var sequence in schema.Sequences)
             {
                 RenderSequence(sb, sequence);
@@ -317,6 +322,36 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
         foreach (var check in domain.Checks)
         {
             AppendDetail(sb, check.Kind, $"check {check.Name}");
+        }
+    }
+
+    private void RenderCompositeType(StringBuilder sb, CompositeTypeDiff type)
+    {
+        var name = type.RenamedFrom is null
+            ? $"{type.Schema}.{type.Name}"
+            : $"{type.Schema}.{type.RenamedFrom} → {type.Name}";
+
+        // A comment-only modify reports the comment transition rather than a bare header.
+        if (type is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only, Fields.Count: 0 })
+        {
+            AppendHeader(sb, ChangeKind.Modify, $"type {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            return;
+        }
+
+        var fields = type is { Kind: ChangeKind.Add, Definition: { } definition }
+            ? $" ({string.Join(", ", definition.Fields.Select(f => $"{f.Name} {f.DataType}"))})"
+            : string.Empty;
+        AppendHeader(sb, type.Kind, $"type {name}{fields}{CommentSuffix(type.Comment)}");
+
+        foreach (var field in type.Fields)
+        {
+            var text = field switch
+            {
+                { Kind: ChangeKind.Add, Definition: { } def } => $"field {def.Name} {def.DataType}",
+                { Kind: ChangeKind.Modify, Type: { } change } => $"field {field.Name} type: {change.Old} → {change.New}",
+                _ => $"field {field.Name}",
+            };
+            AppendDetail(sb, field.Kind, text);
         }
     }
 

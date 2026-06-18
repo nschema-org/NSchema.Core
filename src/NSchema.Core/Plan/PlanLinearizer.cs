@@ -2,6 +2,7 @@ using System.Collections.Frozen;
 using NSchema.Diff.Model;
 using NSchema.Plan.Model;
 using NSchema.Plan.Model.Columns;
+using NSchema.Plan.Model.CompositeTypes;
 using NSchema.Plan.Model.Constraints;
 using NSchema.Plan.Model.Domains;
 using NSchema.Plan.Model.Enums;
@@ -57,6 +58,14 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(AlterDomainNotNull),
         typeof(AddDomainCheck),
         typeof(DropDomainCheck),
+        // Composite types are types used by columns too, so they are created (and renamed/altered) before any
+        // table change. Every change applies in place (ALTER TYPE) — there is no recreate — and renames precede
+        // field changes so an add/retype targets the final name.
+        typeof(RenameCompositeType),
+        typeof(CreateCompositeType),
+        typeof(AddCompositeField),
+        typeof(AlterCompositeFieldType),
+        typeof(DropCompositeField),
         // Routines are created/recreated/renamed before any table change because column DEFAULTs and CHECK
         // constraints may call them, and after enums/sequences because their args and bodies may use those.
         // Renames precede creates/recreates so a recreate targets the final name.
@@ -96,6 +105,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(SetSequenceComment),
         typeof(SetRoutineComment),
         typeof(SetDomainComment),
+        typeof(SetCompositeTypeComment),
         typeof(SetExtensionComment),
         typeof(DropTable),
         // Routines are dropped after the tables whose defaults/checks called them, and before the enums their
@@ -103,6 +113,8 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(DropRoutine),
         // Domains are dropped after the tables whose columns used them, alongside enums and sequences.
         typeof(DropDomain),
+        // Composite types drop after the tables whose columns used them, alongside domains/enums/sequences.
+        typeof(DropCompositeType),
         typeof(DropEnum),
         typeof(DropSequence),
         typeof(DropSchema),
@@ -252,6 +264,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitSequences(schema, actions);
                 EmitRoutines(schema, actions);
                 EmitDomains(schema, actions);
+                EmitCompositeTypes(schema, actions);
                 foreach (var table in schema.Tables)
                 {
                     EmitTable(table, actions);
@@ -272,6 +285,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitSequences(schema, actions);
                 EmitRoutines(schema, actions);
                 EmitDomains(schema, actions);
+                EmitCompositeTypes(schema, actions);
                 foreach (var table in schema.Tables)
                 {
                     EmitTable(table, actions);
@@ -367,6 +381,46 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             if (domain.Kind != ChangeKind.Remove && domain.Comment is not null)
             {
                 actions.Add(new SetDomainComment(domain.Schema, domain.Name, domain.Comment.Old, domain.Comment.New));
+            }
+        }
+    }
+
+    private static void EmitCompositeTypes(SchemaDiff schema, List<MigrationAction> actions)
+    {
+        foreach (var type in schema.CompositeTypes)
+        {
+            switch (type.Kind)
+            {
+                case ChangeKind.Add:
+                    actions.Add(new CreateCompositeType(type.Schema, type.Definition!));
+                    break;
+
+                case ChangeKind.Remove:
+                    actions.Add(new DropCompositeType(type.Schema, type.Name));
+                    break;
+
+                default: // Modify
+                    if (type.RenamedFrom is not null)
+                    {
+                        actions.Add(new RenameCompositeType(type.Schema, type.RenamedFrom, type.Name));
+                    }
+                    // Every field change applies in place: a matched field whose type differs is retyped, a missing
+                    // field is dropped, a new field is added. There is no recreate.
+                    foreach (var field in type.Fields)
+                    {
+                        actions.Add(field.Kind switch
+                        {
+                            ChangeKind.Remove => new DropCompositeField(type.Schema, type.Name, field.Name),
+                            ChangeKind.Modify => new AlterCompositeFieldType(type.Schema, type.Name, field.Name, field.Type!.Old!, field.Type.New!),
+                            _ => new AddCompositeField(type.Schema, type.Name, field.Definition!),
+                        });
+                    }
+                    break;
+            }
+
+            if (type.Kind != ChangeKind.Remove && type.Comment is not null)
+            {
+                actions.Add(new SetCompositeTypeComment(type.Schema, type.Name, type.Comment.Old, type.Comment.New));
             }
         }
     }

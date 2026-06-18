@@ -318,6 +318,56 @@
           Kind: Remove,
           RequiresRecreate: false
         }
+      ],
+      CompositeTypes: [
+        {
+          Schema: app,
+          Name: address,
+          Kind: Modify,
+          Fields: [
+            {
+              Kind: Modify,
+              Name: street,
+              Type: {
+                Old: text,
+                New: varchar(120)
+              }
+            },
+            {
+              Kind: Remove,
+              Name: old_field
+            },
+            {
+              Name: country,
+              Definition: {
+                Name: country,
+                DataType: text
+              }
+            }
+          ]
+        },
+        {
+          Schema: app,
+          Name: coords,
+          Definition: {
+            Name: coords,
+            Fields: [
+              {
+                Name: lat,
+                DataType: decimal(9,6)
+              },
+              {
+                Name: lng,
+                DataType: decimal(9,6)
+              }
+            ]
+          }
+        },
+        {
+          Schema: app,
+          Name: stale_type,
+          Kind: Remove
+        }
       ]
     },
     {

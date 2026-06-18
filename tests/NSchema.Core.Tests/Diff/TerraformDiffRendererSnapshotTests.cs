@@ -3,6 +3,7 @@ using NSchema.Diff;
 using NSchema.Diff.Model;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.CompositeTypes;
 using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
@@ -281,8 +282,34 @@ public sealed class TerraformDiffRendererSnapshotTests
     [Fact]
     public Task Render_EnumChanges_PlainText() => Verify(Render(EnumChangesDiff(), colour: false));
 
+    private static DatabaseDiff CompositeTypeChangesDiff()
+    {
+        return new DatabaseDiff(
+            Schemas:
+            [
+                new SchemaDiff("app", CompositeTypes:
+                [
+                    new CompositeTypeDiff("app", "address", ChangeKind.Add,
+                        Definition: new CompositeType("address", [new CompositeField("street", SqlType.Text), new CompositeField("zip", SqlType.Int)]),
+                        Comment: new ValueChange<string>(null, "a postal address")),
+                    new CompositeTypeDiff("app", "money", ChangeKind.Modify, Fields:
+                    [
+                        new CompositeFieldDiff(ChangeKind.Add, "currency", new CompositeField("currency", SqlType.Text)),
+                        new CompositeFieldDiff(ChangeKind.Modify, "amount", Type: new ValueChange<SqlType>(SqlType.Int, SqlType.Decimal(18, 2))),
+                        new CompositeFieldDiff(ChangeKind.Remove, "legacy"),
+                    ]),
+                    new CompositeTypeDiff("app", "renamed_t", ChangeKind.Modify, RenamedFrom: "old_t"),
+                    new CompositeTypeDiff("app", "noted", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new")),
+                    new CompositeTypeDiff("app", "stale_t", ChangeKind.Remove),
+                ]),
+            ]);
+    }
+
     [Fact]
     public Task Render_DomainChanges_PlainText() => Verify(Render(DomainChangesDiff(), colour: false));
+
+    [Fact]
+    public Task Render_CompositeTypeChanges_PlainText() => Verify(Render(CompositeTypeChangesDiff(), colour: false));
 
     [Fact]
     public Task Render_ExtensionChanges_PlainText() => Verify(Render(ExtensionChangesDiff(), colour: false));
