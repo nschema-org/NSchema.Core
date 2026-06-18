@@ -376,6 +376,20 @@ public sealed class DdlParserTests
         schema.Views.ShouldHaveSingleItem().Body.ShouldBe("SELECT ';' AS marker FROM app.t");
     }
 
+    [Fact]
+    public void Parse_ViewBodyWithSemicolonInComment_StopsAtRealTerminator_AndKeepsTheComment()
+    {
+        // A ';' inside a line comment is not a terminator (the lexer skips the comment, so no ';' token is produced),
+        // and the comment text survives verbatim because the body is recovered by slicing the source.
+        var schema = ParseSingleSchema("CREATE SCHEMA app; CREATE VIEW app.v AS SELECT 1 -- a; b\nFROM app.t;");
+        schema.Views.ShouldHaveSingleItem().Body.ShouldBe("SELECT 1 -- a; b\nFROM app.t");
+    }
+
+    [Fact]
+    public void Parse_ViewBodyWithSemicolonInBlockComment_StopsAtRealTerminator()
+        => ParseSingleSchema("CREATE SCHEMA app; CREATE VIEW app.v AS SELECT 1 /* a; b */ FROM app.t;")
+            .Views.ShouldHaveSingleItem().Body.ShouldBe("SELECT 1 /* a; b */ FROM app.t");
+
     // -------------------------------------------------------------------------
     // Enums
     // -------------------------------------------------------------------------

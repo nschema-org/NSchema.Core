@@ -188,9 +188,7 @@ internal sealed partial class DdlParser
         ExpectKeyword("AS");
 
         // The body is captured verbatim; its FROM/JOIN targets become the view's dependencies.
-        _lexer.ResetTo(_current.Position);
-        var body = _lexer.ReadRawSpan("a view body", ";");
-        _current = _lexer.Next();
+        var body = CaptureRawSpan("a view body", [TokenKind.Semicolon]);
         Expect(TokenKind.Semicolon, "';' to end the view definition");
 
         var dependsOn = ViewDependencyExtractor.Extract(body, schemaName);
@@ -244,10 +242,8 @@ internal sealed partial class DdlParser
     /// </summary>
     private (string Arguments, string Definition) ReadRoutineArgumentsAndDefinition(string what)
     {
-        _lexer.ResetTo(_current.Position);
-        var arguments = _lexer.ReadParenthesizedExpression();
-        var definition = _lexer.ReadRawSpan(what, ";");
-        _current = _lexer.Next();
+        var arguments = CaptureParenthesized();
+        var definition = CaptureRawSpan(what, [TokenKind.Semicolon]);
         return (arguments, definition);
     }
 
@@ -322,9 +318,7 @@ internal sealed partial class DdlParser
             {
                 Advance();
                 // The default is opaque and read to the terminating ';', so it must be the final clause.
-                _lexer.ResetTo(_current.Position);
-                @default = _lexer.ReadRawSpan("a domain default", ";");
-                _current = _lexer.Next();
+                @default = CaptureRawSpan("a domain default", [TokenKind.Semicolon]);
             }
             else
             {
@@ -526,9 +520,7 @@ internal sealed partial class DdlParser
         }
 
         // The argument list is captured verbatim (opaque), like a routine's; usually empty for a trigger function.
-        _lexer.ResetTo(_current.Position);
-        var arguments = _lexer.ReadParenthesizedExpression();
-        _current = _lexer.Next();
+        var arguments = CaptureParenthesized();
 
         Expect(TokenKind.Semicolon, "';'");
 
@@ -880,12 +872,10 @@ internal sealed partial class DdlParser
             throw Error($"Expected WITH after an exclusion element, found '{_current.Text}'.");
         }
 
-        // The operator is opaque (=, &&, <>, …) and may use characters the lexer does not tokenise (e.g. '&'), so
-        // "WITH <operator>" is read as raw text from the WITH keyword up to the element separator or list close,
-        // then the leading WITH is stripped. Reading raw avoids advancing the lexer onto the operator.
-        _lexer.ResetTo(_current.Position);
-        var raw = _lexer.ReadRawSpan("an exclusion operator", ",)");
-        _current = _lexer.Next();
+        // The operator is opaque (=, &&, <>, …) and uses characters lexed as Symbol tokens, so "WITH <operator>" is
+        // captured verbatim from the WITH keyword up to the element separator or list close, then the leading WITH is
+        // stripped.
+        var raw = CaptureRawSpan("an exclusion operator", [TokenKind.Comma, TokenKind.RightParen]);
         var @operator = raw.TrimStart()["WITH".Length..].Trim();
 
         return new ExclusionElement(expression, @operator, isExpression);
@@ -1020,15 +1010,10 @@ internal sealed partial class DdlParser
     /// unparenthesised DEFAULT value otherwise (terminated by the enclosing column list's <c>,</c> / <c>)</c> or a
     /// <c>RENAMED</c> clause). Re-syncs the lookahead afterwards.
     /// </summary>
-    private string ReadRawExpression(bool parenthesised)
-    {
-        _lexer.ResetTo(_current.Position);
-        var expression = parenthesised
-            ? _lexer.ReadParenthesizedExpression()
-            : _lexer.ReadRawSpan("a default expression", ",)", "RENAMED");
-        _current = _lexer.Next();
-        return expression;
-    }
+    private string ReadRawExpression(bool parenthesised) =>
+        parenthesised
+            ? CaptureParenthesized()
+            : CaptureRawSpan("a default expression", [TokenKind.Comma, TokenKind.RightParen], "RENAMED");
 
     private string? TryParseRenamedFrom()
     {
