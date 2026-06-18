@@ -19,7 +19,7 @@ public sealed class MigrationWorkflowTests
     private readonly ISchemaStateSerializer _stateSerializer = new SchemaStateSerializer();
 
     private MigrationWorkflow BuildSut(ISchemaStateStore? store = null) =>
-        new(_planner, Helpers.TestReporters.ResolverFor(_reporter), _currentProvider, _desiredProvider, _stateSerializer, store);
+        new(_planner, _reporter, _currentProvider, _desiredProvider, _stateSerializer, store);
 
     private static DesiredProject Project(DatabaseSchema schema) => new(schema, []);
 

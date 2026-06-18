@@ -14,8 +14,6 @@ namespace NSchema.Operations;
 /// </summary>
 internal sealed class DefaultOperationReporter : IOperationReporter
 {
-    public const string ReporterName = "default";
-
     private readonly TextWriter _output;
     private readonly TextWriter _error;
     private readonly IDiffRenderer _diffRenderer;

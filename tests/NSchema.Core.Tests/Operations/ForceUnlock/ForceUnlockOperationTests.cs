@@ -17,7 +17,7 @@ public sealed class ForceUnlockOperationTests
         _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(true);
     }
 
-    private ForceUnlockOperation BuildSut() => new(TestReporters.ResolverFor(_reporter), _confirmation, _stateLock);
+    private ForceUnlockOperation BuildSut() => new(_reporter, _confirmation, _stateLock);
 
     [Fact]
     public async Task Execute_ForciblyReleasesTheLock()

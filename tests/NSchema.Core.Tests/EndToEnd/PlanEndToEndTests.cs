@@ -28,8 +28,8 @@ public sealed class PlanEndToEndTests : IDisposable
 
     private NSchemaApplicationBuilder NewBuilder(DatabaseSchema current)
     {
-        var builder = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions { Reporter = RecordingReporter.FormatName });
-        builder.AddReporter(RecordingReporter.FormatName, _reporter);
+        var builder = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions());
+        builder.UseReporter(_reporter);
         builder.Services.AddKeyedSingleton<ISchemaProvider>(NSchemaKeys.OnlineSchemaProvider, new InMemorySchemaProvider(current));
         return builder;
     }
@@ -101,8 +101,7 @@ public sealed class PlanEndToEndTests : IDisposable
 
         using var app = NewBuilder(current)
             .AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired))
-            .AddSqlGenerator<StubSqlGenerator>(StubSqlGenerator.DialectName)
-            .WithDialect(StubSqlGenerator.DialectName)
+            .UseSqlGenerator<StubSqlGenerator>()
             .Build();
 
         await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);

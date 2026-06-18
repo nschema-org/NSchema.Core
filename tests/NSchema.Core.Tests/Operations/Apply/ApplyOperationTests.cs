@@ -28,11 +28,11 @@ public sealed class ApplyOperationTests
     private readonly SqlPlan _sqlPlan = new([new SqlStatement("CREATE SCHEMA app")]);
 
     private ApplyOperation BuildSut(ISqlGenerator? planner, ISqlExecutor? executor) => new(
-        Helpers.TestReporters.ResolverFor(_reporter),
+        _reporter,
         _confirmation, _workflow,
-        Helpers.TestSqlGenerators.ResolverFor(planner),
         _stateLock,
         new PlanFileWriter(),
+        planner,
         executor
     );
 

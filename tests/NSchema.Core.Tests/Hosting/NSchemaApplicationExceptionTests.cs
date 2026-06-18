@@ -14,7 +14,7 @@ public sealed class NSchemaApplicationExceptionTests
     {
         var builder = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions { ExceptionBehavior = behavior });
         builder.Services.AddSingleton(_applyOp);
-        builder.AddReporter(DefaultOperationReporter.ReporterName, _reporter);
+        builder.UseReporter(_reporter);
         return builder.Build();
     }
 

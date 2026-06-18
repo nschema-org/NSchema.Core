@@ -22,7 +22,6 @@ using NSchema.Operations.Show;
 using NSchema.Operations.Validate;
 using NSchema.Plan;
 using NSchema.Plan.PlanFile;
-using NSchema.Resolution;
 using NSchema.Schema;
 using NSchema.Schema.Policies;
 using NSchema.Sql;
@@ -62,9 +61,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         _innerBuilder.Services.AddSingleton(Options.Create(options));
         _innerBuilder.Services.AddOptions<DestructiveActionOptions>();
         _innerBuilder.Services.AddOptions<TerraformDiffRendererOptions>();
-
-        // Register built-in keyed implementations (last-registration-wins).
-        AddReporter<DefaultOperationReporter>(DefaultOperationReporter.ReporterName);
 
         // Policies registered up front so users can remove them before Build().
         AddSchemaPolicy<StructuralIntegritySchemaPolicy>();
@@ -117,7 +113,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Operations
         services.TryAddSingleton<IMigrationWorkflow, MigrationWorkflow>();
         services.TryAddSingleton<IOperationConfirmation, AutoApproveConfirmation>();
-        services.TryAddSingleton<IKeyedResolver<IOperationReporter>>(sp => new KeyedResolver<IOperationReporter, NSchemaApplicationOptions>(sp, o => o.Reporter));
+        services.TryAddSingleton<IOperationReporter, DefaultOperationReporter>();
         services.TryAddSingleton<IPlanOperation, PlanOperation>();
         services.TryAddSingleton<IPlanDestroyOperation, PlanDestroyOperation>();
         services.TryAddSingleton<IApplyOperation, ApplyOperation>();
@@ -142,7 +138,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // SQL
         services.TryAddSingleton<ISqlPlanRenderer, DefaultSqlPlanRenderer>();
         services.TryAddSingleton<ISqlExecutor, SqlExecutor>();
-        services.TryAddSingleton<IKeyedResolver<ISqlGenerator>>(sp => new KeyedResolver<ISqlGenerator, SqlOptions>(sp, o => o.Dialect));
 
         // State
         services.TryAddSingleton<ISchemaStateSerializer, SchemaStateSerializer>();

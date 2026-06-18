@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 This release is a big rewrite converting `NSchema` package into `NSchema.Core` to allow the NSchema CLI tool to take the `NSchema` package name.
 
-Alongside new reporting, diff rendering, and interactive controls, I've reorganized the codebase into clearer top-level namespaces and split SQL generation from execution so that plans can be previewed entirely offline. Output formats, SQL dialects, and schema file formats are now pluggable: you register several implementations and select one per run by key.
+Alongside new reporting, diff rendering, and interactive controls, I've reorganized the codebase into clearer top-level namespaces and split SQL generation from execution so that plans can be previewed entirely offline. The reporter, SQL generator, diff renderer, and schema source are each replaceable, one per run.
 
 Planning and applying behavior are the same as before, but most public types have moved namespaces and a few have been renamed, so you'll need to update your `using` directives (and a handful of type names) when upgrading.
 
@@ -20,8 +20,8 @@ Planning and applying behavior are the same as before, but most public types hav
 - `UseTerraformRenderer(...)` to configure the default Terraform-style renderer.
 - SQL previews are now structured too. `ISqlPlanRenderer` renders a `SqlPlan` to text, mirroring `IDiffRenderer`.
 - `PolicyDiagnostics`, a collection type for policy results, with a `PolicyDiagnosticSeverity` of `Info`, `Warning`, or `Error`.
-- Pluggable output formats. `IOperationReporter` now carries a `Format`, so several reporters can be registered with `AddReporter<T>(format)` / `AddReporter(format, instance)` and one chosen per run via `NSchemaApplicationOptions.Reporter`. The built-in human-readable `default` reporter remains the default.
-- Selectable SQL dialects. `ISqlGenerator` now carries a `Dialect`, so several generators can be registered with `AddSqlGenerator<T>(dialect)` and one chosen per run via `WithDialect(...)` (`SqlOptions.Dialect`).
+- A pluggable `IOperationReporter`. The application reports through a single reporter, registered directly and replaced via `UseReporter<T>()` / `UseReporter(instance)`. The built-in human-readable `DefaultOperationReporter` is used unless replaced. (A front-end that offers multiple output formats — e.g. text vs. JSON — selects the reporter itself at build time; the core does not key reporters.)
+- A pluggable `ISqlGenerator`. SQL generation is a separate seam from execution, registered via `UseSqlGenerator<T>()` (typically by a database-provider extension). It is optional: with none registered, plans are reported without a SQL preview.
 - `Import` operation. Reads the live database schema and writes it to the local filesystem as desired-schema source files. Triggered via `app.Import(...)`.
 - `Validate` operation. Reads the desired schema and validates it against all registered `ISchemaPolicy` implementations. Triggered via `app.Validate(...)`.
 - `Destroy` operation. Destroys all managed objects in the target database. Triggered via `app.Destroy(...)`. Use with extreme caution.
@@ -49,9 +49,8 @@ Planning and applying behavior are the same as before, but most public types hav
 - **Breaking:** The single migration-operation seam has been replaced by one internal handler per operation, each with an `Execute(<Operation>Arguments, …)` method. Operations are invoked by calling the matching method on the built application (`app.Plan()`, `app.Apply()`, …); per-run inputs are passed via the public arguments records (`PlanArguments`, `ApplyArguments`, …). `IMigrationConfirmation` is now `IOperationConfirmation`.
 - **Breaking:** Schema scoping is now a per-operation argument (`PlanArguments.Schemas` / `ApplyArguments.Schemas` / `ValidateArguments.Schemas`) rather than the ambient `MigrationOptions.SchemaNames` / `ForSchemas(...)`, which are removed.
 - **Breaking:** The plan-stage extension points are now named for the stage, matching `ISchemaPolicy` / `IDiffPolicy`: `IMigrationPlanTransformer` is now `IPlanTransformer`, `IMigrationPolicy` is now `IPlanPolicy` (registered with `AddPlanPolicy<T>()`, was `AddMigrationPolicy<T>()`), and `IMigrationLinearizer` is now `IPlanLinearizer`. They live in `NSchema.Plan` alongside the `MigrationPlan` model.
-- **Breaking:** `ISqlPlanner` is now `ISqlGenerator`, and its `Plan(MigrationPlan)` method is now `Generate(MigrationPlan)`. Register it with `AddSqlGenerator<T>(dialect)` (was `UseSqlPlanner<T>()`). It also now requires a `Dialect` property so generators can be selected by dialect.
-- **Breaking:** `UseSqlGenerator<T>()` has been renamed to `AddSqlGenerator<T>(dialect)`, matching the other additive registration methods.
-- **Breaking:** `IMigrationReporter` is now `IOperationReporter` (in `NSchema.Operations`). It also now requires a `Format` property so reporters can be selected by output format; custom reporters must supply one.
+- **Breaking:** `ISqlPlanner` is now `ISqlGenerator`, and its `Plan(MigrationPlan)` method is now `Generate(MigrationPlan)`. Register it with `UseSqlGenerator<T>()` (was `UseSqlPlanner<T>()`). There is one generator per run.
+- **Breaking:** `IMigrationReporter` is now `IOperationReporter` (in `NSchema.Operations`). There is one reporter per run, replaced via `UseReporter<T>()` / `UseReporter(instance)`.
 - **Breaking:** `IOperationReporter.ReportPreview(IReadOnlyList<string>)` is now `ReportSqlPlan(SqlPlan)`, so the reporter receives the structured plan and renders it via `ISqlPlanRenderer` rather than a pre-flattened list of strings.
 - **Breaking:** `IOperationReporter`'s `ReportPlan(MigrationPlan)` has been replaced by `ReportDiff(DatabaseDiff)`. The plan is converted to a structured diff before it is reported.
 - **Breaking:** `IOperationReporter` gained a `ReportSchema(DatabaseSchema)` method, which presents a single schema state (used by the `Show` operation). Custom reporters must implement it.

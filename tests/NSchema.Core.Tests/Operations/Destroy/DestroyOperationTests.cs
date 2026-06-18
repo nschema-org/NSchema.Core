@@ -26,10 +26,10 @@ public sealed class DestroyOperationTests
     private readonly SqlPlan _sqlPlan = new([new SqlStatement("DROP SCHEMA app")]);
 
     private DestroyOperation BuildSut(ISqlGenerator? generator, ISqlExecutor? executor) => new(
-        Helpers.TestReporters.ResolverFor(_reporter),
+        _reporter,
         _confirmation, _workflow,
-        Helpers.TestSqlGenerators.ResolverFor(generator),
         _stateLock,
+        generator,
         executor
     );
 

@@ -21,8 +21,7 @@ public sealed class PlanOperationTests
     private readonly SqlPlan _sqlPlan = new([new SqlStatement("CREATE SCHEMA app")]);
 
     private PlanOperation BuildSut(ISqlGenerator? planner) =>
-        new(Helpers.TestReporters.ResolverFor(_reporter), _workflow, Helpers.TestSqlGenerators.ResolverFor(planner),
-            new PlanFileWriter());
+        new(_reporter, _workflow, new PlanFileWriter(), planner);
 
     private readonly PlanOperation _sut;
 
