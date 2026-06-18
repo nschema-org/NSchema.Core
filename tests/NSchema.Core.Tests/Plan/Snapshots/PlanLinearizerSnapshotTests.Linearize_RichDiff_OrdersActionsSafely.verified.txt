@@ -4,6 +4,7 @@
     Action: {
       SchemaName: app,
       ViewName: stale_view,
+      IsMaterialized: false,
       IsDestructive: true
     }
   },
@@ -146,6 +147,7 @@
       SchemaName: app,
       OldName: legacy_report,
       NewName: report,
+      IsMaterialized: false,
       IsDestructive: false
     }
   },
@@ -312,6 +314,7 @@
       View: {
         Name: active_users,
         Body: SELECT * FROM app.users,
+        IsMaterialized: false,
         DependsOn: [
           {
             Schema: app,
@@ -329,6 +332,7 @@
       View: {
         Name: user_summary,
         Body: SELECT * FROM app.active_users,
+        IsMaterialized: false,
         DependsOn: [
           {
             Schema: app,

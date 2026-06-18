@@ -60,6 +60,11 @@ CREATE TRIGGER users_stamp BEFORE UPDATE ON app.users FOR EACH STATEMENT EXECUTE
 CREATE VIEW app.active_users AS SELECT id, name FROM app.users WHERE balance > 0;
 
 CREATE VIEW app.user_directory RENAMED FROM legacy_directory AS SELECT name FROM app.active_users;
+
+--- balances rollup
+CREATE MATERIALIZED VIEW app.daily_balances AS SELECT name, balance FROM app.users;
+--- by name
+CREATE UNIQUE INDEX daily_balances_name_ix ON app.daily_balances (name);
 DROP TABLE app.old_table;
 DROP VIEW app.stale_report;
 DROP ENUM app.stale_enum;

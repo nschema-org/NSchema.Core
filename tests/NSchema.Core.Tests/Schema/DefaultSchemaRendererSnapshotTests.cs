@@ -74,6 +74,10 @@ public sealed class DefaultSchemaRendererSnapshotTests
                 [
                     View("active_users", "SELECT id, email FROM app.users WHERE status = 'active'", comment: "currently active users"),
                     View("user_orders", "SELECT u.email, o.id FROM app.active_users u JOIN app.orders o ON o.user_id = u.id"),
+                    new View("order_totals", "SELECT user_id, count(*) FROM app.orders GROUP BY user_id",
+                        null, "per-user order counts", ViewDependencyExtractor.Extract("SELECT user_id, count(*) FROM app.orders GROUP BY user_id", "app"),
+                        IsMaterialized: true,
+                        Indexes: [new TableIndex("order_totals_user_ix", ["user_id"], IsUnique: true)]),
                 ],
                 Enums:
                 [

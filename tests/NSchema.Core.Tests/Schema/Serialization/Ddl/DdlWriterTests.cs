@@ -272,6 +272,36 @@ public sealed class DdlWriterTests
     }
 
     // -------------------------------------------------------------------------
+    // Materialized views
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Write_MaterializedView_EmitsMaterializedKeyword()
+        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app",
+            Views: [new View("daily", "SELECT 1", IsMaterialized: true)])]))
+            .ShouldContain("CREATE MATERIALIZED VIEW app.daily AS SELECT 1;");
+
+    [Fact]
+    public void Write_MaterializedViewIndex_EmitsStandaloneCreateIndex()
+        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app",
+            Views: [new View("daily", "SELECT x FROM app.t", IsMaterialized: true,
+                Indexes: [new TableIndex("daily_ix", ["x"], IsUnique: true, Predicate: "x IS NOT NULL")])])]))
+            .ShouldContain("CREATE UNIQUE INDEX daily_ix ON app.daily (x) WHERE (x IS NOT NULL);");
+
+    [Fact]
+    public void Write_MaterializedView_RoundTripsThroughParse()
+    {
+        var schema = new DatabaseSchema([new SchemaDefinition("app",
+            Views: [new View("daily", "SELECT x FROM app.t", IsMaterialized: true,
+                Indexes: [new TableIndex("daily_ix", ["x"])])])]);
+
+        var view = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema
+            .Schemas.ShouldHaveSingleItem().Views.ShouldHaveSingleItem();
+        view.IsMaterialized.ShouldBeTrue();
+        view.Indexes.ShouldHaveSingleItem().Name.ShouldBe("daily_ix");
+    }
+
+    // -------------------------------------------------------------------------
     // Enums and sequences
     // -------------------------------------------------------------------------
 

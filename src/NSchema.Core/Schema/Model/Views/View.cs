@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using NSchema.Schema.Model.Indexes;
 
 namespace NSchema.Schema.Model.Views;
 
@@ -10,17 +11,26 @@ namespace NSchema.Schema.Model.Views;
 /// <param name="OldName">The previous name of the view, if it has been renamed.</param>
 /// <param name="Comment">An optional comment or description for the view.</param>
 /// <param name="DependsOn">The objects the view reads, derived from <paramref name="Body"/>.</param>
+/// <param name="IsMaterialized">Whether this is a materialized view (stores its result set).</param>
+/// <param name="Indexes">Indexes on the view. Only materialized views carry indexes; empty for a plain view.</param>
 [DebuggerDisplay("{Name,nq} (view)")]
 public sealed record View(
     string Name,
     string Body,
     string? OldName = null,
     string? Comment = null,
-    IReadOnlyList<ViewDependency>? DependsOn = null
+    IReadOnlyList<ViewDependency>? DependsOn = null,
+    bool IsMaterialized = false,
+    IReadOnlyList<TableIndex>? Indexes = null
 ) : IRenameableObject
 {
     /// <summary>
     /// The objects the view reads, derived from <see cref="Body"/>.
     /// </summary>
     public IReadOnlyList<ViewDependency> DependsOn { get; init; } = DependsOn ?? [];
+
+    /// <summary>
+    /// Indexes on the view (materialized views only; empty for a plain view).
+    /// </summary>
+    public IReadOnlyList<TableIndex> Indexes { get; init; } = Indexes ?? [];
 }

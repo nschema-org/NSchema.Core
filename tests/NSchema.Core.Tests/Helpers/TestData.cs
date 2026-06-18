@@ -100,6 +100,9 @@ public static class TestData
                 [
                     View("active_users", "SELECT id, name FROM app.users WHERE balance > 0", comment: "currently active users"),
                     View("user_directory", "SELECT name FROM app.active_users", oldName: "legacy_directory"),
+                    MaterializedView("daily_balances", "SELECT name, balance FROM app.users",
+                        comment: "balances rollup",
+                        indexes: [new TableIndex("daily_balances_name_ix", ["name"], IsUnique: true, Comment: "by name")]),
                 ],
                 DroppedViews: ["stale_report"],
                 Enums:
@@ -146,4 +149,8 @@ public static class TestData
     /// <summary>Builds a view with dependencies derived from its body, exactly as the DDL parser would.</summary>
     private static View View(string name, string body, string? comment = null, string? oldName = null) =>
         new(name, body, oldName, comment, ViewDependencyExtractor.Extract(body, "app"));
+
+    /// <summary>Builds a materialized view (optionally with indexes), dependencies derived from its body.</summary>
+    private static View MaterializedView(string name, string body, string? comment = null, IReadOnlyList<TableIndex>? indexes = null) =>
+        new(name, body, null, comment, ViewDependencyExtractor.Extract(body, "app"), IsMaterialized: true, Indexes: indexes);
 }

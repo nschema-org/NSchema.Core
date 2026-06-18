@@ -7,7 +7,8 @@ namespace NSchema.Plan.Model.Views;
 /// <param name="ViewName">The name of the view.</param>
 /// <param name="OldComment">The previous comment, if any.</param>
 /// <param name="NewComment">The new comment, if any.</param>
-public sealed record SetViewComment(string SchemaName, string ViewName, string? OldComment, string? NewComment) : MigrationAction
+/// <param name="IsMaterialized">Whether the commented view is a materialized view.</param>
+public sealed record SetViewComment(string SchemaName, string ViewName, string? OldComment, string? NewComment, bool IsMaterialized = false) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => false;

@@ -142,10 +142,19 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
 
     private static void RenderView(StringBuilder sb, View view)
     {
-        sb.Append(Indent).Append("view ").Append(view.Name).AppendLine(CommentSuffix(view.Comment));
+        var label = view.IsMaterialized ? "materialized view" : "view";
+        sb.Append(Indent).Append(label).Append(' ').Append(view.Name).AppendLine(CommentSuffix(view.Comment));
         foreach (var dependency in view.DependsOn)
         {
             sb.Append(Indent).Append(Indent).Append("reads ").Append(dependency.Schema).Append('.').AppendLine(dependency.Name);
+        }
+        foreach (var index in view.Indexes)
+        {
+            sb.Append(Indent).Append(Indent)
+                .Append("index ").Append(index.Name)
+                .Append(" (").Append(string.Join(", ", index.ColumnNames)).Append(')')
+                .Append(index.IsUnique ? " unique" : string.Empty)
+                .AppendLine(index.Predicate is { } p ? $" where {p}" : string.Empty);
         }
     }
 

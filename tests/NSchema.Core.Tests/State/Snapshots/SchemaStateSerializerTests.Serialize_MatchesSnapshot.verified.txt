@@ -186,6 +186,7 @@
             body: SELECT id, name FROM app.users WHERE balance > 0,
             oldName: null,
             comment: currently active users,
+            isMaterialized: false,
             dependsOn: [
               {
                 schema: app,
@@ -198,10 +199,35 @@
             body: SELECT name FROM app.active_users,
             oldName: legacy_directory,
             comment: null,
+            isMaterialized: false,
             dependsOn: [
               {
                 schema: app,
                 name: active_users
+              }
+            ]
+          },
+          {
+            name: daily_balances,
+            body: SELECT name, balance FROM app.users,
+            oldName: null,
+            comment: balances rollup,
+            isMaterialized: true,
+            dependsOn: [
+              {
+                schema: app,
+                name: users
+              }
+            ],
+            indexes: [
+              {
+                name: daily_balances_name_ix,
+                isUnique: true,
+                comment: by name,
+                predicate: null,
+                columnNames: [
+                  name
+                ]
               }
             ]
           }

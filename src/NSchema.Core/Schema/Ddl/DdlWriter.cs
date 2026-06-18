@@ -358,12 +358,36 @@ public sealed class DdlWriter
     private static void WriteView(StringBuilder sb, string schemaName, View view)
     {
         WriteDocComment(sb, view.Comment, indent: "");
-        sb.Append("CREATE VIEW ").Append(schemaName).Append('.').Append(view.Name);
+        sb.Append("CREATE ");
+        if (view.IsMaterialized)
+        {
+            sb.Append("MATERIALIZED ");
+        }
+        sb.Append("VIEW ").Append(schemaName).Append('.').Append(view.Name);
         if (view.OldName is { } oldName)
         {
             sb.Append(" RENAMED FROM ").Append(oldName);
         }
         sb.Append(" AS ").Append(view.Body).AppendLine(";");
+
+        // A materialized view's indexes are standalone statements emitted after it (a plain view has none).
+        foreach (var index in view.Indexes)
+        {
+            WriteDocComment(sb, index.Comment, indent: "");
+            sb.Append("CREATE ");
+            if (index.IsUnique)
+            {
+                sb.Append("UNIQUE ");
+            }
+            sb.Append("INDEX ").Append(index.Name)
+                .Append(" ON ").Append(schemaName).Append('.').Append(view.Name)
+                .Append(" (").Append(Columns(index.ColumnNames)).Append(')');
+            if (index.Predicate is { } predicate)
+            {
+                sb.Append(" WHERE (").Append(predicate).Append(')');
+            }
+            sb.AppendLine(";");
+        }
     }
 
     private static void WriteTable(StringBuilder sb, string schemaName, Table table)

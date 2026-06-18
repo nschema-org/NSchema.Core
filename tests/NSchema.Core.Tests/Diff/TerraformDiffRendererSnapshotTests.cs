@@ -91,6 +91,16 @@ public sealed class TerraformDiffRendererSnapshotTests
                         Comment: new ValueChange<string>("old summary", "new summary")),
                     new ViewDiff("app", "report", ChangeKind.Modify, RenamedFrom: "legacy_report"),
                     new ViewDiff("app", "stale_view", ChangeKind.Remove),
+                    // Materialized views: an add (with index on the definition) and an in-place index change.
+                    new ViewDiff("app", "mv_sales", ChangeKind.Add,
+                        Definition: new View("mv_sales", "SELECT date, sum(amount) FROM app.sales GROUP BY date", IsMaterialized: true),
+                        Comment: new ValueChange<string>(null, "sales rollup"), IsMaterialized: true),
+                    new ViewDiff("app", "mv_active", ChangeKind.Modify, IsMaterialized: true,
+                        Indexes:
+                        [
+                            new IndexDiff(ChangeKind.Add, "mv_active_ix", new TableIndex("mv_active_ix", ["id"])),
+                            new IndexDiff(ChangeKind.Remove, "mv_active_old_ix"),
+                        ]),
                 ]),
             ]);
     }

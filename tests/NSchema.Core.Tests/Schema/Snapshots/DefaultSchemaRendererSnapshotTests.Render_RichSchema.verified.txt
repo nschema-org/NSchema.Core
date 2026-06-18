@@ -22,6 +22,9 @@ schema app ("application schema")
   view user_orders
     reads app.active_users
     reads app.orders
+  materialized view order_totals ("per-user order counts")
+    reads app.orders
+    index order_totals_user_ix (user_id) unique
   enum order_status (pending, shipped, delivered) ("order lifecycle")
   enum priority (low, high)
   sequence order_id (as=bigint, start=100, step=5, cache=10, cycle) ("order numbers")

@@ -93,7 +93,7 @@ CREATE TABLE app.users
 ```ebnf
 document   = { [ doc-comment ] , ( statement | config-block | deployment-script ) } ;
 statement  = ( create-schema | create-table | create-view | create-enum | create-sequence
-             | create-function | create-procedure | create-extension | create-trigger
+             | create-function | create-procedure | create-extension | create-trigger | create-index
              | drop-schema | drop-table | drop-view | drop-enum | drop-sequence
              | drop-function | drop-procedure | drop-extension | grant ) , ";" ;
 ```
@@ -288,9 +288,11 @@ table-priv = "SELECT" | "INSERT" | "UPDATE" | "DELETE" ;
 ### Views
 
 ```ebnf
-create-view = "CREATE" , "VIEW" , qualified-name , [ "RENAMED" , "FROM" , ident ] ,
+create-view = "CREATE" , [ "MATERIALIZED" ] , "VIEW" , qualified-name , [ "RENAMED" , "FROM" , ident ] ,
               "AS" , view-body ;                            (* view-body: opaque text up to the top-level ';' *)
-drop-view   = "DROP" , "VIEW" , qualified-name ;            (* -> DroppedViews (explicit drop, partial schema) *)
+drop-view   = "DROP" , [ "MATERIALIZED" ] , "VIEW" , qualified-name ; (* -> DroppedViews (explicit drop, partial schema) *)
+create-index = "CREATE" , [ "UNIQUE" ] , "INDEX" , ident , "ON" , qualified-name ,
+               "(" , ident , { "," , ident } , ")" , [ "WHERE" , "(" , expr , ")" ] ;
 ```
 
 The `view-body` is everything after `AS` up to the terminating top-level `;` — captured **verbatim** and never
@@ -302,6 +304,22 @@ nesting depth, minus names bound by a `WITH` CTE — and records them as `View.D
 view is **created after** the tables and views it reads and **dropped before** them, with views ordered amongst
 themselves by their dependency graph (a cycle is rejected). The scan is deliberately shallow; it over-collects
 rather than under-collects, since a reference that names no planned object simply produces no ordering edge.
+
+A **materialized** view (`CREATE MATERIALIZED VIEW`) stores its result set and is the same model type as a plain
+view, distinguished by a flag (matching `pg_class`'s `relkind`). Because there is no `CREATE OR REPLACE
+MATERIALIZED VIEW`, a body change to a materialized view — or converting a view to/from materialized — is planned
+as a **drop + recreate**, whereas a plain view's body change is an in-place `CREATE OR REPLACE`.
+
+Only a materialized view may carry **indexes**, declared as standalone `CREATE [UNIQUE] INDEX … ON s.v`
+statements (a plain view or a table cannot — table indexes are inline). Like a `GRANT`, an index names its
+materialized view via `ON` and is attached to it when the document is built (targeting an unknown or
+non-materialized relation is an error). There is no `DROP INDEX`: an index absent from a materialized view's
+declaration is dropped, mirroring inline table indexes.
+
+```sql
+CREATE MATERIALIZED VIEW app.daily_totals AS SELECT date, sum(amount) FROM app.sales GROUP BY date;
+CREATE UNIQUE INDEX daily_totals_date_ix ON app.daily_totals (date);
+```
 
 ### Enums
 
@@ -444,6 +462,8 @@ structural change is planned as a drop + recreate (only a comment-only change is
 | `GRANT USAGE ON SCHEMA s TO r`             | `SchemaGrant`                                                      |
 | `DROP TABLE s.t` / `DROP SCHEMA s`         | `DroppedTables` / `DroppedSchemas`                                 |
 | `DROP VIEW s.v`                            | `DroppedViews`                                                     |
+| `CREATE MATERIALIZED VIEW s.v AS …`        | `View` with `IsMaterialized = true`                                |
+| `CREATE [UNIQUE] INDEX n ON s.v (…)`       | `TableIndex` on the materialized view `s.v` (`View.Indexes`)       |
 | `CREATE ENUM s.e ('a', 'b')`               | `SchemaDefinition` + `EnumType` (ordered `Values`)                 |
 | `CREATE SEQUENCE s.q (…)`                  | `SchemaDefinition` + `Sequence` (`SequenceOptions`)                |
 | `DROP ENUM s.e` / `DROP SEQUENCE s.q`      | `DroppedEnums` / `DroppedSequences`                                |

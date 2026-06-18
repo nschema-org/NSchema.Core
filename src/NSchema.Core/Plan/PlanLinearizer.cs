@@ -136,22 +136,41 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             {
                 if (view.RenamedFrom is not null)
                 {
-                    actions.Add(new RenameView(view.Schema, view.RenamedFrom, view.Name));
+                    actions.Add(new RenameView(view.Schema, view.RenamedFrom, view.Name, view.IsMaterialized));
                 }
 
                 if (view.Kind == ChangeKind.Remove)
                 {
                     drops.Add(view);
                 }
+                else if (view.RequiresRecreate)
+                {
+                    // A materialized view's body change (or a view <-> materialized-view conversion) can't be
+                    // replaced in place, so it is both dropped and recreated; its indexes rebuild with it.
+                    drops.Add(view);
+                    creates.Add(view);
+                }
                 else if (view.Definition is not null)
                 {
-                    // An Add, or a body change applied as a replace.
+                    // A plain view's body change, applied as CREATE OR REPLACE.
                     creates.Add(view);
                 }
 
                 if (view.Comment is not null)
                 {
-                    actions.Add(new SetViewComment(view.Schema, view.Name, view.Comment.Old, view.Comment.New));
+                    actions.Add(new SetViewComment(view.Schema, view.Name, view.Comment.Old, view.Comment.New, view.IsMaterialized));
+                }
+
+                // In-place index changes on a materialized view whose body is unchanged; on a create/recreate the
+                // indexes ride along on the definition instead.
+                foreach (var index in view.Indexes)
+                {
+                    actions.Add(index.Kind switch
+                    {
+                        ChangeKind.Add => new CreateIndex(view.Schema, view.Name, index.Definition!),
+                        ChangeKind.Remove => new DropIndex(view.Schema, view.Name, index.Name),
+                        _ => new SetIndexComment(view.Schema, view.Name, index.Name, index.Comment!.Old, index.Comment.New),
+                    });
                 }
             }
         }
@@ -164,7 +183,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         // Dropped views go out dependents-first: the reverse of the create order.
         foreach (var view in OrderByDependency(drops).Reverse())
         {
-            actions.Add(new DropView(view.Schema, view.Name));
+            actions.Add(new DropView(view.Schema, view.Name, view.IsMaterialized));
         }
     }
 

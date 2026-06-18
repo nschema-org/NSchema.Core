@@ -157,18 +157,28 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
 
     private void RenderView(StringBuilder sb, ViewDiff view)
     {
+        var label = view.IsMaterialized ? "materialized view" : "view";
         var name = view.RenamedFrom is null
             ? $"{view.Schema}.{view.Name}"
             : $"{view.Schema}.{view.RenamedFrom} → {view.Name}";
 
-        // A comment-only modify (no body change) reports the comment transition rather than a bare header.
-        if (view is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only })
+        // A comment-only modify (no body or index change) reports the comment transition rather than a bare header.
+        if (view is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only } && view.Indexes.Count == 0)
         {
-            AppendHeader(sb, ChangeKind.Modify, $"view {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            AppendHeader(sb, ChangeKind.Modify, $"{label} {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
             return;
         }
 
-        AppendHeader(sb, view.Kind, $"view {name}{CommentSuffix(view.Comment)}");
+        AppendHeader(sb, view.Kind, $"{label} {name}{CommentSuffix(view.Comment)}");
+
+        // In-place index changes on a materialized view.
+        foreach (var index in view.Indexes)
+        {
+            var text = index.Kind == ChangeKind.Modify
+                ? $"index {index.Name} comment: {FormatComment(index.Comment?.Old)} → {FormatComment(index.Comment?.New)}"
+                : $"index {index.Name}";
+            AppendDetail(sb, index.Kind, text);
+        }
     }
 
     private void RenderEnum(StringBuilder sb, EnumDiff enumDiff)
