@@ -160,4 +160,93 @@ internal sealed partial class DdlParser
     }
 
     private DdlSyntaxException Error(string message) => new(message, _current.Position);
+
+    // --- opaque-span capture --------------------------------------------------
+    //
+    // The lexer is context-free, so opaque expression text (view bodies, default expressions, routine definitions,
+    // …) is recovered here by slicing the source between the offsets of the tokens we consume, rather than by the
+    // lexer reading raw text on the parser's behalf. Strings and dollar-quoted bodies are single tokens, so a
+    // terminator inside them is never structural; parentheses are balanced so a depth-zero terminator wins.
+
+    /// <summary>
+    /// Captures the verbatim source of a balanced parenthesised group at the cursor (which must be <c>(</c>),
+    /// returning the inner text trimmed (possibly empty). Consumes through the matching <c>)</c>.
+    /// </summary>
+    private string CaptureParenthesized()
+    {
+        var open = Expect(TokenKind.LeftParen, "'(' to begin an expression");
+        var innerStart = open.Position.Offset + 1; // just past '('
+        var depth = 1;
+        while (true)
+        {
+            if (_current.Kind == TokenKind.EndOfFile)
+            {
+                throw new DdlSyntaxException("Unterminated expression", open.Position);
+            }
+            if (_current.Kind == TokenKind.LeftParen)
+            {
+                depth++;
+            }
+            else if (_current.Kind == TokenKind.RightParen && --depth == 0)
+            {
+                var inner = _lexer.Slice(innerStart, _current.Position.Offset).Trim();
+                Advance(); // consume ')'
+                return inner;
+            }
+            Advance();
+        }
+    }
+
+    /// <summary>
+    /// Captures the verbatim source from the cursor up to — but not consuming — a depth-zero terminator: one of the
+    /// <paramref name="terminators"/> token kinds, or an identifier matching <paramref name="terminatorKeyword"/>.
+    /// Returns it trimmed. Throws <c>Expected {what}</c> when the span is empty unless <paramref name="allowEmpty"/>.
+    /// </summary>
+    private string CaptureRawSpan(string what, ReadOnlySpan<TokenKind> terminators, string? terminatorKeyword = null, bool allowEmpty = false)
+    {
+        var startToken = _current;
+        var depth = 0;
+        while (true)
+        {
+            var kind = _current.Kind;
+            if (kind == TokenKind.EndOfFile)
+            {
+                break;
+            }
+            if (kind == TokenKind.LeftParen)
+            {
+                depth++;
+            }
+            else if (kind == TokenKind.RightParen)
+            {
+                if (depth > 0)
+                {
+                    depth--;
+                }
+                else if (terminators.Contains(TokenKind.RightParen))
+                {
+                    break;
+                }
+            }
+            else if (depth == 0)
+            {
+                if (terminators.Contains(kind))
+                {
+                    break;
+                }
+                if (terminatorKeyword is not null && _current.IsKeyword(terminatorKeyword))
+                {
+                    break;
+                }
+            }
+            Advance();
+        }
+
+        var text = _lexer.Slice(startToken.Position.Offset, _current.Position.Offset).Trim();
+        if (!allowEmpty && text.Length == 0)
+        {
+            throw new DdlSyntaxException($"Expected {what}", startToken.Position);
+        }
+        return text;
+    }
 }
