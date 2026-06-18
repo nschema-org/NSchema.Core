@@ -1,7 +1,18 @@
 using System.Text;
 using NSchema.Plan.Model;
+using NSchema.Plan.Model.Columns;
+using NSchema.Plan.Model.Enums;
+using NSchema.Plan.Model.Functions;
+using NSchema.Plan.Model.Procedures;
+using NSchema.Plan.Model.Schemas;
+using NSchema.Plan.Model.Sequence;
+using NSchema.Plan.Model.Tables;
 using NSchema.Plan.PlanFile;
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Functions;
+using NSchema.Schema.Model.Procedures;
+using NSchema.Schema.Model.Scripts;
+using NSchema.Schema.Model.Sequences;
 using NSchema.Sql.Model;
 using NSchema.Tests.Helpers;
 

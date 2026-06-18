@@ -11,6 +11,7 @@ schema app ("application schema")
     primary key users_pkey (id)
     index users_email_ix (email) unique
     index users_active_ix (status) where status = 'active'
+    trigger users_audit after insert, update of (email) row -> app.log_change ("audit changes")
     grant SELECT, INSERT to readers
   table orders
     id bigint not null

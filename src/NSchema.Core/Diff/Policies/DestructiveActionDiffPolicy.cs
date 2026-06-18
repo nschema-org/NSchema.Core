@@ -1,6 +1,15 @@
 using Microsoft.Extensions.Options;
 using NSchema.Diff.Model;
-using NSchema.Plan.Model;
+using NSchema.Plan.Model.Columns;
+using NSchema.Plan.Model.Constraints;
+using NSchema.Plan.Model.Enums;
+using NSchema.Plan.Model.Extensions;
+using NSchema.Plan.Model.Functions;
+using NSchema.Plan.Model.Procedures;
+using NSchema.Plan.Model.Schemas;
+using NSchema.Plan.Model.Sequence;
+using NSchema.Plan.Model.Tables;
+using NSchema.Plan.Model.Views;
 using NSchema.Policies;
 
 namespace NSchema.Diff.Policies;

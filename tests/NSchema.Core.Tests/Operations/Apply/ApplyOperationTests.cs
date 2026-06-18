@@ -4,6 +4,7 @@ using NSchema.Operations.Apply;
 using NSchema.Operations.Confirmation;
 using NSchema.Operations.Services;
 using NSchema.Plan.Model;
+using NSchema.Plan.Model.Schemas;
 using NSchema.Plan.PlanFile;
 using NSchema.Schema;
 using NSchema.Sql;

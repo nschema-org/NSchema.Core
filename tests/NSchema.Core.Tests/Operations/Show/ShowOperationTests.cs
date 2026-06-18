@@ -2,9 +2,11 @@ using NSchema.Diff.Model;
 using NSchema.Operations;
 using NSchema.Operations.Show;
 using NSchema.Plan.Model;
+using NSchema.Plan.Model.Schemas;
 using NSchema.Plan.PlanFile;
 using NSchema.Schema;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Schemas;
 using NSchema.Sql.Model;
 
 namespace NSchema.Tests.Operations.Show;

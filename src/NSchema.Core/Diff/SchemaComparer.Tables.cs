@@ -1,5 +1,6 @@
 using NSchema.Diff.Model;
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Tables;
 
 namespace NSchema.Diff;
 
@@ -125,12 +126,22 @@ internal sealed partial class SchemaComparer
             grants.Add(new GrantChange(ChangeKind.Add, grant.Role, grant.Privileges));
         }
 
+        var triggers = new List<TriggerDiff>();
+        foreach (var trg in table.Triggers)
+        {
+            triggers.Add(new TriggerDiff(ChangeKind.Add, trg.Name, trg, null));
+            if (trg.Comment is not null)
+            {
+                triggers.Add(new TriggerDiff(ChangeKind.Modify, trg.Name, null, new ValueChange<string>(null, trg.Comment)));
+            }
+        }
+
         var comment = table.Comment is not null ? new ValueChange<string>(null, table.Comment) : null;
 
         // The full table definition rides along so the linearizer can emit a single CREATE TABLE (with the
         // primary key and columns inline) without reconstructing it from the column diffs. The primary key is
         // therefore created inline (no PrimaryKeyDiff); everything else arrives as a separate add.
-        return new TableDiff(schemaName, table.Name, ChangeKind.Add, null, comment, columns, grants, indexes, primaryKey, foreignKeys, uniqueConstraints, checks, table);
+        return new TableDiff(schemaName, table.Name, ChangeKind.Add, null, comment, columns, grants, indexes, primaryKey, foreignKeys, uniqueConstraints, checks, triggers, table);
     }
 
     private TableDiff? BuildModifiedTable(string schemaName, Table current, Table desired)
@@ -162,15 +173,16 @@ internal sealed partial class SchemaComparer
 
         var indexes = CompareIndexes(schemaName, desired.Name, current.Indexes, desired.Indexes);
         var grants = CompareTableGrants(schemaName, desired.Name, current.Grants, desired.Grants);
+        var triggers = CompareTriggers(schemaName, desired.Name, current.Triggers, desired.Triggers);
 
         var hasChange = renamedFrom is not null || comment is not null || columns.Count > 0
             || primaryKey.Count > 0 || foreignKeys.Count > 0 || uniqueConstraints.Count > 0 || checks.Count > 0
-            || indexes.Count > 0 || grants.Count > 0;
+            || indexes.Count > 0 || grants.Count > 0 || triggers.Count > 0;
         if (!hasChange)
         {
             return null;
         }
 
-        return new TableDiff(schemaName, desired.Name, ChangeKind.Modify, renamedFrom, comment, columns, grants, indexes, primaryKey, foreignKeys, uniqueConstraints, checks);
+        return new TableDiff(schemaName, desired.Name, ChangeKind.Modify, renamedFrom, comment, columns, grants, indexes, primaryKey, foreignKeys, uniqueConstraints, checks, triggers);
     }
 }

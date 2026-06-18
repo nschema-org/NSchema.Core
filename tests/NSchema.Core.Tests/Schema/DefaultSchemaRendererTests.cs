@@ -1,5 +1,10 @@
 using NSchema.Schema;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Tests.Schema;
 

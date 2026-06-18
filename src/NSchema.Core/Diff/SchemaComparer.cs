@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using NSchema.Diff.Model;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Schemas;
 
 namespace NSchema.Diff;
 

@@ -1,6 +1,7 @@
 using NSchema.Schema;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Schemas;
 
 namespace NSchema.Operations.Import;
 

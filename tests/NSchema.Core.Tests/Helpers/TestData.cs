@@ -1,7 +1,21 @@
 using NSchema.Diff.Model;
 using NSchema.Plan.Model;
+using NSchema.Plan.Model.Schemas;
+using NSchema.Plan.Model.Tables;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Extensions;
+using NSchema.Schema.Model.Functions;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Procedures;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Triggers;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Tests.Helpers;
 
@@ -69,7 +83,16 @@ public static class TestData
                             new TableIndex("users_name_ix", ["name"], IsUnique: true,
                                 Comment: "unique names", Predicate: "name IS NOT NULL"),
                         ],
-                        Grants: [new TableGrant("readers", TablePrivilege.All)]),
+                        Grants: [new TableGrant("readers", TablePrivilege.All)],
+                        Triggers:
+                        [
+                            new Trigger("users_audit", TriggerTiming.After,
+                                TriggerEvent.Insert | TriggerEvent.Update, "app.log_change",
+                                TriggerLevel.Row, UpdateOfColumns: ["name", "balance"],
+                                When: "new.balance > 0", Comment: "audit row changes"),
+                            new Trigger("users_stamp", TriggerTiming.Before, TriggerEvent.Update,
+                                "app.touch_updated_at"),
+                        ]),
                 ],
                 DroppedTables: ["old_table"],
                 Grants: [new SchemaGrant("app_role")],

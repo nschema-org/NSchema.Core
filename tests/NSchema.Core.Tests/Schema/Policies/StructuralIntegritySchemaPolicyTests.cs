@@ -1,5 +1,11 @@
 using NSchema.Policies;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Functions;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Procedures;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Tables;
 using NSchema.Schema.Policies;
 
 namespace NSchema.Tests.Schema.Policies;

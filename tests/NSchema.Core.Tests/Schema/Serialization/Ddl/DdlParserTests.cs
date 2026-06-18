@@ -1,6 +1,9 @@
 using NSchema.Configuration;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Sequences;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
@@ -264,7 +267,7 @@ public sealed class DdlParserTests
 
     [Fact]
     public void Parse_UnknownAfterCreate_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE THING app;")).Message.ShouldContain("Expected SCHEMA, TABLE, VIEW, ENUM, SEQUENCE, FUNCTION, PROCEDURE or EXTENSION");
+        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE THING app;")).Message.ShouldContain("Expected SCHEMA, TABLE, VIEW, ENUM, SEQUENCE, FUNCTION, PROCEDURE, EXTENSION or TRIGGER");
 
     [Fact]
     public void Parse_PartialTable_Throws()

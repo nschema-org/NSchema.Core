@@ -1,6 +1,14 @@
 using NSchema.Diff.Model;
 using NSchema.Plan;
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Functions;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Procedures;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Tests.Plan;
 

@@ -1,6 +1,17 @@
 using NSchema.Schema;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Extensions;
+using NSchema.Schema.Model.Functions;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Procedures;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Triggers;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Tests.Schema;
 
@@ -37,7 +48,12 @@ public sealed class DefaultSchemaRendererSnapshotTests
                 new TableIndex("users_email_ix", ["email"], IsUnique: true),
                 new TableIndex("users_active_ix", ["status"], Predicate: "status = 'active'"),
             ],
-            Grants: [new TableGrant("readers", TablePrivilege.Select | TablePrivilege.Insert)]);
+            Grants: [new TableGrant("readers", TablePrivilege.Select | TablePrivilege.Insert)],
+            Triggers:
+            [
+                new Trigger("users_audit", TriggerTiming.After, TriggerEvent.Insert | TriggerEvent.Update,
+                    "app.log_change", TriggerLevel.Row, UpdateOfColumns: ["email"], Comment: "audit changes"),
+            ]);
 
         var orders = new Table(
             "orders",

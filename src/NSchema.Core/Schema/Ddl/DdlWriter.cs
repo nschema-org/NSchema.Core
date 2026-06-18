@@ -3,6 +3,18 @@ using System.Text;
 using NSchema.Configuration;
 using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Extensions;
+using NSchema.Schema.Model.Functions;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Procedures;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Scripts;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Triggers;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Schema.Ddl;
 
@@ -403,6 +415,58 @@ public sealed class DdlWriter
                 .Append(" ON ").Append(schemaName).Append('.').Append(table.Name)
                 .Append(" TO ").Append(grant.Role).AppendLine(";");
         }
+
+        // Triggers are standalone statements (like grants), emitted after their table so the table exists when
+        // they are read back.
+        foreach (var trigger in table.Triggers)
+        {
+            WriteTrigger(sb, schemaName, table.Name, trigger);
+        }
+    }
+
+    private static void WriteTrigger(StringBuilder sb, string schemaName, string tableName, Trigger trigger)
+    {
+        WriteDocComment(sb, trigger.Comment, indent: "");
+        sb.Append("CREATE TRIGGER ").Append(trigger.Name).Append(' ').Append(TriggerTimingText(trigger.Timing))
+            .Append(' ').Append(TriggerEventsText(trigger))
+            .Append(" ON ").Append(schemaName).Append('.').Append(tableName)
+            .Append(" FOR EACH ").Append(trigger.Level == TriggerLevel.Row ? "ROW" : "STATEMENT");
+        if (trigger.When is { } when)
+        {
+            sb.Append(" WHEN (").Append(when).Append(')');
+        }
+        sb.Append(" EXECUTE FUNCTION ").Append(trigger.Function)
+            .Append('(').Append(trigger.FunctionArguments ?? string.Empty).Append(')').AppendLine(";");
+    }
+
+    private static string TriggerTimingText(TriggerTiming timing) => timing switch
+    {
+        TriggerTiming.Before => "BEFORE",
+        TriggerTiming.After => "AFTER",
+        TriggerTiming.InsteadOf => "INSTEAD OF",
+        _ => throw new ArgumentOutOfRangeException(nameof(timing), timing, "Unknown trigger timing."),
+    };
+
+    private static string TriggerEventsText(Trigger trigger)
+    {
+        var parts = new List<string>(4);
+        if (trigger.Events.HasFlag(TriggerEvent.Insert))
+        {
+            parts.Add("INSERT");
+        }
+        if (trigger.Events.HasFlag(TriggerEvent.Update))
+        {
+            parts.Add(trigger.UpdateOfColumns.Count > 0 ? $"UPDATE OF ({Columns(trigger.UpdateOfColumns)})" : "UPDATE");
+        }
+        if (trigger.Events.HasFlag(TriggerEvent.Delete))
+        {
+            parts.Add("DELETE");
+        }
+        if (trigger.Events.HasFlag(TriggerEvent.Truncate))
+        {
+            parts.Add("TRUNCATE");
+        }
+        return string.Join(" OR ", parts);
     }
 
     private static string ColumnText(Column column)

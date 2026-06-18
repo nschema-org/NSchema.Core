@@ -1,6 +1,18 @@
 using System.Collections.Frozen;
 using NSchema.Diff.Model;
 using NSchema.Plan.Model;
+using NSchema.Plan.Model.Columns;
+using NSchema.Plan.Model.Constraints;
+using NSchema.Plan.Model.Enums;
+using NSchema.Plan.Model.Extensions;
+using NSchema.Plan.Model.Functions;
+using NSchema.Plan.Model.Indexes;
+using NSchema.Plan.Model.Procedures;
+using NSchema.Plan.Model.Schemas;
+using NSchema.Plan.Model.Sequence;
+using NSchema.Plan.Model.Tables;
+using NSchema.Plan.Model.Triggers;
+using NSchema.Plan.Model.Views;
 
 namespace NSchema.Plan;
 
@@ -12,6 +24,8 @@ internal sealed class PlanLinearizer : IPlanLinearizer
     private static readonly IReadOnlyDictionary<Type, int> _actionPriorities = new List<Type> {
         // Views are dropped before anything they read (columns, tables) is dropped.
         typeof(DropView),
+        // Triggers are dropped before their table and before the function they call (functions drop last).
+        typeof(DropTrigger),
         typeof(DropForeignKey),
         typeof(DropCheckConstraint),
         typeof(DropUniqueConstraint),
@@ -57,6 +71,9 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(AddForeignKey),
         typeof(AddCheckConstraint),
         typeof(CreateIndex),
+        // Triggers are created once their table exists; the function they call was already created before any
+        // table (functions precede tables above).
+        typeof(CreateTrigger),
         // Views are created after every table, constraint and index they might read exists.
         typeof(CreateView),
         typeof(GrantSchemaUsage),
@@ -65,6 +82,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(SetTableComment),
         typeof(SetColumnComment),
         typeof(SetIndexComment),
+        typeof(SetTriggerComment),
         typeof(SetConstraintComment),
         typeof(SetViewComment),
         typeof(SetEnumComment),
@@ -413,6 +431,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 }
                 EmitConstraints(table, actions);
                 EmitIndexes(table, actions);
+                EmitTriggers(table, actions);
                 EmitGrants(table, actions);
                 break;
 
@@ -435,6 +454,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 }
                 EmitConstraints(table, actions);
                 EmitIndexes(table, actions);
+                EmitTriggers(table, actions);
                 EmitGrants(table, actions);
                 break;
         }
@@ -538,6 +558,19 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 ChangeKind.Add => new CreateIndex(table.Schema, table.Name, index.Definition!),
                 ChangeKind.Remove => new DropIndex(table.Schema, table.Name, index.Name),
                 _ => new SetIndexComment(table.Schema, table.Name, index.Name, index.Comment!.Old, index.Comment.New),
+            });
+        }
+    }
+
+    private static void EmitTriggers(TableDiff table, List<MigrationAction> actions)
+    {
+        foreach (var trigger in table.Triggers)
+        {
+            actions.Add(trigger.Kind switch
+            {
+                ChangeKind.Add => new CreateTrigger(table.Schema, table.Name, trigger.Definition!),
+                ChangeKind.Remove => new DropTrigger(table.Schema, table.Name, trigger.Name),
+                _ => new SetTriggerComment(table.Schema, table.Name, trigger.Name, trigger.Comment!.Old, trigger.Comment.New),
             });
         }
     }

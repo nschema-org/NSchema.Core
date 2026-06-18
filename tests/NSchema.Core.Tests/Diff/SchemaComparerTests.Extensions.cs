@@ -1,5 +1,6 @@
 using NSchema.Diff.Model;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Extensions;
 
 namespace NSchema.Tests.Diff;
 

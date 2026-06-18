@@ -1,4 +1,4 @@
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Tables;
 
 namespace NSchema.Diff.Model;
 
@@ -17,6 +17,7 @@ namespace NSchema.Diff.Model;
 /// <param name="ForeignKeys">Foreign key changes on the table.</param>
 /// <param name="UniqueConstraints">Unique constraint changes on the table.</param>
 /// <param name="Checks">Check constraint changes on the table.</param>
+/// <param name="Triggers">Trigger changes on the table.</param>
 /// <param name="Definition">
 /// The full table definition when the table is being created (<see cref="ChangeKind.Add"/>); otherwise <see langword="null"/>.
 /// </param>
@@ -33,6 +34,7 @@ public sealed record TableDiff(
     IReadOnlyList<ForeignKeyDiff>? ForeignKeys = null,
     IReadOnlyList<UniqueConstraintDiff>? UniqueConstraints = null,
     IReadOnlyList<CheckConstraintDiff>? Checks = null,
+    IReadOnlyList<TriggerDiff>? Triggers = null,
     Table? Definition = null
 ) : ISchemaObjectDiff
 {
@@ -72,8 +74,13 @@ public sealed record TableDiff(
     public IReadOnlyList<CheckConstraintDiff> Checks { get; init; } = Checks ?? [];
 
     /// <summary>
-    /// Enumerates every changed member of this table across all kinds (columns, indexes, constraints), for
-    /// kind-agnostic consumers. A method rather than a property so serializers and snapshot tooling do not
+    /// Trigger changes on the table.
+    /// </summary>
+    public IReadOnlyList<TriggerDiff> Triggers { get; init; } = Triggers ?? [];
+
+    /// <summary>
+    /// Enumerates every changed member of this table across all kinds (columns, indexes, constraints, triggers),
+    /// for kind-agnostic consumers. A method rather than a property so serializers and snapshot tooling do not
     /// duplicate the per-kind collections. Grants are not members (they are keyed by role, not name).
     /// </summary>
     public IEnumerable<INamedObjectDiff> EnumerateMembers() =>
@@ -82,5 +89,6 @@ public sealed record TableDiff(
             .Concat(PrimaryKey)
             .Concat(ForeignKeys)
             .Concat(UniqueConstraints)
-            .Concat(Checks);
+            .Concat(Checks)
+            .Concat(Triggers);
 }

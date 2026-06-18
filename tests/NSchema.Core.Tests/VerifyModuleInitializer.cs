@@ -1,5 +1,5 @@
 using System.Runtime.CompilerServices;
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
 
 namespace NSchema.Tests;
 

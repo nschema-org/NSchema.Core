@@ -1,7 +1,16 @@
 using Microsoft.Extensions.Options;
 using NSchema.Diff;
 using NSchema.Diff.Model;
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Extensions;
+using NSchema.Schema.Model.Functions;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Procedures;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Triggers;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Tests.Diff;
 
@@ -210,11 +219,35 @@ public sealed class TerraformDiffRendererSnapshotTests
             ]);
     }
 
+    /// <summary>
+    /// A diff exercising trigger changes on a table: an add, a comment-only modify, and a removal.
+    /// </summary>
+    private static DatabaseDiff TriggerChangesDiff()
+    {
+        var audit = new Trigger("audit", TriggerTiming.After, TriggerEvent.Insert | TriggerEvent.Update, "app.log", TriggerLevel.Row);
+        return new DatabaseDiff(
+            Schemas:
+            [
+                new SchemaDiff("app", Tables:
+                [
+                    new TableDiff("app", "users", ChangeKind.Modify, Triggers:
+                    [
+                        new TriggerDiff(ChangeKind.Add, "audit", audit),
+                        new TriggerDiff(ChangeKind.Modify, "noted", null, new ValueChange<string>("old note", "new note")),
+                        new TriggerDiff(ChangeKind.Remove, "stale_trg"),
+                    ]),
+                ]),
+            ]);
+    }
+
     [Fact]
     public Task Render_EnumChanges_PlainText() => Verify(Render(EnumChangesDiff(), colour: false));
 
     [Fact]
     public Task Render_ExtensionChanges_PlainText() => Verify(Render(ExtensionChangesDiff(), colour: false));
+
+    [Fact]
+    public Task Render_TriggerChanges_PlainText() => Verify(Render(TriggerChangesDiff(), colour: false));
 
     [Fact]
     public Task Render_RoutineChanges_PlainText() => Verify(Render(RoutineChangesDiff(), colour: false));

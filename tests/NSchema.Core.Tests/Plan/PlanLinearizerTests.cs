@@ -1,7 +1,25 @@
 using NSchema.Diff.Model;
 using NSchema.Plan;
 using NSchema.Plan.Model;
-using NSchema.Schema.Model;
+using NSchema.Plan.Model.Columns;
+using NSchema.Plan.Model.Constraints;
+using NSchema.Plan.Model.Enums;
+using NSchema.Plan.Model.Functions;
+using NSchema.Plan.Model.Indexes;
+using NSchema.Plan.Model.Procedures;
+using NSchema.Plan.Model.Schemas;
+using NSchema.Plan.Model.Sequence;
+using NSchema.Plan.Model.Tables;
+using NSchema.Plan.Model.Views;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Functions;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Procedures;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Tests.Plan;
 
@@ -47,9 +65,10 @@ public sealed class PlanLinearizerTests
         IReadOnlyList<ForeignKeyDiff>? foreignKeys = null,
         IReadOnlyList<UniqueConstraintDiff>? uniqueConstraints = null,
         IReadOnlyList<CheckConstraintDiff>? checks = null,
+        IReadOnlyList<TriggerDiff>? triggers = null,
         Table? definition = null)
         => new(schema, name, kind, renamedFrom, comment, columns ?? [], grants ?? [], indexes ?? [],
-            primaryKey ?? [], foreignKeys ?? [], uniqueConstraints ?? [], checks ?? [], definition);
+            primaryKey ?? [], foreignKeys ?? [], uniqueConstraints ?? [], checks ?? [], triggers ?? [], definition);
 
     private static ColumnDiff AddedColumn(Column definition, ValueChange<string>? comment = null)
         => new(definition.Name, ChangeKind.Add, definition, null, null, null, null, null, comment);

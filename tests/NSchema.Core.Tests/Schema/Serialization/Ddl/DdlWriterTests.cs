@@ -1,6 +1,18 @@
 using System.Text;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Extensions;
+using NSchema.Schema.Model.Functions;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Procedures;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Triggers;
+using NSchema.Schema.Model.Views;
 using NSchema.State;
 using NSchema.Tests.Helpers;
 
@@ -150,6 +162,49 @@ public sealed class DdlWriterTests
 
     [Fact]
     public Task Write_RichSchema_MatchesSnapshot() => Verify(DdlWriter.Instance.Write(TestData.RichSchema()));
+
+    // -------------------------------------------------------------------------
+    // Triggers
+    // -------------------------------------------------------------------------
+
+    private static string WriteTriggerOn(Trigger trigger)
+        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app",
+            Tables: [new Table("users", Columns: [new Column("id", SqlType.Int)], Triggers: [trigger])])]));
+
+    [Fact]
+    public void Write_Trigger_EmitsStandaloneCreateTriggerAfterTable()
+    {
+        var ddl = WriteTriggerOn(new Trigger("audit", TriggerTiming.After,
+            TriggerEvent.Insert | TriggerEvent.Update, "app.log", TriggerLevel.Row));
+        ddl.ShouldContain("CREATE TRIGGER audit AFTER INSERT OR UPDATE ON app.users FOR EACH ROW EXECUTE FUNCTION app.log();");
+    }
+
+    [Fact]
+    public void Write_TriggerWithUpdateOfWhenAndComment_IsEmitted()
+    {
+        var ddl = WriteTriggerOn(new Trigger("audit", TriggerTiming.After, TriggerEvent.Update, "app.log",
+            TriggerLevel.Row, UpdateOfColumns: ["email"], When: "new.email IS NOT NULL", Comment: "audit"));
+        ddl.ShouldContain("--- audit\nCREATE TRIGGER audit AFTER UPDATE OF (email) ON app.users FOR EACH ROW WHEN (new.email IS NOT NULL) EXECUTE FUNCTION app.log();");
+    }
+
+    [Fact]
+    public void Write_InsteadOfTrigger_IsEmitted()
+        => WriteTriggerOn(new Trigger("v_ins", TriggerTiming.InsteadOf, TriggerEvent.Insert, "app.f", TriggerLevel.Row))
+            .ShouldContain("CREATE TRIGGER v_ins INSTEAD OF INSERT ON app.users FOR EACH ROW EXECUTE FUNCTION app.f();");
+
+    [Fact]
+    public void Write_Trigger_RoundTripsThroughParse()
+    {
+        var trigger = new Trigger("audit", TriggerTiming.After, TriggerEvent.Insert | TriggerEvent.Delete, "app.log",
+            TriggerLevel.Row, When: "true", FunctionArguments: "'x'", Comment: "note");
+        var schema = new DatabaseSchema([new SchemaDefinition("app",
+            Tables: [new Table("users", Columns: [new Column("id", SqlType.Int)], Triggers: [trigger])])]);
+
+        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema;
+        var roundTripped = reparsed.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Triggers.ShouldHaveSingleItem();
+        roundTripped.ShouldBe(trigger);            // structural equality (excludes the comment)
+        roundTripped.Comment.ShouldBe("note");     // ... so assert the comment round-tripped too
+    }
 
     // -------------------------------------------------------------------------
     // Extensions (database-global, root-level)

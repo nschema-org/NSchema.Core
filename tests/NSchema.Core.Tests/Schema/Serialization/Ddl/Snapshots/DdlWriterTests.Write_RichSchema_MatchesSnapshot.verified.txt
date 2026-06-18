@@ -52,6 +52,9 @@ CREATE TABLE app.users RENAMED FROM members (
   UNIQUE INDEX users_name_ix (name) WHERE (name IS NOT NULL)
 );
 GRANT SELECT, INSERT, UPDATE, DELETE ON app.users TO readers;
+--- audit row changes
+CREATE TRIGGER users_audit AFTER INSERT OR UPDATE OF (name, balance) ON app.users FOR EACH ROW WHEN (new.balance > 0) EXECUTE FUNCTION app.log_change();
+CREATE TRIGGER users_stamp BEFORE UPDATE ON app.users FOR EACH STATEMENT EXECUTE FUNCTION app.touch_updated_at();
 
 --- currently active users
 CREATE VIEW app.active_users AS SELECT id, name FROM app.users WHERE balance > 0;

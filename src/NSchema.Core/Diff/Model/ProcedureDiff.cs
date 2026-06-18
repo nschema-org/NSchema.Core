@@ -1,4 +1,4 @@
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Procedures;
 
 namespace NSchema.Diff.Model;
 

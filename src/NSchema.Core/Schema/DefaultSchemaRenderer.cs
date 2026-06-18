@@ -1,5 +1,11 @@
 using System.Text;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Triggers;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Schema;
 
@@ -195,12 +201,54 @@ internal sealed class DefaultSchemaRenderer : ISchemaRenderer
                 .AppendLine(index.Predicate is { } p ? $" where {p}" : string.Empty);
         }
 
+        foreach (var trigger in table.Triggers)
+        {
+            sb.Append(Indent).Append(Indent)
+                .Append("trigger ").Append(trigger.Name)
+                .Append(' ').Append(FormatTrigger(trigger))
+                .AppendLine(CommentSuffix(trigger.Comment));
+        }
+
         foreach (var grant in table.Grants)
         {
             sb.Append(Indent).Append(Indent)
                 .Append("grant ").Append(FormatPrivileges(grant.Privileges))
                 .Append(" to ").AppendLine(grant.Role);
         }
+    }
+
+    private static string FormatTrigger(Trigger trigger)
+    {
+        var timing = trigger.Timing switch
+        {
+            TriggerTiming.Before => "before",
+            TriggerTiming.After => "after",
+            _ => "instead of",
+        };
+        var level = trigger.Level == TriggerLevel.Row ? "row" : "statement";
+        return $"{timing} {FormatTriggerEvents(trigger)} {level} -> {trigger.Function}";
+    }
+
+    private static string FormatTriggerEvents(Trigger trigger)
+    {
+        var parts = new List<string>(4);
+        if (trigger.Events.HasFlag(TriggerEvent.Insert))
+        {
+            parts.Add("insert");
+        }
+        if (trigger.Events.HasFlag(TriggerEvent.Update))
+        {
+            parts.Add(trigger.UpdateOfColumns.Count > 0 ? $"update of ({string.Join(", ", trigger.UpdateOfColumns)})" : "update");
+        }
+        if (trigger.Events.HasFlag(TriggerEvent.Delete))
+        {
+            parts.Add("delete");
+        }
+        if (trigger.Events.HasFlag(TriggerEvent.Truncate))
+        {
+            parts.Add("truncate");
+        }
+        return string.Join(", ", parts);
     }
 
     private static string FormatColumn(Column column)

@@ -2,9 +2,12 @@ using NSchema.Diff;
 using NSchema.Diff.Model;
 using NSchema.Plan;
 using NSchema.Plan.Model;
+using NSchema.Plan.Model.Schemas;
 using NSchema.Policies;
 using NSchema.Schema;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Scripts;
 
 namespace NSchema.Tests.Plan;
 

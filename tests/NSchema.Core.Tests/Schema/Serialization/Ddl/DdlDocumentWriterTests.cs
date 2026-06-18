@@ -2,6 +2,7 @@ using System.Text;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Schemas;
 using NSchema.State;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;

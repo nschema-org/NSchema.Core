@@ -1,4 +1,9 @@
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Functions;
+using NSchema.Schema.Model.Procedures;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Tests.Schema.Model;
 

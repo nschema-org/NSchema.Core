@@ -1,7 +1,8 @@
 using NSchema.Diff.Model;
 using NSchema.Plan;
-using NSchema.Plan.Model;
-using NSchema.Schema.Model;
+using NSchema.Plan.Model.Extensions;
+using NSchema.Plan.Model.Schemas;
+using NSchema.Schema.Model.Extensions;
 
 namespace NSchema.Tests.Plan;
 

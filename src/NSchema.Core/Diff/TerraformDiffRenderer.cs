@@ -1,7 +1,9 @@
 using System.Text;
 using Microsoft.Extensions.Options;
 using NSchema.Diff.Model;
-using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
 
 namespace NSchema.Diff;
 
@@ -101,8 +103,8 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
         // blank line. An existing table lists its column changes inline with everything that follows.
         var hasTrailingBlock = table.PrimaryKey.Count > 0 || table.ForeignKeys.Count > 0
             || table.UniqueConstraints.Count > 0 || table.Checks.Count > 0
-            || table.Indexes.Count > 0 || table.Grants.Count > 0;
-        if (table.Kind == ChangeKind.Add && table.Columns.Count > 0 && hasTrailingBlock)
+            || table.Indexes.Count > 0 || table.Triggers.Count > 0 || table.Grants.Count > 0;
+        if (table is { Kind: ChangeKind.Add, Columns.Count: > 0 } && hasTrailingBlock)
         {
             sb.AppendLine();
         }
@@ -133,6 +135,14 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
                 ? $"index {index.Name} comment: {FormatComment(index.Comment?.Old)} → {FormatComment(index.Comment?.New)}"
                 : $"index {index.Name}";
             AppendDetail(sb, index.Kind, text);
+        }
+
+        foreach (var trigger in table.Triggers)
+        {
+            var text = trigger.Kind == ChangeKind.Modify
+                ? $"trigger {trigger.Name} comment: {FormatComment(trigger.Comment?.Old)} → {FormatComment(trigger.Comment?.New)}"
+                : $"trigger {trigger.Name}";
+            AppendDetail(sb, trigger.Kind, text);
         }
 
         foreach (var grant in table.Grants)

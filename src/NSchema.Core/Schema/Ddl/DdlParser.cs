@@ -1,6 +1,19 @@
 using NSchema.Configuration;
 using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Extensions;
+using NSchema.Schema.Model.Functions;
+using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Procedures;
+using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Scripts;
+using NSchema.Schema.Model.Sequences;
+using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Triggers;
+using NSchema.Schema.Model.Views;
 
 namespace NSchema.Schema.Ddl;
 
@@ -212,9 +225,17 @@ internal sealed class DdlParser
             }
             ParseCreateExtension(schemas, doc);
         }
+        else if (_current.IsKeyword("TRIGGER"))
+        {
+            if (partial)
+            {
+                throw Error("PARTIAL applies to SCHEMA, not TRIGGER.");
+            }
+            ParseCreateTrigger(schemas, doc);
+        }
         else
         {
-            throw Error($"Expected SCHEMA, TABLE, VIEW, ENUM, SEQUENCE, FUNCTION, PROCEDURE or EXTENSION after CREATE, found '{_current.Text}'.");
+            throw Error($"Expected SCHEMA, TABLE, VIEW, ENUM, SEQUENCE, FUNCTION, PROCEDURE, EXTENSION or TRIGGER after CREATE, found '{_current.Text}'.");
         }
     }
 
@@ -441,6 +462,130 @@ internal sealed class DdlParser
     /// </summary>
     private string ParseExtensionName() =>
         _current.Kind == TokenKind.String ? Advance().Text : ExpectIdentifier("an extension name");
+
+    /// <summary>
+    /// Parses a standalone trigger: <c>CREATE TRIGGER name {BEFORE|AFTER|INSTEAD OF} event {OR event} ON s.t
+    /// [FOR EACH {ROW|STATEMENT}] [WHEN (expr)] EXECUTE {FUNCTION|PROCEDURE} f(args)</c>. Like a <c>GRANT</c>, it
+    /// names its table via <c>ON</c> and is attached to that table at build time.
+    /// </summary>
+    private void ParseCreateTrigger(SchemaAccumulator schemas, string? doc)
+    {
+        Advance(); // TRIGGER
+        var namePosition = _current.Position;
+        var name = ExpectIdentifier("a trigger name");
+
+        var timing = ParseTriggerTiming();
+        var (events, updateOfColumns) = ParseTriggerEvents();
+
+        ExpectKeyword("ON");
+        var (schemaName, tableName) = ParseQualifiedName();
+
+        var level = TriggerLevel.Statement;
+        if (_current.IsKeyword("FOR"))
+        {
+            Advance();
+            ExpectKeyword("EACH");
+            if (_current.IsKeyword("ROW")) { Advance(); level = TriggerLevel.Row; }
+            else if (_current.IsKeyword("STATEMENT")) { Advance(); level = TriggerLevel.Statement; }
+            else { throw Error($"Expected ROW or STATEMENT after FOR EACH, found '{_current.Text}'."); }
+        }
+
+        string? when = null;
+        if (_current.IsKeyword("WHEN"))
+        {
+            Advance();
+            when = ReadRawExpression(parenthesised: true);
+        }
+
+        ExpectKeyword("EXECUTE");
+        if (_current.IsKeyword("FUNCTION") || _current.IsKeyword("PROCEDURE"))
+        {
+            Advance();
+        }
+        else
+        {
+            throw Error($"Expected FUNCTION or PROCEDURE after EXECUTE, found '{_current.Text}'.");
+        }
+
+        var function = ExpectIdentifier("a function name");
+        if (Match(TokenKind.Dot))
+        {
+            function += "." + ExpectIdentifier("a function name");
+        }
+
+        // The argument list is captured verbatim (opaque), like a routine's; usually empty for a trigger function.
+        _lexer.ResetTo(_current.Position);
+        var arguments = _lexer.ReadParenthesizedExpression();
+        _current = _lexer.Next();
+
+        Expect(TokenKind.Semicolon, "';'");
+
+        var trigger = new Trigger(name, timing, events, function, level, updateOfColumns,
+            when, string.IsNullOrEmpty(arguments) ? null : arguments, doc);
+        schemas.AddTrigger(schemaName, tableName, trigger, namePosition);
+    }
+
+    private TriggerTiming ParseTriggerTiming()
+    {
+        if (_current.IsKeyword("BEFORE")) { Advance(); return TriggerTiming.Before; }
+        if (_current.IsKeyword("AFTER")) { Advance(); return TriggerTiming.After; }
+        if (_current.IsKeyword("INSTEAD")) { Advance(); ExpectKeyword("OF"); return TriggerTiming.InsteadOf; }
+        throw Error($"Expected BEFORE, AFTER or INSTEAD OF, found '{_current.Text}'.");
+    }
+
+    private (TriggerEvent Events, List<string>? UpdateOfColumns) ParseTriggerEvents()
+    {
+        var events = TriggerEvent.None;
+        List<string>? updateOfColumns = null;
+        while (true)
+        {
+            var position = _current.Position;
+            if (_current.IsKeyword("INSERT"))
+            {
+                Advance();
+                AddEvent(TriggerEvent.Insert, position);
+            }
+            else if (_current.IsKeyword("DELETE"))
+            {
+                Advance();
+                AddEvent(TriggerEvent.Delete, position);
+            }
+            else if (_current.IsKeyword("TRUNCATE"))
+            {
+                Advance();
+                AddEvent(TriggerEvent.Truncate, position);
+            }
+            else if (_current.IsKeyword("UPDATE"))
+            {
+                Advance();
+                AddEvent(TriggerEvent.Update, position);
+                if (_current.IsKeyword("OF"))
+                {
+                    Advance();
+                    updateOfColumns = ParseColumnList();
+                }
+            }
+            else
+            {
+                throw Error($"Expected INSERT, UPDATE, DELETE or TRUNCATE, found '{_current.Text}'.");
+            }
+
+            if (!_current.IsKeyword("OR"))
+            {
+                return (events, updateOfColumns);
+            }
+            Advance(); // OR
+        }
+
+        void AddEvent(TriggerEvent next, SourcePosition position)
+        {
+            if (events.HasFlag(next))
+            {
+                throw new DdlSyntaxException($"Trigger event '{next.ToString().ToUpperInvariant()}' is specified more than once.", position);
+            }
+            events |= next;
+        }
+    }
 
     private void ParseTableItem(string? doc, TableBody body)
     {
@@ -1007,6 +1152,7 @@ internal sealed class DdlParser
         private readonly List<Extension> _extensions = [];
         private readonly List<string> _droppedExtensions = [];
         private readonly List<PendingGrant> _tableGrants = [];
+        private readonly List<PendingTrigger> _triggers = [];
 
         public void DeclareSchema(string name, string? oldName, bool isPartial, string? comment, SourcePosition position)
         {
@@ -1106,6 +1252,11 @@ internal sealed class DdlParser
         public void AddTableGrant(string schema, string table, TableGrant grant, SourcePosition position)
             => _tableGrants.Add(new PendingGrant(schema, table, grant, position));
 
+        // Triggers are standalone statements attached to their table at Build, so a trigger may appear before or
+        // after the CREATE TABLE it targets.
+        public void AddTrigger(string schema, string table, Trigger trigger, SourcePosition position)
+            => _triggers.Add(new PendingTrigger(schema, table, trigger, position));
+
         // Extensions are database-global, so they live on the accumulator itself rather than a per-schema entry.
         public void AddExtension(Extension extension, SourcePosition position)
         {
@@ -1189,6 +1340,7 @@ internal sealed class DdlParser
         public DatabaseSchema Build()
         {
             ApplyTableGrants();
+            ApplyTriggers();
             var schemas = _entries
                 .Select(e => new SchemaDefinition(e.Name, e.OldName, e.IsPartial, e.Comment, e.Tables, e.DroppedTables, e.Grants, e.Views, e.DroppedViews,
                     e.Enums, e.DroppedEnums, e.Sequences, e.DroppedSequences,
@@ -1214,6 +1366,31 @@ internal sealed class DdlParser
 
                 var table = entry.Tables[index];
                 entry.Tables[index] = table with { Grants = [.. table.Grants, pending.Grant] };
+            }
+        }
+
+        private void ApplyTriggers()
+        {
+            foreach (var pending in _triggers)
+            {
+                if (!_byName.TryGetValue(pending.Schema, out var entry))
+                {
+                    throw new DdlSyntaxException($"CREATE TRIGGER references unknown table '{pending.Schema}.{pending.Table}'.", pending.Position);
+                }
+
+                var index = entry.Tables.FindIndex(t => t.Name == pending.Table);
+                if (index < 0)
+                {
+                    throw new DdlSyntaxException($"CREATE TRIGGER references unknown table '{pending.Schema}.{pending.Table}'.", pending.Position);
+                }
+
+                var table = entry.Tables[index];
+                if (table.Triggers.Any(t => string.Equals(t.Name, pending.Trigger.Name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    throw new DdlSyntaxException($"Trigger '{pending.Trigger.Name}' on '{pending.Schema}.{pending.Table}' is already declared.", pending.Position);
+                }
+
+                entry.Tables[index] = table with { Triggers = [.. table.Triggers, pending.Trigger] };
             }
         }
 
@@ -1252,5 +1429,7 @@ internal sealed class DdlParser
         }
 
         private readonly record struct PendingGrant(string Schema, string Table, TableGrant Grant, SourcePosition Position);
+
+        private readonly record struct PendingTrigger(string Schema, string Table, Trigger Trigger, SourcePosition Position);
     }
 }

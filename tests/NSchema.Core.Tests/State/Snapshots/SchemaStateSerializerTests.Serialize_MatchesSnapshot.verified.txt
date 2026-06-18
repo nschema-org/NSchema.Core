@@ -148,6 +148,32 @@
                 role: readers,
                 privileges: All
               }
+            ],
+            triggers: [
+              {
+                name: users_audit,
+                timing: After,
+                events: Insert, Update,
+                function: app.log_change,
+                level: Row,
+                when: new.balance > 0,
+                functionArguments: null,
+                comment: audit row changes,
+                updateOfColumns: [
+                  name,
+                  balance
+                ]
+              },
+              {
+                name: users_stamp,
+                timing: Before,
+                events: Update,
+                function: app.touch_updated_at,
+                level: Statement,
+                when: null,
+                functionArguments: null,
+                comment: null
+              }
             ]
           }
         ],

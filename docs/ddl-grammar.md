@@ -93,7 +93,7 @@ CREATE TABLE app.users
 ```ebnf
 document   = { [ doc-comment ] , ( statement | config-block | deployment-script ) } ;
 statement  = ( create-schema | create-table | create-view | create-enum | create-sequence
-             | create-function | create-procedure | create-extension
+             | create-function | create-procedure | create-extension | create-trigger
              | drop-schema | drop-table | drop-view | drop-enum | drop-sequence
              | drop-function | drop-procedure | drop-extension | grant ) , ";" ;
 ```
@@ -394,6 +394,37 @@ The argument list is part of the routine's identity: changing it plans a **drop 
 place under a different signature would create a separate overload in the database). A definition-only change
 replaces in place, like a view body change.
 
+### Triggers
+
+```ebnf
+create-trigger = "CREATE" , "TRIGGER" , ident , timing , events , "ON" , qualified-name ,
+                 [ "FOR" , "EACH" , ( "ROW" | "STATEMENT" ) ] , [ "WHEN" , "(" , expr , ")" ] ,
+                 "EXECUTE" , ( "FUNCTION" | "PROCEDURE" ) , func-name , "(" , [ arg-text ] , ")" ;
+timing         = "BEFORE" | "AFTER" | "INSTEAD" , "OF" ;
+events         = event , { "OR" , event } ;
+event          = "INSERT" | "DELETE" | "TRUNCATE" | "UPDATE" , [ "OF" , "(" , ident , { "," , ident } , ")" ] ;
+func-name      = ident , [ "." , ident ] ;
+```
+
+```sql
+CREATE TRIGGER users_audit
+  AFTER INSERT OR UPDATE OF (email)
+  ON app.users
+  FOR EACH ROW
+  WHEN (new.email IS NOT NULL)
+  EXECUTE FUNCTION app.log_change();
+```
+
+A trigger is **table-scoped** but written as a standalone statement that names its table via `ON` — like a
+`GRANT`, it is attached to that table when the document is built (referencing an undeclared table is an error).
+The function the trigger executes must exist; the planner creates a trigger after both its table and the
+function it calls, and drops it before either. `FOR EACH` defaults to `STATEMENT` when omitted. The `WHEN`
+condition and the function `arg-text` are captured **opaque** (verbatim), like a `CHECK` expression.
+
+Triggers are **table members** (named uniquely per table), so — like indexes and constraints — they are not
+renameable and have no separate `DROP TRIGGER`: a trigger absent from a declared table's set is dropped, and a
+structural change is planned as a drop + recreate (only a comment-only change is applied in place).
+
 ## Construct → model mapping
 
 | DDL construct                              | Model target                                                       |
@@ -421,6 +452,7 @@ replaces in place, like a view body change.
 | `DROP FUNCTION s.f` / `DROP PROCEDURE s.p` | `DroppedFunctions` / `DroppedProcedures`                           |
 | `CREATE EXTENSION e [VERSION 'v']`         | `DatabaseSchema` + `Extension` (root-level, `Version` optional)    |
 | `DROP EXTENSION e`                         | `DroppedExtensions` (root-level; explicit drop only)               |
+| `CREATE TRIGGER t … ON s.tbl …`            | `Trigger` on the named table (`Table.Triggers`; no drop statement) |
 | `---` / `/** */` before a declaration      | that object's `Comment`                                            |
 
 ## Worked example
