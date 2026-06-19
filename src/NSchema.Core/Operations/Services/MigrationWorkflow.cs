@@ -124,7 +124,11 @@ internal sealed class MigrationWorkflow(
     {
         if (desired.Files.Count > 0)
         {
-            reporter.Verbose($"Read {Census.Count(desired.Files.Count, "DDL file")}: {string.Join(", ", desired.Files)}.");
+            reporter.Verbose($"Read {Census.Count(desired.Files.Count, "DDL file")}:");
+            foreach (var file in desired.Files)
+            {
+                reporter.Verbose(file);
+            }
         }
 
         reporter.Verbose($"Desired schema: {Census.Describe(desired.Schema)}, {Census.Count(desired.Scripts.Count, "deployment script")}.");
