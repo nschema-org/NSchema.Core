@@ -305,6 +305,24 @@ public sealed class ImportOperationTests : IDisposable
         extensions.Select(e => e.Name).ShouldBe(["citext", "postgis"], ignoreOrder: true);
     }
 
+    // ── Canonical layout ─────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Execute_WritesFormatterCanonicalDdl()
+    {
+        // Import output must already be in the formatter's canonical layout, so running `fmt` over an
+        // imported file changes nothing. This is the invariant that keeps the two DDL paths from drifting.
+        Source(RichSchema());
+
+        await Execute(new ImportArguments { OutputDirectory = _dir });
+
+        foreach (var file in Directory.EnumerateFiles(_dir, "*.sql", SearchOption.AllDirectories))
+        {
+            var text = await File.ReadAllTextAsync(file, TestContext.Current.CancellationToken);
+            DdlFormatter.Instance.Format(text).ShouldBe(text, $"{file} is not formatter-canonical");
+        }
+    }
+
     private static DatabaseSchema RichSchema() => new([new SchemaDefinition("app",
         Tables: [MakeTable("users"), MakeTable("orders")],
         Views: [new View("active", "SELECT 1")],

@@ -69,7 +69,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IOpe
             Directory.CreateDirectory(directory);
         }
 
-        var ddl = DdlWriter.Instance.Write(merged);
+        var ddl = DdlFormatter.Instance.Format(DdlWriter.Instance.Write(merged));
         await File.WriteAllTextAsync(path, ddl, cancellationToken);
 
         // Surface whether each object was created fresh or merged into an existing file — import is additive, so
