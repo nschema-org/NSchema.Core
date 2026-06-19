@@ -46,7 +46,7 @@ internal sealed class DestroyOperation(
         try
         {
             await sqlExecutor.Execute(sqlPlan, cancellationToken);
-            reporter.Success("Schema destroyed successfully.");
+            reporter.Success($"Destroy complete. {RunSummary.Describe(planned.Diff, sqlPlan)}.");
         }
         finally
         {

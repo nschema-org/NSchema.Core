@@ -13,6 +13,11 @@ public static class OperationReporterExtensions
         public void Announce(string message) => reporter.Report(MessageKind.Announcement, message);
 
         /// <summary>
+        /// Reports low-level detail, surfaced only when the front-end is asked to be verbose.
+        /// </summary>
+        public void Verbose(string message) => reporter.Report(MessageKind.Verbose, message);
+
+        /// <summary>
         /// Reports a transient progress step.
         /// </summary>
         public void Progress(string message) => reporter.Report(MessageKind.Progress, message);

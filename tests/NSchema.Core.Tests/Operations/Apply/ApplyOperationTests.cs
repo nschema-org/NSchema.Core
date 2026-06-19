@@ -125,6 +125,41 @@ public sealed class ApplyOperationTests
     }
 
     [Fact]
+    public async Task Execute_EmptyPlan_ReportsNoChangesAndSkipsConfirmAndExecute()
+    {
+        _generator.Generate(Arg.Any<MigrationPlan>()).Returns(new SqlPlan([]));
+
+        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
+
+        _reporter.Received().Report(MessageKind.Success, "No changes. The database already matches the desired schema.");
+        await _confirmation.DidNotReceive().Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>());
+        await _executor.DidNotReceive().Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Execute_EmptyPlan_StillRefreshesStateToInitialiseTheStore()
+    {
+        _generator.Generate(Arg.Any<MigrationPlan>()).Returns(new SqlPlan([]));
+
+        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
+
+        // A first run against an already-matching database should still capture state.
+        await _workflow.Received(1).Refresh(RefreshMode.Optional, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Execute_ReportsOutcomeSummaryWithCountsAndStatements()
+    {
+        var diff = new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add, null, null, [], [])]);
+        _workflow.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
+            .Returns(new PlannedMigration(_plan, diff));
+
+        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
+
+        _reporter.Received().Report(MessageKind.Success, "Apply complete. 1 added (1 statement).");
+    }
+
+    [Fact]
     public async Task Execute_NotConfirmed_DoesNotExecuteOrRefresh()
     {
         _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(false);

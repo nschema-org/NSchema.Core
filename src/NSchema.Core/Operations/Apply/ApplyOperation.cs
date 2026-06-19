@@ -41,6 +41,16 @@ internal sealed class ApplyOperation(
 
         reporter.Progress("Generating SQL...");
         var sqlPlan = sqlGenerator.Generate(planned.Plan);
+
+        // The database already matches the desired schema: there's nothing to confirm or execute. Still capture
+        // state, so a first run against an already-matching database initialises the store.
+        if (sqlPlan.IsEmpty)
+        {
+            reporter.Success("No changes. The database already matches the desired schema.");
+            await workflow.Refresh(RefreshMode.Optional, cancellationToken);
+            return;
+        }
+
         reporter.ReportSqlPlan(sqlPlan);
 
         // Offer an interactive front-end the chance to prompt before any changes are made.
@@ -55,7 +65,7 @@ internal sealed class ApplyOperation(
         try
         {
             await sqlExecutor.Execute(sqlPlan, cancellationToken);
-            reporter.Success("Migration completed successfully.");
+            reporter.Success($"Apply complete. {RunSummary.Describe(planned.Diff, sqlPlan)}.");
         }
         finally
         {
@@ -92,7 +102,7 @@ internal sealed class ApplyOperation(
         try
         {
             await sqlExecutor.Execute(envelope.Sql, cancellationToken);
-            reporter.Success("Plan applied successfully.");
+            reporter.Success($"Apply complete. {RunSummary.Describe(envelope.Diff, envelope.Sql)}.");
         }
         finally
         {

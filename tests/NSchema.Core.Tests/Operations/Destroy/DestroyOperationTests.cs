@@ -136,6 +136,17 @@ public sealed class DestroyOperationTests
     }
 
     [Fact]
+    public async Task Execute_ReportsOutcomeSummaryWithCountsAndStatements()
+    {
+        var diff = new DatabaseDiff([new SchemaDiff("app", ChangeKind.Remove, null, null, [], [])]);
+        _workflow.PlanDestroy(Arg.Any<CancellationToken>()).Returns(new PlannedMigration(_plan, diff));
+
+        await _sut.Execute(new DestroyArguments(), TestContext.Current.CancellationToken);
+
+        _reporter.Received().Report(MessageKind.Success, "Destroy complete. 1 destroyed (1 statement).");
+    }
+
+    [Fact]
     public async Task Execute_ConfirmsWithDestructiveDestroyRequestCarryingThePlan()
     {
         await _sut.Execute(new DestroyArguments(), TestContext.Current.CancellationToken);

@@ -32,10 +32,13 @@ internal sealed class MigrationWorkflow(
         var desired = await desiredProvider.GetProject(schemas, cancellationToken);
         var schemasInScope = schemas ?? desired.Schema.AllSchemaNames;
 
+        reporter.Verbose($"Desired schema: {Describe(desired.Schema)}, {Count(desired.Scripts.Count, "deployment script")}.");
+
         reporter.Progress($"Migration will be scoped to the following schemas: {string.Join(", ", schemasInScope)}");
 
         reporter.Progress("Loading provider schema...");
         var currentSchema = await currentProvider.GetSchema(currentSource, schemasInScope, required, cancellationToken);
+        reporter.Verbose($"Current schema ({currentSource.ToString().ToLowerInvariant()}): {Describe(currentSchema)}.");
 
         reporter.Progress("Computing migration plan...");
         return ReportOrThrow(planner.Plan(currentSchema, desired.Schema, desired.Scripts));
@@ -108,7 +111,17 @@ internal sealed class MigrationWorkflow(
         reporter.Progress("Updating state store...");
         var schema = await currentProvider.GetSchema(SchemaSourceMode.Online, null, required: true, cancellationToken);
         var snapshot = stateSerializer.Serialize(schema);
+        reporter.Verbose($"State snapshot: {Describe(schema)}, {snapshot.Length:N0} bytes.");
         await store.Write(snapshot, cancellationToken);
         reporter.Success("State store updated successfully.");
     }
+
+    /// <summary>
+    /// A terse object census ("2 schemas, 7 tables") for verbose output.
+    /// </summary>
+    private static string Describe(DatabaseSchema schema) =>
+        $"{Count(schema.Schemas.Count, "schema")}, {Count(schema.Schemas.Sum(s => s.Tables.Count), "table")}";
+
+    private static string Count(int count, string noun) =>
+        count == 1 ? $"1 {noun}" : $"{count} {noun}s";
 }
