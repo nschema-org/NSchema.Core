@@ -166,7 +166,9 @@ public sealed class MigrationWorkflowTests
         await _sut.Plan(SchemaSourceMode.Online, required: true, null, TestContext.Current.CancellationToken);
 
         // Assert
-        _reporter.Received().Report(MessageKind.Verbose, "Read 2 DDL files: /app/users.sql, /app/orders.sql.");
+        _reporter.Received().Report(MessageKind.Verbose, "Read 2 DDL files:");
+        _reporter.Received().Report(MessageKind.Verbose, "/app/users.sql");
+        _reporter.Received().Report(MessageKind.Verbose, "/app/orders.sql");
         _reporter.Received().Report(MessageKind.Verbose, "Desired schema: 1 schema, 2 tables, 1 deployment script.");
         _reporter.Received().Report(MessageKind.Verbose, "Current schema (online): 1 schema, 0 tables.");
     }
