@@ -14,6 +14,13 @@ public sealed class OperationReporterExtensionsTests
     }
 
     [Fact]
+    public void Verbose_ReportsVerboseKind()
+    {
+        _reporter.Verbose("hi");
+        _reporter.Received(1).Report(MessageKind.Verbose, "hi");
+    }
+
+    [Fact]
     public void Progress_ReportsProgressKind()
     {
         _reporter.Progress("hi");

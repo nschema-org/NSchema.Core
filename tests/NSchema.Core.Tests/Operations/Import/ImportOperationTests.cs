@@ -91,7 +91,32 @@ public sealed class ImportOperationTests : IDisposable
     {
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
-        _reporter.Received(2).Report(Arg.Any<MessageKind>(), Arg.Any<string>());
+        _reporter.Received(1).Report(MessageKind.Announcement, "Importing schema from database...");
+        _reporter.Received(1).Report(MessageKind.Success, "Schema imported successfully.");
+    }
+
+    [Fact]
+    public async Task Execute_ReportsVerboseCensusAndPerFileWrites()
+    {
+        await Execute(new ImportArguments { OutputDirectory = _dir });
+
+        // A census of what was fetched...
+        _reporter.Received(1).Report(MessageKind.Verbose, "Fetched 1 schema, 2 tables from the database.");
+        // ...and a line per object file, marked "Wrote" because nothing existed to merge into.
+        _reporter.Received(1).Report(MessageKind.Verbose, $"Wrote {ObjectPath("tables", "users")}.");
+        _reporter.Received(1).Report(MessageKind.Verbose, $"Wrote {ObjectPath("tables", "orders")}.");
+    }
+
+    [Fact]
+    public async Task Execute_ReImport_ReportsMergeIntoExistingFile()
+    {
+        await Execute(new ImportArguments { OutputDirectory = _dir });
+        _reporter.ClearReceivedCalls();
+
+        // A second import of the same object merges into the file written by the first.
+        await Execute(new ImportArguments { OutputDirectory = _dir });
+
+        _reporter.Received(1).Report(MessageKind.Verbose, $"Merged into {ObjectPath("tables", "users")}.");
     }
 
     [Fact]

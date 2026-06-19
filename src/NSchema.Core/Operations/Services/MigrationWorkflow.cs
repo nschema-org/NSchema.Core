@@ -19,6 +19,7 @@ internal sealed class MigrationWorkflow(
     {
         reporter.Progress("Loading desired schema...");
         var desired = await desiredProvider.GetProject(null, cancellationToken);
+        ReportDesiredDetail(desired);
 
         reporter.Progress("Validating schema...");
         ReportOrThrow(planner.Validate(desired.Schema));
@@ -31,11 +32,13 @@ internal sealed class MigrationWorkflow(
         reporter.Progress("Loading desired schema...");
         var desired = await desiredProvider.GetProject(schemas, cancellationToken);
         var schemasInScope = schemas ?? desired.Schema.AllSchemaNames;
+        ReportDesiredDetail(desired);
 
         reporter.Progress($"Migration will be scoped to the following schemas: {string.Join(", ", schemasInScope)}");
 
         reporter.Progress("Loading provider schema...");
         var currentSchema = await currentProvider.GetSchema(currentSource, schemasInScope, required, cancellationToken);
+        reporter.Verbose($"Current schema ({currentSource.ToString().ToLowerInvariant()}): {Census.Describe(currentSchema)}.");
 
         reporter.Progress("Computing migration plan...");
         return ReportOrThrow(planner.Plan(currentSchema, desired.Schema, desired.Scripts));
@@ -108,7 +111,22 @@ internal sealed class MigrationWorkflow(
         reporter.Progress("Updating state store...");
         var schema = await currentProvider.GetSchema(SchemaSourceMode.Online, null, required: true, cancellationToken);
         var snapshot = stateSerializer.Serialize(schema);
+        reporter.Verbose($"State snapshot: {Census.Describe(schema)}, {snapshot.Length:N0} bytes.");
         await store.Write(snapshot, cancellationToken);
         reporter.Success("State store updated successfully.");
+    }
+
+    /// <summary>
+    /// Emits the verbose detail about the loaded desired project: the files it was read from and a census of
+    /// what they declared.
+    /// </summary>
+    private void ReportDesiredDetail(DesiredProject desired)
+    {
+        if (desired.Files.Count > 0)
+        {
+            reporter.Verbose($"Read {Census.Count(desired.Files.Count, "DDL file")}: {string.Join(", ", desired.Files)}.");
+        }
+
+        reporter.Verbose($"Desired schema: {Census.Describe(desired.Schema)}, {Census.Count(desired.Scripts.Count, "deployment script")}.");
     }
 }
