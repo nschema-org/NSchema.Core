@@ -12,6 +12,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IOpe
         reporter.Announce("Importing schema from database...");
 
         var schema = await currentSchema.GetSchema(SchemaSourceMode.Online, arguments.Schemas, cancellationToken: cancellationToken);
+        reporter.Verbose($"Fetched {Census.Describe(schema)} from the database.");
 
         foreach (var (path, partition) in schema.Schemas.SelectMany(s => ObjectPartitions(s, arguments.OutputDirectory)))
         {
@@ -70,6 +71,10 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IOpe
 
         var ddl = DdlWriter.Instance.Write(merged);
         await File.WriteAllTextAsync(path, ddl, cancellationToken);
+
+        // Surface whether each object was created fresh or merged into an existing file — import is additive, so
+        // this is the signal that an earlier import's file was updated in place rather than replaced.
+        reporter.Verbose($"{(existing is null ? "Wrote" : "Merged into")} {path}.");
     }
 
     private async Task<DatabaseSchema?> TryReadExisting(string path, CancellationToken cancellationToken)

@@ -38,7 +38,7 @@ internal sealed class DesiredSchemaProvider(IEnumerable<DdlSchemaSource> sources
             scripts.AddRange(document.Scripts);
         }
 
-        return new DesiredProject(schema.Filter(schemaNames), scripts);
+        return new DesiredProject(schema.Filter(schemaNames), scripts, files);
     }
 
     private static IEnumerable<string> ResolveFiles(DdlSchemaSource source) => source.Matcher

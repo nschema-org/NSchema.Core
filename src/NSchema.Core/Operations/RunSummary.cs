@@ -47,4 +47,28 @@ internal static class RunSummary
         var statements = count == 1 ? "1 statement" : $"{count} statements";
         return $"{Describe(diff)} ({statements})";
     }
+
+    /// <summary>
+    /// A verbose preview of what execution will run: the statement count and how many must run outside a
+    /// transaction (e.g. <c>CREATE INDEX CONCURRENTLY</c>) — the atomicity-breakers worth knowing about when
+    /// diagnosing a partial apply.
+    /// </summary>
+    public static string DescribeExecution(SqlPlan sql)
+    {
+        var count = sql.Statements.Count;
+        var statements = count == 1 ? "1 statement" : $"{count} statements";
+
+        var outside = 0;
+        foreach (var statement in sql.Statements)
+        {
+            if (statement.RunOutsideTransaction)
+            {
+                outside++;
+            }
+        }
+
+        return outside == 0
+            ? $"Executing {statements}."
+            : $"Executing {statements} ({outside} must run outside a transaction).";
+    }
 }

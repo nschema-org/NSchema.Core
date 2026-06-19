@@ -42,6 +42,7 @@ internal sealed class DestroyOperation(
         }
 
         reporter.Progress("Running schema teardown...");
+        reporter.Verbose(RunSummary.DescribeExecution(sqlPlan));
 
         try
         {

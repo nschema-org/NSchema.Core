@@ -148,6 +148,17 @@ public sealed class ApplyOperationTests
     }
 
     [Fact]
+    public async Task Execute_ReportsVerboseExecutionCensusFlaggingOutOfTransactionStatements()
+    {
+        _generator.Generate(Arg.Any<MigrationPlan>()).Returns(new SqlPlan(
+            [new SqlStatement("CREATE TABLE app.t (id int)"), new SqlStatement("CREATE INDEX CONCURRENTLY ix ON app.t (id)", RunOutsideTransaction: true)]));
+
+        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
+
+        _reporter.Received().Report(MessageKind.Verbose, "Executing 2 statements (1 must run outside a transaction).");
+    }
+
+    [Fact]
     public async Task Execute_ReportsOutcomeSummaryWithCountsAndStatements()
     {
         var diff = new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add, null, null, [], [])]);

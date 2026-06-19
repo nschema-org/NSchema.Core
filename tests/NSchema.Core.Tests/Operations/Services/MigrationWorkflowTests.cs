@@ -157,7 +157,7 @@ public sealed class MigrationWorkflowTests
         var desired = new DatabaseSchema([new SchemaDefinition("app", Tables:
             [new Table("users"), new Table("orders")])]);
         _desiredProvider.GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(new DesiredProject(desired, [new Script("seed", "select 1", ScriptType.PostDeployment)]));
+            .Returns(new DesiredProject(desired, [new Script("seed", "select 1", ScriptType.PostDeployment)], ["/app/users.sql", "/app/orders.sql"]));
         _currentProvider
             .GetSchema(SchemaSourceMode.Online, Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(new DatabaseSchema([new SchemaDefinition("app")]));
@@ -166,6 +166,7 @@ public sealed class MigrationWorkflowTests
         await _sut.Plan(SchemaSourceMode.Online, required: true, null, TestContext.Current.CancellationToken);
 
         // Assert
+        _reporter.Received().Report(MessageKind.Verbose, "Read 2 DDL files: /app/users.sql, /app/orders.sql.");
         _reporter.Received().Report(MessageKind.Verbose, "Desired schema: 1 schema, 2 tables, 1 deployment script.");
         _reporter.Received().Report(MessageKind.Verbose, "Current schema (online): 1 schema, 0 tables.");
     }

@@ -61,6 +61,7 @@ internal sealed class ApplyOperation(
         }
 
         reporter.Progress("Running schema migration...");
+        reporter.Verbose(RunSummary.DescribeExecution(sqlPlan));
 
         try
         {
@@ -83,6 +84,7 @@ internal sealed class ApplyOperation(
         var envelope = await planFile.Read(path, cancellationToken);
 
         reporter.Announce($"Applying saved plan from {path}. Changes will be applied to the database.");
+        reporter.Verbose($"Saved plan was created at {envelope.CreatedAt:u}.");
 
         await using var stateLockHandle = await stateLock.Acquire(new StateLockRequest("apply"), cancellationToken);
 
@@ -98,6 +100,7 @@ internal sealed class ApplyOperation(
         }
 
         reporter.Progress("Applying plan...");
+        reporter.Verbose(RunSummary.DescribeExecution(envelope.Sql));
 
         try
         {
