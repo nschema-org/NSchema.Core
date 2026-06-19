@@ -31,7 +31,7 @@ internal sealed class DriftOperation(
         }
         else
         {
-            reporter.Warn("Drift detected.");
+            reporter.Warn($"Drift detected: {RunSummary.Describe(diff)}.");
         }
     }
 }

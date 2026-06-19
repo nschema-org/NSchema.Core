@@ -6,6 +6,11 @@ namespace NSchema.Operations;
 public enum MessageKind
 {
     /// <summary>
+    /// Low-level detail useful when diagnosing a run but noise in normal output
+    /// </summary>
+    Verbose,
+
+    /// <summary>
     /// A neutral statement about the operation.
     /// </summary>
     Announcement,

@@ -48,7 +48,7 @@ public sealed class DriftOperationTests
         await BuildSut().Execute(new DriftArguments(), TestContext.Current.CancellationToken);
 
         _reporter.Received(1).ReportDiff(diff);
-        _reporter.Received().Report(MessageKind.Warning, "Drift detected.");
+        _reporter.Received().Report(MessageKind.Warning, "Drift detected: 1 added.");
     }
 
     [Fact]

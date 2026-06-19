@@ -72,7 +72,7 @@ public sealed class ApplyEndToEndTests : IDisposable
     }
 
     [Fact]
-    public async Task Apply_WithNoChanges_ExecutesEmptyPlan()
+    public async Task Apply_WithNoChanges_ShortCircuitsWithoutExecutingButStillCapturesState()
     {
         var schema = new DatabaseSchema([new SchemaDefinition("app", Tables:
             [new Table("users", Columns: [new Column("id", SqlType.Int)])])]);
@@ -90,6 +90,10 @@ public sealed class ApplyEndToEndTests : IDisposable
         await app.Apply(new ApplyArguments(), TestContext.Current.CancellationToken);
 
         _reporter.Diff.ShouldNotBeNull().IsEmpty.ShouldBeTrue();
-        _executor.Executed.ShouldNotBeNull().Statements.ShouldBeEmpty();
+        // Nothing to apply: the empty plan never reaches the executor...
+        _executor.Executed.ShouldBeNull();
+        _reporter.Infos.ShouldContain("No changes. The database already matches the desired schema.");
+        // ...but a first run against an already-matching database still initialises the store.
+        _store.Written.ShouldNotBeNull().Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
     }
 }

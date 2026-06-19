@@ -40,8 +40,4 @@
     <ProjectReference Include="..\..\src\NSchema.Core\NSchema.Core.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Resolution\" />
-  </ItemGroup>
-
 </Project>

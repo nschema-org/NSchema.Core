@@ -42,11 +42,12 @@ internal sealed class DestroyOperation(
         }
 
         reporter.Progress("Running schema teardown...");
+        reporter.Verbose(RunSummary.DescribeExecution(sqlPlan));
 
         try
         {
             await sqlExecutor.Execute(sqlPlan, cancellationToken);
-            reporter.Success("Schema destroyed successfully.");
+            reporter.Success($"Destroy complete. {RunSummary.Describe(planned.Diff, sqlPlan)}.");
         }
         finally
         {
