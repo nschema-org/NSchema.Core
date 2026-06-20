@@ -4,123 +4,44 @@ All notable changes to NSchema will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.0.0] First Stable Release - 2026-06-20
 
-This release is a big rewrite converting `NSchema` package into `NSchema.Core` to allow the NSchema CLI tool to take the `NSchema` package name.
+This release is a ground-up rewrite, reworking the `NSchema` library into a thin CLI wrapper around a new `NSchema.Core`.
 
-Alongside new reporting, diff rendering, and interactive controls, I've reorganized the codebase into clearer top-level namespaces and split SQL generation from execution so that plans can be previewed entirely offline. The reporter, SQL generator, diff renderer, and schema source are each replaceable, one per run.
+The full Terraform-style lifecycle (`plan` / `apply` / `destroy`) etc. has been implemented along with features like saved plans, drift detection, backend state and locking.
 
-Planning and applying behavior are the same as before, but most public types have moved namespaces and a few have been renamed, so you'll need to update your `using` directives (and a handful of type names) when upgrading.
+See the new documentation site for all details: https://nschema.dev.
 
-### Added
+## Pre 3.0.0
 
-- A new `IOperationConfirmation` interface in `NSchema.Operations` that can be used to seek confirmation before an operation makes changes. This is intended for interactive scenarios (e.g. CLI) where the user can review the plan and confirm before proceeding.
-- Exception handling can now be controlled via `NSchemaApplicationOptions.ExceptionBehavior` (passed to `CreateBuilder(...)`). The default behavior is preserved: exceptions will be reported to the `IOperationReporter` and then re-thrown.
-- Schemas are now diffed into a structured, hierarchical model (`DatabaseDiff`) and a new `IDiffRenderer` interface renders it for the reporter.
-- `UseTerraformRenderer(...)` to configure the default Terraform-style renderer.
-- SQL previews are now structured too. `ISqlPlanRenderer` renders a `SqlPlan` to text, mirroring `IDiffRenderer`.
-- `PolicyDiagnostics`, a collection type for policy results, with a `PolicyDiagnosticSeverity` of `Info`, `Warning`, or `Error`.
-- A pluggable `IOperationReporter`. The application reports through a single reporter, registered directly and replaced via `UseReporter<T>()` / `UseReporter(instance)`. The built-in human-readable `DefaultOperationReporter` is used unless replaced. (A front-end that offers multiple output formats — e.g. text vs. JSON — selects the reporter itself at build time; the core does not key reporters.)
-- A pluggable `ISqlGenerator`. SQL generation is a separate seam from execution, registered via `UseSqlGenerator<T>()` (typically by a database-provider extension). It is optional: with none registered, plans are reported without a SQL preview.
-- `Import` operation. Reads the live database schema and writes it to the local filesystem as desired-schema source files. Triggered via `app.Import(...)`.
-- `Validate` operation. Reads the desired schema and validates it against all registered `ISchemaPolicy` implementations. Triggered via `app.Validate(...)`.
-- `Destroy` operation. Destroys all managed objects in the target database. Triggered via `app.Destroy(...)`. Use with extreme caution.
-- `PlanDestroy` operation. Previews the teardown plan (the plan to drop the managed schema) without confirming, executing, or capturing state. Triggered via `app.PlanDestroy(...)`. The preview-half of `Destroy`, mirroring how `Plan` previews `Apply`.
-- `Show` operation. Reads the recorded (offline) state from the state store and renders it, without planning or contacting the live database. Triggered via `app.Show(...)`. The schema-management analogue of `terraform show`; requires a configured state store. Setting `ShowArguments.PlanFile` instead shows a **saved plan file** — its diff, plan, and SQL, the same view the plan step produced — without a state store or live database, the read-only counterpart of applying a saved plan (`terraform show <planfile>`).
-- `Drift` operation. Compares the recorded (offline) state against the live database and reports how the live database has drifted from the recorded state, without planning or applying. Triggered via `app.Drift(...)`. The analogue of `terraform plan -refresh-only`; requires both a configured state store and a live database provider.
-- `ISchemaRenderer`, the schema-side counterpart to `IDiffRenderer`: it renders a single `DatabaseSchema` as text (default `DefaultSchemaRenderer`, an indented tree). Replace it via `UseSchemaRenderer<T>()`. The `Show` operation renders through it via the new `IOperationReporter.ReportSchema(DatabaseSchema)`.
-- State locking. A new `IStateLock` seam coordinates exclusive access to the state so concurrent state-mutating runs (`Apply`, `Destroy`, `Refresh`) can't race against the same state; a blocked acquire throws `StateLockedException`. The lock is **registered automatically alongside the state store**: `UseFileStateStore(path)` also wires a `FileStateLock` at `<path>.lock`, and a backend implementing both `ISchemaStateStore` and `IStateLock` is registered once for both. Override the co-located lock with `UseStateLock<T>()` / `UseStateLock(instance)` / `UseFileStateLock(path)`. With no store configured, locking is off (a no-op `NoOpStateLock`).
-- `ForceUnlock` operation. Removes a stale state lock regardless of holder, reporting who held it. Triggered via `app.ForceUnlock(...)`; backed by `IStateLock.ForceUnlock`.
-- Saved plan files. `Plan` and `PlanDestroy` can write the computed plan to a file via `PlanArguments.OutFile` / `PlanDestroyArguments.OutFile`, and `Apply` can execute a saved file via `ApplyArguments.PlanFile` instead of recomputing, so what was reviewed is exactly what is applied. The file stores the structured diff, the plan, and the generated SQL; applying from it reports the same diff/plan/SQL view and runs the saved SQL.
-- A new set of structural and linting schema policies that include checks for common issues like missing primary keys or invalid indexes. The structural-integrity policy also rejects a name reused across object kinds that share a name space in the database (a table, view, materialized view, sequence, composite type, enum, or domain called the same thing within one schema — Postgres's `pg_class`/`pg_type`; routines are a separate name space), and a column that declares both a `DEFAULT` and a `GENERATED` expression.
-- View support. The schema model now includes views, declared in DDL with `CREATE VIEW s.v AS <query>` (and `DROP VIEW s.v`). A view's defining query is stored verbatim; the objects it reads are derived from the query's `FROM`/`JOIN` clauses (sub-queries and CTEs included) and drive ordering.
-- Enum type support. The schema model now includes enum types, declared in DDL with `CREATE ENUM s.e ('a', 'b')` (and `DROP ENUM s.e`). Values are ordered, and evolution is additions-only: new values may be inserted anywhere (planned as anchored add-value actions), while a removal or reorder is reported in the diff but rejected at planning by the always-on `enum-value-removal` policy — the type must be recreated manually. Enums are created before, and dropped after, the tables that may use them.
-- `INamedObject` (`Name`/`Comment`) and `IRenameableObject : INamedObject` (adds `OldName`), implemented by every named model record — table members (constraints, indexes) implement the former, renameable objects (tables, columns, views, enums, sequences, functions, procedures, schemas) the latter. On the diff side, `INamedObjectDiff` (`Name`/`Kind`) and `ISchemaObjectDiff : INamedObjectDiff` (adds `Schema`/`RenamedFrom`), with `SchemaDiff.EnumerateObjects()` and `TableDiff.EnumerateMembers()` enumerating changes across kinds. These back two shared comparer skeletons — matching, rename detection, and partial-schema drop semantics for schema-level objects, and the name-matched remove/add/comment algorithm for table list members — plus kind-agnostic diff consumers (change summary, destructive-change detection). No behavioral change.
-- Function and procedure support. The schema model now includes functions and procedures, declared in DDL with `CREATE FUNCTION s.f(args) <definition>` / `CREATE PROCEDURE s.p(args) <definition>` (and `DROP FUNCTION` / `DROP PROCEDURE`). The argument list and definition are stored verbatim and compared for cosmetic equivalence (the same literal-aware normalization views use); definitions may contain dollar-quoted bodies (`$$ … $$` or `$tag$ … $tag$`) with embedded semicolons. Overloading is not supported (one routine per name), and functions and procedures share one name space per schema, as they do in the database. A definition-only change replaces in place (`CREATE OR REPLACE` semantics); an argument-list change plans a drop + recreate via a single `RecreateFunction`/`RecreateProcedure` action, since replacing under a different signature would orphan the old overload. Routines are created before, and dropped after, the tables whose defaults and checks may call them; views order around them for free.
-- Sequence support. The schema model now includes standalone sequences, declared in DDL with `CREATE SEQUENCE s.q (AS bigint, START 100, INCREMENT 5, MINVALUE 1, MAXVALUE 999999, CACHE 10, CYCLE)` (and `DROP SEQUENCE s.q`) — the option style mirrors a column's `IDENTITY (…)` clause, and every option is optional. Option changes plan an `AlterSequence`. Sequences are created before, and dropped after, the tables whose defaults may use them.
-- Functions and procedures unified into a single `Routine` model. They are one catalog object in the database (Postgres's `pg_proc`, discriminated by `prokind`) sharing one name space, so they are now one type — `Routine(Name, RoutineKind Kind, Arguments, Definition, …)` with `RoutineKind` of `Function` or `Procedure` — rather than two parallel records. `SchemaDefinition.Functions`/`Procedures` collapse to one `Routines` list (and `Dropped*` to `DroppedRoutines`), the shared-name-space rule now falls out of a single duplicate check, and the per-kind diffs and Create/Drop/Recreate/Rename/SetComment actions collapse to one set carrying the kind. The DDL surface is unchanged — `CREATE FUNCTION` / `CREATE PROCEDURE` still create the respective kinds — except a drop may now use `DROP FUNCTION`, `DROP PROCEDURE`, or the kind-agnostic `DROP ROUTINE` (all equivalent). `import` writes routines to a single `routines/` directory.
-- Domain support. The schema model now includes domains — schema-scoped named types over a base type with an optional default, not-null requirement, and named `CHECK` constraints — declared in DDL with `CREATE DOMAIN s.d AS <type> [NOT NULL] [CONSTRAINT n CHECK (e)]… [DEFAULT expr]` (and `DROP DOMAIN s.d`). Because a domain is depended on by table columns, changes are applied in place with `ALTER DOMAIN` (set/drop default, set/drop not-null, add/drop check) wherever possible; only a **base-type change** forces a drop + recreate (Postgres has no `ALTER DOMAIN … TYPE`). Domains are created before, and dropped after, the tables whose columns may use them. The optional `DEFAULT`, if present, comes last in the DDL (its expression is opaque, read to the terminating `;`).
-- Composite type support. The schema model now includes composite types — schema-scoped named tuples of `field name + type` pairs (no constraints, defaults, or nullability) — declared in DDL with `CREATE TYPE s.t AS (f1 t1, f2 t2)` (and `DROP TYPE s.t`). Like a domain, a composite type is depended on by table columns, so it is created before, and dropped after, the tables whose columns may use it. Every change is applied in place with `ALTER TYPE` — there is no recreate: fields are matched by name, so a field is added, dropped, or retyped (`ALTER ATTRIBUTE … TYPE`) independently, and a rename uses `RENAMED FROM`.
-- Richer index grammar. `TableIndex.ColumnNames` (a flat `string[]`) is replaced by `Columns` — a list of `IndexColumn` keys, each a column **or** a parenthesised expression (`(lower(email))`) with optional `ASC`/`DESC` and `NULLS FIRST`/`NULLS LAST` ordering — and an index now also carries an access `Method` (`USING gin`/`gist`/`brin`/…; null = B-tree) and covering `Include` columns (`INCLUDE (…)`). The DDL surface gains all four (inline and standalone `CREATE INDEX` forms); a bare column name implicitly converts to an `IndexColumn`, so a plain column list still reads as `["a", "b"]`. Any structural change (a key, its ordering, the method, or the include set) drops and recreates the index, as before.
-- Generated columns. `Column` gains `GeneratedExpression` for a stored generated column, declared in DDL as `name type GENERATED ALWAYS AS (expr) STORED` (mutually exclusive with `DEFAULT`; the expression is opaque). A change to the generation expression plans a `SetColumnGenerated`; adding or dropping a generated column flows through the usual add/drop-column path.
-- Exclusion constraints. The schema model now includes exclusion constraints (`ExclusionConstraint` with an optional access `Method`, a list of `ExclusionElement { Expression, Operator }`, and an optional partial `Predicate`), declared in the table body as `CONSTRAINT n EXCLUDE [USING method] (element WITH operator, …) [WHERE (…)]` — e.g. `EXCLUDE USING gist (room WITH =, during WITH &&)`. Each element is a column or parenthesised expression and the operator is captured verbatim (so `&&`, `<>`, … need no escaping). Like a unique constraint, a structural change drops and recreates it and a doc-comment change applies in place (`COMMENT ON CONSTRAINT`); **dropping** one is a destructive change.
-- Standalone `CREATE [UNIQUE] INDEX n ON s.t (cols) [WHERE (…)]` statements. A table index may now be declared either inline in the table body or as a standalone statement (resolved and attached to its table at build time, like a `GRANT`); both produce the same `Table.Indexes` entry, and the writer emits table indexes inline as the canonical form. The same statement attaches an index to a materialized view (see below).
-- Materialized view support. Views and materialized views are now the same model type (`View`, matching `pg_class`'s `relkind`), distinguished by `IsMaterialized`; a materialized view may additionally carry `Indexes`. Declared in DDL with `CREATE MATERIALIZED VIEW s.v AS <query>` (and `DROP MATERIALIZED VIEW s.v`), with indexes as standalone `CREATE [UNIQUE] INDEX n ON s.v (cols) [WHERE (…)]` statements attached to the view at build time (a plain view cannot be indexed; targeting an unknown relation is an error). Because there is no `CREATE OR REPLACE MATERIALIZED VIEW`, a materialized view's body change — or a view ⇄ materialized-view conversion — is planned as a drop + recreate (its indexes rebuilt with it), whereas a plain view's body change remains an in-place `CREATE OR REPLACE`; an index added or removed without a body change is applied in place. Materialized views participate in the same dependency ordering as plain views.
-- Trigger support. The schema model now includes table triggers, declared in DDL with a standalone `CREATE TRIGGER name {BEFORE|AFTER|INSTEAD OF} {event [OR …]} ON s.t [FOR EACH {ROW|STATEMENT}] [WHEN (…)] EXECUTE FUNCTION f(…)` statement. A trigger is table-scoped but written standalone (naming its table via `ON`, attached at build time like a `GRANT`); `timing`/`level` are enums and the event set is a bit-flag (`INSERT`/`UPDATE [OF (cols)]`/`DELETE`/`TRUNCATE`), while the `WHEN` condition and function arguments are captured verbatim. Triggers are table members like indexes — not renameable, with no `DROP TRIGGER` statement (a trigger absent from a declared table is dropped, and a structural change plans a drop + recreate; only a comment-only change is applied in place). The planner creates a trigger after both its table and the function it calls, and drops it before either.
-- Extension support. The schema model now includes database extensions, declared in DDL with `CREATE EXTENSION citext` / `CREATE EXTENSION postgis VERSION '3.4'` (and `DROP EXTENSION e`). Extensions are **database-global**, not schema-scoped, so they live at the root of the schema model (`DatabaseSchema.Extensions`) and its diff (`DatabaseDiff.Extensions`) rather than inside a schema; the name may be a quoted string (e.g. `'uuid-ossp'`) when it is not a bare identifier. `VERSION` is optional and is compared only when specified, so an omitted version never shows as drift; a version change plans an `AlterExtension`. Unlike every other object, an extension present in the database but absent from the desired schema is **left alone** — it is removed only by an explicit `DROP EXTENSION`, since extensions are shared infrastructure a database always has installed. Extensions are created before any schema (a column or routine may depend on a type the extension provides) and dropped after everything else. `import` writes them to a single top-level `extensions.sql` file.
-- The NSchema DDL, now the primary way to declare a desired schema. The public, stateless `DdlReader` (`DdlReader.Instance.Read(source)`) reads declarative `CREATE SCHEMA` / `CREATE TABLE` (with inline, always-named constraints and inline indexes), `GRANT`, and the view/enum/sequence/function/procedure statements above from `.sql` files — it describes desired state, never `ALTER` steps, and is dialect-agnostic (canonical type names mapped to a dialect by `ISqlGenerator`). Doc-comments (`--- …`) become catalog comments, `RENAMED FROM` drives rename detection, and `CREATE PARTIAL SCHEMA` leaves undeclared tables alone. Register files with `AddSqlSchemas(baseDirectory, pattern)` (the pattern is relative to the base directory and defaults to `**/*.sql`; a wildcard-free pattern names a single file; an unmatched pattern throws), or `AddSqlSchemas(baseDirectory, Matcher)` to pass a configured `Microsoft.Extensions.FileSystemGlobbing.Matcher` for include/exclude control. Columns may reference schema-qualified user-defined types (e.g. an enum as `app.status`). See `docs/ddl-grammar.md` for the full grammar.
-- Config-in-SQL. DDL files may carry top-level configuration blocks: `NSCHEMA ( … )`, `BACKEND file ( … )`, `PROVIDER postgres ( … )` declaring orchestration metadata (dialect, state backend, live provider) alongside the schema, in SQL-statement form (mirroring Postgres `WITH (option = value, …)`). The core captures them into a generic `ConfigBlock` / `ConfigValue` model (`NSchema.Configuration`) but never interprets them: `DdlReader.Instance.Read(source)` returns a `DdlDocument` whose `Config` surfaces them for a front-end (and whose `Schema` is the desired schema). Interpretation — precedence, mapping a block to builder registration, provider dispatch, secrets-from-env — is a front-end concern.
-- Deployment scripts in the DDL. Deployment scripts are declared directly in `.sql` files with `PRE DEPLOYMENT '<name>' AS $$ … $$;` / `POST DEPLOYMENT '<name>' AS $$ … $$;` — `AS` introduces the body exactly as for a view, and the body is a dollar-quoted, opaque SQL block (so it may contain its own `;`), run verbatim before/after the migration. An optional `( run_outside_transaction = true )` clause marks statements the database forbids inside a transaction (e.g. `CREATE INDEX CONCURRENTLY`). `DdlReader.Instance.Read(source)` returns them on `DdlDocument.Scripts` (alongside `Schema` and `Config`); the body is captured by a raw lexer read (`ReadDollarQuotedBody`, the dollar-quoted counterpart of the existing parenthesized-expression capture). They are read from the same files as the schema — `AddSqlSchemas(...)` supplies both. The schema-only `DdlWriter.Instance.Write(DatabaseSchema)` does not emit them, but `DdlWriter.Instance.Write(DdlDocument)` round-trips config blocks, schema, and scripts losslessly (config first, then schema, then scripts) — the basis for a front-end `fmt`.
+Since NSchema has transitioned from a library into a full CLI tool, nothing here is relevant. These notes are just kept for completeness.
 
-### Changed
+### [2.1.0] - 2026-06-02
 
-- **Breaking:** Namespaces have been flattened. Several areas have been promoted out of the `NSchema.Migration` umbrella into top-level namespaces that mirror the architecture.
-- **Breaking:** `NSchemaApplication` is no longer an `IHost` and no longer runs the migration as a `BackgroundService`. `Build()` returns a single-use object whose operation methods run the work synchronously and let exceptions propagate to the caller; there is no host lifecycle. Run behaviour (reporter, exception behaviour) is configured via `NSchemaApplicationOptions` passed to `CreateBuilder(...)`.
-- **Breaking:** The single migration-operation seam has been replaced by one internal handler per operation, each with an `Execute(<Operation>Arguments, …)` method. Operations are invoked by calling the matching method on the built application (`app.Plan()`, `app.Apply()`, …); per-run inputs are passed via the public arguments records (`PlanArguments`, `ApplyArguments`, …). `IMigrationConfirmation` is now `IOperationConfirmation`.
-- **Breaking:** Schema scoping is now a per-operation argument (`PlanArguments.Schemas` / `ApplyArguments.Schemas` / `ValidateArguments.Schemas`) rather than the ambient `MigrationOptions.SchemaNames` / `ForSchemas(...)`, which are removed.
-- **Breaking:** The plan-stage extension points are now named for the stage, matching `ISchemaPolicy` / `IDiffPolicy`: `IMigrationPlanTransformer` is now `IPlanTransformer`, `IMigrationPolicy` is now `IPlanPolicy` (registered with `AddPlanPolicy<T>()`, was `AddMigrationPolicy<T>()`), and `IMigrationLinearizer` is now `IPlanLinearizer`. They live in `NSchema.Plan` alongside the `MigrationPlan` model.
-- **Breaking:** `ISqlPlanner` is now `ISqlGenerator`, and its `Plan(MigrationPlan)` method is now `Generate(MigrationPlan)`. Register it with `UseSqlGenerator<T>()` (was `UseSqlPlanner<T>()`). There is one generator per run.
-- **Breaking:** `IMigrationReporter` is now `IOperationReporter` (in `NSchema.Operations`). There is one reporter per run, replaced via `UseReporter<T>()` / `UseReporter(instance)`.
-- **Breaking:** `IOperationReporter.ReportPreview(IReadOnlyList<string>)` is now `ReportSqlPlan(SqlPlan)`, so the reporter receives the structured plan and renders it via `ISqlPlanRenderer` rather than a pre-flattened list of strings.
-- **Breaking:** `IOperationReporter`'s `ReportPlan(MigrationPlan)` has been replaced by `ReportDiff(DatabaseDiff)`. The plan is converted to a structured diff before it is reported.
-- **Breaking:** `IOperationReporter` gained a `ReportSchema(DatabaseSchema)` method, which presents a single schema state (used by the `Show` operation). Custom reporters must implement it.
-- **Breaking:** `PolicyError` is now `PolicyDiagnostic`, and `PolicySeverity` is now `PolicyDiagnosticSeverity`. Custom `ISchemaPolicy` / `IPlanPolicy` implementations return `PolicyDiagnostic`s.
-- **Breaking:** The `DestructiveActionPolicy` enum moved to `NSchema.Diff.Policies`, alongside the `DestructiveActionOptions` it configures (set via `WithDestructiveActionPolicy(...)`).
-- **Breaking:** Most async surfaces now use `ValueTask` instead of `Task` for better performance in the common synchronous case.
-- **Breaking:** `SqlType` is now a flat object instead of a class hierarchy, making serialization significantly easier, more robust and extensible. The built-in types are now static properties instead of subclasses.
-- `DefaultSqlExecutor` no longer requires a `DbDataSource` to be constructed; it's an optional dependency, and execution throws a clear error if no connection is configured. This keeps the container wiring unconditional.
-- Migration reporting messages have been overhauled to be more informative.
-- The `IOperationReporter` now logs directly to the console instead of using `ILogger`. This removes some hacky wiring around segregating logging sinks by category.
-- **Breaking:** `ISchemaStateStore` now deals in serialized state rather than `DatabaseSchema` snapshots. The core owns the state format and serializes/deserializes around the store.
-
-### Removed
-
-- **Breaking:** `IMigrationCompiler`, `ICompiledMigration`, and `UseMigrationCompiler<T>()`. SQL handling now relies on `ISqlGenerator` and `ISqlExecutor`.
-- **Breaking:** `IMigrationPlanRenderer`. Plan output now flows through `IDiffRenderer` (diff → text); register a custom `IDiffRenderer` or call `UseTerraformRenderer(...)` instead.
-- ** Breaking:** `ISchemaAggregator` has been removed. Instead, use `DatabaseSchema.Combine` to aggregate schemas.
-- **Breaking:** The fluent `AbstractSchemaProvider` schema-builder API (the `NSchema.Schema.Fluent` namespace — `Schema()` / `Table()` / `Column()` and friends) has been removed. Declare schemas in DDL (`.sql`, the primary format) instead; to build a schema in code, implement `ISchemaProvider` directly and register it with `AddSchema<T>()`.
-- **Breaking:** JSON schema support has been removed. The `AddJsonSchema` / `AddJsonSchemasFromGlob` / `AddJsonSchemasFromDirectory` helpers, the `JsonSchemaProvider`, and the built-in `json` schema serializer are gone — now that the SQL DDL is the primary format there is no reason to maintain a second one. Declare desired schemas in DDL (`.sql`) instead, and note that `Import` now writes `.sql` files.
-- **Breaking:** With a single schema format, the format-selection machinery is gone: the `ISchemaSerializer` interface, `AddSchemaSerializer<T>(format)` / `UseSchemaSerializer<T>(format)`, the keyed serializer resolver, and `ImportArguments.Format` have all been removed. DDL is now read and written directly — NSchema DDL text is read by the public, stateless `DdlReader` (`DdlReader.Instance.Read(source)` returns a `DdlDocument` with the schema and any config blocks) and written by `DdlWriter` (`DdlWriter.Instance.Write(schema)`). The `DdlSchemaSerializer` and `DdlConfigReader` stream/string adapters were folded away.
-- **Breaking:** `FileSchemaProvider` has been removed. The `AddFileSchemasFromGlob` / `AddFileSchemasFromDirectory` primitives, the single-file `AddSqlSchema(path)` helper, and the `AddSqlSchemasFromDirectory(dir)` helper are gone too — `AddSqlSchemas(baseDirectory, pattern)` is the single registration entry point (the pattern defaults to `**/*.sql`; a wildcard-free pattern loads one file). It may be called more than once and the sources aggregate.
-- **Breaking:** The desired schema now comes exclusively from SQL DDL files. The in-code desired-schema seam (`AddSchema<T>()` / `AddSchema<T>(factory)` and contributing arbitrary `ISchemaProvider` instances to the desired state) has been removed; `ISchemaProvider` remains only for the live/current database source (`UseCurrentSchema<T>()`). Desired schema and deployment scripts are read together from the registered `.sql` sources.
-- **Breaking:** `ISchemaTransformer` and `AddSchemaTransformer<T>()` / `AddSchemaTransformersFromAssembly[Containing]<T>()` have been removed. Shape the desired schema in the DDL itself.
-- **Breaking:** The pre/post-deployment script *providers* are gone — `IScriptProvider`, `AddScripts(...)` / `AddScripts<T>()`, the file-based `AddSqlScripts(...)` / `AddScriptFromFile(...)`, and the embedded-resource helpers. Deployment scripts are now declared inline in the DDL (see *Deployment scripts in the DDL* above) and read from the same `.sql` files as the schema.
-
-### Fixed
-
-- Toggling a column into or out of an identity column is now detected and emitted as a change. Previously only changes between two already-identity columns were picked up.
-- Table privilege grants are now rendered by decomposing the privilege flags (e.g. `SELECT, INSERT`) instead of using the enum name, which could surface aliases like `ReadOnly` for `SELECT`.
-- Re-importing into an existing schema file no longer fails with a duplicate-object error when the file already contains views (or the new enums/sequences); the merge now replaces them with the incoming definitions, as it always did for tables.
-- Fixed an issue with the schema domain models where deserializing them could leave collection properties as `null` instead of empty.
-- Fixed an issue where exceptions thrown during a migration were being swallowed silently by the host.
-- Fixed a regression where apply and refresh were scoping the final schema snapshot to the filtered schemas rather than the full set.
-
-## [2.1.0] - 2026-06-02
-
-### Added
+#### Added
 
 - Glob support for JSON schemas. `AddJsonSchemasFromGlob("schemas/**/*.json")` registers a provider for every matching file, and `AddJsonSchemasFromDirectory` now matches with the same globbing engine. Each file is aggregated like any other provider.
 - `FileSchemaProvider`, a public base class for file-backed `ISchemaProvider`s. It handles file existence, stream lifetime, and schema-name filtering; derived providers implement only the format-specific `Parse`.
 - `AddFileSchemasFromGlob` and `AddFileSchemasFromDirectory` builder methods, the shared file-discovery primitives behind the JSON helpers. Both take a provider factory so any file-backed provider can reuse the globbing.
 
-## [2.0.1] - 2026-06-01
+### [2.0.1] - 2026-06-01
 
-### Fixed
+#### Fixed
 
 - Fixed a bug where trying to register multiple desired schema providers of the same concrete type would only resolve the first one.
 
-### Changed
+#### Changed
 
 - `UseStateStoreFile` is now `UseFileStateStore` to align with the other extension methods. The old method still exists, it's just been marked obsolete.
 - Schema filtering now uses a dedicated `Filter` method on the `DatabaseSchema` model for better reuse and discoverability.
 
-## [2.0.0] - 2026-06-01
+### [2.0.0] - 2026-06-01
 
 Version 2 focuses on improving developer experience with a more explicit and extensible model for planning and applying changes. It also introduces an optional Terraform-style state store so that plans can be made against snapshots rather than a live database.
 
-### Added
+#### Added
 
-#### Backend state store (new)
+##### Backend state store (new)
 
 By default NSchema plans against the live database, but this isn't always possible. A CI pipeline may have no way to reach the database, or you may want plans to reflect the last deployed state rather than any drift since then.
 
@@ -136,7 +57,7 @@ A new `Refresh` operation captures the current live schema to the store without 
 
 `FileSchemaStateStore` is a ready-made file-backed implementation. Custom stores implement `ISchemaStateStore`. Alongside this release, there will be an `NSchema.Aws` package with an implementation for S3.
 
-#### JSON schemas (new)
+##### JSON schemas (new)
 
 Desired schemas can now be declared in a JSON file instead of C#, so you can describe a schema without a compiled project:
 
@@ -146,11 +67,11 @@ builder.AddJsonSchema("schema.json");
 
 The file mirrors the schema model, with SQL types written as compact strings (`"int"`, `"varchar(255)"`, `"decimal(10,2)"`). Multiple files can be registered and are aggregated like any other provider. See [Defining schemas in JSON](docs/schemas.md#defining-schemas-in-json) for the format reference.
 
-### Upgrading from 1.x
+#### Upgrading from 1.x
 
 The API has changed significantly. This section is organised around what you need to do, depending on your role.
 
-#### If you are a library user
+##### If you are a library user
 
 **The default operation is now `Plan`.** NSchema will not apply changes unless you explicitly configure it with `RunOperation(MigrationOperation.Apply)` or call `app.Apply()`. This prevents accidental data loss when running NSchema for the first time.
 
@@ -159,24 +80,24 @@ The API has changed significantly. This section is organised around what you nee
 - **`MigrationOptions` has been broken up.** Settings that control what gets migrated (`SchemaNames`, `DestructiveActionPolicy`) stay in `MigrationOptions`. Settings that control how a run executes (`Operation`, `TransactionMode`) have moved to `MigrationRunOptions` and `SqlExecutorOptions`. The builder methods still work as before; only direct reads of `IOptions<MigrationOptions>` need to change.
 - **`PolicyError` has a new `Severity` property.** The existing 2-argument constructor still compiles, but custom `IMigrationPolicy` implementations should use `PolicySeverity.Warning` to signal non-fatal findings rather than returning errors.
 
-#### If you are a database provider
+##### If you are a database provider
 
 - **`IMigrationReporter` has moved** to the `NSchema.Migration` namespace (was `NSchema.Hosting`). Update any `using` directives.
 - **`IMigrationExecutor` and `UseMigrationExecutor<T>()` have been removed.** Implement `IMigrationCompiler` instead. A compiler receives a `MigrationPlan` and returns an executable `ICompiledMigration` unit. Register it with `UseMigrationCompiler<T>()`.
 - **`UseCurrentSchema<T>()` is unchanged.** It still registers the live database provider. No action required.
 - **`IMigrationPlanner` is now public** and its `Plan()` method now takes explicit `DatabaseSchema currentSchema` and `DatabaseSchema desiredSchema` parameters. If you have a custom planner implementation, update the signature. The planner is now a pure domain service — it no longer resolves schema providers from DI.
 
-## [1.0.1] - 2026-05-28
+### [1.0.1] - 2026-05-28
 
-### Fixed
+#### Fixed
 
 - Fixed a bug where primary keys, foreign keys, and indexes weren't being displayed in the reported plan for new tables.
 
-## [1.0.0] - 2026-05-27
+### [1.0.0] - 2026-05-27
 
 First stable release. The public API is now covered by semantic versioning. Breaking changes will only ship in a new major version.
 
-### Added
+#### Added
 
 - Declarative schema definition via `AbstractSchemaProvider` and the fluent `Schema` / `Table` / `Column` / `Index` / `ForeignKey` builders.
 - Hosted application model: `NSchemaApplication.CreateBuilder(...)` produces an `IHost`-backed app that runs the migration as a `BackgroundService`.
