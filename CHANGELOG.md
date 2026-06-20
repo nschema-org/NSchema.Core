@@ -65,7 +65,7 @@ Desired schemas can now be declared in a JSON file instead of C#, so you can des
 builder.AddJsonSchema("schema.json");
 ```
 
-The file mirrors the schema model, with SQL types written as compact strings (`"int"`, `"varchar(255)"`, `"decimal(10,2)"`). Multiple files can be registered and are aggregated like any other provider. See [Defining schemas in JSON](docs/schemas.md#defining-schemas-in-json) for the format reference.
+The file mirrors the schema model, with SQL types written as compact strings (`"int"`, `"varchar(255)"`, `"decimal(10,2)"`). Multiple files can be registered and are aggregated like any other provider.
 
 #### Upgrading from 1.x
 
