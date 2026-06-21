@@ -65,6 +65,34 @@ public sealed class DdlParserTriggerTests
             .Comment.ShouldBe("audit row changes");
 
     [Fact]
+    public void Parse_InlineBody_CapturesBodyVerbatim()
+    {
+        // The SQL Server form: an inline dollar-quoted body (which may contain its own ';') instead of EXECUTE FUNCTION.
+        var trigger = ParseTrigger(
+            "CREATE TRIGGER audit AFTER INSERT OR DELETE ON app.users AS $$\nBEGIN\n  INSERT INTO app.log VALUES (1);\nEND\n$$;");
+
+        trigger.Name.ShouldBe("audit");
+        trigger.Timing.ShouldBe(TriggerTiming.After);
+        trigger.Events.ShouldBe(TriggerEvent.Insert | TriggerEvent.Delete);
+        trigger.Function.ShouldBeNull();
+        trigger.Body.ShouldNotBeNull();
+        trigger.Body!.ShouldContain("BEGIN");
+        trigger.Body.ShouldContain("INSERT INTO app.log VALUES (1);");
+        trigger.Body.ShouldContain("END");
+    }
+
+    [Fact]
+    public void Parse_FunctionTrigger_HasNullBody()
+        => ParseTrigger("CREATE TRIGGER t AFTER INSERT ON app.users EXECUTE FUNCTION app.f();")
+            .Body.ShouldBeNull();
+
+    [Fact]
+    public void Parse_TriggerActionMissing_Throws()
+        => Should.Throw<DdlSyntaxException>(() =>
+            new DdlParser(Table + "CREATE TRIGGER t AFTER INSERT ON app.users;").Parse())
+            .Message.ShouldContain("Expected EXECUTE or AS");
+
+    [Fact]
     public void Parse_TriggerOnUnknownTable_Throws()
         => Should.Throw<DdlSyntaxException>(() =>
             new DdlParser("CREATE SCHEMA app; CREATE TRIGGER t AFTER INSERT ON app.ghost EXECUTE FUNCTION app.f();").Parse())

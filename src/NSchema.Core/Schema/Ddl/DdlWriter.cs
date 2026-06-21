@@ -502,8 +502,20 @@ public sealed class DdlWriter
         WriteDocComment(sb, trigger.Comment, indent: "");
         sb.Append("CREATE TRIGGER ").Append(trigger.Name).Append(' ').Append(TriggerTimingText(trigger.Timing))
             .Append(' ').Append(TriggerEventsText(trigger))
-            .Append(" ON ").Append(schemaName).Append('.').Append(tableName)
-            .Append(" FOR EACH ").Append(trigger.Level == TriggerLevel.Row ? "ROW" : "STATEMENT");
+            .Append(" ON ").Append(schemaName).Append('.').Append(tableName);
+
+        // An inline-body trigger (SQL Server) carries its action in a dollar-quoted block; it has no FOR EACH / WHEN /
+        // function clauses. A function trigger (PostgreSQL) keeps those.
+        if (trigger.Body is { } body)
+        {
+            var delimiter = DollarDelimiter(body);
+            sb.Append(" AS ").AppendLine(delimiter);
+            sb.AppendLine(body);
+            sb.Append(delimiter).AppendLine(";");
+            return;
+        }
+
+        sb.Append(" FOR EACH ").Append(trigger.Level == TriggerLevel.Row ? "ROW" : "STATEMENT");
         if (trigger.When is { } when)
         {
             sb.Append(" WHEN (").Append(when).Append(')');

@@ -73,4 +73,14 @@ public partial class SchemaComparerTests
 
         DiffTriggers([current], [desired]).Select(d => d.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add], ignoreOrder: true);
     }
+
+    [Fact]
+    public void Compare_TriggerBodyChange_IsStructural()
+    {
+        // An inline-body change is part of structural equality, so it is a drop + recreate (not a comment-only modify).
+        var current = new Trigger("audit", TriggerTiming.After, TriggerEvent.Insert, Body: "BEGIN SELECT 1 END");
+        var desired = new Trigger("audit", TriggerTiming.After, TriggerEvent.Insert, Body: "BEGIN SELECT 2 END");
+
+        DiffTriggers([current], [desired]).Select(d => d.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add], ignoreOrder: true);
+    }
 }
