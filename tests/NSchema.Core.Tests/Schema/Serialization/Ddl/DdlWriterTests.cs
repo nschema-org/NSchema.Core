@@ -207,6 +207,27 @@ public sealed class DdlWriterTests
         roundTripped.Comment.ShouldBe("note");     // ... so assert the comment round-tripped too
     }
 
+    [Fact]
+    public void Write_InlineBodyTrigger_EmitsDollarQuotedBody()
+        => WriteTriggerOn(new Trigger("audit", TriggerTiming.After, TriggerEvent.Insert,
+                Body: "BEGIN INSERT INTO app.log VALUES (1); END"))
+            .ShouldContain("CREATE TRIGGER audit AFTER INSERT ON app.users AS $$\nBEGIN INSERT INTO app.log VALUES (1); END\n$$;");
+
+    [Fact]
+    public void Write_InlineBodyTrigger_RoundTripsThroughParse()
+    {
+        // A body with its own semicolons survives because it is emitted (and lexed) as one dollar-quoted block.
+        var trigger = new Trigger("audit", TriggerTiming.InsteadOf, TriggerEvent.Insert | TriggerEvent.Update,
+            Body: "BEGIN\n  UPDATE app.users SET id = id;\n  INSERT INTO app.log VALUES (1);\nEND", Comment: "note");
+        var schema = new DatabaseSchema([new SchemaDefinition("app",
+            Tables: [new Table("users", Columns: [new Column("id", SqlType.Int)], Triggers: [trigger])])]);
+
+        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema;
+        var roundTripped = reparsed.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Triggers.ShouldHaveSingleItem();
+        roundTripped.ShouldBe(trigger);
+        roundTripped.Body.ShouldBe(trigger.Body);
+    }
+
     // -------------------------------------------------------------------------
     // Extensions (database-global, root-level)
     // -------------------------------------------------------------------------
