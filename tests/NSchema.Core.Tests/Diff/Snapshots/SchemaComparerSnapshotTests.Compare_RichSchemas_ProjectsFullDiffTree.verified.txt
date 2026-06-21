@@ -21,6 +21,12 @@
             {
               Name: id,
               Kind: Modify,
+              Definition: {
+                Name: id,
+                Type: bigint,
+                IsNullable: false,
+                IsIdentity: false
+              },
               Type: {
                 Old: int,
                 New: bigint
@@ -29,6 +35,13 @@
             {
               Name: email_address,
               Kind: Modify,
+              Definition: {
+                Name: email_address,
+                Type: text,
+                IsNullable: false,
+                IsIdentity: false,
+                OldName: email
+              },
               RenamedFrom: email,
               Type: {
                 Old: varchar(100),

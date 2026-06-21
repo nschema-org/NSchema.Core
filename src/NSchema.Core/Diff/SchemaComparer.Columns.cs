@@ -121,6 +121,6 @@ internal sealed partial class SchemaComparer
             return null;
         }
 
-        return new ColumnDiff(desired.Name, ChangeKind.Modify, null, renamedFrom, type, nullability, @default, identity, comment, generated);
+        return new ColumnDiff(desired.Name, ChangeKind.Modify, desired, renamedFrom, type, nullability, @default, identity, comment, generated);
     }
 }

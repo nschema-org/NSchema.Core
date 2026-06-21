@@ -51,6 +51,20 @@ public partial class SchemaComparerTests
     }
 
     [Fact]
+    public void Compare_ModifiedColumn_CarriesDesiredDefinition()
+    {
+        // The desired column rides along on a modified column's Definition so a dialect whose in-place ALTER COLUMN
+        // must restate the whole column (SQL Server) can read the final type and nullability together.
+        var column = DiffColumn(
+            new Column("total", SqlType.Int, IsNullable: false),
+            new Column("total", SqlType.BigInt, IsNullable: false));
+
+        column!.Definition.ShouldNotBeNull();
+        column.Definition!.Type.ShouldBe(SqlType.BigInt);
+        column.Definition.IsNullable.ShouldBeFalse();
+    }
+
+    [Fact]
     public void Compare_IdentityOptionsChange_IsReported_WhenBothColumnsAreIdentity()
     {
         var current = new Column("id", SqlType.Int, IsIdentity: true, IdentityOptions: new IdentityOptions(1, 1, 1));

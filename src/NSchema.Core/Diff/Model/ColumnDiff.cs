@@ -7,7 +7,7 @@ namespace NSchema.Diff.Model;
 /// </summary>
 /// <param name="Name">The column name (the new name when renamed).</param>
 /// <param name="Kind">The change to the column.</param>
-/// <param name="Definition">The full column definition for added or dropped columns; otherwise <see langword="null"/>.</param>
+/// <param name="Definition">The full column definition.</param>
 /// <param name="RenamedFrom">The previous column name when renamed; otherwise <see langword="null"/>.</param>
 /// <param name="Type">The change to the column's type, if any.</param>
 /// <param name="Nullability">The change to the column's nullability, if any.</param>
