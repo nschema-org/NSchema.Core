@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
+## [3.1.0] - 2026-06-21
+
+**SQL Server Enhancements.** In working on the upcoming SQL Server provider, some functionality gaps were identified. This release goes towards enabling the SQL Server provider to work without hacks.
+
+### Added
+
+- When modifying a column's type or nullability, SQL Server requires restating the full column definition. To facilitate this, the `AlterColumnType` and `AlterColumnNullability` actions now include both the desired type and nullability. Both are optional and default to `null`, so the change is source-compatible. A modified column's `ColumnDiff.Definition` is now populated with the desired column, and the plan linearizer threads these final values onto the two actions.
+
 ## [3.0.0] - 2026-06-20
 
 **First stable release.** This release is a ground-up rewrite, reworking the `NSchema` library into a thin CLI wrapper around a new `NSchema.Core`.
@@ -107,6 +115,7 @@ First stable release. The public API is now covered by semantic versioning. Brea
 - Pre- and post-deployment script support via `IScriptProvider`, `AddScriptFromFile(...)`, and `AddScriptsFromEmbeddedResources(...)`.
 - SourceLink and symbol packages (`.snupkg`) published alongside the main package for source-level debugging.
 
+[3.1.0]: https://github.com/nschema-org/NSchema.Core/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/nschema-org/NSchema.Core/compare/v2.1.0...v3.0.0
 [2.1.0]: https://github.com/nschema-org/NSchema.Core/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/nschema-org/NSchema.Core/compare/v2.0.0...v2.0.1

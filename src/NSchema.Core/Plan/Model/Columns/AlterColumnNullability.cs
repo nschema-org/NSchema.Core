@@ -1,3 +1,5 @@
+using NSchema.Schema.Model.Columns;
+
 namespace NSchema.Plan.Model.Columns;
 
 /// <summary>
@@ -8,6 +10,7 @@ namespace NSchema.Plan.Model.Columns;
 /// <param name="ColumnName">The name of the column whose nullability is to be altered.</param>
 /// <param name="OldNullable">A boolean value indicating the current nullability of the column.</param>
 /// <param name="NewNullable">A boolean value indicating the new nullability of the column after alteration.</param>
+/// <param name="ColumnType">The column's data type in its final (desired) state.</param>
 /// <remarks>
 /// This action can either make a column nullable or non-nullable, depending on the specified parameters.
 /// Altering a column's nullability may lead to data loss if changing from nullable to non-nullable, as existing null values would need to be handled appropriately.
@@ -17,7 +20,8 @@ public sealed record AlterColumnNullability(
     string TableName,
     string ColumnName,
     bool OldNullable,
-    bool NewNullable
+    bool NewNullable,
+    SqlType? ColumnType = null
 ) : MigrationAction
 {
     /// <inheritdoc />

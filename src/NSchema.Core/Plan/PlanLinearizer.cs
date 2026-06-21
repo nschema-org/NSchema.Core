@@ -582,11 +582,11 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 }
                 if (column.Type is not null)
                 {
-                    actions.Add(new AlterColumnType(table.Schema, table.Name, column.Name, column.Type.Old!, column.Type.New!));
+                    actions.Add(new AlterColumnType(table.Schema, table.Name, column.Name, column.Type.Old!, column.Type.New!, column.Definition?.IsNullable));
                 }
                 if (column.Nullability is not null)
                 {
-                    actions.Add(new AlterColumnNullability(table.Schema, table.Name, column.Name, column.Nullability.Old, column.Nullability.New));
+                    actions.Add(new AlterColumnNullability(table.Schema, table.Name, column.Name, column.Nullability.Old, column.Nullability.New, column.Definition?.Type));
                 }
                 if (column.Default is not null)
                 {
