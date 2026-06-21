@@ -246,6 +246,21 @@
                 functionArguments: null,
                 comment: null,
                 body: null
+              },
+              {
+                name: users_guard,
+                timing: InsteadOf,
+                events: Delete,
+                function: null,
+                level: Statement,
+                when: null,
+                functionArguments: null,
+                comment: block deletes,
+                body:
+BEGIN
+  INSERT INTO app.audit (msg) VALUES ('blocked');
+  RETURN;
+END
               }
             ]
           }

@@ -103,6 +103,11 @@ public static class TestData
                                 When: "new.balance > 0", Comment: "audit row changes"),
                             new Trigger("users_stamp", TriggerTiming.Before, TriggerEvent.Update,
                                 "app.touch_updated_at"),
+                            // An inline-body (SQL Server-style) trigger: no function, a multi-statement body that
+                            // carries its own ';' (so it exercises the dollar-quoted round-trip).
+                            new Trigger("users_guard", TriggerTiming.InsteadOf, TriggerEvent.Delete,
+                                Body: "BEGIN\n  INSERT INTO app.audit (msg) VALUES ('blocked');\n  RETURN;\nEND",
+                                Comment: "block deletes"),
                         ]),
                 ],
                 DroppedTables: ["old_table"],
