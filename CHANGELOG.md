@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
+## [3.2.0] - 2026-06-21
+
+**More SQL Server Enhancements.** A second gap found while building the SQL Server provider: its triggers carry their action as an inline statement body, not by calling a separate function as PostgreSQL's do.
+
+### Added
+
+- `Trigger` now has an optional `Body` to take an statement body, alongside the existing `Function` that Postgres uses. The two are mutually exclusive: a trigger either executes a function, or runs an inline body (SQL Server). `Body` is optional and defaults to `null`, so the change is source-compatible, and it participates in structural equality (a body change is a drop + recreate, like any other structural trigger change).
+- The SQL DDL parser and writer accept and emit the inline form: `CREATE TRIGGER … ON s.t AS $$ … $$` (dollar-quoted, so the body may contain its own `;`), in addition to the existing `… EXECUTE FUNCTION f(args)` form.
+
 ## [3.1.0] - 2026-06-21
 
 **SQL Server Enhancements.** In working on the upcoming SQL Server provider, some functionality gaps were identified. This release goes towards enabling the SQL Server provider to work without hacks.

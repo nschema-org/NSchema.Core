@@ -230,6 +230,7 @@
                 when: new.balance > 0,
                 functionArguments: null,
                 comment: audit row changes,
+                body: null,
                 updateOfColumns: [
                   name,
                   balance
@@ -243,7 +244,8 @@
                 level: Statement,
                 when: null,
                 functionArguments: null,
-                comment: null
+                comment: null,
+                body: null
               }
             ]
           }

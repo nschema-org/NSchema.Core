@@ -471,8 +471,9 @@ internal sealed partial class DdlParser
 
     /// <summary>
     /// Parses a standalone trigger: <c>CREATE TRIGGER name {BEFORE|AFTER|INSTEAD OF} event {OR event} ON s.t
-    /// [FOR EACH {ROW|STATEMENT}] [WHEN (expr)] EXECUTE {FUNCTION|PROCEDURE} f(args)</c>. Like a <c>GRANT</c>, it
-    /// names its table via <c>ON</c> and is attached to that table at build time.
+    /// [FOR EACH {ROW|STATEMENT}] [WHEN (expr)] {EXECUTE {FUNCTION|PROCEDURE} f(args) | AS $$ body $$}</c>. The action
+    /// is either a function call (the PostgreSQL model) or an inline dollar-quoted body (the SQL Server model). Like a
+    /// <c>GRANT</c>, it names its table via <c>ON</c> and is attached to that table at build time.
     /// </summary>
     private void ParseCreateTrigger(SchemaAccumulator schemas, string? doc)
     {
@@ -503,29 +504,46 @@ internal sealed partial class DdlParser
             when = ReadRawExpression(parenthesised: true);
         }
 
-        ExpectKeyword("EXECUTE");
-        if (_current.IsKeyword("FUNCTION") || _current.IsKeyword("PROCEDURE"))
+        string? function = null;
+        string? arguments = null;
+        string? body = null;
+        if (_current.IsKeyword("EXECUTE"))
         {
             Advance();
+            if (_current.IsKeyword("FUNCTION") || _current.IsKeyword("PROCEDURE"))
+            {
+                Advance();
+            }
+            else
+            {
+                throw Error($"Expected FUNCTION or PROCEDURE after EXECUTE, found '{_current.Text}'.");
+            }
+
+            function = ExpectIdentifier("a function name");
+            if (Match(TokenKind.Dot))
+            {
+                function += "." + ExpectIdentifier("a function name");
+            }
+
+            // The argument list is captured verbatim (opaque), like a routine's; usually empty for a trigger function.
+            arguments = CaptureParenthesized();
+        }
+        else if (_current.IsKeyword("AS"))
+        {
+            // An inline body is a dollar-quoted block (so it may contain its own ';'), like a deployment script.
+            Advance();
+            var dollar = Expect(TokenKind.DollarString, "a trigger body as a dollar-quoted block ($$ … $$)");
+            body = StripDollarQuote(dollar.Text).Trim();
         }
         else
         {
-            throw Error($"Expected FUNCTION or PROCEDURE after EXECUTE, found '{_current.Text}'.");
+            throw Error($"Expected EXECUTE or AS to begin the trigger action, found '{_current.Text}'.");
         }
-
-        var function = ExpectIdentifier("a function name");
-        if (Match(TokenKind.Dot))
-        {
-            function += "." + ExpectIdentifier("a function name");
-        }
-
-        // The argument list is captured verbatim (opaque), like a routine's; usually empty for a trigger function.
-        var arguments = CaptureParenthesized();
 
         Expect(TokenKind.Semicolon, "';'");
 
         var trigger = new Trigger(name, timing, events, function, level, updateOfColumns,
-            when, string.IsNullOrEmpty(arguments) ? null : arguments, doc);
+            when, string.IsNullOrEmpty(arguments) ? null : arguments, doc, body);
         schemas.AddTrigger(schemaName, tableName, trigger, namePosition);
     }
 
