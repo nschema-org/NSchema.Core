@@ -82,8 +82,9 @@ public sealed class PlanLinearizerTests
         ValueChange<string>? @default = null,
         ValueChange<IdentityOptions>? identity = null,
         ValueChange<string>? comment = null,
-        ValueChange<string>? generated = null)
-        => new(name, ChangeKind.Modify, null, renamedFrom, type, nullability, @default, identity, comment, generated);
+        ValueChange<string>? generated = null,
+        Column? definition = null)
+        => new(name, ChangeKind.Modify, definition, renamedFrom, type, nullability, @default, identity, comment, generated);
 
     private static ViewDiff AddView(string name, string schema = "app", params (string Schema, string Name)[] dependsOn)
     {
@@ -291,6 +292,22 @@ public sealed class PlanLinearizerTests
         => LinearizeColumn(ModifiedColumn("email", nullability: new ValueChange<bool>(true, false)))
             .OfType<AlterColumnNullability>().ShouldHaveSingleItem()
             .ShouldSatisfyAllConditions(a => a.OldNullable.ShouldBe(true), a => a.NewNullable.ShouldBe(false));
+
+    [Fact]
+    public void Linearize_ColumnTypeChange_CarriesFinalNullabilityFromDefinition()
+        // A dialect whose ALTER COLUMN restates the whole column (SQL Server) needs the unchanged nullability; it
+        // rides along on the action from the desired column's Definition.
+        => LinearizeColumn(ModifiedColumn("id", type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
+                definition: new Column("id", SqlType.BigInt, IsNullable: false)))
+            .OfType<AlterColumnType>().ShouldHaveSingleItem()
+            .IsNullable.ShouldBe(false);
+
+    [Fact]
+    public void Linearize_ColumnNullabilityChange_CarriesFinalTypeFromDefinition()
+        => LinearizeColumn(ModifiedColumn("email", nullability: new ValueChange<bool>(true, false),
+                definition: new Column("email", SqlType.VarChar(255), IsNullable: false)))
+            .OfType<AlterColumnNullability>().ShouldHaveSingleItem()
+            .ColumnType.ShouldBe(SqlType.VarChar(255));
 
     [Fact]
     public void Linearize_ColumnDefaultChange_EmitsSetColumnDefault()
