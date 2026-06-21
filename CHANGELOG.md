@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [3.1.0] - 2026-06-21
 
+**SQL Server Enhancements.** In working on the upcoming SQL Server provider, some functionality gaps were identified. This release goes towards enabling the SQL Server provider to work without hacks.
+
 ### Added
 
 - When modifying a column's type or nullability, SQL Server requires the full column definition again. To facilitate this, the `AlterColumnType` and `AlterColumnNullability` actions now include both the desired type and nullability. Both are optional and default to `null`, so the change is source-compatible. A modified column's `ColumnDiff.Definition` is now populated with the desired column, and the plan linearizer threads these final values onto the two actions.
