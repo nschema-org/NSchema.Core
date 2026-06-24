@@ -126,6 +126,40 @@ public sealed class DdlFormatterTests
     }
 
     [Fact]
+    public void Format_BlankLineBetweenLeadingCommentAndStatement_IsPreserved()
+    {
+        // A standalone header comment the author separated with a blank line keeps that blank, rather than being
+        // force-hugged onto the statement below.
+        const string input =
+            """
+            -- a file header that stands on its own
+            -- spanning two lines
+
+            create schema app;
+            """;
+
+        Format(input).ShouldBe(input + "\n");
+    }
+
+    [Fact]
+    public void Format_MultipleBlankLinesBeforeStatement_CollapseToOne()
+        => Format("-- header\n\n\n\ncreate schema app;").ShouldBe("-- header\n\ncreate schema app;\n");
+
+    [Fact]
+    public void Format_BlankLineBetweenLeadingComments_IsPreserved()
+    {
+        const string input =
+            """
+            -- a section heading
+
+            -- a note about the statement
+            create schema app;
+            """;
+
+        Format(input).ShouldBe(input + "\n");
+    }
+
+    [Fact]
     public void Format_TrailingLineCommentOnStatement_StaysOnItsLine()
         => Format("create schema app; -- the app schema")
             .ShouldBe("create schema app;  -- the app schema\n");
@@ -143,6 +177,36 @@ public sealed class DdlFormatterTests
     {
         const string input = "create table app.t (\n  a int,\n  -- the b column\n  b int\n);";
         Format(input).ShouldBe("create table app.t (\n  a int,\n  -- the b column\n  b int\n);\n");
+    }
+
+    [Fact]
+    public void Format_MultipleCommentsAfterLastMember_KeepEachOnItsOwnLine()
+    {
+        // Regression: dangling comments after the final member must not be flattened onto one line.
+        const string input =
+            """
+            PROVIDER postgres (
+              connection_string = ''
+              -- credentials may come from the environment
+              -- and override the connection string
+            );
+            """;
+
+        Format(input).ShouldBe(input + "\n");
+    }
+
+    [Fact]
+    public void Format_TrailingCommentOnLastMember_StaysInline()
+    {
+        // A genuinely same-line comment on the last member stays inline (the fix must not move it to its own line).
+        const string input =
+            """
+            BACKEND file (
+              path = './state.json'  -- where state lives
+            );
+            """;
+
+        Format(input).ShouldBe(input + "\n");
     }
 
     // -------------------------------------------------------------------------
