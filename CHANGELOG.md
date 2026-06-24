@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
+## [3.3.0] - 2026-06-24
+
+### Changed
+
+- Dropping a schema now emits specific drop instructions for all known elements beneath. This is required for providers that don't support cascading deletes.
+
 ## [3.2.1] - 2026-06-24
 
 ### Fixed

@@ -2,6 +2,15 @@
   {
     Type: DropView,
     Action: {
+      SchemaName: scratch,
+      ViewName: temp_view,
+      IsMaterialized: false,
+      IsDestructive: true
+    }
+  },
+  {
+    Type: DropView,
+    Action: {
       SchemaName: app,
       ViewName: stale_view,
       IsMaterialized: false,
@@ -395,6 +404,14 @@
     }
   },
   {
+    Type: DropTable,
+    Action: {
+      SchemaName: scratch,
+      TableName: temp_data,
+      IsDestructive: true
+    }
+  },
+  {
     Type: DropRoutine,
     Action: {
       SchemaName: app,
@@ -420,10 +437,26 @@
     }
   },
   {
+    Type: DropEnum,
+    Action: {
+      SchemaName: scratch,
+      EnumName: temp_status,
+      IsDestructive: true
+    }
+  },
+  {
     Type: DropSequence,
     Action: {
       SchemaName: app,
       SequenceName: stale_seq,
+      IsDestructive: true
+    }
+  },
+  {
+    Type: DropSequence,
+    Action: {
+      SchemaName: scratch,
+      SequenceName: temp_seq,
       IsDestructive: true
     }
   },

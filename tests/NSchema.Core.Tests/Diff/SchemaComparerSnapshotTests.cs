@@ -30,7 +30,8 @@ public sealed class SchemaComparerSnapshotTests
     [Fact]
     public Task Compare_RichSchemas_ProjectsFullDiffTree()
     {
-        // Current: an "app" schema with a users table, three views, and a soon-to-be-dropped "scratch" schema.
+        // Current: an "app" schema with a users table, three views, and a soon-to-be-dropped "scratch" schema that
+        // carries its own table, view, enum and sequence (so its removal exercises the contained-object drops).
         var current = new DatabaseSchema(
         [
             new SchemaDefinition("app",
@@ -78,7 +79,16 @@ public sealed class SchemaComparerSnapshotTests
                     new CompositeType("address", [new CompositeField("street", SqlType.Text), new CompositeField("zip", SqlType.Int), new CompositeField("old_field", SqlType.Text)]),
                     new CompositeType("stale_type", [new CompositeField("a", SqlType.Int)]),
                 ]),
-            new SchemaDefinition("scratch"),
+            new SchemaDefinition("scratch",
+                Tables:
+                [
+                    new Table("temp_data",
+                        PrimaryKey: new PrimaryKey("temp_data_pkey", ["id"]),
+                        Columns: [new Column("id", SqlType.Int), new Column("payload", SqlType.Text)]),
+                ],
+                Views: [View("temp_summary", "SELECT count(*) FROM scratch.temp_data")],
+                Enums: [new EnumType("temp_status", ["draft"])],
+                Sequences: [new Sequence("temp_seq")]),
         ],
         Extensions:
         [

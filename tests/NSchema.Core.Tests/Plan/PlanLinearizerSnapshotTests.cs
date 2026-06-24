@@ -29,8 +29,9 @@ public sealed class PlanLinearizerSnapshotTests
     {
         // A new schema; a newly-added table (columns + PK carried inline on Definition, with a separate
         // index and grant); a modified table (add/drop/retype columns, new index, dropped FK); two added
-        // views (one reading the other), a renamed view, and a dropped view; a dropped schema. Enough
-        // cross-kind work to exercise the priority ordering and the view dependency sort.
+        // views (one reading the other), a renamed view, and a dropped view; a dropped schema carrying its own
+        // table, view, enum and sequence (all dropped before the schema). Enough cross-kind work to exercise the
+        // priority ordering and the view dependency sort.
         var newTable = new TableDiff("app", "users", ChangeKind.Add, null, null,
             Columns: [],
             Grants: [new GrantChange(ChangeKind.Add, "readers", TablePrivilege.Select)],
@@ -113,7 +114,11 @@ public sealed class PlanLinearizerSnapshotTests
             [
                 new SchemaDiff("reporting", ChangeKind.Add, null, null, [], []),
                 new SchemaDiff("app", null, null, null, [], [newTable, modifiedTable], views, enums, sequences, routines),
-                new SchemaDiff("scratch", ChangeKind.Remove, null, null, [], []),
+                new SchemaDiff("scratch", ChangeKind.Remove, null, null, [],
+                    [new TableDiff("scratch", "temp_data", ChangeKind.Remove)],
+                    [new ViewDiff("scratch", "temp_view", ChangeKind.Remove)],
+                    [new EnumDiff("scratch", "temp_status", ChangeKind.Remove)],
+                    [new SequenceDiff("scratch", "temp_seq", ChangeKind.Remove)]),
             ]);
 
         var plan = _linearizer.Linearize(diff);
