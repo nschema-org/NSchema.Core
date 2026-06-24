@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
+## [3.2.1] - 2026-06-24
+
+### Fixed
+
+- Fixed a bug where trailing comments would get merged when formatting DDL. They should now be preserved.
+- Fixed a bug where whitespace between comments and statements would get stripped when formatting DDL. It will now collapse to a single blank line.
+
 ## [3.2.0] - 2026-06-21
 
 **More SQL Server Enhancements.** A second gap found while building the SQL Server provider: its triggers carry their action as an inline statement body, not by calling a separate function as PostgreSQL's do.
