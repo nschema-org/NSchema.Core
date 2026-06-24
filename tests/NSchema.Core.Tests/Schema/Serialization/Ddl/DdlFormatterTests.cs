@@ -126,6 +126,40 @@ public sealed class DdlFormatterTests
     }
 
     [Fact]
+    public void Format_BlankLineBetweenLeadingCommentAndStatement_IsPreserved()
+    {
+        // A standalone header comment the author separated with a blank line keeps that blank, rather than being
+        // force-hugged onto the statement below.
+        const string input =
+            """
+            -- a file header that stands on its own
+            -- spanning two lines
+
+            create schema app;
+            """;
+
+        Format(input).ShouldBe(input + "\n");
+    }
+
+    [Fact]
+    public void Format_MultipleBlankLinesBeforeStatement_CollapseToOne()
+        => Format("-- header\n\n\n\ncreate schema app;").ShouldBe("-- header\n\ncreate schema app;\n");
+
+    [Fact]
+    public void Format_BlankLineBetweenLeadingComments_IsPreserved()
+    {
+        const string input =
+            """
+            -- a section heading
+
+            -- a note about the statement
+            create schema app;
+            """;
+
+        Format(input).ShouldBe(input + "\n");
+    }
+
+    [Fact]
     public void Format_TrailingLineCommentOnStatement_StaysOnItsLine()
         => Format("create schema app; -- the app schema")
             .ShouldBe("create schema app;  -- the app schema\n");

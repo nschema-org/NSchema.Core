@@ -13,10 +13,11 @@ public sealed class DdlFormatter
     /// </summary>
     public static readonly DdlFormatter Instance = new();
 
+    private const int MaxBlankLines = 1;
     private const string Indent = "  ";
 
     /// <summary>
-    /// Reformats <paramref name="source"/> as canonical-layout NSchema DDL, preserving its content and comments.
+    /// Reformats <paramref name="source"/> as canonical-layout NSchema DDL.
     /// </summary>
     /// <param name="source">The DDL source text to format.</param>
     /// <returns>The formatted DDL, ending in a single newline (empty input yields an empty string).</returns>
@@ -49,7 +50,8 @@ public sealed class DdlFormatter
     private static List<Item> SplitTopLevel(List<Token> tokens, string source)
     {
         var items = new List<Item>();
-        var leading = new List<string>();
+        var leading = new List<Lead>();
+        var lastLeadingEndLine = -1;
         var previousSemicolonLine = -1;
         var i = 0;
         while (tokens[i].Kind != TokenKind.EndOfFile)
@@ -65,7 +67,10 @@ public sealed class DdlFormatter
                 }
                 else
                 {
-                    leading.Add(FormatComment(token));
+                    // Record how many blank lines the author put before this comment; Render caps it per the options.
+                    var blanksBefore = leading.Count > 0 ? BlankLinesBetween(lastLeadingEndLine, token.Position.Line) : 0;
+                    leading.Add(new Lead(FormatComment(token), blanksBefore));
+                    lastLeadingEndLine = EndLine(token);
                 }
                 i++;
                 continue;
@@ -101,8 +106,15 @@ public sealed class DdlFormatter
             }
 
             var hasSemicolon = end < tokens.Count && tokens[end].Kind == TokenKind.Semicolon;
-            items.Add(new Item { Leading = leading, Body = FormatStatement(tokens, source, start, end, hasSemicolon) });
+            var blanksBeforeBody = leading.Count > 0 ? BlankLinesBetween(lastLeadingEndLine, tokens[start].Position.Line) : 0;
+            items.Add(new Item
+            {
+                Leading = leading,
+                Body = FormatStatement(tokens, source, start, end, hasSemicolon),
+                BlanksBeforeBody = blanksBeforeBody,
+            });
             leading = [];
+            lastLeadingEndLine = -1;
             if (hasSemicolon)
             {
                 previousSemicolonLine = tokens[end].Position.Line;
@@ -131,13 +143,15 @@ public sealed class DdlFormatter
             {
                 sb.Append("\n\n");
             }
-            foreach (var comment in item.Leading)
+            foreach (var lead in item.Leading)
             {
-                AppendIndentedLines(sb, comment, indent: "");
+                AppendBlankLines(sb, lead.BlanksBefore);
+                AppendIndentedLines(sb, lead.Text, indent: "");
                 sb.Append('\n');
             }
             if (item.Body is { } body)
             {
+                AppendBlankLines(sb, item.BlanksBeforeBody);
                 sb.Append(body);
                 if (item.Trailing is { } trailing)
                 {
@@ -148,6 +162,18 @@ public sealed class DdlFormatter
 
         var text = sb.ToString().TrimEnd('\n');
         return text.Length == 0 ? string.Empty : text + "\n";
+    }
+
+    /// <summary>
+    /// Emits up to <see cref="MaxBlankLines"/> blank lines, given the source had <paramref name="sourceBlankLines"/>.
+    /// </summary>
+    private static void AppendBlankLines(StringBuilder sb, int sourceBlankLines)
+    {
+        var count = Math.Min(sourceBlankLines, MaxBlankLines);
+        for (var b = 0; b < count; b++)
+        {
+            sb.Append('\n');
+        }
     }
 
     // --- statements -----------------------------------------------------------
@@ -338,6 +364,15 @@ public sealed class DdlFormatter
     private static bool IsComment(TokenKind kind) =>
         kind is TokenKind.LineComment or TokenKind.BlockComment or TokenKind.DocComment;
 
+    /// <summary>
+    /// The 1-based line a comment token ends on: its start line plus the newlines its text spans. A line comment spans
+    /// none; a merged doc-comment or block comment keeps its internal newlines, so counting them is exact.
+    /// </summary>
+    private static int EndLine(Token token) => token.Position.Line + token.Text.Count(c => c == '\n');
+
+    /// <summary>The number of wholly-blank lines between a line that ends at <paramref name="endLine"/> and one that starts at <paramref name="startLine"/>.</summary>
+    private static int BlankLinesBetween(int endLine, int startLine) => Math.Max(0, startLine - endLine - 1);
+
     private static bool IsStatementKeyword(string text) =>
         text.Equals("CREATE", StringComparison.OrdinalIgnoreCase)
         || text.Equals("DROP", StringComparison.OrdinalIgnoreCase)
@@ -409,10 +444,14 @@ public sealed class DdlFormatter
 
     private sealed class Item
     {
-        public required List<string> Leading { get; init; }
+        public required List<Lead> Leading { get; init; }
         public required string? Body { get; init; }
+        public int BlanksBeforeBody { get; init; }
         public string? Trailing { get; set; }
     }
+
+    /// <summary>A leading comment line, with the number of blank lines the source had before it.</summary>
+    private readonly record struct Lead(string Text, int BlanksBefore);
 
     private sealed class Member
     {
