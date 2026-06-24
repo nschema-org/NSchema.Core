@@ -213,6 +213,21 @@ public partial class SchemaComparerTests
     }
 
     [Fact]
+    public void Compare_RemovedSchemaWithTables_CarriesTheirRemovals()
+    {
+        // A removed schema must take its contained objects with it (rather than relying on DROP SCHEMA CASCADE), so
+        // the diff carries a Remove for each nested table, ordered by name.
+        var legacy = new SchemaDefinition("legacy", Tables: [new Table("widgets"), new Table("gadgets")]);
+        var current = Db(new SchemaDefinition("app"), legacy);
+        var desired = Db(new SchemaDefinition("app"));
+
+        var schema = _sut.Compare(current, desired).Schemas.ShouldHaveSingleItem();
+
+        schema.Kind.ShouldBe(ChangeKind.Remove);
+        schema.Tables.Select(t => (t.Name, t.Kind)).ShouldBe([("gadgets", ChangeKind.Remove), ("widgets", ChangeKind.Remove)]);
+    }
+
+    [Fact]
     public void Compare_NewSchema_FoldsCommentGrantsAndTablesWithDefinition()
     {
         var current = Db();

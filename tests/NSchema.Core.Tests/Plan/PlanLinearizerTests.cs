@@ -144,14 +144,18 @@ public sealed class PlanLinearizerTests
             .ShouldHaveSingleItem().ShouldBeOfType<DropSchema>().SchemaName.ShouldBe("app");
 
     [Fact]
-    public void Linearize_RemoveSchema_IgnoresNestedTablesAndGrants()
+    public void Linearize_RemoveSchema_DropsNestedObjectsBeforeTheSchema()
     {
-        // The Remove branch drops the schema wholesale; nested content must not produce its own actions.
+        // A removed schema drops its contained objects first (rather than relying on a provider-specific
+        // DROP SCHEMA CASCADE), then the schema itself. The type-sort orders the table drop ahead of the schema drop.
         var schema = SchemaNode("app", ChangeKind.Remove,
-            grants: [new GrantChange(ChangeKind.Add, "reader", null)],
-            tables: [TableNode("users", ChangeKind.Add, definition: new Table("users"))]);
+            tables: [TableNode("users", ChangeKind.Remove)]);
 
-        Linearize(schema).ShouldHaveSingleItem().ShouldBeOfType<DropSchema>();
+        var plan = Linearize(schema);
+
+        plan.Count.ShouldBe(2);
+        plan[0].ShouldBeOfType<DropTable>().TableName.ShouldBe("users");
+        plan[1].ShouldBeOfType<DropSchema>().SchemaName.ShouldBe("app");
     }
 
     [Fact]
