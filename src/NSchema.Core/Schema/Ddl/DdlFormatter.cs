@@ -13,10 +13,11 @@ public sealed class DdlFormatter
     /// </summary>
     public static readonly DdlFormatter Instance = new();
 
+    private const int MaxBlankLines = 1;
     private const string Indent = "  ";
 
     /// <summary>
-    /// Reformats <paramref name="source"/> as canonical-layout NSchema DDL, preserving its content and comments.
+    /// Reformats <paramref name="source"/> as canonical-layout NSchema DDL.
     /// </summary>
     /// <param name="source">The DDL source text to format.</param>
     /// <returns>The formatted DDL, ending in a single newline (empty input yields an empty string).</returns>
@@ -49,7 +50,8 @@ public sealed class DdlFormatter
     private static List<Item> SplitTopLevel(List<Token> tokens, string source)
     {
         var items = new List<Item>();
-        var leading = new List<string>();
+        var leading = new List<Lead>();
+        var lastLeadingEndLine = -1;
         var previousSemicolonLine = -1;
         var i = 0;
         while (tokens[i].Kind != TokenKind.EndOfFile)
@@ -65,7 +67,10 @@ public sealed class DdlFormatter
                 }
                 else
                 {
-                    leading.Add(FormatComment(token));
+                    // Record how many blank lines the author put before this comment; Render caps it per the options.
+                    var blanksBefore = leading.Count > 0 ? BlankLinesBetween(lastLeadingEndLine, token.Position.Line) : 0;
+                    leading.Add(new Lead(FormatComment(token), blanksBefore));
+                    lastLeadingEndLine = EndLine(token);
                 }
                 i++;
                 continue;
@@ -101,8 +106,15 @@ public sealed class DdlFormatter
             }
 
             var hasSemicolon = end < tokens.Count && tokens[end].Kind == TokenKind.Semicolon;
-            items.Add(new Item { Leading = leading, Body = FormatStatement(tokens, source, start, end, hasSemicolon) });
+            var blanksBeforeBody = leading.Count > 0 ? BlankLinesBetween(lastLeadingEndLine, tokens[start].Position.Line) : 0;
+            items.Add(new Item
+            {
+                Leading = leading,
+                Body = FormatStatement(tokens, source, start, end, hasSemicolon),
+                BlanksBeforeBody = blanksBeforeBody,
+            });
             leading = [];
+            lastLeadingEndLine = -1;
             if (hasSemicolon)
             {
                 previousSemicolonLine = tokens[end].Position.Line;
@@ -131,13 +143,15 @@ public sealed class DdlFormatter
             {
                 sb.Append("\n\n");
             }
-            foreach (var comment in item.Leading)
+            foreach (var lead in item.Leading)
             {
-                AppendIndentedLines(sb, comment, indent: "");
+                AppendBlankLines(sb, lead.BlanksBefore);
+                AppendIndentedLines(sb, lead.Text, indent: "");
                 sb.Append('\n');
             }
             if (item.Body is { } body)
             {
+                AppendBlankLines(sb, item.BlanksBeforeBody);
                 sb.Append(body);
                 if (item.Trailing is { } trailing)
                 {
@@ -148,6 +162,18 @@ public sealed class DdlFormatter
 
         var text = sb.ToString().TrimEnd('\n');
         return text.Length == 0 ? string.Empty : text + "\n";
+    }
+
+    /// <summary>
+    /// Emits up to <see cref="MaxBlankLines"/> blank lines, given the source had <paramref name="sourceBlankLines"/>.
+    /// </summary>
+    private static void AppendBlankLines(StringBuilder sb, int sourceBlankLines)
+    {
+        var count = Math.Min(sourceBlankLines, MaxBlankLines);
+        for (var b = 0; b < count; b++)
+        {
+            sb.Append('\n');
+        }
     }
 
     // --- statements -----------------------------------------------------------
@@ -268,11 +294,38 @@ public sealed class DdlFormatter
             }
 
             var contentStart = i;
+            var contentEnd = contentStart; // exclusive index past the last token belonging to this member's value
             var depth = 0;
             var separator = -1;
+            string? trailing = null;
             while (i < close)
             {
                 var kind = tokens[i].Kind;
+
+                if (depth == 0 && kind == TokenKind.Comma)
+                {
+                    separator = i;
+                    break;
+                }
+
+                if (depth == 0 && IsComment(kind))
+                {
+                    // A line comment on the same line as the value so far trails this member and stays inline (a ','
+                    // still lands before it). Any other comment is on its own line: stop here and leave it for the next
+                    // iteration to collect as a leading comment, so a run of dangling comments each keep their own line
+                    // instead of being flattened onto one.
+                    if (trailing is null
+                        && kind == TokenKind.LineComment
+                        && contentEnd > contentStart
+                        && tokens[i].Position.Line == tokens[contentEnd - 1].Position.Line)
+                    {
+                        trailing = FormatComment(tokens[i]);
+                        i++;
+                        continue;
+                    }
+                    break;
+                }
+
                 if (kind == TokenKind.LeftParen)
                 {
                     depth++;
@@ -281,29 +334,15 @@ public sealed class DdlFormatter
                 {
                     depth--;
                 }
-                else if (kind == TokenKind.Comma && depth == 0)
-                {
-                    separator = i;
-                    break;
-                }
+
+                contentEnd = i + 1;
                 i++;
-            }
-
-            var boundary = separator >= 0 ? tokens[separator].Position.Offset : tokens[close].Position.Offset;
-
-            // Peel a line comment sitting immediately before the boundary so the ',' lands before it, not inside it.
-            string? trailing = null;
-            var lastIndex = (separator >= 0 ? separator : close) - 1;
-            if (lastIndex > contentStart && tokens[lastIndex].Kind == TokenKind.LineComment)
-            {
-                trailing = FormatComment(tokens[lastIndex]);
-                boundary = tokens[lastIndex].Position.Offset;
             }
 
             members.Add(new Member
             {
                 Leading = leading,
-                Content = source[tokens[contentStart].Position.Offset..boundary].Trim(),
+                Content = source[tokens[contentStart].Position.Offset..tokens[contentEnd].Position.Offset].Trim(),
                 Trailing = trailing,
             });
 
@@ -312,10 +351,9 @@ public sealed class DdlFormatter
                 previousSeparatorLine = tokens[separator].Position.Line;
                 i = separator + 1;
             }
-            else
-            {
-                i = close;
-            }
+
+            // With no separator, i already sits on the own-line comment or the close paren; leaving it there lets the
+            // outer loop pick those trailing comments up (as a comment-only member) rather than discarding them.
         }
 
         return members;
@@ -325,6 +363,15 @@ public sealed class DdlFormatter
 
     private static bool IsComment(TokenKind kind) =>
         kind is TokenKind.LineComment or TokenKind.BlockComment or TokenKind.DocComment;
+
+    /// <summary>
+    /// The 1-based line a comment token ends on: its start line plus the newlines its text spans. A line comment spans
+    /// none; a merged doc-comment or block comment keeps its internal newlines, so counting them is exact.
+    /// </summary>
+    private static int EndLine(Token token) => token.Position.Line + token.Text.Count(c => c == '\n');
+
+    /// <summary>The number of wholly-blank lines between a line that ends at <paramref name="endLine"/> and one that starts at <paramref name="startLine"/>.</summary>
+    private static int BlankLinesBetween(int endLine, int startLine) => Math.Max(0, startLine - endLine - 1);
 
     private static bool IsStatementKeyword(string text) =>
         text.Equals("CREATE", StringComparison.OrdinalIgnoreCase)
@@ -397,10 +444,14 @@ public sealed class DdlFormatter
 
     private sealed class Item
     {
-        public required List<string> Leading { get; init; }
+        public required List<Lead> Leading { get; init; }
         public required string? Body { get; init; }
+        public int BlanksBeforeBody { get; init; }
         public string? Trailing { get; set; }
     }
+
+    /// <summary>A leading comment line, with the number of blank lines the source had before it.</summary>
+    private readonly record struct Lead(string Text, int BlanksBefore);
 
     private sealed class Member
     {
