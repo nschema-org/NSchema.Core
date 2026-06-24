@@ -431,7 +431,44 @@
     },
     {
       Name: scratch,
-      Kind: Remove
+      Kind: Remove,
+      Tables: [
+        {
+          Schema: scratch,
+          Name: temp_data,
+          Kind: Remove
+        }
+      ],
+      Views: [
+        {
+          Schema: scratch,
+          Name: temp_summary,
+          Kind: Remove,
+          IsMaterialized: false,
+          RequiresRecreate: false,
+          DependsOn: [
+            {
+              Schema: scratch,
+              Name: temp_data
+            }
+          ]
+        }
+      ],
+      Enums: [
+        {
+          Schema: scratch,
+          Name: temp_status,
+          Kind: Remove,
+          RequiresRecreate: false
+        }
+      ],
+      Sequences: [
+        {
+          Schema: scratch,
+          Name: temp_seq,
+          Kind: Remove
+        }
+      ]
     }
   ],
   Extensions: [

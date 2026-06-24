@@ -275,6 +275,18 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 break;
 
             case ChangeKind.Remove:
+                // Drop everything the schema contains before the schema itself, rather than relying on a
+                // provider-specific DROP SCHEMA CASCADE. The final type-sort orders these object drops ahead of the
+                // DropSchema, and views are emitted by the cross-schema view pass.
+                EmitEnums(schema, actions);
+                EmitSequences(schema, actions);
+                EmitRoutines(schema, actions);
+                EmitDomains(schema, actions);
+                EmitCompositeTypes(schema, actions);
+                foreach (var table in schema.Tables)
+                {
+                    EmitTable(table, actions);
+                }
                 actions.Add(new DropSchema(schema.Name));
                 break;
 

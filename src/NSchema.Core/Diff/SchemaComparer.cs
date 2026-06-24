@@ -36,7 +36,7 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
             else
             {
                 LogSchemaNotInDesired(current[j].Name);
-                result.Add(new SchemaDiff(current[j].Name, ChangeKind.Remove, null, null, [], []));
+                result.Add(BuildRemovedSchema(current[j]));
             }
         }
 
@@ -306,6 +306,24 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
         var grants = desired.Grants.Select(grant => new GrantChange(ChangeKind.Add, grant.Role, null)).ToList();
 
         return new SchemaDiff(desired.Name, ChangeKind.Add, null, comment, grants, tables, views, enums, sequences, routines, domains, compositeTypes);
+    }
+
+    // A removed schema takes all of its objects with it. Rather than lean on a provider-specific DROP SCHEMA CASCADE
+    // (which Postgres has but SQL Server and SQLite do not), emit an explicit Remove for every contained object — by
+    // diffing the schema against an empty one — so the linearizer drops the objects before the schema itself.
+    private SchemaDiff BuildRemovedSchema(SchemaDefinition current)
+    {
+        var empty = new SchemaDefinition(current.Name);
+        return new SchemaDiff(
+            current.Name,
+            ChangeKind.Remove,
+            Tables: CompareTables(current.Name, current.Tables, empty).OrderBy(t => t.Name, StringComparer.Ordinal).ToList(),
+            Views: CompareViews(current.Name, current.Views, empty).OrderBy(v => v.Name, StringComparer.Ordinal).ToList(),
+            Enums: CompareEnums(current.Name, current.Enums, empty).OrderBy(e => e.Name, StringComparer.Ordinal).ToList(),
+            Sequences: CompareSequences(current.Name, current.Sequences, empty).OrderBy(s => s.Name, StringComparer.Ordinal).ToList(),
+            Routines: CompareRoutines(current.Name, current.Routines, empty).OrderBy(r => r.Name, StringComparer.Ordinal).ToList(),
+            Domains: CompareDomains(current.Name, current.Domains, empty).OrderBy(d => d.Name, StringComparer.Ordinal).ToList(),
+            CompositeTypes: CompareCompositeTypes(current.Name, current.CompositeTypes, empty).OrderBy(c => c.Name, StringComparer.Ordinal).ToList());
     }
 
     private SchemaDiff? BuildModifiedSchema(SchemaDefinition current, SchemaDefinition desired)
