@@ -268,11 +268,38 @@ public sealed class DdlFormatter
             }
 
             var contentStart = i;
+            var contentEnd = contentStart; // exclusive index past the last token belonging to this member's value
             var depth = 0;
             var separator = -1;
+            string? trailing = null;
             while (i < close)
             {
                 var kind = tokens[i].Kind;
+
+                if (depth == 0 && kind == TokenKind.Comma)
+                {
+                    separator = i;
+                    break;
+                }
+
+                if (depth == 0 && IsComment(kind))
+                {
+                    // A line comment on the same line as the value so far trails this member and stays inline (a ','
+                    // still lands before it). Any other comment is on its own line: stop here and leave it for the next
+                    // iteration to collect as a leading comment, so a run of dangling comments each keep their own line
+                    // instead of being flattened onto one.
+                    if (trailing is null
+                        && kind == TokenKind.LineComment
+                        && contentEnd > contentStart
+                        && tokens[i].Position.Line == tokens[contentEnd - 1].Position.Line)
+                    {
+                        trailing = FormatComment(tokens[i]);
+                        i++;
+                        continue;
+                    }
+                    break;
+                }
+
                 if (kind == TokenKind.LeftParen)
                 {
                     depth++;
@@ -281,29 +308,15 @@ public sealed class DdlFormatter
                 {
                     depth--;
                 }
-                else if (kind == TokenKind.Comma && depth == 0)
-                {
-                    separator = i;
-                    break;
-                }
+
+                contentEnd = i + 1;
                 i++;
-            }
-
-            var boundary = separator >= 0 ? tokens[separator].Position.Offset : tokens[close].Position.Offset;
-
-            // Peel a line comment sitting immediately before the boundary so the ',' lands before it, not inside it.
-            string? trailing = null;
-            var lastIndex = (separator >= 0 ? separator : close) - 1;
-            if (lastIndex > contentStart && tokens[lastIndex].Kind == TokenKind.LineComment)
-            {
-                trailing = FormatComment(tokens[lastIndex]);
-                boundary = tokens[lastIndex].Position.Offset;
             }
 
             members.Add(new Member
             {
                 Leading = leading,
-                Content = source[tokens[contentStart].Position.Offset..boundary].Trim(),
+                Content = source[tokens[contentStart].Position.Offset..tokens[contentEnd].Position.Offset].Trim(),
                 Trailing = trailing,
             });
 
@@ -312,10 +325,9 @@ public sealed class DdlFormatter
                 previousSeparatorLine = tokens[separator].Position.Line;
                 i = separator + 1;
             }
-            else
-            {
-                i = close;
-            }
+
+            // With no separator, i already sits on the own-line comment or the close paren; leaving it there lets the
+            // outer loop pick those trailing comments up (as a comment-only member) rather than discarding them.
         }
 
         return members;

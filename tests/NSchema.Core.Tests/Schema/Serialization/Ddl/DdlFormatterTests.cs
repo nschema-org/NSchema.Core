@@ -145,6 +145,36 @@ public sealed class DdlFormatterTests
         Format(input).ShouldBe("create table app.t (\n  a int,\n  -- the b column\n  b int\n);\n");
     }
 
+    [Fact]
+    public void Format_MultipleCommentsAfterLastMember_KeepEachOnItsOwnLine()
+    {
+        // Regression: dangling comments after the final member must not be flattened onto one line.
+        const string input =
+            """
+            PROVIDER postgres (
+              connection_string = ''
+              -- credentials may come from the environment
+              -- and override the connection string
+            );
+            """;
+
+        Format(input).ShouldBe(input + "\n");
+    }
+
+    [Fact]
+    public void Format_TrailingCommentOnLastMember_StaysInline()
+    {
+        // A genuinely same-line comment on the last member stays inline (the fix must not move it to its own line).
+        const string input =
+            """
+            BACKEND file (
+              path = './state.json'  -- where state lives
+            );
+            """;
+
+        Format(input).ShouldBe(input + "\n");
+    }
+
     // -------------------------------------------------------------------------
     // Edge cases
     // -------------------------------------------------------------------------
