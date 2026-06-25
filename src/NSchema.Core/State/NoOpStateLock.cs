@@ -12,6 +12,9 @@ internal sealed class NoOpStateLock : IStateLock
     public Task<IStateLockHandle> Acquire(StateLockRequest request, CancellationToken cancellationToken = default) =>
         Task.FromResult<IStateLockHandle>(Handle.Instance);
 
+    public Task<StateLockInfo?> Peek(CancellationToken cancellationToken = default) =>
+        Task.FromResult<StateLockInfo?>(null);
+
     public Task<StateLockInfo?> ForceUnlock(CancellationToken cancellationToken = default) =>
         Task.FromResult<StateLockInfo?>(null);
 

@@ -11,6 +11,7 @@ using NSchema.Operations;
 using NSchema.Operations.Apply;
 using NSchema.Operations.Confirmation;
 using NSchema.Operations.Destroy;
+using NSchema.Operations.Doctor;
 using NSchema.Operations.Drift;
 using NSchema.Operations.ForceUnlock;
 using NSchema.Operations.Import;
@@ -124,6 +125,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IShowOperation, ShowOperation>();
         services.TryAddSingleton<IDriftOperation, DriftOperation>();
         services.TryAddSingleton<IForceUnlockOperation, ForceUnlockOperation>();
+        services.TryAddSingleton<IDoctorOperation, DoctorOperation>();
 
         // Plan
         services.TryAddSingleton<IPlanLinearizer, PlanLinearizer>();
