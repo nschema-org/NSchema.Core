@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
+## [3.4.0] - 2026-06-25
+
+### Added
+
+- **`Doctor` operation.** `NSchemaApplication.Doctor(DoctorArguments)` runs read-only health checks against the configured infrastructure.
+
 ## [3.3.0] - 2026-06-24
 
 ### Changed
