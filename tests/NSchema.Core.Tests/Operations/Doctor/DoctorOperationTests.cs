@@ -44,8 +44,8 @@ public sealed class DoctorOperationTests
         // Act
         await Run(sut);
 
-        // Assert — the no-op lock would always "acquire", so probing it without a backend would be misleading.
-        _stateLock.Acquisitions.ShouldBeEmpty();
+        // Assert — the no-op lock would always read as free, so probing it without a backend would be misleading.
+        _stateLock.Peeks.ShouldBe(0);
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public sealed class DoctorOperationTests
     }
 
     [Fact]
-    public async Task Execute_WhenStoreConfigured_ProbesTheLockAndReleasesIt()
+    public async Task Execute_WhenStoreConfigured_ReadsTheLockWithoutAcquiringIt()
     {
         // Arrange
         var sut = BuildSut(store: new RecordingStateStore());
@@ -138,18 +138,17 @@ public sealed class DoctorOperationTests
         // Act
         await Run(sut);
 
-        // Assert — acquired with the doctor operation name, then released.
-        _stateLock.Acquisitions.ShouldHaveSingleItem().Operation.ShouldBe("doctor");
-        _stateLock.Released.ShouldBe(1);
-        _reporter.Messages.ShouldContain((MessageKind.Success, "State lock: free (acquirable)."));
+        // Assert — a read-only peek: the lock is read, never acquired (which would momentarily contend).
+        _stateLock.Peeks.ShouldBe(1);
+        _stateLock.Acquisitions.ShouldBeEmpty();
+        _reporter.Messages.ShouldContain((MessageKind.Success, "State lock: free."));
     }
 
     [Fact]
     public async Task Execute_WhenLockHeld_ReportsHolderButDoesNotFail()
     {
         // Arrange
-        _stateLock.OnAcquire = _ => throw new StateLockedException(
-            "locked", new StateLockInfo("id", "apply", "tom@dev", DateTimeOffset.UnixEpoch));
+        _stateLock.PeekResult = new StateLockInfo("id", "apply", "tom@dev", DateTimeOffset.UnixEpoch);
         var sut = BuildSut(store: new RecordingStateStore());
 
         // Act — a held lock is a state, not a misconfiguration, so doctor still passes.

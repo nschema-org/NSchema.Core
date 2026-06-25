@@ -81,6 +81,8 @@ public sealed class StateLockRegistrationTests
         public Task<StateLockInfo?> ForceUnlock(CancellationToken cancellationToken = default) => Task.FromResult<StateLockInfo?>(null);
     }
 
+    // Implements IStateLock *without* Peek, exercising that the new member's default implementation keeps existing
+    // implementers source-compatible (no breaking change).
     private sealed class CustomLock : IStateLock
     {
         public Task<IStateLockHandle> Acquire(StateLockRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();

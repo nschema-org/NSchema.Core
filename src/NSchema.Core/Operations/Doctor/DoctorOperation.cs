@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using NSchema.Schema;
 using NSchema.State;
-using NSchema.State.Model;
 
 namespace NSchema.Operations.Doctor;
 
@@ -113,20 +112,18 @@ internal sealed class DoctorOperation(
         reporter.Progress("Checking state lock...");
         try
         {
-            // There is no read-only peek on IStateLock, so acquire-then-release is the probe: it doubles as a real
-            // readiness signal ("could an apply take the lock right now?") and reverts immediately on dispose.
-            await using var handle = await stateLock.Acquire(new StateLockRequest("doctor"), cancellationToken);
-            reporter.Success("State lock: free (acquirable).");
-            return 0;
-        }
-        catch (StateLockedException locked)
-        {
-            // A held lock is a state, not a misconfiguration — it may be a legitimately-running operation — so report
-            // it for visibility without counting it as a failure.
-            var holder = locked.ExistingLock is { } info
-                ? $"{info.Who} (operation '{info.Operation}', since {info.CreatedUtc:u})"
-                : "another operation";
-            reporter.Warn($"State lock: held by {holder}.");
+            var info = await stateLock.Peek(cancellationToken);
+            if (info is null)
+            {
+                reporter.Success("State lock: free.");
+            }
+            else
+            {
+                // A held lock is a state, not a misconfiguration — it may be a legitimately-running operation — so
+                // report it for visibility without counting it as a failure.
+                reporter.Warn($"State lock: held by {info.Who} (operation '{info.Operation}', since {info.CreatedUtc:u}).");
+            }
+
             return 0;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

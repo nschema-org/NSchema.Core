@@ -11,6 +11,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - **`Doctor` operation.** `NSchemaApplication.Doctor(DoctorArguments)` runs read-only health checks against the configured infrastructure.
+- **`IStateLock.Peek`.** Reads the held lock (or `null` when free) without acquiring it, so a diagnostic never contends with a real operation. Added
+  as a **default interface method** (returns `null`), so existing implementers are source-compatible.
+- **Force-unlock by id.** `ForceUnlockArguments.ExpectedLockId` makes `ForceUnlock` a compare-and-swap: refused with a `StateLockMismatchException`
+  unless it matches the held lock. Unset keeps the previous "remove whatever is held" behavior.
 
 ## [3.3.0] - 2026-06-24
 

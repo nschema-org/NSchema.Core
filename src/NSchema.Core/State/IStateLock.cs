@@ -17,6 +17,13 @@ public interface IStateLock
     Task<IStateLockHandle> Acquire(StateLockRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Reads the currently-held lock without acquiring or modifying it.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>The held lock's info, or <see langword="null"/> when the state is not locked.</returns>
+    Task<StateLockInfo?> Peek(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+    /// <summary>
     /// Forcibly removes the current lock regardless of who holds it, for recovering from a stale lock.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
