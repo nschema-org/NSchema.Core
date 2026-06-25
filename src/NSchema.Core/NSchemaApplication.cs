@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using NSchema.Operations;
 using NSchema.Operations.Apply;
 using NSchema.Operations.Destroy;
+using NSchema.Operations.Doctor;
 using NSchema.Operations.Drift;
 using NSchema.Operations.ForceUnlock;
 using NSchema.Operations.Import;
@@ -142,6 +143,17 @@ public sealed class NSchemaApplication : IDisposable
     {
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IForceUnlockOperation>().Execute(arguments, cancellationToken));
+    }
+
+    /// <summary>
+    /// Runs read-only health checks against the configured infrastructure and reports the outcome of each.
+    /// </summary>
+    /// <param name="arguments">The arguments controlling the diagnostics.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    public Task Doctor(DoctorArguments arguments, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(arguments);
+        return Run(() => Resolve<IDoctorOperation>().Execute(arguments, cancellationToken));
     }
 
     private T Resolve<T>() where T : notnull => _host.Services.GetRequiredService<T>();

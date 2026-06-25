@@ -46,6 +46,12 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
         return new Handle(path, info.Id);
     }
 
+    public async Task<StateLockInfo?> Peek(CancellationToken cancellationToken = default)
+    {
+        var path = options.Value.Path;
+        return System.IO.File.Exists(path) ? await TryReadInfo(path, cancellationToken) : null;
+    }
+
     public async Task<StateLockInfo?> ForceUnlock(CancellationToken cancellationToken = default)
     {
         var path = options.Value.Path;
