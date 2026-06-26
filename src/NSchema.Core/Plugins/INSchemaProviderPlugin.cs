@@ -12,5 +12,5 @@ public interface INSchemaProviderPlugin : INSchemaPlugin
     /// </summary>
     /// <param name="builder">The application builder to register the provider's services on.</param>
     /// <param name="block">The project's <c>PROVIDER</c> configuration block.</param>
-    void Configure(NSchemaApplicationBuilder builder, ConfigBlock block);
+    PluginConfigureResult Configure(NSchemaApplicationBuilder builder, ConfigBlock block);
 }
