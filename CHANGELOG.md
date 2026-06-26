@@ -22,6 +22,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Dropping a schema now emits specific drop instructions for all known elements beneath. This is required for providers that don't support cascading deletes.
 
+## [Unreleased]
+
+v4.0.0 is a major release that will rework providers and backends into a new plugin system. This will enable providers and backends to be installed directly from NuGet, independently of the CLI, and pin the versions in your CI.
+
+### Added
+
+- **Plugin Contract.** A new set of interfaces in `NSchema.Plugins` that will allow providers and backends to declare themselves.
+
 ## [3.2.1] - 2026-06-24
 
 ### Fixed
