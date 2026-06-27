@@ -84,6 +84,16 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
+    /// Replaces the <see cref="IOperationReporter"/> the application reports through with one resolved from the service provider.
+    /// </summary>
+    public NSchemaApplicationBuilder UseReporter(Func<IServiceProvider, IOperationReporter> factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        Services.Replace(ServiceDescriptor.Singleton(factory));
+        return this;
+    }
+
+    /// <summary>
     /// Sets the <see cref="ISqlGenerator"/> the application generates SQL with, replacing any previously set one.
     /// Typically called by a database-provider extension. With none set, plans are reported without a SQL preview.
     /// </summary>
