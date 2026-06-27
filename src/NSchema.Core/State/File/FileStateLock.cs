@@ -18,11 +18,13 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
             Directory.CreateDirectory(directory);
         }
 
+        var now = DateTimeOffset.UtcNow;
         var info = new StateLockInfo(
             Id: Guid.NewGuid().ToString("N"),
             Operation: request.Operation,
             Who: $"{Environment.UserName}@{Environment.MachineName}",
-            CreatedUtc: DateTimeOffset.UtcNow
+            CreatedUtc: now,
+            ExpiresUtc: request.TimeToLive is { } ttl ? now + ttl : null
         );
 
         try
@@ -43,7 +45,7 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
                 existing);
         }
 
-        return new Handle(path, info.Id);
+        return new Handle(path, info);
     }
 
     public async Task<StateLockInfo?> Peek(CancellationToken cancellationToken = default)
@@ -52,25 +54,21 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
         return System.IO.File.Exists(path) ? await TryReadInfo(path, cancellationToken) : null;
     }
 
-    public async Task<StateLockInfo?> ForceUnlock(CancellationToken cancellationToken = default)
+    public ValueTask Release(CancellationToken cancellationToken = default)
     {
         var path = options.Value.Path;
-        if (!System.IO.File.Exists(path))
-        {
-            return null;
-        }
 
-        var info = await TryReadInfo(path, cancellationToken);
+        // Forcing release: delete whatever lock file is present, regardless of who wrote it.
         try
         {
             System.IO.File.Delete(path);
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or DirectoryNotFoundException)
         {
-            // Best-effort; a leftover file can be removed by hand.
+            // Best-effort; a missing file means nothing was held, and a leftover can be removed by hand.
         }
 
-        return info;
+        return ValueTask.CompletedTask;
     }
 
     private static async Task<StateLockInfo?> TryReadInfo(string path, CancellationToken cancellationToken)
@@ -87,13 +85,13 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
         }
     }
 
-    private sealed class Handle(string path, string lockId) : IStateLockHandle
+    private sealed class Handle(string path, StateLockInfo info) : IStateLockHandle
     {
         private bool _released;
 
-        public string LockId => lockId;
+        public StateLockInfo Info => info;
 
-        public async ValueTask DisposeAsync()
+        public async ValueTask Release(CancellationToken cancellationToken = default)
         {
             if (_released)
             {
@@ -103,8 +101,8 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
 
             // Only delete the file if it still records our lock, so we never remove a lock acquired by someone
             // else after ours was force-removed.
-            var current = await TryReadInfo(path, CancellationToken.None);
-            if (current is null || current.Id == lockId)
+            var current = await TryReadInfo(path, cancellationToken);
+            if (current is null || current.Id == info.Id)
             {
                 try
                 {

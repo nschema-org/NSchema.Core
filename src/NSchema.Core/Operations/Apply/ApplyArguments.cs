@@ -15,4 +15,9 @@ public sealed record ApplyArguments
     /// When set, apply executes a saved plan file instead of computing a fresh plan.
     /// </summary>
     public string? PlanFile { get; init; }
+
+    /// <summary>
+    /// When <see langword="true"/>, the apply runs without acquiring the state lock.
+    /// </summary>
+    public bool SkipLock { get; init; }
 }

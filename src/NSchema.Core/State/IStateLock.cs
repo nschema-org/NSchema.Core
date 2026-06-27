@@ -24,9 +24,8 @@ public interface IStateLock
     Task<StateLockInfo?> Peek(CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
     /// <summary>
-    /// Forcibly removes the current lock regardless of who holds it, for recovering from a stale lock.
+    /// Releases whatever lock is currently held.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>The info of the lock that was removed, or <see langword="null"/> if nothing was locked.</returns>
-    Task<StateLockInfo?> ForceUnlock(CancellationToken cancellationToken = default);
+    ValueTask Release(CancellationToken cancellationToken = default);
 }

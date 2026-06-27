@@ -5,12 +5,10 @@ using NSchema.Operations.Apply;
 using NSchema.Operations.Destroy;
 using NSchema.Operations.Doctor;
 using NSchema.Operations.Drift;
-using NSchema.Operations.ForceUnlock;
 using NSchema.Operations.Import;
 using NSchema.Operations.Plan;
 using NSchema.Operations.PlanDestroy;
 using NSchema.Operations.Refresh;
-using NSchema.Operations.Show;
 using NSchema.Operations.Validate;
 
 namespace NSchema;
@@ -101,16 +99,6 @@ public sealed class NSchemaApplication : IDisposable
         return Run(() => Resolve<IValidateOperation>().Execute(arguments, cancellationToken));
     }
 
-    /// <summary>
-    /// Reads the recorded state from the state store and renders it.
-    /// </summary>
-    /// <param name="arguments">The arguments controlling what is shown.</param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Show(ShowArguments arguments, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(arguments);
-        return Run(() => Resolve<IShowOperation>().Execute(arguments, cancellationToken));
-    }
 
     /// <summary>
     /// Compares the recorded state against the live database and reports how the live database has drifted from it.
@@ -132,17 +120,6 @@ public sealed class NSchemaApplication : IDisposable
     {
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IDestroyOperation>().Execute(arguments, cancellationToken));
-    }
-
-    /// <summary>
-    /// Forcibly removes the state lock, for recovering from a stale lock.
-    /// </summary>
-    /// <param name="arguments">The arguments controlling the force-unlock.</param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task ForceUnlock(ForceUnlockArguments arguments, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(arguments);
-        return Run(() => Resolve<IForceUnlockOperation>().Execute(arguments, cancellationToken));
     }
 
     /// <summary>

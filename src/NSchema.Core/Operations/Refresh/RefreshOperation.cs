@@ -1,15 +1,25 @@
 using NSchema.Operations.Services;
 using NSchema.State;
-using NSchema.State.Model;
 
 namespace NSchema.Operations.Refresh;
 
-internal sealed class RefreshOperation(IMigrationWorkflow workflow, IStateLock stateLock) : IRefreshOperation
+internal sealed class RefreshOperation(IMigrationWorkflow workflow, IOperationReporter reporter, IStateLock? stateLock = null) : IRefreshOperation
 {
     public async Task Execute(RefreshArguments arguments, CancellationToken cancellationToken = default)
     {
-        // Refresh writes the live schema into the store, so it takes the lock too (no-op unless one is registered).
-        await using var stateLockHandle = await stateLock.Acquire(new StateLockRequest("refresh"), cancellationToken);
-        await workflow.Refresh(RefreshMode.Required, cancellationToken);
+        // Refresh writes the live schema into the store, so it takes the lock too.
+        var stateLockHandle = await StateLockGuard.AcquireOrSkip(stateLock, reporter, "refresh", arguments.SkipLock, cancellationToken);
+        try
+        {
+            await workflow.Refresh(RefreshMode.Required, cancellationToken);
+        }
+        finally
+        {
+            // Release with an uncancellable token so a cancelled refresh still frees its own lock.
+            if (stateLockHandle is not null)
+            {
+                await stateLockHandle.Release(CancellationToken.None);
+            }
+        }
     }
 }

@@ -31,8 +31,8 @@ public sealed class ApplyOperationTests
     private ApplyOperation BuildSut(ISqlGenerator? planner, ISqlExecutor? executor) => new(
         _reporter,
         _confirmation, _workflow,
-        _stateLock,
         new PlanFileWriter(),
+        _stateLock,
         planner,
         executor
     );

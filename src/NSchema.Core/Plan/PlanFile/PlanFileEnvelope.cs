@@ -11,7 +11,7 @@ namespace NSchema.Plan.PlanFile;
 /// <param name="Sql">The SQL plan generated from <see cref="Plan"/>.</param>
 /// <param name="Diff">The structured diff the plan was derived from.</param>
 /// <param name="CreatedAt">When the plan was created.</param>
-internal sealed record PlanFileEnvelope(
+public sealed record PlanFileEnvelope(
     MigrationPlan Plan,
     SqlPlan Sql,
     DatabaseDiff Diff,

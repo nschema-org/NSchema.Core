@@ -4,22 +4,19 @@ using NSchema.State.Model;
 namespace NSchema.Tests.Helpers;
 
 /// <summary>
-/// An <see cref="IStateLock"/> test double that records each acquisition and how many handles were released
-/// (disposed). Set <see cref="OnAcquire"/> to simulate a contended lock by throwing <see cref="StateLockedException"/>.
+/// An <see cref="IStateLock"/> test double that records each acquisition and how many handles were released.
+/// Set <see cref="OnAcquire"/> to simulate a contended lock by throwing <see cref="StateLockedException"/>.
 /// </summary>
 internal sealed class RecordingStateLock : IStateLock
 {
     public List<StateLockRequest> Acquisitions { get; } = [];
     public int Released { get; private set; }
-    public int ForceUnlocks { get; private set; }
+    public int ForceReleases { get; private set; }
     public int Peeks { get; private set; }
     public Func<StateLockRequest, Task>? OnAcquire { get; set; }
 
     /// <summary>The value returned from <see cref="Peek"/> (defaults to nothing held).</summary>
     public StateLockInfo? PeekResult { get; set; }
-
-    /// <summary>The value returned from <see cref="ForceUnlock"/> (defaults to nothing held).</summary>
-    public StateLockInfo? ForceUnlockResult { get; set; }
 
     public Task<StateLockInfo?> Peek(CancellationToken cancellationToken = default)
     {
@@ -35,20 +32,29 @@ internal sealed class RecordingStateLock : IStateLock
         }
 
         Acquisitions.Add(request);
-        return new Handle(this);
+
+        // Deterministic clock so tests can assert on the recorded expiry when a time-to-live is requested.
+        var createdUtc = DateTimeOffset.UnixEpoch;
+        var info = new StateLockInfo(
+            Id: "test",
+            Operation: request.Operation,
+            Who: "tester@host",
+            CreatedUtc: createdUtc,
+            ExpiresUtc: request.TimeToLive is { } ttl ? createdUtc + ttl : null);
+        return new Handle(this, info);
     }
 
-    public Task<StateLockInfo?> ForceUnlock(CancellationToken cancellationToken = default)
+    public ValueTask Release(CancellationToken cancellationToken = default)
     {
-        ForceUnlocks++;
-        return Task.FromResult(ForceUnlockResult);
+        ForceReleases++;
+        return ValueTask.CompletedTask;
     }
 
-    private sealed class Handle(RecordingStateLock owner) : IStateLockHandle
+    private sealed class Handle(RecordingStateLock owner, StateLockInfo info) : IStateLockHandle
     {
-        public string LockId => "test";
+        public StateLockInfo Info => info;
 
-        public ValueTask DisposeAsync()
+        public ValueTask Release(CancellationToken cancellationToken = default)
         {
             owner.Released++;
             return ValueTask.CompletedTask;
