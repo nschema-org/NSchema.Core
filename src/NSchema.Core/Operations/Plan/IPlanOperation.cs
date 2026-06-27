@@ -10,5 +10,5 @@ internal interface IPlanOperation
     /// </summary>
     /// <param name="arguments">The arguments controlling the plan.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task Execute(PlanArguments arguments, CancellationToken cancellationToken = default);
+    Task<PlanResult> Execute(PlanArguments arguments, CancellationToken cancellationToken = default);
 }

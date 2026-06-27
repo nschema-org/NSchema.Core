@@ -1,3 +1,5 @@
+using NSchema.Operations.Plan;
+
 namespace NSchema.Operations.PlanDestroy;
 
 /// <summary>
@@ -10,5 +12,5 @@ internal interface IPlanDestroyOperation
     /// </summary>
     /// <param name="arguments">The arguments controlling the teardown plan.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task Execute(PlanDestroyArguments arguments, CancellationToken cancellationToken = default);
+    Task<PlanResult> Execute(PlanDestroyArguments arguments, CancellationToken cancellationToken = default);
 }
