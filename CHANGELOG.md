@@ -17,6 +17,7 @@ v4.0.0 is a major release that will rework providers and backends into a new plu
 - **Lock time-to-live.** `StateLockRequest.TimeToLive` records an optional expiry on the resulting `StateLockInfo.ExpiresUtc`. Expiry is surfaced for visibility but never auto-enforced.
 - **Skip locking per operation.** `ApplyArguments`, `RefreshArguments`, and `DestroyArguments` gain `SkipLock`, running the operation without acquiring the state lock (the operation reports the skip and names any current holder). The caller takes responsibility for preventing concurrent runs.
 - **Public schema-read seams.** `ICurrentSchemaProvider`, `IPlanFileWriter`, and `PlanFileEnvelope` are now public, so a front-end can read the recorded (offline) or live (online) schema and render a saved plan directly.
+- **`UseReporter(Func<IServiceProvider, IOperationReporter>)` overload.** Registers the reporter from a service-provider factory.
 
 ### Changed
 
