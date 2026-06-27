@@ -12,7 +12,7 @@ internal sealed class PlanOperation(
     ISqlGenerator? sqlGenerator = null
 ) : IPlanOperation
 {
-    public async Task Execute(PlanArguments arguments, CancellationToken cancellationToken = default)
+    public async Task<PlanResult> Execute(PlanArguments arguments, CancellationToken cancellationToken = default)
     {
         reporter.Announce("Planning schema migration. No changes will be applied to the database.");
         var planned = await workflow.Plan(SchemaSourceMode.Offline, required: false, arguments.Schemas, cancellationToken);
@@ -24,7 +24,7 @@ internal sealed class PlanOperation(
             }
 
             reporter.Warn("Unable to generate SQL preview. No provider is configured.");
-            return;
+            return new PlanResult(planned.Diff);
         }
 
         var sqlPlan = sqlGenerator.Generate(planned.Plan);
@@ -36,5 +36,7 @@ internal sealed class PlanOperation(
             await handler.Write(arguments.OutFile, envelope, cancellationToken);
             reporter.Success($"Plan saved to {arguments.OutFile}. Apply it later with this file to execute exactly this plan.");
         }
+
+        return new PlanResult(planned.Diff);
     }
 }

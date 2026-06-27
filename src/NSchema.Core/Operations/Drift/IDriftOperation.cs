@@ -11,5 +11,5 @@ internal interface IDriftOperation
     /// </summary>
     /// <param name="arguments">The arguments controlling the drift check.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task Execute(DriftArguments arguments, CancellationToken cancellationToken = default);
+    Task<DriftResult> Execute(DriftArguments arguments, CancellationToken cancellationToken = default);
 }

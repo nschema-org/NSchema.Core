@@ -9,7 +9,7 @@ internal sealed class DriftOperation(
     ISchemaComparer comparer
 ) : IDriftOperation
 {
-    public async Task Execute(DriftArguments arguments, CancellationToken cancellationToken = default)
+    public async Task<DriftResult> Execute(DriftArguments arguments, CancellationToken cancellationToken = default)
     {
         reporter.Announce("Checking for drift between the recorded state and the live database...");
         reporter.Progress("Reading recorded state...");
@@ -33,5 +33,7 @@ internal sealed class DriftOperation(
         {
             reporter.Warn($"Drift detected: {RunSummary.Describe(diff)}.");
         }
+
+        return new DriftResult(diff);
     }
 }
