@@ -38,7 +38,7 @@ public sealed class NSchemaApplication : IDisposable
     /// </summary>
     /// <param name="arguments">The arguments controlling the plan.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Plan(PlanArguments arguments, CancellationToken cancellationToken = default)
+    public Task<PlanResult> Plan(PlanArguments arguments, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IPlanOperation>().Execute(arguments, cancellationToken));
@@ -49,7 +49,7 @@ public sealed class NSchemaApplication : IDisposable
     /// </summary>
     /// <param name="arguments">The arguments controlling the teardown plan.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task PlanDestroy(PlanDestroyArguments arguments, CancellationToken cancellationToken = default)
+    public Task<PlanResult> PlanDestroy(PlanDestroyArguments arguments, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IPlanDestroyOperation>().Execute(arguments, cancellationToken));
@@ -105,7 +105,7 @@ public sealed class NSchemaApplication : IDisposable
     /// </summary>
     /// <param name="arguments">The arguments controlling the drift check.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Drift(DriftArguments arguments, CancellationToken cancellationToken = default)
+    public Task<DriftResult> Drift(DriftArguments arguments, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IDriftOperation>().Execute(arguments, cancellationToken));
@@ -135,7 +135,14 @@ public sealed class NSchemaApplication : IDisposable
 
     private T Resolve<T>() where T : notnull => _host.Services.GetRequiredService<T>();
 
-    private async Task Run(Func<Task> execute)
+    // The void operations delegate to the generic runner.
+    private Task Run(Func<Task> execute) => Run(async () =>
+    {
+        await execute();
+        return true;
+    });
+
+    private async Task<T> Run<T>(Func<Task<T>> execute)
     {
         if (_hasRun)
         {
@@ -145,7 +152,7 @@ public sealed class NSchemaApplication : IDisposable
 
         try
         {
-            await execute();
+            return await execute();
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

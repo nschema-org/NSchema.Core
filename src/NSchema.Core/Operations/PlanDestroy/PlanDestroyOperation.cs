@@ -1,3 +1,4 @@
+using NSchema.Operations.Plan;
 using NSchema.Operations.Services;
 using NSchema.Plan.PlanFile;
 using NSchema.Sql;
@@ -11,7 +12,7 @@ internal sealed class PlanDestroyOperation(
     ISqlGenerator? sqlGenerator = null
 ) : IPlanDestroyOperation
 {
-    public async Task Execute(PlanDestroyArguments arguments, CancellationToken cancellationToken = default)
+    public async Task<PlanResult> Execute(PlanDestroyArguments arguments, CancellationToken cancellationToken = default)
     {
         reporter.Announce("Planning schema teardown. No changes will be applied to the database.");
 
@@ -26,7 +27,7 @@ internal sealed class PlanDestroyOperation(
             }
 
             reporter.Warn("Unable to generate SQL preview. No provider is configured.");
-            return;
+            return new PlanResult(planned.Diff);
         }
 
         var sqlPlan = sqlGenerator.Generate(planned.Plan);
@@ -38,5 +39,7 @@ internal sealed class PlanDestroyOperation(
             await handler.Write(arguments.OutFile, envelope, cancellationToken);
             reporter.Success($"Planned destroy saved to {arguments.OutFile}. Apply it later with this file to execute exactly this plan.");
         }
+
+        return new PlanResult(planned.Diff);
     }
 }
