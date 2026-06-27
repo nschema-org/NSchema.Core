@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
+## [Unreleased]
+
+v4.0.0 is a major release that will rework providers and backends into a new plugin system. This will enable providers and backends to be installed directly from NuGet, independently of the CLI, and pin the versions in your CI.
+
+### Added
+
+- **Plugin Contract.** A new set of interfaces in `NSchema.Plugins` that will allow providers and backends to declare themselves.
+- **BREAKING: Manual lock holds.** `IStateLockHandle` is no longer disposable; release is explicit, so a caller can take a lock that outlives the current process (e.g. one front-end command acquires, another releases) simply by never releasing it.
+- **Lock time-to-live.** `StateLockRequest.TimeToLive` records an optional expiry on the resulting `StateLockInfo.ExpiresUtc`. Expiry is surfaced for visibility but never auto-enforced.
+- **Skip locking per operation.** `ApplyArguments`, `RefreshArguments`, and `DestroyArguments` gain `SkipLock`, running the operation without acquiring the state lock (the operation reports the skip and names any current holder). The caller takes responsibility for preventing concurrent runs.
+- **Public schema-read seams.** `ICurrentSchemaProvider`, `IPlanFileWriter`, and `PlanFileEnvelope` are now public, so a front-end can read the recorded (offline) or live (online) schema and render a saved plan directly.
+
+### Changed
+
+- **BREAKING: `IStateLockHandle` is no longer `IAsyncDisposable`.** Release is explicit via `ValueTask Release(CancellationToken)`, and the handle now exposes `StateLockInfo Info` (replacing `string LockId`). Operation call sites release in a `finally`.
+- **BREAKING: `IStateLock.ForceUnlock` renamed to `IStateLock.Release`**, now returning `ValueTask` (was `Task<StateLockInfo?>`) to match `IStateLockHandle.Release`. Whether a release is "forced" is decided by the seam the caller reaches for — `IStateLock.Release` removes whatever lock is held; `IStateLockHandle.Release` removes only its own.
+- **`StateLockInfo`** gains an optional `ExpiresUtc`.
+
+### Removed
+
+- **`NoOpStateLock` and the no-op lock fallback.** `IStateLock` is now registered only when a state backend supplies one; an operation either takes a real lock or runs without one, rather than acquiring a placeholder. Operations resolve `IStateLock?` (optional).
+- **BREAKING: The `ForceUnlock` operation.** `NSchemaApplication.ForceUnlock`, `IForceUnlockOperation`, and `ForceUnlockArguments` are gone; force-unlock is a thin caller of `IStateLock.Release()` (the CLI does the peek + expected-id check + confirmation itself).
+- **BREAKING: The `Show` operation.** `NSchemaApplication.Show`, `IShowOperation`, and `ShowArguments` are gone. Reading-and-rendering the recorded state, a saved plan, or (new) the live schema is a thin front-end concern, built on the public read seams above rather than a Core operation.
+
 ## [3.4.0] - 2026-06-25
 
 ### Added
@@ -21,14 +45,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - Dropping a schema now emits specific drop instructions for all known elements beneath. This is required for providers that don't support cascading deletes.
-
-## [Unreleased]
-
-v4.0.0 is a major release that will rework providers and backends into a new plugin system. This will enable providers and backends to be installed directly from NuGet, independently of the CLI, and pin the versions in your CI.
-
-### Added
-
-- **Plugin Contract.** A new set of interfaces in `NSchema.Plugins` that will allow providers and backends to declare themselves.
 
 ## [3.2.1] - 2026-06-24
 

@@ -13,13 +13,11 @@ using NSchema.Operations.Confirmation;
 using NSchema.Operations.Destroy;
 using NSchema.Operations.Doctor;
 using NSchema.Operations.Drift;
-using NSchema.Operations.ForceUnlock;
 using NSchema.Operations.Import;
 using NSchema.Operations.Plan;
 using NSchema.Operations.PlanDestroy;
 using NSchema.Operations.Refresh;
 using NSchema.Operations.Services;
-using NSchema.Operations.Show;
 using NSchema.Operations.Validate;
 using NSchema.Plan;
 using NSchema.Plan.PlanFile;
@@ -122,9 +120,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IImportOperation, ImportOperation>();
         services.TryAddSingleton<IValidateOperation, ValidateOperation>();
         services.TryAddSingleton<IDestroyOperation, DestroyOperation>();
-        services.TryAddSingleton<IShowOperation, ShowOperation>();
         services.TryAddSingleton<IDriftOperation, DriftOperation>();
-        services.TryAddSingleton<IForceUnlockOperation, ForceUnlockOperation>();
         services.TryAddSingleton<IDoctorOperation, DoctorOperation>();
 
         // Plan
@@ -143,6 +139,5 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
         // State
         services.TryAddSingleton<ISchemaStateSerializer, SchemaStateSerializer>();
-        services.TryAddSingleton<IStateLock, NoOpStateLock>();
     }
 }

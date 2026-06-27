@@ -5,7 +5,7 @@ namespace NSchema.Schema;
 /// <summary>
 /// Provides the current database schema, with optional online (live database) and offline (persisted snapshot) sources.
 /// </summary>
-internal interface ICurrentSchemaProvider
+public interface ICurrentSchemaProvider
 {
     /// <summary>
     /// Returns the schema for the specified mode.

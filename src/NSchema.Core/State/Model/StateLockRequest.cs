@@ -4,4 +4,5 @@ namespace NSchema.State.Model;
 /// Describes an operation acquiring the state lock.
 /// </summary>
 /// <param name="Operation">The name of the operation acquiring the lock (e.g. <c>"apply"</c>, <c>"destroy"</c>, <c>"refresh"</c>).</param>
-public sealed record StateLockRequest(string Operation);
+/// <param name="TimeToLive">An optional lifetime after which the lock is considered stale.</param>
+public sealed record StateLockRequest(string Operation, TimeSpan? TimeToLive = null);

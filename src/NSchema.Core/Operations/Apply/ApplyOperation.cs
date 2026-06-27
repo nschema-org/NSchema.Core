@@ -4,7 +4,6 @@ using NSchema.Plan.PlanFile;
 using NSchema.Schema;
 using NSchema.Sql;
 using NSchema.State;
-using NSchema.State.Model;
 
 namespace NSchema.Operations.Apply;
 
@@ -12,8 +11,8 @@ internal sealed class ApplyOperation(
     IOperationReporter reporter,
     IOperationConfirmation confirmation,
     IMigrationWorkflow workflow,
-    IStateLock stateLock,
     IPlanFileWriter planFile,
+    IStateLock? stateLock = null,
     ISqlGenerator? sqlGenerator = null,
     ISqlExecutor? sqlExecutor = null
 ) : IApplyOperation
@@ -27,91 +26,109 @@ internal sealed class ApplyOperation(
 
         if (arguments.PlanFile is not null)
         {
-            await ApplyFromFile(arguments.PlanFile, sqlExecutor, cancellationToken);
+            await ApplyFromFile(arguments.PlanFile, sqlExecutor, arguments.SkipLock, cancellationToken);
             return;
         }
 
         reporter.Announce("Applying schema migration. Changes will be applied to the database.");
 
-        // Hold the state lock for the whole operation so a concurrent apply/destroy/refresh can't run against the
-        // same state. Released when the handle is disposed at the end of the method (no-op unless a lock is registered).
-        await using var stateLockHandle = await stateLock.Acquire(new StateLockRequest("apply"), cancellationToken);
-
-        var planned = await workflow.Plan(SchemaSourceMode.Online, required: true, arguments.Schemas, cancellationToken);
-
-        reporter.Progress("Generating SQL...");
-        var sqlPlan = sqlGenerator.Generate(planned.Plan);
-
-        // The database already matches the desired schema: there's nothing to confirm or execute. Still capture
-        // state, so a first run against an already-matching database initialises the store.
-        if (sqlPlan.IsEmpty)
-        {
-            reporter.Success("No changes. The database already matches the desired schema.");
-            await workflow.Refresh(RefreshMode.Optional, cancellationToken);
-            return;
-        }
-
-        reporter.ReportSqlPlan(sqlPlan);
-
-        // Offer an interactive front-end the chance to prompt before any changes are made.
-        if (!await confirmation.Confirm(new ApplyConfirmationRequest(planned.Plan), cancellationToken))
-        {
-            reporter.Announce("Apply cancelled. No changes were made to the database.");
-            return;
-        }
-
-        reporter.Progress("Running schema migration...");
-        reporter.Verbose(RunSummary.DescribeExecution(sqlPlan));
-
+        // Hold the state lock for the whole operation so a concurrent apply/destroy/refresh can't run against the same state.
+        var stateLockHandle = await StateLockGuard.AcquireOrSkip(stateLock, reporter, "apply", arguments.SkipLock, cancellationToken);
         try
         {
-            await sqlExecutor.Execute(sqlPlan, cancellationToken);
-            reporter.Success($"Apply complete. {RunSummary.Describe(planned.Diff, sqlPlan)}.");
+            var planned = await workflow.Plan(SchemaSourceMode.Online, required: true, arguments.Schemas, cancellationToken);
+
+            reporter.Progress("Generating SQL...");
+            var sqlPlan = sqlGenerator.Generate(planned.Plan);
+
+            // The database already matches the desired schema: there's nothing to confirm or execute. Still capture
+            // state, so a first run against an already-matching database initialises the store.
+            if (sqlPlan.IsEmpty)
+            {
+                reporter.Success("No changes. The database already matches the desired schema.");
+                await workflow.Refresh(RefreshMode.Optional, cancellationToken);
+                return;
+            }
+
+            reporter.ReportSqlPlan(sqlPlan);
+
+            // Offer an interactive front-end the chance to prompt before any changes are made.
+            if (!await confirmation.Confirm(new ApplyConfirmationRequest(planned.Plan), cancellationToken))
+            {
+                reporter.Announce("Apply cancelled. No changes were made to the database.");
+                return;
+            }
+
+            reporter.Progress("Running schema migration...");
+            reporter.Verbose(RunSummary.DescribeExecution(sqlPlan));
+
+            try
+            {
+                await sqlExecutor.Execute(sqlPlan, cancellationToken);
+                reporter.Success($"Apply complete. {RunSummary.Describe(planned.Diff, sqlPlan)}.");
+            }
+            finally
+            {
+                // Capture the resulting state when a store is configured; a no-op otherwise. This runs even when
+                // execution failed partway (e.g. an un-transacted plan) so the store reflects what was actually applied.
+                await workflow.Refresh(RefreshMode.Optional, cancellationToken);
+            }
         }
         finally
         {
-            // Capture the resulting state when a store is configured; a no-op otherwise. This runs even when
-            // execution failed partway (e.g. an un-transacted plan) so the store reflects what was actually applied.
-            await workflow.Refresh(RefreshMode.Optional, cancellationToken);
+            // Release with an uncancellable token so a cancelled apply still frees its own lock.
+            if (stateLockHandle is not null)
+            {
+                await stateLockHandle.Release(CancellationToken.None);
+            }
         }
     }
 
     /// <summary>
     /// Applies a previously saved plan file.
     /// </summary>
-    private async Task ApplyFromFile(string path, ISqlExecutor sqlExecutor, CancellationToken cancellationToken)
+    private async Task ApplyFromFile(string path, ISqlExecutor sqlExecutor, bool skipLock, CancellationToken cancellationToken)
     {
         var envelope = await planFile.Read(path, cancellationToken);
 
         reporter.Announce($"Applying saved plan from {path}. Changes will be applied to the database.");
         reporter.Verbose($"Saved plan was created at {envelope.CreatedAt:u}.");
 
-        await using var stateLockHandle = await stateLock.Acquire(new StateLockRequest("apply"), cancellationToken);
-
-        // Report the same diff/plan/SQL view the plan step produced, so applying a saved plan looks identical.
-        reporter.ReportDiff(envelope.Diff);
-        reporter.ReportPlan(envelope.Plan);
-        reporter.ReportSqlPlan(envelope.Sql);
-
-        if (!await confirmation.Confirm(new ApplyConfirmationRequest(envelope.Plan), cancellationToken))
-        {
-            reporter.Announce("Apply cancelled. No changes were made to the database.");
-            return;
-        }
-
-        reporter.Progress("Applying plan...");
-        reporter.Verbose(RunSummary.DescribeExecution(envelope.Sql));
-
+        var stateLockHandle = await StateLockGuard.AcquireOrSkip(stateLock, reporter, "apply", skipLock, cancellationToken);
         try
         {
-            await sqlExecutor.Execute(envelope.Sql, cancellationToken);
-            reporter.Success($"Apply complete. {RunSummary.Describe(envelope.Diff, envelope.Sql)}.");
+            // Report the same diff/plan/SQL view the plan step produced, so applying a saved plan looks identical.
+            reporter.ReportDiff(envelope.Diff);
+            reporter.ReportPlan(envelope.Plan);
+            reporter.ReportSqlPlan(envelope.Sql);
+
+            if (!await confirmation.Confirm(new ApplyConfirmationRequest(envelope.Plan), cancellationToken))
+            {
+                reporter.Announce("Apply cancelled. No changes were made to the database.");
+                return;
+            }
+
+            reporter.Progress("Applying plan...");
+            reporter.Verbose(RunSummary.DescribeExecution(envelope.Sql));
+
+            try
+            {
+                await sqlExecutor.Execute(envelope.Sql, cancellationToken);
+                reporter.Success($"Apply complete. {RunSummary.Describe(envelope.Diff, envelope.Sql)}.");
+            }
+            finally
+            {
+                // Capture the resulting state when a store is configured; a no-op otherwise. This runs even when
+                // execution failed partway (e.g. an un-transacted plan) so the store reflects what was actually applied.
+                await workflow.Refresh(RefreshMode.Optional, cancellationToken);
+            }
         }
         finally
         {
-            // Capture the resulting state when a store is configured; a no-op otherwise. This runs even when
-            // execution failed partway (e.g. an un-transacted plan) so the store reflects what was actually applied.
-            await workflow.Refresh(RefreshMode.Optional, cancellationToken);
+            if (stateLockHandle is not null)
+            {
+                await stateLockHandle.Release(CancellationToken.None);
+            }
         }
     }
 }
