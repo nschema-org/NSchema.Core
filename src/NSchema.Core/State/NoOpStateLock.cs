@@ -22,8 +22,9 @@ internal sealed class NoOpStateLock : IStateLock
     {
         public static readonly Handle Instance = new();
 
-        public string LockId => "noop";
+        // Locking is off, so there is no real lock to describe; a synthetic info keeps the contract satisfied.
+        public StateLockInfo Info { get; } = new("noop", "noop", "noop", default);
 
-        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        public ValueTask Release(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
     }
 }

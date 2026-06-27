@@ -5,7 +5,6 @@ using NSchema.Operations.Apply;
 using NSchema.Operations.Destroy;
 using NSchema.Operations.Doctor;
 using NSchema.Operations.Drift;
-using NSchema.Operations.ForceUnlock;
 using NSchema.Operations.Import;
 using NSchema.Operations.Plan;
 using NSchema.Operations.PlanDestroy;
@@ -132,17 +131,6 @@ public sealed class NSchemaApplication : IDisposable
     {
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IDestroyOperation>().Execute(arguments, cancellationToken));
-    }
-
-    /// <summary>
-    /// Forcibly removes the state lock, for recovering from a stale lock.
-    /// </summary>
-    /// <param name="arguments">The arguments controlling the force-unlock.</param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task ForceUnlock(ForceUnlockArguments arguments, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(arguments);
-        return Run(() => Resolve<IForceUnlockOperation>().Execute(arguments, cancellationToken));
     }
 
     /// <summary>

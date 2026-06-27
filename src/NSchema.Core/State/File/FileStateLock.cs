@@ -18,11 +18,13 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
             Directory.CreateDirectory(directory);
         }
 
+        var now = DateTimeOffset.UtcNow;
         var info = new StateLockInfo(
             Id: Guid.NewGuid().ToString("N"),
             Operation: request.Operation,
             Who: $"{Environment.UserName}@{Environment.MachineName}",
-            CreatedUtc: DateTimeOffset.UtcNow
+            CreatedUtc: now,
+            ExpiresUtc: request.TimeToLive is { } ttl ? now + ttl : null
         );
 
         try
@@ -43,7 +45,7 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
                 existing);
         }
 
-        return new Handle(path, info.Id);
+        return new Handle(path, info);
     }
 
     public async Task<StateLockInfo?> Peek(CancellationToken cancellationToken = default)
@@ -87,13 +89,13 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
         }
     }
 
-    private sealed class Handle(string path, string lockId) : IStateLockHandle
+    private sealed class Handle(string path, StateLockInfo info) : IStateLockHandle
     {
         private bool _released;
 
-        public string LockId => lockId;
+        public StateLockInfo Info => info;
 
-        public async ValueTask DisposeAsync()
+        public async ValueTask Release(CancellationToken cancellationToken = default)
         {
             if (_released)
             {
@@ -103,8 +105,8 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
 
             // Only delete the file if it still records our lock, so we never remove a lock acquired by someone
             // else after ours was force-removed.
-            var current = await TryReadInfo(path, CancellationToken.None);
-            if (current is null || current.Id == lockId)
+            var current = await TryReadInfo(path, cancellationToken);
+            if (current is null || current.Id == info.Id)
             {
                 try
                 {
