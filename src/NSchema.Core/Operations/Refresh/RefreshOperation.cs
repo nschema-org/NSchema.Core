@@ -3,7 +3,7 @@ using NSchema.State;
 
 namespace NSchema.Operations.Refresh;
 
-internal sealed class RefreshOperation(IMigrationWorkflow workflow, IStateLock stateLock, IOperationReporter reporter) : IRefreshOperation
+internal sealed class RefreshOperation(IMigrationWorkflow workflow, IOperationReporter reporter, IStateLock? stateLock = null) : IRefreshOperation
 {
     public async Task Execute(RefreshArguments arguments, CancellationToken cancellationToken = default)
     {

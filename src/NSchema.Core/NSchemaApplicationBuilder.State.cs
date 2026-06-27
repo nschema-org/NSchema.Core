@@ -11,7 +11,7 @@ public partial class NSchemaApplicationBuilder
     /// Tracks whether the user has explicitly chosen a state lock (via <see cref="UseStateLock{T}()"/> and friends),
     /// so that configuring a state store never overrides an explicit choice, regardless of call order.
     /// </summary>
-    private bool _stateLockConfigured;
+    private bool _explicitStateLock;
 
     /// <summary>
     /// Registers the <see cref="ISchemaStateStore"/> used to persist and read schema snapshots.
@@ -23,13 +23,18 @@ public partial class NSchemaApplicationBuilder
     {
         Services.Replace(ServiceDescriptor.Singleton<ISchemaStateStore, T>());
 
-        if (!_stateLockConfigured)
+        if (!_explicitStateLock)
         {
-            // Co-locate the lock with the store. If the backend also locks, resolve the one instance for both seams;
-            // otherwise fall back to the no-op so this call fully (re)defines the co-located lock.
-            Services.Replace(typeof(IStateLock).IsAssignableFrom(typeof(T))
-                ? ServiceDescriptor.Singleton<IStateLock>(sp => (IStateLock)sp.GetRequiredService<ISchemaStateStore>())
-                : ServiceDescriptor.Singleton<IStateLock, NoOpStateLock>());
+            // Co-locate the lock with the store: if the backend also locks, resolve the one instance for both seams.
+            // Otherwise there is no lock, and operations run unlocked rather than against a placeholder.
+            if (typeof(T).IsAssignableTo(typeof(IStateLock)))
+            {
+                Services.Replace(ServiceDescriptor.Singleton<IStateLock>(sp => (IStateLock)sp.GetRequiredService<ISchemaStateStore>()));
+            }
+            else
+            {
+                Services.RemoveAll<IStateLock>();
+            }
         }
 
         return this;
@@ -45,11 +50,16 @@ public partial class NSchemaApplicationBuilder
     {
         Services.Replace(ServiceDescriptor.Singleton(store));
 
-        if (!_stateLockConfigured)
+        if (!_explicitStateLock)
         {
-            Services.Replace(store is IStateLock stateLock
-                ? ServiceDescriptor.Singleton(stateLock)
-                : ServiceDescriptor.Singleton<IStateLock, NoOpStateLock>());
+            if (store is IStateLock stateLock)
+            {
+                Services.Replace(ServiceDescriptor.Singleton(stateLock));
+            }
+            else
+            {
+                Services.RemoveAll<IStateLock>();
+            }
         }
 
         return this;
@@ -65,7 +75,7 @@ public partial class NSchemaApplicationBuilder
         Services.Configure<FileSchemaStateStoreOptions>(o => o.Path = path);
         Services.Replace(ServiceDescriptor.Singleton<ISchemaStateStore, FileSchemaStateStore>());
 
-        if (!_stateLockConfigured)
+        if (!_explicitStateLock)
         {
             Services.Configure<FileStateLockOptions>(o => o.Path = DeriveLockPath(path));
             Services.Replace(ServiceDescriptor.Singleton<IStateLock, FileStateLock>());
@@ -82,7 +92,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder UseStateLock<T>() where T : class, IStateLock
     {
-        _stateLockConfigured = true;
+        _explicitStateLock = true;
         Services.Replace(ServiceDescriptor.Singleton<IStateLock, T>());
         return this;
     }
@@ -94,7 +104,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder UseStateLock(IStateLock stateLock)
     {
-        _stateLockConfigured = true;
+        _explicitStateLock = true;
         Services.Replace(ServiceDescriptor.Singleton(stateLock));
         return this;
     }
@@ -107,7 +117,7 @@ public partial class NSchemaApplicationBuilder
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder UseFileStateLock(string path)
     {
-        _stateLockConfigured = true;
+        _explicitStateLock = true;
         Services.Configure<FileStateLockOptions>(o => o.Path = path);
         Services.Replace(ServiceDescriptor.Singleton<IStateLock, FileStateLock>());
         return this;

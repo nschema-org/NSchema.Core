@@ -11,8 +11,8 @@ internal sealed class ApplyOperation(
     IOperationReporter reporter,
     IOperationConfirmation confirmation,
     IMigrationWorkflow workflow,
-    IStateLock stateLock,
     IPlanFileWriter planFile,
+    IStateLock? stateLock = null,
     ISqlGenerator? sqlGenerator = null,
     ISqlExecutor? sqlExecutor = null
 ) : IApplyOperation

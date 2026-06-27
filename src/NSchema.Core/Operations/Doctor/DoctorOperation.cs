@@ -13,10 +13,10 @@ namespace NSchema.Operations.Doctor;
 internal sealed class DoctorOperation(
     IOperationReporter reporter,
     ISchemaStateSerializer serializer,
-    IStateLock stateLock,
     [FromKeyedServices(NSchemaKeys.OnlineSchemaProvider)]
     ISchemaProvider? online = null,
-    ISchemaStateStore? store = null
+    ISchemaStateStore? store = null,
+    IStateLock? stateLock = null
 ) : IDoctorOperation
 {
     public async Task Execute(DoctorArguments arguments, CancellationToken cancellationToken = default)
@@ -27,11 +27,11 @@ internal sealed class DoctorOperation(
         failures += await CheckDatabase(cancellationToken);
         failures += await CheckStateStore(cancellationToken);
 
-        // The lock check only means anything when a state backend is configured; without one the registered lock is the
-        // no-op default, whose acquisition proves nothing.
-        if (store is not null)
+        // The lock check only means anything when the configured backend actually provides a lock; otherwise there is
+        // nothing to probe.
+        if (stateLock is not null)
         {
-            failures += await CheckStateLock(cancellationToken);
+            failures += await CheckStateLock(stateLock, cancellationToken);
         }
 
         if (failures > 0)
@@ -107,7 +107,7 @@ internal sealed class DoctorOperation(
         }
     }
 
-    private async Task<int> CheckStateLock(CancellationToken cancellationToken)
+    private async Task<int> CheckStateLock(IStateLock stateLock, CancellationToken cancellationToken)
     {
         reporter.Progress("Checking state lock...");
         try

@@ -54,25 +54,21 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
         return System.IO.File.Exists(path) ? await TryReadInfo(path, cancellationToken) : null;
     }
 
-    public async Task<StateLockInfo?> ForceUnlock(CancellationToken cancellationToken = default)
+    public ValueTask Release(CancellationToken cancellationToken = default)
     {
         var path = options.Value.Path;
-        if (!System.IO.File.Exists(path))
-        {
-            return null;
-        }
 
-        var info = await TryReadInfo(path, cancellationToken);
+        // Forcing release: delete whatever lock file is present, regardless of who wrote it.
         try
         {
             System.IO.File.Delete(path);
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or DirectoryNotFoundException)
         {
-            // Best-effort; a leftover file can be removed by hand.
+            // Best-effort; a missing file means nothing was held, and a leftover can be removed by hand.
         }
 
-        return info;
+        return ValueTask.CompletedTask;
     }
 
     private static async Task<StateLockInfo?> TryReadInfo(string path, CancellationToken cancellationToken)

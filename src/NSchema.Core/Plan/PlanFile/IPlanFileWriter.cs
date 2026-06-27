@@ -1,6 +1,9 @@
 namespace NSchema.Plan.PlanFile;
 
-internal interface IPlanFileWriter
+/// <summary>
+/// Reads and writes saved plan files.
+/// </summary>
+public interface IPlanFileWriter
 {
     /// <summary>
     /// Reads the envelope from the given file.

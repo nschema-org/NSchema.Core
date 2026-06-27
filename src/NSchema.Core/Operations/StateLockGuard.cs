@@ -12,22 +12,28 @@ internal static class StateLockGuard
     /// Acquires the state lock for <paramref name="operation"/>.
     /// </summary>
     public static async Task<IStateLockHandle?> AcquireOrSkip(
-        IStateLock stateLock,
+        IStateLock? stateLock,
         IOperationReporter reporter,
         string operation,
         bool skipLock,
         CancellationToken cancellationToken)
     {
+        // No backend lock to take — this is an ordinary offline run, not a deliberate skip, so say nothing.
+        if (stateLock is null)
+        {
+            return null;
+        }
+
         if (!skipLock)
         {
             return await stateLock.Acquire(new StateLockRequest(operation), cancellationToken);
         }
 
-        // Peek so the skip is honest: report a lock we are deliberately running past, rather than silently ignoring it.
+        // Peek so the report is honest: name the lock we are running past rather than ignoring it silently.
         var held = await stateLock.Peek(cancellationToken);
         reporter.Warn(held is null
-            ? "Skipping the state lock (--no-lock); make sure no other operation runs against this state at the same time."
-            : $"Skipping the state lock (--no-lock); the state is currently locked by {held.Who} " +
+            ? "Running without the state lock; make sure no other operation runs against this state at the same time."
+            : $"Running without the state lock; the state is currently locked by {held.Who} " +
               $"(operation '{held.Operation}', since {held.CreatedUtc:u}) — proceeding anyway.");
         return null;
     }

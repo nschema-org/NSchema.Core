@@ -11,15 +11,12 @@ internal sealed class RecordingStateLock : IStateLock
 {
     public List<StateLockRequest> Acquisitions { get; } = [];
     public int Released { get; private set; }
-    public int ForceUnlocks { get; private set; }
+    public int ForceReleases { get; private set; }
     public int Peeks { get; private set; }
     public Func<StateLockRequest, Task>? OnAcquire { get; set; }
 
     /// <summary>The value returned from <see cref="Peek"/> (defaults to nothing held).</summary>
     public StateLockInfo? PeekResult { get; set; }
-
-    /// <summary>The value returned from <see cref="ForceUnlock"/> (defaults to nothing held).</summary>
-    public StateLockInfo? ForceUnlockResult { get; set; }
 
     public Task<StateLockInfo?> Peek(CancellationToken cancellationToken = default)
     {
@@ -47,10 +44,10 @@ internal sealed class RecordingStateLock : IStateLock
         return new Handle(this, info);
     }
 
-    public Task<StateLockInfo?> ForceUnlock(CancellationToken cancellationToken = default)
+    public ValueTask Release(CancellationToken cancellationToken = default)
     {
-        ForceUnlocks++;
-        return Task.FromResult(ForceUnlockResult);
+        ForceReleases++;
+        return ValueTask.CompletedTask;
     }
 
     private sealed class Handle(RecordingStateLock owner, StateLockInfo info) : IStateLockHandle

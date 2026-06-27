@@ -119,31 +119,26 @@ public sealed class FileStateLockTests : IDisposable
     }
 
     [Fact]
-    public async Task ForceUnlock_RemovesAHeldLockAndReturnsItsInfo()
+    public async Task Release_RemovesAHeldLock()
     {
-        // A handle is held but we forcibly remove it (as if from another process recovering a stale lock).
+        // A handle is held but we forcibly release it (as if from another process recovering a stale lock).
         await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
 
-        var removed = await _sut.ForceUnlock(TestContext.Current.CancellationToken);
+        await _sut.Release(TestContext.Current.CancellationToken);
 
-        removed.ShouldNotBeNull();
-        removed.Operation.ShouldBe("apply");
         File.Exists(_path).ShouldBeFalse();
+        (await _sut.Peek(TestContext.Current.CancellationToken)).ShouldBeNull();
     }
 
     [Fact]
-    public async Task ForceUnlock_WhenNothingHeld_ReturnsNull()
-    {
-        var removed = await _sut.ForceUnlock(TestContext.Current.CancellationToken);
-
-        removed.ShouldBeNull();
-    }
+    public async Task Release_WhenNothingHeld_DoesNothing()
+        => await Should.NotThrowAsync(async () => await _sut.Release(TestContext.Current.CancellationToken));
 
     [Fact]
-    public async Task ForceUnlock_ThenAcquire_Succeeds()
+    public async Task Release_ThenAcquire_Succeeds()
     {
         await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
-        await _sut.ForceUnlock(TestContext.Current.CancellationToken);
+        await _sut.Release(TestContext.Current.CancellationToken);
 
         await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
         File.Exists(_path).ShouldBeTrue();

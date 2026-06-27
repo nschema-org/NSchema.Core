@@ -15,8 +15,8 @@ public sealed class DoctorOperationTests
     private readonly ISchemaStateSerializer _serializer = new SchemaStateSerializer();
     private readonly RecordingStateLock _stateLock = new();
 
-    private DoctorOperation BuildSut(ISchemaProvider? online = null, ISchemaStateStore? store = null) =>
-        new(_reporter, _serializer, _stateLock, online, store);
+    private DoctorOperation BuildSut(ISchemaProvider? online = null, ISchemaStateStore? store = null, IStateLock? stateLock = null) =>
+        new(_reporter, _serializer, online, store, stateLock);
 
     private Task Run(DoctorOperation sut) => sut.Execute(new DoctorArguments(), TestContext.Current.CancellationToken);
 
@@ -36,16 +36,17 @@ public sealed class DoctorOperationTests
     }
 
     [Fact]
-    public async Task Execute_WhenNoStoreConfigured_DoesNotProbeTheLock()
+    public async Task Execute_WhenNoLockConfigured_DoesNotProbeTheLock()
     {
-        // Arrange
-        var sut = BuildSut(online: null, store: null);
+        // Arrange — no backend provides a lock, so there is nothing to probe (stateLock is not wired).
+        var sut = BuildSut(online: null, store: null, stateLock: null);
 
         // Act
         await Run(sut);
 
-        // Assert — the no-op lock would always read as free, so probing it without a backend would be misleading.
+        // Assert
         _stateLock.Peeks.ShouldBe(0);
+        _reporter.Messages.ShouldNotContain(m => m.Message.StartsWith("State lock:"));
     }
 
     [Fact]
@@ -133,7 +134,7 @@ public sealed class DoctorOperationTests
     public async Task Execute_WhenStoreConfigured_ReadsTheLockWithoutAcquiringIt()
     {
         // Arrange
-        var sut = BuildSut(store: new RecordingStateStore());
+        var sut = BuildSut(store: new RecordingStateStore(), stateLock: _stateLock);
 
         // Act
         await Run(sut);
@@ -149,7 +150,7 @@ public sealed class DoctorOperationTests
     {
         // Arrange
         _stateLock.PeekResult = new StateLockInfo("id", "apply", "tom@dev", DateTimeOffset.UnixEpoch);
-        var sut = BuildSut(store: new RecordingStateStore());
+        var sut = BuildSut(store: new RecordingStateStore(), stateLock: _stateLock);
 
         // Act — a held lock is a state, not a misconfiguration, so doctor still passes.
         await Run(sut);

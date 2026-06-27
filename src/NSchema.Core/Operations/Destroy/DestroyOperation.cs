@@ -9,7 +9,7 @@ internal sealed class DestroyOperation(
     IOperationReporter reporter,
     IOperationConfirmation confirmation,
     IMigrationWorkflow workflow,
-    IStateLock stateLock,
+    IStateLock? stateLock = null,
     ISqlGenerator? sqlGenerator = null,
     ISqlExecutor? sqlExecutor = null
 ) : IDestroyOperation

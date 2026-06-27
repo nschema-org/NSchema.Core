@@ -16,11 +16,12 @@ public sealed class StateLockRegistrationTests
     }
 
     [Fact]
-    public void NoStore_DefaultsToNoOpLock()
+    public void NoStore_RegistersNoLock()
     {
         var services = Build(_ => { });
 
-        services.GetRequiredService<IStateLock>().ShouldBeOfType<NoOpStateLock>();
+        // No backend, no lock: there is no placeholder to acquire — operations simply run unlocked.
+        services.GetService<IStateLock>().ShouldBeNull();
     }
 
     [Fact]
@@ -48,7 +49,8 @@ public sealed class StateLockRegistrationTests
     {
         var services = Build(b => b.UseStateStore<StoreOnly>());
 
-        services.GetRequiredService<IStateLock>().ShouldBeOfType<NoOpStateLock>();
+        // A store with no lock leaves IStateLock unregistered, so the state-mutating operations run unlocked.
+        services.GetService<IStateLock>().ShouldBeNull();
     }
 
     [Fact]
@@ -78,14 +80,14 @@ public sealed class StateLockRegistrationTests
         public Task<ReadOnlyMemory<byte>?> Read(CancellationToken cancellationToken = default) => Task.FromResult<ReadOnlyMemory<byte>?>(null);
         public Task Write(ReadOnlyMemory<byte> state, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<IStateLockHandle> Acquire(StateLockRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<StateLockInfo?> ForceUnlock(CancellationToken cancellationToken = default) => Task.FromResult<StateLockInfo?>(null);
+        public ValueTask Release(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
     }
 
-    // Implements IStateLock *without* Peek, exercising that the new member's default implementation keeps existing
-    // implementers source-compatible (no breaking change).
+    // Implements IStateLock *without* Peek, exercising that Peek's default implementation keeps existing implementers
+    // source-compatible.
     private sealed class CustomLock : IStateLock
     {
         public Task<IStateLockHandle> Acquire(StateLockRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<StateLockInfo?> ForceUnlock(CancellationToken cancellationToken = default) => Task.FromResult<StateLockInfo?>(null);
+        public ValueTask Release(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
     }
 }

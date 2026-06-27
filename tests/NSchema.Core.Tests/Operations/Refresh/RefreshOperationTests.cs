@@ -12,7 +12,7 @@ public sealed class RefreshOperationTests
     private readonly RecordingStateLock _stateLock = new();
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
 
-    private RefreshOperation BuildSut() => new(_workflow, _stateLock, _reporter);
+    private RefreshOperation BuildSut() => new(_workflow, _reporter, _stateLock);
 
     [Fact]
     public async Task Execute_RefreshesStateRequiringAStore()
