@@ -64,6 +64,20 @@ public sealed class ImportOperationTests : IDisposable
         return combined;
     }
 
+    // ── Result payload ──────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Execute_ReturnsTheImportedSchemaAndEveryWrittenFile()
+    {
+        // Act
+        var result = await BuildSut().Execute(new ImportArguments { OutputDirectory = _dir }, TestContext.Current.CancellationToken);
+
+        // Assert — the result reports what was read and exactly which files it wrote (the schema header + one per table).
+        result.IsSuccess.ShouldBeTrue();
+        result.Value!.ImportedSchema.ShouldBe(_schema);
+        result.Value!.WrittenFiles.ShouldBe([HeaderPath, ObjectPath("tables", "users"), ObjectPath("tables", "orders")], ignoreOrder: true);
+    }
+
     // ── Source fetching ─────────────────────────────────────────────────────
 
     [Fact]

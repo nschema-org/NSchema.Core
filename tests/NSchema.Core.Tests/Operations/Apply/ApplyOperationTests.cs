@@ -29,6 +29,9 @@ public sealed class ApplyOperationTests
         var result = await _sut.Execute(Args(_sqlPlan), TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
+        result.Value!.AppliedSql.ShouldBe(_sqlPlan);
+        result.Value!.ChangesApplied.ShouldBeTrue();
+        result.Value!.StatementsExecuted.ShouldBe(1);
         await _executor.Received(1).Execute(_sqlPlan, Arg.Any<CancellationToken>());
         await _workflow.Received(1).Refresh(Arg.Any<CancellationToken>());
     }
@@ -36,9 +39,11 @@ public sealed class ApplyOperationTests
     [Fact]
     public async Task Execute_EmptyPlan_SkipsExecutionButStillRefreshes()
     {
-        await _sut.Execute(Args(new SqlPlan([])), TestContext.Current.CancellationToken);
+        var result = await _sut.Execute(Args(new SqlPlan([])), TestContext.Current.CancellationToken);
 
-        // A first run against an already-matching target still initialises the store.
+        // An empty plan applied nothing, but a first run against an already-matching target still initialises the store.
+        result.Value!.ChangesApplied.ShouldBeFalse();
+        result.Value!.StatementsExecuted.ShouldBe(0);
         await _executor.DidNotReceive().Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>());
         await _workflow.Received(1).Refresh(Arg.Any<CancellationToken>());
     }
