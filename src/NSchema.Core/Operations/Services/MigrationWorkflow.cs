@@ -28,7 +28,7 @@ internal sealed class MigrationWorkflow(
         return Result.From(planner.Validate(desired.Schema));
     }
 
-    public async Task<MigrationPlanResult> ComputePlan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default)
+    public async Task<Result<PlannedMigration>> ComputePlan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default)
     {
         progress.Report(OperationProgress.Step("Loading desired schema..."));
         var desired = await desiredProvider.GetProject(schemas, cancellationToken);
@@ -45,7 +45,7 @@ internal sealed class MigrationWorkflow(
         return planner.Plan(currentSchema, desired.Schema, desired.Scripts);
     }
 
-    public async Task<MigrationPlanResult> ComputeTeardown(CancellationToken cancellationToken = default)
+    public async Task<Result<PlannedMigration>> ComputeTeardown(CancellationToken cancellationToken = default)
     {
         // The managed schema is what we tear down: recorded state when we have it, otherwise the declared desired schema.
         var managedSchema = store is not null

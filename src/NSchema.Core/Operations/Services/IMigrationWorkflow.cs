@@ -23,13 +23,13 @@ internal interface IMigrationWorkflow
     /// <param name="required">Whether <paramref name="currentSource"/> must be available, or may fall back to the other source.</param>
     /// <param name="schemas">The schemas to scope to, or <see langword="null"/> to derive scope from the desired schema.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<MigrationPlanResult> ComputePlan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default);
+    Task<Result<PlannedMigration>> ComputePlan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Computes the teardown plan for the managed schema.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<MigrationPlanResult> ComputeTeardown(CancellationToken cancellationToken = default);
+    Task<Result<PlannedMigration>> ComputeTeardown(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Captures the live schema into the state store.
