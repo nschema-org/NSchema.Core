@@ -64,4 +64,42 @@ public sealed class ApplyOperationTests
         result.IsFailure.ShouldBeTrue();
         result.Errors.ShouldHaveSingleItem().Message.ShouldContain("requires a database provider");
     }
+
+    [Fact]
+    public async Task Execute_WhenStateRefreshFailsAfterSuccessfulApply_Surfaces()
+    {
+        // The migration applies cleanly, but capturing the new state fails — recording state is part of the apply, so
+        // this is a real error (the database changed but the recorded state is now stale), not something to swallow.
+        _workflow.Refresh(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("state store unreachable"));
+
+        var ex = await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(Args(_sqlPlan), TestContext.Current.CancellationToken));
+
+        ex.Message.ShouldBe("state store unreachable");
+        await _executor.Received(1).Execute(_sqlPlan, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Execute_WhenBothExecutionAndStateRefreshFail_SurfacesTheExecutionError()
+    {
+        // A refresh failure during the best-effort capture must not mask the migration failure, which is the error the
+        // operator needs to see.
+        _executor.Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("migration failed"));
+        _workflow.Refresh(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("state store unreachable"));
+
+        var ex = await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(Args(_sqlPlan), TestContext.Current.CancellationToken));
+
+        ex.Message.ShouldBe("migration failed");
+        await _workflow.Received(1).Refresh(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Execute_EmptyPlan_WhenStateRefreshFails_Surfaces()
+    {
+        // Even with nothing to execute, the state capture is part of the apply; its failure is surfaced.
+        _workflow.Refresh(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("state store unreachable"));
+
+        var ex = await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(Args(new SqlPlan([])), TestContext.Current.CancellationToken));
+
+        ex.Message.ShouldBe("state store unreachable");
+    }
 }

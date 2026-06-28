@@ -57,17 +57,11 @@ internal sealed class MigrationWorkflow(
         return planner.PlanTeardown(managedSchema);
     }
 
-    public async Task Refresh(RefreshMode mode, CancellationToken cancellationToken = default)
+    public async Task<StateCapture?> Refresh(CancellationToken cancellationToken = default)
     {
         if (store is null)
         {
-            if (mode == RefreshMode.Required)
-            {
-                throw new InvalidOperationException("Unable to refresh state without a configured state store.");
-            }
-
-            // Optional: nothing to capture.
-            return;
+            return null;
         }
 
         progress.Report(OperationProgress.Step("Updating state store..."));
@@ -75,6 +69,7 @@ internal sealed class MigrationWorkflow(
         var snapshot = stateSerializer.Serialize(schema);
         progress.Report(OperationProgress.Detail($"State snapshot: {Census.Describe(schema)}, {snapshot.Length:N0} bytes."));
         await store.Write(snapshot, cancellationToken);
+        return new StateCapture(schema, snapshot.Length);
     }
 
     /// <summary>

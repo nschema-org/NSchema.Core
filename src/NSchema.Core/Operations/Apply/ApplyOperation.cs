@@ -14,12 +14,11 @@ internal sealed class ApplyOperation(IMigrationWorkflow workflow, IProgress<Oper
 {
     public async Task<Result<ApplyResult>> Execute(ApplyArguments args, CancellationToken cancellationToken = default)
     {
-        // No SQL to run — either the target already matches or no provider generated a plan. Still capture state so a
-        // first run against an already-matching target initialises the store.
-        if (args.Sql is null or { IsEmpty: true })
+        // An empty plan executes nothing, but still records state.
+        if (args.Sql.IsEmpty)
         {
-            await workflow.Refresh(RefreshMode.Optional, cancellationToken);
-            return Result.Success(new ApplyResult());
+            await workflow.Refresh(cancellationToken);
+            return Result.Success(new ApplyResult(args.Sql));
         }
 
         if (sqlExecutor is null)
@@ -34,14 +33,23 @@ internal sealed class ApplyOperation(IMigrationWorkflow workflow, IProgress<Oper
         {
             await sqlExecutor.Execute(args.Sql, cancellationToken);
         }
-        finally
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Capture the resulting state when a store is configured; a no-op otherwise. This runs even when execution
-            // failed partway (e.g. an un-transacted plan) so the store reflects what was actually applied.
-            await workflow.Refresh(RefreshMode.Optional, cancellationToken);
+            // The migration failed, possibly partway. Best-effort capture so the store reflects reality.
+            try
+            {
+                await workflow.Refresh(cancellationToken);
+            }
+            catch (Exception captureFailure) when (captureFailure is not OperationCanceledException)
+            {
+                // Swallow this so we don't mask the original error.
+            }
+
+            throw;
         }
 
-        return Result.Success(new ApplyResult());
+        await workflow.Refresh(cancellationToken);
+        return Result.Success(new ApplyResult(args.Sql));
     }
 
     // A verbose progress line: the statement count and how many must run outside a transaction (e.g.
