@@ -1,5 +1,6 @@
 using NSchema.Diagnostics;
 using NSchema.Operations.Services;
+using NSchema.Plan.Model;
 using NSchema.Plan.PlanFile;
 using NSchema.Schema;
 using NSchema.Sql;
@@ -25,16 +26,22 @@ internal sealed class PlanOperation(IMigrationWorkflow workflow, IPlanFileWriter
         };
 
         var diagnostics = new List<Diagnostic>(planned.Diagnostics);
+
+        // The diff rides along even on a policy failure (so the offending change stays visible); the plan and SQL are
+        // only produced for a successful planning pass.
+        var diff = planned.Value?.Diff;
+        MigrationPlan? plan = null;
         SqlPlan? sql = null;
 
-        if (!planned.HasErrors)
+        if (planned.IsSuccess)
         {
+            plan = planned.Value.Plan;
             if (sqlGenerator is not null)
             {
-                sql = sqlGenerator.Generate(planned.Plan);
+                sql = sqlGenerator.Generate(planned.Value.Plan);
                 if (args.OutFile is not null)
                 {
-                    var envelope = new PlanFileEnvelope(planned.Plan, sql, planned.Diff, DateTimeOffset.UtcNow);
+                    var envelope = new PlanFileEnvelope(planned.Value.Diff, planned.Value.Plan, sql, DateTimeOffset.UtcNow);
                     await planFile.Write(args.OutFile, envelope, cancellationToken);
                 }
             }
@@ -49,6 +56,6 @@ internal sealed class PlanOperation(IMigrationWorkflow workflow, IPlanFileWriter
             }
         }
 
-        return Result<PlanResult>.From(new PlanResult(planned.Diff, sql), diagnostics);
+        return Result.From(new PlanResult(diff, plan, sql), diagnostics);
     }
 }
