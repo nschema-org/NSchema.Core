@@ -60,9 +60,9 @@ public sealed class PlanEndToEndTests : IDisposable
 
         using var app = NewBuilder(current).AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).Build();
 
-        await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
+        var result = await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
-        var schema = _reporter.Diff.ShouldNotBeNull().Schemas.ShouldHaveSingleItem();
+        var schema = result.Value.ShouldNotBeNull().Diff.ShouldNotBeNull().Schemas.ShouldHaveSingleItem();
         schema.Name.ShouldBe("app");
 
         var users = schema.Tables.Single(t => t.Name == "users");
@@ -91,9 +91,9 @@ public sealed class PlanEndToEndTests : IDisposable
 
         using var app = NewBuilder(schema).AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).Build();
 
-        await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
+        var result = await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
-        _reporter.Diff.ShouldNotBeNull().IsEmpty.ShouldBeTrue();
+        result.Value.ShouldNotBeNull().Diff.ShouldNotBeNull().IsEmpty.ShouldBeTrue();
     }
 
     [Fact]
@@ -107,10 +107,10 @@ public sealed class PlanEndToEndTests : IDisposable
             .UseSqlGenerator<StubSqlGenerator>()
             .Build();
 
-        await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
+        var result = await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
         // The stub emits one statement per action; creating a schema yields a CreateSchema action.
-        _reporter.SqlPlan.ShouldNotBeNull().Statements.ShouldNotBeEmpty();
+        result.Value.ShouldNotBeNull().Sql.ShouldNotBeNull().Statements.ShouldNotBeEmpty();
     }
 
     [Fact]

@@ -15,7 +15,6 @@ namespace NSchema.Tests.Operations.Plan;
 
 public sealed class PlanOperationTests
 {
-    private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
     private readonly IMigrationWorkflow _workflow = Substitute.For<IMigrationWorkflow>();
     private readonly ISqlGenerator _generator = Substitute.For<ISqlGenerator>();
 
@@ -24,7 +23,7 @@ public sealed class PlanOperationTests
     private readonly SqlPlan _sqlPlan = new([new SqlStatement("CREATE SCHEMA app")]);
 
     private PlanOperation BuildSut(ISqlGenerator? planner) =>
-        new(_reporter, _workflow, new PlanFileWriter(), planner);
+        new(_workflow, new PlanFileWriter(), planner);
 
     private readonly PlanOperation _sut;
 
@@ -46,41 +45,43 @@ public sealed class PlanOperationTests
     }
 
     [Fact]
-    public async Task Execute_GeneratesSqlFromPlanAndReportsIt()
+    public async Task Execute_GeneratesSqlFromPlan_AndCarriesItInTheResult()
     {
         var result = await _sut.Execute(new PlanArguments(), TestContext.Current.CancellationToken);
 
+        // The op no longer renders; it carries the diff + generated SQL back for the caller to render.
         result.IsSuccess.ShouldBeTrue();
         result.Value.Diff.ShouldBe(_diff);
+        result.Value.Sql.ShouldBe(_sqlPlan);
         _generator.Received(1).Generate(_plan);
-        _reporter.Received(1).ReportSqlPlan(_sqlPlan);
     }
 
     [Fact]
-    public async Task Execute_PolicyError_ReturnsFailureWithoutGeneratingSql()
+    public async Task Execute_PolicyError_ReturnsFailure_CarriesDiff_WithoutGeneratingSql()
     {
         _workflow.ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
             .Returns(new MigrationPlanResult(null, _diff, [Diagnostic.Error("destructive-actions", "blocked")]));
 
         var result = await _sut.Execute(new PlanArguments(), TestContext.Current.CancellationToken);
 
-        // The diff is still shown (for context), but the failure is carried back, not thrown, and no SQL is generated.
+        // The failure is carried back (not thrown); the diff still rides along so the caller can show it; no SQL.
         result.IsFailure.ShouldBeTrue();
         result.Errors.ShouldHaveSingleItem().Message.ShouldBe("blocked");
-        _reporter.Received(1).ReportDiff(_diff);
+        result.Value.ShouldNotBeNull().Diff.ShouldBe(_diff);
+        result.Value.Sql.ShouldBeNull();
         _generator.DidNotReceive().Generate(Arg.Any<MigrationPlan>());
     }
 
     [Fact]
-    public async Task Execute_NoPlanner_SucceedsWithoutSqlPreview_AndWarns()
+    public async Task Execute_NoPlanner_SucceedsWithoutSql_AndWarns()
     {
         var sut = BuildSut(planner: null);
 
         var result = await sut.Execute(new PlanArguments(), TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
+        result.Value.Sql.ShouldBeNull();
         result.Diagnostics.ShouldContain(d => d.Severity == DiagnosticSeverity.Warning && d.Message.Contains("Unable to generate SQL preview"));
-        _reporter.DidNotReceive().ReportSqlPlan(Arg.Any<SqlPlan>());
     }
 
     [Fact]

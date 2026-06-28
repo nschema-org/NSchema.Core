@@ -13,7 +13,6 @@ namespace NSchema.Tests.Operations.PlanDestroy;
 
 public sealed class PlanDestroyOperationTests
 {
-    private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
     private readonly IMigrationWorkflow _workflow = Substitute.For<IMigrationWorkflow>();
     private readonly ISqlGenerator _generator = Substitute.For<ISqlGenerator>();
 
@@ -22,7 +21,7 @@ public sealed class PlanDestroyOperationTests
     private readonly SqlPlan _sqlPlan = new([new SqlStatement("DROP SCHEMA app")]);
 
     private PlanDestroyOperation BuildSut(ISqlGenerator? generator) =>
-        new(_reporter, _workflow, new PlanFileWriter(), generator);
+        new(_workflow, new PlanFileWriter(), generator);
 
     private readonly PlanDestroyOperation _sut;
 
@@ -43,12 +42,13 @@ public sealed class PlanDestroyOperationTests
     }
 
     [Fact]
-    public async Task Execute_GeneratesSqlFromPlanAndReportsIt()
+    public async Task Execute_GeneratesSqlFromPlan_AndCarriesItInTheResult()
     {
-        await _sut.Execute(new PlanDestroyArguments(), TestContext.Current.CancellationToken);
+        var result = await _sut.Execute(new PlanDestroyArguments(), TestContext.Current.CancellationToken);
 
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Sql.ShouldBe(_sqlPlan);
         _generator.Received(1).Generate(_plan);
-        _reporter.Received(1).ReportSqlPlan(_sqlPlan);
     }
 
     [Fact]
@@ -68,8 +68,8 @@ public sealed class PlanDestroyOperationTests
         var result = await sut.Execute(new PlanDestroyArguments(), TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
+        result.Value.Sql.ShouldBeNull();
         await _workflow.Received(1).ComputeTeardown(Arg.Any<CancellationToken>());
-        _reporter.DidNotReceive().ReportSqlPlan(Arg.Any<SqlPlan>());
     }
 
     [Fact]

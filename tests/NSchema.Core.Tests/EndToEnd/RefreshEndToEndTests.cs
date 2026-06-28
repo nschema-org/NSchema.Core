@@ -80,8 +80,8 @@ public sealed class RefreshEndToEndTests : IDisposable
             .UseReporter(reporter)
             .Build();
 
-        await planner.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
+        var result = await planner.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
-        reporter.Diff.ShouldNotBeNull().IsEmpty.ShouldBeTrue();
+        result.Value.ShouldNotBeNull().Diff.ShouldNotBeNull().IsEmpty.ShouldBeTrue();
     }
 }
