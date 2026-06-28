@@ -1,7 +1,7 @@
 namespace NSchema.Operations.Plan;
 
 /// <summary>
-/// Arguments for a <see cref="IPlanOperation"/> run.
+/// Arguments for an operation run.
 /// </summary>
 public sealed record PlanArguments
 {

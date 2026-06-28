@@ -1,7 +1,7 @@
 namespace NSchema.Operations.Refresh;
 
 /// <summary>
-/// Arguments for an <see cref="IRefreshOperation"/> run.
+/// Arguments for an operation run.
 /// </summary>
 public sealed record RefreshArguments
 {

@@ -1,7 +1,7 @@
 namespace NSchema.Operations.Destroy;
 
 /// <summary>
-/// Arguments for an <see cref="IDestroyOperation"/> run.
+/// Arguments for a teardown run (see <see cref="INSchemaOperations.BeginDestroy"/>).
 /// </summary>
 public sealed record DestroyArguments
 {

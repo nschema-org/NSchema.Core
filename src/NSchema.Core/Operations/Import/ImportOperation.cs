@@ -1,19 +1,21 @@
 using NSchema.Diagnostics;
+using NSchema.Operations.Progress;
 using NSchema.Schema;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Schemas;
 
-using NSchema.Operations.Progress;
-
 namespace NSchema.Operations.Import;
 
-internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IOperationReporter reporter, IProgress<OperationProgress> progress) : IImportOperation
+/// <summary>
+/// Reads the live schema and writes it out as desired-schema DDL source files, merging additively into any files that
+/// already exist.
+/// </summary>
+internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IProgress<OperationProgress> progress)
+    : IOperation<ImportArguments, Result>
 {
     public async Task<Result> Execute(ImportArguments arguments, CancellationToken cancellationToken = default)
     {
-        reporter.Announce("Importing schema from database...");
-
         var schema = await currentSchema.GetSchema(SchemaSourceMode.Online, arguments.Schemas, cancellationToken: cancellationToken);
         progress.Report(OperationProgress.Detail($"Fetched {Census.Describe(schema)} from the database."));
 
@@ -32,7 +34,6 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IOpe
                 cancellationToken);
         }
 
-        reporter.Success("Schema imported successfully.");
         return Result.Success();
     }
 

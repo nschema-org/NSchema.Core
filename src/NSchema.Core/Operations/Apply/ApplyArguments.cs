@@ -1,7 +1,7 @@
 namespace NSchema.Operations.Apply;
 
 /// <summary>
-/// Arguments for an <see cref="IApplyOperation"/> run.
+/// Arguments for an apply run.
 /// </summary>
 public sealed record ApplyArguments
 {

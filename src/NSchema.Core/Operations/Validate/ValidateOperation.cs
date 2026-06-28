@@ -4,11 +4,15 @@ using NSchema.Operations.Services;
 
 namespace NSchema.Operations.Validate;
 
-internal sealed class ValidateOperation(IMigrationWorkflow workflow, IProgress<OperationProgress> progress) : IValidateOperation
+/// <summary>
+/// Loads the desired schema and validates it against the configured schema policies. Contacts no infrastructure.
+/// </summary>
+internal sealed class ValidateOperation(IMigrationWorkflow workflow, IProgress<OperationProgress> progress)
+    : IOperation<ValidateArguments, Result>
 {
-    public async Task<Result> Execute(ValidateArguments arguments, CancellationToken cancellationToken = default)
+    public Task<Result> Execute(ValidateArguments args, CancellationToken cancellationToken = default)
     {
         progress.Report(OperationProgress.Step("Validating schema. No database or state store will be contacted."));
-        return await workflow.Validate(cancellationToken);
+        return workflow.Validate(cancellationToken);
     }
 }

@@ -1,7 +1,7 @@
 namespace NSchema.Operations.PlanDestroy;
 
 /// <summary>
-/// Arguments for an <see cref="IPlanDestroyOperation"/> run.
+/// Arguments for an operation run.
 /// </summary>
 public sealed record PlanDestroyArguments
 {
