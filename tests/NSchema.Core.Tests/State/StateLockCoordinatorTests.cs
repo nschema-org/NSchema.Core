@@ -19,7 +19,7 @@ public sealed class StateLockCoordinatorTests
         var result = await Acquire(stateLock: null, skipLock: false);
 
         result.IsSuccess.ShouldBeTrue();
-        result.Value.ShouldBe(NoOpStateLockHandle.Instance);
+        result.Value.ShouldBe(NullStateLockHandle.Instance);
         result.Diagnostics.ShouldBeEmpty();
     }
 
@@ -29,7 +29,7 @@ public sealed class StateLockCoordinatorTests
         var result = await Acquire(_stateLock, skipLock: true);
 
         result.IsSuccess.ShouldBeTrue();
-        result.Value.ShouldBe(NoOpStateLockHandle.Instance);
+        result.Value.ShouldBe(NullStateLockHandle.Instance);
         result.Diagnostics.ShouldHaveSingleItem().Severity.ShouldBe(DiagnosticSeverity.Warning);
         // Peeked to name the lock it ran past, but never acquired.
         _stateLock.Peeks.ShouldBe(1);
@@ -42,7 +42,7 @@ public sealed class StateLockCoordinatorTests
         var result = await Acquire(_stateLock, skipLock: false);
 
         result.IsSuccess.ShouldBeTrue();
-        result.Value.ShouldNotBe(NoOpStateLockHandle.Instance);
+        result.Value.ShouldNotBe(NullStateLockHandle.Instance);
         result.Diagnostics.ShouldBeEmpty();
         _stateLock.Acquisitions.ShouldHaveSingleItem().Operation.ShouldBe("apply");
     }

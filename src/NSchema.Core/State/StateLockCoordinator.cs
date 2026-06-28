@@ -17,7 +17,7 @@ internal sealed class StateLockCoordinator(IStateLock? stateLock = null) : IStat
         // No backend lock to take — this is an ordinary offline run, not a deliberate skip, so say nothing.
         if (stateLock is null)
         {
-            return Result.Success<IStateLockHandle>(NoOpStateLockHandle.Instance);
+            return Result.Success<IStateLockHandle>(NullStateLockHandle.Instance);
         }
 
         if (skipLock)
@@ -28,7 +28,7 @@ internal sealed class StateLockCoordinator(IStateLock? stateLock = null) : IStat
                 ? "Running without the state lock; make sure no other operation runs against this state at the same time."
                 : $"Running without the state lock; the state is currently locked by {held.Who} " +
                   $"(operation '{held.Operation}', since {held.CreatedUtc:u}) — proceeding anyway.");
-            return Result.From<IStateLockHandle>(NoOpStateLockHandle.Instance, [warning]);
+            return Result.From<IStateLockHandle>(NullStateLockHandle.Instance, [warning]);
         }
 
         try
