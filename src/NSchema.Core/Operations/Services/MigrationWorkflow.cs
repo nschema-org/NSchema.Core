@@ -1,7 +1,6 @@
 using NSchema.Diagnostics;
 using NSchema.Operations.Progress;
 using NSchema.Plan;
-using NSchema.Policies;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.State;
@@ -10,7 +9,6 @@ namespace NSchema.Operations.Services;
 
 internal sealed class MigrationWorkflow(
     IMigrationPlanner planner,
-    IOperationReporter reporter,
     IProgress<OperationProgress> progress,
     ICurrentSchemaProvider currentProvider,
     IDesiredSchemaProvider desiredProvider,
@@ -76,7 +74,6 @@ internal sealed class MigrationWorkflow(
         var snapshot = stateSerializer.Serialize(schema);
         progress.Report(OperationProgress.Detail($"State snapshot: {Census.Describe(schema)}, {snapshot.Length:N0} bytes."));
         await store.Write(snapshot, cancellationToken);
-        reporter.Success("State store updated successfully.");
     }
 
     /// <summary>
