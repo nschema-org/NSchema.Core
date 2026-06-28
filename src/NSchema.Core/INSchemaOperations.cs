@@ -3,7 +3,6 @@ using NSchema.Operations.Doctor;
 using NSchema.Operations.Drift;
 using NSchema.Operations.Import;
 using NSchema.Operations.Plan;
-using NSchema.Operations.PlanDestroy;
 using NSchema.Operations.Refresh;
 using NSchema.Operations.Validate;
 
@@ -15,18 +14,12 @@ namespace NSchema;
 public interface INSchemaOperations
 {
     /// <summary>
-    /// Computes the plan without applying it.
+    /// Computes a plan without applying it.
     /// </summary>
     Task<Result<PlanResult>> Plan(PlanArguments args, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Computes the teardown plan (the plan to drop the managed schema) without applying it.
-    /// </summary>
-    Task<Result<PlanResult>> PlanDestroy(PlanDestroyArguments args, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Applies a computed plan (from <see cref="Plan"/>/<see cref="PlanDestroy"/> or a saved plan file): runs its SQL
-    /// and captures the resulting state. Lock-agnostic — the caller holds the state lock around plan + apply.
+    /// Applies a computed plan (from <see cref="Plan"/> or a saved plan file).
     /// </summary>
     Task<Result> Apply(PlanResult plan, CancellationToken cancellationToken = default);
 

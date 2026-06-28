@@ -4,7 +4,6 @@ using NSchema.Operations.Doctor;
 using NSchema.Operations.Drift;
 using NSchema.Operations.Import;
 using NSchema.Operations.Plan;
-using NSchema.Operations.PlanDestroy;
 using NSchema.Operations.Refresh;
 using NSchema.Operations.Validate;
 
@@ -15,7 +14,6 @@ namespace NSchema;
 /// </summary>
 internal sealed class NSchemaOperations(
     IOperation<PlanArguments, Result<PlanResult>> plan,
-    IOperation<PlanDestroyArguments, Result<PlanResult>> planDestroy,
     IOperation<PlanResult, Result> apply,
     IOperation<RefreshArguments, Result> refresh,
     IOperation<ValidateArguments, Result> validate,
@@ -26,9 +24,6 @@ internal sealed class NSchemaOperations(
 {
     public Task<Result<PlanResult>> Plan(PlanArguments args, CancellationToken cancellationToken = default) =>
         plan.Execute(args, cancellationToken);
-
-    public Task<Result<PlanResult>> PlanDestroy(PlanDestroyArguments args, CancellationToken cancellationToken = default) =>
-        planDestroy.Execute(args, cancellationToken);
 
     public Task<Result> Apply(PlanResult plan, CancellationToken cancellationToken = default) =>
         apply.Execute(plan, cancellationToken);
