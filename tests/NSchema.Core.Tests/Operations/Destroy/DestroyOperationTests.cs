@@ -1,5 +1,6 @@
 using NSchema.Diff.Model;
 using NSchema.Operations;
+using NSchema.Operations.Progress;
 using NSchema.Operations.Confirmation;
 using NSchema.Operations.Destroy;
 using NSchema.Operations.Services;
@@ -16,6 +17,7 @@ namespace NSchema.Tests.Operations.Destroy;
 public sealed class DestroyOperationTests
 {
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
+    private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
     private readonly IMigrationWorkflow _workflow = Substitute.For<IMigrationWorkflow>();
     private readonly ISqlGenerator _generator = Substitute.For<ISqlGenerator>();
     private readonly ISqlExecutor _executor = Substitute.For<ISqlExecutor>();
@@ -28,6 +30,7 @@ public sealed class DestroyOperationTests
 
     private DestroyOperation BuildSut(ISqlGenerator? generator, ISqlExecutor? executor) => new(
         _reporter,
+        _progress,
         _confirmation, _workflow,
         _stateLock,
         generator,

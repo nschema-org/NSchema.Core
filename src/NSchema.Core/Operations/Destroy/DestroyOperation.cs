@@ -3,10 +3,13 @@ using NSchema.Operations.Services;
 using NSchema.Sql;
 using NSchema.State;
 
+using NSchema.Operations.Progress;
+
 namespace NSchema.Operations.Destroy;
 
 internal sealed class DestroyOperation(
     IOperationReporter reporter,
+    IProgress<OperationProgress> progress,
     IOperationConfirmation confirmation,
     IMigrationWorkflow workflow,
     IStateLock? stateLock = null,
@@ -29,7 +32,7 @@ internal sealed class DestroyOperation(
         {
             var planned = await workflow.PlanDestroy(cancellationToken);
 
-            reporter.Progress("Generating SQL...");
+            progress.Report(OperationProgress.Step("Generating SQL..."));
             var sqlPlan = sqlGenerator.Generate(planned.Plan);
             reporter.ReportSqlPlan(sqlPlan);
 
@@ -40,8 +43,8 @@ internal sealed class DestroyOperation(
                 return;
             }
 
-            reporter.Progress("Running schema teardown...");
-            reporter.Verbose(RunSummary.DescribeExecution(sqlPlan));
+            progress.Report(OperationProgress.Step("Running schema teardown..."));
+            progress.Report(OperationProgress.Detail(RunSummary.DescribeExecution(sqlPlan)));
 
             try
             {

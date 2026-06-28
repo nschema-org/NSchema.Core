@@ -3,6 +3,8 @@ using NSchema.Diagnostics;
 using NSchema.Schema;
 using NSchema.State;
 
+using NSchema.Operations.Progress;
+
 namespace NSchema.Operations.Doctor;
 
 /// <summary>
@@ -13,6 +15,7 @@ namespace NSchema.Operations.Doctor;
 /// </remarks>
 internal sealed class DoctorOperation(
     IOperationReporter reporter,
+    IProgress<OperationProgress> progress,
     ISchemaStateSerializer serializer,
     [FromKeyedServices(NSchemaKeys.OnlineSchemaProvider)]
     ISchemaProvider? online = null,
@@ -57,7 +60,7 @@ internal sealed class DoctorOperation(
             return Announce(Diagnostic.Info(source, "Database: not configured (offline mode)."));
         }
 
-        reporter.Progress("Checking database connectivity...");
+        progress.Report(OperationProgress.Step("Checking database connectivity..."));
         try
         {
             // A full introspection is the honest end-to-end probe: it exercises the same path plan/apply rely on.
@@ -78,7 +81,7 @@ internal sealed class DoctorOperation(
             return Announce(Diagnostic.Info(source, "State store: not configured (offline planning unavailable)."));
         }
 
-        reporter.Progress("Checking state store...");
+        progress.Report(OperationProgress.Step("Checking state store..."));
         ReadOnlyMemory<byte>? snapshot;
         try
         {
@@ -111,7 +114,7 @@ internal sealed class DoctorOperation(
     private async Task<Diagnostic> CheckStateLock(IStateLock stateLock, CancellationToken cancellationToken)
     {
         const string source = "state-lock";
-        reporter.Progress("Checking state lock...");
+        progress.Report(OperationProgress.Step("Checking state lock..."));
         try
         {
             var info = await stateLock.Peek(cancellationToken);

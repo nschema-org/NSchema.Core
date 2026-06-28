@@ -1,3 +1,4 @@
+using NSchema.Diagnostics;
 using NSchema.Operations.Plan;
 using NSchema.Operations.Services;
 using NSchema.Plan.PlanFile;
@@ -12,22 +13,34 @@ internal sealed class PlanDestroyOperation(
     ISqlGenerator? sqlGenerator = null
 ) : IPlanDestroyOperation
 {
-    public async Task<PlanResult> Execute(PlanDestroyArguments arguments, CancellationToken cancellationToken = default)
+    public async Task<Result<PlanResult>> Execute(PlanDestroyArguments arguments, CancellationToken cancellationToken = default)
     {
         reporter.Announce("Planning schema teardown. No changes will be applied to the database.");
 
         // Same trusted teardown path Destroy uses (bypasses the diff/plan transformers and policies); we just
         // preview it instead of executing, so there is no confirmation and no state capture.
-        var planned = await workflow.PlanDestroy(cancellationToken);
+        var planned = await workflow.ComputeTeardown(cancellationToken);
+        if (planned.Diff is not null)
+        {
+            reporter.ReportDiff(planned.Diff);
+        }
+
+        if (planned.HasErrors)
+        {
+            return Result<PlanResult>.Failure(planned.Diagnostics);
+        }
+
         if (sqlGenerator is null)
         {
             if (arguments.OutFile is not null)
             {
-                throw new InvalidOperationException("Saving a plan to a file requires a database provider to generate SQL, but none is registered.");
+                return Result<PlanResult>.Failure(
+                    Diagnostic.Error("plan", "Saving a plan to a file requires a database provider to generate SQL, but none is registered."));
             }
 
-            reporter.Warn("Unable to generate SQL preview. No provider is configured.");
-            return new PlanResult(planned.Diff);
+            return Result<PlanResult>.Success(
+                new PlanResult(planned.Diff),
+                [.. planned.Diagnostics, Diagnostic.Warning("plan", "Unable to generate SQL preview. No provider is configured.")]);
         }
 
         var sqlPlan = sqlGenerator.Generate(planned.Plan);
@@ -40,6 +53,6 @@ internal sealed class PlanDestroyOperation(
             reporter.Success($"Planned destroy saved to {arguments.OutFile}. Apply it later with this file to execute exactly this plan.");
         }
 
-        return new PlanResult(planned.Diff);
+        return Result<PlanResult>.Success(new PlanResult(planned.Diff), [.. planned.Diagnostics]);
     }
 }

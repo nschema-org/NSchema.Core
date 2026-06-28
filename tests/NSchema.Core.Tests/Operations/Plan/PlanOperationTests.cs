@@ -1,7 +1,9 @@
+using NSchema.Diagnostics;
 using NSchema.Diff.Model;
 using NSchema.Operations;
 using NSchema.Operations.Plan;
 using NSchema.Operations.Services;
+using NSchema.Plan;
 using NSchema.Plan.Model;
 using NSchema.Plan.Model.Schemas;
 using NSchema.Plan.PlanFile;
@@ -28,7 +30,8 @@ public sealed class PlanOperationTests
 
     public PlanOperationTests()
     {
-        _workflow.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(new PlannedMigration(_plan, _diff));
+        _workflow.ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
+            .Returns(new MigrationPlanResult(_plan, _diff, []));
         _generator.Generate(Arg.Any<MigrationPlan>()).Returns(_sqlPlan);
 
         _sut = BuildSut(_generator);
@@ -39,34 +42,53 @@ public sealed class PlanOperationTests
     {
         await _sut.Execute(new PlanArguments(), TestContext.Current.CancellationToken);
 
-        await _workflow.Received(1).Plan(SchemaSourceMode.Offline, required: false, Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+        await _workflow.Received(1).ComputePlan(SchemaSourceMode.Offline, required: false, Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Execute_GeneratesSqlFromPlanAndReportsIt()
     {
-        await _sut.Execute(new PlanArguments(), TestContext.Current.CancellationToken);
+        var result = await _sut.Execute(new PlanArguments(), TestContext.Current.CancellationToken);
 
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Diff.ShouldBe(_diff);
         _generator.Received(1).Generate(_plan);
         _reporter.Received(1).ReportSqlPlan(_sqlPlan);
     }
 
     [Fact]
-    public async Task Execute_NoPlanner_ReportsPlanWithoutSqlPreview()
+    public async Task Execute_PolicyError_ReturnsFailureWithoutGeneratingSql()
+    {
+        _workflow.ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
+            .Returns(new MigrationPlanResult(null, _diff, [Diagnostic.Error("destructive-actions", "blocked")]));
+
+        var result = await _sut.Execute(new PlanArguments(), TestContext.Current.CancellationToken);
+
+        // The diff is still shown (for context), but the failure is carried back, not thrown, and no SQL is generated.
+        result.IsFailure.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("blocked");
+        _reporter.Received(1).ReportDiff(_diff);
+        _generator.DidNotReceive().Generate(Arg.Any<MigrationPlan>());
+    }
+
+    [Fact]
+    public async Task Execute_NoPlanner_SucceedsWithoutSqlPreview_AndWarns()
     {
         var sut = BuildSut(planner: null);
 
-        await sut.Execute(new PlanArguments(), TestContext.Current.CancellationToken);
+        var result = await sut.Execute(new PlanArguments(), TestContext.Current.CancellationToken);
 
-        await _workflow.Received(1).Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+        result.IsSuccess.ShouldBeTrue();
+        result.Diagnostics.ShouldContain(d => d.Severity == DiagnosticSeverity.Warning && d.Message.Contains("Unable to generate SQL preview"));
         _reporter.DidNotReceive().ReportSqlPlan(Arg.Any<SqlPlan>());
     }
 
     [Fact]
     public async Task Execute_PrepareThrows_DoesNotGenerateSql()
     {
-        _workflow.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns<PlannedMigration>(_ => throw new InvalidOperationException("boom"));
+        // A non-policy failure (e.g. unreadable schema) still surfaces as an exception.
+        _workflow.ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
+            .Returns<MigrationPlanResult>(_ => throw new InvalidOperationException("boom"));
 
         await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(new PlanArguments()));
 
@@ -94,11 +116,13 @@ public sealed class PlanOperationTests
     }
 
     [Fact]
-    public async Task Execute_WithOutFileButNoGenerator_Throws()
+    public async Task Execute_WithOutFileButNoGenerator_ReturnsFailure()
     {
         var sut = BuildSut(planner: null);
 
-        await Should.ThrowAsync<InvalidOperationException>(
-            () => sut.Execute(new PlanArguments { OutFile = "unused.json" }));
+        var result = await sut.Execute(new PlanArguments { OutFile = "unused.json" }, TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("requires a database provider");
     }
 }

@@ -39,7 +39,7 @@ public sealed class NSchemaApplication : IDisposable
     /// </summary>
     /// <param name="arguments">The arguments controlling the plan.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task<PlanResult> Plan(PlanArguments arguments, CancellationToken cancellationToken = default)
+    public Task<Result<PlanResult>> Plan(PlanArguments arguments, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IPlanOperation>().Execute(arguments, cancellationToken));
@@ -50,7 +50,7 @@ public sealed class NSchemaApplication : IDisposable
     /// </summary>
     /// <param name="arguments">The arguments controlling the teardown plan.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task<PlanResult> PlanDestroy(PlanDestroyArguments arguments, CancellationToken cancellationToken = default)
+    public Task<Result<PlanResult>> PlanDestroy(PlanDestroyArguments arguments, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IPlanDestroyOperation>().Execute(arguments, cancellationToken));

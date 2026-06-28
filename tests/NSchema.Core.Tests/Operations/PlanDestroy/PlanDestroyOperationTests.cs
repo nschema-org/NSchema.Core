@@ -2,6 +2,7 @@ using NSchema.Diff.Model;
 using NSchema.Operations;
 using NSchema.Operations.PlanDestroy;
 using NSchema.Operations.Services;
+using NSchema.Plan;
 using NSchema.Plan.Model;
 using NSchema.Plan.Model.Schemas;
 using NSchema.Plan.PlanFile;
@@ -27,7 +28,7 @@ public sealed class PlanDestroyOperationTests
 
     public PlanDestroyOperationTests()
     {
-        _workflow.PlanDestroy(Arg.Any<CancellationToken>()).Returns(new PlannedMigration(_plan, _diff));
+        _workflow.ComputeTeardown(Arg.Any<CancellationToken>()).Returns(new MigrationPlanResult(_plan, _diff, []));
         _generator.Generate(Arg.Any<MigrationPlan>()).Returns(_sqlPlan);
 
         _sut = BuildSut(_generator);
@@ -38,7 +39,7 @@ public sealed class PlanDestroyOperationTests
     {
         await _sut.Execute(new PlanDestroyArguments(), TestContext.Current.CancellationToken);
 
-        await _workflow.Received(1).PlanDestroy(Arg.Any<CancellationToken>());
+        await _workflow.Received(1).ComputeTeardown(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -64,17 +65,18 @@ public sealed class PlanDestroyOperationTests
     {
         var sut = BuildSut(generator: null);
 
-        await sut.Execute(new PlanDestroyArguments(), TestContext.Current.CancellationToken);
+        var result = await sut.Execute(new PlanDestroyArguments(), TestContext.Current.CancellationToken);
 
-        await _workflow.Received(1).PlanDestroy(Arg.Any<CancellationToken>());
+        result.IsSuccess.ShouldBeTrue();
+        await _workflow.Received(1).ComputeTeardown(Arg.Any<CancellationToken>());
         _reporter.DidNotReceive().ReportSqlPlan(Arg.Any<SqlPlan>());
     }
 
     [Fact]
     public async Task Execute_PlanThrows_DoesNotGenerateSql()
     {
-        _workflow.PlanDestroy(Arg.Any<CancellationToken>())
-            .Returns<PlannedMigration>(_ => throw new InvalidOperationException("boom"));
+        _workflow.ComputeTeardown(Arg.Any<CancellationToken>())
+            .Returns<MigrationPlanResult>(_ => throw new InvalidOperationException("boom"));
 
         await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(new PlanDestroyArguments()));
 

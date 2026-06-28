@@ -121,9 +121,10 @@ public sealed class PlanEndToEndTests : IDisposable
 
         using var app = NewBuilder(current).AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).Build();
 
-        await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
+        var result = await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
+        // No provider: the "no SQL preview" notice is now carried back as a warning diagnostic, not reporter output.
         _reporter.SqlPlan.ShouldBeNull();
-        _reporter.Infos.ShouldContain(i => i.Contains("Unable to generate SQL preview"));
+        result.Diagnostics.ShouldContain(d => d.Message.Contains("Unable to generate SQL preview"));
     }
 }

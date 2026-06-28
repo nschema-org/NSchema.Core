@@ -2,6 +2,7 @@ using NSchema.Diff;
 using NSchema.Diff.Model;
 using NSchema.Operations;
 using NSchema.Operations.Drift;
+using NSchema.Operations.Progress;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Schemas;
@@ -13,8 +14,9 @@ public sealed class DriftOperationTests
     private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
     private readonly ISchemaComparer _comparer = Substitute.For<ISchemaComparer>();
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
+    private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
 
-    private DriftOperation BuildSut() => new(_currentProvider, _reporter, _comparer);
+    private DriftOperation BuildSut() => new(_currentProvider, _reporter, _progress, _comparer);
 
     public DriftOperationTests()
     {

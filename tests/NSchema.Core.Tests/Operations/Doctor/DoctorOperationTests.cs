@@ -1,5 +1,6 @@
 using NSchema.Diagnostics;
 using NSchema.Operations;
+using NSchema.Operations.Progress;
 using NSchema.Operations.Doctor;
 using NSchema.Schema;
 using NSchema.Schema.Model;
@@ -13,11 +14,12 @@ namespace NSchema.Tests.Operations.Doctor;
 public sealed class DoctorOperationTests
 {
     private readonly RecordingReporter _reporter = new();
+    private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
     private readonly ISchemaStateSerializer _serializer = new SchemaStateSerializer();
     private readonly RecordingStateLock _stateLock = new();
 
     private DoctorOperation BuildSut(ISchemaProvider? online = null, ISchemaStateStore? store = null, IStateLock? stateLock = null) =>
-        new(_reporter, _serializer, online, store, stateLock);
+        new(_reporter, _progress, _serializer, online, store, stateLock);
 
     private Task<Result> Run(DoctorOperation sut) => sut.Execute(new DoctorArguments(), TestContext.Current.CancellationToken);
 

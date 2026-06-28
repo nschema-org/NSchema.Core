@@ -3,16 +3,18 @@ using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Schemas;
 
+using NSchema.Operations.Progress;
+
 namespace NSchema.Operations.Import;
 
-internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IOperationReporter reporter) : IImportOperation
+internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IOperationReporter reporter, IProgress<OperationProgress> progress) : IImportOperation
 {
     public async Task Execute(ImportArguments arguments, CancellationToken cancellationToken = default)
     {
         reporter.Announce("Importing schema from database...");
 
         var schema = await currentSchema.GetSchema(SchemaSourceMode.Online, arguments.Schemas, cancellationToken: cancellationToken);
-        reporter.Verbose($"Fetched {Census.Describe(schema)} from the database.");
+        progress.Report(OperationProgress.Detail($"Fetched {Census.Describe(schema)} from the database."));
 
         foreach (var (path, partition) in schema.Schemas.SelectMany(s => ObjectPartitions(s, arguments.OutputDirectory)))
         {
@@ -74,7 +76,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IOpe
 
         // Surface whether each object was created fresh or merged into an existing file — import is additive, so
         // this is the signal that an earlier import's file was updated in place rather than replaced.
-        reporter.Verbose($"{(existing is null ? "Wrote" : "Merged into")} {path}.");
+        progress.Report(OperationProgress.Detail($"{(existing is null ? "Wrote" : "Merged into")} {path}."));
     }
 
     private async Task<DatabaseSchema?> TryReadExisting(string path, CancellationToken cancellationToken)

@@ -1,14 +1,16 @@
+using NSchema.Diagnostics;
+
 namespace NSchema.Operations.Plan;
 
 /// <summary>
-/// Computes and renders the migration plan without applying it to the target.
+/// Computes the migration plan without applying it to the target.
 /// </summary>
 internal interface IPlanOperation
 {
     /// <summary>
-    /// Executes the plan operation.
+    /// Executes the plan operation, returning the result.
     /// </summary>
     /// <param name="arguments">The arguments controlling the plan.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<PlanResult> Execute(PlanArguments arguments, CancellationToken cancellationToken = default);
+    Task<Result<PlanResult>> Execute(PlanArguments arguments, CancellationToken cancellationToken = default);
 }

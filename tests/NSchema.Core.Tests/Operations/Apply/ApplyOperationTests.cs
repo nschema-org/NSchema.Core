@@ -1,5 +1,6 @@
 using NSchema.Diff.Model;
 using NSchema.Operations;
+using NSchema.Operations.Progress;
 using NSchema.Operations.Apply;
 using NSchema.Operations.Confirmation;
 using NSchema.Operations.Services;
@@ -18,6 +19,7 @@ namespace NSchema.Tests.Operations.Apply;
 public sealed class ApplyOperationTests
 {
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
+    private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
     private readonly IMigrationWorkflow _workflow = Substitute.For<IMigrationWorkflow>();
     private readonly ISqlGenerator _generator = Substitute.For<ISqlGenerator>();
     private readonly ISqlExecutor _executor = Substitute.For<ISqlExecutor>();
@@ -30,6 +32,7 @@ public sealed class ApplyOperationTests
 
     private ApplyOperation BuildSut(ISqlGenerator? planner, ISqlExecutor? executor) => new(
         _reporter,
+        _progress,
         _confirmation, _workflow,
         new PlanFileWriter(),
         _stateLock,
@@ -155,7 +158,7 @@ public sealed class ApplyOperationTests
 
         await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
 
-        _reporter.Received().Report(MessageKind.Verbose, "Executing 2 statements (1 must run outside a transaction).");
+        _progress.Received().Report(OperationProgress.Detail("Executing 2 statements (1 must run outside a transaction)."));
     }
 
     [Fact]

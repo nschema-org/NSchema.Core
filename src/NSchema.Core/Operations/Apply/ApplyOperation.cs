@@ -5,10 +5,13 @@ using NSchema.Schema;
 using NSchema.Sql;
 using NSchema.State;
 
+using NSchema.Operations.Progress;
+
 namespace NSchema.Operations.Apply;
 
 internal sealed class ApplyOperation(
     IOperationReporter reporter,
+    IProgress<OperationProgress> progress,
     IOperationConfirmation confirmation,
     IMigrationWorkflow workflow,
     IPlanFileWriter planFile,
@@ -38,7 +41,7 @@ internal sealed class ApplyOperation(
         {
             var planned = await workflow.Plan(SchemaSourceMode.Online, required: true, arguments.Schemas, cancellationToken);
 
-            reporter.Progress("Generating SQL...");
+            progress.Report(OperationProgress.Step("Generating SQL..."));
             var sqlPlan = sqlGenerator.Generate(planned.Plan);
 
             // The database already matches the desired schema: there's nothing to confirm or execute. Still capture
@@ -59,8 +62,8 @@ internal sealed class ApplyOperation(
                 return;
             }
 
-            reporter.Progress("Running schema migration...");
-            reporter.Verbose(RunSummary.DescribeExecution(sqlPlan));
+            progress.Report(OperationProgress.Step("Running schema migration..."));
+            progress.Report(OperationProgress.Detail(RunSummary.DescribeExecution(sqlPlan)));
 
             try
             {
@@ -92,7 +95,7 @@ internal sealed class ApplyOperation(
         var envelope = await planFile.Read(path, cancellationToken);
 
         reporter.Announce($"Applying saved plan from {path}. Changes will be applied to the database.");
-        reporter.Verbose($"Saved plan was created at {envelope.CreatedAt:u}.");
+        progress.Report(OperationProgress.Detail($"Saved plan was created at {envelope.CreatedAt:u}."));
 
         var stateLockHandle = await StateLockGuard.AcquireOrSkip(stateLock, reporter, "apply", skipLock, cancellationToken);
         try
@@ -108,8 +111,8 @@ internal sealed class ApplyOperation(
                 return;
             }
 
-            reporter.Progress("Applying plan...");
-            reporter.Verbose(RunSummary.DescribeExecution(envelope.Sql));
+            progress.Report(OperationProgress.Step("Applying plan..."));
+            progress.Report(OperationProgress.Detail(RunSummary.DescribeExecution(envelope.Sql)));
 
             try
             {

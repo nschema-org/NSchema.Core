@@ -30,7 +30,7 @@ internal sealed class MigrationWorkflow(
         return Result.From(planner.Validate(desired.Schema));
     }
 
-    public async Task<PlannedMigration> Plan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default)
+    public async Task<MigrationPlanResult> ComputePlan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default)
     {
         progress.Report(OperationProgress.Step("Loading desired schema..."));
         var desired = await desiredProvider.GetProject(schemas, cancellationToken);
@@ -44,10 +44,10 @@ internal sealed class MigrationWorkflow(
         progress.Report(OperationProgress.Detail($"Current schema ({currentSource.ToString().ToLowerInvariant()}): {Census.Describe(currentSchema)}."));
 
         progress.Report(OperationProgress.Step("Computing migration plan..."));
-        return ReportOrThrow(planner.Plan(currentSchema, desired.Schema, desired.Scripts));
+        return planner.Plan(currentSchema, desired.Schema, desired.Scripts);
     }
 
-    public async Task<PlannedMigration> PlanDestroy(CancellationToken cancellationToken = default)
+    public async Task<MigrationPlanResult> ComputeTeardown(CancellationToken cancellationToken = default)
     {
         // The managed schema is what we tear down: recorded state when we have it, otherwise the declared desired schema.
         var managedSchema = store is not null
@@ -55,8 +55,14 @@ internal sealed class MigrationWorkflow(
             : (await desiredProvider.GetProject(null, cancellationToken)).Schema;
 
         progress.Report(OperationProgress.Step("Computing teardown plan..."));
-        return ReportOrThrow(planner.PlanTeardown(managedSchema));
+        return planner.PlanTeardown(managedSchema);
     }
+
+    public async Task<PlannedMigration> Plan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default) =>
+        ReportOrThrow(await ComputePlan(currentSource, required, schemas, cancellationToken));
+
+    public async Task<PlannedMigration> PlanDestroy(CancellationToken cancellationToken = default) =>
+        ReportOrThrow(await ComputeTeardown(cancellationToken));
 
     /// <summary>
     /// Throws on planning errors; otherwise reports the diff, plan, and diagnostics, and returns the planned migration.

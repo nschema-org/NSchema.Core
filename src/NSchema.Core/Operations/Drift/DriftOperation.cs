@@ -1,21 +1,24 @@
 using NSchema.Diff;
 using NSchema.Schema;
 
+using NSchema.Operations.Progress;
+
 namespace NSchema.Operations.Drift;
 
 internal sealed class DriftOperation(
     ICurrentSchemaProvider currentProvider,
     IOperationReporter reporter,
+    IProgress<OperationProgress> progress,
     ISchemaComparer comparer
 ) : IDriftOperation
 {
     public async Task<DriftResult> Execute(DriftArguments arguments, CancellationToken cancellationToken = default)
     {
         reporter.Announce("Checking for drift between the recorded state and the live database...");
-        reporter.Progress("Reading recorded state...");
+        progress.Report(OperationProgress.Step("Reading recorded state..."));
         var recorded = await currentProvider.GetSchema(SchemaSourceMode.Offline, arguments.Schemas, required: true, cancellationToken);
 
-        reporter.Progress("Reading live database...");
+        progress.Report(OperationProgress.Step("Reading live database..."));
         var live = await currentProvider.GetSchema(SchemaSourceMode.Online, arguments.Schemas, required: true, cancellationToken);
 
         // Diff direction: recorded -> live, so the changes describe how the live database has drifted from
