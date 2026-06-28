@@ -1,5 +1,4 @@
 using NSchema.Diagnostics;
-using NSchema.Operations.Plan;
 using NSchema.Operations.Progress;
 using NSchema.Operations.Services;
 using NSchema.Sql;
@@ -11,29 +10,29 @@ namespace NSchema.Operations.Apply;
 /// Applies a computed plan.
 /// </summary>
 internal sealed class ApplyOperation(IMigrationWorkflow workflow, IProgress<OperationProgress> progress, ISqlExecutor? sqlExecutor = null)
-    : IOperation<PlanResult, Result>
+    : IOperation<ApplyArguments, Result<ApplyResult>>
 {
-    public async Task<Result> Execute(PlanResult plan, CancellationToken cancellationToken = default)
+    public async Task<Result<ApplyResult>> Execute(ApplyArguments args, CancellationToken cancellationToken = default)
     {
         // No SQL to run — either the target already matches or no provider generated a plan. Still capture state so a
         // first run against an already-matching target initialises the store.
-        if (plan.Sql is null or { IsEmpty: true })
+        if (args.Sql is null or { IsEmpty: true })
         {
             await workflow.Refresh(RefreshMode.Optional, cancellationToken);
-            return Result.Success();
+            return Result.Success(new ApplyResult());
         }
 
         if (sqlExecutor is null)
         {
-            return Result.Failure(Diagnostic.Error("apply", "Applying a plan requires a database provider to execute SQL, but none is registered."));
+            return Result.Failure<ApplyResult>(Diagnostic.Error("apply", "Applying a plan requires a database provider to execute SQL, but none is registered."));
         }
 
         progress.Report(OperationProgress.Step("Applying the migration plan..."));
-        progress.Report(OperationProgress.Detail(DescribeExecution(plan.Sql)));
+        progress.Report(OperationProgress.Detail(DescribeExecution(args.Sql)));
 
         try
         {
-            await sqlExecutor.Execute(plan.Sql, cancellationToken);
+            await sqlExecutor.Execute(args.Sql, cancellationToken);
         }
         finally
         {
@@ -42,7 +41,7 @@ internal sealed class ApplyOperation(IMigrationWorkflow workflow, IProgress<Oper
             await workflow.Refresh(RefreshMode.Optional, cancellationToken);
         }
 
-        return Result.Success();
+        return Result.Success(new ApplyResult());
     }
 
     // A verbose progress line: the statement count and how many must run outside a transaction (e.g.
