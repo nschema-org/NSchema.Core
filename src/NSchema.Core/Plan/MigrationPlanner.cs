@@ -1,4 +1,5 @@
 using NSchema.Diff;
+using NSchema.Diagnostics;
 using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Schema;
@@ -37,7 +38,7 @@ internal sealed class MigrationPlanner(
         var diff = comparer.Compare(currentSchema, desiredSchema);
 
         // Validate the diff.
-        var diagnostics = new List<PolicyDiagnostic>(schemaDiagnostics);
+        var diagnostics = new List<Diagnostic>(schemaDiagnostics);
         diagnostics.AddRange(diffPolicies.SelectMany(p => p.Validate(diff)));
 
         // Convert the diff into a migration plan.

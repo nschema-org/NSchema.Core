@@ -1,4 +1,5 @@
 using NSchema.Policies;
+using NSchema.Diagnostics;
 
 namespace NSchema.Tests.Policies;
 
@@ -9,8 +10,8 @@ public sealed class PolicyViolationExceptionTests
     {
         var errors = new[]
         {
-            PolicyDiagnostic.Error("P1", "first"),
-            PolicyDiagnostic.Error("P2", "second"),
+            Diagnostic.Error("P1", "first"),
+            Diagnostic.Error("P2", "second"),
         };
 
         var exception = new PolicyViolationException(errors);
@@ -21,7 +22,7 @@ public sealed class PolicyViolationExceptionTests
     [Fact]
     public void Errors_ExposesTheSuppliedDiagnostics()
     {
-        var errors = new[] { PolicyDiagnostic.Error("P1", "boom") };
+        var errors = new[] { Diagnostic.Error("P1", "boom") };
 
         var exception = new PolicyViolationException(errors);
 

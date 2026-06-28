@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using NSchema.Diagnostics;
 using NSchema.Diff.Model;
 using NSchema.Plan.Model.Columns;
 using NSchema.Plan.Model.CompositeTypes;
@@ -11,7 +12,6 @@ using NSchema.Plan.Model.Schemas;
 using NSchema.Plan.Model.Sequence;
 using NSchema.Plan.Model.Tables;
 using NSchema.Plan.Model.Views;
-using NSchema.Policies;
 
 namespace NSchema.Diff.Policies;
 
@@ -23,7 +23,7 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
 {
     private const string PolicyName = "destructive-actions";
 
-    public IEnumerable<PolicyDiagnostic> Validate(DatabaseDiff diff)
+    public IEnumerable<Diagnostic> Validate(DatabaseDiff diff)
     {
         var destructive = DestructiveChanges(diff).Distinct().ToList();
         if (destructive.Count == 0)
@@ -35,9 +35,9 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
 
         return options.Value.Policy switch
         {
-            DestructiveActionPolicy.Allow => [PolicyDiagnostic.Info(PolicyName, $"Allowing destructive actions in migration plan: {typeString}.")],
-            DestructiveActionPolicy.Warn => [PolicyDiagnostic.Warning(PolicyName, $"Migration plan contains destructive actions: {typeString}.")],
-            _ => [PolicyDiagnostic.Error(PolicyName, $"Destructive actions blocked by policy: {typeString}.")]
+            DestructiveActionPolicy.Allow => [Diagnostic.Info(PolicyName, $"Allowing destructive actions in migration plan: {typeString}.")],
+            DestructiveActionPolicy.Warn => [Diagnostic.Warning(PolicyName, $"Migration plan contains destructive actions: {typeString}.")],
+            _ => [Diagnostic.Error(PolicyName, $"Destructive actions blocked by policy: {typeString}.")]
         };
     }
 

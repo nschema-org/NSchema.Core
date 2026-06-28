@@ -1,5 +1,5 @@
 using NSchema.Diff.Model;
-using NSchema.Policies;
+using NSchema.Diagnostics;
 
 namespace NSchema.Diff;
 
@@ -16,5 +16,5 @@ public interface IDiffPolicy
     /// </summary>
     /// <param name="diff">The structured migration diff to validate against this policy.</param>
     /// <returns>The collection of errors found during validation. If the diff is valid according to this policy, the collection will be empty.</returns>
-    IEnumerable<PolicyDiagnostic> Validate(DatabaseDiff diff);
+    IEnumerable<Diagnostic> Validate(DatabaseDiff diff);
 }

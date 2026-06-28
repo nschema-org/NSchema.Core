@@ -1,4 +1,4 @@
-using NSchema.Policies;
+using NSchema.Diagnostics;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Indexes;
@@ -38,7 +38,7 @@ public sealed class SchemaLintPolicyTests
 
         // Assert
         var diagnostic = diagnostics.ShouldHaveSingleItem();
-        diagnostic.Severity.ShouldBe(PolicyDiagnosticSeverity.Warning);
+        diagnostic.Severity.ShouldBe(DiagnosticSeverity.Warning);
         diagnostic.Message.ShouldContain("no primary key");
     }
 
@@ -53,7 +53,7 @@ public sealed class SchemaLintPolicyTests
 
         // Assert
         diagnostics.ShouldContain(d =>
-            d.Severity == PolicyDiagnosticSeverity.Warning && d.Message.Contains("forced NOT NULL"));
+            d.Severity == DiagnosticSeverity.Warning && d.Message.Contains("forced NOT NULL"));
     }
 
     [Fact]
@@ -71,6 +71,6 @@ public sealed class SchemaLintPolicyTests
 
         // Assert
         diagnostics.ShouldContain(d =>
-            d.Severity == PolicyDiagnosticSeverity.Warning && d.Message.Contains("lists column 'a' more than once"));
+            d.Severity == DiagnosticSeverity.Warning && d.Message.Contains("lists column 'a' more than once"));
     }
 }

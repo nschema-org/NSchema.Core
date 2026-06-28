@@ -1,9 +1,9 @@
 using NSchema.Diff;
+using NSchema.Diagnostics;
 using NSchema.Diff.Model;
 using NSchema.Plan;
 using NSchema.Plan.Model;
 using NSchema.Plan.Model.Schemas;
-using NSchema.Policies;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Schemas;
@@ -37,7 +37,7 @@ public sealed class MigrationPlannerTests
         // Arrange
         var desired = new DatabaseSchema([new SchemaDefinition("app")]);
         var policy = Substitute.For<ISchemaPolicy>();
-        policy.Validate(desired).Returns([PolicyDiagnostic.Error("Test", "bad schema")]);
+        policy.Validate(desired).Returns([Diagnostic.Error("Test", "bad schema")]);
         _schemaPolicies.Add(policy);
 
         // Act
@@ -53,7 +53,7 @@ public sealed class MigrationPlannerTests
     {
         // Arrange
         var policy = Substitute.For<ISchemaPolicy>();
-        policy.Validate(Arg.Any<DatabaseSchema>()).Returns([PolicyDiagnostic.Error("Test", "bad schema")]);
+        policy.Validate(Arg.Any<DatabaseSchema>()).Returns([Diagnostic.Error("Test", "bad schema")]);
         _schemaPolicies.Add(policy);
 
         // Act
@@ -72,7 +72,7 @@ public sealed class MigrationPlannerTests
         // Arrange
         var policy = Substitute.For<ISchemaPolicy>();
         policy.Validate(Arg.Any<DatabaseSchema>())
-            .Returns([new PolicyDiagnostic("Test", "lint", PolicyDiagnosticSeverity.Warning)]);
+            .Returns([new Diagnostic("Test", "lint", DiagnosticSeverity.Warning)]);
         _schemaPolicies.Add(policy);
 
         // Act
@@ -142,7 +142,7 @@ public sealed class MigrationPlannerTests
     {
         // Arrange
         var policy = Substitute.For<IDiffPolicy>();
-        policy.Validate(_emptyDiff).Returns([PolicyDiagnostic.Error("Test", "destructive")]);
+        policy.Validate(_emptyDiff).Returns([Diagnostic.Error("Test", "destructive")]);
         _diffPolicies.Add(policy);
 
         // Act

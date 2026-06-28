@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using NSchema.Diagnostics;
 using NSchema.Diff.Model;
 using NSchema.Plan.Model;
 using NSchema.Policies;
@@ -13,7 +14,7 @@ public sealed record MigrationPlanResult
     /// <param name="plan">The computed migration plan, or <c>null</c> when planning produced errors.</param>
     /// <param name="diff">The structured diff, or <c>null</c> when planning produced errors.</param>
     /// <param name="diagnostics">The diagnostics emitted by policies during the planning pass.</param>
-    public MigrationPlanResult(MigrationPlan? plan, DatabaseDiff? diff, IEnumerable<PolicyDiagnostic> diagnostics)
+    public MigrationPlanResult(MigrationPlan? plan, DatabaseDiff? diff, IEnumerable<Diagnostic> diagnostics)
     {
         Plan = plan;
         Diff = diff;

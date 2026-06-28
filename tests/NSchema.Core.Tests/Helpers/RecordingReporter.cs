@@ -1,4 +1,5 @@
 using NSchema.Diff.Model;
+using NSchema.Diagnostics;
 using NSchema.Operations;
 using NSchema.Plan.Model;
 using NSchema.Policies;
@@ -26,7 +27,7 @@ internal sealed class RecordingReporter : IOperationReporter
     public DatabaseDiff? Diff { get; private set; }
     public MigrationPlan? Plan { get; private set; }
     public SqlPlan? SqlPlan { get; private set; }
-    public List<PolicyDiagnostic> Diagnostics { get; } = [];
+    public List<Diagnostic> Diagnostics { get; } = [];
 
     public void Report(MessageKind kind, string message)
     {

@@ -1,4 +1,5 @@
 using NSchema.Diff;
+using NSchema.Diagnostics;
 using NSchema.Diff.Model;
 using NSchema.Plan.Model;
 using NSchema.Policies;
@@ -110,7 +111,7 @@ internal sealed class DefaultOperationReporter : IOperationReporter
         ReportDiagnosticItems(diagnostics, _output);
     }
 
-    private void ReportDiagnosticItems(IReadOnlyList<PolicyDiagnostic> diagnostics, TextWriter pipe)
+    private void ReportDiagnosticItems(IReadOnlyList<Diagnostic> diagnostics, TextWriter pipe)
     {
         if (diagnostics.Count == 0)
         {
@@ -121,7 +122,7 @@ internal sealed class DefaultOperationReporter : IOperationReporter
 
         foreach (var diagnostic in diagnostics)
         {
-            pipe.WriteLine($"- {diagnostic.PolicyName}: {diagnostic.Message}");
+            pipe.WriteLine($"- {diagnostic.Source}: {diagnostic.Message}");
         }
         pipe.WriteLine();
     }

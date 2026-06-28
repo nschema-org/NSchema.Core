@@ -1,4 +1,5 @@
 using NSchema.Diff;
+using NSchema.Diagnostics;
 using NSchema.Diff.Model;
 using NSchema.Operations;
 using NSchema.Plan.Model;
@@ -57,9 +58,9 @@ public sealed class DefaultOperationReporterTests
         // Arrange
         var diagnostics = new PolicyDiagnostics
         {
-            new PolicyDiagnostic("P1", "all good", PolicyDiagnosticSeverity.Info),
-            new PolicyDiagnostic("P2", "be careful", PolicyDiagnosticSeverity.Warning),
-            new PolicyDiagnostic("P3", "blocked", PolicyDiagnosticSeverity.Error),
+            new Diagnostic("P1", "all good", DiagnosticSeverity.Info),
+            new Diagnostic("P2", "be careful", DiagnosticSeverity.Warning),
+            new Diagnostic("P3", "blocked", DiagnosticSeverity.Error),
         };
         var exception = new PolicyViolationException(diagnostics);
 
@@ -142,9 +143,9 @@ public sealed class DefaultOperationReporterTests
     {
         var diagnostics = new PolicyDiagnostics
         {
-            new PolicyDiagnostic("P1", "all good", PolicyDiagnosticSeverity.Info),
-            new PolicyDiagnostic("P2", "be careful", PolicyDiagnosticSeverity.Warning),
-            new PolicyDiagnostic("P3", "blocked", PolicyDiagnosticSeverity.Error),
+            new Diagnostic("P1", "all good", DiagnosticSeverity.Info),
+            new Diagnostic("P2", "be careful", DiagnosticSeverity.Warning),
+            new Diagnostic("P3", "blocked", DiagnosticSeverity.Error),
         };
 
         _sut.ReportDiagnostics(diagnostics);

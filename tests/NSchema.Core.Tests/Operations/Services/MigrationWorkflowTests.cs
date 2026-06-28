@@ -1,4 +1,5 @@
 using NSchema.Diff.Model;
+using NSchema.Diagnostics;
 using NSchema.Operations;
 using NSchema.Operations.Services;
 using NSchema.Plan;
@@ -70,7 +71,7 @@ public sealed class MigrationWorkflowTests
     public async Task ValidateDesiredSchema_PolicyViolation_ThrowsWithoutReporting()
     {
         // Arrange
-        _planner.Validate(Arg.Any<DatabaseSchema>()).Returns(new PolicyDiagnostics([PolicyDiagnostic.Error("P1", "msg")]));
+        _planner.Validate(Arg.Any<DatabaseSchema>()).Returns(new PolicyDiagnostics([Diagnostic.Error("P1", "msg")]));
 
         // Act
         var act = () => _sut.Validate(TestContext.Current.CancellationToken);
@@ -85,7 +86,7 @@ public sealed class MigrationWorkflowTests
     {
         // Arrange
         _planner.Validate(Arg.Any<DatabaseSchema>())
-            .Returns(new PolicyDiagnostics([new PolicyDiagnostic("P1", "info", PolicyDiagnosticSeverity.Info)]));
+            .Returns(new PolicyDiagnostics([new Diagnostic("P1", "info", DiagnosticSeverity.Info)]));
 
         // Act
         await _sut.Validate(TestContext.Current.CancellationToken);
@@ -177,7 +178,7 @@ public sealed class MigrationWorkflowTests
     public async Task Prepare_PolicyViolation_ThrowsWithoutReporting()
     {
         // Arrange
-        var errors = new[] { PolicyDiagnostic.Error("P1", "msg") };
+        var errors = new[] { Diagnostic.Error("P1", "msg") };
         _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
             .Returns(new MigrationPlanResult(null, null, errors));
 
@@ -196,7 +197,7 @@ public sealed class MigrationWorkflowTests
         // Arrange: a diff policy (e.g. destructive-action on a dropped table) fails, so the result
         // carries errors but also the diff that triggered them. The user must see that diff.
         var diff = new DatabaseDiff([]);
-        var errors = new[] { PolicyDiagnostic.Error("destructive", "drops table") };
+        var errors = new[] { Diagnostic.Error("destructive", "drops table") };
         _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
             .Returns(new MigrationPlanResult(new MigrationPlan([], [], []), diff, errors));
 
@@ -212,7 +213,7 @@ public sealed class MigrationWorkflowTests
     public async Task Prepare_NonErrorDiagnostics_ReportedAfterDiff()
     {
         // Arrange
-        var diagnostics = new[] { new PolicyDiagnostic("P1", "info", PolicyDiagnosticSeverity.Info) };
+        var diagnostics = new[] { new Diagnostic("P1", "info", DiagnosticSeverity.Info) };
         var plan = new MigrationPlan([], [], []);
         _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
             .Returns(new MigrationPlanResult(plan, new DatabaseDiff([]), diagnostics));
