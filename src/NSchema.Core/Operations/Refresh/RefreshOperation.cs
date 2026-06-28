@@ -13,24 +13,22 @@ internal sealed class RefreshOperation(IMigrationWorkflow workflow, IStateLock? 
     public async Task<Result> Execute(RefreshArguments args, CancellationToken cancellationToken = default)
     {
         // Refresh writes the live schema into the store, so it takes the lock too.
-        var (handle, warning) = await StateLockGuard.AcquireOrSkip(stateLock, "refresh", args.SkipLock, cancellationToken);
+        var lockResult = await StateLockGuard.AcquireOrSkip(stateLock, "refresh", args.SkipLock, cancellationToken);
+        if (lockResult.IsFailure)
+        {
+            return Result.Failure(lockResult.Errors);
+        }
+
         try
         {
             await workflow.Refresh(RefreshMode.Required, cancellationToken);
-            var diagnostics = new List<Diagnostic>();
-            if (warning is not null)
-            {
-                diagnostics.Add(warning);
-            }
-            return Result.Success(diagnostics);
+            // Include any non-fatal diagnostics that might be reported.
+            return Result.Success(lockResult.Diagnostics);
         }
         finally
         {
             // Release with an uncancellable token so a cancelled refresh still frees its own lock.
-            if (handle is not null)
-            {
-                await handle.Release(CancellationToken.None);
-            }
+            await lockResult.Value.Release(CancellationToken.None);
         }
     }
 }
