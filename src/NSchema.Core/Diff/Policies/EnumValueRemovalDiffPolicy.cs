@@ -1,5 +1,5 @@
-using NSchema.Diff.Model;
 using NSchema.Diagnostics;
+using NSchema.Diff.Model;
 
 namespace NSchema.Diff.Policies;
 

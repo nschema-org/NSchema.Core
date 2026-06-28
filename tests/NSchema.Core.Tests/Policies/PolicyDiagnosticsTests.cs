@@ -1,5 +1,5 @@
-using NSchema.Policies;
 using NSchema.Diagnostics;
+using NSchema.Policies;
 
 namespace NSchema.Tests.Policies;
 

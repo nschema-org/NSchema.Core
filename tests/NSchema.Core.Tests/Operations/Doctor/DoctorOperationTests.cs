@@ -1,6 +1,6 @@
 using NSchema.Diagnostics;
-using NSchema.Operations.Progress;
 using NSchema.Operations.Doctor;
+using NSchema.Operations.Progress;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Schemas;
