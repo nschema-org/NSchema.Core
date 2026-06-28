@@ -19,22 +19,23 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
         var schema = await currentSchema.GetSchema(SchemaSourceMode.Online, arguments.Schemas, cancellationToken: cancellationToken);
         progress.Report(OperationProgress.Detail($"Fetched {Census.Describe(schema)} from the database."));
 
+        var written = new List<string>();
         foreach (var (path, partition) in schema.Schemas.SelectMany(s => ObjectPartitions(s, arguments.OutputDirectory)))
         {
             await WritePartition(path, partition, cancellationToken);
+            written.Add(path);
         }
 
         // Extensions are database-global, not schema-scoped, so they go to a single top-level file rather than
         // any per-schema directory.
         if (schema.Extensions.Count > 0)
         {
-            await WritePartition(
-                Path.Combine(arguments.OutputDirectory, "extensions.sql"),
-                new DatabaseSchema(Extensions: schema.Extensions),
-                cancellationToken);
+            var path = Path.Combine(arguments.OutputDirectory, "extensions.sql");
+            await WritePartition(path, new DatabaseSchema(Extensions: schema.Extensions), cancellationToken);
+            written.Add(path);
         }
 
-        return Result.Success(new ImportResult());
+        return Result.Success(new ImportResult(schema, written));
     }
 
     // Each major object (table, view, routine) gets its own file, grouped by type under the schema's directory;
