@@ -27,6 +27,6 @@ public sealed class NSchemaApplicationTests
         var result = await app.Operations.Doctor(new DoctorArguments(), TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
-        result.Diagnostics.ShouldContain(d => d.Message.Contains("not configured"));
+        result.Value!.Checks.ShouldContain(d => d.Message.Contains("not configured"));
     }
 }

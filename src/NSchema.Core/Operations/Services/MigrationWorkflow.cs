@@ -1,6 +1,7 @@
 using NSchema.Diagnostics;
 using NSchema.Operations.Progress;
 using NSchema.Plan;
+using NSchema.Policies;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.State;
@@ -16,7 +17,7 @@ internal sealed class MigrationWorkflow(
     ISchemaStateStore? store = null
 ) : IMigrationWorkflow
 {
-    public async Task<Result> Validate(CancellationToken cancellationToken = default)
+    public async Task<PolicyDiagnostics> Validate(CancellationToken cancellationToken = default)
     {
         progress.Report(OperationProgress.Step("Loading desired schema..."));
         var desired = await desiredProvider.GetProject(null, cancellationToken);
@@ -24,8 +25,8 @@ internal sealed class MigrationWorkflow(
 
         progress.Report(OperationProgress.Step("Validating schema..."));
 
-        // The outcome — including any non-error advisories — is carried back in the result; the caller renders it.
-        return Result.From(planner.Validate(desired.Schema));
+        // The findings — including any non-error advisories — are returned as data for the caller to render.
+        return planner.Validate(desired.Schema);
     }
 
     public async Task<Result<PlannedMigration>> ComputePlan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default)

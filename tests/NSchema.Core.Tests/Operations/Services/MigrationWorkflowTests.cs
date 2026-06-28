@@ -54,47 +54,47 @@ public sealed class MigrationWorkflowTests
     }
 
     [Fact]
-    public async Task ValidateDesiredSchema_ReturnsSuccess_WhenNoPolicyErrors()
+    public async Task ValidateDesiredSchema_ReturnsNoFindings_WhenNoPolicyErrors()
     {
         // Arrange
         var desired = new DatabaseSchema([new SchemaDefinition("app")]);
         _desiredProvider.GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(Project(desired));
 
         // Act
-        var result = await _sut.Validate(TestContext.Current.CancellationToken);
+        var findings = await _sut.Validate(TestContext.Current.CancellationToken);
 
-        // Assert
-        result.IsSuccess.ShouldBeTrue();
-        result.Diagnostics.ShouldBeEmpty();
+        // Assert — the findings are data, not a pass/fail verdict; a clean schema yields none.
+        findings.HasErrors.ShouldBeFalse();
+        findings.ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task ValidateDesiredSchema_PolicyViolation_ReturnsFailure_WithoutReporting()
+    public async Task ValidateDesiredSchema_PolicyViolation_ReturnsErrorFindings_WithoutReporting()
     {
         // Arrange
         _planner.Validate(Arg.Any<DatabaseSchema>()).Returns(new PolicyDiagnostics([Diagnostic.Error("P1", "msg")]));
 
         // Act
-        var result = await _sut.Validate(TestContext.Current.CancellationToken);
+        var findings = await _sut.Validate(TestContext.Current.CancellationToken);
 
-        // Assert — the failure is carried back, not thrown; the workflow no longer renders it (the caller does).
-        result.IsFailure.ShouldBeTrue();
-        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("msg");
+        // Assert — the findings are carried back as data, not thrown; the workflow no longer renders them (the caller does).
+        findings.HasErrors.ShouldBeTrue();
+        findings.Errors.ShouldHaveSingleItem().Message.ShouldBe("msg");
     }
 
     [Fact]
-    public async Task ValidateDesiredSchema_NonErrorDiagnostics_AreCarriedInTheResult()
+    public async Task ValidateDesiredSchema_NonErrorDiagnostics_AreCarriedInTheFindings()
     {
         // Arrange
         _planner.Validate(Arg.Any<DatabaseSchema>())
             .Returns(new PolicyDiagnostics([new Diagnostic("P1", "info", DiagnosticSeverity.Info)]));
 
         // Act
-        var result = await _sut.Validate(TestContext.Current.CancellationToken);
+        var findings = await _sut.Validate(TestContext.Current.CancellationToken);
 
-        // Assert — advisories ride along in a successful result rather than being reported here.
-        result.IsSuccess.ShouldBeTrue();
-        result.Diagnostics.ShouldHaveSingleItem().Message.ShouldBe("info");
+        // Assert — advisories ride along in the findings rather than being reported here.
+        findings.HasErrors.ShouldBeFalse();
+        findings.ShouldHaveSingleItem().Message.ShouldBe("info");
     }
 
     [Fact]

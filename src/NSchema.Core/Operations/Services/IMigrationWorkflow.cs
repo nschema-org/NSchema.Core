@@ -1,5 +1,6 @@
 using NSchema.Diagnostics;
 using NSchema.Plan;
+using NSchema.Policies;
 using NSchema.Schema;
 
 namespace NSchema.Operations.Services;
@@ -14,7 +15,7 @@ internal interface IMigrationWorkflow
     /// Validates the desired schema against the schema policies.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<Result> Validate(CancellationToken cancellationToken = default);
+    Task<PolicyDiagnostics> Validate(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Loads the desired and current schemas and computes the migration plan.

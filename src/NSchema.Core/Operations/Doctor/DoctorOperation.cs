@@ -36,7 +36,7 @@ internal sealed class DoctorOperation(
             diagnostics.Add(await CheckStateLock(stateLock, cancellationToken));
         }
 
-        return Result.From(new DoctorResult(), diagnostics);
+        return Result.Success(new DoctorResult(diagnostics));
     }
 
     private async Task<Diagnostic> CheckDatabase(CancellationToken cancellationToken)
