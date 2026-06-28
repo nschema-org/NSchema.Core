@@ -1,50 +1,12 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace NSchema.Diagnostics;
 
 /// <summary>
-/// The outcome of an operation that either succeeds or fails with reasons, but yields no value.
+/// The non-generic base shared by every <see cref="Result{T}"/>.
 /// </summary>
-public class Result
+public abstract class Result
 {
-    private protected Result(IReadOnlyList<Diagnostic> diagnostics) => Diagnostics = diagnostics;
-
-    /// <summary>
-    /// Every finding produced, of any severity. Empty on a clean success.
-    /// </summary>
-    public IReadOnlyList<Diagnostic> Diagnostics { get; }
-
-    /// <summary>
-    /// The error-severity subset of <see cref="Diagnostics"/>.
-    /// </summary>
-    public IEnumerable<Diagnostic> Errors => Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error);
-
-    /// <summary>
-    /// Whether the operation succeeded; true if there are no errors.
-    /// </summary>
-    public virtual bool IsSuccess => !Errors.Any();
-
-    /// <summary>
-    /// Whether the operation failed; true if there are errors.
-    /// </summary>
-    public virtual bool IsFailure => !IsSuccess;
-
-    /// <summary>
-    /// A result the caller expects to be successful, optionally carrying advisory (info/warning) diagnostics.
-    /// </summary>
-    /// <param name="diagnostics">Advisory diagnostics to surface alongside the success.</param>
-    public static Result Success(params IEnumerable<Diagnostic> diagnostics) => new([.. diagnostics]);
-
-    /// <summary>
-    /// A result the caller knows is a failure, carrying the error diagnostics that explain it.
-    /// </summary>
-    /// <param name="diagnostics">The diagnostics describing why the operation failed.</param>
-    public static Result Failure(params IEnumerable<Diagnostic> diagnostics) => new([.. diagnostics]);
-
-    /// <summary>
-    /// A result built from an aggregated set of diagnostics.
-    /// </summary>
-    /// <param name="diagnostics">Every finding produced.</param>
-    public static Result From(IEnumerable<Diagnostic> diagnostics) => new([.. diagnostics]);
-
     /// <summary>
     /// A successful <see cref="Result{T}"/> carrying <paramref name="value"/>, optionally with advisory diagnostics.
     /// </summary>
@@ -68,4 +30,79 @@ public class Result
     /// <param name="value">The produced value.</param>
     /// <param name="diagnostics">Every finding produced.</param>
     public static Result<T> From<T>(T value, IEnumerable<Diagnostic> diagnostics) => new(value, [.. diagnostics]);
+}
+
+/// <summary>
+/// The outcome of an operation that yields a <typeparamref name="T"/> on success or fails with reasons.
+/// </summary>
+/// <typeparam name="T">The value produced on success.</typeparam>
+public sealed class Result<T> : Result
+{
+    internal Result(T? value, IReadOnlyList<Diagnostic> diagnostics)
+    {
+        Value = value;
+        Diagnostics = diagnostics;
+    }
+
+    /// <summary>
+    /// The produced value; non-null on success, and sometimes on a failure when the operation produced data despite finding errors.
+    /// </summary>
+    public T? Value { get; }
+
+    /// <summary>
+    /// Whether the operation succeeded; true if there are no errors.
+    /// </summary>
+    [MemberNotNullWhen(true, nameof(Value))]
+    public bool IsSuccess => !Errors.Any();
+
+    /// <summary>
+    /// Whether the operation failed; true if there are errors.
+    /// </summary>
+    [MemberNotNullWhen(false, nameof(Value))]
+    public bool IsFailure => !IsSuccess;
+
+    /// <summary>
+    /// Every finding produced, of any severity. Empty on a clean success.
+    /// </summary>
+    public IReadOnlyList<Diagnostic> Diagnostics { get; }
+
+    /// <summary>
+    /// The error-severity subset of <see cref="Diagnostics"/>.
+    /// </summary>
+    public IEnumerable<Diagnostic> Errors => Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error);
+
+    /// <summary>
+    /// Collapses the result to a single value by invoking the matching branch.
+    /// </summary>
+    /// <typeparam name="TResult">The type both branches produce.</typeparam>
+    /// <param name="onSuccess">Invoked with <see cref="Value"/> when the result is successful.</param>
+    /// <param name="onFailure">Invoked with <see cref="Diagnostics"/> when the result is a failure.</param>
+    /// <returns>The value produced by the invoked branch.</returns>
+    public TResult Match<TResult>(Func<T, TResult> onSuccess, Func<IReadOnlyList<Diagnostic>, TResult> onFailure) =>
+        IsSuccess ? onSuccess(Value) : onFailure(Diagnostics);
+
+    /// <summary>
+    /// Projects a successful value through <paramref name="map"/>, propagating the diagnostics; a failure passes
+    /// through unchanged.
+    /// </summary>
+    /// <typeparam name="TOut">The mapped value type.</typeparam>
+    /// <param name="map">The projection applied to <see cref="Value"/> on success.</param>
+    /// <returns>The mapped result.</returns>
+    public Result<TOut> Map<TOut>(Func<T, TOut> map) =>
+        IsSuccess
+            ? Success(map(Value), Diagnostics.ToArray())
+            : Failure<TOut>(Diagnostics);
+
+    /// <summary>
+    /// Lifts a value into a successful result, so a method can <c>return value;</c> directly.
+    /// </summary>
+    /// <param name="value">The value to lift.</param>
+    public static implicit operator Result<T>(T value) => Success(value);
+
+    /// <summary>
+    /// Lifts a single diagnostic into a result, so a method can <c>return Diagnostic.Error(...);</c> directly
+    /// (a failure when the diagnostic is an error).
+    /// </summary>
+    /// <param name="diagnostic">The diagnostic to carry.</param>
+    public static implicit operator Result<T>(Diagnostic diagnostic) => Failure<T>(diagnostic);
 }
