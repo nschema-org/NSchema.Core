@@ -1,3 +1,4 @@
+using NSchema.Diagnostics;
 using NSchema.Schema;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
@@ -9,7 +10,7 @@ namespace NSchema.Operations.Import;
 
 internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IOperationReporter reporter, IProgress<OperationProgress> progress) : IImportOperation
 {
-    public async Task Execute(ImportArguments arguments, CancellationToken cancellationToken = default)
+    public async Task<Result> Execute(ImportArguments arguments, CancellationToken cancellationToken = default)
     {
         reporter.Announce("Importing schema from database...");
 
@@ -32,6 +33,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IOpe
         }
 
         reporter.Success("Schema imported successfully.");
+        return Result.Success();
     }
 
     // Each major object (table, view, routine) gets its own file, grouped by type under the schema's directory;

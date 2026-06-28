@@ -1,9 +1,9 @@
+using NSchema.Diagnostics;
 using NSchema.Operations.Confirmation;
+using NSchema.Operations.Progress;
 using NSchema.Operations.Services;
 using NSchema.Sql;
 using NSchema.State;
-
-using NSchema.Operations.Progress;
 
 namespace NSchema.Operations.Destroy;
 
@@ -17,11 +17,11 @@ internal sealed class DestroyOperation(
     ISqlExecutor? sqlExecutor = null
 ) : IDestroyOperation
 {
-    public async Task Execute(DestroyArguments arguments, CancellationToken cancellationToken = default)
+    public async Task<Result> Execute(DestroyArguments arguments, CancellationToken cancellationToken = default)
     {
         if (sqlGenerator is null || sqlExecutor is null)
         {
-            throw new InvalidOperationException("Destroying a schema requires a database provider to generate and execute SQL, but none is registered.");
+            return Result.Failure(Diagnostic.Error("destroy", "Destroying a schema requires a database provider to generate and execute SQL, but none is registered."));
         }
 
         reporter.Announce("Destroying schema. All managed objects will be dropped from the database.");
@@ -30,7 +30,19 @@ internal sealed class DestroyOperation(
         var stateLockHandle = await StateLockGuard.AcquireOrSkip(stateLock, reporter, "destroy", arguments.SkipLock, cancellationToken);
         try
         {
-            var planned = await workflow.PlanDestroy(cancellationToken);
+            var planned = await workflow.ComputeTeardown(cancellationToken);
+
+            // Show the diff so the operator can see what will be dropped.
+            if (planned.Diff is not null)
+            {
+                reporter.ReportDiff(planned.Diff);
+            }
+
+            // The trusted teardown path bypasses policies, so this is a guard rather than an expected outcome.
+            if (planned.HasErrors)
+            {
+                return Result.Failure(planned.Diagnostics);
+            }
 
             progress.Report(OperationProgress.Step("Generating SQL..."));
             var sqlPlan = sqlGenerator.Generate(planned.Plan);
@@ -40,7 +52,7 @@ internal sealed class DestroyOperation(
             if (!await confirmation.Confirm(new DestroyConfirmationRequest(planned.Plan), cancellationToken))
             {
                 reporter.Announce("Destroy cancelled. No changes were made to the database.");
-                return;
+                return Result.Success();
             }
 
             progress.Report(OperationProgress.Step("Running schema teardown..."));
@@ -57,6 +69,8 @@ internal sealed class DestroyOperation(
                 // teardown failed partway (e.g. an un-transacted plan) so the store reflects what was actually dropped.
                 await workflow.Refresh(RefreshMode.Optional, cancellationToken);
             }
+
+            return Result.Success();
         }
         finally
         {

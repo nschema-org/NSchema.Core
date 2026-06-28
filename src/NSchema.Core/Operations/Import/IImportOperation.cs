@@ -1,3 +1,5 @@
+using NSchema.Diagnostics;
+
 namespace NSchema.Operations.Import;
 
 /// <summary>
@@ -10,5 +12,5 @@ internal interface IImportOperation
     /// </summary>
     /// <param name="arguments">The arguments controlling which schema to import.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task Execute(ImportArguments arguments, CancellationToken cancellationToken = default);
+    Task<Result> Execute(ImportArguments arguments, CancellationToken cancellationToken = default);
 }

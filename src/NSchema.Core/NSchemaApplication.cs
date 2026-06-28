@@ -61,7 +61,7 @@ public sealed class NSchemaApplication : IDisposable
     /// </summary>
     /// <param name="arguments">The arguments controlling the apply.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Apply(ApplyArguments arguments, CancellationToken cancellationToken = default)
+    public Task<Result> Apply(ApplyArguments arguments, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IApplyOperation>().Execute(arguments, cancellationToken));
@@ -72,7 +72,7 @@ public sealed class NSchemaApplication : IDisposable
     /// </summary>
     /// <param name="arguments">The arguments controlling the refresh.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Refresh(RefreshArguments arguments, CancellationToken cancellationToken = default)
+    public Task<Result> Refresh(RefreshArguments arguments, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IRefreshOperation>().Execute(arguments, cancellationToken));
@@ -83,7 +83,7 @@ public sealed class NSchemaApplication : IDisposable
     /// </summary>
     /// <param name="arguments">The arguments controlling which schema to import.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Import(ImportArguments arguments, CancellationToken cancellationToken = default)
+    public Task<Result> Import(ImportArguments arguments, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IImportOperation>().Execute(arguments, cancellationToken));
@@ -106,7 +106,7 @@ public sealed class NSchemaApplication : IDisposable
     /// </summary>
     /// <param name="arguments">The arguments controlling the drift check.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task<DriftResult> Drift(DriftArguments arguments, CancellationToken cancellationToken = default)
+    public Task<Result<DriftResult>> Drift(DriftArguments arguments, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IDriftOperation>().Execute(arguments, cancellationToken));
@@ -117,7 +117,7 @@ public sealed class NSchemaApplication : IDisposable
     /// </summary>
     /// <param name="arguments">The arguments controlling the teardown.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Destroy(DestroyArguments arguments, CancellationToken cancellationToken = default)
+    public Task<Result> Destroy(DestroyArguments arguments, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IDestroyOperation>().Execute(arguments, cancellationToken));
@@ -135,13 +135,6 @@ public sealed class NSchemaApplication : IDisposable
     }
 
     private T Resolve<T>() where T : notnull => _host.Services.GetRequiredService<T>();
-
-    // The void operations delegate to the generic runner.
-    private Task Run(Func<Task> execute) => Run(async () =>
-    {
-        await execute();
-        return true;
-    });
 
     private async Task<T> Run<T>(Func<Task<T>> execute)
     {

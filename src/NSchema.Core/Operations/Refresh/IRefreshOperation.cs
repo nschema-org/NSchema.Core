@@ -1,3 +1,5 @@
+using NSchema.Diagnostics;
+
 namespace NSchema.Operations.Refresh;
 
 /// <summary>
@@ -10,5 +12,5 @@ internal interface IRefreshOperation
     /// </summary>
     /// <param name="arguments">The arguments controlling the refresh.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task Execute(RefreshArguments arguments, CancellationToken cancellationToken = default);
+    Task<Result> Execute(RefreshArguments arguments, CancellationToken cancellationToken = default);
 }

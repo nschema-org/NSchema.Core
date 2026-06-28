@@ -1,3 +1,5 @@
+using NSchema.Diagnostics;
+
 namespace NSchema.Operations.Destroy;
 
 /// <summary>
@@ -6,9 +8,9 @@ namespace NSchema.Operations.Destroy;
 internal interface IDestroyOperation
 {
     /// <summary>
-    /// Executes the destroy operation.
+    /// Executes the destroy operation, returning success or a failure carrying the diagnostics that blocked it.
     /// </summary>
     /// <param name="arguments">The arguments controlling the teardown.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task Execute(DestroyArguments arguments, CancellationToken cancellationToken = default);
+    Task<Result> Execute(DestroyArguments arguments, CancellationToken cancellationToken = default);
 }

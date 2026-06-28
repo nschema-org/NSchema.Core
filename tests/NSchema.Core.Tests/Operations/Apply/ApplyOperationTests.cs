@@ -4,6 +4,7 @@ using NSchema.Operations.Progress;
 using NSchema.Operations.Apply;
 using NSchema.Operations.Confirmation;
 using NSchema.Operations.Services;
+using NSchema.Plan;
 using NSchema.Plan.Model;
 using NSchema.Plan.Model.Schemas;
 using NSchema.Plan.PlanFile;
@@ -44,7 +45,7 @@ public sealed class ApplyOperationTests
 
     public ApplyOperationTests()
     {
-        _workflow.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(new PlannedMigration(_plan, _diff));
+        _workflow.ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(new MigrationPlanResult(_plan, _diff, []));
         _generator.Generate(Arg.Any<MigrationPlan>()).Returns(_sqlPlan);
         _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(true);
 
@@ -56,7 +57,7 @@ public sealed class ApplyOperationTests
     {
         await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
 
-        await _workflow.Received(1).Plan(SchemaSourceMode.Online, required: true, Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+        await _workflow.Received(1).ComputePlan(SchemaSourceMode.Online, required: true, Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -69,21 +70,25 @@ public sealed class ApplyOperationTests
     }
 
     [Fact]
-    public async Task Execute_NoPlanner_ThrowsWithoutPreparing()
+    public async Task Execute_NoPlanner_FailsWithoutPreparing()
     {
         var sut = BuildSut(planner: null, executor: _executor);
 
-        await Should.ThrowAsync<InvalidOperationException>(() => sut.Execute(new ApplyArguments()));
-        await _workflow.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+        var result = await sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        await _workflow.DidNotReceive().ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Execute_NoExecutor_ThrowsWithoutPreparing()
+    public async Task Execute_NoExecutor_FailsWithoutPreparing()
     {
         var sut = BuildSut(planner: _generator, executor: null);
 
-        await Should.ThrowAsync<InvalidOperationException>(() => sut.Execute(new ApplyArguments()));
-        await _workflow.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+        var result = await sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        await _workflow.DidNotReceive().ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -123,7 +128,7 @@ public sealed class ApplyOperationTests
 
         await Should.ThrowAsync<StateLockedException>(() => _sut.Execute(new ApplyArguments()));
 
-        await _workflow.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+        await _workflow.DidNotReceive().ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
         await _executor.DidNotReceive().Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>());
     }
 
@@ -165,8 +170,8 @@ public sealed class ApplyOperationTests
     public async Task Execute_ReportsOutcomeSummaryWithCountsAndStatements()
     {
         var diff = new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add, null, null, [], [])]);
-        _workflow.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(new PlannedMigration(_plan, diff));
+        _workflow.ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
+            .Returns(new MigrationPlanResult(_plan, diff, []));
 
         await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
 
@@ -234,7 +239,7 @@ public sealed class ApplyOperationTests
             await _sut.Execute(new ApplyArguments { PlanFile = path }, TestContext.Current.CancellationToken);
 
             // The whole point: no fresh plan is computed; the saved SQL is what runs, then state is captured.
-            await _workflow.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+            await _workflow.DidNotReceive().ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
             await _executor.Received(1).Execute(Arg.Is<SqlPlan>(p => p.Statements.SequenceEqual(_sqlPlan.Statements)), Arg.Any<CancellationToken>());
             await _workflow.Received(1).Refresh(RefreshMode.Optional, Arg.Any<CancellationToken>());
         }

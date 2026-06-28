@@ -1,3 +1,5 @@
+using NSchema.Diagnostics;
+
 namespace NSchema.Operations.Drift;
 
 /// <summary>
@@ -11,5 +13,5 @@ internal interface IDriftOperation
     /// </summary>
     /// <param name="arguments">The arguments controlling the drift check.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<DriftResult> Execute(DriftArguments arguments, CancellationToken cancellationToken = default);
+    Task<Result<DriftResult>> Execute(DriftArguments arguments, CancellationToken cancellationToken = default);
 }

@@ -1,3 +1,5 @@
+using NSchema.Diagnostics;
+
 namespace NSchema.Operations.Apply;
 
 /// <summary>
@@ -6,9 +8,9 @@ namespace NSchema.Operations.Apply;
 internal interface IApplyOperation
 {
     /// <summary>
-    /// Executes the apply operation.
+    /// Executes the apply operation, returning success or a failure carrying the diagnostics that blocked it.
     /// </summary>
     /// <param name="arguments">The arguments controlling the apply.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task Execute(ApplyArguments arguments, CancellationToken cancellationToken = default);
+    Task<Result> Execute(ApplyArguments arguments, CancellationToken cancellationToken = default);
 }

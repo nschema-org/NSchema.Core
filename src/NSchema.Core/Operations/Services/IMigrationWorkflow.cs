@@ -32,21 +32,6 @@ internal interface IMigrationWorkflow
     Task<MigrationPlanResult> ComputeTeardown(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Loads the desired and current schemas, computes the migration plan, reports it, and throws on a policy error.
-    /// </summary>
-    /// <param name="currentSource">Which source to read the current schema from.</param>
-    /// <param name="required">Whether <paramref name="currentSource"/> must be available, or may fall back to the other source.</param>
-    /// <param name="schemas">The schemas to scope to, or <see langword="null"/> to derive scope from the desired schema.</param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<PlannedMigration> Plan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Builds a plan that tears down the managed schema, reporting it and throwing on a policy error.
-    /// </summary>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<PlannedMigration> PlanDestroy(CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Captures the live schema into the state store.
     /// </summary>
     /// <param name="mode">

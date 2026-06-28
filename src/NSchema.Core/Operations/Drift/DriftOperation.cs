@@ -1,3 +1,4 @@
+using NSchema.Diagnostics;
 using NSchema.Diff;
 using NSchema.Schema;
 
@@ -12,7 +13,7 @@ internal sealed class DriftOperation(
     ISchemaComparer comparer
 ) : IDriftOperation
 {
-    public async Task<DriftResult> Execute(DriftArguments arguments, CancellationToken cancellationToken = default)
+    public async Task<Result<DriftResult>> Execute(DriftArguments arguments, CancellationToken cancellationToken = default)
     {
         reporter.Announce("Checking for drift between the recorded state and the live database...");
         progress.Report(OperationProgress.Step("Reading recorded state..."));
@@ -37,6 +38,7 @@ internal sealed class DriftOperation(
             reporter.Warn($"Drift detected: {RunSummary.Describe(diff)}.");
         }
 
-        return new DriftResult(diff);
+        // Drift is observational — it never fails on policy — so this is always a success carrying the diff.
+        return Result<DriftResult>.Success(new DriftResult(diff));
     }
 }

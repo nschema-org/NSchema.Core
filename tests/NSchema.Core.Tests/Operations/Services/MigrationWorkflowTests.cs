@@ -113,7 +113,7 @@ public sealed class MigrationWorkflowTests
     }
 
     [Fact]
-    public async Task Prepare_ReturnsComputedPlan_AndReportsItsDiff()
+    public async Task ComputePlan_ReturnsComputedPlan_WithoutRendering()
     {
         // Arrange
         var plan = new MigrationPlan([new CreateSchema("app")], [], []);
@@ -123,12 +123,12 @@ public sealed class MigrationWorkflowTests
             .Returns(new MigrationPlanResult(plan, diff, []));
 
         // Act
-        var result = await _sut.Plan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
+        var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
 
-        // Assert
+        // Assert — the result is returned for the caller to render; the workflow renders nothing itself.
         result.Plan.ShouldBe(plan);
         result.Diff.ShouldBe(diff);
-        _reporter.Received(1).ReportDiff(diff);
+        _reporter.DidNotReceive().ReportDiff(Arg.Any<DatabaseDiff>());
     }
 
     [Fact]
@@ -137,7 +137,7 @@ public sealed class MigrationWorkflowTests
         // Arrange
 
         // Act
-        await _sut.Plan(SchemaSourceMode.Online, required: true, null, TestContext.Current.CancellationToken);
+        await _sut.ComputePlan(SchemaSourceMode.Online, required: true, null, TestContext.Current.CancellationToken);
 
         // Assert
         await _currentProvider.Received(1).GetSchema(
@@ -150,7 +150,7 @@ public sealed class MigrationWorkflowTests
         // Arrange
 
         // Act
-        await _sut.Plan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
+        await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
 
         // Assert
         await _currentProvider.Received(1).GetSchema(
@@ -170,7 +170,7 @@ public sealed class MigrationWorkflowTests
             .Returns(new DatabaseSchema([new SchemaDefinition("app")]));
 
         // Act
-        await _sut.Plan(SchemaSourceMode.Online, required: true, null, TestContext.Current.CancellationToken);
+        await _sut.ComputePlan(SchemaSourceMode.Online, required: true, null, TestContext.Current.CancellationToken);
 
         // Assert — verbose census is transient narration, now emitted as Detail-level progress.
         _progress.Received().Report(OperationProgress.Detail("Read 2 DDL files:"));
@@ -181,42 +181,44 @@ public sealed class MigrationWorkflowTests
     }
 
     [Fact]
-    public async Task Prepare_PolicyViolation_ThrowsWithoutReporting()
+    public async Task ComputePlan_PolicyViolation_ReturnsErrors_WithoutThrowingOrReporting()
     {
         // Arrange
         var errors = new[] { Diagnostic.Error("P1", "msg") };
         _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
             .Returns(new MigrationPlanResult(null, null, errors));
 
-        // Act
-        var act = () => _sut.Plan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
+        // Act — the failure is carried in the result, not thrown; the caller decides how to surface it.
+        var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
 
         // Assert
-        await act.ShouldThrowAsync<PolicyViolationException>();
+        result.HasErrors.ShouldBeTrue();
+        result.Diagnostics.Errors.ShouldHaveSingleItem().Message.ShouldBe("msg");
         _reporter.DidNotReceive().ReportDiagnostics(Arg.Any<PolicyDiagnostics>());
         _reporter.DidNotReceive().ReportDiff(Arg.Any<DatabaseDiff>());
     }
 
     [Fact]
-    public async Task Prepare_DiffPolicyViolation_ReportsDiffBeforeThrowing()
+    public async Task ComputePlan_DiffPolicyViolation_CarriesTheDiffAndErrors()
     {
         // Arrange: a diff policy (e.g. destructive-action on a dropped table) fails, so the result
-        // carries errors but also the diff that triggered them. The user must see that diff.
+        // carries errors but also the diff that triggered them — for the caller to render.
         var diff = new DatabaseDiff([]);
         var errors = new[] { Diagnostic.Error("destructive", "drops table") };
         _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
             .Returns(new MigrationPlanResult(new MigrationPlan([], [], []), diff, errors));
 
         // Act
-        var act = () => _sut.Plan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
+        var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
 
         // Assert
-        await act.ShouldThrowAsync<PolicyViolationException>();
-        _reporter.Received(1).ReportDiff(diff);
+        result.HasErrors.ShouldBeTrue();
+        result.Diff.ShouldBe(diff);
+        _reporter.DidNotReceive().ReportDiff(Arg.Any<DatabaseDiff>());
     }
 
     [Fact]
-    public async Task Prepare_NonErrorDiagnostics_ReportedAfterDiff()
+    public async Task ComputePlan_CarriesNonErrorDiagnostics_WithoutReporting()
     {
         // Arrange
         var diagnostics = new[] { new Diagnostic("P1", "info", DiagnosticSeverity.Info) };
@@ -224,16 +226,12 @@ public sealed class MigrationWorkflowTests
         _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
             .Returns(new MigrationPlanResult(plan, new DatabaseDiff([]), diagnostics));
 
-        var callOrder = new List<string>();
-        _reporter.When(r => r.ReportDiff(Arg.Any<DatabaseDiff>())).Do(_ => callOrder.Add("diff"));
-        _reporter.When(r => r.ReportDiagnostics(Arg.Any<PolicyDiagnostics>())).Do(_ => callOrder.Add("diagnostics"));
-
         // Act
-        await _sut.Plan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
+        var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
 
-        // Assert
-        _reporter.Received(1).ReportDiagnostics(Arg.Is<PolicyDiagnostics>(d => d.SequenceEqual(diagnostics)));
-        callOrder.ShouldBe(["diff", "diagnostics"]);
+        // Assert — advisories ride in the result, rendered by the caller, not reported here.
+        result.Diagnostics.ShouldBe(diagnostics);
+        _reporter.DidNotReceive().ReportDiagnostics(Arg.Any<PolicyDiagnostics>());
     }
 
     [Fact]
@@ -250,7 +248,7 @@ public sealed class MigrationWorkflowTests
             .Returns(call => { capturedScope = call.ArgAt<string[]?>(1); return new DatabaseSchema([]); });
 
         // Act
-        await _sut.Plan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
+        await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
 
         // Assert
         capturedScope.ShouldNotBeNull();
@@ -269,7 +267,7 @@ public sealed class MigrationWorkflowTests
             .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(call => { currentScope = call.ArgAt<string[]?>(1); return new DatabaseSchema([]); });
         // Act
-        await _sut.Plan(SchemaSourceMode.Offline, required: false, ["app", "legacy"], TestContext.Current.CancellationToken);
+        await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, ["app", "legacy"], TestContext.Current.CancellationToken);
 
         // Assert
         desiredScope.ShouldBe(["app", "legacy"]);
@@ -285,7 +283,7 @@ public sealed class MigrationWorkflowTests
             .Returns(call => { desiredScope = call.Arg<string[]?>(); return Project(new DatabaseSchema([])); });
 
         // Act
-        await _sut.Plan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
+        await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
 
         // Assert
         desiredScope.ShouldBeNull();
@@ -302,7 +300,7 @@ public sealed class MigrationWorkflowTests
         var sut = BuildSut(Substitute.For<ISchemaStateStore>());
 
         // Act
-        await sut.PlanDestroy(TestContext.Current.CancellationToken);
+        await sut.ComputeTeardown(TestContext.Current.CancellationToken);
 
         // Assert
         await _currentProvider.Received(1).GetSchema(
@@ -320,7 +318,7 @@ public sealed class MigrationWorkflowTests
         var sut = BuildSut(store: null);
 
         // Act
-        await sut.PlanDestroy(TestContext.Current.CancellationToken);
+        await sut.ComputeTeardown(TestContext.Current.CancellationToken);
 
         // Assert
         _planner.Received(1).PlanTeardown(managed);
@@ -329,7 +327,7 @@ public sealed class MigrationWorkflowTests
     }
 
     [Fact]
-    public async Task PlanDestroy_ReturnsTeardownPlan_AndReportsItsDiff()
+    public async Task ComputeTeardown_ReturnsTeardownPlan_WithoutRendering()
     {
         // Arrange
         var plan = new MigrationPlan([new DropSchema("app")], [], []);
@@ -337,12 +335,12 @@ public sealed class MigrationWorkflowTests
         _planner.PlanTeardown(Arg.Any<DatabaseSchema>()).Returns(new MigrationPlanResult(plan, diff, []));
 
         // Act
-        var result = await _sut.PlanDestroy(TestContext.Current.CancellationToken);
+        var result = await _sut.ComputeTeardown(TestContext.Current.CancellationToken);
 
         // Assert
         result.Plan.ShouldBe(plan);
         result.Diff.ShouldBe(diff);
-        _reporter.Received(1).ReportDiff(diff);
+        _reporter.DidNotReceive().ReportDiff(Arg.Any<DatabaseDiff>());
     }
 
     [Fact]

@@ -4,6 +4,7 @@ using NSchema.Operations.Progress;
 using NSchema.Operations.Confirmation;
 using NSchema.Operations.Destroy;
 using NSchema.Operations.Services;
+using NSchema.Plan;
 using NSchema.Plan.Model;
 using NSchema.Plan.Model.Schemas;
 using NSchema.Sql;
@@ -41,7 +42,7 @@ public sealed class DestroyOperationTests
 
     public DestroyOperationTests()
     {
-        _workflow.PlanDestroy(Arg.Any<CancellationToken>()).Returns(new PlannedMigration(_plan, _diff));
+        _workflow.ComputeTeardown(Arg.Any<CancellationToken>()).Returns(new MigrationPlanResult(_plan, _diff, []));
         _generator.Generate(Arg.Any<MigrationPlan>()).Returns(_sqlPlan);
         _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(true);
 
@@ -53,27 +54,31 @@ public sealed class DestroyOperationTests
     {
         await _sut.Execute(new DestroyArguments(), TestContext.Current.CancellationToken);
 
-        await _workflow.Received(1).PlanDestroy(Arg.Any<CancellationToken>());
+        await _workflow.Received(1).ComputeTeardown(Arg.Any<CancellationToken>());
         _generator.Received(1).Generate(_plan);
         await _executor.Received(1).Execute(_sqlPlan, Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Execute_NoGenerator_ThrowsWithoutPlanning()
+    public async Task Execute_NoGenerator_FailsWithoutPlanning()
     {
         var sut = BuildSut(generator: null, executor: _executor);
 
-        await Should.ThrowAsync<InvalidOperationException>(() => sut.Execute(new DestroyArguments()));
-        await _workflow.DidNotReceive().PlanDestroy(Arg.Any<CancellationToken>());
+        var result = await sut.Execute(new DestroyArguments(), TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        await _workflow.DidNotReceive().ComputeTeardown(Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Execute_NoExecutor_ThrowsWithoutPlanning()
+    public async Task Execute_NoExecutor_FailsWithoutPlanning()
     {
         var sut = BuildSut(generator: _generator, executor: null);
 
-        await Should.ThrowAsync<InvalidOperationException>(() => sut.Execute(new DestroyArguments()));
-        await _workflow.DidNotReceive().PlanDestroy(Arg.Any<CancellationToken>());
+        var result = await sut.Execute(new DestroyArguments(), TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        await _workflow.DidNotReceive().ComputeTeardown(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -113,7 +118,7 @@ public sealed class DestroyOperationTests
 
         await Should.ThrowAsync<StateLockedException>(() => _sut.Execute(new DestroyArguments()));
 
-        await _workflow.DidNotReceive().PlanDestroy(Arg.Any<CancellationToken>());
+        await _workflow.DidNotReceive().ComputeTeardown(Arg.Any<CancellationToken>());
         await _executor.DidNotReceive().Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>());
     }
 
@@ -142,7 +147,7 @@ public sealed class DestroyOperationTests
     public async Task Execute_ReportsOutcomeSummaryWithCountsAndStatements()
     {
         var diff = new DatabaseDiff([new SchemaDiff("app", ChangeKind.Remove, null, null, [], [])]);
-        _workflow.PlanDestroy(Arg.Any<CancellationToken>()).Returns(new PlannedMigration(_plan, diff));
+        _workflow.ComputeTeardown(Arg.Any<CancellationToken>()).Returns(new MigrationPlanResult(_plan, diff, []));
 
         await _sut.Execute(new DestroyArguments(), TestContext.Current.CancellationToken);
 

@@ -58,36 +58,6 @@ internal sealed class MigrationWorkflow(
         return planner.PlanTeardown(managedSchema);
     }
 
-    public async Task<PlannedMigration> Plan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default) =>
-        ReportOrThrow(await ComputePlan(currentSource, required, schemas, cancellationToken));
-
-    public async Task<PlannedMigration> PlanDestroy(CancellationToken cancellationToken = default) =>
-        ReportOrThrow(await ComputeTeardown(cancellationToken));
-
-    /// <summary>
-    /// Throws on planning errors; otherwise reports the diff, plan, and diagnostics, and returns the planned migration.
-    /// </summary>
-    private PlannedMigration ReportOrThrow(MigrationPlanResult result)
-    {
-        // Show the diff first, even on error: a failing diff policy (e.g. the destructive-action
-        // policy on a dropped table) is only actionable if the user can see the offending change.
-        // A schema-policy failure has no diff (it's computed after that gate), so guard for null.
-        if (result.Diff is not null)
-        {
-            reporter.ReportDiff(result.Diff);
-        }
-
-        if (result.HasErrors)
-        {
-            throw new PolicyViolationException(result.Diagnostics.Errors.ToList());
-        }
-
-        reporter.ReportPlan(result.Plan);
-        reporter.ReportDiagnostics(result.Diagnostics);
-
-        return new PlannedMigration(result.Plan, result.Diff);
-    }
-
     public async Task Refresh(RefreshMode mode, CancellationToken cancellationToken = default)
     {
         if (store is null)
