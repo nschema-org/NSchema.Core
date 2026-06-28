@@ -13,10 +13,9 @@ public sealed class DriftOperationTests
 {
     private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
     private readonly ISchemaComparer _comparer = Substitute.For<ISchemaComparer>();
-    private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
     private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
 
-    private DriftOperation BuildSut() => new(_currentProvider, _reporter, _progress, _comparer);
+    private DriftOperation BuildSut() => new(_currentProvider, _progress, _comparer);
 
     public DriftOperationTests()
     {
@@ -42,24 +41,27 @@ public sealed class DriftOperationTests
     }
 
     [Fact]
-    public async Task Execute_WhenDiffHasChanges_ReportsDriftAndTheDiff()
+    public async Task Execute_WhenDiffHasChanges_ReturnsDriftResultWithTheDiff()
     {
         var diff = new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add, null, null, [], [])]);
         _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(diff);
 
-        await BuildSut().Execute(new DriftArguments(), TestContext.Current.CancellationToken);
+        // The outcome (diff + whether it drifted) is returned for the caller to render.
+        var result = await BuildSut().Execute(new DriftArguments(), TestContext.Current.CancellationToken);
 
-        _reporter.Received(1).ReportDiff(diff);
-        _reporter.Received().Report(MessageKind.Warning, "Drift detected: 1 added.");
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.HasDrift.ShouldBeTrue();
+        result.Value.Diff.ShouldBe(diff);
     }
 
     [Fact]
-    public async Task Execute_WhenDiffIsEmpty_ReportsNoDrift()
+    public async Task Execute_WhenDiffIsEmpty_ReturnsNoDrift()
     {
         _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(new DatabaseDiff([]));
 
-        await BuildSut().Execute(new DriftArguments(), TestContext.Current.CancellationToken);
+        var result = await BuildSut().Execute(new DriftArguments(), TestContext.Current.CancellationToken);
 
-        _reporter.Received().Report(MessageKind.Success, "No drift detected.");
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.HasDrift.ShouldBeFalse();
     }
 }

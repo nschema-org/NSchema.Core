@@ -3,23 +3,9 @@ namespace NSchema.Diagnostics;
 /// <summary>
 /// The outcome of an operation that either succeeds or fails with reasons, but yields no value.
 /// </summary>
-public sealed class Result
+public class Result
 {
-    private Result(bool isSuccess, IReadOnlyList<Diagnostic> diagnostics)
-    {
-        IsSuccess = isSuccess;
-        Diagnostics = diagnostics;
-    }
-
-    /// <summary>
-    /// Whether the operation succeeded.
-    /// </summary>
-    public bool IsSuccess { get; }
-
-    /// <summary>
-    /// Whether the operation failed; the inverse of <see cref="IsSuccess"/>.
-    /// </summary>
-    public bool IsFailure => !IsSuccess;
+    private protected Result(IReadOnlyList<Diagnostic> diagnostics) => Diagnostics = diagnostics;
 
     /// <summary>
     /// Every finding produced, of any severity. Empty on a clean success.
@@ -27,41 +13,35 @@ public sealed class Result
     public IReadOnlyList<Diagnostic> Diagnostics { get; }
 
     /// <summary>
-    /// The error-severity subset of <see cref="Diagnostics"/> — the reasons a failure failed.
+    /// The error-severity subset of <see cref="Diagnostics"/>.
     /// </summary>
     public IEnumerable<Diagnostic> Errors => Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error);
 
     /// <summary>
-    /// A successful result, optionally carrying advisory (info/warning) diagnostics.
+    /// Whether the operation succeeded; true if there are no errors.
+    /// </summary>
+    public virtual bool IsSuccess => !Errors.Any();
+
+    /// <summary>
+    /// Whether the operation failed; true if there are errors.
+    /// </summary>
+    public virtual bool IsFailure => !IsSuccess;
+
+    /// <summary>
+    /// A result the caller expects to be successful, optionally carrying advisory (info/warning) diagnostics.
     /// </summary>
     /// <param name="diagnostics">Advisory diagnostics to surface alongside the success.</param>
-    /// <returns>A successful <see cref="Result"/>.</returns>
-    public static Result Success(params Diagnostic[] diagnostics) => new(true, diagnostics);
+    public static Result Success(params IEnumerable<Diagnostic> diagnostics) => new([.. diagnostics]);
 
     /// <summary>
-    /// A failed result carrying the diagnostics that explain the failure.
+    /// A result the caller knows is a failure, carrying the error diagnostics that explain it.
     /// </summary>
     /// <param name="diagnostics">The diagnostics describing why the operation failed.</param>
-    /// <returns>A failed <see cref="Result"/>.</returns>
-    public static Result Failure(params Diagnostic[] diagnostics) => new(false, diagnostics);
+    public static Result Failure(params IEnumerable<Diagnostic> diagnostics) => new([.. diagnostics]);
 
     /// <summary>
-    /// A failed result carrying the diagnostics that explain the failure.
-    /// </summary>
-    /// <param name="diagnostics">The diagnostics describing why the operation failed.</param>
-    /// <returns>A failed <see cref="Result"/>.</returns>
-    public static Result Failure(IEnumerable<Diagnostic> diagnostics) => new(false, diagnostics.ToArray());
-
-    /// <summary>
-    /// Builds a result from an aggregated set of diagnostics, deriving success from their severities: a failure when
-    /// any is <see cref="DiagnosticSeverity.Error"/>, otherwise a success that still carries the info/warning findings.
-    /// Use this for aggregating checks (e.g. doctor) where the outcome is dictated by what was found.
+    /// A result built from an aggregated set of diagnostics.
     /// </summary>
     /// <param name="diagnostics">Every finding produced.</param>
-    /// <returns>A success or failure, per the diagnostics' severities.</returns>
-    public static Result From(IEnumerable<Diagnostic> diagnostics)
-    {
-        var all = diagnostics.ToArray();
-        return new Result(all.All(d => d.Severity != DiagnosticSeverity.Error), all);
-    }
+    public static Result From(IEnumerable<Diagnostic> diagnostics) => new([.. diagnostics]);
 }
