@@ -21,7 +21,7 @@ public sealed class ApplyOperationTests
 
     public ApplyOperationTests() => _sut = BuildSut(_executor);
 
-    private static ApplyArguments Args(SqlPlan? sql) => new() { Sql = sql };
+    private static ApplyArguments Args(SqlPlan sql) => new() { Sql = sql };
 
     [Fact]
     public async Task Execute_RunsSqlThenRefreshesState()
@@ -30,7 +30,7 @@ public sealed class ApplyOperationTests
 
         result.IsSuccess.ShouldBeTrue();
         await _executor.Received(1).Execute(_sqlPlan, Arg.Any<CancellationToken>());
-        await _workflow.Received(1).Refresh(RefreshMode.Optional, Arg.Any<CancellationToken>());
+        await _workflow.Received(1).Refresh(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -40,16 +40,7 @@ public sealed class ApplyOperationTests
 
         // A first run against an already-matching target still initialises the store.
         await _executor.DidNotReceive().Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>());
-        await _workflow.Received(1).Refresh(RefreshMode.Optional, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Execute_NullSql_SkipsExecutionButStillRefreshes()
-    {
-        await _sut.Execute(Args(sql: null), TestContext.Current.CancellationToken);
-
-        await _executor.DidNotReceive().Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>());
-        await _workflow.Received(1).Refresh(RefreshMode.Optional, Arg.Any<CancellationToken>());
+        await _workflow.Received(1).Refresh(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -60,7 +51,7 @@ public sealed class ApplyOperationTests
         // Execution may fail partway (e.g. an un-transacted plan), so we still capture state, but the failure propagates.
         var ex = await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(Args(_sqlPlan), TestContext.Current.CancellationToken));
         ex.Message.ShouldBe("boom");
-        await _workflow.Received(1).Refresh(RefreshMode.Optional, Arg.Any<CancellationToken>());
+        await _workflow.Received(1).Refresh(Arg.Any<CancellationToken>());
     }
 
     [Fact]

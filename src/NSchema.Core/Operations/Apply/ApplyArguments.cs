@@ -8,8 +8,7 @@ namespace NSchema.Operations.Apply;
 public sealed record ApplyArguments
 {
     /// <summary>
-    /// The SQL to execute, from a plan operation or a saved plan file. An empty or absent plan executes nothing but
-    /// still captures the resulting state.
+    /// The SQL to execute, from a plan operation or a saved plan file.
     /// </summary>
-    public required SqlPlan? Sql { get; init; }
+    public required SqlPlan Sql { get; init; }
 }
