@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using NSchema.State;
 
 namespace NSchema;
 
@@ -10,11 +11,13 @@ public sealed class NSchemaApplication : IDisposable
 {
     private readonly IHost _host;
     private readonly Lazy<INSchemaOperations> _operations;
+    private readonly Lazy<IStateLockCoordinator> _locks;
 
     internal NSchemaApplication(IHost host)
     {
         _host = host;
         _operations = new Lazy<INSchemaOperations>(() => _host.Services.GetRequiredService<INSchemaOperations>());
+        _locks = new Lazy<IStateLockCoordinator>(() => _host.Services.GetRequiredService<IStateLockCoordinator>());
     }
 
     /// <summary>
@@ -26,6 +29,11 @@ public sealed class NSchemaApplication : IDisposable
     /// The workflow operations.
     /// </summary>
     public INSchemaOperations Operations => _operations.Value;
+
+    /// <summary>
+    /// Takes the state lock around an operation.
+    /// </summary>
+    public IStateLockCoordinator Locks => _locks.Value;
 
     /// <inheritdoc />
     public void Dispose()

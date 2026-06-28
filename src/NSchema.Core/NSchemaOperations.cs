@@ -1,7 +1,5 @@
 using NSchema.Diagnostics;
 using NSchema.Operations;
-using NSchema.Operations.Apply;
-using NSchema.Operations.Destroy;
 using NSchema.Operations.Doctor;
 using NSchema.Operations.Drift;
 using NSchema.Operations.Import;
@@ -18,8 +16,7 @@ namespace NSchema;
 internal sealed class NSchemaOperations(
     IOperation<PlanArguments, Result<PlanResult>> plan,
     IOperation<PlanDestroyArguments, Result<PlanResult>> planDestroy,
-    IOperation<ApplyArguments, Result<IMigrationPlan>> apply,
-    IOperation<DestroyArguments, Result<IMigrationPlan>> destroy,
+    IOperation<PlanResult, Result> apply,
     IOperation<RefreshArguments, Result> refresh,
     IOperation<ValidateArguments, Result> validate,
     IOperation<DriftArguments, Result<DriftResult>> drift,
@@ -33,11 +30,8 @@ internal sealed class NSchemaOperations(
     public Task<Result<PlanResult>> PlanDestroy(PlanDestroyArguments args, CancellationToken cancellationToken = default) =>
         planDestroy.Execute(args, cancellationToken);
 
-    public Task<Result<IMigrationPlan>> BeginApply(ApplyArguments args, CancellationToken cancellationToken = default) =>
-        apply.Execute(args, cancellationToken);
-
-    public Task<Result<IMigrationPlan>> BeginDestroy(DestroyArguments args, CancellationToken cancellationToken = default) =>
-        destroy.Execute(args, cancellationToken);
+    public Task<Result> Apply(PlanResult plan, CancellationToken cancellationToken = default) =>
+        apply.Execute(plan, cancellationToken);
 
     public Task<Result> Refresh(RefreshArguments args, CancellationToken cancellationToken = default) =>
         refresh.Execute(args, cancellationToken);

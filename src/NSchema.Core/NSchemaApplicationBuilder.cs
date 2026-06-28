@@ -10,7 +10,6 @@ using NSchema.Diff;
 using NSchema.Diff.Policies;
 using NSchema.Operations;
 using NSchema.Operations.Apply;
-using NSchema.Operations.Destroy;
 using NSchema.Operations.Doctor;
 using NSchema.Operations.Drift;
 using NSchema.Operations.Import;
@@ -113,12 +112,10 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Operations
         services.TryAddSingleton<IMigrationWorkflow, MigrationWorkflow>();
         services.TryAddSingleton<IProgress<OperationProgress>, NullOperationProgress>();
-        services.TryAddSingleton<LiveMigrationLauncher>();
         services.TryAddSingleton<PlanComposer>();
         services.TryAddSingleton<IOperation<PlanArguments, Result<PlanResult>>, PlanOperation>();
         services.TryAddSingleton<IOperation<PlanDestroyArguments, Result<PlanResult>>, PlanDestroyOperation>();
-        services.TryAddSingleton<IOperation<ApplyArguments, Result<IMigrationPlan>>, ApplyOperation>();
-        services.TryAddSingleton<IOperation<DestroyArguments, Result<IMigrationPlan>>, DestroyOperation>();
+        services.TryAddSingleton<IOperation<PlanResult, Result>, ApplyOperation>();
         services.TryAddSingleton<IOperation<RefreshArguments, Result>, RefreshOperation>();
         services.TryAddSingleton<IOperation<ValidateArguments, Result>, ValidateOperation>();
         services.TryAddSingleton<IOperation<DriftArguments, Result<DriftResult>>, DriftOperation>();
@@ -142,5 +139,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
         // State
         services.TryAddSingleton<ISchemaStateSerializer, SchemaStateSerializer>();
+        services.TryAddSingleton<IStateLockCoordinator, StateLockCoordinator>();
     }
 }

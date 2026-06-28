@@ -1,7 +1,4 @@
 using NSchema.Diagnostics;
-using NSchema.Operations;
-using NSchema.Operations.Apply;
-using NSchema.Operations.Destroy;
 using NSchema.Operations.Doctor;
 using NSchema.Operations.Drift;
 using NSchema.Operations.Import;
@@ -28,15 +25,10 @@ public interface INSchemaOperations
     Task<Result<PlanResult>> PlanDestroy(PlanDestroyArguments args, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Computes a migration under the state lock and returns a handle that owns the lock until disposed — render it,
-    /// optionally confirm, then <see cref="IMigrationPlan.Execute"/>.
+    /// Applies a computed plan (from <see cref="Plan"/>/<see cref="PlanDestroy"/> or a saved plan file): runs its SQL
+    /// and captures the resulting state. Lock-agnostic — the caller holds the state lock around plan + apply.
     /// </summary>
-    Task<Result<IMigrationPlan>> BeginApply(ApplyArguments args, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Computes the teardown plan under the state lock and returns a handle that owns the lock until disposed.
-    /// </summary>
-    Task<Result<IMigrationPlan>> BeginDestroy(DestroyArguments args, CancellationToken cancellationToken = default);
+    Task<Result> Apply(PlanResult plan, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Reads the live current schema and writes it to the state store.
