@@ -1,5 +1,6 @@
 using NSchema.Diagnostics;
 using NSchema.Operations.Progress;
+using NSchema.Operations.Services;
 using NSchema.Schema;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
@@ -17,7 +18,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
     public async Task<Result<ImportResult>> Execute(ImportArguments arguments, CancellationToken cancellationToken = default)
     {
         var schema = await currentSchema.GetSchema(SchemaSourceMode.Online, arguments.Schemas, cancellationToken: cancellationToken);
-        progress.Report(OperationProgress.Detail($"Fetched {Census.Describe(schema)} from the database."));
+        progress.Report(OperationProgress.Detail($"Fetched {StatusHelpers.Describe(schema)} from the database."));
 
         var written = new List<string>();
         foreach (var (path, partition) in schema.Schemas.SelectMany(s => ObjectPartitions(s, arguments.OutputDirectory)))

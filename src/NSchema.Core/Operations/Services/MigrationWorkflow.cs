@@ -40,7 +40,7 @@ internal sealed class MigrationWorkflow(
 
         progress.Report(OperationProgress.Step("Loading provider schema..."));
         var currentSchema = await currentProvider.GetSchema(currentSource, schemasInScope, required, cancellationToken);
-        progress.Report(OperationProgress.Detail($"Current schema ({currentSource.ToString().ToLowerInvariant()}): {Census.Describe(currentSchema)}."));
+        progress.Report(OperationProgress.Detail($"Current schema ({currentSource.ToString().ToLowerInvariant()}): {StatusHelpers.Describe(currentSchema)}."));
 
         progress.Report(OperationProgress.Step("Computing migration plan..."));
         return planner.Plan(currentSchema, desired.Schema, desired.Scripts);
@@ -67,7 +67,7 @@ internal sealed class MigrationWorkflow(
         progress.Report(OperationProgress.Step("Updating state store..."));
         var schema = await currentProvider.GetSchema(SchemaSourceMode.Online, null, required: true, cancellationToken);
         var snapshot = stateSerializer.Serialize(schema);
-        progress.Report(OperationProgress.Detail($"State snapshot: {Census.Describe(schema)}, {snapshot.Length:N0} bytes."));
+        progress.Report(OperationProgress.Detail($"State snapshot: {StatusHelpers.Describe(schema)}, {snapshot.Length:N0} bytes."));
         await store.Write(snapshot, cancellationToken);
         return new StateCapture(schema, snapshot.Length);
     }
@@ -80,13 +80,13 @@ internal sealed class MigrationWorkflow(
     {
         if (desired.Files.Count > 0)
         {
-            progress.Report(OperationProgress.Detail($"Read {Census.Count(desired.Files.Count, "DDL file")}:"));
+            progress.Report(OperationProgress.Detail($"Read {StatusHelpers.Count(desired.Files.Count, "DDL file")}:"));
             foreach (var file in desired.Files)
             {
                 progress.Report(OperationProgress.Detail(file));
             }
         }
 
-        progress.Report(OperationProgress.Detail($"Desired schema: {Census.Describe(desired.Schema)}, {Census.Count(desired.Scripts.Count, "deployment script")}."));
+        progress.Report(OperationProgress.Detail($"Desired schema: {StatusHelpers.Describe(desired.Schema)}, {StatusHelpers.Count(desired.Scripts.Count, "deployment script")}."));
     }
 }

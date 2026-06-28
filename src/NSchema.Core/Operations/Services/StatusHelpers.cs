@@ -1,11 +1,11 @@
 using NSchema.Schema.Model;
 
-namespace NSchema.Operations;
+namespace NSchema.Operations.Services;
 
 /// <summary>
 /// Terse object counts for verbose output, shared by the operations that narrate what a schema contained.
 /// </summary>
-internal static class Census
+internal static class StatusHelpers
 {
     /// <summary>
     /// A one-line census of a schema's top-level shape, e.g. "2 schemas, 7 tables".
