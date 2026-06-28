@@ -7,11 +7,10 @@ using NSchema.Sql.Model;
 
 namespace NSchema.Operations.PlanDestroy;
 
-internal sealed class PlanDestroyOperation(
-    IMigrationWorkflow workflow,
-    IPlanFileWriter handler,
-    ISqlGenerator? sqlGenerator = null
-) : IPlanDestroyOperation
+/// <summary>
+/// Computes the teardown plan (the plan to drop the managed schema) and renders it without applying anything.
+/// </summary>
+internal sealed class PlanDestroyOperation(IMigrationWorkflow workflow, PlanComposer composer) : IOperation<PlanDestroyArguments, Result<PlanResult>>
 {
     public async Task<Result<PlanResult>> Execute(PlanDestroyArguments arguments, CancellationToken cancellationToken = default)
     {
