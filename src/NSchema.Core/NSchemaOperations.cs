@@ -1,5 +1,6 @@
 using NSchema.Diagnostics;
 using NSchema.Operations;
+using NSchema.Operations.Apply;
 using NSchema.Operations.Doctor;
 using NSchema.Operations.Drift;
 using NSchema.Operations.Import;
@@ -14,32 +15,32 @@ namespace NSchema;
 /// </summary>
 internal sealed class NSchemaOperations(
     IOperation<PlanArguments, Result<PlanResult>> plan,
-    IOperation<PlanResult, Result> apply,
-    IOperation<RefreshArguments, Result> refresh,
-    IOperation<ValidateArguments, Result> validate,
+    IOperation<ApplyArguments, Result<ApplyResult>> apply,
+    IOperation<RefreshArguments, Result<RefreshResult>> refresh,
+    IOperation<ValidateArguments, Result<ValidateResult>> validate,
     IOperation<DriftArguments, Result<DriftResult>> drift,
-    IOperation<ImportArguments, Result> import,
-    IOperation<DoctorArguments, Result> doctor
+    IOperation<ImportArguments, Result<ImportResult>> import,
+    IOperation<DoctorArguments, Result<DoctorResult>> doctor
 ) : INSchemaOperations
 {
     public Task<Result<PlanResult>> Plan(PlanArguments args, CancellationToken cancellationToken = default) =>
         plan.Execute(args, cancellationToken);
 
-    public Task<Result> Apply(PlanResult plan, CancellationToken cancellationToken = default) =>
-        apply.Execute(plan, cancellationToken);
+    public Task<Result<ApplyResult>> Apply(ApplyArguments args, CancellationToken cancellationToken = default) =>
+        apply.Execute(args, cancellationToken);
 
-    public Task<Result> Refresh(RefreshArguments args, CancellationToken cancellationToken = default) =>
+    public Task<Result<RefreshResult>> Refresh(RefreshArguments args, CancellationToken cancellationToken = default) =>
         refresh.Execute(args, cancellationToken);
 
-    public Task<Result> Validate(ValidateArguments args, CancellationToken cancellationToken = default) =>
+    public Task<Result<ValidateResult>> Validate(ValidateArguments args, CancellationToken cancellationToken = default) =>
         validate.Execute(args, cancellationToken);
 
     public Task<Result<DriftResult>> Drift(DriftArguments args, CancellationToken cancellationToken = default) =>
         drift.Execute(args, cancellationToken);
 
-    public Task<Result> Import(ImportArguments args, CancellationToken cancellationToken = default) =>
+    public Task<Result<ImportResult>> Import(ImportArguments args, CancellationToken cancellationToken = default) =>
         import.Execute(args, cancellationToken);
 
-    public Task<Result> Doctor(DoctorArguments args, CancellationToken cancellationToken = default) =>
+    public Task<Result<DoctorResult>> Doctor(DoctorArguments args, CancellationToken cancellationToken = default) =>
         doctor.Execute(args, cancellationToken);
 }

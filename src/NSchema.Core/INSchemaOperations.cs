@@ -1,4 +1,5 @@
 using NSchema.Diagnostics;
+using NSchema.Operations.Apply;
 using NSchema.Operations.Doctor;
 using NSchema.Operations.Drift;
 using NSchema.Operations.Import;
@@ -21,17 +22,17 @@ public interface INSchemaOperations
     /// <summary>
     /// Applies a computed plan (from <see cref="Plan"/> or a saved plan file).
     /// </summary>
-    Task<Result> Apply(PlanResult plan, CancellationToken cancellationToken = default);
+    Task<Result<ApplyResult>> Apply(ApplyArguments args, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Reads the live current schema and writes it to the state store.
     /// </summary>
-    Task<Result> Refresh(RefreshArguments args, CancellationToken cancellationToken = default);
+    Task<Result<RefreshResult>> Refresh(RefreshArguments args, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Loads the desired schema and validates it against the configured schema policies.
     /// </summary>
-    Task<Result> Validate(ValidateArguments args, CancellationToken cancellationToken = default);
+    Task<Result<ValidateResult>> Validate(ValidateArguments args, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Compares the recorded state against the live database and reports how the live database has drifted.
@@ -41,10 +42,10 @@ public interface INSchemaOperations
     /// <summary>
     /// Reads the live database schema and writes it as desired-schema source files.
     /// </summary>
-    Task<Result> Import(ImportArguments args, CancellationToken cancellationToken = default);
+    Task<Result<ImportResult>> Import(ImportArguments args, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Runs read-only health checks against the configured infrastructure and reports the outcome of each.
     /// </summary>
-    Task<Result> Doctor(DoctorArguments args, CancellationToken cancellationToken = default);
+    Task<Result<DoctorResult>> Doctor(DoctorArguments args, CancellationToken cancellationToken = default);
 }
