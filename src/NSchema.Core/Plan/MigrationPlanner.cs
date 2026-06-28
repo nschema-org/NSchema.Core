@@ -25,13 +25,13 @@ internal sealed class MigrationPlanner(
     public PolicyDiagnostics Validate(DatabaseSchema desiredSchema) =>
         new(schemaPolicies.SelectMany(p => p.Validate(desiredSchema)));
 
-    public MigrationPlanResult Plan(DatabaseSchema currentSchema, DatabaseSchema desiredSchema, IReadOnlyList<Script> scripts)
+    public Result<PlannedMigration> Plan(DatabaseSchema currentSchema, DatabaseSchema desiredSchema, IReadOnlyList<Script> scripts)
     {
-        // Validate the desired schema. A schema-policy error is fatal and skips the rest.
+        // Validate the desired schema. A schema-policy error is fatal and skips the rest — there is no plan to carry.
         var schemaDiagnostics = Validate(desiredSchema);
         if (schemaDiagnostics.HasErrors)
         {
-            return new MigrationPlanResult(null, null, schemaDiagnostics);
+            return Result.Failure<PlannedMigration>(schemaDiagnostics);
         }
 
         // Diff the schemas.
@@ -47,16 +47,16 @@ internal sealed class MigrationPlanner(
         var postDeploymentScripts = scripts.Where(s => s.Type == ScriptType.PostDeployment).ToList();
         var plan = new MigrationPlan(actions, preDeploymentScripts, postDeploymentScripts);
 
-        return new MigrationPlanResult(plan, diff, diagnostics);
+        return Result.From(new PlannedMigration(diff, plan), diagnostics);
     }
 
-    public MigrationPlanResult PlanTeardown(DatabaseSchema currentSchema)
+    public Result<PlannedMigration> PlanTeardown(DatabaseSchema currentSchema)
     {
         // Don't run transformers/policies for teardown.
         // This is a purely destructive action, and needs to be available as an escape.
         var diff = comparer.Compare(currentSchema, new DatabaseSchema());
         var actions = linearizer.Linearize(diff);
         var plan = new MigrationPlan(actions, [], []);
-        return new MigrationPlanResult(plan, diff, []);
+        return Result.Success(new PlannedMigration(diff, plan));
     }
 }
