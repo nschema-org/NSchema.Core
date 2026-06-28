@@ -112,12 +112,12 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IMigrationWorkflow, MigrationWorkflow>();
         services.TryAddSingleton<IProgress<OperationProgress>, NullOperationProgress>();
         services.TryAddSingleton<IOperation<PlanArguments, Result<PlanResult>>, PlanOperation>();
-        services.TryAddSingleton<IOperation<PlanResult, Result>, ApplyOperation>();
-        services.TryAddSingleton<IOperation<RefreshArguments, Result>, RefreshOperation>();
-        services.TryAddSingleton<IOperation<ValidateArguments, Result>, ValidateOperation>();
+        services.TryAddSingleton<IOperation<ApplyArguments, Result<ApplyResult>>, ApplyOperation>();
+        services.TryAddSingleton<IOperation<RefreshArguments, Result<RefreshResult>>, RefreshOperation>();
+        services.TryAddSingleton<IOperation<ValidateArguments, Result<ValidateResult>>, ValidateOperation>();
         services.TryAddSingleton<IOperation<DriftArguments, Result<DriftResult>>, DriftOperation>();
-        services.TryAddSingleton<IOperation<ImportArguments, Result>, ImportOperation>();
-        services.TryAddSingleton<IOperation<DoctorArguments, Result>, DoctorOperation>();
+        services.TryAddSingleton<IOperation<ImportArguments, Result<ImportResult>>, ImportOperation>();
+        services.TryAddSingleton<IOperation<DoctorArguments, Result<DoctorResult>>, DoctorOperation>();
         services.TryAddSingleton<INSchemaOperations, NSchemaOperations>();
 
         // Plan
