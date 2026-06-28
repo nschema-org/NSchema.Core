@@ -1,54 +1,44 @@
-using NSchema.Operations;
 using NSchema.Operations.Refresh;
 using NSchema.Operations.Services;
-using NSchema.State.Model;
-using NSchema.Tests.Helpers;
+using NSchema.Schema.Model;
+using NSchema.Schema.Model.Schemas;
 
 namespace NSchema.Tests.Operations.Refresh;
 
 public sealed class RefreshOperationTests
 {
     private readonly IMigrationWorkflow _workflow = Substitute.For<IMigrationWorkflow>();
-    private readonly RecordingStateLock _stateLock = new();
-    private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
+    private readonly RefreshOperation _sut;
 
-    private RefreshOperation BuildSut() => new(_workflow, _reporter, _stateLock);
+    public RefreshOperationTests() => _sut = new RefreshOperation(_workflow);
 
     [Fact]
-    public async Task Execute_RefreshesStateRequiringAStore()
+    public async Task Execute_WhenStateCaptured_ReturnsTheSchemaAndSnapshotSize()
     {
-        await BuildSut().Execute(new RefreshArguments(), TestContext.Current.CancellationToken);
+        // Arrange
+        var schema = new DatabaseSchema([new SchemaDefinition("app")]);
+        _workflow.Refresh(Arg.Any<CancellationToken>()).Returns(new StateCapture(schema, 2048));
 
-        await _workflow.Received(1).Refresh(RefreshMode.Required, Arg.Any<CancellationToken>());
+        // Act
+        var result = await _sut.Execute(new RefreshArguments(), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.ShouldBeTrue();
+        result.Value!.CapturedSchema.ShouldBe(schema);
+        result.Value!.SnapshotBytes.ShouldBe(2048);
     }
 
     [Fact]
-    public async Task Execute_AcquiresAndReleasesStateLock()
+    public async Task Execute_WhenNoStoreConfigured_Fails()
     {
-        await BuildSut().Execute(new RefreshArguments(), TestContext.Current.CancellationToken);
+        // Arrange — refresh's whole purpose is to capture to a store, so a missing store is a failure (not a no-op).
+        _workflow.Refresh(Arg.Any<CancellationToken>()).Returns((StateCapture?)null);
 
-        _stateLock.Acquisitions.ShouldHaveSingleItem().Operation.ShouldBe("refresh");
-        _stateLock.Released.ShouldBe(1);
-    }
+        // Act
+        var result = await _sut.Execute(new RefreshArguments(), TestContext.Current.CancellationToken);
 
-    [Fact]
-    public async Task Execute_StateLocked_DoesNotRefresh()
-    {
-        _stateLock.OnAcquire = _ => throw new StateLockedException("locked");
-
-        await Should.ThrowAsync<StateLockedException>(() => BuildSut().Execute(new RefreshArguments()));
-
-        await _workflow.DidNotReceive().Refresh(Arg.Any<RefreshMode>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Execute_WithSkipLock_RefreshesWithoutAcquiringTheLock()
-    {
-        await BuildSut().Execute(new RefreshArguments { SkipLock = true }, TestContext.Current.CancellationToken);
-
-        // --no-lock: the lock is never taken, but the refresh still runs.
-        _stateLock.Acquisitions.ShouldBeEmpty();
-        _stateLock.Released.ShouldBe(0);
-        await _workflow.Received(1).Refresh(RefreshMode.Required, Arg.Any<CancellationToken>());
+        // Assert
+        result.IsFailure.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("without a configured state store");
     }
 }

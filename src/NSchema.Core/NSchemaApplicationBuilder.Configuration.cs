@@ -2,7 +2,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.Diff;
 using NSchema.Diff.Policies;
-using NSchema.Operations;
 using NSchema.Schema;
 using NSchema.Sql;
 
@@ -61,35 +60,6 @@ public partial class NSchemaApplicationBuilder
     public NSchemaApplicationBuilder UseSchemaRenderer<TRenderer>() where TRenderer : class, ISchemaRenderer
     {
         Services.Replace(ServiceDescriptor.Singleton<ISchemaRenderer, TRenderer>());
-        return this;
-    }
-
-    /// <summary>
-    /// Replaces the <see cref="IOperationReporter"/> the application reports through.
-    /// </summary>
-    public NSchemaApplicationBuilder UseReporter<T>() where T : class, IOperationReporter
-    {
-        Services.Replace(ServiceDescriptor.Singleton<IOperationReporter, T>());
-        return this;
-    }
-
-    /// <summary>
-    /// Replaces the <see cref="IOperationReporter"/> the application reports through with a specific instance.
-    /// </summary>
-    public NSchemaApplicationBuilder UseReporter(IOperationReporter reporter)
-    {
-        ArgumentNullException.ThrowIfNull(reporter);
-        Services.Replace(ServiceDescriptor.Singleton(reporter));
-        return this;
-    }
-
-    /// <summary>
-    /// Replaces the <see cref="IOperationReporter"/> the application reports through with one resolved from the service provider.
-    /// </summary>
-    public NSchemaApplicationBuilder UseReporter(Func<IServiceProvider, IOperationReporter> factory)
-    {
-        ArgumentNullException.ThrowIfNull(factory);
-        Services.Replace(ServiceDescriptor.Singleton(factory));
         return this;
     }
 

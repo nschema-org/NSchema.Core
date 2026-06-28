@@ -39,7 +39,7 @@ The codebase splits into a **domain layer** (pure planning) and an **application
 - **Domain layer**, one namespace per pipeline stage:
   - `Schema/` — the schema model (`Schema/Model/`, rooted at `DatabaseSchema`), the DDL reader/writer/parser (`Schema/Ddl/`), the desired-state provider (`DesiredSchemaProvider`), the current-schema provider, and `ISchemaPolicy`.
   - `Diff/` — the structured diff model (`Diff/Model/`, rooted at `DatabaseDiff`), `ISchemaComparer`, `IDiffPolicy` (`Diff/Policies/`), and the diff renderer.
-  - `Plan/` — the executable plan model (`Plan/Model/`, rooted at `MigrationPlan`), `IPlanLinearizer`, the saved-plan-file machinery (`Plan/PlanFile/`), and `IMigrationPlanner` (default `DefaultMigrationPlanner`) with its `MigrationPlanResult`. The planner knows nothing about operations or run orchestration.
+  - `Plan/` — the executable plan model (`Plan/Model/`, rooted at `MigrationPlan`), `IPlanLinearizer`, the saved-plan-file machinery (`Plan/PlanFile/`), and `IMigrationPlanner` (default `DefaultMigrationPlanner`) returning `Result<PlannedMigration>` (the diff + plan pair; policy diagnostics ride on the `Result`). The planner knows nothing about operations or run orchestration.
   - `Sql/` — `ISqlGenerator` (dialect, provided by a provider package), `ISqlExecutor`, and the SQL plan renderer (`ISqlPlanRenderer`). Core ships no dialect.
 - **Application layer:**
   - `Operations/` — one vertical slice per operation (see below).
@@ -99,7 +99,7 @@ The three **state-mutating** operations acquire the lock for the whole run via `
 
 ### Planner pipeline
 
-`DefaultMigrationPlanner` (`Plan/DefaultMigrationPlanner.cs`) is a pure domain service: it takes two pre-resolved `DatabaseSchema` values and produces a `MigrationPlanResult` (the executable `MigrationPlan`, its structured `DatabaseDiff`, and any `PolicyDiagnostic`s). The **structured diff is the primary artifact** — the comparer emits it directly, the linearizer derives the ordered plan from it. Three stages:
+`DefaultMigrationPlanner` (`Plan/DefaultMigrationPlanner.cs`) is a pure domain service: it takes two pre-resolved `DatabaseSchema` values and produces a `Result<PlannedMigration>` — the `PlannedMigration` pairs the executable `MigrationPlan` with its structured `DatabaseDiff`, and any `PolicyDiagnostic`s ride on the `Result` (a blocked policy is a `Result.Failure`, which may still carry the `PlannedMigration` so the offending diff stays visible). The **structured diff is the primary artifact** — the comparer emits it directly, the linearizer derives the ordered plan from it. Three stages:
 
 1. **Schema stage** — runs every `ISchemaPolicy` against the desired schema. A schema-policy error is fatal and skips the rest. Also exposed standalone as `IMigrationPlanner.Validate(desired)` (used by the validate operation).
 2. **Diff stage** — `ISchemaComparer` produces the structured `DatabaseDiff` directly (no flat-action intermediate), and every `IDiffPolicy` validates it. The built-in `DestructiveActionDiffPolicy` runs here (reasoning over `ChangeKind.Remove` and narrowing column changes) and enforces `DestructiveActionOptions.Policy`.

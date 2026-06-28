@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using NSchema.Diagnostics;
 using NSchema.Diff.Model;
 using NSchema.Diff.Policies;
 using NSchema.Plan.Model.Constraints;
@@ -8,7 +9,6 @@ using NSchema.Plan.Model.Routines;
 using NSchema.Plan.Model.Sequence;
 using NSchema.Plan.Model.Tables;
 using NSchema.Plan.Model.Views;
-using NSchema.Policies;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
 using NSchema.Schema.Model.Routines;
@@ -40,8 +40,8 @@ public class DestructiveActionDiffPolicyTests
 
         // Assert
         errors.ShouldHaveSingleItem();
-        errors[0].Severity.ShouldBe(PolicyDiagnosticSeverity.Error);
-        errors[0].PolicyName.ShouldBe("destructive-actions");
+        errors[0].Severity.ShouldBe(DiagnosticSeverity.Error);
+        errors[0].Source.ShouldBe("destructive-actions");
         errors[0].Message.ShouldContain(nameof(DropTable));
     }
 
@@ -56,7 +56,7 @@ public class DestructiveActionDiffPolicyTests
 
         // Assert
         results.ShouldHaveSingleItem();
-        results[0].Severity.ShouldBe(PolicyDiagnosticSeverity.Info);
+        results[0].Severity.ShouldBe(DiagnosticSeverity.Info);
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public class DestructiveActionDiffPolicyTests
 
         // Assert
         results.ShouldHaveSingleItem();
-        results[0].Severity.ShouldBe(PolicyDiagnosticSeverity.Warning);
+        results[0].Severity.ShouldBe(DiagnosticSeverity.Warning);
         results[0].Message.ShouldContain(nameof(DropTable));
     }
 

@@ -1,4 +1,4 @@
-using NSchema.Policies;
+using NSchema.Diagnostics;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Tables;
@@ -13,7 +13,7 @@ public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
     private const string PolicyName = "structural-integrity";
 
     /// <inheritdoc />
-    public IEnumerable<PolicyDiagnostic> Validate(DatabaseSchema schema)
+    public IEnumerable<Diagnostic> Validate(DatabaseSchema schema)
     {
         var managedSchemas = new HashSet<string>(schema.Schemas.Select(s => s.Name), StringComparer.OrdinalIgnoreCase);
         var partialSchemas = new HashSet<string>(
@@ -23,7 +23,7 @@ public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
             .GroupBy(x => x.Key)
             .ToDictionary(g => g.Key, g => g.First().Table);
 
-        var diagnostics = new List<PolicyDiagnostic>();
+        var diagnostics = new List<Diagnostic>();
         foreach (var definition in schema.Schemas)
         {
             foreach (var table in definition.Tables)
@@ -42,7 +42,7 @@ public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
     // schema in the database (Postgres's pg_class), and they additionally share pg_type with enums and domains
     // (every relation has a row type), so none of these kinds may reuse a name within a schema — a table and a
     // view called 'foo' cannot coexist. Routines live in a separate name space (pg_proc) and are checked apart.
-    private static void ValidateObjectNames(SchemaDefinition definition, List<PolicyDiagnostic> diagnostics)
+    private static void ValidateObjectNames(SchemaDefinition definition, List<Diagnostic> diagnostics)
     {
         var named = definition.Tables.Select(t => (t.Name, Kind: "table"))
             .Concat(definition.Views.Select(v => (v.Name, Kind: v.IsMaterialized ? "materialized view" : "view")))
@@ -66,7 +66,7 @@ public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
     // routine list; a single duplicate-name check covers both same-kind duplicates and function/procedure
     // collisions. The DDL parser and document aggregation enforce this for parsed schemas; this is the catch-all
     // for code-built ones.
-    private static void ValidateRoutineNames(SchemaDefinition definition, List<PolicyDiagnostic> diagnostics)
+    private static void ValidateRoutineNames(SchemaDefinition definition, List<Diagnostic> diagnostics)
     {
         foreach (var duplicate in Duplicates(definition.Routines.Select(r => r.Name)))
         {
@@ -82,7 +82,7 @@ public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
         HashSet<string> managedSchemas,
         HashSet<string> partialSchemas,
         IReadOnlyDictionary<string, Table> tablesByKey,
-        List<PolicyDiagnostic> diagnostics)
+        List<Diagnostic> diagnostics)
     {
         var qualified = $"{definition.Name}.{table.Name}";
         var columns = new HashSet<string>(table.Columns.Select(c => c.Name), StringComparer.OrdinalIgnoreCase);
@@ -136,7 +136,7 @@ public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
         HashSet<string> managedSchemas,
         HashSet<string> partialSchemas,
         IReadOnlyDictionary<string, Table> tablesByKey,
-        List<PolicyDiagnostic> diagnostics)
+        List<Diagnostic> diagnostics)
     {
         foreach (var missing in foreignKey.ColumnNames.Where(c => !localColumns.Contains(c)))
         {
@@ -209,5 +209,5 @@ public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
     // The NUL character cannot appear in an identifier, so it is a safe composite-key separator even for quoted names.
     private static string Key(string schema, string table) => $"{schema.ToLowerInvariant()}\0{table.ToLowerInvariant()}";
 
-    private static PolicyDiagnostic Error(string message) => PolicyDiagnostic.Error(PolicyName, message);
+    private static Diagnostic Error(string message) => Diagnostic.Error(PolicyName, message);
 }

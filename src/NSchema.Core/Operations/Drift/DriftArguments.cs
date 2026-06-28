@@ -1,7 +1,7 @@
 namespace NSchema.Operations.Drift;
 
 /// <summary>
-/// Arguments for an <see cref="IDriftOperation"/> run.
+/// Arguments for an operation run.
 /// </summary>
 public sealed record DriftArguments
 {

@@ -1,4 +1,4 @@
-using NSchema.Policies;
+using NSchema.Diagnostics;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.CompositeTypes;
@@ -48,7 +48,7 @@ public sealed class StructuralIntegritySchemaPolicyTests
         var diagnostics = _sut.Validate(Db(new Table("empty"))).ToList();
 
         // Assert
-        diagnostics.ShouldContain(d => d.Severity == PolicyDiagnosticSeverity.Error && d.Message.Contains("no columns"));
+        diagnostics.ShouldContain(d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("no columns"));
     }
 
     [Fact]

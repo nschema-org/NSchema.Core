@@ -1,6 +1,6 @@
+using NSchema.Diagnostics;
 using NSchema.Diff.Model;
 using NSchema.Diff.Policies;
-using NSchema.Policies;
 
 namespace NSchema.Tests.Diff.Policies;
 
@@ -19,8 +19,8 @@ public sealed class EnumValueRemovalDiffPolicyTests
     {
         var diagnostic = _sut.Validate(DiffWithEnum(ValueRemoval())).ShouldHaveSingleItem();
 
-        diagnostic.Severity.ShouldBe(PolicyDiagnosticSeverity.Error);
-        diagnostic.PolicyName.ShouldBe("enum-value-removal");
+        diagnostic.Severity.ShouldBe(DiagnosticSeverity.Error);
+        diagnostic.Source.ShouldBe("enum-value-removal");
         diagnostic.Message.ShouldContain("app.status");
         diagnostic.Message.ShouldContain("[a, b] -> [a]");
         diagnostic.Message.ShouldContain("Recreate the type manually");

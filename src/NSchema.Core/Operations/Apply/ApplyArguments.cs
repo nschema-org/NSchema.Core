@@ -1,23 +1,14 @@
+using NSchema.Sql.Model;
+
 namespace NSchema.Operations.Apply;
 
 /// <summary>
-/// Arguments for an <see cref="IApplyOperation"/> run.
+/// Arguments for applying a computed plan.
 /// </summary>
 public sealed record ApplyArguments
 {
     /// <summary>
-    /// The schemas to scope the apply to. When <see langword="null"/>, scope is derived from the desired schema.
-    /// Ignored when <see cref="PlanFile"/> is set (a saved plan already fixes its scope).
+    /// The SQL to execute, from a plan operation or a saved plan file.
     /// </summary>
-    public string[]? Schemas { get; init; }
-
-    /// <summary>
-    /// When set, apply executes a saved plan file instead of computing a fresh plan.
-    /// </summary>
-    public string? PlanFile { get; init; }
-
-    /// <summary>
-    /// When <see langword="true"/>, the apply runs without acquiring the state lock.
-    /// </summary>
-    public bool SkipLock { get; init; }
+    public required SqlPlan Sql { get; init; }
 }

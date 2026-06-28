@@ -1,296 +1,110 @@
-using NSchema.Diff.Model;
-using NSchema.Operations;
 using NSchema.Operations.Apply;
-using NSchema.Operations.Confirmation;
+using NSchema.Operations.Progress;
 using NSchema.Operations.Services;
-using NSchema.Plan.Model;
-using NSchema.Plan.Model.Schemas;
-using NSchema.Plan.PlanFile;
-using NSchema.Schema;
 using NSchema.Sql;
 using NSchema.Sql.Model;
-using NSchema.State.Model;
-using NSchema.Tests.Helpers;
 using NSubstitute.ExceptionExtensions;
 
 namespace NSchema.Tests.Operations.Apply;
 
 public sealed class ApplyOperationTests
 {
-    private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
     private readonly IMigrationWorkflow _workflow = Substitute.For<IMigrationWorkflow>();
-    private readonly ISqlGenerator _generator = Substitute.For<ISqlGenerator>();
+    private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
     private readonly ISqlExecutor _executor = Substitute.For<ISqlExecutor>();
-    private readonly IOperationConfirmation _confirmation = Substitute.For<IOperationConfirmation>();
-    private readonly RecordingStateLock _stateLock = new();
 
-    private readonly MigrationPlan _plan = new([new CreateSchema("app")], [], []);
-    private readonly DatabaseDiff _diff = new([]);
     private readonly SqlPlan _sqlPlan = new([new SqlStatement("CREATE SCHEMA app")]);
 
-    private ApplyOperation BuildSut(ISqlGenerator? planner, ISqlExecutor? executor) => new(
-        _reporter,
-        _confirmation, _workflow,
-        new PlanFileWriter(),
-        _stateLock,
-        planner,
-        executor
-    );
+    private ApplyOperation BuildSut(ISqlExecutor? executor) => new(_workflow, _progress, executor);
 
     private readonly ApplyOperation _sut;
 
-    public ApplyOperationTests()
-    {
-        _workflow.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(new PlannedMigration(_plan, _diff));
-        _generator.Generate(Arg.Any<MigrationPlan>()).Returns(_sqlPlan);
-        _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(true);
+    public ApplyOperationTests() => _sut = BuildSut(_executor);
 
-        _sut = BuildSut(_generator, _executor);
-    }
+    private static ApplyArguments Args(SqlPlan sql) => new() { Sql = sql };
 
     [Fact]
-    public async Task Execute_PreparesPlanFromOnlineSource()
+    public async Task Execute_RunsSqlThenRefreshesState()
     {
-        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
+        var result = await _sut.Execute(Args(_sqlPlan), TestContext.Current.CancellationToken);
 
-        await _workflow.Received(1).Plan(SchemaSourceMode.Online, required: true, Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Execute_GeneratesAndExecutesSqlPlan()
-    {
-        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
-
-        _generator.Received(1).Generate(_plan);
+        result.IsSuccess.ShouldBeTrue();
+        result.Value!.AppliedSql.ShouldBe(_sqlPlan);
+        result.Value!.ChangesApplied.ShouldBeTrue();
+        result.Value!.StatementsExecuted.ShouldBe(1);
         await _executor.Received(1).Execute(_sqlPlan, Arg.Any<CancellationToken>());
+        await _workflow.Received(1).Refresh(Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Execute_NoPlanner_ThrowsWithoutPreparing()
+    public async Task Execute_EmptyPlan_SkipsExecutionButStillRefreshes()
     {
-        var sut = BuildSut(planner: null, executor: _executor);
+        var result = await _sut.Execute(Args(new SqlPlan([])), TestContext.Current.CancellationToken);
 
-        await Should.ThrowAsync<InvalidOperationException>(() => sut.Execute(new ApplyArguments()));
-        await _workflow.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+        // An empty plan applied nothing, but a first run against an already-matching target still initialises the store.
+        result.Value!.ChangesApplied.ShouldBeFalse();
+        result.Value!.StatementsExecuted.ShouldBe(0);
+        await _executor.DidNotReceive().Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>());
+        await _workflow.Received(1).Refresh(Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Execute_NoExecutor_ThrowsWithoutPreparing()
-    {
-        var sut = BuildSut(planner: _generator, executor: null);
-
-        await Should.ThrowAsync<InvalidOperationException>(() => sut.Execute(new ApplyArguments()));
-        await _workflow.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Execute_WithStore_RefreshesStateAfterSuccess()
-    {
-        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
-
-        await _workflow.Received(1).Refresh(RefreshMode.Optional, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Execute_ExecutionFails_StillRefreshesAndRethrows()
+    public async Task Execute_WhenExecutionFails_StillRefreshesAndRethrows()
     {
         _executor.Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("boom"));
 
-        // Execution may fail partway (e.g. an un-transacted plan), so we still capture state, but the original failure propagates.
-        var ex = await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken));
+        // Execution may fail partway (e.g. an un-transacted plan), so we still capture state, but the failure propagates.
+        var ex = await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(Args(_sqlPlan), TestContext.Current.CancellationToken));
         ex.Message.ShouldBe("boom");
-
-        await _workflow.Received(1).Refresh(RefreshMode.Optional, Arg.Any<CancellationToken>());
-        _stateLock.Released.ShouldBe(1); // lock released even when execution fails
+        await _workflow.Received(1).Refresh(Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Execute_AcquiresAndReleasesStateLock()
+    public async Task Execute_NonEmptyPlanButNoExecutor_Fails()
     {
-        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
+        var sut = BuildSut(executor: null);
 
-        _stateLock.Acquisitions.ShouldHaveSingleItem().Operation.ShouldBe("apply");
-        _stateLock.Released.ShouldBe(1);
+        var result = await sut.Execute(Args(_sqlPlan), TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("requires a database provider");
     }
 
     [Fact]
-    public async Task Execute_StateLocked_DoesNotPlanOrExecute()
+    public async Task Execute_WhenStateRefreshFailsAfterSuccessfulApply_Surfaces()
     {
-        _stateLock.OnAcquire = _ => throw new StateLockedException("locked");
+        // The migration applies cleanly, but capturing the new state fails — recording state is part of the apply, so
+        // this is a real error (the database changed but the recorded state is now stale), not something to swallow.
+        _workflow.Refresh(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("state store unreachable"));
 
-        await Should.ThrowAsync<StateLockedException>(() => _sut.Execute(new ApplyArguments()));
+        var ex = await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(Args(_sqlPlan), TestContext.Current.CancellationToken));
 
-        await _workflow.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
-        await _executor.DidNotReceive().Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Execute_EmptyPlan_ReportsNoChangesAndSkipsConfirmAndExecute()
-    {
-        _generator.Generate(Arg.Any<MigrationPlan>()).Returns(new SqlPlan([]));
-
-        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
-
-        _reporter.Received().Report(MessageKind.Success, "No changes. The database already matches the desired schema.");
-        await _confirmation.DidNotReceive().Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>());
-        await _executor.DidNotReceive().Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Execute_EmptyPlan_StillRefreshesStateToInitialiseTheStore()
-    {
-        _generator.Generate(Arg.Any<MigrationPlan>()).Returns(new SqlPlan([]));
-
-        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
-
-        // A first run against an already-matching database should still capture state.
-        await _workflow.Received(1).Refresh(RefreshMode.Optional, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Execute_ReportsVerboseExecutionCensusFlaggingOutOfTransactionStatements()
-    {
-        _generator.Generate(Arg.Any<MigrationPlan>()).Returns(new SqlPlan(
-            [new SqlStatement("CREATE TABLE app.t (id int)"), new SqlStatement("CREATE INDEX CONCURRENTLY ix ON app.t (id)", RunOutsideTransaction: true)]));
-
-        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
-
-        _reporter.Received().Report(MessageKind.Verbose, "Executing 2 statements (1 must run outside a transaction).");
-    }
-
-    [Fact]
-    public async Task Execute_ReportsOutcomeSummaryWithCountsAndStatements()
-    {
-        var diff = new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add, null, null, [], [])]);
-        _workflow.Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(new PlannedMigration(_plan, diff));
-
-        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
-
-        _reporter.Received().Report(MessageKind.Success, "Apply complete. 1 added (1 statement).");
-    }
-
-    [Fact]
-    public async Task Execute_NotConfirmed_DoesNotExecuteOrRefresh()
-    {
-        _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(false);
-
-        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
-
-        await _executor.DidNotReceive().Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>());
-        await _workflow.DidNotReceive().Refresh(Arg.Any<RefreshMode>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Execute_Confirmed_Executes()
-    {
-        _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(true);
-
-        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
-
+        ex.Message.ShouldBe("state store unreachable");
         await _executor.Received(1).Execute(_sqlPlan, Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Execute_ConfirmsWithApplyRequestCarryingThePlan()
+    public async Task Execute_WhenBothExecutionAndStateRefreshFail_SurfacesTheExecutionError()
     {
-        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
+        // A refresh failure during the best-effort capture must not mask the migration failure, which is the error the
+        // operator needs to see.
+        _executor.Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("migration failed"));
+        _workflow.Refresh(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("state store unreachable"));
 
-        await _confirmation.Received(1).Confirm(
-            Arg.Is<ApplyConfirmationRequest>(r => r.Plan == _plan && !r.IsDestructive),
-            Arg.Any<CancellationToken>());
+        var ex = await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(Args(_sqlPlan), TestContext.Current.CancellationToken));
+
+        ex.Message.ShouldBe("migration failed");
+        await _workflow.Received(1).Refresh(Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Execute_ConfirmationPromptedAfterSqlReported()
+    public async Task Execute_EmptyPlan_WhenStateRefreshFails_Surfaces()
     {
-        var callOrder = new List<string>();
-        _reporter.When(r => r.ReportSqlPlan(Arg.Any<SqlPlan>())).Do(_ => callOrder.Add("sql"));
-        _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>())
-            .Returns(_ => { callOrder.Add("confirm"); return true; });
+        // Even with nothing to execute, the state capture is part of the apply; its failure is surfaced.
+        _workflow.Refresh(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("state store unreachable"));
 
-        await _sut.Execute(new ApplyArguments(), TestContext.Current.CancellationToken);
+        var ex = await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(Args(new SqlPlan([])), TestContext.Current.CancellationToken));
 
-        callOrder.ShouldBe(["sql", "confirm"]);
-    }
-
-    private string WritePlanFile(SqlPlan? savedSql = null)
-    {
-        var path = Path.Combine(Path.GetTempPath(), $"nschema-plan-{Guid.NewGuid():N}.json");
-        var envelope = new PlanFileEnvelope(_plan, savedSql ?? _sqlPlan, _diff, DateTimeOffset.UnixEpoch);
-        File.WriteAllBytes(path, new PlanFileWriter().Serialize(envelope).ToArray());
-        return path;
-    }
-
-    [Fact]
-    public async Task Execute_WithPlanFile_ExecutesSavedSqlWithoutReplanning()
-    {
-        var path = WritePlanFile();
-        try
-        {
-            await _sut.Execute(new ApplyArguments { PlanFile = path }, TestContext.Current.CancellationToken);
-
-            // The whole point: no fresh plan is computed; the saved SQL is what runs, then state is captured.
-            await _workflow.DidNotReceive().Plan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
-            await _executor.Received(1).Execute(Arg.Is<SqlPlan>(p => p.Statements.SequenceEqual(_sqlPlan.Statements)), Arg.Any<CancellationToken>());
-            await _workflow.Received(1).Refresh(RefreshMode.Optional, Arg.Any<CancellationToken>());
-        }
-        finally
-        {
-            File.Delete(path);
-        }
-    }
-
-    [Fact]
-    public async Task Execute_WithPlanFile_AcquiresLockAndConfirmsBeforeExecuting()
-    {
-        var path = WritePlanFile();
-        try
-        {
-            await _sut.Execute(new ApplyArguments { PlanFile = path }, TestContext.Current.CancellationToken);
-
-            _stateLock.Acquisitions.ShouldHaveSingleItem().Operation.ShouldBe("apply");
-            await _confirmation.Received(1).Confirm(Arg.Any<ApplyConfirmationRequest>(), Arg.Any<CancellationToken>());
-        }
-        finally
-        {
-            File.Delete(path);
-        }
-    }
-
-    [Fact]
-    public async Task Execute_WithPlanFile_ReportsSavedDiffPlanAndSql()
-    {
-        var path = WritePlanFile();
-        try
-        {
-            await _sut.Execute(new ApplyArguments { PlanFile = path }, TestContext.Current.CancellationToken);
-
-            // Applying a saved plan shows the same diff/plan/SQL view the plan step produced.
-            _reporter.Received(1).ReportDiff(Arg.Any<DatabaseDiff>());
-            _reporter.Received(1).ReportPlan(Arg.Any<MigrationPlan>());
-            _reporter.Received(1).ReportSqlPlan(Arg.Any<SqlPlan>());
-        }
-        finally
-        {
-            File.Delete(path);
-        }
-    }
-
-    [Fact]
-    public async Task Execute_WithPlanFile_NotConfirmed_DoesNotExecute()
-    {
-        _confirmation.Confirm(Arg.Any<OperationConfirmationRequest>(), Arg.Any<CancellationToken>()).Returns(false);
-        var path = WritePlanFile();
-        try
-        {
-            await _sut.Execute(new ApplyArguments { PlanFile = path }, TestContext.Current.CancellationToken);
-
-            await _executor.DidNotReceive().Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>());
-        }
-        finally
-        {
-            File.Delete(path);
-        }
+        ex.Message.ShouldBe("state store unreachable");
     }
 }

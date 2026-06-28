@@ -12,7 +12,7 @@ public sealed class StateBackedSchemaProviderTests
     private StateBackedSchemaProvider BuildSut() => new(_store, _serializer);
 
     private void Persisted(DatabaseSchema schema) =>
-        _store.Read(Arg.Any<CancellationToken>()).Returns<ReadOnlyMemory<byte>?>(_serializer.Serialize(schema));
+        _store.Read(Arg.Any<CancellationToken>()).Returns(_serializer.Serialize(schema));
 
     [Fact]
     public async Task GetSchema_NoState_ReturnsEmptySchema()
