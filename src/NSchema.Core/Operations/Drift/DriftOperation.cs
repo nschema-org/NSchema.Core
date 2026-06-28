@@ -22,6 +22,6 @@ internal sealed class DriftOperation(ICurrentSchemaProvider currentProvider, ISc
         // Diff direction: recorded -> live, so the changes describe how the live database has drifted from what we
         // recorded (an added object appears as Add, an out-of-band drop as Remove).
         var diff = comparer.Compare(recorded, live);
-        return Result<DriftResult>.Success(new DriftResult(diff));
+        return Result.Success(new DriftResult(diff));
     }
 }

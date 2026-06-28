@@ -19,9 +19,9 @@ internal sealed class DoctorOperation(
     ISchemaProvider? online = null,
     ISchemaStateStore? store = null,
     IStateLock? stateLock = null
-) : IOperation<DoctorArguments, Result>
+) : IOperation<DoctorArguments, Result<DoctorResult>>
 {
-    public async Task<Result> Execute(DoctorArguments arguments, CancellationToken cancellationToken = default)
+    public async Task<Result<DoctorResult>> Execute(DoctorArguments arguments, CancellationToken cancellationToken = default)
     {
         var diagnostics = new List<Diagnostic>
         {
@@ -36,7 +36,7 @@ internal sealed class DoctorOperation(
             diagnostics.Add(await CheckStateLock(stateLock, cancellationToken));
         }
 
-        return Result.From(diagnostics);
+        return Result.From(new DoctorResult(), diagnostics);
     }
 
     private async Task<Diagnostic> CheckDatabase(CancellationToken cancellationToken)

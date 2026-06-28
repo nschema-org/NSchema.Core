@@ -12,9 +12,9 @@ namespace NSchema.Operations.Import;
 /// already exist.
 /// </summary>
 internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IProgress<OperationProgress> progress)
-    : IOperation<ImportArguments, Result>
+    : IOperation<ImportArguments, Result<ImportResult>>
 {
-    public async Task<Result> Execute(ImportArguments arguments, CancellationToken cancellationToken = default)
+    public async Task<Result<ImportResult>> Execute(ImportArguments arguments, CancellationToken cancellationToken = default)
     {
         var schema = await currentSchema.GetSchema(SchemaSourceMode.Online, arguments.Schemas, cancellationToken: cancellationToken);
         progress.Report(OperationProgress.Detail($"Fetched {Census.Describe(schema)} from the database."));
@@ -34,7 +34,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
                 cancellationToken);
         }
 
-        return Result.Success();
+        return Result.Success(new ImportResult());
     }
 
     // Each major object (table, view, routine) gets its own file, grouped by type under the schema's directory;
