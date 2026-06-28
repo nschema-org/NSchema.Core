@@ -12,6 +12,9 @@ namespace NSchema.State;
 /// </remarks>
 internal sealed class StateLockCoordinator(IStateLock? stateLock = null) : IStateLockCoordinator
 {
+    public async Task<StateLockInfo?> Peek(CancellationToken cancellationToken = default) =>
+        stateLock is null ? null : await stateLock.Peek(cancellationToken);
+
     public async Task<Result<IStateLockHandle>> Acquire(string operation, bool skipLock = false, CancellationToken cancellationToken = default)
     {
         // No backend lock to take — this is an ordinary offline run, not a deliberate skip, so say nothing.

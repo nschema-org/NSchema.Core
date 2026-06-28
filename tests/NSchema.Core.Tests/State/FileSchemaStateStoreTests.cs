@@ -56,4 +56,30 @@ public sealed class FileSchemaStateStoreTests : IDisposable
         result.ShouldNotBeNull();
         result.Value.ToArray().ShouldBe(payload);
     }
+
+    [Fact]
+    public async Task Write_Overwrites_AnExistingFile()
+    {
+        var sut = new FileSchemaStateStore(_options);
+
+        await sut.Write(Encoding.UTF8.GetBytes("old"), TestContext.Current.CancellationToken);
+        await sut.Write(Encoding.UTF8.GetBytes("new"), TestContext.Current.CancellationToken);
+
+        var result = await sut.Read(TestContext.Current.CancellationToken);
+        result!.Value.ToArray().ShouldBe(Encoding.UTF8.GetBytes("new"));
+    }
+
+    [Fact]
+    public async Task Write_LeavesNoTempFilesBehind()
+    {
+        var sut = new FileSchemaStateStore(_options);
+
+        await sut.Write(Encoding.UTF8.GetBytes("a"), TestContext.Current.CancellationToken);
+        await sut.Write(Encoding.UTF8.GetBytes("b"), TestContext.Current.CancellationToken);
+
+        // The atomic write renames a temp file into place; nothing temporary should survive a successful write.
+        var directory = Path.GetDirectoryName(_path)!;
+        Directory.EnumerateFiles(directory, "*.tmp").ShouldBeEmpty();
+        Directory.EnumerateFiles(directory).ShouldHaveSingleItem().ShouldBe(_path);
+    }
 }

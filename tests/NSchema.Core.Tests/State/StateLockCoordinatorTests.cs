@@ -72,4 +72,25 @@ public sealed class StateLockCoordinatorTests
 
         _stateLock.Released.ShouldBe(1);
     }
+
+    [Fact]
+    public async Task Peek_NoLockBackend_ReturnsNull()
+    {
+        // Nothing to peek when the state is unlockable — reads the same as free.
+        var info = await new StateLockCoordinator(stateLock: null).Peek(TestContext.Current.CancellationToken);
+
+        info.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Peek_ReadsTheHolderWithoutAcquiring()
+    {
+        _stateLock.PeekResult = new StateLockInfo("id", "apply", "tom@dev", DateTimeOffset.UnixEpoch);
+
+        var info = await new StateLockCoordinator(_stateLock).Peek(TestContext.Current.CancellationToken);
+
+        info.ShouldNotBeNull().Who.ShouldBe("tom@dev");
+        _stateLock.Peeks.ShouldBe(1);
+        _stateLock.Acquisitions.ShouldBeEmpty();
+    }
 }
