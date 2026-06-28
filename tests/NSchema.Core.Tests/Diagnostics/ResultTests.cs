@@ -77,7 +77,7 @@ public sealed class ResultTests
     public void ResultT_Success_ExposesValue()
     {
         // Act
-        var result = Result<string>.Success("payload");
+        var result = Result.Success<string>("payload");
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -92,7 +92,7 @@ public sealed class ResultTests
         var error = Error();
 
         // Act
-        var result = Result<string>.Failure(error);
+        var result = Result.Failure<string>(error);
 
         // Assert
         result.IsSuccess.ShouldBeFalse();
@@ -138,7 +138,7 @@ public sealed class ResultTests
     public void Match_InvokesSuccessBranch_WithValue()
     {
         // Arrange
-        var result = Result<int>.Success(7);
+        var result = Result.Success<int>(7);
 
         // Act
         var matched = result.Match(value => $"ok:{value}", _ => "fail");
@@ -151,7 +151,7 @@ public sealed class ResultTests
     public void Match_InvokesFailureBranch_WithDiagnostics()
     {
         // Arrange
-        var result = Result<int>.Failure(Error("nope"));
+        var result = Result.Failure<int>(Error("nope"));
 
         // Act
         var matched = result.Match(value => $"ok:{value}", diagnostics => $"fail:{diagnostics.Count}");
@@ -165,7 +165,7 @@ public sealed class ResultTests
     {
         // Arrange
         var warning = Warning();
-        var result = Result<int>.Success(3, warning);
+        var result = Result.Success<int>(3, warning);
 
         // Act
         var mapped = result.Map(value => value * 2);
@@ -181,7 +181,7 @@ public sealed class ResultTests
     {
         // Arrange
         var error = Error();
-        var result = Result<int>.Failure(error);
+        var result = Result.Failure<int>(error);
         var invoked = false;
 
         // Act

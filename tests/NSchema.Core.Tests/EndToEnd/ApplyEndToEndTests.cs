@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using NSchema.Operations.Apply;
 using NSchema.Operations.Plan;
 using NSchema.Schema;
 using NSchema.Schema.Model;
@@ -62,7 +63,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         // The CLI-style flow: hold the lock, compute the live plan, apply it, release.
         (await app.Locks.Acquire("apply", cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         var plan = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
-        await app.Operations.Apply(plan, TestContext.Current.CancellationToken);
+        await app.Operations.Apply(new ApplyArguments { Sql = plan.Sql }, TestContext.Current.CancellationToken);
 
         // The plan reached the executor as a non-empty SQL plan.
         _executor.Executed.ShouldNotBeNull().Statements.ShouldNotBeEmpty();
@@ -94,7 +95,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         plan.Diff.ShouldNotBeNull().IsEmpty.ShouldBeTrue();
         plan.Sql.ShouldNotBeNull().IsEmpty.ShouldBeTrue();
 
-        await app.Operations.Apply(plan, TestContext.Current.CancellationToken);
+        await app.Operations.Apply(new ApplyArguments { Sql = plan.Sql }, TestContext.Current.CancellationToken);
 
         // Nothing to apply: the empty plan never reaches the executor...
         _executor.Executed.ShouldBeNull();

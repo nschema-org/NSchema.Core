@@ -59,10 +59,9 @@ public sealed class MigrationPlannerTests
         // Act
         var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
 
-        // Assert: the schema stage is fatal — no diff, no plan.
-        result.HasErrors.ShouldBeTrue();
-        result.Plan.ShouldBeNull();
-        result.Diff.ShouldBeNull();
+        // Assert: the schema stage is fatal — no planned migration at all (no diff, no plan).
+        result.IsFailure.ShouldBeTrue();
+        result.Value.ShouldBeNull();
         _comparer.DidNotReceive().Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>());
     }
 
@@ -79,7 +78,7 @@ public sealed class MigrationPlannerTests
         var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
 
         // Assert: a non-error schema finding is carried through alongside the plan.
-        result.HasErrors.ShouldBeFalse();
+        result.IsSuccess.ShouldBeTrue();
         result.Diagnostics.ShouldHaveSingleItem().Message.ShouldBe("lint");
     }
 
@@ -114,10 +113,10 @@ public sealed class MigrationPlannerTests
         var result = Sut.Plan(_emptySchema, _emptySchema, scripts);
 
         // Assert: scripts live on the plan (not interleaved into Actions, which carry only schema changes).
-        result.Plan.ShouldNotBeNull();
-        result.Plan.Actions.ShouldHaveSingleItem().ShouldBe(coreAction);
-        result.Plan.PreDeploymentScripts.ShouldBe([scripts[0]]);
-        result.Plan.PostDeploymentScripts.ShouldBe([scripts[1]]);
+        result.Value.ShouldNotBeNull();
+        result.Value!.Plan.Actions.ShouldHaveSingleItem().ShouldBe(coreAction);
+        result.Value!.Plan.PreDeploymentScripts.ShouldBe([scripts[0]]);
+        result.Value!.Plan.PostDeploymentScripts.ShouldBe([scripts[1]]);
     }
 
     [Fact]
@@ -132,9 +131,9 @@ public sealed class MigrationPlannerTests
         var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
 
         // Assert
-        result.Plan.ShouldNotBeNull();
-        result.Plan.Actions.ShouldHaveSingleItem();
-        result.Plan.Actions[0].ShouldBe(coreAction);
+        result.Value.ShouldNotBeNull();
+        result.Value!.Plan.Actions.ShouldHaveSingleItem();
+        result.Value!.Plan.Actions[0].ShouldBe(coreAction);
     }
 
     [Fact]
@@ -178,9 +177,9 @@ public sealed class MigrationPlannerTests
         var result = Sut.PlanTeardown(new DatabaseSchema([new SchemaDefinition("app")]));
 
         // Assert
-        result.Plan!.Actions.ShouldBe(actions);
-        result.Diff.ShouldBe(_emptyDiff);
-        result.HasErrors.ShouldBeFalse();
+        result.Value!.Plan.Actions.ShouldBe(actions);
+        result.Value!.Diff.ShouldBe(_emptyDiff);
+        result.IsSuccess.ShouldBeTrue();
         result.Diagnostics.Count.ShouldBe(0);
     }
 

@@ -63,7 +63,7 @@ public sealed class PlanFileWriterTests
             new SqlStatement("CREATE INDEX CONCURRENTLY ...", RunOutsideTransaction: true),
         ]);
 
-        return new PlanFileEnvelope(plan, sql, TestData.DestructiveDiff, DateTimeOffset.UnixEpoch);
+        return new PlanFileEnvelope(TestData.DestructiveDiff, plan, sql, DateTimeOffset.UnixEpoch);
     }
 
     [Fact]

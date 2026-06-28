@@ -19,7 +19,7 @@ public sealed class DoctorOperationTests
     private DoctorOperation BuildSut(ISchemaProvider? online = null, ISchemaStateStore? store = null, IStateLock? stateLock = null) =>
         new(_progress, _serializer, online, store, stateLock);
 
-    private Task<Result> Run(DoctorOperation sut) => sut.Execute(new DoctorArguments(), TestContext.Current.CancellationToken);
+    private Task<Result<DoctorResult>> Run(DoctorOperation sut) => sut.Execute(new DoctorArguments(), TestContext.Current.CancellationToken);
 
     [Fact]
     public async Task Run_WhenNothingConfigured_ReportsNeutralAndPasses()
