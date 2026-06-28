@@ -1,93 +1,32 @@
-using Microsoft.Extensions.DependencyInjection;
-using NSchema.Operations.Apply;
-using NSchema.Operations.Destroy;
-using NSchema.Operations.Plan;
-using NSchema.Operations.Refresh;
+using NSchema.Operations.Doctor;
 
 namespace NSchema.Tests;
 
 public sealed class NSchemaApplicationTests
 {
-    private readonly IPlanOperation _planOp = Substitute.For<IPlanOperation>();
-    private readonly IApplyOperation _applyOp = Substitute.For<IApplyOperation>();
-    private readonly IRefreshOperation _refreshOp = Substitute.For<IRefreshOperation>();
-    private readonly IDestroyOperation _destroyOp = Substitute.For<IDestroyOperation>();
-
-    private NSchemaApplication BuildApp(Action<NSchemaApplicationBuilder>? configure = null)
+    [Fact]
+    public async Task Application_IsReusableAcrossMultipleOperations()
     {
-        var builder = NSchemaApplication.CreateBuilder();
-        // Register substitutes before Build() so TryAddSingleton in ApplyServices doesn't override them.
-        builder.Services.AddSingleton(_planOp);
-        builder.Services.AddSingleton(_applyOp);
-        builder.Services.AddSingleton(_refreshOp);
-        builder.Services.AddSingleton(_destroyOp);
-        configure?.Invoke(builder);
-        return builder.Build();
+        // The single-use guard is gone: a front-end drives the full lifecycle through one application instance,
+        // so running more than one operation on it must not throw.
+        using var app = NSchemaApplication.CreateBuilder().Build();
+
+        var first = await app.Operations.Doctor(new DoctorArguments(), TestContext.Current.CancellationToken);
+        var second = await app.Operations.Doctor(new DoctorArguments(), TestContext.Current.CancellationToken);
+
+        first.IsSuccess.ShouldBeTrue();
+        second.IsSuccess.ShouldBeTrue();
     }
 
     [Fact]
-    public async Task Plan_RunsPlanOperation()
+    public async Task Doctor_OnBareApplication_ResolvesAndReportsNothingConfigured()
     {
-        using var app = BuildApp();
+        // Behaviour is exposed directly off the application — a front-end resolves no services itself.
+        using var app = NSchemaApplication.CreateBuilder().Build();
 
-        await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
+        var result = await app.Operations.Doctor(new DoctorArguments(), TestContext.Current.CancellationToken);
 
-        await _planOp.Received(1).Execute(Arg.Any<PlanArguments>(), Arg.Any<CancellationToken>());
-        await _applyOp.DidNotReceive().Execute(Arg.Any<ApplyArguments>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Apply_RunsApplyOperation()
-    {
-        using var app = BuildApp();
-
-        await app.Apply(new ApplyArguments(), TestContext.Current.CancellationToken);
-
-        await _applyOp.Received(1).Execute(Arg.Any<ApplyArguments>(), Arg.Any<CancellationToken>());
-        await _planOp.DidNotReceive().Execute(Arg.Any<PlanArguments>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Refresh_RunsRefreshOperation()
-    {
-        using var app = BuildApp();
-
-        await app.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken);
-
-        await _refreshOp.Received(1).Execute(Arg.Any<RefreshArguments>(), Arg.Any<CancellationToken>());
-        await _applyOp.DidNotReceive().Execute(Arg.Any<ApplyArguments>(), Arg.Any<CancellationToken>());
-        await _planOp.DidNotReceive().Execute(Arg.Any<PlanArguments>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Destroy_RunsDestroyOperation()
-    {
-        using var app = BuildApp();
-
-        await app.Destroy(new DestroyArguments(), TestContext.Current.CancellationToken);
-
-        await _destroyOp.Received(1).Execute(Arg.Any<DestroyArguments>(), Arg.Any<CancellationToken>());
-        await _applyOp.DidNotReceive().Execute(Arg.Any<ApplyArguments>(), Arg.Any<CancellationToken>());
-        await _planOp.DidNotReceive().Execute(Arg.Any<PlanArguments>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Plan_ForwardsProvidedArguments()
-    {
-        using var app = BuildApp();
-        var arguments = new PlanArguments();
-
-        await app.Plan(arguments, TestContext.Current.CancellationToken);
-
-        await _planOp.Received(1).Execute(arguments, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task SecondRun_Throws()
-    {
-        using var app = BuildApp();
-        await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
-
-        await Should.ThrowAsync<InvalidOperationException>(() => app.Apply(new ApplyArguments()));
+        result.IsSuccess.ShouldBeTrue();
+        result.Diagnostics.ShouldContain(d => d.Message.Contains("not configured"));
     }
 }

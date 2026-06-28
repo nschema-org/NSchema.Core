@@ -1,5 +1,4 @@
 using NSchema.Diagnostics;
-using NSchema.Operations;
 using NSchema.Operations.Progress;
 using NSchema.Operations.Doctor;
 using NSchema.Schema;
@@ -13,18 +12,17 @@ namespace NSchema.Tests.Operations.Doctor;
 
 public sealed class DoctorOperationTests
 {
-    private readonly RecordingReporter _reporter = new();
     private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
     private readonly ISchemaStateSerializer _serializer = new SchemaStateSerializer();
     private readonly RecordingStateLock _stateLock = new();
 
     private DoctorOperation BuildSut(ISchemaProvider? online = null, ISchemaStateStore? store = null, IStateLock? stateLock = null) =>
-        new(_reporter, _progress, _serializer, online, store, stateLock);
+        new(_progress, _serializer, online, store, stateLock);
 
     private Task<Result> Run(DoctorOperation sut) => sut.Execute(new DoctorArguments(), TestContext.Current.CancellationToken);
 
     [Fact]
-    public async Task Execute_WhenNothingConfigured_ReportsNeutralAndPasses()
+    public async Task Run_WhenNothingConfigured_ReportsNeutralAndPasses()
     {
         // Arrange
         var sut = BuildSut(online: null, store: null);
@@ -39,42 +37,39 @@ public sealed class DoctorOperationTests
             "Database: not configured (offline mode).",
             "State store: not configured (offline planning unavailable).",
         ]);
-        _reporter.Messages.ShouldContain((MessageKind.Announcement, "Database: not configured (offline mode)."));
-        _reporter.Messages.ShouldContain((MessageKind.Announcement, "State store: not configured (offline planning unavailable)."));
-        _reporter.Messages.ShouldContain((MessageKind.Success, "All checks passed."));
     }
 
     [Fact]
-    public async Task Execute_WhenNoLockConfigured_DoesNotProbeTheLock()
+    public async Task Run_WhenNoLockConfigured_DoesNotProbeTheLock()
     {
         // Arrange — no backend provides a lock, so there is nothing to probe (stateLock is not wired).
         var sut = BuildSut(online: null, store: null, stateLock: null);
 
         // Act
-        await Run(sut);
+        var result = await Run(sut);
 
         // Assert
         _stateLock.Peeks.ShouldBe(0);
-        _reporter.Messages.ShouldNotContain(m => m.Message.StartsWith("State lock:"));
+        result.Diagnostics.ShouldNotContain(d => d.Message.StartsWith("State lock:"));
     }
 
     [Fact]
-    public async Task Execute_WhenDatabaseReachable_ReportsConnectedWithSchemaCount()
+    public async Task Run_WhenDatabaseReachable_ReportsConnectedWithSchemaCount()
     {
         // Arrange
         var schema = new DatabaseSchema(Schemas: [new SchemaDefinition("app"), new SchemaDefinition("billing")]);
         var sut = BuildSut(online: new InMemorySchemaProvider(schema));
 
         // Act
-        await Run(sut);
+        var result = await Run(sut);
 
         // Assert
-        _reporter.Messages.ShouldContain((MessageKind.Success, "Database: connected (2 schemas visible)."));
-        _reporter.Messages.ShouldContain((MessageKind.Success, "All checks passed."));
+        result.IsSuccess.ShouldBeTrue();
+        result.Diagnostics.Select(d => d.Message).ShouldContain("Database: connected (2 schemas visible).");
     }
 
     [Fact]
-    public async Task Execute_WhenDatabaseUnreachable_ReportsAndFails()
+    public async Task Run_WhenDatabaseUnreachable_ReportsAndFails()
     {
         // Arrange
         var sut = BuildSut(online: new ThrowingSchemaProvider(new InvalidOperationException("connection refused")));
@@ -87,25 +82,23 @@ public sealed class DoctorOperationTests
         result.Errors.ShouldHaveSingleItem().Message.ShouldSatisfyAllConditions(
             m => m.ShouldContain("Database: unreachable"),
             m => m.ShouldContain("connection refused"));
-        _reporter.Messages.ShouldContain(m => m.Kind == MessageKind.Warning && m.Message.Contains("Database: unreachable") && m.Message.Contains("connection refused"));
-        _reporter.Infos.ShouldNotContain("All checks passed.");
     }
 
     [Fact]
-    public async Task Execute_WhenStateStoreEmpty_ReportsBootstrap()
+    public async Task Run_WhenStateStoreEmpty_ReportsBootstrap()
     {
         // Arrange — a store with nothing written yet (bootstrap).
         var sut = BuildSut(store: new RecordingStateStore());
 
         // Act
-        await Run(sut);
+        var result = await Run(sut);
 
         // Assert
-        _reporter.Messages.ShouldContain((MessageKind.Success, "State store: reachable (no state recorded yet)."));
+        result.Diagnostics.Select(d => d.Message).ShouldContain("State store: reachable (no state recorded yet).");
     }
 
     [Fact]
-    public async Task Execute_WhenStateStoreHasValidSnapshot_ReportsValid()
+    public async Task Run_WhenStateStoreHasValidSnapshot_ReportsValid()
     {
         // Arrange
         var store = new RecordingStateStore();
@@ -113,14 +106,14 @@ public sealed class DoctorOperationTests
         var sut = BuildSut(store: store);
 
         // Act
-        await Run(sut);
+        var result = await Run(sut);
 
         // Assert
-        _reporter.Messages.ShouldContain((MessageKind.Success, "State store: reachable, recorded state is valid."));
+        result.Diagnostics.Select(d => d.Message).ShouldContain("State store: reachable, recorded state is valid.");
     }
 
     [Fact]
-    public async Task Execute_WhenStateStoreUnreachable_ReportsAndFails()
+    public async Task Run_WhenStateStoreUnreachable_ReportsAndFails()
     {
         // Arrange
         var sut = BuildSut(store: new ThrowingStateStore(new IOException("bucket not found")));
@@ -130,12 +123,13 @@ public sealed class DoctorOperationTests
 
         // Assert
         result.IsFailure.ShouldBeTrue();
-        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("State store: unreachable");
-        _reporter.Messages.ShouldContain(m => m.Kind == MessageKind.Warning && m.Message.Contains("State store: unreachable") && m.Message.Contains("bucket not found"));
+        result.Errors.ShouldHaveSingleItem().Message.ShouldSatisfyAllConditions(
+            m => m.ShouldContain("State store: unreachable"),
+            m => m.ShouldContain("bucket not found"));
     }
 
     [Fact]
-    public async Task Execute_WhenRecordedStateCorrupt_ReportsUnreadableAndFails()
+    public async Task Run_WhenRecordedStateCorrupt_ReportsUnreadableAndFails()
     {
         // Arrange — a payload the serializer cannot deserialize.
         var store = new ContentStateStore(new byte[] { 0x00, 0x01, 0x02 });
@@ -147,26 +141,25 @@ public sealed class DoctorOperationTests
         // Assert
         result.IsFailure.ShouldBeTrue();
         result.Errors.ShouldHaveSingleItem().Message.ShouldContain("recorded state is unreadable");
-        _reporter.Messages.ShouldContain(m => m.Kind == MessageKind.Warning && m.Message.Contains("recorded state is unreadable"));
     }
 
     [Fact]
-    public async Task Execute_WhenStoreConfigured_ReadsTheLockWithoutAcquiringIt()
+    public async Task Run_WhenStoreConfigured_ReadsTheLockWithoutAcquiringIt()
     {
         // Arrange
         var sut = BuildSut(store: new RecordingStateStore(), stateLock: _stateLock);
 
         // Act
-        await Run(sut);
+        var result = await Run(sut);
 
         // Assert — a read-only peek: the lock is read, never acquired (which would momentarily contend).
         _stateLock.Peeks.ShouldBe(1);
         _stateLock.Acquisitions.ShouldBeEmpty();
-        _reporter.Messages.ShouldContain((MessageKind.Success, "State lock: free."));
+        result.Diagnostics.Select(d => d.Message).ShouldContain("State lock: free.");
     }
 
     [Fact]
-    public async Task Execute_WhenLockHeld_ReportsHolderButDoesNotFail()
+    public async Task Run_WhenLockHeld_ReportsHolderButDoesNotFail()
     {
         // Arrange
         _stateLock.PeekResult = new StateLockInfo("id", "apply", "tom@dev", DateTimeOffset.UnixEpoch);
@@ -177,13 +170,12 @@ public sealed class DoctorOperationTests
 
         // Assert — surfaced as a warning diagnostic, but the result is still a success.
         result.IsSuccess.ShouldBeTrue();
-        result.Diagnostics.ShouldContain(d => d.Severity == DiagnosticSeverity.Warning && d.Message.Contains("State lock: held by"));
-        _reporter.Messages.ShouldContain(m => m.Kind == MessageKind.Warning && m.Message.Contains("State lock: held by") && m.Message.Contains("tom@dev") && m.Message.Contains("apply"));
-        _reporter.Messages.ShouldContain((MessageKind.Success, "All checks passed."));
+        result.Diagnostics.ShouldContain(d => d.Severity == DiagnosticSeverity.Warning
+            && d.Message.Contains("State lock: held by") && d.Message.Contains("tom@dev") && d.Message.Contains("apply"));
     }
 
     [Fact]
-    public async Task Execute_WhenMultipleChecksFail_AggregatesAllOfThem()
+    public async Task Run_WhenMultipleChecksFail_AggregatesAllOfThem()
     {
         // Arrange
         var sut = BuildSut(

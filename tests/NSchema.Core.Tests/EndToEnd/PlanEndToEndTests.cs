@@ -17,7 +17,6 @@ namespace NSchema.Tests.EndToEnd;
 public sealed class PlanEndToEndTests : IDisposable
 {
     private readonly string _tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-    private readonly RecordingReporter _reporter = new();
 
     public PlanEndToEndTests() => Directory.CreateDirectory(_tempDir);
     public void Dispose() => Directory.Delete(_tempDir, recursive: true);
@@ -32,7 +31,6 @@ public sealed class PlanEndToEndTests : IDisposable
     private NSchemaApplicationBuilder NewBuilder(DatabaseSchema current)
     {
         var builder = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions());
-        builder.UseReporter(_reporter);
         builder.Services.AddKeyedSingleton<ISchemaProvider>(NSchemaKeys.OnlineSchemaProvider, new InMemorySchemaProvider(current));
         return builder;
     }
@@ -60,7 +58,7 @@ public sealed class PlanEndToEndTests : IDisposable
 
         using var app = NewBuilder(current).AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).Build();
 
-        var result = await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
+        var result = await app.Operations.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
         var schema = result.Value.ShouldNotBeNull().Diff.ShouldNotBeNull().Schemas.ShouldHaveSingleItem();
         schema.Name.ShouldBe("app");
@@ -91,7 +89,7 @@ public sealed class PlanEndToEndTests : IDisposable
 
         using var app = NewBuilder(schema).AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).Build();
 
-        var result = await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
+        var result = await app.Operations.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
         result.Value.ShouldNotBeNull().Diff.ShouldNotBeNull().IsEmpty.ShouldBeTrue();
     }
@@ -107,7 +105,7 @@ public sealed class PlanEndToEndTests : IDisposable
             .UseSqlGenerator<StubSqlGenerator>()
             .Build();
 
-        var result = await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
+        var result = await app.Operations.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
         // The stub emits one statement per action; creating a schema yields a CreateSchema action.
         result.Value.ShouldNotBeNull().Sql.ShouldNotBeNull().Statements.ShouldNotBeEmpty();
@@ -121,10 +119,32 @@ public sealed class PlanEndToEndTests : IDisposable
 
         using var app = NewBuilder(current).AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).Build();
 
-        var result = await app.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
+        var result = await app.Operations.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
-        // No provider: the "no SQL preview" notice is now carried back as a warning diagnostic, not reporter output.
-        _reporter.SqlPlan.ShouldBeNull();
+        // No provider: no SQL preview is generated, and the notice is carried back as a warning diagnostic.
+        result.Value.ShouldNotBeNull().Sql.ShouldBeNull();
         result.Diagnostics.ShouldContain(d => d.Message.Contains("Unable to generate SQL preview"));
+    }
+
+    [Fact]
+    public async Task Plan_Teardown_DiffsTheManagedSchemaDownToNothing()
+    {
+        // With no state store the managed schema is the desired *.sql; a teardown drops all of it.
+        var desired = WriteDdl("schema.sql",
+            """
+            CREATE SCHEMA app;
+            CREATE TABLE app.users
+            (
+                id int NOT NULL
+            );
+            """);
+
+        using var app = NewBuilder(new DatabaseSchema([])).AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).Build();
+
+        var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Teardown }, TestContext.Current.CancellationToken);
+
+        // The teardown plan drops the managed table.
+        var schema = result.Value.ShouldNotBeNull().Diff.ShouldNotBeNull().Schemas.ShouldHaveSingleItem();
+        schema.Tables.ShouldContain(t => t.Name == "users" && t.Kind == ChangeKind.Remove);
     }
 }

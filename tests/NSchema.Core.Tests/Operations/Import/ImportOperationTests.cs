@@ -1,4 +1,3 @@
-using NSchema.Operations;
 using NSchema.Operations.Import;
 using NSchema.Operations.Progress;
 using NSchema.Schema;
@@ -20,7 +19,6 @@ public sealed class ImportOperationTests : IDisposable
 {
     private readonly string _dir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
     private readonly ICurrentSchemaProvider _currentSchema = Substitute.For<ICurrentSchemaProvider>();
-    private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
     private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
 
     // Tables carry a column because the DDL grammar has no empty-table form.
@@ -41,7 +39,7 @@ public sealed class ImportOperationTests : IDisposable
         .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
         .Returns(ValueTask.FromResult(schema));
 
-    private ImportOperation BuildSut() => new(_currentSchema, _reporter, _progress);
+    private ImportOperation BuildSut() => new(_currentSchema, _progress);
 
     private Task Execute(ImportArguments arguments) =>
         BuildSut().Execute(arguments, TestContext.Current.CancellationToken);
@@ -86,15 +84,6 @@ public sealed class ImportOperationTests : IDisposable
 
         await _currentSchema.Received(1).GetSchema(
             SchemaSourceMode.Online, arguments.Schemas, Arg.Any<bool>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Execute_ReportsProgress()
-    {
-        await Execute(new ImportArguments { OutputDirectory = _dir });
-
-        _reporter.Received(1).Report(MessageKind.Announcement, "Importing schema from database...");
-        _reporter.Received(1).Report(MessageKind.Success, "Schema imported successfully.");
     }
 
     [Fact]

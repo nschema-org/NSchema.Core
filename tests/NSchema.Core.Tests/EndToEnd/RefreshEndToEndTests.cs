@@ -46,7 +46,7 @@ public sealed class RefreshEndToEndTests : IDisposable
             .Tap(b => b.Services.AddKeyedSingleton<ISchemaProvider>(NSchemaKeys.OnlineSchemaProvider, new InMemorySchemaProvider(LiveSchema())))
             .Build();
 
-        await app.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken);
+        await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken);
 
         store.Written.ShouldNotBeNull().Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
     }
@@ -60,11 +60,10 @@ public sealed class RefreshEndToEndTests : IDisposable
             .Tap(b => b.Services.AddKeyedSingleton<ISchemaProvider>(NSchemaKeys.OnlineSchemaProvider, new InMemorySchemaProvider(LiveSchema())))
             .Build())
         {
-            await capture.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken);
+            await capture.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken);
         }
 
         // 2. Plan offline against the captured state with a matching desired schema — no live database involved.
-        var reporter = new RecordingReporter();
         var desired = WriteDdl("schema.sql",
             """
             CREATE SCHEMA app;
@@ -77,10 +76,9 @@ public sealed class RefreshEndToEndTests : IDisposable
         using var planner = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions())
             .UseFileStateStore(_statePath)
             .AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired))
-            .UseReporter(reporter)
             .Build();
 
-        var result = await planner.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
+        var result = await planner.Operations.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
         result.Value.ShouldNotBeNull().Diff.ShouldNotBeNull().IsEmpty.ShouldBeTrue();
     }

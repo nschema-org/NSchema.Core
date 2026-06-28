@@ -1,6 +1,5 @@
 using NSchema.Diff.Model;
 using NSchema.Diagnostics;
-using NSchema.Operations;
 using NSchema.Operations.Progress;
 using NSchema.Operations.Services;
 using NSchema.Plan;
@@ -19,14 +18,13 @@ namespace NSchema.Tests.Operations.Services;
 public sealed class MigrationWorkflowTests
 {
     private readonly IMigrationPlanner _planner = Substitute.For<IMigrationPlanner>();
-    private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
     private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
     private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
     private readonly IDesiredSchemaProvider _desiredProvider = Substitute.For<IDesiredSchemaProvider>();
     private readonly ISchemaStateSerializer _stateSerializer = new SchemaStateSerializer();
 
     private MigrationWorkflow BuildSut(ISchemaStateStore? store = null) =>
-        new(_planner, _reporter, _progress, _currentProvider, _desiredProvider, _stateSerializer, store);
+        new(_planner, _progress, _currentProvider, _desiredProvider, _stateSerializer, store);
 
     private static DesiredProject Project(DatabaseSchema schema) => new(schema, []);
 
@@ -82,7 +80,6 @@ public sealed class MigrationWorkflowTests
         // Assert — the failure is carried back, not thrown; the workflow no longer renders it (the caller does).
         result.IsFailure.ShouldBeTrue();
         result.Errors.ShouldHaveSingleItem().Message.ShouldBe("msg");
-        _reporter.DidNotReceive().ReportDiagnostics(Arg.Any<PolicyDiagnostics>());
     }
 
     [Fact]
@@ -98,7 +95,6 @@ public sealed class MigrationWorkflowTests
         // Assert — advisories ride along in a successful result rather than being reported here.
         result.IsSuccess.ShouldBeTrue();
         result.Diagnostics.ShouldHaveSingleItem().Message.ShouldBe("info");
-        _reporter.DidNotReceive().ReportDiagnostics(Arg.Any<PolicyDiagnostics>());
     }
 
     [Fact]
@@ -128,7 +124,6 @@ public sealed class MigrationWorkflowTests
         // Assert — the result is returned for the caller to render; the workflow renders nothing itself.
         result.Plan.ShouldBe(plan);
         result.Diff.ShouldBe(diff);
-        _reporter.DidNotReceive().ReportDiff(Arg.Any<DatabaseDiff>());
     }
 
     [Fact]
@@ -194,8 +189,6 @@ public sealed class MigrationWorkflowTests
         // Assert
         result.HasErrors.ShouldBeTrue();
         result.Diagnostics.Errors.ShouldHaveSingleItem().Message.ShouldBe("msg");
-        _reporter.DidNotReceive().ReportDiagnostics(Arg.Any<PolicyDiagnostics>());
-        _reporter.DidNotReceive().ReportDiff(Arg.Any<DatabaseDiff>());
     }
 
     [Fact]
@@ -214,7 +207,6 @@ public sealed class MigrationWorkflowTests
         // Assert
         result.HasErrors.ShouldBeTrue();
         result.Diff.ShouldBe(diff);
-        _reporter.DidNotReceive().ReportDiff(Arg.Any<DatabaseDiff>());
     }
 
     [Fact]
@@ -231,7 +223,6 @@ public sealed class MigrationWorkflowTests
 
         // Assert — advisories ride in the result, rendered by the caller, not reported here.
         result.Diagnostics.ShouldBe(diagnostics);
-        _reporter.DidNotReceive().ReportDiagnostics(Arg.Any<PolicyDiagnostics>());
     }
 
     [Fact]
@@ -340,7 +331,6 @@ public sealed class MigrationWorkflowTests
         // Assert
         result.Plan.ShouldBe(plan);
         result.Diff.ShouldBe(diff);
-        _reporter.DidNotReceive().ReportDiff(Arg.Any<DatabaseDiff>());
     }
 
     [Fact]
