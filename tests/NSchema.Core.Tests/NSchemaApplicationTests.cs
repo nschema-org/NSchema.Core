@@ -1,9 +1,24 @@
 using NSchema.Operations.Doctor;
+using NSchema.Plan.PlanFile;
+using NSchema.Schema;
 
 namespace NSchema.Tests;
 
 public sealed class NSchemaApplicationTests
 {
+    [Fact]
+    public void ExposesTheConsumerSurfaces_OffTheApplication()
+    {
+        // A front-end reaches everything through `app.X` rather than resolving services itself.
+        using var app = NSchemaApplication.CreateBuilder().Build();
+
+        app.Operations.ShouldNotBeNull();
+        app.Locks.ShouldNotBeNull();
+        app.CurrentSchema.ShouldBeAssignableTo<ICurrentSchemaProvider>();
+        app.PlanFile.ShouldBeAssignableTo<IPlanFileWriter>();
+    }
+
+
     [Fact]
     public async Task Application_IsReusableAcrossMultipleOperations()
     {
