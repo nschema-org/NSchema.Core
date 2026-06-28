@@ -1,154 +1,60 @@
 using NSchema.Diagnostics;
-using NSchema.Operations.Confirmation;
+using NSchema.Operations.Plan;
 using NSchema.Operations.Progress;
 using NSchema.Operations.Services;
-using NSchema.Plan.PlanFile;
-using NSchema.Schema;
 using NSchema.Sql;
-using NSchema.State;
+using NSchema.Sql.Model;
 
 namespace NSchema.Operations.Apply;
 
-internal sealed class ApplyOperation(
-    IOperationReporter reporter,
-    IProgress<OperationProgress> progress,
-    IOperationConfirmation confirmation,
-    IMigrationWorkflow workflow,
-    IPlanFileWriter planFile,
-    IStateLock? stateLock = null,
-    ISqlGenerator? sqlGenerator = null,
-    ISqlExecutor? sqlExecutor = null
-) : IApplyOperation
+/// <summary>
+/// Applies a computed plan.
+/// </summary>
+internal sealed class ApplyOperation(IMigrationWorkflow workflow, IProgress<OperationProgress> progress, ISqlExecutor? sqlExecutor = null)
+    : IOperation<PlanResult, Result>
 {
-    public async Task<Result> Execute(ApplyArguments arguments, CancellationToken cancellationToken = default)
+    public async Task<Result> Execute(PlanResult plan, CancellationToken cancellationToken = default)
     {
-        if (sqlGenerator is null || sqlExecutor is null)
+        // No SQL to run — either the target already matches or no provider generated a plan. Still capture state so a
+        // first run against an already-matching target initialises the store.
+        if (plan.Sql is null or { IsEmpty: true })
         {
-            return Result.Failure(Diagnostic.Error("apply", "Applying a migration requires a database provider to generate and execute SQL, but none is registered."));
-        }
-
-        if (arguments.PlanFile is not null)
-        {
-            return await ApplyFromFile(arguments.PlanFile, sqlExecutor, arguments.SkipLock, cancellationToken);
-        }
-
-        reporter.Announce("Applying schema migration. Changes will be applied to the database.");
-
-        // Hold the state lock for the whole operation so a concurrent apply/destroy/refresh can't run against the same state.
-        var stateLockHandle = await StateLockGuard.AcquireOrSkip(stateLock, reporter, "apply", arguments.SkipLock, cancellationToken);
-        try
-        {
-            var planned = await workflow.ComputePlan(SchemaSourceMode.Online, required: true, arguments.Schemas, cancellationToken);
-
-            // Show the diff first — even on a policy error — so the offending change is visible.
-            if (planned.Diff is not null)
-            {
-                reporter.ReportDiff(planned.Diff);
-            }
-
-            // A blocked policy is carried back as a failed result rather than thrown.
-            if (planned.HasErrors)
-            {
-                return Result.Failure(planned.Diagnostics);
-            }
-
-            reporter.ReportPlan(planned.Plan);
-
-            progress.Report(OperationProgress.Step("Generating SQL..."));
-            var sqlPlan = sqlGenerator.Generate(planned.Plan);
-
-            // The database already matches the desired schema: there's nothing to confirm or execute. Still capture
-            // state, so a first run against an already-matching database initialises the store.
-            if (sqlPlan.IsEmpty)
-            {
-                reporter.Success("No changes. The database already matches the desired schema.");
-                await workflow.Refresh(RefreshMode.Optional, cancellationToken);
-                return Result.Success([.. planned.Diagnostics]);
-            }
-
-            reporter.ReportSqlPlan(sqlPlan);
-
-            // Offer an interactive front-end the chance to prompt before any changes are made.
-            if (!await confirmation.Confirm(new ApplyConfirmationRequest(planned.Plan), cancellationToken))
-            {
-                reporter.Announce("Apply cancelled. No changes were made to the database.");
-                return Result.Success([.. planned.Diagnostics]);
-            }
-
-            progress.Report(OperationProgress.Step("Running schema migration..."));
-            progress.Report(OperationProgress.Detail(RunSummary.DescribeExecution(sqlPlan)));
-
-            try
-            {
-                await sqlExecutor.Execute(sqlPlan, cancellationToken);
-                reporter.Success($"Apply complete. {RunSummary.Describe(planned.Diff, sqlPlan)}.");
-            }
-            finally
-            {
-                // Capture the resulting state when a store is configured; a no-op otherwise. This runs even when
-                // execution failed partway (e.g. an un-transacted plan) so the store reflects what was actually applied.
-                await workflow.Refresh(RefreshMode.Optional, cancellationToken);
-            }
-
-            return Result.Success([.. planned.Diagnostics]);
-        }
-        finally
-        {
-            // Release with an uncancellable token so a cancelled apply still frees its own lock.
-            if (stateLockHandle is not null)
-            {
-                await stateLockHandle.Release(CancellationToken.None);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Applies a previously saved plan file.
-    /// </summary>
-    private async Task<Result> ApplyFromFile(string path, ISqlExecutor sqlExecutor, bool skipLock, CancellationToken cancellationToken)
-    {
-        var envelope = await planFile.Read(path, cancellationToken);
-
-        reporter.Announce($"Applying saved plan from {path}. Changes will be applied to the database.");
-        progress.Report(OperationProgress.Detail($"Saved plan was created at {envelope.CreatedAt:u}."));
-
-        var stateLockHandle = await StateLockGuard.AcquireOrSkip(stateLock, reporter, "apply", skipLock, cancellationToken);
-        try
-        {
-            // Report the same diff/plan/SQL view the plan step produced, so applying a saved plan looks identical.
-            reporter.ReportDiff(envelope.Diff);
-            reporter.ReportPlan(envelope.Plan);
-            reporter.ReportSqlPlan(envelope.Sql);
-
-            if (!await confirmation.Confirm(new ApplyConfirmationRequest(envelope.Plan), cancellationToken))
-            {
-                reporter.Announce("Apply cancelled. No changes were made to the database.");
-                return Result.Success();
-            }
-
-            progress.Report(OperationProgress.Step("Applying plan..."));
-            progress.Report(OperationProgress.Detail(RunSummary.DescribeExecution(envelope.Sql)));
-
-            try
-            {
-                await sqlExecutor.Execute(envelope.Sql, cancellationToken);
-                reporter.Success($"Apply complete. {RunSummary.Describe(envelope.Diff, envelope.Sql)}.");
-            }
-            finally
-            {
-                // Capture the resulting state when a store is configured; a no-op otherwise. This runs even when
-                // execution failed partway (e.g. an un-transacted plan) so the store reflects what was actually applied.
-                await workflow.Refresh(RefreshMode.Optional, cancellationToken);
-            }
-
+            await workflow.Refresh(RefreshMode.Optional, cancellationToken);
             return Result.Success();
         }
+
+        if (sqlExecutor is null)
+        {
+            return Result.Failure(Diagnostic.Error("apply", "Applying a plan requires a database provider to execute SQL, but none is registered."));
+        }
+
+        progress.Report(OperationProgress.Step("Applying the migration plan..."));
+        progress.Report(OperationProgress.Detail(DescribeExecution(plan.Sql)));
+
+        try
+        {
+            await sqlExecutor.Execute(plan.Sql, cancellationToken);
+        }
         finally
         {
-            if (stateLockHandle is not null)
-            {
-                await stateLockHandle.Release(CancellationToken.None);
-            }
+            // Capture the resulting state when a store is configured; a no-op otherwise. This runs even when execution
+            // failed partway (e.g. an un-transacted plan) so the store reflects what was actually applied.
+            await workflow.Refresh(RefreshMode.Optional, cancellationToken);
         }
+
+        return Result.Success();
+    }
+
+    // A verbose progress line: the statement count and how many must run outside a transaction (e.g.
+    // CREATE INDEX CONCURRENTLY) — the atomicity-breakers worth knowing about when diagnosing a partial apply.
+    private static string DescribeExecution(SqlPlan sql)
+    {
+        var count = sql.Statements.Count;
+        var statements = count == 1 ? "1 statement" : $"{count} statements";
+        var outside = sql.Statements.Count(s => s.RunOutsideTransaction);
+
+        return outside == 0
+            ? $"Executing {statements}."
+            : $"Executing {statements} ({outside} must run outside a transaction).";
     }
 }
