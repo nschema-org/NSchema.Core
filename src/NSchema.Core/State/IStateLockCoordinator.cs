@@ -1,9 +1,10 @@
 using NSchema.Diagnostics;
+using NSchema.State.Model;
 
 namespace NSchema.State;
 
 /// <summary>
-/// The consumer-facing surface for taking the state lock around an operation.
+/// The consumer-facing surface for managing state locks around an operation.
 /// </summary>
 public interface IStateLockCoordinator
 {
@@ -21,4 +22,11 @@ public interface IStateLockCoordinator
     /// <param name="skipLock">When <see langword="true"/>, runs without acquiring (e.g. <c>--no-lock</c>).</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     Task<Result<IStateLockHandle>> Acquire(string operation, bool skipLock = false, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reads the lock currently held against the state, or <see langword="null"/> when the
+    /// state is free or no lock backend is configured operation.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    Task<StateLockInfo?> Peek(CancellationToken cancellationToken = default);
 }

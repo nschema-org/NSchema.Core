@@ -5,12 +5,14 @@ namespace NSchema.State;
 /// <summary>
 /// A null-object <see cref="IStateLockHandle"/> for the cases where no real lock is held.
 /// </summary>
-internal sealed class NoOpStateLockHandle : IStateLockHandle
+internal sealed class NullStateLockHandle : IStateLockHandle
 {
-    /// <summary>The shared instance — the handle is stateless.</summary>
-    public static readonly NoOpStateLockHandle Instance = new();
+    /// <summary>
+    /// The shared instance — the handle is stateless.
+    /// </summary>
+    public static readonly NullStateLockHandle Instance = new();
 
-    private NoOpStateLockHandle()
+    private NullStateLockHandle()
     {
     }
 
