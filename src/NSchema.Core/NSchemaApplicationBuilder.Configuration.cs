@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.Diff;
 using NSchema.Diff.Policies;
+using NSchema.Operations.Progress;
 using NSchema.Schema;
 using NSchema.Sql;
 
@@ -70,6 +71,15 @@ public partial class NSchemaApplicationBuilder
     public NSchemaApplicationBuilder UseSqlGenerator<T>() where T : class, ISqlGenerator
     {
         Services.Replace(ServiceDescriptor.Singleton<ISqlGenerator, T>());
+        return this;
+    }
+
+    /// <summary>
+    /// Configures the sink that receives an operation's transient progress narration.
+    /// </summary>
+    public NSchemaApplicationBuilder UseProgressReporter<TProgress>() where TProgress : class, IProgress<OperationProgress>
+    {
+        Services.Replace(ServiceDescriptor.Singleton<IProgress<OperationProgress>, TProgress>());
         return this;
     }
 }
