@@ -5,11 +5,11 @@ using Microsoft.Extensions.Diagnostics.Metrics;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using NSchema.Diagnostics;
 using NSchema.Diff;
 using NSchema.Diff.Policies;
 using NSchema.Operations;
 using NSchema.Operations.Apply;
-using NSchema.Operations.Confirmation;
 using NSchema.Operations.Destroy;
 using NSchema.Operations.Doctor;
 using NSchema.Operations.Drift;
@@ -97,7 +97,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         ApplyServices(Services);
 
         var host = _innerBuilder.Build();
-        return new NSchemaApplication(host, _options.ExceptionBehavior);
+        return new NSchemaApplication(host);
     }
 
     /// <inheritdoc />
@@ -112,18 +112,19 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
         // Operations
         services.TryAddSingleton<IMigrationWorkflow, MigrationWorkflow>();
-        services.TryAddSingleton<IOperationConfirmation, AutoApproveConfirmation>();
-        services.TryAddSingleton<IOperationReporter, DefaultOperationReporter>();
         services.TryAddSingleton<IProgress<OperationProgress>, NullOperationProgress>();
-        services.TryAddSingleton<IPlanOperation, PlanOperation>();
-        services.TryAddSingleton<IPlanDestroyOperation, PlanDestroyOperation>();
-        services.TryAddSingleton<IApplyOperation, ApplyOperation>();
-        services.TryAddSingleton<IRefreshOperation, RefreshOperation>();
-        services.TryAddSingleton<IImportOperation, ImportOperation>();
-        services.TryAddSingleton<IValidateOperation, ValidateOperation>();
-        services.TryAddSingleton<IDestroyOperation, DestroyOperation>();
-        services.TryAddSingleton<IDriftOperation, DriftOperation>();
-        services.TryAddSingleton<IDoctorOperation, DoctorOperation>();
+        services.TryAddSingleton<LiveMigrationLauncher>();
+        services.TryAddSingleton<PlanComposer>();
+        services.TryAddSingleton<IOperation<PlanArguments, Result<PlanResult>>, PlanOperation>();
+        services.TryAddSingleton<IOperation<PlanDestroyArguments, Result<PlanResult>>, PlanDestroyOperation>();
+        services.TryAddSingleton<IOperation<ApplyArguments, Result<IMigrationPlan>>, ApplyOperation>();
+        services.TryAddSingleton<IOperation<DestroyArguments, Result<IMigrationPlan>>, DestroyOperation>();
+        services.TryAddSingleton<IOperation<RefreshArguments, Result>, RefreshOperation>();
+        services.TryAddSingleton<IOperation<ValidateArguments, Result>, ValidateOperation>();
+        services.TryAddSingleton<IOperation<DriftArguments, Result<DriftResult>>, DriftOperation>();
+        services.TryAddSingleton<IOperation<ImportArguments, Result>, ImportOperation>();
+        services.TryAddSingleton<IOperation<DoctorArguments, Result>, DoctorOperation>();
+        services.TryAddSingleton<INSchemaOperations, NSchemaOperations>();
 
         // Plan
         services.TryAddSingleton<IPlanLinearizer, PlanLinearizer>();

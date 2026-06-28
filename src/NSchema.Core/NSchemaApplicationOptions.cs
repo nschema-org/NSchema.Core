@@ -24,9 +24,4 @@ public class NSchemaApplicationOptions
     /// Gets or sets the content root path.
     /// </summary>
     public string? ContentRootPath { get; init; }
-
-    /// <summary>
-    /// Controls how exceptions are surfaced.
-    /// </summary>
-    public ExceptionBehavior ExceptionBehavior { get; init; } = ExceptionBehavior.ReportAndThrow;
 }
