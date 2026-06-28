@@ -7,6 +7,7 @@ using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Tables;
 using NSchema.Sql;
+using NSchema.State;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.EndToEnd;

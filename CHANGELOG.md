@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
-## [4.0.0-beta.3]
+## [4.0.0-beta.4]
 
 v4.0.0 is a major release that reworks providers and backends into a new plugin system. This will enable providers and backends to be installed directly from NuGet, independently of the CLI, and pin the versions in your CI.
 
@@ -16,8 +16,8 @@ v4.0.0 is a major release that reworks providers and backends into a new plugin 
 - **BREAKING: Manual lock holds.** `IStateLockHandle` is no longer disposable; release is explicit, so a caller can take a lock that outlives the current process (e.g. one front-end command acquires, another releases) simply by never releasing it.
 - **Lock time-to-live.** `StateLockRequest.TimeToLive` records an optional expiry on the resulting `StateLockInfo.ExpiresUtc`. Expiry is surfaced for visibility but never auto-enforced.
 - **Caller-managed locking.** The state lock is acquired by the caller through `app.Locks` (`IStateLockCoordinator.Acquire(operation, skipLock, …)`) and held across the operations it guards, rather than each operation taking its own. Operations themselves are pure; they neither lock nor prompt for confirmation.
-- **Public schema-read seams.** `ICurrentSchemaProvider`, `IPlanFileWriter`, and `PlanFileEnvelope` are now public, so a front-end can read the recorded (offline) or live (online) schema and render a saved plan directly.
-- **Peek the state lock via the coordinator.** `IStateLockCoordinator.Peek(ct)` (`app.Locks.Peek(…)`) reads the current `StateLockInfo?` without acquiring it, so a front-end inspects the lock through the same surface it takes it on, rather than reaching for `IStateLock` directly.
+- **Schema-read seams on the application.** `app.CurrentSchema` (`ICurrentSchemaProvider`) reads the recorded (offline) or live (online) schema, and `app.PlanFile` (`IPlanFileWriter`) reads and writes saved plan files — exposed as properties alongside `app.Operations` / `app.Locks`. The underlying interfaces, plus `PlanFileEnvelope`, are public for direct use too.
+- **Inspect and release the lock via the coordinator.** `IStateLockCoordinator` now manages the whole lock lifecycle through `app.Locks`: `Peek(ct)` reads the current `StateLockInfo?` without acquiring it, and `Release(ct)` force-releases whatever is held and returns the released lock's details. A front-end inspects, holds, and releases the lock through one surface rather than reaching for `IStateLock` directly.
 - **Operation surface.** Every operation is reached through `app.Operations` (the `INSchemaOperations` facade) with a uniform `XArguments` → `Result<XResult>` shape, and each result carries its outcome as data.
 - **Result & diagnostic model.** Operations no longer throw to signal expected outcomes or print their own output. They return `Result`/`Result<T>` carrying success/failure plus `Diagnostic`s, and narrate transient progress through `IProgress<OperationProgress>`; the caller decides what to render.
 - **`UseProgressReporter<TProgress>()`.** Registers the `IProgress<OperationProgress>` sink that receives an operation's transient progress narration, replacing the default no-op reporter — a named builder method alongside `UseDiffRenderer` / `UseSqlGenerator`.
@@ -25,7 +25,7 @@ v4.0.0 is a major release that reworks providers and backends into a new plugin 
 
 ### Changed
 
-- **BREAKING: operations live on `app.Operations`, not `NSchemaApplication`.** `NSchemaApplication` is now a thin facade exposing `Services`, `Operations` (`INSchemaOperations`), and `Locks` (`IStateLockCoordinator`); the per-operation methods (`Plan`, `Apply`, `Refresh`, `Validate`, `Drift`, `Import`, `Doctor`) moved onto `app.Operations`.
+- **BREAKING: operations live on `app.Operations`, not `NSchemaApplication`.** `NSchemaApplication` is now a thin facade exposing `Services`, `Operations` (`INSchemaOperations`), `Locks` (`IStateLockCoordinator`), `CurrentSchema` (`ICurrentSchemaProvider`), and `PlanFile` (`IPlanFileWriter`); the per-operation methods (`Plan`, `Apply`, `Refresh`, `Validate`, `Drift`, `Import`, `Doctor`) moved onto `app.Operations`.
 - **BREAKING: `IStateLockHandle` is no longer `IAsyncDisposable`.** Release is explicit via `ValueTask Release(CancellationToken)`, and the handle now exposes `StateLockInfo Info` (replacing `string LockId`). Operation call sites release in a `finally`.
 - **BREAKING: `IStateLock.ForceUnlock` renamed to `IStateLock.Release`**, now returning `ValueTask` (was `Task<StateLockInfo?>`) to match `IStateLockHandle.Release`. Whether a release is "forced" is decided by the seam the caller reaches for — `IStateLock.Release` removes whatever lock is held; `IStateLockHandle.Release` removes only its own.
 - **`StateLockInfo`** gains an optional `ExpiresUtc`.

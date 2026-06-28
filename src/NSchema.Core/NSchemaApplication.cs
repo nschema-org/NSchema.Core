@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using NSchema.Plan.PlanFile;
+using NSchema.Schema;
 using NSchema.State;
 
 namespace NSchema;
@@ -12,12 +14,16 @@ public sealed class NSchemaApplication : IDisposable
     private readonly IHost _host;
     private readonly Lazy<INSchemaOperations> _operations;
     private readonly Lazy<IStateLockCoordinator> _locks;
+    private readonly Lazy<ICurrentSchemaProvider> _currentSchema;
+    private readonly Lazy<IPlanFileWriter> _planFile;
 
     internal NSchemaApplication(IHost host)
     {
         _host = host;
         _operations = new Lazy<INSchemaOperations>(() => _host.Services.GetRequiredService<INSchemaOperations>());
         _locks = new Lazy<IStateLockCoordinator>(() => _host.Services.GetRequiredService<IStateLockCoordinator>());
+        _currentSchema = new Lazy<ICurrentSchemaProvider>(() => _host.Services.GetRequiredService<ICurrentSchemaProvider>());
+        _planFile = new Lazy<IPlanFileWriter>(() => _host.Services.GetRequiredService<IPlanFileWriter>());
     }
 
     /// <summary>
@@ -34,6 +40,16 @@ public sealed class NSchemaApplication : IDisposable
     /// Takes the state lock around an operation.
     /// </summary>
     public IStateLockCoordinator Locks => _locks.Value;
+
+    /// <summary>
+    /// Reads the current schema, the recorded (offline) state or the live (online) database.
+    /// </summary>
+    public ICurrentSchemaProvider CurrentSchema => _currentSchema.Value;
+
+    /// <summary>
+    /// Reads and writes saved plan files.
+    /// </summary>
+    public IPlanFileWriter PlanFile => _planFile.Value;
 
     /// <inheritdoc />
     public void Dispose()
