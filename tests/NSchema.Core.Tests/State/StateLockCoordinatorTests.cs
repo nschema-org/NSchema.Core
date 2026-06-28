@@ -93,4 +93,46 @@ public sealed class StateLockCoordinatorTests
         _stateLock.Peeks.ShouldBe(1);
         _stateLock.Acquisitions.ShouldBeEmpty();
     }
+
+    [Fact]
+    public async Task Acquire_PassesTheRequestThroughToTheLock()
+    {
+        // The request (operation + TTL) reaches the backend lock unchanged — this is how `lock acquire --ttl` works.
+        var request = new StateLockRequest("manual", TimeSpan.FromMinutes(30));
+
+        await new StateLockCoordinator(_stateLock).Acquire(request, skipLock: false, TestContext.Current.CancellationToken);
+
+        var acquired = _stateLock.Acquisitions.ShouldHaveSingleItem();
+        acquired.Operation.ShouldBe("manual");
+        acquired.TimeToLive.ShouldBe(TimeSpan.FromMinutes(30));
+    }
+
+    [Fact]
+    public async Task Release_NoLockBackend_ReturnsNull()
+    {
+        var released = await new StateLockCoordinator(stateLock: null).Release(TestContext.Current.CancellationToken);
+
+        released.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Release_WhenHeld_ForceReleasesAndReturnsTheReleasedLock()
+    {
+        _stateLock.PeekResult = new StateLockInfo("id", "apply", "tom@dev", DateTimeOffset.UnixEpoch);
+
+        var released = await new StateLockCoordinator(_stateLock).Release(TestContext.Current.CancellationToken);
+
+        released.ShouldNotBeNull().Who.ShouldBe("tom@dev");
+        _stateLock.ForceReleases.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Release_WhenFree_ReturnsNull_WithoutReleasing()
+    {
+        // Nothing is held (the default PeekResult is null), so there is nothing to remove.
+        var released = await new StateLockCoordinator(_stateLock).Release(TestContext.Current.CancellationToken);
+
+        released.ShouldBeNull();
+        _stateLock.ForceReleases.ShouldBe(0);
+    }
 }
