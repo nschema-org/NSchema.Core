@@ -44,4 +44,28 @@ public class Result
     /// </summary>
     /// <param name="diagnostics">Every finding produced.</param>
     public static Result From(IEnumerable<Diagnostic> diagnostics) => new([.. diagnostics]);
+
+    /// <summary>
+    /// A successful <see cref="Result{T}"/> carrying <paramref name="value"/>, optionally with advisory diagnostics.
+    /// </summary>
+    /// <typeparam name="T">The value produced on success.</typeparam>
+    /// <param name="value">The produced value.</param>
+    /// <param name="diagnostics">Advisory diagnostics to surface alongside the success.</param>
+    public static Result<T> Success<T>(T value, params IEnumerable<Diagnostic> diagnostics) => new(value, [.. diagnostics]);
+
+    /// <summary>
+    /// A failed <see cref="Result{T}"/> — no value — carrying the error diagnostics that explain it.
+    /// </summary>
+    /// <typeparam name="T">The value the result would have produced on success.</typeparam>
+    /// <param name="diagnostics">The diagnostics describing why the operation failed.</param>
+    public static Result<T> Failure<T>(params IEnumerable<Diagnostic> diagnostics) => new(default, [.. diagnostics]);
+
+    /// <summary>
+    /// A <see cref="Result{T}"/> built from <paramref name="value"/> plus an aggregated set of diagnostics, carrying the
+    /// value whether or not the result is a failure.
+    /// </summary>
+    /// <typeparam name="T">The value produced.</typeparam>
+    /// <param name="value">The produced value.</param>
+    /// <param name="diagnostics">Every finding produced.</param>
+    public static Result<T> From<T>(T value, IEnumerable<Diagnostic> diagnostics) => new(value, [.. diagnostics]);
 }
