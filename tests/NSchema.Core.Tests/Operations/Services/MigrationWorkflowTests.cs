@@ -44,11 +44,11 @@ public sealed class MigrationWorkflowTests
 
         _planner
             .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
-            .Returns(Result.Success<PlannedMigration>(new PlannedMigration(new DatabaseDiff([]), new MigrationPlan([], [], []))));
+            .Returns(Result.Success(new PlannedMigration(new DatabaseDiff([]), new MigrationPlan([], [], []))));
 
         _planner
             .PlanTeardown(Arg.Any<DatabaseSchema>())
-            .Returns(Result.Success<PlannedMigration>(new PlannedMigration(new DatabaseDiff([]), new MigrationPlan([], [], []))));
+            .Returns(Result.Success(new PlannedMigration(new DatabaseDiff([]), new MigrationPlan([], [], []))));
 
         _sut = BuildSut();
     }
@@ -116,7 +116,7 @@ public sealed class MigrationWorkflowTests
         var diff = new DatabaseDiff([]);
         _planner
             .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
-            .Returns(Result.Success<PlannedMigration>(new PlannedMigration(diff, plan)));
+            .Returns(Result.Success(new PlannedMigration(diff, plan)));
 
         // Act
         var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
@@ -199,7 +199,7 @@ public sealed class MigrationWorkflowTests
         var diff = new DatabaseDiff([]);
         var errors = new[] { Diagnostic.Error("destructive", "drops table") };
         _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
-            .Returns(Result.From<PlannedMigration>(new PlannedMigration(diff, new MigrationPlan([], [], [])), errors));
+            .Returns(Result.From(new PlannedMigration(diff, new MigrationPlan([], [], [])), errors));
 
         // Act
         var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
@@ -216,7 +216,7 @@ public sealed class MigrationWorkflowTests
         var diagnostics = new[] { new Diagnostic("P1", "info", DiagnosticSeverity.Info) };
         var plan = new MigrationPlan([], [], []);
         _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
-            .Returns(Result.From<PlannedMigration>(new PlannedMigration(new DatabaseDiff([]), plan), diagnostics));
+            .Returns(Result.From(new PlannedMigration(new DatabaseDiff([]), plan), diagnostics));
 
         // Act
         var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
@@ -323,7 +323,7 @@ public sealed class MigrationWorkflowTests
         // Arrange
         var plan = new MigrationPlan([new DropSchema("app")], [], []);
         var diff = new DatabaseDiff([]);
-        _planner.PlanTeardown(Arg.Any<DatabaseSchema>()).Returns(Result.Success<PlannedMigration>(new PlannedMigration(diff, plan)));
+        _planner.PlanTeardown(Arg.Any<DatabaseSchema>()).Returns(Result.Success(new PlannedMigration(diff, plan)));
 
         // Act
         var result = await _sut.ComputeTeardown(TestContext.Current.CancellationToken);

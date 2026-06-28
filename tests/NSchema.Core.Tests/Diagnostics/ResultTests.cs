@@ -138,7 +138,7 @@ public sealed class ResultTests
     public void Match_InvokesSuccessBranch_WithValue()
     {
         // Arrange
-        var result = Result.Success<int>(7);
+        var result = Result.Success(7);
 
         // Act
         var matched = result.Match(value => $"ok:{value}", _ => "fail");
@@ -165,7 +165,7 @@ public sealed class ResultTests
     {
         // Arrange
         var warning = Warning();
-        var result = Result.Success<int>(3, warning);
+        var result = Result.Success(3, warning);
 
         // Act
         var mapped = result.Map(value => value * 2);
