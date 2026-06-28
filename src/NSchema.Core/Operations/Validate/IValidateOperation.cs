@@ -1,3 +1,5 @@
+using NSchema.Diagnostics;
+
 namespace NSchema.Operations.Validate;
 
 /// <summary>
@@ -6,9 +8,9 @@ namespace NSchema.Operations.Validate;
 internal interface IValidateOperation
 {
     /// <summary>
-    /// Executes the validate operation.
+    /// Executes the validate operation, returning the aggregated validation diagnostics.
     /// </summary>
     /// <param name="arguments">The arguments controlling the validation.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task Execute(ValidateArguments arguments, CancellationToken cancellationToken = default);
+    Task<Result> Execute(ValidateArguments arguments, CancellationToken cancellationToken = default);
 }

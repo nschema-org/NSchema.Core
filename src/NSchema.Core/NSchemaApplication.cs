@@ -94,7 +94,7 @@ public sealed class NSchemaApplication : IDisposable
     /// </summary>
     /// <param name="arguments">The arguments controlling the validation.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Validate(ValidateArguments arguments, CancellationToken cancellationToken = default)
+    public Task<Result> Validate(ValidateArguments arguments, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IValidateOperation>().Execute(arguments, cancellationToken));

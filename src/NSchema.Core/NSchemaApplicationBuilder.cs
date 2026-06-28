@@ -16,6 +16,7 @@ using NSchema.Operations.Drift;
 using NSchema.Operations.Import;
 using NSchema.Operations.Plan;
 using NSchema.Operations.PlanDestroy;
+using NSchema.Operations.Progress;
 using NSchema.Operations.Refresh;
 using NSchema.Operations.Services;
 using NSchema.Operations.Validate;
@@ -113,6 +114,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IMigrationWorkflow, MigrationWorkflow>();
         services.TryAddSingleton<IOperationConfirmation, AutoApproveConfirmation>();
         services.TryAddSingleton<IOperationReporter, DefaultOperationReporter>();
+        services.TryAddSingleton<IProgress<OperationProgress>, NullOperationProgress>();
         services.TryAddSingleton<IPlanOperation, PlanOperation>();
         services.TryAddSingleton<IPlanDestroyOperation, PlanDestroyOperation>();
         services.TryAddSingleton<IApplyOperation, ApplyOperation>();

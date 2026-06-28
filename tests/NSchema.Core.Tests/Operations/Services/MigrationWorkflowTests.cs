@@ -1,6 +1,7 @@
 using NSchema.Diff.Model;
 using NSchema.Diagnostics;
 using NSchema.Operations;
+using NSchema.Operations.Progress;
 using NSchema.Operations.Services;
 using NSchema.Plan;
 using NSchema.Plan.Model;
@@ -19,12 +20,13 @@ public sealed class MigrationWorkflowTests
 {
     private readonly IMigrationPlanner _planner = Substitute.For<IMigrationPlanner>();
     private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
+    private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
     private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
     private readonly IDesiredSchemaProvider _desiredProvider = Substitute.For<IDesiredSchemaProvider>();
     private readonly ISchemaStateSerializer _stateSerializer = new SchemaStateSerializer();
 
     private MigrationWorkflow BuildSut(ISchemaStateStore? store = null) =>
-        new(_planner, _reporter, _currentProvider, _desiredProvider, _stateSerializer, store);
+        new(_planner, _reporter, _progress, _currentProvider, _desiredProvider, _stateSerializer, store);
 
     private static DesiredProject Project(DatabaseSchema schema) => new(schema, []);
 
@@ -54,7 +56,7 @@ public sealed class MigrationWorkflowTests
     }
 
     [Fact]
-    public async Task ValidateDesiredSchema_ReturnsLoadedSchema_WhenNoPolicyErrors()
+    public async Task ValidateDesiredSchema_ReturnsSuccess_WhenNoPolicyErrors()
     {
         // Arrange
         var desired = new DatabaseSchema([new SchemaDefinition("app")]);
@@ -64,35 +66,39 @@ public sealed class MigrationWorkflowTests
         var result = await _sut.Validate(TestContext.Current.CancellationToken);
 
         // Assert
-        result.ShouldBe(desired);
+        result.IsSuccess.ShouldBeTrue();
+        result.Diagnostics.ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task ValidateDesiredSchema_PolicyViolation_ThrowsWithoutReporting()
+    public async Task ValidateDesiredSchema_PolicyViolation_ReturnsFailure_WithoutReporting()
     {
         // Arrange
         _planner.Validate(Arg.Any<DatabaseSchema>()).Returns(new PolicyDiagnostics([Diagnostic.Error("P1", "msg")]));
 
         // Act
-        var act = () => _sut.Validate(TestContext.Current.CancellationToken);
+        var result = await _sut.Validate(TestContext.Current.CancellationToken);
 
-        // Assert
-        await act.ShouldThrowAsync<PolicyViolationException>();
+        // Assert — the failure is carried back, not thrown; the workflow no longer renders it (the caller does).
+        result.IsFailure.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("msg");
         _reporter.DidNotReceive().ReportDiagnostics(Arg.Any<PolicyDiagnostics>());
     }
 
     [Fact]
-    public async Task ValidateDesiredSchema_NonErrorDiagnostics_AreReported()
+    public async Task ValidateDesiredSchema_NonErrorDiagnostics_AreCarriedInTheResult()
     {
         // Arrange
         _planner.Validate(Arg.Any<DatabaseSchema>())
             .Returns(new PolicyDiagnostics([new Diagnostic("P1", "info", DiagnosticSeverity.Info)]));
 
         // Act
-        await _sut.Validate(TestContext.Current.CancellationToken);
+        var result = await _sut.Validate(TestContext.Current.CancellationToken);
 
-        // Assert
-        _reporter.Received(1).ReportDiagnostics(Arg.Any<PolicyDiagnostics>());
+        // Assert — advisories ride along in a successful result rather than being reported here.
+        result.IsSuccess.ShouldBeTrue();
+        result.Diagnostics.ShouldHaveSingleItem().Message.ShouldBe("info");
+        _reporter.DidNotReceive().ReportDiagnostics(Arg.Any<PolicyDiagnostics>());
     }
 
     [Fact]
@@ -166,12 +172,12 @@ public sealed class MigrationWorkflowTests
         // Act
         await _sut.Plan(SchemaSourceMode.Online, required: true, null, TestContext.Current.CancellationToken);
 
-        // Assert
-        _reporter.Received().Report(MessageKind.Verbose, "Read 2 DDL files:");
-        _reporter.Received().Report(MessageKind.Verbose, "/app/users.sql");
-        _reporter.Received().Report(MessageKind.Verbose, "/app/orders.sql");
-        _reporter.Received().Report(MessageKind.Verbose, "Desired schema: 1 schema, 2 tables, 1 deployment script.");
-        _reporter.Received().Report(MessageKind.Verbose, "Current schema (online): 1 schema, 0 tables.");
+        // Assert — verbose census is transient narration, now emitted as Detail-level progress.
+        _progress.Received().Report(OperationProgress.Detail("Read 2 DDL files:"));
+        _progress.Received().Report(OperationProgress.Detail("/app/users.sql"));
+        _progress.Received().Report(OperationProgress.Detail("/app/orders.sql"));
+        _progress.Received().Report(OperationProgress.Detail("Desired schema: 1 schema, 2 tables, 1 deployment script."));
+        _progress.Received().Report(OperationProgress.Detail("Current schema (online): 1 schema, 0 tables."));
     }
 
     [Fact]

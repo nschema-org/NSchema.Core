@@ -1,41 +1,46 @@
-using NSchema.Operations;
+using NSchema.Diagnostics;
+using NSchema.Operations.Progress;
 using NSchema.Operations.Services;
 using NSchema.Operations.Validate;
-using NSchema.Schema.Model;
 
 namespace NSchema.Tests.Operations.Validate;
 
 public sealed class ValidateOperationTests
 {
     private readonly IMigrationWorkflow _workflow = Substitute.For<IMigrationWorkflow>();
-    private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
+    private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
 
-    private ValidateOperation BuildSut() => new(_workflow, _reporter);
+    private ValidateOperation BuildSut() => new(_workflow, _progress);
 
     private readonly ValidateOperation _sut;
 
     public ValidateOperationTests()
     {
-        _workflow.Validate(Arg.Any<CancellationToken>()).Returns(new DatabaseSchema([]));
+        _workflow.Validate(Arg.Any<CancellationToken>()).Returns(Result.Success());
         _sut = BuildSut();
     }
 
     [Fact]
-    public async Task Execute_DelegatesToHelperValidateDesiredSchema()
+    public async Task Execute_DelegatesToWorkflow_AndReturnsItsResult()
     {
-        // Act
-        await _sut.Execute(new ValidateArguments(), TestContext.Current.CancellationToken);
+        // Arrange
+        var expected = Result.Failure(Diagnostic.Error("schema", "bad"));
+        _workflow.Validate(Arg.Any<CancellationToken>()).Returns(expected);
 
-        // Assert
+        // Act
+        var result = await _sut.Execute(new ValidateArguments(), TestContext.Current.CancellationToken);
+
+        // Assert — the outcome is returned for the caller to render, not reported and thrown here.
         await _workflow.Received(1).Validate(Arg.Any<CancellationToken>());
+        result.ShouldBe(expected);
     }
 
     [Fact]
-    public async Task Execute_ValidationThrows_Propagates()
+    public async Task Execute_WhenWorkflowThrows_Propagates()
     {
-        // Arrange
+        // Arrange — a non-policy failure (e.g. unreadable schema files) still surfaces as an exception.
         _workflow.Validate(Arg.Any<CancellationToken>())
-            .Returns<DatabaseSchema>(_ => throw new InvalidOperationException("boom"));
+            .Returns<Result>(_ => throw new InvalidOperationException("boom"));
 
         // Act
         var act = () => _sut.Execute(new ValidateArguments());
