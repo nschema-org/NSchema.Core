@@ -1,13 +1,20 @@
+using NSchema.Diagnostics;
+using NSchema.Operations.Progress;
 using NSchema.Operations.Services;
 
 namespace NSchema.Operations.Validate;
 
-internal sealed class ValidateOperation(IMigrationWorkflow workflow, IOperationReporter reporter) : IValidateOperation
+/// <summary>
+/// Loads the desired schema and validates it against the configured schema policies. Contacts no infrastructure.
+/// </summary>
+internal sealed class ValidateOperation(IMigrationWorkflow workflow, IProgress<OperationProgress> progress)
+    : IOperation<ValidateArguments, Result<ValidateResult>>
 {
-    public async Task Execute(ValidateArguments arguments, CancellationToken cancellationToken = default)
+    public async Task<Result<ValidateResult>> Execute(ValidateArguments args, CancellationToken cancellationToken = default)
     {
-        reporter.Announce("Validating schema. No database or state store will be contacted.");
-        await workflow.Validate(cancellationToken);
-        reporter.Success("Schema is valid.");
+        progress.Report(OperationProgress.Step("Validating schema. No database or state store will be contacted."));
+
+        var findings = await workflow.Validate(cancellationToken);
+        return Result.Success(new ValidateResult(findings));
     }
 }

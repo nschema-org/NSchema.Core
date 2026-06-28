@@ -1,3 +1,6 @@
+using NSchema.Diagnostics;
+using NSchema.Operations.Progress;
+using NSchema.Operations.Services;
 using NSchema.Schema;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
@@ -5,31 +8,35 @@ using NSchema.Schema.Model.Schemas;
 
 namespace NSchema.Operations.Import;
 
-internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IOperationReporter reporter) : IImportOperation
+/// <summary>
+/// Reads the live schema and writes it out as desired-schema DDL source files, merging additively into any files that
+/// already exist.
+/// </summary>
+internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IProgress<OperationProgress> progress)
+    : IOperation<ImportArguments, Result<ImportResult>>
 {
-    public async Task Execute(ImportArguments arguments, CancellationToken cancellationToken = default)
+    public async Task<Result<ImportResult>> Execute(ImportArguments arguments, CancellationToken cancellationToken = default)
     {
-        reporter.Announce("Importing schema from database...");
-
         var schema = await currentSchema.GetSchema(SchemaSourceMode.Online, arguments.Schemas, cancellationToken: cancellationToken);
-        reporter.Verbose($"Fetched {Census.Describe(schema)} from the database.");
+        progress.Report(OperationProgress.Detail($"Fetched {StatusHelpers.Describe(schema)} from the database."));
 
+        var written = new List<string>();
         foreach (var (path, partition) in schema.Schemas.SelectMany(s => ObjectPartitions(s, arguments.OutputDirectory)))
         {
             await WritePartition(path, partition, cancellationToken);
+            written.Add(path);
         }
 
         // Extensions are database-global, not schema-scoped, so they go to a single top-level file rather than
         // any per-schema directory.
         if (schema.Extensions.Count > 0)
         {
-            await WritePartition(
-                Path.Combine(arguments.OutputDirectory, "extensions.sql"),
-                new DatabaseSchema(Extensions: schema.Extensions),
-                cancellationToken);
+            var path = Path.Combine(arguments.OutputDirectory, "extensions.sql");
+            await WritePartition(path, new DatabaseSchema(Extensions: schema.Extensions), cancellationToken);
+            written.Add(path);
         }
 
-        reporter.Success("Schema imported successfully.");
+        return Result.Success(new ImportResult(schema, written));
     }
 
     // Each major object (table, view, routine) gets its own file, grouped by type under the schema's directory;
@@ -74,7 +81,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IOpe
 
         // Surface whether each object was created fresh or merged into an existing file — import is additive, so
         // this is the signal that an earlier import's file was updated in place rather than replaced.
-        reporter.Verbose($"{(existing is null ? "Wrote" : "Merged into")} {path}.");
+        progress.Report(OperationProgress.Detail($"{(existing is null ? "Wrote" : "Merged into")} {path}."));
     }
 
     private async Task<DatabaseSchema?> TryReadExisting(string path, CancellationToken cancellationToken)

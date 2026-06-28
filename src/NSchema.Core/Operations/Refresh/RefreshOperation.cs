@@ -1,25 +1,18 @@
+using NSchema.Diagnostics;
 using NSchema.Operations.Services;
-using NSchema.State;
 
 namespace NSchema.Operations.Refresh;
 
-internal sealed class RefreshOperation(IMigrationWorkflow workflow, IOperationReporter reporter, IStateLock? stateLock = null) : IRefreshOperation
+/// <summary>
+/// Reads the live current schema and writes it to the state store, under the state lock.
+/// </summary>
+internal sealed class RefreshOperation(IMigrationWorkflow workflow) : IOperation<RefreshArguments, Result<RefreshResult>>
 {
-    public async Task Execute(RefreshArguments arguments, CancellationToken cancellationToken = default)
+    public async Task<Result<RefreshResult>> Execute(RefreshArguments args, CancellationToken cancellationToken = default)
     {
-        // Refresh writes the live schema into the store, so it takes the lock too.
-        var stateLockHandle = await StateLockGuard.AcquireOrSkip(stateLock, reporter, "refresh", arguments.SkipLock, cancellationToken);
-        try
-        {
-            await workflow.Refresh(RefreshMode.Required, cancellationToken);
-        }
-        finally
-        {
-            // Release with an uncancellable token so a cancelled refresh still frees its own lock.
-            if (stateLockHandle is not null)
-            {
-                await stateLockHandle.Release(CancellationToken.None);
-            }
-        }
+        var capture = await workflow.Refresh(cancellationToken);
+        return capture is null
+            ? Result.Failure<RefreshResult>(Diagnostic.Error("refresh", "Unable to refresh state without a configured state store."))
+            : Result.Success(new RefreshResult(capture.Schema, capture.SnapshotBytes));
     }
 }

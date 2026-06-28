@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using NSchema.Operations.Apply;
+using NSchema.Operations.Plan;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
@@ -17,7 +18,6 @@ namespace NSchema.Tests.EndToEnd;
 public sealed class ApplyEndToEndTests : IDisposable
 {
     private readonly string _tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-    private readonly RecordingReporter _reporter = new();
     private readonly RecordingSqlExecutor _executor = new();
     private readonly RecordingStateStore _store = new();
 
@@ -37,7 +37,6 @@ public sealed class ApplyEndToEndTests : IDisposable
             .AddDdlSchemas(Path.GetDirectoryName(desiredPath)!, Path.GetFileName(desiredPath))
             .UseStateStore(_store)
             .UseSqlGenerator<StubSqlGenerator>()
-            .UseReporter(_reporter)
             .Tap(b =>
             {
                 b.Services.AddSingleton<ISqlExecutor>(_executor);
@@ -61,12 +60,15 @@ public sealed class ApplyEndToEndTests : IDisposable
 
         using var app = BuildApp(current, desired);
 
-        await app.Apply(new ApplyArguments(), TestContext.Current.CancellationToken);
+        // The CLI-style flow: hold the lock, compute the live plan, apply it, release.
+        (await app.Locks.Acquire("apply", cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        var plan = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
+        await app.Operations.Apply(new ApplyArguments { Sql = plan.Sql! }, TestContext.Current.CancellationToken);
 
         // The plan reached the executor as a non-empty SQL plan.
         _executor.Executed.ShouldNotBeNull().Statements.ShouldNotBeEmpty();
-        // The same plan was reported for preview before execution.
-        _reporter.SqlPlan.ShouldBe(_executor.Executed);
+        // The plan exposes the same SQL the caller previews before applying.
+        plan.Sql.ShouldBe(_executor.Executed);
         // Post-apply state was captured to the store.
         _store.Written.ShouldNotBeNull().Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
     }
@@ -87,12 +89,16 @@ public sealed class ApplyEndToEndTests : IDisposable
 
         using var app = BuildApp(schema, desired);
 
-        await app.Apply(new ApplyArguments(), TestContext.Current.CancellationToken);
+        (await app.Locks.Acquire("apply", cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        var plan = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
+        // The plan carries an empty diff/sql: there is nothing to apply.
+        plan.Diff.ShouldNotBeNull().IsEmpty.ShouldBeTrue();
+        plan.Sql.ShouldNotBeNull().IsEmpty.ShouldBeTrue();
 
-        _reporter.Diff.ShouldNotBeNull().IsEmpty.ShouldBeTrue();
+        await app.Operations.Apply(new ApplyArguments { Sql = plan.Sql! }, TestContext.Current.CancellationToken);
+
         // Nothing to apply: the empty plan never reaches the executor...
         _executor.Executed.ShouldBeNull();
-        _reporter.Infos.ShouldContain("No changes. The database already matches the desired schema.");
         // ...but a first run against an already-matching database still initialises the store.
         _store.Written.ShouldNotBeNull().Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
     }

@@ -1,4 +1,4 @@
-using NSchema.Policies;
+using NSchema.Diagnostics;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Tables;
@@ -10,16 +10,16 @@ namespace NSchema.Schema.Policies;
 /// - tables without a primary key,
 /// - nullable columns used in a primary key,
 /// - and columns repeated within a single key or index.
-/// These are advisory, so they are reported as <see cref="PolicyDiagnosticSeverity.Warning"/> and do not fail validation.
+/// These are advisory, so they are reported as <see cref="DiagnosticSeverity.Warning"/> and do not fail validation.
 /// </summary>
 public sealed class SchemaLintPolicy : ISchemaPolicy
 {
     private const string PolicyName = "schema-lint";
 
     /// <inheritdoc />
-    public IEnumerable<PolicyDiagnostic> Validate(DatabaseSchema schema)
+    public IEnumerable<Diagnostic> Validate(DatabaseSchema schema)
     {
-        var diagnostics = new List<PolicyDiagnostic>();
+        var diagnostics = new List<Diagnostic>();
         foreach (var definition in schema.Schemas)
         {
             foreach (var table in definition.Tables)
@@ -31,7 +31,7 @@ public sealed class SchemaLintPolicy : ISchemaPolicy
         return diagnostics;
     }
 
-    private static void ValidateTable(SchemaDefinition definition, Table table, List<PolicyDiagnostic> diagnostics)
+    private static void ValidateTable(SchemaDefinition definition, Table table, List<Diagnostic> diagnostics)
     {
         var qualified = $"{definition.Name}.{table.Name}";
 
@@ -64,7 +64,7 @@ public sealed class SchemaLintPolicy : ISchemaPolicy
     }
 
     private static void ReportDuplicates(
-        List<PolicyDiagnostic> diagnostics, string qualified, string owner, IEnumerable<string> columnNames)
+        List<Diagnostic> diagnostics, string qualified, string owner, IEnumerable<string> columnNames)
     {
         var duplicates = columnNames
             .GroupBy(n => n, StringComparer.OrdinalIgnoreCase)
@@ -77,5 +77,5 @@ public sealed class SchemaLintPolicy : ISchemaPolicy
         }
     }
 
-    private static PolicyDiagnostic Warning(string message) => PolicyDiagnostic.Warning(PolicyName, message);
+    private static Diagnostic Warning(string message) => Diagnostic.Warning(PolicyName, message);
 }

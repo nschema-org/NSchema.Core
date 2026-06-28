@@ -1,4 +1,4 @@
-using NSchema.Policies;
+using NSchema.Diagnostics;
 using NSchema.Schema.Model;
 
 namespace NSchema.Schema;
@@ -13,5 +13,5 @@ public interface ISchemaPolicy
     /// </summary>
     /// <param name="schema">The database schema to validate against this policy.</param>
     /// <returns>The collection of errors found during validation. If the schema is valid according to this policy, the collection will be empty.</returns>
-    IEnumerable<PolicyDiagnostic> Validate(DatabaseSchema schema);
+    IEnumerable<Diagnostic> Validate(DatabaseSchema schema);
 }

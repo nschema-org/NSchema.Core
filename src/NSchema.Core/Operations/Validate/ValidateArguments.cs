@@ -1,6 +1,6 @@
 namespace NSchema.Operations.Validate;
 
 /// <summary>
-/// Arguments for an <see cref="IValidateOperation"/> run.
+/// Arguments for an operation run.
 /// </summary>
 public sealed record ValidateArguments;

@@ -1,5 +1,5 @@
-using NSchema.Operations;
 using NSchema.Operations.Import;
+using NSchema.Operations.Progress;
 using NSchema.Schema;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
@@ -19,7 +19,7 @@ public sealed class ImportOperationTests : IDisposable
 {
     private readonly string _dir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
     private readonly ICurrentSchemaProvider _currentSchema = Substitute.For<ICurrentSchemaProvider>();
-    private readonly IOperationReporter _reporter = Substitute.For<IOperationReporter>();
+    private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
 
     // Tables carry a column because the DDL grammar has no empty-table form.
     private static Table MakeTable(string name) => new(name, Columns: [new Column("id", SqlType.Int)]);
@@ -39,7 +39,7 @@ public sealed class ImportOperationTests : IDisposable
         .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
         .Returns(ValueTask.FromResult(schema));
 
-    private ImportOperation BuildSut() => new(_currentSchema, _reporter);
+    private ImportOperation BuildSut() => new(_currentSchema, _progress);
 
     private Task Execute(ImportArguments arguments) =>
         BuildSut().Execute(arguments, TestContext.Current.CancellationToken);
@@ -62,6 +62,20 @@ public sealed class ImportOperationTests : IDisposable
             combined = combined.Combine(await ReadSchema(file));
         }
         return combined;
+    }
+
+    // ── Result payload ──────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Execute_ReturnsTheImportedSchemaAndEveryWrittenFile()
+    {
+        // Act
+        var result = await BuildSut().Execute(new ImportArguments { OutputDirectory = _dir }, TestContext.Current.CancellationToken);
+
+        // Assert — the result reports what was read and exactly which files it wrote (the schema header + one per table).
+        result.IsSuccess.ShouldBeTrue();
+        result.Value!.ImportedSchema.ShouldBe(_schema);
+        result.Value!.WrittenFiles.ShouldBe([HeaderPath, ObjectPath("tables", "users"), ObjectPath("tables", "orders")], ignoreOrder: true);
     }
 
     // ── Source fetching ─────────────────────────────────────────────────────
@@ -87,36 +101,27 @@ public sealed class ImportOperationTests : IDisposable
     }
 
     [Fact]
-    public async Task Execute_ReportsProgress()
-    {
-        await Execute(new ImportArguments { OutputDirectory = _dir });
-
-        _reporter.Received(1).Report(MessageKind.Announcement, "Importing schema from database...");
-        _reporter.Received(1).Report(MessageKind.Success, "Schema imported successfully.");
-    }
-
-    [Fact]
     public async Task Execute_ReportsVerboseCensusAndPerFileWrites()
     {
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
         // A census of what was fetched...
-        _reporter.Received(1).Report(MessageKind.Verbose, "Fetched 1 schema, 2 tables from the database.");
+        _progress.Received(1).Report(OperationProgress.Detail("Fetched 1 schema, 2 tables from the database."));
         // ...and a line per object file, marked "Wrote" because nothing existed to merge into.
-        _reporter.Received(1).Report(MessageKind.Verbose, $"Wrote {ObjectPath("tables", "users")}.");
-        _reporter.Received(1).Report(MessageKind.Verbose, $"Wrote {ObjectPath("tables", "orders")}.");
+        _progress.Received(1).Report(OperationProgress.Detail($"Wrote {ObjectPath("tables", "users")}."));
+        _progress.Received(1).Report(OperationProgress.Detail($"Wrote {ObjectPath("tables", "orders")}."));
     }
 
     [Fact]
     public async Task Execute_ReImport_ReportsMergeIntoExistingFile()
     {
         await Execute(new ImportArguments { OutputDirectory = _dir });
-        _reporter.ClearReceivedCalls();
+        _progress.ClearReceivedCalls();
 
         // A second import of the same object merges into the file written by the first.
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
-        _reporter.Received(1).Report(MessageKind.Verbose, $"Merged into {ObjectPath("tables", "users")}.");
+        _progress.Received(1).Report(OperationProgress.Detail($"Merged into {ObjectPath("tables", "users")}."));
     }
 
     [Fact]

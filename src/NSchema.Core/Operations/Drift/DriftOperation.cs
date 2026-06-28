@@ -1,39 +1,27 @@
+using NSchema.Diagnostics;
 using NSchema.Diff;
+using NSchema.Operations.Progress;
 using NSchema.Schema;
 
 namespace NSchema.Operations.Drift;
 
-internal sealed class DriftOperation(
-    ICurrentSchemaProvider currentProvider,
-    IOperationReporter reporter,
-    ISchemaComparer comparer
-) : IDriftOperation
+/// <summary>
+/// Compares the recorded state against the live database and reports how the live database has drifted from it.
+/// </summary>
+internal sealed class DriftOperation(ICurrentSchemaProvider currentProvider, ISchemaComparer comparer, IProgress<OperationProgress> progress)
+    : IOperation<DriftArguments, Result<DriftResult>>
 {
-    public async Task<DriftResult> Execute(DriftArguments arguments, CancellationToken cancellationToken = default)
+    public async Task<Result<DriftResult>> Execute(DriftArguments args, CancellationToken cancellationToken = default)
     {
-        reporter.Announce("Checking for drift between the recorded state and the live database...");
-        reporter.Progress("Reading recorded state...");
-        var recorded = await currentProvider.GetSchema(SchemaSourceMode.Offline, arguments.Schemas, required: true, cancellationToken);
+        progress.Report(OperationProgress.Step("Reading recorded state..."));
+        var recorded = await currentProvider.GetSchema(SchemaSourceMode.Offline, args.Schemas, required: true, cancellationToken);
 
-        reporter.Progress("Reading live database...");
-        var live = await currentProvider.GetSchema(SchemaSourceMode.Online, arguments.Schemas, required: true, cancellationToken);
+        progress.Report(OperationProgress.Step("Reading live database..."));
+        var live = await currentProvider.GetSchema(SchemaSourceMode.Online, args.Schemas, required: true, cancellationToken);
 
-        // Diff direction: recorded -> live, so the changes describe how the live database has drifted from
-        // what we recorded (an added object appears as Add, an out-of-band drop as Remove). This is a pure
-        // observation: no transformers or policies run, so it never fails on policy violations.
+        // Diff direction: recorded -> live, so the changes describe how the live database has drifted from what we
+        // recorded (an added object appears as Add, an out-of-band drop as Remove).
         var diff = comparer.Compare(recorded, live);
-
-        reporter.ReportDiff(diff);
-
-        if (diff.IsEmpty)
-        {
-            reporter.Success("No drift detected.");
-        }
-        else
-        {
-            reporter.Warn($"Drift detected: {RunSummary.Describe(diff)}.");
-        }
-
-        return new DriftResult(diff);
+        return Result.Success(new DriftResult(diff));
     }
 }

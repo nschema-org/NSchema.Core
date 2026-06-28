@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
-## [4.0.0-beta.1]
+## [4.0.0-beta.2]
 
 v4.0.0 is a major release that reworks providers and backends into a new plugin system. This will enable providers and backends to be installed directly from NuGet, independently of the CLI, and pin the versions in your CI.
 
@@ -15,13 +15,15 @@ v4.0.0 is a major release that reworks providers and backends into a new plugin 
 - **Plugin Contract.** A new set of interfaces in `NSchema.Plugins` that will allow providers and backends to declare themselves.
 - **BREAKING: Manual lock holds.** `IStateLockHandle` is no longer disposable; release is explicit, so a caller can take a lock that outlives the current process (e.g. one front-end command acquires, another releases) simply by never releasing it.
 - **Lock time-to-live.** `StateLockRequest.TimeToLive` records an optional expiry on the resulting `StateLockInfo.ExpiresUtc`. Expiry is surfaced for visibility but never auto-enforced.
-- **Skip locking per operation.** `ApplyArguments`, `RefreshArguments`, and `DestroyArguments` gain `SkipLock`, running the operation without acquiring the state lock (the operation reports the skip and names any current holder). The caller takes responsibility for preventing concurrent runs.
+- **Caller-managed locking.** The state lock is acquired by the caller through `app.Locks` (`IStateLockCoordinator.Acquire(operation, skipLock, …)`) and held across the operations it guards, rather than each operation taking its own. Operations themselves are pure; they neither lock nor prompt for confirmation.
 - **Public schema-read seams.** `ICurrentSchemaProvider`, `IPlanFileWriter`, and `PlanFileEnvelope` are now public, so a front-end can read the recorded (offline) or live (online) schema and render a saved plan directly.
 - **`UseReporter(Func<IServiceProvider, IOperationReporter>)` overload.** Registers the reporter from a service-provider factory.
-- **Operation results.** Some operations now return a result when calling `NSchemaApplication.Plan` for example. This allows callers like the CLI to respond to results itself.
+- **Operation surface.** Every operation is reached through `app.Operations` (the `INSchemaOperations` facade) with a uniform `XArguments` → `Result<XResult>` shape, and each result carries its outcome as data.
+- **Result & diagnostic model.** Operations no longer throw to signal expected outcomes or print their own output. They return `Result`/`Result<T>` carrying success/failure plus `Diagnostic`s, and narrate transient progress through `IProgress<OperationProgress>`; the caller decides what to render.
 
 ### Changed
 
+- **BREAKING: operations live on `app.Operations`, not `NSchemaApplication`.** `NSchemaApplication` is now a thin facade exposing `Services`, `Operations` (`INSchemaOperations`), and `Locks` (`IStateLockCoordinator`); the per-operation methods (`Plan`, `Apply`, `Refresh`, `Validate`, `Drift`, `Import`, `Doctor`) moved onto `app.Operations`.
 - **BREAKING: `IStateLockHandle` is no longer `IAsyncDisposable`.** Release is explicit via `ValueTask Release(CancellationToken)`, and the handle now exposes `StateLockInfo Info` (replacing `string LockId`). Operation call sites release in a `finally`.
 - **BREAKING: `IStateLock.ForceUnlock` renamed to `IStateLock.Release`**, now returning `ValueTask` (was `Task<StateLockInfo?>`) to match `IStateLockHandle.Release`. Whether a release is "forced" is decided by the seam the caller reaches for — `IStateLock.Release` removes whatever lock is held; `IStateLockHandle.Release` removes only its own.
 - **`StateLockInfo`** gains an optional `ExpiresUtc`.
@@ -173,6 +175,7 @@ First stable release. The public API is now covered by semantic versioning. Brea
 - Pre- and post-deployment script support via `IScriptProvider`, `AddScriptFromFile(...)`, and `AddScriptsFromEmbeddedResources(...)`.
 - SourceLink and symbol packages (`.snupkg`) published alongside the main package for source-level debugging.
 
+[4.0.0-beta.2]: https://github.com/nschema-org/NSchema.Core/compare/v3.1.0...v4.0.0-beta.2
 [3.1.0]: https://github.com/nschema-org/NSchema.Core/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/nschema-org/NSchema.Core/compare/v2.1.0...v3.0.0
 [2.1.0]: https://github.com/nschema-org/NSchema.Core/compare/v2.0.1...v2.1.0

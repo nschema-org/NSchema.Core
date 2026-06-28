@@ -1,5 +1,5 @@
+using NSchema.Diagnostics;
 using NSchema.Diff.Model;
-using NSchema.Policies;
 
 namespace NSchema.Diff.Policies;
 
@@ -12,11 +12,11 @@ internal sealed class EnumValueRemovalDiffPolicy : IDiffPolicy
 {
     private const string PolicyName = "enum-value-removal";
 
-    public IEnumerable<PolicyDiagnostic> Validate(DatabaseDiff diff) =>
+    public IEnumerable<Diagnostic> Validate(DatabaseDiff diff) =>
         diff.Schemas
             .SelectMany(schema => schema.Enums)
             .Where(enumDiff => enumDiff.RequiresRecreate)
-            .Select(enumDiff => PolicyDiagnostic.Error(PolicyName,
+            .Select(enumDiff => Diagnostic.Error(PolicyName,
                 $"Enum '{enumDiff.Schema}.{enumDiff.Name}' removes or reorders values " +
                 $"([{string.Join(", ", enumDiff.Values!.Old ?? [])}] -> [{string.Join(", ", enumDiff.Values!.New ?? [])}]); " +
                 "enum values can only be added. Recreate the type manually if a removal or reorder is required."));

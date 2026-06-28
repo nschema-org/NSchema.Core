@@ -1,10 +1,11 @@
+using NSchema.Diagnostics;
 using NSchema.Policies;
 
 namespace NSchema.Tests.Policies;
 
 public sealed class PolicyDiagnosticsTests
 {
-    private static PolicyDiagnostic Diag(PolicyDiagnosticSeverity severity, string message = "msg")
+    private static Diagnostic Diag(DiagnosticSeverity severity, string message = "msg")
         => new("Policy", message, severity);
 
     // -------------------------------------------------------------------------
@@ -24,7 +25,7 @@ public sealed class PolicyDiagnosticsTests
     [Fact]
     public void EnumerableConstructor_CopiesAllDiagnostics()
     {
-        var source = new[] { Diag(PolicyDiagnosticSeverity.Info), Diag(PolicyDiagnosticSeverity.Warning) };
+        var source = new[] { Diag(DiagnosticSeverity.Info), Diag(DiagnosticSeverity.Warning) };
 
         var diagnostics = new PolicyDiagnostics(source);
 
@@ -37,10 +38,10 @@ public sealed class PolicyDiagnosticsTests
         // A lazily-evaluated source (as produced by SelectMany over policies) must be enumerated
         // once into the collection, not re-evaluated on every access.
         var evaluations = 0;
-        IEnumerable<PolicyDiagnostic> Lazy()
+        IEnumerable<Diagnostic> Lazy()
         {
             evaluations++;
-            yield return Diag(PolicyDiagnosticSeverity.Error);
+            yield return Diag(DiagnosticSeverity.Error);
         }
 
         var diagnostics = new PolicyDiagnostics(Lazy());
@@ -59,9 +60,9 @@ public sealed class PolicyDiagnosticsTests
     {
         var diagnostics = new PolicyDiagnostics(
         [
-            Diag(PolicyDiagnosticSeverity.Info),
-            Diag(PolicyDiagnosticSeverity.Warning),
-            Diag(PolicyDiagnosticSeverity.Error),
+            Diag(DiagnosticSeverity.Info),
+            Diag(DiagnosticSeverity.Warning),
+            Diag(DiagnosticSeverity.Error),
         ]);
 
         diagnostics.HasErrors.ShouldBeTrue();
@@ -72,8 +73,8 @@ public sealed class PolicyDiagnosticsTests
     {
         var diagnostics = new PolicyDiagnostics(
         [
-            Diag(PolicyDiagnosticSeverity.Info),
-            Diag(PolicyDiagnosticSeverity.Warning),
+            Diag(DiagnosticSeverity.Info),
+            Diag(DiagnosticSeverity.Warning),
         ]);
 
         diagnostics.HasErrors.ShouldBeFalse();
@@ -86,13 +87,13 @@ public sealed class PolicyDiagnosticsTests
     [Fact]
     public void Errors_ReturnsOnlyErrorSeverity()
     {
-        var error1 = Diag(PolicyDiagnosticSeverity.Error, "first");
-        var error2 = Diag(PolicyDiagnosticSeverity.Error, "second");
+        var error1 = Diag(DiagnosticSeverity.Error, "first");
+        var error2 = Diag(DiagnosticSeverity.Error, "second");
         var diagnostics = new PolicyDiagnostics(
         [
-            Diag(PolicyDiagnosticSeverity.Info),
+            Diag(DiagnosticSeverity.Info),
             error1,
-            Diag(PolicyDiagnosticSeverity.Warning),
+            Diag(DiagnosticSeverity.Warning),
             error2,
         ]);
 
@@ -108,7 +109,7 @@ public sealed class PolicyDiagnosticsTests
     {
         var diagnostics = new PolicyDiagnostics();
 
-        diagnostics.Add(Diag(PolicyDiagnosticSeverity.Error));
+        diagnostics.Add(Diag(DiagnosticSeverity.Error));
 
         diagnostics.HasErrors.ShouldBeTrue();
         diagnostics.Errors.ShouldHaveSingleItem();

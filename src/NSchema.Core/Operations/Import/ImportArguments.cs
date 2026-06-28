@@ -1,7 +1,7 @@
 namespace NSchema.Operations.Import;
 
 /// <summary>
-/// Arguments controlling what an <see cref="IImportOperation"/> fetches from the live database and where it writes the result.
+/// Arguments controlling what an import fetches from the live database and where it writes the result.
 /// </summary>
 public sealed record ImportArguments
 {

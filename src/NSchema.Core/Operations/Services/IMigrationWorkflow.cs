@@ -1,5 +1,7 @@
+using NSchema.Diagnostics;
+using NSchema.Plan;
+using NSchema.Policies;
 using NSchema.Schema;
-using NSchema.Schema.Model;
 
 namespace NSchema.Operations.Services;
 
@@ -10,34 +12,30 @@ namespace NSchema.Operations.Services;
 internal interface IMigrationWorkflow
 {
     /// <summary>
-    /// Validates the desired schema against the schema policies, throwing on errors.
+    /// Validates the desired schema against the schema policies.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>The loaded, validated desired schema.</returns>
-    Task<DatabaseSchema> Validate(CancellationToken cancellationToken = default);
+    Task<PolicyDiagnostics> Validate(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Loads the desired and current schemas, computes the migration plan, and reports it.
+    /// Loads the desired and current schemas and computes the migration plan.
     /// </summary>
     /// <param name="currentSource">Which source to read the current schema from.</param>
     /// <param name="required">Whether <paramref name="currentSource"/> must be available, or may fall back to the other source.</param>
     /// <param name="schemas">The schemas to scope to, or <see langword="null"/> to derive scope from the desired schema.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<PlannedMigration> Plan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default);
+    Task<Result<PlannedMigration>> ComputePlan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Builds a plan that tears down the managed schema.
+    /// Computes the teardown plan for the managed schema.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<PlannedMigration> PlanDestroy(CancellationToken cancellationToken = default);
+    Task<Result<PlannedMigration>> ComputeTeardown(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Captures the live schema into the state store.
     /// </summary>
-    /// <param name="mode">
-    /// <see cref="RefreshMode.Required"/> throws when no state store is configured;
-    /// <see cref="RefreshMode.Optional"/> skips silently.
-    /// </param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task Refresh(RefreshMode mode, CancellationToken cancellationToken = default);
+    /// <returns>The captured snapshot, or <see langword="null"/> when no state store is configured (nothing was captured).</returns>
+    Task<StateCapture?> Refresh(CancellationToken cancellationToken = default);
 }
