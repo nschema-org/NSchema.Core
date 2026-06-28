@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
-## [4.0.0-beta.1]
+## [4.0.0-beta.2]
 
 v4.0.0 is a major release that reworks providers and backends into a new plugin system. This will enable providers and backends to be installed directly from NuGet, independently of the CLI, and pin the versions in your CI.
 
@@ -175,6 +175,7 @@ First stable release. The public API is now covered by semantic versioning. Brea
 - Pre- and post-deployment script support via `IScriptProvider`, `AddScriptFromFile(...)`, and `AddScriptsFromEmbeddedResources(...)`.
 - SourceLink and symbol packages (`.snupkg`) published alongside the main package for source-level debugging.
 
+[4.0.0-beta.2]: https://github.com/nschema-org/NSchema.Core/compare/v3.1.0...v4.0.0-beta.2
 [3.1.0]: https://github.com/nschema-org/NSchema.Core/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/nschema-org/NSchema.Core/compare/v2.1.0...v3.0.0
 [2.1.0]: https://github.com/nschema-org/NSchema.Core/compare/v2.0.1...v2.1.0
