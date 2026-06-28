@@ -35,10 +35,7 @@ internal interface IMigrationWorkflow
     /// <summary>
     /// Captures the live schema into the state store.
     /// </summary>
-    /// <param name="mode">
-    /// <see cref="RefreshMode.Required"/> throws when no state store is configured;
-    /// <see cref="RefreshMode.Optional"/> skips silently.
-    /// </param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task Refresh(RefreshMode mode, CancellationToken cancellationToken = default);
+    /// <returns>The captured snapshot, or <see langword="null"/> when no state store is configured (nothing was captured).</returns>
+    Task<StateCapture?> Refresh(CancellationToken cancellationToken = default);
 }

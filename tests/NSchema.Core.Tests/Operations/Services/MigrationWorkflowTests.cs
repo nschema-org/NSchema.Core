@@ -347,9 +347,10 @@ public sealed class MigrationWorkflowTests
         var expected = _stateSerializer.Serialize(schema).ToArray();
 
         // Act
-        await sut.Refresh(RefreshMode.Required, TestContext.Current.CancellationToken);
+        var capture = await sut.Refresh(TestContext.Current.CancellationToken);
 
         // Assert
+        capture.ShouldNotBeNull();
         await _currentProvider.Received(1).GetSchema(
             SchemaSourceMode.Online, Arg.Is<string[]?>(names => names == null), required: true, Arg.Any<CancellationToken>());
         await store.Received(1).Write(
@@ -357,27 +358,16 @@ public sealed class MigrationWorkflowTests
     }
 
     [Fact]
-    public async Task Refresh_Required_NoStore_Throws()
+    public async Task Refresh_NoStore_ReturnsNull_WithoutContactingTheDatabase()
     {
         // Arrange
         var sut = BuildSut(store: null);
 
-        // Act
-        var act = () => sut.Refresh(RefreshMode.Required, TestContext.Current.CancellationToken);
+        // Act — no store, so nothing is captured; whether that is an error is the caller's call, not the workflow's.
+        var capture = await sut.Refresh(TestContext.Current.CancellationToken);
 
-        // Assert
-        await act.ShouldThrowAsync<InvalidOperationException>();
-    }
-
-    [Fact]
-    public async Task Refresh_Optional_NoStore_IsNoOp()
-    {
-        // Arrange
-        var sut = BuildSut(store: null);
-
-        // Act / Assert: no store, but Optional — completes without contacting the live database or throwing.
-        await sut.Refresh(RefreshMode.Optional, TestContext.Current.CancellationToken);
-
+        // Assert: returns null (never throws) and does not touch the live database.
+        capture.ShouldBeNull();
         await _currentProvider.DidNotReceive().GetSchema(
             SchemaSourceMode.Online, Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
