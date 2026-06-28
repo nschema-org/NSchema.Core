@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using NSchema.Diagnostics;
 using Microsoft.Extensions.Hosting;
 using NSchema.Operations;
 using NSchema.Operations.Apply;
@@ -127,7 +128,7 @@ public sealed class NSchemaApplication : IDisposable
     /// </summary>
     /// <param name="arguments">The arguments controlling the diagnostics.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public Task Doctor(DoctorArguments arguments, CancellationToken cancellationToken = default)
+    public Task<Result> Doctor(DoctorArguments arguments, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(arguments);
         return Run(() => Resolve<IDoctorOperation>().Execute(arguments, cancellationToken));

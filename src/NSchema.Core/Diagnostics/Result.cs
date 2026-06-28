@@ -51,4 +51,17 @@ public sealed class Result
     /// <param name="diagnostics">The diagnostics describing why the operation failed.</param>
     /// <returns>A failed <see cref="Result"/>.</returns>
     public static Result Failure(IEnumerable<Diagnostic> diagnostics) => new(false, diagnostics.ToArray());
+
+    /// <summary>
+    /// Builds a result from an aggregated set of diagnostics, deriving success from their severities: a failure when
+    /// any is <see cref="DiagnosticSeverity.Error"/>, otherwise a success that still carries the info/warning findings.
+    /// Use this for aggregating checks (e.g. doctor) where the outcome is dictated by what was found.
+    /// </summary>
+    /// <param name="diagnostics">Every finding produced.</param>
+    /// <returns>A success or failure, per the diagnostics' severities.</returns>
+    public static Result From(IEnumerable<Diagnostic> diagnostics)
+    {
+        var all = diagnostics.ToArray();
+        return new Result(all.All(d => d.Severity != DiagnosticSeverity.Error), all);
+    }
 }

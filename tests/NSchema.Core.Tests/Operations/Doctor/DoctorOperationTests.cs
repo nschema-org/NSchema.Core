@@ -1,3 +1,4 @@
+using NSchema.Diagnostics;
 using NSchema.Operations;
 using NSchema.Operations.Doctor;
 using NSchema.Schema;
@@ -18,7 +19,7 @@ public sealed class DoctorOperationTests
     private DoctorOperation BuildSut(ISchemaProvider? online = null, ISchemaStateStore? store = null, IStateLock? stateLock = null) =>
         new(_reporter, _serializer, online, store, stateLock);
 
-    private Task Run(DoctorOperation sut) => sut.Execute(new DoctorArguments(), TestContext.Current.CancellationToken);
+    private Task<Result> Run(DoctorOperation sut) => sut.Execute(new DoctorArguments(), TestContext.Current.CancellationToken);
 
     [Fact]
     public async Task Execute_WhenNothingConfigured_ReportsNeutralAndPasses()
@@ -27,9 +28,15 @@ public sealed class DoctorOperationTests
         var sut = BuildSut(online: null, store: null);
 
         // Act
-        await Run(sut);
+        var result = await Run(sut);
 
-        // Assert
+        // Assert — the neutral findings are carried back, and with no errors the result is a success.
+        result.IsSuccess.ShouldBeTrue();
+        result.Diagnostics.Select(d => d.Message).ShouldBe(
+        [
+            "Database: not configured (offline mode).",
+            "State store: not configured (offline planning unavailable).",
+        ]);
         _reporter.Messages.ShouldContain((MessageKind.Announcement, "Database: not configured (offline mode)."));
         _reporter.Messages.ShouldContain((MessageKind.Announcement, "State store: not configured (offline planning unavailable)."));
         _reporter.Messages.ShouldContain((MessageKind.Success, "All checks passed."));
@@ -65,14 +72,19 @@ public sealed class DoctorOperationTests
     }
 
     [Fact]
-    public async Task Execute_WhenDatabaseUnreachable_ReportsAndThrows()
+    public async Task Execute_WhenDatabaseUnreachable_ReportsAndFails()
     {
         // Arrange
         var sut = BuildSut(online: new ThrowingSchemaProvider(new InvalidOperationException("connection refused")));
 
-        // Act / Assert
-        var ex = await Should.ThrowAsync<InvalidOperationException>(() => Run(sut));
-        ex.Message.ShouldContain("1 problem");
+        // Act
+        var result = await Run(sut);
+
+        // Assert — the failure is carried back as an error diagnostic, not thrown.
+        result.IsFailure.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldSatisfyAllConditions(
+            m => m.ShouldContain("Database: unreachable"),
+            m => m.ShouldContain("connection refused"));
         _reporter.Messages.ShouldContain(m => m.Kind == MessageKind.Warning && m.Message.Contains("Database: unreachable") && m.Message.Contains("connection refused"));
         _reporter.Infos.ShouldNotContain("All checks passed.");
     }
@@ -106,27 +118,33 @@ public sealed class DoctorOperationTests
     }
 
     [Fact]
-    public async Task Execute_WhenStateStoreUnreachable_ReportsAndThrows()
+    public async Task Execute_WhenStateStoreUnreachable_ReportsAndFails()
     {
         // Arrange
         var sut = BuildSut(store: new ThrowingStateStore(new IOException("bucket not found")));
 
-        // Act / Assert
-        var ex = await Should.ThrowAsync<InvalidOperationException>(() => Run(sut));
-        ex.Message.ShouldContain("1 problem");
+        // Act
+        var result = await Run(sut);
+
+        // Assert
+        result.IsFailure.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("State store: unreachable");
         _reporter.Messages.ShouldContain(m => m.Kind == MessageKind.Warning && m.Message.Contains("State store: unreachable") && m.Message.Contains("bucket not found"));
     }
 
     [Fact]
-    public async Task Execute_WhenRecordedStateCorrupt_ReportsUnreadableAndThrows()
+    public async Task Execute_WhenRecordedStateCorrupt_ReportsUnreadableAndFails()
     {
         // Arrange — a payload the serializer cannot deserialize.
         var store = new ContentStateStore(new byte[] { 0x00, 0x01, 0x02 });
         var sut = BuildSut(store: store);
 
-        // Act / Assert
-        var ex = await Should.ThrowAsync<InvalidOperationException>(() => Run(sut));
-        ex.Message.ShouldContain("1 problem");
+        // Act
+        var result = await Run(sut);
+
+        // Assert
+        result.IsFailure.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("recorded state is unreadable");
         _reporter.Messages.ShouldContain(m => m.Kind == MessageKind.Warning && m.Message.Contains("recorded state is unreadable"));
     }
 
@@ -153,24 +171,31 @@ public sealed class DoctorOperationTests
         var sut = BuildSut(store: new RecordingStateStore(), stateLock: _stateLock);
 
         // Act — a held lock is a state, not a misconfiguration, so doctor still passes.
-        await Run(sut);
+        var result = await Run(sut);
 
-        // Assert
+        // Assert — surfaced as a warning diagnostic, but the result is still a success.
+        result.IsSuccess.ShouldBeTrue();
+        result.Diagnostics.ShouldContain(d => d.Severity == DiagnosticSeverity.Warning && d.Message.Contains("State lock: held by"));
         _reporter.Messages.ShouldContain(m => m.Kind == MessageKind.Warning && m.Message.Contains("State lock: held by") && m.Message.Contains("tom@dev") && m.Message.Contains("apply"));
         _reporter.Messages.ShouldContain((MessageKind.Success, "All checks passed."));
     }
 
     [Fact]
-    public async Task Execute_WhenMultipleChecksFail_TalliesAllOfThem()
+    public async Task Execute_WhenMultipleChecksFail_AggregatesAllOfThem()
     {
         // Arrange
         var sut = BuildSut(
             online: new ThrowingSchemaProvider(new InvalidOperationException("db down")),
             store: new ThrowingStateStore(new IOException("store down")));
 
-        // Act / Assert
-        var ex = await Should.ThrowAsync<InvalidOperationException>(() => Run(sut));
-        ex.Message.ShouldContain("2 problems");
+        // Act — both failures are surfaced together in one result, not one-at-a-time.
+        var result = await Run(sut);
+
+        // Assert
+        result.IsFailure.ShouldBeTrue();
+        result.Errors.Count().ShouldBe(2);
+        result.Errors.Select(e => e.Message).ShouldContain(m => m.Contains("db down"));
+        result.Errors.Select(e => e.Message).ShouldContain(m => m.Contains("store down"));
     }
 
     private sealed class ThrowingSchemaProvider(Exception exception) : ISchemaProvider

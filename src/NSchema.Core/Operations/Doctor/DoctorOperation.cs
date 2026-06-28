@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using NSchema.Diagnostics;
 using NSchema.Schema;
 using NSchema.State;
 
@@ -19,35 +20,41 @@ internal sealed class DoctorOperation(
     IStateLock? stateLock = null
 ) : IDoctorOperation
 {
-    public async Task Execute(DoctorArguments arguments, CancellationToken cancellationToken = default)
+    public async Task<Result> Execute(DoctorArguments arguments, CancellationToken cancellationToken = default)
     {
         reporter.Announce("Running diagnostics...");
 
-        var failures = 0;
-        failures += await CheckDatabase(cancellationToken);
-        failures += await CheckStateStore(cancellationToken);
+        // Each probe contributes one diagnostic; the aggregated set is the result, carried back to the caller. A check
+        // that touches infra still catches (Npgsql/IO/JSON genuinely throw) — but converts the failure to an
+        // error-severity diagnostic rather than tallying or throwing, so every problem is surfaced together.
+        var diagnostics = new List<Diagnostic>
+        {
+            await CheckDatabase(cancellationToken),
+            await CheckStateStore(cancellationToken),
+        };
 
         // The lock check only means anything when the configured backend actually provides a lock; otherwise there is
         // nothing to probe.
         if (stateLock is not null)
         {
-            failures += await CheckStateLock(stateLock, cancellationToken);
+            diagnostics.Add(await CheckStateLock(stateLock, cancellationToken));
         }
 
-        if (failures > 0)
+        var result = Result.From(diagnostics);
+        if (result.IsSuccess)
         {
-            throw new InvalidOperationException($"Diagnostics found {failures} problem{(failures == 1 ? "" : "s")}. See the messages above.");
+            reporter.Success("All checks passed.");
         }
 
-        reporter.Success("All checks passed.");
+        return result;
     }
 
-    private async Task<int> CheckDatabase(CancellationToken cancellationToken)
+    private async Task<Diagnostic> CheckDatabase(CancellationToken cancellationToken)
     {
+        const string source = "database";
         if (online is null)
         {
-            reporter.Announce("Database: not configured (offline mode).");
-            return 0;
+            return Announce(Diagnostic.Info(source, "Database: not configured (offline mode)."));
         }
 
         reporter.Progress("Checking database connectivity...");
@@ -55,22 +62,20 @@ internal sealed class DoctorOperation(
         {
             // A full introspection is the honest end-to-end probe: it exercises the same path plan/apply rely on.
             var schema = await online.GetSchema(schemaNames: null, cancellationToken);
-            reporter.Success($"Database: connected ({schema.Schemas.Count} schema{(schema.Schemas.Count == 1 ? "" : "s")} visible).");
-            return 0;
+            return Healthy(Diagnostic.Info(source, $"Database: connected ({schema.Schemas.Count} schema{(schema.Schemas.Count == 1 ? "" : "s")} visible)."));
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            reporter.Warn($"Database: unreachable — {ex.Message}");
-            return 1;
+            return Problem(Diagnostic.Error(source, $"Database: unreachable — {ex.Message}"));
         }
     }
 
-    private async Task<int> CheckStateStore(CancellationToken cancellationToken)
+    private async Task<Diagnostic> CheckStateStore(CancellationToken cancellationToken)
     {
+        const string source = "state-store";
         if (store is null)
         {
-            reporter.Announce("State store: not configured (offline planning unavailable).");
-            return 0;
+            return Announce(Diagnostic.Info(source, "State store: not configured (offline planning unavailable)."));
         }
 
         reporter.Progress("Checking state store...");
@@ -81,15 +86,13 @@ internal sealed class DoctorOperation(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            reporter.Warn($"State store: unreachable — {ex.Message}");
-            return 1;
+            return Problem(Diagnostic.Error(source, $"State store: unreachable — {ex.Message}"));
         }
 
         // A missing or empty payload is a bootstrap store — reachable, with nothing recorded yet — not a corruption.
         if (snapshot is null or { IsEmpty: true })
         {
-            reporter.Success("State store: reachable (no state recorded yet).");
-            return 0;
+            return Healthy(Diagnostic.Info(source, "State store: reachable (no state recorded yet)."));
         }
 
         // Reachable is necessary but not sufficient — a payload we can't deserialize would break every plan, so prove
@@ -97,39 +100,50 @@ internal sealed class DoctorOperation(
         try
         {
             serializer.Deserialize(snapshot.Value);
-            reporter.Success("State store: reachable, recorded state is valid.");
-            return 0;
+            return Healthy(Diagnostic.Info(source, "State store: reachable, recorded state is valid."));
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            reporter.Warn($"State store: reachable but the recorded state is unreadable — {ex.Message}");
-            return 1;
+            return Problem(Diagnostic.Error(source, $"State store: reachable but the recorded state is unreadable — {ex.Message}"));
         }
     }
 
-    private async Task<int> CheckStateLock(IStateLock stateLock, CancellationToken cancellationToken)
+    private async Task<Diagnostic> CheckStateLock(IStateLock stateLock, CancellationToken cancellationToken)
     {
+        const string source = "state-lock";
         reporter.Progress("Checking state lock...");
         try
         {
             var info = await stateLock.Peek(cancellationToken);
-            if (info is null)
-            {
-                reporter.Success("State lock: free.");
-            }
-            else
-            {
+            return info is null
+                ? Healthy(Diagnostic.Info(source, "State lock: free."))
                 // A held lock is a state, not a misconfiguration — it may be a legitimately-running operation — so
-                // report it for visibility without counting it as a failure.
-                reporter.Warn($"State lock: held by {info.Who} (operation '{info.Operation}', since {info.CreatedUtc:u}).");
-            }
-
-            return 0;
+                // report it for visibility (warning) without counting it as a failure.
+                : Problem(Diagnostic.Warning(source, $"State lock: held by {info.Who} (operation '{info.Operation}', since {info.CreatedUtc:u})."));
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            reporter.Warn($"State lock: could not be checked — {ex.Message}");
-            return 1;
+            return Problem(Diagnostic.Error(source, $"State lock: could not be checked — {ex.Message}"));
         }
+    }
+
+    // Live narration mirrors each diagnostic's severity: healthy/announcement lines go to the positive channels,
+    // warnings and errors to the warning channel. The diagnostic itself is what the result carries.
+    private Diagnostic Announce(Diagnostic diagnostic)
+    {
+        reporter.Announce(diagnostic.Message);
+        return diagnostic;
+    }
+
+    private Diagnostic Healthy(Diagnostic diagnostic)
+    {
+        reporter.Success(diagnostic.Message);
+        return diagnostic;
+    }
+
+    private Diagnostic Problem(Diagnostic diagnostic)
+    {
+        reporter.Warn(diagnostic.Message);
+        return diagnostic;
     }
 }

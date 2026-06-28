@@ -1,3 +1,5 @@
+using NSchema.Diagnostics;
+
 namespace NSchema.Operations.Doctor;
 
 /// <summary>
@@ -5,5 +7,8 @@ namespace NSchema.Operations.Doctor;
 /// </summary>
 internal interface IDoctorOperation
 {
-    Task Execute(DoctorArguments arguments, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Runs every check and returns the aggregated diagnostics — a failure when any check found an error.
+    /// </summary>
+    Task<Result> Execute(DoctorArguments arguments, CancellationToken cancellationToken = default);
 }
