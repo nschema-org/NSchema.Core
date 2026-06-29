@@ -32,12 +32,10 @@ namespace NSchema;
 /// </summary>
 public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 {
-    private readonly NSchemaApplicationOptions _options;
     private readonly HostApplicationBuilder _innerBuilder;
 
     internal NSchemaApplicationBuilder(NSchemaApplicationOptions options)
     {
-        _options = options;
         // When left empty, the content root usually defaults to the current working directory.
         // Since NSchema will usually be run from a project/repository directory, it won't be able to
         // find things like appsettings.json.
@@ -54,9 +52,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
         // Drop the default console logger so third-party libraries don't spam the terminal.
         _innerBuilder.Logging.ClearProviders();
-
-        // The user-supplied application options are the source of ambient run config (reporter, exception behavior).
-        _innerBuilder.Services.AddSingleton(Options.Create(options));
         _innerBuilder.Services.AddOptions<DestructiveActionOptions>();
 
         // Policies registered up front so users can remove them before Build().
