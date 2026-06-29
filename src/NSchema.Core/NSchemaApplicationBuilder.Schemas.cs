@@ -42,7 +42,7 @@ public partial class NSchemaApplicationBuilder
     /// </summary>
     public NSchemaApplicationBuilder UseCurrentSchema<T>() where T : class, ISchemaProvider
     {
-        Services.Replace(ServiceDescriptor.KeyedSingleton<ISchemaProvider, T>(NSchemaKeys.OnlineSchemaProvider));
+        Services.Replace(ServiceDescriptor.Singleton<ISchemaProvider, T>());
         return this;
     }
 }

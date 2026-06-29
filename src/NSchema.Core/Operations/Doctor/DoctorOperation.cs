@@ -1,4 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
 using NSchema.Diagnostics;
 using NSchema.Operations.Progress;
 using NSchema.Schema;
@@ -15,7 +14,6 @@ namespace NSchema.Operations.Doctor;
 internal sealed class DoctorOperation(
     IProgress<OperationProgress> progress,
     ISchemaStateSerializer serializer,
-    [FromKeyedServices(NSchemaKeys.OnlineSchemaProvider)]
     ISchemaProvider? online = null,
     ISchemaStateStore? store = null,
     IStateLock? stateLock = null

@@ -41,7 +41,7 @@ public sealed class ApplyEndToEndTests : IDisposable
             .Tap(b =>
             {
                 b.Services.AddSingleton<ISqlExecutor>(_executor);
-                b.Services.AddKeyedSingleton<ISchemaProvider>(NSchemaKeys.OnlineSchemaProvider, new InMemorySchemaProvider(current));
+                b.Services.AddSingleton<ISchemaProvider>(new InMemorySchemaProvider(current));
             })
             .Build();
 
