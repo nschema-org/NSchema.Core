@@ -7,21 +7,21 @@ using NSchema.Schema.Model.Views;
 
 namespace NSchema.Tests.Diff;
 
-public sealed class TerraformDiffRendererTests
+public sealed class DiffRendererTests
 {
     // -------------------------------------------------------------------------
     // Helpers — render and build diff fragments concisely.
     // -------------------------------------------------------------------------
 
-    private static string Render(DatabaseDiff diff, bool colour = false, string? indent = null)
+    private static string Render(DatabaseDiff diff, string? indent = null)
     {
-        var options = new TerraformDiffRendererOptions { IncludeColour = colour };
+        var options = new DiffRendererOptions();
         if (indent is not null)
         {
             options.Indent = indent;
         }
 
-        return new TerraformDiffRenderer(options).Render(diff);
+        return new DiffRenderer(options).Render(diff);
     }
 
     private static DatabaseDiff DiffOf(IReadOnlyList<SchemaDiff>? schemas = null) => new(schemas ?? []);
@@ -389,24 +389,15 @@ public sealed class TerraformDiffRendererTests
             .ShouldContain("- view app.stale_view");
 
     // -------------------------------------------------------------------------
-    // Colour / formatting options
+    // Formatting
     // -------------------------------------------------------------------------
 
     [Fact]
-    public void Render_WithColour_EmitsAnsiEscapeCodes()
-    {
-        var output = Render(DiffOf([Schema("app", ChangeKind.Add)]), colour: true);
-
-        output.ShouldContain("\x1b[32m"); // green marker for an addition
-        output.ShouldContain("schema app");
-    }
-
-    [Fact]
-    public void Render_WithoutColour_EmitsPlainMarkers()
+    public void Render_EmitsPlainMarkers()
     {
         var output = Render(DiffOf([Schema("app", ChangeKind.Add)]));
 
-        output.ShouldNotContain("\x1b["); // no ANSI escape sequences at all
+        output.ShouldNotContain("\x1b["); // plain text only — no ANSI escape sequences
         output.ShouldContain("+ schema app");
     }
 

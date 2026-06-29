@@ -1,4 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 
@@ -12,7 +11,6 @@ namespace NSchema.State;
 /// <param name="store">The state store, if any.</param>
 internal sealed class CurrentSchemaProvider(
     ISchemaStateSerializer serializer,
-    [FromKeyedServices(NSchemaKeys.OnlineSchemaProvider)]
     ISchemaProvider? online = null,
     ISchemaStateStore? store = null
 ) : ICurrentSchemaProvider

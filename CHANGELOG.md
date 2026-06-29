@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
-## [4.0.0-beta.5]
+## [4.0.0-rc.1]
 
 v4.0.0 is a major release that reworks providers and backends into a new plugin system. This will enable providers and backends to be installed directly from NuGet, independently of the CLI, and pin the versions in your CI.
 
@@ -15,14 +15,14 @@ v4.0.0 is a major release that reworks providers and backends into a new plugin 
 - **Plugin Contract.** A new set of interfaces in `NSchema.Plugins` that will allow providers and backends to declare themselves.
 - **BREAKING: Manual lock holds.** `IStateLockHandle` is no longer disposable; release is explicit, so a caller can take a lock that outlives the current process (e.g. one front-end command acquires, another releases) simply by never releasing it.
 - **Lock time-to-live.** `StateLockRequest.TimeToLive` records an optional expiry on the resulting `StateLockInfo.ExpiresUtc`. Expiry is surfaced for visibility but never auto-enforced.
-- **Caller-managed locking.** The state lock is acquired by the caller through `app.Locks` (`IStateLockCoordinator.Acquire(operation, skipLock, …)`) and held across the operations it guards, rather than each operation taking its own. Operations themselves are pure; they neither lock nor prompt for confirmation.
+- **BREAKING: Caller-managed locking.** The state lock is acquired by the caller through `app.Locks` (`IStateLockCoordinator.Acquire(operation, skipLock, …)`) and held across the operations it guards, rather than each operation taking its own. Operations themselves are pure; they neither lock nor prompt for confirmation.
 - **Schema-read seams on the application.** `app.CurrentSchema` (`ICurrentSchemaProvider`) reads the recorded (offline) or live (online) schema, and `app.PlanFile` (`IPlanFileWriter`) reads and writes saved plan files — exposed as properties alongside `app.Operations` / `app.Locks`. The underlying interfaces, plus `PlanFileEnvelope`, are public for direct use too.
-- **Inspect and release the lock via the coordinator.** `IStateLockCoordinator` now manages the whole lock lifecycle through `app.Locks`: `Peek(ct)` reads the current `StateLockInfo?` without acquiring it, and `Release(ct)` force-releases whatever is held and returns the released lock's details. A front-end inspects, holds, and releases the lock through one surface rather than reaching for `IStateLock` directly.
-- **Operation surface.** Every operation is reached through `app.Operations` (the `INSchemaOperations` facade) with a uniform `XArguments` → `Result<XResult>` shape, and each result carries its outcome as data.
-- **Result & diagnostic model.** Operations no longer throw to signal expected outcomes or print their own output. They return `Result`/`Result<T>` carrying success/failure plus `Diagnostic`s, and narrate transient progress through `IProgress<OperationProgress>`; the caller decides what to render.
+- **BREAKING: Inspect and release the lock via the coordinator.** `IStateLockCoordinator` now manages the whole lock lifecycle through `app.Locks`: `Peek(ct)` reads the current `StateLockInfo?` without acquiring it, and `Release(ct)` force-releases whatever is held and returns the released lock's details. A front-end inspects, holds, and releases the lock through one surface rather than reaching for `IStateLock` directly.
+- **BREAKING: Operation surface.** Every operation is reached through `app.Operations` (the `INSchemaOperations` facade) with a uniform `XArguments` → `Result<XResult>` shape, and each result carries its outcome as data.
+- **BREAKING: Result & diagnostic model.** Operations no longer throw to signal expected outcomes or print their own output. They return `Result`/`Result<T>` carrying success/failure plus `Diagnostic`s, and narrate transient progress through `IProgress<OperationProgress>`; the caller decides what to render.
 - **`UseProgressReporter<TProgress>()`.** Registers the `IProgress<OperationProgress>` sink that receives an operation's transient progress narration, replacing the default no-op reporter — a named builder method alongside `UseSqlGenerator`.
 - **Atomic file-state writes.** The built-in file state store now writes to a temporary sibling file and atomically renames it into place, so a concurrent reader (e.g. a `plan` reading the recorded state while an `apply` captures new state) never observes a half-written snapshot.
-- **Public text renderers.** `TerraformDiffRenderer`, `DefaultSchemaRenderer`, and `DefaultSqlPlanRenderer` are now public, stateless utilities with a shared `.Default` instance. Construct or reuse them directly without resolving anything from the container.
+- **BREAKING: Public text renderers.** `DiffRenderer`, `SchemaRenderer`, and `SqlPlanRenderer` are now public, stateless utilities with a shared `.Default` instance. Construct or reuse them directly without resolving anything from the container.
 
 ### Changed
 
@@ -33,7 +33,7 @@ v4.0.0 is a major release that reworks providers and backends into a new plugin 
 
 ### Removed
 
-- **`NoOpStateLock` and the no-op lock fallback.** `IStateLock` is now registered only when a state backend supplies one; an operation either takes a real lock or runs without one, rather than acquiring a placeholder. Operations resolve `IStateLock?` (optional).
+- **BREAKING: `NoOpStateLock` and the no-op lock fallback.** `IStateLock` is now registered only when a state backend supplies one; an operation either takes a real lock or runs without one, rather than acquiring a placeholder. Operations resolve `IStateLock?` (optional).
 - **BREAKING: The `ForceUnlock` operation.** `NSchemaApplication.ForceUnlock`, `IForceUnlockOperation`, and `ForceUnlockArguments` are gone; force-unlock is a thin caller of `IStateLock.Release()` (the CLI does the peek + expected-id check + confirmation itself).
 - **BREAKING: The `Show` operation.** `NSchemaApplication.Show`, `IShowOperation`, and `ShowArguments` are gone. Reading-and-rendering the recorded state, a saved plan, or (new) the live schema is a thin front-end concern, built on the public read seams above rather than a Core operation.
 - **BREAKING: Renderer interfaces and `Use*Renderer` builder methods.** `IDiffRenderer`, `ISchemaRenderer`, and `ISqlPlanRenderer` are gone, along with `UseDiffRenderer<T>()`, `UseTerraformRenderer(…)`, `UseSchemaRenderer<T>()`, and `UseSqlPlanRenderer<T>()`. The renderers were never consumed by Core and had no swap points; they are now public concrete utilities (see Added) rather than DI-registered services. A consumer wanting a different format writes its own renderer and calls it directly.

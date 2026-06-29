@@ -15,12 +15,12 @@ namespace NSchema.Schema;
 /// Renders a <see cref="DatabaseSchema"/> as human-readable text, presenting it as an indented tree:
 /// schema → table → columns, primary key, foreign keys, indexes, and grants.
 /// </summary>
-public sealed class DefaultSchemaRenderer
+public sealed class SchemaRenderer
 {
     /// <summary>
     /// A shared, stateless instance of the renderer.
     /// </summary>
-    public static DefaultSchemaRenderer Default { get; } = new();
+    public static SchemaRenderer Default { get; } = new();
 
     private const string Indent = "  ";
 
