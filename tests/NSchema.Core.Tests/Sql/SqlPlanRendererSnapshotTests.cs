@@ -4,11 +4,11 @@ using NSchema.Sql.Model;
 namespace NSchema.Tests.Sql;
 
 /// <summary>
-/// Snapshot coverage for <see cref="DefaultSqlPlanRenderer"/>.
+/// Snapshot coverage for <see cref="SqlPlanRenderer"/>.
 /// </summary>
-public sealed class DefaultSqlPlanRendererSnapshotTests
+public sealed class SqlPlanRendererSnapshotTests
 {
-    private readonly DefaultSqlPlanRenderer _sut = new();
+    private readonly SqlPlanRenderer _sut = new();
 
     [Fact]
     public Task Render_EmptyPlan() => Verify(_sut.Render(new SqlPlan([])));

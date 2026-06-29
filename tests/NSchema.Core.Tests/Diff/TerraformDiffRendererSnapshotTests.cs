@@ -16,12 +16,12 @@ using NSchema.Schema.Model.Views;
 namespace NSchema.Tests.Diff;
 
 /// <summary>
-/// Snapshot coverage for <see cref="TerraformDiffRenderer"/>.
+/// Snapshot coverage for <see cref="DiffRenderer"/>.
 /// </summary>
 public sealed class TerraformDiffRendererSnapshotTests
 {
     private static string Render(DatabaseDiff diff, bool colour)
-        => new TerraformDiffRenderer(new TerraformDiffRendererOptions { IncludeColour = colour }).Render(diff);
+        => new DiffRenderer(new DiffRendererOptions { IncludeColour = colour }).Render(diff);
 
     /// <summary>
     /// A diff exercising add/modify/remove across schemas, tables, columns, indexes, constraints, and grants.

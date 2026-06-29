@@ -3,9 +3,9 @@ using NSchema.Sql.Model;
 
 namespace NSchema.Tests.Sql;
 
-public sealed class DefaultSqlPlanRendererTests
+public sealed class SqlPlanRendererTests
 {
-    private readonly DefaultSqlPlanRenderer _sut = new();
+    private readonly SqlPlanRenderer _sut = new();
 
     [Fact]
     public void Render_EmptyPlan_ReportsNothingToExecute()

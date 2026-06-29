@@ -3,9 +3,9 @@ using NSchema.Operations.Services;
 namespace NSchema.Diff;
 
 /// <summary>
-/// Options for the default Terraform-style <see cref="TerraformDiffRenderer"/>.
+/// Options for the default Terraform-style <see cref="DiffRenderer"/>.
 /// </summary>
-public class TerraformDiffRendererOptions
+public class DiffRendererOptions
 {
     /// <summary>
     /// Whether to include ANSI color in the rendered output.

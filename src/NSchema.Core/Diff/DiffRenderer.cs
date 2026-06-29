@@ -10,22 +10,22 @@ namespace NSchema.Diff;
 /// <summary>
 /// Produces a Terraform-style output of a database diff.
 /// </summary>
-public sealed class TerraformDiffRenderer
+public sealed class DiffRenderer
 {
     /// <summary>
-    /// A shared renderer using the default <see cref="TerraformDiffRendererOptions"/>.
+    /// A shared renderer using the default <see cref="DiffRendererOptions"/>.
     /// </summary>
-    public static TerraformDiffRenderer Default { get; } = new();
+    public static DiffRenderer Default { get; } = new();
 
-    private readonly TerraformDiffRendererOptions _options;
+    private readonly DiffRendererOptions _options;
     private readonly Palette _palette;
 
     /// <summary>
     /// Creates a renderer with the given options, or the defaults when none are supplied.
     /// </summary>
-    public TerraformDiffRenderer(TerraformDiffRendererOptions? options = null)
+    public DiffRenderer(DiffRendererOptions? options = null)
     {
-        _options = options ?? new TerraformDiffRendererOptions();
+        _options = options ?? new DiffRendererOptions();
         _palette = Palette.For(_options.IncludeColour);
     }
 

@@ -7,7 +7,7 @@ using NSchema.Schema.Model.Views;
 
 namespace NSchema.Tests.Diff;
 
-public sealed class TerraformDiffRendererTests
+public sealed class DiffRendererTests
 {
     // -------------------------------------------------------------------------
     // Helpers — render and build diff fragments concisely.
@@ -15,13 +15,13 @@ public sealed class TerraformDiffRendererTests
 
     private static string Render(DatabaseDiff diff, bool colour = false, string? indent = null)
     {
-        var options = new TerraformDiffRendererOptions { IncludeColour = colour };
+        var options = new DiffRendererOptions { IncludeColour = colour };
         if (indent is not null)
         {
             options.Indent = indent;
         }
 
-        return new TerraformDiffRenderer(options).Render(diff);
+        return new DiffRenderer(options).Render(diff);
     }
 
     private static DatabaseDiff DiffOf(IReadOnlyList<SchemaDiff>? schemas = null) => new(schemas ?? []);
