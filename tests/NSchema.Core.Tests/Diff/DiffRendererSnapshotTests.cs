@@ -18,10 +18,9 @@ namespace NSchema.Tests.Diff;
 /// <summary>
 /// Snapshot coverage for <see cref="DiffRenderer"/>.
 /// </summary>
-public sealed class TerraformDiffRendererSnapshotTests
+public sealed class DiffRendererSnapshotTests
 {
-    private static string Render(DatabaseDiff diff, bool colour)
-        => new DiffRenderer(new DiffRendererOptions { IncludeColour = colour }).Render(diff);
+    private static string Render(DatabaseDiff diff) => DiffRenderer.Default.Render(diff);
 
     /// <summary>
     /// A diff exercising add/modify/remove across schemas, tables, columns, indexes, constraints, and grants.
@@ -175,13 +174,10 @@ public sealed class TerraformDiffRendererSnapshotTests
     }
 
     [Fact]
-    public Task Render_RichDiff_PlainText() => Verify(Render(RichDiff(), colour: false));
+    public Task Render_RichDiff_PlainText() => Verify(Render(RichDiff()));
 
     [Fact]
-    public Task Render_RichDiff_WithColour() => Verify(Render(RichDiff(), colour: true));
-
-    [Fact]
-    public Task Render_ViewChanges_PlainText() => Verify(Render(ViewChangesDiff(), colour: false));
+    public Task Render_ViewChanges_PlainText() => Verify(Render(ViewChangesDiff()));
 
     /// <summary>
     /// A diff exercising every function change kind: an add (showing arguments), a body-only replace, a
@@ -286,7 +282,7 @@ public sealed class TerraformDiffRendererSnapshotTests
     }
 
     [Fact]
-    public Task Render_EnumChanges_PlainText() => Verify(Render(EnumChangesDiff(), colour: false));
+    public Task Render_EnumChanges_PlainText() => Verify(Render(EnumChangesDiff()));
 
     private static DatabaseDiff CompositeTypeChangesDiff()
     {
@@ -312,23 +308,23 @@ public sealed class TerraformDiffRendererSnapshotTests
     }
 
     [Fact]
-    public Task Render_DomainChanges_PlainText() => Verify(Render(DomainChangesDiff(), colour: false));
+    public Task Render_DomainChanges_PlainText() => Verify(Render(DomainChangesDiff()));
 
     [Fact]
-    public Task Render_CompositeTypeChanges_PlainText() => Verify(Render(CompositeTypeChangesDiff(), colour: false));
+    public Task Render_CompositeTypeChanges_PlainText() => Verify(Render(CompositeTypeChangesDiff()));
 
     [Fact]
-    public Task Render_ExtensionChanges_PlainText() => Verify(Render(ExtensionChangesDiff(), colour: false));
+    public Task Render_ExtensionChanges_PlainText() => Verify(Render(ExtensionChangesDiff()));
 
     [Fact]
-    public Task Render_TriggerChanges_PlainText() => Verify(Render(TriggerChangesDiff(), colour: false));
+    public Task Render_TriggerChanges_PlainText() => Verify(Render(TriggerChangesDiff()));
 
     [Fact]
-    public Task Render_RoutineChanges_PlainText() => Verify(Render(RoutineChangesDiff(), colour: false));
+    public Task Render_RoutineChanges_PlainText() => Verify(Render(RoutineChangesDiff()));
 
     [Fact]
-    public Task Render_SequenceChanges_PlainText() => Verify(Render(SequenceChangesDiff(), colour: false));
+    public Task Render_SequenceChanges_PlainText() => Verify(Render(SequenceChangesDiff()));
 
     [Fact]
-    public Task Render_EmptyDiff() => Verify(Render(new DatabaseDiff([]), colour: false));
+    public Task Render_EmptyDiff() => Verify(Render(new DatabaseDiff([])));
 }

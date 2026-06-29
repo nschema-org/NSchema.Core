@@ -13,9 +13,9 @@ public sealed class DiffRendererTests
     // Helpers — render and build diff fragments concisely.
     // -------------------------------------------------------------------------
 
-    private static string Render(DatabaseDiff diff, bool colour = false, string? indent = null)
+    private static string Render(DatabaseDiff diff, string? indent = null)
     {
-        var options = new DiffRendererOptions { IncludeColour = colour };
+        var options = new DiffRendererOptions();
         if (indent is not null)
         {
             options.Indent = indent;
@@ -389,24 +389,15 @@ public sealed class DiffRendererTests
             .ShouldContain("- view app.stale_view");
 
     // -------------------------------------------------------------------------
-    // Colour / formatting options
+    // Formatting
     // -------------------------------------------------------------------------
 
     [Fact]
-    public void Render_WithColour_EmitsAnsiEscapeCodes()
-    {
-        var output = Render(DiffOf([Schema("app", ChangeKind.Add)]), colour: true);
-
-        output.ShouldContain("\x1b[32m"); // green marker for an addition
-        output.ShouldContain("schema app");
-    }
-
-    [Fact]
-    public void Render_WithoutColour_EmitsPlainMarkers()
+    public void Render_EmitsPlainMarkers()
     {
         var output = Render(DiffOf([Schema("app", ChangeKind.Add)]));
 
-        output.ShouldNotContain("\x1b["); // no ANSI escape sequences at all
+        output.ShouldNotContain("\x1b["); // plain text only — no ANSI escape sequences
         output.ShouldContain("+ schema app");
     }
 
