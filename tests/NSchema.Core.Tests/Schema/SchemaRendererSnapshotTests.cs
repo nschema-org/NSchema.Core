@@ -18,11 +18,11 @@ using NSchema.Schema.Model.Views;
 namespace NSchema.Tests.Schema;
 
 /// <summary>
-/// Snapshot coverage for <see cref="DefaultSchemaRenderer"/>.
+/// Snapshot coverage for <see cref="SchemaRenderer"/>.
 /// </summary>
-public sealed class DefaultSchemaRendererSnapshotTests
+public sealed class SchemaRendererSnapshotTests
 {
-    private static string Render(DatabaseSchema schema) => new DefaultSchemaRenderer().Render(schema);
+    private static string Render(DatabaseSchema schema) => new SchemaRenderer().Render(schema);
 
     /// <summary>Builds a view with dependencies derived from its body, exactly as the DDL parser would.</summary>
     private static View View(string name, string body, string? comment = null) =>

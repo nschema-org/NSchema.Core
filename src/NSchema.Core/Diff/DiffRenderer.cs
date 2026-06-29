@@ -10,23 +10,21 @@ namespace NSchema.Diff;
 /// <summary>
 /// Produces a Terraform-style output of a database diff.
 /// </summary>
-public sealed class TerraformDiffRenderer
+public sealed class DiffRenderer
 {
     /// <summary>
-    /// A shared renderer using the default <see cref="TerraformDiffRendererOptions"/>.
+    /// A shared renderer using the default <see cref="DiffRendererOptions"/>.
     /// </summary>
-    public static TerraformDiffRenderer Default { get; } = new();
+    public static DiffRenderer Default { get; } = new();
 
-    private readonly TerraformDiffRendererOptions _options;
-    private readonly Palette _palette;
+    private readonly DiffRendererOptions _options;
 
     /// <summary>
     /// Creates a renderer with the given options, or the defaults when none are supplied.
     /// </summary>
-    public TerraformDiffRenderer(TerraformDiffRendererOptions? options = null)
+    public DiffRenderer(DiffRendererOptions? options = null)
     {
-        _options = options ?? new TerraformDiffRendererOptions();
-        _palette = Palette.For(_options.IncludeColour);
+        _options = options ?? new DiffRendererOptions();
     }
 
     /// <summary>
@@ -430,11 +428,20 @@ public sealed class TerraformDiffRenderer
     private void AppendHeader(StringBuilder sb, ChangeKind kind, string text)
     {
         sb.AppendLine();
-        sb.Append(_palette.For(kind)).Append(' ').AppendLine(text);
+        sb.Append(Marker(kind)).Append(' ').AppendLine(text);
     }
 
     private void AppendDetail(StringBuilder sb, ChangeKind kind, string text) =>
-        sb.Append(_options.Indent).Append(_palette.For(kind)).Append(' ').AppendLine(text);
+        sb.Append(_options.Indent).Append(Marker(kind)).Append(' ').AppendLine(text);
+
+    // The Terraform-style marker glyph for a change kind.
+    private static char Marker(ChangeKind kind) => kind switch
+    {
+        ChangeKind.Add => '+',
+        ChangeKind.Remove => '-',
+        ChangeKind.Modify => '~',
+        _ => '?',
+    };
 
     // -------------------------------------------------------------------------
     // Formatters
@@ -569,36 +576,4 @@ public sealed class TerraformDiffRenderer
         return parts.Count > 0 ? string.Join(", ", parts) : "<default>";
     }
 
-    // Encapsulates ANSI rendering. When color is disabled we substitute the plain marker
-    // characters so the rest of the renderer doesn't have to branch on environment state.
-    private sealed class Palette
-    {
-        private const string Reset = "\x1b[0m";
-        private const string Green = "\x1b[32m";
-        private const string Red = "\x1b[31m";
-        private const string Yellow = "\x1b[33m";
-
-        private readonly string _add;
-        private readonly string _remove;
-        private readonly string _modify;
-
-        private Palette(string add, string remove, string modify)
-        {
-            _add = add;
-            _remove = remove;
-            _modify = modify;
-        }
-
-        public string For(ChangeKind kind) => kind switch
-        {
-            ChangeKind.Add => _add,
-            ChangeKind.Remove => _remove,
-            ChangeKind.Modify => _modify,
-            _ => "?",
-        };
-
-        public static Palette For(bool color) => color
-            ? new Palette($"{Green}+{Reset}", $"{Red}-{Reset}", $"{Yellow}~{Reset}")
-            : new Palette("+", "-", "~");
-    }
 }

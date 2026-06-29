@@ -44,4 +44,22 @@ public partial class NSchemaApplicationBuilder
         Services.Replace(ServiceDescriptor.Singleton<IProgress<OperationProgress>, TProgress>());
         return this;
     }
+
+    /// <summary>
+    /// Configures the sink that receives an operation's transient progress narration.
+    /// </summary>
+    public NSchemaApplicationBuilder UseProgressReporter(IProgress<OperationProgress> reporter)
+    {
+        Services.Replace(ServiceDescriptor.Singleton(reporter));
+        return this;
+    }
+
+    /// <summary>
+    /// Configures the sink that receives an operation's transient progress narration.
+    /// </summary>
+    public NSchemaApplicationBuilder UseProgressReporter(Func<IServiceProvider, IProgress<OperationProgress>> factory)
+    {
+        Services.Replace(ServiceDescriptor.Singleton(factory));
+        return this;
+    }
 }

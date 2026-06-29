@@ -7,12 +7,12 @@ namespace NSchema.Sql;
 /// Renders a <see cref="SqlPlan"/> into human-readable text for previewing.
 /// Numbers each statement and flags any that run outside the migration transaction.
 /// </summary>
-public sealed class DefaultSqlPlanRenderer
+public sealed class SqlPlanRenderer
 {
     /// <summary>
     /// A shared, stateless instance of the renderer.
     /// </summary>
-    public static DefaultSqlPlanRenderer Default { get; } = new();
+    public static SqlPlanRenderer Default { get; } = new();
 
     /// <summary>
     /// Renders the SQL plan as text.

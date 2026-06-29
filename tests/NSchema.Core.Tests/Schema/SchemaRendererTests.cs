@@ -8,9 +8,9 @@ using NSchema.Schema.Model.Views;
 
 namespace NSchema.Tests.Schema;
 
-public sealed class DefaultSchemaRendererTests
+public sealed class SchemaRendererTests
 {
-    private readonly DefaultSchemaRenderer _sut = new();
+    private readonly SchemaRenderer _sut = new();
 
     [Fact]
     public void Render_EmptySchema_ReportsEmpty()
