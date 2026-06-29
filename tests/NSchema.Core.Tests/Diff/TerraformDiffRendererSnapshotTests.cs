@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Options;
 using NSchema.Diff;
 using NSchema.Diff.Model;
 using NSchema.Schema.Model.Columns;
@@ -22,7 +21,7 @@ namespace NSchema.Tests.Diff;
 public sealed class TerraformDiffRendererSnapshotTests
 {
     private static string Render(DatabaseDiff diff, bool colour)
-        => new TerraformDiffRenderer(Options.Create(new TerraformDiffRendererOptions { IncludeColour = colour })).Render(diff);
+        => new TerraformDiffRenderer(new TerraformDiffRendererOptions { IncludeColour = colour }).Render(diff);
 
     /// <summary>
     /// A diff exercising add/modify/remove across schemas, tables, columns, indexes, constraints, and grants.

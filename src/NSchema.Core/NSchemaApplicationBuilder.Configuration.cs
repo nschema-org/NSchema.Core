@@ -1,9 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using NSchema.Diff;
 using NSchema.Diff.Policies;
 using NSchema.Operations.Progress;
-using NSchema.Schema;
 using NSchema.Sql;
 
 namespace NSchema;
@@ -25,42 +23,6 @@ public partial class NSchemaApplicationBuilder
     public NSchemaApplicationBuilder WithTransactionMode(TransactionMode mode)
     {
         Services.Configure<SqlOptions>(o => o.TransactionMode = mode);
-        return this;
-    }
-
-    /// <summary>
-    /// Configures the plan output to use a Terraform-style renderer.
-    /// </summary>
-    public NSchemaApplicationBuilder UseTerraformRenderer(Action<TerraformDiffRendererOptions> configure)
-    {
-        Services.Configure(configure);
-        return UseDiffRenderer<TerraformDiffRenderer>();
-    }
-
-    /// <summary>
-    /// Configures the diff output to use the given <see cref="IDiffRenderer"/>.
-    /// </summary>
-    public NSchemaApplicationBuilder UseDiffRenderer<TRenderer>() where TRenderer : class, IDiffRenderer
-    {
-        Services.Replace(ServiceDescriptor.Singleton<IDiffRenderer, TRenderer>());
-        return this;
-    }
-
-    /// <summary>
-    /// Configures the SQL preview output to use the given <see cref="ISqlPlanRenderer"/>.
-    /// </summary>
-    public NSchemaApplicationBuilder UseSqlPlanRenderer<TRenderer>() where TRenderer : class, ISqlPlanRenderer
-    {
-        Services.Replace(ServiceDescriptor.Singleton<ISqlPlanRenderer, TRenderer>());
-        return this;
-    }
-
-    /// <summary>
-    /// Configures the single-schema output (used by the show operation) to use the given <see cref="ISchemaRenderer"/>.
-    /// </summary>
-    public NSchemaApplicationBuilder UseSchemaRenderer<TRenderer>() where TRenderer : class, ISchemaRenderer
-    {
-        Services.Replace(ServiceDescriptor.Singleton<ISchemaRenderer, TRenderer>());
         return this;
     }
 

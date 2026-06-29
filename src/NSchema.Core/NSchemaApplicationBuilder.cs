@@ -58,7 +58,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // The user-supplied application options are the source of ambient run config (reporter, exception behavior).
         _innerBuilder.Services.AddSingleton(Options.Create(options));
         _innerBuilder.Services.AddOptions<DestructiveActionOptions>();
-        _innerBuilder.Services.AddOptions<TerraformDiffRendererOptions>();
 
         // Policies registered up front so users can remove them before Build().
         AddSchemaPolicy<StructuralIntegritySchemaPolicy>();
@@ -106,7 +105,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
     {
         // Diffing
         services.TryAddSingleton<ISchemaComparer, SchemaComparer>();
-        services.TryAddSingleton<IDiffRenderer, TerraformDiffRenderer>();
 
         // Operations
         services.TryAddSingleton<IMigrationWorkflow, MigrationWorkflow>();
@@ -128,10 +126,8 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Schemas
         services.TryAddSingleton<ICurrentSchemaProvider, CurrentSchemaProvider>();
         services.TryAddSingleton<IDesiredSchemaProvider, DesiredSchemaProvider>();
-        services.TryAddSingleton<ISchemaRenderer, DefaultSchemaRenderer>();
 
         // SQL
-        services.TryAddSingleton<ISqlPlanRenderer, DefaultSqlPlanRenderer>();
         services.TryAddSingleton<ISqlExecutor, SqlExecutor>();
 
         // State
