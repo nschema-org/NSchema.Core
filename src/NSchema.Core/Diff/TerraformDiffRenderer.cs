@@ -1,5 +1,4 @@
 using System.Text;
-using Microsoft.Extensions.Options;
 using NSchema.Diff.Model;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Routines;
@@ -11,10 +10,28 @@ namespace NSchema.Diff;
 /// <summary>
 /// Produces a Terraform-style output of a database diff.
 /// </summary>
-internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOptions> options) : IDiffRenderer
+public sealed class TerraformDiffRenderer
 {
-    private readonly Palette _palette = Palette.For(options.Value.IncludeColour);
+    /// <summary>
+    /// A shared renderer using the default <see cref="TerraformDiffRendererOptions"/>.
+    /// </summary>
+    public static TerraformDiffRenderer Default { get; } = new();
 
+    private readonly TerraformDiffRendererOptions _options;
+    private readonly Palette _palette;
+
+    /// <summary>
+    /// Creates a renderer with the given options, or the defaults when none are supplied.
+    /// </summary>
+    public TerraformDiffRenderer(TerraformDiffRendererOptions? options = null)
+    {
+        _options = options ?? new TerraformDiffRendererOptions();
+        _palette = Palette.For(_options.IncludeColour);
+    }
+
+    /// <summary>
+    /// Renders the given diff as Terraform-style text.
+    /// </summary>
     public string Render(DatabaseDiff diff)
     {
         if (diff.IsEmpty)
@@ -417,7 +434,7 @@ internal sealed class TerraformDiffRenderer(IOptions<TerraformDiffRendererOption
     }
 
     private void AppendDetail(StringBuilder sb, ChangeKind kind, string text) =>
-        sb.Append(options.Value.Indent).Append(_palette.For(kind)).Append(' ').AppendLine(text);
+        sb.Append(_options.Indent).Append(_palette.For(kind)).Append(' ').AppendLine(text);
 
     // -------------------------------------------------------------------------
     // Formatters

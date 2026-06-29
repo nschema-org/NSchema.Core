@@ -4,11 +4,19 @@ using NSchema.Sql.Model;
 namespace NSchema.Sql;
 
 /// <summary>
-/// Default <see cref="ISqlPlanRenderer"/>.
+/// Renders a <see cref="SqlPlan"/> into human-readable text for previewing.
 /// Numbers each statement and flags any that run outside the migration transaction.
 /// </summary>
-internal sealed class DefaultSqlPlanRenderer : ISqlPlanRenderer
+public sealed class DefaultSqlPlanRenderer
 {
+    /// <summary>
+    /// A shared, stateless instance of the renderer.
+    /// </summary>
+    public static DefaultSqlPlanRenderer Default { get; } = new();
+
+    /// <summary>
+    /// Renders the SQL plan as text.
+    /// </summary>
     public string Render(SqlPlan plan)
     {
         var sb = new StringBuilder();
