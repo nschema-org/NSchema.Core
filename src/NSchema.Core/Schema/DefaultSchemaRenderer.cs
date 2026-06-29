@@ -12,13 +12,21 @@ using NSchema.Schema.Model.Views;
 namespace NSchema.Schema;
 
 /// <summary>
-/// Default <see cref="ISchemaRenderer"/> that presents a schema as an indented tree:
+/// Renders a <see cref="DatabaseSchema"/> as human-readable text, presenting it as an indented tree:
 /// schema → table → columns, primary key, foreign keys, indexes, and grants.
 /// </summary>
-internal sealed class DefaultSchemaRenderer : ISchemaRenderer
+public sealed class DefaultSchemaRenderer
 {
+    /// <summary>
+    /// A shared, stateless instance of the renderer.
+    /// </summary>
+    public static DefaultSchemaRenderer Default { get; } = new();
+
     private const string Indent = "  ";
 
+    /// <summary>
+    /// Renders the given schema as human-readable text.
+    /// </summary>
     public string Render(DatabaseSchema schema)
     {
         if (schema.Schemas.Count == 0 && schema.Extensions.Count == 0)

@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Options;
 using NSchema.Diff;
 using NSchema.Diff.Model;
 using NSchema.Schema.Model.Columns;
@@ -22,7 +21,7 @@ public sealed class TerraformDiffRendererTests
             options.Indent = indent;
         }
 
-        return new TerraformDiffRenderer(Options.Create(options)).Render(diff);
+        return new TerraformDiffRenderer(options).Render(diff);
     }
 
     private static DatabaseDiff DiffOf(IReadOnlyList<SchemaDiff>? schemas = null) => new(schemas ?? []);
