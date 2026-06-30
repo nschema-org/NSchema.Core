@@ -1,9 +1,6 @@
 ﻿{
   Lines: [
     {
-      Text: 
-    },
-    {
       Kind: Add,
       Text: view app.active_users ("currently active users")
     },

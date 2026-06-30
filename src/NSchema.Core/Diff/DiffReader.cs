@@ -408,10 +408,15 @@ public sealed class DiffReader
         }
     }
 
-    // An object header: a blank spacer followed by the marked, top-level (depth 0) line.
     private static void AppendHeader(List<DiffLine> lines, ChangeKind kind, string text)
     {
-        lines.Add(DiffLine.Blank);
+        // A blank spacer separates this block from the previous one; the first block needs none, so the
+        // document never opens with a blank line and consumers don't have to trim one.
+        if (lines.Count > 0)
+        {
+            lines.Add(DiffLine.Blank);
+        }
+
         lines.Add(new DiffLine(kind, 0, text));
     }
 

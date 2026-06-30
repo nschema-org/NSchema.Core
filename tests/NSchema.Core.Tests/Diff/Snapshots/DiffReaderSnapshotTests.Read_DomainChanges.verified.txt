@@ -1,9 +1,6 @@
 ﻿{
   Lines: [
     {
-      Text: 
-    },
-    {
       Kind: Add,
       Text: domain app.typeid text ("id as text")
     },
