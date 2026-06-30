@@ -1,9 +1,6 @@
 ﻿{
   Lines: [
     {
-      Text: 
-    },
-    {
       Kind: Add,
       Text: function app.add_tax(amount numeric, rate numeric) ("adds tax")
     },

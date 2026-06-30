@@ -1,9 +1,6 @@
 ﻿{
   Lines: [
     {
-      Text: 
-    },
-    {
       Kind: Add,
       Text: sequence app.order_id (as=bigint, start=100, step=5, max=999999, cache=10, cycle) ("order numbers")
     },
