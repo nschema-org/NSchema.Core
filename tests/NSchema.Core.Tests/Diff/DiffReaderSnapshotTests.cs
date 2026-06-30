@@ -16,11 +16,11 @@ using NSchema.Schema.Model.Views;
 namespace NSchema.Tests.Diff;
 
 /// <summary>
-/// Snapshot coverage for <see cref="DiffRenderer"/>.
+/// Snapshot coverage for <see cref="DiffReader"/>.
 /// </summary>
-public sealed class DiffRendererSnapshotTests
+public sealed class DiffReaderSnapshotTests
 {
-    private static string Render(DatabaseDiff diff) => DiffRenderer.Default.Render(diff);
+    private static DiffDocument Read(DatabaseDiff diff) => DiffReader.Default.Read(diff);
 
     /// <summary>
     /// A diff exercising add/modify/remove across schemas, tables, columns, indexes, constraints, and grants.
@@ -174,10 +174,10 @@ public sealed class DiffRendererSnapshotTests
     }
 
     [Fact]
-    public Task Render_RichDiff_PlainText() => Verify(Render(RichDiff()));
+    public Task Read_RichDiff() => Verify(Read(RichDiff()));
 
     [Fact]
-    public Task Render_ViewChanges_PlainText() => Verify(Render(ViewChangesDiff()));
+    public Task Read_ViewChanges() => Verify(Read(ViewChangesDiff()));
 
     /// <summary>
     /// A diff exercising every function change kind: an add (showing arguments), a body-only replace, a
@@ -282,7 +282,7 @@ public sealed class DiffRendererSnapshotTests
     }
 
     [Fact]
-    public Task Render_EnumChanges_PlainText() => Verify(Render(EnumChangesDiff()));
+    public Task Read_EnumChanges() => Verify(Read(EnumChangesDiff()));
 
     private static DatabaseDiff CompositeTypeChangesDiff()
     {
@@ -308,23 +308,23 @@ public sealed class DiffRendererSnapshotTests
     }
 
     [Fact]
-    public Task Render_DomainChanges_PlainText() => Verify(Render(DomainChangesDiff()));
+    public Task Read_DomainChanges() => Verify(Read(DomainChangesDiff()));
 
     [Fact]
-    public Task Render_CompositeTypeChanges_PlainText() => Verify(Render(CompositeTypeChangesDiff()));
+    public Task Read_CompositeTypeChanges() => Verify(Read(CompositeTypeChangesDiff()));
 
     [Fact]
-    public Task Render_ExtensionChanges_PlainText() => Verify(Render(ExtensionChangesDiff()));
+    public Task Read_ExtensionChanges() => Verify(Read(ExtensionChangesDiff()));
 
     [Fact]
-    public Task Render_TriggerChanges_PlainText() => Verify(Render(TriggerChangesDiff()));
+    public Task Read_TriggerChanges() => Verify(Read(TriggerChangesDiff()));
 
     [Fact]
-    public Task Render_RoutineChanges_PlainText() => Verify(Render(RoutineChangesDiff()));
+    public Task Read_RoutineChanges() => Verify(Read(RoutineChangesDiff()));
 
     [Fact]
-    public Task Render_SequenceChanges_PlainText() => Verify(Render(SequenceChangesDiff()));
+    public Task Read_SequenceChanges() => Verify(Read(SequenceChangesDiff()));
 
     [Fact]
-    public Task Render_EmptyDiff() => Verify(Render(new DatabaseDiff([])));
+    public Task Read_EmptyDiff() => Verify(Read(new DatabaseDiff([])));
 }
