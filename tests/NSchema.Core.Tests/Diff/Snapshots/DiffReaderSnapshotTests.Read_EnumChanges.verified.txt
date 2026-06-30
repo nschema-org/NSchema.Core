@@ -1,9 +1,6 @@
 ﻿{
   Lines: [
     {
-      Text: 
-    },
-    {
       Kind: Add,
       Text: enum app.order_status (pending, shipped, delivered) ("order lifecycle")
     },

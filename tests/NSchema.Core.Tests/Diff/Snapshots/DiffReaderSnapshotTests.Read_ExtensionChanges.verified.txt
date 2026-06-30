@@ -1,9 +1,6 @@
 ﻿{
   Lines: [
     {
-      Text: 
-    },
-    {
       Kind: Add,
       Text: extension postgis version 3.4 ("spatial types")
     },
