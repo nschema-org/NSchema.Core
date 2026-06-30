@@ -38,15 +38,15 @@ The codebase splits into a **domain layer** (pure planning) and an **application
 
 - **Domain layer**, one namespace per pipeline stage:
   - `Schema/` — the schema model (`Schema/Model/`, rooted at `DatabaseSchema`), the DDL reader/writer/parser (`Schema/Ddl/`), the desired-state provider (`DesiredSchemaProvider`), the current-schema provider, and `ISchemaPolicy`.
-  - `Diff/` — the structured diff model (`Diff/Model/`, rooted at `DatabaseDiff`), `ISchemaComparer`, `IDiffPolicy` (`Diff/Policies/`), and the diff renderer (`DiffRenderer`).
+  - `Diff/` — the structured diff model (`Diff/Model/`, rooted at `DatabaseDiff`), `ISchemaComparer`, `IDiffPolicy` (`Diff/Policies/`), and the diff reader (`DiffReader`, which projects a `DatabaseDiff` into a renderer-neutral `DiffDocument`).
   - `Plan/` — the executable plan model (`Plan/Model/`, rooted at `MigrationPlan`), `IPlanLinearizer`, the saved-plan-file machinery (`Plan/PlanFile/`), and `IMigrationPlanner` (default `DefaultMigrationPlanner`) returning `Result<PlannedMigration>` (the diff + plan pair; policy diagnostics ride on the `Result`). The planner knows nothing about operations or run orchestration.
-  - `Sql/` — `ISqlGenerator` (dialect, provided by a provider package), `ISqlExecutor`, and the SQL plan renderer (`SqlPlanRenderer`). Core ships no dialect.
+  - `Sql/` — `ISqlGenerator` (dialect, provided by a provider package) and `ISqlExecutor`. Core ships no dialect.
 - **Application layer:**
   - `Operations/` — one vertical slice per operation (see below).
   - `IMigrationWorkflow` (`Operations/Services/`) — the imperative shell operations share.
   - `Configuration/` — the generic config-in-SQL model (`ConfigBlock`/`ConfigValue`); Core only carries capability, the CLI interprets it.
 
-The three text renderers (`DiffRenderer`, `SchemaRenderer`, `SqlPlanRenderer`) are **public, stateless utilities, not DI services** — Core never consumes them; they exist for consumers (the CLI's presenter is their only user). Each is a plain `new`-able class with a shared `.Default` singleton, so a caller renders without touching the container. They emit plain text only (`DiffRenderer` takes an optional `DiffRendererOptions` carrying just the nesting `Indent`); a colour-aware front-end styles the `+`/`-`/`~` markers itself. There are no `IDiffRenderer`/`ISchemaRenderer`/`ISqlPlanRenderer` interfaces and no `Use*Renderer` builder methods — a consumer wanting a different format writes its own.
+`DiffReader` is a **public, stateless utility, not a DI service** — Core never consumes it; it exists for consumers (the CLI's presenter is its only user). It's a plain `new`-able class with a shared `.Default` singleton, so a caller reads a diff without touching the container. `Read(DatabaseDiff)` returns a `DiffDocument` — an ordered list of `DiffLine`s, each carrying its `ChangeKind` (null for a blank spacer), nesting `Depth`, and already-formatted `Text`, plus the aggregate `DiffSummary`. The document is **renderer-neutral**: a front-end folds it into colour, Markdown, or plain text by mapping each line's kind, never re-parsing rendered text. There is no `IDiffReader` interface and no `Use*` builder method. Core ships **no** schema or SQL-plan text renderer — those `SchemaRenderer`/`SqlPlanRenderer` dumps were trivial presentation with no reuse value and moved to the CLI; a consumer wanting to render those models (or a different diff format) writes its own.
 
 ### Operations
 

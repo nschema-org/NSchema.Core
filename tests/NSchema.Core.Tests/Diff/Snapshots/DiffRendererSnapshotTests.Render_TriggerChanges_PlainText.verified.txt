@@ -1,6 +1,0 @@
-﻿~ table app.users
-    + trigger audit
-    ~ trigger noted comment: "old note" → "new note"
-    - trigger stale_trg
-
-Plan: 1 to add, 2 to change, 1 to destroy.
