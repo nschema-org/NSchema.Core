@@ -1,0 +1,83 @@
+﻿{
+  Lines: [
+    {
+      Text: 
+    },
+    {
+      Kind: Add,
+      Text: function app.add_tax(amount numeric, rate numeric) ("adds tax")
+    },
+    {
+      Text: 
+    },
+    {
+      Kind: Modify,
+      Text: function app.normalize
+    },
+    {
+      Text: 
+    },
+    {
+      Kind: Modify,
+      Text: function app.score
+    },
+    {
+      Kind: Modify,
+      Depth: 1,
+      Text: arguments: (user_id bigint) → (user_id bigint, weight numeric) (recreate)
+    },
+    {
+      Text: 
+    },
+    {
+      Kind: Modify,
+      Text: function app.old_fn → renamed_fn
+    },
+    {
+      Text: 
+    },
+    {
+      Kind: Modify,
+      Text: function app.noted comment: "old note" → "new note"
+    },
+    {
+      Text: 
+    },
+    {
+      Kind: Remove,
+      Text: function app.stale_fn
+    },
+    {
+      Text: 
+    },
+    {
+      Kind: Add,
+      Text: procedure app.archive(before date)
+    },
+    {
+      Text: 
+    },
+    {
+      Kind: Modify,
+      Text: procedure app.cleanup
+    },
+    {
+      Kind: Modify,
+      Depth: 1,
+      Text: arguments: (batch int) → () (recreate)
+    },
+    {
+      Text: 
+    },
+    {
+      Kind: Remove,
+      Text: procedure app.stale_proc
+    }
+  ],
+  Summary: {
+    Added: 2,
+    Modified: 5,
+    Removed: 2
+  },
+  IsEmpty: false
+}
