@@ -166,7 +166,10 @@ public sealed class DiffReader
 
     private void RenderView(List<DiffLine> lines, ViewDiff view)
     {
-        var label = view.IsMaterialized ? "materialized view" : "view";
+        // A plain ⇄ materialized conversion renders as a label transition, mirroring the rename arrow.
+        var label = view.Materialized is { } materialized
+            ? $"{ViewLabel(materialized.Old)} → {ViewLabel(materialized.New)}"
+            : ViewLabel(view.IsMaterialized);
         var name = view.RenamedFrom is null
             ? $"{view.Schema}.{view.Name}"
             : $"{view.Schema}.{view.RenamedFrom} → {view.Name}";
@@ -189,6 +192,8 @@ public sealed class DiffReader
             AppendDetail(lines, index.Kind, text);
         }
     }
+
+    private static string ViewLabel(bool isMaterialized) => isMaterialized ? "materialized view" : "view";
 
     private void RenderEnum(List<DiffLine> lines, EnumDiff enumDiff)
     {

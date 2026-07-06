@@ -331,6 +331,20 @@ public sealed class DiffReaderTests
         => ShouldHaveLine(WithView(new ViewDiff("app", "report", ChangeKind.Modify, RenamedFrom: "legacy_report")), ChangeKind.Modify, "view app.legacy_report → report");
 
     [Fact]
+    public void Read_ViewToMaterializedFlip_EmitsLabelTransition()
+        => ShouldHaveLine(WithView(new ViewDiff("app", "totals", ChangeKind.Modify,
+                Definition: new View("totals", "SELECT 1", IsMaterialized: true), IsMaterialized: true,
+                Materialized: new ValueChange<bool>(false, true), RequiresRecreate: true)),
+            ChangeKind.Modify, "view → materialized view app.totals");
+
+    [Fact]
+    public void Read_MaterializedToViewFlip_EmitsLabelTransition()
+        => ShouldHaveLine(WithView(new ViewDiff("app", "totals", ChangeKind.Modify,
+                Definition: new View("totals", "SELECT 1"),
+                Materialized: new ValueChange<bool>(true, false), RequiresRecreate: true)),
+            ChangeKind.Modify, "materialized view → view app.totals");
+
+    [Fact]
     public void Read_ViewRemove_EmitsRemoveHeader()
         => ShouldHaveLine(WithView(new ViewDiff("app", "stale_view", ChangeKind.Remove)), ChangeKind.Remove, "view app.stale_view");
 
