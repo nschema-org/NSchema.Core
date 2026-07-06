@@ -23,6 +23,9 @@ namespace NSchema.Plan;
 internal sealed class PlanLinearizer : IPlanLinearizer
 {
     private static readonly IReadOnlyDictionary<Type, int> _actionPriorities = new List<Type> {
+        // The schema rename runs before everything else: every child diff node carries the new schema name, so
+        // once the schema is renamed every later action.
+        typeof(RenameSchema),
         // Views are dropped before anything they read (columns, tables) is dropped.
         typeof(DropView),
         // Triggers are dropped before their table and before the function they call (functions drop last).
@@ -39,7 +42,6 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         // or object that might depend on a type, function or operator the extension provides.
         typeof(CreateExtension),
         typeof(AlterExtension),
-        typeof(RenameSchema),
         typeof(CreateSchema),
         // Enums and sequences are created (and renamed, and gain values) before any table change can reference
         // them: a column may use the enum type, and a default may call the sequence.
@@ -157,7 +159,9 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         {
             foreach (var view in schema.Views)
             {
-                if (view.RenamedFrom is not null)
+                // A rename that accompanies a recreate is subsumed by it: the drop removes the old name and the
+                // definition recreates the view under the new one, so no RenameView is emitted.
+                if (view.RenamedFrom is not null && !view.RequiresRecreate)
                 {
                     actions.Add(new RenameView(view.Schema, view.RenamedFrom, view.Name, view.IsMaterialized));
                 }
@@ -185,13 +189,14 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 }
 
                 // In-place index changes on a materialized view whose body is unchanged; on a create/recreate the
-                // indexes ride along on the definition instead.
+                // indexes ride along on the definition instead. Index drops sort before RenameView, so on a
+                // renamed view they run while it still carries its old name.
                 foreach (var index in view.Indexes)
                 {
                     actions.Add(index.Kind switch
                     {
                         ChangeKind.Add => new CreateIndex(view.Schema, view.Name, index.Definition!),
-                        ChangeKind.Remove => new DropIndex(view.Schema, view.Name, index.Name),
+                        ChangeKind.Remove => new DropIndex(view.Schema, view.RenamedFrom ?? view.Name, index.Name),
                         _ => new SetIndexComment(view.Schema, view.Name, index.Name, index.Comment!.Old, index.Comment.New),
                     });
                 }
@@ -203,10 +208,11 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             actions.Add(new CreateView(view.Schema, view.Definition!));
         }
 
-        // Dropped views go out dependents-first: the reverse of the create order.
+        // Dropped views go out dependents-first: the reverse of the create order. A renamed view recreating is
+        // dropped under its old name (no rename precedes the drop).
         foreach (var view in OrderByDependency(drops).Reverse())
         {
-            actions.Add(new DropView(view.Schema, view.Name, view.IsMaterialized));
+            actions.Add(new DropView(view.Schema, view.RenamedFrom ?? view.Name, view.IsMaterialized));
         }
     }
 
@@ -621,14 +627,18 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         }
     }
 
+    // Drops and revokes are sorted before RenameTable, so on a renamed table they run while it still carries
+    // its old name; every action from the rename onward targets the new name.
     private static void EmitConstraints(TableDiff table, List<MigrationAction> actions)
     {
+        var preRenameName = table.RenamedFrom ?? table.Name;
+
         foreach (var pk in table.PrimaryKey)
         {
             actions.Add(pk.Kind switch
             {
                 ChangeKind.Add => new AddPrimaryKey(table.Schema, table.Name, pk.Definition!),
-                ChangeKind.Remove => new DropPrimaryKey(table.Schema, table.Name, pk.Name),
+                ChangeKind.Remove => new DropPrimaryKey(table.Schema, preRenameName, pk.Name),
                 _ => new SetConstraintComment(table.Schema, table.Name, pk.Name, pk.Comment!.Old, pk.Comment.New),
             });
         }
@@ -638,7 +648,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             actions.Add(fk.Kind switch
             {
                 ChangeKind.Add => new AddForeignKey(table.Schema, table.Name, fk.Definition!),
-                ChangeKind.Remove => new DropForeignKey(table.Schema, table.Name, fk.Name),
+                ChangeKind.Remove => new DropForeignKey(table.Schema, preRenameName, fk.Name),
                 _ => new SetConstraintComment(table.Schema, table.Name, fk.Name, fk.Comment!.Old, fk.Comment.New),
             });
         }
@@ -648,7 +658,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             actions.Add(uq.Kind switch
             {
                 ChangeKind.Add => new AddUniqueConstraint(table.Schema, table.Name, uq.Definition!),
-                ChangeKind.Remove => new DropUniqueConstraint(table.Schema, table.Name, uq.Name),
+                ChangeKind.Remove => new DropUniqueConstraint(table.Schema, preRenameName, uq.Name),
                 _ => new SetConstraintComment(table.Schema, table.Name, uq.Name, uq.Comment!.Old, uq.Comment.New),
             });
         }
@@ -658,7 +668,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             actions.Add(ck.Kind switch
             {
                 ChangeKind.Add => new AddCheckConstraint(table.Schema, table.Name, ck.Definition!),
-                ChangeKind.Remove => new DropCheckConstraint(table.Schema, table.Name, ck.Name),
+                ChangeKind.Remove => new DropCheckConstraint(table.Schema, preRenameName, ck.Name),
                 _ => new SetConstraintComment(table.Schema, table.Name, ck.Name, ck.Comment!.Old, ck.Comment.New),
             });
         }
@@ -668,7 +678,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             actions.Add(ex.Kind switch
             {
                 ChangeKind.Add => new AddExclusionConstraint(table.Schema, table.Name, ex.Definition!),
-                ChangeKind.Remove => new DropExclusionConstraint(table.Schema, table.Name, ex.Name),
+                ChangeKind.Remove => new DropExclusionConstraint(table.Schema, preRenameName, ex.Name),
                 _ => new SetConstraintComment(table.Schema, table.Name, ex.Name, ex.Comment!.Old, ex.Comment.New),
             });
         }
@@ -681,7 +691,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             actions.Add(index.Kind switch
             {
                 ChangeKind.Add => new CreateIndex(table.Schema, table.Name, index.Definition!),
-                ChangeKind.Remove => new DropIndex(table.Schema, table.Name, index.Name),
+                ChangeKind.Remove => new DropIndex(table.Schema, table.RenamedFrom ?? table.Name, index.Name),
                 _ => new SetIndexComment(table.Schema, table.Name, index.Name, index.Comment!.Old, index.Comment.New),
             });
         }
@@ -694,7 +704,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             actions.Add(trigger.Kind switch
             {
                 ChangeKind.Add => new CreateTrigger(table.Schema, table.Name, trigger.Definition!),
-                ChangeKind.Remove => new DropTrigger(table.Schema, table.Name, trigger.Name),
+                ChangeKind.Remove => new DropTrigger(table.Schema, table.RenamedFrom ?? table.Name, trigger.Name),
                 _ => new SetTriggerComment(table.Schema, table.Name, trigger.Name, trigger.Comment!.Old, trigger.Comment.New),
             });
         }
@@ -706,7 +716,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         {
             actions.Add(grant.Kind == ChangeKind.Add
                 ? new GrantTablePrivileges(table.Schema, table.Name, grant.Role, grant.Privileges!.Value)
-                : new RevokeTablePrivileges(table.Schema, table.Name, grant.Role, grant.Privileges!.Value));
+                : new RevokeTablePrivileges(table.Schema, table.RenamedFrom ?? table.Name, grant.Role, grant.Privileges!.Value));
         }
     }
 }

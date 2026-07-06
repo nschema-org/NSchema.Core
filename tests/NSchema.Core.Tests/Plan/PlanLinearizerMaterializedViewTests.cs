@@ -59,6 +59,39 @@ public sealed class PlanLinearizerMaterializedViewTests
     }
 
     [Fact]
+    public void RenamedMaterializedView_IndexDropTargetsOldName()
+    {
+        // The index drop sorts before RenameView, so it runs while the view still carries its old name; the
+        // index create sorts after and targets the new one.
+        var actions = Linearize(new ViewDiff("app", "daily", ChangeKind.Modify, RenamedFrom: "nightly", IsMaterialized: true,
+            Indexes:
+            [
+                new IndexDiff(ChangeKind.Add, "daily_ix", new TableIndex("daily_ix", ["x"])),
+                new IndexDiff(ChangeKind.Remove, "old_ix"),
+            ]));
+
+        actions.OfType<DropIndex>().ShouldHaveSingleItem().TableName.ShouldBe("nightly");
+        actions.OfType<CreateIndex>().ShouldHaveSingleItem().TableName.ShouldBe("daily");
+        var dropIndex = actions.Select((a, i) => (a, i)).Single(x => x.a is DropIndex).i;
+        var rename = actions.Select((a, i) => (a, i)).Single(x => x.a is RenameView).i;
+        dropIndex.ShouldBeLessThan(rename);
+    }
+
+    [Fact]
+    public void RenamedRecreatedView_DropsOldNameAndSkipsRename()
+    {
+        // A rename accompanying a recreate is subsumed by it: the old name is dropped and the definition
+        // recreates the view under the new one.
+        var mv = new View("daily", "SELECT 2", IsMaterialized: true);
+        var actions = Linearize(new ViewDiff("app", "daily", ChangeKind.Modify, RenamedFrom: "nightly",
+            Definition: mv, IsMaterialized: true, RequiresRecreate: true));
+
+        actions.OfType<RenameView>().ShouldBeEmpty();
+        actions.OfType<DropView>().ShouldHaveSingleItem().ViewName.ShouldBe("nightly");
+        actions.OfType<CreateView>().ShouldHaveSingleItem().View.Name.ShouldBe("daily");
+    }
+
+    [Fact]
     public void PlainViewBodyChange_EmitsOnlyCreateNoDrop()
     {
         var actions = Linearize(new ViewDiff("app", "v", ChangeKind.Modify, Definition: new View("v", "SELECT 2")));
