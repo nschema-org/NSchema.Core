@@ -6,7 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
-## [4.0.0]
+## [4.0.1] - 2026-07-06
+
+### Added
+
+- **`ViewDiff.Materialized`.** A plain ⇄ materialized view conversion is now carried explicitly on the diff as a `ValueChange<bool>`, and `DiffReader` renders it as a label transition (`view → materialized view app.name`).
+
+### Fixed
+
+- **Renamed tables.** Constraint, index, and trigger drops (and privilege revokes) on a table being renamed now target the old table name, and execute before the rename.
+- **Renamed schemas.** The schema rename is now ordered ahead of every other action, so drops and revokes inside the renamed schema resolve correctly.
+- **Renamed materialized views.** In-place index drops on a renamed view target the old view name. A rename accompanying a recreate no longer emits a `RenameView` (which would have targeted a dropped view); the drop removes the old name and the recreate creates the new one.
+- **View conversions.** A plain ⇄ materialized conversion now drops the view as what it currently is, instead of using the desired side's materialization for the drop.
+
+## [4.0.0] - 2026-07-01
 
 v4.0.0 is a major release that reworks providers and backends into a new plugin system. This will enable providers and backends to be installed directly from NuGet, independently of the CLI, and pin the versions in your CI.
 
