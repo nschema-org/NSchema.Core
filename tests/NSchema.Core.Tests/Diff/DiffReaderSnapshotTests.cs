@@ -108,6 +108,10 @@ public sealed class DiffReaderSnapshotTests
                             new IndexDiff(ChangeKind.Add, "mv_active_ix", new TableIndex("mv_active_ix", ["id"])),
                             new IndexDiff(ChangeKind.Remove, "mv_active_old_ix"),
                         ]),
+                    // A plain → materialized conversion (a recreate carrying the materialization flip).
+                    new ViewDiff("app", "hourly_totals", ChangeKind.Modify,
+                        Definition: new View("hourly_totals", "SELECT date_trunc('hour', at), sum(amount) FROM app.sales GROUP BY 1", IsMaterialized: true),
+                        IsMaterialized: true, Materialized: new ValueChange<bool>(false, true), RequiresRecreate: true),
                 ]),
             ]);
     }
