@@ -9,6 +9,7 @@ using NSchema.Plan.Model.Routines;
 using NSchema.Plan.Model.Schemas;
 using NSchema.Plan.Model.Sequence;
 using NSchema.Plan.Model.Tables;
+using NSchema.Plan.Model.Triggers;
 using NSchema.Plan.Model.Views;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Constraints;
@@ -236,6 +237,64 @@ public sealed class PlanLinearizerTests
         plan.Any(a => a is CreateTable or DropTable).ShouldBeFalse();
         plan.ShouldHaveSingleItem().ShouldBeOfType<RenameTable>()
             .ShouldSatisfyAllConditions(r => r.OldName.ShouldBe("users"), r => r.NewName.ShouldBe("accounts"));
+    }
+
+    [Fact]
+    public void Linearize_RenamedTable_DropsTargetOldName_AndPrecedeRename()
+    {
+        // Drops and revokes sort before RenameTable, so they execute while the table still carries its old name.
+        var table = TableNode("accounts", ChangeKind.Modify, renamedFrom: "users",
+            primaryKey: [new PrimaryKeyDiff(ChangeKind.Remove, "users_pkey")],
+            foreignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "users_org_fk")],
+            uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Remove, "users_email_uq")],
+            checks: [new CheckConstraintDiff(ChangeKind.Remove, "users_age_chk")],
+            exclusionConstraints: [new ExclusionConstraintDiff(ChangeKind.Remove, "no_overlap")],
+            indexes: [new IndexDiff(ChangeKind.Remove, "users_email_ix")],
+            triggers: [new TriggerDiff(ChangeKind.Remove, "users_audit_trg")],
+            grants: [new GrantChange(ChangeKind.Remove, "reader", TablePrivilege.Select)]);
+
+        var plan = LinearizeTable(table);
+
+        plan.OfType<DropPrimaryKey>().ShouldHaveSingleItem().TableName.ShouldBe("users");
+        plan.OfType<DropForeignKey>().ShouldHaveSingleItem().TableName.ShouldBe("users");
+        plan.OfType<DropUniqueConstraint>().ShouldHaveSingleItem().TableName.ShouldBe("users");
+        plan.OfType<DropCheckConstraint>().ShouldHaveSingleItem().TableName.ShouldBe("users");
+        plan.OfType<DropExclusionConstraint>().ShouldHaveSingleItem().TableName.ShouldBe("users");
+        plan.OfType<DropIndex>().ShouldHaveSingleItem().TableName.ShouldBe("users");
+        plan.OfType<DropTrigger>().ShouldHaveSingleItem().TableName.ShouldBe("users");
+        plan.OfType<RevokeTablePrivileges>().ShouldHaveSingleItem().TableName.ShouldBe("users");
+        plan[^1].ShouldBeOfType<RenameTable>();
+    }
+
+    [Fact]
+    public void Linearize_RenamedSchema_RenamePrecedesChildDrops()
+    {
+        // Child diff nodes carry the new schema name, so the schema rename must run before their drops for the
+        // schema-qualified names to resolve.
+        var table = TableNode("orders", ChangeKind.Modify, schema: "sales",
+            foreignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk")],
+            triggers: [new TriggerDiff(ChangeKind.Remove, "orders_audit_trg")]);
+        var plan = Linearize(SchemaNode("sales", ChangeKind.Modify, renamedFrom: "shop",
+            grants: [new GrantChange(ChangeKind.Remove, "reader")],
+            tables: [table]));
+
+        IndexOf<RenameSchema>(plan).ShouldBe(0);
+        plan.OfType<DropForeignKey>().ShouldHaveSingleItem().SchemaName.ShouldBe("sales");
+        plan.OfType<DropTrigger>().ShouldHaveSingleItem().SchemaName.ShouldBe("sales");
+        plan.OfType<RevokeSchemaUsage>().ShouldHaveSingleItem().SchemaName.ShouldBe("sales");
+    }
+
+    [Fact]
+    public void Linearize_RenamedTable_AddsTargetNewName()
+    {
+        var table = TableNode("accounts", ChangeKind.Modify, renamedFrom: "users",
+            uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "accounts_email_uq", new UniqueConstraint("accounts_email_uq", ["email"]))],
+            indexes: [new IndexDiff(ChangeKind.Add, "accounts_email_ix", new TableIndex("accounts_email_ix", ["email"]))]);
+
+        var plan = LinearizeTable(table);
+
+        plan.OfType<AddUniqueConstraint>().ShouldHaveSingleItem().TableName.ShouldBe("accounts");
+        plan.OfType<CreateIndex>().ShouldHaveSingleItem().TableName.ShouldBe("accounts");
     }
 
     [Fact]

@@ -51,6 +51,17 @@ public partial class SchemaComparerTests
 
         diff!.RequiresRecreate.ShouldBeTrue();
         diff.IsMaterialized.ShouldBeTrue();
+        // The flip is carried explicitly so the plan can drop the view as what it currently is.
+        diff.Materialized.ShouldNotBeNull()
+            .ShouldSatisfyAllConditions(m => m.Old.ShouldBe(false), m => m.New.ShouldBe(true));
+    }
+
+    [Fact]
+    public void Compare_MaterializedViewBodyChange_DoesNotReportMaterializedFlip()
+    {
+        var diff = DiffViews([Matview("daily", "SELECT 1")], [Matview("daily", "SELECT 2")]);
+
+        diff!.Materialized.ShouldBeNull();
     }
 
     [Fact]

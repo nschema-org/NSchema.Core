@@ -21,7 +21,7 @@
     Type: DropForeignKey,
     Action: {
       SchemaName: app,
-      TableName: orders,
+      TableName: purchases,
       ForeignKeyName: orders_user_fk,
       IsDestructive: false
     }
