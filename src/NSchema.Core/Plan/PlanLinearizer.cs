@@ -209,10 +209,11 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         }
 
         // Dropped views go out dependents-first: the reverse of the create order. A renamed view recreating is
-        // dropped under its old name (no rename precedes the drop).
+        // dropped under its old name (no rename precedes the drop), and a converting view is dropped as what it
+        // currently is — IsMaterialized reflects the desired side, so a flip drops with the old materialization.
         foreach (var view in OrderByDependency(drops).Reverse())
         {
-            actions.Add(new DropView(view.Schema, view.RenamedFrom ?? view.Name, view.IsMaterialized));
+            actions.Add(new DropView(view.Schema, view.RenamedFrom ?? view.Name, view.Materialized?.Old ?? view.IsMaterialized));
         }
     }
 

@@ -52,6 +52,8 @@ internal sealed partial class SchemaComparer
 
         return new ViewDiff(schema, desired.Name, ChangeKind.Modify, renamedFrom,
             carryDefinition ? desired : null, comment, desired.DependsOn,
-            IsMaterialized: desired.IsMaterialized, RequiresRecreate: requiresRecreate, Indexes: indexes);
+            IsMaterialized: desired.IsMaterialized,
+            Materialized: materializationFlipped ? new ValueChange<bool>(current.IsMaterialized, desired.IsMaterialized) : null,
+            RequiresRecreate: requiresRecreate, Indexes: indexes);
     }
 }

@@ -92,6 +92,30 @@ public sealed class PlanLinearizerMaterializedViewTests
     }
 
     [Fact]
+    public void ViewToMaterializedFlip_DropsAsPlainAndCreatesAsMaterialized()
+    {
+        // The view being dropped is still the current (plain) one; only the recreate is materialized.
+        var mv = new View("v", "SELECT 1", IsMaterialized: true);
+        var actions = Linearize(new ViewDiff("app", "v", ChangeKind.Modify,
+            Definition: mv, IsMaterialized: true,
+            Materialized: new ValueChange<bool>(false, true), RequiresRecreate: true));
+
+        actions.OfType<DropView>().ShouldHaveSingleItem().IsMaterialized.ShouldBeFalse();
+        actions.OfType<CreateView>().ShouldHaveSingleItem().View.IsMaterialized.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void MaterializedToViewFlip_DropsAsMaterialized()
+    {
+        var actions = Linearize(new ViewDiff("app", "v", ChangeKind.Modify,
+            Definition: new View("v", "SELECT 1"), IsMaterialized: false,
+            Materialized: new ValueChange<bool>(true, false), RequiresRecreate: true));
+
+        actions.OfType<DropView>().ShouldHaveSingleItem().IsMaterialized.ShouldBeTrue();
+        actions.OfType<CreateView>().ShouldHaveSingleItem().View.IsMaterialized.ShouldBeFalse();
+    }
+
+    [Fact]
     public void PlainViewBodyChange_EmitsOnlyCreateNoDrop()
     {
         var actions = Linearize(new ViewDiff("app", "v", ChangeKind.Modify, Definition: new View("v", "SELECT 2")));
