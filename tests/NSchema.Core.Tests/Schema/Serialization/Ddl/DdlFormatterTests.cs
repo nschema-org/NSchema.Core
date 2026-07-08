@@ -55,6 +55,69 @@ public sealed class DdlFormatterTests
     }
 
     [Fact]
+    public void Format_MessyTemplate_NormalisesLayout()
+    {
+        const string input =
+            """
+            template outbox begin
+            create table outbox(
+              id   uuid not null,
+                payload text not null);
+                  create index ix_outbox on outbox(id);
+              end;
+            APPLY TEMPLATE outbox IN SCHEMA billing,  ordering;
+            """;
+
+        const string expected =
+            """
+            template outbox
+            BEGIN
+              create table outbox (
+                id   uuid not null,
+                payload text not null
+              );
+
+              create index ix_outbox on outbox(id);
+            END;
+
+            APPLY TEMPLATE outbox IN SCHEMA billing,  ordering;
+            """;
+
+        Format(input).ShouldBe(expected + "\n");
+    }
+
+    [Fact]
+    public void Format_Template_PreservesCommentsInsideTheBody()
+        => Format(
+            """
+            TEMPLATE t
+            BEGIN
+              -- the outbox itself
+              CREATE TABLE outbox (id int NOT NULL);
+            END;
+            """).ShouldContain("-- the outbox itself");
+
+    [Fact]
+    public void Format_Template_IsIdempotent()
+    {
+        const string input =
+            """
+            template outbox begin
+            create table outbox(
+              id   uuid not null);
+                  create index ix_outbox on outbox(id);
+              end;
+            """;
+
+        var once = Format(input);
+        Format(once).ShouldBe(once);
+    }
+
+    [Fact]
+    public void Format_EmptyTemplate_KeepsBeginAndEndAdjacent()
+        => Format("TEMPLATE t BEGIN END;").ShouldBe("TEMPLATE t\nBEGIN\nEND;\n");
+
+    [Fact]
     public void Format_PreservesKeywordCasingAndExpressionSpelling()
     {
         // Gentle: content is preserved verbatim (lowercase keywords, the '> 0' spacing inside the CHECK).

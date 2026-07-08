@@ -77,9 +77,12 @@ public sealed class DdlFormatter
             }
 
             // A statement runs to the first depth-zero ';' (parens balanced; strings/dollar-quotes are single tokens).
+            // A TEMPLATE statement contains whole inner statements, so it runs past their ';'s to the ';' after the
+            // depth-zero END that closes its block.
             var start = i;
             var depth = 0;
             var end = i;
+            var awaitingEnd = token.IsKeyword("TEMPLATE");
             while (end < tokens.Count)
             {
                 var kind = tokens[end].Kind;
@@ -98,7 +101,11 @@ public sealed class DdlFormatter
                         depth--;
                     }
                 }
-                else if (kind == TokenKind.Semicolon && depth == 0)
+                else if (depth == 0 && awaitingEnd && tokens[end].IsKeyword("END"))
+                {
+                    awaitingEnd = false;
+                }
+                else if (kind == TokenKind.Semicolon && depth == 0 && !awaitingEnd)
                 {
                     break;
                 }
@@ -183,6 +190,11 @@ public sealed class DdlFormatter
         var first = FirstSignificant(tokens, start, end);
         if (first >= 0)
         {
+            if (tokens[first].IsKeyword("TEMPLATE") && RenderTemplate(tokens, source, start, end, hasSemicolon) is { } template)
+            {
+                return template;
+            }
+
             var second = FirstSignificant(tokens, first + 1, end);
             var isCreateTable = tokens[first].IsKeyword("CREATE") && second >= 0 && tokens[second].IsKeyword("TABLE");
             var isConfigBlock = tokens[first].Kind == TokenKind.Identifier && !IsStatementKeyword(tokens[first].Text);
@@ -205,6 +217,64 @@ public sealed class DdlFormatter
         }
 
         return Verbatim(tokens, source, start, end, hasSemicolon);
+    }
+
+    /// <summary>
+    /// Emits a <c>TEMPLATE … BEGIN … END;</c> block: the header verbatim, <c>BEGIN</c>/<c>END</c> on their own
+    /// lines, and the inner statements formatted recursively (so a table body still breaks per member) and
+    /// indented one level. Returns <see langword="null"/> when the statement has no well-formed BEGIN/END frame,
+    /// or a comment sits between END and the ';' — the caller falls back to verbatim so no content is lost.
+    /// </summary>
+    private static string? RenderTemplate(List<Token> tokens, string source, int start, int end, bool hasSemicolon)
+    {
+        var begin = -1;
+        for (var i = start; i < end; i++)
+        {
+            if (tokens[i].IsKeyword("BEGIN"))
+            {
+                begin = i;
+                break;
+            }
+        }
+
+        var last = LastSignificant(tokens, start, end);
+        if (begin < 0 || last <= begin || !tokens[last].IsKeyword("END"))
+        {
+            return null;
+        }
+        for (var i = last + 1; i < end; i++)
+        {
+            if (IsComment(tokens[i].Kind))
+            {
+                return null;
+            }
+        }
+
+        var header = source[tokens[start].Position.Offset..tokens[begin].Position.Offset].Trim();
+
+        var inner = tokens.GetRange(begin + 1, last - begin - 1);
+        inner.Add(new Token(TokenKind.EndOfFile, string.Empty, tokens[last].Position));
+        var body = Render(SplitTopLevel(inner, source)).TrimEnd('\n');
+
+        var sb = new StringBuilder();
+        sb.Append(header).Append("\nBEGIN\n");
+        if (body.Length > 0)
+        {
+            foreach (var line in body.Split('\n'))
+            {
+                if (line.Length > 0)
+                {
+                    sb.Append(Indent).Append(line);
+                }
+                sb.Append('\n');
+            }
+        }
+        sb.Append("END");
+        if (hasSemicolon)
+        {
+            sb.Append(';');
+        }
+        return sb.ToString();
     }
 
     /// <summary>Emits a statement as its original text (leading whitespace trimmed), keeping the ';' where it sat.</summary>
@@ -378,7 +448,9 @@ public sealed class DdlFormatter
         || text.Equals("DROP", StringComparison.OrdinalIgnoreCase)
         || text.Equals("GRANT", StringComparison.OrdinalIgnoreCase)
         || text.Equals("PRE", StringComparison.OrdinalIgnoreCase)
-        || text.Equals("POST", StringComparison.OrdinalIgnoreCase);
+        || text.Equals("POST", StringComparison.OrdinalIgnoreCase)
+        || text.Equals("TEMPLATE", StringComparison.OrdinalIgnoreCase)
+        || text.Equals("APPLY", StringComparison.OrdinalIgnoreCase);
 
     private static string FormatComment(Token token) => token.Kind switch
     {
@@ -391,6 +463,18 @@ public sealed class DdlFormatter
     private static int FirstSignificant(List<Token> tokens, int from, int end)
     {
         for (var i = from; i < end; i++)
+        {
+            if (!IsComment(tokens[i].Kind))
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static int LastSignificant(List<Token> tokens, int from, int end)
+    {
+        for (var i = end - 1; i >= from; i--)
         {
             if (!IsComment(tokens[i].Kind))
             {

@@ -70,7 +70,7 @@ There is no `Show`, `Destroy`, `PlanDestroy`, or `ForceUnlock` operation. Previe
 
 **Desired-state** schema comes exclusively from SQL DDL files. `AddDdlSchemas(baseDirectory, glob|Matcher)` registers a `DdlSchemaSource`; the internal `IDesiredSchemaProvider` (`DesiredSchemaProvider`) globs every registered source, reads matched files with `DdlReader`, and aggregates into a `DesiredProject` — the desired `DatabaseSchema` **plus** the deployment scripts declared inline (PRE/POST DEPLOYMENT `$$…$$` blocks). `GetProject(scope, ct)` is its one method; there is no in-code desired-schema seam and no `ISchemaTransformer`. Multiple `AddDdlSchemas` calls aggregate (e.g. a base set plus an environment overlay).
 
-The DDL stack lives in `Schema/Ddl/`: `DdlLexer` → `DdlParser` (partials per statement family: `.Create`, `.Drop`, `.Grant`, `.Config`, `.Scripts`, `.SchemaAccumulator`) → schema model. `DdlWriter` renders the model back to DDL (used by Import). `DdlFormatter` is a gentle token-stream reformatter (backs the CLI `fmt` command) — it pretty-prints without going through the full parse/model round-trip, so it preserves what it doesn't understand.
+The DDL stack lives in `Schema/Ddl/`: `DdlLexer` → `DdlParser` (partials per statement family: `.Create`, `.Drop`, `.Grant`, `.Config`, `.Scripts`, `.Templates`, `.SchemaAccumulator`) → schema model. **Schema templates** (`TEMPLATE name BEGIN … END;` + `APPLY TEMPLATE name IN SCHEMA a, b;`) declare a reusable object group instantiated per schema: bodies are fully parsed (no views/schemas/extensions/drops inside; unqualified names bind to the target schema, qualified ones escape), and the internal `TemplateExpander` expands applications in `DesiredSchemaProvider` after all sources aggregate — location- and order-agnostic, invisible to diff/plan/import. `DdlWriter` renders the model back to DDL (used by Import). `DdlFormatter` is a gentle token-stream reformatter (backs the CLI `fmt` command) — it pretty-prints without going through the full parse/model round-trip, so it preserves what it doesn't understand.
 
 **Current-state** access goes through `ICurrentSchemaProvider`. The live source implements the public `ISchemaProvider`, used **only** for current-state:
 
@@ -103,3 +103,10 @@ Front-ends never touch `IStateLock` directly; they go through `IStateLockCoordin
 3. **Plan stage** — `IPlanLinearizer` (default `DefaultPlanLinearizer`) walks the diff and emits actions in a safe dependency order. The planner attaches the deployment scripts to the `MigrationPlan` as `PreDeploymentScripts` / `PostDeploymentScripts` (scripts aren't a diff concept). At execution the script SQL is composed around the generated statements (pre first, post last) — scripts are raw SQL needing no dialect translation.
 
 There are **no transformer seams**: the desired schema, diff, and plan are each validated by policies but never rewritten by the pipeline.
+
+## Documentation
+
+- Public facing changes should be included in CHANGELOG.md.
+- Don't overdocument everything. A brief, one-sentence summary is enough for Summary XML docs. In some advanced cases where explanation is actually needed, then add another sentence or two in a Remarks block.
+- When writing code comments, be aware that repeating the same reasoning in multiple places creates coupling and very quickly becomes out of date, so keep comments restricted to what actually matters at the place they're written.
+- Don't expose implementation details in documentation or changelogs, as documentation is a form of contract, so changing an implementation becomes a breaking change.

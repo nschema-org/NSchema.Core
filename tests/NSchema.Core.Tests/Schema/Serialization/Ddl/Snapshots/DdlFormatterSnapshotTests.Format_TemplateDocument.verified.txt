@@ -1,0 +1,23 @@
+﻿create schema billing;
+
+create schema ordering;
+
+--- Transactional outbox, one per subdomain schema.
+template outbox
+BEGIN
+  create enum outbox_status('pending','sent');
+
+  create table outbox (
+    id uuid not null,
+    status outbox_status not null,  -- current delivery state
+    payload text not null,
+    constraint pk_outbox primary key(id)
+  );
+
+  -- covering index for the dispatcher
+  create index ix_outbox_status on outbox(status);
+
+  grant select, insert on outbox to svc;
+END;
+
+apply template outbox in schema billing,   ordering;

@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
+## [Unreleased]
+
+### Added
+
+- **Schema template declaration.** A `TEMPLATE name BEGIN … END;` block allows you to declare a reusable group of objects once.
+- **Schema template application.** A `APPLY TEMPLATE name IN SCHEMA a, b;` statement instantiates a template into each named schema.
+- **`DdlDocument.Templates` / `DdlDocument.Applications`** carry the parsed statements for consumers of the reader.
+- The formatter lays out `TEMPLATE` blocks canonically: header and `BEGIN`/`END` on their own lines, inner statements formatted as usual and indented one level.
+
 ## [4.0.1] - 2026-07-06
 
 ### Added
