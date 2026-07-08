@@ -18,6 +18,15 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
+    /// Configures the policy to apply when the migration plan contains a change that can fail on existing data.
+    /// </summary>
+    public NSchemaApplicationBuilder WithDataHazardPolicy(DataHazardPolicy policy)
+    {
+        Services.Configure<DataHazardOptions>(o => o.Policy = policy);
+        return this;
+    }
+
+    /// <summary>
     /// Configures the transaction mode to use when executing the migration plan.
     /// </summary>
     public NSchemaApplicationBuilder WithTransactionMode(TransactionMode mode)
