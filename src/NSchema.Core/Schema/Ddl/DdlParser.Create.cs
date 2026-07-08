@@ -9,6 +9,7 @@ using NSchema.Schema.Model.Indexes;
 using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Sequences;
 using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Templates;
 using NSchema.Schema.Model.Triggers;
 using NSchema.Schema.Model.Views;
 
@@ -29,6 +30,10 @@ internal sealed partial class DdlParser
 
         if (_current.IsKeyword("SCHEMA"))
         {
+            if (_templateSchemaContext is not null)
+            {
+                throw Error("CREATE SCHEMA is not supported inside a template; apply the template to existing schemas instead.");
+            }
             ParseCreateSchema(schemas, doc, partial);
         }
         else if (_current.IsKeyword("TABLE"))
@@ -45,6 +50,10 @@ internal sealed partial class DdlParser
             {
                 throw Error("PARTIAL applies to SCHEMA, not VIEW.");
             }
+            if (_templateSchemaContext is not null)
+            {
+                throw Error("CREATE VIEW is not supported inside a template: a view body is opaque, so its references cannot be re-pointed at each target schema.");
+            }
             Advance(); // VIEW
             ParseCreateView(schemas, doc, materialized: false);
         }
@@ -53,6 +62,10 @@ internal sealed partial class DdlParser
             if (partial)
             {
                 throw Error("PARTIAL applies to SCHEMA, not MATERIALIZED VIEW.");
+            }
+            if (_templateSchemaContext is not null)
+            {
+                throw Error("CREATE MATERIALIZED VIEW is not supported inside a template: a view body is opaque, so its references cannot be re-pointed at each target schema.");
             }
             Advance(); // MATERIALIZED
             ExpectKeyword("VIEW");
@@ -111,6 +124,10 @@ internal sealed partial class DdlParser
             if (partial)
             {
                 throw Error("PARTIAL applies to SCHEMA, not EXTENSION.");
+            }
+            if (_templateSchemaContext is not null)
+            {
+                throw Error("CREATE EXTENSION is not supported inside a template; extensions are database-global.");
             }
             ParseCreateExtension(schemas, doc);
         }
@@ -176,6 +193,10 @@ internal sealed partial class DdlParser
         var table = new Table(tableName, oldName, body.PrimaryKey, doc,
             body.Columns, body.ForeignKeys, body.UniqueConstraints, body.CheckConstraints, body.ExclusionConstraints, body.Indexes);
         schemas.AddTable(schemaName, table, namePosition);
+        foreach (var (templateName, columnPosition) in body.Includes)
+        {
+            schemas.AddInclude(new TemplateInclude(schemaName, tableName, templateName, columnPosition));
+        }
     }
 
     // The "VIEW" keyword has already been consumed by the dispatcher (preceded by "MATERIALIZED" when
@@ -623,6 +644,10 @@ internal sealed partial class DdlParser
         {
             ParseIndex(doc, isUnique: false, body);
         }
+        else if (_current.IsKeyword("INCLUDE"))
+        {
+            ParseIncludeOrColumn(doc, body);
+        }
         else if (_current.Kind == TokenKind.Identifier)
         {
             ParseColumn(doc, body);
@@ -633,9 +658,34 @@ internal sealed partial class DdlParser
         }
     }
 
-    private void ParseColumn(string? doc, TableBody body)
+    /// <summary>
+    /// Disambiguates a member starting with <c>INCLUDE</c>: it is a template include only when nothing follows
+    /// the name (the member ends at <c>,</c> or <c>)</c>); otherwise it is a column named <c>include</c> whose
+    /// type is the identifier — the pre-template reading, kept so existing DDL parses unchanged.
+    /// </summary>
+    private void ParseIncludeOrColumn(string? doc, TableBody body)
     {
-        var name = ExpectIdentifier("a column name");
+        var include = Advance(); // INCLUDE (or a column named 'include')
+
+        if (_current.Kind == TokenKind.Identifier
+            && _lexer.Peek().Kind is TokenKind.Comma or TokenKind.RightParen)
+        {
+            if (_inTableTemplateBody)
+            {
+                throw Error("INCLUDE is not supported inside a table template; a table template cannot include another.");
+            }
+            body.Includes.Add((Advance().Text, body.Columns.Count));
+            return;
+        }
+
+        ParseColumn(include.Text, doc, body);
+    }
+
+    private void ParseColumn(string? doc, TableBody body)
+        => ParseColumn(ExpectIdentifier("a column name"), doc, body);
+
+    private void ParseColumn(string name, string? doc, TableBody body)
+    {
         var type = ParseType();
 
         var isNullable = true;
@@ -1054,5 +1104,6 @@ internal sealed partial class DdlParser
         public List<CheckConstraint> CheckConstraints { get; } = [];
         public List<ExclusionConstraint> ExclusionConstraints { get; } = [];
         public List<TableIndex> Indexes { get; } = [];
+        public List<(string TemplateName, int ColumnPosition)> Includes { get; } = [];
     }
 }
