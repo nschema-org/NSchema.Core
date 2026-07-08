@@ -85,4 +85,42 @@ public sealed class DesiredSchemaProviderTests : IDisposable
 
         project.Schema.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
+
+    [Fact]
+    public async Task GetProject_ExpandsTemplatesAcrossFiles()
+    {
+        // Templates are location-agnostic: the definition, its application, and the target schemas may each live
+        // in a different file — expansion runs on the aggregate.
+        Write("templates.sql", "TEMPLATE outbox BEGIN CREATE TABLE outbox (id int NOT NULL); END;");
+        Write("schemas.sql",
+            """
+            CREATE SCHEMA billing;
+            CREATE SCHEMA ordering;
+            APPLY TEMPLATE outbox IN SCHEMA billing, ordering;
+            """);
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        var project = await sut.GetProject(null, TestContext.Current.CancellationToken);
+
+        project.Schema.Schemas.Select(s => s.Name).ShouldBe(["billing", "ordering"], ignoreOrder: true);
+        project.Schema.Schemas.ShouldAllBe(s => s.Tables.Count == 1);
+    }
+
+    [Fact]
+    public async Task GetProject_TemplateInstancesRespectScopeFilter()
+    {
+        // Expansion happens before the scope filter, so an instance in an out-of-scope schema is filtered away.
+        Write("schema.sql",
+            """
+            CREATE SCHEMA billing;
+            CREATE SCHEMA ordering;
+            TEMPLATE outbox BEGIN CREATE TABLE outbox (id int NOT NULL); END;
+            APPLY TEMPLATE outbox IN SCHEMA billing, ordering;
+            """);
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        var project = await sut.GetProject(["billing"], TestContext.Current.CancellationToken);
+
+        project.Schema.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Name.ShouldBe("outbox");
+    }
 }

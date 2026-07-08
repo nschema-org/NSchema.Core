@@ -1,6 +1,7 @@
 using NSchema.Configuration;
 using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model.Scripts;
+using NSchema.Schema.Model.Templates;
 
 namespace NSchema.Schema.Ddl;
 
@@ -11,6 +12,10 @@ internal sealed partial class DdlParser
 {
     private readonly DdlLexer _lexer;
     private Token _current;
+
+    // Stores the name of the current schema while parsing a TEMPLATE body.
+    // This is used to automatically qualify any identifiers missing a schema.
+    private string? _templateSchemaContext;
 
     public DdlParser(string source)
     {
@@ -26,6 +31,8 @@ internal sealed partial class DdlParser
         var schemas = new SchemaAccumulator();
         var config = new List<ConfigBlock>();
         var scripts = new List<Script>();
+        var templates = new List<TemplateDefinition>();
+        var applications = new List<TemplateApplication>();
         string? pendingDoc = null;
 
         while (_current.Kind != TokenKind.EndOfFile)
@@ -38,14 +45,21 @@ internal sealed partial class DdlParser
                 continue;
             }
 
-            ParseStatement(schemas, config, scripts, pendingDoc);
+            ParseStatement(schemas, config, scripts, templates, applications, pendingDoc);
             pendingDoc = null;
         }
 
-        return new DdlDocument(schemas.Build(), config, scripts);
+        return new DdlDocument(schemas.Build(), config, scripts) { Templates = templates, Applications = applications };
     }
 
-    private void ParseStatement(SchemaAccumulator schemas, List<ConfigBlock> config, List<Script> scripts, string? doc)
+    private void ParseStatement(
+        SchemaAccumulator schemas,
+        List<ConfigBlock> config,
+        List<Script> scripts,
+        List<TemplateDefinition> templates,
+        List<TemplateApplication> applications,
+        string? doc
+    )
     {
         if (_current.IsKeyword("CREATE"))
         {
@@ -67,6 +81,14 @@ internal sealed partial class DdlParser
         {
             scripts.Add(ParseDeploymentScript(ScriptType.PostDeployment));
         }
+        else if (_current.IsKeyword("TEMPLATE"))
+        {
+            templates.Add(ParseTemplate());
+        }
+        else if (_current.IsKeyword("APPLY"))
+        {
+            applications.Add(ParseApplyTemplate());
+        }
         else if (_current.Kind == TokenKind.Identifier)
         {
             // Any other top-level keyword introduces a configuration block (NSCHEMA / BACKEND / PROVIDER …).
@@ -85,7 +107,15 @@ internal sealed partial class DdlParser
     private (string Schema, string Table) ParseQualifiedName()
     {
         var schema = ExpectIdentifier("a schema name");
-        Expect(TokenKind.Dot, "'.'");
+        if (!Match(TokenKind.Dot))
+        {
+            // Inside a template body an unqualified name binds to the current schema context.
+            if (_templateSchemaContext is { } templateSchema)
+            {
+                return (templateSchema, schema);
+            }
+            throw Error("Expected '.'.");
+        }
         var table = ExpectIdentifier("a table name");
         return (schema, table);
     }

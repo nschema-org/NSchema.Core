@@ -29,6 +29,10 @@ internal sealed partial class DdlParser
 
         if (_current.IsKeyword("SCHEMA"))
         {
+            if (_templateSchemaContext is not null)
+            {
+                throw Error("CREATE SCHEMA is not supported inside a template; apply the template to existing schemas instead.");
+            }
             ParseCreateSchema(schemas, doc, partial);
         }
         else if (_current.IsKeyword("TABLE"))
@@ -45,6 +49,10 @@ internal sealed partial class DdlParser
             {
                 throw Error("PARTIAL applies to SCHEMA, not VIEW.");
             }
+            if (_templateSchemaContext is not null)
+            {
+                throw Error("CREATE VIEW is not supported inside a template: a view body is opaque, so its references cannot be re-pointed at each target schema.");
+            }
             Advance(); // VIEW
             ParseCreateView(schemas, doc, materialized: false);
         }
@@ -53,6 +61,10 @@ internal sealed partial class DdlParser
             if (partial)
             {
                 throw Error("PARTIAL applies to SCHEMA, not MATERIALIZED VIEW.");
+            }
+            if (_templateSchemaContext is not null)
+            {
+                throw Error("CREATE MATERIALIZED VIEW is not supported inside a template: a view body is opaque, so its references cannot be re-pointed at each target schema.");
             }
             Advance(); // MATERIALIZED
             ExpectKeyword("VIEW");
@@ -111,6 +123,10 @@ internal sealed partial class DdlParser
             if (partial)
             {
                 throw Error("PARTIAL applies to SCHEMA, not EXTENSION.");
+            }
+            if (_templateSchemaContext is not null)
+            {
+                throw Error("CREATE EXTENSION is not supported inside a template; extensions are database-global.");
             }
             ParseCreateExtension(schemas, doc);
         }
