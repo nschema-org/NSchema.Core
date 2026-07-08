@@ -11,6 +11,10 @@ internal sealed partial class DdlParser
 
         if (_current.IsKeyword("USAGE"))
         {
+            if (_templateSchemaContext is not null)
+            {
+                throw Error("GRANT USAGE ON SCHEMA is not supported inside a template; declare schema grants alongside the schema.");
+            }
             Advance();
             ExpectKeyword("ON");
             ExpectKeyword("SCHEMA");

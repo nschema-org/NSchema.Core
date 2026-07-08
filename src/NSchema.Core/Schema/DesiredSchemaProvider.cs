@@ -3,6 +3,7 @@ using NSchema.Schema.Ddl;
 using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Scripts;
+using NSchema.Schema.Model.Templates;
 
 namespace NSchema.Schema;
 
@@ -32,13 +33,18 @@ internal sealed class DesiredSchemaProvider(IEnumerable<DdlSchemaSource> sources
 
         var schema = new DatabaseSchema();
         var scripts = new List<Script>();
+        var templates = new TemplateSet();
         foreach (var document in documents)
         {
             schema = schema.Combine(document.Schema);
             scripts.AddRange(document.Scripts);
+            templates = templates.Combine(document.Templates);
         }
 
-        return new DesiredProject(schema.Filter(schemaNames), scripts, files);
+        schema = TemplateExpander.Expand(schema, templates);
+        schema = schema.Filter(schemaNames);
+
+        return new DesiredProject(schema, scripts, files);
     }
 
     private static IEnumerable<string> ResolveFiles(DdlSchemaSource source) => source.Matcher

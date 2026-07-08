@@ -1,6 +1,7 @@
 using NSchema.Configuration;
 using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model.Scripts;
+using NSchema.Schema.Model.Templates;
 
 namespace NSchema.Schema.Ddl;
 
@@ -11,6 +12,14 @@ internal sealed partial class DdlParser
 {
     private readonly DdlLexer _lexer;
     private Token _current;
+
+    // Stores the name of the current schema while parsing a TEMPLATE body.
+    // This is used to automatically qualify any identifiers missing a schema.
+    private string? _templateSchemaContext;
+
+    // True while parsing a FOR TABLE template's member body, where INCLUDE members are rejected (a table
+    // template cannot include another).
+    private bool _inTableTemplateBody;
 
     public DdlParser(string source)
     {
@@ -23,9 +32,7 @@ internal sealed partial class DdlParser
     /// </summary>
     public DdlDocument Parse()
     {
-        var schemas = new SchemaAccumulator();
-        var config = new List<ConfigBlock>();
-        var scripts = new List<Script>();
+        var document = new DocumentAccumulator();
         string? pendingDoc = null;
 
         while (_current.Kind != TokenKind.EndOfFile)
@@ -38,41 +45,49 @@ internal sealed partial class DdlParser
                 continue;
             }
 
-            ParseStatement(schemas, config, scripts, pendingDoc);
+            ParseStatement(document, pendingDoc);
             pendingDoc = null;
         }
 
-        return new DdlDocument(schemas.Build(), config, scripts);
+        return document.Build();
     }
 
-    private void ParseStatement(SchemaAccumulator schemas, List<ConfigBlock> config, List<Script> scripts, string? doc)
+    private void ParseStatement(DocumentAccumulator document, string? doc)
     {
         if (_current.IsKeyword("CREATE"))
         {
-            ParseCreate(schemas, doc);
+            ParseCreate(document.Schemas, doc);
         }
         else if (_current.IsKeyword("DROP"))
         {
-            ParseDrop(schemas);
+            ParseDrop(document.Schemas);
         }
         else if (_current.IsKeyword("GRANT"))
         {
-            ParseGrant(schemas);
+            ParseGrant(document.Schemas);
         }
         else if (_current.IsKeyword("PRE"))
         {
-            scripts.Add(ParseDeploymentScript(ScriptType.PreDeployment));
+            document.Scripts.Add(ParseDeploymentScript(ScriptType.PreDeployment));
         }
         else if (_current.IsKeyword("POST"))
         {
-            scripts.Add(ParseDeploymentScript(ScriptType.PostDeployment));
+            document.Scripts.Add(ParseDeploymentScript(ScriptType.PostDeployment));
+        }
+        else if (_current.IsKeyword("TEMPLATE"))
+        {
+            document.Templates.Add(ParseTemplate());
+        }
+        else if (_current.IsKeyword("APPLY"))
+        {
+            document.Applications.Add(ParseApplyTemplate());
         }
         else if (_current.Kind == TokenKind.Identifier)
         {
             // Any other top-level keyword introduces a configuration block (NSCHEMA / BACKEND / PROVIDER …).
             // The core captures it but never interprets it, so an unknown block keyword is captured rather than
             // rejected.
-            config.Add(ParseConfigBlock());
+            document.Config.Add(ParseConfigBlock());
         }
         else
         {
@@ -80,12 +95,40 @@ internal sealed partial class DdlParser
         }
     }
 
+    /// <summary>
+    /// Accumulates the results of top-level statements — the parse-wide context threaded through statement
+    /// dispatch, so a new statement kind adds a field here rather than a parameter to every signature. Statements
+    /// that write schema objects receive the narrower <see cref="SchemaAccumulator"/> (<see cref="Schemas"/>);
+    /// a template body substitutes its own.
+    /// </summary>
+    private sealed class DocumentAccumulator
+    {
+        public SchemaAccumulator Schemas { get; } = new();
+        public List<ConfigBlock> Config { get; } = [];
+        public List<Script> Scripts { get; } = [];
+        public List<TemplateDefinition> Templates { get; } = [];
+        public List<TemplateApplication> Applications { get; } = [];
+
+        public DdlDocument Build() => new(Schemas.Build(), Config, Scripts)
+        {
+            Templates = new TemplateSet(Templates, Applications, Schemas.Includes),
+        };
+    }
+
     // --- shared helpers -------------------------------------------------------
 
     private (string Schema, string Table) ParseQualifiedName()
     {
         var schema = ExpectIdentifier("a schema name");
-        Expect(TokenKind.Dot, "'.'");
+        if (!Match(TokenKind.Dot))
+        {
+            // Inside a template body an unqualified name binds to the current schema context.
+            if (_templateSchemaContext is { } templateSchema)
+            {
+                return (templateSchema, schema);
+            }
+            throw Error("Expected '.'.");
+        }
         var table = ExpectIdentifier("a table name");
         return (schema, table);
     }

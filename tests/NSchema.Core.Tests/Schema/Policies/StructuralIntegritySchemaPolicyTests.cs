@@ -42,6 +42,60 @@ public sealed class StructuralIntegritySchemaPolicyTests
     }
 
     [Fact]
+    public void Error_WhenIndexNameIsReusedAcrossTablesInASchema()
+    {
+        // Arrange — index names are schema-scoped, so two tables can't both declare 'ix_updated_at'.
+        var invoices = new Table("invoices", Columns: [Col("updated_at")],
+            Indexes: [new TableIndex("ix_updated_at", [new IndexColumn("updated_at")])]);
+        var orders = new Table("orders", Columns: [Col("updated_at")],
+            Indexes: [new TableIndex("ix_updated_at", [new IndexColumn("updated_at")])]);
+
+        // Act
+        var diagnostics = _sut.Validate(Db(invoices, orders)).ToList();
+
+        // Assert
+        var diagnostic = diagnostics.ShouldHaveSingleItem();
+        diagnostic.Severity.ShouldBe(DiagnosticSeverity.Error);
+        diagnostic.Message.ShouldContain("ix_updated_at");
+        diagnostic.Message.ShouldContain("public.invoices");
+        diagnostic.Message.ShouldContain("public.orders");
+    }
+
+    [Fact]
+    public void Error_WhenAPrimaryKeyNameCollidesWithAnIndexName()
+    {
+        // Arrange — a PRIMARY KEY creates an index bearing its name, so it shares the schema-wide pool.
+        var invoices = new Table("invoices", PrimaryKey: new PrimaryKey("shared_name", ["id"]), Columns: [Col("id")]);
+        var orders = new Table("orders", Columns: [Col("id")],
+            Indexes: [new TableIndex("shared_name", [new IndexColumn("id")])]);
+
+        // Act
+        var diagnostics = _sut.Validate(Db(invoices, orders)).ToList();
+
+        // Assert
+        diagnostics.ShouldHaveSingleItem().Message.ShouldContain("shared_name");
+    }
+
+    [Fact]
+    public void NoDiagnostics_WhenTheSameIndexNameIsUsedInDifferentSchemas()
+    {
+        // Arrange
+        var table = new Table("invoices", Columns: [Col("updated_at")],
+            Indexes: [new TableIndex("ix_updated_at", [new IndexColumn("updated_at")])]);
+        var schema = new DatabaseSchema(
+        [
+            new SchemaDefinition("billing", Tables: [table]),
+            new SchemaDefinition("ordering", Tables: [table]),
+        ]);
+
+        // Act
+        var diagnostics = _sut.Validate(schema).ToList();
+
+        // Assert
+        diagnostics.ShouldBeEmpty();
+    }
+
+    [Fact]
     public void Error_WhenTableHasNoColumns()
     {
         // Act

@@ -33,9 +33,32 @@ public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
 
             ValidateObjectNames(definition, diagnostics);
             ValidateRoutineNames(definition, diagnostics);
+            ValidateIndexNames(definition, diagnostics);
         }
 
         return diagnostics;
+    }
+
+    // Index names are schema-scoped in the database (indexes live in pg_class alongside tables).
+    private static void ValidateIndexNames(SchemaDefinition definition, List<Diagnostic> diagnostics)
+    {
+        var named = definition.Tables
+            .SelectMany(t => t.Indexes.Select(i => (i.Name, Kind: "index", On: t.Name))
+                .Concat(t.PrimaryKey is { } pk
+                    ? [(pk.Name, Kind: "primary key", On: t.Name)]
+                    : Array.Empty<(string Name, string Kind, string On)>())
+                .Concat(t.UniqueConstraints.Select(u => (u.Name, Kind: "unique constraint", On: t.Name)))
+                .Concat(t.ExclusionConstraints.Select(x => (x.Name, Kind: "exclusion constraint", On: t.Name))))
+            .Concat(definition.Views.Where(v => v.IsMaterialized)
+                .SelectMany(v => v.Indexes.Select(i => (i.Name, Kind: "index", On: v.Name))));
+
+        foreach (var collision in named.GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
+        {
+            var sites = string.Join(", ", collision.Select(x => $"{x.Kind} on '{definition.Name}.{x.On}'"));
+            diagnostics.Add(Error(
+                $"Schema '{definition.Name}' declares the index name '{collision.Key}' more than once ({sites}); " +
+                "index and index-backed constraint names are schema-scoped."));
+        }
     }
 
     // Tables, views, materialized views, sequences, and composite types all occupy a single name space per

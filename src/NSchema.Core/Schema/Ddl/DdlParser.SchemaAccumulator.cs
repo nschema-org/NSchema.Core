@@ -9,6 +9,7 @@ using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Sequences;
 using NSchema.Schema.Model.Tables;
+using NSchema.Schema.Model.Templates;
 using NSchema.Schema.Model.Triggers;
 using NSchema.Schema.Model.Views;
 
@@ -30,6 +31,16 @@ internal sealed partial class DdlParser
         private readonly List<PendingGrant> _tableGrants = [];
         private readonly List<PendingTrigger> _triggers = [];
         private readonly List<PendingIndex> _standaloneIndexes = [];
+        private readonly List<TemplateInclude> _includes = [];
+
+        /// <summary>
+        /// The <c>INCLUDE</c> members collected from table bodies. Unlike the other pending lists these are not
+        /// resolved at <see cref="Build"/> — they resolve against the aggregate at template expansion, so they are
+        /// exported alongside the built schema rather than folded into it.
+        /// </summary>
+        public IReadOnlyList<TemplateInclude> Includes => _includes;
+
+        public void AddInclude(TemplateInclude include) => _includes.Add(include);
 
         public void DeclareSchema(string name, string? oldName, bool isPartial, string? comment, SourcePosition position)
         {
