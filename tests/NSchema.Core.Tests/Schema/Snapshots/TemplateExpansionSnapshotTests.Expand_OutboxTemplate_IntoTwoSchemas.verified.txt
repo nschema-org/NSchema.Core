@@ -9,8 +9,9 @@ CREATE TABLE billing.events (
   status billing.outbox_status NOT NULL,
   payload text NOT NULL,
   created_at datetimeoffset NOT NULL,
+  updated_at datetimeoffset NOT NULL,
   CONSTRAINT pk_events PRIMARY KEY (id),
-  INDEX ix_events_created_at (created_at)
+  CONSTRAINT chk_audit CHECK (updated_at >= created_at)
 );
 GRANT SELECT, INSERT ON billing.events TO svc;
 CREATE TRIGGER trg_notify AFTER INSERT ON billing.events FOR EACH ROW EXECUTE FUNCTION billing.outbox_notify();
@@ -32,8 +33,9 @@ CREATE TABLE ordering.events (
   status ordering.outbox_status NOT NULL,
   payload text NOT NULL,
   created_at datetimeoffset NOT NULL,
+  updated_at datetimeoffset NOT NULL,
   CONSTRAINT pk_events PRIMARY KEY (id),
-  INDEX ix_events_created_at (created_at)
+  CONSTRAINT chk_audit CHECK (updated_at >= created_at)
 );
 GRANT SELECT, INSERT ON ordering.events TO svc;
 CREATE TRIGGER trg_notify AFTER INSERT ON ordering.events FOR EACH ROW EXECUTE FUNCTION ordering.outbox_notify();

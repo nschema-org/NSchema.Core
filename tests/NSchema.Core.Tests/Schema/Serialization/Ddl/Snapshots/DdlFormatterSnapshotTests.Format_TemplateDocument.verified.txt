@@ -2,6 +2,14 @@
 
 create schema ordering;
 
+--- Standard audit columns for every table.
+template audit_columns for table
+BEGIN
+  created_at datetimeoffset not null,
+  updated_at datetimeoffset not null,  -- touched on write
+  constraint chk_audit check (updated_at >= created_at)
+END;
+
 --- Transactional outbox, one per subdomain schema.
 template outbox
 BEGIN
@@ -11,6 +19,7 @@ BEGIN
     id uuid not null,
     status outbox_status not null,  -- current delivery state
     payload text not null,
+    include audit_columns,
     constraint pk_outbox primary key(id)
   );
 

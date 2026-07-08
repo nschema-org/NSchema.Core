@@ -16,6 +16,12 @@ public sealed class DdlFormatterSnapshotTests
             """
             create schema billing;
               create schema ordering;
+            --- Standard audit columns for every table.
+            template audit_columns for table begin
+                created_at datetimeoffset not null,
+              updated_at datetimeoffset not null,  -- touched on write
+                  constraint chk_audit check (updated_at >= created_at)
+             end;
             --- Transactional outbox, one per subdomain schema.
             template outbox begin
                 create enum outbox_status('pending','sent');
@@ -23,6 +29,7 @@ public sealed class DdlFormatterSnapshotTests
                   id uuid not null,
                 status outbox_status not null,  -- current delivery state
                     payload text not null,
+                  include audit_columns,
                 constraint pk_outbox primary key(id));
               -- covering index for the dispatcher
              create index ix_outbox_status on outbox(status);

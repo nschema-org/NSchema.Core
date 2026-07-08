@@ -1,5 +1,6 @@
 using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Tables;
 using NSchema.Schema.Model.Templates;
 
 namespace NSchema.Schema.Ddl;
@@ -7,16 +8,54 @@ namespace NSchema.Schema.Ddl;
 internal sealed partial class DdlParser
 {
     /// <summary>
-    /// Parses a template definition: <c>TEMPLATE name BEGIN &lt;statements&gt; END;</c>.
+    /// Parses a template definition: <c>TEMPLATE name [FOR SCHEMA|TABLE] BEGIN … END;</c>. A schema template's
+    /// body holds statements; a table template's body holds comma-separated table members.
     /// </summary>
     private TemplateDefinition ParseTemplate()
     {
         Advance(); // TEMPLATE
         var namePosition = _current.Position;
         var name = ExpectIdentifier("a template name");
+        var kind = ParseTemplateKind();
         ExpectKeyword("BEGIN");
 
+        return kind == TemplateKind.Table
+            ? ParseTableTemplateBody(name)
+            : ParseSchemaTemplateBody(name, namePosition);
+    }
+
+    /// <summary>
+    /// Parses the optional kind marker after the template name: <c>FOR SCHEMA</c> (the default) or <c>FOR TABLE</c>.
+    /// </summary>
+    private TemplateKind ParseTemplateKind()
+    {
+        if (!_current.IsKeyword("FOR"))
+        {
+            return TemplateKind.Schema;
+        }
+        Advance(); // FOR
+
+        if (_current.IsKeyword("SCHEMA"))
+        {
+            Advance();
+            return TemplateKind.Schema;
+        }
+        if (_current.IsKeyword("TABLE"))
+        {
+            Advance();
+            return TemplateKind.Table;
+        }
+        throw Error($"Expected SCHEMA or TABLE after FOR, found '{_current.Text}'.");
+    }
+
+    private TemplateDefinition ParseSchemaTemplateBody(string name, SourcePosition namePosition)
+    {
         var body = new SchemaAccumulator();
+        // INCLUDEs written in this body belong to the definition (re-targeted per instance at expansion), not
+        // to the document, so the pending list is swapped out around it.
+        var outerIncludes = _pendingIncludes;
+        _pendingIncludes = [];
+        var bodyIncludes = _pendingIncludes;
         _templateSchemaContext = TemplateDefinition.TargetSchemaPlaceholder;
         try
         {
@@ -38,6 +77,7 @@ internal sealed partial class DdlParser
         finally
         {
             _templateSchemaContext = null;
+            _pendingIncludes = outerIncludes;
         }
         Advance(); // END
         Expect(TokenKind.Semicolon, "';'");
@@ -55,7 +95,42 @@ internal sealed partial class DdlParser
         }
 
         var objects = fragment.Schemas.FirstOrDefault() ?? new SchemaDefinition(TemplateDefinition.TargetSchemaPlaceholder);
-        return new TemplateDefinition(name, objects);
+        return new TemplateDefinition(name, TemplateKind.Schema, objects) { Includes = bodyIncludes };
+    }
+
+    /// <summary>
+    /// Parses a table template's body — comma-separated table members, the same grammar as a table body — carried
+    /// as a single placeholder-named table.
+    /// </summary>
+    private TemplateDefinition ParseTableTemplateBody(string name)
+    {
+        var body = new TableBody();
+        _templateSchemaContext = TemplateDefinition.TargetSchemaPlaceholder;
+        _inTableTemplateBody = true;
+        try
+        {
+            if (!_current.IsKeyword("END"))
+            {
+                do
+                {
+                    var itemDoc = TakePendingDoc();
+                    ParseTableItem(itemDoc, body);
+                }
+                while (Match(TokenKind.Comma));
+            }
+        }
+        finally
+        {
+            _templateSchemaContext = null;
+            _inTableTemplateBody = false;
+        }
+        ExpectKeyword("END");
+        Expect(TokenKind.Semicolon, "';'");
+
+        var members = new Table(TemplateDefinition.TargetSchemaPlaceholder, null, body.PrimaryKey, null,
+            body.Columns, body.ForeignKeys, body.UniqueConstraints, body.CheckConstraints, body.ExclusionConstraints, body.Indexes);
+        var objects = new SchemaDefinition(TemplateDefinition.TargetSchemaPlaceholder, Tables: [members]);
+        return new TemplateDefinition(name, TemplateKind.Table, objects);
     }
 
     private void ParseTemplateStatement(SchemaAccumulator schemas, string? doc)

@@ -11,7 +11,7 @@ public sealed class TemplateExpanderTests
     private static DatabaseSchema Expand(string source)
     {
         var document = DdlReader.Instance.Read(source);
-        return TemplateExpander.Expand(document.Schema, document.Templates, document.Applications);
+        return TemplateExpander.Expand(document.Schema, document.Templates, document.Applications, document.Includes);
     }
 
     private static SchemaDefinition Schema(DatabaseSchema schema, string name)
@@ -246,4 +246,164 @@ public sealed class TemplateExpanderTests
                 APPLY TEMPLATE t IN SCHEMA billing;
                 """))
             .Message.ShouldContain("Duplicate table 'outbox'");
+
+    // --- table templates (INCLUDE) ---------------------------------------------
+
+    private const string AuditColumns =
+        """
+        TEMPLATE audit_columns FOR TABLE
+        BEGIN
+          created_at datetimeoffset NOT NULL,
+          updated_at datetimeoffset NOT NULL,
+          CONSTRAINT chk_audit CHECK (updated_at >= created_at)
+        END;
+        """;
+
+    [Fact]
+    public void Expand_MergesIncludedMembersIntoTheTable()
+    {
+        var schema = Expand(
+            $"""
+            CREATE SCHEMA billing;
+            CREATE TABLE billing.invoices (id uuid NOT NULL, INCLUDE audit_columns);
+            {AuditColumns}
+            """);
+
+        var table = Schema(schema, "billing").Tables.ShouldHaveSingleItem();
+        table.Columns.Select(c => c.Name).ShouldBe(["id", "created_at", "updated_at"]);
+        table.CheckConstraints.ShouldHaveSingleItem().Name.ShouldBe("chk_audit");
+    }
+
+    [Fact]
+    public void Expand_InsertsIncludedColumnsAtTheIncludePosition()
+    {
+        var schema = Expand(
+            $"""
+            CREATE SCHEMA billing;
+            CREATE TABLE billing.invoices (
+              id uuid NOT NULL,
+              INCLUDE audit_columns,
+              total decimal(18,2) NOT NULL
+            );
+            {AuditColumns}
+            """);
+
+        Schema(schema, "billing").Tables.ShouldHaveSingleItem()
+            .Columns.Select(c => c.Name).ShouldBe(["id", "created_at", "updated_at", "total"]);
+    }
+
+    [Fact]
+    public void Expand_IncludedForeignKeyBindsToTheIncludingTablesSchema()
+    {
+        var schema = Expand(
+            """
+            CREATE SCHEMA billing;
+            CREATE TABLE billing.tenants (id uuid NOT NULL, CONSTRAINT pk_tenants PRIMARY KEY (id));
+            CREATE TABLE billing.invoices (id uuid NOT NULL, INCLUDE tenant_columns);
+            TEMPLATE tenant_columns FOR TABLE
+            BEGIN
+              tenant_id uuid NOT NULL,
+              CONSTRAINT fk_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (id)
+            END;
+            """);
+
+        var invoices = Schema(schema, "billing").Tables.First(t => t.Name == "invoices");
+        var fk = invoices.ForeignKeys.ShouldHaveSingleItem();
+        fk.ReferencedSchema.ShouldBe("billing");
+        fk.ReferencedTable.ShouldBe("tenants");
+    }
+
+    [Fact]
+    public void Expand_IncludedPrimaryKey_IsSet()
+    {
+        var schema = Expand(
+            """
+            CREATE SCHEMA billing;
+            CREATE TABLE billing.invoices (INCLUDE id_column);
+            TEMPLATE id_column FOR TABLE
+            BEGIN
+              id uuid NOT NULL,
+              CONSTRAINT pk_id PRIMARY KEY (id)
+            END;
+            """);
+
+        Schema(schema, "billing").Tables.ShouldHaveSingleItem().PrimaryKey.ShouldNotBeNull().Name.ShouldBe("pk_id");
+    }
+
+    [Fact]
+    public void Expand_IncludedPrimaryKeyConflict_Throws()
+        => Should.Throw<InvalidOperationException>(() => Expand(
+                """
+                CREATE SCHEMA billing;
+                CREATE TABLE billing.invoices (id uuid NOT NULL, CONSTRAINT pk PRIMARY KEY (id), INCLUDE id_column);
+                TEMPLATE id_column FOR TABLE
+                BEGIN
+                  surrogate_id uuid NOT NULL,
+                  CONSTRAINT pk_id PRIMARY KEY (surrogate_id)
+                END;
+                """))
+            .Message.ShouldContain("already declares one");
+
+    [Fact]
+    public void Expand_IncludeInsideSchemaTemplateTable_ResolvesPerInstance()
+    {
+        // Composition: a schema template's table includes a table template; each instantiated copy resolves the
+        // include against its own schema.
+        var schema = Expand(
+            $"""
+            CREATE SCHEMA billing;
+            CREATE SCHEMA ordering;
+            TEMPLATE outbox
+            BEGIN
+              CREATE TABLE outbox (id uuid NOT NULL, INCLUDE audit_columns);
+            END;
+            APPLY TEMPLATE outbox IN SCHEMA billing, ordering;
+            {AuditColumns}
+            """);
+
+        foreach (var name in new[] { "billing", "ordering" })
+        {
+            var outbox = Schema(schema, name).Tables.ShouldHaveSingleItem();
+            outbox.Columns.Select(c => c.Name).ShouldBe(["id", "created_at", "updated_at"]);
+        }
+    }
+
+    [Fact]
+    public void Expand_DuplicateColumnFromInclude_Throws()
+        => Should.Throw<InvalidOperationException>(() => Expand(
+                $"""
+                CREATE SCHEMA billing;
+                CREATE TABLE billing.invoices (created_at datetimeoffset NOT NULL, INCLUDE audit_columns);
+                {AuditColumns}
+                """))
+            .Message.ShouldContain("already declares it");
+
+    [Fact]
+    public void Expand_UnknownInclude_Throws()
+        => Should.Throw<InvalidOperationException>(() => Expand(
+                """
+                CREATE SCHEMA billing;
+                CREATE TABLE billing.invoices (id uuid NOT NULL, INCLUDE missing);
+                """))
+            .Message.ShouldContain("unknown template 'missing'");
+
+    [Fact]
+    public void Expand_IncludingASchemaTemplate_Throws()
+        => Should.Throw<InvalidOperationException>(() => Expand(
+                """
+                CREATE SCHEMA billing;
+                CREATE TABLE billing.invoices (id uuid NOT NULL, INCLUDE outbox);
+                TEMPLATE outbox BEGIN CREATE TABLE outbox (id uuid NOT NULL); END;
+                """))
+            .Message.ShouldContain("only a FOR TABLE template can be included");
+
+    [Fact]
+    public void Expand_ApplyingATableTemplateToSchemas_Throws()
+        => Should.Throw<InvalidOperationException>(() => Expand(
+                $"""
+                CREATE SCHEMA billing;
+                APPLY TEMPLATE audit_columns IN SCHEMA billing;
+                {AuditColumns}
+                """))
+            .Message.ShouldContain("is a table template");
 }

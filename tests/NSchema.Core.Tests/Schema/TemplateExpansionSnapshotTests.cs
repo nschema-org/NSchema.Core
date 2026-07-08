@@ -18,6 +18,13 @@ public sealed class TemplateExpansionSnapshotTests
             CREATE SCHEMA billing;
             CREATE SCHEMA ordering;
 
+            TEMPLATE audit_columns FOR TABLE
+            BEGIN
+              created_at timestamptz NOT NULL,
+              updated_at timestamptz NOT NULL,
+              CONSTRAINT chk_audit CHECK (updated_at >= created_at)
+            END;
+
             TEMPLATE outbox
             BEGIN
               CREATE ENUM outbox_status ('pending', 'sent');
@@ -26,7 +33,7 @@ public sealed class TemplateExpansionSnapshotTests
                 id uuid NOT NULL,
                 status outbox_status NOT NULL,
                 payload text NOT NULL,
-                created_at timestamptz NOT NULL,
+                INCLUDE audit_columns,
                 CONSTRAINT pk_events PRIMARY KEY (id)
               );
               CREATE TABLE event_locks (
@@ -34,7 +41,6 @@ public sealed class TemplateExpansionSnapshotTests
                 CONSTRAINT fk_event FOREIGN KEY (event_id) REFERENCES events (id),
                 CONSTRAINT fk_owner FOREIGN KEY (event_id) REFERENCES public.owners (id)
               );
-              CREATE INDEX ix_events_created_at ON events (created_at);
               CREATE TRIGGER trg_notify AFTER INSERT ON events FOR EACH ROW EXECUTE FUNCTION outbox_notify();
               GRANT SELECT, INSERT ON events TO svc;
             END;
@@ -43,7 +49,7 @@ public sealed class TemplateExpansionSnapshotTests
             """;
 
         var document = DdlReader.Instance.Read(source);
-        var expanded = TemplateExpander.Expand(document.Schema, document.Templates, document.Applications);
+        var expanded = TemplateExpander.Expand(document.Schema, document.Templates, document.Applications, document.Includes);
 
         return Verify(DdlWriter.Instance.Write(expanded));
     }

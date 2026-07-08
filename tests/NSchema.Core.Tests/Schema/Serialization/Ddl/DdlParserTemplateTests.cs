@@ -233,4 +233,133 @@ public sealed class DdlParserTemplateTests
         // The template-body binding must not leak: outside a template every name stays schema-qualified.
         => Should.Throw<DdlSyntaxException>(() => DdlReader.Instance.Read("CREATE TABLE outbox (id int NOT NULL);"))
             .Message.ShouldContain("Expected '.'");
+
+    // --- table templates (FOR TABLE) and INCLUDE members -----------------------
+
+    [Fact]
+    public void Parse_TableTemplate_CapturesMembers()
+    {
+        var template = ReadTemplate(
+            """
+            TEMPLATE audit_columns FOR TABLE
+            BEGIN
+              created_at datetimeoffset NOT NULL,
+              updated_at datetimeoffset NOT NULL,
+              CONSTRAINT chk_updated CHECK (updated_at >= created_at),
+              INDEX ix_updated_at (updated_at)
+            END;
+            """);
+
+        template.Kind.ShouldBe(TemplateKind.Table);
+        var members = template.Objects.Tables.ShouldHaveSingleItem();
+        members.Columns.Select(c => c.Name).ShouldBe(["created_at", "updated_at"]);
+        members.CheckConstraints.ShouldHaveSingleItem().Name.ShouldBe("chk_updated");
+        members.Indexes.ShouldHaveSingleItem().Name.ShouldBe("ix_updated_at");
+    }
+
+    [Fact]
+    public void Parse_SchemaTemplate_HasSchemaKind()
+        => ReadTemplate("TEMPLATE t BEGIN END;").Kind.ShouldBe(TemplateKind.Schema);
+
+    [Fact]
+    public void Parse_ExplicitForSchema_IsAccepted()
+        => ReadTemplate("TEMPLATE t FOR SCHEMA BEGIN END;").Kind.ShouldBe(TemplateKind.Schema);
+
+    [Fact]
+    public void Parse_ForUnknownKind_Throws()
+        => Should.Throw<DdlSyntaxException>(() => ReadTemplate("TEMPLATE t FOR VIEW BEGIN END;"))
+            .Message.ShouldContain("Expected SCHEMA or TABLE after FOR");
+
+    [Fact]
+    public void Parse_TableTemplate_UnqualifiedForeignKeyBindsToPlaceholder()
+    {
+        var template = ReadTemplate(
+            """
+            TEMPLATE tenant_columns FOR TABLE
+            BEGIN
+              tenant_id uuid NOT NULL,
+              CONSTRAINT fk_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (id)
+            END;
+            """);
+
+        template.Objects.Tables.ShouldHaveSingleItem().ForeignKeys.ShouldHaveSingleItem()
+            .ReferencedSchema.ShouldBe(TemplateDefinition.TargetSchemaPlaceholder);
+    }
+
+    [Fact]
+    public void Parse_TableTemplate_EmptyBody_YieldsNoMembers()
+        => ReadTemplate("TEMPLATE t FOR TABLE BEGIN END;")
+            .Objects.Tables.ShouldHaveSingleItem().Columns.ShouldBeEmpty();
+
+    [Fact]
+    public void Parse_TableTemplate_IncludeInside_Throws()
+        => Should.Throw<DdlSyntaxException>(() => ReadTemplate(
+                """
+                TEMPLATE t FOR TABLE
+                BEGIN
+                  INCLUDE other_template,
+                  created_at datetimeoffset NOT NULL
+                END;
+                """))
+            .Message.ShouldContain("cannot include another");
+
+    [Fact]
+    public void Parse_Include_CapturesTargetNameAndColumnPosition()
+    {
+        // Includes never live on the parsed Table — templates are an expansion layer over the domain model —
+        // so the include rides the document, targeting its table by name.
+        var document = DdlReader.Instance.Read(
+            """
+            CREATE TABLE app.invoices (
+              id uuid NOT NULL,
+              INCLUDE audit_columns,
+              total decimal(18,2) NOT NULL
+            );
+            """);
+
+        var include = document.Includes.ShouldHaveSingleItem();
+        include.SchemaName.ShouldBe("app");
+        include.TableName.ShouldBe("invoices");
+        include.TemplateName.ShouldBe("audit_columns");
+        include.ColumnPosition.ShouldBe(1);
+    }
+
+    [Fact]
+    public void Parse_Include_AsLastMember()
+        => DdlReader.Instance.Read("CREATE TABLE app.t (id int NOT NULL, INCLUDE audit_columns);")
+            .Includes.ShouldHaveSingleItem().TemplateName.ShouldBe("audit_columns");
+
+    [Fact]
+    public void Parse_ColumnNamedInclude_StillParsesAsAColumn()
+    {
+        // Compat: 'include' followed by anything more than a bare identifier is a column named include, exactly
+        // as it parsed before templates existed.
+        var document = DdlReader.Instance.Read("CREATE TABLE app.t (include bigint NOT NULL);");
+
+        document.Includes.ShouldBeEmpty();
+        var column = document.Schema.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem()
+            .Columns.ShouldHaveSingleItem();
+        column.Name.ShouldBe("include");
+        column.IsNullable.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Parse_IncludeInsideSchemaTemplateTable_RidesTheDefinition()
+    {
+        // Composition: a table declared by a schema template can include a table template. The include belongs
+        // to the definition (not the document, and never the table), re-targeted per instance at expansion.
+        var document = DdlReader.Instance.Read(
+            """
+            TEMPLATE outbox
+            BEGIN
+              CREATE TABLE outbox (id uuid NOT NULL, INCLUDE audit_columns);
+            END;
+            """);
+
+        document.Includes.ShouldBeEmpty();
+        var include = document.Templates.ShouldHaveSingleItem().Includes.ShouldHaveSingleItem();
+        include.TemplateName.ShouldBe("audit_columns");
+        include.SchemaName.ShouldBe(TemplateDefinition.TargetSchemaPlaceholder);
+        include.TableName.ShouldBe("outbox");
+    }
 }

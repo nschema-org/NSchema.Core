@@ -118,6 +118,51 @@ public sealed class DdlFormatterTests
         => Format("TEMPLATE t BEGIN END;").ShouldBe("TEMPLATE t\nBEGIN\nEND;\n");
 
     [Fact]
+    public void Format_MessyTableTemplate_BreaksOneMemberPerLine()
+    {
+        const string input =
+            """
+            template audit_columns for table begin
+              created_at datetimeoffset not null,
+                updated_at datetimeoffset not null,  -- touched on write
+             constraint chk_audit check (updated_at >= created_at)
+              end;
+            """;
+
+        const string expected =
+            """
+            template audit_columns for table
+            BEGIN
+              created_at datetimeoffset not null,
+              updated_at datetimeoffset not null,  -- touched on write
+              constraint chk_audit check (updated_at >= created_at)
+            END;
+            """;
+
+        Format(input).ShouldBe(expected + "\n");
+    }
+
+    [Fact]
+    public void Format_TableTemplate_IsIdempotent()
+    {
+        const string input =
+            """
+            template audit_columns for table begin
+              created_at datetimeoffset not null,
+                updated_at datetimeoffset not null
+              end;
+            """;
+
+        var once = Format(input);
+        Format(once).ShouldBe(once);
+    }
+
+    [Fact]
+    public void Format_TableWithInclude_KeepsTheIncludeMember()
+        => Format("create table app.t (id uuid not null, INCLUDE audit_columns);")
+            .ShouldContain("  INCLUDE audit_columns\n");
+
+    [Fact]
     public void Format_PreservesKeywordCasingAndExpressionSpelling()
     {
         // Gentle: content is preserved verbatim (lowercase keywords, the '> 0' spacing inside the CHECK).

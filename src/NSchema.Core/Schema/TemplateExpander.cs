@@ -1,6 +1,7 @@
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Tables;
 using NSchema.Schema.Model.Templates;
 using NSchema.Schema.Model.Triggers;
 
@@ -12,9 +13,14 @@ namespace NSchema.Schema;
 internal static class TemplateExpander
 {
     /// <summary>
-    /// Instantiates every application's template into each of its target schemas, returning the expanded schema.
+    /// Expands templates into a given schema.
     /// </summary>
-    public static DatabaseSchema Expand(DatabaseSchema schema, IReadOnlyList<TemplateDefinition> templates, IReadOnlyList<TemplateApplication> applications)
+    public static DatabaseSchema Expand(
+        DatabaseSchema schema,
+        IReadOnlyList<TemplateDefinition> templates,
+        IReadOnlyList<TemplateApplication> applications,
+        IReadOnlyList<TemplateInclude> includes
+    )
     {
         var byName = new Dictionary<string, TemplateDefinition>(StringComparer.OrdinalIgnoreCase);
         foreach (var template in templates)
@@ -25,11 +31,17 @@ internal static class TemplateExpander
             }
         }
 
+        var pendingIncludes = includes.ToList();
         foreach (var application in applications)
         {
             if (!byName.TryGetValue(application.TemplateName, out var template))
             {
                 throw new InvalidOperationException($"APPLY TEMPLATE references unknown template '{application.TemplateName}'.");
+            }
+            if (template.Kind != TemplateKind.Schema)
+            {
+                throw new InvalidOperationException(
+                    $"APPLY TEMPLATE targets schemas, but '{template.Name}' is a table template; include it from a table body with INCLUDE.");
             }
 
             foreach (var schemaName in application.SchemaNames)
@@ -43,10 +55,137 @@ internal static class TemplateExpander
                 // Combine performs the merge and rejects an object the target schema already declares, exactly as
                 // if the instantiated objects had been written in the target schema by hand.
                 schema = schema.Combine(new DatabaseSchema([Apply(template, schemaName)]));
+
+                // The template's own includes re-target from the placeholder to this instance's schema and
+                // resolve with everything else below, so an instantiated table can itself include a template.
+                pendingIncludes.AddRange(template.Includes.Select(i => i with { SchemaName = schemaName }));
             }
         }
 
-        return schema;
+        return ResolveIncludes(schema, byName, pendingIncludes);
+    }
+
+    private static DatabaseSchema ResolveIncludes(
+        DatabaseSchema schema,
+        Dictionary<string, TemplateDefinition> templates,
+        List<TemplateInclude> includes)
+    {
+        if (includes.Count == 0)
+        {
+            return schema;
+        }
+
+        var byTable = includes
+            .GroupBy(i => Key(i.SchemaName, i.TableName))
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var consumed = new HashSet<string>();
+        var resolved = schema.Schemas
+            .Select(definition => definition with
+            {
+                Tables = definition.Tables
+                    .Select(table =>
+                    {
+                        var key = Key(definition.Name, table.Name);
+                        if (!byTable.TryGetValue(key, out var tableIncludes))
+                        {
+                            return table;
+                        }
+                        consumed.Add(key);
+                        return MergeIncludes(definition.Name, table, tableIncludes, templates);
+                    })
+                    .ToList(),
+            })
+            .ToList();
+
+        // Parsed includes always name the table whose body they were written in, so a dangling one can only come
+        // from a hand-built document; fail rather than drop it silently.
+        var dangling = byTable.Keys.FirstOrDefault(key => !consumed.Contains(key));
+        if (dangling is not null)
+        {
+            var include = byTable[dangling][0];
+            throw new InvalidOperationException(
+                $"INCLUDE '{include.TemplateName}' targets unknown table '{include.SchemaName}.{include.TableName}'.");
+        }
+
+        return schema with { Schemas = resolved };
+    }
+
+    // The NUL character cannot appear in an identifier, so it is a safe composite-key separator.
+    private static string Key(string schema, string table) => $"{schema.ToLowerInvariant()}\0{table.ToLowerInvariant()}";
+
+    /// <summary>
+    /// Merges each included table template's members into <paramref name="table"/>: columns land at the position
+    /// the include was written, foreign keys referencing the placeholder re-point at the including table's schema,
+    /// and everything else appends. A member the table already declares is rejected.
+    /// </summary>
+    private static Table MergeIncludes(string schemaName, Table table, List<TemplateInclude> includes, Dictionary<string, TemplateDefinition> templates)
+    {
+        var qualified = $"{schemaName}.{table.Name}";
+        var columns = table.Columns.ToList();
+        var foreignKeys = table.ForeignKeys.ToList();
+        var uniqueConstraints = table.UniqueConstraints.ToList();
+        var checkConstraints = table.CheckConstraints.ToList();
+        var exclusionConstraints = table.ExclusionConstraints.ToList();
+        var indexes = table.Indexes.ToList();
+        var primaryKey = table.PrimaryKey;
+
+        var offset = 0;
+        foreach (var include in includes)
+        {
+            if (!templates.TryGetValue(include.TemplateName, out var template))
+            {
+                throw new InvalidOperationException($"Table '{qualified}' includes unknown template '{include.TemplateName}'.");
+            }
+            if (template.Kind != TemplateKind.Table)
+            {
+                throw new InvalidOperationException(
+                    $"Table '{qualified}' includes '{template.Name}', which is a schema template; only a FOR TABLE template can be included.");
+            }
+
+            var members = template.Objects.Tables.Single();
+
+            foreach (var column in members.Columns)
+            {
+                if (columns.Any(c => string.Equals(c.Name, column.Name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    throw new InvalidOperationException(
+                        $"Template '{template.Name}' adds column '{column.Name}' to '{qualified}', which already declares it.");
+                }
+            }
+            columns.InsertRange(include.ColumnPosition + offset, members.Columns);
+            offset += members.Columns.Count;
+
+            if (members.PrimaryKey is not null)
+            {
+                if (primaryKey is not null)
+                {
+                    throw new InvalidOperationException(
+                        $"Template '{template.Name}' adds a primary key to '{qualified}', which already declares one.");
+                }
+                primaryKey = members.PrimaryKey;
+            }
+
+            foreignKeys.AddRange(members.ForeignKeys.Select(fk =>
+                fk.ReferencedSchema == TemplateDefinition.TargetSchemaPlaceholder
+                    ? fk with { ReferencedSchema = schemaName }
+                    : fk));
+            uniqueConstraints.AddRange(members.UniqueConstraints);
+            checkConstraints.AddRange(members.CheckConstraints);
+            exclusionConstraints.AddRange(members.ExclusionConstraints);
+            indexes.AddRange(members.Indexes);
+        }
+
+        return table with
+        {
+            Columns = columns,
+            PrimaryKey = primaryKey,
+            ForeignKeys = foreignKeys,
+            UniqueConstraints = uniqueConstraints,
+            CheckConstraints = checkConstraints,
+            ExclusionConstraints = exclusionConstraints,
+            Indexes = indexes,
+        };
     }
 
     /// <summary>

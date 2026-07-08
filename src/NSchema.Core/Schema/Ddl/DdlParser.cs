@@ -17,6 +17,13 @@ internal sealed partial class DdlParser
     // This is used to automatically qualify any identifiers missing a schema.
     private string? _templateSchemaContext;
 
+    // True while parsing a FOR TABLE template's member body, where INCLUDE members are rejected (a table
+    // template cannot include another).
+    private bool _inTableTemplateBody;
+
+    // INCLUDE members collected while parsing table bodies.
+    private List<TemplateInclude> _pendingIncludes = [];
+
     public DdlParser(string source)
     {
         _lexer = new DdlLexer(source);
@@ -49,7 +56,12 @@ internal sealed partial class DdlParser
             pendingDoc = null;
         }
 
-        return new DdlDocument(schemas.Build(), config, scripts) { Templates = templates, Applications = applications };
+        return new DdlDocument(schemas.Build(), config, scripts)
+        {
+            Templates = templates,
+            Applications = applications,
+            Includes = _pendingIncludes,
+        };
     }
 
     private void ParseStatement(

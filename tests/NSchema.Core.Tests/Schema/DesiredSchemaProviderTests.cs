@@ -107,6 +107,29 @@ public sealed class DesiredSchemaProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task GetProject_ResolvesTableTemplateIncludesAcrossFiles()
+    {
+        Write("templates.sql",
+            """
+            TEMPLATE audit_columns FOR TABLE
+            BEGIN
+              created_at datetimeoffset NOT NULL
+            END;
+            """);
+        Write("schema.sql",
+            """
+            CREATE SCHEMA billing;
+            CREATE TABLE billing.invoices (id uuid NOT NULL, INCLUDE audit_columns);
+            """);
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        var project = await sut.GetProject(null, TestContext.Current.CancellationToken);
+
+        var table = project.Schema.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem();
+        table.Columns.Select(c => c.Name).ShouldBe(["id", "created_at"]);
+    }
+
+    [Fact]
     public async Task GetProject_TemplateInstancesRespectScopeFilter()
     {
         // Expansion happens before the scope filter, so an instance in an out-of-scope schema is filtered away.

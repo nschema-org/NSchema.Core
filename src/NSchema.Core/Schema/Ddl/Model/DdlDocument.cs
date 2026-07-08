@@ -17,7 +17,12 @@ public sealed record DdlDocument(DatabaseSchema Schema, IReadOnlyList<ConfigBloc
     public IReadOnlyList<TemplateDefinition> Templates { get; init; } = [];
 
     /// <summary>
-    /// The template applications declared in the document.
+    /// The schema-level template applications.
     /// </summary>
     public IReadOnlyList<TemplateApplication> Applications { get; init; } = [];
+
+    /// <summary>
+    /// The table-level template includes.
+    /// </summary>
+    public IReadOnlyList<TemplateInclude> Includes { get; init; } = [];
 }

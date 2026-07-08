@@ -252,21 +252,42 @@ public sealed class DdlFormatter
 
         var header = source[tokens[start].Position.Offset..tokens[begin].Position.Offset].Trim();
 
-        var inner = tokens.GetRange(begin + 1, last - begin - 1);
-        inner.Add(new Token(TokenKind.EndOfFile, string.Empty, tokens[last].Position));
-        var body = Render(SplitTopLevel(inner, source)).TrimEnd('\n');
+        // A FOR TABLE template's body is a member list (like a table body), not statements; each renders on its
+        // own line. Kind is read from the header tokens: a TABLE keyword before BEGIN.
+        var isTableTemplate = false;
+        for (var i = start; i < begin; i++)
+        {
+            if (tokens[i].IsKeyword("TABLE"))
+            {
+                isTableTemplate = true;
+                break;
+            }
+        }
 
         var sb = new StringBuilder();
-        sb.Append(header).Append("\nBEGIN\n");
-        if (body.Length > 0)
+        sb.Append(header).Append("\nBEGIN");
+        if (isTableTemplate)
         {
-            foreach (var line in body.Split('\n'))
+            AppendMembers(sb, SplitMembers(tokens, source, begin, last));
+            sb.Append('\n');
+        }
+        else
+        {
+            var inner = tokens.GetRange(begin + 1, last - begin - 1);
+            inner.Add(new Token(TokenKind.EndOfFile, string.Empty, tokens[last].Position));
+            var body = Render(SplitTopLevel(inner, source)).TrimEnd('\n');
+
+            sb.Append('\n');
+            if (body.Length > 0)
             {
-                if (line.Length > 0)
+                foreach (var line in body.Split('\n'))
                 {
-                    sb.Append(Indent).Append(line);
+                    if (line.Length > 0)
+                    {
+                        sb.Append(Indent).Append(line);
+                    }
+                    sb.Append('\n');
                 }
-                sb.Append('\n');
             }
         }
         sb.Append("END");
@@ -291,7 +312,18 @@ public sealed class DdlFormatter
         var header = source[tokens[start].Position.Offset..tokens[open].Position.Offset].Trim();
         var sb = new StringBuilder();
         sb.Append(header).Append(" (");
+        AppendMembers(sb, members);
+        sb.Append('\n').Append(')');
+        if (hasSemicolon)
+        {
+            sb.Append(';');
+        }
+        return sb.ToString();
+    }
 
+    /// <summary>Emits a member list one per line, two-space indented, comma-separating the content members.</summary>
+    private static void AppendMembers(StringBuilder sb, List<Member> members)
+    {
         var lastContent = -1;
         for (var k = 0; k < members.Count; k++)
         {
@@ -322,13 +354,6 @@ public sealed class DdlFormatter
                 }
             }
         }
-
-        sb.Append('\n').Append(')');
-        if (hasSemicolon)
-        {
-            sb.Append(';');
-        }
-        return sb.ToString();
     }
 
     // --- members of a broken list ---------------------------------------------
