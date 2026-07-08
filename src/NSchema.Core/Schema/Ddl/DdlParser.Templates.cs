@@ -50,10 +50,9 @@ internal sealed partial class DdlParser
 
     private TemplateDefinition ParseSchemaTemplateBody(string name, SourcePosition namePosition)
     {
+        // The body gets its own accumulator, so its objects — and the INCLUDEs written in its table bodies, which
+        // belong to the definition and re-target per instance at expansion — never mix with the document's.
         var body = new SchemaAccumulator();
-        // INCLUDEs written in this body belong to the definition (re-targeted per instance at expansion), not
-        // to the document.
-        var bodyIncludes = new List<TemplateInclude>();
         _templateSchemaContext = TemplateDefinition.TargetSchemaPlaceholder;
         try
         {
@@ -69,7 +68,7 @@ internal sealed partial class DdlParser
                 {
                     break;
                 }
-                ParseTemplateStatement(body, bodyIncludes, doc);
+                ParseTemplateStatement(body, doc);
             }
         }
         finally
@@ -92,7 +91,7 @@ internal sealed partial class DdlParser
         }
 
         var objects = fragment.Schemas.FirstOrDefault() ?? new SchemaDefinition(TemplateDefinition.TargetSchemaPlaceholder);
-        return new TemplateDefinition(name, TemplateKind.Schema, objects) { Includes = bodyIncludes };
+        return new TemplateDefinition(name, TemplateKind.Schema, objects) { Includes = body.Includes };
     }
 
     /// <summary>
@@ -130,11 +129,11 @@ internal sealed partial class DdlParser
         return new TemplateDefinition(name, TemplateKind.Table, objects);
     }
 
-    private void ParseTemplateStatement(SchemaAccumulator schemas, List<TemplateInclude> includes, string? doc)
+    private void ParseTemplateStatement(SchemaAccumulator schemas, string? doc)
     {
         if (_current.IsKeyword("CREATE"))
         {
-            ParseCreate(schemas, includes, doc);
+            ParseCreate(schemas, doc);
         }
         else if (_current.IsKeyword("GRANT"))
         {

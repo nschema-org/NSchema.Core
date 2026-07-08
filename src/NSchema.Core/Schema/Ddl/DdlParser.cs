@@ -32,12 +32,7 @@ internal sealed partial class DdlParser
     /// </summary>
     public DdlDocument Parse()
     {
-        var schemas = new SchemaAccumulator();
-        var config = new List<ConfigBlock>();
-        var scripts = new List<Script>();
-        var templates = new List<TemplateDefinition>();
-        var applications = new List<TemplateApplication>();
-        var includes = new List<TemplateInclude>();
+        var document = new DocumentAccumulator();
         string? pendingDoc = null;
 
         while (_current.Kind != TokenKind.EndOfFile)
@@ -50,65 +45,74 @@ internal sealed partial class DdlParser
                 continue;
             }
 
-            ParseStatement(schemas, config, scripts, templates, applications, includes, pendingDoc);
+            ParseStatement(document, pendingDoc);
             pendingDoc = null;
         }
 
-        return new DdlDocument(schemas.Build(), config, scripts)
-        {
-            Templates = new TemplateSet(templates, applications, includes),
-        };
+        return document.Build();
     }
 
-    private void ParseStatement(
-        SchemaAccumulator schemas,
-        List<ConfigBlock> config,
-        List<Script> scripts,
-        List<TemplateDefinition> templates,
-        List<TemplateApplication> applications,
-        List<TemplateInclude> includes,
-        string? doc
-    )
+    private void ParseStatement(DocumentAccumulator document, string? doc)
     {
         if (_current.IsKeyword("CREATE"))
         {
-            ParseCreate(schemas, includes, doc);
+            ParseCreate(document.Schemas, doc);
         }
         else if (_current.IsKeyword("DROP"))
         {
-            ParseDrop(schemas);
+            ParseDrop(document.Schemas);
         }
         else if (_current.IsKeyword("GRANT"))
         {
-            ParseGrant(schemas);
+            ParseGrant(document.Schemas);
         }
         else if (_current.IsKeyword("PRE"))
         {
-            scripts.Add(ParseDeploymentScript(ScriptType.PreDeployment));
+            document.Scripts.Add(ParseDeploymentScript(ScriptType.PreDeployment));
         }
         else if (_current.IsKeyword("POST"))
         {
-            scripts.Add(ParseDeploymentScript(ScriptType.PostDeployment));
+            document.Scripts.Add(ParseDeploymentScript(ScriptType.PostDeployment));
         }
         else if (_current.IsKeyword("TEMPLATE"))
         {
-            templates.Add(ParseTemplate());
+            document.Templates.Add(ParseTemplate());
         }
         else if (_current.IsKeyword("APPLY"))
         {
-            applications.Add(ParseApplyTemplate());
+            document.Applications.Add(ParseApplyTemplate());
         }
         else if (_current.Kind == TokenKind.Identifier)
         {
             // Any other top-level keyword introduces a configuration block (NSCHEMA / BACKEND / PROVIDER …).
             // The core captures it but never interprets it, so an unknown block keyword is captured rather than
             // rejected.
-            config.Add(ParseConfigBlock());
+            document.Config.Add(ParseConfigBlock());
         }
         else
         {
             throw Error($"Unexpected '{_current.Text}'; expected a statement.");
         }
+    }
+
+    /// <summary>
+    /// Accumulates the results of top-level statements — the parse-wide context threaded through statement
+    /// dispatch, so a new statement kind adds a field here rather than a parameter to every signature. Statements
+    /// that write schema objects receive the narrower <see cref="SchemaAccumulator"/> (<see cref="Schemas"/>);
+    /// a template body substitutes its own.
+    /// </summary>
+    private sealed class DocumentAccumulator
+    {
+        public SchemaAccumulator Schemas { get; } = new();
+        public List<ConfigBlock> Config { get; } = [];
+        public List<Script> Scripts { get; } = [];
+        public List<TemplateDefinition> Templates { get; } = [];
+        public List<TemplateApplication> Applications { get; } = [];
+
+        public DdlDocument Build() => new(Schemas.Build(), Config, Scripts)
+        {
+            Templates = new TemplateSet(Templates, Applications, Schemas.Includes),
+        };
     }
 
     // --- shared helpers -------------------------------------------------------
