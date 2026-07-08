@@ -52,10 +52,8 @@ internal sealed partial class DdlParser
     {
         var body = new SchemaAccumulator();
         // INCLUDEs written in this body belong to the definition (re-targeted per instance at expansion), not
-        // to the document, so the pending list is swapped out around it.
-        var outerIncludes = _pendingIncludes;
-        _pendingIncludes = [];
-        var bodyIncludes = _pendingIncludes;
+        // to the document.
+        var bodyIncludes = new List<TemplateInclude>();
         _templateSchemaContext = TemplateDefinition.TargetSchemaPlaceholder;
         try
         {
@@ -71,13 +69,12 @@ internal sealed partial class DdlParser
                 {
                     break;
                 }
-                ParseTemplateStatement(body, doc);
+                ParseTemplateStatement(body, bodyIncludes, doc);
             }
         }
         finally
         {
             _templateSchemaContext = null;
-            _pendingIncludes = outerIncludes;
         }
         Advance(); // END
         Expect(TokenKind.Semicolon, "';'");
@@ -133,11 +130,11 @@ internal sealed partial class DdlParser
         return new TemplateDefinition(name, TemplateKind.Table, objects);
     }
 
-    private void ParseTemplateStatement(SchemaAccumulator schemas, string? doc)
+    private void ParseTemplateStatement(SchemaAccumulator schemas, List<TemplateInclude> includes, string? doc)
     {
         if (_current.IsKeyword("CREATE"))
         {
-            ParseCreate(schemas, doc);
+            ParseCreate(schemas, includes, doc);
         }
         else if (_current.IsKeyword("GRANT"))
         {

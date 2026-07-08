@@ -17,7 +17,7 @@ namespace NSchema.Schema.Ddl;
 
 internal sealed partial class DdlParser
 {
-    private void ParseCreate(SchemaAccumulator schemas, string? doc)
+    private void ParseCreate(SchemaAccumulator schemas, List<TemplateInclude> includes, string? doc)
     {
         Advance(); // CREATE
 
@@ -42,7 +42,7 @@ internal sealed partial class DdlParser
             {
                 throw Error("PARTIAL applies to SCHEMA, not TABLE.");
             }
-            ParseCreateTable(schemas, doc);
+            ParseCreateTable(schemas, includes, doc);
         }
         else if (_current.IsKeyword("VIEW"))
         {
@@ -172,7 +172,7 @@ internal sealed partial class DdlParser
         schemas.DeclareSchema(name, oldName, partial, doc, namePosition);
     }
 
-    private void ParseCreateTable(SchemaAccumulator schemas, string? doc)
+    private void ParseCreateTable(SchemaAccumulator schemas, List<TemplateInclude> includes, string? doc)
     {
         Advance(); // TABLE
         var namePosition = _current.Position;
@@ -193,7 +193,7 @@ internal sealed partial class DdlParser
         var table = new Table(tableName, oldName, body.PrimaryKey, doc,
             body.Columns, body.ForeignKeys, body.UniqueConstraints, body.CheckConstraints, body.ExclusionConstraints, body.Indexes);
         schemas.AddTable(schemaName, table, namePosition);
-        _pendingIncludes.AddRange(body.Includes.Select(i => new TemplateInclude(schemaName, tableName, i.TemplateName, i.ColumnPosition)));
+        includes.AddRange(body.Includes.Select(i => new TemplateInclude(schemaName, tableName, i.TemplateName, i.ColumnPosition)));
     }
 
     // The "VIEW" keyword has already been consumed by the dispatcher (preceded by "MATERIALIZED" when

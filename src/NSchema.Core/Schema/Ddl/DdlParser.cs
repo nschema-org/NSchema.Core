@@ -21,9 +21,6 @@ internal sealed partial class DdlParser
     // template cannot include another).
     private bool _inTableTemplateBody;
 
-    // INCLUDE members collected while parsing table bodies.
-    private List<TemplateInclude> _pendingIncludes = [];
-
     public DdlParser(string source)
     {
         _lexer = new DdlLexer(source);
@@ -40,6 +37,7 @@ internal sealed partial class DdlParser
         var scripts = new List<Script>();
         var templates = new List<TemplateDefinition>();
         var applications = new List<TemplateApplication>();
+        var includes = new List<TemplateInclude>();
         string? pendingDoc = null;
 
         while (_current.Kind != TokenKind.EndOfFile)
@@ -52,13 +50,13 @@ internal sealed partial class DdlParser
                 continue;
             }
 
-            ParseStatement(schemas, config, scripts, templates, applications, pendingDoc);
+            ParseStatement(schemas, config, scripts, templates, applications, includes, pendingDoc);
             pendingDoc = null;
         }
 
         return new DdlDocument(schemas.Build(), config, scripts)
         {
-            Templates = new TemplateSet(templates, applications, _pendingIncludes),
+            Templates = new TemplateSet(templates, applications, includes),
         };
     }
 
@@ -68,12 +66,13 @@ internal sealed partial class DdlParser
         List<Script> scripts,
         List<TemplateDefinition> templates,
         List<TemplateApplication> applications,
+        List<TemplateInclude> includes,
         string? doc
     )
     {
         if (_current.IsKeyword("CREATE"))
         {
-            ParseCreate(schemas, doc);
+            ParseCreate(schemas, includes, doc);
         }
         else if (_current.IsKeyword("DROP"))
         {
