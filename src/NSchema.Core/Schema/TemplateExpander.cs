@@ -15,15 +15,10 @@ internal static class TemplateExpander
     /// <summary>
     /// Expands templates into a given schema.
     /// </summary>
-    public static DatabaseSchema Expand(
-        DatabaseSchema schema,
-        IReadOnlyList<TemplateDefinition> templates,
-        IReadOnlyList<TemplateApplication> applications,
-        IReadOnlyList<TemplateInclude> includes
-    )
+    public static DatabaseSchema Expand(DatabaseSchema schema, TemplateSet templates)
     {
         var byName = new Dictionary<string, TemplateDefinition>(StringComparer.OrdinalIgnoreCase);
-        foreach (var template in templates)
+        foreach (var template in templates.Definitions)
         {
             if (!byName.TryAdd(template.Name, template))
             {
@@ -31,8 +26,8 @@ internal static class TemplateExpander
             }
         }
 
-        var pendingIncludes = includes.ToList();
-        foreach (var application in applications)
+        var pendingIncludes = templates.Includes.ToList();
+        foreach (var application in templates.Applications)
         {
             if (!byName.TryGetValue(application.TemplateName, out var template))
             {

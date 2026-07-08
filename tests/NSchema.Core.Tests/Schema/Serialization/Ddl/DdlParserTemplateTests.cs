@@ -6,7 +6,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 public sealed class DdlParserTemplateTests
 {
     private static TemplateDefinition ReadTemplate(string source) =>
-        DdlReader.Instance.Read(source).Templates.ShouldHaveSingleItem();
+        DdlReader.Instance.Read(source).Templates.Definitions.ShouldHaveSingleItem();
 
     [Fact]
     public void Parse_Template_CapturesNameAndObjects()
@@ -153,15 +153,15 @@ public sealed class DdlParserTemplateTests
             """);
 
         document.Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
-        document.Templates.ShouldHaveSingleItem().Name.ShouldBe("t");
-        document.Applications.ShouldHaveSingleItem().TemplateName.ShouldBe("t");
+        document.Templates.Definitions.ShouldHaveSingleItem().Name.ShouldBe("t");
+        document.Templates.Applications.ShouldHaveSingleItem().TemplateName.ShouldBe("t");
     }
 
     [Fact]
     public void Parse_ApplyTemplate_CapturesNameAndSchemaList()
     {
         var application = DdlReader.Instance.Read("APPLY TEMPLATE outbox IN SCHEMA billing, ordering, shipping;")
-            .Applications.ShouldHaveSingleItem();
+            .Templates.Applications.ShouldHaveSingleItem();
 
         application.TemplateName.ShouldBe("outbox");
         application.SchemaNames.ShouldBe(["billing", "ordering", "shipping"]);
@@ -317,7 +317,7 @@ public sealed class DdlParserTemplateTests
             );
             """);
 
-        var include = document.Includes.ShouldHaveSingleItem();
+        var include = document.Templates.Includes.ShouldHaveSingleItem();
         include.SchemaName.ShouldBe("app");
         include.TableName.ShouldBe("invoices");
         include.TemplateName.ShouldBe("audit_columns");
@@ -327,7 +327,7 @@ public sealed class DdlParserTemplateTests
     [Fact]
     public void Parse_Include_AsLastMember()
         => DdlReader.Instance.Read("CREATE TABLE app.t (id int NOT NULL, INCLUDE audit_columns);")
-            .Includes.ShouldHaveSingleItem().TemplateName.ShouldBe("audit_columns");
+            .Templates.Includes.ShouldHaveSingleItem().TemplateName.ShouldBe("audit_columns");
 
     [Fact]
     public void Parse_ColumnNamedInclude_StillParsesAsAColumn()
@@ -336,7 +336,7 @@ public sealed class DdlParserTemplateTests
         // as it parsed before templates existed.
         var document = DdlReader.Instance.Read("CREATE TABLE app.t (include bigint NOT NULL);");
 
-        document.Includes.ShouldBeEmpty();
+        document.Templates.Includes.ShouldBeEmpty();
         var column = document.Schema.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem()
             .Columns.ShouldHaveSingleItem();
         column.Name.ShouldBe("include");
@@ -356,8 +356,8 @@ public sealed class DdlParserTemplateTests
             END;
             """);
 
-        document.Includes.ShouldBeEmpty();
-        var include = document.Templates.ShouldHaveSingleItem().Includes.ShouldHaveSingleItem();
+        document.Templates.Includes.ShouldBeEmpty();
+        var include = document.Templates.Definitions.ShouldHaveSingleItem().Includes.ShouldHaveSingleItem();
         include.TemplateName.ShouldBe("audit_columns");
         include.SchemaName.ShouldBe(TemplateDefinition.TargetSchemaPlaceholder);
         include.TableName.ShouldBe("outbox");

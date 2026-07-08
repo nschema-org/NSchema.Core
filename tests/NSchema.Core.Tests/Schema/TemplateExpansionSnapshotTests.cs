@@ -49,7 +49,7 @@ public sealed class TemplateExpansionSnapshotTests
             """;
 
         var document = DdlReader.Instance.Read(source);
-        var expanded = TemplateExpander.Expand(document.Schema, document.Templates, document.Applications, document.Includes);
+        var expanded = TemplateExpander.Expand(document.Schema, document.Templates);
 
         return Verify(DdlWriter.Instance.Write(expanded));
     }

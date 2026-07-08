@@ -11,18 +11,7 @@ namespace NSchema.Schema.Ddl.Model;
 public sealed record DdlDocument(DatabaseSchema Schema, IReadOnlyList<ConfigBlock> Config, IReadOnlyList<Script> Scripts)
 {
     /// <summary>
-    /// The template definitions declared in the document.
-    /// Definitions are inert until an application names them.
+    /// The template constructs declared in the document.
     /// </summary>
-    public IReadOnlyList<TemplateDefinition> Templates { get; init; } = [];
-
-    /// <summary>
-    /// The schema-level template applications.
-    /// </summary>
-    public IReadOnlyList<TemplateApplication> Applications { get; init; } = [];
-
-    /// <summary>
-    /// The table-level template includes.
-    /// </summary>
-    public IReadOnlyList<TemplateInclude> Includes { get; init; } = [];
+    public TemplateSet Templates { get; init; } = new();
 }

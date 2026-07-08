@@ -33,19 +33,15 @@ internal sealed class DesiredSchemaProvider(IEnumerable<DdlSchemaSource> sources
 
         var schema = new DatabaseSchema();
         var scripts = new List<Script>();
-        var templates = new List<TemplateDefinition>();
-        var applications = new List<TemplateApplication>();
-        var includes = new List<TemplateInclude>();
+        var templates = new TemplateSet();
         foreach (var document in documents)
         {
             schema = schema.Combine(document.Schema);
             scripts.AddRange(document.Scripts);
-            templates.AddRange(document.Templates);
-            applications.AddRange(document.Applications);
-            includes.AddRange(document.Includes);
+            templates = templates.Combine(document.Templates);
         }
 
-        schema = TemplateExpander.Expand(schema, templates, applications, includes);
+        schema = TemplateExpander.Expand(schema, templates);
         schema = schema.Filter(schemaNames);
 
         return new DesiredProject(schema, scripts, files);

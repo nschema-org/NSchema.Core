@@ -11,7 +11,7 @@ public sealed class TemplateExpanderTests
     private static DatabaseSchema Expand(string source)
     {
         var document = DdlReader.Instance.Read(source);
-        return TemplateExpander.Expand(document.Schema, document.Templates, document.Applications, document.Includes);
+        return TemplateExpander.Expand(document.Schema, document.Templates);
     }
 
     private static SchemaDefinition Schema(DatabaseSchema schema, string name)

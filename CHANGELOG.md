@@ -14,7 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Schema template application.** A `APPLY TEMPLATE name IN SCHEMA a, b;` statement instantiates a template into each named schema.
 - **Table templates.** A `TEMPLATE name FOR TABLE BEGIN … END;` block declares reusable table members.
 - **Index name validation.** Duplicate index and index-backed constraint names (primary key, unique, exclusion) within a schema are now rejected at validation time.
-- **`DdlDocument.Templates` / `DdlDocument.Applications` / `DdlDocument.Includes`** carry the parsed template constructs for consumers of the reader.
+- **`DdlDocument.Templates`** carries the parsed template constructs for consumers of the reader — a `TemplateSet` of definitions, applications, and includes.
 - The formatter lays out `TEMPLATE` blocks canonically: header and `BEGIN`/`END` on their own lines, inner statements formatted as usual and indented one level.
 
 ## [4.0.1] - 2026-07-06

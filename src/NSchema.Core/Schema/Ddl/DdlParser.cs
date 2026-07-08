@@ -58,9 +58,7 @@ internal sealed partial class DdlParser
 
         return new DdlDocument(schemas.Build(), config, scripts)
         {
-            Templates = templates,
-            Applications = applications,
-            Includes = _pendingIncludes,
+            Templates = new TemplateSet(templates, applications, _pendingIncludes),
         };
     }
 
