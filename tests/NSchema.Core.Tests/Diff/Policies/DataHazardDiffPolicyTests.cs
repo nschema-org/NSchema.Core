@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using NSchema.Diagnostics;
 using NSchema.Diff.Model;
 using NSchema.Diff.Policies;
+using NSchema.Policies;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Constraints;
 using NSchema.Schema.Model.Indexes;
@@ -53,10 +54,10 @@ public class DataHazardDiffPolicyTests
     }
 
     [Theory]
-    [InlineData(DataHazardPolicy.Error, DiagnosticSeverity.Error)]
-    [InlineData(DataHazardPolicy.Warn, DiagnosticSeverity.Warning)]
-    [InlineData(DataHazardPolicy.Allow, DiagnosticSeverity.Info)]
-    public void Validate_MapsPolicyToSeverity(DataHazardPolicy policy, DiagnosticSeverity expected)
+    [InlineData(PolicyEnforcement.Error, DiagnosticSeverity.Error)]
+    [InlineData(PolicyEnforcement.Warn, DiagnosticSeverity.Warning)]
+    [InlineData(PolicyEnforcement.Allow, DiagnosticSeverity.Info)]
+    public void Validate_MapsPolicyToSeverity(PolicyEnforcement policy, DiagnosticSeverity expected)
     {
         // Arrange
         _options.Value.Policy = policy;
@@ -69,6 +70,18 @@ public class DataHazardDiffPolicyTests
         // Assert
         results.ShouldHaveSingleItem();
         results[0].Severity.ShouldBe(expected);
+    }
+
+    [Fact]
+    public void Validate_WhenPolicyIsIgnore_ReturnsNothing()
+    {
+        // Arrange
+        _options.Value.Policy = PolicyEnforcement.Ignore;
+        var diff = ModifiedTable(Columns:
+            [new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))]);
+
+        // Act / Assert
+        _sut.Validate(diff).ShouldBeEmpty();
     }
 
     [Fact]

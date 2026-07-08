@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.Diff.Policies;
 using NSchema.Operations.Progress;
+using NSchema.Policies;
 using NSchema.Sql;
 
 namespace NSchema;
@@ -20,7 +21,7 @@ public partial class NSchemaApplicationBuilder
     /// <summary>
     /// Configures the policy to apply when the migration plan contains a change that can fail on existing data.
     /// </summary>
-    public NSchemaApplicationBuilder WithDataHazardPolicy(DataHazardPolicy policy)
+    public NSchemaApplicationBuilder WithDataHazardPolicy(PolicyEnforcement policy)
     {
         Services.Configure<DataHazardOptions>(o => o.Policy = policy);
         return this;

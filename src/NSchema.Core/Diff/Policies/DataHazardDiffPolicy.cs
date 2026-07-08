@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using NSchema.Diagnostics;
 using NSchema.Diff.Model;
+using NSchema.Policies;
 using NSchema.Schema.Model.Columns;
 
 namespace NSchema.Diff.Policies;
@@ -19,10 +20,15 @@ internal sealed class DataHazardDiffPolicy(IOptions<DataHazardOptions> options) 
 
     public IEnumerable<Diagnostic> Validate(DatabaseDiff diff)
     {
+        if (options.Value.Policy == PolicyEnforcement.Ignore)
+        {
+            return [];
+        }
+
         var severity = options.Value.Policy switch
         {
-            DataHazardPolicy.Allow => DiagnosticSeverity.Info,
-            DataHazardPolicy.Warn => DiagnosticSeverity.Warning,
+            PolicyEnforcement.Allow => DiagnosticSeverity.Info,
+            PolicyEnforcement.Warn => DiagnosticSeverity.Warning,
             _ => DiagnosticSeverity.Error,
         };
 
