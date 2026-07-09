@@ -535,7 +535,8 @@ public sealed class DdlFormatter
         || text.Equals("POST", StringComparison.OrdinalIgnoreCase)
         || text.Equals("TEMPLATE", StringComparison.OrdinalIgnoreCase)
         || text.Equals("APPLY", StringComparison.OrdinalIgnoreCase)
-        || text.Equals("MIGRATION", StringComparison.OrdinalIgnoreCase);
+        || text.Equals("MIGRATION", StringComparison.OrdinalIgnoreCase)
+        || text.Equals("SCRIPT", StringComparison.OrdinalIgnoreCase);
 
     private static string FormatComment(Token token) => token.Kind switch
     {

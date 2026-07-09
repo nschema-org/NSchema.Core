@@ -2,11 +2,12 @@ using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Scripts;
 using NSchema.Schema.Model.Tables;
 using NSchema.Schema.Model.Templates;
 using NSchema.Schema.Model.Triggers;
 
-namespace NSchema.Schema;
+namespace NSchema.Schema.Templates;
 
 /// <summary>
 /// Expands template applications into concrete schema objects.
@@ -14,10 +15,9 @@ namespace NSchema.Schema;
 internal static class TemplateExpander
 {
     /// <summary>
-    /// Expands templates into a given schema, returning the expanded schema alongside the data migrations the
-    /// applications instantiated (one per template migration per applied schema).
+    /// Expands templates into a given schema and returns the result.
     /// </summary>
-    public static (DatabaseSchema Schema, IReadOnlyList<DataMigration> Migrations) Expand(DatabaseSchema schema, TemplateSet templates)
+    public static TemplateExpansion Expand(DatabaseSchema schema, TemplateSet templates)
     {
         var byName = new Dictionary<string, TemplateDefinition>(StringComparer.OrdinalIgnoreCase);
         foreach (var template in templates.Definitions)
@@ -30,6 +30,7 @@ internal static class TemplateExpander
 
         var pendingIncludes = templates.Includes.ToList();
         var migrations = new List<DataMigration>();
+        var scripts = new List<TemplateScriptInstance>();
         foreach (var application in templates.Applications)
         {
             if (!byName.TryGetValue(application.TemplateName, out var template))
@@ -59,20 +60,31 @@ internal static class TemplateExpander
                 pendingIncludes.AddRange(template.Includes.Select(i => i with { SchemaName = schemaName }));
 
                 migrations.AddRange(template.Migrations.Select(m => Instantiate(m, schemaName)));
+                scripts.AddRange(template.Scripts.Select(s => new TemplateScriptInstance(schemaName, Instantiate(s, schemaName))));
             }
         }
 
-        return (ResolveIncludes(schema, byName, pendingIncludes), migrations);
+        return new TemplateExpansion(ResolveIncludes(schema, byName, pendingIncludes), migrations, scripts);
     }
 
     /// <summary>
-    /// Re-homes a template migration into <paramref name="schemaName"/>. The raw SQL body cannot be re-bound the
-    /// way parsed statements are, so the <c>{schema}</c> token is its stand-in for the target schema.
+    /// Re-homes a template migration into <paramref name="schemaName"/>.
     /// </summary>
     private static DataMigration Instantiate(DataMigration migration, string schemaName) => migration with
     {
         SchemaName = schemaName,
+        Name = migration.Name?.Replace("{schema}", schemaName, StringComparison.Ordinal),
         Sql = migration.Sql.Replace("{schema}", schemaName, StringComparison.Ordinal),
+    };
+
+    /// <summary>
+    /// Instantiates a template deployment script for <paramref name="schemaName"/>,
+    /// substituting the <c>{schema}</c> token in the name and SQL body.
+    /// </summary>
+    private static Script Instantiate(Script script, string schemaName) => script with
+    {
+        Name = script.Name.Replace("{schema}", schemaName, StringComparison.Ordinal),
+        Sql = script.Sql.Replace("{schema}", schemaName, StringComparison.Ordinal),
     };
 
     private static DatabaseSchema ResolveIncludes(

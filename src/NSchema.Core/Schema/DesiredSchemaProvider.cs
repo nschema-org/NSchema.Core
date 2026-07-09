@@ -1,10 +1,12 @@
 using Microsoft.Extensions.FileSystemGlobbing;
+using NSchema.Diagnostics;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Scripts;
 using NSchema.Schema.Model.Templates;
+using NSchema.Schema.Templates;
 
 namespace NSchema.Schema;
 
@@ -13,7 +15,7 @@ namespace NSchema.Schema;
 /// </summary>
 internal sealed class DesiredSchemaProvider(IEnumerable<DdlSchemaSource> sources) : IDesiredSchemaProvider
 {
-    public async ValueTask<DesiredProject> GetProject(string[]? schemaNames = null, CancellationToken cancellationToken = default)
+    public async ValueTask<DesiredProjectResult> GetProject(string[]? schemaNames = null, CancellationToken cancellationToken = default)
     {
         var sourceList = sources.ToList();
         if (sourceList.Count == 0)
@@ -36,27 +38,54 @@ internal sealed class DesiredSchemaProvider(IEnumerable<DdlSchemaSource> sources
         var scripts = new List<Script>();
         var templates = new TemplateSet();
         var migrations = new List<DataMigration>();
-        foreach (var document in documents)
+        var diagnostics = new List<Diagnostic>();
+        foreach (var ((document, warnings), file) in documents.Zip(files))
         {
             schema = schema.Combine(document.Schema);
             scripts.AddRange(document.Scripts);
             templates = templates.Combine(document.Templates);
             AddMigrations(migrations, document.Migrations);
+            diagnostics.AddRange(warnings.Select(w =>
+                Diagnostic.Warning("deprecations", $"{w.Message} (at {w.Position} in {file}).")));
         }
 
         // Expand all templates.
-        var (expanded, templateMigrations) = TemplateExpander.Expand(schema, templates);
+        var (expanded, templateMigrations, templateScripts) = TemplateExpander.Expand(schema, templates);
         schema = expanded;
         AddMigrations(migrations, templateMigrations);
 
-        // Filter by schema.
+        // Name collisions are project errors, so validate before scoping drops any instance.
+        ValidateScriptNames(scripts.Concat(templateScripts.Select(t => t.Script)), migrations);
+
+        // Filter by schema. Template-instantiated scripts scope by their origin schema, like migrations;
+        // hand-written deployment scripts are global and always survive.
         schema = schema.Filter(schemaNames);
         if (schemaNames is not null)
         {
             migrations.RemoveAll(m => !schemaNames.Contains(m.SchemaName, StringComparer.OrdinalIgnoreCase));
+            templateScripts = templateScripts.Where(t => schemaNames.Contains(t.SchemaName, StringComparer.OrdinalIgnoreCase)).ToList();
         }
+        scripts.AddRange(templateScripts.Select(t => t.Script));
 
-        return new DesiredProject(schema, scripts, migrations, files);
+        return new DesiredProjectResult(new DesiredProject(schema, scripts, migrations), files, diagnostics);
+    }
+
+    /// <summary>
+    /// Enforces project-wide script-name uniqueness (after template expansion, so instantiated names count).
+    /// Names identify scripts in run-once tracking and diagnostics, so a collision is an error, not a merge.
+    /// </summary>
+    private static void ValidateScriptNames(IEnumerable<Script> scripts, IReadOnlyList<DataMigration> migrations)
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var name in scripts.Select(s => s.Name).Concat(migrations.Where(m => m.Name is not null).Select(m => m.Name!)))
+        {
+            if (!names.Add(name))
+            {
+                throw new InvalidOperationException(
+                    $"Duplicate script name '{name}' declared. Script names must be unique across the project; " +
+                    "a script declared in a template applied to multiple schemas can include the {schema} token in its name.");
+            }
+        }
     }
 
     private static void AddMigrations(List<DataMigration> migrations, IReadOnlyList<DataMigration> incoming)
@@ -75,12 +104,12 @@ internal sealed class DesiredSchemaProvider(IEnumerable<DdlSchemaSource> sources
         .GetResultsInFullPath(source.BaseDirectory)
         .OrderBy(path => path, StringComparer.Ordinal);
 
-    private static async Task<DdlDocument> ReadDocument(string path, CancellationToken cancellationToken)
+    private static async Task<DdlParseResult> ReadDocument(string path, CancellationToken cancellationToken)
     {
         var text = await File.ReadAllTextAsync(path, cancellationToken);
         try
         {
-            return DdlReader.Instance.Read(text);
+            return new DdlParser(text).Parse();
         }
         catch (DdlSyntaxException ex)
         {

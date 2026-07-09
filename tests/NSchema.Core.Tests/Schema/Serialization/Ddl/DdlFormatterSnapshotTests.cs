@@ -42,6 +42,29 @@ public sealed class DdlFormatterSnapshotTests
     }
 
     [Fact]
+    public Task Format_ScriptDocument()
+    {
+        // A messy document of unified SCRIPT statements across both event kinds and every run condition —
+        // the snapshot pins the canonical layout.
+        const string source =
+            """
+            create schema app;
+            SCRIPT 'enable_citext' RUN ON PRE DEPLOYMENT AS $$
+            CREATE EXTENSION IF NOT EXISTS citext;
+            $$;
+              script 'seed currencies' run once on post deployment as $$
+            INSERT INTO app.currencies VALUES ('GBP');
+            $$;
+            --- Backfill the new email column from the legacy table.
+            SCRIPT 'backfill_emails' RUN ALWAYS ON ADD COLUMN app.users.email (run_outside_transaction = true) AS $$
+            UPDATE app.users u SET email = l.email FROM legacy.users l WHERE l.id = u.id;
+            $$;
+            """;
+
+        return Verify(DdlFormatter.Instance.Format(source));
+    }
+
+    [Fact]
     public Task Format_MigrationDocument()
     {
         // A messy document mixing MIGRATION blocks (named, anonymous, with options) into ordinary statements —

@@ -1,5 +1,3 @@
-using NSchema.Schema.Model;
-
 namespace NSchema.Schema;
 
 /// <summary>
@@ -10,5 +8,5 @@ internal interface IDesiredSchemaProvider
     /// <summary>
     /// Reads and aggregates the desired project, optionally scoping the schema to the given <paramref name="schemaNames"/>.
     /// </summary>
-    ValueTask<DesiredProject> GetProject(string[]? schemaNames = null, CancellationToken cancellationToken = default);
+    ValueTask<DesiredProjectResult> GetProject(string[]? schemaNames = null, CancellationToken cancellationToken = default);
 }

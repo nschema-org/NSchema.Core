@@ -108,9 +108,15 @@ public sealed class DdlDocumentWriterTests
             $$;
             """);
 
-        formatted.ShouldContain("PRE DEPLOYMENT 'enable_citext' AS $$");
-        formatted.ShouldContain("POST DEPLOYMENT 'reindex' (run_outside_transaction = true) AS $$");
+        // The writer emits the canonical SCRIPT form, whichever spelling was read.
+        formatted.ShouldContain("SCRIPT 'enable_citext' RUN ON PRE DEPLOYMENT AS $$");
+        formatted.ShouldContain("SCRIPT 'reindex' RUN ON POST DEPLOYMENT (run_outside_transaction = true) AS $$");
     }
+
+    [Fact]
+    public void Write_RunOnceScript_RoundTrips()
+        => AssertRoundTrips("SCRIPT 'seed' RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO app.c VALUES (1); $$;")
+            .ShouldContain("SCRIPT 'seed' RUN ONCE ON POST DEPLOYMENT AS $$");
 
     [Fact]
     public void Write_ScriptBodyContainingDoubleDollar_PicksASafeTag()
@@ -133,7 +139,7 @@ public sealed class DdlDocumentWriterTests
             MIGRATION 'backfill_emails' FOR ADD COLUMN app.users.email AS $$
                 UPDATE app.users SET email = '';
             $$;
-            """).ShouldContain("MIGRATION 'backfill_emails' FOR ADD COLUMN app.users.email AS $$");
+            """).ShouldContain("SCRIPT 'backfill_emails' RUN ON ADD COLUMN app.users.email AS $$");
 
     [Fact]
     public void Write_AnonymousMigration_RoundTrips()

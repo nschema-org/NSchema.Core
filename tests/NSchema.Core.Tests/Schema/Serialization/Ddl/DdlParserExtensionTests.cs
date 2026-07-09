@@ -9,7 +9,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 /// </summary>
 public sealed class DdlParserExtensionTests
 {
-    private static DatabaseSchema Parse(string source) => new DdlParser(source).Parse().Schema;
+    private static DatabaseSchema Parse(string source) => new DdlParser(source).Parse().Document.Schema;
 
     [Fact]
     public void Parse_CreateExtension_Bare_RecordsRootLevelExtension()

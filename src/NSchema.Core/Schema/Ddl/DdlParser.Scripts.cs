@@ -1,4 +1,5 @@
 using NSchema.Schema.Ddl.Model;
+using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Scripts;
 
 namespace NSchema.Schema.Ddl;
@@ -6,29 +7,95 @@ namespace NSchema.Schema.Ddl;
 internal sealed partial class DdlParser
 {
     /// <summary>
-    /// Parses a deployment-script statement: <c>PRE|POST DEPLOYMENT '&lt;name&gt;' [( option = value, … )] AS $$ … $$;</c>.
-    /// The body is opaque SQL (dollar-quoted, so it may contain its own <c>;</c>) run as-is around the migration —
-    /// captured verbatim like a <c>CREATE VIEW … AS</c> body.
+    /// Parses a SCRIPT statement.
+    /// </summary>
+    private void ParseScript(List<Script> scripts, List<DataMigration> migrations)
+    {
+        Advance(); // SCRIPT
+        var name = Expect(TokenKind.String, "a quoted script name").Text;
+        ExpectKeyword("RUN");
+
+        var condition = RunCondition.Always;
+        if (_current.IsKeyword("ALWAYS"))
+        {
+            Advance();
+        }
+        else if (_current.IsKeyword("ONCE"))
+        {
+            condition = RunCondition.Once;
+            Advance();
+        }
+        else if (_current.IsKeyword("UNLESS"))
+        {
+            throw Error("'UNLESS EXISTS' is reserved for a future release; a script runs ALWAYS (the default) or ONCE.");
+        }
+
+        ExpectKeyword("ON");
+
+        if (_current.IsKeyword("PRE") || _current.IsKeyword("POST"))
+        {
+            var type = _current.IsKeyword("PRE") ? ScriptType.PreDeployment : ScriptType.PostDeployment;
+            Advance(); // PRE | POST
+            ExpectKeyword("DEPLOYMENT");
+            var (runOutsideTransaction, body) = ParseScriptTail("script");
+            scripts.Add(new Script(name, body, type) { RunOutsideTransaction = runOutsideTransaction, RunCondition = condition });
+            return;
+        }
+
+        if (!_current.IsKeyword("ADD") && !_current.IsKeyword("ALTER"))
+        {
+            throw Error("Expected a script event: 'PRE DEPLOYMENT', 'POST DEPLOYMENT', 'ADD COLUMN', 'ALTER COLUMN TYPE' or 'ADD CONSTRAINT'.");
+        }
+
+        var trigger = ParseMigrationTrigger();
+        var (schema, table, member) = ParseMemberPath();
+        var (outside, sql) = ParseScriptTail("script");
+        migrations.Add(new DataMigration(name, trigger, schema, table, member, sql)
+        {
+            RunOutsideTransaction = outside,
+            RunCondition = condition,
+        });
+    }
+
+    /// <summary>
+    /// Parses a deployment-script statement in the deprecated pre-SCRIPT form:
+    /// <c>PRE|POST DEPLOYMENT '&lt;name&gt;' [( option = value, … )] AS $$ … $$;</c>.
     /// </summary>
     private Script ParseDeploymentScript(ScriptType type)
     {
+        var start = _current.Position;
+        var keyword = type == ScriptType.PreDeployment ? "PRE" : "POST";
         Advance(); // PRE | POST
         ExpectKeyword("DEPLOYMENT");
         var name = Expect(TokenKind.String, "a quoted script name").Text;
-        var runOutsideTransaction = ParseRunOutsideTransactionOptions("deployment script");
+        var (runOutsideTransaction, body) = ParseScriptTail("deployment script");
 
-        // The body is opaque (dollar-quoted) SQL lexed as a single DollarString token (so its own ';' is not a
-        // terminator). The 'AS' keyword is the anchor; the body's delimiters are then stripped.
-        if (!_current.IsKeyword("AS"))
-        {
-            throw Error("Expected 'AS' before the deployment script body.");
-        }
-        Advance(); // AS
-        var dollar = Expect(TokenKind.DollarString, "a deployment script body as a dollar-quoted block ($$ … $$)");
-        var body = StripDollarQuote(dollar.Text).Trim();
-        Expect(TokenKind.Semicolon, "';' to end the deployment script");
+        Warn($"'{keyword} DEPLOYMENT' is deprecated and will be removed in NSchema 5.0; " +
+             $"declare the script as SCRIPT '{name}' RUN ON {keyword} DEPLOYMENT … instead", start);
 
         return new Script(name, body, type) { RunOutsideTransaction = runOutsideTransaction };
+    }
+
+    /// <summary>
+    /// Parses the tail shared by every script form — the optional options clause, then <c>AS $$ … $$;</c>.
+    /// The body is opaque SQL lexed as a single DollarString token (so its own <c>;</c> is not a terminator);
+    /// the <c>AS</c> keyword is the anchor, and the body's delimiters are then stripped.
+    /// <paramref name="what"/> names the statement in errors.
+    /// </summary>
+    private (bool RunOutsideTransaction, string Sql) ParseScriptTail(string what)
+    {
+        var runOutsideTransaction = ParseRunOutsideTransactionOptions(what);
+
+        if (!_current.IsKeyword("AS"))
+        {
+            throw Error($"Expected 'AS' before the {what} body.");
+        }
+        Advance(); // AS
+        var dollar = Expect(TokenKind.DollarString, $"a {what} body as a dollar-quoted block ($$ … $$)");
+        var body = StripDollarQuote(dollar.Text).Trim();
+        Expect(TokenKind.Semicolon, $"';' to end the {what}");
+
+        return (runOutsideTransaction, body);
     }
 
     /// <summary>
@@ -42,8 +109,8 @@ internal sealed partial class DdlParser
     }
 
     /// <summary>
-    /// Parses the optional <c>( run_outside_transaction = true )</c> clause shared by deployment scripts and
-    /// migrations, returning the flag (default false). <paramref name="what"/> names the statement in errors.
+    /// Parses the optional <c>( run_outside_transaction = true )</c> clause shared by every script form,
+    /// returning the flag (default false). <paramref name="what"/> names the statement in errors.
     /// </summary>
     private bool ParseRunOutsideTransactionOptions(string what)
     {

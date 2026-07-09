@@ -25,15 +25,16 @@ internal sealed class MigrationWorkflow(
 
         progress.Report(OperationProgress.Step("Validating schema..."));
 
-        // The findings — including any non-error advisories — are returned as data for the caller to render.
-        return planner.Validate(desired.Schema);
+        // The findings — including any non-error advisories and findings raised while reading the DDL — are
+        // returned as data for the caller to render.
+        return new PolicyDiagnostics(desired.Diagnostics.Concat(planner.Validate(desired.Project.Schema)));
     }
 
     public async Task<Result<PlannedMigration>> ComputePlan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default)
     {
         progress.Report(OperationProgress.Step("Loading desired schema..."));
         var desired = await desiredProvider.GetProject(schemas, cancellationToken);
-        var schemasInScope = schemas ?? desired.Schema.AllSchemaNames;
+        var schemasInScope = schemas ?? desired.Project.Schema.AllSchemaNames;
         ReportDesiredDetail(desired);
 
         progress.Report(OperationProgress.Step($"Migration will be scoped to the following schemas: {string.Join(", ", schemasInScope)}"));
@@ -43,7 +44,7 @@ internal sealed class MigrationWorkflow(
         progress.Report(OperationProgress.Detail($"Current schema ({currentSource.ToString().ToLowerInvariant()}): {StatusHelpers.Describe(currentSchema)}."));
 
         progress.Report(OperationProgress.Step("Computing migration plan..."));
-        return planner.Plan(currentSchema, desired);
+        return WithReadDiagnostics(planner.Plan(currentSchema, desired.Project), desired.Diagnostics);
     }
 
     public async Task<Result<PlannedMigration>> ComputeTeardown(CancellationToken cancellationToken = default)
@@ -51,7 +52,7 @@ internal sealed class MigrationWorkflow(
         // The managed schema is what we tear down: recorded state when we have it, otherwise the declared desired schema.
         var managedSchema = store is not null
             ? await currentProvider.GetSchema(SchemaSourceMode.Offline, null, required: true, cancellationToken)
-            : (await desiredProvider.GetProject(null, cancellationToken)).Schema;
+            : (await desiredProvider.GetProject(null, cancellationToken)).Project.Schema;
 
         progress.Report(OperationProgress.Step("Computing teardown plan..."));
         return planner.PlanTeardown(managedSchema);
@@ -73,10 +74,25 @@ internal sealed class MigrationWorkflow(
     }
 
     /// <summary>
+    /// Prepends the findings raised while reading the DDL to a planner result. The pure planner never sees
+    /// read provenance; merging it into the outcome is this shell's job.
+    /// </summary>
+    private static Result<PlannedMigration> WithReadDiagnostics(Result<PlannedMigration> planned, IReadOnlyList<Diagnostic> readDiagnostics)
+    {
+        if (readDiagnostics.Count == 0)
+        {
+            return planned;
+        }
+
+        var diagnostics = readDiagnostics.Concat(planned.Diagnostics);
+        return planned.Value is { } value ? Result.From(value, diagnostics) : Result.Failure<PlannedMigration>(diagnostics);
+    }
+
+    /// <summary>
     /// Emits the verbose detail about the loaded desired project: the files it was read from and a census of
     /// what they declared.
     /// </summary>
-    private void ReportDesiredDetail(DesiredProject desired)
+    private void ReportDesiredDetail(DesiredProjectResult desired)
     {
         if (desired.Files.Count > 0)
         {
@@ -87,7 +103,7 @@ internal sealed class MigrationWorkflow(
             }
         }
 
-        progress.Report(OperationProgress.Detail($"Desired schema: {StatusHelpers.Describe(desired.Schema)}, " +
-            $"{StatusHelpers.Count(desired.Scripts.Count, "deployment script")}, {StatusHelpers.Count(desired.Migrations.Count, "data migration")}."));
+        progress.Report(OperationProgress.Detail($"Desired schema: {StatusHelpers.Describe(desired.Project.Schema)}, " +
+            $"{StatusHelpers.Count(desired.Project.Scripts.Count, "deployment script")}, {StatusHelpers.Count(desired.Project.Migrations.Count, "data migration")}."));
     }
 }

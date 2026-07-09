@@ -27,7 +27,7 @@ public sealed class MigrationWorkflowTests
     private MigrationWorkflow BuildSut(ISchemaStateStore? store = null) =>
         new(_planner, _progress, _currentProvider, _desiredProvider, _stateSerializer, store);
 
-    private static DesiredProject Project(DatabaseSchema schema) => new(schema, [], []);
+    private static DesiredProjectResult Project(DatabaseSchema schema) => new(new DesiredProject(schema, [], []), [], []);
 
     private readonly MigrationWorkflow _sut;
 
@@ -99,6 +99,22 @@ public sealed class MigrationWorkflowTests
     }
 
     [Fact]
+    public async Task ValidateDesiredSchema_ProjectDiagnostics_AreCarriedInTheFindings()
+    {
+        // Arrange — findings raised while reading the DDL (e.g. deprecated syntax) arrive on the read result.
+        var project = new DesiredProjectResult(new DesiredProject(new DatabaseSchema([]), [], []), [],
+            [Diagnostic.Warning("deprecations", "old form")]);
+        _desiredProvider.GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(project);
+
+        // Act
+        var findings = await _sut.Validate(TestContext.Current.CancellationToken);
+
+        // Assert
+        findings.HasErrors.ShouldBeFalse();
+        findings.ShouldHaveSingleItem().Source.ShouldBe("deprecations");
+    }
+
+    [Fact]
     public async Task ValidateDesiredSchema_DoesNotContactCurrentProvider()
     {
         // Act
@@ -160,7 +176,9 @@ public sealed class MigrationWorkflowTests
         var desired = new DatabaseSchema([new SchemaDefinition("app", Tables:
             [new Table("users"), new Table("orders")])]);
         _desiredProvider.GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(new DesiredProject(desired, [new Script("seed", "select 1", ScriptType.PostDeployment)], [], ["/app/users.sql", "/app/orders.sql"]));
+            .Returns(new DesiredProjectResult(
+                new DesiredProject(desired, [new Script("seed", "select 1", ScriptType.PostDeployment)], []),
+                ["/app/users.sql", "/app/orders.sql"], []));
         _currentProvider
             .GetSchema(SchemaSourceMode.Online, Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(new DatabaseSchema([new SchemaDefinition("app")]));
@@ -174,6 +192,43 @@ public sealed class MigrationWorkflowTests
         _progress.Received().Report(OperationProgress.Detail("/app/orders.sql"));
         _progress.Received().Report(OperationProgress.Detail("Desired schema: 1 schema, 2 tables, 1 deployment script, 0 data migrations."));
         _progress.Received().Report(OperationProgress.Detail("Current schema (online): 1 schema, 0 tables."));
+    }
+
+    [Fact]
+    public async Task ComputePlan_ReadDiagnostics_ArePrependedToThePlannerResult()
+    {
+        // Arrange — the pure planner never sees read provenance; this shell merges it into the outcome.
+        var project = new DesiredProjectResult(new DesiredProject(new DatabaseSchema([]), [], []), [],
+            [Diagnostic.Warning("deprecations", "old form")]);
+        _desiredProvider.GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(project);
+        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DesiredProject>())
+            .Returns(Result.From(new PlannedMigration(new DatabaseDiff([]), new MigrationPlan([], [], [])),
+                [Diagnostic.Warning("data-hazards", "hazard")]));
+
+        // Act
+        var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.ShouldBeTrue();
+        result.Diagnostics.Select(d => d.Source).ShouldBe(["deprecations", "data-hazards"]);
+    }
+
+    [Fact]
+    public async Task ComputePlan_ReadDiagnostics_AreCarriedOnAPlannerFailureToo()
+    {
+        // Arrange
+        var project = new DesiredProjectResult(new DesiredProject(new DatabaseSchema([]), [], []), [],
+            [Diagnostic.Warning("deprecations", "old form")]);
+        _desiredProvider.GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(project);
+        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DesiredProject>())
+            .Returns(Result.Failure<PlannedMigration>([Diagnostic.Error("P1", "blocked")]));
+
+        // Act
+        var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsFailure.ShouldBeTrue();
+        result.Diagnostics.Select(d => d.Source).ShouldBe(["deprecations", "P1"]);
     }
 
     [Fact]

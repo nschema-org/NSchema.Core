@@ -130,7 +130,7 @@ public sealed class ApplyEndToEndTests : IDisposable
                     id int NOT NULL,
                     actor text NOT NULL
                 );
-                MIGRATION 'backfill actors' FOR ADD COLUMN events.actor AS $$
+                MIGRATION 'backfill {schema} actors' FOR ADD COLUMN events.actor AS $$
                 UPDATE {schema}.events SET actor = 'system';
                 $$;
             END;
@@ -155,7 +155,7 @@ public sealed class ApplyEndToEndTests : IDisposable
 
         // Billing's instance is inert this run and says so; sales' matched instance reports nothing.
         var inert = result.Diagnostics.Where(d => d.Source == "data-migrations").ShouldHaveSingleItem();
-        inert.Message.ShouldContain("'backfill actors'");
+        inert.Message.ShouldContain("'backfill billing actors'");
         inert.Message.ShouldContain("billing.events.actor");
     }
 

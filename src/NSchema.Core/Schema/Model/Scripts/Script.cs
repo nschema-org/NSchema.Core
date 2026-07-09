@@ -17,4 +17,9 @@ public record Script(string Name, string Sql, ScriptType Type)
     /// the database disallows inside a transaction (for example, <c>CREATE INDEX CONCURRENTLY</c>).
     /// </remarks>
     public bool RunOutsideTransaction { get; init; }
+
+    /// <summary>
+    /// When the script runs, relative to occurrences of its event.
+    /// </summary>
+    public RunCondition RunCondition { get; init; } = RunCondition.Always;
 }

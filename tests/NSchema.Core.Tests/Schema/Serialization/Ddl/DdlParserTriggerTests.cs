@@ -12,7 +12,7 @@ public sealed class DdlParserTriggerTests
     private const string Table = "CREATE SCHEMA app; CREATE TABLE app.users (id int NOT NULL); ";
 
     private static Trigger ParseTrigger(string triggerSql) =>
-        new DdlParser(Table + triggerSql).Parse().Schema
+        new DdlParser(Table + triggerSql).Parse().Document.Schema
             .Schemas.ShouldHaveSingleItem()
             .Tables.ShouldHaveSingleItem()
             .Triggers.ShouldHaveSingleItem();
