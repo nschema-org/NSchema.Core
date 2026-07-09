@@ -435,6 +435,8 @@ public sealed class DiffReader
 
     private string FormatColumn(Column column) =>
         $"{column.Name} {column.Type} {(column.IsNullable ? "null" : "not null")}"
+        + (column.IsIdentity ? " identity" : string.Empty)
+        + (column.DefaultExpression is { } @default ? $" default {@default}" : string.Empty)
         + (column.GeneratedExpression is { } generated ? $" generated as ({generated})" : string.Empty);
 
     private string CommentSuffix(ValueChange<string>? comment) => comment is null
