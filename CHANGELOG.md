@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
+## [4.2.0]
+
+### Added
+
+- **Data-hazard detection.** A new built-in diff policy flags planned changes that are valid against the schema but can fail on the data already in a table.
+
 ## [4.1.0] - 2026-07-08
 
 ### Added

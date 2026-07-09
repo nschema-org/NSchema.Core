@@ -175,7 +175,7 @@ public sealed class DiffReader
             : $"{view.Schema}.{view.RenamedFrom} → {view.Name}";
 
         // A comment-only modify (no body or index change) reports the comment transition rather than a bare header.
-        if (view is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only } && view.Indexes.Count == 0)
+        if (view is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only, Indexes.Count: 0 })
         {
             AppendHeader(lines, ChangeKind.Modify, $"{label} {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
             return;
@@ -305,8 +305,7 @@ public sealed class DiffReader
             : $"{domain.Schema}.{domain.RenamedFrom} → {domain.Name}";
 
         // A comment-only modify reports the comment transition rather than a bare header.
-        if (domain is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, DataType: null, Default: null, NotNull: null, Comment: { } only }
-            && domain.Checks.Count == 0)
+        if (domain is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, DataType: null, Default: null, NotNull: null, Comment: { } only, Checks.Count: 0 })
         {
             AppendHeader(lines, ChangeKind.Modify, $"domain {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
             return;
@@ -365,13 +364,13 @@ public sealed class DiffReader
 
     private void RenderColumn(List<DiffLine> lines, ColumnDiff column)
     {
-        if (column.Kind == ChangeKind.Add && column.Definition is { } added)
+        if (column is { Kind: ChangeKind.Add, Definition: { } added })
         {
             AppendDetail(lines, ChangeKind.Add, FormatColumn(added) + CommentSuffix(column.Comment));
             return;
         }
 
-        if (column.Kind == ChangeKind.Remove && column.Definition is { } removed)
+        if (column is { Kind: ChangeKind.Remove, Definition: { } removed })
         {
             AppendDetail(lines, ChangeKind.Remove, FormatColumn(removed));
             return;
