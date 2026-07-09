@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
+## [4.4.0] - 2026-07-09
+
+### Added
+
+- **Migrations in schema templates.** A `MIGRATION` block can now be declared inside a `TEMPLATE … BEGIN … END;` body with an unqualified `table.member` path; applying the template instantiates the block once per target schema. The `{schema}` token in the block's SQL is replaced with each target schema's name. Each instance matches, decomposes, suppresses hazards, and reports inertness independently, exactly like a hand-written block.
+
+### Fixed
+
+- The formatter no longer re-indents the interior of a dollar-quoted body inside a `TEMPLATE` block, which grew the indentation on every pass and changed the SQL a routine or migration body carries.
+
 ## [4.3.1] - 2026-07-09
 
 ### Fixed
@@ -228,6 +238,7 @@ First stable release. The public API is now covered by semantic versioning. Brea
 - SourceLink and symbol packages (`.snupkg`) published alongside the main package for source-level debugging.
 
 [Unreleased]: https://github.com/nschema-org/NSchema.Core/compare/v4.3.1...HEAD
+[4.4.0]: https://github.com/nschema-org/NSchema.Core/compare/v4.3.1...v4.4.0
 [4.3.1]: https://github.com/nschema-org/NSchema.Core/compare/v4.3.0...v4.3.1
 [4.3.0]: https://github.com/nschema-org/NSchema.Core/compare/v4.2.0...v4.3.0
 [4.2.0]: https://github.com/nschema-org/NSchema.Core/compare/v4.1.0...v4.2.0

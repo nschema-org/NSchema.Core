@@ -110,6 +110,56 @@ public sealed class ApplyEndToEndTests : IDisposable
     }
 
     [Fact]
+    public async Task Apply_TemplateMigration_FiresPerSchemaWhereTheChangeIsPlanned()
+    {
+        // A template with a migration applied to two schemas: sales.events already exists without the new column
+        // (the migration matches and the add decomposes, with {schema} bound), while billing.events is brand new
+        // (created empty, so its instance is unmatched and reports as inert).
+        var current = new DatabaseSchema([
+            new SchemaDefinition("sales", Tables: [new Table("events", Columns: [new Column("id", SqlType.Int)])]),
+            new SchemaDefinition("billing"),
+        ]);
+        var desired = WriteDdl("schema.sql",
+            """
+            CREATE SCHEMA sales;
+            CREATE SCHEMA billing;
+            TEMPLATE audit
+            BEGIN
+                CREATE TABLE events
+                (
+                    id int NOT NULL,
+                    actor text NOT NULL
+                );
+                MIGRATION 'backfill actors' FOR ADD COLUMN events.actor AS $$
+                UPDATE {schema}.events SET actor = 'system';
+                $$;
+            END;
+            APPLY TEMPLATE audit IN SCHEMA sales, billing;
+            """);
+
+        using var app = BuildApp(current, desired);
+
+        (await app.Locks.Acquire("apply", cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
+        var plan = result.Value.ShouldNotBeNull();
+        await app.Operations.Apply(new ApplyArguments { Sql = plan.Sql! }, TestContext.Current.CancellationToken);
+
+        // Sales decomposes around the token-substituted backfill; billing just creates its (empty) table.
+        var statements = _executor.Executed.ShouldNotBeNull().Statements.Select(s => s.Sql).ToList();
+        statements.ShouldBe([
+            "-- CreateTable",
+            "-- AddColumn",
+            "UPDATE sales.events SET actor = 'system';",
+            "-- AlterColumnNullability",
+        ]);
+
+        // Billing's instance is inert this run and says so; sales' matched instance reports nothing.
+        var inert = result.Diagnostics.Where(d => d.Source == "data-migrations").ShouldHaveSingleItem();
+        inert.Message.ShouldContain("'backfill actors'");
+        inert.Message.ShouldContain("billing.events.actor");
+    }
+
+    [Fact]
     public async Task Apply_WithNoChanges_ShortCircuitsWithoutExecutingButStillCapturesState()
     {
         var schema = new DatabaseSchema([new SchemaDefinition("app", Tables:

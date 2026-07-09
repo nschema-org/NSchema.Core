@@ -280,12 +280,18 @@ public sealed class DdlFormatter
             sb.Append('\n');
             if (body.Length > 0)
             {
+                string? openDollarTag = null;
                 foreach (var line in body.Split('\n'))
                 {
                     if (line.Length > 0)
                     {
-                        sb.Append(Indent).Append(line);
+                        if (openDollarTag is null)
+                        {
+                            sb.Append(Indent);
+                        }
+                        sb.Append(line);
                     }
+                    openDollarTag = AdvanceDollarQuoteState(line, openDollarTag);
                     sb.Append('\n');
                 }
             }
@@ -296,6 +302,59 @@ public sealed class DdlFormatter
             sb.Append(';');
         }
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Advances the dollar-quote state across one line of rendered text: <paramref name="openTag"/> is the
+    /// delimiter of the body the line starts inside (or <see langword="null"/> outside one), and the return value
+    /// is the state the line ends in. A body only closes on its own tag, so <c>$$</c> inside a <c>$body$</c>
+    /// block stays interior text.
+    /// </summary>
+    private static string? AdvanceDollarQuoteState(string line, string? openTag)
+    {
+        var i = 0;
+        while (i < line.Length)
+        {
+            if (openTag is null)
+            {
+                var open = FindDollarTag(line, i);
+                if (open is null)
+                {
+                    break;
+                }
+                openTag = open.Value.Tag;
+                i = open.Value.End;
+            }
+            else
+            {
+                var close = line.IndexOf(openTag, i, StringComparison.Ordinal);
+                if (close < 0)
+                {
+                    break;
+                }
+                i = close + openTag.Length;
+                openTag = null;
+            }
+        }
+        return openTag;
+    }
+
+    /// <summary>Finds the next <c>$tag$</c> delimiter at or after <paramref name="from"/>, returning it and the index just past it.</summary>
+    private static (string Tag, int End)? FindDollarTag(string line, int from)
+    {
+        for (var i = line.IndexOf('$', from); i >= 0; i = line.IndexOf('$', i + 1))
+        {
+            var close = i + 1;
+            while (close < line.Length && (char.IsLetterOrDigit(line[close]) || line[close] == '_'))
+            {
+                close++;
+            }
+            if (close < line.Length && line[close] == '$')
+            {
+                return (line[i..(close + 1)], close + 1);
+            }
+        }
+        return null;
     }
 
     /// <summary>Emits a statement as its original text (leading whitespace trimmed), keeping the ';' where it sat.</summary>

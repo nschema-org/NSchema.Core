@@ -1,3 +1,4 @@
+using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Schemas;
 
 namespace NSchema.Schema.Model.Templates;
@@ -16,8 +17,12 @@ public sealed record TemplateDefinition(string Name, TemplateKind Kind, SchemaDe
     public const string TargetSchemaPlaceholder = "<template>";
 
     /// <summary>
-    /// The <c>INCLUDE</c> members written in this template's table bodies, re-targeted per instance when the
-    /// template is applied. Only ever populated on a schema template.
+    /// The <c>INCLUDE</c> members written in this template's table bodies.
     /// </summary>
     public IReadOnlyList<TemplateInclude> Includes { get; init; } = [];
+
+    /// <summary>
+    /// The data migrations declared in this template's body.
+    /// </summary>
+    public IReadOnlyList<DataMigration> Migrations { get; init; } = [];
 }
