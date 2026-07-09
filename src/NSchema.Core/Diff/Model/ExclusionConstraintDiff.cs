@@ -1,4 +1,5 @@
 using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Migrations;
 
 namespace NSchema.Diff.Model;
 
@@ -9,4 +10,10 @@ namespace NSchema.Diff.Model;
 /// <param name="Name">The exclusion constraint name.</param>
 /// <param name="Definition">The exclusion constraint definition for an added constraint; otherwise <see langword="null"/>.</param>
 /// <param name="Comment">The change to the constraint's comment, if any (carried on a comment-only <see cref="ChangeKind.Modify"/>).</param>
-public sealed record ExclusionConstraintDiff(ChangeKind Kind, string Name, ExclusionConstraint? Definition = null, ValueChange<string>? Comment = null) : INamedObjectDiff;
+public sealed record ExclusionConstraintDiff(ChangeKind Kind, string Name, ExclusionConstraint? Definition = null, ValueChange<string>? Comment = null) : INamedObjectDiff
+{
+    /// <summary>
+    /// The data migration matched to this change, when one is declared; otherwise <see langword="null"/>.
+    /// </summary>
+    public DataMigration? Migration { get; init; }
+}

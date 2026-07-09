@@ -40,4 +40,28 @@ public sealed class DdlFormatterSnapshotTests
 
         return Verify(DdlFormatter.Instance.Format(source));
     }
+
+    [Fact]
+    public Task Format_MigrationDocument()
+    {
+        // A messy document mixing MIGRATION blocks (named, anonymous, with options) into ordinary statements —
+        // the snapshot pins the canonical layout: dollar bodies verbatim, one blank line between statements.
+        const string source =
+            """
+            create schema app;
+              create table app.users(
+                id bigint not null identity,
+              email text not null,
+                constraint users_pkey primary key(id));
+            --- Backfill the new email column from the legacy table.
+            MIGRATION 'backfill_emails' FOR ADD COLUMN app.users.email AS $$
+            UPDATE app.users u SET email = l.email FROM legacy.users l WHERE l.id = u.id;
+            $$;
+               migration for alter column type app.users.id (run_outside_transaction = true) as $$
+            UPDATE app.users SET id = id;
+            $$;
+            """;
+
+        return Verify(DdlFormatter.Instance.Format(source));
+    }
 }

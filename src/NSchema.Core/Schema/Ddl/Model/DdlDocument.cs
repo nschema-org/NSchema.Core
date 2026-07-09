@@ -1,5 +1,6 @@
 using NSchema.Configuration;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Scripts;
 using NSchema.Schema.Model.Templates;
 
@@ -14,4 +15,9 @@ public sealed record DdlDocument(DatabaseSchema Schema, IReadOnlyList<ConfigBloc
     /// The template constructs declared in the document.
     /// </summary>
     public TemplateSet Templates { get; init; } = new();
+
+    /// <summary>
+    /// The data migrations declared in the document.
+    /// </summary>
+    public IReadOnlyList<DataMigration> Migrations { get; init; } = [];
 }

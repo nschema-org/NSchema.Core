@@ -7,6 +7,7 @@ using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
 using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Sequences;
 using NSchema.Schema.Model.Tables;
@@ -328,6 +329,47 @@ public sealed class DiffReaderSnapshotTests
 
     [Fact]
     public Task Read_SequenceChanges() => Verify(Read(SequenceChangesDiff()));
+
+    /// <summary>
+    /// A diff whose changes carry matched data migrations: a required column add backed by a named backfill, a
+    /// type change backed by an anonymous migration, and a unique-constraint add backed by a named de-dupe.
+    /// </summary>
+    private static DatabaseDiff DataMigrationAnnotationsDiff()
+    {
+        return new DatabaseDiff(
+            Schemas:
+            [
+                new SchemaDiff("app", Tables:
+                [
+                    new TableDiff("app", "users", ChangeKind.Modify,
+                        Columns:
+                        [
+                            new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))
+                            {
+                                Migration = new DataMigration("backfill emails", DataMigrationTrigger.AddColumn,
+                                    "app", "users", "email", "UPDATE app.users SET email = ''"),
+                            },
+                            new ColumnDiff("total", ChangeKind.Modify,
+                                Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int))
+                            {
+                                Migration = new DataMigration(null, DataMigrationTrigger.AlterColumnType,
+                                    "app", "users", "total", "UPDATE app.users SET total = '0' WHERE total !~ '^\\d+$'"),
+                            },
+                        ],
+                        UniqueConstraints:
+                        [
+                            new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint("users_email_uq", ["email"]))
+                            {
+                                Migration = new DataMigration("dedupe emails", DataMigrationTrigger.AddConstraint,
+                                    "app", "users", "users_email_uq", "DELETE FROM app.users WHERE id NOT IN (SELECT min(id) FROM app.users GROUP BY email)"),
+                            },
+                        ]),
+                ]),
+            ]);
+    }
+
+    [Fact]
+    public Task Read_DataMigrationAnnotations() => Verify(Read(DataMigrationAnnotationsDiff()));
 
     [Fact]
     public Task Read_EmptyDiff() => Verify(Read(new DatabaseDiff([])));

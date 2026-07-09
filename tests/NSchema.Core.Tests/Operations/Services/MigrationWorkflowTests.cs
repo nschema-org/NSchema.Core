@@ -9,6 +9,7 @@ using NSchema.Policies;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Scripts;
 using NSchema.Schema.Model.Tables;
 using NSchema.State;
@@ -26,7 +27,7 @@ public sealed class MigrationWorkflowTests
     private MigrationWorkflow BuildSut(ISchemaStateStore? store = null) =>
         new(_planner, _progress, _currentProvider, _desiredProvider, _stateSerializer, store);
 
-    private static DesiredProject Project(DatabaseSchema schema) => new(schema, []);
+    private static DesiredProject Project(DatabaseSchema schema) => new(schema, [], []);
 
     private readonly MigrationWorkflow _sut;
 
@@ -43,7 +44,7 @@ public sealed class MigrationWorkflowTests
         _planner.Validate(Arg.Any<DatabaseSchema>()).Returns(new PolicyDiagnostics());
 
         _planner
-            .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
+            .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DesiredProject>())
             .Returns(Result.Success(new PlannedMigration(new DatabaseDiff([]), new MigrationPlan([], [], []))));
 
         _planner
@@ -115,7 +116,7 @@ public sealed class MigrationWorkflowTests
         var plan = new MigrationPlan([new CreateSchema("app")], [], []);
         var diff = new DatabaseDiff([]);
         _planner
-            .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
+            .Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DesiredProject>())
             .Returns(Result.Success(new PlannedMigration(diff, plan)));
 
         // Act
@@ -159,7 +160,7 @@ public sealed class MigrationWorkflowTests
         var desired = new DatabaseSchema([new SchemaDefinition("app", Tables:
             [new Table("users"), new Table("orders")])]);
         _desiredProvider.GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(new DesiredProject(desired, [new Script("seed", "select 1", ScriptType.PostDeployment)], ["/app/users.sql", "/app/orders.sql"]));
+            .Returns(new DesiredProject(desired, [new Script("seed", "select 1", ScriptType.PostDeployment)], [], ["/app/users.sql", "/app/orders.sql"]));
         _currentProvider
             .GetSchema(SchemaSourceMode.Online, Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(new DatabaseSchema([new SchemaDefinition("app")]));
@@ -171,7 +172,7 @@ public sealed class MigrationWorkflowTests
         _progress.Received().Report(OperationProgress.Detail("Read 2 DDL files:"));
         _progress.Received().Report(OperationProgress.Detail("/app/users.sql"));
         _progress.Received().Report(OperationProgress.Detail("/app/orders.sql"));
-        _progress.Received().Report(OperationProgress.Detail("Desired schema: 1 schema, 2 tables, 1 deployment script."));
+        _progress.Received().Report(OperationProgress.Detail("Desired schema: 1 schema, 2 tables, 1 deployment script, 0 data migrations."));
         _progress.Received().Report(OperationProgress.Detail("Current schema (online): 1 schema, 0 tables."));
     }
 
@@ -180,7 +181,7 @@ public sealed class MigrationWorkflowTests
     {
         // Arrange
         var errors = new[] { Diagnostic.Error("P1", "msg") };
-        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
+        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DesiredProject>())
             .Returns(Result.Failure<PlannedMigration>(errors));
 
         // Act — the failure is carried in the result, not thrown; the caller decides how to surface it.
@@ -198,7 +199,7 @@ public sealed class MigrationWorkflowTests
         // carries errors but also the diff that triggered them — for the caller to render.
         var diff = new DatabaseDiff([]);
         var errors = new[] { Diagnostic.Error("destructive", "drops table") };
-        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
+        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DesiredProject>())
             .Returns(Result.From(new PlannedMigration(diff, new MigrationPlan([], [], [])), errors));
 
         // Act
@@ -215,7 +216,7 @@ public sealed class MigrationWorkflowTests
         // Arrange
         var diagnostics = new[] { new Diagnostic("P1", "info", DiagnosticSeverity.Info) };
         var plan = new MigrationPlan([], [], []);
-        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>(), Arg.Any<IReadOnlyList<Script>>())
+        _planner.Plan(Arg.Any<DatabaseSchema>(), Arg.Any<DesiredProject>())
             .Returns(Result.From(new PlannedMigration(new DatabaseDiff([]), plan), diagnostics));
 
         // Act

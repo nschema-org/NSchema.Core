@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
+## [Unreleased]
+
+### Added
+
+- **Data migrations.** A `MIGRATION ['name'] FOR <trigger> <schema>.<table>.<member> AS $$…$$;` block attaches raw SQL to a structural change (`ADD COLUMN`, `ALTER COLUMN TYPE`, or `ADD CONSTRAINT`) and is spliced into the plan only when the matching change is planned. A block matching nothing is reported as an informational diagnostic and is safe to delete.
+- **Decomposed NOT NULL adds.** A required column add with no default and a matching `FOR ADD COLUMN` migration is planned as add-nullable → run the migration SQL → `SET NOT NULL`, so the add succeeds against a populated table.
+- **Hazard suppression.** A matching migration block silences the corresponding data-hazard diagnostic (per trigger; unique-index hazards have no trigger and are never suppressed).
+- **`ExecuteDataMigration`** plan action carrying the spliced SQL. Executing a plan containing one requires a provider that recognizes it (4.3+); plans with no matched blocks are unaffected.
+
 ## [4.2.0] - 2026-07-09
 
 ### Added

@@ -43,7 +43,7 @@ internal sealed class MigrationWorkflow(
         progress.Report(OperationProgress.Detail($"Current schema ({currentSource.ToString().ToLowerInvariant()}): {StatusHelpers.Describe(currentSchema)}."));
 
         progress.Report(OperationProgress.Step("Computing migration plan..."));
-        return planner.Plan(currentSchema, desired.Schema, desired.Scripts);
+        return planner.Plan(currentSchema, desired);
     }
 
     public async Task<Result<PlannedMigration>> ComputeTeardown(CancellationToken cancellationToken = default)
@@ -87,6 +87,7 @@ internal sealed class MigrationWorkflow(
             }
         }
 
-        progress.Report(OperationProgress.Detail($"Desired schema: {StatusHelpers.Describe(desired.Schema)}, {StatusHelpers.Count(desired.Scripts.Count, "deployment script")}."));
+        progress.Report(OperationProgress.Detail($"Desired schema: {StatusHelpers.Describe(desired.Schema)}, " +
+            $"{StatusHelpers.Count(desired.Scripts.Count, "deployment script")}, {StatusHelpers.Count(desired.Migrations.Count, "data migration")}."));
     }
 }

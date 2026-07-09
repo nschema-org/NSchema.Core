@@ -1,13 +1,17 @@
 using System.Text;
+using NSchema.Diff.Model;
 using NSchema.Plan.Model;
 using NSchema.Plan.Model.Columns;
 using NSchema.Plan.Model.Enums;
+using NSchema.Plan.Model.Migrations;
 using NSchema.Plan.Model.Routines;
 using NSchema.Plan.Model.Schemas;
 using NSchema.Plan.Model.Sequence;
 using NSchema.Plan.Model.Tables;
 using NSchema.Plan.PlanFile;
+using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Enums;
+using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Scripts;
 using NSchema.Schema.Model.Sequences;
@@ -131,6 +135,45 @@ public sealed class PlanFileWriterTests
         {
             File.Delete(path);
         }
+    }
+
+    [Fact]
+    public void Serialize_ThenDeserialize_RoundTripsDataMigrationActionAndDiffAnnotation()
+    {
+        // Arrange — a plan carrying an ExecuteDataMigration and a diff whose column add is annotated with the
+        // matched migration, so both polymorphic-action and diff-node persistence are exercised.
+        var migration = new DataMigration("backfill emails", DataMigrationTrigger.AddColumn,
+            "app", "users", "email", "UPDATE app.users SET email = ''")
+        {
+            RunOutsideTransaction = true,
+        };
+        var action = new ExecuteDataMigration("backfill emails", DataMigrationTrigger.AddColumn,
+            "app", "users", "email", "UPDATE app.users SET email = ''")
+        {
+            RunOutsideTransaction = true,
+        };
+        var diff = new DatabaseDiff(
+        [
+            new SchemaDiff("app", Tables:
+            [
+                new TableDiff("app", "users", ChangeKind.Modify, Columns:
+                [
+                    new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text)) { Migration = migration },
+                ]),
+            ]),
+        ]);
+        var envelope = new PlanFileEnvelope(
+            diff,
+            new MigrationPlan([action], [], []),
+            new SqlPlan([new SqlStatement("UPDATE app.users SET email = ''", RunOutsideTransaction: true)]),
+            DateTimeOffset.UnixEpoch);
+
+        // Act
+        var roundTripped = _sut.Deserialize(_sut.Serialize(envelope));
+
+        // Assert — record equality covers every field, including the init-only RunOutsideTransaction.
+        roundTripped.Plan.Actions.ShouldHaveSingleItem().ShouldBe(action);
+        roundTripped.Diff.Schemas[0].Tables[0].Columns[0].Migration.ShouldBe(migration);
     }
 
     [Fact]

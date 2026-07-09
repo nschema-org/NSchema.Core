@@ -10,6 +10,7 @@ using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
 using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Scripts;
@@ -85,6 +86,12 @@ public sealed class DdlWriter
             WriteScript(sb, script);
         }
 
+        foreach (var migration in document.Migrations)
+        {
+            Separate(sb, ref first);
+            WriteMigration(sb, migration);
+        }
+
         return sb.ToString();
     }
 
@@ -144,6 +151,25 @@ public sealed class DdlWriter
         var delimiter = DollarDelimiter(script.Sql);
         sb.Append(" AS ").AppendLine(delimiter);
         sb.AppendLine(script.Sql);
+        sb.Append(delimiter).AppendLine(";");
+    }
+
+    private static void WriteMigration(StringBuilder sb, DataMigration migration)
+    {
+        sb.Append("MIGRATION ");
+        if (migration.Name is { } name)
+        {
+            sb.Append('\'').Append(name.Replace("'", "''")).Append("' ");
+        }
+        sb.Append("FOR ").Append(DataMigration.TriggerText(migration.Trigger)).Append(' ').Append(migration.Path);
+        if (migration.RunOutsideTransaction)
+        {
+            sb.Append(" (run_outside_transaction = true)");
+        }
+
+        var delimiter = DollarDelimiter(migration.Sql);
+        sb.Append(" AS ").AppendLine(delimiter);
+        sb.AppendLine(migration.Sql);
         sb.Append(delimiter).AppendLine(";");
     }
 

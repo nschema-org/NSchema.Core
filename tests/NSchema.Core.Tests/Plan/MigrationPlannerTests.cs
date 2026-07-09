@@ -1,11 +1,15 @@
+using Microsoft.Extensions.Options;
 using NSchema.Diagnostics;
 using NSchema.Diff;
 using NSchema.Diff.Model;
+using NSchema.Diff.Policies;
 using NSchema.Plan;
 using NSchema.Plan.Model;
 using NSchema.Plan.Model.Schemas;
 using NSchema.Schema;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Scripts;
 
@@ -57,7 +61,7 @@ public sealed class MigrationPlannerTests
         _schemaPolicies.Add(policy);
 
         // Act
-        var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
+        var result = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, []));
 
         // Assert: the schema stage is fatal — no planned migration at all (no diff, no plan).
         result.IsFailure.ShouldBeTrue();
@@ -75,7 +79,7 @@ public sealed class MigrationPlannerTests
         _schemaPolicies.Add(policy);
 
         // Act
-        var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
+        var result = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, []));
 
         // Assert: a non-error schema finding is carried through alongside the plan.
         result.IsSuccess.ShouldBeTrue();
@@ -90,7 +94,7 @@ public sealed class MigrationPlannerTests
         var desired = new DatabaseSchema([new SchemaDefinition("desired")]);
 
         // Act
-        Sut.Plan(current, desired, _noScripts);
+        Sut.Plan(current, new DesiredProject(desired, _noScripts, []));
 
         // Assert
         _comparer.Received(1).Compare(current, desired);
@@ -110,7 +114,7 @@ public sealed class MigrationPlannerTests
         ];
 
         // Act
-        var result = Sut.Plan(_emptySchema, _emptySchema, scripts);
+        var result = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, scripts, []));
 
         // Assert: scripts live on the plan (not interleaved into Actions, which carry only schema changes).
         result.Value.ShouldNotBeNull();
@@ -128,7 +132,7 @@ public sealed class MigrationPlannerTests
             .Returns([coreAction]);
 
         // Act
-        var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
+        var result = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, []));
 
         // Assert
         result.Value.ShouldNotBeNull();
@@ -145,13 +149,105 @@ public sealed class MigrationPlannerTests
         _diffPolicies.Add(policy);
 
         // Act
-        var result = Sut.Plan(_emptySchema, _emptySchema, _noScripts);
+        var result = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, []));
 
         // Assert
         result.Diagnostics.ShouldHaveSingleItem();
         result.Diagnostics[0].Message.ShouldBe("destructive");
         policy.Received(1).Validate(_emptyDiff);
     }
+
+    [Fact]
+    public void Plan_UnmatchedNamedMigration_YieldsOneDeadBlockInfoDiagnostic()
+    {
+        // Arrange — the comparer finds no changes, so the declared migration matches nothing.
+        var migration = new DataMigration("backfill emails", DataMigrationTrigger.AddColumn, "app", "users", "email", "UPDATE 1");
+
+        // Act
+        var result = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, [migration]));
+
+        // Assert
+        result.IsSuccess.ShouldBeTrue();
+        var diagnostic = result.Diagnostics.ShouldHaveSingleItem();
+        diagnostic.Source.ShouldBe("data-migrations");
+        diagnostic.Severity.ShouldBe(DiagnosticSeverity.Info);
+        diagnostic.Message.ShouldBe(
+            "Migration 'backfill emails' (ADD COLUMN app.users.email) matches no change in this plan and will " +
+            "not run. If the change it supports has been applied everywhere, the block is safe to delete.");
+    }
+
+    [Fact]
+    public void Plan_UnmatchedAnonymousMigration_LabelsTheDiagnosticByTriggerAndPath()
+    {
+        // Arrange
+        var migration = new DataMigration(null, DataMigrationTrigger.AddConstraint, "app", "users", "users_pk", "DELETE");
+
+        // Act
+        var result = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, [migration]));
+
+        // Assert
+        var diagnostic = result.Diagnostics.ShouldHaveSingleItem();
+        diagnostic.Message.ShouldStartWith("Migration for ADD CONSTRAINT app.users.users_pk matches no change in this plan");
+    }
+
+    [Fact]
+    public void Plan_MatchedMigration_YieldsNoDeadBlockDiagnostic()
+    {
+        // Arrange
+        _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(AddedEmailColumnDiff());
+
+        // Act
+        var result = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, [EmailBackfillMigration()]));
+
+        // Assert
+        result.IsSuccess.ShouldBeTrue();
+        result.Diagnostics.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Plan_MatchedMigration_AnnotatesTheReturnedDiff()
+    {
+        // Arrange
+        var migration = EmailBackfillMigration();
+        _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(AddedEmailColumnDiff());
+
+        // Act
+        var result = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, [migration]));
+
+        // Assert — the planned migration carries the annotated diff, not the comparer's raw one.
+        result.Value.ShouldNotBeNull();
+        result.Value!.Diff.Schemas[0].Tables[0].Columns[0].Migration.ShouldBe(migration);
+    }
+
+    [Fact]
+    public void Plan_MatchedBackfill_SuppressesTheDataHazardWarning()
+    {
+        // Arrange — the real hazard policy sees the annotated diff, so a matched backfill silences the
+        // NOT-NULL-add warning it would otherwise raise.
+        _diffPolicies.Add(new DataHazardDiffPolicy(Options.Create(new DataHazardOptions())));
+        _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(AddedEmailColumnDiff());
+
+        // Act
+        var unmatched = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, []));
+        var matched = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, [EmailBackfillMigration()]));
+
+        // Assert
+        unmatched.Diagnostics.ShouldHaveSingleItem().Source.ShouldBe("data-hazards");
+        matched.Diagnostics.ShouldBeEmpty();
+    }
+
+    /// <summary>A diff adding a required, defaultless <c>app.users.email</c> column to an existing table.</summary>
+    private static DatabaseDiff AddedEmailColumnDiff() => new(
+    [
+        new SchemaDiff("app", Tables:
+        [
+            new TableDiff("app", "users", ChangeKind.Modify,
+                Columns: [new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))]),
+        ]),
+    ]);
+
+    private static DataMigration EmailBackfillMigration() =>
+        new("backfill emails", DataMigrationTrigger.AddColumn, "app", "users", "email", "UPDATE app.users SET email = ''");
 
     [Fact]
     public void PlanTeardown_DiffsManagedSchemaAgainstEmpty()
