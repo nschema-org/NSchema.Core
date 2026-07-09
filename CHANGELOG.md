@@ -6,11 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
+## [Unreleased]
+
+### Added
+
+- **Unified `SCRIPT` statement.** `SCRIPT '<name>' RUN [ALWAYS | ONCE] ON <event> AS $$…$$;` is the new canonical form of deployment scripts and data migrations.
+  The event is a deployment bookend (`PRE DEPLOYMENT` / `POST DEPLOYMENT`) or a structural change (`ADD COLUMN` / `ALTER COLUMN TYPE` / `ADD CONSTRAINT` with a target path);
+- `RunCondition` on scripts and data migrations, carrying the parsed `RUN` clause.
+- The backend state store now carries the recorded script executions.
+
+### Changed
+
+- Script names must now be unique across the project (they identify scripts in diagnostics and run-once tracking). A named block declared in a template applied to multiple schemas can include the `{schema}` token in its name to keep instances distinct.
+- `DdlWriter` renders deployment scripts and named data migrations in the `SCRIPT` form; anonymous migrations keep the legacy spelling.
+
+### Deprecated
+
+- The `PRE|POST DEPLOYMENT '<name>' AS $$…$$;` and `MIGRATION ['name'] FOR <trigger> <path> AS $$…$$;` forms. Both still parse into the same model, and plan/apply/validate now surface a `deprecations` warning naming the `SCRIPT` replacement. They will be removed in NSchema 5.0.
+
 ## [4.4.0] - 2026-07-09
 
 ### Added
 
-- **Migrations in schema templates.** A `MIGRATION` block can now be declared inside a `TEMPLATE … BEGIN … END;` body with an unqualified `table.member` path; applying the template instantiates the block once per target schema. The `{schema}` token in the block's SQL is replaced with each target schema's name. Each instance matches, decomposes, suppresses hazards, and reports inertness independently, exactly like a hand-written block.
+- **Migrations in schema templates.** A `MIGRATION` block can now be declared inside a `TEMPLATE … BEGIN … END;` body with an unqualified `table.member` path; applying the template instantiates the block once per target schema. The `{schema}` token in the block's SQL is replaced with each target schema's name.
 
 ### Fixed
 
@@ -29,7 +47,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- **Data migrations.** A `MIGRATION ['name'] FOR <trigger> <schema>.<table>.<member> AS $$…$$;` block attaches raw SQL to a structural change (`ADD COLUMN`, `ALTER COLUMN TYPE`, or `ADD CONSTRAINT`) and is spliced into the plan only when the matching change is planned. A block matching nothing is reported as an informational diagnostic and is safe to delete.
+- **Data migrations.** A `MIGRATION ['name'] FOR <trigger> <schema>.<table>.<member> AS $$…$$;` block attaches raw SQL to a structural change (`ADD COLUMN`, `ALTER COLUMN TYPE`, or `ADD CONSTRAINT`) and is spliced into the plan only when the matching change is planned.
 - **Decomposed NOT NULL adds.** A required column add with no default and a matching `FOR ADD COLUMN` migration is planned as add-nullable → run the migration SQL → `SET NOT NULL`, so the add succeeds against a populated table.
 - **Hazard suppression.** A matching migration block silences the corresponding data-hazard diagnostic (per trigger; unique-index hazards have no trigger and are never suppressed).
 - **`ExecuteDataMigration`** plan action carrying the spliced SQL. Executing a plan containing one requires a provider that recognizes it (4.3+); plans with no matched blocks are unaffected.
