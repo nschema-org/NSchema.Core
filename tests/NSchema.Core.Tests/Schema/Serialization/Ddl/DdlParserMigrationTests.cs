@@ -121,12 +121,59 @@ public sealed class DdlParserMigrationTests
             .Message.ShouldContain("';' to end the migration");
 
     [Fact]
-    public void Parse_MigrationInsideTemplateBody_IsRejected()
+    public void Parse_MigrationInsideTemplateBody_BindsToThePlaceholderSchema()
+    {
+        // Arrange — inside a template the path is unqualified (table.member); the schema binds per application.
+        var document = DdlReader.Instance.Read(
+            """
+            TEMPLATE t
+            BEGIN
+              CREATE TABLE users ( id int NOT NULL );
+              MIGRATION 'backfill' FOR ADD COLUMN users.email (run_outside_transaction = true) AS $$ UPDATE {schema}.users SET email = ''; $$;
+            END;
+            """);
+
+        // Assert — the migration rides the definition, not the document's top-level list.
+        document.Migrations.ShouldBeEmpty();
+        var migration = document.Templates.Definitions.ShouldHaveSingleItem().Migrations.ShouldHaveSingleItem();
+        migration.Name.ShouldBe("backfill");
+        migration.SchemaName.ShouldBe("<template>");
+        migration.ObjectName.ShouldBe("users");
+        migration.MemberName.ShouldBe("email");
+        migration.RunOutsideTransaction.ShouldBeTrue();
+        migration.Sql.ShouldBe("UPDATE {schema}.users SET email = '';");
+    }
+
+    [Fact]
+    public void Parse_QualifiedPathInsideTemplateBody_IsRejected()
         => Should.Throw<DdlSyntaxException>(() => ReadMigrations(
             """
             TEMPLATE t
             BEGIN
+              CREATE TABLE users ( id int NOT NULL );
               MIGRATION FOR ADD COLUMN app.users.email AS $$ SELECT 1; $$;
             END;
-            """)).Message.ShouldContain("Unexpected 'MIGRATION' inside a template; expected a CREATE or GRANT statement, or END.");
+            """)).Message.ShouldContain("A migration inside a template must use an unqualified 'table.member' path");
+
+    [Fact]
+    public void Parse_TemplateMigrationForUndeclaredTable_IsRejected()
+        => Should.Throw<DdlSyntaxException>(() => ReadMigrations(
+            """
+            TEMPLATE t
+            BEGIN
+              CREATE TABLE users ( id int NOT NULL );
+              MIGRATION FOR ADD COLUMN orders.total AS $$ SELECT 1; $$;
+            END;
+            """)).Message.ShouldContain("Template 't' declares a migration for table 'orders', which the template does not declare.");
+
+    [Fact]
+    public void Parse_MigrationInsideTableTemplateBody_IsRejected()
+        // A table template's body holds comma-separated members, not statements, so MIGRATION has no home there.
+        => Should.Throw<DdlSyntaxException>(() => ReadMigrations(
+            """
+            TEMPLATE t FOR TABLE
+            BEGIN
+              MIGRATION FOR ADD COLUMN users.email AS $$ SELECT 1; $$
+            END;
+            """));
 }
