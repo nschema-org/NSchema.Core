@@ -1,5 +1,6 @@
 using Microsoft.Extensions.FileSystemGlobbing;
 using NSchema.Schema;
+using NSchema.Schema.Ddl;
 
 namespace NSchema.Tests.Schema;
 
@@ -33,6 +34,20 @@ public sealed class DesiredSchemaProviderTests : IDisposable
         var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
 
         await Should.ThrowAsync<FileNotFoundException>(() => sut.GetProject(cancellationToken: TestContext.Current.CancellationToken).AsTask());
+    }
+
+    [Fact]
+    public async Task GetProject_SyntaxError_NamesTheFile()
+    {
+        Write("good.sql", "CREATE SCHEMA app;");
+        Write("bad.sql", "CREATE TABLE app.users (");
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        var exception = await Should.ThrowAsync<DdlSyntaxException>(
+            () => sut.GetProject(null, TestContext.Current.CancellationToken).AsTask());
+
+        exception.SourceName.ShouldBe(Path.Combine(_root, "bad.sql"));
+        exception.Message.ShouldContain("bad.sql");
     }
 
     [Fact]

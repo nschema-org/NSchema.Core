@@ -132,6 +132,34 @@ public sealed class DdlWriterTests
             .ShouldContain("GRANT USAGE ON SCHEMA app TO app_role;");
 
     [Fact]
+    public void Write_WithoutSchemaDeclarations_EmitsOnlyMemberObjects()
+    {
+        var schema = new DatabaseSchema([new SchemaDefinition("app",
+            Tables: [new Table("t", Columns: [new Column("id", SqlType.Int)])])]);
+
+        var ddl = DdlWriter.Instance.Write(schema, declareSchemas: false);
+
+        ddl.ShouldNotContain("CREATE SCHEMA");
+        ddl.ShouldStartWith("CREATE TABLE app.t");
+    }
+
+    [Fact]
+    public void Write_WithoutSchemaDeclarations_RoundTripsThroughParse()
+    {
+        // The reader vivifies the schema from the objects' qualified names, so a declaration-free file
+        // reads back to the same members.
+        var schema = new DatabaseSchema([new SchemaDefinition("app",
+            Tables: [new Table("t", Columns: [new Column("id", SqlType.Int)])],
+            Views: [new View("active", "SELECT 1")])]);
+
+        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema, declareSchemas: false)).Schema;
+
+        var app = reparsed.Schemas.ShouldHaveSingleItem();
+        app.Tables.ShouldHaveSingleItem().Name.ShouldBe("t");
+        app.Views.ShouldHaveSingleItem().Name.ShouldBe("active");
+    }
+
+    [Fact]
     public void Write_Drops_AreEmitted()
     {
         var ddl = DdlWriter.Instance.Write(new DatabaseSchema(

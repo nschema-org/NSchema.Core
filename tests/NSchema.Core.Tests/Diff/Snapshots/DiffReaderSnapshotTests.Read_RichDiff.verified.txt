@@ -19,12 +19,12 @@
     {
       Kind: Add,
       Depth: 1,
-      Text: id bigint not null
+      Text: id bigint not null identity
     },
     {
       Kind: Add,
       Depth: 1,
-      Text: name varchar(255) not null
+      Text: name varchar(255) not null default 'anonymous'
     },
     {
       Text: 
