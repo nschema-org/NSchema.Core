@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
+## [4.3.1] - 2026-07-09
+
+### Fixed
+
+- The diff now shows an added or removed column's default expression and identity marker, so a column definition reads the same everywhere it appears.
+- DDL syntax errors now name the file the error was found in, alongside the existing line and column.
+- Import no longer repeats the `CREATE SCHEMA` statement in every object file; only the per-schema header declares the schema.
+- Import now writes the per-schema header to `<schema>/schema.sql` instead of `<schema>.sql`.
+
 ## [4.3.0] - 2026-07-09
 
 ### Added
