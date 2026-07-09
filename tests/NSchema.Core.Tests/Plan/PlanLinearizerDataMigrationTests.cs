@@ -105,7 +105,8 @@ public sealed class PlanLinearizerDataMigrationTests
         // Arrange — the migration's SQL prepares the data for the cast, so it must run first.
         var migration = Migration(DataMigrationTrigger.AlterColumnType, "total");
         var column = new ColumnDiff("total", ChangeKind.Modify,
-            Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int)) { Migration = migration };
+            Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int))
+        { Migration = migration };
 
         // Act
         var plan = LinearizeColumn(column);
@@ -125,7 +126,8 @@ public sealed class PlanLinearizerDataMigrationTests
         // Arrange — the migration de-duplicates the data the constraint depends on.
         var migration = Migration(DataMigrationTrigger.AddConstraint, "users_email_uq");
         var constraint = new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq",
-            new UniqueConstraint("users_email_uq", ["email"])) { Migration = migration };
+            new UniqueConstraint("users_email_uq", ["email"]))
+        { Migration = migration };
 
         // Act
         var plan = LinearizeTable(new TableDiff("app", "users", ChangeKind.Modify, UniqueConstraints: [constraint]));
@@ -166,7 +168,8 @@ public sealed class PlanLinearizerDataMigrationTests
             RunOutsideTransaction = true,
         };
         var constraint = new PrimaryKeyDiff(ChangeKind.Add, "users_pk",
-            new PrimaryKey("users_pk", ["id"])) { Migration = migration };
+            new PrimaryKey("users_pk", ["id"]))
+        { Migration = migration };
 
         // Act
         var plan = LinearizeTable(new TableDiff("app", "users", ChangeKind.Modify, PrimaryKey: [constraint]));
