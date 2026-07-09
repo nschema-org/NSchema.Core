@@ -21,10 +21,17 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
         progress.Report(OperationProgress.Detail($"Fetched {StatusHelpers.Describe(schema)} from the database."));
 
         var written = new List<string>();
-        foreach (var (path, partition) in schema.Schemas.SelectMany(s => ObjectPartitions(s, arguments.OutputDirectory)))
+        foreach (var definition in schema.Schemas)
         {
-            await WritePartition(path, partition, cancellationToken);
-            written.Add(path);
+            var headerPath = Path.Combine(arguments.OutputDirectory, definition.Name, "schema.sql");
+            await WritePartition(headerPath, new DatabaseSchema([definition with { Tables = [], Views = [], Routines = [] }]), declareSchemas: true, cancellationToken);
+            written.Add(headerPath);
+
+            foreach (var (path, partition) in ObjectPartitions(definition, arguments.OutputDirectory))
+            {
+                await WritePartition(path, partition, declareSchemas: false, cancellationToken);
+                written.Add(path);
+            }
         }
 
         // Extensions are database-global, not schema-scoped, so they go to a single top-level file rather than
@@ -32,7 +39,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
         if (schema.Extensions.Count > 0)
         {
             var path = Path.Combine(arguments.OutputDirectory, "extensions.sql");
-            await WritePartition(path, new DatabaseSchema(Extensions: schema.Extensions), cancellationToken);
+            await WritePartition(path, new DatabaseSchema(Extensions: schema.Extensions), declareSchemas: true, cancellationToken);
             written.Add(path);
         }
 
@@ -40,13 +47,9 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
     }
 
     // Each major object (table, view, routine) gets its own file, grouped by type under the schema's directory;
-    // the remaining schema-level objects (enums, sequences, grants, comment) share a per-schema "header" file
-    // alongside that directory.
+    // the remaining schema-level objects (enums, sequences, grants, comment) share a per-schema header file in that directory.
     private static IEnumerable<(string path, DatabaseSchema schema)> ObjectPartitions(SchemaDefinition s, string directory)
     {
-        var header = s with { Tables = [], Views = [], Routines = [] };
-        yield return (Path.Combine(directory, $"{s.Name}.sql"), new DatabaseSchema([header]));
-
         foreach (var table in s.Tables)
         {
             yield return (Path.Combine(directory, s.Name, "tables", $"{table.Name}.sql"),
@@ -65,7 +68,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
         }
     }
 
-    private async Task WritePartition(string path, DatabaseSchema incoming, CancellationToken cancellationToken)
+    private async Task WritePartition(string path, DatabaseSchema incoming, bool declareSchemas, CancellationToken cancellationToken)
     {
         var existing = await TryReadExisting(path, cancellationToken);
         var merged = existing is null ? incoming : Merge(existing, incoming);
@@ -76,7 +79,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
             Directory.CreateDirectory(directory);
         }
 
-        var ddl = DdlFormatter.Instance.Format(DdlWriter.Instance.Write(merged));
+        var ddl = DdlFormatter.Instance.Format(DdlWriter.Instance.Write(merged, declareSchemas));
         await File.WriteAllTextAsync(path, ddl, cancellationToken);
 
         // Surface whether each object was created fresh or merged into an existing file — import is additive, so
@@ -92,7 +95,14 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
         }
 
         var text = await File.ReadAllTextAsync(path, cancellationToken);
-        return DdlReader.Instance.Read(text).Schema;
+        try
+        {
+            return DdlReader.Instance.Read(text).Schema;
+        }
+        catch (DdlSyntaxException ex)
+        {
+            throw ex.WithSource(path);
+        }
     }
 
     private static DatabaseSchema Merge(DatabaseSchema existing, DatabaseSchema incoming)

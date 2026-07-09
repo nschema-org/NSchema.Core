@@ -76,6 +76,13 @@ internal sealed class DesiredSchemaProvider(IEnumerable<DdlSchemaSource> sources
     private static async Task<DdlDocument> ReadDocument(string path, CancellationToken cancellationToken)
     {
         var text = await File.ReadAllTextAsync(path, cancellationToken);
-        return DdlReader.Instance.Read(text);
+        try
+        {
+            return DdlReader.Instance.Read(text);
+        }
+        catch (DdlSyntaxException ex)
+        {
+            throw ex.WithSource(path);
+        }
     }
 }

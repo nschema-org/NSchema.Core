@@ -51,7 +51,7 @@ public sealed class ImportOperationTests : IDisposable
     }
 
     private string ObjectPath(string type, string name) => Path.Combine(_dir, "app", type, $"{name}.sql");
-    private string HeaderPath => Path.Combine(_dir, "app.sql");
+    private string HeaderPath => Path.Combine(_dir, "app", "schema.sql");
 
     // Combines every .sql file written under the output directory, as the desired-schema providers would.
     private async Task<DatabaseSchema> ReadAll()
@@ -215,6 +215,26 @@ public sealed class ImportOperationTests : IDisposable
 
         (await ReadSchema(Path.Combine(_dir, "app", "tables", "users.sql"))).Schemas.Single().Tables.Single().Name.ShouldBe("users");
         (await ReadSchema(Path.Combine(_dir, "audit", "tables", "logs.sql"))).Schemas.Single().Tables.Single().Name.ShouldBe("logs");
+    }
+
+    [Fact]
+    public async Task Execute_ObjectFilesCarryNoSchemaStatement()
+    {
+        // Only the header declares the schema; object files hold just their object, so the declaration
+        // doesn't repeat across every file.
+        Source(RichSchema());
+
+        await Execute(new ImportArguments { OutputDirectory = _dir });
+
+        foreach (var type in new[] { "tables", "views", "routines" })
+        {
+            foreach (var file in Directory.EnumerateFiles(Path.Combine(_dir, "app", type), "*.sql"))
+            {
+                var text = await File.ReadAllTextAsync(file, TestContext.Current.CancellationToken);
+                text.ShouldNotContain("CREATE SCHEMA", customMessage: file);
+            }
+        }
+        (await File.ReadAllTextAsync(HeaderPath, TestContext.Current.CancellationToken)).ShouldContain("CREATE SCHEMA app;");
     }
 
     // ── Additive re-import (merge) ───────────────────────────────────────────

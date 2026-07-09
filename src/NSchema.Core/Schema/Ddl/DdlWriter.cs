@@ -35,15 +35,18 @@ public sealed class DdlWriter
     /// Writes <paramref name="schema"/> as canonical NSchema DDL.
     /// </summary>
     /// <param name="schema">The schema to write.</param>
+    /// <param name="declareSchemas">Whether to emit a <c>CREATE SCHEMA</c> statement for each schema; pass <c>false</c> to write only the member objects (the reader vivifies the schema from their qualified names).</param>
     /// <returns>The canonical NSchema DDL for <paramref name="schema"/>.</returns>
-    public string Write(DatabaseSchema schema) => Write(new DdlDocument(schema, [], []));
+    public string Write(DatabaseSchema schema, bool declareSchemas = true) => Write(new DdlDocument(schema, [], []), declareSchemas);
 
     /// <summary>
     /// Writes a full <see cref="DdlDocument"/> as canonical NSchema DDL.
     /// </summary>
     /// <param name="document">The document to write.</param>
     /// <returns>The canonical NSchema DDL for <paramref name="document"/>.</returns>
-    public string Write(DdlDocument document)
+    public string Write(DdlDocument document) => Write(document, declareSchemas: true);
+
+    private static string Write(DdlDocument document, bool declareSchemas)
     {
         var sb = new StringBuilder();
         var first = true;
@@ -64,7 +67,7 @@ public sealed class DdlWriter
         foreach (var definition in document.Schema.Schemas)
         {
             Separate(sb, ref first);
-            WriteSchema(sb, definition);
+            WriteSchema(sb, definition, declareSchemas);
         }
 
         foreach (var dropped in document.Schema.DroppedSchemas)
@@ -189,65 +192,70 @@ public sealed class DdlWriter
         }
     }
 
-    private static void WriteSchema(StringBuilder sb, SchemaDefinition schema)
+    private static void WriteSchema(StringBuilder sb, SchemaDefinition schema, bool declare)
     {
-        WriteDocComment(sb, schema.Comment, indent: "");
-        sb.Append("CREATE ");
-        if (schema.IsPartial)
+        // With the declaration suppressed the first member opens the output, so it takes no leading separator.
+        var first = !declare;
+        if (declare)
         {
-            sb.Append("PARTIAL ");
-        }
-        sb.Append("SCHEMA ").Append(schema.Name);
-        if (schema.OldName is { } oldName)
-        {
-            sb.Append(" RENAMED FROM ").Append(oldName);
-        }
-        sb.AppendLine(";");
+            WriteDocComment(sb, schema.Comment, indent: "");
+            sb.Append("CREATE ");
+            if (schema.IsPartial)
+            {
+                sb.Append("PARTIAL ");
+            }
+            sb.Append("SCHEMA ").Append(schema.Name);
+            if (schema.OldName is { } oldName)
+            {
+                sb.Append(" RENAMED FROM ").Append(oldName);
+            }
+            sb.AppendLine(";");
 
-        foreach (var grant in schema.Grants)
-        {
-            sb.Append("GRANT USAGE ON SCHEMA ").Append(schema.Name).Append(" TO ").Append(grant.Role).AppendLine(";");
+            foreach (var grant in schema.Grants)
+            {
+                sb.Append("GRANT USAGE ON SCHEMA ").Append(schema.Name).Append(" TO ").Append(grant.Role).AppendLine(";");
+            }
         }
 
         foreach (var enumType in schema.Enums)
         {
-            sb.AppendLine();
+            Separate(sb, ref first);
             WriteEnum(sb, schema.Name, enumType);
         }
 
         foreach (var domain in schema.Domains)
         {
-            sb.AppendLine();
+            Separate(sb, ref first);
             WriteDomain(sb, schema.Name, domain);
         }
 
         foreach (var compositeType in schema.CompositeTypes)
         {
-            sb.AppendLine();
+            Separate(sb, ref first);
             WriteCompositeType(sb, schema.Name, compositeType);
         }
 
         foreach (var sequence in schema.Sequences)
         {
-            sb.AppendLine();
+            Separate(sb, ref first);
             WriteSequence(sb, schema.Name, sequence);
         }
 
         foreach (var routine in schema.Routines)
         {
-            sb.AppendLine();
+            Separate(sb, ref first);
             WriteRoutine(sb, schema.Name, routine);
         }
 
         foreach (var table in schema.Tables)
         {
-            sb.AppendLine();
+            Separate(sb, ref first);
             WriteTable(sb, schema.Name, table);
         }
 
         foreach (var view in schema.Views)
         {
-            sb.AppendLine();
+            Separate(sb, ref first);
             WriteView(sb, schema.Name, view);
         }
 

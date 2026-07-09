@@ -35,7 +35,7 @@ public sealed class DiffReaderSnapshotTests
             [
                 new ColumnDiff("id", ChangeKind.Add, new Column("id", SqlType.BigInt, IsIdentity: true,
                     IdentityOptions: new IdentityOptions(1, 1, 1)), null, null, null, null, null, null),
-                new ColumnDiff("name", ChangeKind.Add, new Column("name", SqlType.VarChar(255)), null, null, null, null, null, null),
+                new ColumnDiff("name", ChangeKind.Add, new Column("name", SqlType.VarChar(255), DefaultExpression: "'anonymous'"), null, null, null, null, null, null),
             ],
             Grants: [new GrantChange(ChangeKind.Add, "readers", TablePrivilege.Select)],
             Indexes: [new IndexDiff(ChangeKind.Add, "users_name_ix", new TableIndex("users_name_ix", ["name"], IsUnique: true), null)],
