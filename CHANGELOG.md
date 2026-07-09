@@ -218,6 +218,7 @@ First stable release. The public API is now covered by semantic versioning. Brea
 - Pre- and post-deployment script support via `IScriptProvider`, `AddScriptFromFile(...)`, and `AddScriptsFromEmbeddedResources(...)`.
 - SourceLink and symbol packages (`.snupkg`) published alongside the main package for source-level debugging.
 
+[4.3.0]: https://github.com/nschema-org/NSchema.Core/compare/v4.2.0...v4.3.0
 [4.2.0]: https://github.com/nschema-org/NSchema.Core/compare/v4.1.0...v4.2.0
 [4.1.0]: https://github.com/nschema-org/NSchema.Core/compare/v4.0.1...v4.1.0
 [4.0.1]: https://github.com/nschema-org/NSchema.Core/compare/v4.0.0...v4.0.1
