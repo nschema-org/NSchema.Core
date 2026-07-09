@@ -62,16 +62,31 @@ internal sealed partial class DdlParser
     }
 
     /// <summary>
-    /// Parses the three-segment migration target path (<c>schema.table.member</c>, where the member is a column
-    /// or constraint name depending on the trigger).
+    /// Parses the migration target path: <c>schema.table.member</c> at the top level (the member is a column or
+    /// constraint name depending on the trigger), or the unqualified <c>table.member</c> inside a template body,
+    /// where the schema binds to each schema the template is applied to.
     /// </summary>
     private (string Schema, string Table, string Member) ParseMemberPath()
     {
-        var schema = ExpectIdentifier("a schema name");
+        var first = ExpectIdentifier(_templateSchemaContext is null ? "a schema name" : "a table name");
         Expect(TokenKind.Dot, "'.' in the migration target path");
-        var table = ExpectIdentifier("a table name");
-        Expect(TokenKind.Dot, "'.' in the migration target path");
+        var second = ExpectIdentifier(_templateSchemaContext is null ? "a table name" : "a column or constraint name");
+
+        if (!Match(TokenKind.Dot))
+        {
+            if (_templateSchemaContext is { } templateSchema)
+            {
+                return (templateSchema, first, second);
+            }
+            throw Error("Expected '.' in the migration target path (schema.table.member).");
+        }
+
+        if (_templateSchemaContext is not null)
+        {
+            throw Error("A migration inside a template must use an unqualified 'table.member' path; " +
+                        "the schema binds to each schema the template is applied to.");
+        }
         var member = ExpectIdentifier("a column or constraint name");
-        return (schema, table, member);
+        return (first, second, member);
     }
 }

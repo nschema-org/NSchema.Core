@@ -234,6 +234,24 @@ public sealed class DdlFormatterTests
     }
 
     [Fact]
+    public void Format_MigrationInsideTemplate_IsIdempotent()
+    {
+        const string input =
+            """
+            template outbox begin
+            create table outbox_events(id int not null, trace_id text not null);
+             MIGRATION 'backfill' for add column outbox_events.trace_id as $$
+            UPDATE {schema}.outbox_events SET trace_id = '';
+              $$;
+            end;
+            """;
+
+        var once = Format(input);
+        Format(once).ShouldBe(once);
+        once.ShouldContain("MIGRATION 'backfill'");
+    }
+
+    [Fact]
     public void Format_Migration_IsIdempotent()
     {
         const string input =

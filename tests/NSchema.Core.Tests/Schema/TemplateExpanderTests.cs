@@ -11,7 +11,7 @@ public sealed class TemplateExpanderTests
     private static DatabaseSchema Expand(string source)
     {
         var document = DdlReader.Instance.Read(source);
-        return TemplateExpander.Expand(document.Schema, document.Templates);
+        return TemplateExpander.Expand(document.Schema, document.Templates).Schema;
     }
 
     private static SchemaDefinition Schema(DatabaseSchema schema, string name)
@@ -406,4 +406,76 @@ public sealed class TemplateExpanderTests
                 {AuditColumns}
                 """))
             .Message.ShouldContain("is a table template");
+
+    [Fact]
+    public void Expand_InstantiatesTemplateMigrationsPerAppliedSchema()
+    {
+        // Arrange
+        var document = DdlReader.Instance.Read(
+            """
+            CREATE SCHEMA sales;
+            CREATE SCHEMA billing;
+            TEMPLATE outbox
+            BEGIN
+              CREATE TABLE outbox_events ( id int NOT NULL, trace_id text NOT NULL );
+              MIGRATION 'backfill trace' FOR ADD COLUMN outbox_events.trace_id AS $$ UPDATE {schema}.outbox_events SET trace_id = ''; $$;
+            END;
+            APPLY TEMPLATE outbox IN SCHEMA sales, billing;
+            """);
+
+        // Act
+        var (_, migrations) = TemplateExpander.Expand(document.Schema, document.Templates);
+
+        // Assert — one instance per applied schema, with the schema bound and the {schema} token substituted.
+        migrations.Count.ShouldBe(2);
+        migrations[0].Path.ShouldBe("sales.outbox_events.trace_id");
+        migrations[0].Sql.ShouldBe("UPDATE sales.outbox_events SET trace_id = '';");
+        migrations[0].Name.ShouldBe("backfill trace");
+        migrations[1].Path.ShouldBe("billing.outbox_events.trace_id");
+        migrations[1].Sql.ShouldBe("UPDATE billing.outbox_events SET trace_id = '';");
+    }
+
+    [Fact]
+    public void Expand_UnappliedTemplate_InstantiatesNoMigrations()
+    {
+        // Arrange — a declared-but-never-applied template contributes nothing.
+        var document = DdlReader.Instance.Read(
+            """
+            CREATE SCHEMA sales;
+            TEMPLATE outbox
+            BEGIN
+              CREATE TABLE outbox_events ( id int NOT NULL );
+              MIGRATION FOR ADD COLUMN outbox_events.trace_id AS $$ SELECT 1; $$;
+            END;
+            """);
+
+        // Act
+        var (_, migrations) = TemplateExpander.Expand(document.Schema, document.Templates);
+
+        // Assert
+        migrations.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Expand_MigrationWithoutToken_KeepsSqlVerbatim()
+    {
+        // Arrange
+        var document = DdlReader.Instance.Read(
+            """
+            CREATE SCHEMA sales;
+            TEMPLATE outbox
+            BEGIN
+              CREATE TABLE outbox_events ( id int NOT NULL );
+              MIGRATION FOR ADD COLUMN outbox_events.trace_id (run_outside_transaction = true) AS $$ SELECT version(); $$;
+            END;
+            APPLY TEMPLATE outbox IN SCHEMA sales;
+            """);
+
+        // Act
+        var migration = TemplateExpander.Expand(document.Schema, document.Templates).Migrations.ShouldHaveSingleItem();
+
+        // Assert — no token, no rewriting; the option carries onto the instance.
+        migration.Sql.ShouldBe("SELECT version();");
+        migration.RunOutsideTransaction.ShouldBeTrue();
+    }
 }

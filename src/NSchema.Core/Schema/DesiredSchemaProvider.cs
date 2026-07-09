@@ -45,7 +45,9 @@ internal sealed class DesiredSchemaProvider(IEnumerable<DdlSchemaSource> sources
         }
 
         // Expand all templates.
-        schema = TemplateExpander.Expand(schema, templates);
+        var (expanded, templateMigrations) = TemplateExpander.Expand(schema, templates);
+        schema = expanded;
+        AddMigrations(migrations, templateMigrations);
 
         // Filter by schema.
         schema = schema.Filter(schemaNames);

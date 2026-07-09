@@ -233,4 +233,79 @@ public sealed class DesiredSchemaProviderTests : IDisposable
 
         project.Schema.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Name.ShouldBe("outbox");
     }
+
+    [Fact]
+    public async Task GetProject_TemplateMigrations_InstantiatePerAppliedSchema()
+    {
+        // Arrange
+        Write("schema.sql", "CREATE SCHEMA sales; CREATE SCHEMA billing;");
+        Write("outbox.sql",
+            """
+            TEMPLATE outbox
+            BEGIN
+              CREATE TABLE outbox_events ( id int NOT NULL, trace_id text NOT NULL );
+              MIGRATION 'backfill trace' FOR ADD COLUMN outbox_events.trace_id AS $$ UPDATE {schema}.outbox_events SET trace_id = ''; $$;
+            END;
+            APPLY TEMPLATE outbox IN SCHEMA sales, billing;
+            """);
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        // Act
+        var project = await sut.GetProject(null, TestContext.Current.CancellationToken);
+
+        // Assert
+        project.Migrations.Count.ShouldBe(2);
+        project.Migrations.Select(m => m.Path).ShouldBe(["sales.outbox_events.trace_id", "billing.outbox_events.trace_id"]);
+        project.Migrations[1].Sql.ShouldBe("UPDATE billing.outbox_events SET trace_id = '';");
+    }
+
+    [Fact]
+    public async Task GetProject_TemplateMigrationCollidingWithHandWrittenBlock_Throws()
+    {
+        // Arrange — an instantiated block lands in the same pool as hand-written ones, so a collision is the
+        // ordinary duplicate error.
+        Write("schema.sql",
+            """
+            CREATE SCHEMA sales;
+            MIGRATION FOR ADD COLUMN sales.outbox_events.trace_id AS $$ SELECT 1; $$;
+            """);
+        Write("outbox.sql",
+            """
+            TEMPLATE outbox
+            BEGIN
+              CREATE TABLE outbox_events ( id int NOT NULL, trace_id text NOT NULL );
+              MIGRATION FOR ADD COLUMN outbox_events.trace_id AS $$ SELECT 2; $$;
+            END;
+            APPLY TEMPLATE outbox IN SCHEMA sales;
+            """);
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        // Act / Assert
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            () => sut.GetProject(null, TestContext.Current.CancellationToken).AsTask());
+        exception.Message.ShouldContain("Duplicate migration");
+    }
+
+    [Fact]
+    public async Task GetProject_TemplateMigrations_RespectTheSchemaScopeFilter()
+    {
+        // Arrange
+        Write("schema.sql", "CREATE SCHEMA sales; CREATE SCHEMA billing;");
+        Write("outbox.sql",
+            """
+            TEMPLATE outbox
+            BEGIN
+              CREATE TABLE outbox_events ( id int NOT NULL, trace_id text NOT NULL );
+              MIGRATION FOR ADD COLUMN outbox_events.trace_id AS $$ SELECT 1; $$;
+            END;
+            APPLY TEMPLATE outbox IN SCHEMA sales, billing;
+            """);
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        // Act
+        var project = await sut.GetProject(["billing"], TestContext.Current.CancellationToken);
+
+        // Assert — only the in-scope instance survives.
+        project.Migrations.ShouldHaveSingleItem().Path.ShouldBe("billing.outbox_events.trace_id");
+    }
 }

@@ -1,5 +1,6 @@
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Tables;
 using NSchema.Schema.Model.Templates;
@@ -13,9 +14,10 @@ namespace NSchema.Schema;
 internal static class TemplateExpander
 {
     /// <summary>
-    /// Expands templates into a given schema.
+    /// Expands templates into a given schema, returning the expanded schema alongside the data migrations the
+    /// applications instantiated (one per template migration per applied schema).
     /// </summary>
-    public static DatabaseSchema Expand(DatabaseSchema schema, TemplateSet templates)
+    public static (DatabaseSchema Schema, IReadOnlyList<DataMigration> Migrations) Expand(DatabaseSchema schema, TemplateSet templates)
     {
         var byName = new Dictionary<string, TemplateDefinition>(StringComparer.OrdinalIgnoreCase);
         foreach (var template in templates.Definitions)
@@ -27,6 +29,7 @@ internal static class TemplateExpander
         }
 
         var pendingIncludes = templates.Includes.ToList();
+        var migrations = new List<DataMigration>();
         foreach (var application in templates.Applications)
         {
             if (!byName.TryGetValue(application.TemplateName, out var template))
@@ -54,11 +57,23 @@ internal static class TemplateExpander
                 // The template's own includes re-target from the placeholder to this instance's schema and
                 // resolve with everything else below, so an instantiated table can itself include a template.
                 pendingIncludes.AddRange(template.Includes.Select(i => i with { SchemaName = schemaName }));
+
+                migrations.AddRange(template.Migrations.Select(m => Instantiate(m, schemaName)));
             }
         }
 
-        return ResolveIncludes(schema, byName, pendingIncludes);
+        return (ResolveIncludes(schema, byName, pendingIncludes), migrations);
     }
+
+    /// <summary>
+    /// Re-homes a template migration into <paramref name="schemaName"/>. The raw SQL body cannot be re-bound the
+    /// way parsed statements are, so the <c>{schema}</c> token is its stand-in for the target schema.
+    /// </summary>
+    private static DataMigration Instantiate(DataMigration migration, string schemaName) => migration with
+    {
+        SchemaName = schemaName,
+        Sql = migration.Sql.Replace("{schema}", schemaName, StringComparison.Ordinal),
+    };
 
     private static DatabaseSchema ResolveIncludes(
         DatabaseSchema schema,
