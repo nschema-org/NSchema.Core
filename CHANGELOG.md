@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
+## [4.3.0] - 2026-07-09
+
+### Added
+
+- **Data migrations.** A `MIGRATION ['name'] FOR <trigger> <schema>.<table>.<member> AS $$…$$;` block attaches raw SQL to a structural change (`ADD COLUMN`, `ALTER COLUMN TYPE`, or `ADD CONSTRAINT`) and is spliced into the plan only when the matching change is planned. A block matching nothing is reported as an informational diagnostic and is safe to delete.
+- **Decomposed NOT NULL adds.** A required column add with no default and a matching `FOR ADD COLUMN` migration is planned as add-nullable → run the migration SQL → `SET NOT NULL`, so the add succeeds against a populated table.
+- **Hazard suppression.** A matching migration block silences the corresponding data-hazard diagnostic (per trigger; unique-index hazards have no trigger and are never suppressed).
+- **`ExecuteDataMigration`** plan action carrying the spliced SQL. Executing a plan containing one requires a provider that recognizes it (4.3+); plans with no matched blocks are unaffected.
+
 ## [4.2.0] - 2026-07-09
 
 ### Added
@@ -209,7 +218,12 @@ First stable release. The public API is now covered by semantic versioning. Brea
 - Pre- and post-deployment script support via `IScriptProvider`, `AddScriptFromFile(...)`, and `AddScriptsFromEmbeddedResources(...)`.
 - SourceLink and symbol packages (`.snupkg`) published alongside the main package for source-level debugging.
 
-[4.0.0-beta.2]: https://github.com/nschema-org/NSchema.Core/compare/v3.1.0...v4.0.0-beta.2
+[Unreleased]: https://github.com/nschema-org/NSchema.Core/compare/v4.3.0...HEAD
+[4.3.0]: https://github.com/nschema-org/NSchema.Core/compare/v4.2.0...v4.3.0
+[4.2.0]: https://github.com/nschema-org/NSchema.Core/compare/v4.1.0...v4.2.0
+[4.1.0]: https://github.com/nschema-org/NSchema.Core/compare/v4.0.1...v4.1.0
+[4.0.1]: https://github.com/nschema-org/NSchema.Core/compare/v4.0.0...v4.0.1
+[4.0.0]: https://github.com/nschema-org/NSchema.Core/compare/v3.1.0...v4.0.0
 [3.1.0]: https://github.com/nschema-org/NSchema.Core/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/nschema-org/NSchema.Core/compare/v2.1.0...v3.0.0
 [2.1.0]: https://github.com/nschema-org/NSchema.Core/compare/v2.0.1...v2.1.0

@@ -1,5 +1,6 @@
 using NSchema.Configuration;
 using NSchema.Schema.Ddl.Model;
+using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Scripts;
 using NSchema.Schema.Model.Templates;
 
@@ -82,6 +83,10 @@ internal sealed partial class DdlParser
         {
             document.Applications.Add(ParseApplyTemplate());
         }
+        else if (_current.IsKeyword("MIGRATION"))
+        {
+            document.Migrations.Add(ParseDataMigration());
+        }
         else if (_current.Kind == TokenKind.Identifier)
         {
             // Any other top-level keyword introduces a configuration block (NSCHEMA / BACKEND / PROVIDER …).
@@ -108,10 +113,12 @@ internal sealed partial class DdlParser
         public List<Script> Scripts { get; } = [];
         public List<TemplateDefinition> Templates { get; } = [];
         public List<TemplateApplication> Applications { get; } = [];
+        public List<DataMigration> Migrations { get; } = [];
 
         public DdlDocument Build() => new(Schemas.Build(), Config, Scripts)
         {
             Templates = new TemplateSet(Templates, Applications, Schemas.Includes),
+            Migrations = Migrations,
         };
     }
 

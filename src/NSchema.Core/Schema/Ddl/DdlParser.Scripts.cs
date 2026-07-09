@@ -15,7 +15,7 @@ internal sealed partial class DdlParser
         Advance(); // PRE | POST
         ExpectKeyword("DEPLOYMENT");
         var name = Expect(TokenKind.String, "a quoted script name").Text;
-        var runOutsideTransaction = ParseDeploymentScriptOptions();
+        var runOutsideTransaction = ParseRunOutsideTransactionOptions("deployment script");
 
         // The body is opaque (dollar-quoted) SQL lexed as a single DollarString token (so its own ';' is not a
         // terminator). The 'AS' keyword is the anchor; the body's delimiters are then stripped.
@@ -42,9 +42,10 @@ internal sealed partial class DdlParser
     }
 
     /// <summary>
-    /// Parses the optional <c>( run_outside_transaction = true )</c> clause, returning the flag (default false).
+    /// Parses the optional <c>( run_outside_transaction = true )</c> clause shared by deployment scripts and
+    /// migrations, returning the flag (default false). <paramref name="what"/> names the statement in errors.
     /// </summary>
-    private bool ParseDeploymentScriptOptions()
+    private bool ParseRunOutsideTransactionOptions(string what)
     {
         if (_current.Kind != TokenKind.LeftParen)
         {
@@ -58,7 +59,7 @@ internal sealed partial class DdlParser
             do
             {
                 var keyPosition = _current.Position;
-                var key = ExpectIdentifier("a deployment script option name");
+                var key = ExpectIdentifier($"a {what} option name");
                 Expect(TokenKind.Equals, "'=' after an option name");
                 var value = ParseConfigValue();
                 switch (key.ToLowerInvariant())
@@ -67,12 +68,12 @@ internal sealed partial class DdlParser
                         runOutsideTransaction = value.AsBoolean();
                         break;
                     default:
-                        throw new DdlSyntaxException($"Unknown deployment script option '{key}'. Expected 'run_outside_transaction'.", keyPosition);
+                        throw new DdlSyntaxException($"Unknown {what} option '{key}'. Expected 'run_outside_transaction'.", keyPosition);
                 }
             }
             while (Match(TokenKind.Comma));
         }
-        Expect(TokenKind.RightParen, "')' or ',' after a deployment script option");
+        Expect(TokenKind.RightParen, $"')' or ',' after a {what} option");
         return runOutsideTransaction;
     }
 }

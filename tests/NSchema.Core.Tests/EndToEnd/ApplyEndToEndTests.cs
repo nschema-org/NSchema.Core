@@ -75,6 +75,41 @@ public sealed class ApplyEndToEndTests : IDisposable
     }
 
     [Fact]
+    public async Task Apply_RequiredColumnAddWithMatchedMigration_ExecutesNullableAddBackfillThenTighten()
+    {
+        // Current live DB: a populated-shaped app.users(id). Desired: the same table gaining a NOT NULL,
+        // defaultless email column, with a MIGRATION block declaring the backfill.
+        var current = new DatabaseSchema([new SchemaDefinition("app", Tables:
+            [new Table("users", Columns: [new Column("id", SqlType.Int)])])]);
+        var desired = WriteDdl("schema.sql",
+            """
+            CREATE SCHEMA app;
+            CREATE TABLE app.users
+            (
+                id int NOT NULL,
+                email text NOT NULL
+            );
+            MIGRATION 'backfill emails' FOR ADD COLUMN app.users.email AS $$
+            UPDATE app.users SET email = 'unknown@example.com';
+            $$;
+            """);
+
+        using var app = BuildApp(current, desired);
+
+        (await app.Locks.Acquire("apply", cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        var plan = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
+        await app.Operations.Apply(new ApplyArguments { Sql = plan.Sql! }, TestContext.Current.CancellationToken);
+
+        // The add was decomposed around the backfill: nullable add, the block's SQL, then the tighten — in order.
+        var statements = _executor.Executed.ShouldNotBeNull().Statements.Select(s => s.Sql).ToList();
+        statements.ShouldBe([
+            "-- AddColumn",
+            "UPDATE app.users SET email = 'unknown@example.com';",
+            "-- AlterColumnNullability",
+        ]);
+    }
+
+    [Fact]
     public async Task Apply_WithNoChanges_ShortCircuitsWithoutExecutingButStillCapturesState()
     {
         var schema = new DatabaseSchema([new SchemaDefinition("app", Tables:

@@ -1,3 +1,4 @@
+using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Tables;
 
 namespace NSchema.Diff.Model;
@@ -9,4 +10,10 @@ namespace NSchema.Diff.Model;
 /// <param name="Name">The primary key constraint name.</param>
 /// <param name="Definition">The primary key definition for an added primary key; otherwise <see langword="null"/>.</param>
 /// <param name="Comment">The change to the constraint's comment, if any (carried on a comment-only <see cref="ChangeKind.Modify"/>).</param>
-public sealed record PrimaryKeyDiff(ChangeKind Kind, string Name, PrimaryKey? Definition = null, ValueChange<string>? Comment = null) : INamedObjectDiff;
+public sealed record PrimaryKeyDiff(ChangeKind Kind, string Name, PrimaryKey? Definition = null, ValueChange<string>? Comment = null) : INamedObjectDiff
+{
+    /// <summary>
+    /// The data migration matched to this change, when one is declared; otherwise <see langword="null"/>.
+    /// </summary>
+    public DataMigration? Migration { get; init; }
+}

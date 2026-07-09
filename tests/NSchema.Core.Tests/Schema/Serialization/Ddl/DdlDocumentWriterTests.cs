@@ -35,6 +35,7 @@ public sealed class DdlDocumentWriterTests
         }
 
         actual.Scripts.ShouldBe(expected.Scripts);
+        actual.Migrations.ShouldBe(expected.Migrations);
     }
 
     // Round-trip a source through Read -> Write -> Read, asserting the document survives and that a second
@@ -115,6 +116,44 @@ public sealed class DdlDocumentWriterTests
     public void Write_ScriptBodyContainingDoubleDollar_PicksASafeTag()
     {
         var formatted = AssertRoundTrips("PRE DEPLOYMENT 'x' AS $outer$ SELECT '$$' AS v $outer$;");
+
+        // The default $$ delimiter would collide with the body, so the writer must choose a tagged delimiter.
+        formatted.ShouldNotContain("AS $$");
+        formatted.ShouldContain("$body1$");
+    }
+
+    // -------------------------------------------------------------------------
+    // Data migrations
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Write_NamedMigration_RoundTrips()
+        => AssertRoundTrips(
+            """
+            MIGRATION 'backfill_emails' FOR ADD COLUMN app.users.email AS $$
+                UPDATE app.users SET email = '';
+            $$;
+            """).ShouldContain("MIGRATION 'backfill_emails' FOR ADD COLUMN app.users.email AS $$");
+
+    [Fact]
+    public void Write_AnonymousMigration_RoundTrips()
+        => AssertRoundTrips(
+            """
+            MIGRATION FOR ADD CONSTRAINT app.orders.total_positive AS $$
+                DELETE FROM app.orders WHERE total <= 0;
+            $$;
+            """).ShouldContain("MIGRATION FOR ADD CONSTRAINT app.orders.total_positive AS $$");
+
+    [Fact]
+    public void Write_MigrationWithRunOutsideTransaction_RoundTrips()
+        => AssertRoundTrips(
+            "MIGRATION FOR ALTER COLUMN TYPE app.orders.total (run_outside_transaction = true) AS $$ SELECT 1; $$;")
+            .ShouldContain("MIGRATION FOR ALTER COLUMN TYPE app.orders.total (run_outside_transaction = true) AS $$");
+
+    [Fact]
+    public void Write_MigrationBodyContainingDoubleDollar_PicksASafeTag()
+    {
+        var formatted = AssertRoundTrips("MIGRATION FOR ADD COLUMN app.t.c AS $outer$ SELECT '$$' AS v $outer$;");
 
         // The default $$ delimiter would collide with the body, so the writer must choose a tagged delimiter.
         formatted.ShouldNotContain("AS $$");

@@ -1,5 +1,6 @@
 using NSchema.Diff.Model;
 using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Sequences;
 using NSchema.Schema.Model.Tables;
@@ -115,27 +116,27 @@ public sealed class DiffReader
 
         foreach (var pk in table.PrimaryKey)
         {
-            AppendDetail(lines, pk.Kind, ConstraintText("primary key", pk.Name, pk.Kind, pk.Comment));
+            AppendDetail(lines, pk.Kind, ConstraintText("primary key", pk.Name, pk.Kind, pk.Comment) + MigrationSuffix(pk.Migration));
         }
 
         foreach (var fk in table.ForeignKeys)
         {
-            AppendDetail(lines, fk.Kind, ConstraintText("foreign key", fk.Name, fk.Kind, fk.Comment));
+            AppendDetail(lines, fk.Kind, ConstraintText("foreign key", fk.Name, fk.Kind, fk.Comment) + MigrationSuffix(fk.Migration));
         }
 
         foreach (var unique in table.UniqueConstraints)
         {
-            AppendDetail(lines, unique.Kind, ConstraintText("unique constraint", unique.Name, unique.Kind, unique.Comment));
+            AppendDetail(lines, unique.Kind, ConstraintText("unique constraint", unique.Name, unique.Kind, unique.Comment) + MigrationSuffix(unique.Migration));
         }
 
         foreach (var check in table.Checks)
         {
-            AppendDetail(lines, check.Kind, ConstraintText("check constraint", check.Name, check.Kind, check.Comment));
+            AppendDetail(lines, check.Kind, ConstraintText("check constraint", check.Name, check.Kind, check.Comment) + MigrationSuffix(check.Migration));
         }
 
         foreach (var exclusion in table.ExclusionConstraints)
         {
-            AppendDetail(lines, exclusion.Kind, ConstraintText("exclusion constraint", exclusion.Name, exclusion.Kind, exclusion.Comment));
+            AppendDetail(lines, exclusion.Kind, ConstraintText("exclusion constraint", exclusion.Name, exclusion.Kind, exclusion.Comment) + MigrationSuffix(exclusion.Migration));
         }
 
         foreach (var index in table.Indexes)
@@ -366,7 +367,7 @@ public sealed class DiffReader
     {
         if (column is { Kind: ChangeKind.Add, Definition: { } added })
         {
-            AppendDetail(lines, ChangeKind.Add, FormatColumn(added) + CommentSuffix(column.Comment));
+            AppendDetail(lines, ChangeKind.Add, FormatColumn(added) + CommentSuffix(column.Comment) + MigrationSuffix(column.Migration));
             return;
         }
 
@@ -383,7 +384,7 @@ public sealed class DiffReader
 
         if (column.Type is { } type)
         {
-            AppendDetail(lines, ChangeKind.Modify, $"{column.Name} type: {type.Old} → {type.New}");
+            AppendDetail(lines, ChangeKind.Modify, $"{column.Name} type: {type.Old} → {type.New}{MigrationSuffix(column.Migration)}");
         }
 
         if (column.Nullability is { } nullable)
@@ -441,6 +442,9 @@ public sealed class DiffReader
         : comment.Old is null
             ? $" ({FormatComment(comment.New)})"
             : $" ({FormatComment(comment.Old)} → {FormatComment(comment.New)})";
+
+    private static string MigrationSuffix(DataMigration? migration) =>
+        migration is null ? string.Empty : $" (with migration '{migration.Description}')";
 
     // Decompose the privilege flags into the underlying SQL privileges rather than rendering the enum name,
     // which would surface aliases (e.g. ReadOnly for Select) and composites (All) instead of the real grants.
