@@ -87,6 +87,78 @@ public sealed class DesiredSchemaProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task GetProject_AggregatesMigrationsAcrossFiles()
+    {
+        // Two files, and a same-path pair distinguished only by trigger — all three aggregate (no false duplicate).
+        Write("a.sql",
+            """
+            CREATE SCHEMA app;
+            MIGRATION FOR ADD COLUMN app.users.email AS $$ SELECT 1; $$;
+            MIGRATION FOR ALTER COLUMN TYPE app.users.email AS $$ SELECT 2; $$;
+            """);
+        Write("b.sql", "MIGRATION 'guard' FOR ADD CONSTRAINT app.orders.total_positive AS $$ SELECT 3; $$;");
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        var project = await sut.GetProject(null, TestContext.Current.CancellationToken);
+
+        project.Migrations.Select(m => m.Description).ShouldBe(
+            ["ADD COLUMN app.users.email", "ALTER COLUMN TYPE app.users.email", "guard"]);
+    }
+
+    [Fact]
+    public async Task GetProject_DuplicateMigrationAcrossFiles_Throws()
+    {
+        Write("a.sql",
+            """
+            CREATE SCHEMA app;
+            MIGRATION FOR ADD COLUMN app.users.email AS $$ SELECT 1; $$;
+            """);
+        Write("b.sql", "MIGRATION 'other' FOR ADD COLUMN app.users.email AS $$ SELECT 2; $$;");
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            () => sut.GetProject(null, TestContext.Current.CancellationToken).AsTask());
+
+        exception.Message.ShouldContain("Duplicate migration");
+    }
+
+    [Fact]
+    public async Task GetProject_DuplicateMigrationDetection_IsCaseInsensitive()
+    {
+        Write("a.sql",
+            """
+            CREATE SCHEMA app;
+            MIGRATION FOR ADD COLUMN app.users.email AS $$ SELECT 1; $$;
+            """);
+        Write("b.sql", "MIGRATION FOR ADD COLUMN APP.Users.EMAIL AS $$ SELECT 2; $$;");
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            () => sut.GetProject(null, TestContext.Current.CancellationToken).AsTask());
+
+        exception.Message.ShouldContain("Duplicate migration");
+    }
+
+    [Fact]
+    public async Task GetProject_ScopeFilter_DropsOutOfScopeMigrations()
+    {
+        // A scoped run can never match a migration targeting an unplanned schema, so it is dropped;
+        // in-scope migrations survive.
+        Write("schema.sql",
+            """
+            CREATE SCHEMA app;
+            CREATE SCHEMA audit;
+            MIGRATION FOR ADD COLUMN app.users.email AS $$ SELECT 1; $$;
+            MIGRATION FOR ADD COLUMN audit.log.detail AS $$ SELECT 2; $$;
+            """);
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        var project = await sut.GetProject(["app"], TestContext.Current.CancellationToken);
+
+        project.Migrations.ShouldHaveSingleItem().SchemaName.ShouldBe("app");
+    }
+
+    [Fact]
     public async Task GetProject_ExpandsTemplatesAcrossFiles()
     {
         // Templates are location-agnostic: the definition, its application, and the target schemas may each live

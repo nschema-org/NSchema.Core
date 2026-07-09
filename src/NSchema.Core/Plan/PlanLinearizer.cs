@@ -8,12 +8,14 @@ using NSchema.Plan.Model.Domains;
 using NSchema.Plan.Model.Enums;
 using NSchema.Plan.Model.Extensions;
 using NSchema.Plan.Model.Indexes;
+using NSchema.Plan.Model.Migrations;
 using NSchema.Plan.Model.Routines;
 using NSchema.Plan.Model.Schemas;
 using NSchema.Plan.Model.Sequence;
 using NSchema.Plan.Model.Tables;
 using NSchema.Plan.Model.Triggers;
 using NSchema.Plan.Model.Views;
+using NSchema.Schema.Model.Migrations;
 
 namespace NSchema.Plan;
 
@@ -81,6 +83,9 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(DropColumn),
         typeof(RenameColumn),
         typeof(AddColumn),
+        // Data migrations run after column adds (a backfill needs its column) and before type alters,
+        // nullability alters, and constraint adds (their SQL prepares the data those changes depend on).
+        typeof(ExecuteDataMigration),
         typeof(AlterColumnType),
         typeof(AlterColumnNullability),
         typeof(AlterIdentitySequence),
@@ -583,7 +588,23 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         switch (column.Kind)
         {
             case ChangeKind.Add:
-                actions.Add(new AddColumn(table.Schema, table.Name, column.Definition!));
+                // A required column with a matched backfill migration is decomposed: added nullable, backfilled
+                // by the migration SQL, then tightened to NOT NULL. Identity and generated columns fill
+                // themselves and a default covers existing rows, so those adds keep their declared shape.
+                if (column is { Migration: { } backfill, Definition: { IsNullable: false, DefaultExpression: null, IsIdentity: false, GeneratedExpression: null } })
+                {
+                    actions.Add(new AddColumn(table.Schema, table.Name, column.Definition with { IsNullable = true }));
+                    actions.Add(ToAction(backfill));
+                    actions.Add(new AlterColumnNullability(table.Schema, table.Name, column.Name, OldNullable: true, NewNullable: false, column.Definition.Type));
+                }
+                else
+                {
+                    actions.Add(new AddColumn(table.Schema, table.Name, column.Definition!));
+                    if (column.Migration is { } migration)
+                    {
+                        actions.Add(ToAction(migration));
+                    }
+                }
                 if (column.Comment is not null)
                 {
                     actions.Add(new SetColumnComment(table.Schema, table.Name, column.Name, column.Comment.Old, column.Comment.New));
@@ -601,6 +622,11 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 }
                 if (column.Type is not null)
                 {
+                    // A matched migration prepares the data for the cast; the priority table runs it first.
+                    if (column.Migration is { } prep)
+                    {
+                        actions.Add(ToAction(prep));
+                    }
                     actions.Add(new AlterColumnType(table.Schema, table.Name, column.Name, column.Type.Old!, column.Type.New!, column.Definition?.IsNullable));
                 }
                 if (column.Nullability is not null)
@@ -634,8 +660,11 @@ internal sealed class PlanLinearizer : IPlanLinearizer
     {
         var preRenameName = table.RenamedFrom ?? table.Name;
 
+        // A constraint add's matched migration prepares the data the constraint depends on (de-duplication,
+        // backfill); the priority table runs every data migration before the constraint adds.
         foreach (var pk in table.PrimaryKey)
         {
+            EmitConstraintMigration(pk.Kind, pk.Migration, actions);
             actions.Add(pk.Kind switch
             {
                 ChangeKind.Add => new AddPrimaryKey(table.Schema, table.Name, pk.Definition!),
@@ -646,6 +675,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
         foreach (var fk in table.ForeignKeys)
         {
+            EmitConstraintMigration(fk.Kind, fk.Migration, actions);
             actions.Add(fk.Kind switch
             {
                 ChangeKind.Add => new AddForeignKey(table.Schema, table.Name, fk.Definition!),
@@ -656,6 +686,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
         foreach (var uq in table.UniqueConstraints)
         {
+            EmitConstraintMigration(uq.Kind, uq.Migration, actions);
             actions.Add(uq.Kind switch
             {
                 ChangeKind.Add => new AddUniqueConstraint(table.Schema, table.Name, uq.Definition!),
@@ -666,6 +697,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
         foreach (var ck in table.Checks)
         {
+            EmitConstraintMigration(ck.Kind, ck.Migration, actions);
             actions.Add(ck.Kind switch
             {
                 ChangeKind.Add => new AddCheckConstraint(table.Schema, table.Name, ck.Definition!),
@@ -676,6 +708,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
         foreach (var ex in table.ExclusionConstraints)
         {
+            EmitConstraintMigration(ex.Kind, ex.Migration, actions);
             actions.Add(ex.Kind switch
             {
                 ChangeKind.Add => new AddExclusionConstraint(table.Schema, table.Name, ex.Definition!),
@@ -684,6 +717,20 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             });
         }
     }
+
+    private static void EmitConstraintMigration(ChangeKind kind, DataMigration? migration, List<MigrationAction> actions)
+    {
+        if (kind == ChangeKind.Add && migration is not null)
+        {
+            actions.Add(ToAction(migration));
+        }
+    }
+
+    private static ExecuteDataMigration ToAction(DataMigration migration) =>
+        new(migration.Name, migration.Trigger, migration.SchemaName, migration.ObjectName, migration.MemberName, migration.Sql)
+        {
+            RunOutsideTransaction = migration.RunOutsideTransaction,
+        };
 
     private static void EmitIndexes(TableDiff table, List<MigrationAction> actions)
     {

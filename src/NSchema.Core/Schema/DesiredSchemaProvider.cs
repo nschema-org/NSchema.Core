@@ -2,6 +2,7 @@ using Microsoft.Extensions.FileSystemGlobbing;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Scripts;
 using NSchema.Schema.Model.Templates;
 
@@ -34,17 +35,38 @@ internal sealed class DesiredSchemaProvider(IEnumerable<DdlSchemaSource> sources
         var schema = new DatabaseSchema();
         var scripts = new List<Script>();
         var templates = new TemplateSet();
+        var migrations = new List<DataMigration>();
         foreach (var document in documents)
         {
             schema = schema.Combine(document.Schema);
             scripts.AddRange(document.Scripts);
             templates = templates.Combine(document.Templates);
+            AddMigrations(migrations, document.Migrations);
         }
 
+        // Expand all templates.
         schema = TemplateExpander.Expand(schema, templates);
-        schema = schema.Filter(schemaNames);
 
-        return new DesiredProject(schema, scripts, files);
+        // Filter by schema.
+        schema = schema.Filter(schemaNames);
+        if (schemaNames is not null)
+        {
+            migrations.RemoveAll(m => !schemaNames.Contains(m.SchemaName, StringComparer.OrdinalIgnoreCase));
+        }
+
+        return new DesiredProject(schema, scripts, migrations, files);
+    }
+
+    private static void AddMigrations(List<DataMigration> migrations, IReadOnlyList<DataMigration> incoming)
+    {
+        foreach (var migration in incoming)
+        {
+            if (migrations.Any(m => m.Trigger == migration.Trigger && m.Path.Equals(migration.Path, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new InvalidOperationException($"Duplicate migration for {DataMigration.TriggerText(migration.Trigger)} '{migration.Path}' declared.");
+            }
+            migrations.Add(migration);
+        }
     }
 
     private static IEnumerable<string> ResolveFiles(DdlSchemaSource source) => source.Matcher

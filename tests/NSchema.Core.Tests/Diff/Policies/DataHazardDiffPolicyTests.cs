@@ -6,6 +6,7 @@ using NSchema.Policies;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Constraints;
 using NSchema.Schema.Model.Indexes;
+using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Tables;
 
 namespace NSchema.Tests.Diff.Policies;
@@ -347,6 +348,144 @@ public class DataHazardDiffPolicyTests
         // Assert
         results.Count.ShouldBe(2);
     }
+
+    [Fact]
+    public void Validate_RequiredColumnAddWithMatchedBackfill_IsNotFlagged()
+    {
+        // Arrange — a matched AddColumn migration backfills the column, so the planner decomposes the add
+        // around it and the hazard is handled.
+        var diff = ModifiedTable(Columns:
+        [
+            new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))
+            {
+                Migration = Migration(DataMigrationTrigger.AddColumn, "email"),
+            },
+        ]);
+
+        // Act / Assert
+        _sut.Validate(diff).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Validate_RequiredColumnAddWithMismatchedTriggerAnnotation_IsStillFlagged()
+    {
+        // Arrange — only an AddColumn-trigger migration backfills an added column; any other trigger on the
+        // node does not address this hazard.
+        var diff = ModifiedTable(Columns:
+        [
+            new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))
+            {
+                Migration = Migration(DataMigrationTrigger.AlterColumnType, "email"),
+            },
+        ]);
+
+        // Act
+        var results = _sut.Validate(diff).ToList();
+
+        // Assert
+        results.ShouldHaveSingleItem();
+        results[0].Message.ShouldContain("app.users.email");
+        results[0].Message.ShouldContain("DEFAULT");
+    }
+
+    [Fact]
+    public void Validate_FailableCastWithMatchedMigration_IsNotFlagged()
+    {
+        // Arrange — a matched AlterColumnType migration prepares the data before the cast runs.
+        var diff = ModifiedTable(Columns:
+        [
+            new ColumnDiff("value", ChangeKind.Modify,
+                Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int))
+            {
+                Migration = Migration(DataMigrationTrigger.AlterColumnType, "value"),
+            },
+        ]);
+
+        // Act / Assert
+        _sut.Validate(diff).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Validate_ColumnTightenedToNotNullWithMigration_IsStillFlagged()
+    {
+        // Arrange — the SET NOT NULL tighten hazard is never silenced by an annotation: the matcher only
+        // annotates type changes on modified columns, and the tighten can still fail after the migration.
+        var diff = ModifiedTable(Columns:
+        [
+            new ColumnDiff("email", ChangeKind.Modify,
+                Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int),
+                Nullability: new ValueChange<bool>(true, false))
+            {
+                Migration = Migration(DataMigrationTrigger.AlterColumnType, "email"),
+            },
+        ]);
+
+        // Act
+        var results = _sut.Validate(diff).ToList();
+
+        // Assert — the cast hazard is suppressed, the NOT NULL tighten is not.
+        results.ShouldHaveSingleItem();
+        results[0].Message.ShouldContain("NOT NULL");
+    }
+
+    [Fact]
+    public void Validate_PrimaryKeyAddWithMigration_IsNotFlagged()
+    {
+        // Arrange — a matched migration declares how the data is de-duplicated/backfilled before the key lands.
+        var diff = ModifiedTable(PrimaryKey:
+        [
+            new PrimaryKeyDiff(ChangeKind.Add, "users_pk", new PrimaryKey("users_pk", ["tenant_id", "email"]))
+            {
+                Migration = Migration(DataMigrationTrigger.AddConstraint, "users_pk"),
+            },
+        ]);
+
+        // Act / Assert
+        _sut.Validate(diff).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Validate_UniqueConstraintAddWithMigration_IsNotFlagged()
+    {
+        // Arrange
+        var diff = ModifiedTable(UniqueConstraints:
+        [
+            new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint("users_email_uq", ["email"]))
+            {
+                Migration = Migration(DataMigrationTrigger.AddConstraint, "users_email_uq"),
+            },
+        ]);
+
+        // Act / Assert
+        _sut.Validate(diff).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Validate_UniqueIndexAdd_IsStillFlagged_WhenTableConstraintsCarryMigrations()
+    {
+        // Arrange — an index is not a constraint: migrations attach to constraint adds, so an annotated
+        // constraint on the same table says nothing about the unique index's data.
+        var diff = ModifiedTable(
+            UniqueConstraints:
+            [
+                new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint("users_email_uq", ["email"]))
+                {
+                    Migration = Migration(DataMigrationTrigger.AddConstraint, "users_email_uq"),
+                },
+            ],
+            Indexes:
+                [new IndexDiff(ChangeKind.Add, "ix_users_name", new TableIndex("ix_users_name", ["name"], IsUnique: true))]);
+
+        // Act
+        var results = _sut.Validate(diff).ToList();
+
+        // Assert
+        results.ShouldHaveSingleItem();
+        results[0].Message.ShouldContain("ix_users_name");
+    }
+
+    private static DataMigration Migration(DataMigrationTrigger trigger, string member) =>
+        new(null, trigger, "app", "users", member, "UPDATE app.users SET email = ''");
 
     private static DatabaseDiff ModifiedTable(
         IReadOnlyList<ColumnDiff>? Columns = null,

@@ -209,6 +209,46 @@ public sealed class DdlFormatterTests
     }
 
     [Fact]
+    public void Format_Migration_StartsANewStatement()
+    {
+        // MIGRATION is a statement keyword: it must break away from the preceding statement with one blank line
+        // (rather than being mistaken for a configuration block or trailing content).
+        const string input =
+            """
+            create schema app;
+            MIGRATION 'backfill' FOR ADD COLUMN app.users.email AS $$
+            UPDATE app.users SET email = '';
+            $$;
+            """;
+
+        const string expected =
+            """
+            create schema app;
+
+            MIGRATION 'backfill' FOR ADD COLUMN app.users.email AS $$
+            UPDATE app.users SET email = '';
+            $$;
+            """;
+
+        Format(input).ShouldBe(expected + "\n");
+    }
+
+    [Fact]
+    public void Format_Migration_IsIdempotent()
+    {
+        const string input =
+            """
+            create schema app;
+            MIGRATION FOR ALTER COLUMN TYPE app.users.id (run_outside_transaction = true) AS $$
+            UPDATE app.users SET id = id;
+            $$;
+            """;
+
+        var once = Format(input);
+        Format(once).ShouldBe(once);
+    }
+
+    [Fact]
     public void Format_EnumStaysInline()
         => Format("create enum app.status ('pending', 'shipped');")
             .ShouldBe("create enum app.status ('pending', 'shipped');\n");

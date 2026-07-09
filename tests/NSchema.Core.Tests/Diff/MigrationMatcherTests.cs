@@ -1,0 +1,264 @@
+using NSchema.Diff;
+using NSchema.Diff.Model;
+using NSchema.Schema.Model.Columns;
+using NSchema.Schema.Model.Constraints;
+using NSchema.Schema.Model.Migrations;
+using NSchema.Schema.Model.Tables;
+
+namespace NSchema.Tests.Diff;
+
+public class MigrationMatcherTests
+{
+    [Fact]
+    public void Apply_AddColumnTrigger_AnnotatesAddedColumn()
+    {
+        // Arrange
+        var migration = Migration(DataMigrationTrigger.AddColumn, "email");
+        var diff = ModifiedTable(Columns:
+            [new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))]);
+
+        // Act
+        var (annotated, unmatched) = MigrationMatcher.Apply(diff, [migration]);
+
+        // Assert
+        annotated.Schemas[0].Tables[0].Columns[0].Migration.ShouldBe(migration);
+        unmatched.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Apply_AlterColumnTypeTrigger_AnnotatesTypeChangedColumn()
+    {
+        // Arrange
+        var migration = Migration(DataMigrationTrigger.AlterColumnType, "total");
+        var diff = ModifiedTable(Columns:
+            [new ColumnDiff("total", ChangeKind.Modify, Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int))]);
+
+        // Act
+        var (annotated, unmatched) = MigrationMatcher.Apply(diff, [migration]);
+
+        // Assert
+        annotated.Schemas[0].Tables[0].Columns[0].Migration.ShouldBe(migration);
+        unmatched.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Apply_AddConstraintTrigger_AnnotatesAddedPrimaryKey()
+    {
+        // Arrange
+        var migration = Migration(DataMigrationTrigger.AddConstraint, "users_pk");
+        var diff = ModifiedTable(PrimaryKey:
+            [new PrimaryKeyDiff(ChangeKind.Add, "users_pk", new PrimaryKey("users_pk", ["id"]))]);
+
+        // Act
+        var (annotated, unmatched) = MigrationMatcher.Apply(diff, [migration]);
+
+        // Assert
+        annotated.Schemas[0].Tables[0].PrimaryKey[0].Migration.ShouldBe(migration);
+        unmatched.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Apply_AddConstraintTrigger_AnnotatesAddedUniqueConstraint()
+    {
+        // Arrange
+        var migration = Migration(DataMigrationTrigger.AddConstraint, "users_email_uq");
+        var diff = ModifiedTable(UniqueConstraints:
+            [new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint("users_email_uq", ["email"]))]);
+
+        // Act
+        var (annotated, unmatched) = MigrationMatcher.Apply(diff, [migration]);
+
+        // Assert
+        annotated.Schemas[0].Tables[0].UniqueConstraints[0].Migration.ShouldBe(migration);
+        unmatched.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Apply_AddConstraintTrigger_AnnotatesAddedForeignKey()
+    {
+        // Arrange
+        var migration = Migration(DataMigrationTrigger.AddConstraint, "users_org_fk");
+        var diff = ModifiedTable(ForeignKeys:
+            [new ForeignKeyDiff(ChangeKind.Add, "users_org_fk", new ForeignKey("users_org_fk", ["org_id"], "app", "orgs", ["id"]))]);
+
+        // Act
+        var (annotated, unmatched) = MigrationMatcher.Apply(diff, [migration]);
+
+        // Assert
+        annotated.Schemas[0].Tables[0].ForeignKeys[0].Migration.ShouldBe(migration);
+        unmatched.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Apply_AddConstraintTrigger_AnnotatesAddedCheckConstraint()
+    {
+        // Arrange
+        var migration = Migration(DataMigrationTrigger.AddConstraint, "users_age_chk");
+        var diff = ModifiedTable(Checks:
+            [new CheckConstraintDiff(ChangeKind.Add, "users_age_chk", new CheckConstraint("users_age_chk", "age >= 0"))]);
+
+        // Act
+        var (annotated, unmatched) = MigrationMatcher.Apply(diff, [migration]);
+
+        // Assert
+        annotated.Schemas[0].Tables[0].Checks[0].Migration.ShouldBe(migration);
+        unmatched.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Apply_AddConstraintTrigger_AnnotatesAddedExclusionConstraint()
+    {
+        // Arrange
+        var migration = Migration(DataMigrationTrigger.AddConstraint, "no_overlap");
+        var diff = ModifiedTable(ExclusionConstraints:
+        [
+            new ExclusionConstraintDiff(ChangeKind.Add, "no_overlap",
+                new ExclusionConstraint("no_overlap", [new ExclusionElement("during", "&&")], "gist")),
+        ]);
+
+        // Act
+        var (annotated, unmatched) = MigrationMatcher.Apply(diff, [migration]);
+
+        // Assert
+        annotated.Schemas[0].Tables[0].ExclusionConstraints[0].Migration.ShouldBe(migration);
+        unmatched.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Apply_WrongMemberName_DoesNotMatch()
+    {
+        // Arrange
+        var migration = Migration(DataMigrationTrigger.AddColumn, "phone");
+        var diff = ModifiedTable(Columns:
+            [new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))]);
+
+        // Act
+        var (annotated, unmatched) = MigrationMatcher.Apply(diff, [migration]);
+
+        // Assert
+        annotated.Schemas[0].Tables[0].Columns[0].Migration.ShouldBeNull();
+        unmatched.ShouldBe([migration]);
+    }
+
+    [Fact]
+    public void Apply_WrongTrigger_DoesNotMatch()
+    {
+        // Arrange — an AlterColumnType block targeting a column that is being added, not retyped.
+        var migration = Migration(DataMigrationTrigger.AlterColumnType, "email");
+        var diff = ModifiedTable(Columns:
+            [new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))]);
+
+        // Act
+        var (annotated, unmatched) = MigrationMatcher.Apply(diff, [migration]);
+
+        // Assert
+        annotated.Schemas[0].Tables[0].Columns[0].Migration.ShouldBeNull();
+        unmatched.ShouldBe([migration]);
+    }
+
+    [Fact]
+    public void Apply_AlterColumnTypeTrigger_DoesNotMatchModifyWithoutTypeChange()
+    {
+        // Arrange — the column changes, but not its type, so a type-change migration has nothing to prepare.
+        var migration = Migration(DataMigrationTrigger.AlterColumnType, "email");
+        var diff = ModifiedTable(Columns:
+            [new ColumnDiff("email", ChangeKind.Modify, Nullability: new ValueChange<bool>(true, false))]);
+
+        // Act
+        var (annotated, unmatched) = MigrationMatcher.Apply(diff, [migration]);
+
+        // Assert
+        annotated.Schemas[0].Tables[0].Columns[0].Migration.ShouldBeNull();
+        unmatched.ShouldBe([migration]);
+    }
+
+    [Fact]
+    public void Apply_BlockTargetingAddedTable_LandsInUnmatched()
+    {
+        // Arrange — an added table is empty, so a migration targeting it has no data to move.
+        var migration = Migration(DataMigrationTrigger.AddColumn, "email");
+        var diff = new DatabaseDiff([
+            new SchemaDiff("app", Tables:
+            [
+                new TableDiff("app", "users", ChangeKind.Add,
+                    Columns: [new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))],
+                    Definition: new Table("users", Columns: [new Column("email", SqlType.Text)])),
+            ]),
+        ]);
+
+        // Act
+        var (annotated, unmatched) = MigrationMatcher.Apply(diff, [migration]);
+
+        // Assert
+        annotated.Schemas[0].Tables[0].Columns[0].Migration.ShouldBeNull();
+        unmatched.ShouldBe([migration]);
+    }
+
+    [Fact]
+    public void Apply_MatchesCaseInsensitively_OnSchemaTableAndMember()
+    {
+        // Arrange
+        var migration = new DataMigration(null, DataMigrationTrigger.AddColumn, "APP", "Users", "EMAIL", "UPDATE 1");
+        var diff = ModifiedTable(Columns:
+            [new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))]);
+
+        // Act
+        var (annotated, unmatched) = MigrationMatcher.Apply(diff, [migration]);
+
+        // Assert
+        annotated.Schemas[0].Tables[0].Columns[0].Migration.ShouldBe(migration);
+        unmatched.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Apply_MixedBlocks_OnlyUnmatchedSurvive_InDeclarationOrder()
+    {
+        // Arrange — two dead blocks straddle a matched one; the matched block disappears and the rest keep order.
+        var deadFirst = Migration(DataMigrationTrigger.AddColumn, "phone", name: "first");
+        var matched = Migration(DataMigrationTrigger.AddColumn, "email", name: "matched");
+        var deadLast = Migration(DataMigrationTrigger.AddConstraint, "missing_uq", name: "last");
+        var diff = ModifiedTable(Columns:
+            [new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))]);
+
+        // Act
+        var (annotated, unmatched) = MigrationMatcher.Apply(diff, [deadFirst, matched, deadLast]);
+
+        // Assert
+        annotated.Schemas[0].Tables[0].Columns[0].Migration.ShouldBe(matched);
+        unmatched.ShouldBe([deadFirst, deadLast]);
+    }
+
+    [Fact]
+    public void Apply_NoMigrations_ReturnsTheSameDiffInstance()
+    {
+        // Arrange
+        var diff = ModifiedTable(Columns:
+            [new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))]);
+
+        // Act
+        var (annotated, unmatched) = MigrationMatcher.Apply(diff, []);
+
+        // Assert — nothing to match means nothing to rewrite: the exact input instance comes back.
+        annotated.ShouldBeSameAs(diff);
+        unmatched.ShouldBeEmpty();
+    }
+
+    private static DataMigration Migration(DataMigrationTrigger trigger, string member, string? name = null) =>
+        new(name, trigger, "app", "users", member, $"UPDATE app.users -- {member}");
+
+    private static DatabaseDiff ModifiedTable(
+        IReadOnlyList<ColumnDiff>? Columns = null,
+        IReadOnlyList<PrimaryKeyDiff>? PrimaryKey = null,
+        IReadOnlyList<ForeignKeyDiff>? ForeignKeys = null,
+        IReadOnlyList<UniqueConstraintDiff>? UniqueConstraints = null,
+        IReadOnlyList<CheckConstraintDiff>? Checks = null,
+        IReadOnlyList<ExclusionConstraintDiff>? ExclusionConstraints = null) =>
+        new([
+            new SchemaDiff("app", Tables:
+            [
+                new TableDiff("app", "users", ChangeKind.Modify,
+                    Columns: Columns, PrimaryKey: PrimaryKey, ForeignKeys: ForeignKeys,
+                    UniqueConstraints: UniqueConstraints, Checks: Checks, ExclusionConstraints: ExclusionConstraints),
+            ]),
+        ]);
+}
