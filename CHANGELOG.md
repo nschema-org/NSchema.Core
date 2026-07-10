@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
+## [Unreleased]
+
+v5.0 is going to be Core overhaul, realigning capabilities to be more explicitly vertically-sliced, with clear separation between domain, application and infrastructure-level services.
+
 ## [4.6.1] - 2026-07-10
 
 ### Changed
