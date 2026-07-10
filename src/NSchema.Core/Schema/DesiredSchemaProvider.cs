@@ -1,7 +1,6 @@
 using Microsoft.Extensions.FileSystemGlobbing;
 using NSchema.Diagnostics;
 using NSchema.Schema.Ddl;
-using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Scripts;
@@ -55,7 +54,7 @@ internal sealed class DesiredSchemaProvider(IEnumerable<DdlSchemaSource> sources
         AddMigrations(migrations, templateMigrations);
 
         // Name collisions are project errors, so validate before scoping drops any instance.
-        ValidateScriptNames(scripts.Concat(templateScripts.Select(t => t.Script)), migrations);
+        ValidateScriptNames(scripts.Concat(templateScripts.Select(t => t.Script)).Concat<IScriptDeclaration>(migrations));
 
         // Filter by schema. Template-instantiated scripts scope by their origin schema, like migrations;
         // hand-written deployment scripts are global and always survive.
@@ -74,10 +73,10 @@ internal sealed class DesiredSchemaProvider(IEnumerable<DdlSchemaSource> sources
     /// Enforces project-wide script-name uniqueness (after template expansion, so instantiated names count).
     /// Names identify scripts in run-once tracking and diagnostics, so a collision is an error, not a merge.
     /// </summary>
-    private static void ValidateScriptNames(IEnumerable<Script> scripts, IReadOnlyList<DataMigration> migrations)
+    private static void ValidateScriptNames(IEnumerable<IScriptDeclaration> scripts)
     {
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var name in scripts.Select(s => s.Name).Concat(migrations.Where(m => m.Name is not null).Select(m => m.Name!)))
+        foreach (var name in scripts.Select(s => s.Name).OfType<string>())
         {
             if (!names.Add(name))
             {

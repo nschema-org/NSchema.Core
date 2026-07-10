@@ -12,6 +12,8 @@ using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Scripts;
+using NSchema.Sql.Model;
+using NSchema.State.Model;
 
 namespace NSchema.Tests.Plan;
 
@@ -61,7 +63,7 @@ public sealed class MigrationPlannerTests
         _schemaPolicies.Add(policy);
 
         // Act
-        var result = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, []));
+        var result = Sut.Plan(new CurrentState(_emptySchema), new DesiredProject(_emptySchema, _noScripts, []));
 
         // Assert: the schema stage is fatal — no planned migration at all (no diff, no plan).
         result.IsFailure.ShouldBeTrue();
@@ -79,7 +81,7 @@ public sealed class MigrationPlannerTests
         _schemaPolicies.Add(policy);
 
         // Act
-        var result = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, []));
+        var result = Sut.Plan(new CurrentState(_emptySchema), new DesiredProject(_emptySchema, _noScripts, []));
 
         // Assert: a non-error schema finding is carried through alongside the plan.
         result.IsSuccess.ShouldBeTrue();
@@ -94,7 +96,7 @@ public sealed class MigrationPlannerTests
         var desired = new DatabaseSchema([new SchemaDefinition("desired")]);
 
         // Act
-        Sut.Plan(current, new DesiredProject(desired, _noScripts, []));
+        Sut.Plan(new CurrentState(current), new DesiredProject(desired, _noScripts, []));
 
         // Assert
         _comparer.Received(1).Compare(current, desired);
@@ -114,7 +116,7 @@ public sealed class MigrationPlannerTests
         ];
 
         // Act
-        var result = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, scripts, []));
+        var result = Sut.Plan(new CurrentState(_emptySchema), new DesiredProject(_emptySchema, scripts, []));
 
         // Assert: scripts live on the plan (not interleaved into Actions, which carry only schema changes).
         result.Value.ShouldNotBeNull();
@@ -132,7 +134,7 @@ public sealed class MigrationPlannerTests
             .Returns([coreAction]);
 
         // Act
-        var result = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, []));
+        var result = Sut.Plan(new CurrentState(_emptySchema), new DesiredProject(_emptySchema, _noScripts, []));
 
         // Assert
         result.Value.ShouldNotBeNull();
@@ -149,7 +151,7 @@ public sealed class MigrationPlannerTests
         _diffPolicies.Add(policy);
 
         // Act
-        var result = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, []));
+        var result = Sut.Plan(new CurrentState(_emptySchema), new DesiredProject(_emptySchema, _noScripts, []));
 
         // Assert
         result.Diagnostics.ShouldHaveSingleItem();
@@ -164,7 +166,7 @@ public sealed class MigrationPlannerTests
         var migration = new DataMigration("backfill emails", DataMigrationTrigger.AddColumn, "app", "users", "email", "UPDATE 1");
 
         // Act
-        var result = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, [migration]));
+        var result = Sut.Plan(new CurrentState(_emptySchema), new DesiredProject(_emptySchema, _noScripts, [migration]));
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -183,7 +185,7 @@ public sealed class MigrationPlannerTests
         var migration = new DataMigration(null, DataMigrationTrigger.AddConstraint, "app", "users", "users_pk", "DELETE");
 
         // Act
-        var result = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, [migration]));
+        var result = Sut.Plan(new CurrentState(_emptySchema), new DesiredProject(_emptySchema, _noScripts, [migration]));
 
         // Assert
         var diagnostic = result.Diagnostics.ShouldHaveSingleItem();
@@ -197,7 +199,7 @@ public sealed class MigrationPlannerTests
         _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(AddedEmailColumnDiff());
 
         // Act
-        var result = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, [EmailBackfillMigration()]));
+        var result = Sut.Plan(new CurrentState(_emptySchema), new DesiredProject(_emptySchema, _noScripts, [EmailBackfillMigration()]));
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -212,7 +214,7 @@ public sealed class MigrationPlannerTests
         _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(AddedEmailColumnDiff());
 
         // Act
-        var result = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, [migration]));
+        var result = Sut.Plan(new CurrentState(_emptySchema), new DesiredProject(_emptySchema, _noScripts, [migration]));
 
         // Assert — the planned migration carries the annotated diff, not the comparer's raw one.
         result.Value.ShouldNotBeNull();
@@ -228,8 +230,8 @@ public sealed class MigrationPlannerTests
         _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(AddedEmailColumnDiff());
 
         // Act
-        var unmatched = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, []));
-        var matched = Sut.Plan(_emptySchema, new DesiredProject(_emptySchema, _noScripts, [EmailBackfillMigration()]));
+        var unmatched = Sut.Plan(new CurrentState(_emptySchema), new DesiredProject(_emptySchema, _noScripts, []));
+        var matched = Sut.Plan(new CurrentState(_emptySchema), new DesiredProject(_emptySchema, _noScripts, [EmailBackfillMigration()]));
 
         // Assert
         unmatched.Diagnostics.ShouldHaveSingleItem().Source.ShouldBe("data-hazards");
@@ -248,6 +250,119 @@ public sealed class MigrationPlannerTests
 
     private static DataMigration EmailBackfillMigration() =>
         new("backfill emails", DataMigrationTrigger.AddColumn, "app", "users", "email", "UPDATE app.users SET email = ''");
+
+    // -------------------------------------------------------------------------
+    // Run-once scripts
+    // -------------------------------------------------------------------------
+
+    private static Script SeedScript() =>
+        new("seed", "INSERT INTO app.c VALUES (1);", ScriptType.PostDeployment) { RunCondition = RunCondition.Once };
+
+    /// <summary>A current state recording <paramref name="sql"/> as script <paramref name="name"/>'s executed body.</summary>
+    private static CurrentState Executed(string name, string sql) =>
+        new(_emptySchema, [new ScriptHash(name, ScriptHash.HashSql(sql))]);
+
+    [Fact]
+    public void Plan_PendingRunOnceScript_IsPlannedAndListedForRecording()
+    {
+        // Act — nothing recorded, so the script is part of the current→desired difference.
+        var result = Sut.Plan(new CurrentState(_emptySchema), new DesiredProject(_emptySchema, [SeedScript()], []));
+
+        // Assert
+        result.Value!.Plan.PostDeploymentScripts.ShouldHaveSingleItem().Name.ShouldBe("seed");
+        var pending = result.Value!.Scripts.ShouldHaveSingleItem();
+        pending.Name.ShouldBe("seed");
+        pending.Hash.ShouldBe(ScriptHash.HashSql(SeedScript().Sql));
+    }
+
+    [Fact]
+    public void Plan_ExecutedRunOnceScript_IsSkippedWithAnInfoDiagnostic()
+    {
+        // Act — the script has already run, so it is not part of the current→desired difference.
+        var result = Sut.Plan(Executed("seed", SeedScript().Sql), new DesiredProject(_emptySchema, [SeedScript()], []));
+
+        // Assert — dropped from the plan, reported, and not up for re-recording.
+        result.Value!.Plan.PostDeploymentScripts.ShouldBeEmpty();
+        result.Value!.Scripts.ShouldBeEmpty();
+        var diagnostic = result.Diagnostics.ShouldHaveSingleItem();
+        diagnostic.Source.ShouldBe("run-once");
+        diagnostic.Severity.ShouldBe(DiagnosticSeverity.Info);
+        diagnostic.Message.ShouldContain("'seed' has already run");
+    }
+
+    [Fact]
+    public void Plan_ExecutedRunOnceScriptWithChangedBody_StaysSkippedWithAWarning()
+    {
+        // Act — the recorded hash is of a different body; silently re-running is never safe.
+        var result = Sut.Plan(Executed("seed", "some other body"), new DesiredProject(_emptySchema, [SeedScript()], []));
+
+        // Assert
+        result.Value!.Plan.PostDeploymentScripts.ShouldBeEmpty();
+        var diagnostic = result.Diagnostics.ShouldHaveSingleItem();
+        diagnostic.Severity.ShouldBe(DiagnosticSeverity.Warning);
+        diagnostic.Message.ShouldContain("'seed' has changed since it was executed");
+    }
+
+    [Fact]
+    public void Plan_AlwaysScript_IgnoresRecordedExecutions_AndIsNotListedForRecording()
+    {
+        // Arrange — same name recorded, but the script is not run-once.
+        var script = SeedScript() with { RunCondition = RunCondition.Always };
+
+        // Act
+        var result = Sut.Plan(Executed("seed", script.Sql), new DesiredProject(_emptySchema, [script], []));
+
+        // Assert
+        result.Value!.Plan.PostDeploymentScripts.ShouldHaveSingleItem();
+        result.Diagnostics.ShouldBeEmpty();
+        result.Value!.Scripts.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Plan_ExecutedRunOnceMigration_IsExcludedFromMatching()
+    {
+        // Arrange — the matching change IS in the diff, but the migration already ran: no splice, no
+        // annotation, and the hazard it would have suppressed surfaces again.
+        _diffPolicies.Add(new DataHazardDiffPolicy(Options.Create(new DataHazardOptions())));
+        var migration = EmailBackfillMigration() with { RunCondition = RunCondition.Once };
+        _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(AddedEmailColumnDiff());
+
+        // Act
+        var result = Sut.Plan(Executed("backfill emails", migration.Sql), new DesiredProject(_emptySchema, _noScripts, [migration]));
+
+        // Assert
+        result.Value!.Diff.Schemas[0].Tables[0].Columns[0].Migration.ShouldBeNull();
+        result.Value!.Scripts.ShouldBeEmpty();
+        result.Diagnostics.Select(d => d.Source).ShouldBe(["run-once", "data-hazards"]);
+    }
+
+    [Fact]
+    public void Plan_MatchedRunOnceMigration_IsListedForRecording()
+    {
+        // Arrange
+        var migration = EmailBackfillMigration() with { RunCondition = RunCondition.Once };
+        _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(AddedEmailColumnDiff());
+
+        // Act
+        var result = Sut.Plan(new CurrentState(_emptySchema), new DesiredProject(_emptySchema, _noScripts, [migration]));
+
+        // Assert
+        result.Value!.Scripts.ShouldHaveSingleItem().Name.ShouldBe("backfill emails");
+    }
+
+    [Fact]
+    public void Plan_UnmatchedRunOnceMigration_IsNotListedForRecording()
+    {
+        // Arrange — empty diff, so the migration's event never occurs; it must not be recorded as run.
+        var migration = EmailBackfillMigration() with { RunCondition = RunCondition.Once };
+
+        // Act
+        var result = Sut.Plan(new CurrentState(_emptySchema), new DesiredProject(_emptySchema, _noScripts, [migration]));
+
+        // Assert — it still reports as inert, but stays pending.
+        result.Value!.Scripts.ShouldBeEmpty();
+        result.Diagnostics.ShouldHaveSingleItem().Source.ShouldBe("data-migrations");
+    }
 
     [Fact]
     public void PlanTeardown_DiffsManagedSchemaAgainstEmpty()

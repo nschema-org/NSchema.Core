@@ -71,7 +71,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         // The plan exposes the same SQL the caller previews before applying.
         plan.Sql.ShouldBe(_executor.Executed);
         // Post-apply state was captured to the store.
-        _store.Written.ShouldNotBeNull().Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
+        _store.Written.ShouldNotBeNull().Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
     }
 
     [Fact]
@@ -160,6 +160,39 @@ public sealed class ApplyEndToEndTests : IDisposable
     }
 
     [Fact]
+    public async Task Apply_RunOnceScript_RunsOnce_ThenLaterPlansSkipIt()
+    {
+        // A run-once seed script: the first plan includes and records it, the next plan skips it.
+        var current = new DatabaseSchema([new SchemaDefinition("app")]);
+        var desired = WriteDdl("schema.sql",
+            """
+            CREATE SCHEMA app;
+            SCRIPT 'seed currencies' RUN ONCE ON POST DEPLOYMENT AS $$
+            INSERT INTO app.currencies VALUES ('GBP');
+            $$;
+            """);
+
+        using var app = BuildApp(current, desired);
+
+        // First run: the pending script is planned, executed, and recorded (the CLI-style flow threads
+        // plan.RunOnceScripts into the apply).
+        (await app.Locks.Acquire("apply", cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        var first = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
+        first.Sql!.Statements.Select(s => s.Sql).ShouldContain("INSERT INTO app.currencies VALUES ('GBP');");
+        first.Sql!.Scripts.ShouldHaveSingleItem().Name.ShouldBe("seed currencies");
+        await app.Operations.Apply(new ApplyArguments { Sql = first.Sql! }, TestContext.Current.CancellationToken);
+
+        _store.Written.ShouldNotBeNull().ExecutedScripts.ShouldHaveSingleItem().Name.ShouldBe("seed currencies");
+
+        // Second run: the script is skipped, reported, and no longer up for recording.
+        var second = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
+        second.Value!.Sql!.Statements.Select(s => s.Sql).ShouldNotContain("INSERT INTO app.currencies VALUES ('GBP');");
+        second.Value!.Sql!.Scripts.ShouldBeEmpty();
+        var skipped = second.Diagnostics.Where(d => d.Source == "run-once").ShouldHaveSingleItem();
+        skipped.Message.ShouldContain("'seed currencies' has already run");
+    }
+
+    [Fact]
     public async Task Apply_WithNoChanges_ShortCircuitsWithoutExecutingButStillCapturesState()
     {
         var schema = new DatabaseSchema([new SchemaDefinition("app", Tables:
@@ -186,6 +219,6 @@ public sealed class ApplyEndToEndTests : IDisposable
         // Nothing to apply: the empty plan never reaches the executor...
         _executor.Executed.ShouldBeNull();
         // ...but a first run against an already-matching database still initialises the store.
-        _store.Written.ShouldNotBeNull().Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
+        _store.Written.ShouldNotBeNull().Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
     }
 }

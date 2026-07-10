@@ -4,7 +4,10 @@ using NSchema.Plan;
 using NSchema.Policies;
 using NSchema.Schema;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Scripts;
+using NSchema.Sql.Model;
 using NSchema.State;
+using NSchema.State.Model;
 
 namespace NSchema.Operations.Services;
 
@@ -43,9 +46,33 @@ internal sealed class MigrationWorkflow(
         var currentSchema = await currentProvider.GetSchema(currentSource, schemasInScope, required, cancellationToken);
         progress.Report(OperationProgress.Detail($"Current schema ({currentSource.ToString().ToLowerInvariant()}): {StatusHelpers.Describe(currentSchema)}."));
 
+        var readDiagnostics = new List<Diagnostic>(desired.Diagnostics);
+        if (store is null && HasRunOnceScripts(desired.Project))
+        {
+            readDiagnostics.Add(Diagnostic.Warning("run-once", "Run-once scripts require a state store to record executions; without one they run on every apply."));
+        }
+
         progress.Report(OperationProgress.Step("Computing migration plan..."));
-        return WithReadDiagnostics(planner.Plan(currentSchema, desired.Project), desired.Diagnostics);
+
+        var snapshot = await store!.Read(cancellationToken);
+        var state = snapshot is null ? SchemaState.Empty : stateSerializer.Deserialize(snapshot.Value);
+        var scriptHashes = state.ExecutedScripts.Select(e => new ScriptHash(e.Name, e.Hash)).ToList();
+        var current = new CurrentState(currentSchema, scriptHashes);
+        var plan = planner.Plan(current, desired.Project);
+
+        if (readDiagnostics.Count == 0)
+        {
+            return plan;
+        }
+
+        var diagnostics = readDiagnostics.Concat(plan.Diagnostics);
+        return plan.Value is { } value
+            ? Result.From(value, diagnostics)
+            : Result.Failure<PlannedMigration>(diagnostics);
     }
+
+    private static bool HasRunOnceScripts(DesiredProject project) => project.Scripts
+        .Concat<IScriptDeclaration>(project.Migrations).Any(s => s.RunCondition == RunCondition.Once);
 
     public async Task<Result<PlannedMigration>> ComputeTeardown(CancellationToken cancellationToken = default)
     {
@@ -58,7 +85,7 @@ internal sealed class MigrationWorkflow(
         return planner.PlanTeardown(managedSchema);
     }
 
-    public async Task<StateCapture?> Refresh(CancellationToken cancellationToken = default)
+    public async Task<StateCapture?> Refresh(SqlPlan? applied = null, CancellationToken cancellationToken = default)
     {
         if (store is null)
         {
@@ -67,25 +94,21 @@ internal sealed class MigrationWorkflow(
 
         progress.Report(OperationProgress.Step("Updating state store..."));
         var schema = await currentProvider.GetSchema(SchemaSourceMode.Online, null, required: true, cancellationToken);
-        var snapshot = stateSerializer.Serialize(schema);
-        progress.Report(OperationProgress.Detail($"State snapshot: {StatusHelpers.Describe(schema)}, {snapshot.Length:N0} bytes."));
-        await store.Write(snapshot, cancellationToken);
-        return new StateCapture(schema, snapshot.Length);
-    }
 
-    /// <summary>
-    /// Prepends the findings raised while reading the DDL to a planner result. The pure planner never sees
-    /// read provenance; merging it into the outcome is this shell's job.
-    /// </summary>
-    private static Result<PlannedMigration> WithReadDiagnostics(Result<PlannedMigration> planned, IReadOnlyList<Diagnostic> readDiagnostics)
-    {
-        if (readDiagnostics.Count == 0)
+        // Fetch the current state, apply this run's changes over it, and write the result back.
+        var snapshot = await store.Read(cancellationToken);
+        var state = snapshot is null ? SchemaState.Empty : stateSerializer.Deserialize(snapshot.Value);
+
+        state = state with { Schema = schema };
+        if (applied is not null)
         {
-            return planned;
+            state = state.RecordExecutions(applied.Scripts, DateTimeOffset.UtcNow);
         }
 
-        var diagnostics = readDiagnostics.Concat(planned.Diagnostics);
-        return planned.Value is { } value ? Result.From(value, diagnostics) : Result.Failure<PlannedMigration>(diagnostics);
+        snapshot = stateSerializer.Serialize(state);
+        progress.Report(OperationProgress.Detail($"State snapshot: {StatusHelpers.Describe(schema)}, {snapshot.Value.Length:N0} bytes."));
+        await store.Write(snapshot.Value, cancellationToken);
+        return new StateCapture(schema, snapshot.Value.Length);
     }
 
     /// <summary>

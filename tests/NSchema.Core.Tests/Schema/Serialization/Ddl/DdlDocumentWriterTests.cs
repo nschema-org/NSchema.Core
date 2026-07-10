@@ -4,6 +4,7 @@ using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Schemas;
 using NSchema.State;
+using NSchema.State.Model;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
@@ -15,7 +16,7 @@ public sealed class DdlDocumentWriterTests
 {
     // Canonicalize the schema half via the internal state serializer (independent of the writer under test).
     private static string Canonical(DatabaseSchema schema)
-        => Encoding.UTF8.GetString(new SchemaStateSerializer().Serialize(schema).Span);
+        => Encoding.UTF8.GetString(new SchemaStateSerializer().Serialize(new SchemaState(schema)).Span);
 
     private static void AssertEquivalent(DdlDocument expected, DdlDocument actual)
     {

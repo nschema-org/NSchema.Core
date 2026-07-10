@@ -18,7 +18,7 @@ public sealed record DataMigration(
     string ObjectName,
     string MemberName,
     string Sql
-)
+) : IScriptDeclaration
 {
     /// <summary>
     /// Whether the SQL must run outside the migration transaction.
