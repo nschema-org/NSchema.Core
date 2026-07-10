@@ -122,13 +122,17 @@ internal sealed class MigrationWorkflow(
         var written = await stateManager.Write(new StateWriteArguments(state), cancellationToken);
         progress.Report(OperationProgress.Detail($"State snapshot: {StatusHelpers.Describe(schema)}, {written.Value!.PayloadSize:N0} bytes."));
 
-        var diagnostics = new List<Diagnostic>();
+        var diagnostics = Enumerable.Empty<Diagnostic>();
         if (read.IsFailure)
         {
-            diagnostics = read.Diagnostics.Append(Diagnostic.Warning("state",
-                "The existing state payload could not be read and has been replaced; the run-once script ledger was " +
-                "reset. Untaint any run-once scripts that have already run, or they will run again on the next apply."
-            )).ToList();
+            // The read errors explain what was wrong with the replaced payload, but the forced capture succeeded,
+            // so they ride along demoted to warnings — error severity would flip the result to a failure.
+            diagnostics = read.Diagnostics
+                .Select(d => d with { Severity = DiagnosticSeverity.Warning })
+                .Append(Diagnostic.Warning("state",
+                    "The existing state payload could not be read and has been replaced; the run-once script ledger was " +
+                    "reset. Untaint any run-once scripts that have already run, or they will run again on the next apply."
+                ));
         }
 
         return Result.Success(new StateCapture(schema, written.Value.PayloadSize), diagnostics);

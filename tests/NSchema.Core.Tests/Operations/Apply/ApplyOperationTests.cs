@@ -33,7 +33,7 @@ public sealed class ApplyOperationTests
         result.Value!.ChangesApplied.ShouldBeTrue();
         result.Value!.StatementsExecuted.ShouldBe(1);
         await _executor.Received(1).Execute(_sqlPlan, Arg.Any<CancellationToken>());
-        await _workflow.Received(1).Refresh(Arg.Any<SqlPlan?>(), Arg.Any<CancellationToken>());
+        await _workflow.Received(1).Refresh(Arg.Any<SqlPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public sealed class ApplyOperationTests
         result.Value!.ChangesApplied.ShouldBeFalse();
         result.Value!.StatementsExecuted.ShouldBe(0);
         await _executor.DidNotReceive().Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>());
-        await _workflow.Received(1).Refresh(Arg.Any<SqlPlan?>(), Arg.Any<CancellationToken>());
+        await _workflow.Received(1).Refresh(Arg.Any<SqlPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public sealed class ApplyOperationTests
         await _sut.Execute(new ApplyArguments { Sql = plan }, TestContext.Current.CancellationToken);
 
         // Assert — the successful capture receives exactly the plan that ran.
-        await _workflow.Received(1).Refresh(plan, Arg.Any<CancellationToken>());
+        await _workflow.Received(1).Refresh(plan, Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class ApplyOperationTests
             new ApplyArguments { Sql = plan }, TestContext.Current.CancellationToken));
 
         // Assert
-        await _workflow.Received(1).Refresh((SqlPlan?)null, Arg.Any<CancellationToken>());
+        await _workflow.Received(1).Refresh((SqlPlan?)null, Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public sealed class ApplyOperationTests
         // Execution may fail partway (e.g. an un-transacted plan), so we still capture state, but the failure propagates.
         var ex = await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(Args(_sqlPlan), TestContext.Current.CancellationToken));
         ex.Message.ShouldBe("boom");
-        await _workflow.Received(1).Refresh(Arg.Any<SqlPlan?>(), Arg.Any<CancellationToken>());
+        await _workflow.Received(1).Refresh(Arg.Any<SqlPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public sealed class ApplyOperationTests
     {
         // The migration applies cleanly, but capturing the new state fails — recording state is part of the apply, so
         // this is a real error (the database changed but the recorded state is now stale), not something to swallow.
-        _workflow.Refresh(Arg.Any<SqlPlan?>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("state store unreachable"));
+        _workflow.Refresh(Arg.Any<SqlPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("state store unreachable"));
 
         var ex = await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(Args(_sqlPlan), TestContext.Current.CancellationToken));
 
@@ -117,19 +117,19 @@ public sealed class ApplyOperationTests
         // A refresh failure during the best-effort capture must not mask the migration failure, which is the error the
         // operator needs to see.
         _executor.Execute(Arg.Any<SqlPlan>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("migration failed"));
-        _workflow.Refresh(Arg.Any<SqlPlan?>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("state store unreachable"));
+        _workflow.Refresh(Arg.Any<SqlPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("state store unreachable"));
 
         var ex = await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(Args(_sqlPlan), TestContext.Current.CancellationToken));
 
         ex.Message.ShouldBe("migration failed");
-        await _workflow.Received(1).Refresh(Arg.Any<SqlPlan?>(), Arg.Any<CancellationToken>());
+        await _workflow.Received(1).Refresh(Arg.Any<SqlPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Execute_EmptyPlan_WhenStateRefreshFails_Surfaces()
     {
         // Even with nothing to execute, the state capture is part of the apply; its failure is surfaced.
-        _workflow.Refresh(Arg.Any<SqlPlan?>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("state store unreachable"));
+        _workflow.Refresh(Arg.Any<SqlPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("state store unreachable"));
 
         var ex = await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(Args(new SqlPlan([])), TestContext.Current.CancellationToken));
 
