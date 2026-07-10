@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
-## [Unreleased]
+## [4.6.1] - 2026-07-10
 
 ### Changed
 
@@ -281,7 +281,8 @@ First stable release. The public API is now covered by semantic versioning. Brea
 - Pre- and post-deployment script support via `IScriptProvider`, `AddScriptFromFile(...)`, and `AddScriptsFromEmbeddedResources(...)`.
 - SourceLink and symbol packages (`.snupkg`) published alongside the main package for source-level debugging.
 
-[Unreleased]: https://github.com/nschema-org/NSchema.Core/compare/v4.6.0...HEAD
+[Unreleased]: https://github.com/nschema-org/NSchema.Core/compare/v4.6.1...HEAD
+[4.6.1]: https://github.com/nschema-org/NSchema.Core/compare/v4.6.0...v4.6.1
 [4.6.0]: https://github.com/nschema-org/NSchema.Core/compare/v4.5.0...v4.6.0
 [4.5.0]: https://github.com/nschema-org/NSchema.Core/compare/v4.4.0...v4.5.0
 [4.4.0]: https://github.com/nschema-org/NSchema.Core/compare/v4.3.1...v4.4.0
