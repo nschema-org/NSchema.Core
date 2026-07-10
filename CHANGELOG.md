@@ -6,7 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
-## [4.5.0] - 2026-07-10
+## [Unreleased]
+
+Nothing yet!
+
+## [4.4.0] - 2026-07-10
 
 ### Added
 
@@ -15,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `RunCondition` on scripts and data migrations, carrying the parsed `RUN` clause.
 - The backend state store now carries the recorded script executions.
 - A `RUN ONCE` script is recorded on a successful apply and skipped by later plans. A recorded script whose body has since changed stays skipped and warns.
+- **Migrations in schema templates.** A `MIGRATION` block can now be declared inside a `TEMPLATE … BEGIN … END;` body with an unqualified `table.member` path; applying the template instantiates the block once per target schema. The `{schema}` token in the block's SQL is replaced with each target schema's name.
 
 ### Changed
 
@@ -24,12 +29,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Deprecated
 
 - The `PRE|POST DEPLOYMENT '<name>' AS $$…$$;` and `MIGRATION ['name'] FOR <trigger> <path> AS $$…$$;` forms. Both still parse into the same model, and plan/apply/validate now surface a `deprecations` warning naming the `SCRIPT` replacement. They will be removed in NSchema 5.0.
-
-## [4.4.0] - 2026-07-09
-
-### Added
-
-- **Migrations in schema templates.** A `MIGRATION` block can now be declared inside a `TEMPLATE … BEGIN … END;` body with an unqualified `table.member` path; applying the template instantiates the block once per target schema. The `{schema}` token in the block's SQL is replaced with each target schema's name.
 
 ### Fixed
 
@@ -256,7 +255,7 @@ First stable release. The public API is now covered by semantic versioning. Brea
 - Pre- and post-deployment script support via `IScriptProvider`, `AddScriptFromFile(...)`, and `AddScriptsFromEmbeddedResources(...)`.
 - SourceLink and symbol packages (`.snupkg`) published alongside the main package for source-level debugging.
 
-[Unreleased]: https://github.com/nschema-org/NSchema.Core/compare/v4.3.1...HEAD
+[Unreleased]: https://github.com/nschema-org/NSchema.Core/compare/v4.4.0...HEAD
 [4.4.0]: https://github.com/nschema-org/NSchema.Core/compare/v4.3.1...v4.4.0
 [4.3.1]: https://github.com/nschema-org/NSchema.Core/compare/v4.3.0...v4.3.1
 [4.3.0]: https://github.com/nschema-org/NSchema.Core/compare/v4.2.0...v4.3.0
