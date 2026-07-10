@@ -6,9 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
-## [Unreleased]
+## [4.5.0] - 2026-07-10
 
-Nothing yet!
+### Added
+
+- **Public state access.** The recorded state is now a public model.
+- **`ISchemaStateManager`**, exposed as `app.State`, facilitates reading and writing the recorded state, with an optional `ReadRaw`/`WriteRaw` methods for moving the serialized payload without interpreting it.
+
+### Changed
+
+- Planning with an unreadable state payload now fails with a diagnostic instead of throwing.
 
 ## [4.4.0] - 2026-07-10
 

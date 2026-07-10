@@ -8,13 +8,13 @@ using NSchema.Plan.Model.Schemas;
 using NSchema.Policies;
 using NSchema.Schema;
 using NSchema.Schema.Model;
-using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Scripts;
 using NSchema.Schema.Model.Tables;
 using NSchema.Sql.Model;
 using NSchema.State;
 using NSchema.State.Model;
+using NSchema.State.Storage;
 
 namespace NSchema.Tests.Operations.Services;
 
@@ -27,7 +27,7 @@ public sealed class MigrationWorkflowTests
     private readonly ISchemaStateSerializer _stateSerializer = new SchemaStateSerializer();
 
     private MigrationWorkflow BuildSut(ISchemaStateStore? store = null) =>
-        new(_planner, _progress, _currentProvider, _desiredProvider, _stateSerializer, store);
+        new(_planner, _progress, _currentProvider, _desiredProvider, new SchemaStateManager(_stateSerializer, store));
 
     private static DesiredProjectResult Project(DatabaseSchema schema) => new(new DesiredProject(schema, [], []), [], []);
 
@@ -237,7 +237,7 @@ public sealed class MigrationWorkflowTests
         new("seed", "SELECT 1", ScriptType.PostDeployment) { RunCondition = condition };
 
     /// <summary>Builds a workflow whose store records <paramref name="executions"/> and whose DDL declares <paramref name="project"/>.</summary>
-    private MigrationWorkflow SutWithState(DesiredProject project, params ScriptExecutionRecord[] executions)
+    private MigrationWorkflow SutWithState(DesiredProject project, params ScriptRecord[] executions)
     {
         var store = Substitute.For<ISchemaStateStore>();
         store.Read(Arg.Any<CancellationToken>())
@@ -253,7 +253,7 @@ public sealed class MigrationWorkflowTests
         // Arrange — the planner's "what I have" input is the schema plus the recorded executions, translated
         // to the planning model at this boundary (the planner never sees state records).
         var sut = SutWithState(new DesiredProject(new DatabaseSchema([]), [SeedScript()], []),
-            new ScriptExecutionRecord("seed", "abc", DateTimeOffset.UnixEpoch));
+            new ScriptRecord("seed", "abc", DateTimeOffset.UnixEpoch));
 
         // Act
         await sut.ComputePlan(SchemaSourceMode.Online, required: true, null, TestContext.Current.CancellationToken);
@@ -262,6 +262,24 @@ public sealed class MigrationWorkflowTests
         _planner.Received(1).Plan(
             Arg.Is<CurrentState>(c => c.ExecutedScripts.Count == 1 && c.ExecutedScripts[0] == new ScriptHash("seed", "abc")),
             Arg.Any<DesiredProject>());
+    }
+
+    [Fact]
+    public async Task ComputePlan_UnreadableState_IsAFailure_WithoutPlanning()
+    {
+        // Arrange — an unreadable ledger must fail the plan rather than read as empty: an empty ledger
+        // would re-plan every recorded run-once script.
+        var store = Substitute.For<ISchemaStateStore>();
+        store.Read(Arg.Any<CancellationToken>()).Returns((ReadOnlyMemory<byte>?)"not a state payload"u8.ToArray());
+        var sut = BuildSut(store);
+
+        // Act
+        var result = await sut.ComputePlan(SchemaSourceMode.Online, required: true, null, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsFailure.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Source.ShouldBe("state");
+        _planner.DidNotReceive().Plan(Arg.Any<CurrentState>(), Arg.Any<DesiredProject>());
     }
 
     [Fact]
@@ -294,7 +312,7 @@ public sealed class MigrationWorkflowTests
         await sut.Refresh(new SqlPlan([]) { Scripts = [new ScriptHash("seed", "abc")] }, TestContext.Current.CancellationToken);
 
         // Assert
-        var execution = _stateSerializer.Deserialize(written!.Value).ExecutedScripts.ShouldHaveSingleItem();
+        var execution = _stateSerializer.Deserialize(written!.Value).Scripts.ShouldHaveSingleItem();
         execution.Name.ShouldBe("seed");
         execution.Hash.ShouldBe("abc");
     }
@@ -303,7 +321,7 @@ public sealed class MigrationWorkflowTests
     public async Task Refresh_PreservesTheExistingLedger()
     {
         // Arrange — the ledger is the one part of state a capture cannot rebuild, so it must carry over.
-        var existing = new ScriptExecutionRecord("api-login", "hash", DateTimeOffset.UnixEpoch);
+        var existing = new ScriptRecord("api-login", "hash", DateTimeOffset.UnixEpoch);
         var store = Substitute.For<ISchemaStateStore>();
         store.Read(Arg.Any<CancellationToken>())
             .Returns(_stateSerializer.Serialize(new SchemaState(new DatabaseSchema([]), [existing])));
@@ -315,14 +333,14 @@ public sealed class MigrationWorkflowTests
         await sut.Refresh(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        _stateSerializer.Deserialize(written!.Value).ExecutedScripts.ShouldHaveSingleItem().ShouldBe(existing);
+        _stateSerializer.Deserialize(written!.Value).Scripts.ShouldHaveSingleItem().ShouldBe(existing);
     }
 
     [Fact]
     public async Task Refresh_ReRecordingAScript_ReplacesItsEntryByName()
     {
         // Arrange
-        var existing = new ScriptExecutionRecord("seed", "old-hash", DateTimeOffset.UnixEpoch);
+        var existing = new ScriptRecord("seed", "old-hash", DateTimeOffset.UnixEpoch);
         var store = Substitute.For<ISchemaStateStore>();
         store.Read(Arg.Any<CancellationToken>())
             .Returns(_stateSerializer.Serialize(new SchemaState(new DatabaseSchema([]), [existing])));
@@ -334,7 +352,7 @@ public sealed class MigrationWorkflowTests
         await sut.Refresh(new SqlPlan([]) { Scripts = [new ScriptHash("seed", "new-hash")] }, TestContext.Current.CancellationToken);
 
         // Assert
-        _stateSerializer.Deserialize(written!.Value).ExecutedScripts.ShouldHaveSingleItem().Hash.ShouldBe("new-hash");
+        _stateSerializer.Deserialize(written!.Value).Scripts.ShouldHaveSingleItem().Hash.ShouldBe("new-hash");
     }
 
     [Fact]
@@ -352,7 +370,7 @@ public sealed class MigrationWorkflowTests
 
         // Assert
         capture.ShouldNotBeNull();
-        _stateSerializer.Deserialize(written!.Value).ExecutedScripts.ShouldBeEmpty();
+        _stateSerializer.Deserialize(written!.Value).Scripts.ShouldBeEmpty();
     }
 
     [Fact]
