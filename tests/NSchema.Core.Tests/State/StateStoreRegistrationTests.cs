@@ -24,6 +24,28 @@ public sealed class StateStoreRegistrationTests
     }
 
     [Fact]
+    public void AppState_ExposesTheCoordinator_ConfiguredWhenAStoreIsRegistered()
+    {
+        // Arrange
+        var builder = NSchemaApplication.CreateBuilder();
+        builder.UseStateStore<FakeStateStore>();
+        using var app = builder.Build();
+
+        // Assert
+        app.State.IsConfigured.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void AppState_ExposesTheCoordinator_UnconfiguredWithoutAStore()
+    {
+        // Arrange
+        using var app = NSchemaApplication.CreateBuilder().Build();
+
+        // Assert
+        app.State.IsConfigured.ShouldBeFalse();
+    }
+
+    [Fact]
     public void UseFileStateStore_RegistersFileStore()
     {
         // Act
