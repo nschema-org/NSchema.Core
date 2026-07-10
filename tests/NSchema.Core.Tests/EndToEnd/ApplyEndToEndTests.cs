@@ -184,12 +184,11 @@ public sealed class ApplyEndToEndTests : IDisposable
 
         _store.Written.ShouldNotBeNull().Scripts.ShouldHaveSingleItem().Name.ShouldBe("seed currencies");
 
-        // Second run: the script is skipped, reported, and no longer up for recording.
+        // Second run: the script is skipped, and no longer up for recording.
         var second = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
         second.Value!.Sql!.Statements.Select(s => s.Sql).ShouldNotContain("INSERT INTO app.currencies VALUES ('GBP');");
         second.Value!.Sql!.Scripts.ShouldBeEmpty();
-        var skipped = second.Diagnostics.Where(d => d.Source == "run-once").ShouldHaveSingleItem();
-        skipped.Message.ShouldContain("'seed currencies' has already run");
+        second.Diagnostics.ShouldBeEmpty();
     }
 
     [Fact]
