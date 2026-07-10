@@ -13,7 +13,6 @@ using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Scripts;
 using NSchema.Sql.Model;
-using NSchema.State.Model;
 
 namespace NSchema.Tests.Plan;
 

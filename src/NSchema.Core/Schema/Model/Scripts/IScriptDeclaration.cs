@@ -14,6 +14,9 @@ internal interface IScriptDeclaration
     /// <summary>The script's SQL body.</summary>
     string Sql { get; }
 
+    /// <summary>The canonical hash of the SQL body.</summary>
+    string Hash { get; }
+
     /// <summary>When the script runs, relative to occurrences of its event.</summary>
     RunCondition RunCondition { get; }
 }

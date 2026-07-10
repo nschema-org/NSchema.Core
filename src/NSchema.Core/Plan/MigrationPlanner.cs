@@ -62,15 +62,16 @@ internal sealed class MigrationPlanner(
         // run), and the pending run-once migrations whose change is in the plan (an unmatched one's event never
         // occurred, so it stays pending).
         var unmatchedNames = new HashSet<string>(unmatched.Where(m => m.Name is not null).Select(m => m.Name!), StringComparer.OrdinalIgnoreCase);
-        var runOnce = scripts.Where(s => s.RunCondition == RunCondition.Once).Select(Hash)
-            .Concat(migrations.Where(m => m.RunCondition == RunCondition.Once && !unmatchedNames.Contains(m.Name!)).Select(Hash))
+        var runOnce = scripts
+            .Where(s => s.RunCondition == RunCondition.Once)
+            .Select(s => new ScriptHash(s.Name, s.Hash))
+            .Concat(migrations
+                .Where(s => s.RunCondition == RunCondition.Once && !unmatchedNames.Contains(s.Name!))
+                .Select(s => new ScriptHash(s.Name!, s.Hash)))
             .ToList();
 
         return Result.From(new PlannedMigration(diff, plan) { Scripts = runOnce }, diagnostics);
     }
-
-    // A run-once declaration always carries a name (the grammar requires one on SCRIPT statements).
-    private static ScriptHash Hash(IScriptDeclaration script) => new(script.Name!, ScriptHash.HashSql(script.Sql));
 
     /// <summary>
     /// Whether a script has already run, adding the skip diagnostic when it has.
@@ -82,7 +83,7 @@ internal sealed class MigrationPlanner(
             return false;
         }
 
-        diagnostics.Add(string.Equals(recordedHash, ScriptHash.HashSql(script.Sql), StringComparison.OrdinalIgnoreCase)
+        diagnostics.Add(string.Equals(recordedHash, script.Hash, StringComparison.OrdinalIgnoreCase)
             ? Diagnostic.Info("run-once", $"Run-once script '{script.Name}' has already run and is skipped.")
             : Diagnostic.Warning("run-once", $"Run-once script '{script.Name}' has changed since it was executed and stays skipped. Rename the script to run the new body once, or restore the original body."));
         return true;

@@ -37,7 +37,9 @@ internal interface IMigrationWorkflow
     /// Updates the state store from the live schema.
     /// </summary>
     /// <param name="applied">The plan that was just applied, or <see langword="null"/> when nothing ran.</param>
+    /// <param name="force">When true, an existing payload that cannot be read is replaced (resetting the run-once
+    /// ledger, flagged on the capture); when false, an unreadable payload fails the capture instead.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>The captured snapshot, or <see langword="null"/> when no state store is configured (nothing was captured).</returns>
-    Task<StateCapture?> Refresh(SqlPlan? applied = null, CancellationToken cancellationToken = default);
+    /// <returns>The capture outcome, or <see langword="null"/> when no state store is configured (nothing to capture).</returns>
+    Task<Result<StateCapture>?> Refresh(SqlPlan? applied = null, bool force = false, CancellationToken cancellationToken = default);
 }

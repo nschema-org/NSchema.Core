@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using NSchema.Plan.PlanFile;
 using NSchema.Schema;
 using NSchema.State;
+using NSchema.State.Storage;
 
 namespace NSchema;
 
@@ -15,7 +16,9 @@ public sealed class NSchemaApplication : IDisposable
     private readonly Lazy<INSchemaOperations> _operations;
     private readonly Lazy<IStateLockCoordinator> _locks;
     private readonly Lazy<ICurrentSchemaProvider> _currentSchema;
+    private readonly Lazy<IDesiredSchemaProvider> _desiredSchema;
     private readonly Lazy<IPlanFileWriter> _planFile;
+    private readonly Lazy<ISchemaStateManager> _state;
 
     internal NSchemaApplication(IHost host)
     {
@@ -23,7 +26,9 @@ public sealed class NSchemaApplication : IDisposable
         _operations = new Lazy<INSchemaOperations>(() => _host.Services.GetRequiredService<INSchemaOperations>());
         _locks = new Lazy<IStateLockCoordinator>(() => _host.Services.GetRequiredService<IStateLockCoordinator>());
         _currentSchema = new Lazy<ICurrentSchemaProvider>(() => _host.Services.GetRequiredService<ICurrentSchemaProvider>());
+        _desiredSchema = new Lazy<IDesiredSchemaProvider>(() => _host.Services.GetRequiredService<IDesiredSchemaProvider>());
         _planFile = new Lazy<IPlanFileWriter>(() => _host.Services.GetRequiredService<IPlanFileWriter>());
+        _state = new Lazy<ISchemaStateManager>(() => _host.Services.GetRequiredService<ISchemaStateManager>());
     }
 
     /// <summary>
@@ -47,9 +52,19 @@ public sealed class NSchemaApplication : IDisposable
     public ICurrentSchemaProvider CurrentSchema => _currentSchema.Value;
 
     /// <summary>
+    /// Reads the desired project declared by the DDL.
+    /// </summary>
+    public IDesiredSchemaProvider DesiredSchema => _desiredSchema.Value;
+
+    /// <summary>
     /// Reads and writes saved plan files.
     /// </summary>
     public IPlanFileWriter PlanFile => _planFile.Value;
+
+    /// <summary>
+    /// Reads and writes the recorded state.
+    /// </summary>
+    public ISchemaStateManager State => _state.Value;
 
     /// <inheritdoc />
     public void Dispose()

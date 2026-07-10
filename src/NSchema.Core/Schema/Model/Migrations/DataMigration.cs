@@ -31,6 +31,11 @@ public sealed record DataMigration(
     public RunCondition RunCondition { get; init; } = RunCondition.Always;
 
     /// <summary>
+    /// The canonical hash of the migration body.
+    /// </summary>
+    public string Hash => ScriptHashing.Hash(Sql);
+
+    /// <summary>
     /// The fully qualified path of the change target (<c>schema.table.member</c>).
     /// </summary>
     public string Path => $"{SchemaName}.{ObjectName}.{MemberName}";

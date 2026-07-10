@@ -9,6 +9,11 @@ namespace NSchema.Schema.Model.Scripts;
 public record Script(string Name, string Sql, ScriptType Type) : IScriptDeclaration
 {
     /// <summary>
+    /// The canonical hash of the script body.
+    /// </summary>
+    public string Hash => ScriptHashing.Hash(Sql);
+
+    /// <summary>
     /// When true, the script runs outside of the migration's transaction.
     /// </summary>
     /// <remarks>

@@ -23,6 +23,7 @@ using NSchema.Schema;
 using NSchema.Schema.Policies;
 using NSchema.Sql;
 using NSchema.State;
+using NSchema.State.Storage;
 
 namespace NSchema;
 
@@ -128,6 +129,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
         // State
         services.TryAddSingleton<ISchemaStateSerializer, SchemaStateSerializer>();
+        services.TryAddSingleton<ISchemaStateManager, SchemaStateManager>();
         services.TryAddSingleton<IStateLockCoordinator, StateLockCoordinator>();
     }
 }
