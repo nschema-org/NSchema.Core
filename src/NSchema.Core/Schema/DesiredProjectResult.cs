@@ -9,7 +9,7 @@ namespace NSchema.Schema;
 /// <param name="Project">The desired state declared by the DDL.</param>
 /// <param name="Files">The full paths of the DDL files the project was read from, in load order.</param>
 /// <param name="Diagnostics">Non-fatal findings raised while reading (for example, deprecated syntax).</param>
-internal sealed record DesiredProjectResult(
+public sealed record DesiredProjectResult(
     DesiredProject Project,
     IReadOnlyList<string> Files,
     IReadOnlyList<Diagnostic> Diagnostics

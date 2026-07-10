@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 > Versions before 3.0.0 covered the library-only era of NSchema. They are kept for historical reference only.
 
+## [4.6.0] - 2026-07-10
+
+### Added
+
+- **Public desired-schema access.** `IDesiredSchemaProvider` is now public and exposed as `app.DesiredSchema`.
+- **`Hash` on `Script` and `DataMigration`.** For reading the canonical hash of the body.
+
+### Changed
+
+- Refresh no longer silently replaces a state payload it cannot read: it fails unless `RefreshArguments.Force` is set, and a forced replacement carries
+  a warning that the run-once script ledger was reset. The state capture after an apply still replaces an unreadable payload (the SQL has already run),
+  with the same warning.
+
 ## [4.5.0] - 2026-07-10
 
 ### Added

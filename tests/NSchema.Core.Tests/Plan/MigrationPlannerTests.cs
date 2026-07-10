@@ -259,7 +259,7 @@ public sealed class MigrationPlannerTests
 
     /// <summary>A current state recording <paramref name="sql"/> as script <paramref name="name"/>'s executed body.</summary>
     private static CurrentState Executed(string name, string sql) =>
-        new(_emptySchema, [new ScriptHash(name, ScriptHash.HashSql(sql))]);
+        new(_emptySchema, [new ScriptHash(name, ScriptHashing.Hash(sql))]);
 
     [Fact]
     public void Plan_PendingRunOnceScript_IsPlannedAndListedForRecording()
@@ -271,7 +271,7 @@ public sealed class MigrationPlannerTests
         result.Value!.Plan.PostDeploymentScripts.ShouldHaveSingleItem().Name.ShouldBe("seed");
         var pending = result.Value!.Scripts.ShouldHaveSingleItem();
         pending.Name.ShouldBe("seed");
-        pending.Hash.ShouldBe(ScriptHash.HashSql(SeedScript().Sql));
+        pending.Hash.ShouldBe(ScriptHashing.Hash(SeedScript().Sql));
     }
 
     [Fact]
