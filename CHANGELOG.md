@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   The event is a deployment bookend (`PRE DEPLOYMENT` / `POST DEPLOYMENT`) or a structural change (`ADD COLUMN` / `ALTER COLUMN TYPE` / `ADD CONSTRAINT` with a target path);
 - `RunCondition` on scripts and data migrations, carrying the parsed `RUN` clause.
 - The backend state store now carries the recorded script executions.
+- A `RUN ONCE` script is recorded on a successful apply and skipped by later plans. A recorded script whose body has since changed stays skipped and warns.
 
 ### Changed
 
