@@ -48,7 +48,7 @@ public sealed class RefreshEndToEndTests : IDisposable
 
         await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken);
 
-        store.Written.ShouldNotBeNull().Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
+        store.Written.ShouldNotBeNull().Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
     }
 
     [Fact]

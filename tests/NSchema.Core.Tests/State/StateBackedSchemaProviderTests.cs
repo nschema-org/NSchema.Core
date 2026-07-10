@@ -1,6 +1,7 @@
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Schemas;
 using NSchema.State;
+using NSchema.State.Model;
 
 namespace NSchema.Tests.State;
 
@@ -12,7 +13,7 @@ public sealed class StateBackedSchemaProviderTests
     private StateBackedSchemaProvider BuildSut() => new(_store, _serializer);
 
     private void Persisted(DatabaseSchema schema) =>
-        _store.Read(Arg.Any<CancellationToken>()).Returns(_serializer.Serialize(schema));
+        _store.Read(Arg.Any<CancellationToken>()).Returns(_serializer.Serialize(new SchemaState(schema)));
 
     [Fact]
     public async Task GetSchema_NoState_ReturnsEmptySchema()

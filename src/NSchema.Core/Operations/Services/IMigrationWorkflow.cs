@@ -2,6 +2,7 @@ using NSchema.Diagnostics;
 using NSchema.Plan;
 using NSchema.Policies;
 using NSchema.Schema;
+using NSchema.Sql.Model;
 
 namespace NSchema.Operations.Services;
 
@@ -33,9 +34,10 @@ internal interface IMigrationWorkflow
     Task<Result<PlannedMigration>> ComputeTeardown(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Captures the live schema into the state store.
+    /// Updates the state store from the live schema.
     /// </summary>
+    /// <param name="applied">The plan that was just applied, or <see langword="null"/> when nothing ran.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The captured snapshot, or <see langword="null"/> when no state store is configured (nothing was captured).</returns>
-    Task<StateCapture?> Refresh(CancellationToken cancellationToken = default);
+    Task<StateCapture?> Refresh(SqlPlan? applied = null, CancellationToken cancellationToken = default);
 }

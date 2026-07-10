@@ -4,6 +4,7 @@ using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Schemas;
 using NSchema.State;
+using NSchema.State.Model;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
@@ -15,7 +16,7 @@ public sealed class DdlDocumentWriterTests
 {
     // Canonicalize the schema half via the internal state serializer (independent of the writer under test).
     private static string Canonical(DatabaseSchema schema)
-        => Encoding.UTF8.GetString(new SchemaStateSerializer().Serialize(schema).Span);
+        => Encoding.UTF8.GetString(new SchemaStateSerializer().Serialize(new SchemaState(schema)).Span);
 
     private static void AssertEquivalent(DdlDocument expected, DdlDocument actual)
     {
@@ -108,9 +109,15 @@ public sealed class DdlDocumentWriterTests
             $$;
             """);
 
-        formatted.ShouldContain("PRE DEPLOYMENT 'enable_citext' AS $$");
-        formatted.ShouldContain("POST DEPLOYMENT 'reindex' (run_outside_transaction = true) AS $$");
+        // The writer emits the canonical SCRIPT form, whichever spelling was read.
+        formatted.ShouldContain("SCRIPT 'enable_citext' RUN ON PRE DEPLOYMENT AS $$");
+        formatted.ShouldContain("SCRIPT 'reindex' RUN ON POST DEPLOYMENT (run_outside_transaction = true) AS $$");
     }
+
+    [Fact]
+    public void Write_RunOnceScript_RoundTrips()
+        => AssertRoundTrips("SCRIPT 'seed' RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO app.c VALUES (1); $$;")
+            .ShouldContain("SCRIPT 'seed' RUN ONCE ON POST DEPLOYMENT AS $$");
 
     [Fact]
     public void Write_ScriptBodyContainingDoubleDollar_PicksASafeTag()
@@ -133,7 +140,7 @@ public sealed class DdlDocumentWriterTests
             MIGRATION 'backfill_emails' FOR ADD COLUMN app.users.email AS $$
                 UPDATE app.users SET email = '';
             $$;
-            """).ShouldContain("MIGRATION 'backfill_emails' FOR ADD COLUMN app.users.email AS $$");
+            """).ShouldContain("SCRIPT 'backfill_emails' RUN ON ADD COLUMN app.users.email AS $$");
 
     [Fact]
     public void Write_AnonymousMigration_RoundTrips()

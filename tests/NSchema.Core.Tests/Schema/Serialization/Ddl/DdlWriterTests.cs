@@ -15,6 +15,7 @@ using NSchema.Schema.Model.Tables;
 using NSchema.Schema.Model.Triggers;
 using NSchema.Schema.Model.Views;
 using NSchema.State;
+using NSchema.State.Model;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
@@ -27,7 +28,7 @@ public sealed class DdlWriterTests
     // Canonicalize a schema to a deterministic string for structural-equality comparison,
     // using the internal state serializer (independent of the DDL writer under test).
     private static string Canonical(DatabaseSchema schema)
-        => Encoding.UTF8.GetString(new SchemaStateSerializer().Serialize(schema).Span);
+        => Encoding.UTF8.GetString(new SchemaStateSerializer().Serialize(new SchemaState(schema)).Span);
 
     // -------------------------------------------------------------------------
     // Columns

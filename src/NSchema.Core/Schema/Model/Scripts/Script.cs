@@ -6,7 +6,7 @@ namespace NSchema.Schema.Model.Scripts;
 /// <param name="Name">The name of the script, which can be used for identification and reference purposes.</param>
 /// <param name="Sql">The actual SQL code contained in the script, which defines the operations to be performed on the database when the script is executed.</param>
 /// <param name="Type">The type of script, indicating when it should be executed in relation to the main migration actions.</param>
-public record Script(string Name, string Sql, ScriptType Type)
+public record Script(string Name, string Sql, ScriptType Type) : IScriptDeclaration
 {
     /// <summary>
     /// When true, the script runs outside of the migration's transaction.
@@ -17,4 +17,12 @@ public record Script(string Name, string Sql, ScriptType Type)
     /// the database disallows inside a transaction (for example, <c>CREATE INDEX CONCURRENTLY</c>).
     /// </remarks>
     public bool RunOutsideTransaction { get; init; }
+
+    /// <summary>
+    /// When the script runs, relative to occurrences of its event.
+    /// </summary>
+    public RunCondition RunCondition { get; init; } = RunCondition.Always;
+
+    // A deployment script's name is required, so the nullable capability view simply forwards it.
+    string? IScriptDeclaration.Name => Name;
 }

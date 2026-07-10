@@ -9,7 +9,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 
 public sealed class DdlParserTests
 {
-    private static DatabaseSchema Parse(string source) => new DdlParser(source).Parse().Schema;
+    private static DatabaseSchema Parse(string source) => new DdlParser(source).Parse().Document.Schema;
 
     private static IReadOnlyList<ConfigBlock> ReadConfig(string source) => DdlReader.Instance.Read(source).Config;
 

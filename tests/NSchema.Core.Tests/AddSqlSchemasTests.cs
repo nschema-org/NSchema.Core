@@ -27,7 +27,7 @@ public sealed class AddSqlSchemasTests : IDisposable
         var builder = NSchemaApplication.CreateBuilder();
         configure(builder);
         using var app = builder.Build();
-        return await app.Services.GetRequiredService<IDesiredSchemaProvider>().GetProject(scope, TestContext.Current.CancellationToken);
+        return (await app.Services.GetRequiredService<IDesiredSchemaProvider>().GetProject(scope, TestContext.Current.CancellationToken)).Project;
     }
 
     private static async Task<List<string>> ResolveSchemaNames(Action<NSchemaApplicationBuilder> configure) =>
@@ -143,7 +143,7 @@ public sealed class AddSqlSchemasTests : IDisposable
         app.Services.GetServices<DdlSchemaSource>().ShouldHaveSingleItem();
         WriteSchemaFile("late.sql", "late");
 
-        var project = await app.Services.GetRequiredService<IDesiredSchemaProvider>().GetProject(cancellationToken: TestContext.Current.CancellationToken);
+        var project = (await app.Services.GetRequiredService<IDesiredSchemaProvider>().GetProject(cancellationToken: TestContext.Current.CancellationToken)).Project;
         project.Schema.Schemas.Select(s => s.Name).ShouldBe(["late"]);
     }
 }

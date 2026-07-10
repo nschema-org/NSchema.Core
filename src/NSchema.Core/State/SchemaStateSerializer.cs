@@ -2,13 +2,12 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using NSchema.Helpers;
-using NSchema.Schema.Model;
 using NSchema.State.Model;
 
 namespace NSchema.State;
 
 /// <summary>
-/// Serializes and deserializes <see cref="DatabaseSchema"/> snapshots to the versioned state envelope.
+/// Serializes and deserializes <see cref="SchemaState"/> snapshots to the versioned state envelope.
 /// </summary>
 internal sealed class SchemaStateSerializer : ISchemaStateSerializer
 {
@@ -23,15 +22,18 @@ internal sealed class SchemaStateSerializer : ISchemaStateSerializer
     };
 
     /// <inheritdoc />
-    public ReadOnlyMemory<byte> Serialize(DatabaseSchema schema)
+    public ReadOnlyMemory<byte> Serialize(SchemaState state)
     {
-        var envelope = new SchemaStateEnvelope(SchemaStateEnvelope.CurrentVersion, schema);
+        var envelope = new SchemaStateEnvelope(SchemaStateEnvelope.CurrentVersion, state.Schema)
+        {
+            ExecutedScripts = state.ExecutedScripts,
+        };
         var bytes = JsonSerializer.SerializeToUtf8Bytes(envelope, _options);
         return bytes;
     }
 
     /// <inheritdoc />
-    public DatabaseSchema Deserialize(ReadOnlyMemory<byte> state)
+    public SchemaState Deserialize(ReadOnlyMemory<byte> state)
     {
         SchemaStateEnvelope? envelope;
         try
@@ -58,6 +60,6 @@ internal sealed class SchemaStateSerializer : ISchemaStateSerializer
                 $"{SchemaStateEnvelope.CurrentVersion}. Upgrade NSchema to read this state.");
         }
 
-        return envelope.Schema;
+        return new SchemaState(envelope.Schema, envelope.ExecutedScripts);
     }
 }

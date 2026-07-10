@@ -10,7 +10,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 public sealed class DdlParserDomainTests
 {
     private static Domain ParseDomain(string sql) =>
-        new DdlParser("CREATE SCHEMA app; " + sql).Parse().Schema
+        new DdlParser("CREATE SCHEMA app; " + sql).Parse().Document.Schema
             .Schemas.ShouldHaveSingleItem().Domains.ShouldHaveSingleItem();
 
     [Fact]
@@ -61,7 +61,7 @@ public sealed class DdlParserDomainTests
 
     [Fact]
     public void Parse_DropDomain_RecordsDroppedDomain()
-        => new DdlParser("CREATE SCHEMA app; DROP DOMAIN app.typeid;").Parse().Schema
+        => new DdlParser("CREATE SCHEMA app; DROP DOMAIN app.typeid;").Parse().Document.Schema
             .Schemas.ShouldHaveSingleItem().DroppedDomains.ShouldHaveSingleItem().ShouldBe("typeid");
 
     [Fact]

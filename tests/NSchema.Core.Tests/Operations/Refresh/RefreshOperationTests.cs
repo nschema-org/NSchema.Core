@@ -2,6 +2,7 @@ using NSchema.Operations.Refresh;
 using NSchema.Operations.Services;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Schemas;
+using NSchema.Sql.Model;
 
 namespace NSchema.Tests.Operations.Refresh;
 
@@ -17,7 +18,7 @@ public sealed class RefreshOperationTests
     {
         // Arrange
         var schema = new DatabaseSchema([new SchemaDefinition("app")]);
-        _workflow.Refresh(Arg.Any<CancellationToken>()).Returns(new StateCapture(schema, 2048));
+        _workflow.Refresh(Arg.Any<SqlPlan?>(), Arg.Any<CancellationToken>()).Returns(new StateCapture(schema, 2048));
 
         // Act
         var result = await _sut.Execute(new RefreshArguments(), TestContext.Current.CancellationToken);
@@ -32,7 +33,7 @@ public sealed class RefreshOperationTests
     public async Task Execute_WhenNoStoreConfigured_Fails()
     {
         // Arrange — refresh's whole purpose is to capture to a store, so a missing store is a failure (not a no-op).
-        _workflow.Refresh(Arg.Any<CancellationToken>()).Returns((StateCapture?)null);
+        _workflow.Refresh(Arg.Any<SqlPlan?>(), Arg.Any<CancellationToken>()).Returns((StateCapture?)null);
 
         // Act
         var result = await _sut.Execute(new RefreshArguments(), TestContext.Current.CancellationToken);

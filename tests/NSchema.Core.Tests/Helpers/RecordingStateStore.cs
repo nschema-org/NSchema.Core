@@ -1,5 +1,5 @@
-using NSchema.Schema.Model;
 using NSchema.State;
+using NSchema.State.Model;
 
 namespace NSchema.Tests.Helpers;
 
@@ -11,10 +11,12 @@ internal sealed class RecordingStateStore : ISchemaStateStore
 {
     private static readonly SchemaStateSerializer _serializer = new();
 
-    public DatabaseSchema? Written { get; private set; }
+    public SchemaState? Written { get; private set; }
 
+    // The explicit nullable default matters: a bare `null` here would convert through byte[] to an
+    // empty (non-null) ReadOnlyMemory, which reads as a corrupt zero-byte payload rather than "no state".
     public Task<ReadOnlyMemory<byte>?> Read(CancellationToken cancellationToken = default) =>
-        Task.FromResult<ReadOnlyMemory<byte>?>(Written is null ? null : _serializer.Serialize(Written));
+        Task.FromResult(Written is null ? default(ReadOnlyMemory<byte>?) : _serializer.Serialize(Written));
 
     public Task Write(ReadOnlyMemory<byte> state, CancellationToken cancellationToken = default)
     {

@@ -3,6 +3,7 @@ using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Schemas;
 using NSchema.State;
+using NSchema.State.Model;
 
 namespace NSchema.Tests.State;
 
@@ -25,7 +26,7 @@ public sealed class CurrentSchemaProviderTests
     private sealed class FakeStateStore : ISchemaStateStore
     {
         public Task<ReadOnlyMemory<byte>?> Read(CancellationToken cancellationToken = default) =>
-            Task.FromResult<ReadOnlyMemory<byte>?>(_serializer.Serialize(_offlineSchema));
+            Task.FromResult<ReadOnlyMemory<byte>?>(_serializer.Serialize(new SchemaState(_offlineSchema)));
 
         public Task Write(ReadOnlyMemory<byte> state, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;

@@ -6,27 +6,24 @@ namespace NSchema.Schema.Ddl;
 internal sealed partial class DdlParser
 {
     /// <summary>
-    /// Parses a data-migration statement:
+    /// Parses a data-migration statement in the deprecated pre-SCRIPT form:
     /// <c>MIGRATION ['name'] FOR &lt;trigger&gt; &lt;schema&gt;.&lt;table&gt;.&lt;member&gt; [( option = value, … )] AS $$ … $$;</c>.
     /// The body is opaque SQL run only when the plan contains the matching structural change.
     /// </summary>
     private DataMigration ParseDataMigration()
     {
+        var start = _current.Position;
         Advance(); // MIGRATION
         var name = _current.Kind == TokenKind.String ? Advance().Text : null;
         ExpectKeyword("FOR");
         var trigger = ParseMigrationTrigger();
         var (schema, table, member) = ParseMemberPath();
-        var runOutsideTransaction = ParseRunOutsideTransactionOptions("migration");
+        var (runOutsideTransaction, body) = ParseScriptTail("migration");
 
-        if (!_current.IsKeyword("AS"))
-        {
-            throw Error("Expected 'AS' before the migration body.");
-        }
-        Advance(); // AS
-        var dollar = Expect(TokenKind.DollarString, "a migration body as a dollar-quoted block ($$ … $$)");
-        var body = StripDollarQuote(dollar.Text).Trim();
-        Expect(TokenKind.Semicolon, "';' to end the migration");
+        // Inside a template body the suggested path must stay unqualified — the schema binds at application time.
+        var path = _templateSchemaContext is null ? $"{schema}.{table}.{member}" : $"{table}.{member}";
+        Warn($"'MIGRATION FOR' is deprecated and will be removed in NSchema 5.0; declare the block as " +
+             $"SCRIPT '{name ?? "<name>"}' RUN ON {DataMigration.TriggerText(trigger)} {path} … instead", start);
 
         return new DataMigration(name, trigger, schema, table, member, body)
         {
