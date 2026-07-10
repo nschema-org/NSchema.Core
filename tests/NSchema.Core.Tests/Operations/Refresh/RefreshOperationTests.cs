@@ -1,8 +1,8 @@
 using NSchema.Operations.Refresh;
 using NSchema.Operations.Services;
-using NSchema.Sql.Model;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Schemas;
+using NSchema.Sql.Model;
 
 namespace NSchema.Tests.Operations.Refresh;
 
