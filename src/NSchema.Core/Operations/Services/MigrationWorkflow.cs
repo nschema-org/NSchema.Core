@@ -121,7 +121,17 @@ internal sealed class MigrationWorkflow(
 
         var written = await stateManager.Write(new StateWriteArguments(state), cancellationToken);
         progress.Report(OperationProgress.Detail($"State snapshot: {StatusHelpers.Describe(schema)}, {written.Value!.PayloadSize:N0} bytes."));
-        return Result.Success(new StateCapture(schema, written.Value.PayloadSize) { ReplacedUnreadableState = read.IsFailure });
+
+        var diagnostics = new List<Diagnostic>();
+        if (read.IsFailure)
+        {
+            diagnostics = read.Diagnostics.Append(Diagnostic.Warning("state",
+                "The existing state payload could not be read and has been replaced; the run-once script ledger was " +
+                "reset. Untaint any run-once scripts that have already run, or they will run again on the next apply."
+            )).ToList();
+        }
+
+        return Result.Success(new StateCapture(schema, written.Value.PayloadSize), diagnostics);
     }
 
     /// <summary>
