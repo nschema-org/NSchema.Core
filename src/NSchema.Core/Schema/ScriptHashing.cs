@@ -1,8 +1,11 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace NSchema.Schema.Model;
+namespace NSchema.Schema;
 
+/// <summary>
+/// Domain service computing the canonical script-body hash. The hash is opaque outside the schema domain.
+/// </summary>
 internal static class ScriptHashing
 {
     /// <summary>
