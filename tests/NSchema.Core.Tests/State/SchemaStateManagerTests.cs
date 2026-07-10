@@ -60,7 +60,7 @@ public sealed class SchemaStateManagerTests
     public async Task Read_ReturnsTheRecordedState()
     {
         // Arrange
-        var state = SchemaState.Empty.RecordExecutions([new ScriptHash("seed", "abc")], _now);
+        var state = SchemaState.Empty.RecordScripts([new ScriptHash("seed", "abc")], _now);
         StoreHolds(_serializer.Serialize(state));
 
         // Act
@@ -68,7 +68,7 @@ public sealed class SchemaStateManagerTests
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
-        result.Value.State.ShouldNotBeNull().ExecutedScripts.ShouldBe(state.ExecutedScripts);
+        result.Value.State.ShouldNotBeNull().Scripts.ShouldBe(state.Scripts);
     }
 
     [Fact]
@@ -99,7 +99,7 @@ public sealed class SchemaStateManagerTests
     public async Task Write_PersistsTheSerializedState_AndReportsThePayloadSize()
     {
         // Arrange
-        var state = SchemaState.Empty.RecordExecutions([new ScriptHash("seed", "abc")], _now);
+        var state = SchemaState.Empty.RecordScripts([new ScriptHash("seed", "abc")], _now);
         byte[]? written = null;
         await _store.Write(Arg.Do<ReadOnlyMemory<byte>>(m => written = m.ToArray()), Arg.Any<CancellationToken>());
 
@@ -110,7 +110,7 @@ public sealed class SchemaStateManagerTests
         result.IsSuccess.ShouldBeTrue();
         written.ShouldNotBeNull();
         result.Value.PayloadSize.ShouldBe(written.Length);
-        _serializer.Deserialize(written).ExecutedScripts.ShouldBe(state.ExecutedScripts);
+        _serializer.Deserialize(written).Scripts.ShouldBe(state.Scripts);
     }
 
     [Fact]

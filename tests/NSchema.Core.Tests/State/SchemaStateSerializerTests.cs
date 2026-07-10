@@ -126,14 +126,14 @@ public sealed class SchemaStateSerializerTests
     public void RoundTrip_PreservesExecutedScripts()
     {
         // Arrange
-        var executed = new ScriptExecutionRecord("api-login", "abc123", new DateTimeOffset(2026, 7, 10, 12, 0, 0, TimeSpan.Zero));
+        var executed = new ScriptRecord("api-login", "abc123", new DateTimeOffset(2026, 7, 10, 12, 0, 0, TimeSpan.Zero));
         var state = new SchemaState(new DatabaseSchema([new SchemaDefinition("app")]), [executed]);
 
         // Act
         var roundTripped = _sut.Deserialize(_sut.Serialize(state));
 
         // Assert
-        roundTripped.ExecutedScripts.ShouldHaveSingleItem().ShouldBe(executed);
+        roundTripped.Scripts.ShouldHaveSingleItem().ShouldBe(executed);
     }
 
     [Fact]
@@ -145,7 +145,7 @@ public sealed class SchemaStateSerializerTests
             { "version": 1, "schema": { "schemas": [], "droppedSchemas": [] } }
             """;
 
-        _sut.Deserialize(Encoding.UTF8.GetBytes(json)).ExecutedScripts.ShouldBeEmpty();
+        _sut.Deserialize(Encoding.UTF8.GetBytes(json)).Scripts.ShouldBeEmpty();
     }
 
     [Fact]

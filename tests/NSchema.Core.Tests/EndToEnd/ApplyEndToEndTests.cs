@@ -182,7 +182,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         first.Sql!.Scripts.ShouldHaveSingleItem().Name.ShouldBe("seed currencies");
         await app.Operations.Apply(new ApplyArguments { Sql = first.Sql! }, TestContext.Current.CancellationToken);
 
-        _store.Written.ShouldNotBeNull().ExecutedScripts.ShouldHaveSingleItem().Name.ShouldBe("seed currencies");
+        _store.Written.ShouldNotBeNull().Scripts.ShouldHaveSingleItem().Name.ShouldBe("seed currencies");
 
         // Second run: the script is skipped, reported, and no longer up for recording.
         var second = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
