@@ -8,7 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-Nothing yet!
+### Added
+
+- **Public state access.** The recorded state is now a public model.
+- **`ISchemaStateManager`**, exposed as `app.State`, facilitates reading and writing the recorded state, with an optional `ReadRaw`/`WriteRaw` methods for moving the serialized payload without interpreting it.
+
+### Changed
+
+- Planning with an unreadable state payload now fails with a diagnostic instead of throwing.
 
 ## [4.4.0] - 2026-07-10
 

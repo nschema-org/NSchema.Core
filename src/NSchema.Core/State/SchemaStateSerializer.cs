@@ -26,7 +26,7 @@ internal sealed class SchemaStateSerializer : ISchemaStateSerializer
     {
         var envelope = new SchemaStateEnvelope(SchemaStateEnvelope.CurrentVersion, state.Schema)
         {
-            ExecutedScripts = state.ExecutedScripts,
+            ExecutedScripts = state.Scripts,
         };
         var bytes = JsonSerializer.SerializeToUtf8Bytes(envelope, _options);
         return bytes;

@@ -3,11 +3,9 @@ using NSchema.Operations.Progress;
 using NSchema.Plan;
 using NSchema.Policies;
 using NSchema.Schema;
-using NSchema.Schema.Model;
-using NSchema.Schema.Model.Scripts;
 using NSchema.Sql.Model;
-using NSchema.State;
 using NSchema.State.Model;
+using NSchema.State.Storage;
 
 namespace NSchema.Operations.Services;
 
@@ -16,8 +14,7 @@ internal sealed class MigrationWorkflow(
     IProgress<OperationProgress> progress,
     ICurrentSchemaProvider currentProvider,
     IDesiredSchemaProvider desiredProvider,
-    ISchemaStateSerializer stateSerializer,
-    ISchemaStateStore? store = null
+    ISchemaStateManager stateManager
 ) : IMigrationWorkflow
 {
     public async Task<PolicyDiagnostics> Validate(CancellationToken cancellationToken = default)
@@ -47,16 +44,27 @@ internal sealed class MigrationWorkflow(
         progress.Report(OperationProgress.Detail($"Current schema ({currentSource.ToString().ToLowerInvariant()}): {StatusHelpers.Describe(currentSchema)}."));
 
         var readDiagnostics = new List<Diagnostic>(desired.Diagnostics);
-        if (store is null && HasRunOnceScripts(desired.Project))
+        if (!stateManager.IsConfigured && desired.Project.HasRunOnceScripts)
         {
             readDiagnostics.Add(Diagnostic.Warning("run-once", "Run-once scripts require a state store to record executions; without one they run on every apply."));
         }
 
         progress.Report(OperationProgress.Step("Computing migration plan..."));
 
-        var snapshot = store is null ? null : await store.Read(cancellationToken);
-        var state = snapshot is null ? SchemaState.Empty : stateSerializer.Deserialize(snapshot.Value);
-        var scriptHashes = state.ExecutedScripts.Select(e => new ScriptHash(e.Name, e.Hash)).ToList();
+        var state = SchemaState.Empty;
+        if (stateManager.IsConfigured)
+        {
+            var read = await stateManager.Read(new StateReadArguments(), cancellationToken);
+            if (read.IsFailure)
+            {
+                return Result.Failure<PlannedMigration>(readDiagnostics.Concat(read.Diagnostics));
+            }
+
+            readDiagnostics.AddRange(read.Diagnostics);
+            state = read.Value.State ?? SchemaState.Empty;
+        }
+
+        var scriptHashes = state.Scripts.Select(e => new ScriptHash(e.Name, e.Hash)).ToList();
         var current = new CurrentState(currentSchema, scriptHashes);
         var plan = planner.Plan(current, desired.Project);
 
@@ -71,13 +79,10 @@ internal sealed class MigrationWorkflow(
             : Result.Failure<PlannedMigration>(diagnostics);
     }
 
-    private static bool HasRunOnceScripts(DesiredProject project) => project.Scripts
-        .Concat<IScriptDeclaration>(project.Migrations).Any(s => s.RunCondition == RunCondition.Once);
-
     public async Task<Result<PlannedMigration>> ComputeTeardown(CancellationToken cancellationToken = default)
     {
         // The managed schema is what we tear down: recorded state when we have it, otherwise the declared desired schema.
-        var managedSchema = store is not null
+        var managedSchema = stateManager.IsConfigured
             ? await currentProvider.GetSchema(SchemaSourceMode.Offline, null, required: true, cancellationToken)
             : (await desiredProvider.GetProject(null, cancellationToken)).Project.Schema;
 
@@ -87,7 +92,7 @@ internal sealed class MigrationWorkflow(
 
     public async Task<StateCapture?> Refresh(SqlPlan? applied = null, CancellationToken cancellationToken = default)
     {
-        if (store is null)
+        if (!stateManager.IsConfigured)
         {
             return null;
         }
@@ -96,29 +101,18 @@ internal sealed class MigrationWorkflow(
         var schema = await currentProvider.GetSchema(SchemaSourceMode.Online, null, required: true, cancellationToken);
 
         // Fetch the current state, apply this run's changes over it, and write the result back.
-        var snapshot = await store.Read(cancellationToken);
-        SchemaState state;
-        try
-        {
-            state = snapshot is null ? SchemaState.Empty : stateSerializer.Deserialize(snapshot.Value);
-        }
-        catch (Exception ex) when (ex is StateDeserializationException or NotSupportedException)
-        {
-            // Refresh is the recovery path for a corrupt or incompatible payload, so an unreadable
-            // state reads as empty rather than failing the capture.
-            state = SchemaState.Empty;
-        }
+        var read = await stateManager.Read(new StateReadArguments(), cancellationToken);
+        var state = read.Value?.State ?? SchemaState.Empty;
 
         state = state with { Schema = schema };
         if (applied is not null)
         {
-            state = state.RecordExecutions(applied.Scripts, DateTimeOffset.UtcNow);
+            state = state.RecordScripts(applied.Scripts, DateTimeOffset.UtcNow);
         }
 
-        snapshot = stateSerializer.Serialize(state);
-        progress.Report(OperationProgress.Detail($"State snapshot: {StatusHelpers.Describe(schema)}, {snapshot.Value.Length:N0} bytes."));
-        await store.Write(snapshot.Value, cancellationToken);
-        return new StateCapture(schema, snapshot.Value.Length);
+        var written = await stateManager.Write(new StateWriteArguments(state), cancellationToken);
+        progress.Report(OperationProgress.Detail($"State snapshot: {StatusHelpers.Describe(schema)}, {written.Value!.PayloadSize:N0} bytes."));
+        return new StateCapture(schema, written.Value.PayloadSize);
     }
 
     /// <summary>
