@@ -309,7 +309,7 @@ public sealed class MigrationWorkflowTests
         var sut = BuildSut(store);
 
         // Act
-        await sut.Refresh(new SqlPlan([]) { Scripts = [new ScriptHash("seed", "abc")] }, TestContext.Current.CancellationToken);
+        await sut.Refresh(new SqlPlan([]) { Scripts = [new ScriptHash("seed", "abc")] }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         var execution = _stateSerializer.Deserialize(written!.Value).Scripts.ShouldHaveSingleItem();
@@ -349,16 +349,34 @@ public sealed class MigrationWorkflowTests
         var sut = BuildSut(store);
 
         // Act
-        await sut.Refresh(new SqlPlan([]) { Scripts = [new ScriptHash("seed", "new-hash")] }, TestContext.Current.CancellationToken);
+        await sut.Refresh(new SqlPlan([]) { Scripts = [new ScriptHash("seed", "new-hash")] }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         _stateSerializer.Deserialize(written!.Value).Scripts.ShouldHaveSingleItem().Hash.ShouldBe("new-hash");
     }
 
     [Fact]
-    public async Task Refresh_CorruptExistingState_StillCaptures_WithAnEmptyLedger()
+    public async Task Refresh_CorruptExistingState_WithoutForce_FailsWithoutWriting()
     {
-        // Arrange — refresh is the recovery path for corrupt state, so it must not fail on the old payload.
+        // Arrange — replacing an unreadable payload resets the run-once ledger, so it must be asked for.
+        var store = Substitute.For<ISchemaStateStore>();
+        store.Read(Arg.Any<CancellationToken>()).Returns((ReadOnlyMemory<byte>?)new byte[] { 0x7b });
+        var sut = BuildSut(store);
+
+        // Act
+        var captured = await sut.Refresh(cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        captured.ShouldNotBeNull();
+        captured.IsFailure.ShouldBeTrue();
+        captured.Errors.ShouldContain(d => d.Message.Contains("force"));
+        await store.DidNotReceive().Write(Arg.Any<ReadOnlyMemory<byte>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Refresh_CorruptExistingState_WithForce_ReplacesAndFlagsTheResetLedger()
+    {
+        // Arrange — a forced refresh is the recovery path for corrupt state.
         var store = Substitute.For<ISchemaStateStore>();
         store.Read(Arg.Any<CancellationToken>()).Returns((ReadOnlyMemory<byte>?)new byte[] { 0x7b });
         ReadOnlyMemory<byte>? written = null;
@@ -366,11 +384,33 @@ public sealed class MigrationWorkflowTests
         var sut = BuildSut(store);
 
         // Act
-        var capture = await sut.Refresh(cancellationToken: TestContext.Current.CancellationToken);
+        var captured = await sut.Refresh(force: true, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert — the reset ledger rides the successful capture as warnings (an error would flip the result
+        // to a failure), so the caller surfaces it without any extra plumbing.
+        captured.ShouldNotBeNull();
+        captured.IsSuccess.ShouldBeTrue();
+        captured.Diagnostics.ShouldContain(d => d.Severity == DiagnosticSeverity.Warning && d.Message.Contains("ledger was reset"));
+        captured.Diagnostics.ShouldAllBe(d => d.Severity == DiagnosticSeverity.Warning);
+        _stateSerializer.Deserialize(written!.Value).Scripts.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Refresh_ReadableExistingState_CarriesNoDiagnostics()
+    {
+        // Arrange
+        var store = Substitute.For<ISchemaStateStore>();
+        store.Read(Arg.Any<CancellationToken>())
+            .Returns(_stateSerializer.Serialize(new SchemaState(new DatabaseSchema([]))));
+        var sut = BuildSut(store);
+
+        // Act
+        var captured = await sut.Refresh(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        capture.ShouldNotBeNull();
-        _stateSerializer.Deserialize(written!.Value).Scripts.ShouldBeEmpty();
+        captured.ShouldNotBeNull();
+        captured.IsSuccess.ShouldBeTrue();
+        captured.Diagnostics.ShouldBeEmpty();
     }
 
     [Fact]

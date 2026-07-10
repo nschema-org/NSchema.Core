@@ -17,8 +17,8 @@ internal sealed class ApplyOperation(IMigrationWorkflow workflow, IProgress<Oper
         // An empty plan executes nothing, but still records state.
         if (args.Sql.IsEmpty)
         {
-            await workflow.Refresh(null, cancellationToken);
-            return Result.Success(new ApplyResult(args.Sql));
+            var emptyCapture = await workflow.Refresh(null, force: true, cancellationToken);
+            return Result.Success(new ApplyResult(args.Sql), emptyCapture?.Diagnostics ?? []);
         }
 
         if (sqlExecutor is null)
@@ -39,7 +39,7 @@ internal sealed class ApplyOperation(IMigrationWorkflow workflow, IProgress<Oper
             // The plan is NOT passed as applied: we don't know which scripts ran.
             try
             {
-                await workflow.Refresh(cancellationToken: cancellationToken);
+                await workflow.Refresh(null, force: true, cancellationToken);
             }
             catch (Exception captureFailure) when (captureFailure is not OperationCanceledException)
             {
@@ -49,8 +49,11 @@ internal sealed class ApplyOperation(IMigrationWorkflow workflow, IProgress<Oper
             throw;
         }
 
-        await workflow.Refresh(args.Sql, cancellationToken);
-        return Result.Success(new ApplyResult(args.Sql));
+        // Recording after execution must not refuse an unreadable payload — the SQL has already run, so the
+        // store is force-updated to reflect reality and the reset ledger is surfaced as a warning instead.
+        var capture = await workflow.Refresh(args.Sql, force: true, cancellationToken);
+
+        return Result.Success(new ApplyResult(args.Sql), capture?.Diagnostics ?? []);
     }
 
     // A verbose progress line: the statement count and how many must run outside a transaction (e.g.

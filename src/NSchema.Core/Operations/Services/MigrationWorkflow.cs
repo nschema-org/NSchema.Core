@@ -64,7 +64,7 @@ internal sealed class MigrationWorkflow(
             state = read.Value.State ?? SchemaState.Empty;
         }
 
-        var scriptHashes = state.Scripts.Select(e => new ScriptHash(e.Name, e.Hash)).ToList();
+        var scriptHashes = state.Scripts.Select(s => new ScriptHash(s.Name, s.Hash)).ToList();
         var current = new CurrentState(currentSchema, scriptHashes);
         var plan = planner.Plan(current, desired.Project);
 
@@ -90,7 +90,7 @@ internal sealed class MigrationWorkflow(
         return planner.PlanTeardown(managedSchema);
     }
 
-    public async Task<StateCapture?> Refresh(SqlPlan? applied = null, CancellationToken cancellationToken = default)
+    public async Task<Result<StateCapture>?> Refresh(SqlPlan? applied = null, bool force = false, CancellationToken cancellationToken = default)
     {
         if (!stateManager.IsConfigured)
         {
@@ -100,8 +100,17 @@ internal sealed class MigrationWorkflow(
         progress.Report(OperationProgress.Step("Updating state store..."));
         var schema = await currentProvider.GetSchema(SchemaSourceMode.Online, null, required: true, cancellationToken);
 
-        // Fetch the current state, apply this run's changes over it, and write the result back.
+        // Fetch the current state, apply this run's changes over it, and write the result back. A forced refresh
+        // is the recovery path for an unreadable payload — it replaces it — but the replacement resets the
+        // run-once ledger, so it must be asked for, and the capture flags it for the caller to surface.
         var read = await stateManager.Read(new StateReadArguments(), cancellationToken);
+        if (read.IsFailure && !force)
+        {
+            return Result.Failure<StateCapture>(read.Diagnostics.Append(Diagnostic.Error("state",
+                "The existing state payload was not replaced. Repair it with state pull/push, or re-run the " +
+                "refresh with force to replace it and reset the run-once script ledger.")));
+        }
+
         var state = read.Value?.State ?? SchemaState.Empty;
 
         state = state with { Schema = schema };
@@ -112,7 +121,21 @@ internal sealed class MigrationWorkflow(
 
         var written = await stateManager.Write(new StateWriteArguments(state), cancellationToken);
         progress.Report(OperationProgress.Detail($"State snapshot: {StatusHelpers.Describe(schema)}, {written.Value!.PayloadSize:N0} bytes."));
-        return new StateCapture(schema, written.Value.PayloadSize);
+
+        var diagnostics = Enumerable.Empty<Diagnostic>();
+        if (read.IsFailure)
+        {
+            // The read errors explain what was wrong with the replaced payload, but the forced capture succeeded,
+            // so they ride along demoted to warnings — error severity would flip the result to a failure.
+            diagnostics = read.Diagnostics
+                .Select(d => d with { Severity = DiagnosticSeverity.Warning })
+                .Append(Diagnostic.Warning("state",
+                    "The existing state payload could not be read and has been replaced; the run-once script ledger was " +
+                    "reset. Untaint any run-once scripts that have already run, or they will run again on the next apply."
+                ));
+        }
+
+        return Result.Success(new StateCapture(schema, written.Value.PayloadSize), diagnostics);
     }
 
     /// <summary>
