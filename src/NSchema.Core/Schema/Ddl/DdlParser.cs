@@ -12,6 +12,7 @@ namespace NSchema.Schema.Ddl;
 internal sealed partial class DdlParser
 {
     private readonly DdlLexer _lexer;
+    private readonly List<DdlWarning> _warnings = [];
     private Token _current;
 
     // Stores the name of the current schema while parsing a TEMPLATE body.
@@ -29,9 +30,9 @@ internal sealed partial class DdlParser
     }
 
     /// <summary>
-    /// Parses the whole document into a <see cref="DdlDocument"/>.
+    /// Parses the whole document, returning it alongside any non-fatal findings raised on the way.
     /// </summary>
-    public DdlDocument Parse()
+    public DdlParseResult Parse()
     {
         var document = new DocumentAccumulator();
         string? pendingDoc = null;
@@ -50,7 +51,7 @@ internal sealed partial class DdlParser
             pendingDoc = null;
         }
 
-        return document.Build();
+        return new DdlParseResult(document.Build(), _warnings);
     }
 
     private void ParseStatement(DocumentAccumulator document, string? doc)
@@ -86,6 +87,10 @@ internal sealed partial class DdlParser
         else if (_current.IsKeyword("MIGRATION"))
         {
             document.Migrations.Add(ParseDataMigration());
+        }
+        else if (_current.IsKeyword("SCRIPT"))
+        {
+            ParseScript(document.Scripts, document.Migrations);
         }
         else if (_current.Kind == TokenKind.Identifier)
         {
@@ -210,6 +215,8 @@ internal sealed partial class DdlParser
     }
 
     private DdlSyntaxException Error(string message) => new(message, _current.Position);
+
+    private void Warn(string message, SourcePosition position) => _warnings.Add(new DdlWarning(message, position));
 
     // --- opaque-span capture --------------------------------------------------
     //

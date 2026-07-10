@@ -9,6 +9,13 @@ namespace NSchema.State.Model;
 /// <param name="Schema">The captured database schema.</param>
 internal sealed record SchemaStateEnvelope(int Version, DatabaseSchema Schema)
 {
-    /// <summary>The current envelope format version.</summary>
+    /// <summary>
+    /// The current envelope format version.
+    /// </summary>
     public const int CurrentVersion = 1;
+
+    /// <summary>
+    /// The recorded script executions.
+    /// </summary>
+    public IReadOnlyList<ScriptExecutionRecord> ExecutedScripts { get; init; } = [];
 }

@@ -102,7 +102,7 @@ public sealed class DoctorOperationTests
     {
         // Arrange
         var store = new RecordingStateStore();
-        await store.Write(_serializer.Serialize(new DatabaseSchema(Schemas: [new SchemaDefinition("app")])), TestContext.Current.CancellationToken);
+        await store.Write(_serializer.Serialize(new SchemaState(new DatabaseSchema(Schemas: [new SchemaDefinition("app")]))), TestContext.Current.CancellationToken);
         var sut = BuildSut(store: store);
 
         // Act

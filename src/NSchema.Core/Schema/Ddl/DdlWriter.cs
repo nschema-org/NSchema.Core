@@ -141,9 +141,38 @@ public sealed class DdlWriter
 
     private static void WriteScript(StringBuilder sb, Script script)
     {
-        sb.Append(script.Type == ScriptType.PreDeployment ? "PRE" : "POST")
-            .Append(" DEPLOYMENT '").Append(script.Name.Replace("'", "''")).Append('\'');
-        if (script.RunOutsideTransaction)
+        sb.Append("SCRIPT '").Append(script.Name.Replace("'", "''")).Append("' RUN");
+        if (script.RunCondition == RunCondition.Once)
+        {
+            sb.Append(" ONCE");
+        }
+        sb.Append(" ON ").Append(script.Type == ScriptType.PreDeployment ? "PRE" : "POST").Append(" DEPLOYMENT");
+        WriteScriptTail(sb, script.RunOutsideTransaction, script.Sql);
+    }
+
+    private static void WriteMigration(StringBuilder sb, DataMigration migration)
+    {
+        if (migration.Name is { } name)
+        {
+            sb.Append("SCRIPT '").Append(name.Replace("'", "''")).Append("' RUN");
+            if (migration.RunCondition == RunCondition.Once)
+            {
+                sb.Append(" ONCE");
+            }
+            sb.Append(" ON ");
+        }
+        else
+        {
+            // The SCRIPT form requires a name, so an anonymous migration keeps its legacy spelling.
+            sb.Append("MIGRATION FOR ");
+        }
+        sb.Append(DataMigration.TriggerText(migration.Trigger)).Append(' ').Append(migration.Path);
+        WriteScriptTail(sb, migration.RunOutsideTransaction, migration.Sql);
+    }
+
+    private static void WriteScriptTail(StringBuilder sb, bool runOutsideTransaction, string sql)
+    {
+        if (runOutsideTransaction)
         {
             sb.Append(" (run_outside_transaction = true)");
         }
@@ -151,28 +180,9 @@ public sealed class DdlWriter
         // Emit the body in a dollar-quoted block, choosing a tag that doesn't occur in the body so it is
         // taken verbatim. The reader strips the delimiters and trims surrounding whitespace, so a body
         // stored without its delimiters round-trips back to the same text.
-        var delimiter = DollarDelimiter(script.Sql);
+        var delimiter = DollarDelimiter(sql);
         sb.Append(" AS ").AppendLine(delimiter);
-        sb.AppendLine(script.Sql);
-        sb.Append(delimiter).AppendLine(";");
-    }
-
-    private static void WriteMigration(StringBuilder sb, DataMigration migration)
-    {
-        sb.Append("MIGRATION ");
-        if (migration.Name is { } name)
-        {
-            sb.Append('\'').Append(name.Replace("'", "''")).Append("' ");
-        }
-        sb.Append("FOR ").Append(DataMigration.TriggerText(migration.Trigger)).Append(' ').Append(migration.Path);
-        if (migration.RunOutsideTransaction)
-        {
-            sb.Append(" (run_outside_transaction = true)");
-        }
-
-        var delimiter = DollarDelimiter(migration.Sql);
-        sb.Append(" AS ").AppendLine(delimiter);
-        sb.AppendLine(migration.Sql);
+        sb.AppendLine(sql);
         sb.Append(delimiter).AppendLine(";");
     }
 

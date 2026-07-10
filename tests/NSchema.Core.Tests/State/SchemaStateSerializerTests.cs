@@ -4,6 +4,7 @@ using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Tables;
 using NSchema.State;
+using NSchema.State.Model;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.State;
@@ -12,7 +13,7 @@ public sealed class SchemaStateSerializerTests
 {
     private static readonly ISchemaStateSerializer _sut = new SchemaStateSerializer();
 
-    private static string Json(DatabaseSchema schema) => Encoding.UTF8.GetString(_sut.Serialize(schema).Span);
+    private static string Json(DatabaseSchema schema) => Encoding.UTF8.GetString(_sut.Serialize(new SchemaState(schema)).Span);
 
     [Fact]
     public void Serialize_ThenDeserialize_RoundTripsAllFeatures()
@@ -22,7 +23,7 @@ public sealed class SchemaStateSerializerTests
 
         // Act: a read + write cycle must reproduce the exact same document.
         var json = Json(original);
-        var roundTripped = _sut.Deserialize(_sut.Serialize(original));
+        var roundTripped = _sut.Deserialize(_sut.Serialize(new SchemaState(original))).Schema;
 
         // Assert
         Json(roundTripped).ShouldBe(json);
@@ -37,7 +38,7 @@ public sealed class SchemaStateSerializerTests
             [new SchemaDefinition("app", Tables: [new Table("t", Columns: [new Column("c", type)])])]);
 
         // Act
-        var roundTripped = _sut.Deserialize(_sut.Serialize(schema));
+        var roundTripped = _sut.Deserialize(_sut.Serialize(new SchemaState(schema))).Schema;
 
         // Assert
         roundTripped.Schemas[0].Tables[0].Columns[0].Type.ShouldBe(type);
@@ -113,12 +114,38 @@ public sealed class SchemaStateSerializerTests
             }
             """;
 
-        var schema = _sut.Deserialize(Encoding.UTF8.GetBytes(json)).Schemas.ShouldHaveSingleItem();
+        var schema = _sut.Deserialize(Encoding.UTF8.GetBytes(json)).Schema.Schemas.ShouldHaveSingleItem();
 
         schema.Enums.ShouldBeEmpty();
         schema.DroppedEnums.ShouldBeEmpty();
         schema.Sequences.ShouldBeEmpty();
         schema.DroppedSequences.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesExecutedScripts()
+    {
+        // Arrange
+        var executed = new ScriptExecutionRecord("api-login", "abc123", new DateTimeOffset(2026, 7, 10, 12, 0, 0, TimeSpan.Zero));
+        var state = new SchemaState(new DatabaseSchema([new SchemaDefinition("app")]), [executed]);
+
+        // Act
+        var roundTripped = _sut.Deserialize(_sut.Serialize(state));
+
+        // Assert
+        roundTripped.ExecutedScripts.ShouldHaveSingleItem().ShouldBe(executed);
+    }
+
+    [Fact]
+    public void Deserialize_PayloadWithoutExecutedScripts_ReadsAsAnEmptyLedger()
+    {
+        // A state file written before the ledger existed must still load.
+        const string json =
+            """
+            { "version": 1, "schema": { "schemas": [], "droppedSchemas": [] } }
+            """;
+
+        _sut.Deserialize(Encoding.UTF8.GetBytes(json)).ExecutedScripts.ShouldBeEmpty();
     }
 
     [Fact]

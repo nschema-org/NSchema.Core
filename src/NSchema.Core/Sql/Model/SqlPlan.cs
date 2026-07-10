@@ -10,4 +10,9 @@ public sealed record SqlPlan(IReadOnlyList<SqlStatement> Statements)
     /// Gets a value indicating whether the SQL plan contains no statements to execute.
     /// </summary>
     public bool IsEmpty => Statements.Count == 0;
+
+    /// <summary>
+    /// The scripts whose SQL the statements include.
+    /// </summary>
+    public IReadOnlyList<ScriptHash> Scripts { get; init; } = [];
 }

@@ -1,9 +1,10 @@
-using NSchema.Schema;
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Scripts;
+using NSchema.Schema.Templates;
 
-namespace NSchema.Tests.Schema;
+namespace NSchema.Tests.Schema.Templates;
 
 public sealed class TemplateExpanderTests
 {
@@ -424,7 +425,7 @@ public sealed class TemplateExpanderTests
             """);
 
         // Act
-        var (_, migrations) = TemplateExpander.Expand(document.Schema, document.Templates);
+        var (_, migrations, _) = TemplateExpander.Expand(document.Schema, document.Templates);
 
         // Assert — one instance per applied schema, with the schema bound and the {schema} token substituted.
         migrations.Count.ShouldBe(2);
@@ -450,7 +451,7 @@ public sealed class TemplateExpanderTests
             """);
 
         // Act
-        var (_, migrations) = TemplateExpander.Expand(document.Schema, document.Templates);
+        var (_, migrations, _) = TemplateExpander.Expand(document.Schema, document.Templates);
 
         // Assert
         migrations.ShouldBeEmpty();
@@ -477,5 +478,35 @@ public sealed class TemplateExpanderTests
         // Assert — no token, no rewriting; the option carries onto the instance.
         migration.Sql.ShouldBe("SELECT version();");
         migration.RunOutsideTransaction.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Expand_InstantiatesTemplateDeploymentScriptsPerAppliedSchema()
+    {
+        // Arrange
+        var document = DdlReader.Instance.Read(
+            """
+            CREATE SCHEMA sales;
+            CREATE SCHEMA billing;
+            TEMPLATE outbox
+            BEGIN
+              CREATE TABLE outbox_events ( id int NOT NULL );
+              SCRIPT 'seed {schema}' RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
+            END;
+            APPLY TEMPLATE outbox IN SCHEMA sales, billing;
+            """);
+
+        // Act
+        var (_, _, scripts) = TemplateExpander.Expand(document.Schema, document.Templates);
+
+        // Assert — one instance per applied schema, tagged with its origin schema, token substituted in
+        // name and body, run condition carried.
+        scripts.Count.ShouldBe(2);
+        scripts[0].SchemaName.ShouldBe("sales");
+        scripts[0].Script.Name.ShouldBe("seed sales");
+        scripts[0].Script.Sql.ShouldBe("INSERT INTO sales.outbox_events VALUES (1);");
+        scripts[0].Script.RunCondition.ShouldBe(RunCondition.Once);
+        scripts[1].SchemaName.ShouldBe("billing");
+        scripts[1].Script.Name.ShouldBe("seed billing");
     }
 }

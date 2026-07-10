@@ -1,6 +1,7 @@
 using NSchema.Schema.Ddl.Model;
 using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Scripts;
 using NSchema.Schema.Model.Tables;
 using NSchema.Schema.Model.Templates;
 
@@ -55,6 +56,7 @@ internal sealed partial class DdlParser
         // belong to the definition and re-target per instance at expansion — never mix with the document's.
         var body = new SchemaAccumulator();
         var migrations = new List<DataMigration>();
+        var scripts = new List<Script>();
         _templateSchemaContext = TemplateDefinition.TargetSchemaPlaceholder;
         try
         {
@@ -70,7 +72,7 @@ internal sealed partial class DdlParser
                 {
                     break;
                 }
-                ParseTemplateStatement(body, migrations, doc);
+                ParseTemplateStatement(body, migrations, scripts, doc);
             }
         }
         finally
@@ -106,7 +108,12 @@ internal sealed partial class DdlParser
             }
         }
 
-        return new TemplateDefinition(name, TemplateKind.Schema, objects) { Includes = body.Includes, Migrations = migrations };
+        return new TemplateDefinition(name, TemplateKind.Schema, objects)
+        {
+            Includes = body.Includes,
+            Migrations = migrations,
+            Scripts = scripts,
+        };
     }
 
     /// <summary>
@@ -144,7 +151,7 @@ internal sealed partial class DdlParser
         return new TemplateDefinition(name, TemplateKind.Table, objects);
     }
 
-    private void ParseTemplateStatement(SchemaAccumulator schemas, List<DataMigration> migrations, string? doc)
+    private void ParseTemplateStatement(SchemaAccumulator schemas, List<DataMigration> migrations, List<Script> scripts, string? doc)
     {
         if (_current.IsKeyword("CREATE"))
         {
@@ -158,9 +165,13 @@ internal sealed partial class DdlParser
         {
             migrations.Add(ParseDataMigration());
         }
+        else if (_current.IsKeyword("SCRIPT"))
+        {
+            ParseScript(scripts, migrations);
+        }
         else
         {
-            throw Error($"Unexpected '{_current.Text}' inside a template; expected a CREATE, GRANT, or MIGRATION statement, or END.");
+            throw Error($"Unexpected '{_current.Text}' inside a template; expected a CREATE, GRANT, or SCRIPT statement, or END.");
         }
     }
 

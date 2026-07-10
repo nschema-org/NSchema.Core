@@ -1,3 +1,5 @@
+using NSchema.Schema.Model.Scripts;
+
 namespace NSchema.Schema.Model.Migrations;
 
 /// <summary>
@@ -16,12 +18,17 @@ public sealed record DataMigration(
     string ObjectName,
     string MemberName,
     string Sql
-)
+) : IScriptDeclaration
 {
     /// <summary>
     /// Whether the SQL must run outside the migration transaction.
     /// </summary>
     public bool RunOutsideTransaction { get; init; }
+
+    /// <summary>
+    /// When the migration runs, relative to occurrences of its change event.
+    /// </summary>
+    public RunCondition RunCondition { get; init; } = RunCondition.Always;
 
     /// <summary>
     /// The fully qualified path of the change target (<c>schema.table.member</c>).

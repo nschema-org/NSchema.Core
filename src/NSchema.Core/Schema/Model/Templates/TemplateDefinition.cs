@@ -1,5 +1,6 @@
 using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Scripts;
 
 namespace NSchema.Schema.Model.Templates;
 
@@ -25,4 +26,9 @@ public sealed record TemplateDefinition(string Name, TemplateKind Kind, SchemaDe
     /// The data migrations declared in this template's body.
     /// </summary>
     public IReadOnlyList<DataMigration> Migrations { get; init; } = [];
+
+    /// <summary>
+    /// The deployment scripts declared in this template's body.
+    /// </summary>
+    public IReadOnlyList<Script> Scripts { get; init; } = [];
 }

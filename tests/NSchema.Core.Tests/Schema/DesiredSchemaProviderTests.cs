@@ -1,6 +1,8 @@
 using Microsoft.Extensions.FileSystemGlobbing;
+using NSchema.Diagnostics;
 using NSchema.Schema;
 using NSchema.Schema.Ddl;
+using NSchema.Schema.Model.Scripts;
 
 namespace NSchema.Tests.Schema;
 
@@ -57,7 +59,7 @@ public sealed class DesiredSchemaProviderTests : IDisposable
         Write("b.sql", "CREATE SCHEMA b;");
         var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
 
-        var project = await sut.GetProject(null, TestContext.Current.CancellationToken);
+        var project = (await sut.GetProject(null, TestContext.Current.CancellationToken)).Project;
 
         project.Schema.Schemas.Select(s => s.Name).ShouldBe(["a", "b"], ignoreOrder: true);
     }
@@ -70,7 +72,7 @@ public sealed class DesiredSchemaProviderTests : IDisposable
         Write("overlay.sql", "CREATE SCHEMA audit;");
         var sut = new DesiredSchemaProvider([Source(_root, "base.sql"), Source(_root, "overlay.sql")]);
 
-        var project = await sut.GetProject(null, TestContext.Current.CancellationToken);
+        var project = (await sut.GetProject(null, TestContext.Current.CancellationToken)).Project;
 
         project.Schema.Schemas.Select(s => s.Name).ShouldBe(["app", "audit"], ignoreOrder: true);
     }
@@ -85,7 +87,7 @@ public sealed class DesiredSchemaProviderTests : IDisposable
             """);
         var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
 
-        var project = await sut.GetProject(null, TestContext.Current.CancellationToken);
+        var project = (await sut.GetProject(null, TestContext.Current.CancellationToken)).Project;
 
         project.Scripts.ShouldHaveSingleItem().Name.ShouldBe("backfill");
     }
@@ -96,7 +98,7 @@ public sealed class DesiredSchemaProviderTests : IDisposable
         Write("schema.sql", "CREATE SCHEMA app; CREATE SCHEMA audit;");
         var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
 
-        var project = await sut.GetProject(["app"], TestContext.Current.CancellationToken);
+        var project = (await sut.GetProject(["app"], TestContext.Current.CancellationToken)).Project;
 
         project.Schema.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
@@ -114,7 +116,7 @@ public sealed class DesiredSchemaProviderTests : IDisposable
         Write("b.sql", "MIGRATION 'guard' FOR ADD CONSTRAINT app.orders.total_positive AS $$ SELECT 3; $$;");
         var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
 
-        var project = await sut.GetProject(null, TestContext.Current.CancellationToken);
+        var project = (await sut.GetProject(null, TestContext.Current.CancellationToken)).Project;
 
         project.Migrations.Select(m => m.Description).ShouldBe(
             ["ADD COLUMN app.users.email", "ALTER COLUMN TYPE app.users.email", "guard"]);
@@ -168,7 +170,7 @@ public sealed class DesiredSchemaProviderTests : IDisposable
             """);
         var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
 
-        var project = await sut.GetProject(["app"], TestContext.Current.CancellationToken);
+        var project = (await sut.GetProject(["app"], TestContext.Current.CancellationToken)).Project;
 
         project.Migrations.ShouldHaveSingleItem().SchemaName.ShouldBe("app");
     }
@@ -187,7 +189,7 @@ public sealed class DesiredSchemaProviderTests : IDisposable
             """);
         var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
 
-        var project = await sut.GetProject(null, TestContext.Current.CancellationToken);
+        var project = (await sut.GetProject(null, TestContext.Current.CancellationToken)).Project;
 
         project.Schema.Schemas.Select(s => s.Name).ShouldBe(["billing", "ordering"], ignoreOrder: true);
         project.Schema.Schemas.ShouldAllBe(s => s.Tables.Count == 1);
@@ -210,7 +212,7 @@ public sealed class DesiredSchemaProviderTests : IDisposable
             """);
         var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
 
-        var project = await sut.GetProject(null, TestContext.Current.CancellationToken);
+        var project = (await sut.GetProject(null, TestContext.Current.CancellationToken)).Project;
 
         var table = project.Schema.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem();
         table.Columns.Select(c => c.Name).ShouldBe(["id", "created_at"]);
@@ -229,7 +231,7 @@ public sealed class DesiredSchemaProviderTests : IDisposable
             """);
         var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
 
-        var project = await sut.GetProject(["billing"], TestContext.Current.CancellationToken);
+        var project = (await sut.GetProject(["billing"], TestContext.Current.CancellationToken)).Project;
 
         project.Schema.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Name.ShouldBe("outbox");
     }
@@ -244,6 +246,33 @@ public sealed class DesiredSchemaProviderTests : IDisposable
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL, trace_id text NOT NULL );
+              MIGRATION 'backfill {schema} trace' FOR ADD COLUMN outbox_events.trace_id AS $$ UPDATE {schema}.outbox_events SET trace_id = ''; $$;
+            END;
+            APPLY TEMPLATE outbox IN SCHEMA sales, billing;
+            """);
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        // Act
+        var project = (await sut.GetProject(null, TestContext.Current.CancellationToken)).Project;
+
+        // Assert — the {schema} token substitutes in the name as well as the body, keeping instances unique.
+        project.Migrations.Count.ShouldBe(2);
+        project.Migrations.Select(m => m.Path).ShouldBe(["sales.outbox_events.trace_id", "billing.outbox_events.trace_id"]);
+        project.Migrations.Select(m => m.Name).ShouldBe(["backfill sales trace", "backfill billing trace"]);
+        project.Migrations[1].Sql.ShouldBe("UPDATE billing.outbox_events SET trace_id = '';");
+    }
+
+    [Fact]
+    public async Task GetProject_TemplateMigrationNameWithoutSchemaToken_ThrowsOnSecondInstance()
+    {
+        // Arrange — applying to two schemas instantiates the block twice; without {schema} in the name the
+        // instances collide.
+        Write("schema.sql", "CREATE SCHEMA sales; CREATE SCHEMA billing;");
+        Write("outbox.sql",
+            """
+            TEMPLATE outbox
+            BEGIN
+              CREATE TABLE outbox_events ( id int NOT NULL, trace_id text NOT NULL );
               MIGRATION 'backfill trace' FOR ADD COLUMN outbox_events.trace_id AS $$ UPDATE {schema}.outbox_events SET trace_id = ''; $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales, billing;
@@ -251,12 +280,12 @@ public sealed class DesiredSchemaProviderTests : IDisposable
         var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
 
         // Act
-        var project = await sut.GetProject(null, TestContext.Current.CancellationToken);
+        var act = () => sut.GetProject(null, TestContext.Current.CancellationToken).AsTask();
 
         // Assert
-        project.Migrations.Count.ShouldBe(2);
-        project.Migrations.Select(m => m.Path).ShouldBe(["sales.outbox_events.trace_id", "billing.outbox_events.trace_id"]);
-        project.Migrations[1].Sql.ShouldBe("UPDATE billing.outbox_events SET trace_id = '';");
+        var ex = await act.ShouldThrowAsync<InvalidOperationException>();
+        ex.Message.ShouldContain("Duplicate script name 'backfill trace'");
+        ex.Message.ShouldContain("{schema}");
     }
 
     [Fact]
@@ -287,6 +316,131 @@ public sealed class DesiredSchemaProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task GetProject_DuplicateScriptNames_Throw()
+    {
+        // Arrange — names identify scripts (run-once tracking, diagnostics), so a collision anywhere in the
+        // project is an error, whichever statement forms are involved.
+        Write("a.sql", "SCRIPT 'seed' RUN ON POST DEPLOYMENT AS $$ SELECT 1; $$;");
+        Write("b.sql", "POST DEPLOYMENT 'seed' AS $$ SELECT 2; $$;");
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        // Act / Assert
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            () => sut.GetProject(null, TestContext.Current.CancellationToken).AsTask());
+        exception.Message.ShouldContain("Duplicate script name 'seed'");
+    }
+
+    [Fact]
+    public async Task GetProject_DeprecatedSyntax_SurfacesAFileStampedDiagnostic()
+    {
+        // Arrange
+        Write("scripts.sql", "PRE DEPLOYMENT 'enable_citext' AS $$ SELECT 1; $$;");
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        // Act
+        var result = await sut.GetProject(null, TestContext.Current.CancellationToken);
+
+        // Assert
+        var diagnostic = result.Diagnostics.ShouldHaveSingleItem();
+        diagnostic.Source.ShouldBe("deprecations");
+        diagnostic.Severity.ShouldBe(DiagnosticSeverity.Warning);
+        diagnostic.Message.ShouldContain("SCRIPT 'enable_citext' RUN ON PRE DEPLOYMENT");
+        diagnostic.Message.ShouldContain("scripts.sql");
+        diagnostic.Message.ShouldContain("line 1");
+    }
+
+    [Fact]
+    public async Task GetProject_ScriptStatements_ProduceNoDiagnostics()
+    {
+        // Arrange
+        Write("scripts.sql", "SCRIPT 'seed' RUN ONCE ON POST DEPLOYMENT AS $$ SELECT 1; $$;");
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        // Act
+        var result = await sut.GetProject(null, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Diagnostics.ShouldBeEmpty();
+        result.Project.Scripts.ShouldHaveSingleItem().RunCondition.ShouldBe(RunCondition.Once);
+    }
+
+    [Fact]
+    public async Task GetProject_TemplateDeploymentScripts_InstantiatePerAppliedSchema()
+    {
+        // Arrange
+        Write("schema.sql", "CREATE SCHEMA sales; CREATE SCHEMA billing;");
+        Write("outbox.sql",
+            """
+            TEMPLATE outbox
+            BEGIN
+              CREATE TABLE outbox_events ( id int NOT NULL );
+              SCRIPT 'seed {schema}' RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
+            END;
+            APPLY TEMPLATE outbox IN SCHEMA sales, billing;
+            """);
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        // Act
+        var project = (await sut.GetProject(null, TestContext.Current.CancellationToken)).Project;
+
+        // Assert
+        project.Scripts.Select(s => s.Name).ShouldBe(["seed sales", "seed billing"]);
+    }
+
+    [Fact]
+    public async Task GetProject_TemplateDeploymentScripts_RespectTheSchemaScopeFilter()
+    {
+        // Arrange — a scoped run drops instances the templates created for out-of-scope schemas, while
+        // hand-written deployment scripts are global and always survive.
+        Write("schema.sql",
+            """
+            CREATE SCHEMA sales;
+            CREATE SCHEMA billing;
+            SCRIPT 'global' RUN ON PRE DEPLOYMENT AS $$ SELECT 1; $$;
+            """);
+        Write("outbox.sql",
+            """
+            TEMPLATE outbox
+            BEGIN
+              CREATE TABLE outbox_events ( id int NOT NULL );
+              SCRIPT 'seed {schema}' RUN ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
+            END;
+            APPLY TEMPLATE outbox IN SCHEMA sales, billing;
+            """);
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        // Act
+        var project = (await sut.GetProject(["billing"], TestContext.Current.CancellationToken)).Project;
+
+        // Assert
+        project.Scripts.Select(s => s.Name).ShouldBe(["global", "seed billing"]);
+    }
+
+    [Fact]
+    public async Task GetProject_TemplateDeploymentScriptNameWithoutSchemaToken_ThrowsOnSecondInstance()
+    {
+        // Arrange
+        Write("schema.sql", "CREATE SCHEMA sales; CREATE SCHEMA billing;");
+        Write("outbox.sql",
+            """
+            TEMPLATE outbox
+            BEGIN
+              CREATE TABLE outbox_events ( id int NOT NULL );
+              SCRIPT 'seed' RUN ON POST DEPLOYMENT AS $$ SELECT 1; $$;
+            END;
+            APPLY TEMPLATE outbox IN SCHEMA sales, billing;
+            """);
+        var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
+
+        // Act
+        var act = () => sut.GetProject(null, TestContext.Current.CancellationToken).AsTask();
+
+        // Assert
+        var ex = await act.ShouldThrowAsync<InvalidOperationException>();
+        ex.Message.ShouldContain("Duplicate script name 'seed'");
+    }
+
+    [Fact]
     public async Task GetProject_TemplateMigrations_RespectTheSchemaScopeFilter()
     {
         // Arrange
@@ -303,7 +457,7 @@ public sealed class DesiredSchemaProviderTests : IDisposable
         var sut = new DesiredSchemaProvider([Source(_root, "**/*.sql")]);
 
         // Act
-        var project = await sut.GetProject(["billing"], TestContext.Current.CancellationToken);
+        var project = (await sut.GetProject(["billing"], TestContext.Current.CancellationToken)).Project;
 
         // Assert — only the in-scope instance survives.
         project.Migrations.ShouldHaveSingleItem().Path.ShouldBe("billing.outbox_events.trace_id");

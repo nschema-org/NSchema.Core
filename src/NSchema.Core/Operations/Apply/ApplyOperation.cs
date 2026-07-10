@@ -17,7 +17,7 @@ internal sealed class ApplyOperation(IMigrationWorkflow workflow, IProgress<Oper
         // An empty plan executes nothing, but still records state.
         if (args.Sql.IsEmpty)
         {
-            await workflow.Refresh(cancellationToken);
+            await workflow.Refresh(null, cancellationToken);
             return Result.Success(new ApplyResult(args.Sql));
         }
 
@@ -36,9 +36,10 @@ internal sealed class ApplyOperation(IMigrationWorkflow workflow, IProgress<Oper
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             // The migration failed, possibly partway. Best-effort capture so the store reflects reality.
+            // The plan is NOT passed as applied: we don't know which scripts ran.
             try
             {
-                await workflow.Refresh(cancellationToken);
+                await workflow.Refresh(cancellationToken: cancellationToken);
             }
             catch (Exception captureFailure) when (captureFailure is not OperationCanceledException)
             {
@@ -48,7 +49,7 @@ internal sealed class ApplyOperation(IMigrationWorkflow workflow, IProgress<Oper
             throw;
         }
 
-        await workflow.Refresh(cancellationToken);
+        await workflow.Refresh(args.Sql, cancellationToken);
         return Result.Success(new ApplyResult(args.Sql));
     }
 

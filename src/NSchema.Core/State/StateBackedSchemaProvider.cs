@@ -18,7 +18,14 @@ internal sealed class StateBackedSchemaProvider(ISchemaStateStore store, ISchema
     public async ValueTask<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default)
     {
         var snapshot = await store.Read(cancellationToken);
-        // Ensure we return an empty schema for a bootstrap run.
-        return snapshot is null ? new DatabaseSchema() : serializer.Deserialize(snapshot.Value).Filter(schemaNames);
+        if (snapshot is null)
+        {
+            // Ensure we return an empty schema for a bootstrap run.
+            return new DatabaseSchema();
+        }
+
+        var state = serializer.Deserialize(snapshot.Value);
+        var schema = state.Schema.Filter(schemaNames);
+        return schema;
     }
 }

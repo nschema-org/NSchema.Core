@@ -1,5 +1,6 @@
 using NSchema.Diagnostics;
 using NSchema.Operations.Services;
+using NSchema.Plan;
 using NSchema.Plan.Model;
 using NSchema.Plan.PlanFile;
 using NSchema.Schema;
@@ -38,7 +39,7 @@ internal sealed class PlanOperation(IMigrationWorkflow workflow, IPlanFileWriter
             plan = planned.Value.Plan;
             if (sqlGenerator is not null)
             {
-                sql = sqlGenerator.Generate(planned.Value.Plan);
+                sql = sqlGenerator.Generate(planned.Value);
                 if (args.OutFile is not null)
                 {
                     var envelope = new PlanFileEnvelope(planned.Value.Diff, planned.Value.Plan, sql, DateTimeOffset.UtcNow);

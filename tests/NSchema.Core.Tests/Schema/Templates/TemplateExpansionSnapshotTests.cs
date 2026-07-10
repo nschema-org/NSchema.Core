@@ -1,7 +1,7 @@
-using NSchema.Schema;
 using NSchema.Schema.Ddl;
+using NSchema.Schema.Templates;
 
-namespace NSchema.Tests.Schema;
+namespace NSchema.Tests.Schema.Templates;
 
 /// <summary>
 /// Snapshot coverage for <see cref="TemplateExpander"/>: the expanded schema is rendered back to DDL with

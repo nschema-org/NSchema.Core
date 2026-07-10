@@ -20,10 +20,10 @@ internal interface IMigrationPlanner
     /// <summary>
     /// Generates a migration plan that outlines the necessary steps to migrate the database from its current state to the desired state.
     /// </summary>
-    /// <param name="currentSchema">The current database schema to diff against.</param>
-    /// <param name="desired">The desired project to diff towards (already aggregated and transformed): the schema, plus the deployment scripts and data migrations to splice into the plan.</param>
+    /// <param name="current">What currently exists.</param>
+    /// <param name="desired">The desired project to plan towards.</param>
     /// <returns>The generated migration plan and any non-fatal diagnostics.</returns>
-    Result<PlannedMigration> Plan(DatabaseSchema currentSchema, DesiredProject desired);
+    Result<PlannedMigration> Plan(CurrentState current, DesiredProject desired);
 
     /// <summary>
     /// Builds a teardown plan that drops everything in <paramref name="currentSchema"/>.
