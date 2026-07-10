@@ -54,7 +54,7 @@ internal sealed class MigrationWorkflow(
 
         progress.Report(OperationProgress.Step("Computing migration plan..."));
 
-        var snapshot = await store!.Read(cancellationToken);
+        var snapshot = store is null ? null : await store.Read(cancellationToken);
         var state = snapshot is null ? SchemaState.Empty : stateSerializer.Deserialize(snapshot.Value);
         var scriptHashes = state.ExecutedScripts.Select(e => new ScriptHash(e.Name, e.Hash)).ToList();
         var current = new CurrentState(currentSchema, scriptHashes);
@@ -97,7 +97,17 @@ internal sealed class MigrationWorkflow(
 
         // Fetch the current state, apply this run's changes over it, and write the result back.
         var snapshot = await store.Read(cancellationToken);
-        var state = snapshot is null ? SchemaState.Empty : stateSerializer.Deserialize(snapshot.Value);
+        SchemaState state;
+        try
+        {
+            state = snapshot is null ? SchemaState.Empty : stateSerializer.Deserialize(snapshot.Value);
+        }
+        catch (Exception ex) when (ex is StateDeserializationException or NotSupportedException)
+        {
+            // Refresh is the recovery path for a corrupt or incompatible payload, so an unreadable
+            // state reads as empty rather than failing the capture.
+            state = SchemaState.Empty;
+        }
 
         state = state with { Schema = schema };
         if (applied is not null)
