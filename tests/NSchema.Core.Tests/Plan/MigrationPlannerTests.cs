@@ -275,7 +275,7 @@ public sealed class MigrationPlannerTests
     }
 
     [Fact]
-    public void Plan_ExecutedRunOnceScript_IsSkippedWithAnInfoDiagnostic()
+    public void Plan_ExecutedRunOnceScript_IsSkipped()
     {
         // Act — the script has already run, so it is not part of the current→desired difference.
         var result = Sut.Plan(Executed("seed", SeedScript().Sql), new DesiredProject(_emptySchema, [SeedScript()], []));
@@ -283,10 +283,7 @@ public sealed class MigrationPlannerTests
         // Assert — dropped from the plan, reported, and not up for re-recording.
         result.Value!.Plan.PostDeploymentScripts.ShouldBeEmpty();
         result.Value!.Scripts.ShouldBeEmpty();
-        var diagnostic = result.Diagnostics.ShouldHaveSingleItem();
-        diagnostic.Source.ShouldBe("run-once");
-        diagnostic.Severity.ShouldBe(DiagnosticSeverity.Info);
-        diagnostic.Message.ShouldContain("'seed' has already run");
+        result.Diagnostics.ShouldBeEmpty();
     }
 
     [Fact]
@@ -332,7 +329,7 @@ public sealed class MigrationPlannerTests
         // Assert
         result.Value!.Diff.Schemas[0].Tables[0].Columns[0].Migration.ShouldBeNull();
         result.Value!.Scripts.ShouldBeEmpty();
-        result.Diagnostics.Select(d => d.Source).ShouldBe(["run-once", "data-hazards"]);
+        result.Diagnostics.Select(d => d.Source).ShouldBe(["data-hazards"]);
     }
 
     [Fact]

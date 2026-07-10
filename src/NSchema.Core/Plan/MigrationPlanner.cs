@@ -83,9 +83,11 @@ internal sealed class MigrationPlanner(
             return false;
         }
 
-        diagnostics.Add(string.Equals(recordedHash, script.Hash, StringComparison.OrdinalIgnoreCase)
-            ? Diagnostic.Info("run-once", $"Run-once script '{script.Name}' has already run and is skipped.")
-            : Diagnostic.Warning("run-once", $"Run-once script '{script.Name}' has changed since it was executed and stays skipped. Rename the script to run the new body once, or restore the original body."));
+        if (!string.Equals(recordedHash, script.Hash, StringComparison.OrdinalIgnoreCase))
+        {
+            diagnostics.Add(Diagnostic.Warning("run-once", $"Run-once script '{script.Name}' has changed since it was executed and stays skipped."));
+        }
+
         return true;
     }
 
