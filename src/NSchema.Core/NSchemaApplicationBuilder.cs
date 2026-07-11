@@ -102,6 +102,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
     {
         // Diffing
         services.TryAddSingleton<ISchemaComparer, SchemaComparer>();
+        services.TryAddSingleton<IProjectComparer, ProjectComparer>();
 
         // Operations
         services.TryAddSingleton<IMigrationWorkflow, MigrationWorkflow>();
@@ -122,7 +123,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
 
         // Schemas
         services.TryAddSingleton<ICurrentSchemaProvider, CurrentSchemaProvider>();
-        services.TryAddSingleton<IDesiredSchemaProvider, DesiredSchemaProvider>();
+        services.TryAddSingleton<IProjectProvider, ProjectProvider>();
 
         // SQL
         services.TryAddSingleton<ISqlExecutor, SqlExecutor>();

@@ -1,0 +1,42 @@
+﻿{
+  Lines: [
+    {
+      Kind: Modify,
+      Text: table app.users
+    },
+    {
+      Kind: Add,
+      Depth: 1,
+      Text: email text not null (with migration 'backfill emails')
+    },
+    {
+      Text: 
+    },
+    {
+      Text: 
+    },
+    {
+      Kind: Add,
+      Text: script 'seed roles' (on pre deployment)
+    },
+    {
+      Text: 
+    },
+    {
+      Kind: Add,
+      Text: script 'backfill emails' (on add column app.users.email)
+    },
+    {
+      Text: 
+    },
+    {
+      Kind: Add,
+      Text: script 'refresh views' (on post deployment)
+    }
+  ],
+  Summary: {
+    Added: 1,
+    Modified: 1
+  },
+  IsEmpty: false
+}

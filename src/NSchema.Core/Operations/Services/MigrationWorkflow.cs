@@ -1,9 +1,12 @@
 using NSchema.Diagnostics;
 using NSchema.Operations.Progress;
+using NSchema.Diff;
 using NSchema.Plan;
+using NSchema.Plan.Model;
+using NSchema.Schema.Model.Scripts;
 using NSchema.Policies;
 using NSchema.Schema;
-using NSchema.Sql.Model;
+using NSchema.Schema.Model;
 using NSchema.State.Model;
 using NSchema.State.Storage;
 
@@ -13,7 +16,7 @@ internal sealed class MigrationWorkflow(
     IMigrationPlanner planner,
     IProgress<OperationProgress> progress,
     ICurrentSchemaProvider currentProvider,
-    IDesiredSchemaProvider desiredProvider,
+    IProjectProvider desiredProvider,
     ISchemaStateManager stateManager
 ) : IMigrationWorkflow
 {
@@ -21,21 +24,36 @@ internal sealed class MigrationWorkflow(
     {
         progress.Report(OperationProgress.Step("Loading desired schema..."));
         var desired = await desiredProvider.GetProject(null, cancellationToken);
-        ReportDesiredDetail(desired);
+        if (desired.Value is not { } project)
+        {
+            return new PolicyDiagnostics(desired.Diagnostics);
+        }
+        ReportDesiredDetail(project);
 
         progress.Report(OperationProgress.Step("Validating schema..."));
 
         // The findings — including any non-error advisories and findings raised while reading the DDL — are
         // returned as data for the caller to render.
-        return new PolicyDiagnostics(desired.Diagnostics.Concat(planner.Validate(desired.Project.Schema)));
+        return new PolicyDiagnostics(desired.Diagnostics.Concat(planner.Validate(project.Schema)));
     }
 
-    public async Task<Result<PlannedMigration>> ComputePlan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default)
+    public async Task<Result<MigrationPlan>> ComputePlan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default)
     {
+        // The diff is computed against CurrentState — the schema plus the run-once ledger — so planning without
+        // a store would plan against knowingly incomplete current state.
+        if (!stateManager.IsConfigured)
+        {
+            return Result.Failure<MigrationPlan>(StoreRequired());
+        }
+
         progress.Report(OperationProgress.Step("Loading desired schema..."));
         var desired = await desiredProvider.GetProject(schemas, cancellationToken);
-        var schemasInScope = schemas ?? desired.Project.Schema.AllSchemaNames;
-        ReportDesiredDetail(desired);
+        if (desired.Value is not { } project)
+        {
+            return Result.Failure<MigrationPlan>(desired.Diagnostics);
+        }
+        var schemasInScope = schemas ?? project.Schema.AllSchemaNames;
+        ReportDesiredDetail(project);
 
         progress.Report(OperationProgress.Step($"Migration will be scoped to the following schemas: {string.Join(", ", schemasInScope)}"));
 
@@ -44,29 +62,20 @@ internal sealed class MigrationWorkflow(
         progress.Report(OperationProgress.Detail($"Current schema ({currentSource.ToString().ToLowerInvariant()}): {StatusHelpers.Describe(currentSchema)}."));
 
         var readDiagnostics = new List<Diagnostic>(desired.Diagnostics);
-        if (!stateManager.IsConfigured && desired.Project.HasRunOnceScripts)
-        {
-            readDiagnostics.Add(Diagnostic.Warning("run-once", "Run-once scripts require a state store to record executions; without one they run on every apply."));
-        }
 
         progress.Report(OperationProgress.Step("Computing migration plan..."));
 
-        var state = SchemaState.Empty;
-        if (stateManager.IsConfigured)
+        var read = await stateManager.Read(new StateReadArguments(), cancellationToken);
+        if (read.IsFailure)
         {
-            var read = await stateManager.Read(new StateReadArguments(), cancellationToken);
-            if (read.IsFailure)
-            {
-                return Result.Failure<PlannedMigration>(readDiagnostics.Concat(read.Diagnostics));
-            }
-
-            readDiagnostics.AddRange(read.Diagnostics);
-            state = read.Value.State ?? SchemaState.Empty;
+            return Result.Failure<MigrationPlan>(readDiagnostics.Concat(read.Diagnostics));
         }
 
-        var scriptHashes = state.Scripts.Select(s => new ScriptHash(s.Name, s.Hash)).ToList();
-        var current = new CurrentState(currentSchema, scriptHashes);
-        var plan = planner.Plan(current, desired.Project);
+        readDiagnostics.AddRange(read.Diagnostics);
+        var state = read.Value.State ?? SchemaState.Empty;
+
+        var current = new CurrentState(currentSchema, state.Scripts);
+        var plan = planner.Plan(current, project);
 
         if (readDiagnostics.Count == 0)
         {
@@ -76,25 +85,29 @@ internal sealed class MigrationWorkflow(
         var diagnostics = readDiagnostics.Concat(plan.Diagnostics);
         return plan.Value is { } value
             ? Result.From(value, diagnostics)
-            : Result.Failure<PlannedMigration>(diagnostics);
+            : Result.Failure<MigrationPlan>(diagnostics);
     }
 
-    public async Task<Result<PlannedMigration>> ComputeTeardown(CancellationToken cancellationToken = default)
+    public async Task<Result<MigrationPlan>> ComputeTeardown(CancellationToken cancellationToken = default)
     {
-        // The managed schema is what we tear down: recorded state when we have it, otherwise the declared desired schema.
-        var managedSchema = stateManager.IsConfigured
-            ? await currentProvider.GetSchema(SchemaSourceMode.Offline, null, required: true, cancellationToken)
-            : (await desiredProvider.GetProject(null, cancellationToken)).Project.Schema;
+        if (!stateManager.IsConfigured)
+        {
+            return Result.Failure<MigrationPlan>(StoreRequired());
+        }
+
+        // The managed schema is the recorded state — state is the record of what NSchema manages, so a teardown
+        // reads it and nothing else. An empty record means nothing is managed, and the teardown is empty.
+        var managedSchema = await currentProvider.GetSchema(SchemaSourceMode.Offline, null, required: true, cancellationToken);
 
         progress.Report(OperationProgress.Step("Computing teardown plan..."));
         return planner.PlanTeardown(managedSchema);
     }
 
-    public async Task<Result<StateCapture>?> Refresh(SqlPlan? applied = null, bool force = false, CancellationToken cancellationToken = default)
+    public async Task<Result<StateCapture>> Refresh(MigrationPlan? applied = null, bool force = false, CancellationToken cancellationToken = default)
     {
         if (!stateManager.IsConfigured)
         {
-            return null;
+            return Result.Failure<StateCapture>(Diagnostic.Error("refresh", "Unable to refresh state without a configured state store."));
         }
 
         progress.Report(OperationProgress.Step("Updating state store..."));
@@ -116,11 +129,21 @@ internal sealed class MigrationWorkflow(
         state = state with { Schema = schema };
         if (applied is not null)
         {
-            state = state.RecordScripts(applied.Scripts, DateTimeOffset.UtcNow);
+            // Only run-once executions enter the ledger; the plan's diff carries its scripts whole, so the
+            // execution records derive here at the state boundary.
+            var executed = applied.Diff.Scripts
+                .Where(s => s.RunCondition == RunCondition.Once)
+                .Select(s => new ScriptExecution(s.Name, s.Hash, DateTimeOffset.UtcNow))
+                .ToList();
+            state = state.RecordExecution(executed);
         }
 
         var written = await stateManager.Write(new StateWriteArguments(state), cancellationToken);
-        progress.Report(OperationProgress.Detail($"State snapshot: {StatusHelpers.Describe(schema)}, {written.Value!.PayloadSize:N0} bytes."));
+        if (written.Value is not { } write)
+        {
+            return Result.Failure<StateCapture>(written.Diagnostics);
+        }
+        progress.Report(OperationProgress.Detail($"State snapshot: {StatusHelpers.Describe(schema)}, {write.PayloadSize:N0} bytes."));
 
         var diagnostics = Enumerable.Empty<Diagnostic>();
         if (read.IsFailure)
@@ -135,25 +158,18 @@ internal sealed class MigrationWorkflow(
                 ));
         }
 
-        return Result.Success(new StateCapture(schema, written.Value.PayloadSize), diagnostics);
+        return Result.Success(new StateCapture(schema, write.PayloadSize), diagnostics);
     }
 
-    /// <summary>
-    /// Emits the verbose detail about the loaded desired project: the files it was read from and a census of
-    /// what they declared.
-    /// </summary>
-    private void ReportDesiredDetail(DesiredProjectResult desired)
-    {
-        if (desired.Files.Count > 0)
-        {
-            progress.Report(OperationProgress.Detail($"Read {StatusHelpers.Count(desired.Files.Count, "DDL file")}:"));
-            foreach (var file in desired.Files)
-            {
-                progress.Report(OperationProgress.Detail(file));
-            }
-        }
+    private static Diagnostic StoreRequired() => Diagnostic.Error("plan",
+        "Planning requires a state store to read the recorded state and the run-once ledger. Register one, or declare the database disposable with ephemeral state.");
 
-        progress.Report(OperationProgress.Detail($"Desired schema: {StatusHelpers.Describe(desired.Project.Schema)}, " +
-            $"{StatusHelpers.Count(desired.Project.Scripts.Count, "deployment script")}, {StatusHelpers.Count(desired.Project.Migrations.Count, "data migration")}."));
+    /// <summary>
+    /// Emits the verbose census of what the loaded project declares.
+    /// </summary>
+    private void ReportDesiredDetail(Project project)
+    {
+        progress.Report(OperationProgress.Detail($"Desired schema: {StatusHelpers.Describe(project.Schema)}, " +
+            $"{StatusHelpers.Count(project.Scripts.Count, "script")}."));
     }
 }

@@ -1,21 +1,20 @@
 using NSchema.Schema.Ddl;
 using NSchema.Schema.Ddl.Model;
-using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Scripts;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
 /// <summary>
 /// Covers the unified <c>SCRIPT '&lt;name&gt;' RUN [ALWAYS | ONCE] ON &lt;event&gt; AS $$ … $$;</c> statement —
-/// the canonical form of deployment scripts and data migrations — and the deprecation warnings raised
-/// for the pre-SCRIPT spellings.
+/// the only form of deployment scripts and data migrations — and the pointed errors raised for the
+/// pre-5.0 spellings.
 /// </summary>
 public sealed class DdlParserScriptStatementTests
 {
     private static DdlDocument Read(string source) => DdlReader.Instance.Read(source);
 
-    // Warnings describe the read, not the document, so they ride on the parser's result.
-    private static IReadOnlyList<DdlWarning> Warnings(string source) => new DdlParser(source).Parse().Warnings;
+    private static IReadOnlyList<Script> Migrations(DdlDocument document) =>
+        [.. document.Scripts.Where(s => s.Event is ChangeEvent)];
 
     // -------------------------------------------------------------------------
     // Deployment events
@@ -28,7 +27,7 @@ public sealed class DdlParserScriptStatementTests
             .Scripts.ShouldHaveSingleItem();
 
         script.Name.ShouldBe("enable_citext");
-        script.Type.ShouldBe(ScriptType.PreDeployment);
+        script.Event.ShouldBe(new DeploymentEvent(DeploymentPhase.Pre));
         script.Sql.ShouldBe("CREATE EXTENSION IF NOT EXISTS citext;");
         script.RunCondition.ShouldBe(RunCondition.Always);
     }
@@ -36,7 +35,7 @@ public sealed class DdlParserScriptStatementTests
     [Fact]
     public void Parse_PostDeploymentEvent_ProducesAScript()
         => Read("SCRIPT 'reindex' RUN ON POST DEPLOYMENT AS $$ SELECT 1; $$;")
-            .Scripts.ShouldHaveSingleItem().Type.ShouldBe(ScriptType.PostDeployment);
+            .Scripts.ShouldHaveSingleItem().Event.ShouldBe(new DeploymentEvent(DeploymentPhase.Post));
 
     [Fact]
     public void Parse_RunAlways_IsTheExplicitSpellingOfTheDefault()
@@ -60,26 +59,27 @@ public sealed class DdlParserScriptStatementTests
     [Fact]
     public void Parse_AddColumnEvent_ProducesADataMigration()
     {
-        var migration = Read("SCRIPT 'backfill emails' RUN ON ADD COLUMN app.users.email AS $$ UPDATE app.users SET email = ''; $$;")
-            .Migrations.ShouldHaveSingleItem();
+        var migration = Migrations(Read("SCRIPT 'backfill emails' RUN ON ADD COLUMN app.users.email AS $$ UPDATE app.users SET email = ''; $$;"))
+            .ShouldHaveSingleItem();
 
         migration.Name.ShouldBe("backfill emails");
-        migration.Trigger.ShouldBe(DataMigrationTrigger.AddColumn);
-        migration.Path.ShouldBe("app.users.email");
+        var change = migration.Event.ShouldBeOfType<ChangeEvent>();
+        change.Trigger.ShouldBe(ChangeTrigger.AddColumn);
+        change.Path.ShouldBe("app.users.email");
         migration.RunCondition.ShouldBe(RunCondition.Always);
     }
 
     [Theory]
-    [InlineData("ALTER COLUMN TYPE app.orders.total", DataMigrationTrigger.AlterColumnType)]
-    [InlineData("ADD CONSTRAINT app.orders.total_positive", DataMigrationTrigger.AddConstraint)]
-    public void Parse_OtherChangeEvents_CarryTheTrigger(string eventText, DataMigrationTrigger trigger)
-        => Read($"SCRIPT 'x' RUN ON {eventText} AS $$ SELECT 1; $$;")
-            .Migrations.ShouldHaveSingleItem().Trigger.ShouldBe(trigger);
+    [InlineData("ALTER COLUMN TYPE app.orders.total", ChangeTrigger.AlterColumnType)]
+    [InlineData("ADD CONSTRAINT app.orders.total_positive", ChangeTrigger.AddConstraint)]
+    public void Parse_OtherChangeEvents_CarryTheTrigger(string eventText, ChangeTrigger trigger)
+        => Migrations(Read($"SCRIPT 'x' RUN ON {eventText} AS $$ SELECT 1; $$;"))
+            .ShouldHaveSingleItem().Event.ShouldBeOfType<ChangeEvent>().Trigger.ShouldBe(trigger);
 
     [Fact]
     public void Parse_RunOnceChangeEvent_SetsTheRunCondition()
-        => Read("SCRIPT 'x' RUN ONCE ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;")
-            .Migrations.ShouldHaveSingleItem().RunCondition.ShouldBe(RunCondition.Once);
+        => Migrations(Read("SCRIPT 'x' RUN ONCE ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;"))
+            .ShouldHaveSingleItem().RunCondition.ShouldBe(RunCondition.Once);
 
     // -------------------------------------------------------------------------
     // Errors
@@ -111,37 +111,18 @@ public sealed class DdlParserScriptStatementTests
             .Message.ShouldContain("Expected a script event");
 
     // -------------------------------------------------------------------------
-    // Deprecation warnings
+    // Removed pre-5.0 spellings
     // -------------------------------------------------------------------------
 
     [Fact]
-    public void Parse_ScriptStatement_ProducesNoWarnings()
-        => Warnings("SCRIPT 'x' RUN ONCE ON PRE DEPLOYMENT AS $$ SELECT 1; $$;").ShouldBeEmpty();
+    public void Parse_OldDeploymentForm_NoLongerParses()
+        => Should.Throw<DdlSyntaxException>(() => Read("POST DEPLOYMENT 'reindex' AS $$ SELECT 1; $$;"))
+            .Message.ShouldContain("Unknown statement 'POST'");
 
     [Fact]
-    public void Parse_OldDeploymentForm_WarnsWithTheReplacement()
-    {
-        var warning = Warnings("POST DEPLOYMENT 'reindex' AS $$ SELECT 1; $$;").ShouldHaveSingleItem();
-
-        warning.Message.ShouldContain("'POST DEPLOYMENT' is deprecated");
-        warning.Message.ShouldContain("SCRIPT 'reindex' RUN ON POST DEPLOYMENT");
-        warning.Position.Line.ShouldBe(1);
-    }
-
-    [Fact]
-    public void Parse_OldMigrationForm_WarnsWithTheReplacement()
-    {
-        var warning = Warnings("MIGRATION 'backfill' FOR ADD COLUMN app.users.email AS $$ SELECT 1; $$;")
-            .ShouldHaveSingleItem();
-
-        warning.Message.ShouldContain("'MIGRATION FOR' is deprecated");
-        warning.Message.ShouldContain("SCRIPT 'backfill' RUN ON ADD COLUMN app.users.email");
-    }
-
-    [Fact]
-    public void Parse_OldAnonymousMigrationForm_SuggestsANamePlaceholder()
-        => Warnings("MIGRATION FOR ADD COLUMN app.users.email AS $$ SELECT 1; $$;")
-            .ShouldHaveSingleItem().Message.ShouldContain("SCRIPT '<name>' RUN ON ADD COLUMN app.users.email");
+    public void Parse_OldMigrationForm_NoLongerParses()
+        => Should.Throw<DdlSyntaxException>(() => Read("MIGRATION 'backfill' FOR ADD COLUMN app.users.email AS $$ SELECT 1; $$;"))
+            .Message.ShouldContain("Unknown statement 'MIGRATION'");
 
     // -------------------------------------------------------------------------
     // Template bodies
@@ -157,10 +138,11 @@ public sealed class DdlParserScriptStatementTests
               CREATE TABLE outbox_events ( id int NOT NULL, trace_id text NOT NULL );
               SCRIPT 'backfill {schema} trace' RUN ON ADD COLUMN outbox_events.trace_id AS $$ UPDATE {schema}.outbox_events SET trace_id = ''; $$;
             END;
-            """).Templates.Definitions.ShouldHaveSingleItem().Migrations.ShouldHaveSingleItem();
+            """).Templates.Definitions.ShouldHaveSingleItem().Scripts.ShouldHaveSingleItem();
 
-        migration.ObjectName.ShouldBe("outbox_events");
-        migration.MemberName.ShouldBe("trace_id");
+        var change = migration.Event.ShouldBeOfType<ChangeEvent>();
+        change.TableName.ShouldBe("outbox_events");
+        change.MemberName.ShouldBe("trace_id");
     }
 
     [Fact]
@@ -175,18 +157,18 @@ public sealed class DdlParserScriptStatementTests
             END;
             """).Templates.Definitions.ShouldHaveSingleItem().Scripts.ShouldHaveSingleItem();
 
-        script.Type.ShouldBe(ScriptType.PostDeployment);
+        script.Event.ShouldBe(new DeploymentEvent(DeploymentPhase.Post));
         script.RunCondition.ShouldBe(RunCondition.Once);
     }
 
     [Fact]
-    public void Parse_OldMigrationFormInTemplate_SuggestsTheUnqualifiedPath()
-        => Warnings(
+    public void Parse_OldMigrationFormInTemplate_IsRejected()
+        => Should.Throw<DdlSyntaxException>(() => Read(
             """
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL, trace_id text NOT NULL );
               MIGRATION FOR ADD COLUMN outbox_events.trace_id AS $$ SELECT 1; $$;
             END;
-            """).ShouldHaveSingleItem().Message.ShouldContain("RUN ON ADD COLUMN outbox_events.trace_id");
+            """)).Message.ShouldContain("Unexpected 'MIGRATION' inside a template");
 }

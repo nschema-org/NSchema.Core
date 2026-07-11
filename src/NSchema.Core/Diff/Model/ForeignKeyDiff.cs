@@ -1,4 +1,3 @@
-using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Tables;
 
 namespace NSchema.Diff.Model;
@@ -13,7 +12,7 @@ namespace NSchema.Diff.Model;
 public sealed record ForeignKeyDiff(ChangeKind Kind, string Name, ForeignKey? Definition = null, ValueChange<string>? Comment = null) : INamedObjectDiff
 {
     /// <summary>
-    /// The data migration matched to this change, when one is declared; otherwise <see langword="null"/>.
+    /// The name of the script matched to this change.
     /// </summary>
-    public DataMigration? Migration { get; init; }
+    public string? MigrationScript { get; init; }
 }

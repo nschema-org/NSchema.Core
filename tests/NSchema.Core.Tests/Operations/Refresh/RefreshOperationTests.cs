@@ -1,9 +1,9 @@
 using NSchema.Diagnostics;
 using NSchema.Operations.Refresh;
+using NSchema.Plan.Model;
 using NSchema.Operations.Services;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Schemas;
-using NSchema.Sql.Model;
 
 namespace NSchema.Tests.Operations.Refresh;
 
@@ -19,7 +19,7 @@ public sealed class RefreshOperationTests
     {
         // Arrange
         var schema = new DatabaseSchema([new SchemaDefinition("app")]);
-        _workflow.Refresh(Arg.Any<SqlPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(new StateCapture(schema, 2048));
+        _workflow.Refresh(Arg.Any<MigrationPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(new StateCapture(schema, 2048));
 
         // Act
         var result = await _sut.Execute(new RefreshArguments(), TestContext.Current.CancellationToken);
@@ -34,7 +34,7 @@ public sealed class RefreshOperationTests
     public async Task Execute_ForwardsForceToTheWorkflow()
     {
         // Arrange
-        _workflow.Refresh(Arg.Any<SqlPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+        _workflow.Refresh(Arg.Any<MigrationPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(new StateCapture(new DatabaseSchema([]), 64));
 
         // Act
@@ -48,7 +48,7 @@ public sealed class RefreshOperationTests
     public async Task Execute_WhenTheCaptureRefusesUnreadableState_PropagatesTheFailure()
     {
         // Arrange — without force, an unreadable payload fails the refresh rather than being replaced.
-        _workflow.Refresh(Arg.Any<SqlPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+        _workflow.Refresh(Arg.Any<MigrationPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<StateCapture>(Diagnostic.Error("state", "unreadable")));
 
         // Act
@@ -63,7 +63,7 @@ public sealed class RefreshOperationTests
     public async Task Execute_ForwardsTheCapturesWarningsOntoTheResult()
     {
         // Arrange — the capture replaced state it couldn't read, resetting the run-once ledger.
-        _workflow.Refresh(Arg.Any<SqlPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+        _workflow.Refresh(Arg.Any<MigrationPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new StateCapture(new DatabaseSchema([]), 64),
                 Diagnostic.Warning("state", "the run-once script ledger was reset")));
 
@@ -81,7 +81,8 @@ public sealed class RefreshOperationTests
     public async Task Execute_WhenNoStoreConfigured_Fails()
     {
         // Arrange — refresh's whole purpose is to capture to a store, so a missing store is a failure (not a no-op).
-        _workflow.Refresh(Arg.Any<SqlPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns((Result<StateCapture>?)null);
+        _workflow.Refresh(Arg.Any<MigrationPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<StateCapture>(Diagnostic.Error("refresh", "Unable to refresh state without a configured state store.")));
 
         // Act
         var result = await _sut.Execute(new RefreshArguments(), TestContext.Current.CancellationToken);

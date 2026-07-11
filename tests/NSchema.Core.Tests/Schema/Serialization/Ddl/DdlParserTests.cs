@@ -9,7 +9,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 
 public sealed class DdlParserTests
 {
-    private static DatabaseSchema Parse(string source) => new DdlParser(source).Parse().Document.Schema;
+    private static DatabaseSchema Parse(string source) => new DdlParser(source).Parse().Schema;
 
     private static IReadOnlyList<ConfigBlock> ReadConfig(string source) => DdlReader.Instance.Read(source).Config;
 
@@ -95,7 +95,7 @@ public sealed class DdlParserTests
         // The schema consumer (Parse -> DatabaseSchema) sees only the schema statements.
         var schema = Parse(
             """
-            NSCHEMA (
+            PROVIDER postgres (
               dialect = 'postgres'
             );
             CREATE SCHEMA app;
@@ -108,13 +108,13 @@ public sealed class DdlParserTests
     {
         var block = ReadConfig(
             """
-            NSCHEMA (
+            BACKEND (
               dialect = 'postgres',
               transaction_mode = 'single'
             );
             """).ShouldHaveSingleItem();
 
-        block.Type.ShouldBe("nschema");
+        block.Type.ShouldBe("backend");
         block.Label.ShouldBeNull();
         block.Attribute("dialect")!.AsString().ShouldBe("postgres");
         block.Attribute("transaction_mode")!.AsString().ShouldBe("single");
@@ -164,14 +164,14 @@ public sealed class DdlParserTests
 
     [Fact]
     public void Parse_ConfigBlock_LookupIsCaseInsensitive()
-        => ReadConfig("NSCHEMA ( Dialect = 'postgres' );")
+        => ReadConfig("PROVIDER postgres ( Dialect = 'postgres' );")
             .ShouldHaveSingleItem().Attribute("dialect")!.AsString().ShouldBe("postgres");
 
     [Fact]
     public void Parse_ConfigBlock_EmptyAttributeListIsAllowed()
     {
-        var block = ReadConfig("NSCHEMA ();").ShouldHaveSingleItem();
-        block.Type.ShouldBe("nschema");
+        var block = ReadConfig("BACKEND ();").ShouldHaveSingleItem();
+        block.Type.ShouldBe("backend");
         block.Attributes.ShouldBeEmpty();
     }
 
@@ -180,12 +180,12 @@ public sealed class DdlParserTests
     {
         var blocks = ReadConfig(
             """
-            NSCHEMA ( dialect = 'postgres' );
             BACKEND file ( path = 'state/app.nsstate' );
             PROVIDER postgres ( schema_search_path = 'app' );
+            BACKEND s3 ( bucket = 'state' );
             """);
 
-        blocks.Select(b => b.Type).ShouldBe(["nschema", "backend", "provider"]);
+        blocks.Select(b => b.Type).ShouldBe(["backend", "provider", "backend"]);
     }
 
     [Fact]
@@ -193,37 +193,43 @@ public sealed class DdlParserTests
     {
         var document = DdlReader.Instance.Read(
             """
-            NSCHEMA ( dialect = 'postgres' );
+            BACKEND file ( path = 'state/app.nsstate' );
             CREATE SCHEMA app;
             PROVIDER postgres ( schema_search_path = 'app' );
             """);
 
         document.Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
-        document.Config.Select(b => b.Type).ShouldBe(["nschema", "provider"]);
+        document.Config.Select(b => b.Type).ShouldBe(["backend", "provider"]);
     }
 
     [Fact]
-    public void Parse_UnknownConfigKeyword_IsCapturedNotRejected()
+    public void Parse_UnknownStatementKeyword_Throws()
     {
-        // Forward-compatibility: a config type the core has never heard of is still captured generically.
-        var block = ReadConfig("WORKSPACE staging ( region = 'eu' );").ShouldHaveSingleItem();
-        block.Type.ShouldBe("workspace");
-        block.Label.ShouldBe("staging");
+        // The statement set is closed: an unrecognized keyword is a syntax error, never a silent capture.
+        Should.Throw<DdlSyntaxException>(() => ReadConfig("WORKSPACE staging ( region = 'eu' );"))
+            .Message.ShouldContain("Unknown statement 'WORKSPACE'");
+    }
+
+    [Fact]
+    public void Parse_MistypedStatementKeyword_Throws()
+    {
+        Should.Throw<DdlSyntaxException>(() => Parse("CREAT TABLE users ( id int );"))
+            .Message.ShouldContain("Unknown statement 'CREAT'");
     }
 
     [Fact]
     public void Parse_ConfigBlock_DuplicateAttribute_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadConfig("NSCHEMA ( dialect = 'a', dialect = 'b' );"))
+        => Should.Throw<DdlSyntaxException>(() => ReadConfig("BACKEND file ( path = 'a', path = 'b' );"))
             .Message.ShouldContain("specified more than once");
 
     [Fact]
     public void Parse_ConfigBlock_MissingEquals_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadConfig("NSCHEMA ( dialect 'postgres' );"))
+        => Should.Throw<DdlSyntaxException>(() => ReadConfig("BACKEND file ( path 'x' );"))
             .Message.ShouldContain("'='");
 
     [Fact]
     public void Parse_ConfigBlock_MissingValue_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadConfig("NSCHEMA ( dialect = );"))
+        => Should.Throw<DdlSyntaxException>(() => ReadConfig("BACKEND file ( path = );"))
             .Message.ShouldContain("configuration value");
 
     [Fact]
@@ -232,7 +238,7 @@ public sealed class DdlParserTests
 
     [Fact]
     public void Parse_ConfigBlock_MissingSemicolon_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadConfig("NSCHEMA ( dialect = 'postgres' )"))
+        => Should.Throw<DdlSyntaxException>(() => ReadConfig("BACKEND file ( path = 'x' )"))
             .Message.ShouldContain("';'");
 
     // -------------------------------------------------------------------------

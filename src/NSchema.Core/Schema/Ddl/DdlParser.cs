@@ -1,6 +1,5 @@
 using NSchema.Configuration;
 using NSchema.Schema.Ddl.Model;
-using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Scripts;
 using NSchema.Schema.Model.Templates;
 
@@ -12,7 +11,6 @@ namespace NSchema.Schema.Ddl;
 internal sealed partial class DdlParser
 {
     private readonly DdlLexer _lexer;
-    private readonly List<DdlWarning> _warnings = [];
     private Token _current;
 
     // Stores the name of the current schema while parsing a TEMPLATE body.
@@ -30,9 +28,9 @@ internal sealed partial class DdlParser
     }
 
     /// <summary>
-    /// Parses the whole document, returning it alongside any non-fatal findings raised on the way.
+    /// Parses the whole document.
     /// </summary>
-    public DdlParseResult Parse()
+    public DdlDocument Parse()
     {
         var document = new DocumentAccumulator();
         string? pendingDoc = null;
@@ -51,7 +49,7 @@ internal sealed partial class DdlParser
             pendingDoc = null;
         }
 
-        return new DdlParseResult(document.Build(), _warnings);
+        return document.Build();
     }
 
     private void ParseStatement(DocumentAccumulator document, string? doc)
@@ -68,14 +66,6 @@ internal sealed partial class DdlParser
         {
             ParseGrant(document.Schemas);
         }
-        else if (_current.IsKeyword("PRE"))
-        {
-            document.Scripts.Add(ParseDeploymentScript(ScriptType.PreDeployment));
-        }
-        else if (_current.IsKeyword("POST"))
-        {
-            document.Scripts.Add(ParseDeploymentScript(ScriptType.PostDeployment));
-        }
         else if (_current.IsKeyword("TEMPLATE"))
         {
             document.Templates.Add(ParseTemplate());
@@ -84,20 +74,17 @@ internal sealed partial class DdlParser
         {
             document.Applications.Add(ParseApplyTemplate());
         }
-        else if (_current.IsKeyword("MIGRATION"))
-        {
-            document.Migrations.Add(ParseDataMigration());
-        }
         else if (_current.IsKeyword("SCRIPT"))
         {
-            ParseScript(document.Scripts, document.Migrations);
+            ParseScript(document.Scripts);
+        }
+        else if (_current.IsKeyword("BACKEND") || _current.IsKeyword("PROVIDER"))
+        {
+            document.Config.Add(ParseConfigBlock());
         }
         else if (_current.Kind == TokenKind.Identifier)
         {
-            // Any other top-level keyword introduces a configuration block (NSCHEMA / BACKEND / PROVIDER …).
-            // The core captures it but never interprets it, so an unknown block keyword is captured rather than
-            // rejected.
-            document.Config.Add(ParseConfigBlock());
+            throw Error($"Unknown statement '{_current.Text}'.");
         }
         else
         {
@@ -118,12 +105,10 @@ internal sealed partial class DdlParser
         public List<Script> Scripts { get; } = [];
         public List<TemplateDefinition> Templates { get; } = [];
         public List<TemplateApplication> Applications { get; } = [];
-        public List<DataMigration> Migrations { get; } = [];
 
         public DdlDocument Build() => new(Schemas.Build(), Config, Scripts)
         {
             Templates = new TemplateSet(Templates, Applications, Schemas.Includes),
-            Migrations = Migrations,
         };
     }
 
@@ -216,7 +201,6 @@ internal sealed partial class DdlParser
 
     private DdlSyntaxException Error(string message) => new(message, _current.Position);
 
-    private void Warn(string message, SourcePosition position) => _warnings.Add(new DdlWarning(message, position));
 
     // --- opaque-span capture --------------------------------------------------
     //

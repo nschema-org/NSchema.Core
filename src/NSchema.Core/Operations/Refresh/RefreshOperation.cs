@@ -11,17 +11,11 @@ internal sealed class RefreshOperation(IMigrationWorkflow workflow) : IOperation
     public async Task<Result<RefreshResult>> Execute(RefreshArguments args, CancellationToken cancellationToken = default)
     {
         var captured = await workflow.Refresh(null, args.Force, cancellationToken);
-        if (captured is null)
-        {
-            return Result.Failure<RefreshResult>(Diagnostic.Error("refresh", "Unable to refresh state without a configured state store."));
-        }
-
-        if (captured.IsFailure)
+        if (captured.Value is not { } capture)
         {
             return Result.Failure<RefreshResult>(captured.Diagnostics);
         }
 
-        var capture = captured.Value;
         return Result.Success(new RefreshResult(capture.Schema, capture.SnapshotBytes), captured.Diagnostics);
     }
 }

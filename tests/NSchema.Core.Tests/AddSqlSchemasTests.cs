@@ -21,13 +21,13 @@ public sealed class AddSqlSchemasTests : IDisposable
         return path;
     }
 
-    // Resolves the desired project the way the operations do — through the aggregated IDesiredSchemaProvider.
-    private static async Task<DesiredProject> ResolveProject(Action<NSchemaApplicationBuilder> configure, string[]? scope = null)
+    // Resolves the desired project the way the operations do — through the aggregated IProjectProvider.
+    private static async Task<Project> ResolveProject(Action<NSchemaApplicationBuilder> configure, string[]? scope = null)
     {
         var builder = NSchemaApplication.CreateBuilder();
         configure(builder);
         using var app = builder.Build();
-        return (await app.Services.GetRequiredService<IDesiredSchemaProvider>().GetProject(scope, TestContext.Current.CancellationToken)).Project;
+        return (await app.Services.GetRequiredService<IProjectProvider>().GetProject(scope, TestContext.Current.CancellationToken)).Value!;
     }
 
     private static async Task<List<string>> ResolveSchemaNames(Action<NSchemaApplicationBuilder> configure) =>
@@ -113,14 +113,14 @@ public sealed class AddSqlSchemasTests : IDisposable
         File.WriteAllText(Path.Combine(_root, "schema.sql"),
             """
             CREATE SCHEMA app;
-            POST DEPLOYMENT 'backfill' AS $$ UPDATE app.t SET x = 1; $$;
+            SCRIPT 'backfill' RUN ON POST DEPLOYMENT AS $$ UPDATE app.t SET x = 1; $$;
             """);
 
         var project = await ResolveProject(b => b.AddDdlSchemas(_root));
 
         var script = project.Scripts.ShouldHaveSingleItem();
         script.Name.ShouldBe("backfill");
-        script.Type.ShouldBe(ScriptType.PostDeployment);
+        script.Event.ShouldBe(new DeploymentEvent(DeploymentPhase.Post));
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public sealed class AddSqlSchemasTests : IDisposable
         app.Services.GetServices<DdlSchemaSource>().ShouldHaveSingleItem();
         WriteSchemaFile("late.sql", "late");
 
-        var project = (await app.Services.GetRequiredService<IDesiredSchemaProvider>().GetProject(cancellationToken: TestContext.Current.CancellationToken)).Project;
+        var project = (await app.Services.GetRequiredService<IProjectProvider>().GetProject(cancellationToken: TestContext.Current.CancellationToken)).Value!;
         project.Schema.Schemas.Select(s => s.Name).ShouldBe(["late"]);
     }
 }

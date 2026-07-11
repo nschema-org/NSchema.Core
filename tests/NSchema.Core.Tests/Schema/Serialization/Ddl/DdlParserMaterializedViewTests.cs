@@ -10,7 +10,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 public sealed class DdlParserMaterializedViewTests
 {
     private static View ParseView(string sql) =>
-        new DdlParser("CREATE SCHEMA app; " + sql).Parse().Document.Schema
+        new DdlParser("CREATE SCHEMA app; " + sql).Parse().Schema
             .Schemas.ShouldHaveSingleItem().Views.ShouldHaveSingleItem();
 
     [Fact]
@@ -74,6 +74,6 @@ public sealed class DdlParserMaterializedViewTests
 
     [Fact]
     public void Parse_DropMaterializedView_RecordsDroppedView()
-        => new DdlParser("CREATE SCHEMA app; DROP MATERIALIZED VIEW app.daily;").Parse().Document.Schema
+        => new DdlParser("CREATE SCHEMA app; DROP MATERIALIZED VIEW app.daily;").Parse().Schema
             .Schemas.ShouldHaveSingleItem().DroppedViews.ShouldHaveSingleItem().ShouldBe("daily");
 }

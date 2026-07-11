@@ -15,12 +15,12 @@ public sealed class NamespaceMigrationMapTests
     private const string Removed = "(removed in 5.0)";
 
     private const string Root = "NSchema";
-    private const string SchemaModels = "NSchema.Schema.Domain.Models";
-    private const string SchemaDesired = "NSchema.Schema.Desired";
-    private const string SchemaCurrent = "NSchema.Schema.Current";
-    private const string SchemaCurrentBackends = "NSchema.Schema.Current.Backends";
-    private const string SchemaDdl = "NSchema.Schema.Ddl";
-    private const string SchemaPolicies = "NSchema.Schema.Policies";
+    private const string ProjectRoot = "NSchema.Project";
+    private const string ProjectModels = "NSchema.Project.Domain.Models";
+    private const string ProjectDdl = "NSchema.Project.Ddl";
+    private const string ProjectPolicies = "NSchema.Project.Policies";
+    private const string CurrentRoot = "NSchema.Current";
+    private const string CurrentBackends = "NSchema.Current.Backends";
     private const string Diff = "NSchema.Diff";
     private const string DiffModels = "NSchema.Diff.Domain.Models";
     private const string DiffPolicies = "NSchema.Diff.Policies";
@@ -29,11 +29,11 @@ public sealed class NamespaceMigrationMapTests
     private const string PlanModels = "NSchema.Plan.Domain.Models";
     private const string PlanFile = "NSchema.Plan.PlanFile";
     private const string Apply = "NSchema.Apply";
-    private const string StateLocks = "NSchema.State.Locks";
-    private const string StateLocksBackends = "NSchema.State.Locks.Backends";
-    private const string StateStorage = "NSchema.State.Storage";
-    private const string StateStorageBackends = "NSchema.State.Storage.Backends";
-    private const string StateModels = "NSchema.State.Domain.Models";
+    private const string CurrentLocks = "NSchema.Current.Locks";
+    private const string CurrentLocksBackends = "NSchema.Current.Locks.Backends";
+    private const string CurrentStorage = "NSchema.Current.Storage";
+    private const string CurrentStorageBackends = "NSchema.Current.Storage.Backends";
+    private const string CurrentModels = "NSchema.Current.Domain.Models";
     private const string Operations = "NSchema.Operations";
     private const string Plugins = "NSchema.Plugins";
 
@@ -51,79 +51,80 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Policies.PolicyEnforcement)] = Root, // absorbs DestructiveActionPolicy
         [typeof(NSchema.Policies.PolicyDiagnostics)] = Removed, // redundant once severity is first-class on Result
 
-        // ── Schema.Desired ──
-        [typeof(NSchema.Schema.IDesiredSchemaProvider)] = SchemaDesired,
-        [typeof(NSchema.Schema.DesiredProjectResult)] = SchemaDesired,
-        [typeof(NSchema.Schema.Model.DesiredProject)] = SchemaDesired, // seam message, currently misfiled in Model
+        // ── Project: the declared desired state — seam and messages at the cluster root. ──
+        [typeof(NSchema.Schema.IProjectProvider)] = ProjectRoot,
+        [typeof(NSchema.Schema.Model.Project)] = ProjectRoot, // seam message, currently misfiled in Model
 
-        // ── Schema.Current ──
-        [typeof(NSchema.Schema.ICurrentSchemaProvider)] = SchemaCurrent,
-        [typeof(NSchema.Schema.SchemaSourceMode)] = SchemaCurrent,
-        [typeof(NSchema.Schema.ISchemaProvider)] = SchemaCurrentBackends, // renamed ISchemaIntrospector
+        // ── Current: the source the project is diffed against — observed live, or recorded. ──
+        [typeof(NSchema.Schema.ICurrentSchemaProvider)] = CurrentRoot,
+        [typeof(NSchema.Schema.SchemaSourceMode)] = CurrentRoot,
+        [typeof(NSchema.Schema.ISchemaProvider)] = CurrentBackends, // renamed ISchemaIntrospector
 
-        // ── Schema.Ddl: language machinery + the full syntax tree. ──
-        [typeof(NSchema.Schema.Ddl.DdlReader)] = SchemaDdl,
-        [typeof(NSchema.Schema.Ddl.DdlWriter)] = SchemaDdl,
-        [typeof(NSchema.Schema.Ddl.DdlFormatter)] = SchemaDdl,
-        [typeof(NSchema.Schema.Ddl.DdlSyntaxException)] = SchemaDdl, // likely absorbed by DdlDiagnostic in the Result<T,TDiagnostic> conversion
-        [typeof(NSchema.Schema.Ddl.Model.DdlDocument)] = SchemaDdl, // becomes the parsed-project root of the full AST
-        [typeof(NSchema.Schema.Ddl.Model.SourcePosition)] = SchemaDdl,
+        // ── Project.Ddl: the project language — machinery + the full syntax tree. ──
+        [typeof(NSchema.Schema.Ddl.DdlReader)] = ProjectDdl,
+        [typeof(NSchema.Schema.Ddl.DdlWriter)] = ProjectDdl,
+        [typeof(NSchema.Schema.Ddl.DdlFormatter)] = ProjectDdl,
+        [typeof(NSchema.Schema.Ddl.DdlSyntaxException)] = ProjectDdl, // likely absorbed by DdlDiagnostic in the Result<T,TDiagnostic> conversion
+        [typeof(NSchema.Schema.Ddl.Model.DdlDocument)] = ProjectDdl, // becomes the parsed-project root of the full AST
+        [typeof(NSchema.Schema.Ddl.Model.SourcePosition)] = ProjectDdl,
         // Template constructs are language features, not domain models; reshaped as AST nodes.
-        [typeof(NSchema.Schema.Model.Templates.TemplateDefinition)] = SchemaDdl,
-        [typeof(NSchema.Schema.Model.Templates.TemplateApplication)] = SchemaDdl,
-        [typeof(NSchema.Schema.Model.Templates.TemplateInclude)] = SchemaDdl,
-        [typeof(NSchema.Schema.Model.Templates.TemplateKind)] = SchemaDdl,
-        [typeof(NSchema.Schema.Model.Templates.TemplateSet)] = SchemaDdl,
+        [typeof(NSchema.Schema.Model.Templates.TemplateDefinition)] = ProjectDdl,
+        [typeof(NSchema.Schema.Model.Templates.TemplateApplication)] = ProjectDdl,
+        [typeof(NSchema.Schema.Model.Templates.TemplateInclude)] = ProjectDdl,
+        [typeof(NSchema.Schema.Model.Templates.TemplateKind)] = ProjectDdl,
+        [typeof(NSchema.Schema.Model.Templates.TemplateSet)] = ProjectDdl,
 
-        // ── Schema.Policies ──
-        [typeof(NSchema.Schema.ISchemaPolicy)] = SchemaPolicies,
-        [typeof(NSchema.Schema.Policies.SchemaLintPolicy)] = SchemaPolicies,
-        [typeof(NSchema.Schema.Policies.StructuralIntegritySchemaPolicy)] = SchemaPolicies,
+        // ── Project.Policies ──
+        [typeof(NSchema.Schema.ISchemaPolicy)] = ProjectPolicies,
+        [typeof(NSchema.Schema.Policies.SchemaLintPolicy)] = ProjectPolicies,
+        [typeof(NSchema.Schema.Policies.StructuralIntegritySchemaPolicy)] = ProjectPolicies,
 
-        // ── Schema.Domain.Models: the shared pipeline vocabulary. ──
-        [typeof(NSchema.Schema.Model.DatabaseSchema)] = SchemaModels,
-        [typeof(NSchema.Schema.Model.INamedObject)] = SchemaModels,
-        [typeof(NSchema.Schema.Model.IRenameableObject)] = SchemaModels,
-        [typeof(NSchema.Schema.Model.Columns.Column)] = SchemaModels + ".Columns",
-        [typeof(NSchema.Schema.Model.Columns.IdentityOptions)] = SchemaModels + ".Columns",
-        [typeof(NSchema.Schema.Model.Columns.SqlType)] = SchemaModels + ".Columns",
-        [typeof(NSchema.Schema.Model.CompositeTypes.CompositeField)] = SchemaModels + ".CompositeTypes",
-        [typeof(NSchema.Schema.Model.CompositeTypes.CompositeType)] = SchemaModels + ".CompositeTypes",
-        [typeof(NSchema.Schema.Model.Constraints.CheckConstraint)] = SchemaModels + ".Constraints",
-        [typeof(NSchema.Schema.Model.Constraints.ExclusionConstraint)] = SchemaModels + ".Constraints",
-        [typeof(NSchema.Schema.Model.Constraints.ExclusionElement)] = SchemaModels + ".Constraints",
-        [typeof(NSchema.Schema.Model.Constraints.UniqueConstraint)] = SchemaModels + ".Constraints",
-        [typeof(NSchema.Schema.Model.Domains.Domain)] = SchemaModels + ".Domains",
-        [typeof(NSchema.Schema.Model.Enums.EnumType)] = SchemaModels + ".Enums",
-        [typeof(NSchema.Schema.Model.Extensions.Extension)] = SchemaModels + ".Extensions",
-        [typeof(NSchema.Schema.Model.Indexes.IndexColumn)] = SchemaModels + ".Indexes",
-        [typeof(NSchema.Schema.Model.Indexes.IndexNulls)] = SchemaModels + ".Indexes",
-        [typeof(NSchema.Schema.Model.Indexes.IndexSort)] = SchemaModels + ".Indexes",
-        [typeof(NSchema.Schema.Model.Indexes.TableIndex)] = SchemaModels + ".Indexes",
-        [typeof(NSchema.Schema.Model.Routines.Routine)] = SchemaModels + ".Routines",
-        [typeof(NSchema.Schema.Model.Routines.RoutineKind)] = SchemaModels + ".Routines",
-        [typeof(NSchema.Schema.Model.Schemas.SchemaDefinition)] = SchemaModels + ".Schemas",
-        [typeof(NSchema.Schema.Model.Schemas.SchemaGrant)] = SchemaModels + ".Schemas",
-        [typeof(NSchema.Schema.Model.Sequences.Sequence)] = SchemaModels + ".Sequences",
-        [typeof(NSchema.Schema.Model.Sequences.SequenceOptions)] = SchemaModels + ".Sequences",
-        [typeof(NSchema.Schema.Model.Tables.ForeignKey)] = SchemaModels + ".Tables",
-        [typeof(NSchema.Schema.Model.Tables.PrimaryKey)] = SchemaModels + ".Tables",
-        [typeof(NSchema.Schema.Model.Tables.ReferentialAction)] = SchemaModels + ".Tables",
-        [typeof(NSchema.Schema.Model.Tables.Table)] = SchemaModels + ".Tables",
-        [typeof(NSchema.Schema.Model.Tables.TableGrant)] = SchemaModels + ".Tables",
-        [typeof(NSchema.Schema.Model.Tables.TablePrivilege)] = SchemaModels + ".Tables",
-        [typeof(NSchema.Schema.Model.Triggers.Trigger)] = SchemaModels + ".Triggers",
-        [typeof(NSchema.Schema.Model.Triggers.TriggerEvent)] = SchemaModels + ".Triggers",
-        [typeof(NSchema.Schema.Model.Triggers.TriggerLevel)] = SchemaModels + ".Triggers",
-        [typeof(NSchema.Schema.Model.Triggers.TriggerTiming)] = SchemaModels + ".Triggers",
-        [typeof(NSchema.Schema.Model.Views.View)] = SchemaModels + ".Views",
-        [typeof(NSchema.Schema.Model.Views.ViewDependency)] = SchemaModels + ".Views",
-        // The unified script model (per-lane merge: Script absorbs DataMigration in this lane).
-        [typeof(NSchema.Schema.Model.Scripts.Script)] = SchemaModels + ".Scripts",
-        [typeof(NSchema.Schema.Model.Scripts.RunCondition)] = SchemaModels + ".Scripts",
-        [typeof(NSchema.Schema.Model.Scripts.ScriptType)] = SchemaModels + ".Scripts", // may fold into the unified event vocabulary
-        [typeof(NSchema.Schema.Model.Migrations.DataMigration)] = Removed, // merged into Script
-        [typeof(NSchema.Schema.Model.Migrations.DataMigrationTrigger)] = SchemaModels + ".Scripts", // becomes the change-event vocabulary
+        // ── Project.Domain.Models: the shared pipeline vocabulary (the schema tree + the script models). ──
+        [typeof(NSchema.Schema.Model.DatabaseSchema)] = ProjectModels,
+        [typeof(NSchema.Schema.Model.INamedObject)] = ProjectModels,
+        [typeof(NSchema.Schema.Model.IRenameableObject)] = ProjectModels,
+        [typeof(NSchema.Schema.Model.Columns.Column)] = ProjectModels + ".Columns",
+        [typeof(NSchema.Schema.Model.Columns.IdentityOptions)] = ProjectModels + ".Columns",
+        [typeof(NSchema.Schema.Model.Columns.SqlType)] = ProjectModels + ".Columns",
+        [typeof(NSchema.Schema.Model.CompositeTypes.CompositeField)] = ProjectModels + ".CompositeTypes",
+        [typeof(NSchema.Schema.Model.CompositeTypes.CompositeType)] = ProjectModels + ".CompositeTypes",
+        [typeof(NSchema.Schema.Model.Constraints.CheckConstraint)] = ProjectModels + ".Constraints",
+        [typeof(NSchema.Schema.Model.Constraints.ExclusionConstraint)] = ProjectModels + ".Constraints",
+        [typeof(NSchema.Schema.Model.Constraints.ExclusionElement)] = ProjectModels + ".Constraints",
+        [typeof(NSchema.Schema.Model.Constraints.UniqueConstraint)] = ProjectModels + ".Constraints",
+        [typeof(NSchema.Schema.Model.Domains.Domain)] = ProjectModels + ".Domains",
+        [typeof(NSchema.Schema.Model.Enums.EnumType)] = ProjectModels + ".Enums",
+        [typeof(NSchema.Schema.Model.Extensions.Extension)] = ProjectModels + ".Extensions",
+        [typeof(NSchema.Schema.Model.Indexes.IndexColumn)] = ProjectModels + ".Indexes",
+        [typeof(NSchema.Schema.Model.Indexes.IndexNulls)] = ProjectModels + ".Indexes",
+        [typeof(NSchema.Schema.Model.Indexes.IndexSort)] = ProjectModels + ".Indexes",
+        [typeof(NSchema.Schema.Model.Indexes.TableIndex)] = ProjectModels + ".Indexes",
+        [typeof(NSchema.Schema.Model.Routines.Routine)] = ProjectModels + ".Routines",
+        [typeof(NSchema.Schema.Model.Routines.RoutineKind)] = ProjectModels + ".Routines",
+        [typeof(NSchema.Schema.Model.Schemas.SchemaDefinition)] = ProjectModels + ".Schemas",
+        [typeof(NSchema.Schema.Model.Schemas.SchemaGrant)] = ProjectModels + ".Schemas",
+        [typeof(NSchema.Schema.Model.Sequences.Sequence)] = ProjectModels + ".Sequences",
+        [typeof(NSchema.Schema.Model.Sequences.SequenceOptions)] = ProjectModels + ".Sequences",
+        [typeof(NSchema.Schema.Model.Tables.ForeignKey)] = ProjectModels + ".Tables",
+        [typeof(NSchema.Schema.Model.Tables.PrimaryKey)] = ProjectModels + ".Tables",
+        [typeof(NSchema.Schema.Model.Tables.ReferentialAction)] = ProjectModels + ".Tables",
+        [typeof(NSchema.Schema.Model.Tables.Table)] = ProjectModels + ".Tables",
+        [typeof(NSchema.Schema.Model.Tables.TableGrant)] = ProjectModels + ".Tables",
+        [typeof(NSchema.Schema.Model.Tables.TablePrivilege)] = ProjectModels + ".Tables",
+        [typeof(NSchema.Schema.Model.Triggers.Trigger)] = ProjectModels + ".Triggers",
+        [typeof(NSchema.Schema.Model.Triggers.TriggerEvent)] = ProjectModels + ".Triggers",
+        [typeof(NSchema.Schema.Model.Triggers.TriggerLevel)] = ProjectModels + ".Triggers",
+        [typeof(NSchema.Schema.Model.Triggers.TriggerTiming)] = ProjectModels + ".Triggers",
+        [typeof(NSchema.Schema.Model.Views.View)] = ProjectModels + ".Views",
+        [typeof(NSchema.Schema.Model.Views.ViewDependency)] = ProjectModels + ".Views",
+        // The unified script model: one Script, discriminated by the event it runs on.
+        [typeof(NSchema.Schema.Model.Scripts.Script)] = ProjectModels + ".Scripts",
+        [typeof(NSchema.Schema.Model.Scripts.RunCondition)] = ProjectModels + ".Scripts",
+        [typeof(NSchema.Schema.Model.Scripts.ScriptEvent)] = ProjectModels + ".Scripts",
+        [typeof(NSchema.Schema.Model.Scripts.DeploymentEvent)] = ProjectModels + ".Scripts",
+        [typeof(NSchema.Schema.Model.Scripts.DeploymentPhase)] = ProjectModels + ".Scripts",
+        [typeof(NSchema.Schema.Model.Scripts.ChangeEvent)] = ProjectModels + ".Scripts",
+        [typeof(NSchema.Schema.Model.Scripts.ChangeTrigger)] = ProjectModels + ".Scripts",
 
         // ── Diff: root = reader + presentation read model; tree in Domain.Models. ──
         [typeof(NSchema.Diff.DiffReader)] = Diff,
@@ -161,11 +162,9 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Diff.Model.ValueChange<>)] = DiffModels,
 
         // ── Plan: the single artifact at the root; dialect SPI in Backends; actions in Domain.Models. ──
-        [typeof(NSchema.Plan.Model.MigrationPlan)] = Plan, // becomes the single plan artifact (absorbs PlannedMigration + SqlPlan)
-        [typeof(NSchema.Sql.ISqlGenerator)] = PlanBackends, // renamed ISqlDialect; shrinks to actions → statements
-        [typeof(NSchema.Sql.Model.SqlPlan)] = Removed, // absorbed into the single plan artifact
+        [typeof(NSchema.Plan.Model.MigrationPlan)] = Plan, // the single plan artifact: diff + scripts + statements
+        [typeof(NSchema.Sql.ISqlDialect)] = PlanBackends,
         [typeof(NSchema.Sql.Model.SqlStatement)] = PlanModels,
-        [typeof(NSchema.Sql.Model.ScriptHash)] = PlanModels,
         [typeof(NSchema.Plan.Model.MigrationAction)] = PlanModels,
         [typeof(NSchema.Plan.Model.Columns.AddColumn)] = PlanModels + ".Columns",
         [typeof(NSchema.Plan.Model.Columns.AlterColumnNullability)] = PlanModels + ".Columns",
@@ -211,7 +210,6 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Plan.Model.Indexes.CreateIndex)] = PlanModels + ".Indexes",
         [typeof(NSchema.Plan.Model.Indexes.DropIndex)] = PlanModels + ".Indexes",
         [typeof(NSchema.Plan.Model.Indexes.SetIndexComment)] = PlanModels + ".Indexes",
-        [typeof(NSchema.Plan.Model.Migrations.ExecuteDataMigration)] = PlanModels + ".Scripts", // renamed for the unified script model
         [typeof(NSchema.Plan.Model.Routines.CreateRoutine)] = PlanModels + ".Routines",
         [typeof(NSchema.Plan.Model.Routines.DropRoutine)] = PlanModels + ".Routines",
         [typeof(NSchema.Plan.Model.Routines.RecreateRoutine)] = PlanModels + ".Routines",
@@ -242,6 +240,7 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Plan.Model.Triggers.CreateTrigger)] = PlanModels + ".Triggers",
         [typeof(NSchema.Plan.Model.Triggers.DropTrigger)] = PlanModels + ".Triggers",
         [typeof(NSchema.Plan.Model.Triggers.SetTriggerComment)] = PlanModels + ".Triggers",
+        [typeof(NSchema.Plan.Model.Scripts.ExecuteScript)] = PlanModels + ".Scripts",
         [typeof(NSchema.Plan.Model.Views.CreateView)] = PlanModels + ".Views",
         [typeof(NSchema.Plan.Model.Views.DropView)] = PlanModels + ".Views",
         [typeof(NSchema.Plan.Model.Views.RenameView)] = PlanModels + ".Views",
@@ -254,34 +253,34 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Sql.SqlOptions)] = Apply,
         [typeof(NSchema.Sql.TransactionMode)] = Apply,
 
-        // ── State.Locks ──
-        [typeof(NSchema.State.IStateLockCoordinator)] = StateLocks, // renamed IStateLockManager
-        [typeof(NSchema.State.StateLockCoordinatorExtensions)] = StateLocks, // renamed with its target
-        [typeof(NSchema.State.IStateLockHandle)] = StateLocks,
-        [typeof(NSchema.State.Model.StateLockInfo)] = StateLocks,
-        [typeof(NSchema.State.Model.StateLockRequest)] = StateLocks,
-        [typeof(NSchema.State.Model.StateLockedException)] = StateLocks,
-        [typeof(NSchema.State.Model.StateLockMismatchException)] = StateLocks,
-        [typeof(NSchema.State.IStateLock)] = StateLocksBackends,
-        [typeof(NSchema.State.File.FileStateLockOptions)] = StateLocksBackends,
+        // ── Current.Locks: guards the shared record against concurrent runs. ──
+        [typeof(NSchema.State.IStateLockCoordinator)] = CurrentLocks, // renamed IStateLockManager
+        [typeof(NSchema.State.StateLockCoordinatorExtensions)] = CurrentLocks, // renamed with its target
+        [typeof(NSchema.State.IStateLockHandle)] = CurrentLocks,
+        [typeof(NSchema.State.Model.StateLockInfo)] = CurrentLocks,
+        [typeof(NSchema.State.Model.StateLockRequest)] = CurrentLocks,
+        [typeof(NSchema.State.Model.StateLockedException)] = CurrentLocks,
+        [typeof(NSchema.State.Model.StateLockMismatchException)] = CurrentLocks,
+        [typeof(NSchema.State.IStateLock)] = CurrentLocksBackends,
+        [typeof(NSchema.State.File.FileStateLockOptions)] = CurrentLocksBackends,
 
-        // ── State.Storage ──
-        [typeof(NSchema.State.Storage.ISchemaStateManager)] = StateStorage,
-        [typeof(NSchema.State.Storage.StateReadArguments)] = StateStorage,
-        [typeof(NSchema.State.Storage.StateReadResult)] = StateStorage,
-        [typeof(NSchema.State.Storage.StateWriteArguments)] = StateStorage,
-        [typeof(NSchema.State.Storage.StateWriteResult)] = StateStorage,
-        [typeof(NSchema.State.Storage.StateRawReadArguments)] = StateStorage,
-        [typeof(NSchema.State.Storage.StateRawReadResult)] = StateStorage,
-        [typeof(NSchema.State.Storage.StateRawWriteArguments)] = StateStorage,
-        [typeof(NSchema.State.Storage.StateRawWriteResult)] = StateStorage,
-        [typeof(NSchema.State.StateDeserializationException)] = StateStorage,
-        [typeof(NSchema.State.ISchemaStateStore)] = StateStorageBackends,
-        [typeof(NSchema.State.File.FileSchemaStateStoreOptions)] = StateStorageBackends,
+        // ── Current.Storage: the source's persistence — the recorded snapshot + ledger. ──
+        [typeof(NSchema.State.Storage.ISchemaStateManager)] = CurrentStorage,
+        [typeof(NSchema.State.Storage.StateReadArguments)] = CurrentStorage,
+        [typeof(NSchema.State.Storage.StateReadResult)] = CurrentStorage,
+        [typeof(NSchema.State.Storage.StateWriteArguments)] = CurrentStorage,
+        [typeof(NSchema.State.Storage.StateWriteResult)] = CurrentStorage,
+        [typeof(NSchema.State.Storage.StateRawReadArguments)] = CurrentStorage,
+        [typeof(NSchema.State.Storage.StateRawReadResult)] = CurrentStorage,
+        [typeof(NSchema.State.Storage.StateRawWriteArguments)] = CurrentStorage,
+        [typeof(NSchema.State.Storage.StateRawWriteResult)] = CurrentStorage,
+        [typeof(NSchema.State.StateDeserializationException)] = CurrentStorage,
+        [typeof(NSchema.State.ISchemaStateStore)] = CurrentStorageBackends,
+        [typeof(NSchema.State.File.FileSchemaStateStoreOptions)] = CurrentStorageBackends,
 
-        // ── State.Domain.Models ──
-        [typeof(NSchema.State.Model.SchemaState)] = StateModels,
-        [typeof(NSchema.State.Model.ScriptRecord)] = StateModels,
+        // ── Current.Domain.Models ──
+        [typeof(NSchema.State.Model.SchemaState)] = CurrentModels,
+        [typeof(NSchema.Schema.Model.Scripts.ScriptExecution)] = CurrentModels, // the ledger entry — SchemaState is its aggregate root; the differ reads it as source vocabulary
 
         // ── Operations: one seam, one vocabulary — publics flatten to the root. ──
         [typeof(INSchemaOperations)] = Operations,

@@ -53,14 +53,14 @@ public sealed class PublicInterfaceClassificationTests
         // Application seams — the consumer surface on NSchemaApplication.
         [typeof(INSchemaOperations)] = InterfaceRole.ApplicationSeam,
         [typeof(ICurrentSchemaProvider)] = InterfaceRole.ApplicationSeam,
-        [typeof(IDesiredSchemaProvider)] = InterfaceRole.ApplicationSeam,
+        [typeof(IProjectProvider)] = InterfaceRole.ApplicationSeam,
         [typeof(IPlanFileWriter)] = InterfaceRole.ApplicationSeam,
         [typeof(IStateLockCoordinator)] = InterfaceRole.ApplicationSeam,
         [typeof(ISchemaStateManager)] = InterfaceRole.ApplicationSeam,
 
         // Backend SPIs — implemented by provider/backend packages.
         [typeof(ISchemaProvider)] = InterfaceRole.BackendSpi,
-        [typeof(ISqlGenerator)] = InterfaceRole.BackendSpi,
+        [typeof(ISqlDialect)] = InterfaceRole.BackendSpi,
         [typeof(ISchemaStateStore)] = InterfaceRole.BackendSpi,
         [typeof(IStateLock)] = InterfaceRole.BackendSpi,
         [typeof(INSchemaPlugin)] = InterfaceRole.BackendSpi,

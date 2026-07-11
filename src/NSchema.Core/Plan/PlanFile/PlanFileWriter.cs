@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using NSchema.Helpers;
-using NSchema.Plan.Model;
+using NSchema.Schema.Model.Scripts;
 
 namespace NSchema.Plan.PlanFile;
 
@@ -11,11 +11,7 @@ namespace NSchema.Plan.PlanFile;
 /// </summary>
 internal class PlanFileWriter : IPlanFileWriter
 {
-    private static readonly IReadOnlyList<JsonDerivedType> _actionTypes =
-        typeof(MigrationAction).Assembly.GetTypes()
-            .Where(t => t is { IsAbstract: false } && typeof(MigrationAction).IsAssignableFrom(t))
-            .Select(t => new JsonDerivedType(t, t.Name))
-            .ToList();
+    private static readonly IReadOnlyList<JsonDerivedType> _eventTypes = DerivedTypes(typeof(ScriptEvent));
 
     private static readonly JsonSerializerOptions _options = new()
     {
@@ -26,9 +22,15 @@ internal class PlanFileWriter : IPlanFileWriter
         Converters = { new JsonStringEnumConverter() },
         TypeInfoResolver = new DefaultJsonTypeInfoResolver
         {
-            Modifiers = { JsonHelpers.IgnoreComputedProperties, ConfigureActionPolymorphism },
+            Modifiers = { JsonHelpers.IgnoreComputedProperties, ConfigurePolymorphism },
         },
     };
+
+    private static IReadOnlyList<JsonDerivedType> DerivedTypes(Type baseType) =>
+        baseType.Assembly.GetTypes()
+            .Where(t => t is { IsAbstract: false } && baseType.IsAssignableFrom(t))
+            .Select(t => new JsonDerivedType(t, t.Name))
+            .ToList();
 
     public async Task<PlanFileEnvelope> Read(string path, CancellationToken cancellationToken)
     {
@@ -86,23 +88,23 @@ internal class PlanFileWriter : IPlanFileWriter
     }
 
     /// <summary>
-    /// Configures discriminated-union serialization for the <see cref="MigrationAction"/> base type so the ordered
-    /// actions round-trip to their concrete records.
+    /// Configures discriminated-union serialization for the one abstract base the plan carries — the
+    /// <see cref="ScriptEvent"/> on each script — so it round-trips to its concrete record.
     /// </summary>
-    private static void ConfigureActionPolymorphism(JsonTypeInfo typeInfo)
+    private static void ConfigurePolymorphism(JsonTypeInfo typeInfo)
     {
-        if (typeInfo.Type != typeof(MigrationAction))
+        if (typeInfo.Type != typeof(ScriptEvent))
         {
             return;
         }
 
         typeInfo.PolymorphismOptions = new JsonPolymorphismOptions
         {
-            TypeDiscriminatorPropertyName = "$action",
+            TypeDiscriminatorPropertyName = "$event",
             UnknownDerivedTypeHandling = JsonUnknownDerivedTypeHandling.FailSerialization,
         };
 
-        foreach (var derived in _actionTypes)
+        foreach (var derived in _eventTypes)
         {
             typeInfo.PolymorphismOptions.DerivedTypes.Add(derived);
         }

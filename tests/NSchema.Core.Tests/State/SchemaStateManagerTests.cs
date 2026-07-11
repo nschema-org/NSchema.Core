@@ -1,5 +1,5 @@
+using NSchema.Schema.Model.Scripts;
 using NSchema.Diagnostics;
-using NSchema.Sql.Model;
 using NSchema.State;
 using NSchema.State.Model;
 using NSchema.State.Storage;
@@ -60,7 +60,7 @@ public sealed class SchemaStateManagerTests
     public async Task Read_ReturnsTheRecordedState()
     {
         // Arrange
-        var state = SchemaState.Empty.RecordScripts([new ScriptHash("seed", "abc")], _now);
+        var state = SchemaState.Empty.RecordExecution([new ScriptExecution("seed", "abc", _now)]);
         StoreHolds(_serializer.Serialize(state));
 
         // Act
@@ -99,7 +99,7 @@ public sealed class SchemaStateManagerTests
     public async Task Write_PersistsTheSerializedState_AndReportsThePayloadSize()
     {
         // Arrange
-        var state = SchemaState.Empty.RecordScripts([new ScriptHash("seed", "abc")], _now);
+        var state = SchemaState.Empty.RecordExecution([new ScriptExecution("seed", "abc", _now)]);
         byte[]? written = null;
         await _store.Write(Arg.Do<ReadOnlyMemory<byte>>(m => written = m.ToArray()), Arg.Any<CancellationToken>());
 

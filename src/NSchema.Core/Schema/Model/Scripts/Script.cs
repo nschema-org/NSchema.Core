@@ -1,12 +1,12 @@
 namespace NSchema.Schema.Model.Scripts;
 
 /// <summary>
-/// Represents a SQL script that can be executed as part of the database schema.
+/// A raw-SQL script, together with the event it runs on.
 /// </summary>
-/// <param name="Name">The name of the script, which can be used for identification and reference purposes.</param>
-/// <param name="Sql">The actual SQL code contained in the script, which defines the operations to be performed on the database when the script is executed.</param>
-/// <param name="Type">The type of script, indicating when it should be executed in relation to the main migration actions.</param>
-public record Script(string Name, string Sql, ScriptType Type) : IScriptDeclaration
+/// <param name="Name">The name that identifies the script.</param>
+/// <param name="Sql">The raw SQL to run when the event occurs.</param>
+/// <param name="Event">The event that will cause the script to be run.</param>
+public record Script(string Name, string Sql, ScriptEvent Event)
 {
     /// <summary>
     /// The canonical hash of the script body.
@@ -14,20 +14,12 @@ public record Script(string Name, string Sql, ScriptType Type) : IScriptDeclarat
     public string Hash => ScriptHashing.Hash(Sql);
 
     /// <summary>
-    /// When true, the script runs outside of the migration's transaction.
+    /// When true, the script runs outside the migration's transaction.
     /// </summary>
-    /// <remarks>
-    /// Set this for scripts that
-    /// manage their own transaction (containing <c>BEGIN</c>/<c>COMMIT</c>) or that contain statements
-    /// the database disallows inside a transaction (for example, <c>CREATE INDEX CONCURRENTLY</c>).
-    /// </remarks>
     public bool RunOutsideTransaction { get; init; }
 
     /// <summary>
     /// When the script runs, relative to occurrences of its event.
     /// </summary>
     public RunCondition RunCondition { get; init; } = RunCondition.Always;
-
-    // A deployment script's name is required, so the nullable capability view simply forwards it.
-    string? IScriptDeclaration.Name => Name;
 }

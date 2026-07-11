@@ -209,7 +209,7 @@ public sealed class DdlParserTemplateTests
             .Message.ShouldContain("inside a template");
 
     [Fact]
-    public void Parse_Template_DeploymentScriptInside_Throws()
+    public void Parse_Template_OldDeploymentFormInside_Throws()
         => Should.Throw<DdlSyntaxException>(() => ReadTemplate("TEMPLATE t BEGIN PRE DEPLOYMENT 'x' AS $$ SELECT 1; $$; END;"))
             .Message.ShouldContain("inside a template");
 

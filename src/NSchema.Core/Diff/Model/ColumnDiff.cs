@@ -1,5 +1,4 @@
 using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Migrations;
 
 namespace NSchema.Diff.Model;
 
@@ -30,7 +29,7 @@ public sealed record ColumnDiff(
 ) : INamedObjectDiff
 {
     /// <summary>
-    /// The data migration matched to this change, when one is declared; otherwise <see langword="null"/>.
+    /// The name of the script matched to this change.
     /// </summary>
-    public DataMigration? Migration { get; init; }
+    public string? MigrationScript { get; init; }
 }

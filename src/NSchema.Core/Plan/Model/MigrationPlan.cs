@@ -1,15 +1,17 @@
-using NSchema.Schema.Model.Scripts;
+using NSchema.Diff.Model;
+using NSchema.Sql.Model;
 
 namespace NSchema.Plan.Model;
 
 /// <summary>
-/// Represents a migration plan that outlines the necessary steps to migrate a database schema from its current state to a desired target state.
+/// The complete executable plan.
 /// </summary>
-/// <param name="Actions">The ordered list of migration actions that need to be executed to apply the changes described in the migration plan.</param>
-/// <param name="PreDeploymentScripts">The pre-deployment scripts to run before the migration actions.</param>
-/// <param name="PostDeploymentScripts">The post-deployment scripts to run after the migration actions.</param>
-public sealed record MigrationPlan(
-    IReadOnlyList<MigrationAction> Actions,
-    IReadOnlyList<Script> PreDeploymentScripts,
-    IReadOnlyList<Script> PostDeploymentScripts
-);
+/// <param name="Diff">The complete diff: the schema changes and the scripts that need to be run.</param>
+/// <param name="Statements">The ordered SQL statements that will actually be executed.</param>
+public sealed record MigrationPlan(DatabaseDiff Diff, IReadOnlyList<SqlStatement> Statements)
+{
+    /// <summary>
+    /// Gets a value indicating whether the plan contains no statements to execute.
+    /// </summary>
+    public bool IsEmpty => Statements.Count == 0;
+}

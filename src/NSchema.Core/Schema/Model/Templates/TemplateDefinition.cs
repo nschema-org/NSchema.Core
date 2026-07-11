@@ -1,4 +1,3 @@
-using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Scripts;
 
@@ -23,12 +22,7 @@ public sealed record TemplateDefinition(string Name, TemplateKind Kind, SchemaDe
     public IReadOnlyList<TemplateInclude> Includes { get; init; } = [];
 
     /// <summary>
-    /// The data migrations declared in this template's body.
-    /// </summary>
-    public IReadOnlyList<DataMigration> Migrations { get; init; } = [];
-
-    /// <summary>
-    /// The deployment scripts declared in this template's body.
+    /// The scripts declared in this template's body.
     /// </summary>
     public IReadOnlyList<Script> Scripts { get; init; } = [];
 }

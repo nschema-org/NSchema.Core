@@ -31,7 +31,7 @@ public sealed class SqlExecutorTests : IAsyncLifetime
     public async Task Execute_EmptyPlan_DoesNothing()
     {
         // Arrange
-        var plan = new SqlPlan([]);
+        var plan = Array.Empty<SqlStatement>();
 
         // Act
         await _sut.Execute(plan, TestContext.Current.CancellationToken);
@@ -45,10 +45,10 @@ public sealed class SqlExecutorTests : IAsyncLifetime
     {
         // Arrange
         _options.Value.TransactionMode = TransactionMode.Single;
-        var plan = new SqlPlan([
+        IReadOnlyList<SqlStatement> plan = [
             new SqlStatement($"""INSERT INTO "{_schema}"."t" (id) VALUES (1)"""),
             new SqlStatement($"""INSERT INTO "{_schema}"."t" (id) VALUES (2)"""),
-        ]);
+        ];
 
         // Act
         await _sut.Execute(plan, TestContext.Current.CancellationToken);
@@ -62,10 +62,10 @@ public sealed class SqlExecutorTests : IAsyncLifetime
     {
         // Arrange
         _options.Value.TransactionMode = TransactionMode.Single;
-        var plan = new SqlPlan([
+        IReadOnlyList<SqlStatement> plan = [
             new SqlStatement($"""INSERT INTO "{_schema}"."t" (id) VALUES (1)"""),
             new SqlStatement("SELECT * FROM nonexistent_table_xyz"),
-        ]);
+        ];
 
         // Act
         var act = () => _sut.Execute(plan);
@@ -80,10 +80,10 @@ public sealed class SqlExecutorTests : IAsyncLifetime
     {
         // Arrange
         _options.Value.TransactionMode = TransactionMode.None;
-        var plan = new SqlPlan([
+        IReadOnlyList<SqlStatement> plan = [
             new SqlStatement($"""INSERT INTO "{_schema}"."t" (id) VALUES (1)"""),
             new SqlStatement("SELECT * FROM nonexistent_table_xyz"),
-        ]);
+        ];
 
         // Act
         var act = () => _sut.Execute(plan);
@@ -99,14 +99,14 @@ public sealed class SqlExecutorTests : IAsyncLifetime
     {
         // Arrange
         _options.Value.TransactionMode = TransactionMode.Single;
-        var plan = new SqlPlan([
+        IReadOnlyList<SqlStatement> plan = [
             new SqlStatement($"""INSERT INTO "{_schema}"."t" (id) VALUES (1)"""),
             // RunOutsideTransaction forces the prior tx to commit even if a later
             // statement fails, so the first insert must survive the rollback below.
             new SqlStatement($"""INSERT INTO "{_schema}"."t" (id) VALUES (2)""", RunOutsideTransaction: true),
             new SqlStatement($"""INSERT INTO "{_schema}"."t" (id) VALUES (3)"""),
             new SqlStatement("SELECT * FROM nonexistent_table_xyz"),
-        ]);
+        ];
 
         // Act
         var act = () => _sut.Execute(plan);

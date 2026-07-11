@@ -15,7 +15,7 @@ public sealed class NSchemaApplicationTests
         app.Operations.ShouldNotBeNull();
         app.Locks.ShouldNotBeNull();
         app.CurrentSchema.ShouldBeAssignableTo<ICurrentSchemaProvider>();
-        app.DesiredSchema.ShouldBeAssignableTo<IDesiredSchemaProvider>();
+        app.Project.ShouldBeAssignableTo<IProjectProvider>();
         app.PlanFile.ShouldBeAssignableTo<IPlanFileWriter>();
     }
 

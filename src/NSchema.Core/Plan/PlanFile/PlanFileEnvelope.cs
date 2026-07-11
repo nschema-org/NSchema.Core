@@ -1,20 +1,14 @@
-using NSchema.Diff.Model;
 using NSchema.Plan.Model;
-using NSchema.Sql.Model;
 
 namespace NSchema.Plan.PlanFile;
 
 /// <summary>
 /// The envelope for persisting a saved plan file.
 /// </summary>
-/// <param name="Diff">The structured diff the plan was derived from.</param>
-/// <param name="Plan">The structured migration plan that was reviewed.</param>
-/// <param name="Sql">The SQL plan generated from <see cref="Plan"/>.</param>
+/// <param name="Plan">The reviewed plan: its diff, its scripts, and the SQL to execute it.</param>
 /// <param name="CreatedAt">When the plan was created.</param>
 public sealed record PlanFileEnvelope(
-    DatabaseDiff Diff,
     MigrationPlan Plan,
-    SqlPlan Sql,
     DateTimeOffset CreatedAt
 )
 {

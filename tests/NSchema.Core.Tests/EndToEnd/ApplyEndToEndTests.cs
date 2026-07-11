@@ -37,7 +37,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions())
             .AddDdlSchemas(Path.GetDirectoryName(desiredPath)!, Path.GetFileName(desiredPath))
             .UseStateStore(_store)
-            .UseSqlGenerator<StubSqlGenerator>()
+            .UseSqlDialect<StubSqlDialect>()
             .Tap(b =>
             {
                 b.Services.AddSingleton<ISqlExecutor>(_executor);
@@ -64,12 +64,12 @@ public sealed class ApplyEndToEndTests : IDisposable
         // The CLI-style flow: hold the lock, compute the live plan, apply it, release.
         (await app.Locks.Acquire("apply", cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         var plan = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
-        await app.Operations.Apply(new ApplyArguments { Sql = plan.Sql! }, TestContext.Current.CancellationToken);
+        await app.Operations.Apply(new ApplyArguments { Plan = plan.Plan! }, TestContext.Current.CancellationToken);
 
         // The plan reached the executor as a non-empty SQL plan.
-        _executor.Executed.ShouldNotBeNull().Statements.ShouldNotBeEmpty();
+        _executor.Executed.ShouldNotBeNull().ShouldNotBeEmpty();
         // The plan exposes the same SQL the caller previews before applying.
-        plan.Sql.ShouldBe(_executor.Executed);
+        plan.Plan!.Statements.ShouldBe(_executor.Executed!);
         // Post-apply state was captured to the store.
         _store.Written.ShouldNotBeNull().Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
     }
@@ -78,7 +78,7 @@ public sealed class ApplyEndToEndTests : IDisposable
     public async Task Apply_RequiredColumnAddWithMatchedMigration_ExecutesNullableAddBackfillThenTighten()
     {
         // Current live DB: a populated-shaped app.users(id). Desired: the same table gaining a NOT NULL,
-        // defaultless email column, with a MIGRATION block declaring the backfill.
+        // defaultless email column, with a SCRIPT block declaring the backfill.
         var current = new DatabaseSchema([new SchemaDefinition("app", Tables:
             [new Table("users", Columns: [new Column("id", SqlType.Int)])])]);
         var desired = WriteDdl("schema.sql",
@@ -89,7 +89,7 @@ public sealed class ApplyEndToEndTests : IDisposable
                 id int NOT NULL,
                 email text NOT NULL
             );
-            MIGRATION 'backfill emails' FOR ADD COLUMN app.users.email AS $$
+            SCRIPT 'backfill emails' RUN ON ADD COLUMN app.users.email AS $$
             UPDATE app.users SET email = 'unknown@example.com';
             $$;
             """);
@@ -98,10 +98,10 @@ public sealed class ApplyEndToEndTests : IDisposable
 
         (await app.Locks.Acquire("apply", cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         var plan = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
-        await app.Operations.Apply(new ApplyArguments { Sql = plan.Sql! }, TestContext.Current.CancellationToken);
+        await app.Operations.Apply(new ApplyArguments { Plan = plan.Plan! }, TestContext.Current.CancellationToken);
 
         // The add was decomposed around the backfill: nullable add, the block's SQL, then the tighten — in order.
-        var statements = _executor.Executed.ShouldNotBeNull().Statements.Select(s => s.Sql).ToList();
+        var statements = _executor.Executed.ShouldNotBeNull().Select(s => s.Sql).ToList();
         statements.ShouldBe([
             "-- AddColumn",
             "UPDATE app.users SET email = 'unknown@example.com';",
@@ -130,7 +130,7 @@ public sealed class ApplyEndToEndTests : IDisposable
                     id int NOT NULL,
                     actor text NOT NULL
                 );
-                MIGRATION 'backfill {schema} actors' FOR ADD COLUMN events.actor AS $$
+                SCRIPT 'backfill {schema} actors' RUN ON ADD COLUMN events.actor AS $$
                 UPDATE {schema}.events SET actor = 'system';
                 $$;
             END;
@@ -142,10 +142,10 @@ public sealed class ApplyEndToEndTests : IDisposable
         (await app.Locks.Acquire("apply", cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
         var plan = result.Value.ShouldNotBeNull();
-        await app.Operations.Apply(new ApplyArguments { Sql = plan.Sql! }, TestContext.Current.CancellationToken);
+        await app.Operations.Apply(new ApplyArguments { Plan = plan.Plan! }, TestContext.Current.CancellationToken);
 
         // Sales decomposes around the token-substituted backfill; billing just creates its (empty) table.
-        var statements = _executor.Executed.ShouldNotBeNull().Statements.Select(s => s.Sql).ToList();
+        var statements = _executor.Executed.ShouldNotBeNull().Select(s => s.Sql).ToList();
         statements.ShouldBe([
             "-- CreateTable",
             "-- AddColumn",
@@ -178,16 +178,16 @@ public sealed class ApplyEndToEndTests : IDisposable
         // plan.RunOnceScripts into the apply).
         (await app.Locks.Acquire("apply", cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         var first = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
-        first.Sql!.Statements.Select(s => s.Sql).ShouldContain("INSERT INTO app.currencies VALUES ('GBP');");
-        first.Sql!.Scripts.ShouldHaveSingleItem().Name.ShouldBe("seed currencies");
-        await app.Operations.Apply(new ApplyArguments { Sql = first.Sql! }, TestContext.Current.CancellationToken);
+        first.Plan!.Statements.Select(s => s.Sql).ShouldContain("INSERT INTO app.currencies VALUES ('GBP');");
+        first.Plan!.Diff.Scripts.ShouldHaveSingleItem().Name.ShouldBe("seed currencies");
+        await app.Operations.Apply(new ApplyArguments { Plan = first.Plan! }, TestContext.Current.CancellationToken);
 
         _store.Written.ShouldNotBeNull().Scripts.ShouldHaveSingleItem().Name.ShouldBe("seed currencies");
 
         // Second run: the script is skipped, and no longer up for recording.
         var second = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
-        second.Value!.Sql!.Statements.Select(s => s.Sql).ShouldNotContain("INSERT INTO app.currencies VALUES ('GBP');");
-        second.Value!.Sql!.Scripts.ShouldBeEmpty();
+        second.Value!.Plan!.Statements.Select(s => s.Sql).ShouldNotContain("INSERT INTO app.currencies VALUES ('GBP');");
+        second.Value!.Plan!.Diff.Scripts.ShouldBeEmpty();
         second.Diagnostics.ShouldBeEmpty();
     }
 
@@ -210,10 +210,10 @@ public sealed class ApplyEndToEndTests : IDisposable
         (await app.Locks.Acquire("apply", cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         var plan = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
         // The plan carries an empty diff/sql: there is nothing to apply.
-        plan.Diff.ShouldNotBeNull().IsEmpty.ShouldBeTrue();
-        plan.Sql.ShouldNotBeNull().IsEmpty.ShouldBeTrue();
+        plan.Plan.ShouldNotBeNull().Diff.IsEmpty.ShouldBeTrue();
+        plan.Plan!.IsEmpty.ShouldBeTrue();
 
-        await app.Operations.Apply(new ApplyArguments { Sql = plan.Sql! }, TestContext.Current.CancellationToken);
+        await app.Operations.Apply(new ApplyArguments { Plan = plan.Plan! }, TestContext.Current.CancellationToken);
 
         // Nothing to apply: the empty plan never reaches the executor...
         _executor.Executed.ShouldBeNull();
