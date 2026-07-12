@@ -8,7 +8,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-v5.0 is going to be Core overhaul, realigning capabilities to be more explicitly vertically-sliced, with clear separation between domain, application and infrastructure-level services.
+v5.0 is a Core rearchitecture, aiming for better project health, with clear separation between layers and a better separation of concerns.
+
+### Changed
+
+- **DataMigrations are Scripts now.** This reflects the syntax changes introduce in [4.4.0] so the model becomes consistent.
+- **"Desired" is Project now." `IDesiredSchemaProvider` becomes `IProjectProvider` the project is the desired state by definition.
+- **Result<T> use consistency.** Lots of interfaces have been neatened up to return a `Result<T>` instead of throwing to allow for error/warning accumulation.
+- **The diff now includes scripts.** Rather than being tacked on to the plan, scripts are now a first-class part of the diff.
+- **Cohesive plan artifact.** There's now a single `MigrationPlan` model that represents the plan in its entirety rather than being spread across `SqlPlan`, `PlannedMigration`, etc.
+- **Providers are required.** Providers are now required for planning, because the SQL is built into the plan model.
+- **Plan errors are non-blocking.** Even when the plan has errors, you can now still access the resultant plan.
+- **Policies are enforced at apply.** `Apply` now re-runs all policies against the plan diff before executing.
+- **`ISqlDialect` replaces `ISqlGenerator`.** (registered with `UseSqlDialect<T>()`).
+- **Template migrations are decoupled from their tables.** Migrations can be declared in any template for any table.
+- **Scripts execute as woven statements.** The linearizer weaves the diff's scripts into the ordering so scripts are now first-class actions.
+- **Planning and applying now require a state store.** Use the new ephemeral store if you need to run without persistent state for CI or integration tests.
+
+### Added
+
+- **Ephemeral state.** `UseEphemeralState()` registers an in-memory state store and matching lock, intended for disposable databases.
+
+### Removed
+
+- `PRE|POST DEPLOYMENT '<name>' AS $$…$$;` and `MIGRATION ['<name>'] FOR <event> <path> AS $$…$$;` no longer parse.
+- The `NSCHEMA` configuration block no longer parses.
+- `DataMigration` has been folded into `Script` and now requires a name for so they can maintain a stable identity.
 
 ## [4.6.1] - 2026-07-10
 
@@ -136,6 +161,19 @@ v4.0.0 is a major release that reworks providers and backends into a new plugin 
 - **BREAKING: `IStateLockHandle` is no longer `IAsyncDisposable`.** Release is explicit via `ValueTask Release(CancellationToken)`, and the handle now exposes `StateLockInfo Info` (replacing `string LockId`). Operation call sites release in a `finally`.
 - **BREAKING: `IStateLock.ForceUnlock` renamed to `IStateLock.Release`**, now returning `ValueTask` (was `Task<StateLockInfo?>`) to match `IStateLockHandle.Release`. Whether a release is "forced" is decided by the seam the caller reaches for — `IStateLock.Release` removes whatever lock is held; `IStateLockHandle.Release` removes only its own.
 - **`StateLockInfo`** gains an optional `ExpiresUtc`.
+
+- **Planning and applying require a state store.** The diff is computed against the current state — the schema *plus* the run-once ledger — so
+  planning without a store would plan against knowingly incomplete state, and an apply that cannot record what it ran would silently lose
+  history. Both now refuse up front with a clear diagnostic (the plan-time run-once warning is gone — the situation it warned about is
+  unrepresentable), and refreshing without a store is a failure result rather than a silent no-op. A teardown now always reads the managed
+  schema from the recorded state — the fallback to the declared schema is gone: state is the record of what NSchema manages, and an empty
+  record means there is nothing to tear down.
+
+### Added
+
+- **Ephemeral state.** `UseEphemeralState()` declares the target database disposable: it registers an in-memory state store and matching lock
+  that live only as long as the application instance — intended for integration tests and container bootstraps, where recorded state has
+  nothing to outlive. Run-once scripts behave correctly within the session; nothing persists beyond it.
 
 ### Removed
 

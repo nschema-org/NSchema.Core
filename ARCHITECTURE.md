@@ -13,8 +13,8 @@ Every top-level namespace is one of exactly five things. Nothing names a technol
    exists: observed live, or recorded). The two inputs the pipeline diffs; neither references the other. **Each source owns its persistence**:
    the Project's persistence format is DDL files (read via `.Ddl`), and Current's is the state store (`.Storage`, guarded by `.Locks`). Recorded
    state is two things with different natures: the schema capture is a rebuildable cache of current reality, but the run-once ledger is
-   identity-bearing history — losing it re-runs scripts against data they already mutated. That is why apply requires a state store (a
-   disposable database opts out explicitly with ephemeral state) and why replacing an unreadable payload demands force.
+   identity-bearing history — losing it re-runs scripts against data they already mutated. That is why planning and applying require a state
+   store (a disposable database opts out explicitly with ephemeral state) and why replacing an unreadable payload demands force.
 2. **Pipeline stages** — `Diff` → `Plan` → `Apply`: diff the sources, plan the difference, execute the plan. Dependencies point strictly backward
    along this chain, and stages may reference the sources' vocabulary but never the reverse (enforced by the dependency-direction tests).
 3. **Supporting capabilities** — `Plugins` (the contract between plugin authors and hosts).
@@ -105,7 +105,7 @@ NSchema                     app, builder, options · Result / Result<T> / Result
 │                           (per-kind handlers), matcher, normalizer, CurrentState
 ├─ Plan                     IMigrationPlanner → the single plan artifact (the complete diff + the
 │  │                        statements that execute it); a dialect is required — no SQL-less plan
-│  ├─ .Backends             ISqlDialect (one action in, statements out; scripts never reach it)
+│  ├─ .Backends             ISqlDialect (one action in, statements out — scripts included)
 │  ├─ .Domain.Models        MigrationAction hierarchy (per-kind, incl. internal ExecuteScript),
 │  │                        SqlStatement
 │  └─ .PlanFile             IPlanFileWriter + envelope
