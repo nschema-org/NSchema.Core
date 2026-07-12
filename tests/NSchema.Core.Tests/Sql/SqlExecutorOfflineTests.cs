@@ -16,13 +16,13 @@ public sealed class SqlExecutorOfflineTests
     public async Task Execute_EmptyPlan_DoesNothing_EvenWithoutDataSource()
     {
         // An empty plan never needs a connection, so it must not trip the missing-connection guard.
-        await WithoutDataSource().Execute(new SqlPlan([]), TestContext.Current.CancellationToken);
+        await WithoutDataSource().Execute(Array.Empty<SqlStatement>(), TestContext.Current.CancellationToken);
     }
 
     [Fact]
     public async Task Execute_NonEmptyPlanWithoutDataSource_ThrowsClearError()
     {
-        var act = () => WithoutDataSource().Execute(new SqlPlan([new SqlStatement("SELECT 1")]));
+        var act = () => WithoutDataSource().Execute(new[] { new SqlStatement("SELECT 1") });
 
         var ex = await Should.ThrowAsync<InvalidOperationException>(act);
         ex.Message.ShouldContain("database connection");

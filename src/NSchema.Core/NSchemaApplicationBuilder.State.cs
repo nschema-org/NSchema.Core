@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.State;
+using NSchema.State.Ephemeral;
 using NSchema.State.File;
 
 namespace NSchema;
@@ -83,6 +84,13 @@ public partial class NSchemaApplicationBuilder
 
         return this;
     }
+
+    /// <summary>
+    /// Registers an in-memory state store that lives only as long as the application instance.
+    /// Intended for disposable databases like running tests in CI.
+    /// </summary>
+    /// <returns>The application builder, for chaining.</returns>
+    public NSchemaApplicationBuilder UseEphemeralState() => UseStateStore(new EphemeralStateStore());
 
     /// <summary>
     /// Registers the <see cref="IStateLock"/> used to coordinate exclusive access to the state during the

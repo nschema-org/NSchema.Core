@@ -8,14 +8,14 @@ using NSchema.Plan.Model.Domains;
 using NSchema.Plan.Model.Enums;
 using NSchema.Plan.Model.Extensions;
 using NSchema.Plan.Model.Indexes;
-using NSchema.Plan.Model.Migrations;
 using NSchema.Plan.Model.Routines;
 using NSchema.Plan.Model.Schemas;
+using NSchema.Plan.Model.Scripts;
 using NSchema.Plan.Model.Sequence;
 using NSchema.Plan.Model.Tables;
 using NSchema.Plan.Model.Triggers;
 using NSchema.Plan.Model.Views;
-using NSchema.Schema.Model.Migrations;
+using NSchema.Schema.Model.Scripts;
 
 namespace NSchema.Plan;
 
@@ -85,7 +85,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(AddColumn),
         // Data migrations run after column adds (a backfill needs its column) and before type alters,
         // nullability alters, and constraint adds (their SQL prepares the data those changes depend on).
-        typeof(ExecuteDataMigration),
+        typeof(ExecuteScript),
         typeof(AlterColumnType),
         typeof(AlterColumnNullability),
         typeof(AlterIdentitySequence),
@@ -139,7 +139,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         EmitExtensions(diff, actions);
         foreach (var schema in diff.Schemas)
         {
-            EmitSchema(schema, actions);
+            EmitSchema(schema, diff, actions);
         }
 
         // Views are emitted in one cross-schema pass: their create/drop order is governed by a dependency sort
@@ -147,8 +147,21 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         EmitViews(diff, actions);
 
         actions = actions.OrderBy(action => _actionPriorities[action.GetType()]).ToList();
-        return actions;
+
+        // Deployment scripts bookend the plan: pre scripts run before everything, post scripts after.
+        return [.. ScriptActions(diff, DeploymentPhase.Pre), .. actions, .. ScriptActions(diff, DeploymentPhase.Post)];
     }
+
+    /// <summary>
+    /// Resolves a node's script annotation against the diff. The matcher only annotates with scripts it put on
+    /// the diff, so a miss is an upstream invariant violation, not an input condition.
+    /// </summary>
+    private static Script ResolveScript(DatabaseDiff diff, string name) =>
+        diff.FindScript(name)
+        ?? throw new InvalidOperationException($"The diff annotates a change with script '{name}', but carries no script with that name.");
+
+    private static IEnumerable<ExecuteScript> ScriptActions(DatabaseDiff diff, DeploymentPhase phase) =>
+        diff.Scripts.Where(s => s.Event is DeploymentEvent e && e.Phase == phase).Select(s => new ExecuteScript(s));
 
     /// <summary>
     /// Emits the view actions across every schema. <see cref="CreateView"/>s are appended in dependency order and
@@ -268,7 +281,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         }
     }
 
-    private static void EmitSchema(SchemaDiff schema, List<MigrationAction> actions)
+    private static void EmitSchema(SchemaDiff schema, DatabaseDiff diff, List<MigrationAction> actions)
     {
         switch (schema.Kind)
         {
@@ -282,7 +295,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitCompositeTypes(schema, actions);
                 foreach (var table in schema.Tables)
                 {
-                    EmitTable(table, actions);
+                    EmitTable(table, diff, actions);
                 }
                 break;
 
@@ -297,7 +310,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitCompositeTypes(schema, actions);
                 foreach (var table in schema.Tables)
                 {
-                    EmitTable(table, actions);
+                    EmitTable(table, diff, actions);
                 }
                 actions.Add(new DropSchema(schema.Name));
                 break;
@@ -315,7 +328,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitCompositeTypes(schema, actions);
                 foreach (var table in schema.Tables)
                 {
-                    EmitTable(table, actions);
+                    EmitTable(table, diff, actions);
                 }
                 break;
         }
@@ -536,7 +549,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         }
     }
 
-    private static void EmitTable(TableDiff table, List<MigrationAction> actions)
+    private static void EmitTable(TableDiff table, DatabaseDiff diff, List<MigrationAction> actions)
     {
         switch (table.Kind)
         {
@@ -552,7 +565,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 {
                     actions.Add(new SetColumnComment(table.Schema, table.Name, column.Name, column.Comment!.Old, column.Comment.New));
                 }
-                EmitConstraints(table, actions);
+                EmitConstraints(table, diff, actions);
                 EmitIndexes(table, actions);
                 EmitTriggers(table, actions);
                 EmitGrants(table, actions);
@@ -573,9 +586,9 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 }
                 foreach (var column in table.Columns)
                 {
-                    EmitColumn(table, column, actions);
+                    EmitColumn(table, column, diff, actions);
                 }
-                EmitConstraints(table, actions);
+                EmitConstraints(table, diff, actions);
                 EmitIndexes(table, actions);
                 EmitTriggers(table, actions);
                 EmitGrants(table, actions);
@@ -583,7 +596,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         }
     }
 
-    private static void EmitColumn(TableDiff table, ColumnDiff column, List<MigrationAction> actions)
+    private static void EmitColumn(TableDiff table, ColumnDiff column, DatabaseDiff diff, List<MigrationAction> actions)
     {
         switch (column.Kind)
         {
@@ -591,18 +604,18 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 // A required column with a matched backfill migration is decomposed: added nullable, backfilled
                 // by the migration SQL, then tightened to NOT NULL. Identity and generated columns fill
                 // themselves and a default covers existing rows, so those adds keep their declared shape.
-                if (column is { Migration: { } backfill, Definition: { IsNullable: false, DefaultExpression: null, IsIdentity: false, GeneratedExpression: null } })
+                if (column is { MigrationScript: { } backfill, Definition: { IsNullable: false, DefaultExpression: null, IsIdentity: false, GeneratedExpression: null } })
                 {
                     actions.Add(new AddColumn(table.Schema, table.Name, column.Definition with { IsNullable = true }));
-                    actions.Add(ToAction(backfill));
+                    actions.Add(new ExecuteScript(ResolveScript(diff, backfill)));
                     actions.Add(new AlterColumnNullability(table.Schema, table.Name, column.Name, OldNullable: true, NewNullable: false, column.Definition.Type));
                 }
                 else
                 {
                     actions.Add(new AddColumn(table.Schema, table.Name, column.Definition!));
-                    if (column.Migration is { } migration)
+                    if (column.MigrationScript is { } migration)
                     {
-                        actions.Add(ToAction(migration));
+                        actions.Add(new ExecuteScript(ResolveScript(diff, migration)));
                     }
                 }
                 if (column.Comment is not null)
@@ -623,9 +636,9 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 if (column.Type is not null)
                 {
                     // A matched migration prepares the data for the cast; the priority table runs it first.
-                    if (column.Migration is { } prep)
+                    if (column.MigrationScript is { } prep)
                     {
-                        actions.Add(ToAction(prep));
+                        actions.Add(new ExecuteScript(ResolveScript(diff, prep)));
                     }
                     actions.Add(new AlterColumnType(table.Schema, table.Name, column.Name, column.Type.Old!, column.Type.New!, column.Definition?.IsNullable));
                 }
@@ -656,7 +669,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
     // Drops and revokes are sorted before RenameTable, so on a renamed table they run while it still carries
     // its old name; every action from the rename onward targets the new name.
-    private static void EmitConstraints(TableDiff table, List<MigrationAction> actions)
+    private static void EmitConstraints(TableDiff table, DatabaseDiff diff, List<MigrationAction> actions)
     {
         var preRenameName = table.RenamedFrom ?? table.Name;
 
@@ -664,7 +677,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         // backfill); the priority table runs every data migration before the constraint adds.
         foreach (var pk in table.PrimaryKey)
         {
-            EmitConstraintMigration(pk.Kind, pk.Migration, actions);
+            EmitConstraintMigration(pk.Kind, pk.MigrationScript, diff, actions);
             actions.Add(pk.Kind switch
             {
                 ChangeKind.Add => new AddPrimaryKey(table.Schema, table.Name, pk.Definition!),
@@ -675,7 +688,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
         foreach (var fk in table.ForeignKeys)
         {
-            EmitConstraintMigration(fk.Kind, fk.Migration, actions);
+            EmitConstraintMigration(fk.Kind, fk.MigrationScript, diff, actions);
             actions.Add(fk.Kind switch
             {
                 ChangeKind.Add => new AddForeignKey(table.Schema, table.Name, fk.Definition!),
@@ -686,7 +699,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
         foreach (var uq in table.UniqueConstraints)
         {
-            EmitConstraintMigration(uq.Kind, uq.Migration, actions);
+            EmitConstraintMigration(uq.Kind, uq.MigrationScript, diff, actions);
             actions.Add(uq.Kind switch
             {
                 ChangeKind.Add => new AddUniqueConstraint(table.Schema, table.Name, uq.Definition!),
@@ -697,7 +710,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
         foreach (var ck in table.Checks)
         {
-            EmitConstraintMigration(ck.Kind, ck.Migration, actions);
+            EmitConstraintMigration(ck.Kind, ck.MigrationScript, diff, actions);
             actions.Add(ck.Kind switch
             {
                 ChangeKind.Add => new AddCheckConstraint(table.Schema, table.Name, ck.Definition!),
@@ -708,7 +721,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
         foreach (var ex in table.ExclusionConstraints)
         {
-            EmitConstraintMigration(ex.Kind, ex.Migration, actions);
+            EmitConstraintMigration(ex.Kind, ex.MigrationScript, diff, actions);
             actions.Add(ex.Kind switch
             {
                 ChangeKind.Add => new AddExclusionConstraint(table.Schema, table.Name, ex.Definition!),
@@ -718,19 +731,13 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         }
     }
 
-    private static void EmitConstraintMigration(ChangeKind kind, DataMigration? migration, List<MigrationAction> actions)
+    private static void EmitConstraintMigration(ChangeKind kind, string? migrationName, DatabaseDiff diff, List<MigrationAction> actions)
     {
-        if (kind == ChangeKind.Add && migration is not null)
+        if (kind == ChangeKind.Add && migrationName is not null)
         {
-            actions.Add(ToAction(migration));
+            actions.Add(new ExecuteScript(ResolveScript(diff, migrationName)));
         }
     }
-
-    private static ExecuteDataMigration ToAction(DataMigration migration) =>
-        new(migration.Name, migration.Trigger, migration.SchemaName, migration.ObjectName, migration.MemberName, migration.Sql)
-        {
-            RunOutsideTransaction = migration.RunOutsideTransaction,
-        };
 
     private static void EmitIndexes(TableDiff table, List<MigrationAction> actions)
     {

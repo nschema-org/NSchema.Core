@@ -2,6 +2,7 @@ using System.Text;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Scripts;
 using NSchema.Schema.Model.Tables;
 using NSchema.State;
 using NSchema.State.Model;
@@ -126,7 +127,7 @@ public sealed class SchemaStateSerializerTests
     public void RoundTrip_PreservesExecutedScripts()
     {
         // Arrange
-        var executed = new ScriptRecord("api-login", "abc123", new DateTimeOffset(2026, 7, 10, 12, 0, 0, TimeSpan.Zero));
+        var executed = new ScriptExecution("api-login", "abc123", new DateTimeOffset(2026, 7, 10, 12, 0, 0, TimeSpan.Zero));
         var state = new SchemaState(new DatabaseSchema([new SchemaDefinition("app")]), [executed]);
 
         // Act

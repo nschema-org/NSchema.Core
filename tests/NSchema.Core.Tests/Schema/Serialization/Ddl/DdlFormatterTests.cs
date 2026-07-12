@@ -199,7 +199,7 @@ public sealed class DdlFormatterTests
     {
         const string input =
             """
-            PRE DEPLOYMENT 'seed' AS $$
+            SCRIPT 'seed' RUN ON PRE DEPLOYMENT AS $$
             INSERT INTO app.t VALUES (1);
             INSERT INTO app.t VALUES (2);
             $$;
@@ -211,12 +211,12 @@ public sealed class DdlFormatterTests
     [Fact]
     public void Format_Migration_StartsANewStatement()
     {
-        // MIGRATION is a statement keyword: it must break away from the preceding statement with one blank line
+        // SCRIPT is a statement keyword: it must break away from the preceding statement with one blank line
         // (rather than being mistaken for a configuration block or trailing content).
         const string input =
             """
             create schema app;
-            MIGRATION 'backfill' FOR ADD COLUMN app.users.email AS $$
+            SCRIPT 'backfill' RUN ON ADD COLUMN app.users.email AS $$
             UPDATE app.users SET email = '';
             $$;
             """;
@@ -225,7 +225,7 @@ public sealed class DdlFormatterTests
             """
             create schema app;
 
-            MIGRATION 'backfill' FOR ADD COLUMN app.users.email AS $$
+            SCRIPT 'backfill' RUN ON ADD COLUMN app.users.email AS $$
             UPDATE app.users SET email = '';
             $$;
             """;
@@ -240,7 +240,7 @@ public sealed class DdlFormatterTests
             """
             template outbox begin
             create table outbox_events(id int not null, trace_id text not null);
-             MIGRATION 'backfill' for add column outbox_events.trace_id as $$
+             SCRIPT 'backfill' run on add column outbox_events.trace_id as $$
             UPDATE {schema}.outbox_events SET trace_id = '';
               $$;
             end;
@@ -248,7 +248,7 @@ public sealed class DdlFormatterTests
 
         var once = Format(input);
         Format(once).ShouldBe(once);
-        once.ShouldContain("MIGRATION 'backfill'");
+        once.ShouldContain("SCRIPT 'backfill'");
     }
 
     [Fact]
@@ -257,7 +257,7 @@ public sealed class DdlFormatterTests
         const string input =
             """
             create schema app;
-            MIGRATION FOR ALTER COLUMN TYPE app.users.id (run_outside_transaction = true) AS $$
+            SCRIPT 'noop_ids' RUN ON ALTER COLUMN TYPE app.users.id (run_outside_transaction = true) AS $$
             UPDATE app.users SET id = id;
             $$;
             """;
@@ -427,7 +427,7 @@ public sealed class DdlFormatterTests
                 from app.orders
                 where status = 'pending';
 
-            POST DEPLOYMENT 'reindex' (run_outside_transaction = true) AS $$
+            SCRIPT 'reindex' RUN ON POST DEPLOYMENT (run_outside_transaction = true) AS $$
             REINDEX TABLE app.orders;
             $$;
             """;
@@ -465,7 +465,7 @@ public sealed class DdlFormatterTests
                 from app.orders
                 where status = 'pending';
 
-            POST DEPLOYMENT 'reindex' (run_outside_transaction = true) AS $$
+            SCRIPT 'reindex' RUN ON POST DEPLOYMENT (run_outside_transaction = true) AS $$
             REINDEX TABLE app.orders;
             $$;
             """;

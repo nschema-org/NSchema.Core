@@ -67,7 +67,7 @@ public sealed class DdlFormatterSnapshotTests
     [Fact]
     public Task Format_MigrationDocument()
     {
-        // A messy document mixing MIGRATION blocks (named, anonymous, with options) into ordinary statements —
+        // A messy document mixing SCRIPT change-event blocks (with options) into ordinary statements —
         // the snapshot pins the canonical layout: dollar bodies verbatim, one blank line between statements.
         const string source =
             """
@@ -77,10 +77,10 @@ public sealed class DdlFormatterSnapshotTests
               email text not null,
                 constraint users_pkey primary key(id));
             --- Backfill the new email column from the legacy table.
-            MIGRATION 'backfill_emails' FOR ADD COLUMN app.users.email AS $$
+            SCRIPT 'backfill_emails' RUN ON ADD COLUMN app.users.email AS $$
             UPDATE app.users u SET email = l.email FROM legacy.users l WHERE l.id = u.id;
             $$;
-               migration for alter column type app.users.id (run_outside_transaction = true) as $$
+               script 'noop_ids' run on alter column type app.users.id (run_outside_transaction = true) as $$
             UPDATE app.users SET id = id;
             $$;
             """;

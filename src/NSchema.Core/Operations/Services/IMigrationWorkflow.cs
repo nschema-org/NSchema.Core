@@ -1,8 +1,7 @@
 using NSchema.Diagnostics;
-using NSchema.Plan;
+using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Schema;
-using NSchema.Sql.Model;
 
 namespace NSchema.Operations.Services;
 
@@ -25,13 +24,13 @@ internal interface IMigrationWorkflow
     /// <param name="required">Whether <paramref name="currentSource"/> must be available, or may fall back to the other source.</param>
     /// <param name="schemas">The schemas to scope to, or <see langword="null"/> to derive scope from the desired schema.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<Result<PlannedMigration>> ComputePlan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default);
+    Task<Result<MigrationPlan>> ComputePlan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Computes the teardown plan for the managed schema.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<Result<PlannedMigration>> ComputeTeardown(CancellationToken cancellationToken = default);
+    Task<Result<MigrationPlan>> ComputeTeardown(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Updates the state store from the live schema.
@@ -41,5 +40,5 @@ internal interface IMigrationWorkflow
     /// ledger, flagged on the capture); when false, an unreadable payload fails the capture instead.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The capture outcome, or <see langword="null"/> when no state store is configured (nothing to capture).</returns>
-    Task<Result<StateCapture>?> Refresh(SqlPlan? applied = null, bool force = false, CancellationToken cancellationToken = default);
+    Task<Result<StateCapture>> Refresh(MigrationPlan? applied = null, bool force = false, CancellationToken cancellationToken = default);
 }

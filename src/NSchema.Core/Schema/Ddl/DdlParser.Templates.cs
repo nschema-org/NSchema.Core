@@ -1,5 +1,4 @@
 using NSchema.Schema.Ddl.Model;
-using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Scripts;
 using NSchema.Schema.Model.Tables;
@@ -55,7 +54,6 @@ internal sealed partial class DdlParser
         // The body gets its own accumulator, so its objects — and the INCLUDEs written in its table bodies, which
         // belong to the definition and re-target per instance at expansion — never mix with the document's.
         var body = new SchemaAccumulator();
-        var migrations = new List<DataMigration>();
         var scripts = new List<Script>();
         _templateSchemaContext = TemplateDefinition.TargetSchemaPlaceholder;
         try
@@ -72,7 +70,7 @@ internal sealed partial class DdlParser
                 {
                     break;
                 }
-                ParseTemplateStatement(body, migrations, scripts, doc);
+                ParseTemplateStatement(body, scripts, doc);
             }
         }
         finally
@@ -96,22 +94,9 @@ internal sealed partial class DdlParser
 
         var objects = fragment.Schemas.FirstOrDefault() ?? new SchemaDefinition(TemplateDefinition.TargetSchemaPlaceholder);
 
-        // A migration is part of the template's cohesive unit, so its target must be declared alongside it —
-        // unlike a top-level block, whose table may exist only in the database.
-        foreach (var migration in migrations)
-        {
-            if (!objects.Tables.Any(t => t.Name.Equals(migration.ObjectName, StringComparison.OrdinalIgnoreCase)))
-            {
-                throw new DdlSyntaxException(
-                    $"Template '{name}' declares a migration for table '{migration.ObjectName}', which the template does not declare.",
-                    namePosition);
-            }
-        }
-
         return new TemplateDefinition(name, TemplateKind.Schema, objects)
         {
             Includes = body.Includes,
-            Migrations = migrations,
             Scripts = scripts,
         };
     }
@@ -151,7 +136,7 @@ internal sealed partial class DdlParser
         return new TemplateDefinition(name, TemplateKind.Table, objects);
     }
 
-    private void ParseTemplateStatement(SchemaAccumulator schemas, List<DataMigration> migrations, List<Script> scripts, string? doc)
+    private void ParseTemplateStatement(SchemaAccumulator schemas, List<Script> scripts, string? doc)
     {
         if (_current.IsKeyword("CREATE"))
         {
@@ -161,13 +146,9 @@ internal sealed partial class DdlParser
         {
             ParseGrant(schemas);
         }
-        else if (_current.IsKeyword("MIGRATION"))
-        {
-            migrations.Add(ParseDataMigration());
-        }
         else if (_current.IsKeyword("SCRIPT"))
         {
-            ParseScript(scripts, migrations);
+            ParseScript(scripts);
         }
         else
         {

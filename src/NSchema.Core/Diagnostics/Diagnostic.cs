@@ -31,4 +31,11 @@ public record Diagnostic(string Source, string Message, DiagnosticSeverity Sever
     /// <param name="message">A descriptive message about the finding.</param>
     /// <returns>The created <see cref="Diagnostic"/>.</returns>
     public static Diagnostic Error(string source, string message) => new(source, message, DiagnosticSeverity.Error);
+
+    /// <summary>
+    /// Downgrades a diagnostic to a given severity level if it exceeds it.
+    /// </summary>
+    /// <param name="severity">The downgraded severity level.</param>
+    /// <returns>A clone of the current diagnostic capped at the given security level.</returns>
+    public Diagnostic Downgrade(DiagnosticSeverity severity) => Severity > severity ? this with { Severity = severity } : this;
 }

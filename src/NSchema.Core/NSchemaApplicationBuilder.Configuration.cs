@@ -37,12 +37,12 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
-    /// Sets the <see cref="ISqlGenerator"/> the application generates SQL with, replacing any previously set one.
+    /// Sets the <see cref="ISqlDialect"/> the application renders SQL with, replacing any previously set one.
     /// Typically called by a database-provider extension. With none set, plans are reported without a SQL preview.
     /// </summary>
-    public NSchemaApplicationBuilder UseSqlGenerator<T>() where T : class, ISqlGenerator
+    public NSchemaApplicationBuilder UseSqlDialect<T>() where T : class, ISqlDialect
     {
-        Services.Replace(ServiceDescriptor.Singleton<ISqlGenerator, T>());
+        Services.Replace(ServiceDescriptor.Singleton<ISqlDialect, T>());
         return this;
     }
 

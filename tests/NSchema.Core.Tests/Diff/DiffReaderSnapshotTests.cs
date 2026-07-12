@@ -7,8 +7,8 @@ using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
 using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Routines;
+using NSchema.Schema.Model.Scripts;
 using NSchema.Schema.Model.Sequences;
 using NSchema.Schema.Model.Tables;
 using NSchema.Schema.Model.Triggers;
@@ -346,22 +346,19 @@ public sealed class DiffReaderSnapshotTests
                         [
                             new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))
                             {
-                                Migration = new DataMigration("backfill emails", DataMigrationTrigger.AddColumn,
-                                    "app", "users", "email", "UPDATE app.users SET email = ''"),
+                                MigrationScript = "backfill emails",
                             },
                             new ColumnDiff("total", ChangeKind.Modify,
                                 Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int))
                             {
-                                Migration = new DataMigration(null, DataMigrationTrigger.AlterColumnType,
-                                    "app", "users", "total", "UPDATE app.users SET total = '0' WHERE total !~ '^\\d+$'"),
+                                MigrationScript = "retype totals",
                             },
                         ],
                         UniqueConstraints:
                         [
                             new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint("users_email_uq", ["email"]))
                             {
-                                Migration = new DataMigration("dedupe emails", DataMigrationTrigger.AddConstraint,
-                                    "app", "users", "users_email_uq", "DELETE FROM app.users WHERE id NOT IN (SELECT min(id) FROM app.users GROUP BY email)"),
+                                MigrationScript = "dedupe emails",
                             },
                         ]),
                 ]),
@@ -370,6 +367,39 @@ public sealed class DiffReaderSnapshotTests
 
     [Fact]
     public Task Read_DataMigrationAnnotations() => Verify(Read(DataMigrationAnnotationsDiff()));
+
+    /// <summary>
+    /// A diff whose root scripts list carries every event kind: deployment bookends and a matched change event.
+    /// </summary>
+    private static DatabaseDiff ScriptsDiff()
+    {
+        return new DatabaseDiff(
+            Schemas:
+            [
+                new SchemaDiff("app", Tables:
+                [
+                    new TableDiff("app", "users", ChangeKind.Modify,
+                        Columns:
+                        [
+                            new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))
+                            {
+                                MigrationScript = "backfill emails",
+                            },
+                        ]),
+                ]),
+            ])
+        {
+            Scripts =
+            [
+                new Script("seed roles", "INSERT INTO roles VALUES ('admin');", new DeploymentEvent(DeploymentPhase.Pre)),
+                new Script("backfill emails", "UPDATE app.users SET email = '';", new ChangeEvent(ChangeTrigger.AddColumn, "app", "users", "email")),
+                new Script("refresh views", "REFRESH MATERIALIZED VIEW app.stats;", new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = RunCondition.Once },
+            ],
+        };
+    }
+
+    [Fact]
+    public Task Read_Scripts() => Verify(Read(ScriptsDiff()));
 
     [Fact]
     public Task Read_EmptyDiff() => Verify(Read(new DatabaseDiff([])));

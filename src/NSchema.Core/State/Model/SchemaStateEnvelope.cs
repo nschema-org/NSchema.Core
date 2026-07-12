@@ -1,4 +1,5 @@
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Scripts;
 
 namespace NSchema.State.Model;
 
@@ -17,5 +18,5 @@ internal sealed record SchemaStateEnvelope(int Version, DatabaseSchema Schema)
     /// <summary>
     /// The recorded script executions.
     /// </summary>
-    public IReadOnlyList<ScriptRecord> ExecutedScripts { get; init; } = [];
+    public IReadOnlyList<ScriptExecution> ExecutedScripts { get; init; } = [];
 }
