@@ -24,7 +24,7 @@ public sealed class DatabaseSchemaTests
     [Fact]
     public void Filter_RestrictsBothSchemasAndDroppedSchemas()
     {
-        var result = Sample().Filter(["app", "old"]);
+        var result = SchemaFilter.Apply(Sample(), SchemaScope.Of("app", "old"));
 
         result.Schemas.Select(s => s.Name).ShouldBe(["app"]);
         result.DroppedSchemas.ShouldBe(["old"]);
@@ -35,7 +35,7 @@ public sealed class DatabaseSchemaTests
     {
         var schema = new DatabaseSchema([new SchemaDefinition("App")], ["Old"]);
 
-        var result = schema.Filter(["app", "old"]);
+        var result = SchemaFilter.Apply(schema, SchemaScope.Of("app", "old"));
 
         result.Schemas.Select(s => s.Name).ShouldBe(["App"]);
         result.DroppedSchemas.ShouldBe(["Old"]);
@@ -44,26 +44,26 @@ public sealed class DatabaseSchemaTests
     [Fact]
     public void Filter_NamesNotPresent_AreIgnored()
     {
-        var result = Sample().Filter(["app", "does-not-exist"]);
+        var result = SchemaFilter.Apply(Sample(), SchemaScope.Of("app", "does-not-exist"));
 
         result.Schemas.Select(s => s.Name).ShouldBe(["app"]);
         result.DroppedSchemas.ShouldBeEmpty();
     }
 
     [Fact]
-    public void Filter_NullScope_ReturnsEverything()
+    public void Filter_AllScope_ReturnsEverything()
     {
         var schema = Sample();
 
-        schema.Filter(null).ShouldBe(schema);
+        SchemaFilter.Apply(schema, SchemaScope.All).ShouldBe(schema);
     }
 
     [Fact]
-    public void Filter_EmptyScope_ReturnsEverything()
+    public void Filter_EmptyScope_NormalizesToAll()
     {
         var schema = Sample();
 
-        schema.Filter([]).ShouldBe(schema);
+        SchemaFilter.Apply(schema, SchemaScope.Of()).ShouldBe(schema);
     }
 
     // ── Multiple providers, distinct schema names ─────────────────────────────

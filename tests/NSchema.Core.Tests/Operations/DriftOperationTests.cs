@@ -23,16 +23,16 @@ public sealed class DriftOperationTests
 
     public DriftOperationTests()
     {
-        _currentProvider.GetSchema(SchemaSourceMode.Offline, Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-            .Returns(ValueTask.FromResult(_recorded));
-        _currentProvider.GetSchema(SchemaSourceMode.Online, Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-            .Returns(ValueTask.FromResult(_live));
+        _currentProvider.GetSchema(SchemaSourceMode.Offline, Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(_recorded));
+        _currentProvider.GetSchema(SchemaSourceMode.Online, Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(_live));
         _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(_diff);
 
         _sut = new DriftOperation(_currentProvider, _comparer, _progress);
     }
 
-    private static DriftArguments Args(string[]? schemas = null) => new() { Schemas = schemas };
+    private static DriftArguments Args(SchemaScope? scope = null) => new() { Scope = scope ?? SchemaScope.All };
 
     [Fact]
     public async Task Execute_DiffsRecordedAgainstLive()
@@ -51,19 +51,19 @@ public sealed class DriftOperationTests
         await _sut.Execute(Args(), TestContext.Current.CancellationToken);
 
         // Assert
-        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Offline, Arg.Any<string[]?>(), required: true, Arg.Any<CancellationToken>());
-        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Online, Arg.Any<string[]?>(), required: true, Arg.Any<CancellationToken>());
+        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Offline, Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
+        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Online, Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Execute_ForwardsScopeToBothReads()
     {
         // Act
-        await _sut.Execute(Args(["app"]), TestContext.Current.CancellationToken);
+        await _sut.Execute(Args(SchemaScope.Of("app")), TestContext.Current.CancellationToken);
 
         // Assert
-        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Offline, Arg.Is<string[]?>(s => s != null && s.SequenceEqual(new[] { "app" })), Arg.Any<bool>(), Arg.Any<CancellationToken>());
-        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Online, Arg.Is<string[]?>(s => s != null && s.SequenceEqual(new[] { "app" })), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Offline, Arg.Is<SchemaScope>(s => s.Includes("app") && !s.IsAll), Arg.Any<CancellationToken>());
+        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Online, Arg.Is<SchemaScope>(s => s.Includes("app") && !s.IsAll), Arg.Any<CancellationToken>());
     }
 
     [Fact]

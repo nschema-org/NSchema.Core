@@ -61,6 +61,7 @@ public sealed class NamespaceMigrationMapTests
         // ── ProjectDefinition: the declared desired state — seam and messages at the cluster root. ──
         [typeof(NSchema.Project.IProjectProvider)] = ProjectRoot,
         [typeof(NSchema.Project.Domain.Models.ProjectDefinition)] = ProjectModels, // the project aggregate — raw domain vocabulary the provider returns (the SchemaState parallel), not a seam-shaped message
+        [typeof(NSchema.Project.Domain.Models.SchemaScope)] = ProjectModels,
 
         // ── Current: the source the project is diffed against — observed live, or recorded. ──
         [typeof(NSchema.Current.ICurrentSchemaProvider)] = CurrentRoot,
@@ -250,7 +251,6 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Plan.Domain.Models.Views.SetViewComment)] = PlanModels + ".Views",
         [typeof(NSchema.Plan.PlanFile.IPlanFileManager)] = PlanFile,
         [typeof(NSchema.Plan.PlanFile.PlanFileEnvelope)] = PlanFile, // likely thins once the single artifact lands
-        [typeof(NSchema.Plan.PlanFile.PlanFileDeserializationException)] = PlanFile,
 
         // ── Apply: plan execution. ──
         [typeof(NSchema.Apply.TransactionMode)] = Apply,
@@ -260,6 +260,7 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Current.Locks.IStateLockHandle)] = CurrentLocks,
         [typeof(NSchema.Current.Locks.StateLockInfo)] = CurrentLocks,
         [typeof(NSchema.Current.Locks.StateLockRequest)] = CurrentLocks,
+        [typeof(NSchema.Current.Locks.AcquireLockArguments)] = CurrentLocks,
         [typeof(NSchema.Current.Locks.StateLockedException)] = CurrentLocks,
         [typeof(NSchema.Current.Locks.StateLockMismatchException)] = CurrentLocks,
         [typeof(NSchema.Current.Locks.Backends.IStateLock)] = CurrentLocksBackends,
@@ -274,7 +275,6 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Current.Storage.StateRawReadResult)] = CurrentStorage,
         [typeof(NSchema.Current.Storage.StateRawWriteArguments)] = CurrentStorage,
         [typeof(NSchema.Current.Storage.StateRawWriteResult)] = CurrentStorage,
-        [typeof(NSchema.Current.Storage.StateDeserializationException)] = CurrentStorage,
         [typeof(NSchema.Current.Storage.Backends.ISchemaStateStore)] = CurrentStorageBackends,
 
         // ── Current.Domain.Models ──

@@ -3,20 +3,20 @@ using NSchema.Project.Domain.Models;
 namespace NSchema.Current.Backends;
 
 /// <summary>
-/// Introspects the live database into the schema model, scoped to a set of schema names.
+/// Introspects the live database into the schema model.
 /// </summary>
 public interface ISchemaIntrospector
 {
     /// <summary>
-    /// Reads the live schema for the specified schema names.
+    /// Reads the live schema inside <paramref name="scope"/>.
     /// </summary>
-    /// <param name="schemaNames">
-    /// The names of the schemas to include. When null, the introspector returns every schema it can see.
-    /// </param>
+    /// <param name="scope">The schemas to include.</param>
     /// <param name="cancellationToken">A cancellation token to cancel the operation.</param>
-    /// <returns>The schema for the specified schema names.</returns>
+    /// <returns>The schema for the scoped schema names.</returns>
     /// <remarks>
-    /// If a schema name does not exist, it is not included in the returned schema.
+    /// The scope is an optimization hint: an introspector may over-return (read more than the scope), and the
+    /// engine re-applies the scope after every read, so scoping semantics stay single-sourced. A schema name
+    /// that does not exist is simply not included in the returned schema.
     /// </remarks>
-    ValueTask<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default);
+    ValueTask<DatabaseSchema> GetSchema(SchemaScope scope, CancellationToken cancellationToken = default);
 }

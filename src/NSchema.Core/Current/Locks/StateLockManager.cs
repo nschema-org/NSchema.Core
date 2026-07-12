@@ -14,7 +14,7 @@ internal sealed class StateLockManager(IStateLock? stateLock = null) : IStateLoc
     public async Task<StateLockInfo?> Peek(CancellationToken cancellationToken = default) =>
         stateLock is null ? null : await stateLock.Peek(cancellationToken);
 
-    public async Task<Result<IStateLockHandle>> Acquire(StateLockRequest request, bool skipLock = false, CancellationToken cancellationToken = default)
+    public async Task<Result<IStateLockHandle>> Acquire(AcquireLockArguments arguments, CancellationToken cancellationToken = default)
     {
         // No backend lock to take — this is an ordinary offline run, not a deliberate skip, so say nothing.
         if (stateLock is null)
@@ -22,21 +22,21 @@ internal sealed class StateLockManager(IStateLock? stateLock = null) : IStateLoc
             return Result.Success<IStateLockHandle>(NullStateLockHandle.Instance);
         }
 
-        if (skipLock)
+        if (arguments.SkipLock)
         {
             // Peek so the warning is honest: name the lock we are running past rather than ignoring it silently.
             var held = await stateLock.Peek(cancellationToken);
-            return Result.From<IStateLockHandle>(NullStateLockHandle.Instance, [LockDiagnostics.RunningUnlocked(request.Operation, held)]);
+            return Result.From<IStateLockHandle>(NullStateLockHandle.Instance, [LockDiagnostics.RunningUnlocked(arguments.Operation, held)]);
         }
 
         try
         {
-            return Result.Success<IStateLockHandle>(await stateLock.Acquire(request, cancellationToken));
+            return Result.Success<IStateLockHandle>(await stateLock.Acquire(new StateLockRequest(arguments.Operation, arguments.TimeToLive), cancellationToken));
         }
         catch (StateLockedException ex)
         {
             // Contention is a recoverable, user-facing outcome, not a bug — surface it as a failure the caller renders.
-            return Result.Failure<IStateLockHandle>(LockDiagnostics.StateLocked(request.Operation, ex));
+            return Result.Failure<IStateLockHandle>(LockDiagnostics.StateLocked(arguments.Operation, ex));
         }
     }
 

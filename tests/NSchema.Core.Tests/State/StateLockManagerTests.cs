@@ -9,7 +9,7 @@ public sealed class StateLockManagerTests
     private readonly RecordingStateLock _stateLock = new();
 
     private static Task<Result<IStateLockHandle>> Acquire(IStateLock? stateLock, bool skipLock) =>
-        ((IStateLockManager)new StateLockManager(stateLock)).Acquire(new StateLockRequest("apply"), skipLock, TestContext.Current.CancellationToken);
+        ((IStateLockManager)new StateLockManager(stateLock)).Acquire(new AcquireLockArguments("apply") { SkipLock = skipLock }, TestContext.Current.CancellationToken);
 
     [Fact]
     public async Task NoLockBackend_SucceedsWithTheNoOpHandle_AndSaysNothing()
@@ -97,9 +97,9 @@ public sealed class StateLockManagerTests
     public async Task Acquire_PassesTheRequestThroughToTheLock()
     {
         // The request (operation + TTL) reaches the backend lock unchanged — this is how `lock acquire --ttl` works.
-        var request = new StateLockRequest("manual", TimeSpan.FromMinutes(30));
+        var request = new AcquireLockArguments("manual") { TimeToLive = TimeSpan.FromMinutes(30) };
 
-        await new StateLockManager(_stateLock).Acquire(request, skipLock: false, TestContext.Current.CancellationToken);
+        await new StateLockManager(_stateLock).Acquire(request, TestContext.Current.CancellationToken);
 
         var acquired = _stateLock.Acquisitions.ShouldHaveSingleItem();
         acquired.Operation.ShouldBe("manual");

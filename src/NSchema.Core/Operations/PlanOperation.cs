@@ -17,8 +17,8 @@ internal sealed class PlanOperation(IMigrationWorkflow workflow, IPlanFileManage
         var planned = args.Target switch
         {
             PlanTarget.Teardown => await workflow.ComputeTeardown(cancellationToken),
-            PlanTarget.Live => await workflow.ComputePlan(SchemaSourceMode.Online, args.Schemas, cancellationToken),
-            _ => await workflow.ComputePlan(SchemaSourceMode.Offline, args.Schemas, cancellationToken),
+            PlanTarget.Live => await workflow.ComputePlan(SchemaSourceMode.Online, args.Scope, cancellationToken),
+            _ => await workflow.ComputePlan(SchemaSourceMode.Offline, args.Scope, cancellationToken),
         };
 
         if (planned.Value is { } plan && args.OutFile is not null)

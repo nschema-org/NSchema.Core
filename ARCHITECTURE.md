@@ -84,7 +84,7 @@ NSchema                     app, builder, options · Result / Result<T> / Result
 │  │                        are the only input
 │  ├─ .Domain.Models        the project vocabulary: the DatabaseSchema tree (per-kind
 │  │                        sub-namespaces) · the Script declarations and events
-│  ├─ .Domain               projection: aggregation + template expansion
+│  ├─ .Domain               projection: aggregation + template expansion + scope filtering
 │  ├─ .Ddl                  DdlReader/DdlWriter/DdlFormatter · the full syntax tree (AST) incl.
 │  │                        templates and config blocks · SourcePosition, DdlDiagnostic
 │  └─ .Policies             IProjectPolicy + built-ins (validate the declared project)

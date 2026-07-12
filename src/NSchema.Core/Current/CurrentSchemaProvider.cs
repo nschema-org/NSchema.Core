@@ -1,41 +1,38 @@
 using NSchema.Current.Backends;
 using NSchema.Current.Storage;
-using NSchema.Current.Storage.Backends;
+using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
 
 namespace NSchema.Current;
 
 /// <summary>
-/// Wires the optional online (live database) and offline (persisted snapshot) sources together.
+/// Fetches the current state either offline from the store or online from the live database.
 /// </summary>
-/// <param name="serializer">Deserializes the state-store payload for offline reads.</param>
+/// <param name="stateManager">Reads the recorded state for offline reads.</param>
 /// <param name="online">The live database provider, if any.</param>
-/// <param name="store">The state store, if any.</param>
-internal sealed class CurrentSchemaProvider(
-    ISchemaStateSerializer serializer,
-    ISchemaIntrospector? online = null,
-    ISchemaStateStore? store = null
-) : ICurrentSchemaProvider
+internal sealed class CurrentSchemaProvider(ISchemaStateManager stateManager, ISchemaIntrospector? online = null) : ICurrentSchemaProvider
 {
     /// <inheritdoc />
-    public ValueTask<DatabaseSchema> GetSchema(SchemaSourceMode preferred, string[]? schemaNames, bool required = true, CancellationToken cancellationToken = default)
+    public async Task<Result<DatabaseSchema>> GetSchema(SchemaSourceMode source, SchemaScope scope, CancellationToken cancellationToken = default)
     {
-        var useOnline = preferred switch
+        switch (source)
         {
-            SchemaSourceMode.Online when online is not null => true,
-            SchemaSourceMode.Online when required => throw new InvalidOperationException("No online schema provider is registered."),
-            SchemaSourceMode.Online when store is not null => false,
-            SchemaSourceMode.Online => throw new InvalidOperationException("No schema provider is configured."),
+            case SchemaSourceMode.Online when online is null:
+                return Result.Failure<DatabaseSchema>(CurrentDiagnostics.NoOnlineSource);
+            case SchemaSourceMode.Online:
+                // The introspector's scope is an optimization hint that may over-return, so the scope is
+                // re-applied here — scoping semantics live in one place, whatever the provider did.
+                var live = await online.GetSchema(scope, cancellationToken);
+                return SchemaFilter.Apply(live, scope);
 
-            SchemaSourceMode.Offline when store is not null => false,
-            SchemaSourceMode.Offline when required => throw new InvalidOperationException("No offline schema provider is registered."),
-            SchemaSourceMode.Offline when online is not null => true,
-            SchemaSourceMode.Offline => throw new InvalidOperationException("No schema provider is configured."),
+            case SchemaSourceMode.Offline when !stateManager.IsConfigured:
+                return Result.Failure<DatabaseSchema>(CurrentDiagnostics.NoOfflineSource);
+            case SchemaSourceMode.Offline:
+                return await ReadRecorded(scope, cancellationToken);
 
-            _ => throw new ArgumentOutOfRangeException(nameof(preferred), preferred, null),
-        };
-
-        return useOnline ? online!.GetSchema(schemaNames, cancellationToken) : ReadRecorded(schemaNames, cancellationToken);
+            default:
+                throw new ArgumentOutOfRangeException(nameof(source), source, null);
+        }
     }
 
     /// <summary>
@@ -43,14 +40,16 @@ internal sealed class CurrentSchemaProvider(
     /// schema is returned so the first plan shows a full create; a scoped read filters to the requested
     /// schemas so the diff never plans to drop unmanaged ones.
     /// </summary>
-    private async ValueTask<DatabaseSchema> ReadRecorded(string[]? schemaNames, CancellationToken cancellationToken)
+    private async Task<Result<DatabaseSchema>> ReadRecorded(SchemaScope scope, CancellationToken cancellationToken)
     {
-        var snapshot = await store!.Read(cancellationToken);
-        if (snapshot is null)
+        var read = await stateManager.Read(new StateReadArguments(), cancellationToken);
+        if (read.Value is not { } value)
         {
-            return new DatabaseSchema();
+            return Result.Failure<DatabaseSchema>(read.Diagnostics);
         }
 
-        return serializer.Deserialize(snapshot.Value).Schema.Filter(schemaNames);
+        return value.State is null
+            ? new DatabaseSchema()
+            : Result.From(SchemaFilter.Apply(value.State.Schema, scope), read.Diagnostics);
     }
 }

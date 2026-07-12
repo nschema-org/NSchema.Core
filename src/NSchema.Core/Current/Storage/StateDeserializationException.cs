@@ -3,7 +3,7 @@ namespace NSchema.Current.Storage;
 /// <summary>
 /// Thrown when a stored state payload cannot be deserialized into a schema snapshot.
 /// </summary>
-public sealed class StateDeserializationException : Exception
+internal sealed class StateDeserializationException : Exception
 {
     /// <summary>
     /// Creates a new <see cref="StateDeserializationException"/>.

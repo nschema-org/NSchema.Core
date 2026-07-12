@@ -2,6 +2,7 @@ using Microsoft.Extensions.FileSystemGlobbing;
 using NSchema.Project;
 using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Domain;
+using NSchema.Project.Domain.Models;
 
 namespace NSchema.Tests.Schema;
 
@@ -27,14 +28,14 @@ public sealed class ProjectProviderTests : IDisposable
 
     [Fact]
     public async Task GetProject_NoSources_Throws()
-        => await Should.ThrowAsync<InvalidOperationException>(() => new ProjectProvider([]).GetProject().AsTask());
+        => await Should.ThrowAsync<InvalidOperationException>(() => new ProjectProvider([]).GetProject(SchemaScope.All).AsTask());
 
     [Fact]
     public async Task GetProject_NoMatchingFiles_FailsTheRead()
     {
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
-        var project = await sut.GetProject(cancellationToken: TestContext.Current.CancellationToken);
+        var project = await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken);
 
         project.IsFailure.ShouldBeTrue();
         project.Errors.ShouldHaveSingleItem().ShouldBe(ProjectDiagnostics.NoFilesMatched());
@@ -47,7 +48,7 @@ public sealed class ProjectProviderTests : IDisposable
         Write("bad.sql", "CREATE TABLE app.users (");
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
-        var project = await sut.GetProject(null, TestContext.Current.CancellationToken);
+        var project = await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken);
 
         // The read fails, naming the broken file — while the readable files still aggregate into the carried project.
         project.IsFailure.ShouldBeTrue();
@@ -64,7 +65,7 @@ public sealed class ProjectProviderTests : IDisposable
         Write("b.sql", "CREATE SCHEMA b;");
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
-        var project = (await sut.GetProject(null, TestContext.Current.CancellationToken)).Value!;
+        var project = (await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
 
         project.Schema.Schemas.Select(s => s.Name).ShouldBe(["a", "b"], ignoreOrder: true);
     }
@@ -77,7 +78,7 @@ public sealed class ProjectProviderTests : IDisposable
         Write("overlay.sql", "CREATE SCHEMA audit;");
         var sut = new ProjectProvider([Source(_root, "base.sql"), Source(_root, "overlay.sql")]);
 
-        var project = (await sut.GetProject(null, TestContext.Current.CancellationToken)).Value!;
+        var project = (await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
 
         project.Schema.Schemas.Select(s => s.Name).ShouldBe(["app", "audit"], ignoreOrder: true);
     }
@@ -92,7 +93,7 @@ public sealed class ProjectProviderTests : IDisposable
             """);
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
-        var project = (await sut.GetProject(null, TestContext.Current.CancellationToken)).Value!;
+        var project = (await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
 
         project.Scripts.ShouldHaveSingleItem().Name.ShouldBe("backfill");
     }
@@ -103,7 +104,7 @@ public sealed class ProjectProviderTests : IDisposable
         Write("schema.sql", "CREATE SCHEMA app; CREATE SCHEMA audit;");
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
-        var project = (await sut.GetProject(["app"], TestContext.Current.CancellationToken)).Value!;
+        var project = (await sut.GetProject(SchemaScope.Of("app"), TestContext.Current.CancellationToken)).Value!;
 
         project.Schema.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
@@ -121,7 +122,7 @@ public sealed class ProjectProviderTests : IDisposable
         Write("b.sql", "SCRIPT 'guard' RUN ON ADD CONSTRAINT app.orders.total_positive AS $$ SELECT 3; $$;");
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
-        var project = (await sut.GetProject(null, TestContext.Current.CancellationToken)).Value!;
+        var project = (await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
 
         project.Scripts.Select(m => m.Name).ShouldBe(["backfill", "retype", "guard"]);
     }
@@ -137,7 +138,7 @@ public sealed class ProjectProviderTests : IDisposable
         Write("b.sql", "SCRIPT 'other' RUN ON ADD COLUMN app.users.email AS $$ SELECT 2; $$;");
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
-        var result = await sut.GetProject(null, TestContext.Current.CancellationToken);
+        var result = await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Errors.ShouldContain(d => d.Message.Contains("Duplicate migration"));
@@ -154,7 +155,7 @@ public sealed class ProjectProviderTests : IDisposable
         Write("b.sql", "SCRIPT 'upper' RUN ON ADD COLUMN APP.Users.EMAIL AS $$ SELECT 2; $$;");
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
-        var result = await sut.GetProject(null, TestContext.Current.CancellationToken);
+        var result = await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Errors.ShouldContain(d => d.Message.Contains("Duplicate migration"));
@@ -174,7 +175,7 @@ public sealed class ProjectProviderTests : IDisposable
             """);
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
-        var project = (await sut.GetProject(["app"], TestContext.Current.CancellationToken)).Value!;
+        var project = (await sut.GetProject(SchemaScope.Of("app"), TestContext.Current.CancellationToken)).Value!;
 
         project.Scripts.ShouldHaveSingleItem().Event.ShouldBeOfType<ChangeEvent>().ScopeSchema.ShouldBe("app");
     }
@@ -193,7 +194,7 @@ public sealed class ProjectProviderTests : IDisposable
             """);
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
-        var project = (await sut.GetProject(null, TestContext.Current.CancellationToken)).Value!;
+        var project = (await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
 
         project.Schema.Schemas.Select(s => s.Name).ShouldBe(["billing", "ordering"], ignoreOrder: true);
         project.Schema.Schemas.ShouldAllBe(s => s.Tables.Count == 1);
@@ -216,7 +217,7 @@ public sealed class ProjectProviderTests : IDisposable
             """);
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
-        var project = (await sut.GetProject(null, TestContext.Current.CancellationToken)).Value!;
+        var project = (await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
 
         var table = project.Schema.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem();
         table.Columns.Select(c => c.Name).ShouldBe(["id", "created_at"]);
@@ -235,7 +236,7 @@ public sealed class ProjectProviderTests : IDisposable
             """);
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
-        var project = (await sut.GetProject(["billing"], TestContext.Current.CancellationToken)).Value!;
+        var project = (await sut.GetProject(SchemaScope.Of("billing"), TestContext.Current.CancellationToken)).Value!;
 
         project.Schema.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Name.ShouldBe("outbox");
     }
@@ -257,7 +258,7 @@ public sealed class ProjectProviderTests : IDisposable
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
         // Act
-        var project = (await sut.GetProject(null, TestContext.Current.CancellationToken)).Value!;
+        var project = (await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
 
         // Assert — the {schema} token substitutes in the name as well as the body, keeping instances unique.
         project.Scripts.Count.ShouldBe(2);
@@ -284,7 +285,7 @@ public sealed class ProjectProviderTests : IDisposable
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
         // Act
-        var result = await sut.GetProject(null, TestContext.Current.CancellationToken);
+        var result = await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -315,7 +316,7 @@ public sealed class ProjectProviderTests : IDisposable
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
         // Act / Assert
-        var result = await sut.GetProject(null, TestContext.Current.CancellationToken);
+        var result = await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Errors.ShouldContain(d => d.Message.Contains("Duplicate migration"));
@@ -331,7 +332,7 @@ public sealed class ProjectProviderTests : IDisposable
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
         // Act / Assert
-        var result = await sut.GetProject(null, TestContext.Current.CancellationToken);
+        var result = await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Errors.ShouldContain(d => d.Message.Contains("Duplicate script name 'seed'"));
@@ -345,7 +346,7 @@ public sealed class ProjectProviderTests : IDisposable
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
         // Act
-        var result = await sut.GetProject(null, TestContext.Current.CancellationToken);
+        var result = await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken);
 
         // Assert
         result.Diagnostics.ShouldBeEmpty();
@@ -369,7 +370,7 @@ public sealed class ProjectProviderTests : IDisposable
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
         // Act
-        var project = (await sut.GetProject(null, TestContext.Current.CancellationToken)).Value!;
+        var project = (await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
 
         // Assert
         project.Scripts.Select(s => s.Name).ShouldBe(["seed sales", "seed billing"]);
@@ -398,7 +399,7 @@ public sealed class ProjectProviderTests : IDisposable
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
         // Act
-        var project = (await sut.GetProject(["billing"], TestContext.Current.CancellationToken)).Value!;
+        var project = (await sut.GetProject(SchemaScope.Of("billing"), TestContext.Current.CancellationToken)).Value!;
 
         // Assert
         project.Scripts.Select(s => s.Name).ShouldBe(["global", "seed billing"]);
@@ -421,7 +422,7 @@ public sealed class ProjectProviderTests : IDisposable
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
         // Act
-        var result = await sut.GetProject(null, TestContext.Current.CancellationToken);
+        var result = await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -445,7 +446,7 @@ public sealed class ProjectProviderTests : IDisposable
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
         // Act
-        var project = (await sut.GetProject(["billing"], TestContext.Current.CancellationToken)).Value!;
+        var project = (await sut.GetProject(SchemaScope.Of("billing"), TestContext.Current.CancellationToken)).Value!;
 
         // Assert — only the in-scope instance survives.
         project.Scripts.ShouldHaveSingleItem().Event.ShouldBeOfType<ChangeEvent>().Path.ShouldBe("billing.outbox_events.trace_id");

@@ -12,7 +12,7 @@ public sealed class CurrentSchemaProviderOfflineReadTests
     private readonly ISchemaStateStore _store = Substitute.For<ISchemaStateStore>();
     private readonly ISchemaStateSerializer _serializer = new SchemaStateSerializer();
 
-    private CurrentSchemaProvider BuildSut() => new(_serializer, online: null, store: _store);
+    private CurrentSchemaProvider BuildSut() => new(new SchemaStateManager(_serializer, _store), online: null);
 
     private void Persisted(DatabaseSchema schema) =>
         _store.Read(Arg.Any<CancellationToken>()).Returns(_serializer.Serialize(new SchemaState(schema)));
@@ -25,11 +25,11 @@ public sealed class CurrentSchemaProviderOfflineReadTests
         var sut = BuildSut();
 
         // Act
-        var result = await sut.GetSchema(SchemaSourceMode.Offline, null, cancellationToken: TestContext.Current.CancellationToken);
+        var result = await sut.GetSchema(SchemaSourceMode.Offline, SchemaScope.All, TestContext.Current.CancellationToken);
 
         // Assert: an empty schema makes a first-run plan show a full create.
-        result.Schemas.ShouldBeEmpty();
-        result.DroppedSchemas.ShouldBeEmpty();
+        result.Require().Schemas.ShouldBeEmpty();
+        result.Require().DroppedSchemas.ShouldBeEmpty();
     }
 
     [Fact]
@@ -40,24 +40,24 @@ public sealed class CurrentSchemaProviderOfflineReadTests
         var sut = BuildSut();
 
         // Act
-        var result = await sut.GetSchema(SchemaSourceMode.Offline, null, cancellationToken: TestContext.Current.CancellationToken);
+        var result = await sut.GetSchema(SchemaSourceMode.Offline, SchemaScope.All, TestContext.Current.CancellationToken);
 
         // Assert: an unscoped read returns the persisted schema.
-        result.Schemas.Select(s => s.Name).ShouldBe(["app"]);
+        result.Require().Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
 
     [Fact]
     public async Task GetSchema_EmptyScope_ReturnsPersistedSchema()
     {
-        // Arrange: an empty scope means "return everything", same as null.
+        // Arrange: an empty scope normalizes to All.
         Persisted(new DatabaseSchema([new SchemaDefinition("app")]));
         var sut = BuildSut();
 
         // Act
-        var result = await sut.GetSchema(SchemaSourceMode.Offline, [], cancellationToken: TestContext.Current.CancellationToken);
+        var result = await sut.GetSchema(SchemaSourceMode.Offline, SchemaScope.Of(), TestContext.Current.CancellationToken);
 
         // Assert
-        result.Schemas.Select(s => s.Name).ShouldBe(["app"]);
+        result.Require().Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
 
     [Fact]
@@ -74,10 +74,10 @@ public sealed class CurrentSchemaProviderOfflineReadTests
         var sut = BuildSut();
 
         // Act
-        var result = await sut.GetSchema(SchemaSourceMode.Offline, ["my_schema"], cancellationToken: TestContext.Current.CancellationToken);
+        var result = await sut.GetSchema(SchemaSourceMode.Offline, SchemaScope.Of("my_schema"), TestContext.Current.CancellationToken);
 
         // Assert
-        result.Schemas.Select(s => s.Name).ShouldBe(["my_schema"]);
+        result.Require().Schemas.Select(s => s.Name).ShouldBe(["my_schema"]);
     }
 
     [Fact]
@@ -88,9 +88,9 @@ public sealed class CurrentSchemaProviderOfflineReadTests
         var sut = BuildSut();
 
         // Act
-        var result = await sut.GetSchema(SchemaSourceMode.Offline, ["my_schema"], cancellationToken: TestContext.Current.CancellationToken);
+        var result = await sut.GetSchema(SchemaSourceMode.Offline, SchemaScope.Of("my_schema"), TestContext.Current.CancellationToken);
 
         // Assert
-        result.Schemas.Select(s => s.Name).ShouldBe(["My_Schema"]);
+        result.Require().Schemas.Select(s => s.Name).ShouldBe(["My_Schema"]);
     }
 }

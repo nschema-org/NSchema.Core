@@ -3,21 +3,15 @@ using NSchema.Project.Domain.Models;
 namespace NSchema.Current;
 
 /// <summary>
-/// Provides the current database schema, with optional online (live database) and offline (persisted snapshot) sources.
+/// Provides the current database schema from the online (live database) or offline (recorded snapshot) source.
 /// </summary>
 public interface ICurrentSchemaProvider
 {
     /// <summary>
-    /// Returns the schema for the specified mode.
+    /// Reads the current schema from the given source, restricted to <paramref name="scope"/>.
     /// </summary>
-    /// <param name="preferred">The preferred source to retrieve.</param>
-    /// <param name="schemaNames">The specific schema names to retrieve; if <see langword="null"/>, retrieves all available schemas.</param>
-    /// <param name="required">
-    /// When <see langword="true"/> (default), throws if the preferred source is not configured.
-    /// When <see langword="false"/>, falls back to the other source if the preferred one is unavailable;
-    /// throws only if neither source is configured.
-    /// </param>
+    /// <param name="source">The source to read.</param>
+    /// <param name="scope">The schemas to include.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <exception cref="InvalidOperationException">Thrown when the requested source is not available and no fallback exists.</exception>
-    ValueTask<DatabaseSchema> GetSchema(SchemaSourceMode preferred, string[]? schemaNames, bool required = true, CancellationToken cancellationToken = default);
+    Task<Result<DatabaseSchema>> GetSchema(SchemaSourceMode source, SchemaScope scope, CancellationToken cancellationToken = default);
 }

@@ -196,7 +196,7 @@ public sealed class DoctorOperationTests
 
     private sealed class ThrowingIntrospector(Exception exception) : ISchemaIntrospector
     {
-        public ValueTask<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default) =>
+        public ValueTask<DatabaseSchema> GetSchema(SchemaScope scope, CancellationToken cancellationToken = default) =>
             throw exception;
     }
 

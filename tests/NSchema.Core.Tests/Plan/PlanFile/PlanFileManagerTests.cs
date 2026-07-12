@@ -91,7 +91,7 @@ public sealed class PlanFileManagerTests
             await _sut.Write(path, SampleEnvelope(), TestContext.Current.CancellationToken);
             var roundTripped = await _sut.Read(path, TestContext.Current.CancellationToken);
 
-            Json(roundTripped).ShouldBe(Json(SampleEnvelope()));
+            Json(roundTripped.Require()).ShouldBe(Json(SampleEnvelope()));
         }
         finally
         {

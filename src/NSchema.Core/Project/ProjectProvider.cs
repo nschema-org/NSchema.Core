@@ -13,7 +13,7 @@ namespace NSchema.Project;
 /// </summary>
 internal sealed class ProjectProvider(IEnumerable<ProjectSource> sources) : IProjectProvider
 {
-    public async ValueTask<Result<ProjectDefinition>> GetProject(string[]? schemaNames = null, CancellationToken cancellationToken = default)
+    public async ValueTask<Result<ProjectDefinition>> GetProject(SchemaScope scope, CancellationToken cancellationToken = default)
     {
         var sourceList = sources.ToList();
         if (sourceList.Count == 0)
@@ -61,14 +61,7 @@ internal sealed class ProjectProvider(IEnumerable<ProjectSource> sources) : IPro
         diagnostics.AddRange(ValidateChangeTargets(project.Scripts));
         diagnostics.AddRange(ValidateScriptNames(project.Scripts));
 
-        // Filter by schema. Every script's scope comes off its event: hand-written deployment scripts are
-        // global and survive any scope; template instances carry the schema they were applied for.
-        var scoped = project.Schema.Filter(schemaNames);
-        var scopedScripts = schemaNames is null
-            ? project.Scripts
-            : project.Scripts.Where(s => s.Event.ScopeSchema is not { } scope || schemaNames.Contains(scope, StringComparer.OrdinalIgnoreCase)).ToList();
-
-        return Result.From(new ProjectDefinition(scoped, scopedScripts), diagnostics);
+        return Result.From(SchemaFilter.Apply(project, scope), diagnostics);
     }
 
     /// <summary>

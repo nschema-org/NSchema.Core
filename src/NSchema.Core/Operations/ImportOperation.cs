@@ -16,7 +16,11 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
 {
     public async Task<Result<ImportResult>> Execute(ImportArguments arguments, CancellationToken cancellationToken = default)
     {
-        var schema = await currentSchema.GetSchema(SchemaSourceMode.Online, arguments.Schemas, cancellationToken: cancellationToken);
+        var read = await currentSchema.GetSchema(SchemaSourceMode.Online, arguments.Scope, cancellationToken);
+        if (read.Value is not { } schema)
+        {
+            return Result.Failure<ImportResult>(read.Diagnostics);
+        }
         progress.Report(OperationProgress.Detail($"Fetched {StatusHelpers.Describe(schema)} from the database."));
 
         // An existing file that cannot be read or parsed is skipped whole (never clobbered) and reported as an
