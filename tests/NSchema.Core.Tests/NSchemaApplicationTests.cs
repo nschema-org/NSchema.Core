@@ -1,6 +1,7 @@
-using NSchema.Operations.Doctor;
+using NSchema.Operations;
 using NSchema.Plan.PlanFile;
-using NSchema.Schema;
+using NSchema.Current;
+using NSchema.Project;
 
 namespace NSchema.Tests;
 
@@ -15,7 +16,7 @@ public sealed class NSchemaApplicationTests
         app.Operations.ShouldNotBeNull();
         app.Locks.ShouldNotBeNull();
         app.CurrentSchema.ShouldBeAssignableTo<ICurrentSchemaProvider>();
-        app.Project.ShouldBeAssignableTo<IProjectProvider>();
+        app.ProjectDefinition.ShouldBeAssignableTo<IProjectProvider>();
         app.PlanFile.ShouldBeAssignableTo<IPlanFileWriter>();
     }
 

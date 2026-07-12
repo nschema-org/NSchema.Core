@@ -1,14 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
-using NSchema.Operations.Apply;
-using NSchema.Operations.Plan;
-using NSchema.Schema;
-using NSchema.Schema.Model;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Schemas;
-using NSchema.Schema.Model.Tables;
-using NSchema.Sql;
-using NSchema.State;
-using NSchema.State.Model;
+using NSchema.Operations;
+using NSchema.Current.Backends;
+using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Tables;
+using NSchema.Apply;
+using NSchema.Current.Locks;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.EndToEnd;
@@ -36,7 +34,7 @@ public sealed class ApplyEndToEndTests : IDisposable
 
     private NSchemaApplication BuildApp(DatabaseSchema current, string desiredPath) =>
         NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions())
-            .AddDdlSchemas(Path.GetDirectoryName(desiredPath)!, Path.GetFileName(desiredPath))
+            .AddProjectSource(Path.GetDirectoryName(desiredPath)!, Path.GetFileName(desiredPath))
             .UseStateStore(_store)
             .UseSqlDialect<StubSqlDialect>()
             .Tap(b =>

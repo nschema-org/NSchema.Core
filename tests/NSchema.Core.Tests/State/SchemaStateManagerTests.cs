@@ -1,8 +1,6 @@
-using NSchema.Diagnostics;
-using NSchema.Schema.Model.Scripts;
-using NSchema.State;
-using NSchema.State.Model;
-using NSchema.State.Storage;
+using NSchema.Current.Domain.Models;
+using NSchema.Current.Storage;
+using NSchema.Current.Storage.Backends;
 
 namespace NSchema.Tests.State;
 

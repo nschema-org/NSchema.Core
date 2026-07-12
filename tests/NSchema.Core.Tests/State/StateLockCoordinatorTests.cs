@@ -1,6 +1,5 @@
-using NSchema.Diagnostics;
-using NSchema.State;
-using NSchema.State.Model;
+using NSchema.Current.Locks;
+using NSchema.Current.Locks.Backends;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.State;

@@ -1,14 +1,17 @@
+using NSchema.Diff.Domain.Models.Columns;
+using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Diff.Domain.Models.Views;
 using Microsoft.Extensions.Logging.Abstractions;
-using NSchema.Diff;
-using NSchema.Diff.Model;
-using NSchema.Schema.Ddl;
-using NSchema.Schema.Model;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Constraints;
-using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Schemas;
-using NSchema.Schema.Model.Tables;
-using NSchema.Schema.Model.Views;
+using NSchema.Diff.Domain;
+using NSchema.Diff.Domain.Models;
+using NSchema.Project.Ddl;
+using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.Constraints;
+using NSchema.Project.Domain.Models.Indexes;
+using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Tables;
+using NSchema.Project.Domain.Models.Views;
 
 namespace NSchema.Tests.Diff;
 

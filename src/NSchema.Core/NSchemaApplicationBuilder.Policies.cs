@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using NSchema.Diff;
-using NSchema.Schema;
+using NSchema.Diff.Policies;
+using NSchema.Project.Policies;
 
 namespace NSchema;
 

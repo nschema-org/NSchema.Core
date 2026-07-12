@@ -1,5 +1,5 @@
-using NSchema.Schema.Ddl;
-using NSchema.Schema.Model.Scripts;
+using NSchema.Project.Ddl;
+using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
@@ -20,7 +20,7 @@ public sealed class DdlParserMigrationTests
 
         var change = migration.Event.ShouldBeOfType<ChangeEvent>();
         change.Trigger.ShouldBe(ChangeTrigger.AddColumn);
-        change.SchemaName.ShouldBe("app");
+        change.ScopeSchema.ShouldBe("app");
         change.TableName.ShouldBe("users");
         change.MemberName.ShouldBe("email");
         change.Path.ShouldBe("app.users.email");
@@ -131,7 +131,7 @@ public sealed class DdlParserMigrationTests
         var migration = document.Templates.Definitions.ShouldHaveSingleItem().Scripts.ShouldHaveSingleItem();
         migration.Name.ShouldBe("backfill");
         var change = migration.Event.ShouldBeOfType<ChangeEvent>();
-        change.SchemaName.ShouldBe("<template>");
+        change.ScopeSchema.ShouldBe("<template>");
         change.TableName.ShouldBe("users");
         change.MemberName.ShouldBe("email");
         migration.RunOutsideTransaction.ShouldBeTrue();

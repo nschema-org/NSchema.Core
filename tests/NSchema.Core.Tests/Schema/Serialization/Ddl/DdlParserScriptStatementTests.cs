@@ -1,6 +1,6 @@
-using NSchema.Schema.Ddl;
-using NSchema.Schema.Ddl.Model;
-using NSchema.Schema.Model.Scripts;
+using NSchema.Project.Ddl;
+using NSchema.Project.Ddl.Models;
+using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 

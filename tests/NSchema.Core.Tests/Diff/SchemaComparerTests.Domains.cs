@@ -1,8 +1,9 @@
-using NSchema.Diff.Model;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Constraints;
-using NSchema.Schema.Model.Domains;
-using NSchema.Schema.Model.Schemas;
+using NSchema.Diff.Domain.Models.Domains;
+using NSchema.Diff.Domain.Models;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.Constraints;
+using NSchema.Project.Domain.Models.Domains;
+using NSchema.Project.Domain.Models.Schemas;
 
 namespace NSchema.Tests.Diff;
 
@@ -13,14 +14,14 @@ public partial class SchemaComparerTests
     // -------------------------------------------------------------------------
 
     /// <summary>Diffs two <c>app</c> schemas holding the given domains, returning the single domain diff (null when unchanged).</summary>
-    private DomainDiff? DiffDomains(IReadOnlyList<Domain> current, IReadOnlyList<Domain> desired) => _sut
+    private DomainDiff? DiffDomains(IReadOnlyList<DomainDefinition> current, IReadOnlyList<DomainDefinition> desired) => _sut
         .Compare(Db(new SchemaDefinition("app", Domains: current)), Db(new SchemaDefinition("app", Domains: desired)))
         .Schemas.SingleOrDefault()?.Domains.SingleOrDefault();
 
     [Fact]
     public void Compare_NewDomain_IsAddCarryingDefinition()
     {
-        var diff = DiffDomains([], [new Domain("typeid", SqlType.Text, Default: "''", NotNull: true)]);
+        var diff = DiffDomains([], [new DomainDefinition("typeid", SqlType.Text, Default: "''", NotNull: true)]);
 
         diff!.Kind.ShouldBe(ChangeKind.Add);
         diff.Definition!.DataType.ShouldBe(SqlType.Text);
@@ -29,17 +30,17 @@ public partial class SchemaComparerTests
 
     [Fact]
     public void Compare_RemovedDomain_IsRemove()
-        => DiffDomains([new Domain("typeid", SqlType.Text)], [])!.Kind.ShouldBe(ChangeKind.Remove);
+        => DiffDomains([new DomainDefinition("typeid", SqlType.Text)], [])!.Kind.ShouldBe(ChangeKind.Remove);
 
     [Fact]
     public void Compare_UnchangedDomain_ProducesNoDiff()
-        => DiffDomains([new Domain("typeid", SqlType.Text)], [new Domain("typeid", SqlType.Text)]).ShouldBeNull();
+        => DiffDomains([new DomainDefinition("typeid", SqlType.Text)], [new DomainDefinition("typeid", SqlType.Text)]).ShouldBeNull();
 
     [Fact]
     public void Compare_BaseTypeChange_RequiresRecreate()
     {
         // Postgres has no ALTER DOMAIN … TYPE, so a base-type change drops + recreates.
-        var diff = DiffDomains([new Domain("d", SqlType.Text)], [new Domain("d", SqlType.VarChar(255))]);
+        var diff = DiffDomains([new DomainDefinition("d", SqlType.Text)], [new DomainDefinition("d", SqlType.VarChar(255))]);
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.DataType.ShouldBe(new ValueChange<SqlType>(SqlType.Text, SqlType.VarChar(255)));
@@ -50,7 +51,7 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_DefaultChange_IsInPlace()
     {
-        var diff = DiffDomains([new Domain("d", SqlType.Text, Default: "'a'")], [new Domain("d", SqlType.Text, Default: "'b'")]);
+        var diff = DiffDomains([new DomainDefinition("d", SqlType.Text, Default: "'a'")], [new DomainDefinition("d", SqlType.Text, Default: "'b'")]);
 
         diff!.RequiresRecreate.ShouldBeFalse();
         diff.Default.ShouldBe(new ValueChange<string>("'a'", "'b'"));
@@ -60,7 +61,7 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_NotNullChange_IsInPlace()
     {
-        var diff = DiffDomains([new Domain("d", SqlType.Text)], [new Domain("d", SqlType.Text, NotNull: true)]);
+        var diff = DiffDomains([new DomainDefinition("d", SqlType.Text)], [new DomainDefinition("d", SqlType.Text, NotNull: true)]);
 
         diff!.RequiresRecreate.ShouldBeFalse();
         diff.NotNull.ShouldBe(new ValueChange<bool>(false, true));
@@ -70,8 +71,8 @@ public partial class SchemaComparerTests
     public void Compare_CheckAddedAndRemoved_AreInPlace()
     {
         var diff = DiffDomains(
-            [new Domain("d", SqlType.Text, Checks: [new CheckConstraint("old_chk", "VALUE <> ''")])],
-            [new Domain("d", SqlType.Text, Checks: [new CheckConstraint("new_chk", "length(VALUE) > 0")])]);
+            [new DomainDefinition("d", SqlType.Text, Checks: [new CheckConstraint("old_chk", "VALUE <> ''")])],
+            [new DomainDefinition("d", SqlType.Text, Checks: [new CheckConstraint("new_chk", "length(VALUE) > 0")])]);
 
         diff!.RequiresRecreate.ShouldBeFalse();
         diff.Checks.Select(c => (c.Kind, c.Name)).ShouldBe(
@@ -81,7 +82,7 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_RenamedDomain_SetsRenamedFrom()
     {
-        var diff = DiffDomains([new Domain("old_d", SqlType.Text)], [new Domain("d", SqlType.Text, OldName: "old_d")]);
+        var diff = DiffDomains([new DomainDefinition("old_d", SqlType.Text)], [new DomainDefinition("d", SqlType.Text, OldName: "old_d")]);
 
         diff!.RenamedFrom.ShouldBe("old_d");
         diff.RequiresRecreate.ShouldBeFalse(); // a rename is in place, not a recreate
@@ -90,7 +91,7 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_CommentOnlyChange_IsModify()
     {
-        var diff = DiffDomains([new Domain("d", SqlType.Text, Comment: "old")], [new Domain("d", SqlType.Text, Comment: "new")]);
+        var diff = DiffDomains([new DomainDefinition("d", SqlType.Text, Comment: "old")], [new DomainDefinition("d", SqlType.Text, Comment: "new")]);
 
         diff!.Comment.ShouldBe(new ValueChange<string>("old", "new"));
         diff.Definition.ShouldBeNull();
@@ -99,14 +100,14 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_PartialSchema_LeavesUnmanagedDomainAlone()
         => _sut.Compare(
-            Db(new SchemaDefinition("app", Domains: [new Domain("d", SqlType.Text)])),
+            Db(new SchemaDefinition("app", Domains: [new DomainDefinition("d", SqlType.Text)])),
             Db(new SchemaDefinition("app", IsPartial: true)))
             .Schemas.ShouldBeEmpty();
 
     [Fact]
     public void Compare_PartialSchema_DropsExplicitlyDroppedDomain()
         => _sut.Compare(
-            Db(new SchemaDefinition("app", Domains: [new Domain("d", SqlType.Text)])),
+            Db(new SchemaDefinition("app", Domains: [new DomainDefinition("d", SqlType.Text)])),
             Db(new SchemaDefinition("app", IsPartial: true, DroppedDomains: ["d"])))
             .Schemas.ShouldHaveSingleItem().Domains.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
 }

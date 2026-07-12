@@ -1,5 +1,6 @@
-using NSchema.State;
-using NSchema.State.Model;
+using NSchema.Current.Storage;
+using NSchema.Current.Storage.Backends;
+using NSchema.Current.Domain.Models;
 
 namespace NSchema.Tests.Helpers;
 

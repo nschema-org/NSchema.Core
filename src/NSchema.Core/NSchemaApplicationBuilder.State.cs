@@ -1,8 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using NSchema.State;
-using NSchema.State.Ephemeral;
-using NSchema.State.File;
+using NSchema.Current.Locks.Backends;
+using NSchema.Current.Storage.Backends;
 
 namespace NSchema;
 

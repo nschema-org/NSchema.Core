@@ -1,18 +1,31 @@
-using NSchema.Diff;
-using NSchema.Diff.Model;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.CompositeTypes;
-using NSchema.Schema.Model.Constraints;
-using NSchema.Schema.Model.Domains;
-using NSchema.Schema.Model.Enums;
-using NSchema.Schema.Model.Extensions;
-using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Routines;
-using NSchema.Schema.Model.Scripts;
-using NSchema.Schema.Model.Sequences;
-using NSchema.Schema.Model.Tables;
-using NSchema.Schema.Model.Triggers;
-using NSchema.Schema.Model.Views;
+using NSchema.Diff.Domain.Models.Columns;
+using NSchema.Diff.Domain.Models.CompositeTypes;
+using NSchema.Diff.Domain.Models.Constraints;
+using NSchema.Diff.Domain.Models.Domains;
+using NSchema.Diff.Domain.Models.Enums;
+using NSchema.Diff.Domain.Models.Extensions;
+using NSchema.Diff.Domain.Models.Indexes;
+using NSchema.Diff.Domain.Models.Routines;
+using NSchema.Diff.Domain.Models.Schemas;
+using NSchema.Diff.Domain.Models.Sequences;
+using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Diff.Domain.Models.Triggers;
+using NSchema.Diff.Domain.Models.Views;
+using NSchema.Diff.Reader;
+using NSchema.Diff.Domain.Models;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.CompositeTypes;
+using NSchema.Project.Domain.Models.Constraints;
+using NSchema.Project.Domain.Models.Domains;
+using NSchema.Project.Domain.Models.Enums;
+using NSchema.Project.Domain.Models.Extensions;
+using NSchema.Project.Domain.Models.Indexes;
+using NSchema.Project.Domain.Models.Routines;
+using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Project.Domain.Models.Sequences;
+using NSchema.Project.Domain.Models.Tables;
+using NSchema.Project.Domain.Models.Triggers;
+using NSchema.Project.Domain.Models.Views;
 
 namespace NSchema.Tests.Diff;
 
@@ -268,10 +281,10 @@ public sealed class DiffReaderSnapshotTests
                 new SchemaDiff("app", Domains:
                 [
                     new DomainDiff("app", "typeid", ChangeKind.Add,
-                        Definition: new Domain("typeid", SqlType.Text, NotNull: true),
+                        Definition: new DomainDefinition("typeid", SqlType.Text, NotNull: true),
                         Comment: new ValueChange<string>(null, "id as text")),
                     new DomainDiff("app", "code", ChangeKind.Modify,
-                        Definition: new Domain("code", SqlType.VarChar(8)),
+                        Definition: new DomainDefinition("code", SqlType.VarChar(8)),
                         DataType: new ValueChange<SqlType>(SqlType.Text, SqlType.VarChar(8))),
                     new DomainDiff("app", "amount", ChangeKind.Modify,
                         Default: new ValueChange<string>(null, "0"),
@@ -392,7 +405,7 @@ public sealed class DiffReaderSnapshotTests
             Scripts =
             [
                 new Script("seed roles", "INSERT INTO roles VALUES ('admin');", new DeploymentEvent(DeploymentPhase.Pre)),
-                new Script("backfill emails", "UPDATE app.users SET email = '';", new ChangeEvent(ChangeTrigger.AddColumn, "app", "users", "email")),
+                new Script("backfill emails", "UPDATE app.users SET email = '';", new ChangeEvent(ChangeTrigger.AddColumn, "users", "email") { ScopeSchema = "app" }),
                 new Script("refresh views", "REFRESH MATERIALIZED VIEW app.stats;", new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = RunCondition.Once },
             ],
         };

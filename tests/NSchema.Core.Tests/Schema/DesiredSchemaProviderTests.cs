@@ -1,7 +1,8 @@
 using Microsoft.Extensions.FileSystemGlobbing;
-using NSchema.Schema;
-using NSchema.Schema.Ddl;
-using NSchema.Schema.Model.Scripts;
+using NSchema.Project;
+using NSchema.Project.Domain;
+using NSchema.Project.Ddl;
+using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Tests.Schema;
 
@@ -18,11 +19,11 @@ public sealed class ProjectProviderTests : IDisposable
         File.WriteAllText(path, sql);
     }
 
-    private static DdlSchemaSource Source(string root, string glob)
+    private static ProjectSource Source(string root, string glob)
     {
         var matcher = new Matcher();
         matcher.AddInclude(glob);
-        return new DdlSchemaSource(root, matcher);
+        return new ProjectSource(root, matcher);
     }
 
     [Fact]
@@ -170,7 +171,7 @@ public sealed class ProjectProviderTests : IDisposable
 
         var project = (await sut.GetProject(["app"], TestContext.Current.CancellationToken)).Value!;
 
-        project.Scripts.ShouldHaveSingleItem().Event.ShouldBeOfType<ChangeEvent>().SchemaName.ShouldBe("app");
+        project.Scripts.ShouldHaveSingleItem().Event.ShouldBeOfType<ChangeEvent>().ScopeSchema.ShouldBe("app");
     }
 
     [Fact]

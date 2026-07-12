@@ -1,8 +1,9 @@
-using NSchema.Schema.Model;
-using NSchema.Schema.Model.Routines;
-using NSchema.Schema.Model.Schemas;
-using NSchema.Schema.Model.Tables;
-using NSchema.Schema.Model.Views;
+using NSchema.Project.Domain;
+using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Routines;
+using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Tables;
+using NSchema.Project.Domain.Models.Views;
 
 namespace NSchema.Tests.Schema.Model;
 
@@ -75,7 +76,7 @@ public sealed class DatabaseSchemaTests
         var db2 = Db(Schema("admin", Table("roles")));
 
         // Act
-        var result = db1.Combine(db2);
+        var result = SchemaAggregator.Combine(db1, db2).Require();
 
         // Assert
         result.Schemas.Count.ShouldBe(2);
@@ -92,7 +93,7 @@ public sealed class DatabaseSchemaTests
         var db2 = Db(Schema("public", Table("posts")));
 
         // Act
-        var result = db1.Combine(db2);
+        var result = SchemaAggregator.Combine(db1, db2).Require();
 
         // Assert
         result.Schemas.Count.ShouldBe(1);
@@ -100,55 +101,49 @@ public sealed class DatabaseSchemaTests
     }
 
     [Fact]
-    public void Combine_DuplicateTableInSameSchema_Throws()
+    public void Combine_DuplicateTableInSameSchema_IsAnError()
     {
         // Arrange
         var db1 = Db(Schema("public", Table("users")));
         var db2 = Db(Schema("public", Table("users")));
 
         // Act
-        var act = () => db1.Combine(db2);
+        var result = SchemaAggregator.Combine(db1, db2);
 
         // Assert
-        var ex = act.ShouldThrow<InvalidOperationException>();
-        ex.Message.ShouldContain("users");
-        ex.Message.ShouldContain("public");
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Message.ShouldContain("users");
+        error.Message.ShouldContain("public");
     }
 
     // ── Routines share one name space across documents ────────────────────────
 
     [Fact]
-    public void Combine_DuplicateFunctionInSameSchema_Throws()
+    public void Combine_DuplicateFunctionInSameSchema_IsAnError()
     {
         var db1 = Db(new SchemaDefinition("public", Routines: [new Routine("f", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 1 $$")]));
         var db2 = Db(new SchemaDefinition("public", Routines: [new Routine("f", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 2 $$")]));
 
-        var act = () => db1.Combine(db2);
-
-        act.ShouldThrow<InvalidOperationException>().Message.ShouldContain("Duplicate routine 'f'");
+        SchemaAggregator.Combine(db1, db2).Errors.ShouldHaveSingleItem().Message.ShouldContain("Duplicate routine 'f'");
     }
 
     [Fact]
-    public void Combine_DuplicateProcedureInSameSchema_Throws()
+    public void Combine_DuplicateProcedureInSameSchema_IsAnError()
     {
         var db1 = Db(new SchemaDefinition("public", Routines: [new Routine("p", RoutineKind.Procedure, "", "AS $$ SELECT 1 $$")]));
         var db2 = Db(new SchemaDefinition("public", Routines: [new Routine("p", RoutineKind.Procedure, "", "AS $$ SELECT 2 $$")]));
 
-        var act = () => db1.Combine(db2);
-
-        act.ShouldThrow<InvalidOperationException>().Message.ShouldContain("Duplicate routine 'p'");
+        SchemaAggregator.Combine(db1, db2).Errors.ShouldHaveSingleItem().Message.ShouldContain("Duplicate routine 'p'");
     }
 
     [Fact]
-    public void Combine_FunctionAndProcedureWithSameName_Throws()
+    public void Combine_FunctionAndProcedureWithSameName_IsAnError()
     {
         // Functions and procedures share one name pool, as they do in the database's catalog.
         var db1 = Db(new SchemaDefinition("public", Routines: [new Routine("r", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 1 $$")]));
         var db2 = Db(new SchemaDefinition("public", Routines: [new Routine("r", RoutineKind.Procedure, "", "AS $$ SELECT 1 $$")]));
 
-        var act = () => db1.Combine(db2);
-
-        act.ShouldThrow<InvalidOperationException>().Message.ShouldContain("share one name space");
+        SchemaAggregator.Combine(db1, db2).Errors.ShouldHaveSingleItem().Message.ShouldContain("share one name space");
     }
 
     // ── Partial schemas ───────────────────────────────────────────────────────
@@ -161,7 +156,7 @@ public sealed class DatabaseSchemaTests
         var db2 = Db(Schema("public", Table("posts")));
 
         // Act
-        var result = db1.Combine(db2);
+        var result = SchemaAggregator.Combine(db1, db2).Require();
 
         // Assert
         result.Schemas[0].IsPartial.ShouldBeTrue();
@@ -175,7 +170,7 @@ public sealed class DatabaseSchemaTests
         var db2 = Db(Schema("public", Table("posts")));
 
         // Act
-        var result = db1.Combine(db2);
+        var result = SchemaAggregator.Combine(db1, db2).Require();
 
         // Assert
         result.Schemas[0].IsPartial.ShouldBeFalse();
@@ -189,7 +184,7 @@ public sealed class DatabaseSchemaTests
         var db2 = Db(new SchemaDefinition("public", DroppedTables: ["legacy_data"]));
 
         // Act
-        var result = db1.Combine(db2);
+        var result = SchemaAggregator.Combine(db1, db2).Require();
 
         // Assert
         result.Schemas[0].DroppedTables.ShouldBe(["old_users", "legacy_data"], ignoreOrder: true);
@@ -203,7 +198,7 @@ public sealed class DatabaseSchemaTests
         var db2 = new DatabaseSchema([], ["legacy"]);
 
         // Act
-        var result = db1.Combine(db2);
+        var result = SchemaAggregator.Combine(db1, db2).Require();
 
         // Assert
         result.DroppedSchemas.ShouldBe(["old_schema", "legacy"], ignoreOrder: true);
@@ -219,7 +214,7 @@ public sealed class DatabaseSchemaTests
         var db2 = Db(Schema("public", Table("posts")));
 
         // Act
-        var result = db1.Combine(db2);
+        var result = SchemaAggregator.Combine(db1, db2).Require();
 
         // Assert
         result.Schemas[0].Comment.ShouldBe("App schema");
@@ -234,40 +229,40 @@ public sealed class DatabaseSchemaTests
         var db2 = Db(new SchemaDefinition("public", Comment: "App schema"));
 
         // Act
-        var result = db1.Combine(db2);
+        var result = SchemaAggregator.Combine(db1, db2).Require();
 
         // Assert
         result.Schemas[0].Comment.ShouldBe("App schema");
     }
 
     [Fact]
-    public void Combine_ConflictingComments_Throws()
+    public void Combine_ConflictingComments_IsAnError()
     {
         // Arrange
         var db1 = Db(new SchemaDefinition("public", Comment: "App schema"));
         var db2 = Db(new SchemaDefinition("public", Comment: "Different comment"));
 
         // Act
-        var act = () => db1.Combine(db2);
+        var result = SchemaAggregator.Combine(db1, db2);
 
         // Assert
-        var ex = act.ShouldThrow<InvalidOperationException>();
-        ex.Message.ShouldContain("public");
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Message.ShouldContain("public");
     }
 
     [Fact]
-    public void Combine_ConflictingOldNames_Throws()
+    public void Combine_ConflictingOldNames_IsAnError()
     {
         // Arrange — two providers disagree on what the schema was renamed from.
         var db1 = Db(new SchemaDefinition("public", OldName: "legacy"));
         var db2 = Db(new SchemaDefinition("public", OldName: "old_public"));
 
         // Act
-        var act = () => db1.Combine(db2);
+        var result = SchemaAggregator.Combine(db1, db2);
 
         // Assert
-        var ex = act.ShouldThrow<InvalidOperationException>();
-        ex.Message.ShouldContain("public");
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Message.ShouldContain("public");
     }
 
     [Fact]
@@ -278,7 +273,7 @@ public sealed class DatabaseSchemaTests
         var db2 = Db(new SchemaDefinition("public"));
 
         // Act
-        var result = db1.Combine(db2);
+        var result = SchemaAggregator.Combine(db1, db2).Require();
 
         // Assert
         result.Schemas.ShouldHaveSingleItem().OldName.ShouldBe("legacy");
@@ -294,7 +289,7 @@ public sealed class DatabaseSchemaTests
         var db2 = Db(new SchemaDefinition("public", Grants: [new SchemaGrant("reporting")]));
 
         // Act
-        var result = db1.Combine(db2);
+        var result = SchemaAggregator.Combine(db1, db2).Require();
 
         // Assert
         result.Schemas[0].Grants.Select(g => g.Role).ShouldBe(["app_user", "reporting"], ignoreOrder: true);
@@ -308,7 +303,7 @@ public sealed class DatabaseSchemaTests
         var db2 = Db(new SchemaDefinition("public", Grants: [new SchemaGrant("app_user")]));
 
         // Act
-        var result = db1.Combine(db2);
+        var result = SchemaAggregator.Combine(db1, db2).Require();
 
         // Assert
         result.Schemas[0].Grants.Select(g => g.Role).ShouldBe(["app_user"]);
@@ -324,26 +319,26 @@ public sealed class DatabaseSchemaTests
         var db2 = Db(new SchemaDefinition("public", Views: [View("user_summary")]));
 
         // Act
-        var result = db1.Combine(db2);
+        var result = SchemaAggregator.Combine(db1, db2).Require();
 
         // Assert
         result.Schemas[0].Views.Select(v => v.Name).ShouldBe(["active_users", "user_summary"]);
     }
 
     [Fact]
-    public void Combine_DuplicateViewInSameSchema_Throws()
+    public void Combine_DuplicateViewInSameSchema_IsAnError()
     {
         // Arrange
         var db1 = Db(new SchemaDefinition("public", Views: [View("active_users")]));
         var db2 = Db(new SchemaDefinition("public", Views: [View("active_users")]));
 
         // Act
-        var act = () => db1.Combine(db2);
+        var result = SchemaAggregator.Combine(db1, db2);
 
         // Assert
-        var ex = act.ShouldThrow<InvalidOperationException>();
-        ex.Message.ShouldContain("active_users");
-        ex.Message.ShouldContain("public");
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Message.ShouldContain("active_users");
+        error.Message.ShouldContain("public");
     }
 
     [Fact]
@@ -354,7 +349,7 @@ public sealed class DatabaseSchemaTests
         var db2 = Db(new SchemaDefinition("public", DroppedViews: ["legacy_view"]));
 
         // Act
-        var result = db1.Combine(db2);
+        var result = SchemaAggregator.Combine(db1, db2).Require();
 
         // Assert
         result.Schemas[0].DroppedViews.ShouldBe(["old_view", "legacy_view"], ignoreOrder: true);

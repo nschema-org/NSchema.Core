@@ -1,5 +1,3 @@
-using NSchema.Policies;
-
 namespace NSchema.Diff.Policies;
 
 /// <summary>

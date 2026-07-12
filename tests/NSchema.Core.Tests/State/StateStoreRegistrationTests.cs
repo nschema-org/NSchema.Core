@@ -1,6 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using NSchema.State;
-using NSchema.State.File;
+using NSchema.Current.Storage.Backends;
 
 namespace NSchema.Tests.State;
 

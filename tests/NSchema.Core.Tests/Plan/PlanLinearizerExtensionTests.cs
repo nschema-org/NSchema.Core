@@ -1,8 +1,10 @@
-using NSchema.Diff.Model;
-using NSchema.Plan;
-using NSchema.Plan.Model.Extensions;
-using NSchema.Plan.Model.Schemas;
-using NSchema.Schema.Model.Extensions;
+using NSchema.Diff.Domain.Models.Extensions;
+using NSchema.Diff.Domain.Models.Schemas;
+using NSchema.Diff.Domain.Models;
+using NSchema.Plan.Domain;
+using NSchema.Plan.Domain.Models.Extensions;
+using NSchema.Plan.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Extensions;
 
 namespace NSchema.Tests.Plan;
 

@@ -1,5 +1,5 @@
-using NSchema.Schema.Ddl;
-using NSchema.Schema.Model.Views;
+using NSchema.Project.Ddl;
+using NSchema.Project.Domain.Models.Views;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 

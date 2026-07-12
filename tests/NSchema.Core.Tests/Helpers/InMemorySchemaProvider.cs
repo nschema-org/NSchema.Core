@@ -1,5 +1,5 @@
-using NSchema.Schema;
-using NSchema.Schema.Model;
+using NSchema.Current.Backends;
+using NSchema.Project.Domain.Models;
 
 namespace NSchema.Tests.Helpers;
 

@@ -1,3 +1,4 @@
+using NSchema.Operations;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using ArchUnitNET.Fluent;

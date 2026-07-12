@@ -1,9 +1,11 @@
+using NSchema.Operations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NSchema.Plan.PlanFile;
-using NSchema.Schema;
-using NSchema.State;
-using NSchema.State.Storage;
+using NSchema.Current;
+using NSchema.Project;
+using NSchema.Current.Locks;
+using NSchema.Current.Storage;
 
 namespace NSchema;
 
@@ -54,7 +56,7 @@ public sealed class NSchemaApplication : IDisposable
     /// <summary>
     /// Reads the desired project declared by the DDL.
     /// </summary>
-    public IProjectProvider Project => _project.Value;
+    public IProjectProvider ProjectDefinition => _project.Value;
 
     /// <summary>
     /// Reads and writes saved plan files.

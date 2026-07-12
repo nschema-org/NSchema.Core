@@ -1,6 +1,7 @@
-using NSchema.Diff.Model;
-using NSchema.Schema.Model.Enums;
-using NSchema.Schema.Model.Schemas;
+using NSchema.Diff.Domain.Models.Enums;
+using NSchema.Diff.Domain.Models;
+using NSchema.Project.Domain.Models.Enums;
+using NSchema.Project.Domain.Models.Schemas;
 
 namespace NSchema.Tests.Diff;
 

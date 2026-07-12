@@ -1,12 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
-using NSchema.Diff.Model;
-using NSchema.Operations.Plan;
-using NSchema.Operations.Refresh;
-using NSchema.Schema;
-using NSchema.Schema.Model;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Schemas;
-using NSchema.Schema.Model.Tables;
+using NSchema.Diff.Domain.Models;
+using NSchema.Operations;
+using NSchema.Current.Backends;
+using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Tables;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.EndToEnd;
@@ -59,7 +58,7 @@ public sealed class PlanEndToEndTests : IDisposable
             );
             """);
 
-        using var app = NewBuilder(current).AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).UseSqlDialect<StubSqlDialect>().Build();
+        using var app = NewBuilder(current).AddProjectSource(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).UseSqlDialect<StubSqlDialect>().Build();
 
         var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
 
@@ -90,7 +89,7 @@ public sealed class PlanEndToEndTests : IDisposable
             );
             """);
 
-        using var app = NewBuilder(schema).AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).UseSqlDialect<StubSqlDialect>().Build();
+        using var app = NewBuilder(schema).AddProjectSource(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).UseSqlDialect<StubSqlDialect>().Build();
 
         var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
 
@@ -104,7 +103,7 @@ public sealed class PlanEndToEndTests : IDisposable
         var desired = WriteDdl("schema.sql", "CREATE SCHEMA app;");
 
         using var app = NewBuilder(current)
-            .AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired))
+            .AddProjectSource(Path.GetDirectoryName(desired)!, Path.GetFileName(desired))
             .UseSqlDialect<StubSqlDialect>()
             .Build();
 
@@ -120,7 +119,7 @@ public sealed class PlanEndToEndTests : IDisposable
         var current = new DatabaseSchema([]);
         var desired = WriteDdl("schema.sql", "CREATE SCHEMA app;");
 
-        using var app = NewBuilder(current).AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).Build();
+        using var app = NewBuilder(current).AddProjectSource(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).Build();
 
         var result = await app.Operations.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
@@ -144,7 +143,7 @@ public sealed class PlanEndToEndTests : IDisposable
             );
             """);
 
-        using var app = NewBuilder(current).AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).UseSqlDialect<StubSqlDialect>().Build();
+        using var app = NewBuilder(current).AddProjectSource(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).UseSqlDialect<StubSqlDialect>().Build();
         (await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
 
         var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Teardown }, TestContext.Current.CancellationToken);

@@ -1,4 +1,4 @@
-using NSchema.Plan;
+using NSchema.Plan.Domain;
 
 namespace NSchema.Tests.Plan;
 

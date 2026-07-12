@@ -1,11 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
-using NSchema.Operations.Plan;
-using NSchema.Operations.Refresh;
-using NSchema.Schema;
-using NSchema.Schema.Model;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Schemas;
-using NSchema.Schema.Model.Tables;
+using NSchema.Operations;
+using NSchema.Current.Backends;
+using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Tables;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.EndToEnd;
@@ -75,7 +74,7 @@ public sealed class RefreshEndToEndTests : IDisposable
 
         using var planner = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions())
             .UseFileStateStore(_statePath)
-            .AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired))
+            .AddProjectSource(Path.GetDirectoryName(desired)!, Path.GetFileName(desired))
             .UseSqlDialect<StubSqlDialect>().Build();
 
         var result = await planner.Operations.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
