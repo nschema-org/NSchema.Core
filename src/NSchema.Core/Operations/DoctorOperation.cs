@@ -15,7 +15,7 @@ namespace NSchema.Operations;
 internal sealed class DoctorOperation(
     IProgress<OperationProgress> progress,
     ISchemaStateSerializer serializer,
-    ISchemaProvider? online = null,
+    ISchemaIntrospector? online = null,
     ISchemaStateStore? store = null,
     IStateLock? stateLock = null
 ) : IOperation<DoctorArguments, Result<DoctorResult>>

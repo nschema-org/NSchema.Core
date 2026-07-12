@@ -60,12 +60,12 @@ public sealed class PublicInterfaceClassificationTests
         [typeof(INSchemaOperations)] = InterfaceRole.ApplicationSeam,
         [typeof(ICurrentSchemaProvider)] = InterfaceRole.ApplicationSeam,
         [typeof(IProjectProvider)] = InterfaceRole.ApplicationSeam,
-        [typeof(IPlanFileWriter)] = InterfaceRole.ApplicationSeam,
-        [typeof(IStateLockCoordinator)] = InterfaceRole.ApplicationSeam,
+        [typeof(IPlanFileManager)] = InterfaceRole.ApplicationSeam,
+        [typeof(IStateLockManager)] = InterfaceRole.ApplicationSeam,
         [typeof(ISchemaStateManager)] = InterfaceRole.ApplicationSeam,
 
         // Backend SPIs — implemented by provider/backend packages.
-        [typeof(ISchemaProvider)] = InterfaceRole.BackendSpi,
+        [typeof(ISchemaIntrospector)] = InterfaceRole.BackendSpi,
         [typeof(ISqlDialect)] = InterfaceRole.BackendSpi,
         [typeof(ISchemaStateStore)] = InterfaceRole.BackendSpi,
         [typeof(IStateLock)] = InterfaceRole.BackendSpi,
@@ -83,7 +83,7 @@ public sealed class PublicInterfaceClassificationTests
         [typeof(INamedObjectDiff)] = InterfaceRole.ModelContract,
         [typeof(ISchemaObjectDiff)] = InterfaceRole.ModelContract,
 
-        // Shared contracts — returned by the coordinator seam, produced by the lock SPI.
+        // Shared contracts — returned by the manager seam, produced by the lock SPI.
         [typeof(IStateLockHandle)] = InterfaceRole.SharedContract,
     };
 

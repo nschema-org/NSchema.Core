@@ -12,7 +12,7 @@ public partial class NSchemaApplicationBuilder
     /// <summary>
     /// Configures the policy to apply when a destructive action is detected in the migration plan.
     /// </summary>
-    public NSchemaApplicationBuilder WithDestructiveActionPolicy(DestructiveActionPolicy policy)
+    public NSchemaApplicationBuilder WithDestructiveActionPolicy(PolicyEnforcement policy)
     {
         Services.Configure<DestructiveActionOptions>(o => o.Policy = policy);
         return this;
@@ -38,7 +38,7 @@ public partial class NSchemaApplicationBuilder
 
     /// <summary>
     /// Sets the <see cref="ISqlDialect"/> the application renders SQL with, replacing any previously set one.
-    /// Typically called by a database-provider extension. With none set, plans are reported without a SQL preview.
+    /// Typically called by a database-provider extension.
     /// </summary>
     public NSchemaApplicationBuilder UseSqlDialect<T>() where T : class, ISqlDialect
     {

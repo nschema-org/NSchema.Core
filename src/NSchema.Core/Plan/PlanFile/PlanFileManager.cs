@@ -8,7 +8,7 @@ namespace NSchema.Plan.PlanFile;
 /// <summary>
 /// Reads and writes saved plan files.
 /// </summary>
-internal class PlanFileWriter : IPlanFileWriter
+internal class PlanFileManager : IPlanFileManager
 {
     private static readonly IReadOnlyList<JsonDerivedType> _eventTypes = DerivedTypes(typeof(ScriptEvent));
 

@@ -5,7 +5,7 @@ namespace NSchema.Current.Locks;
 /// front-end takes a scoped operation lock with, holds a long-lived manual lock through (acquire and never release,
 /// since the handle outlives the process), or force-releases a lock from another process.
 /// </summary>
-public interface IStateLockCoordinator
+public interface IStateLockManager
 {
     /// <summary>
     /// Takes the state lock described by <paramref name="request"/> (its operation name, and optional time-to-live):

@@ -56,8 +56,7 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Result<>)] = Root,
         [typeof(NSchema.Diagnostic)] = Root,
         [typeof(NSchema.DiagnosticSeverity)] = Root,
-        [typeof(PolicyEnforcement)] = Root, // absorbs DestructiveActionPolicy
-        [typeof(NSchema.Policies.PolicyDiagnostics)] = Removed, // redundant once severity is first-class on Result
+        [typeof(PolicyEnforcement)] = Root, // absorbed DestructiveActionPolicy
 
         // ── ProjectDefinition: the declared desired state — seam and messages at the cluster root. ──
         [typeof(NSchema.Project.IProjectProvider)] = ProjectRoot,
@@ -66,7 +65,7 @@ public sealed class NamespaceMigrationMapTests
         // ── Current: the source the project is diffed against — observed live, or recorded. ──
         [typeof(NSchema.Current.ICurrentSchemaProvider)] = CurrentRoot,
         [typeof(NSchema.Current.SchemaSourceMode)] = CurrentRoot,
-        [typeof(NSchema.Current.Backends.ISchemaProvider)] = CurrentBackends, // renamed ISchemaIntrospector
+        [typeof(NSchema.Current.Backends.ISchemaIntrospector)] = CurrentBackends,
 
         // ── ProjectDefinition.Ddl: the project language — machinery + the full syntax tree. ──
         [typeof(NSchema.Project.Ddl.DdlReader)] = ProjectDdl,
@@ -140,7 +139,6 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Diff.Policies.IDiffPolicy)] = DiffPolicies,
         [typeof(NSchema.Diff.Policies.DataHazardOptions)] = DiffPolicies,
         [typeof(NSchema.Diff.Policies.DestructiveActionOptions)] = DiffPolicies,
-        [typeof(NSchema.Diff.Policies.DestructiveActionPolicy)] = Removed, // folds into PolicyEnforcement
         [typeof(NSchema.Diff.Domain.Models.ChangeKind)] = DiffModels,
         [typeof(NSchema.Diff.Domain.Models.DatabaseDiff)] = DiffModels,
         [typeof(NSchema.Diff.Domain.Models.INamedObjectDiff)] = DiffModels,
@@ -251,7 +249,7 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Plan.Domain.Models.Views.DropView)] = PlanModels + ".Views",
         [typeof(NSchema.Plan.Domain.Models.Views.RenameView)] = PlanModels + ".Views",
         [typeof(NSchema.Plan.Domain.Models.Views.SetViewComment)] = PlanModels + ".Views",
-        [typeof(NSchema.Plan.PlanFile.IPlanFileWriter)] = PlanFile,
+        [typeof(NSchema.Plan.PlanFile.IPlanFileManager)] = PlanFile,
         [typeof(NSchema.Plan.PlanFile.PlanFileEnvelope)] = PlanFile, // likely thins once the single artifact lands
         [typeof(NSchema.Plan.PlanFile.PlanFileDeserializationException)] = PlanFile,
 
@@ -259,7 +257,7 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Apply.TransactionMode)] = Apply,
 
         // ── Current.Locks: guards the shared record against concurrent runs. ──
-        [typeof(NSchema.Current.Locks.IStateLockCoordinator)] = CurrentLocks, // renamed IStateLockManager
+        [typeof(NSchema.Current.Locks.IStateLockManager)] = CurrentLocks,
         [typeof(NSchema.Current.Locks.IStateLockHandle)] = CurrentLocks,
         [typeof(NSchema.Current.Locks.StateLockInfo)] = CurrentLocks,
         [typeof(NSchema.Current.Locks.StateLockRequest)] = CurrentLocks,
@@ -309,7 +307,6 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Plugins.INSchemaProviderPlugin)] = Plugins,
         [typeof(NSchema.Plugins.INSchemaBackendPlugin)] = Plugins,
         [typeof(NSchema.Plugins.ScaffoldContext)] = Plugins,
-        [typeof(NSchema.Plugins.PluginConfigureResult)] = Removed, // unified onto Result
         // Config settings records: the plugin seam's message (the syntax-node side stays in Schema.Ddl).
         [typeof(ConfigBlock)] = ProjectDdlModels + ".Config", // parsed language fragment — the parser produces it, plugins consume it; typed AST models replace it in the full-AST pass
         [typeof(ConfigValue)] = ProjectDdlModels + ".Config", // parsed language fragment — the parser produces it, plugins consume it; typed AST models replace it in the full-AST pass

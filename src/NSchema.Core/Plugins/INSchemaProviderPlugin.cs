@@ -12,7 +12,7 @@ public interface INSchemaProviderPlugin : INSchemaPlugin
     /// </summary>
     /// <param name="builder">The application builder to register the provider's services on.</param>
     /// <param name="block">The project's <c>PROVIDER</c> configuration block.</param>
-    PluginConfigureResult Configure(NSchemaApplicationBuilder builder, ConfigBlock block);
+    Result Configure(NSchemaApplicationBuilder builder, ConfigBlock block);
 
     /// <summary>
     /// Builds the starter desired-schema DDL this provider contributes when a new project is scaffolded.

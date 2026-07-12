@@ -137,12 +137,42 @@ public sealed class SchemaStateSerializerTests
     }
 
     [Fact]
-    public void Deserialize_PayloadWithoutExecutedScripts_ReadsAsAnEmptyLedger()
+    public void Serialize_WritesTheLedgerAsScripts()
+    {
+        // Pins the wire field name — renaming it silently empties every existing ledger.
+        var state = new SchemaState(
+            new DatabaseSchema([]),
+            [new ScriptExecution("api-login", "abc123", DateTimeOffset.UnixEpoch)]);
+
+        var json = Encoding.UTF8.GetString(_sut.Serialize(state).Span);
+
+        json.ShouldContain("\"scripts\"");
+    }
+
+    [Fact]
+    public void Deserialize_PayloadWithoutScripts_ReadsAsAnEmptyLedger()
     {
         // A state file written before the ledger existed must still load.
         const string json =
             """
             { "version": 1, "schema": { "schemas": [], "droppedSchemas": [] } }
+            """;
+
+        _sut.Deserialize(Encoding.UTF8.GetBytes(json)).Scripts.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Deserialize_LegacyExecutedScriptsField_ReadsAsAnEmptyLedger()
+    {
+        // The 4.x field name is deliberately not read (no dual-read shim): a pre-5.0 ledger is refreshed or
+        // untainted by hand under the state-format compat policy's major-version rules.
+        const string json =
+            """
+            {
+              "version": 1,
+              "schema": { "schemas": [], "droppedSchemas": [] },
+              "executedScripts": [ { "name": "api-login", "hash": "abc123", "executedUtc": "2026-07-10T12:00:00+00:00" } ]
+            }
             """;
 
         _sut.Deserialize(Encoding.UTF8.GetBytes(json)).Scripts.ShouldBeEmpty();

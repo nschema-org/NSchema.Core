@@ -112,7 +112,7 @@ NSchema                     app, builder, options · Result / Result<T> / Result
 │  ├─ .Backends             ISqlDialect (one action in, statements out — scripts included)
 │  ├─ .Domain.Models        MigrationAction hierarchy (per-kind, incl. internal ExecuteScript),
 │  │                        SqlStatement
-│  └─ .PlanFile             IPlanFileWriter + envelope
+│  └─ .PlanFile             IPlanFileManager + envelope
 ├─ Apply                    plan execution: ISqlExecutor (internal), TransactionMode, SqlOptions
 ├─ Operations               INSchemaOperations + all Arguments/Results/progress records (flattened —
 │                           one seam, one vocabulary, one using) · slices stay as folders

@@ -50,7 +50,7 @@ public sealed class MigrationPlannerTests
         var diagnostics = Sut.Validate(desired);
 
         // Assert
-        diagnostics.ShouldHaveSingleItem().Message.ShouldBe("bad schema");
+        diagnostics.Diagnostics.ShouldHaveSingleItem().Message.ShouldBe("bad schema");
         policy.Received(1).Validate(desired);
     }
 

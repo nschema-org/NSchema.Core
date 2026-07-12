@@ -3,7 +3,7 @@ namespace NSchema.Plan.PlanFile;
 /// <summary>
 /// Reads and writes saved plan files.
 /// </summary>
-public interface IPlanFileWriter
+public interface IPlanFileManager
 {
     /// <summary>
     /// Reads the envelope from the given file.

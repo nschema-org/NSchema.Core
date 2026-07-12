@@ -3,7 +3,6 @@ using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Policies;
 using NSchema.Plan.Backends;
 using NSchema.Plan.Domain.Models;
-using NSchema.Policies;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Policies;
 
@@ -25,8 +24,8 @@ internal sealed class MigrationPlanner(
     ISqlDialect? dialect = null
 ) : IMigrationPlanner
 {
-    public PolicyDiagnostics Validate(DatabaseSchema desiredSchema) =>
-        new(schemaPolicies.SelectMany(p => p.Validate(desiredSchema)));
+    public Result Validate(DatabaseSchema desiredSchema) =>
+        Result.From(schemaPolicies.SelectMany(p => p.Validate(desiredSchema)));
 
     public Result<MigrationPlan> Plan(CurrentState current, ProjectDefinition desired)
     {
@@ -39,7 +38,7 @@ internal sealed class MigrationPlanner(
 
         // Validate the desired schema.
         var schemaValidation = Validate(desired.Schema);
-        diagnostics.AddRange(schemaValidation);
+        diagnostics.AddRange(schemaValidation.Diagnostics);
 
         // Compare it with the current state.
         var compared = comparer.Compare(current, desired);
@@ -67,9 +66,7 @@ internal sealed class MigrationPlanner(
     }
 
     /// <summary>
-    /// Mechanically realizes a diff as the executable plan: the linearizer orders the actions (scripts woven at
-    /// their places), then each action renders to SQL — a script action passes its raw SQL through verbatim
-    /// (scripts need no dialect); everything else renders through the dialect, in plan order.
+    /// Constructs an executable plan from a diff.
     /// </summary>
     private MigrationPlan Realize(DatabaseDiff diff, ISqlDialect sql)
     {

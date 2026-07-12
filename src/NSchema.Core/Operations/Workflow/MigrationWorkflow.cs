@@ -5,7 +5,6 @@ using NSchema.Diff.Domain;
 using NSchema.Operations.Progress;
 using NSchema.Plan.Domain;
 using NSchema.Plan.Domain.Models;
-using NSchema.Policies;
 using NSchema.Project;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
@@ -20,13 +19,13 @@ internal sealed class MigrationWorkflow(
     ISchemaStateManager stateManager
 ) : IMigrationWorkflow
 {
-    public async Task<PolicyDiagnostics> Validate(CancellationToken cancellationToken = default)
+    public async Task<Result> Validate(CancellationToken cancellationToken = default)
     {
         progress.Report(OperationProgress.Step("Loading desired schema..."));
         var desired = await desiredProvider.GetProject(null, cancellationToken);
         if (desired.Value is not { } project)
         {
-            return new PolicyDiagnostics(desired.Diagnostics);
+            return Result.From(desired.Diagnostics);
         }
         ReportDesiredDetail(project);
 
@@ -34,10 +33,10 @@ internal sealed class MigrationWorkflow(
 
         // The findings — including any non-error advisories and findings raised while reading the DDL — are
         // returned as data for the caller to render.
-        return new PolicyDiagnostics(desired.Diagnostics.Concat(planner.Validate(project.Schema)));
+        return Result.From(desired.Diagnostics.Concat(planner.Validate(project.Schema).Diagnostics));
     }
 
-    public async Task<Result<MigrationPlan>> ComputePlan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default)
+    public async Task<Result<MigrationPlan>> ComputePlan(SchemaSourceMode currentSource, string[]? schemas, CancellationToken cancellationToken = default)
     {
         // The diff is computed against CurrentState — the schema plus the run-once ledger — so planning without
         // a store would plan against knowingly incomplete current state.
@@ -58,7 +57,7 @@ internal sealed class MigrationWorkflow(
         progress.Report(OperationProgress.Step($"Migration will be scoped to the following schemas: {string.Join(", ", schemasInScope)}"));
 
         progress.Report(OperationProgress.Step("Loading provider schema..."));
-        var currentSchema = await currentProvider.GetSchema(currentSource, schemasInScope, required, cancellationToken);
+        var currentSchema = await currentProvider.GetSchema(currentSource, schemasInScope, required: true, cancellationToken);
         progress.Report(OperationProgress.Detail($"Current schema ({currentSource.ToString().ToLowerInvariant()}): {StatusHelpers.Describe(currentSchema)}."));
 
         var readDiagnostics = new List<Diagnostic>(desired.Diagnostics);

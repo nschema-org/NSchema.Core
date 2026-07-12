@@ -39,11 +39,11 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
-    /// Registers the <see cref="ISchemaProvider"/> that reads the live database schema (the online source).
+    /// Registers the <see cref="ISchemaIntrospector"/> that reads the live database schema (the online source).
     /// </summary>
-    public NSchemaApplicationBuilder UseCurrentSchema<T>() where T : class, ISchemaProvider
+    public NSchemaApplicationBuilder UseCurrentSchema<T>() where T : class, ISchemaIntrospector
     {
-        Services.Replace(ServiceDescriptor.Singleton<ISchemaProvider, T>());
+        Services.Replace(ServiceDescriptor.Singleton<ISchemaIntrospector, T>());
         return this;
     }
 }

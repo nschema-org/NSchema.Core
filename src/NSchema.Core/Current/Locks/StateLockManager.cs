@@ -3,13 +3,13 @@ using NSchema.Current.Locks.Backends;
 namespace NSchema.Current.Locks;
 
 /// <summary>
-/// The default <see cref="IStateLockCoordinator"/>.
+/// The default <see cref="IStateLockManager"/>.
 /// </summary>
 /// <remarks>
 /// Wraps the configured <see cref="IStateLock"/> (when any) with the offline / <c>--no-lock</c> / contention handling,
 /// returning a handle the caller releases when done.
 /// </remarks>
-internal sealed class StateLockCoordinator(IStateLock? stateLock = null) : IStateLockCoordinator
+internal sealed class StateLockManager(IStateLock? stateLock = null) : IStateLockManager
 {
     public async Task<StateLockInfo?> Peek(CancellationToken cancellationToken = default) =>
         stateLock is null ? null : await stateLock.Peek(cancellationToken);

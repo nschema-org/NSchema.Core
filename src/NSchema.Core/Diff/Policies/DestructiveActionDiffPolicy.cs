@@ -32,6 +32,11 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
 
     public IEnumerable<Diagnostic> Validate(DatabaseDiff diff)
     {
+        if (options.Value.Policy == PolicyEnforcement.Ignore)
+        {
+            return [];
+        }
+
         var destructive = DestructiveChanges(diff).Distinct().ToList();
         if (destructive.Count == 0)
         {
@@ -42,8 +47,8 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
 
         return options.Value.Policy switch
         {
-            DestructiveActionPolicy.Allow => [Diagnostic.Info(PolicyName, $"Allowing destructive actions in migration plan: {typeString}.")],
-            DestructiveActionPolicy.Warn => [Diagnostic.Warning(PolicyName, $"Migration plan contains destructive actions: {typeString}.")],
+            PolicyEnforcement.Allow => [Diagnostic.Info(PolicyName, $"Allowing destructive actions in migration plan: {typeString}.")],
+            PolicyEnforcement.Warn => [Diagnostic.Warning(PolicyName, $"Migration plan contains destructive actions: {typeString}.")],
             _ => [Diagnostic.Error(PolicyName, $"Destructive actions blocked by policy: {typeString}.")]
         };
     }

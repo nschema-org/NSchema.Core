@@ -23,7 +23,7 @@ public sealed class StateStoreRegistrationTests
     }
 
     [Fact]
-    public void AppState_ExposesTheCoordinator_ConfiguredWhenAStoreIsRegistered()
+    public void AppState_ExposesTheManager_ConfiguredWhenAStoreIsRegistered()
     {
         // Arrange
         var builder = NSchemaApplication.CreateBuilder();
@@ -35,7 +35,7 @@ public sealed class StateStoreRegistrationTests
     }
 
     [Fact]
-    public void AppState_ExposesTheCoordinator_UnconfiguredWithoutAStore()
+    public void AppState_ExposesTheManager_UnconfiguredWithoutAStore()
     {
         // Arrange
         using var app = NSchemaApplication.CreateBuilder().Build();

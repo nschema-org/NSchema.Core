@@ -1,6 +1,5 @@
 using NSchema.Diff.Domain;
 using NSchema.Plan.Domain.Models;
-using NSchema.Policies;
 using NSchema.Project.Domain.Models;
 
 namespace NSchema.Plan.Domain;
@@ -14,8 +13,8 @@ internal interface IMigrationPlanner
     /// Runs the schema stage in isolation: validates the desired schema against the registered schema policies.
     /// </summary>
     /// <param name="desiredSchema">The desired schema to validate (already aggregated and transformed).</param>
-    /// <returns>The schema-policy diagnostics; the caller decides how to surface any errors.</returns>
-    PolicyDiagnostics Validate(DatabaseSchema desiredSchema);
+    /// <returns>The schema-policy findings; the caller decides how to surface any errors.</returns>
+    Result Validate(DatabaseSchema desiredSchema);
 
     /// <summary>
     /// Builds the complete executable plan migrating the database from its current state to the desired state.

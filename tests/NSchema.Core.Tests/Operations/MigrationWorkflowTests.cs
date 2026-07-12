@@ -8,7 +8,6 @@ using NSchema.Operations.Progress;
 using NSchema.Operations.Workflow;
 using NSchema.Plan.Domain;
 using NSchema.Plan.Domain.Models;
-using NSchema.Policies;
 using NSchema.Project;
 using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
@@ -53,7 +52,7 @@ public sealed class MigrationWorkflowTests
             .GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
             .Returns(ProjectDefinition(new DatabaseSchema([])));
 
-        _planner.Validate(Arg.Any<DatabaseSchema>()).Returns(new PolicyDiagnostics());
+        _planner.Validate(Arg.Any<DatabaseSchema>()).Returns(Result.Success());
 
         _planner
             .Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>())
@@ -77,21 +76,21 @@ public sealed class MigrationWorkflowTests
         var findings = await _sut.Validate(TestContext.Current.CancellationToken);
 
         // Assert — the findings are data, not a pass/fail verdict; a clean schema yields none.
-        findings.HasErrors.ShouldBeFalse();
-        findings.ShouldBeEmpty();
+        findings.IsSuccess.ShouldBeTrue();
+        findings.Diagnostics.ShouldBeEmpty();
     }
 
     [Fact]
     public async Task ValidateDesiredSchema_PolicyViolation_ReturnsErrorFindings_WithoutReporting()
     {
         // Arrange
-        _planner.Validate(Arg.Any<DatabaseSchema>()).Returns(new PolicyDiagnostics([Diagnostic.Error("P1", "msg")]));
+        _planner.Validate(Arg.Any<DatabaseSchema>()).Returns(Result.From(Diagnostic.Error("P1", "msg")));
 
         // Act
         var findings = await _sut.Validate(TestContext.Current.CancellationToken);
 
         // Assert — the findings are carried back as data, not thrown; the workflow no longer renders them (the caller does).
-        findings.HasErrors.ShouldBeTrue();
+        findings.IsFailure.ShouldBeTrue();
         findings.Errors.ShouldHaveSingleItem().Message.ShouldBe("msg");
     }
 
@@ -100,14 +99,14 @@ public sealed class MigrationWorkflowTests
     {
         // Arrange
         _planner.Validate(Arg.Any<DatabaseSchema>())
-            .Returns(new PolicyDiagnostics([new Diagnostic("P1", "info", DiagnosticSeverity.Info)]));
+            .Returns(Result.From(new Diagnostic("P1", "info", DiagnosticSeverity.Info)));
 
         // Act
         var findings = await _sut.Validate(TestContext.Current.CancellationToken);
 
         // Assert — advisories ride along in the findings rather than being reported here.
-        findings.HasErrors.ShouldBeFalse();
-        findings.ShouldHaveSingleItem().Message.ShouldBe("info");
+        findings.IsSuccess.ShouldBeTrue();
+        findings.Diagnostics.ShouldHaveSingleItem().Message.ShouldBe("info");
     }
 
     [Fact]
@@ -122,8 +121,8 @@ public sealed class MigrationWorkflowTests
         var findings = await _sut.Validate(TestContext.Current.CancellationToken);
 
         // Assert
-        findings.HasErrors.ShouldBeFalse();
-        findings.ShouldHaveSingleItem().Source.ShouldBe("deprecations");
+        findings.IsSuccess.ShouldBeTrue();
+        findings.Diagnostics.ShouldHaveSingleItem().Source.ShouldBe("deprecations");
     }
 
     [Fact]
@@ -147,7 +146,7 @@ public sealed class MigrationWorkflowTests
             .Returns(Result.Success(plan));
 
         // Act
-        var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
+        var result = await _sut.ComputePlan(SchemaSourceMode.Offline, null, TestContext.Current.CancellationToken);
 
         // Assert — the result is returned for the caller to render; the workflow renders nothing itself.
         result.Value!.ShouldBe(plan);
@@ -159,7 +158,7 @@ public sealed class MigrationWorkflowTests
         // Arrange
 
         // Act
-        await _sut.ComputePlan(SchemaSourceMode.Online, required: true, null, TestContext.Current.CancellationToken);
+        await _sut.ComputePlan(SchemaSourceMode.Online, null, TestContext.Current.CancellationToken);
 
         // Assert
         await _currentProvider.Received(1).GetSchema(
@@ -167,16 +166,16 @@ public sealed class MigrationWorkflowTests
     }
 
     [Fact]
-    public async Task Prepare_PrefersOfflineSourceWithFallback()
+    public async Task Prepare_OfflineSourceIsRequired_WithNoLiveFallback()
     {
-        // Arrange
+        // Arrange — planning requires a store, so the recorded state is always readable; there is nothing to fall back to.
 
         // Act
-        await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
+        await _sut.ComputePlan(SchemaSourceMode.Offline, null, TestContext.Current.CancellationToken);
 
         // Assert
         await _currentProvider.Received(1).GetSchema(
-            SchemaSourceMode.Offline, Arg.Any<string[]?>(), required: false, Arg.Any<CancellationToken>());
+            SchemaSourceMode.Offline, Arg.Any<string[]?>(), required: true, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -193,7 +192,7 @@ public sealed class MigrationWorkflowTests
             .Returns(new DatabaseSchema([new SchemaDefinition("app")]));
 
         // Act
-        await _sut.ComputePlan(SchemaSourceMode.Online, required: true, null, TestContext.Current.CancellationToken);
+        await _sut.ComputePlan(SchemaSourceMode.Online, null, TestContext.Current.CancellationToken);
 
         // Assert — verbose census is transient narration, emitted as Detail-level progress.
         _progress.Received().Report(OperationProgress.Detail("Desired schema: 1 schema, 2 tables, 1 script."));
@@ -212,7 +211,7 @@ public sealed class MigrationWorkflowTests
                 [Diagnostic.Warning("data-hazards", "hazard")]));
 
         // Act
-        var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
+        var result = await _sut.ComputePlan(SchemaSourceMode.Offline, null, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -230,7 +229,7 @@ public sealed class MigrationWorkflowTests
             .Returns(Result.Failure<MigrationPlan>([Diagnostic.Error("P1", "blocked")]));
 
         // Act
-        var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
+        var result = await _sut.ComputePlan(SchemaSourceMode.Offline, null, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -260,7 +259,7 @@ public sealed class MigrationWorkflowTests
             new ScriptExecution("seed", "abc", DateTimeOffset.UnixEpoch));
 
         // Act
-        await sut.ComputePlan(SchemaSourceMode.Online, required: true, null, TestContext.Current.CancellationToken);
+        await sut.ComputePlan(SchemaSourceMode.Online, null, TestContext.Current.CancellationToken);
 
         // Assert
         _planner.Received(1).Plan(
@@ -278,7 +277,7 @@ public sealed class MigrationWorkflowTests
         var sut = BuildSut(store);
 
         // Act
-        var result = await sut.ComputePlan(SchemaSourceMode.Online, required: true, null, TestContext.Current.CancellationToken);
+        var result = await sut.ComputePlan(SchemaSourceMode.Online, null, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -294,7 +293,7 @@ public sealed class MigrationWorkflowTests
         var sut = BuildSut(store: null);
 
         // Act
-        var result = await sut.ComputePlan(SchemaSourceMode.Online, required: true, null, TestContext.Current.CancellationToken);
+        var result = await sut.ComputePlan(SchemaSourceMode.Online, null, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -425,7 +424,7 @@ public sealed class MigrationWorkflowTests
             .Returns(Result.Failure<MigrationPlan>(errors));
 
         // Act — the failure is carried in the result, not thrown; the caller decides how to surface it.
-        var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
+        var result = await _sut.ComputePlan(SchemaSourceMode.Offline, null, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -443,7 +442,7 @@ public sealed class MigrationWorkflowTests
             .Returns(Result.From(new MigrationPlan(diff, []), errors));
 
         // Act
-        var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
+        var result = await _sut.ComputePlan(SchemaSourceMode.Offline, null, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -460,7 +459,7 @@ public sealed class MigrationWorkflowTests
             .Returns(Result.From(plan, diagnostics));
 
         // Act
-        var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
+        var result = await _sut.ComputePlan(SchemaSourceMode.Offline, null, TestContext.Current.CancellationToken);
 
         // Assert — advisories ride in the result, rendered by the caller, not reported here.
         result.Diagnostics.ShouldBe(diagnostics);
@@ -480,7 +479,7 @@ public sealed class MigrationWorkflowTests
             .Returns(call => { capturedScope = call.ArgAt<string[]?>(1); return new DatabaseSchema([]); });
 
         // Act
-        await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
+        await _sut.ComputePlan(SchemaSourceMode.Offline, null, TestContext.Current.CancellationToken);
 
         // Assert
         capturedScope.ShouldNotBeNull();
@@ -499,7 +498,7 @@ public sealed class MigrationWorkflowTests
             .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(call => { currentScope = call.ArgAt<string[]?>(1); return new DatabaseSchema([]); });
         // Act
-        await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, ["app", "legacy"], TestContext.Current.CancellationToken);
+        await _sut.ComputePlan(SchemaSourceMode.Offline, ["app", "legacy"], TestContext.Current.CancellationToken);
 
         // Assert
         desiredScope.ShouldBe(["app", "legacy"]);
@@ -515,7 +514,7 @@ public sealed class MigrationWorkflowTests
             .Returns(call => { desiredScope = call.Arg<string[]?>(); return ProjectDefinition(new DatabaseSchema([])); });
 
         // Act
-        await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
+        await _sut.ComputePlan(SchemaSourceMode.Offline, null, TestContext.Current.CancellationToken);
 
         // Assert
         desiredScope.ShouldBeNull();

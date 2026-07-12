@@ -13,7 +13,7 @@ namespace NSchema.Current;
 /// <param name="store">The state store, if any.</param>
 internal sealed class CurrentSchemaProvider(
     ISchemaStateSerializer serializer,
-    ISchemaProvider? online = null,
+    ISchemaIntrospector? online = null,
     ISchemaStateStore? store = null
 ) : ICurrentSchemaProvider
 {

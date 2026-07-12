@@ -112,7 +112,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Plan
         services.TryAddSingleton<IPlanLinearizer, PlanLinearizer>();
         services.TryAddSingleton<IMigrationPlanner, MigrationPlanner>();
-        services.TryAddSingleton<IPlanFileWriter, PlanFileWriter>();
+        services.TryAddSingleton<IPlanFileManager, PlanFileManager>();
 
         // Schemas
         services.TryAddSingleton<ICurrentSchemaProvider, CurrentSchemaProvider>();
@@ -124,6 +124,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // State
         services.TryAddSingleton<ISchemaStateSerializer, SchemaStateSerializer>();
         services.TryAddSingleton<ISchemaStateManager, SchemaStateManager>();
-        services.TryAddSingleton<IStateLockCoordinator, StateLockCoordinator>();
+        services.TryAddSingleton<IStateLockManager, StateLockManager>();
     }
 }

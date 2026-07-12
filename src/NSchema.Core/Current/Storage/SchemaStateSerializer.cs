@@ -25,7 +25,7 @@ internal sealed class SchemaStateSerializer : ISchemaStateSerializer
     {
         var envelope = new SchemaStateEnvelope(SchemaStateEnvelope.CurrentVersion, state.Schema)
         {
-            ExecutedScripts = state.Scripts,
+            Scripts = state.Scripts,
         };
         var bytes = JsonSerializer.SerializeToUtf8Bytes(envelope, _options);
         return bytes;
@@ -59,6 +59,6 @@ internal sealed class SchemaStateSerializer : ISchemaStateSerializer
                 $"{SchemaStateEnvelope.CurrentVersion}. Upgrade NSchema to read this state.");
         }
 
-        return new SchemaState(envelope.Schema, envelope.ExecutedScripts);
+        return new SchemaState(envelope.Schema, envelope.Scripts);
     }
 }
