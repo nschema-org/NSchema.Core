@@ -1,5 +1,5 @@
 using NSchema.Schema.Model;
-using NSchema.Sql.Model;
+using NSchema.Schema.Model.Scripts;
 
 namespace NSchema.State.Model;
 
@@ -10,7 +10,7 @@ namespace NSchema.State.Model;
 /// </summary>
 /// <param name="Schema">The captured database schema.</param>
 /// <param name="Scripts">The recorded script executions.</param>
-public sealed record SchemaState(DatabaseSchema Schema, IReadOnlyList<ScriptRecord> Scripts)
+public sealed record SchemaState(DatabaseSchema Schema, IReadOnlyList<ScriptExecution> Scripts)
 {
     /// <summary>
     /// Creates a state carrying only a schema, with an empty execution ledger.
@@ -23,36 +23,35 @@ public sealed record SchemaState(DatabaseSchema Schema, IReadOnlyList<ScriptReco
     public static SchemaState Empty { get; } = new(new DatabaseSchema());
 
     /// <summary>
-    /// Records executions of the given scripts into the ledger, replacing any earlier execution recorded under the same name.
+    /// Records the given executions into the ledger, replacing any earlier execution recorded under the same name.
     /// </summary>
-    /// <param name="scripts">The scripts that were executed.</param>
-    /// <param name="executedUtc">When the executions are recorded.</param>
-    public SchemaState RecordScripts(IReadOnlyList<ScriptHash> scripts, DateTimeOffset executedUtc)
+    /// <param name="executions">The executions to record.</param>
+    public SchemaState RecordExecution(IReadOnlyList<ScriptExecution> executions)
     {
-        if (scripts.Count == 0)
+        if (executions.Count == 0)
         {
             return this;
         }
 
-        var executions = Scripts
-            .Where(e => !scripts.Any(s => string.Equals(s.Name, e.Name, StringComparison.OrdinalIgnoreCase)))
-            .Concat(scripts.Select(s => new ScriptRecord(s.Name, s.Hash, executedUtc)))
+        var merged = Scripts
+            .Where(e => !executions.Any(s => string.Equals(s.Name, e.Name, StringComparison.OrdinalIgnoreCase)))
+            .Concat(executions)
             .ToList();
-        return this with { Scripts = executions };
+        return this with { Scripts = merged };
     }
 
     /// <summary>
     /// Finds the recorded execution for the given script name, or <see langword="null"/> when none is recorded.
     /// </summary>
     /// <param name="name">The script's declared name.</param>
-    public ScriptRecord? FindScript(string name) =>
+    public ScriptExecution? FindExecution(string name) =>
         Scripts.FirstOrDefault(e => string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Removes the recorded execution for the given script name, so a later plan runs the script again.
     /// </summary>
     /// <param name="name">The script's declared name.</param>
-    public SchemaState RemoveScript(string name)
+    public SchemaState RemoveExecution(string name)
     {
         var executions = Scripts
             .Where(e => !string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase))

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using NSchema.Diff.Model;
 using NSchema.Operations.Plan;
+using NSchema.Operations.Refresh;
 using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
@@ -32,6 +33,8 @@ public sealed class PlanEndToEndTests : IDisposable
     {
         var builder = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions());
         builder.Services.AddSingleton<ISchemaProvider>(new InMemorySchemaProvider(current));
+        // Planning requires a state store; these tests diff against the live provider, so an empty in-memory one suffices.
+        builder.UseEphemeralState();
         return builder;
     }
 
@@ -56,11 +59,11 @@ public sealed class PlanEndToEndTests : IDisposable
             );
             """);
 
-        using var app = NewBuilder(current).AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).Build();
+        using var app = NewBuilder(current).AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).UseSqlDialect<StubSqlDialect>().Build();
 
-        var result = await app.Operations.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
+        var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
 
-        var schema = result.Value.ShouldNotBeNull().Diff.ShouldNotBeNull().Schemas.ShouldHaveSingleItem();
+        var schema = result.Value.ShouldNotBeNull().Plan.ShouldNotBeNull().Diff.Schemas.ShouldHaveSingleItem();
         schema.Name.ShouldBe("app");
 
         var users = schema.Tables.Single(t => t.Name == "users");
@@ -87,32 +90,32 @@ public sealed class PlanEndToEndTests : IDisposable
             );
             """);
 
-        using var app = NewBuilder(schema).AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).Build();
+        using var app = NewBuilder(schema).AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).UseSqlDialect<StubSqlDialect>().Build();
 
-        var result = await app.Operations.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
+        var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
 
-        result.Value.ShouldNotBeNull().Diff.ShouldNotBeNull().IsEmpty.ShouldBeTrue();
+        result.Value.ShouldNotBeNull().Plan.ShouldNotBeNull().Diff.IsEmpty.ShouldBeTrue();
     }
 
     [Fact]
-    public async Task Plan_WithGeneratorRegistered_ReportsSqlPreview()
+    public async Task Plan_WithDialectRegistered_ProducesSql()
     {
         var current = new DatabaseSchema([]);
         var desired = WriteDdl("schema.sql", "CREATE SCHEMA app;");
 
         using var app = NewBuilder(current)
             .AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired))
-            .UseSqlGenerator<StubSqlGenerator>()
+            .UseSqlDialect<StubSqlDialect>()
             .Build();
 
-        var result = await app.Operations.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
+        var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
 
         // The stub emits one statement per action; creating a schema yields a CreateSchema action.
-        result.Value.ShouldNotBeNull().Sql.ShouldNotBeNull().Statements.ShouldNotBeEmpty();
+        result.Value.ShouldNotBeNull().Plan.ShouldNotBeNull().Statements.ShouldNotBeEmpty();
     }
 
     [Fact]
-    public async Task Plan_WithoutGenerator_ReportsNoSqlPreview()
+    public async Task Plan_WithoutProvider_Fails()
     {
         var current = new DatabaseSchema([]);
         var desired = WriteDdl("schema.sql", "CREATE SCHEMA app;");
@@ -121,15 +124,17 @@ public sealed class PlanEndToEndTests : IDisposable
 
         var result = await app.Operations.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
-        // No provider: no SQL preview is generated, and the notice is carried back as a warning diagnostic.
-        result.Value.ShouldNotBeNull().Sql.ShouldBeNull();
-        result.Diagnostics.ShouldContain(d => d.Message.Contains("Unable to generate SQL preview"));
+        // A dialect is required for planning — there is no SQL-less plan.
+        result.IsFailure.ShouldBeTrue();
+        result.Errors.ShouldContain(d => d.Message.Contains("Planning requires a database provider"));
     }
 
     [Fact]
     public async Task Plan_Teardown_DiffsTheManagedSchemaDownToNothing()
     {
-        // With no state store the managed schema is the desired *.sql; a teardown drops all of it.
+        // The managed schema is the recorded state, so the refresh records the live schema before tearing down.
+        var current = new DatabaseSchema([new SchemaDefinition("app", Tables:
+            [new Table("users", Columns: [new Column("id", SqlType.Int)])])]);
         var desired = WriteDdl("schema.sql",
             """
             CREATE SCHEMA app;
@@ -139,12 +144,13 @@ public sealed class PlanEndToEndTests : IDisposable
             );
             """);
 
-        using var app = NewBuilder(new DatabaseSchema([])).AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).Build();
+        using var app = NewBuilder(current).AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).UseSqlDialect<StubSqlDialect>().Build();
+        (await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
 
         var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Teardown }, TestContext.Current.CancellationToken);
 
         // The teardown plan drops the managed table.
-        var schema = result.Value.ShouldNotBeNull().Diff.ShouldNotBeNull().Schemas.ShouldHaveSingleItem();
+        var schema = result.Value.ShouldNotBeNull().Plan.ShouldNotBeNull().Diff.Schemas.ShouldHaveSingleItem();
         schema.Tables.ShouldContain(t => t.Name == "users" && t.Kind == ChangeKind.Remove);
     }
 }

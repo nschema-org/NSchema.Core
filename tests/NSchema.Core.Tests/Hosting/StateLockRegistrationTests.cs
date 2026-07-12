@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NSchema.State;
+using NSchema.State.Ephemeral;
 using NSchema.State.File;
 using NSchema.State.Model;
 
@@ -31,6 +32,15 @@ public sealed class StateLockRegistrationTests
 
         services.GetRequiredService<IStateLock>().ShouldBeOfType<FileStateLock>();
         services.GetRequiredService<IOptions<FileStateLockOptions>>().Value.Path.ShouldBe("state/schema.json.lock");
+    }
+
+    [Fact]
+    public void EphemeralState_RegistersOneInMemoryInstanceForBothSeams()
+    {
+        var services = Build(b => b.UseEphemeralState());
+
+        var store = services.GetRequiredService<ISchemaStateStore>().ShouldBeOfType<EphemeralStateStore>();
+        services.GetRequiredService<IStateLock>().ShouldBeSameAs(store);
     }
 
     [Fact]

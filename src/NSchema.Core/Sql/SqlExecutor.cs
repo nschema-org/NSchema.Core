@@ -13,9 +13,9 @@ namespace NSchema.Sql;
 internal sealed class SqlExecutor(IOptions<SqlOptions> options, DbDataSource? dataSource = null) : ISqlExecutor
 {
     /// <inheritdoc/>
-    public async Task Execute(SqlPlan plan, CancellationToken cancellationToken = default)
+    public async Task Execute(IReadOnlyList<SqlStatement> statements, CancellationToken cancellationToken = default)
     {
-        if (plan.IsEmpty)
+        if (statements.Count == 0)
         {
             return;
         }
@@ -29,7 +29,7 @@ internal sealed class SqlExecutor(IOptions<SqlOptions> options, DbDataSource? da
 
         if (options.Value.TransactionMode == TransactionMode.None)
         {
-            foreach (var statement in plan.Statements)
+            foreach (var statement in statements)
             {
                 await ExecuteOn(conn, transaction: null, statement.Sql, cancellationToken);
             }
@@ -39,7 +39,7 @@ internal sealed class SqlExecutor(IOptions<SqlOptions> options, DbDataSource? da
         DbTransaction? tx = null;
         try
         {
-            foreach (var statement in plan.Statements)
+            foreach (var statement in statements)
             {
                 if (statement.RunOutsideTransaction)
                 {

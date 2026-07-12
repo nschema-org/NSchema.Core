@@ -1,20 +1,9 @@
 using System.Text;
 using NSchema.Diff.Model;
 using NSchema.Plan.Model;
-using NSchema.Plan.Model.Columns;
-using NSchema.Plan.Model.Enums;
-using NSchema.Plan.Model.Migrations;
-using NSchema.Plan.Model.Routines;
-using NSchema.Plan.Model.Schemas;
-using NSchema.Plan.Model.Sequence;
-using NSchema.Plan.Model.Tables;
 using NSchema.Plan.PlanFile;
 using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Enums;
-using NSchema.Schema.Model.Migrations;
-using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Scripts;
-using NSchema.Schema.Model.Sequences;
 using NSchema.Sql.Model;
 using NSchema.Tests.Helpers;
 
@@ -28,46 +17,25 @@ public sealed class PlanFileWriterTests
 
     private static PlanFileEnvelope SampleEnvelope()
     {
-        // A plan mixing several action types (including one carrying a full Table definition) so the round-trip
-        // exercises the polymorphic MigrationAction hierarchy and the nested schema model together.
-        var table = TestData.RichSchema().Schemas[0].Tables[0];
-
+        // A plan carrying a rich diff (including a full Table definition), both script event kinds, and
+        // statements with execution metadata, so the round-trip exercises the whole artifact.
         var plan = new MigrationPlan(
+            TestData.DestructiveDiff with
+            {
+                Scripts =
+                [
+                    new Script("seed", "INSERT INTO app.config VALUES (1)", new DeploymentEvent(DeploymentPhase.Pre)),
+                    new Script("backfill", "UPDATE app.users SET email = ''", new ChangeEvent(ChangeTrigger.AddColumn, "app", "users", "email")) { RunCondition = RunCondition.Once },
+                    new Script("reindex", "REINDEX TABLE app.users", new DeploymentEvent(DeploymentPhase.Post)) { RunOutsideTransaction = true },
+                ],
+            },
             [
-                new CreateSchema("app"),
-                new CreateEnum("app", new EnumType("status", ["pending", "shipped"])),
-                new RenameEnum("app", "importance", "priority"),
-                new AddEnumValue("app", "priority", "medium", After: "low"),
-                new SetEnumComment("app", "priority", null, "ranking"),
-                new CreateSequence("app", new Sequence("order_id", new SequenceOptions(StartWith: 100, IncrementBy: 5, Cycle: true))),
-                new RenameSequence("app", "bill_id", "invoice_id"),
-                new AlterSequence("app", "order_id", new SequenceOptions(StartWith: 100), new SequenceOptions(StartWith: 1000)),
-                new SetSequenceComment("app", "order_id", null, "order numbers"),
-                new CreateRoutine("app", new Routine("add_tax", RoutineKind.Function, "amount numeric", "RETURNS numeric AS $$ SELECT amount; $$")),
-                new RecreateRoutine("app", new Routine("score", RoutineKind.Function, "a int, b int", "RETURNS int AS $$ SELECT a + b; $$", Comment: "scoring")),
-                new RenameRoutine("app", "old_fn", "new_fn", RoutineKind.Function),
-                new SetRoutineComment("app", "add_tax", null, "adds tax", RoutineKind.Function),
-                new CreateRoutine("app", new Routine("archive", RoutineKind.Procedure, "before date", "LANGUAGE sql AS $$ DELETE; $$")),
-                new RecreateRoutine("app", new Routine("cleanup", RoutineKind.Procedure, "", "LANGUAGE sql AS $$ TRUNCATE; $$")),
-                new RenameRoutine("app", "old_proc", "new_proc", RoutineKind.Procedure),
-                new SetRoutineComment("app", "archive", null, "archival", RoutineKind.Procedure),
-                new CreateTable("app", table),
-                new AddColumn("app", "users", table.Columns[1]),
-                new DropTable("app", "legacy"),
-                new DropEnum("app", "stale_enum"),
-                new DropSequence("app", "stale_seq"),
-                new DropRoutine("app", "stale_fn", RoutineKind.Function),
-                new DropRoutine("app", "stale_proc", RoutineKind.Procedure),
-            ],
-            [new Script("seed", "INSERT INTO app.config VALUES (1)", ScriptType.PreDeployment)],
-            [new Script("reindex", "REINDEX TABLE app.users", ScriptType.PostDeployment) { RunOutsideTransaction = true }]);
+                new SqlStatement("INSERT INTO app.config VALUES (1)"),
+                new SqlStatement("CREATE INDEX CONCURRENTLY ...", RunOutsideTransaction: true),
+                new SqlStatement("REINDEX TABLE app.users", RunOutsideTransaction: true),
+            ]);
 
-        var sql = new SqlPlan([
-            new SqlStatement("CREATE SCHEMA app"),
-            new SqlStatement("CREATE INDEX CONCURRENTLY ...", RunOutsideTransaction: true),
-        ]);
-
-        return new PlanFileEnvelope(TestData.DestructiveDiff, plan, sql, DateTimeOffset.UnixEpoch);
+        return new PlanFileEnvelope(plan, DateTimeOffset.UnixEpoch);
     }
 
     [Fact]
@@ -78,7 +46,7 @@ public sealed class PlanFileWriterTests
         var json = Json(original);
         var roundTripped = _sut.Deserialize(_sut.Serialize(original));
 
-        // A read + write cycle reproduces the exact same document, including the polymorphic actions and the diff.
+        // A read + write cycle reproduces the exact same document, including the polymorphic script events and the diff.
         Json(roundTripped).ShouldBe(json);
     }
 
@@ -93,31 +61,23 @@ public sealed class PlanFileWriterTests
     }
 
     [Fact]
-    public void Deserialize_RestoresConcreteActionTypesInOrder()
+    public void Deserialize_RestoresConcreteScriptEventsInOrder()
     {
         var roundTripped = _sut.Deserialize(_sut.Serialize(SampleEnvelope()));
 
-        // The discriminator must reconstruct each concrete record, not the abstract base, and keep order.
-        roundTripped.Plan.Actions.Select(a => a.GetType()).ShouldBe(
-            [
-                typeof(CreateSchema),
-                typeof(CreateEnum), typeof(RenameEnum), typeof(AddEnumValue), typeof(SetEnumComment),
-                typeof(CreateSequence), typeof(RenameSequence), typeof(AlterSequence), typeof(SetSequenceComment),
-                typeof(CreateRoutine), typeof(RecreateRoutine), typeof(RenameRoutine), typeof(SetRoutineComment),
-                typeof(CreateRoutine), typeof(RecreateRoutine), typeof(RenameRoutine), typeof(SetRoutineComment),
-                typeof(CreateTable), typeof(AddColumn), typeof(DropTable),
-                typeof(DropEnum), typeof(DropSequence), typeof(DropRoutine), typeof(DropRoutine),
-            ]);
+        // The discriminator must reconstruct each concrete event record, not the abstract base, and keep order.
+        roundTripped.Plan.Diff.Scripts.Select(s => s.Event.GetType()).ShouldBe(
+            [typeof(DeploymentEvent), typeof(ChangeEvent), typeof(DeploymentEvent)]);
+        roundTripped.Plan.Diff.Scripts.ShouldBe(SampleEnvelope().Plan.Diff.Scripts);
     }
 
     [Fact]
-    public void Deserialize_RestoresSqlAndScriptDetail()
+    public void Deserialize_RestoresStatementDetail()
     {
         var roundTripped = _sut.Deserialize(_sut.Serialize(SampleEnvelope()));
 
-        roundTripped.Sql.Statements[1].RunOutsideTransaction.ShouldBeTrue();
-        roundTripped.Plan.PostDeploymentScripts[0].RunOutsideTransaction.ShouldBeTrue();
-        roundTripped.Plan.PreDeploymentScripts[0].Type.ShouldBe(ScriptType.PreDeployment);
+        roundTripped.Plan.Statements.ShouldBe(SampleEnvelope().Plan.Statements);
+        roundTripped.Plan.Statements[1].RunOutsideTransaction.ShouldBeTrue();
     }
 
     [Fact]
@@ -138,17 +98,12 @@ public sealed class PlanFileWriterTests
     }
 
     [Fact]
-    public void Serialize_ThenDeserialize_RoundTripsDataMigrationActionAndDiffAnnotation()
+    public void Serialize_ThenDeserialize_RoundTripsDiffAnnotations()
     {
-        // Arrange — a plan carrying an ExecuteDataMigration and a diff whose column add is annotated with the
-        // matched migration, so both polymorphic-action and diff-node persistence are exercised.
-        var migration = new DataMigration("backfill emails", DataMigrationTrigger.AddColumn,
-            "app", "users", "email", "UPDATE app.users SET email = ''")
-        {
-            RunOutsideTransaction = true,
-        };
-        var action = new ExecuteDataMigration("backfill emails", DataMigrationTrigger.AddColumn,
-            "app", "users", "email", "UPDATE app.users SET email = ''")
+        // Arrange — a diff whose column add is annotated with its matched script, so diff-node persistence and
+        // the script-event discriminator inside the diff are both exercised.
+        var migration = new Script("backfill emails", "UPDATE app.users SET email = ''",
+            new ChangeEvent(ChangeTrigger.AddColumn, "app", "users", "email"))
         {
             RunOutsideTransaction = true,
         };
@@ -158,22 +113,20 @@ public sealed class PlanFileWriterTests
             [
                 new TableDiff("app", "users", ChangeKind.Modify, Columns:
                 [
-                    new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text)) { Migration = migration },
+                    new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text)) { MigrationScript = migration.Name },
                 ]),
             ]),
         ]);
         var envelope = new PlanFileEnvelope(
-            diff,
-            new MigrationPlan([action], [], []),
-            new SqlPlan([new SqlStatement("UPDATE app.users SET email = ''", RunOutsideTransaction: true)]),
+            new MigrationPlan(diff with { Scripts = [migration] }, [new SqlStatement("UPDATE app.users SET email = ''", RunOutsideTransaction: true)]),
             DateTimeOffset.UnixEpoch);
 
         // Act
         var roundTripped = _sut.Deserialize(_sut.Serialize(envelope));
 
         // Assert — record equality covers every field, including the init-only RunOutsideTransaction.
-        roundTripped.Plan.Actions.ShouldHaveSingleItem().ShouldBe(action);
-        roundTripped.Diff.Schemas[0].Tables[0].Columns[0].Migration.ShouldBe(migration);
+        roundTripped.Plan.Diff.Schemas[0].Tables[0].Columns[0].MigrationScript.ShouldBe(migration.Name);
+        roundTripped.Plan.Diff.Scripts.ShouldHaveSingleItem().ShouldBe(migration);
     }
 
     [Fact]

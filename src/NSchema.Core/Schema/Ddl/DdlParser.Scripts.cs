@@ -1,5 +1,4 @@
 using NSchema.Schema.Ddl.Model;
-using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Scripts;
 
 namespace NSchema.Schema.Ddl;
@@ -9,7 +8,7 @@ internal sealed partial class DdlParser
     /// <summary>
     /// Parses a SCRIPT statement.
     /// </summary>
-    private void ParseScript(List<Script> scripts, List<DataMigration> migrations)
+    private void ParseScript(List<Script> scripts)
     {
         Advance(); // SCRIPT
         var name = Expect(TokenKind.String, "a quoted script name").Text;
@@ -32,48 +31,83 @@ internal sealed partial class DdlParser
 
         ExpectKeyword("ON");
 
+        ScriptEvent scriptEvent;
         if (_current.IsKeyword("PRE") || _current.IsKeyword("POST"))
         {
-            var type = _current.IsKeyword("PRE") ? ScriptType.PreDeployment : ScriptType.PostDeployment;
+            var phase = _current.IsKeyword("PRE") ? DeploymentPhase.Pre : DeploymentPhase.Post;
             Advance(); // PRE | POST
             ExpectKeyword("DEPLOYMENT");
-            var (runOutsideTransaction, body) = ParseScriptTail("script");
-            scripts.Add(new Script(name, body, type) { RunOutsideTransaction = runOutsideTransaction, RunCondition = condition });
-            return;
+            scriptEvent = new DeploymentEvent(phase);
         }
-
-        if (!_current.IsKeyword("ADD") && !_current.IsKeyword("ALTER"))
+        else if (_current.IsKeyword("ADD") || _current.IsKeyword("ALTER"))
+        {
+            var trigger = ParseChangeTrigger();
+            var (schema, table, member) = ParseMemberPath();
+            scriptEvent = new ChangeEvent(trigger, schema, table, member);
+        }
+        else
         {
             throw Error("Expected a script event: 'PRE DEPLOYMENT', 'POST DEPLOYMENT', 'ADD COLUMN', 'ALTER COLUMN TYPE' or 'ADD CONSTRAINT'.");
         }
 
-        var trigger = ParseMigrationTrigger();
-        var (schema, table, member) = ParseMemberPath();
-        var (outside, sql) = ParseScriptTail("script");
-        migrations.Add(new DataMigration(name, trigger, schema, table, member, sql)
+        var (runOutsideTransaction, body) = ParseScriptTail("script");
+        scripts.Add(new Script(name, body, scriptEvent) { RunOutsideTransaction = runOutsideTransaction, RunCondition = condition });
+    }
+
+    private ChangeTrigger ParseChangeTrigger()
+    {
+        if (_current.IsKeyword("ADD"))
         {
-            RunOutsideTransaction = outside,
-            RunCondition = condition,
-        });
+            Advance(); // ADD
+            if (_current.IsKeyword("COLUMN"))
+            {
+                Advance();
+                return ChangeTrigger.AddColumn;
+            }
+            if (_current.IsKeyword("CONSTRAINT"))
+            {
+                Advance();
+                return ChangeTrigger.AddConstraint;
+            }
+        }
+        else if (_current.IsKeyword("ALTER"))
+        {
+            Advance(); // ALTER
+            ExpectKeyword("COLUMN");
+            ExpectKeyword("TYPE");
+            return ChangeTrigger.AlterColumnType;
+        }
+
+        throw Error("Expected 'ADD COLUMN', 'ALTER COLUMN TYPE' or 'ADD CONSTRAINT'.");
     }
 
     /// <summary>
-    /// Parses a deployment-script statement in the deprecated pre-SCRIPT form:
-    /// <c>PRE|POST DEPLOYMENT '&lt;name&gt;' [( option = value, … )] AS $$ … $$;</c>.
+    /// Parses the migration target path: <c>schema.table.member</c> at the top level (the member is a column or
+    /// constraint name depending on the trigger), or the unqualified <c>table.member</c> inside a template body,
+    /// where the schema binds to each schema the template is applied to.
     /// </summary>
-    private Script ParseDeploymentScript(ScriptType type)
+    private (string Schema, string Table, string Member) ParseMemberPath()
     {
-        var start = _current.Position;
-        var keyword = type == ScriptType.PreDeployment ? "PRE" : "POST";
-        Advance(); // PRE | POST
-        ExpectKeyword("DEPLOYMENT");
-        var name = Expect(TokenKind.String, "a quoted script name").Text;
-        var (runOutsideTransaction, body) = ParseScriptTail("deployment script");
+        var first = ExpectIdentifier(_templateSchemaContext is null ? "a schema name" : "a table name");
+        Expect(TokenKind.Dot, "'.' in the migration target path");
+        var second = ExpectIdentifier(_templateSchemaContext is null ? "a table name" : "a column or constraint name");
 
-        Warn($"'{keyword} DEPLOYMENT' is deprecated and will be removed in NSchema 5.0; " +
-             $"declare the script as SCRIPT '{name}' RUN ON {keyword} DEPLOYMENT … instead", start);
+        if (!Match(TokenKind.Dot))
+        {
+            if (_templateSchemaContext is { } templateSchema)
+            {
+                return (templateSchema, first, second);
+            }
+            throw Error("Expected '.' in the migration target path (schema.table.member).");
+        }
 
-        return new Script(name, body, type) { RunOutsideTransaction = runOutsideTransaction };
+        if (_templateSchemaContext is not null)
+        {
+            throw Error("A migration inside a template must use an unqualified 'table.member' path; " +
+                        "the schema binds to each schema the template is applied to.");
+        }
+        var member = ExpectIdentifier("a column or constraint name");
+        return (first, second, member);
     }
 
     /// <summary>

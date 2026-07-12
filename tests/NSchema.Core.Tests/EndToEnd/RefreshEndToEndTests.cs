@@ -44,7 +44,7 @@ public sealed class RefreshEndToEndTests : IDisposable
         using var app = NSchemaApplication.CreateBuilder()
             .UseStateStore(store)
             .Tap(b => b.Services.AddSingleton<ISchemaProvider>(new InMemorySchemaProvider(LiveSchema())))
-            .Build();
+            .UseSqlDialect<StubSqlDialect>().Build();
 
         await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken);
 
@@ -76,10 +76,10 @@ public sealed class RefreshEndToEndTests : IDisposable
         using var planner = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions())
             .UseFileStateStore(_statePath)
             .AddDdlSchemas(Path.GetDirectoryName(desired)!, Path.GetFileName(desired))
-            .Build();
+            .UseSqlDialect<StubSqlDialect>().Build();
 
         var result = await planner.Operations.Plan(new PlanArguments(), TestContext.Current.CancellationToken);
 
-        result.Value.ShouldNotBeNull().Diff.ShouldNotBeNull().IsEmpty.ShouldBeTrue();
+        result.Value.ShouldNotBeNull().Plan.ShouldNotBeNull().Diff.IsEmpty.ShouldBeTrue();
     }
 }

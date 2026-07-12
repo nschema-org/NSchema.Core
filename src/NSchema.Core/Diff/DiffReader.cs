@@ -1,7 +1,7 @@
 using NSchema.Diff.Model;
 using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Routines;
+using NSchema.Schema.Model.Scripts;
 using NSchema.Schema.Model.Sequences;
 using NSchema.Schema.Model.Tables;
 
@@ -77,8 +77,30 @@ public sealed class DiffReader
             }
         }
 
+        RenderScripts(lines, diff.Scripts);
+
         return new DiffDocument(lines, diff.GetSummary());
     }
+
+    private static void RenderScripts(List<DiffLine> lines, IReadOnlyList<Script> scripts)
+    {
+        if (scripts.Count == 0)
+        {
+            return;
+        }
+
+        if (lines.Count > 0)
+        {
+            lines.Add(DiffLine.Blank);
+        }
+
+        foreach (var script in scripts)
+        {
+            AppendHeader(lines, ChangeKind.Add, $"script '{script.Name}' ({EventText(script.Event)})");
+        }
+    }
+
+    private static string EventText(ScriptEvent scriptEvent) => $"on {scriptEvent.Description.ToLowerInvariant()}";
 
     private void RenderSchema(List<DiffLine> lines, SchemaDiff schema, ChangeKind kind)
     {
@@ -116,27 +138,27 @@ public sealed class DiffReader
 
         foreach (var pk in table.PrimaryKey)
         {
-            AppendDetail(lines, pk.Kind, ConstraintText("primary key", pk.Name, pk.Kind, pk.Comment) + MigrationSuffix(pk.Migration));
+            AppendDetail(lines, pk.Kind, ConstraintText("primary key", pk.Name, pk.Kind, pk.Comment) + MigrationSuffix(pk.MigrationScript));
         }
 
         foreach (var fk in table.ForeignKeys)
         {
-            AppendDetail(lines, fk.Kind, ConstraintText("foreign key", fk.Name, fk.Kind, fk.Comment) + MigrationSuffix(fk.Migration));
+            AppendDetail(lines, fk.Kind, ConstraintText("foreign key", fk.Name, fk.Kind, fk.Comment) + MigrationSuffix(fk.MigrationScript));
         }
 
         foreach (var unique in table.UniqueConstraints)
         {
-            AppendDetail(lines, unique.Kind, ConstraintText("unique constraint", unique.Name, unique.Kind, unique.Comment) + MigrationSuffix(unique.Migration));
+            AppendDetail(lines, unique.Kind, ConstraintText("unique constraint", unique.Name, unique.Kind, unique.Comment) + MigrationSuffix(unique.MigrationScript));
         }
 
         foreach (var check in table.Checks)
         {
-            AppendDetail(lines, check.Kind, ConstraintText("check constraint", check.Name, check.Kind, check.Comment) + MigrationSuffix(check.Migration));
+            AppendDetail(lines, check.Kind, ConstraintText("check constraint", check.Name, check.Kind, check.Comment) + MigrationSuffix(check.MigrationScript));
         }
 
         foreach (var exclusion in table.ExclusionConstraints)
         {
-            AppendDetail(lines, exclusion.Kind, ConstraintText("exclusion constraint", exclusion.Name, exclusion.Kind, exclusion.Comment) + MigrationSuffix(exclusion.Migration));
+            AppendDetail(lines, exclusion.Kind, ConstraintText("exclusion constraint", exclusion.Name, exclusion.Kind, exclusion.Comment) + MigrationSuffix(exclusion.MigrationScript));
         }
 
         foreach (var index in table.Indexes)
@@ -367,7 +389,7 @@ public sealed class DiffReader
     {
         if (column is { Kind: ChangeKind.Add, Definition: { } added })
         {
-            AppendDetail(lines, ChangeKind.Add, FormatColumn(added) + CommentSuffix(column.Comment) + MigrationSuffix(column.Migration));
+            AppendDetail(lines, ChangeKind.Add, FormatColumn(added) + CommentSuffix(column.Comment) + MigrationSuffix(column.MigrationScript));
             return;
         }
 
@@ -384,7 +406,7 @@ public sealed class DiffReader
 
         if (column.Type is { } type)
         {
-            AppendDetail(lines, ChangeKind.Modify, $"{column.Name} type: {type.Old} → {type.New}{MigrationSuffix(column.Migration)}");
+            AppendDetail(lines, ChangeKind.Modify, $"{column.Name} type: {type.Old} → {type.New}{MigrationSuffix(column.MigrationScript)}");
         }
 
         if (column.Nullability is { } nullable)
@@ -445,8 +467,8 @@ public sealed class DiffReader
             ? $" ({FormatComment(comment.New)})"
             : $" ({FormatComment(comment.Old)} → {FormatComment(comment.New)})";
 
-    private static string MigrationSuffix(DataMigration? migration) =>
-        migration is null ? string.Empty : $" (with migration '{migration.Description}')";
+    private static string MigrationSuffix(string? migrationName) =>
+        migrationName is null ? string.Empty : $" (with migration '{migrationName}')";
 
     // Decompose the privilege flags into the underlying SQL privileges rather than rendering the enum name,
     // which would surface aliases (e.g. ReadOnly for Select) and composites (All) instead of the real grants.

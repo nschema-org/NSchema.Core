@@ -1,10 +1,10 @@
 using NSchema.Diagnostics;
+using NSchema.Diff;
 using NSchema.Diff.Model;
 using NSchema.Operations.Progress;
 using NSchema.Operations.Services;
 using NSchema.Plan;
 using NSchema.Plan.Model;
-using NSchema.Plan.Model.Schemas;
 using NSchema.Policies;
 using NSchema.Schema;
 using NSchema.Schema.Model;
@@ -13,6 +13,7 @@ using NSchema.Schema.Model.Scripts;
 using NSchema.Schema.Model.Tables;
 using NSchema.Sql.Model;
 using NSchema.State;
+using NSchema.State.Ephemeral;
 using NSchema.State.Model;
 using NSchema.State.Storage;
 
@@ -23,13 +24,23 @@ public sealed class MigrationWorkflowTests
     private readonly IMigrationPlanner _planner = Substitute.For<IMigrationPlanner>();
     private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
     private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
-    private readonly IDesiredSchemaProvider _desiredProvider = Substitute.For<IDesiredSchemaProvider>();
+    private readonly IProjectProvider _desiredProvider = Substitute.For<IProjectProvider>();
     private readonly ISchemaStateSerializer _stateSerializer = new SchemaStateSerializer();
 
-    private MigrationWorkflow BuildSut(ISchemaStateStore? store = null) =>
+    private MigrationWorkflow BuildSut(ISchemaStateStore? store) =>
         new(_planner, _progress, _currentProvider, _desiredProvider, new SchemaStateManager(_stateSerializer, store));
 
-    private static DesiredProjectResult Project(DatabaseSchema schema) => new(new DesiredProject(schema, [], []), [], []);
+    /// <summary>Planning requires a store, so the default fixture carries an empty in-memory one.</summary>
+    private MigrationWorkflow BuildSut() => BuildSut(new EphemeralStateStore());
+
+    private static Result<Project> Project(DatabaseSchema schema) => Result.Success(new Project(schema, []));
+
+    private static MigrationPlan EmptyPlan() => new(new DatabaseDiff([]), []);
+
+    /// <summary>An applied plan carrying one run-once script, so the capture has an execution to record.</summary>
+    private static MigrationPlan AppliedPlan(string name, string sql) => new(
+        new DatabaseDiff([]) { Scripts = [new Script(name, sql, new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = RunCondition.Once }] },
+        [new SqlStatement(sql)]);
 
     private readonly MigrationWorkflow _sut;
 
@@ -46,12 +57,12 @@ public sealed class MigrationWorkflowTests
         _planner.Validate(Arg.Any<DatabaseSchema>()).Returns(new PolicyDiagnostics());
 
         _planner
-            .Plan(Arg.Any<CurrentState>(), Arg.Any<DesiredProject>())
-            .Returns(Result.Success(new PlannedMigration(new DatabaseDiff([]), new MigrationPlan([], [], []))));
+            .Plan(Arg.Any<CurrentState>(), Arg.Any<Project>())
+            .Returns(Result.Success(EmptyPlan()));
 
         _planner
             .PlanTeardown(Arg.Any<DatabaseSchema>())
-            .Returns(Result.Success(new PlannedMigration(new DatabaseDiff([]), new MigrationPlan([], [], []))));
+            .Returns(Result.Success(EmptyPlan()));
 
         _sut = BuildSut();
     }
@@ -104,7 +115,7 @@ public sealed class MigrationWorkflowTests
     public async Task ValidateDesiredSchema_ProjectDiagnostics_AreCarriedInTheFindings()
     {
         // Arrange — findings raised while reading the DDL (e.g. deprecated syntax) arrive on the read result.
-        var project = new DesiredProjectResult(new DesiredProject(new DatabaseSchema([]), [], []), [],
+        var project = Result.From(new Project(new DatabaseSchema([]), []),
             [Diagnostic.Warning("deprecations", "old form")]);
         _desiredProvider.GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(project);
 
@@ -131,18 +142,16 @@ public sealed class MigrationWorkflowTests
     public async Task ComputePlan_ReturnsComputedPlan_WithoutRendering()
     {
         // Arrange
-        var plan = new MigrationPlan([new CreateSchema("app")], [], []);
-        var diff = new DatabaseDiff([]);
+        var plan = new MigrationPlan(new DatabaseDiff([]), [new SqlStatement("CREATE SCHEMA app")]);
         _planner
-            .Plan(Arg.Any<CurrentState>(), Arg.Any<DesiredProject>())
-            .Returns(Result.Success(new PlannedMigration(diff, plan)));
+            .Plan(Arg.Any<CurrentState>(), Arg.Any<Project>())
+            .Returns(Result.Success(plan));
 
         // Act
         var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
 
         // Assert — the result is returned for the caller to render; the workflow renders nothing itself.
-        result.Value!.Plan.ShouldBe(plan);
-        result.Value!.Diff.ShouldBe(diff);
+        result.Value!.ShouldBe(plan);
     }
 
     [Fact]
@@ -178,9 +187,8 @@ public sealed class MigrationWorkflowTests
         var desired = new DatabaseSchema([new SchemaDefinition("app", Tables:
             [new Table("users"), new Table("orders")])]);
         _desiredProvider.GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(new DesiredProjectResult(
-                new DesiredProject(desired, [new Script("seed", "select 1", ScriptType.PostDeployment)], []),
-                ["/app/users.sql", "/app/orders.sql"], []));
+            .Returns(Result.Success(
+                new Project(desired, [new Script("seed", "select 1", new DeploymentEvent(DeploymentPhase.Post))])));
         _currentProvider
             .GetSchema(SchemaSourceMode.Online, Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(new DatabaseSchema([new SchemaDefinition("app")]));
@@ -188,11 +196,8 @@ public sealed class MigrationWorkflowTests
         // Act
         await _sut.ComputePlan(SchemaSourceMode.Online, required: true, null, TestContext.Current.CancellationToken);
 
-        // Assert — verbose census is transient narration, now emitted as Detail-level progress.
-        _progress.Received().Report(OperationProgress.Detail("Read 2 DDL files:"));
-        _progress.Received().Report(OperationProgress.Detail("/app/users.sql"));
-        _progress.Received().Report(OperationProgress.Detail("/app/orders.sql"));
-        _progress.Received().Report(OperationProgress.Detail("Desired schema: 1 schema, 2 tables, 1 deployment script, 0 data migrations."));
+        // Assert — verbose census is transient narration, emitted as Detail-level progress.
+        _progress.Received().Report(OperationProgress.Detail("Desired schema: 1 schema, 2 tables, 1 script."));
         _progress.Received().Report(OperationProgress.Detail("Current schema (online): 1 schema, 0 tables."));
     }
 
@@ -200,11 +205,11 @@ public sealed class MigrationWorkflowTests
     public async Task ComputePlan_ReadDiagnostics_ArePrependedToThePlannerResult()
     {
         // Arrange — the pure planner never sees read provenance; this shell merges it into the outcome.
-        var project = new DesiredProjectResult(new DesiredProject(new DatabaseSchema([]), [], []), [],
+        var project = Result.From(new Project(new DatabaseSchema([]), []),
             [Diagnostic.Warning("deprecations", "old form")]);
         _desiredProvider.GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(project);
-        _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<DesiredProject>())
-            .Returns(Result.From(new PlannedMigration(new DatabaseDiff([]), new MigrationPlan([], [], [])),
+        _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<Project>())
+            .Returns(Result.From(EmptyPlan(),
                 [Diagnostic.Warning("data-hazards", "hazard")]));
 
         // Act
@@ -219,11 +224,11 @@ public sealed class MigrationWorkflowTests
     public async Task ComputePlan_ReadDiagnostics_AreCarriedOnAPlannerFailureToo()
     {
         // Arrange
-        var project = new DesiredProjectResult(new DesiredProject(new DatabaseSchema([]), [], []), [],
+        var project = Result.From(new Project(new DatabaseSchema([]), []),
             [Diagnostic.Warning("deprecations", "old form")]);
         _desiredProvider.GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(project);
-        _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<DesiredProject>())
-            .Returns(Result.Failure<PlannedMigration>([Diagnostic.Error("P1", "blocked")]));
+        _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<Project>())
+            .Returns(Result.Failure<MigrationPlan>([Diagnostic.Error("P1", "blocked")]));
 
         // Act
         var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
@@ -234,34 +239,34 @@ public sealed class MigrationWorkflowTests
     }
 
     private static Script SeedScript(RunCondition condition = RunCondition.Once) =>
-        new("seed", "SELECT 1", ScriptType.PostDeployment) { RunCondition = condition };
+        new("seed", "SELECT 1", new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = condition };
 
     /// <summary>Builds a workflow whose store records <paramref name="executions"/> and whose DDL declares <paramref name="project"/>.</summary>
-    private MigrationWorkflow SutWithState(DesiredProject project, params ScriptRecord[] executions)
+    private MigrationWorkflow SutWithState(Project project, params ScriptExecution[] executions)
     {
         var store = Substitute.For<ISchemaStateStore>();
         store.Read(Arg.Any<CancellationToken>())
             .Returns(_stateSerializer.Serialize(new SchemaState(new DatabaseSchema([]), executions)));
         _desiredProvider.GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
-            .Returns(new DesiredProjectResult(project, [], []));
+            .Returns(Result.Success(project));
         return BuildSut(store);
     }
 
     [Fact]
     public async Task ComputePlan_TranslatesRecordedExecutionsIntoTheCurrentState()
     {
-        // Arrange — the planner's "what I have" input is the schema plus the recorded executions, translated
-        // to the planning model at this boundary (the planner never sees state records).
-        var sut = SutWithState(new DesiredProject(new DatabaseSchema([]), [SeedScript()], []),
-            new ScriptRecord("seed", "abc", DateTimeOffset.UnixEpoch));
+        // Arrange — the planner's "what I have" input is the schema plus the recorded executions; execution
+        // records are shared script vocabulary, so the ledger passes straight through.
+        var sut = SutWithState(new Project(new DatabaseSchema([]), [SeedScript()]),
+            new ScriptExecution("seed", "abc", DateTimeOffset.UnixEpoch));
 
         // Act
         await sut.ComputePlan(SchemaSourceMode.Online, required: true, null, TestContext.Current.CancellationToken);
 
         // Assert
         _planner.Received(1).Plan(
-            Arg.Is<CurrentState>(c => c.ExecutedScripts.Count == 1 && c.ExecutedScripts[0] == new ScriptHash("seed", "abc")),
-            Arg.Any<DesiredProject>());
+            Arg.Is<CurrentState>(c => c.ExecutedScripts.Count == 1 && c.ExecutedScripts[0] == new ScriptExecution("seed", "abc", DateTimeOffset.UnixEpoch)),
+            Arg.Any<Project>());
     }
 
     [Fact]
@@ -279,24 +284,23 @@ public sealed class MigrationWorkflowTests
         // Assert
         result.IsFailure.ShouldBeTrue();
         result.Errors.ShouldHaveSingleItem().Source.ShouldBe("state");
-        _planner.DidNotReceive().Plan(Arg.Any<CurrentState>(), Arg.Any<DesiredProject>());
+        _planner.DidNotReceive().Plan(Arg.Any<CurrentState>(), Arg.Any<Project>());
     }
 
     [Fact]
-    public async Task ComputePlan_NoStoreWithRunOnceScripts_Warns()
+    public async Task ComputePlan_WithoutStore_Fails()
     {
-        // Arrange — a run-once script but nowhere to record executions.
-        var project = new DesiredProjectResult(new DesiredProject(new DatabaseSchema([]),
-            [new Script("seed", "SELECT 1", ScriptType.PostDeployment) { RunCondition = RunCondition.Once }], []), [], []);
-        _desiredProvider.GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(project);
+        // Arrange — the diff is computed against CurrentState (schema + run-once ledger), so planning without
+        // a store would plan against knowingly incomplete current state.
+        var sut = BuildSut(store: null);
 
         // Act
-        var result = await _sut.ComputePlan(SchemaSourceMode.Online, required: true, null, TestContext.Current.CancellationToken);
+        var result = await sut.ComputePlan(SchemaSourceMode.Online, required: true, null, TestContext.Current.CancellationToken);
 
         // Assert
-        var diagnostic = result.Diagnostics.ShouldHaveSingleItem();
-        diagnostic.Source.ShouldBe("run-once");
-        diagnostic.Message.ShouldContain("require a state store");
+        result.IsFailure.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("Planning requires a state store");
+        _planner.DidNotReceive().Plan(Arg.Any<CurrentState>(), Arg.Any<Project>());
     }
 
     [Fact]
@@ -309,19 +313,19 @@ public sealed class MigrationWorkflowTests
         var sut = BuildSut(store);
 
         // Act
-        await sut.Refresh(new SqlPlan([]) { Scripts = [new ScriptHash("seed", "abc")] }, cancellationToken: TestContext.Current.CancellationToken);
+        await sut.Refresh(AppliedPlan("seed", "SELECT 1"), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         var execution = _stateSerializer.Deserialize(written!.Value).Scripts.ShouldHaveSingleItem();
         execution.Name.ShouldBe("seed");
-        execution.Hash.ShouldBe("abc");
+        execution.Hash.ShouldBe(ScriptHashing.Hash("SELECT 1"));
     }
 
     [Fact]
     public async Task Refresh_PreservesTheExistingLedger()
     {
         // Arrange — the ledger is the one part of state a capture cannot rebuild, so it must carry over.
-        var existing = new ScriptRecord("api-login", "hash", DateTimeOffset.UnixEpoch);
+        var existing = new ScriptExecution("api-login", "hash", DateTimeOffset.UnixEpoch);
         var store = Substitute.For<ISchemaStateStore>();
         store.Read(Arg.Any<CancellationToken>())
             .Returns(_stateSerializer.Serialize(new SchemaState(new DatabaseSchema([]), [existing])));
@@ -340,7 +344,7 @@ public sealed class MigrationWorkflowTests
     public async Task Refresh_ReRecordingAScript_ReplacesItsEntryByName()
     {
         // Arrange
-        var existing = new ScriptRecord("seed", "old-hash", DateTimeOffset.UnixEpoch);
+        var existing = new ScriptExecution("seed", "old-hash", DateTimeOffset.UnixEpoch);
         var store = Substitute.For<ISchemaStateStore>();
         store.Read(Arg.Any<CancellationToken>())
             .Returns(_stateSerializer.Serialize(new SchemaState(new DatabaseSchema([]), [existing])));
@@ -349,10 +353,10 @@ public sealed class MigrationWorkflowTests
         var sut = BuildSut(store);
 
         // Act
-        await sut.Refresh(new SqlPlan([]) { Scripts = [new ScriptHash("seed", "new-hash")] }, cancellationToken: TestContext.Current.CancellationToken);
+        await sut.Refresh(AppliedPlan("seed", "SELECT 2"), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        _stateSerializer.Deserialize(written!.Value).Scripts.ShouldHaveSingleItem().Hash.ShouldBe("new-hash");
+        _stateSerializer.Deserialize(written!.Value).Scripts.ShouldHaveSingleItem().Hash.ShouldBe(ScriptHashing.Hash("SELECT 2"));
     }
 
     [Fact]
@@ -418,8 +422,8 @@ public sealed class MigrationWorkflowTests
     {
         // Arrange
         var errors = new[] { Diagnostic.Error("P1", "msg") };
-        _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<DesiredProject>())
-            .Returns(Result.Failure<PlannedMigration>(errors));
+        _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<Project>())
+            .Returns(Result.Failure<MigrationPlan>(errors));
 
         // Act — the failure is carried in the result, not thrown; the caller decides how to surface it.
         var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
@@ -436,8 +440,8 @@ public sealed class MigrationWorkflowTests
         // carries errors but also the diff that triggered them — for the caller to render.
         var diff = new DatabaseDiff([]);
         var errors = new[] { Diagnostic.Error("destructive", "drops table") };
-        _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<DesiredProject>())
-            .Returns(Result.From(new PlannedMigration(diff, new MigrationPlan([], [], [])), errors));
+        _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<Project>())
+            .Returns(Result.From(new MigrationPlan(diff, []), errors));
 
         // Act
         var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
@@ -452,9 +456,9 @@ public sealed class MigrationWorkflowTests
     {
         // Arrange
         var diagnostics = new[] { new Diagnostic("P1", "info", DiagnosticSeverity.Info) };
-        var plan = new MigrationPlan([], [], []);
-        _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<DesiredProject>())
-            .Returns(Result.From(new PlannedMigration(new DatabaseDiff([]), plan), diagnostics));
+        var plan = EmptyPlan();
+        _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<Project>())
+            .Returns(Result.From(plan, diagnostics));
 
         // Act
         var result = await _sut.ComputePlan(SchemaSourceMode.Offline, required: false, null, TestContext.Current.CancellationToken);
@@ -539,36 +543,32 @@ public sealed class MigrationWorkflowTests
     }
 
     [Fact]
-    public async Task PlanDestroy_WithoutStore_TearsDownDesiredSchema()
+    public async Task ComputeTeardown_WithoutStore_Fails()
     {
-        // Arrange
-        var managed = new DatabaseSchema([new SchemaDefinition("app")]);
-        _desiredProvider.GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(Project(managed));
+        // Arrange — the managed schema is the recorded state, so a teardown has nothing to read without a store.
         var sut = BuildSut(store: null);
 
         // Act
-        await sut.ComputeTeardown(TestContext.Current.CancellationToken);
+        var result = await sut.ComputeTeardown(TestContext.Current.CancellationToken);
 
         // Assert
-        _planner.Received(1).PlanTeardown(managed);
-        await _currentProvider.DidNotReceive().GetSchema(
-            Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+        result.IsFailure.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("Planning requires a state store");
+        _planner.DidNotReceive().PlanTeardown(Arg.Any<DatabaseSchema>());
     }
 
     [Fact]
     public async Task ComputeTeardown_ReturnsTeardownPlan_WithoutRendering()
     {
         // Arrange
-        var plan = new MigrationPlan([new DropSchema("app")], [], []);
-        var diff = new DatabaseDiff([]);
-        _planner.PlanTeardown(Arg.Any<DatabaseSchema>()).Returns(Result.Success(new PlannedMigration(diff, plan)));
+        var plan = new MigrationPlan(new DatabaseDiff([]), [new SqlStatement("DROP SCHEMA app")]);
+        _planner.PlanTeardown(Arg.Any<DatabaseSchema>()).Returns(Result.Success(plan));
 
         // Act
         var result = await _sut.ComputeTeardown(TestContext.Current.CancellationToken);
 
         // Assert
-        result.Value!.Plan.ShouldBe(plan);
-        result.Value!.Diff.ShouldBe(diff);
+        result.Value!.ShouldBe(plan);
     }
 
     [Fact]
@@ -596,16 +596,17 @@ public sealed class MigrationWorkflowTests
     }
 
     [Fact]
-    public async Task Refresh_NoStore_ReturnsNull_WithoutContactingTheDatabase()
+    public async Task Refresh_NoStore_Fails_WithoutContactingTheDatabase()
     {
         // Arrange
         var sut = BuildSut(store: null);
 
-        // Act — no store, so nothing is captured; whether that is an error is the caller's call, not the workflow's.
+        // Act — state is where a run is recorded, so having nowhere to record is a failure, not a no-op.
         var capture = await sut.Refresh(cancellationToken: TestContext.Current.CancellationToken);
 
-        // Assert: returns null (never throws) and does not touch the live database.
-        capture.ShouldBeNull();
+        // Assert: fails (never throws) and does not touch the live database.
+        capture.IsFailure.ShouldBeTrue();
+        capture.Errors.ShouldHaveSingleItem().Message.ShouldContain("without a configured state store");
         await _currentProvider.DidNotReceive().GetSchema(
             SchemaSourceMode.Online, Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }

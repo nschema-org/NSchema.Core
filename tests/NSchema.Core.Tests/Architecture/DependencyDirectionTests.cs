@@ -9,10 +9,10 @@ namespace NSchema.Tests.Architecture;
 /// no feature, and nothing outside the application root composes Operations.
 /// </summary>
 /// <remarks>
-/// Known deviation, deliberately not asserted: Plan ⇄ Sql reference each other (the planner and
-/// plan files deal in <c>SqlPlan</c>/<c>ScriptHash</c>; the generator contract takes
-/// <c>MigrationPlan</c>). The v5 feature-slice audit resolves this by pulling generation toward
-/// Plan — tighten the Plan and Sql rows when it lands.
+/// Known deviation, deliberately not asserted: Plan ⇄ Sql reference each other (the plan artifact
+/// carries <c>SqlStatement</c>s and the planner consumes the dialect; the dialect contract takes
+/// <c>MigrationAction</c>). The v5 namespace move dissolves <c>Sql</c> into the Plan and Apply
+/// clusters — tighten the Plan and Sql rows when it lands.
 /// </remarks>
 public sealed class DependencyDirectionTests
 {

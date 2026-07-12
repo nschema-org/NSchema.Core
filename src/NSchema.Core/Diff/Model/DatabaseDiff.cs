@@ -1,7 +1,9 @@
+using NSchema.Schema.Model.Scripts;
+
 namespace NSchema.Diff.Model;
 
 /// <summary>
-/// A representation of the changes between two database schemas.
+/// The complete difference between the current and desired states.
 /// </summary>
 /// <param name="Schemas">The changed schemas.</param>
 /// <param name="Extensions">The changed database-global extensions.</param>
@@ -21,9 +23,20 @@ public sealed record DatabaseDiff(
     public IReadOnlyList<ExtensionDiff> Extensions { get; init; } = Extensions ?? [];
 
     /// <summary>
-    /// Gets a value indicating whether the diff contains no changes at all.
+    /// The scripts that need to be run, in declaration order.
     /// </summary>
-    public bool IsEmpty => Schemas.Count == 0 && Extensions.Count == 0;
+    public IReadOnlyList<Script> Scripts { get; init; } = [];
+
+    /// <summary>
+    /// Resolves a script on <see cref="Scripts"/> by name.
+    /// </summary>
+    public Script? FindScript(string name) =>
+        Scripts.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Gets a value indicating whether the diff contains no changes at all — no schema changes and no script runs.
+    /// </summary>
+    public bool IsEmpty => Schemas.Count == 0 && Extensions.Count == 0 && Scripts.Count == 0;
 
     /// <summary>
     /// Gets the aggregate counts of every changed element, grouped by <see cref="ChangeKind"/>.

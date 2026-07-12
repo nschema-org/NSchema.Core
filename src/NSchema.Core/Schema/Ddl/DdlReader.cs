@@ -16,5 +16,5 @@ public sealed class DdlReader
     /// Reads <paramref name="source"/> into a <see cref="DdlDocument"/>.
     /// </summary>
     /// <param name="source">The NSchema DDL document to read.</param>
-    public DdlDocument Read(string source) => new DdlParser(source).Parse().Document;
+    public DdlDocument Read(string source) => new DdlParser(source).Parse();
 }

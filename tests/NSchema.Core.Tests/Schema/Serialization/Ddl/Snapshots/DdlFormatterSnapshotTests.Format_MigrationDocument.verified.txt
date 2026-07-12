@@ -7,10 +7,10 @@ create table app.users (
 );
 
 --- Backfill the new email column from the legacy table.
-MIGRATION 'backfill_emails' FOR ADD COLUMN app.users.email AS $$
+SCRIPT 'backfill_emails' RUN ON ADD COLUMN app.users.email AS $$
 UPDATE app.users u SET email = l.email FROM legacy.users l WHERE l.id = u.id;
 $$;
 
-migration for alter column type app.users.id (run_outside_transaction = true) as $$
+script 'noop_ids' run on alter column type app.users.id (run_outside_transaction = true) as $$
 UPDATE app.users SET id = id;
 $$;

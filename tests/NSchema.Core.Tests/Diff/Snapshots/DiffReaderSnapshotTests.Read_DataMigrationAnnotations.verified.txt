@@ -12,7 +12,7 @@
     {
       Kind: Modify,
       Depth: 1,
-      Text: total type: text → int (with migration 'ALTER COLUMN TYPE app.users.total')
+      Text: total type: text → int (with migration 'retype totals')
     },
     {
       Kind: Add,

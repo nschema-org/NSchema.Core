@@ -1,14 +1,14 @@
 using NSchema.Schema.Model;
-using NSchema.Sql.Model;
+using NSchema.Schema.Model.Scripts;
 
-namespace NSchema.Plan;
+namespace NSchema.Diff;
 
 /// <summary>
 /// Defines what state currently exists in the context of a migration.
 /// </summary>
 /// <param name="Schema">The current database schema.</param>
-/// <param name="ExecutedScripts">The scripts recorded as executed, by name and body hash.</param>
-internal sealed record CurrentState(DatabaseSchema Schema, IReadOnlyList<ScriptHash> ExecutedScripts)
+/// <param name="ExecutedScripts">The recorded script executions.</param>
+internal sealed record CurrentState(DatabaseSchema Schema, IReadOnlyList<ScriptExecution> ExecutedScripts)
 {
     /// <summary>
     /// Creates a state carrying only a schema, with no recorded executions.

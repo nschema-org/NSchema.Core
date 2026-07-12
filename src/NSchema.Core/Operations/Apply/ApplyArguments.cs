@@ -1,4 +1,4 @@
-using NSchema.Sql.Model;
+using NSchema.Plan.Model;
 
 namespace NSchema.Operations.Apply;
 
@@ -8,7 +8,13 @@ namespace NSchema.Operations.Apply;
 public sealed record ApplyArguments
 {
     /// <summary>
-    /// The SQL to execute, from a plan operation or a saved plan file.
+    /// The plan to execute, from a plan operation or a saved plan file.
     /// </summary>
-    public required SqlPlan Sql { get; init; }
+    public required MigrationPlan Plan { get; init; }
+
+    /// <summary>
+    /// When true, policy errors found in the plan's diff are demoted to warnings and execution proceeds.
+    /// Required to apply a teardown plan, whose diff is fully destructive by design.
+    /// </summary>
+    public bool Force { get; init; }
 }

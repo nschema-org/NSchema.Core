@@ -419,21 +419,21 @@ public sealed class TemplateExpanderTests
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL, trace_id text NOT NULL );
-              MIGRATION 'backfill trace' FOR ADD COLUMN outbox_events.trace_id AS $$ UPDATE {schema}.outbox_events SET trace_id = ''; $$;
+              SCRIPT 'backfill trace' RUN ON ADD COLUMN outbox_events.trace_id AS $$ UPDATE {schema}.outbox_events SET trace_id = ''; $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales, billing;
             """);
 
         // Act
-        var (_, migrations, _) = TemplateExpander.Expand(document.Schema, document.Templates);
+        var (_, instances) = TemplateExpander.Expand(document.Schema, document.Templates);
 
         // Assert — one instance per applied schema, with the schema bound and the {schema} token substituted.
-        migrations.Count.ShouldBe(2);
-        migrations[0].Path.ShouldBe("sales.outbox_events.trace_id");
-        migrations[0].Sql.ShouldBe("UPDATE sales.outbox_events SET trace_id = '';");
-        migrations[0].Name.ShouldBe("backfill trace");
-        migrations[1].Path.ShouldBe("billing.outbox_events.trace_id");
-        migrations[1].Sql.ShouldBe("UPDATE billing.outbox_events SET trace_id = '';");
+        instances.Count.ShouldBe(2);
+        instances[0].Script.Event.ShouldBeOfType<ChangeEvent>().Path.ShouldBe("sales.outbox_events.trace_id");
+        instances[0].Script.Sql.ShouldBe("UPDATE sales.outbox_events SET trace_id = '';");
+        instances[0].Script.Name.ShouldBe("backfill trace");
+        instances[1].Script.Event.ShouldBeOfType<ChangeEvent>().Path.ShouldBe("billing.outbox_events.trace_id");
+        instances[1].Script.Sql.ShouldBe("UPDATE billing.outbox_events SET trace_id = '';");
     }
 
     [Fact]
@@ -446,15 +446,15 @@ public sealed class TemplateExpanderTests
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL );
-              MIGRATION FOR ADD COLUMN outbox_events.trace_id AS $$ SELECT 1; $$;
+              SCRIPT 'backfill {schema}' RUN ON ADD COLUMN outbox_events.trace_id AS $$ SELECT 1; $$;
             END;
             """);
 
         // Act
-        var (_, migrations, _) = TemplateExpander.Expand(document.Schema, document.Templates);
+        var (_, instances) = TemplateExpander.Expand(document.Schema, document.Templates);
 
         // Assert
-        migrations.ShouldBeEmpty();
+        instances.ShouldBeEmpty();
     }
 
     [Fact]
@@ -467,13 +467,13 @@ public sealed class TemplateExpanderTests
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL );
-              MIGRATION FOR ADD COLUMN outbox_events.trace_id (run_outside_transaction = true) AS $$ SELECT version(); $$;
+              SCRIPT 'version {schema}' RUN ON ADD COLUMN outbox_events.trace_id (run_outside_transaction = true) AS $$ SELECT version(); $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales;
             """);
 
         // Act
-        var migration = TemplateExpander.Expand(document.Schema, document.Templates).Migrations.ShouldHaveSingleItem();
+        var migration = TemplateExpander.Expand(document.Schema, document.Templates).Scripts.ShouldHaveSingleItem().Script;
 
         // Assert — no token, no rewriting; the option carries onto the instance.
         migration.Sql.ShouldBe("SELECT version();");
@@ -497,7 +497,7 @@ public sealed class TemplateExpanderTests
             """);
 
         // Act
-        var (_, _, scripts) = TemplateExpander.Expand(document.Schema, document.Templates);
+        var (_, scripts) = TemplateExpander.Expand(document.Schema, document.Templates);
 
         // Assert — one instance per applied schema, tagged with its origin schema, token substituted in
         // name and body, run condition carried.

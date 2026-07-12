@@ -3,7 +3,6 @@ using NSchema.Diagnostics;
 using NSchema.Diff.Model;
 using NSchema.Policies;
 using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Migrations;
 
 namespace NSchema.Diff.Policies;
 
@@ -62,7 +61,7 @@ internal sealed class DataHazardDiffPolicy(IOptions<DataHazardOptions> options) 
 
             // Identity and generated columns compute their own values for existing rows, so only a plain required column with no default can fail the add.
             // A matched backfill migration handles the transition (the planner decomposes the add around it), so it silences this hazard.
-            if (column is { Kind: ChangeKind.Add, Definition: { IsNullable: false, DefaultExpression: null, IsIdentity: false, GeneratedExpression: null }, Migration: not { Trigger: DataMigrationTrigger.AddColumn } })
+            if (column is { Kind: ChangeKind.Add, Definition: { IsNullable: false, DefaultExpression: null, IsIdentity: false, GeneratedExpression: null }, MigrationScript: null })
             {
                 yield return $"Column '{path}' is added NOT NULL without a default; the migration will fail if the " +
                              "table holds rows. Declaring a DEFAULT is usually the whole fix — PostgreSQL 11+ fills " +
@@ -80,7 +79,7 @@ internal sealed class DataHazardDiffPolicy(IOptions<DataHazardOptions> options) 
                              "NULLs. Backfill them first.";
             }
 
-            if (column.Type is { Old: { } oldType, New: { } newType } && CanCastFail(oldType, newType) && column.Migration is not { Trigger: DataMigrationTrigger.AlterColumnType })
+            if (column.Type is { Old: { } oldType, New: { } newType } && CanCastFail(oldType, newType) && column.MigrationScript is null)
             {
                 yield return $"Column '{path}' changes type from {oldType} to {newType}; the cast will fail for " +
                              "existing values that do not fit the new type.";
@@ -95,7 +94,7 @@ internal sealed class DataHazardDiffPolicy(IOptions<DataHazardOptions> options) 
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         // A matched migration means the user has declared how the data gets into shape (de-duplicated, backfilled) before the constraint lands, so it silences the hazard.
-        foreach (var primaryKey in table.PrimaryKey.Where(p => p is { Kind: ChangeKind.Add, Migration: null }))
+        foreach (var primaryKey in table.PrimaryKey.Where(p => p is { Kind: ChangeKind.Add, MigrationScript: null }))
         {
             var existing = ExistingColumns(primaryKey.Definition?.ColumnNames, addedColumns);
             if (existing.Count > 0)
@@ -105,7 +104,7 @@ internal sealed class DataHazardDiffPolicy(IOptions<DataHazardOptions> options) 
             }
         }
 
-        foreach (var constraint in table.UniqueConstraints.Where(u => u is { Kind: ChangeKind.Add, Migration: null }))
+        foreach (var constraint in table.UniqueConstraints.Where(u => u is { Kind: ChangeKind.Add, MigrationScript: null }))
         {
             var existing = ExistingColumns(constraint.Definition?.ColumnNames, addedColumns);
             if (existing.Count > 0)

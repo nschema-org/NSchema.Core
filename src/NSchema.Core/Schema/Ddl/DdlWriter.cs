@@ -10,7 +10,6 @@ using NSchema.Schema.Model.Domains;
 using NSchema.Schema.Model.Enums;
 using NSchema.Schema.Model.Extensions;
 using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Routines;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Scripts;
@@ -89,12 +88,6 @@ public sealed class DdlWriter
             WriteScript(sb, script);
         }
 
-        foreach (var migration in document.Migrations)
-        {
-            Separate(sb, ref first);
-            WriteMigration(sb, migration);
-        }
-
         return sb.ToString();
     }
 
@@ -146,28 +139,8 @@ public sealed class DdlWriter
         {
             sb.Append(" ONCE");
         }
-        sb.Append(" ON ").Append(script.Type == ScriptType.PreDeployment ? "PRE" : "POST").Append(" DEPLOYMENT");
+        sb.Append(" ON ").Append(script.Event.Description);
         WriteScriptTail(sb, script.RunOutsideTransaction, script.Sql);
-    }
-
-    private static void WriteMigration(StringBuilder sb, DataMigration migration)
-    {
-        if (migration.Name is { } name)
-        {
-            sb.Append("SCRIPT '").Append(name.Replace("'", "''")).Append("' RUN");
-            if (migration.RunCondition == RunCondition.Once)
-            {
-                sb.Append(" ONCE");
-            }
-            sb.Append(" ON ");
-        }
-        else
-        {
-            // The SCRIPT form requires a name, so an anonymous migration keeps its legacy spelling.
-            sb.Append("MIGRATION FOR ");
-        }
-        sb.Append(DataMigration.TriggerText(migration.Trigger)).Append(' ').Append(migration.Path);
-        WriteScriptTail(sb, migration.RunOutsideTransaction, migration.Sql);
     }
 
     private static void WriteScriptTail(StringBuilder sb, bool runOutsideTransaction, string sql)

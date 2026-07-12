@@ -1,4 +1,5 @@
 using NSchema.Diagnostics;
+using NSchema.Diff;
 using NSchema.Plan.Model;
 using NSchema.Policies;
 using NSchema.Schema.Model;
@@ -18,17 +19,17 @@ internal interface IMigrationPlanner
     PolicyDiagnostics Validate(DatabaseSchema desiredSchema);
 
     /// <summary>
-    /// Generates a migration plan that outlines the necessary steps to migrate the database from its current state to the desired state.
+    /// Builds the complete executable plan migrating the database from its current state to the desired state.
     /// </summary>
     /// <param name="current">What currently exists.</param>
     /// <param name="desired">The desired project to plan towards.</param>
-    /// <returns>The generated migration plan and any non-fatal diagnostics.</returns>
-    Result<PlannedMigration> Plan(CurrentState current, DesiredProject desired);
+    /// <returns>The plan and every finding produced.</returns>
+    Result<MigrationPlan> Plan(CurrentState current, Project desired);
 
     /// <summary>
     /// Builds a teardown plan that drops everything in <paramref name="currentSchema"/>.
     /// </summary>
     /// <param name="currentSchema">The managed schema to tear down.</param>
-    /// <returns>The teardown plan and the structured diff describing the removals.</returns>
-    Result<PlannedMigration> PlanTeardown(DatabaseSchema currentSchema);
+    /// <returns>The teardown plan, including the structured diff describing the removals.</returns>
+    Result<MigrationPlan> PlanTeardown(DatabaseSchema currentSchema);
 }

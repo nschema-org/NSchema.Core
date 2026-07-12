@@ -6,7 +6,7 @@ using NSchema.Policies;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Constraints;
 using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Migrations;
+using NSchema.Schema.Model.Scripts;
 using NSchema.Schema.Model.Tables;
 
 namespace NSchema.Tests.Diff.Policies;
@@ -358,34 +358,12 @@ public class DataHazardDiffPolicyTests
         [
             new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))
             {
-                Migration = Migration(DataMigrationTrigger.AddColumn, "email"),
+                MigrationScript = Migration(ChangeTrigger.AddColumn, "email").Name,
             },
         ]);
 
         // Act / Assert
         _sut.Validate(diff).ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void Validate_RequiredColumnAddWithMismatchedTriggerAnnotation_IsStillFlagged()
-    {
-        // Arrange — only an AddColumn-trigger migration backfills an added column; any other trigger on the
-        // node does not address this hazard.
-        var diff = ModifiedTable(Columns:
-        [
-            new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))
-            {
-                Migration = Migration(DataMigrationTrigger.AlterColumnType, "email"),
-            },
-        ]);
-
-        // Act
-        var results = _sut.Validate(diff).ToList();
-
-        // Assert
-        results.ShouldHaveSingleItem();
-        results[0].Message.ShouldContain("app.users.email");
-        results[0].Message.ShouldContain("DEFAULT");
     }
 
     [Fact]
@@ -397,7 +375,7 @@ public class DataHazardDiffPolicyTests
             new ColumnDiff("value", ChangeKind.Modify,
                 Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int))
             {
-                Migration = Migration(DataMigrationTrigger.AlterColumnType, "value"),
+                MigrationScript = Migration(ChangeTrigger.AlterColumnType, "value").Name,
             },
         ]);
 
@@ -416,7 +394,7 @@ public class DataHazardDiffPolicyTests
                 Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int),
                 Nullability: new ValueChange<bool>(true, false))
             {
-                Migration = Migration(DataMigrationTrigger.AlterColumnType, "email"),
+                MigrationScript = Migration(ChangeTrigger.AlterColumnType, "email").Name,
             },
         ]);
 
@@ -436,7 +414,7 @@ public class DataHazardDiffPolicyTests
         [
             new PrimaryKeyDiff(ChangeKind.Add, "users_pk", new PrimaryKey("users_pk", ["tenant_id", "email"]))
             {
-                Migration = Migration(DataMigrationTrigger.AddConstraint, "users_pk"),
+                MigrationScript = Migration(ChangeTrigger.AddConstraint, "users_pk").Name,
             },
         ]);
 
@@ -452,7 +430,7 @@ public class DataHazardDiffPolicyTests
         [
             new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint("users_email_uq", ["email"]))
             {
-                Migration = Migration(DataMigrationTrigger.AddConstraint, "users_email_uq"),
+                MigrationScript = Migration(ChangeTrigger.AddConstraint, "users_email_uq").Name,
             },
         ]);
 
@@ -470,7 +448,7 @@ public class DataHazardDiffPolicyTests
             [
                 new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint("users_email_uq", ["email"]))
                 {
-                    Migration = Migration(DataMigrationTrigger.AddConstraint, "users_email_uq"),
+                    MigrationScript = Migration(ChangeTrigger.AddConstraint, "users_email_uq").Name,
                 },
             ],
             Indexes:
@@ -484,8 +462,8 @@ public class DataHazardDiffPolicyTests
         results[0].Message.ShouldContain("ix_users_name");
     }
 
-    private static DataMigration Migration(DataMigrationTrigger trigger, string member) =>
-        new(null, trigger, "app", "users", member, "UPDATE app.users SET email = ''");
+    private static Script Migration(ChangeTrigger trigger, string member) =>
+        new(member, "UPDATE app.users SET email = ''", new ChangeEvent(trigger, "app", "users", member));
 
     private static DatabaseDiff ModifiedTable(
         IReadOnlyList<ColumnDiff>? Columns = null,

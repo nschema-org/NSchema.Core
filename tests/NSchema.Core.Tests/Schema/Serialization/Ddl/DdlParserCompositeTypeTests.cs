@@ -10,7 +10,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 public sealed class DdlParserCompositeTypeTests
 {
     private static CompositeType ParseType(string sql) =>
-        new DdlParser("CREATE SCHEMA app; " + sql).Parse().Document.Schema
+        new DdlParser("CREATE SCHEMA app; " + sql).Parse().Schema
             .Schemas.ShouldHaveSingleItem().CompositeTypes.ShouldHaveSingleItem();
 
     [Fact]
@@ -48,7 +48,7 @@ public sealed class DdlParserCompositeTypeTests
 
     [Fact]
     public void Parse_DropType_RecordsDroppedCompositeType()
-        => new DdlParser("CREATE SCHEMA app; DROP TYPE app.address;").Parse().Document.Schema
+        => new DdlParser("CREATE SCHEMA app; DROP TYPE app.address;").Parse().Schema
             .Schemas.ShouldHaveSingleItem().DroppedCompositeTypes.ShouldHaveSingleItem().ShouldBe("address");
 
     [Fact]

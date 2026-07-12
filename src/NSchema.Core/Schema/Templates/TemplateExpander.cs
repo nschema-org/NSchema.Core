@@ -1,6 +1,5 @@
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Migrations;
 using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Scripts;
 using NSchema.Schema.Model.Tables;
@@ -29,7 +28,6 @@ internal static class TemplateExpander
         }
 
         var pendingIncludes = templates.Includes.ToList();
-        var migrations = new List<DataMigration>();
         var scripts = new List<TemplateScriptInstance>();
         foreach (var application in templates.Applications)
         {
@@ -59,33 +57,28 @@ internal static class TemplateExpander
                 // resolve with everything else below, so an instantiated table can itself include a template.
                 pendingIncludes.AddRange(template.Includes.Select(i => i with { SchemaName = schemaName }));
 
-                migrations.AddRange(template.Migrations.Select(m => Instantiate(m, schemaName)));
                 scripts.AddRange(template.Scripts.Select(s => new TemplateScriptInstance(schemaName, Instantiate(s, schemaName))));
             }
         }
 
-        return new TemplateExpansion(ResolveIncludes(schema, byName, pendingIncludes), migrations, scripts);
+        return new TemplateExpansion(ResolveIncludes(schema, byName, pendingIncludes), scripts);
     }
 
     /// <summary>
-    /// Re-homes a template migration into <paramref name="schemaName"/>.
+    /// Instantiates a template script for <paramref name="schemaName"/>: the <c>{schema}</c> token substitutes in
+    /// the name and SQL body, and a change event re-homes from the placeholder to the applied schema.
     /// </summary>
-    private static DataMigration Instantiate(DataMigration migration, string schemaName) => migration with
+    private static Script Instantiate(Script script, string schemaName)
     {
-        SchemaName = schemaName,
-        Name = migration.Name?.Replace("{schema}", schemaName, StringComparison.Ordinal),
-        Sql = migration.Sql.Replace("{schema}", schemaName, StringComparison.Ordinal),
-    };
-
-    /// <summary>
-    /// Instantiates a template deployment script for <paramref name="schemaName"/>,
-    /// substituting the <c>{schema}</c> token in the name and SQL body.
-    /// </summary>
-    private static Script Instantiate(Script script, string schemaName) => script with
-    {
-        Name = script.Name.Replace("{schema}", schemaName, StringComparison.Ordinal),
-        Sql = script.Sql.Replace("{schema}", schemaName, StringComparison.Ordinal),
-    };
+        var instantiated = script with
+        {
+            Name = script.Name.Replace("{schema}", schemaName, StringComparison.Ordinal),
+            Sql = script.Sql.Replace("{schema}", schemaName, StringComparison.Ordinal),
+        };
+        return instantiated.Event is ChangeEvent change
+            ? instantiated with { Event = change with { SchemaName = schemaName } }
+            : instantiated;
+    }
 
     private static DatabaseSchema ResolveIncludes(
         DatabaseSchema schema,

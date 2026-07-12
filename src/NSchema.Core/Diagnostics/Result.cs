@@ -72,6 +72,12 @@ public sealed class Result<T> : Result
     public IEnumerable<Diagnostic> Errors => Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error);
 
     /// <summary>
+    /// Returns the value of the result, or throws an exception if it's missing.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The result carried no value.</exception>
+    public T Require() => Value ?? throw new InvalidOperationException($"The result was required to carry a value but did not. Diagnostics: {string.Join("; ", Diagnostics.Select(d => d.Message))}");
+
+    /// <summary>
     /// Collapses the result to a single value by invoking the matching branch.
     /// </summary>
     /// <typeparam name="TResult">The type both branches produce.</typeparam>
