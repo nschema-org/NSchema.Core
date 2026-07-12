@@ -1,13 +1,16 @@
 using Microsoft.Extensions.Options;
-using NSchema.Diagnostics;
-using NSchema.Diff;
-using NSchema.Diff.Model;
+using NSchema.Current.Domain.Models;
+using NSchema.Diff.Domain;
+using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Domain.Models.Columns;
+using NSchema.Diff.Domain.Models.Schemas;
+using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Diff.Policies;
-using NSchema.Schema;
-using NSchema.Schema.Model;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Schemas;
-using NSchema.Schema.Model.Scripts;
+using NSchema.Project.Domain;
+using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Tests.Diff;
 
@@ -33,7 +36,7 @@ public sealed class ProjectComparerTests
         new("seed", "INSERT INTO app.c VALUES (1);", new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = RunCondition.Once };
 
     private static Script EmailBackfillMigration() =>
-        new("backfill emails", "UPDATE app.users SET email = ''", new ChangeEvent(ChangeTrigger.AddColumn, "app", "users", "email"));
+        new("backfill emails", "UPDATE app.users SET email = ''", new ChangeEvent(ChangeTrigger.AddColumn, "users", "email") { ScopeSchema = "app" });
 
     /// <summary>A current state recording <paramref name="sql"/> as script <paramref name="name"/>'s executed body.</summary>
     private static CurrentState Executed(string name, string sql) =>
@@ -57,7 +60,7 @@ public sealed class ProjectComparerTests
         var desired = new DatabaseSchema([new SchemaDefinition("desired")]);
 
         // Act
-        Sut.Compare(new CurrentState(current), new Project(desired, []));
+        Sut.Compare(new CurrentState(current), new ProjectDefinition(desired, []));
 
         // Assert
         _comparer.Received(1).Compare(current, desired);
@@ -67,7 +70,7 @@ public sealed class ProjectComparerTests
     public void Compare_PendingDeploymentScript_LandsInTheDiff()
     {
         // Act — nothing recorded, so the script is part of the current→desired difference.
-        var comparison = Sut.Compare(new CurrentState(_emptySchema), new Project(_emptySchema, [SeedScript()]));
+        var comparison = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, [SeedScript()]));
 
         // Assert
         comparison.Require().Scripts.ShouldHaveSingleItem().Name.ShouldBe("seed");
@@ -79,7 +82,7 @@ public sealed class ProjectComparerTests
     public void Compare_ExecutedRunOnceScript_IsNotPartOfTheDifference()
     {
         // Act — the script has already run, so it is not part of the current→desired difference.
-        var comparison = Sut.Compare(Executed("seed", SeedScript().Sql), new Project(_emptySchema, [SeedScript()]));
+        var comparison = Sut.Compare(Executed("seed", SeedScript().Sql), new ProjectDefinition(_emptySchema, [SeedScript()]));
 
         // Assert
         comparison.Require().Scripts.ShouldBeEmpty();
@@ -91,7 +94,7 @@ public sealed class ProjectComparerTests
     public void Compare_ExecutedRunOnceScriptWithChangedBody_StaysSkippedWithAWarning()
     {
         // Act — the recorded hash is of a different body; silently re-running is never safe.
-        var comparison = Sut.Compare(Executed("seed", "some other body"), new Project(_emptySchema, [SeedScript()]));
+        var comparison = Sut.Compare(Executed("seed", "some other body"), new ProjectDefinition(_emptySchema, [SeedScript()]));
 
         // Assert
         comparison.Require().Scripts.ShouldBeEmpty();
@@ -107,7 +110,7 @@ public sealed class ProjectComparerTests
         var script = SeedScript() with { RunCondition = RunCondition.Always };
 
         // Act
-        var comparison = Sut.Compare(Executed("seed", script.Sql), new Project(_emptySchema, [script]));
+        var comparison = Sut.Compare(Executed("seed", script.Sql), new ProjectDefinition(_emptySchema, [script]));
 
         // Assert
         comparison.Require().Scripts.ShouldHaveSingleItem();
@@ -122,7 +125,7 @@ public sealed class ProjectComparerTests
         _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(AddedEmailColumnDiff());
 
         // Act
-        var comparison = Sut.Compare(new CurrentState(_emptySchema), new Project(_emptySchema, [migration]));
+        var comparison = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, [migration]));
 
         // Assert — the node references the script by name; the script itself lives once, on the diff's root list.
         comparison.Require().Schemas[0].Tables[0].Columns[0].MigrationScript.ShouldBe(migration.Name);
@@ -137,7 +140,7 @@ public sealed class ProjectComparerTests
         var migration = EmailBackfillMigration();
 
         // Act
-        var comparison = Sut.Compare(new CurrentState(_emptySchema), new Project(_emptySchema, [migration]));
+        var comparison = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, [migration]));
 
         // Assert
         comparison.Require().Scripts.ShouldBeEmpty();
@@ -157,7 +160,7 @@ public sealed class ProjectComparerTests
         _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(AddedEmailColumnDiff());
 
         // Act
-        var comparison = Sut.Compare(Executed("backfill emails", migration.Sql), new Project(_emptySchema, [migration]));
+        var comparison = Sut.Compare(Executed("backfill emails", migration.Sql), new ProjectDefinition(_emptySchema, [migration]));
 
         // Assert
         comparison.Require().Schemas[0].Tables[0].Columns[0].MigrationScript.ShouldBeNull();
@@ -173,8 +176,8 @@ public sealed class ProjectComparerTests
         _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(AddedEmailColumnDiff());
 
         // Act
-        var unmatched = Sut.Compare(new CurrentState(_emptySchema), new Project(_emptySchema, []));
-        var matched = Sut.Compare(new CurrentState(_emptySchema), new Project(_emptySchema, [EmailBackfillMigration()]));
+        var unmatched = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, []));
+        var matched = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, [EmailBackfillMigration()]));
 
         // Assert
         policy.Validate(unmatched.Require()).ShouldHaveSingleItem().Source.ShouldBe("data-hazards");

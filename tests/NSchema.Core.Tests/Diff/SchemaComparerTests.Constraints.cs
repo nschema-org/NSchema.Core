@@ -1,9 +1,10 @@
-using NSchema.Diff.Model;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Constraints;
-using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Schemas;
-using NSchema.Schema.Model.Tables;
+using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Domain.Models.Constraints;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.Constraints;
+using NSchema.Project.Domain.Models.Indexes;
+using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Tests.Diff;
 

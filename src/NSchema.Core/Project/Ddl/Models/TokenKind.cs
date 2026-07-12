@@ -1,0 +1,98 @@
+namespace NSchema.Project.Ddl.Models;
+
+/// <summary>
+/// The kinds of token the <see cref="DdlLexer"/> produces for NSchema DDL. Keywords are not distinguished here —
+/// they are lexed as <see cref="Identifier"/> and matched case-insensitively by the parser.
+/// </summary>
+internal enum TokenKind
+{
+    /// <summary>
+    /// An identifier or keyword (e.g. <c>users</c>, <c>CREATE</c>). Keywords are matched by the parser.
+    /// </summary>
+    Identifier,
+
+    /// <summary>
+    /// A single-quoted string literal. The token text is the unescaped value (without the quotes).
+    /// </summary>
+    String,
+
+    /// <summary>
+    /// A run of digits. The token text is the raw digits.
+    /// </summary>
+    Integer,
+
+    /// <summary>
+    /// A doc-comment (<c>---</c> line or <c>/** … */</c> block). The token text is the trimmed comment body.
+    /// </summary>
+    DocComment,
+
+    /// <summary>
+    /// A dollar-quoted string (<c>$$ … $$</c> or <c>$tag$ … $tag$</c>).
+    /// </summary>
+    DollarString,
+
+    /// <summary>
+    /// A source line comment (<c>-- …</c>, not a <c>---</c> doc-comment), end-trimmed and keeping its <c>--</c>.
+    /// </summary>
+    LineComment,
+
+    /// <summary>
+    /// A source block comment (<c>/* … */</c>, not a <c>/** … */</c> doc-comment), kept verbatim with its delimiters.
+    /// </summary>
+    BlockComment,
+
+    /// <summary>
+    /// <c>(</c>
+    /// </summary>
+    LeftParen,
+
+    /// <summary>
+    /// <c>)</c>
+    /// </summary>
+    RightParen,
+
+    /// <summary>
+    /// <c>{</c>
+    /// </summary>
+    LeftBrace,
+
+    /// <summary>
+    /// <c>}</c>
+    /// </summary>
+    RightBrace,
+
+    /// <summary>
+    /// <c>,</c>
+    /// </summary>
+    Comma,
+
+    /// <summary>
+    /// <c>;</c>
+    /// </summary>
+    Semicolon,
+
+    /// <summary>
+    /// <c>.</c>
+    /// </summary>
+    Dot,
+
+    /// <summary>
+    /// <c>=</c>
+    /// </summary>
+    Equals,
+
+    /// <summary>
+    /// <c>-</c> (a sign on a numeric value; <c>--</c> starts a comment instead).
+    /// </summary>
+    Minus,
+
+    /// <summary>
+    /// Any other single punctuation character the lexer does not structurally recognise (e.g. <c>&gt;</c>, <c>&amp;</c>, <c>:</c>).
+    /// </summary>
+    Symbol,
+
+    /// <summary>
+    /// The end of the input.
+    /// </summary>
+    EndOfFile,
+}

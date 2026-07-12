@@ -1,4 +1,3 @@
-using NSchema.Diagnostics;
 
 namespace NSchema.Tests.Diagnostics;
 
@@ -43,7 +42,7 @@ public sealed class ResultTests
         var warning = Warning();
 
         // Act
-        var result = Result.Success(new Success(), warning);
+        var result = Result.Success("value", warning);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -60,7 +59,7 @@ public sealed class ResultTests
         var error = Error();
 
         // Act
-        var result = Result.Failure<Success>(warning, error);
+        var result = Result.Failure<string>(warning, error);
 
         // Assert
         result.IsSuccess.ShouldBeFalse();

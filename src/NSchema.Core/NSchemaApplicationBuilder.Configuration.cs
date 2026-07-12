@@ -1,9 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using NSchema.Apply;
 using NSchema.Diff.Policies;
 using NSchema.Operations.Progress;
-using NSchema.Policies;
-using NSchema.Sql;
+using NSchema.Plan.Backends;
 
 namespace NSchema;
 

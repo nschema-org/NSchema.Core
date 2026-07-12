@@ -1,16 +1,15 @@
-using NSchema.Diagnostics;
-using NSchema.Schema.Model;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.CompositeTypes;
-using NSchema.Schema.Model.Domains;
-using NSchema.Schema.Model.Enums;
-using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Routines;
-using NSchema.Schema.Model.Schemas;
-using NSchema.Schema.Model.Sequences;
-using NSchema.Schema.Model.Tables;
-using NSchema.Schema.Model.Views;
-using NSchema.Schema.Policies;
+using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.CompositeTypes;
+using NSchema.Project.Domain.Models.Domains;
+using NSchema.Project.Domain.Models.Enums;
+using NSchema.Project.Domain.Models.Indexes;
+using NSchema.Project.Domain.Models.Routines;
+using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Sequences;
+using NSchema.Project.Domain.Models.Tables;
+using NSchema.Project.Domain.Models.Views;
+using NSchema.Project.Policies;
 
 namespace NSchema.Tests.Schema.Policies;
 
@@ -362,7 +361,7 @@ public sealed class StructuralIntegritySchemaPolicyTests
                 Sequences: [new Sequence("s")],
                 CompositeTypes: [new CompositeType("c", [new CompositeField("f", SqlType.Int)])],
                 Enums: [new EnumType("e", ["a"])],
-                Domains: [new Domain("d", SqlType.Text)]),
+                Domains: [new DomainDefinition("d", SqlType.Text)]),
         ]);
 
         _sut.Validate(schema).ShouldBeEmpty();

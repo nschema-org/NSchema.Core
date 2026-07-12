@@ -1,21 +1,21 @@
 using System.Text;
-using NSchema.Schema.Ddl;
-using NSchema.Schema.Model;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.CompositeTypes;
-using NSchema.Schema.Model.Constraints;
-using NSchema.Schema.Model.Domains;
-using NSchema.Schema.Model.Enums;
-using NSchema.Schema.Model.Extensions;
-using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Routines;
-using NSchema.Schema.Model.Schemas;
-using NSchema.Schema.Model.Sequences;
-using NSchema.Schema.Model.Tables;
-using NSchema.Schema.Model.Triggers;
-using NSchema.Schema.Model.Views;
-using NSchema.State;
-using NSchema.State.Model;
+using NSchema.Current.Domain.Models;
+using NSchema.Current.Storage;
+using NSchema.Project.Ddl;
+using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.CompositeTypes;
+using NSchema.Project.Domain.Models.Constraints;
+using NSchema.Project.Domain.Models.Domains;
+using NSchema.Project.Domain.Models.Enums;
+using NSchema.Project.Domain.Models.Extensions;
+using NSchema.Project.Domain.Models.Indexes;
+using NSchema.Project.Domain.Models.Routines;
+using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Sequences;
+using NSchema.Project.Domain.Models.Tables;
+using NSchema.Project.Domain.Models.Triggers;
+using NSchema.Project.Domain.Models.Views;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
@@ -329,13 +329,13 @@ public sealed class DdlWriterTests
     [Fact]
     public void Write_SimpleDomain_EmitsCreateDomain()
         => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app",
-            Domains: [new Domain("typeid", SqlType.Text)])]))
+            Domains: [new DomainDefinition("typeid", SqlType.Text)])]))
             .ShouldContain("CREATE DOMAIN app.typeid AS text;");
 
     [Fact]
     public void Write_DomainWithEveryClause_EmitsInCanonicalOrder()
         => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app",
-            Domains: [new Domain("email", SqlType.Text, Default: "'x@y'", NotNull: true,
+            Domains: [new DomainDefinition("email", SqlType.Text, Default: "'x@y'", NotNull: true,
                 Checks: [new CheckConstraint("email_fmt", "VALUE ~ '@'")])])]))
             // NOT NULL, then checks, then DEFAULT (last, so its opaque expr reads back to the ';').
             .ShouldContain("CREATE DOMAIN app.email AS text NOT NULL CONSTRAINT email_fmt CHECK (VALUE ~ '@') DEFAULT 'x@y';");
@@ -349,7 +349,7 @@ public sealed class DdlWriterTests
     public void Write_Domain_RoundTripsThroughParse()
     {
         var schema = new DatabaseSchema([new SchemaDefinition("app",
-            Domains: [new Domain("email", SqlType.Text, Default: "'x@y'", NotNull: true,
+            Domains: [new DomainDefinition("email", SqlType.Text, Default: "'x@y'", NotNull: true,
                 Checks: [new CheckConstraint("email_fmt", "VALUE ~ '@'")], OldName: "addr", Comment: "an email")])]);
 
         var domain = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema

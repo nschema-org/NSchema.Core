@@ -1,11 +1,15 @@
-using NSchema.Diff.Model;
-using NSchema.Plan;
-using NSchema.Plan.Model;
-using NSchema.Plan.Model.Domains;
-using NSchema.Plan.Model.Tables;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Domains;
-using NSchema.Schema.Model.Tables;
+using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Domain.Models.Constraints;
+using NSchema.Diff.Domain.Models.Domains;
+using NSchema.Diff.Domain.Models.Schemas;
+using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Plan.Domain;
+using NSchema.Plan.Domain.Models;
+using NSchema.Plan.Domain.Models.Domains;
+using NSchema.Plan.Domain.Models.Tables;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.Domains;
+using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Tests.Plan;
 
@@ -22,12 +26,12 @@ public sealed class PlanLinearizerDomainTests
 
     [Fact]
     public void AddedDomain_EmitsCreateDomain()
-        => Linearize(new DomainDiff("app", "d", ChangeKind.Add, Definition: new Domain("d", SqlType.Text)))
-            .ShouldHaveSingleItem().ShouldBeOfType<CreateDomain>().Domain.Name.ShouldBe("d");
+        => Linearize(new DomainDiff("app", "d", ChangeKind.Add, Definition: new DomainDefinition("d", SqlType.Text)))
+            .ShouldHaveSingleItem().ShouldBeOfType<CreateDomain>().DomainDefinition.Name.ShouldBe("d");
 
     [Fact]
     public void BaseTypeChange_EmitsRecreateDomain()
-        => Linearize(new DomainDiff("app", "d", ChangeKind.Modify, Definition: new Domain("d", SqlType.Int),
+        => Linearize(new DomainDiff("app", "d", ChangeKind.Modify, Definition: new DomainDefinition("d", SqlType.Int),
                 DataType: new ValueChange<SqlType>(SqlType.Text, SqlType.Int)))
             .ShouldHaveSingleItem().ShouldBeOfType<RecreateDomain>();
 
@@ -48,7 +52,7 @@ public sealed class PlanLinearizerDomainTests
     {
         var plan = Linearize(new DomainDiff("app", "d", ChangeKind.Modify, Checks:
         [
-            new CheckConstraintDiff(ChangeKind.Add, "new_chk", new NSchema.Schema.Model.Constraints.CheckConstraint("new_chk", "VALUE > 0")),
+            new CheckConstraintDiff(ChangeKind.Add, "new_chk", new NSchema.Project.Domain.Models.Constraints.CheckConstraint("new_chk", "VALUE > 0")),
             new CheckConstraintDiff(ChangeKind.Remove, "old_chk"),
         ]));
 
@@ -62,7 +66,7 @@ public sealed class PlanLinearizerDomainTests
         // A column may use the domain as its type, so the domain must be created first.
         var plan = _linearizer.Linearize(new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add,
             Tables: [new TableDiff("app", "t", ChangeKind.Add, Definition: new Table("t"))],
-            Domains: [new DomainDiff("app", "d", ChangeKind.Add, Definition: new Domain("d", SqlType.Text))])]));
+            Domains: [new DomainDiff("app", "d", ChangeKind.Add, Definition: new DomainDefinition("d", SqlType.Text))])]));
 
         var createDomain = plan.Select((a, i) => (a, i)).Single(x => x.a is CreateDomain).i;
         var createTable = plan.Select((a, i) => (a, i)).Single(x => x.a is CreateTable).i;

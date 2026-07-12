@@ -1,4 +1,4 @@
-using NSchema.Diff;
+using NSchema.Diff.Domain;
 
 namespace NSchema.Tests.Diff;
 

@@ -1,5 +1,5 @@
-using NSchema.Schema.Ddl;
-using NSchema.Schema.Model.Templates;
+using NSchema.Project.Ddl;
+using NSchema.Project.Ddl.Models.Templates;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 

@@ -1,13 +1,17 @@
-using NSchema.Diff.Model;
-using NSchema.Plan;
-using NSchema.Plan.Model;
-using NSchema.Plan.Model.Columns;
-using NSchema.Plan.Model.Constraints;
-using NSchema.Plan.Model.Scripts;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Constraints;
-using NSchema.Schema.Model.Scripts;
-using NSchema.Schema.Model.Tables;
+using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Domain.Models.Columns;
+using NSchema.Diff.Domain.Models.Constraints;
+using NSchema.Diff.Domain.Models.Schemas;
+using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Plan.Domain;
+using NSchema.Plan.Domain.Models;
+using NSchema.Plan.Domain.Models.Columns;
+using NSchema.Plan.Domain.Models.Constraints;
+using NSchema.Plan.Domain.Models.Scripts;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.Constraints;
+using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Tests.Plan;
 
@@ -27,7 +31,7 @@ public sealed class PlanLinearizerDataMigrationTests
         => LinearizeTable(new TableDiff("app", "users", ChangeKind.Modify, Columns: [column]), scripts);
 
     private static Script Migration(ChangeTrigger trigger, string member, string? name = null, string? sql = null) =>
-        new(name ?? member, sql ?? $"UPDATE app.users -- {member}", new ChangeEvent(trigger, "app", "users", member));
+        new(name ?? member, sql ?? $"UPDATE app.users -- {member}", new ChangeEvent(trigger, "users", member) { ScopeSchema = "app" });
 
     [Fact]
     public void Linearize_AnnotatedRequiredColumnAdd_DecomposesIntoNullableAddBackfillAndTighten()
@@ -165,7 +169,7 @@ public sealed class PlanLinearizerDataMigrationTests
     {
         // Arrange
         var migration = new Script("dedupe", "DELETE FROM app.users",
-            new ChangeEvent(ChangeTrigger.AddConstraint, "app", "users", "users_pk"))
+            new ChangeEvent(ChangeTrigger.AddConstraint, "users", "users_pk") { ScopeSchema = "app" })
         {
             RunOutsideTransaction = true,
         };

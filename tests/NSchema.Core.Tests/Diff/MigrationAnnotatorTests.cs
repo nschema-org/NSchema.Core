@@ -1,9 +1,13 @@
-using NSchema.Diff;
-using NSchema.Diff.Model;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Constraints;
-using NSchema.Schema.Model.Scripts;
-using NSchema.Schema.Model.Tables;
+using NSchema.Diff.Domain;
+using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Domain.Models.Columns;
+using NSchema.Diff.Domain.Models.Constraints;
+using NSchema.Diff.Domain.Models.Schemas;
+using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.Constraints;
+using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Tests.Diff;
 
@@ -198,7 +202,7 @@ public class MigrationAnnotatorTests
     public void Apply_MatchesCaseInsensitively_OnSchemaTableAndMember()
     {
         // Arrange
-        var migration = new Script("backfill", "UPDATE 1", new ChangeEvent(ChangeTrigger.AddColumn, "APP", "Users", "EMAIL"));
+        var migration = new Script("backfill", "UPDATE 1", new ChangeEvent(ChangeTrigger.AddColumn, "Users", "EMAIL") { ScopeSchema = "APP" });
         var diff = ModifiedTable(Columns:
             [new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))]);
 
@@ -244,7 +248,7 @@ public class MigrationAnnotatorTests
     }
 
     private static Script Migration(ChangeTrigger trigger, string member, string? name = null) =>
-        new(name ?? member, $"UPDATE app.users -- {member}", new ChangeEvent(trigger, "app", "users", member));
+        new(name ?? member, $"UPDATE app.users -- {member}", new ChangeEvent(trigger, "users", member) { ScopeSchema = "app" });
 
     private static DatabaseDiff ModifiedTable(
         IReadOnlyList<ColumnDiff>? Columns = null,

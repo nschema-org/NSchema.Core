@@ -1,6 +1,6 @@
-using NSchema.Schema.Ddl;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Domains;
+using NSchema.Project.Ddl;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.Domains;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
@@ -9,7 +9,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 /// </summary>
 public sealed class DdlParserDomainTests
 {
-    private static Domain ParseDomain(string sql) =>
+    private static DomainDefinition ParseDomain(string sql) =>
         new DdlParser("CREATE SCHEMA app; " + sql).Parse().Schema
             .Schemas.ShouldHaveSingleItem().Domains.ShouldHaveSingleItem();
 

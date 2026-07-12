@@ -1,12 +1,18 @@
-using NSchema.Diff;
-using NSchema.Diff.Model;
+using NSchema.Current;
+using NSchema.Current.Backends;
+using NSchema.Current.Locks;
+using NSchema.Current.Locks.Backends;
+using NSchema.Current.Storage;
+using NSchema.Current.Storage.Backends;
+using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Policies;
+using NSchema.Operations;
+using NSchema.Plan.Backends;
 using NSchema.Plan.PlanFile;
 using NSchema.Plugins;
-using NSchema.Schema;
-using NSchema.Schema.Model;
-using NSchema.Sql;
-using NSchema.State;
-using NSchema.State.Storage;
+using NSchema.Project;
+using NSchema.Project.Domain.Models;
+using NSchema.Project.Policies;
 
 namespace NSchema.Tests.Architecture;
 
@@ -33,7 +39,7 @@ public sealed class PublicInterfaceClassificationTests
         BackendSpi,
 
         /// <summary>
-        /// Domain extension point validated during planning.
+        /// DomainDefinition extension point validated during planning.
         /// </summary>
         PolicySeam,
 
