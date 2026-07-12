@@ -26,11 +26,7 @@ internal sealed class StateLockManager(IStateLock? stateLock = null) : IStateLoc
         {
             // Peek so the warning is honest: name the lock we are running past rather than ignoring it silently.
             var held = await stateLock.Peek(cancellationToken);
-            var warning = Diagnostic.Warning(request.Operation, held is null
-                ? "Running without the state lock; make sure no other operation runs against this state at the same time."
-                : $"Running without the state lock; the state is currently locked by {held.Who} " +
-                  $"(operation '{held.Operation}', since {held.CreatedUtc:u}) — proceeding anyway.");
-            return Result.From<IStateLockHandle>(NullStateLockHandle.Instance, [warning]);
+            return Result.From<IStateLockHandle>(NullStateLockHandle.Instance, [LockDiagnostics.RunningUnlocked(request.Operation, held)]);
         }
 
         try
@@ -40,11 +36,7 @@ internal sealed class StateLockManager(IStateLock? stateLock = null) : IStateLoc
         catch (StateLockedException ex)
         {
             // Contention is a recoverable, user-facing outcome, not a bug — surface it as a failure the caller renders.
-            return Result.Failure<IStateLockHandle>(ex.ExistingLock is { } held
-                ? Diagnostic.Error(request.Operation,
-                    $"The state is locked by {held.Who} (operation '{held.Operation}', since {held.CreatedUtc:u}). " +
-                    "Wait for it to finish, or re-run with --no-lock to proceed anyway.")
-                : Diagnostic.Error(request.Operation, ex.Message));
+            return Result.Failure<IStateLockHandle>(LockDiagnostics.StateLocked(request.Operation, ex));
         }
     }
 

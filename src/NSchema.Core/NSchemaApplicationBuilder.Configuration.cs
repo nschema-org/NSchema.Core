@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.Apply;
-using NSchema.Diff.Policies;
+using NSchema.Plan.Policies;
 using NSchema.Operations.Progress;
 using NSchema.Plan.Backends;
 

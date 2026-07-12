@@ -10,6 +10,7 @@ using NSchema.Project.Domain.Models.Sequences;
 using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Domain.Models.Views;
 using NSchema.Project.Policies;
+using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Schema.Policies;
 

@@ -19,17 +19,29 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
         var schema = await currentSchema.GetSchema(SchemaSourceMode.Online, arguments.Schemas, cancellationToken: cancellationToken);
         progress.Report(OperationProgress.Detail($"Fetched {StatusHelpers.Describe(schema)} from the database."));
 
+        // An existing file that cannot be read or parsed is skipped whole (never clobbered) and reported as an
+        // error; the other files still import, and every broken file is reported at once.
+        var diagnostics = new List<Diagnostic>();
         var written = new List<string>();
+
+        async Task Import(string path, DatabaseSchema partition, bool declareSchemas)
+        {
+            var wrote = await WritePartition(path, partition, declareSchemas, cancellationToken);
+            diagnostics.AddRange(wrote.Diagnostics);
+            if (wrote.IsSuccess)
+            {
+                written.Add(path);
+            }
+        }
+
         foreach (var definition in schema.Schemas)
         {
             var headerPath = Path.Combine(arguments.OutputDirectory, definition.Name, "schema.sql");
-            await WritePartition(headerPath, new DatabaseSchema([definition with { Tables = [], Views = [], Routines = [] }]), declareSchemas: true, cancellationToken);
-            written.Add(headerPath);
+            await Import(headerPath, new DatabaseSchema([definition with { Tables = [], Views = [], Routines = [] }]), declareSchemas: true);
 
             foreach (var (path, partition) in ObjectPartitions(definition, arguments.OutputDirectory))
             {
-                await WritePartition(path, partition, declareSchemas: false, cancellationToken);
-                written.Add(path);
+                await Import(path, partition, declareSchemas: false);
             }
         }
 
@@ -38,11 +50,10 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
         if (schema.Extensions.Count > 0)
         {
             var path = Path.Combine(arguments.OutputDirectory, "extensions.sql");
-            await WritePartition(path, new DatabaseSchema(Extensions: schema.Extensions), declareSchemas: true, cancellationToken);
-            written.Add(path);
+            await Import(path, new DatabaseSchema(Extensions: schema.Extensions), declareSchemas: true);
         }
 
-        return Result.Success(new ImportResult(schema, written));
+        return Result.From(new ImportResult(schema, written), diagnostics);
     }
 
     // Each major object (table, view, routine) gets its own file, grouped by type under the schema's directory;
@@ -67,10 +78,20 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
         }
     }
 
-    private async Task WritePartition(string path, DatabaseSchema incoming, bool declareSchemas, CancellationToken cancellationToken)
+    private async Task<Result> WritePartition(string path, DatabaseSchema incoming, bool declareSchemas, CancellationToken cancellationToken)
     {
-        var existing = await TryReadExisting(path, cancellationToken);
-        var merged = existing is null ? incoming : Merge(existing, incoming);
+        var merged = incoming;
+        var mergedIntoExisting = false;
+        if (File.Exists(path))
+        {
+            var existing = await ReadExisting(path, cancellationToken);
+            if (existing.Value is not { } current)
+            {
+                return Result.From(existing.Diagnostics);
+            }
+            merged = Merge(current, incoming);
+            mergedIntoExisting = true;
+        }
 
         var directory = Path.GetDirectoryName(Path.GetFullPath(path));
         if (!string.IsNullOrEmpty(directory))
@@ -83,25 +104,17 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
 
         // Surface whether each object was created fresh or merged into an existing file — import is additive, so
         // this is the signal that an earlier import's file was updated in place rather than replaced.
-        progress.Report(OperationProgress.Detail($"{(existing is null ? "Wrote" : "Merged into")} {path}."));
+        progress.Report(OperationProgress.Detail($"{(mergedIntoExisting ? "Merged into" : "Wrote")} {path}."));
+        return Result.Success();
     }
 
-    private async Task<DatabaseSchema?> TryReadExisting(string path, CancellationToken cancellationToken)
+    private static async Task<Result<DatabaseSchema>> ReadExisting(string path, CancellationToken cancellationToken)
     {
-        if (!File.Exists(path))
-        {
-            return null;
-        }
-
         var text = await File.ReadAllTextAsync(path, cancellationToken);
-        try
-        {
-            return DdlReader.Instance.Read(text).Schema;
-        }
-        catch (DdlSyntaxException ex)
-        {
-            throw ex.WithSource(path);
-        }
+        var read = DdlReader.Instance.Read(text);
+        return read.IsSuccess
+            ? read.Map(document => document.Schema)
+            : Result.Failure<DatabaseSchema>(read.Diagnostics.Select(d => ProjectDiagnostics.InFile(path, d)));
     }
 
     private static DatabaseSchema Merge(DatabaseSchema existing, DatabaseSchema incoming)

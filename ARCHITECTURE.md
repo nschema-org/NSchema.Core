@@ -87,7 +87,7 @@ NSchema                     app, builder, options · Result / Result<T> / Result
 │  ├─ .Domain               projection: aggregation + template expansion
 │  ├─ .Ddl                  DdlReader/DdlWriter/DdlFormatter · the full syntax tree (AST) incl.
 │  │                        templates and config blocks · SourcePosition, DdlDiagnostic
-│  └─ .Policies             ISchemaPolicy + built-ins (they validate the schema half)
+│  └─ .Policies             IProjectPolicy + built-ins (validate the declared project)
 ├─ Current                  ICurrentSchemaProvider (app.CurrentSchema), SchemaSourceMode — what
 │  │                        actually exists; reads the live database or falls back to the
 │  │                        recorded snapshot in its own .Storage
@@ -102,7 +102,6 @@ NSchema                     app, builder, options · Result / Result<T> / Result
 │                           internal)
 ├─ Diff
 │  ├─ .Reader               DiffReader + DiffDocument/DiffLine — the presentation read model (Plan.PlanFile analogue)
-│  ├─ .Policies             IDiffPolicy + built-ins + options (provider policies plug in here)
 │  ├─ .Domain.Models        the DatabaseDiff tree — the complete difference: schema changes plus
 │  │                        the implied script runs (root Scripts list; nodes reference by name)
 │  └─ .Domain               project comparer (run-once resolution + matching), structural comparer
@@ -110,6 +109,8 @@ NSchema                     app, builder, options · Result / Result<T> / Result
 ├─ Plan                     IMigrationPlanner → the single plan artifact (the complete diff + the
 │  │                        statements that execute it); a dialect is required — no SQL-less plan
 │  ├─ .Backends             ISqlDialect (one action in, statements out — scripts included)
+│  ├─ .Policies             IPlanPolicy + built-ins + options (provider policies plug in here;
+│  │                        post-render, they see exactly what an apply would execute)
 │  ├─ .Domain.Models        MigrationAction hierarchy (per-kind, incl. internal ExecuteScript),
 │  │                        SqlStatement
 │  └─ .PlanFile             IPlanFileManager + envelope

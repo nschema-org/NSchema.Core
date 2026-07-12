@@ -11,15 +11,15 @@ namespace NSchema.Project.Policies;
 /// - and columns repeated within a single key or index.
 /// These are advisory, so they are reported as <see cref="DiagnosticSeverity.Warning"/> and do not fail validation.
 /// </summary>
-internal sealed class SchemaLintPolicy : ISchemaPolicy
+internal sealed class SchemaLintPolicy : IProjectPolicy
 {
     private const string PolicyName = "schema-lint";
 
     /// <inheritdoc />
-    public IEnumerable<Diagnostic> Validate(DatabaseSchema schema)
+    public IEnumerable<Diagnostic> Validate(ProjectDefinition project)
     {
         var diagnostics = new List<Diagnostic>();
-        foreach (var definition in schema.Schemas)
+        foreach (var definition in project.Schema.Schemas)
         {
             foreach (var table in definition.Tables)
             {

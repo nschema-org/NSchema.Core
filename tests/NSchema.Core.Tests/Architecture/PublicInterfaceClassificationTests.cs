@@ -5,7 +5,7 @@ using NSchema.Current.Locks.Backends;
 using NSchema.Current.Storage;
 using NSchema.Current.Storage.Backends;
 using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Policies;
+using NSchema.Plan.Policies;
 using NSchema.Operations;
 using NSchema.Plan.Backends;
 using NSchema.Plan.PlanFile;
@@ -74,8 +74,8 @@ public sealed class PublicInterfaceClassificationTests
         [typeof(INSchemaBackendPlugin)] = InterfaceRole.BackendSpi,
 
         // Policy seams — domain extension points.
-        [typeof(ISchemaPolicy)] = InterfaceRole.PolicySeam,
-        [typeof(IDiffPolicy)] = InterfaceRole.PolicySeam,
+        [typeof(IProjectPolicy)] = InterfaceRole.PolicySeam,
+        [typeof(IPlanPolicy)] = InterfaceRole.PolicySeam,
 
         // Model contracts — shapes on the domain models.
         [typeof(INamedObject)] = InterfaceRole.ModelContract,

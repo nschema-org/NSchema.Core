@@ -27,7 +27,7 @@ internal static class TemplateApplicator
         {
             if (!byName.TryAdd(template.Name, template))
             {
-                diagnostics.Add(Diagnostic.Error("templates", $"Duplicate template '{template.Name}' declared."));
+                diagnostics.Add(TemplateDiagnostics.DuplicateTemplate(template.Name));
             }
         }
 
@@ -36,13 +36,12 @@ internal static class TemplateApplicator
         {
             if (!byName.TryGetValue(application.TemplateName, out var template))
             {
-                diagnostics.Add(Diagnostic.Error("templates", $"APPLY TEMPLATE references unknown template '{application.TemplateName}'."));
+                diagnostics.Add(TemplateDiagnostics.UnknownTemplate(application.TemplateName));
                 continue;
             }
             if (template.Kind != TemplateKind.Schema)
             {
-                diagnostics.Add(Diagnostic.Error("templates",
-                    $"APPLY TEMPLATE targets schemas, but '{template.Name}' is a table template; include it from a table body with INCLUDE."));
+                diagnostics.Add(TemplateDiagnostics.AppliedTableTemplate(template.Name));
                 continue;
             }
 
@@ -50,8 +49,7 @@ internal static class TemplateApplicator
             {
                 if (!schema.Schemas.Any(s => string.Equals(s.Name, schemaName, StringComparison.OrdinalIgnoreCase)))
                 {
-                    diagnostics.Add(Diagnostic.Error("templates",
-                        $"APPLY TEMPLATE '{template.Name}' targets unknown schema '{schemaName}'; declare it with CREATE SCHEMA."));
+                    diagnostics.Add(TemplateDiagnostics.UnknownTargetSchema(template.Name, schemaName));
                     continue;
                 }
 
@@ -130,8 +128,7 @@ internal static class TemplateApplicator
         foreach (var dangling in byTable.Keys.Where(key => !consumed.Contains(key)))
         {
             var include = byTable[dangling][0];
-            diagnostics.Add(Diagnostic.Error("templates",
-                $"INCLUDE '{include.TemplateName}' targets unknown table '{include.SchemaName}.{include.TableName}'."));
+            diagnostics.Add(TemplateDiagnostics.IncludeUnknownTable(include.TemplateName, include.SchemaName, include.TableName));
         }
 
         return schema with { Schemas = resolved };
@@ -161,13 +158,12 @@ internal static class TemplateApplicator
         {
             if (!templates.TryGetValue(include.TemplateName, out var template))
             {
-                diagnostics.Add(Diagnostic.Error("templates", $"Table '{qualified}' includes unknown template '{include.TemplateName}'."));
+                diagnostics.Add(TemplateDiagnostics.IncludeUnknownTemplate(qualified, include.TemplateName));
                 continue;
             }
             if (template.Kind != TemplateKind.Table)
             {
-                diagnostics.Add(Diagnostic.Error("templates",
-                    $"Table '{qualified}' includes '{template.Name}', which is a schema template; only a FOR TABLE template can be included."));
+                diagnostics.Add(TemplateDiagnostics.IncludedSchemaTemplate(qualified, template.Name));
                 continue;
             }
 
@@ -179,14 +175,12 @@ internal static class TemplateApplicator
             {
                 if (columns.Any(c => string.Equals(c.Name, column.Name, StringComparison.OrdinalIgnoreCase)))
                 {
-                    conflicts.Add(Diagnostic.Error("templates",
-                        $"Template '{template.Name}' adds column '{column.Name}' to '{qualified}', which already declares it."));
+                    conflicts.Add(TemplateDiagnostics.IncludeColumnConflict(template.Name, column.Name, qualified));
                 }
             }
             if (members.PrimaryKey is not null && primaryKey is not null)
             {
-                conflicts.Add(Diagnostic.Error("templates",
-                    $"Template '{template.Name}' adds a primary key to '{qualified}', which already declares one."));
+                conflicts.Add(TemplateDiagnostics.IncludePrimaryKeyConflict(template.Name, qualified));
             }
             if (conflicts.Count > 0)
             {

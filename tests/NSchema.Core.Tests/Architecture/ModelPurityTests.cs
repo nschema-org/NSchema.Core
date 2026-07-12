@@ -33,7 +33,6 @@ public sealed class ModelPurityTests
     }
 
     [Theory]
-    [InlineData("NSchema.Project.Ddl", new[] { "NSchema.Project.Ddl", "NSchema.Project.Domain.Models", "NSchema.Plugins", "System" })]
     [InlineData("NSchema.Diff.Domain.Models", new[] { "NSchema.Diff.Domain.Models", "NSchema.Project.Domain.Models", "System" })]
     [InlineData("NSchema.Plan.Domain.Models", new[] { "NSchema.Plan.Domain.Models", "NSchema.Project.Domain.Models", "NSchema.Diff.Domain.Models", "System" })]
     [InlineData("NSchema.Current.Domain.Models", new[] { "NSchema.Current.Domain.Models", "NSchema.Project.Domain.Models", "System" })]
@@ -42,6 +41,20 @@ public sealed class ModelPurityTests
         // Arrange
         var rule = Types().That().ResideInNamespaceMatching(Subtree(source))
             .Should().OnlyDependOn(Types().That().ResideInNamespaceMatching(Subtree(allowed)));
+
+        // Assert
+        rule.ShouldBeSatisfied();
+    }
+
+    [Fact]
+    public void DdlNamespace_DependsOnlyOnModelsTheBcl_AndTheOutcomeGrammar()
+    {
+        // Arrange — the read seam returns Result, so the language lane may also reference the root
+        // outcome grammar (Result/Diagnostic), but nothing else outside its lane.
+        var rule = Types().That().ResideInNamespaceMatching(Subtree("NSchema.Project.Ddl"))
+            .Should().OnlyDependOn(
+                Types().That().ResideInNamespaceMatching(Subtree("NSchema.Project.Ddl", "NSchema.Project.Domain.Models", "NSchema.Plugins", "System"))
+                    .Or().Are(typeof(Result), typeof(Result<>), typeof(Diagnostic)));
 
         // Assert
         rule.ShouldBeSatisfied();

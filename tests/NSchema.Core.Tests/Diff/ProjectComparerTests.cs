@@ -5,8 +5,9 @@ using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Columns;
 using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Tables;
-using NSchema.Diff.Policies;
+using NSchema.Plan.Policies;
 using NSchema.Project.Domain;
+using NSchema.Tests.Helpers;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
@@ -172,7 +173,7 @@ public sealed class ProjectComparerTests
     {
         // Arrange — the hazard policy sees the complete diff, so a matched backfill silences the NOT-NULL-add
         // warning it would otherwise raise.
-        var policy = new DataHazardDiffPolicy(Options.Create(new DataHazardOptions()));
+        var policy = new DataHazardPolicy(Options.Create(new DataHazardOptions()));
         _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(AddedEmailColumnDiff());
 
         // Act

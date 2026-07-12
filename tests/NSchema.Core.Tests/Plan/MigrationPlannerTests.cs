@@ -1,7 +1,8 @@
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Policies;
+using NSchema.Plan.Policies;
 using NSchema.Plan.Domain;
+using NSchema.Plan.Domain.Models;
 using NSchema.Plan.Domain.Models.Schemas;
 using NSchema.Plan.Domain.Models.Scripts;
 using NSchema.Project.Domain.Models;
@@ -25,10 +26,10 @@ public sealed class MigrationPlannerTests
 
     private readonly IProjectComparer _differ = Substitute.For<IProjectComparer>();
     private readonly IPlanLinearizer _linearizer = Substitute.For<IPlanLinearizer>();
-    private readonly List<ISchemaPolicy> _schemaPolicies = [];
-    private readonly List<IDiffPolicy> _diffPolicies = [];
+    private readonly List<IProjectPolicy> _projectPolicies = [];
+    private readonly List<IPlanPolicy> _planPolicies = [];
 
-    private MigrationPlanner Sut => new(_differ, _linearizer, _schemaPolicies, _diffPolicies, new StubSqlDialect());
+    private MigrationPlanner Sut => new(_differ, _linearizer, _projectPolicies, _planPolicies, new StubSqlDialect());
 
     public MigrationPlannerTests()
     {
@@ -38,13 +39,13 @@ public sealed class MigrationPlannerTests
     }
 
     [Fact]
-    public void Validate_RunsSchemaPoliciesAgainstDesiredSchema()
+    public void Validate_RunsProjectPoliciesAgainstTheProject()
     {
         // Arrange
-        var desired = new DatabaseSchema([new SchemaDefinition("app")]);
-        var policy = Substitute.For<ISchemaPolicy>();
+        var desired = new ProjectDefinition(new DatabaseSchema([new SchemaDefinition("app")]), []);
+        var policy = Substitute.For<IProjectPolicy>();
         policy.Validate(desired).Returns([Diagnostic.Error("Test", "bad schema")]);
-        _schemaPolicies.Add(policy);
+        _projectPolicies.Add(policy);
 
         // Act
         var diagnostics = Sut.Validate(desired);
@@ -58,9 +59,9 @@ public sealed class MigrationPlannerTests
     public void Plan_SchemaPolicyError_BlocksButStillCarriesTheCompletePlan()
     {
         // Arrange
-        var policy = Substitute.For<ISchemaPolicy>();
-        policy.Validate(Arg.Any<DatabaseSchema>()).Returns([Diagnostic.Error("Test", "bad schema")]);
-        _schemaPolicies.Add(policy);
+        var policy = Substitute.For<IProjectPolicy>();
+        policy.Validate(Arg.Any<ProjectDefinition>()).Returns([Diagnostic.Error("Test", "bad schema")]);
+        _projectPolicies.Add(policy);
 
         // Act
         var result = Sut.Plan(_current, _desired);
@@ -76,10 +77,10 @@ public sealed class MigrationPlannerTests
     public void Plan_NonFatalSchemaDiagnostics_FlowIntoResult()
     {
         // Arrange
-        var policy = Substitute.For<ISchemaPolicy>();
-        policy.Validate(Arg.Any<DatabaseSchema>())
+        var policy = Substitute.For<IProjectPolicy>();
+        policy.Validate(Arg.Any<ProjectDefinition>())
             .Returns([new Diagnostic("Test", "lint", DiagnosticSeverity.Warning)]);
-        _schemaPolicies.Add(policy);
+        _projectPolicies.Add(policy);
 
         // Act
         var result = Sut.Plan(_current, _desired);
@@ -115,21 +116,21 @@ public sealed class MigrationPlannerTests
     }
 
     [Fact]
-    public void Plan_RunsDiffPoliciesAgainstTheCompleteDiff()
+    public void Plan_RunsPlanPoliciesAgainstTheCompletePlan()
     {
         // Arrange
         var diff = _emptyDiff with { Scripts = [new Script("seed", "SELECT 1", new DeploymentEvent(DeploymentPhase.Post))] };
         _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(diff, []));
-        var policy = Substitute.For<IDiffPolicy>();
-        policy.Validate(diff).Returns([Diagnostic.Error("Test", "destructive")]);
-        _diffPolicies.Add(policy);
+        var policy = Substitute.For<IPlanPolicy>();
+        policy.Validate(Arg.Is<MigrationPlan>(p => p.Diff == diff)).Returns([Diagnostic.Error("Test", "destructive")]);
+        _planPolicies.Add(policy);
 
         // Act
         var result = Sut.Plan(_current, _desired);
 
-        // Assert — the policy received the diff the differ produced, scripts included.
+        // Assert — the policy received the rendered plan carrying the diff the differ produced, scripts included.
         result.Diagnostics.ShouldHaveSingleItem().Message.ShouldBe("destructive");
-        policy.Received(1).Validate(diff);
+        policy.Received(1).Validate(Arg.Is<MigrationPlan>(p => p.Diff == diff));
     }
 
     [Fact]
@@ -167,7 +168,7 @@ public sealed class MigrationPlannerTests
     public void Plan_WithoutADialect_Fails()
     {
         // Arrange
-        var sut = new MigrationPlanner(_differ, _linearizer, _schemaPolicies, _diffPolicies, dialect: null);
+        var sut = new MigrationPlanner(_differ, _linearizer, _projectPolicies, _planPolicies, dialect: null);
 
         // Act
         var result = sut.Plan(_current, _desired);
@@ -175,7 +176,7 @@ public sealed class MigrationPlannerTests
         // Assert — a dialect is required: there is no SQL-less plan.
         result.IsFailure.ShouldBeTrue();
         result.Value.ShouldBeNull();
-        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("requires a database provider");
+        result.Errors.ShouldHaveSingleItem().ShouldBe(PlanDiagnostics.MissingDialect);
     }
 
     [Fact]
@@ -199,27 +200,27 @@ public sealed class MigrationPlannerTests
     public void PlanTeardown_BypassesPolicies()
     {
         // Arrange
-        var diffPolicy = Substitute.For<IDiffPolicy>();
-        _diffPolicies.Add(diffPolicy);
+        var planPolicy = Substitute.For<IPlanPolicy>();
+        _planPolicies.Add(planPolicy);
 
         // Act
         Sut.PlanTeardown(new DatabaseSchema([new SchemaDefinition("app")]));
 
         // Assert
-        diffPolicy.DidNotReceive().Validate(Arg.Any<DatabaseDiff>());
+        planPolicy.DidNotReceive().Validate(Arg.Any<MigrationPlan>());
     }
 
     [Fact]
     public void PlanTeardown_WithoutADialect_Fails()
     {
         // Arrange
-        var sut = new MigrationPlanner(_differ, _linearizer, _schemaPolicies, _diffPolicies, dialect: null);
+        var sut = new MigrationPlanner(_differ, _linearizer, _projectPolicies, _planPolicies, dialect: null);
 
         // Act
         var result = sut.PlanTeardown(_emptySchema);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
-        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("requires a database provider");
+        result.Errors.ShouldHaveSingleItem().ShouldBe(PlanDiagnostics.MissingDialect);
     }
 }

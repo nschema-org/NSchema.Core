@@ -10,7 +10,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 public sealed class DdlParserIndexDepthTests
 {
     private static TableIndex ParseIndex(string statement) =>
-        DdlReader.Instance.Read("CREATE TABLE app.t (a int, b int); " + statement).Schema
+        new DdlParser("CREATE TABLE app.t (a int, b int); " + statement).Parse().Schema
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Indexes.ShouldHaveSingleItem();
 
     [Fact]
@@ -56,7 +56,7 @@ public sealed class DdlParserIndexDepthTests
     [Fact]
     public void Parse_InlineIndexWithMethodAndInclude_IsCaptured()
     {
-        var index = DdlReader.Instance.Read("CREATE TABLE app.t (a int, b int, INDEX t_ix USING gin (a) INCLUDE (b));").Schema
+        var index = new DdlParser("CREATE TABLE app.t (a int, b int, INDEX t_ix USING gin (a) INCLUDE (b));").Parse().Schema
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Indexes.ShouldHaveSingleItem();
         index.Method.ShouldBe("gin");
         index.Include.ShouldBe(["b"]);
@@ -67,9 +67,9 @@ public sealed class DdlParserIndexDepthTests
     {
         const string ddl = "CREATE TABLE app.t (a int, b int, c int);\n" +
             "CREATE UNIQUE INDEX t_ix ON app.t USING btree (c DESC NULLS LAST, (lower(a))) INCLUDE (b) WHERE (c IS NOT NULL);";
-        var schema = DdlReader.Instance.Read(ddl).Schema;
+        var schema = new DdlParser(ddl).Parse().Schema;
 
-        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema
+        var reparsed = new DdlParser(DdlWriter.Instance.Write(schema)).Parse().Schema
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Indexes.ShouldHaveSingleItem();
         reparsed.IsUnique.ShouldBeTrue();
         reparsed.Method.ShouldBe("btree");

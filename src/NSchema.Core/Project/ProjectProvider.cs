@@ -27,24 +27,29 @@ internal sealed class ProjectProvider(IEnumerable<ProjectSource> sources) : IPro
         var files = sourceList.SelectMany(ResolveFiles).ToList();
         if (files.Count == 0)
         {
-            throw new FileNotFoundException("No SQL DDL files matched the registered schema sources.");
+            return Result.Failure<ProjectDefinition>(ProjectDiagnostics.NoFilesMatched());
         }
 
         var documents = await Task.WhenAll(files.Select(file => ReadDocument(file, cancellationToken)));
 
-        // Cross-file duplicates are authoring mistakes — error diagnostics on the result, all of them at
-        // once, with the best-effort merge still carried.
+        // Unreadable or unparseable files and cross-file duplicates are authoring mistakes — error diagnostics
+        // on the result, all of them at once, with the best-effort merge of the readable files still carried.
         var diagnostics = new List<Diagnostic>();
         var schema = new DatabaseSchema();
         var scripts = new List<Script>();
         var templates = new TemplateSet();
         foreach (var document in documents)
         {
-            var merged = SchemaAggregator.Combine(schema, document.Schema);
+            diagnostics.AddRange(document.Diagnostics);
+            if (document.Value is null)
+            {
+                continue;
+            }
+            var merged = SchemaAggregator.Combine(schema, document.Value.Schema);
             diagnostics.AddRange(merged.Diagnostics);
             schema = merged.Require();
-            scripts.AddRange(document.Scripts);
-            templates = templates.Combine(document.Templates);
+            scripts.AddRange(document.Value.Scripts);
+            templates = templates.Combine(document.Value.Templates);
         }
 
         // Apply all templates: application failures accumulate the same way.
@@ -77,9 +82,7 @@ internal sealed class ProjectProvider(IEnumerable<ProjectSource> sources) : IPro
         {
             if (!names.Add(name))
             {
-                yield return Diagnostic.Error("project",
-                    $"Duplicate script name '{name}' declared. Script names must be unique across the project; " +
-                    "a script declared in a template applied to multiple schemas can include the {schema} token in its name.");
+                yield return ProjectDiagnostics.DuplicateScriptName(name);
             }
         }
     }
@@ -95,8 +98,7 @@ internal sealed class ProjectProvider(IEnumerable<ProjectSource> sources) : IPro
         {
             if (!targets.Add($"{change.Trigger}:{change.Path}"))
             {
-                yield return Diagnostic.Error("project",
-                    $"Duplicate migration for {ChangeEvent.TriggerText(change.Trigger)} '{change.Path}' declared.");
+                yield return ProjectDiagnostics.DuplicateChangeTarget(change);
             }
         }
     }
@@ -105,16 +107,21 @@ internal sealed class ProjectProvider(IEnumerable<ProjectSource> sources) : IPro
         .GetResultsInFullPath(source.BaseDirectory)
         .OrderBy(path => path, StringComparer.Ordinal);
 
-    private static async Task<DdlDocument> ReadDocument(string path, CancellationToken cancellationToken)
+    private static async Task<Result<DdlDocument>> ReadDocument(string path, CancellationToken cancellationToken)
     {
-        var text = await File.ReadAllTextAsync(path, cancellationToken);
+        string text;
         try
         {
-            return new DdlParser(text).Parse();
+            text = await File.ReadAllTextAsync(path, cancellationToken);
         }
-        catch (DdlSyntaxException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            throw ex.WithSource(path);
+            return Result.Failure<DdlDocument>(ProjectDiagnostics.UnreadableFile(path, ex));
         }
+
+        var read = DdlReader.Instance.Read(text);
+        return read.IsSuccess
+            ? read
+            : Result.Failure<DdlDocument>(read.Diagnostics.Select(d => ProjectDiagnostics.InFile(path, d)));
     }
 }

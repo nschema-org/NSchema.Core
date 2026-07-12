@@ -49,7 +49,7 @@ public sealed class TemplateExpansionSnapshotTests
             APPLY TEMPLATE outbox IN SCHEMA billing, ordering;
             """;
 
-        var document = DdlReader.Instance.Read(source);
+        var document = DdlReader.Instance.Read(source).Require();
         var expanded = TemplateApplicator.Apply(new ProjectDefinition(document.Schema, document.Scripts), document.Templates).Require().Schema;
 
         return Verify(DdlWriter.Instance.Write(expanded));

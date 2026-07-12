@@ -1,7 +1,7 @@
-namespace NSchema.Diff.Policies;
+namespace NSchema.Plan.Policies;
 
 /// <summary>
-/// Configures <see cref="DestructiveActionDiffPolicy"/>.
+/// Configures <see cref="DestructiveActionPolicy"/>.
 /// </summary>
 public class DestructiveActionOptions
 {

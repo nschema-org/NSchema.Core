@@ -1,7 +1,7 @@
 using NSchema.Apply;
 using NSchema.Current.Storage;
 using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Policies;
+using NSchema.Plan.Policies;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
 using NSchema.Operations.Workflow;
@@ -17,13 +17,13 @@ public sealed class ApplyOperationTests
     private readonly IMigrationWorkflow _workflow = Substitute.For<IMigrationWorkflow>();
     private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
     private readonly ISqlExecutor _executor = Substitute.For<ISqlExecutor>();
-    private readonly List<IDiffPolicy> _diffPolicies = [];
+    private readonly List<IPlanPolicy> _planPolicies = [];
     private readonly ISchemaStateManager _stateManager = Substitute.For<ISchemaStateManager>();
 
     private readonly MigrationPlan _plan = new(new DatabaseDiff([]), [new SqlStatement("CREATE SCHEMA app")]);
     private static readonly MigrationPlan _emptyPlan = new(new DatabaseDiff([]), []);
 
-    private ApplyOperation BuildSut(ISqlExecutor? executor) => new(_workflow, _progress, _diffPolicies, _stateManager, executor);
+    private ApplyOperation BuildSut(ISqlExecutor? executor) => new(_workflow, _progress, _planPolicies, _stateManager, executor);
 
     private readonly ApplyOperation _sut;
 
@@ -46,7 +46,7 @@ public sealed class ApplyOperationTests
 
         // Assert
         result.IsFailure.ShouldBeTrue();
-        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("requires a state store");
+        result.Errors.ShouldHaveSingleItem().ShouldBe(ApplyDiagnostics.StoreRequired);
         await _executor.DidNotReceive().Execute(Arg.Any<IReadOnlyList<SqlStatement>>(), Arg.Any<CancellationToken>());
     }
 
@@ -123,7 +123,7 @@ public sealed class ApplyOperationTests
         var result = await sut.Execute(Args(_plan), TestContext.Current.CancellationToken);
 
         result.IsFailure.ShouldBeTrue();
-        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("requires a database provider");
+        result.Errors.ShouldHaveSingleItem().ShouldBe(ApplyDiagnostics.MissingExecutor);
     }
 
     [Fact]
@@ -156,11 +156,11 @@ public sealed class ApplyOperationTests
     [Fact]
     public async Task Execute_PolicyBlockedPlan_IsNotApplied()
     {
-        // Arrange — policies are enforced at the execution point against the carried diff, so a saved plan
+        // Arrange — policies are enforced at the execution point against the exact plan being applied, so a saved plan
         // (older config, other tooling, hand edits) cannot slip past them.
-        var policy = Substitute.For<IDiffPolicy>();
-        policy.Validate(_plan.Diff).Returns([Diagnostic.Error("destructive", "drops table")]);
-        _diffPolicies.Add(policy);
+        var policy = Substitute.For<IPlanPolicy>();
+        policy.Validate(_plan).Returns([Diagnostic.Error("destructive", "drops table")]);
+        _planPolicies.Add(policy);
 
         // Act
         var result = await _sut.Execute(Args(_plan), TestContext.Current.CancellationToken);
@@ -177,9 +177,9 @@ public sealed class ApplyOperationTests
     public async Task Execute_PolicyBlockedPlan_WithForce_AppliesWithTheErrorsDemotedToWarnings()
     {
         // Arrange — force is an informed override: the findings stay visible, demoted so they don't fail the run.
-        var policy = Substitute.For<IDiffPolicy>();
-        policy.Validate(_plan.Diff).Returns([Diagnostic.Error("destructive", "drops table")]);
-        _diffPolicies.Add(policy);
+        var policy = Substitute.For<IPlanPolicy>();
+        policy.Validate(_plan).Returns([Diagnostic.Error("destructive", "drops table")]);
+        _planPolicies.Add(policy);
 
         // Act
         var result = await _sut.Execute(new ApplyArguments { Plan = _plan, Force = true }, TestContext.Current.CancellationToken);
@@ -194,9 +194,9 @@ public sealed class ApplyOperationTests
     public async Task Execute_PolicyWarnings_RideTheResultAndDoNotBlock()
     {
         // Arrange
-        var policy = Substitute.For<IDiffPolicy>();
-        policy.Validate(_plan.Diff).Returns([Diagnostic.Warning("data-hazards", "risky add")]);
-        _diffPolicies.Add(policy);
+        var policy = Substitute.For<IPlanPolicy>();
+        policy.Validate(_plan).Returns([Diagnostic.Warning("data-hazards", "risky add")]);
+        _planPolicies.Add(policy);
 
         // Act
         var result = await _sut.Execute(Args(_plan), TestContext.Current.CancellationToken);

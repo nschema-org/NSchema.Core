@@ -7,7 +7,6 @@ namespace NSchema.Current.Storage;
 /// </summary>
 internal sealed class SchemaStateManager(ISchemaStateSerializer serializer, ISchemaStateStore? store = null) : ISchemaStateManager
 {
-    private const string Source = "state";
 
     public bool IsConfigured => store is not null;
 
@@ -30,7 +29,7 @@ internal sealed class SchemaStateManager(ISchemaStateSerializer serializer, ISch
         }
         catch (Exception ex) when (ex is StateDeserializationException or NotSupportedException)
         {
-            return Result.Failure<StateReadResult>(Diagnostic.Error(Source, ex.Message));
+            return Result.Failure<StateReadResult>(StateDiagnostics.UnreadablePayload(ex));
         }
     }
 
@@ -69,14 +68,12 @@ internal sealed class SchemaStateManager(ISchemaStateSerializer serializer, ISch
         }
         catch (Exception ex) when (ex is StateDeserializationException or NotSupportedException)
         {
-            return Result.Failure<StateRawWriteResult>(
-                Diagnostic.Error(Source, $"The payload is not a valid state snapshot and was not written. {ex.Message}"));
+            return Result.Failure<StateRawWriteResult>(StateDiagnostics.InvalidRawPayload(ex));
         }
 
         await store.Write(arguments.Payload, cancellationToken);
         return new StateRawWriteResult(arguments.Payload.Length);
     }
 
-    private static Result<T> NotConfigured<T>() => Result.Failure<T>(
-        Diagnostic.Error(Source, "No state store is configured; register one with UseStateStore or UseFileStateStore."));
+    private static Result<T> NotConfigured<T>() => Result.Failure<T>(StateDiagnostics.NotConfigured);
 }

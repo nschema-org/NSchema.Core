@@ -9,7 +9,7 @@ using NSchema.Current;
 using NSchema.Current.Locks;
 using NSchema.Current.Storage;
 using NSchema.Diff.Domain;
-using NSchema.Diff.Policies;
+using NSchema.Plan.Policies;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
 using NSchema.Operations.Workflow;
@@ -49,11 +49,11 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         _innerBuilder.Services.AddOptions<DataHazardOptions>();
 
         // Policies registered up front so users can remove them before Build().
-        AddSchemaPolicy<StructuralIntegritySchemaPolicy>();
-        AddSchemaPolicy<SchemaLintPolicy>();
-        AddDiffPolicy<DestructiveActionDiffPolicy>();
-        AddDiffPolicy<DataHazardDiffPolicy>();
-        AddDiffPolicy<EnumValueRemovalDiffPolicy>();
+        AddProjectPolicy<StructuralIntegritySchemaPolicy>();
+        AddProjectPolicy<SchemaLintPolicy>();
+        AddPlanPolicy<DestructiveActionPolicy>();
+        AddPlanPolicy<DataHazardPolicy>();
+        AddPlanPolicy<EnumValueRemovalPolicy>();
     }
 
     /// <inheritdoc />

@@ -32,7 +32,7 @@ public sealed class NamespaceMigrationMapTests
     private const string Diff = "NSchema.Diff";
     private const string DiffReaderNs = "NSchema.Diff.Reader";
     private const string DiffModels = "NSchema.Diff.Domain.Models";
-    private const string DiffPolicies = "NSchema.Diff.Policies";
+    private const string PlanPolicies = "NSchema.Plan.Policies";
     private const string Plan = "NSchema.Plan";
     private const string PlanBackends = "NSchema.Plan.Backends";
     private const string PlanModels = "NSchema.Plan.Domain.Models";
@@ -71,7 +71,6 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Project.Ddl.DdlReader)] = ProjectDdl,
         [typeof(NSchema.Project.Ddl.DdlWriter)] = ProjectDdl,
         [typeof(NSchema.Project.Ddl.DdlFormatter)] = ProjectDdl,
-        [typeof(NSchema.Project.Ddl.DdlSyntaxException)] = ProjectDdl, // likely absorbed by DdlDiagnostic in the Result<T,TDiagnostic> conversion
         [typeof(DdlDocument)] = ProjectDdlModels, // becomes the parsed-project root of the full AST
         [typeof(SourcePosition)] = ProjectDdlModels,
         // Template constructs are language features, not domain models; reshaped as AST nodes.
@@ -82,7 +81,7 @@ public sealed class NamespaceMigrationMapTests
         [typeof(TemplateSet)] = ProjectDdlModels + ".Templates",
 
         // ── ProjectDefinition.Policies ──
-        [typeof(NSchema.Project.Policies.ISchemaPolicy)] = ProjectPolicies,
+        [typeof(NSchema.Project.Policies.IProjectPolicy)] = ProjectPolicies,
 
         // ── ProjectDefinition.Domain.Models: the shared pipeline vocabulary (the schema tree + the script models). ──
         [typeof(NSchema.Project.Domain.Models.DatabaseSchema)] = ProjectModels,
@@ -136,9 +135,9 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Diff.Reader.DiffDocument)] = DiffReaderNs,
         [typeof(NSchema.Diff.Reader.DiffLine)] = DiffReaderNs,
         [typeof(NSchema.Diff.Domain.Models.DiffSummary)] = DiffModels, // produced by DatabaseDiff.GetSummary — model vocabulary, not a seam message
-        [typeof(NSchema.Diff.Policies.IDiffPolicy)] = DiffPolicies,
-        [typeof(NSchema.Diff.Policies.DataHazardOptions)] = DiffPolicies,
-        [typeof(NSchema.Diff.Policies.DestructiveActionOptions)] = DiffPolicies,
+        [typeof(NSchema.Plan.Policies.IPlanPolicy)] = PlanPolicies,
+        [typeof(NSchema.Plan.Policies.DataHazardOptions)] = PlanPolicies,
+        [typeof(NSchema.Plan.Policies.DestructiveActionOptions)] = PlanPolicies,
         [typeof(NSchema.Diff.Domain.Models.ChangeKind)] = DiffModels,
         [typeof(NSchema.Diff.Domain.Models.DatabaseDiff)] = DiffModels,
         [typeof(NSchema.Diff.Domain.Models.INamedObjectDiff)] = DiffModels,

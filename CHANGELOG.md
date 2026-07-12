@@ -29,6 +29,8 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **Plugin `Configure` returns `Result`.** Configuration errors are diagnostics like everything else.
 - **`PolicyEnforcement` absorbs `DestructiveActionPolicy`.** `WithDestructiveActionPolicy` takes the shared enum, gaining `Ignore`.
 - **The state ledger field is `scripts` now.** Pre-5.0 `executedScripts` payloads read as an empty ledger. Refresh (or untaint) existing state under the state-format compatibility policy's major-version rules.
+- **`DdlReader.Read` returns `Result<DdlDocument>`.** A syntax error is an error diagnosti instead of a thrown exception.
+- **Project reads report every broken file at once.** An unreadable or unparseable file (and no-files-matched) is an error diagnostic on the project.
 - **Template migrations are decoupled from their tables.** Migrations can be declared in any template for any table.
 - **Scripts execute as woven statements.** The linearizer weaves the diff's scripts into the ordering so scripts are now first-class actions.
 - **Planning and applying now require a state store.** Use the new ephemeral store if you need to run without persistent state for CI or integration tests.
@@ -44,6 +46,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - `DataMigration` has been folded into `Script` and now requires a name for so they can maintain a stable identity.
 - **Narrowed public surface.** A variety of types that should never have been exposed have been made internal.
 - `PolicyDiagnostics`, `PluginConfigureResult`, and the `DestructiveActionPolicy` enum — all made redundant by first-class severity on `Result` and the shared `PolicyEnforcement`.
+- `DdlSyntaxException` is now internal.
 
 ## [4.6.1] - 2026-07-10
 

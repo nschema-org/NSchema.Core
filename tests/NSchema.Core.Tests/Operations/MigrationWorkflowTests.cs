@@ -52,7 +52,7 @@ public sealed class MigrationWorkflowTests
             .GetProject(Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
             .Returns(ProjectDefinition(new DatabaseSchema([])));
 
-        _planner.Validate(Arg.Any<DatabaseSchema>()).Returns(Result.Success());
+        _planner.Validate(Arg.Any<ProjectDefinition>()).Returns(Result.Success());
 
         _planner
             .Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>())
@@ -84,7 +84,7 @@ public sealed class MigrationWorkflowTests
     public async Task ValidateDesiredSchema_PolicyViolation_ReturnsErrorFindings_WithoutReporting()
     {
         // Arrange
-        _planner.Validate(Arg.Any<DatabaseSchema>()).Returns(Result.From(Diagnostic.Error("P1", "msg")));
+        _planner.Validate(Arg.Any<ProjectDefinition>()).Returns(Result.From(Diagnostic.Error("P1", "msg")));
 
         // Act
         var findings = await _sut.Validate(TestContext.Current.CancellationToken);
@@ -98,7 +98,7 @@ public sealed class MigrationWorkflowTests
     public async Task ValidateDesiredSchema_NonErrorDiagnostics_AreCarriedInTheFindings()
     {
         // Arrange
-        _planner.Validate(Arg.Any<DatabaseSchema>())
+        _planner.Validate(Arg.Any<ProjectDefinition>())
             .Returns(Result.From(new Diagnostic("P1", "info", DiagnosticSeverity.Info)));
 
         // Act
@@ -297,7 +297,7 @@ public sealed class MigrationWorkflowTests
 
         // Assert
         result.IsFailure.ShouldBeTrue();
-        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("Planning requires a state store");
+        result.Errors.ShouldHaveSingleItem().ShouldBe(WorkflowDiagnostics.StoreRequiredForPlanning);
         _planner.DidNotReceive().Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>());
     }
 
@@ -551,7 +551,7 @@ public sealed class MigrationWorkflowTests
 
         // Assert
         result.IsFailure.ShouldBeTrue();
-        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("Planning requires a state store");
+        result.Errors.ShouldHaveSingleItem().ShouldBe(WorkflowDiagnostics.StoreRequiredForPlanning);
         _planner.DidNotReceive().PlanTeardown(Arg.Any<DatabaseSchema>());
     }
 

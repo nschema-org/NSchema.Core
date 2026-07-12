@@ -3,6 +3,7 @@ using Microsoft.Extensions.FileSystemGlobbing;
 using NSchema.Project;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Project.Domain;
 
 namespace NSchema.Tests;
 
@@ -87,14 +88,19 @@ public sealed class AddProjectSourceTests : IDisposable
     }
 
     [Fact]
-    public async Task AddSqlSchemas_MatchingNothing_Throws()
+    public async Task AddSqlSchemas_MatchingNothing_FailsTheRead()
     {
         // Planning against an empty desired schema would read as "drop everything", so a pattern that
         // resolves to no files is a configuration error rather than an empty schema.
-        var ex = await Should.ThrowAsync<FileNotFoundException>(
-            () => ResolveSchemaNames(b => b.AddProjectSource(_root)));
+        var builder = NSchemaApplication.CreateBuilder();
+        builder.AddProjectSource(_root);
+        using var app = builder.Build();
 
-        ex.Message.ShouldContain("No SQL DDL files matched");
+        var project = await app.Services.GetRequiredService<IProjectProvider>()
+            .GetProject(cancellationToken: TestContext.Current.CancellationToken);
+
+        project.IsFailure.ShouldBeTrue();
+        project.Errors.ShouldHaveSingleItem().ShouldBe(ProjectDiagnostics.NoFilesMatched());
     }
 
     [Fact]

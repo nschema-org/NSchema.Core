@@ -33,7 +33,7 @@ internal sealed class MigrationWorkflow(
 
         // The findings — including any non-error advisories and findings raised while reading the DDL — are
         // returned as data for the caller to render.
-        return Result.From(desired.Diagnostics.Concat(planner.Validate(project.Schema).Diagnostics));
+        return Result.From(desired.Diagnostics.Concat(planner.Validate(project).Diagnostics));
     }
 
     public async Task<Result<MigrationPlan>> ComputePlan(SchemaSourceMode currentSource, string[]? schemas, CancellationToken cancellationToken = default)
@@ -42,7 +42,7 @@ internal sealed class MigrationWorkflow(
         // a store would plan against knowingly incomplete current state.
         if (!stateManager.IsConfigured)
         {
-            return Result.Failure<MigrationPlan>(StoreRequired());
+            return Result.Failure<MigrationPlan>(WorkflowDiagnostics.StoreRequiredForPlanning);
         }
 
         progress.Report(OperationProgress.Step("Loading desired schema..."));
@@ -91,7 +91,7 @@ internal sealed class MigrationWorkflow(
     {
         if (!stateManager.IsConfigured)
         {
-            return Result.Failure<MigrationPlan>(StoreRequired());
+            return Result.Failure<MigrationPlan>(WorkflowDiagnostics.StoreRequiredForPlanning);
         }
 
         // The managed schema is the recorded state — state is the record of what NSchema manages, so a teardown
@@ -106,7 +106,7 @@ internal sealed class MigrationWorkflow(
     {
         if (!stateManager.IsConfigured)
         {
-            return Result.Failure<StateCapture>(Diagnostic.Error("refresh", "Unable to refresh state without a configured state store."));
+            return Result.Failure<StateCapture>(WorkflowDiagnostics.StoreRequiredForRefresh);
         }
 
         progress.Report(OperationProgress.Step("Updating state store..."));
@@ -118,9 +118,7 @@ internal sealed class MigrationWorkflow(
         var read = await stateManager.Read(new StateReadArguments(), cancellationToken);
         if (read.IsFailure && !force)
         {
-            return Result.Failure<StateCapture>(read.Diagnostics.Append(Diagnostic.Error("state",
-                "The existing state payload was not replaced. Repair it with state pull/push, or re-run the " +
-                "refresh with force to replace it and reset the run-once script ledger.")));
+            return Result.Failure<StateCapture>(read.Diagnostics.Append(WorkflowDiagnostics.StateNotReplaced));
         }
 
         var state = read.Value?.State ?? SchemaState.Empty;
@@ -151,17 +149,11 @@ internal sealed class MigrationWorkflow(
             // so they ride along demoted to warnings — error severity would flip the result to a failure.
             diagnostics = read.Diagnostics
                 .Select(d => d with { Severity = DiagnosticSeverity.Warning })
-                .Append(Diagnostic.Warning("state",
-                    "The existing state payload could not be read and has been replaced; the run-once script ledger was " +
-                    "reset. Untaint any run-once scripts that have already run, or they will run again on the next apply."
-                ));
+                .Append(WorkflowDiagnostics.LedgerReset);
         }
 
         return Result.Success(new StateCapture(schema, write.PayloadSize), diagnostics);
     }
-
-    private static Diagnostic StoreRequired() => Diagnostic.Error("plan",
-        "Planning requires a state store to read the recorded state and the run-once ledger. Register one, or declare the database disposable with ephemeral state.");
 
     /// <summary>
     /// Emits the verbose census of what the loaded project declares.

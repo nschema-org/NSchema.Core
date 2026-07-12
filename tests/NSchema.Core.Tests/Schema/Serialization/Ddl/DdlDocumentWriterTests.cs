@@ -42,10 +42,10 @@ public sealed class DdlDocumentWriterTests
     // Write produces byte-identical output (formatting is idempotent — the property `fmt --check` relies on).
     private static string AssertRoundTrips(string source)
     {
-        var document = DdlReader.Instance.Read(source);
+        var document = DdlReader.Instance.Read(source).Require();
         var formatted = DdlWriter.Instance.Write(document);
 
-        var reparsed = DdlReader.Instance.Read(formatted);
+        var reparsed = DdlReader.Instance.Read(formatted).Require();
         AssertEquivalent(document, reparsed);
         DdlWriter.Instance.Write(reparsed).ShouldBe(formatted);
 
@@ -204,7 +204,7 @@ public sealed class DdlDocumentWriterTests
             PROVIDER postgres (
               dialect = 'postgres'
             );
-            """));
+            """).Require());
 
         var config = formatted.IndexOf("PROVIDER", StringComparison.Ordinal);
         var schema = formatted.IndexOf("CREATE SCHEMA app", StringComparison.Ordinal);

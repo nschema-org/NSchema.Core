@@ -1,6 +1,6 @@
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Policies;
+using NSchema.Plan.Policies;
 using NSchema.Plan.Backends;
 using NSchema.Plan.Domain.Models;
 using NSchema.Project.Domain.Models;
@@ -13,42 +13,42 @@ namespace NSchema.Plan.Domain;
 /// </summary>
 /// <param name="comparer">Produces the complete diff from the current state and the desired project.</param>
 /// <param name="linearizer">Derives the ordered actions from the diff, weaving its scripts in.</param>
-/// <param name="schemaPolicies">Policies that validate the desired schema.</param>
-/// <param name="diffPolicies">Policies that validate the diff (e.g. destructive-change checks).</param>
+/// <param name="projectPolicies">Policies that validate the declared project.</param>
+/// <param name="planPolicies">Policies that validate the complete plan (e.g. destructive-change checks).</param>
 /// <param name="dialect">The SQL dialect the plan's statements are rendered with. Required for planning.</param>
 internal sealed class MigrationPlanner(
     IProjectComparer comparer,
     IPlanLinearizer linearizer,
-    IEnumerable<ISchemaPolicy> schemaPolicies,
-    IEnumerable<IDiffPolicy> diffPolicies,
+    IEnumerable<IProjectPolicy> projectPolicies,
+    IEnumerable<IPlanPolicy> planPolicies,
     ISqlDialect? dialect = null
 ) : IMigrationPlanner
 {
-    public Result Validate(DatabaseSchema desiredSchema) =>
-        Result.From(schemaPolicies.SelectMany(p => p.Validate(desiredSchema)));
+    public Result Validate(ProjectDefinition desired) =>
+        Result.From(projectPolicies.SelectMany(p => p.Validate(desired)));
 
     public Result<MigrationPlan> Plan(CurrentState current, ProjectDefinition desired)
     {
         if (dialect is null)
         {
-            return MissingDialect();
+            return Result.Failure<MigrationPlan>(PlanDiagnostics.MissingDialect);
         }
 
         var diagnostics = new List<Diagnostic>();
 
-        // Validate the desired schema.
-        var schemaValidation = Validate(desired.Schema);
-        diagnostics.AddRange(schemaValidation.Diagnostics);
+        // Validate the declared project.
+        diagnostics.AddRange(Validate(desired).Diagnostics);
 
         // Compare it with the current state.
         var compared = comparer.Compare(current, desired);
         diagnostics.AddRange(compared.Diagnostics);
         var diff = compared.Require();
 
-        // Validate the diff.
-        diagnostics.AddRange(diffPolicies.SelectMany(p => p.Validate(diff)));
-
         var plan = Realize(diff, dialect);
+
+        // Validate the complete plan — post-render, so policies see exactly what an apply would execute.
+        diagnostics.AddRange(planPolicies.SelectMany(p => p.Validate(plan)));
+
         return Result.From(plan, diagnostics);
     }
 
@@ -56,7 +56,7 @@ internal sealed class MigrationPlanner(
     {
         if (dialect is null)
         {
-            return MissingDialect();
+            return Result.Failure<MigrationPlan>(PlanDiagnostics.MissingDialect);
         }
 
         // Don't run policies for teardown. This is a purely destructive action, and needs to be available as an escape.
@@ -79,7 +79,4 @@ internal sealed class MigrationPlanner(
 
         return new MigrationPlan(diff, planStatements);
     }
-
-    private static Result<MigrationPlan> MissingDialect() => Result.Failure<MigrationPlan>(Diagnostic.Error(
-        "plan", "Planning requires a database provider to render SQL, but none is registered."));
 }

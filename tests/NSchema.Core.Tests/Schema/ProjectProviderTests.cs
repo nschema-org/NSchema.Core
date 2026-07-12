@@ -1,7 +1,7 @@
 using Microsoft.Extensions.FileSystemGlobbing;
 using NSchema.Project;
-using NSchema.Project.Ddl;
 using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Project.Domain;
 
 namespace NSchema.Tests.Schema;
 
@@ -30,25 +30,31 @@ public sealed class ProjectProviderTests : IDisposable
         => await Should.ThrowAsync<InvalidOperationException>(() => new ProjectProvider([]).GetProject().AsTask());
 
     [Fact]
-    public async Task GetProject_NoMatchingFiles_Throws()
+    public async Task GetProject_NoMatchingFiles_FailsTheRead()
     {
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
-        await Should.ThrowAsync<FileNotFoundException>(() => sut.GetProject(cancellationToken: TestContext.Current.CancellationToken).AsTask());
+        var project = await sut.GetProject(cancellationToken: TestContext.Current.CancellationToken);
+
+        project.IsFailure.ShouldBeTrue();
+        project.Errors.ShouldHaveSingleItem().ShouldBe(ProjectDiagnostics.NoFilesMatched());
     }
 
     [Fact]
-    public async Task GetProject_SyntaxError_NamesTheFile()
+    public async Task GetProject_SyntaxError_FailsTheRead_AndNamesTheFile()
     {
         Write("good.sql", "CREATE SCHEMA app;");
         Write("bad.sql", "CREATE TABLE app.users (");
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
-        var exception = await Should.ThrowAsync<DdlSyntaxException>(
-            () => sut.GetProject(null, TestContext.Current.CancellationToken).AsTask());
+        var project = await sut.GetProject(null, TestContext.Current.CancellationToken);
 
-        exception.SourceName.ShouldBe(Path.Combine(_root, "bad.sql"));
-        exception.Message.ShouldContain("bad.sql");
+        // The read fails, naming the broken file — while the readable files still aggregate into the carried project.
+        project.IsFailure.ShouldBeTrue();
+        var error = project.Errors.ShouldHaveSingleItem();
+        error.Source.ShouldBe("syntax");
+        error.Message.ShouldContain(Path.Combine(_root, "bad.sql"));
+        project.Value!.Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
     }
 
     [Fact]
@@ -283,7 +289,7 @@ public sealed class ProjectProviderTests : IDisposable
         // Assert
         result.IsFailure.ShouldBeTrue();
         var error = result.Errors.ShouldHaveSingleItem();
-        error.Message.ShouldContain("Duplicate script name 'backfill trace'");
+        error.ShouldBe(ProjectDiagnostics.DuplicateScriptName("backfill trace"));
         error.Message.ShouldContain("{schema}");
     }
 
@@ -419,7 +425,7 @@ public sealed class ProjectProviderTests : IDisposable
 
         // Assert
         result.IsFailure.ShouldBeTrue();
-        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("Duplicate script name 'seed'");
+        result.Errors.ShouldHaveSingleItem().ShouldBe(ProjectDiagnostics.DuplicateScriptName("seed"));
     }
 
     [Fact]

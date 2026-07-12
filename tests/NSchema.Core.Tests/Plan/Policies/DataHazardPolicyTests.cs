@@ -5,24 +5,26 @@ using NSchema.Diff.Domain.Models.Constraints;
 using NSchema.Diff.Domain.Models.Indexes;
 using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Tables;
-using NSchema.Diff.Policies;
+using NSchema.Plan.Policies;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Constraints;
 using NSchema.Project.Domain.Models.Indexes;
 using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Domain.Models.Tables;
 
-namespace NSchema.Tests.Diff.Policies;
+using NSchema.Tests.Helpers;
 
-public class DataHazardDiffPolicyTests
+namespace NSchema.Tests.Plan.Policies;
+
+public class DataHazardPolicyTests
 {
     private readonly IOptions<DataHazardOptions> _options = Options.Create(new DataHazardOptions());
 
-    private readonly DataHazardDiffPolicy _sut;
+    private readonly DataHazardPolicy _sut;
 
-    public DataHazardDiffPolicyTests()
+    public DataHazardPolicyTests()
     {
-        _sut = new DataHazardDiffPolicy(_options);
+        _sut = new DataHazardPolicy(_options);
     }
 
     [Fact]

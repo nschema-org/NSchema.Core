@@ -48,7 +48,7 @@ public sealed class ImportOperationTests : IDisposable
     private static async Task<DatabaseSchema> ReadSchema(string path)
     {
         var text = await File.ReadAllTextAsync(path);
-        return DdlReader.Instance.Read(text).Schema;
+        return DdlReader.Instance.Read(text).Require().Schema;
     }
 
     private string ObjectPath(string type, string name) => Path.Combine(_dir, "app", type, $"{name}.sql");

@@ -8,7 +8,7 @@ using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Sequences;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Diff.Domain.Models.Views;
-using NSchema.Diff.Policies;
+using NSchema.Plan.Policies;
 using NSchema.Plan.Domain.Models.Constraints;
 using NSchema.Plan.Domain.Models.Enums;
 using NSchema.Plan.Domain.Models.Extensions;
@@ -23,17 +23,17 @@ using NSchema.Project.Domain.Models.Sequences;
 using NSchema.Project.Domain.Models.Views;
 using NSchema.Tests.Helpers;
 
-namespace NSchema.Tests.Diff.Policies;
+namespace NSchema.Tests.Plan.Policies;
 
-public class DestructiveActionDiffPolicyTests
+public class DestructiveActionPolicyTests
 {
     private readonly IOptions<DestructiveActionOptions> _options = Options.Create(new DestructiveActionOptions());
 
-    private readonly DestructiveActionDiffPolicy _sut;
+    private readonly DestructiveActionPolicy _sut;
 
-    public DestructiveActionDiffPolicyTests()
+    public DestructiveActionPolicyTests()
     {
-        _sut = new DestructiveActionDiffPolicy(_options);
+        _sut = new DestructiveActionPolicy(_options);
     }
 
     [Fact]
