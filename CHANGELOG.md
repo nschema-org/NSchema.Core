@@ -12,9 +12,11 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 
 ### Changed
 
+- **Every namespace has moved.** Namespaces are vertically sliced of the form `NSchema.<Feature>.<Capability>`.
 - **DataMigrations are Scripts now.** This reflects the syntax changes introduce in [4.4.0] so the model becomes consistent.
 - **"Desired" is Project now." `IDesiredSchemaProvider` becomes `IProjectProvider` the project is the desired state by definition.
-- **Result<T> use consistency.** Lots of interfaces have been neatened up to return a `Result<T>` instead of throwing to allow for error/warning accumulation.
+- **`AddDdlSchemas` is `AddProjectSource` now.** The files describe the whole project (schema, scripts, templates, config), not just schema DDL.
+- **Result<T> use consistency.** Lots of interfaces have been neatened up to return a `Result<T>` instead of throwing to allow for error/warning accumulation. Template application failures (unknown template, unknown target schema, merge collisions, include conflicts) and cross-file duplicate declarations now accumulate as error diagnostics on the project read — all reported at once — instead of throwing on the first. `DatabaseSchema.Combine` moved off the model into the aggregation machinery.
 - **The diff now includes scripts.** Rather than being tacked on to the plan, scripts are now a first-class part of the diff.
 - **Cohesive plan artifact.** There's now a single `MigrationPlan` model that represents the plan in its entirety rather than being spread across `SqlPlan`, `PlannedMigration`, etc.
 - **Providers are required.** Providers are now required for planning, because the SQL is built into the plan model.
