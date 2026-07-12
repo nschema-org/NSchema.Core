@@ -22,6 +22,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **Providers are required.** Providers are now required for planning, because the SQL is built into the plan model.
 - **Plan errors are non-blocking.** Even when the plan has errors, you can now still access the resultant plan.
 - **Policies are enforced at apply.** `Apply` now re-runs all policies against the plan diff before executing.
+- **Policies now cover project and plan.** `IProjectPolicy` replaces `ISchemaPolicy` and `IPlanPolicy` replaces `IDiffPolicy`.
 - **`ISqlDialect` replaces `ISqlGenerator`.** (registered with `UseSqlDialect<T>()`).
 - **`IStateLockManager` replaces `IStateLockCoordinator`.** Lines up with with `ISchemaStateManager`.
 - **`IPlanFileManager` replaces `IPlanFileWriter`.** It reads saved plans too, so "writer" undersold it.
