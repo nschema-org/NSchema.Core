@@ -8,7 +8,7 @@ namespace NSchema.Schema.Policies;
 /// <summary>
 /// Validates that every primary key, index, and foreign key references columns and tables that actually exist within the document.
 /// </summary>
-public sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
+internal sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
 {
     private const string PolicyName = "structural-integrity";
 

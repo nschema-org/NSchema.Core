@@ -34,6 +34,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - `PRE|POST DEPLOYMENT '<name>' AS $$…$$;` and `MIGRATION ['<name>'] FOR <event> <path> AS $$…$$;` no longer parse.
 - The `NSCHEMA` configuration block no longer parses.
 - `DataMigration` has been folded into `Script` and now requires a name for so they can maintain a stable identity.
+- **Narrowed public surface.** A variety of types that should never have been exposed have been made internal.
 
 ## [4.6.1] - 2026-07-10
 

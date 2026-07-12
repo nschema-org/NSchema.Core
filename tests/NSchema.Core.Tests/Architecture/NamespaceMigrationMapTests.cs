@@ -45,7 +45,6 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchemaApplicationOptions)] = Root,
         [typeof(NSchema.Diagnostics.Result)] = Root,
         [typeof(NSchema.Diagnostics.Result<>)] = Root,
-        [typeof(NSchema.Diagnostics.Success)] = Root,
         [typeof(NSchema.Diagnostics.Diagnostic)] = Root,
         [typeof(NSchema.Diagnostics.DiagnosticSeverity)] = Root,
         [typeof(NSchema.Policies.PolicyEnforcement)] = Root, // absorbs DestructiveActionPolicy
@@ -76,8 +75,6 @@ public sealed class NamespaceMigrationMapTests
 
         // ── Project.Policies ──
         [typeof(NSchema.Schema.ISchemaPolicy)] = ProjectPolicies,
-        [typeof(NSchema.Schema.Policies.SchemaLintPolicy)] = ProjectPolicies,
-        [typeof(NSchema.Schema.Policies.StructuralIntegritySchemaPolicy)] = ProjectPolicies,
 
         // ── Project.Domain.Models: the shared pipeline vocabulary (the schema tree + the script models). ──
         [typeof(NSchema.Schema.Model.DatabaseSchema)] = ProjectModels,
@@ -250,19 +247,16 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Plan.PlanFile.PlanFileDeserializationException)] = PlanFile,
 
         // ── Apply: plan execution. ──
-        [typeof(NSchema.Sql.SqlOptions)] = Apply,
         [typeof(NSchema.Sql.TransactionMode)] = Apply,
 
         // ── Current.Locks: guards the shared record against concurrent runs. ──
         [typeof(NSchema.State.IStateLockCoordinator)] = CurrentLocks, // renamed IStateLockManager
-        [typeof(NSchema.State.StateLockCoordinatorExtensions)] = CurrentLocks, // renamed with its target
         [typeof(NSchema.State.IStateLockHandle)] = CurrentLocks,
         [typeof(NSchema.State.Model.StateLockInfo)] = CurrentLocks,
         [typeof(NSchema.State.Model.StateLockRequest)] = CurrentLocks,
         [typeof(NSchema.State.Model.StateLockedException)] = CurrentLocks,
         [typeof(NSchema.State.Model.StateLockMismatchException)] = CurrentLocks,
         [typeof(NSchema.State.IStateLock)] = CurrentLocksBackends,
-        [typeof(NSchema.State.File.FileStateLockOptions)] = CurrentLocksBackends,
 
         // ── Current.Storage: the source's persistence — the recorded snapshot + ledger. ──
         [typeof(NSchema.State.Storage.ISchemaStateManager)] = CurrentStorage,
@@ -276,7 +270,6 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.State.Storage.StateRawWriteResult)] = CurrentStorage,
         [typeof(NSchema.State.StateDeserializationException)] = CurrentStorage,
         [typeof(NSchema.State.ISchemaStateStore)] = CurrentStorageBackends,
-        [typeof(NSchema.State.File.FileSchemaStateStoreOptions)] = CurrentStorageBackends,
 
         // ── Current.Domain.Models ──
         [typeof(NSchema.State.Model.SchemaState)] = CurrentModels,

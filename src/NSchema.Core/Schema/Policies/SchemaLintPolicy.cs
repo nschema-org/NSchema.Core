@@ -12,7 +12,7 @@ namespace NSchema.Schema.Policies;
 /// - and columns repeated within a single key or index.
 /// These are advisory, so they are reported as <see cref="DiagnosticSeverity.Warning"/> and do not fail validation.
 /// </summary>
-public sealed class SchemaLintPolicy : ISchemaPolicy
+internal sealed class SchemaLintPolicy : ISchemaPolicy
 {
     private const string PolicyName = "schema-lint";
 

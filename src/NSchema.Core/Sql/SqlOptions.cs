@@ -3,7 +3,7 @@ namespace NSchema.Sql;
 /// <summary>
 /// Configures SQL options.
 /// </summary>
-public class SqlOptions
+internal class SqlOptions
 {
     /// <summary>
     /// Controls whether the migration runs inside a transaction.

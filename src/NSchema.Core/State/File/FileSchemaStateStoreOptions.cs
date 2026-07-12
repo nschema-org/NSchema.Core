@@ -3,7 +3,7 @@ namespace NSchema.State.File;
 /// <summary>
 /// Options for configuring a <see cref="FileSchemaStateStore"/> instance.
 /// </summary>
-public class FileSchemaStateStoreOptions
+internal class FileSchemaStateStoreOptions
 {
     /// <summary>
     /// The absolute or relative path of the state file.

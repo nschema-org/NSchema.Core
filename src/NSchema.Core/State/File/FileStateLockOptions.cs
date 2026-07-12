@@ -3,7 +3,7 @@ namespace NSchema.State.File;
 /// <summary>
 /// Options for configuring a <see cref="FileStateLock"/> instance.
 /// </summary>
-public class FileStateLockOptions
+internal class FileStateLockOptions
 {
     /// <summary>
     /// The absolute or relative path of the lock file. Acquiring creates it; releasing deletes it.

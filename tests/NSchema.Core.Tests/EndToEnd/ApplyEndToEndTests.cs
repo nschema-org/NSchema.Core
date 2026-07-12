@@ -8,6 +8,7 @@ using NSchema.Schema.Model.Schemas;
 using NSchema.Schema.Model.Tables;
 using NSchema.Sql;
 using NSchema.State;
+using NSchema.State.Model;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.EndToEnd;
@@ -62,7 +63,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         using var app = BuildApp(current, desired);
 
         // The CLI-style flow: hold the lock, compute the live plan, apply it, release.
-        (await app.Locks.Acquire("apply", cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        (await app.Locks.Acquire(new StateLockRequest("apply"), cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         var plan = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
         await app.Operations.Apply(new ApplyArguments { Plan = plan.Plan! }, TestContext.Current.CancellationToken);
 
@@ -96,7 +97,7 @@ public sealed class ApplyEndToEndTests : IDisposable
 
         using var app = BuildApp(current, desired);
 
-        (await app.Locks.Acquire("apply", cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        (await app.Locks.Acquire(new StateLockRequest("apply"), cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         var plan = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
         await app.Operations.Apply(new ApplyArguments { Plan = plan.Plan! }, TestContext.Current.CancellationToken);
 
@@ -139,7 +140,7 @@ public sealed class ApplyEndToEndTests : IDisposable
 
         using var app = BuildApp(current, desired);
 
-        (await app.Locks.Acquire("apply", cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        (await app.Locks.Acquire(new StateLockRequest("apply"), cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
         var plan = result.Value.ShouldNotBeNull();
         await app.Operations.Apply(new ApplyArguments { Plan = plan.Plan! }, TestContext.Current.CancellationToken);
@@ -176,7 +177,7 @@ public sealed class ApplyEndToEndTests : IDisposable
 
         // First run: the pending script is planned, executed, and recorded (the CLI-style flow threads
         // plan.RunOnceScripts into the apply).
-        (await app.Locks.Acquire("apply", cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        (await app.Locks.Acquire(new StateLockRequest("apply"), cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         var first = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
         first.Plan!.Statements.Select(s => s.Sql).ShouldContain("INSERT INTO app.currencies VALUES ('GBP');");
         first.Plan!.Diff.Scripts.ShouldHaveSingleItem().Name.ShouldBe("seed currencies");
@@ -207,7 +208,7 @@ public sealed class ApplyEndToEndTests : IDisposable
 
         using var app = BuildApp(schema, desired);
 
-        (await app.Locks.Acquire("apply", cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        (await app.Locks.Acquire(new StateLockRequest("apply"), cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         var plan = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
         // The plan carries an empty diff/sql: there is nothing to apply.
         plan.Plan.ShouldNotBeNull().Diff.IsEmpty.ShouldBeTrue();
