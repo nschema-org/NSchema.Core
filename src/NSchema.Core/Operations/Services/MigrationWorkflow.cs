@@ -1,12 +1,12 @@
 using NSchema.Diagnostics;
-using NSchema.Operations.Progress;
 using NSchema.Diff;
+using NSchema.Operations.Progress;
 using NSchema.Plan;
 using NSchema.Plan.Model;
-using NSchema.Schema.Model.Scripts;
 using NSchema.Policies;
 using NSchema.Schema;
 using NSchema.Schema.Model;
+using NSchema.Schema.Model.Scripts;
 using NSchema.State.Model;
 using NSchema.State.Storage;
 

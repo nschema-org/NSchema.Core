@@ -1,7 +1,7 @@
 using NSchema.Diagnostics;
 using NSchema.Operations.Refresh;
-using NSchema.Plan.Model;
 using NSchema.Operations.Services;
+using NSchema.Plan.Model;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Schemas;
 

@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Options;
 using NSchema.Diagnostics;
 using NSchema.Diff;
-using NSchema.Schema;
 using NSchema.Diff.Model;
 using NSchema.Diff.Policies;
+using NSchema.Schema;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Schemas;

@@ -23,7 +23,7 @@ internal sealed class ProjectComparer(ISchemaComparer comparer) : IProjectCompar
         // Diff the schemas, then attach the pending change-event scripts to their changes. An unmatched one's
         // event does not occur in this difference, so it will not run (and, if run-once, stays pending).
         var diff = comparer.Compare(current.Schema, desired.Schema);
-        var annotated = MigrationAnnotator.Annotate(diff, [..scripts.Require().Where(s => s.Event is ChangeEvent)]);
+        var annotated = MigrationAnnotator.Annotate(diff, [.. scripts.Require().Where(s => s.Event is ChangeEvent)]);
         diagnostics.AddRange(annotated.Unmatched.Select(DeadMigrationDiagnostic));
 
         // The diff's script list is every run this difference implies, in declaration order.

@@ -39,7 +39,7 @@ internal sealed class ApplyOperation(
                 return Result.Failure<ApplyResult>(findings.Append(Diagnostic.Error("apply",
                     "The plan is blocked by policy and was not applied. Re-run with force to apply it anyway.")));
             }
-            findings = [..findings.Select(f => f.Downgrade(DiagnosticSeverity.Warning))];
+            findings = [.. findings.Select(f => f.Downgrade(DiagnosticSeverity.Warning))];
         }
 
         // An empty plan executes nothing, but still records state.

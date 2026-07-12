@@ -1,8 +1,8 @@
-using NSchema.Schema.Model.Scripts;
 using System.Text;
 using NSchema.Schema.Model;
 using NSchema.Schema.Model.Columns;
 using NSchema.Schema.Model.Schemas;
+using NSchema.Schema.Model.Scripts;
 using NSchema.Schema.Model.Tables;
 using NSchema.State;
 using NSchema.State.Model;
