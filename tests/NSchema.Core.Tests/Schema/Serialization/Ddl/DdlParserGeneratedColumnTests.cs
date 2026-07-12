@@ -1,5 +1,5 @@
-using NSchema.Schema.Ddl;
-using NSchema.Schema.Model.Columns;
+using NSchema.Project.Ddl;
+using NSchema.Project.Domain.Models.Columns;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 

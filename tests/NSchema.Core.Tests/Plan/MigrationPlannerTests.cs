@@ -1,13 +1,13 @@
-using NSchema.Diagnostics;
-using NSchema.Diff;
-using NSchema.Diff.Model;
-using NSchema.Plan;
-using NSchema.Plan.Model.Schemas;
-using NSchema.Plan.Model.Scripts;
-using NSchema.Schema;
-using NSchema.Schema.Model;
-using NSchema.Schema.Model.Schemas;
-using NSchema.Schema.Model.Scripts;
+using NSchema.Diff.Domain;
+using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Policies;
+using NSchema.Plan.Domain;
+using NSchema.Plan.Domain.Models.Schemas;
+using NSchema.Plan.Domain.Models.Scripts;
+using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Project.Policies;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Plan;
@@ -21,7 +21,7 @@ public sealed class MigrationPlannerTests
     private static readonly DatabaseSchema _emptySchema = new([]);
     private static readonly DatabaseDiff _emptyDiff = new([]);
     private static readonly CurrentState _current = new(_emptySchema);
-    private static readonly Project _desired = new(_emptySchema, []);
+    private static readonly ProjectDefinition _desired = new(_emptySchema, []);
 
     private readonly IProjectComparer _differ = Substitute.For<IProjectComparer>();
     private readonly IPlanLinearizer _linearizer = Substitute.For<IPlanLinearizer>();
@@ -32,7 +32,7 @@ public sealed class MigrationPlannerTests
 
     public MigrationPlannerTests()
     {
-        _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<Project>()).Returns(Result.From(_emptyDiff, []));
+        _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(_emptyDiff, []));
         _differ.CompareTeardown(Arg.Any<DatabaseSchema>()).Returns(_emptyDiff);
         _linearizer.Linearize(Arg.Any<DatabaseDiff>()).Returns(_ => []);
     }
@@ -69,7 +69,7 @@ public sealed class MigrationPlannerTests
         // complete plan so the offending change stays visible.
         result.IsFailure.ShouldBeTrue();
         result.Value.ShouldNotBeNull();
-        _differ.Received(1).Compare(Arg.Any<CurrentState>(), Arg.Any<Project>());
+        _differ.Received(1).Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>());
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public sealed class MigrationPlannerTests
     public void Plan_MergesTheDifferDiagnosticsIntoTheResult()
     {
         // Arrange — run-once skips and dead-migration findings are diff-stage diagnostics; the planner surfaces them.
-        _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<Project>())
+        _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>())
             .Returns(Result.From(_emptyDiff, [Diagnostic.Info("data-migrations", "inert block")]));
 
         // Act
@@ -119,7 +119,7 @@ public sealed class MigrationPlannerTests
     {
         // Arrange
         var diff = _emptyDiff with { Scripts = [new Script("seed", "SELECT 1", new DeploymentEvent(DeploymentPhase.Post))] };
-        _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<Project>()).Returns(Result.From(diff, []));
+        _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(diff, []));
         var policy = Substitute.For<IDiffPolicy>();
         policy.Validate(diff).Returns([Diagnostic.Error("Test", "destructive")]);
         _diffPolicies.Add(policy);
@@ -154,7 +154,7 @@ public sealed class MigrationPlannerTests
     {
         // Arrange
         var diff = _emptyDiff with { Scripts = [new Script("seed", "SELECT 1", new DeploymentEvent(DeploymentPhase.Post))] };
-        _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<Project>()).Returns(Result.From(diff, []));
+        _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(diff, []));
 
         // Act
         var result = Sut.Plan(_current, _desired);

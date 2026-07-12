@@ -1,6 +1,5 @@
-using NSchema.Schema.Model;
-using NSchema.Schema.Model.Scripts;
-using NSchema.State.Model;
+using NSchema.Current.Domain.Models;
+using NSchema.Project.Domain.Models;
 
 namespace NSchema.Tests.State;
 

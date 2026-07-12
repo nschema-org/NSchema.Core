@@ -1,19 +1,19 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using NSchema.Diff;
-using NSchema.Schema.Ddl;
-using NSchema.Schema.Model;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.CompositeTypes;
-using NSchema.Schema.Model.Constraints;
-using NSchema.Schema.Model.Domains;
-using NSchema.Schema.Model.Enums;
-using NSchema.Schema.Model.Extensions;
-using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Routines;
-using NSchema.Schema.Model.Schemas;
-using NSchema.Schema.Model.Sequences;
-using NSchema.Schema.Model.Tables;
-using NSchema.Schema.Model.Views;
+using NSchema.Diff.Domain;
+using NSchema.Project.Ddl;
+using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.CompositeTypes;
+using NSchema.Project.Domain.Models.Constraints;
+using NSchema.Project.Domain.Models.Domains;
+using NSchema.Project.Domain.Models.Enums;
+using NSchema.Project.Domain.Models.Extensions;
+using NSchema.Project.Domain.Models.Indexes;
+using NSchema.Project.Domain.Models.Routines;
+using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Sequences;
+using NSchema.Project.Domain.Models.Tables;
+using NSchema.Project.Domain.Models.Views;
 
 namespace NSchema.Tests.Diff;
 
@@ -71,8 +71,8 @@ public sealed class SchemaComparerSnapshotTests
                 ],
                 Domains:
                 [
-                    new Domain("code", SqlType.Text),
-                    new Domain("stale_domain", SqlType.Int),
+                    new DomainDefinition("code", SqlType.Text),
+                    new DomainDefinition("stale_domain", SqlType.Int),
                 ],
                 CompositeTypes:
                 [
@@ -153,8 +153,8 @@ public sealed class SchemaComparerSnapshotTests
                 // Domains: code's base type changes (recreate), stale_domain is dropped, postal_code is added.
                 Domains:
                 [
-                    new Domain("code", SqlType.VarChar(8)),
-                    new Domain("postal_code", SqlType.Text, NotNull: true),
+                    new DomainDefinition("code", SqlType.VarChar(8)),
+                    new DomainDefinition("postal_code", SqlType.Text, NotNull: true),
                 ],
                 // Composite types: address retypes a field + adds one + drops one (all in place), stale_type
                 // is dropped, and coords is added.

@@ -1,5 +1,5 @@
-using NSchema.Schema.Ddl;
-using NSchema.Schema.Model.Constraints;
+using NSchema.Project.Ddl;
+using NSchema.Project.Domain.Models.Constraints;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 

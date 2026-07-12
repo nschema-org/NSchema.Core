@@ -1,6 +1,6 @@
-using NSchema.Diff.Model;
-using NSchema.Schema.Model.Schemas;
-using NSchema.Schema.Model.Views;
+using NSchema.Diff.Domain.Models;
+using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Views;
 
 namespace NSchema.Tests.Diff;
 

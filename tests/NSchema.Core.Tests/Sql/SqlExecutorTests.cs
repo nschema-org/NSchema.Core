@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Options;
 using Npgsql;
-using NSchema.Sql;
-using NSchema.Sql.Model;
+using NSchema.Apply;
+using NSchema.Plan.Domain.Models;
 using NSchema.Tests.Fixtures;
 
 namespace NSchema.Tests.Sql;

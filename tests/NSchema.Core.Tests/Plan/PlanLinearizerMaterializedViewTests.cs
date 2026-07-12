@@ -1,10 +1,13 @@
-using NSchema.Diff.Model;
-using NSchema.Plan;
-using NSchema.Plan.Model;
-using NSchema.Plan.Model.Indexes;
-using NSchema.Plan.Model.Views;
-using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Views;
+using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Domain.Models.Indexes;
+using NSchema.Diff.Domain.Models.Schemas;
+using NSchema.Diff.Domain.Models.Views;
+using NSchema.Plan.Domain;
+using NSchema.Plan.Domain.Models;
+using NSchema.Plan.Domain.Models.Indexes;
+using NSchema.Plan.Domain.Models.Views;
+using NSchema.Project.Domain.Models.Indexes;
+using NSchema.Project.Domain.Models.Views;
 
 namespace NSchema.Tests.Plan;
 

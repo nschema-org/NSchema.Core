@@ -1,5 +1,5 @@
-using NSchema.Schema.Ddl;
-using NSchema.Schema.Model.Triggers;
+using NSchema.Project.Ddl;
+using NSchema.Project.Domain.Models.Triggers;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 

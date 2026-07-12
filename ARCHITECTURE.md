@@ -29,7 +29,7 @@ A feature is a set of capabilities. A public type's namespace position is its cl
 
 | Position         | Audience                | Contents and invariants                                                          |
 |------------------|-------------------------|----------------------------------------------------------------------------------|
-| cluster root     | consumers               | The consumer seam(s), their implementations, and every record that crosses the seam ("seam messages live with their seam"). Types shared between the root and its SPI also live here (consumer-optimal tie-break; the backend references upward). |
+| cluster root     | consumers               | The consumer seam(s), their implementations, and every record *shaped for* the seam ("seam messages live with their seam"). Boundary artifacts are vocabulary, not seam messages — they live in `.Domain.Models`, and a root with no seam is legitimately empty. Types shared between the root and its SPI also live here (consumer-optimal tie-break; the backend references upward). |
 | `.Backends`      | plugin/backend authors  | The downstream SPI and built-in implementations. Never referenced by consumer code. |
 | `.Policies`      | policy authors          | The policy seam (a domain extension point) plus built-in policies and their options. |
 | `.Domain`        | nobody (internal)       | Domain services. Internal types; placement is hygiene, not contract.               |
@@ -43,6 +43,9 @@ Conventions that ride along:
   Backends are named for what they concretely are (`ISchemaStateStore`, `IStateLock`, `ISqlDialect`, `ISchemaIntrospector`).
 - **No layer words** in namespaces (`Services`, `Helpers`, `Utils`, `Common`) and no grab-bag folders. A namespace names a capability or a position,
   never a layer.
+- **Data shapes separate from the functional surface, fractally.** Within any capability namespace, model/data-shaped types sit in a `Models`
+  child (`Project.Ddl.Models`, `Operations.Progress`), keeping the capability root for the machinery and seams. Same instinct as `.Domain.Models`,
+  applied at whatever depth the capability lives.
 - **Shape interfaces are earned by machinery, not by pattern-spotting.** `INamedObject`/`IRenameableObject` exist because the comparer's matching
   dispatches over them; `ScopeSchema` arrived with its consumers. A shared shape with no generic consumer is speculative surface — add it when the
   machinery that reads it arrives, shaped by what that machinery actually asks. (Corollary: in the model tree, belonging is *containment*, never a
@@ -97,7 +100,8 @@ NSchema                     app, builder, options · Result / Result<T> / Result
 │  │  └─ .Backends          IStateLock, FileStateLock
 │  └─ .Domain.Models        SchemaState + ScriptRecord (its ledger entries; the envelope stays
 │                           internal)
-├─ Diff                     DiffReader + DiffDocument/DiffLine/DiffSummary (presentation read model)
+├─ Diff
+│  ├─ .Reader               DiffReader + DiffDocument/DiffLine — the presentation read model (Plan.PlanFile analogue)
 │  ├─ .Policies             IDiffPolicy + built-ins + options (provider policies plug in here)
 │  ├─ .Domain.Models        the DatabaseDiff tree — the complete difference: schema changes plus
 │  │                        the implied script runs (root Scripts list; nodes reference by name)
@@ -125,7 +129,7 @@ NSchema                     app, builder, options · Result / Result<T> / Result
 - **Adding a statement keyword**: the top-level dispatch is a closed set with no catch-all, so a new keyword is an additive, non-breaking change
   (files using it were previously syntax errors) — and a retired keyword truly leaves the grammar, failing as any unknown statement does.
 - **Adding a script event kind**: a `ScriptEvent` record (which must answer `ScopeSchema` and `Description` — the scope rule and the ON-clause source
-  text are declared properties of the event, never an ad-hoc split or a writer-side type switch) + parser production + matcher/weaving semantics +
+  text are declared properties of the event, never an ad-hoc split or a writer-side type switch) + its template-instantiation arm in the applicator + parser production + matcher/weaving semantics +
   (where annotatable) a `MigrationName` reference on the diff nodes it attaches to.
 - **Adding a public type**: it must occupy a recognized position (or join the root closed list). The classification tests fail otherwise — decide what
   it is before shipping it.

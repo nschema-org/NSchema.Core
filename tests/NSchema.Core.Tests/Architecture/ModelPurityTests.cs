@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
-using NSchema.Schema;
+using NSchema.Project.Domain;
 using static ArchUnitNET.Fluent.ArchRuleDefinition;
 using static NSchema.Tests.Architecture.ArchitectureTestSupport;
 
@@ -13,7 +13,7 @@ namespace NSchema.Tests.Architecture;
 /// </summary>
 public sealed class ModelPurityTests
 {
-    private static readonly Regex ModelNamespace = new(@"\.Model(\.|$)", RegexOptions.Compiled);
+    private static readonly Regex ModelNamespace = new(@"\.Model(s)?(\.|$)", RegexOptions.Compiled);
 
     [Fact]
     public void ModelNamespaces_ContainOnlyDataShapes()
@@ -33,11 +33,10 @@ public sealed class ModelPurityTests
     }
 
     [Theory]
-    [InlineData("NSchema.Schema.Ddl.Model", new[] { "NSchema.Schema.Ddl.Model", "NSchema.Schema.Model", "NSchema.Configuration", "System" })]
-    [InlineData("NSchema.Diff.Model", new[] { "NSchema.Diff.Model", "NSchema.Schema.Model", "System" })]
-    [InlineData("NSchema.Plan.Model", new[] { "NSchema.Plan.Model", "NSchema.Schema.Model", "NSchema.Diff.Model", "NSchema.Sql.Model", "System" })]
-    [InlineData("NSchema.Sql.Model", new[] { "NSchema.Sql.Model", "System" })]
-    [InlineData("NSchema.State.Model", new[] { "NSchema.State.Model", "NSchema.Schema.Model", "NSchema.Sql.Model", "System" })]
+    [InlineData("NSchema.Project.Ddl", new[] { "NSchema.Project.Ddl", "NSchema.Project.Domain.Models", "NSchema.Plugins", "System" })]
+    [InlineData("NSchema.Diff.Domain.Models", new[] { "NSchema.Diff.Domain.Models", "NSchema.Project.Domain.Models", "System" })]
+    [InlineData("NSchema.Plan.Domain.Models", new[] { "NSchema.Plan.Domain.Models", "NSchema.Project.Domain.Models", "NSchema.Diff.Domain.Models", "System" })]
+    [InlineData("NSchema.Current.Domain.Models", new[] { "NSchema.Current.Domain.Models", "NSchema.Project.Domain.Models", "System" })]
     public void ModelNamespace_DependsOnlyOnModelsAndBcl(string source, string[] allowed)
     {
         // Arrange
@@ -53,9 +52,9 @@ public sealed class ModelPurityTests
     {
         // Arrange — the one sanctioned model → domain-service edge: the script models' canonical
         // Hash properties delegate to ScriptHashing at the Schema domain root.
-        var rule = Types().That().ResideInNamespaceMatching(Subtree("NSchema.Schema.Model"))
+        var rule = Types().That().ResideInNamespaceMatching(Subtree("NSchema.Project.Domain.Models"))
             .Should().OnlyDependOn(
-                Types().That().ResideInNamespaceMatching(Subtree("NSchema.Schema.Model", "System"))
+                Types().That().ResideInNamespaceMatching(Subtree("NSchema.Project.Domain.Models", "System"))
                     .Or().Are(typeof(ScriptHashing)));
 
         // Assert

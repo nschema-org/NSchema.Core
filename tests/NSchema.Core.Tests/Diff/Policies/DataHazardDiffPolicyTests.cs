@@ -1,13 +1,16 @@
 using Microsoft.Extensions.Options;
-using NSchema.Diagnostics;
-using NSchema.Diff.Model;
+using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Domain.Models.Columns;
+using NSchema.Diff.Domain.Models.Constraints;
+using NSchema.Diff.Domain.Models.Indexes;
+using NSchema.Diff.Domain.Models.Schemas;
+using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Diff.Policies;
-using NSchema.Policies;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Constraints;
-using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Scripts;
-using NSchema.Schema.Model.Tables;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.Constraints;
+using NSchema.Project.Domain.Models.Indexes;
+using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Tests.Diff.Policies;
 
@@ -463,7 +466,7 @@ public class DataHazardDiffPolicyTests
     }
 
     private static Script Migration(ChangeTrigger trigger, string member) =>
-        new(member, "UPDATE app.users SET email = ''", new ChangeEvent(trigger, "app", "users", member));
+        new(member, "UPDATE app.users SET email = ''", new ChangeEvent(trigger, "users", member) { ScopeSchema = "app" });
 
     private static DatabaseDiff ModifiedTable(
         IReadOnlyList<ColumnDiff>? Columns = null,

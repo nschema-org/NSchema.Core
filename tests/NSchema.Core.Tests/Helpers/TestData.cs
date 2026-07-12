@@ -1,22 +1,24 @@
-using NSchema.Diff.Model;
-using NSchema.Plan.Model;
-using NSchema.Plan.Model.Schemas;
-using NSchema.Plan.Model.Tables;
-using NSchema.Schema.Ddl;
-using NSchema.Schema.Model;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.CompositeTypes;
-using NSchema.Schema.Model.Constraints;
-using NSchema.Schema.Model.Domains;
-using NSchema.Schema.Model.Enums;
-using NSchema.Schema.Model.Extensions;
-using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Routines;
-using NSchema.Schema.Model.Schemas;
-using NSchema.Schema.Model.Sequences;
-using NSchema.Schema.Model.Tables;
-using NSchema.Schema.Model.Triggers;
-using NSchema.Schema.Model.Views;
+using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Domain.Models.Schemas;
+using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Plan.Domain.Models;
+using NSchema.Plan.Domain.Models.Schemas;
+using NSchema.Plan.Domain.Models.Tables;
+using NSchema.Project.Ddl;
+using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.CompositeTypes;
+using NSchema.Project.Domain.Models.Constraints;
+using NSchema.Project.Domain.Models.Domains;
+using NSchema.Project.Domain.Models.Enums;
+using NSchema.Project.Domain.Models.Extensions;
+using NSchema.Project.Domain.Models.Indexes;
+using NSchema.Project.Domain.Models.Routines;
+using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Sequences;
+using NSchema.Project.Domain.Models.Tables;
+using NSchema.Project.Domain.Models.Triggers;
+using NSchema.Project.Domain.Models.Views;
 
 namespace NSchema.Tests.Helpers;
 
@@ -150,8 +152,8 @@ public static class TestData
                 DroppedRoutines: ["stale_fn", "stale_proc"],
                 Domains:
                 [
-                    new Domain("typeid", SqlType.Text, OldName: "legacy_id", Comment: "unique id as text"),
-                    new Domain("positive_amount", SqlType.Decimal(18, 2), Default: "0", NotNull: true,
+                    new DomainDefinition("typeid", SqlType.Text, OldName: "legacy_id", Comment: "unique id as text"),
+                    new DomainDefinition("positive_amount", SqlType.Decimal(18, 2), Default: "0", NotNull: true,
                         Checks: [new CheckConstraint("positive_amount_chk", "VALUE >= 0")]),
                 ],
                 DroppedDomains: ["stale_domain"],

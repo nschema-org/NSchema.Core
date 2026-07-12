@@ -1,5 +1,14 @@
-using NSchema.Diff.Model;
-using NSchema.Schema.Model.Routines;
+using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Domain.Models.Columns;
+using NSchema.Diff.Domain.Models.Constraints;
+using NSchema.Diff.Domain.Models.Enums;
+using NSchema.Diff.Domain.Models.Indexes;
+using NSchema.Diff.Domain.Models.Routines;
+using NSchema.Diff.Domain.Models.Schemas;
+using NSchema.Diff.Domain.Models.Sequences;
+using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Diff.Domain.Models.Views;
+using NSchema.Project.Domain.Models.Routines;
 
 namespace NSchema.Tests.Diff.Model;
 

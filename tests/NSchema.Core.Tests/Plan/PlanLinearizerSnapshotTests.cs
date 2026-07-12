@@ -1,13 +1,22 @@
-using NSchema.Diff.Model;
-using NSchema.Plan;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Constraints;
-using NSchema.Schema.Model.Enums;
-using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Routines;
-using NSchema.Schema.Model.Sequences;
-using NSchema.Schema.Model.Tables;
-using NSchema.Schema.Model.Views;
+using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Domain.Models.Columns;
+using NSchema.Diff.Domain.Models.Constraints;
+using NSchema.Diff.Domain.Models.Enums;
+using NSchema.Diff.Domain.Models.Indexes;
+using NSchema.Diff.Domain.Models.Routines;
+using NSchema.Diff.Domain.Models.Schemas;
+using NSchema.Diff.Domain.Models.Sequences;
+using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Diff.Domain.Models.Views;
+using NSchema.Plan.Domain;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.Constraints;
+using NSchema.Project.Domain.Models.Enums;
+using NSchema.Project.Domain.Models.Indexes;
+using NSchema.Project.Domain.Models.Routines;
+using NSchema.Project.Domain.Models.Sequences;
+using NSchema.Project.Domain.Models.Tables;
+using NSchema.Project.Domain.Models.Views;
 
 namespace NSchema.Tests.Plan;
 

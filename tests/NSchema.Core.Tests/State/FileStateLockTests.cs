@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
-using NSchema.State.File;
-using NSchema.State.Model;
+using NSchema.Current.Locks;
+using NSchema.Current.Locks.Backends;
 
 namespace NSchema.Tests.State;
 

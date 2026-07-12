@@ -1,10 +1,9 @@
-using NSchema.Diagnostics;
-using NSchema.Schema.Model;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Indexes;
-using NSchema.Schema.Model.Schemas;
-using NSchema.Schema.Model.Tables;
-using NSchema.Schema.Policies;
+using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.Indexes;
+using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Tables;
+using NSchema.Project.Policies;
 
 namespace NSchema.Tests.Schema.Policies;
 

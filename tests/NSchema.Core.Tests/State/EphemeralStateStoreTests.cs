@@ -1,5 +1,5 @@
-using NSchema.State.Ephemeral;
-using NSchema.State.Model;
+using NSchema.Current.Locks;
+using NSchema.Current.Storage.Backends;
 
 namespace NSchema.Tests.State;
 

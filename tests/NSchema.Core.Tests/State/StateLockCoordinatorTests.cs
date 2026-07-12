@@ -1,6 +1,5 @@
-using NSchema.Diagnostics;
-using NSchema.State;
-using NSchema.State.Model;
+using NSchema.Current.Locks;
+using NSchema.Current.Locks.Backends;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.State;
@@ -10,7 +9,7 @@ public sealed class StateLockCoordinatorTests
     private readonly RecordingStateLock _stateLock = new();
 
     private static Task<Result<IStateLockHandle>> Acquire(IStateLock? stateLock, bool skipLock) =>
-        new StateLockCoordinator(stateLock).Acquire("apply", skipLock, TestContext.Current.CancellationToken);
+        ((IStateLockCoordinator)new StateLockCoordinator(stateLock)).Acquire(new StateLockRequest("apply"), skipLock, TestContext.Current.CancellationToken);
 
     [Fact]
     public async Task NoLockBackend_SucceedsWithTheNoOpHandle_AndSaysNothing()

@@ -1,17 +1,24 @@
 using Microsoft.Extensions.Options;
-using NSchema.Diagnostics;
-using NSchema.Diff.Model;
-using NSchema.Plan.Model.Columns;
-using NSchema.Plan.Model.CompositeTypes;
-using NSchema.Plan.Model.Constraints;
-using NSchema.Plan.Model.Domains;
-using NSchema.Plan.Model.Enums;
-using NSchema.Plan.Model.Extensions;
-using NSchema.Plan.Model.Routines;
-using NSchema.Plan.Model.Schemas;
-using NSchema.Plan.Model.Sequence;
-using NSchema.Plan.Model.Tables;
-using NSchema.Plan.Model.Views;
+using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Domain.Models.CompositeTypes;
+using NSchema.Diff.Domain.Models.Constraints;
+using NSchema.Diff.Domain.Models.Domains;
+using NSchema.Diff.Domain.Models.Enums;
+using NSchema.Diff.Domain.Models.Routines;
+using NSchema.Diff.Domain.Models.Sequences;
+using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Diff.Domain.Models.Views;
+using NSchema.Plan.Domain.Models.Columns;
+using NSchema.Plan.Domain.Models.CompositeTypes;
+using NSchema.Plan.Domain.Models.Constraints;
+using NSchema.Plan.Domain.Models.Domains;
+using NSchema.Plan.Domain.Models.Enums;
+using NSchema.Plan.Domain.Models.Extensions;
+using NSchema.Plan.Domain.Models.Routines;
+using NSchema.Plan.Domain.Models.Schemas;
+using NSchema.Plan.Domain.Models.Sequences;
+using NSchema.Plan.Domain.Models.Tables;
+using NSchema.Plan.Domain.Models.Views;
 
 namespace NSchema.Diff.Policies;
 

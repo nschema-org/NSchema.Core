@@ -1,5 +1,4 @@
 using System.Reflection;
-using NSchema.Diagnostics;
 using NSchema.Operations;
 
 namespace NSchema.Tests.Architecture;

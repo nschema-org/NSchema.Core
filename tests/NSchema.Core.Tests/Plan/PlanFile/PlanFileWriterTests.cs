@@ -1,10 +1,12 @@
 using System.Text;
-using NSchema.Diff.Model;
-using NSchema.Plan.Model;
+using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Domain.Models.Columns;
+using NSchema.Diff.Domain.Models.Schemas;
+using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Plan.Domain.Models;
 using NSchema.Plan.PlanFile;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Scripts;
-using NSchema.Sql.Model;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Plan.PlanFile;
@@ -25,7 +27,7 @@ public sealed class PlanFileWriterTests
                 Scripts =
                 [
                     new Script("seed", "INSERT INTO app.config VALUES (1)", new DeploymentEvent(DeploymentPhase.Pre)),
-                    new Script("backfill", "UPDATE app.users SET email = ''", new ChangeEvent(ChangeTrigger.AddColumn, "app", "users", "email")) { RunCondition = RunCondition.Once },
+                    new Script("backfill", "UPDATE app.users SET email = ''", new ChangeEvent(ChangeTrigger.AddColumn, "users", "email") { ScopeSchema = "app" }) { RunCondition = RunCondition.Once },
                     new Script("reindex", "REINDEX TABLE app.users", new DeploymentEvent(DeploymentPhase.Post)) { RunOutsideTransaction = true },
                 ],
             },
@@ -103,7 +105,7 @@ public sealed class PlanFileWriterTests
         // Arrange — a diff whose column add is annotated with its matched script, so diff-node persistence and
         // the script-event discriminator inside the diff are both exercised.
         var migration = new Script("backfill emails", "UPDATE app.users SET email = ''",
-            new ChangeEvent(ChangeTrigger.AddColumn, "app", "users", "email"))
+            new ChangeEvent(ChangeTrigger.AddColumn, "users", "email") { ScopeSchema = "app" })
         {
             RunOutsideTransaction = true,
         };

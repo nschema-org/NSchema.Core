@@ -1,8 +1,9 @@
-using NSchema.Schema.Model;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Schemas;
-using NSchema.Schema.Model.Tables;
-using NSchema.Schema.Model.Views;
+using NSchema.Project.Domain;
+using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Tables;
+using NSchema.Project.Domain.Models.Views;
 
 namespace NSchema.Tests.Schema.Model;
 
@@ -60,6 +61,6 @@ public sealed class DatabaseSchemaSnapshotTests
                 ]),
         ]);
 
-        return Verify(core.Combine(billing).Combine(reporting));
+        return Verify(SchemaAggregator.Combine(SchemaAggregator.Combine(core, billing).Require(), reporting).Require());
     }
 }

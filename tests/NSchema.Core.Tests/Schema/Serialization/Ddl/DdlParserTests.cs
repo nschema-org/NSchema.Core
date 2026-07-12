@@ -1,9 +1,9 @@
-using NSchema.Configuration;
-using NSchema.Schema.Ddl;
-using NSchema.Schema.Model;
-using NSchema.Schema.Model.Columns;
-using NSchema.Schema.Model.Schemas;
-using NSchema.Schema.Model.Sequences;
+using NSchema.Project.Ddl;
+using NSchema.Project.Ddl.Models.Config;
+using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Sequences;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
