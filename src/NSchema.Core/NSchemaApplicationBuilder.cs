@@ -4,19 +4,19 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.Metrics;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NSchema.Apply;
+using NSchema.Current;
+using NSchema.Current.Locks;
+using NSchema.Current.Storage;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Policies;
 using NSchema.Operations;
-using NSchema.Plan.Domain;
-using NSchema.Plan.PlanFile;
-using NSchema.Current;
-using NSchema.Project;
-using NSchema.Project.Policies;
-using NSchema.Apply;
-using NSchema.Current.Locks;
-using NSchema.Current.Storage;
 using NSchema.Operations.Progress;
 using NSchema.Operations.Workflow;
+using NSchema.Plan.Domain;
+using NSchema.Plan.PlanFile;
+using NSchema.Project;
+using NSchema.Project.Policies;
 
 namespace NSchema;
 

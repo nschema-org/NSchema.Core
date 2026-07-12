@@ -1,11 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using NSchema.Current;
 using NSchema.Current.Backends;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Current.Domain.Models;
 using NSchema.Current.Storage;
 using NSchema.Current.Storage.Backends;
-using NSchema.Current.Domain.Models;
+using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Schemas;
 
 namespace NSchema.Tests.State;
 

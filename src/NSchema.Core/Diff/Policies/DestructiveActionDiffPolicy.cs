@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.CompositeTypes;
 using NSchema.Diff.Domain.Models.Constraints;
 using NSchema.Diff.Domain.Models.Domains;
@@ -6,8 +8,6 @@ using NSchema.Diff.Domain.Models.Routines;
 using NSchema.Diff.Domain.Models.Sequences;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Diff.Domain.Models.Views;
-using Microsoft.Extensions.Options;
-using NSchema.Diff.Domain.Models;
 using NSchema.Plan.Domain.Models.Columns;
 using NSchema.Plan.Domain.Models.CompositeTypes;
 using NSchema.Plan.Domain.Models.Constraints;

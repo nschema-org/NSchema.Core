@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
-using NSchema.Plan.Domain.Models;
 using NSchema.Plan.Backends;
+using NSchema.Plan.Domain.Models;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Hosting;

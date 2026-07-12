@@ -1,7 +1,7 @@
-using NSchema.Diff.Domain.Models.Schemas;
-using NSchema.Diff.Domain.Models.Tables;
 using Microsoft.Extensions.Logging;
 using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Domain.Models.Schemas;
+using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
 

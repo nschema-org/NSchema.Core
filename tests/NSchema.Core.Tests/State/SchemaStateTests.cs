@@ -1,5 +1,5 @@
-using NSchema.Project.Domain.Models;
 using NSchema.Current.Domain.Models;
+using NSchema.Project.Domain.Models;
 
 namespace NSchema.Tests.State;
 

@@ -1,6 +1,6 @@
-using NSchema.Project.Domain.Models;
 using NSchema.Project.Ddl;
 using NSchema.Project.Domain;
+using NSchema.Project.Domain.Models;
 
 namespace NSchema.Tests.Schema.Templates;
 

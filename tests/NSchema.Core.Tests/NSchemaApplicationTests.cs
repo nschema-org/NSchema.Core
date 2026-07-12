@@ -1,6 +1,6 @@
+using NSchema.Current;
 using NSchema.Operations;
 using NSchema.Plan.PlanFile;
-using NSchema.Current;
 using NSchema.Project;
 
 namespace NSchema.Tests;

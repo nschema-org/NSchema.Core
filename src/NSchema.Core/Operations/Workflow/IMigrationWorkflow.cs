@@ -1,6 +1,6 @@
+using NSchema.Current;
 using NSchema.Plan.Domain.Models;
 using NSchema.Policies;
-using NSchema.Current;
 
 namespace NSchema.Operations.Workflow;
 

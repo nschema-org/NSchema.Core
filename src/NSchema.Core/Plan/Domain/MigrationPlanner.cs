@@ -1,11 +1,11 @@
 using NSchema.Diff.Domain;
-using NSchema.Diff.Policies;
 using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Policies;
+using NSchema.Plan.Backends;
 using NSchema.Plan.Domain.Models;
 using NSchema.Policies;
-using NSchema.Project.Policies;
 using NSchema.Project.Domain.Models;
-using NSchema.Plan.Backends;
+using NSchema.Project.Policies;
 
 namespace NSchema.Plan.Domain;
 

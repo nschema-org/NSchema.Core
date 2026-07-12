@@ -1,6 +1,6 @@
-using NSchema.Operations.Workflow;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
+using NSchema.Operations.Workflow;
 using NSchema.Policies;
 
 namespace NSchema.Tests.Operations;

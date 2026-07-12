@@ -1,7 +1,7 @@
+using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Indexes;
 using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Views;
-using NSchema.Diff.Domain.Models;
 using NSchema.Plan.Domain;
 using NSchema.Plan.Domain.Models;
 using NSchema.Plan.Domain.Models.Indexes;

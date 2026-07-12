@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Constraints;
 using NSchema.Diff.Domain.Models.Enums;
 using NSchema.Diff.Domain.Models.Extensions;
@@ -6,9 +8,7 @@ using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Sequences;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Diff.Domain.Models.Views;
-using Microsoft.Extensions.Options;
 using NSchema.Diff.Policies;
-using NSchema.Diff.Domain.Models;
 using NSchema.Plan.Domain.Models.Constraints;
 using NSchema.Plan.Domain.Models.Enums;
 using NSchema.Plan.Domain.Models.Extensions;

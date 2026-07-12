@@ -1,9 +1,9 @@
+using NSchema.Project.Ddl.Models.Templates;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Domain.Models.Tables;
-using NSchema.Project.Ddl.Models.Templates;
 using NSchema.Project.Domain.Models.Triggers;
 
 namespace NSchema.Project.Domain;

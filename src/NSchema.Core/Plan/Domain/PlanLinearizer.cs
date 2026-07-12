@@ -1,10 +1,10 @@
+using System.Collections.Frozen;
+using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Columns;
 using NSchema.Diff.Domain.Models.Extensions;
 using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Diff.Domain.Models.Views;
-using System.Collections.Frozen;
-using NSchema.Diff.Domain.Models;
 using NSchema.Plan.Domain.Models;
 using NSchema.Plan.Domain.Models.Columns;
 using NSchema.Plan.Domain.Models.CompositeTypes;

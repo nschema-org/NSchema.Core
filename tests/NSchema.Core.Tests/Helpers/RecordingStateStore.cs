@@ -1,6 +1,6 @@
+using NSchema.Current.Domain.Models;
 using NSchema.Current.Storage;
 using NSchema.Current.Storage.Backends;
-using NSchema.Current.Domain.Models;
 
 namespace NSchema.Tests.Helpers;
 

@@ -1,15 +1,15 @@
+using Microsoft.Extensions.Options;
+using NSchema.Current.Domain.Models;
+using NSchema.Diff.Domain;
+using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Columns;
 using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Tables;
-using Microsoft.Extensions.Options;
-using NSchema.Diff.Domain;
 using NSchema.Diff.Policies;
-using NSchema.Diff.Domain.Models;
 using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Current.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Tests.Diff;

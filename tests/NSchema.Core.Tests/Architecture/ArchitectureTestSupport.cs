@@ -1,8 +1,8 @@
-using NSchema.Operations;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using ArchUnitNET.Fluent;
 using ArchUnitNET.Loader;
+using NSchema.Operations;
 
 namespace NSchema.Tests.Architecture;
 

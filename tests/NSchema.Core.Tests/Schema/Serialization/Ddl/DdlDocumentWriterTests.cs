@@ -1,10 +1,10 @@
 using System.Text;
+using NSchema.Current.Domain.Models;
+using NSchema.Current.Storage;
 using NSchema.Project.Ddl;
+using NSchema.Project.Ddl.Models;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Current.Storage;
-using NSchema.Current.Domain.Models;
-using NSchema.Project.Ddl.Models;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 

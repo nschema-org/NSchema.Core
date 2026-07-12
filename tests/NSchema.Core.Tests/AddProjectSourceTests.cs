@@ -1,8 +1,7 @@
-using NSchema.Project.Domain.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileSystemGlobbing;
 using NSchema.Project;
-using NSchema.Project.Domain;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Tests;

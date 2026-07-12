@@ -1,4 +1,6 @@
 using System.Text;
+using NSchema.Current.Domain.Models;
+using NSchema.Current.Storage;
 using NSchema.Project.Ddl;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
@@ -14,8 +16,6 @@ using NSchema.Project.Domain.Models.Sequences;
 using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Domain.Models.Triggers;
 using NSchema.Project.Domain.Models.Views;
-using NSchema.Current.Storage;
-using NSchema.Current.Domain.Models;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;

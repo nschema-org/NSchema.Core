@@ -1,10 +1,10 @@
 using System.Text;
+using NSchema.Current.Domain.Models;
+using NSchema.Current.Storage;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Current.Domain.Models;
 using NSchema.Project.Domain.Models.Tables;
-using NSchema.Current.Storage;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.State;

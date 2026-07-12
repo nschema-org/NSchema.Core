@@ -1,12 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
-using NSchema.Operations;
+using NSchema.Apply;
 using NSchema.Current.Backends;
+using NSchema.Current.Locks;
+using NSchema.Operations;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Tables;
-using NSchema.Apply;
-using NSchema.Current.Locks;
 using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.EndToEnd;

@@ -1,7 +1,7 @@
-using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Current;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
 using NSchema.Project.Domain.Models;

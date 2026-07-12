@@ -1,5 +1,5 @@
-using NSchema.Diff.Domain.Models.Routines;
 using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Domain.Models.Routines;
 using NSchema.Project.Domain.Models.Routines;
 using NSchema.Project.Domain.Models.Schemas;
 

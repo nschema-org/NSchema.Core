@@ -1,8 +1,8 @@
-using NSchema.Project.Domain;
 using NSchema.Current;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
 using NSchema.Project.Ddl;
+using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Domains;

@@ -1,10 +1,10 @@
-using NSchema.Plan.Domain.Models;
 using NSchema.Current;
 using NSchema.Current.Domain.Models;
 using NSchema.Current.Storage;
 using NSchema.Diff.Domain;
 using NSchema.Operations.Progress;
 using NSchema.Plan.Domain;
+using NSchema.Plan.Domain.Models;
 using NSchema.Policies;
 using NSchema.Project;
 using NSchema.Project.Domain.Models;

@@ -1,5 +1,5 @@
-using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Diff.Domain;

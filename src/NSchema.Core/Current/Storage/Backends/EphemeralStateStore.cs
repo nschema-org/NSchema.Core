@@ -1,5 +1,5 @@
-using NSchema.Current.Locks.Backends;
 using NSchema.Current.Locks;
+using NSchema.Current.Locks.Backends;
 
 namespace NSchema.Current.Storage.Backends;
 

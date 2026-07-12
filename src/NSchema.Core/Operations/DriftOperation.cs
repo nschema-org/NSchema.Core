@@ -1,5 +1,5 @@
-using NSchema.Diff.Domain;
 using NSchema.Current;
+using NSchema.Diff.Domain;
 using NSchema.Operations.Progress;
 
 namespace NSchema.Operations;
