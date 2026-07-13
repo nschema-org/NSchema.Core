@@ -1,4 +1,3 @@
-using NSchema.Project.Domain.Models;
 using System.Collections.Frozen;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Columns;
@@ -21,6 +20,7 @@ using NSchema.Plan.Domain.Models.Sequences;
 using NSchema.Plan.Domain.Models.Tables;
 using NSchema.Plan.Domain.Models.Triggers;
 using NSchema.Plan.Domain.Models.Views;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Plan.Domain;

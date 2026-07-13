@@ -72,7 +72,7 @@ public sealed class PlanOperationTests
         // Assert
         await _workflow.Received(1).ComputePlan(
             Arg.Any<SchemaSourceMode>(),
-            Arg.Is<SchemaScope>(s => !s.IsAll && s.Includes(new SqlIdentifier("app")) && s.Includes(new SqlIdentifier("legacy"))), Arg.Any<CancellationToken>());
+            Arg.Is<SchemaScope>(s => !s!.IsAll && s.Includes(new SqlIdentifier("app")) && s.Includes(new SqlIdentifier("legacy"))), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public sealed class PlanOperationTests
         // Assert
         await _planFile.Received(1).Write(
             "plan.nschema",
-            Arg.Is<PlanFileEnvelope>(e => e.Plan == _plan),
+            Arg.Is<PlanFileEnvelope>(e => e!.Plan == _plan),
             Arg.Any<CancellationToken>());
     }
 
@@ -130,7 +130,7 @@ public sealed class PlanOperationTests
 
         // Assert
         result.IsFailure.ShouldBeTrue();
-        await _planFile.Received(1).Write("plan.nschema", Arg.Is<PlanFileEnvelope>(e => e.Plan == _plan), Arg.Any<CancellationToken>());
+        await _planFile.Received(1).Write("plan.nschema", Arg.Is<PlanFileEnvelope>(e => e!.Plan == _plan), Arg.Any<CancellationToken>());
     }
 
     [Fact]

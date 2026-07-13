@@ -13,8 +13,8 @@ public class SqlIdentifierTests
     public void Equals_CaseVariants_AreTheSameIdentifier()
     {
         // Arrange
-        SqlIdentifier lower = new SqlIdentifier("users");
-        SqlIdentifier mixed = new SqlIdentifier("Users");
+        var lower = new SqlIdentifier("users");
+        var mixed = new SqlIdentifier("Users");
 
         // Assert
         lower.Equals(mixed).ShouldBeTrue();
@@ -26,8 +26,8 @@ public class SqlIdentifierTests
     public void Equals_DifferentNames_AreNotEqual()
     {
         // Arrange
-        SqlIdentifier users = new SqlIdentifier("users");
-        SqlIdentifier orders = new SqlIdentifier("orders");
+        var users = new SqlIdentifier("users");
+        var orders = new SqlIdentifier("orders");
 
         // Assert
         (users == orders).ShouldBeFalse();
@@ -44,7 +44,7 @@ public class SqlIdentifierTests
     public void Value_PreservesWrittenCasing()
     {
         // Arrange
-        SqlIdentifier identifier = new SqlIdentifier("MyTable");
+        var identifier = new SqlIdentifier("MyTable");
 
         // Assert
         identifier.Value.ShouldBe("MyTable");

@@ -1,4 +1,3 @@
-using NSchema.Project.Domain.Models;
 using System.Text;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Columns;
@@ -6,6 +5,7 @@ using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Plan.Domain.Models;
 using NSchema.Plan.PlanFile;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Scripts;
 

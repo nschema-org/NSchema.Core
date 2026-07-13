@@ -1,8 +1,8 @@
-using NSchema.Project.Domain.Models;
 using Microsoft.Extensions.Options;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Plan.Domain.Models;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 
 namespace NSchema.Plan.Policies;

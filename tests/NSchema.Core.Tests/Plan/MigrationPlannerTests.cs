@@ -121,7 +121,7 @@ public sealed class MigrationPlannerTests
         var diff = _emptyDiff with { Scripts = [new Script(new SqlIdentifier("seed"), "SELECT 1", new DeploymentEvent(DeploymentPhase.Post))] };
         _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(diff, []));
         var policy = Substitute.For<IPlanPolicy>();
-        policy.Validate(Arg.Is<MigrationPlan>(p => p.Diff == diff)).Returns([Diagnostic.Error("Test", "destructive")]);
+        policy.Validate(Arg.Is<MigrationPlan>(p => p!.Diff == diff)).Returns([Diagnostic.Error("Test", "destructive")]);
         _planPolicies.Add(policy);
 
         // Act
@@ -129,7 +129,7 @@ public sealed class MigrationPlannerTests
 
         // Assert — the policy received the rendered plan carrying the diff the differ produced, scripts included.
         result.Diagnostics.ShouldHaveSingleItem().Message.ShouldBe("destructive");
-        policy.Received(1).Validate(Arg.Is<MigrationPlan>(p => p.Diff == diff));
+        policy.Received(1).Validate(Arg.Is<MigrationPlan>(p => p!.Diff == diff));
     }
 
     [Fact]

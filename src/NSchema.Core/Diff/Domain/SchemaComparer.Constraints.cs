@@ -1,7 +1,7 @@
-using NSchema.Project.Domain.Models;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Constraints;
 using NSchema.Diff.Domain.Models.Indexes;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Constraints;
 using NSchema.Project.Domain.Models.Indexes;
 using NSchema.Project.Domain.Models.Tables;

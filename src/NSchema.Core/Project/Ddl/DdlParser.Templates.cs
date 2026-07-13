@@ -1,6 +1,6 @@
-using NSchema.Project.Domain.Models;
 using NSchema.Project.Ddl.Models;
 using NSchema.Project.Ddl.Models.Templates;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Domain.Models.Tables;

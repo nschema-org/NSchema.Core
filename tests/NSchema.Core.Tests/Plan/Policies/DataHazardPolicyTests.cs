@@ -1,4 +1,3 @@
-using NSchema.Project.Domain.Models;
 using Microsoft.Extensions.Options;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Columns;
@@ -7,6 +6,7 @@ using NSchema.Diff.Domain.Models.Indexes;
 using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Plan.Policies;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Constraints;
 using NSchema.Project.Domain.Models.Indexes;

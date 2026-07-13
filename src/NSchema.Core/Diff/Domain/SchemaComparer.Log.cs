@@ -1,5 +1,5 @@
-using NSchema.Project.Domain.Models;
 using Microsoft.Extensions.Logging;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 
 namespace NSchema.Diff.Domain;

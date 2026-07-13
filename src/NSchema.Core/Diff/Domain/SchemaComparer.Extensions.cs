@@ -1,6 +1,6 @@
-using NSchema.Project.Domain.Models;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Extensions;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Extensions;
 
 namespace NSchema.Diff.Domain;

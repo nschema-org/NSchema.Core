@@ -263,7 +263,7 @@ public sealed class MigrationWorkflowTests
 
         // Assert
         _planner.Received(1).Plan(
-            Arg.Is<CurrentState>(c => c.ExecutedScripts.Count == 1 && c.ExecutedScripts[0] == new ScriptExecution(new SqlIdentifier("seed"), "abc", DateTimeOffset.UnixEpoch)),
+            Arg.Is<CurrentState>(c => c!.ExecutedScripts.Count == 1 && c.ExecutedScripts[0] == new ScriptExecution(new SqlIdentifier("seed"), "abc", DateTimeOffset.UnixEpoch)),
             Arg.Any<ProjectDefinition>());
     }
 
@@ -589,7 +589,7 @@ public sealed class MigrationWorkflowTests
         // Assert
         capture.ShouldNotBeNull();
         await _currentProvider.Received(1).GetSchema(
-            SchemaSourceMode.Online, Arg.Is<SchemaScope>(s => s.IsAll), Arg.Any<CancellationToken>());
+            SchemaSourceMode.Online, Arg.Is<SchemaScope>(s => s!.IsAll), Arg.Any<CancellationToken>());
         await store.Received(1).Write(
             Arg.Is<ReadOnlyMemory<byte>>(m => m.ToArray().SequenceEqual(expected)), Arg.Any<CancellationToken>());
     }

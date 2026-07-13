@@ -194,7 +194,7 @@ public sealed class ProjectComparerTests
         var diff = Sut.CompareTeardown(managed);
 
         // Assert
-        _comparer.Received(1).Compare(managed, Arg.Is<DatabaseSchema>(d => d.Schemas.Count == 0 && d.DroppedSchemas.Count == 0));
+        _comparer.Received(1).Compare(managed, Arg.Is<DatabaseSchema>(d => d!.Schemas.Count == 0 && d.DroppedSchemas.Count == 0));
         diff.Scripts.ShouldBeEmpty();
     }
 }

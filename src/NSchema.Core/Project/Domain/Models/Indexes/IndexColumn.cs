@@ -2,6 +2,7 @@ namespace NSchema.Project.Domain.Models.Indexes;
 
 /// <summary>
 /// A single key of an index: a column name or a raw key expression.
+/// </summary>
 public sealed record IndexColumn
 {
     /// <param name="Column">The column name; exactly one of <paramref name="Column"/> and <paramref name="Expression"/> must be given.</param>

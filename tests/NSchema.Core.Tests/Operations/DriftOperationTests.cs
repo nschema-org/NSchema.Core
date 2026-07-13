@@ -62,8 +62,8 @@ public sealed class DriftOperationTests
         await _sut.Execute(Args(SchemaScope.Of(new SqlIdentifier("app"))), TestContext.Current.CancellationToken);
 
         // Assert
-        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Offline, Arg.Is<SchemaScope>(s => s.Includes(new SqlIdentifier("app")) && !s.IsAll), Arg.Any<CancellationToken>());
-        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Online, Arg.Is<SchemaScope>(s => s.Includes(new SqlIdentifier("app")) && !s.IsAll), Arg.Any<CancellationToken>());
+        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Offline, Arg.Is<SchemaScope>(s => s!.Includes(new SqlIdentifier("app")) && !s.IsAll), Arg.Any<CancellationToken>());
+        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Online, Arg.Is<SchemaScope>(s => s!.Includes(new SqlIdentifier("app")) && !s.IsAll), Arg.Any<CancellationToken>());
     }
 
     [Fact]

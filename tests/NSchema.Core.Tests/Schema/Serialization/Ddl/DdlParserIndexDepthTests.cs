@@ -1,5 +1,5 @@
-using NSchema.Project.Domain.Models;
 using NSchema.Project.Ddl;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Indexes;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;

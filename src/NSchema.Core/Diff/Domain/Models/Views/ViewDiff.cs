@@ -1,5 +1,5 @@
-using NSchema.Project.Domain.Models;
 using NSchema.Diff.Domain.Models.Indexes;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Views;
 
 namespace NSchema.Diff.Domain.Models.Views;

@@ -1,6 +1,6 @@
-using NSchema.Project.Domain.Models;
 using NSchema.Project.Ddl.Models;
 using NSchema.Project.Ddl.Models.Templates;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.CompositeTypes;
 using NSchema.Project.Domain.Models.Constraints;
