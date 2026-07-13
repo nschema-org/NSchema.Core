@@ -1,16 +1,19 @@
+using NSchema.Project.Ddl;
 using NSchema.Project.Ddl.Models;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Project.Nsql.Syntax;
+using NSchema.Project.Nsql.Syntax.Scripts;
 
-namespace NSchema.Project.Ddl;
+namespace NSchema.Project.Nsql;
 
-internal sealed partial class DdlParser
+internal sealed partial class NsqlParser
 {
     /// <summary>
     /// Parses a SCRIPT statement.
     /// </summary>
-    private void ParseScript(List<Script> scripts)
+    private ScriptStatement ParseScript(string? doc)
     {
+        var position = _current.Position;
         Advance(); // SCRIPT
         var name = Expect(TokenKind.String, "a quoted script name").Text;
         ExpectKeyword("RUN");
@@ -32,19 +35,20 @@ internal sealed partial class DdlParser
 
         ExpectKeyword("ON");
 
-        ScriptEvent scriptEvent;
+        ScriptEventClause scriptEvent;
+        var eventPosition = _current.Position;
         if (_current.IsKeyword("PRE") || _current.IsKeyword("POST"))
         {
             var phase = _current.IsKeyword("PRE") ? DeploymentPhase.Pre : DeploymentPhase.Post;
             Advance(); // PRE | POST
             ExpectKeyword("DEPLOYMENT");
-            scriptEvent = new DeploymentEvent(phase);
+            scriptEvent = new DeploymentEventClause(phase) { Position = eventPosition };
         }
         else if (_current.IsKeyword("ADD") || _current.IsKeyword("ALTER"))
         {
             var trigger = ParseChangeTrigger();
-            var (schema, table, member) = ParseMemberPath();
-            scriptEvent = new ChangeEvent(trigger, table, member) { ScopeSchema = schema };
+            var path = ParseMemberPathNode();
+            scriptEvent = new ChangeEventClause(trigger, path) { Position = eventPosition };
         }
         else
         {
@@ -52,7 +56,7 @@ internal sealed partial class DdlParser
         }
 
         var (runOutsideTransaction, body) = ParseScriptTail("script");
-        scripts.Add(new Script(new SqlIdentifier(name), new SqlText(body), scriptEvent) { RunOutsideTransaction = runOutsideTransaction, RunCondition = condition });
+        return new ScriptStatement(name, condition, scriptEvent, new SqlText(body), runOutsideTransaction) { Position = position, Doc = doc };
     }
 
     private ChangeTrigger ParseChangeTrigger()
@@ -87,28 +91,28 @@ internal sealed partial class DdlParser
     /// constraint name depending on the trigger), or the unqualified <c>table.member</c> inside a template body,
     /// where the schema binds to each schema the template is applied to.
     /// </summary>
-    private (SqlIdentifier Schema, SqlIdentifier Table, SqlIdentifier Member) ParseMemberPath()
+    private MemberPath ParseMemberPathNode()
     {
-        var first = ExpectIdentifier(_templateSchemaContext is null ? "a schema name" : "a table name");
+        var first = ExpectIdentifierNode(_inTemplateBody ? "a table name" : "a schema name");
         Expect(TokenKind.Dot, "'.' in the migration target path");
-        var second = ExpectIdentifier(_templateSchemaContext is null ? "a table name" : "a column or constraint name");
+        var second = ExpectIdentifierNode(_inTemplateBody ? "a column or constraint name" : "a table name");
 
         if (!Match(TokenKind.Dot))
         {
-            if (_templateSchemaContext is { } templateSchema)
+            if (_inTemplateBody)
             {
-                return (templateSchema, first, second);
+                return new MemberPath(null, first, second) { Position = first.Position };
             }
             throw Error("Expected '.' in the migration target path (schema.table.member).");
         }
 
-        if (_templateSchemaContext is not null)
+        if (_inTemplateBody)
         {
             throw Error("A migration inside a template must use an unqualified 'table.member' path; " +
                         "the schema binds to each schema the template is applied to.");
         }
-        var member = ExpectIdentifier("a column or constraint name");
-        return (first, second, member);
+        var member = ExpectIdentifierNode("a column or constraint name");
+        return new MemberPath(first, second, member) { Position = first.Position };
     }
 
     /// <summary>
@@ -161,13 +165,13 @@ internal sealed partial class DdlParser
             do
             {
                 var keyPosition = _current.Position;
-                var key = ExpectIdentifier($"a {what} option name").Value;
+                var key = ExpectIdentifierNode($"a {what} option name").Text;
                 Expect(TokenKind.Equals, "'=' after an option name");
-                var value = ParseConfigValue();
+                var value = ParseConfigValueNode();
                 switch (key.ToLowerInvariant())
                 {
                     case "run_outside_transaction":
-                        runOutsideTransaction = value.AsBoolean();
+                        runOutsideTransaction = AsBoolean(value);
                         break;
                     default:
                         throw new DdlSyntaxException($"Unknown {what} option '{key}'. Expected 'run_outside_transaction'.", keyPosition);

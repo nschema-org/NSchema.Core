@@ -10,7 +10,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 public sealed class DdlParserCompositeTypeTests
 {
     private static CompositeType ParseType(string sql) =>
-        new DdlParser("CREATE SCHEMA app; " + sql).Parse().Schema
+        new TestDdlParser("CREATE SCHEMA app; " + sql).Parse().Schema
             .Schemas.ShouldHaveSingleItem().CompositeTypes.ShouldHaveSingleItem();
 
     [Fact]
@@ -48,17 +48,17 @@ public sealed class DdlParserCompositeTypeTests
 
     [Fact]
     public void Parse_DropType_RecordsDroppedCompositeType()
-        => ShouldlyIdentifierExtensions.ShouldBe(new DdlParser("CREATE SCHEMA app; DROP TYPE app.address;").Parse().Schema
+        => ShouldlyIdentifierExtensions.ShouldBe(new TestDdlParser("CREATE SCHEMA app; DROP TYPE app.address;").Parse().Schema
                 .Schemas.ShouldHaveSingleItem().DroppedCompositeTypes.ShouldHaveSingleItem(), "address");
 
     [Fact]
     public void Parse_DuplicateType_Throws()
         => Should.Throw<DdlSyntaxException>(() =>
-            new DdlParser("CREATE SCHEMA app; CREATE TYPE app.t AS (a int); CREATE TYPE app.t AS (b int);").Parse())
+            new TestDdlParser("CREATE SCHEMA app; CREATE TYPE app.t AS (a int); CREATE TYPE app.t AS (b int);").Parse())
             .Message.ShouldContain("already declared");
 
     [Fact]
     public void Parse_PartialType_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new DdlParser("CREATE PARTIAL TYPE app.t AS (a int);").Parse())
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("CREATE PARTIAL TYPE app.t AS (a int);").Parse())
             .Message.ShouldContain("PARTIAL applies to SCHEMA");
 }

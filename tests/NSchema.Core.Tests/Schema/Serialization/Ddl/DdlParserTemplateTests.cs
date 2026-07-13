@@ -6,7 +6,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 public sealed class DdlParserTemplateTests
 {
     private static TemplateDefinition ReadTemplate(string source) =>
-        new DdlParser(source).Parse().Templates.Definitions.ShouldHaveSingleItem();
+        new TestDdlParser(source).Parse().Templates.Definitions.ShouldHaveSingleItem();
 
     [Fact]
     public void Parse_Template_CapturesNameAndObjects()
@@ -32,7 +32,7 @@ public sealed class DdlParserTemplateTests
 
     [Fact]
     public void Parse_Template_ObjectsAreNotPartOfTheSchema()
-        => new DdlParser("TEMPLATE t BEGIN CREATE TABLE x (id int NOT NULL); END;").Parse()
+        => new TestDdlParser("TEMPLATE t BEGIN CREATE TABLE x (id int NOT NULL); END;").Parse()
             .Schema.Schemas.ShouldBeEmpty();
 
     [Fact]
@@ -145,7 +145,7 @@ public sealed class DdlParserTemplateTests
     [Fact]
     public void Parse_TemplateAndSchema_Coexist()
     {
-        var document = new DdlParser(
+        var document = new TestDdlParser(
             """
             CREATE SCHEMA app;
             TEMPLATE t BEGIN CREATE TABLE x (id int NOT NULL); END;
@@ -160,7 +160,7 @@ public sealed class DdlParserTemplateTests
     [Fact]
     public void Parse_ApplyTemplate_CapturesNameAndSchemaList()
     {
-        var application = new DdlParser("APPLY TEMPLATE outbox IN SCHEMA billing, ordering, shipping;").Parse()
+        var application = new TestDdlParser("APPLY TEMPLATE outbox IN SCHEMA billing, ordering, shipping;").Parse()
             .Templates.Applications.ShouldHaveSingleItem();
 
         application.TemplateName.ShouldBe("outbox");
@@ -169,7 +169,7 @@ public sealed class DdlParserTemplateTests
 
     [Fact]
     public void Parse_ApplyTemplate_DuplicateSchema_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new DdlParser("APPLY TEMPLATE t IN SCHEMA a, A;").Parse())
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("APPLY TEMPLATE t IN SCHEMA a, A;").Parse())
             .Message.ShouldContain("more than once");
 
     [Fact]
@@ -231,7 +231,7 @@ public sealed class DdlParserTemplateTests
     [Fact]
     public void Parse_UnqualifiedNameOutsideTemplate_StillThrows()
         // The template-body binding must not leak: outside a template every name stays schema-qualified.
-        => Should.Throw<DdlSyntaxException>(() => new DdlParser("CREATE TABLE outbox (id int NOT NULL);").Parse())
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("CREATE TABLE outbox (id int NOT NULL);").Parse())
             .Message.ShouldContain("Expected '.'");
 
     // --- table templates (FOR TABLE) and INCLUDE members -----------------------
@@ -308,7 +308,7 @@ public sealed class DdlParserTemplateTests
     {
         // Includes never live on the parsed Table — templates are an expansion layer over the domain model —
         // so the include rides the document, targeting its table by name.
-        var document = new DdlParser(
+        var document = new TestDdlParser(
             """
             CREATE TABLE app.invoices (
               id uuid NOT NULL,
@@ -326,7 +326,7 @@ public sealed class DdlParserTemplateTests
 
     [Fact]
     public void Parse_Include_AsLastMember()
-        => new DdlParser("CREATE TABLE app.t (id int NOT NULL, INCLUDE audit_columns);").Parse()
+        => new TestDdlParser("CREATE TABLE app.t (id int NOT NULL, INCLUDE audit_columns);").Parse()
             .Templates.Includes.ShouldHaveSingleItem().TemplateName.ShouldBe("audit_columns");
 
     [Fact]
@@ -334,7 +334,7 @@ public sealed class DdlParserTemplateTests
     {
         // Compat: 'include' followed by anything more than a bare identifier is a column named include, exactly
         // as it parsed before templates existed.
-        var document = new DdlParser("CREATE TABLE app.t (include bigint NOT NULL);").Parse();
+        var document = new TestDdlParser("CREATE TABLE app.t (include bigint NOT NULL);").Parse();
 
         document.Templates.Includes.ShouldBeEmpty();
         var column = document.Schema.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem()
@@ -348,7 +348,7 @@ public sealed class DdlParserTemplateTests
     {
         // Composition: a table declared by a schema template can include a table template. The include belongs
         // to the definition (not the document, and never the table), re-targeted per instance at expansion.
-        var document = new DdlParser(
+        var document = new TestDdlParser(
             """
             TEMPLATE outbox
             BEGIN

@@ -10,7 +10,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 public sealed class DdlParserMigrationTests
 {
     private static IReadOnlyList<Script> ReadMigrations(string source) =>
-        new DdlParser(source).Parse().Scripts.Where(s => s.Event is ChangeEvent).ToList();
+        new TestDdlParser(source).Parse().Scripts.Where(s => s.Event is ChangeEvent).ToList();
 
     [Fact]
     public void Parse_AddColumnTrigger_CapturesTriggerAndPathParts()
@@ -117,7 +117,7 @@ public sealed class DdlParserMigrationTests
     public void Parse_MigrationInsideTemplateBody_BindsToThePlaceholderSchema()
     {
         // Arrange — inside a template the path is unqualified (table.member); the schema binds per application.
-        var document = new DdlParser(
+        var document = new TestDdlParser(
             """
             TEMPLATE t
             BEGIN
@@ -153,7 +153,7 @@ public sealed class DdlParserMigrationTests
     public void Parse_TemplateMigrationForUndeclaredTable_IsAccepted()
         // The table may come from another template applied to the same schemas (e.g. a migration rolled out
         // to only some instances); whether the change matches is decided at diff time, not parse time.
-        => Should.NotThrow(() => new DdlParser(
+        => Should.NotThrow(() => new TestDdlParser(
             """
             TEMPLATE t
             BEGIN

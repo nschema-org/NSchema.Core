@@ -1,4 +1,5 @@
 using NSchema.Project.Ddl.Models;
+using NSchema.Project.Nsql;
 
 namespace NSchema.Project.Ddl;
 
@@ -20,7 +21,7 @@ public sealed class DdlReader
     {
         try
         {
-            return new DdlParser(source).Parse();
+            return DocumentProjector.Project(new NsqlParser(source).Parse());
         }
         catch (DdlSyntaxException ex)
         {

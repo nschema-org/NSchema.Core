@@ -1,39 +1,38 @@
+using NSchema.Project.Ddl;
 using NSchema.Project.Ddl.Models;
-using NSchema.Project.Ddl.Models.Config;
-using NSchema.Project.Ddl.Models.Templates;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Project.Nsql.Syntax;
 
-namespace NSchema.Project.Ddl;
+namespace NSchema.Project.Nsql;
 
 /// <summary>
-/// Recursive-descent parser for NSchema DDL.
+/// Recursive-descent parser for the NSchema language, producing the syntax tree.
+/// The AST is then assembled into a <see cref="NSchema.Project.Domain.Models.ProjectDefinition"/> model.
 /// </summary>
-internal sealed partial class DdlParser
+internal sealed partial class NsqlParser
 {
     private readonly DdlLexer _lexer;
     private Token _current;
 
-    // Stores the name of the current schema while parsing a TEMPLATE body.
-    // This is used to automatically qualify any identifiers missing a schema.
-    private SqlIdentifier? _templateSchemaContext;
+    // True while parsing a template body, where unqualified names are legal (they bind to the applied
+    // schema at projection) and template-restricted statements are rejected.
+    private bool _inTemplateBody;
 
-    // True while parsing a FOR TABLE template's member body, where INCLUDE members are rejected (a table
-    // template cannot include another).
+    // True while parsing a FOR TABLE template's member body, where INCLUDE members are rejected
+    // (a table template cannot include another).
     private bool _inTableTemplateBody;
 
-    public DdlParser(string source)
+    public NsqlParser(string source)
     {
         _lexer = new DdlLexer(source);
         _current = _lexer.Next();
     }
 
     /// <summary>
-    /// Parses the whole document.
+    /// Parses the whole document under the project grammar.
     /// </summary>
-    public DdlDocument Parse()
+    public NsqlDocument Parse()
     {
-        var document = new DocumentAccumulator();
+        var statements = new List<NsqlStatement>();
         string? pendingDoc = null;
 
         while (_current.Kind != TokenKind.EndOfFile)
@@ -46,92 +45,83 @@ internal sealed partial class DdlParser
                 continue;
             }
 
-            ParseStatement(document, pendingDoc);
+            statements.Add(ParseStatement(pendingDoc));
             pendingDoc = null;
         }
 
-        return document.Build();
+        return new NsqlDocument(statements);
     }
 
-    private void ParseStatement(DocumentAccumulator document, string? doc)
+    private NsqlStatement ParseStatement(string? doc)
     {
         if (_current.IsKeyword("CREATE"))
         {
-            ParseCreate(document.Schemas, doc);
+            return ParseCreate(doc);
         }
-        else if (_current.IsKeyword("DROP"))
+        if (_current.IsKeyword("DROP"))
         {
-            ParseDrop(document.Schemas);
+            return ParseDrop(doc);
         }
-        else if (_current.IsKeyword("GRANT"))
+        if (_current.IsKeyword("GRANT"))
         {
-            ParseGrant(document.Schemas);
+            return ParseGrant(doc);
         }
-        else if (_current.IsKeyword("TEMPLATE"))
+        if (_current.IsKeyword("TEMPLATE"))
         {
-            document.Templates.Add(ParseTemplate());
+            return ParseTemplate(doc);
         }
-        else if (_current.IsKeyword("APPLY"))
+        if (_current.IsKeyword("APPLY"))
         {
-            document.Applications.Add(ParseApplyTemplate());
+            return ParseApplyTemplate(doc);
         }
-        else if (_current.IsKeyword("SCRIPT"))
+        if (_current.IsKeyword("SCRIPT"))
         {
-            ParseScript(document.Scripts);
+            return ParseScript(doc);
         }
-        else if (_current.IsKeyword("BACKEND") || _current.IsKeyword("PROVIDER"))
+        if (_current.IsKeyword("BACKEND"))
         {
-            document.Config.Add(ParseConfigBlock());
+            return ParseConfigStatement(doc, backend: true);
         }
-        else if (_current.Kind == TokenKind.Identifier)
+        if (_current.IsKeyword("PROVIDER"))
+        {
+            return ParseConfigStatement(doc, backend: false);
+        }
+        if (_current.Kind == TokenKind.Identifier)
         {
             throw Error($"Unknown statement '{_current.Text}'.");
         }
-        else
+        throw Error($"Unexpected '{_current.Text}'; expected a statement.");
+    }
+
+    // --- name nodes -------------------------------------------------------------
+
+    private Identifier ExpectIdentifierNode(string what)
+    {
+        if (_current.Kind != TokenKind.Identifier)
         {
-            throw Error($"Unexpected '{_current.Text}'; expected a statement.");
+            throw Error($"Expected {what}.");
         }
+        var token = Advance();
+        return new Identifier(token.Text) { Position = token.Position };
     }
 
-    /// <summary>
-    /// Accumulates the results of top-level statements — the parse-wide context threaded through statement
-    /// dispatch, so a new statement kind adds a field here rather than a parameter to every signature. Statements
-    /// that write schema objects receive the narrower <see cref="SchemaAccumulator"/> (<see cref="Schemas"/>);
-    /// a template body substitutes its own.
-    /// </summary>
-    private sealed class DocumentAccumulator
+    private QualifiedName ParseQualifiedNameNode()
     {
-        public SchemaAccumulator Schemas { get; } = new();
-        public List<ConfigBlock> Config { get; } = [];
-        public List<Script> Scripts { get; } = [];
-        public List<TemplateDefinition> Templates { get; } = [];
-        public List<TemplateApplication> Applications { get; } = [];
-
-        public DdlDocument Build() => new(Schemas.Build(), Config, Scripts)
-        {
-            Templates = new TemplateSet(Templates, Applications, Schemas.Includes),
-        };
-    }
-
-    // --- shared helpers -------------------------------------------------------
-
-    private (SqlIdentifier Schema, SqlIdentifier Table) ParseQualifiedName()
-    {
-        var schema = ExpectIdentifier("a schema name");
+        var first = ExpectIdentifierNode("a schema name");
         if (!Match(TokenKind.Dot))
         {
-            // Inside a template body an unqualified name binds to the current schema context.
-            if (_templateSchemaContext is { } templateSchema)
+            // Inside a template body an unqualified name is stored as written; projection binds it.
+            if (_inTemplateBody)
             {
-                return (templateSchema, schema);
+                return new QualifiedName(null, first) { Position = first.Position };
             }
             throw Error("Expected '.'.");
         }
-        var table = ExpectIdentifier("a table name");
-        return (schema, table);
+        var name = ExpectIdentifierNode("a table name");
+        return new QualifiedName(first, name) { Position = first.Position };
     }
 
-    // --- token cursor helpers -------------------------------------------------
+    // --- token cursor helpers -----------------------------------------------------
 
     private Token Advance()
     {
@@ -156,15 +146,6 @@ internal sealed partial class DdlParser
             throw Error($"Expected '{keyword}'.");
         }
         Advance();
-    }
-
-    private SqlIdentifier ExpectIdentifier(string what)
-    {
-        if (_current.Kind != TokenKind.Identifier)
-        {
-            throw Error($"Expected {what}.");
-        }
-        return new SqlIdentifier(Advance().Text);
     }
 
     private string ExpectInteger() => Expect(TokenKind.Integer, "an integer").Text;
@@ -201,7 +182,6 @@ internal sealed partial class DdlParser
     }
 
     private DdlSyntaxException Error(string message) => new(message, _current.Position);
-
 
     // --- opaque-span capture --------------------------------------------------
     //

@@ -1,39 +1,40 @@
 using NSchema.Project.Ddl.Models;
-using NSchema.Project.Domain.Models.Tables;
+using NSchema.Project.Nsql.Syntax;
+using NSchema.Project.Nsql.Syntax.Schemas;
+using NSchema.Project.Nsql.Syntax.Tables;
 
-namespace NSchema.Project.Ddl;
+namespace NSchema.Project.Nsql;
 
-internal sealed partial class DdlParser
+internal sealed partial class NsqlParser
 {
-    private void ParseGrant(SchemaAccumulator schemas)
+    private NsqlStatement ParseGrant(string? doc)
     {
+        var position = _current.Position;
         Advance(); // GRANT
 
         if (_current.IsKeyword("USAGE"))
         {
-            if (_templateSchemaContext is not null)
+            if (_inTemplateBody)
             {
                 throw Error("GRANT USAGE ON SCHEMA is not supported inside a template; declare schema grants alongside the schema.");
             }
             Advance();
             ExpectKeyword("ON");
             ExpectKeyword("SCHEMA");
-            var schema = ExpectIdentifier("a schema name");
+            var schema = ExpectIdentifierNode("a schema name");
             ExpectKeyword("TO");
-            var role = ExpectIdentifier("a role name");
+            var role = ExpectIdentifierNode("a role name");
             Expect(TokenKind.Semicolon, "';'");
-            schemas.AddSchemaGrant(schema, role);
-            return;
+            return new GrantSchemaUsageStatement(schema, role) { Position = position, Doc = doc };
         }
 
         var privileges = ParseTablePrivileges();
         ExpectKeyword("ON");
-        var position = _current.Position;
-        var (schemaName, tableName) = ParseQualifiedName();
+        var on = ParseQualifiedNameNode();
         ExpectKeyword("TO");
-        var grantee = ExpectIdentifier("a role name");
+        var grantee = ExpectIdentifierNode("a role name");
         Expect(TokenKind.Semicolon, "';'");
-        schemas.AddTableGrant(schemaName, tableName, new TableGrant(grantee, privileges), position);
+        return new GrantTableStatement(privileges, on, grantee) { Position = position, Doc = doc };
     }
 
     private TablePrivilege ParseTablePrivileges()

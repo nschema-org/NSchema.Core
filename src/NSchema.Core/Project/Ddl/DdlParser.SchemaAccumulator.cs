@@ -21,7 +21,7 @@ internal sealed partial class DdlParser
     /// Accumulates parsed statements into a <see cref="DatabaseSchema"/>. Schema entries are vivified on demand so
     /// a <c>DROP TABLE app.x</c> can record the drop even when <c>app</c> was never explicitly declared.
     /// </summary>
-    private sealed class SchemaAccumulator
+    internal sealed class SchemaAccumulator
     {
         private readonly List<Entry> _entries = [];
         private readonly Dictionary<SqlIdentifier, Entry> _byName = new();

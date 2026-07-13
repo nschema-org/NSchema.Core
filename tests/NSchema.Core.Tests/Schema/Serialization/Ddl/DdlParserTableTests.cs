@@ -8,7 +8,7 @@ public sealed class DdlParserTableTests
 {
     private static Table ParseTable(string body, string qualifiedName = "app.users")
     {
-        var schema = new DdlParser($"CREATE TABLE {qualifiedName} ({body});").Parse().Schema.Schemas.Single();
+        var schema = new TestDdlParser($"CREATE TABLE {qualifiedName} ({body});").Parse().Schema.Schemas.Single();
         return schema.Tables.Single();
     }
 
@@ -210,7 +210,7 @@ public sealed class DdlParserTableTests
     [Fact]
     public void Grant_TablePrivileges_AttachToTable()
     {
-        var schema = new DdlParser(
+        var schema = new TestDdlParser(
             """
             CREATE TABLE app.users (id int);
             GRANT SELECT, INSERT ON app.users TO readers;
@@ -224,7 +224,7 @@ public sealed class DdlParserTableTests
     public void Grant_BeforeTable_IsResolvedAtBuild()
     {
         // Grants are order-independent: a grant may precede the CREATE TABLE it targets.
-        var schema = new DdlParser(
+        var schema = new TestDdlParser(
             """
             GRANT SELECT ON app.users TO readers;
             CREATE TABLE app.users (id int);
@@ -235,18 +235,18 @@ public sealed class DdlParserTableTests
     [Fact]
     public void Grant_SchemaUsage_AttachesToSchema()
     {
-        var schema = new DdlParser("CREATE SCHEMA app; GRANT USAGE ON SCHEMA app TO app_role;").Parse().Schema.Schemas.Single();
+        var schema = new TestDdlParser("CREATE SCHEMA app; GRANT USAGE ON SCHEMA app TO app_role;").Parse().Schema.Schemas.Single();
         schema.Grants.Single().Role.ShouldBe("app_role");
     }
 
     [Fact]
     public void Grant_UnknownTable_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new DdlParser("GRANT SELECT ON app.ghost TO readers;").Parse().Schema)
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("GRANT SELECT ON app.ghost TO readers;").Parse().Schema)
             .Message.ShouldContain("unknown table");
 
     [Fact]
     public void Grant_UnknownPrivilege_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new DdlParser("CREATE TABLE app.t (id int); GRANT TRUNCATE ON app.t TO r;").Parse().Schema)
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("CREATE TABLE app.t (id int); GRANT TRUNCATE ON app.t TO r;").Parse().Schema)
             .Message.ShouldContain("privilege");
 
     // -------------------------------------------------------------------------
@@ -256,7 +256,7 @@ public sealed class DdlParserTableTests
     [Fact]
     public void Parse_RichTable_AssemblesEveryMember()
     {
-        var table = new DdlParser(
+        var table = new TestDdlParser(
             """
             --- Line items for an order.
             CREATE TABLE shop.order_items RENAMED FROM line_items (

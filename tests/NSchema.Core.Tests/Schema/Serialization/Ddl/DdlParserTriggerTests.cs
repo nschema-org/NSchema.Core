@@ -12,7 +12,7 @@ public sealed class DdlParserTriggerTests
     private const string Table = "CREATE SCHEMA app; CREATE TABLE app.users (id int NOT NULL); ";
 
     private static Trigger ParseTrigger(string triggerSql) =>
-        new DdlParser(Table + triggerSql).Parse().Schema
+        new TestDdlParser(Table + triggerSql).Parse().Schema
             .Schemas.ShouldHaveSingleItem()
             .Tables.ShouldHaveSingleItem()
             .Triggers.ShouldHaveSingleItem();
@@ -89,18 +89,18 @@ public sealed class DdlParserTriggerTests
     [Fact]
     public void Parse_TriggerActionMissing_Throws()
         => Should.Throw<DdlSyntaxException>(() =>
-            new DdlParser(Table + "CREATE TRIGGER t AFTER INSERT ON app.users;").Parse())
+            new TestDdlParser(Table + "CREATE TRIGGER t AFTER INSERT ON app.users;").Parse())
             .Message.ShouldContain("Expected EXECUTE or AS");
 
     [Fact]
     public void Parse_TriggerOnUnknownTable_Throws()
         => Should.Throw<DdlSyntaxException>(() =>
-            new DdlParser("CREATE SCHEMA app; CREATE TRIGGER t AFTER INSERT ON app.ghost EXECUTE FUNCTION app.f();").Parse())
+            new TestDdlParser("CREATE SCHEMA app; CREATE TRIGGER t AFTER INSERT ON app.ghost EXECUTE FUNCTION app.f();").Parse())
             .Message.ShouldContain("unknown table");
 
     [Fact]
     public void Parse_DuplicateTrigger_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new DdlParser(Table +
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser(Table +
             "CREATE TRIGGER t AFTER INSERT ON app.users EXECUTE FUNCTION app.f(); " +
             "CREATE TRIGGER t AFTER DELETE ON app.users EXECUTE FUNCTION app.f();").Parse())
             .Message.ShouldContain("already declared");
@@ -108,18 +108,18 @@ public sealed class DdlParserTriggerTests
     [Fact]
     public void Parse_DuplicateEvent_Throws()
         => Should.Throw<DdlSyntaxException>(() =>
-            new DdlParser(Table + "CREATE TRIGGER t AFTER INSERT OR INSERT ON app.users EXECUTE FUNCTION app.f();").Parse())
+            new TestDdlParser(Table + "CREATE TRIGGER t AFTER INSERT OR INSERT ON app.users EXECUTE FUNCTION app.f();").Parse())
             .Message.ShouldContain("more than once");
 
     [Fact]
     public void Parse_BadTiming_Throws()
         => Should.Throw<DdlSyntaxException>(() =>
-            new DdlParser(Table + "CREATE TRIGGER t DURING INSERT ON app.users EXECUTE FUNCTION app.f();").Parse())
+            new TestDdlParser(Table + "CREATE TRIGGER t DURING INSERT ON app.users EXECUTE FUNCTION app.f();").Parse())
             .Message.ShouldContain("Expected BEFORE, AFTER or INSTEAD OF");
 
     [Fact]
     public void Parse_PartialTrigger_Throws()
         => Should.Throw<DdlSyntaxException>(() =>
-            new DdlParser("CREATE PARTIAL TRIGGER t AFTER INSERT ON app.users EXECUTE FUNCTION app.f();").Parse())
+            new TestDdlParser("CREATE PARTIAL TRIGGER t AFTER INSERT ON app.users EXECUTE FUNCTION app.f();").Parse())
             .Message.ShouldContain("PARTIAL applies to SCHEMA");
 }

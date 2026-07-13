@@ -10,7 +10,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 public sealed class DdlParserDomainTests
 {
     private static DomainDefinition ParseDomain(string sql) =>
-        new DdlParser("CREATE SCHEMA app; " + sql).Parse().Schema
+        new TestDdlParser("CREATE SCHEMA app; " + sql).Parse().Schema
             .Schemas.ShouldHaveSingleItem().Domains.ShouldHaveSingleItem();
 
     [Fact]
@@ -61,23 +61,23 @@ public sealed class DdlParserDomainTests
 
     [Fact]
     public void Parse_DropDomain_RecordsDroppedDomain()
-        => ShouldlyIdentifierExtensions.ShouldBe(new DdlParser("CREATE SCHEMA app; DROP DOMAIN app.typeid;").Parse().Schema
+        => ShouldlyIdentifierExtensions.ShouldBe(new TestDdlParser("CREATE SCHEMA app; DROP DOMAIN app.typeid;").Parse().Schema
                 .Schemas.ShouldHaveSingleItem().DroppedDomains.ShouldHaveSingleItem(), "typeid");
 
     [Fact]
     public void Parse_DuplicateDomain_Throws()
         => Should.Throw<DdlSyntaxException>(() =>
-            new DdlParser("CREATE SCHEMA app; CREATE DOMAIN app.d AS text; CREATE DOMAIN app.d AS int;").Parse())
+            new TestDdlParser("CREATE SCHEMA app; CREATE DOMAIN app.d AS text; CREATE DOMAIN app.d AS int;").Parse())
             .Message.ShouldContain("already declared");
 
     [Fact]
     public void Parse_PartialDomain_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new DdlParser("CREATE PARTIAL DOMAIN app.d AS text;").Parse())
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("CREATE PARTIAL DOMAIN app.d AS text;").Parse())
             .Message.ShouldContain("PARTIAL applies to SCHEMA");
 
     [Fact]
     public void Parse_UnknownClause_Throws()
         => Should.Throw<DdlSyntaxException>(() =>
-            new DdlParser("CREATE SCHEMA app; CREATE DOMAIN app.d AS text WIBBLE;").Parse())
+            new TestDdlParser("CREATE SCHEMA app; CREATE DOMAIN app.d AS text WIBBLE;").Parse())
             .Message.ShouldContain("Expected NOT NULL, NULL, CONSTRAINT");
 }

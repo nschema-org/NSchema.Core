@@ -1,25 +1,28 @@
+using NSchema.Project.Ddl;
 using NSchema.Project.Ddl.Models;
-using NSchema.Project.Ddl.Models.Templates;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.CompositeTypes;
-using NSchema.Project.Domain.Models.Constraints;
-using NSchema.Project.Domain.Models.Domains;
-using NSchema.Project.Domain.Models.Enums;
-using NSchema.Project.Domain.Models.Extensions;
-using NSchema.Project.Domain.Models.Indexes;
-using NSchema.Project.Domain.Models.Routines;
-using NSchema.Project.Domain.Models.Sequences;
-using NSchema.Project.Domain.Models.Tables;
-using NSchema.Project.Domain.Models.Triggers;
-using NSchema.Project.Domain.Models.Views;
+using NSchema.Project.Nsql.Syntax;
+using NSchema.Project.Nsql.Syntax.CompositeTypes;
+using NSchema.Project.Nsql.Syntax.Constraints;
+using NSchema.Project.Nsql.Syntax.Domains;
+using NSchema.Project.Nsql.Syntax.Enums;
+using NSchema.Project.Nsql.Syntax.Extensions;
+using NSchema.Project.Nsql.Syntax.Indexes;
+using NSchema.Project.Nsql.Syntax.Routines;
+using NSchema.Project.Nsql.Syntax.Schemas;
+using NSchema.Project.Nsql.Syntax.Sequences;
+using NSchema.Project.Nsql.Syntax.Tables;
+using NSchema.Project.Nsql.Syntax.Templates;
+using NSchema.Project.Nsql.Syntax.Triggers;
+using NSchema.Project.Nsql.Syntax.Views;
 
-namespace NSchema.Project.Ddl;
+namespace NSchema.Project.Nsql;
 
-internal sealed partial class DdlParser
+internal sealed partial class NsqlParser
 {
-    private void ParseCreate(SchemaAccumulator schemas, string? doc)
+    private NsqlStatement ParseCreate(string? doc)
     {
+        var position = _current.Position;
         Advance(); // CREATE
 
         var partial = false;
@@ -31,249 +34,185 @@ internal sealed partial class DdlParser
 
         if (_current.IsKeyword("SCHEMA"))
         {
-            if (_templateSchemaContext is not null)
+            if (_inTemplateBody)
             {
                 throw Error("CREATE SCHEMA is not supported inside a template; apply the template to existing schemas instead.");
             }
-            ParseCreateSchema(schemas, doc, partial);
+            return ParseCreateSchema(position, doc, partial);
         }
-        else if (_current.IsKeyword("TABLE"))
+        if (_current.IsKeyword("TABLE"))
         {
-            if (partial)
-            {
-                throw Error("PARTIAL applies to SCHEMA, not TABLE.");
-            }
-            ParseCreateTable(schemas, doc);
+            RejectPartial(partial, "TABLE");
+            return ParseCreateTable(position, doc);
         }
-        else if (_current.IsKeyword("VIEW"))
+        if (_current.IsKeyword("VIEW"))
         {
-            if (partial)
-            {
-                throw Error("PARTIAL applies to SCHEMA, not VIEW.");
-            }
-            if (_templateSchemaContext is not null)
+            RejectPartial(partial, "VIEW");
+            if (_inTemplateBody)
             {
                 throw Error("CREATE VIEW is not supported inside a template: a view body is opaque, so its references cannot be re-pointed at each target schema.");
             }
             Advance(); // VIEW
-            ParseCreateView(schemas, doc, materialized: false);
+            return ParseCreateView(position, doc, materialized: false);
         }
-        else if (_current.IsKeyword("MATERIALIZED"))
+        if (_current.IsKeyword("MATERIALIZED"))
         {
-            if (partial)
-            {
-                throw Error("PARTIAL applies to SCHEMA, not MATERIALIZED VIEW.");
-            }
-            if (_templateSchemaContext is not null)
+            RejectPartial(partial, "MATERIALIZED VIEW");
+            if (_inTemplateBody)
             {
                 throw Error("CREATE MATERIALIZED VIEW is not supported inside a template: a view body is opaque, so its references cannot be re-pointed at each target schema.");
             }
             Advance(); // MATERIALIZED
             ExpectKeyword("VIEW");
-            ParseCreateView(schemas, doc, materialized: true);
+            return ParseCreateView(position, doc, materialized: true);
         }
-        else if (_current.IsKeyword("ENUM"))
+        if (_current.IsKeyword("ENUM"))
         {
-            if (partial)
-            {
-                throw Error("PARTIAL applies to SCHEMA, not ENUM.");
-            }
-            ParseCreateEnum(schemas, doc);
+            RejectPartial(partial, "ENUM");
+            return ParseCreateEnum(position, doc);
         }
-        else if (_current.IsKeyword("DOMAIN"))
+        if (_current.IsKeyword("DOMAIN"))
         {
-            if (partial)
-            {
-                throw Error("PARTIAL applies to SCHEMA, not DOMAIN.");
-            }
-            ParseCreateDomain(schemas, doc);
+            RejectPartial(partial, "DOMAIN");
+            return ParseCreateDomain(position, doc);
         }
-        else if (_current.IsKeyword("TYPE"))
+        if (_current.IsKeyword("TYPE"))
         {
-            if (partial)
-            {
-                throw Error("PARTIAL applies to SCHEMA, not TYPE.");
-            }
-            ParseCreateCompositeType(schemas, doc);
+            RejectPartial(partial, "TYPE");
+            return ParseCreateCompositeType(position, doc);
         }
-        else if (_current.IsKeyword("SEQUENCE"))
+        if (_current.IsKeyword("SEQUENCE"))
         {
-            if (partial)
-            {
-                throw Error("PARTIAL applies to SCHEMA, not SEQUENCE.");
-            }
-            ParseCreateSequence(schemas, doc);
+            RejectPartial(partial, "SEQUENCE");
+            return ParseCreateSequence(position, doc);
         }
-        else if (_current.IsKeyword("FUNCTION"))
+        if (_current.IsKeyword("FUNCTION"))
         {
-            if (partial)
-            {
-                throw Error("PARTIAL applies to SCHEMA, not FUNCTION.");
-            }
-            ParseCreateRoutine(schemas, doc, RoutineKind.Function);
+            RejectPartial(partial, "FUNCTION");
+            return ParseCreateRoutine(position, doc, RoutineKind.Function);
         }
-        else if (_current.IsKeyword("PROCEDURE"))
+        if (_current.IsKeyword("PROCEDURE"))
         {
-            if (partial)
-            {
-                throw Error("PARTIAL applies to SCHEMA, not PROCEDURE.");
-            }
-            ParseCreateRoutine(schemas, doc, RoutineKind.Procedure);
+            RejectPartial(partial, "PROCEDURE");
+            return ParseCreateRoutine(position, doc, RoutineKind.Procedure);
         }
-        else if (_current.IsKeyword("EXTENSION"))
+        if (_current.IsKeyword("EXTENSION"))
         {
-            if (partial)
-            {
-                throw Error("PARTIAL applies to SCHEMA, not EXTENSION.");
-            }
-            if (_templateSchemaContext is not null)
+            RejectPartial(partial, "EXTENSION");
+            if (_inTemplateBody)
             {
                 throw Error("CREATE EXTENSION is not supported inside a template; extensions are database-global.");
             }
-            ParseCreateExtension(schemas, doc);
+            return ParseCreateExtension(position, doc);
         }
-        else if (_current.IsKeyword("TRIGGER"))
+        if (_current.IsKeyword("TRIGGER"))
         {
-            if (partial)
-            {
-                throw Error("PARTIAL applies to SCHEMA, not TRIGGER.");
-            }
-            ParseCreateTrigger(schemas, doc);
+            RejectPartial(partial, "TRIGGER");
+            return ParseCreateTrigger(position, doc);
         }
-        else if (_current.IsKeyword("INDEX"))
+        if (_current.IsKeyword("INDEX"))
         {
-            if (partial)
-            {
-                throw Error("PARTIAL applies to SCHEMA, not INDEX.");
-            }
-            ParseCreateIndex(schemas, doc, unique: false);
+            RejectPartial(partial, "INDEX");
+            return ParseCreateIndex(position, doc, unique: false);
         }
-        else if (_current.IsKeyword("UNIQUE"))
+        if (_current.IsKeyword("UNIQUE"))
         {
-            if (partial)
-            {
-                throw Error("PARTIAL applies to SCHEMA, not UNIQUE INDEX.");
-            }
+            RejectPartial(partial, "UNIQUE INDEX");
             Advance(); // UNIQUE
-            ParseCreateIndex(schemas, doc, unique: true);
+            return ParseCreateIndex(position, doc, unique: true);
         }
-        else
+        throw Error($"Expected SCHEMA, TABLE, VIEW, MATERIALIZED VIEW, ENUM, DOMAIN, TYPE, SEQUENCE, FUNCTION, PROCEDURE, EXTENSION, TRIGGER or INDEX after CREATE, found '{_current.Text}'.");
+    }
+
+    private void RejectPartial(bool partial, string kind)
+    {
+        if (partial)
         {
-            throw Error($"Expected SCHEMA, TABLE, VIEW, MATERIALIZED VIEW, ENUM, DOMAIN, TYPE, SEQUENCE, FUNCTION, PROCEDURE, EXTENSION, TRIGGER or INDEX after CREATE, found '{_current.Text}'.");
+            throw Error($"PARTIAL applies to SCHEMA, not {kind}.");
         }
     }
 
-    private void ParseCreateSchema(SchemaAccumulator schemas, string? doc, bool partial)
+    private CreateSchemaStatement ParseCreateSchema(SourcePosition position, string? doc, bool partial)
     {
         Advance(); // SCHEMA
-        var namePosition = _current.Position;
-        var name = ExpectIdentifier("a schema name");
+        var name = ExpectIdentifierNode("a schema name");
         var oldName = TryParseRenamedFrom();
         Expect(TokenKind.Semicolon, "';'");
-        schemas.DeclareSchema(name, oldName, partial, doc, namePosition);
+        return new CreateSchemaStatement(name, partial, oldName) { Position = position, Doc = doc };
     }
 
-    private void ParseCreateTable(SchemaAccumulator schemas, string? doc)
+    private CreateTableStatement ParseCreateTable(SourcePosition position, string? doc)
     {
         Advance(); // TABLE
-        var namePosition = _current.Position;
-        var (schemaName, tableName) = ParseQualifiedName();
+        var name = ParseQualifiedNameNode();
         var oldName = TryParseRenamedFrom();
 
         Expect(TokenKind.LeftParen, "'(' to begin the table body");
-        var body = new TableBody();
+        var members = new List<TableMember>();
+        var primaryKeySeen = false;
         do
         {
             var itemDoc = TakePendingDoc();
-            ParseTableItem(itemDoc, body);
+            members.Add(ParseTableItem(itemDoc, ref primaryKeySeen));
         }
         while (Match(TokenKind.Comma));
         Expect(TokenKind.RightParen, "')' or ',' after a table member");
         Expect(TokenKind.Semicolon, "';'");
 
-        var table = new Table(tableName, oldName, body.PrimaryKey, doc,
-            body.Columns, body.ForeignKeys, body.UniqueConstraints, body.CheckConstraints, body.ExclusionConstraints, body.Indexes);
-        schemas.AddTable(schemaName, table, namePosition);
-        foreach (var (templateName, columnPosition) in body.Includes)
-        {
-            schemas.AddInclude(new TemplateInclude(schemaName, tableName, templateName, columnPosition));
-        }
+        return new CreateTableStatement(name, members, oldName) { Position = position, Doc = doc };
     }
 
     // The "VIEW" keyword has already been consumed by the dispatcher (preceded by "MATERIALIZED" when
     // <paramref name="materialized"/> is true).
-    private void ParseCreateView(SchemaAccumulator schemas, string? doc, bool materialized)
+    private CreateViewStatement ParseCreateView(SourcePosition position, string? doc, bool materialized)
     {
-        var namePosition = _current.Position;
-        var (schemaName, viewName) = ParseQualifiedName();
+        var name = ParseQualifiedNameNode();
         var oldName = TryParseRenamedFrom();
         ExpectKeyword("AS");
 
-        // The body is captured verbatim; its FROM/JOIN targets become the view's dependencies.
+        // The body is captured verbatim; projection derives the view's dependencies from it.
         var body = CaptureRawSpan("a view body", [TokenKind.Semicolon]);
         Expect(TokenKind.Semicolon, "';' to end the view definition");
 
-        var dependsOn = ViewDependencyExtractor.Extract(body, schemaName);
-        schemas.AddView(schemaName, new View(viewName, new SqlText(body), oldName, doc, dependsOn, materialized), namePosition);
+        return new CreateViewStatement(name, new SqlText(body), materialized, oldName) { Position = position, Doc = doc };
     }
 
     /// <summary>
     /// Parses a standalone index: <c>CREATE [UNIQUE] INDEX name ON s.relation (cols) [WHERE (expr)]</c>. The
-    /// "UNIQUE" keyword (if present) has already been consumed by the dispatcher. Standalone indexes attach at
-    /// build time to the named relation — a table (equivalent to declaring it inline in the table body) or a
-    /// materialized view (a plain view cannot carry one).
+    /// "UNIQUE" keyword (if present) has already been consumed by the dispatcher.
     /// </summary>
-    private void ParseCreateIndex(SchemaAccumulator schemas, string? doc, bool unique)
+    private CreateIndexStatement ParseCreateIndex(SourcePosition position, string? doc, bool unique)
     {
         ExpectKeyword("INDEX");
-        var namePosition = _current.Position;
-        var name = ExpectIdentifier("an index name");
+        var name = ExpectIdentifierNode("an index name");
         ExpectKeyword("ON");
-        var (schemaName, relationName) = ParseQualifiedName();
-        var method = TryParseIndexMethod();
+        var on = ParseQualifiedNameNode();
+        var method = TryParseIndexMethodNode();
         var columns = ParseIndexColumns();
         var include = TryParseIncludeColumns();
-
-        SqlText? predicate = null;
-        if (_current.IsKeyword("WHERE"))
-        {
-            Advance();
-            predicate = ReadRawExpression(parenthesised: true);
-        }
+        var predicate = TryParseWherePredicate();
         Expect(TokenKind.Semicolon, "';'");
 
-        schemas.AddIndex(schemaName, relationName, new TableIndex(name, columns, unique, doc, predicate, method, include), namePosition);
+        return new CreateIndexStatement(name, unique, on, columns, method, include, predicate) { Position = position, Doc = doc };
     }
 
-    private void ParseCreateRoutine(SchemaAccumulator schemas, string? doc, RoutineKind kind)
+    private CreateRoutineStatement ParseCreateRoutine(SourcePosition position, string? doc, RoutineKind kind)
     {
         Advance(); // FUNCTION | PROCEDURE
         var what = kind == RoutineKind.Procedure ? "a procedure definition" : "a function definition";
-        var namePosition = _current.Position;
-        var (schemaName, routineName) = ParseQualifiedName();
+        var name = ParseQualifiedNameNode();
         var oldName = TryParseRenamedFrom();
-        var (arguments, definition) = ReadRoutineArgumentsAndDefinition(what);
-        Expect(TokenKind.Semicolon, $"';' to end {what}");
-
-        schemas.AddRoutine(schemaName, new Routine(routineName, kind, new SqlText(arguments), new SqlText(definition), oldName, doc), namePosition);
-    }
-
-    /// <summary>
-    /// Captures a routine's argument list (the verbatim text inside the parentheses) and its definition (the
-    /// verbatim, dollar-quote-aware text up to the top-level <c>;</c>).
-    /// </summary>
-    private (string Arguments, string Definition) ReadRoutineArgumentsAndDefinition(string what)
-    {
         var arguments = CaptureParenthesized();
         var definition = CaptureRawSpan(what, [TokenKind.Semicolon]);
-        return (arguments, definition);
+        Expect(TokenKind.Semicolon, $"';' to end {what}");
+
+        return new CreateRoutineStatement(name, kind, new SqlText(arguments), new SqlText(definition), oldName) { Position = position, Doc = doc };
     }
 
-    private void ParseCreateEnum(SchemaAccumulator schemas, string? doc)
+    private CreateEnumStatement ParseCreateEnum(SourcePosition position, string? doc)
     {
         Advance(); // ENUM
-        var namePosition = _current.Position;
-        var (schemaName, enumName) = ParseQualifiedName();
+        var name = ParseQualifiedNameNode();
         var oldName = TryParseRenamedFrom();
 
         Expect(TokenKind.LeftParen, "'(' to begin the enum values");
@@ -295,7 +234,7 @@ internal sealed partial class DdlParser
         Expect(TokenKind.RightParen, "')' or ',' after an enum value");
         Expect(TokenKind.Semicolon, "';'");
 
-        schemas.AddEnum(schemaName, new EnumType(enumName, values, oldName, doc), namePosition);
+        return new CreateEnumStatement(name, values, oldName) { Position = position, Doc = doc };
     }
 
     /// <summary>
@@ -303,18 +242,17 @@ internal sealed partial class DdlParser
     /// The optional <c>DEFAULT</c> clause, if present, must come last: its expression is opaque and read up to the
     /// terminating <c>;</c>.
     /// </summary>
-    private void ParseCreateDomain(SchemaAccumulator schemas, string? doc)
+    private CreateDomainStatement ParseCreateDomain(SourcePosition position, string? doc)
     {
         Advance(); // DOMAIN
-        var namePosition = _current.Position;
-        var (schemaName, domainName) = ParseQualifiedName();
+        var name = ParseQualifiedNameNode();
         var oldName = TryParseRenamedFrom();
         ExpectKeyword("AS");
-        var dataType = ParseType();
+        var dataType = ParseTypeNode();
 
         SqlText? @default = null;
         var notNull = false;
-        var checks = new List<CheckConstraint>();
+        var checks = new List<CheckDefinition>();
 
         while (@default is null && _current.Kind != TokenKind.Semicolon)
         {
@@ -331,10 +269,11 @@ internal sealed partial class DdlParser
             }
             else if (_current.IsKeyword("CONSTRAINT"))
             {
+                var checkPosition = _current.Position;
                 Advance();
-                var checkName = ExpectIdentifier("a constraint name");
+                var checkName = ExpectIdentifierNode("a constraint name");
                 ExpectKeyword("CHECK");
-                checks.Add(new CheckConstraint(checkName, ReadRawExpression(parenthesised: true)));
+                checks.Add(new CheckDefinition(checkName, ReadRawExpression(parenthesised: true)) { Position = checkPosition });
             }
             else if (_current.IsKeyword("DEFAULT"))
             {
@@ -350,30 +289,28 @@ internal sealed partial class DdlParser
 
         Expect(TokenKind.Semicolon, "';'");
 
-        schemas.AddDomain(schemaName, new DomainDefinition(domainName, dataType, @default, notNull, checks, oldName, doc), namePosition);
+        return new CreateDomainStatement(name, dataType, notNull, checks, @default, oldName) { Position = position, Doc = doc };
     }
 
     /// <summary>
-    /// Parses a composite type: <c>CREATE TYPE s.t AS (field &lt;type&gt;, field &lt;type&gt;, …)</c>. Every attribute is a
-    /// plain name + type pair — composite types carry no constraints, defaults or nullability.
+    /// Parses a composite type: <c>CREATE TYPE s.t AS (field &lt;type&gt;, field &lt;type&gt;, …)</c>.
     /// </summary>
-    private void ParseCreateCompositeType(SchemaAccumulator schemas, string? doc)
+    private CreateCompositeTypeStatement ParseCreateCompositeType(SourcePosition position, string? doc)
     {
         Advance(); // TYPE
-        var namePosition = _current.Position;
-        var (schemaName, typeName) = ParseQualifiedName();
+        var name = ParseQualifiedNameNode();
         var oldName = TryParseRenamedFrom();
         ExpectKeyword("AS");
         Expect(TokenKind.LeftParen, "'(' to begin the composite type fields");
 
-        var fields = new List<CompositeField>();
+        var fields = new List<CompositeFieldDefinition>();
         if (_current.Kind != TokenKind.RightParen)
         {
             do
             {
-                var fieldName = ExpectIdentifier("a field name");
-                var fieldType = ParseType();
-                fields.Add(new CompositeField(fieldName, fieldType));
+                var fieldName = ExpectIdentifierNode("a field name");
+                var fieldType = ParseTypeNode();
+                fields.Add(new CompositeFieldDefinition(fieldName, fieldType) { Position = fieldName.Position });
             }
             while (Match(TokenKind.Comma));
         }
@@ -381,76 +318,77 @@ internal sealed partial class DdlParser
         Expect(TokenKind.RightParen, "')' or ',' after a composite type field");
         Expect(TokenKind.Semicolon, "';'");
 
-        schemas.AddCompositeType(schemaName, new CompositeType(typeName, fields, oldName, doc), namePosition);
+        return new CreateCompositeTypeStatement(name, fields, oldName) { Position = position, Doc = doc };
     }
 
-    private void ParseCreateSequence(SchemaAccumulator schemas, string? doc)
+    private CreateSequenceStatement ParseCreateSequence(SourcePosition position, string? doc)
     {
         Advance(); // SEQUENCE
-        var namePosition = _current.Position;
-        var (schemaName, sequenceName) = ParseQualifiedName();
+        var name = ParseQualifiedNameNode();
         var oldName = TryParseRenamedFrom();
         var options = TryParseSequenceOptions();
         Expect(TokenKind.Semicolon, "';'");
 
-        schemas.AddSequence(schemaName, new Sequence(sequenceName, options, oldName, doc), namePosition);
+        return new CreateSequenceStatement(name, options, oldName) { Position = position, Doc = doc };
     }
 
-    private SequenceOptions? TryParseSequenceOptions()
+    private SequenceOptionsClause? TryParseSequenceOptions()
     {
         if (_current.Kind != TokenKind.LeftParen)
         {
             return null;
         }
+        var clausePosition = _current.Position;
         Advance();
 
-        SqlType? dataType = null;
+        TypeName? dataType = null;
         long? start = null, increment = null, min = null, max = null, cache = null;
         var cycle = false;
         do
         {
             var optionPosition = _current.Position;
-            var option = ExpectIdentifier("a sequence option");
+            var option = ExpectIdentifierNode("a sequence option");
 
             void RejectDuplicate(bool alreadySet)
             {
                 if (alreadySet)
                 {
-                    throw new DdlSyntaxException($"Sequence option '{option.Value.ToUpperInvariant()}' is specified more than once.", optionPosition);
+                    throw new DdlSyntaxException($"Sequence option '{option.Text.ToUpperInvariant()}' is specified more than once.", optionPosition);
                 }
             }
 
-            if (string.Equals(option.Value, "AS", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(option.Text, "AS", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(dataType is not null);
-                dataType = SqlType.Parse(ExpectIdentifier("a type name").Value);
+                var typeName = ExpectIdentifierNode("a type name");
+                dataType = new TypeName(null, typeName) { Position = typeName.Position };
             }
-            else if (string.Equals(option.Value, "START", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Text, "START", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(start is not null);
                 start = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, "INCREMENT", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Text, "INCREMENT", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(increment is not null);
                 increment = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, "MINVALUE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Text, "MINVALUE", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(min is not null);
                 min = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, "MAXVALUE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Text, "MAXVALUE", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(max is not null);
                 max = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, "CACHE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Text, "CACHE", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(cache is not null);
                 cache = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, "CYCLE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Text, "CYCLE", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(cycle);
                 cycle = true;
@@ -458,20 +396,19 @@ internal sealed partial class DdlParser
             else
             {
                 throw new DdlSyntaxException(
-                    $"Unknown sequence option '{option}'; expected AS, START, INCREMENT, MINVALUE, MAXVALUE, CACHE or CYCLE.", optionPosition);
+                    $"Unknown sequence option '{option.Text}'; expected AS, START, INCREMENT, MINVALUE, MAXVALUE, CACHE or CYCLE.", optionPosition);
             }
         }
         while (Match(TokenKind.Comma));
         Expect(TokenKind.RightParen, "')'");
 
-        return new SequenceOptions(dataType, start, increment, min, max, cache, cycle);
+        return new SequenceOptionsClause(dataType, start, increment, min, max, cache, cycle) { Position = clausePosition };
     }
 
-    private void ParseCreateExtension(SchemaAccumulator schemas, string? doc)
+    private CreateExtensionStatement ParseCreateExtension(SourcePosition position, string? doc)
     {
         Advance(); // EXTENSION
-        var namePosition = _current.Position;
-        var name = ParseExtensionName();
+        var name = ParseExtensionNameNode();
         string? version = null;
         if (_current.IsKeyword("VERSION"))
         {
@@ -480,7 +417,7 @@ internal sealed partial class DdlParser
         }
         Expect(TokenKind.Semicolon, "';'");
 
-        schemas.AddExtension(new Extension(name, version, doc), namePosition);
+        return new CreateExtensionStatement(name, version) { Position = position, Doc = doc };
     }
 
     /// <summary>
@@ -488,26 +425,30 @@ internal sealed partial class DdlParser
     /// (<c>'uuid-ossp'</c>) — extension names commonly contain characters, such as a hyphen, that a bare
     /// identifier cannot.
     /// </summary>
-    private SqlIdentifier ParseExtensionName() =>
-        _current.Kind == TokenKind.String ? new SqlIdentifier(Advance().Text) : ExpectIdentifier("an extension name");
+    private Identifier ParseExtensionNameNode()
+    {
+        if (_current.Kind == TokenKind.String)
+        {
+            var token = Advance();
+            return new Identifier(token.Text) { Position = token.Position };
+        }
+        return ExpectIdentifierNode("an extension name");
+    }
 
     /// <summary>
     /// Parses a standalone trigger: <c>CREATE TRIGGER name {BEFORE|AFTER|INSTEAD OF} event {OR event} ON s.t
-    /// [FOR EACH {ROW|STATEMENT}] [WHEN (expr)] {EXECUTE {FUNCTION|PROCEDURE} f(args) | AS $$ body $$}</c>. The action
-    /// is either a function call (the PostgreSQL model) or an inline dollar-quoted body (the SQL Server model). Like a
-    /// <c>GRANT</c>, it names its table via <c>ON</c> and is attached to that table at build time.
+    /// [FOR EACH {ROW|STATEMENT}] [WHEN (expr)] {EXECUTE {FUNCTION|PROCEDURE} f(args) | AS $$ body $$}</c>.
     /// </summary>
-    private void ParseCreateTrigger(SchemaAccumulator schemas, string? doc)
+    private CreateTriggerStatement ParseCreateTrigger(SourcePosition position, string? doc)
     {
         Advance(); // TRIGGER
-        var namePosition = _current.Position;
-        var name = ExpectIdentifier("a trigger name");
+        var name = ExpectIdentifierNode("a trigger name");
 
         var timing = ParseTriggerTiming();
         var (events, updateOfColumns) = ParseTriggerEvents();
 
         ExpectKeyword("ON");
-        var (schemaName, tableName) = ParseQualifiedName();
+        var on = ParseQualifiedNameNode();
 
         var level = TriggerLevel.Statement;
         if (_current.IsKeyword("FOR"))
@@ -526,9 +467,8 @@ internal sealed partial class DdlParser
             when = ReadRawExpression(parenthesised: true);
         }
 
-        RoutineReference? function = null;
-        string? arguments = null;
-        string? body = null;
+        TriggerAction action;
+        var actionPosition = _current.Position;
         if (_current.IsKeyword("EXECUTE"))
         {
             Advance();
@@ -541,20 +481,21 @@ internal sealed partial class DdlParser
                 throw Error($"Expected FUNCTION or PROCEDURE after EXECUTE, found '{_current.Text}'.");
             }
 
-            var first = ExpectIdentifier("a function name");
-            function = Match(TokenKind.Dot)
-                ? new RoutineReference(first, ExpectIdentifier("a function name"))
-                : new RoutineReference(null, first);
+            var first = ExpectIdentifierNode("a function name");
+            var function = Match(TokenKind.Dot)
+                ? new QualifiedName(first, ExpectIdentifierNode("a function name")) { Position = first.Position }
+                : new QualifiedName(null, first) { Position = first.Position };
 
             // The argument list is captured verbatim (opaque), like a routine's; usually empty for a trigger function.
-            arguments = CaptureParenthesized();
+            var arguments = CaptureParenthesized();
+            action = new ExecuteFunctionAction(function, new SqlText(arguments)) { Position = actionPosition };
         }
         else if (_current.IsKeyword("AS"))
         {
             // An inline body is a dollar-quoted block (so it may contain its own ';'), like a deployment script.
             Advance();
             var dollar = Expect(TokenKind.DollarString, "a trigger body as a dollar-quoted block ($$ … $$)");
-            body = StripDollarQuote(dollar.Text).Trim();
+            action = new InlineBodyAction(new SqlText(StripDollarQuote(dollar.Text).Trim())) { Position = actionPosition };
         }
         else
         {
@@ -563,9 +504,7 @@ internal sealed partial class DdlParser
 
         Expect(TokenKind.Semicolon, "';'");
 
-        var trigger = new Trigger(name, timing, events, function, level, updateOfColumns,
-            when, string.IsNullOrEmpty(arguments) ? null : new SqlText(arguments), doc, body is null ? null : new SqlText(body));
-        schemas.AddTrigger(schemaName, tableName, trigger, namePosition);
+        return new CreateTriggerStatement(name, timing, events, on, action, updateOfColumns, level, when) { Position = position, Doc = doc };
     }
 
     private TriggerTiming ParseTriggerTiming()
@@ -576,10 +515,10 @@ internal sealed partial class DdlParser
         throw Error($"Expected BEFORE, AFTER or INSTEAD OF, found '{_current.Text}'.");
     }
 
-    private (TriggerEvent Events, List<SqlIdentifier>? UpdateOfColumns) ParseTriggerEvents()
+    private (TriggerEvent Events, List<Identifier>? UpdateOfColumns) ParseTriggerEvents()
     {
         var events = TriggerEvent.None;
-        List<SqlIdentifier>? updateOfColumns = null;
+        List<Identifier>? updateOfColumns = null;
         while (true)
         {
             var position = _current.Position;
@@ -605,7 +544,7 @@ internal sealed partial class DdlParser
                 if (_current.IsKeyword("OF"))
                 {
                     Advance();
-                    updateOfColumns = ParseColumnList();
+                    updateOfColumns = ParseColumnListNodes();
                 }
             }
             else
@@ -630,32 +569,43 @@ internal sealed partial class DdlParser
         }
     }
 
-    private void ParseTableItem(string? doc, TableBody body)
+    private TableMember ParseTableItem(string? doc, ref bool primaryKeySeen)
+    {
+        var member = ParseTableItemCore(doc);
+        if (member is PrimaryKeyDefinition)
+        {
+            if (primaryKeySeen)
+            {
+                throw Error("A table may declare only one primary key.");
+            }
+            primaryKeySeen = true;
+        }
+        return member;
+    }
+
+    private TableMember ParseTableItemCore(string? doc)
     {
         if (_current.IsKeyword("CONSTRAINT"))
         {
-            ParseConstraint(doc, body);
+            return ParseConstraint(doc);
         }
-        else if (_current.IsKeyword("UNIQUE"))
+        if (_current.IsKeyword("UNIQUE"))
         {
-            ParseIndex(doc, isUnique: true, body);
+            return ParseIndexMember(doc, isUnique: true);
         }
-        else if (_current.IsKeyword("INDEX"))
+        if (_current.IsKeyword("INDEX"))
         {
-            ParseIndex(doc, isUnique: false, body);
+            return ParseIndexMember(doc, isUnique: false);
         }
-        else if (_current.IsKeyword("INCLUDE"))
+        if (_current.IsKeyword("INCLUDE"))
         {
-            ParseIncludeOrColumn(doc, body);
+            return ParseIncludeOrColumn(doc);
         }
-        else if (_current.Kind == TokenKind.Identifier)
+        if (_current.Kind == TokenKind.Identifier)
         {
-            ParseColumn(doc, body);
+            return ParseColumn(doc);
         }
-        else
-        {
-            throw Error("Expected a column or constraint definition.");
-        }
+        throw Error("Expected a column or constraint definition.");
     }
 
     /// <summary>
@@ -663,7 +613,7 @@ internal sealed partial class DdlParser
     /// the name (the member ends at <c>,</c> or <c>)</c>); otherwise it is a column named <c>include</c> whose
     /// type is the identifier — the pre-template reading, kept so existing DDL parses unchanged.
     /// </summary>
-    private void ParseIncludeOrColumn(string? doc, TableBody body)
+    private TableMember ParseIncludeOrColumn(string? doc)
     {
         var include = Advance(); // INCLUDE (or a column named 'include')
 
@@ -674,19 +624,19 @@ internal sealed partial class DdlParser
             {
                 throw Error("INCLUDE is not supported inside a table template; a table template cannot include another.");
             }
-            body.Includes.Add((new SqlIdentifier(Advance().Text), body.Columns.Count));
-            return;
+            var templateName = ExpectIdentifierNode("a template name");
+            return new IncludeMember(templateName) { Position = include.Position, Doc = doc };
         }
 
-        ParseColumn(new SqlIdentifier(include.Text), doc, body);
+        return ParseColumn(new Identifier(include.Text) { Position = include.Position }, doc);
     }
 
-    private void ParseColumn(string? doc, TableBody body)
-        => ParseColumn(ExpectIdentifier("a column name"), doc, body);
+    private TableMember ParseColumn(string? doc)
+        => ParseColumn(ExpectIdentifierNode("a column name"), doc);
 
-    private void ParseColumn(SqlIdentifier name, string? doc, TableBody body)
+    private TableMember ParseColumn(Identifier name, string? doc)
     {
-        var type = ParseType();
+        var type = ParseTypeNode();
 
         var isNullable = true;
         if (_current.IsKeyword("NOT"))
@@ -701,7 +651,7 @@ internal sealed partial class DdlParser
         }
 
         var isIdentity = false;
-        IdentityOptions? identity = null;
+        IdentityOptionsClause? identity = null;
         if (_current.IsKeyword("IDENTITY"))
         {
             Advance();
@@ -728,115 +678,117 @@ internal sealed partial class DdlParser
 
         var oldName = TryParseRenamedFrom();
 
-        body.Columns.Add(new Column(name, type, isNullable, isIdentity, defaultExpression, oldName, doc, identity, generatedExpression));
+        return new ColumnDefinition(name, type, isNullable, isIdentity, identity, defaultExpression, generatedExpression, oldName)
+        {
+            Position = name.Position,
+            Doc = doc,
+        };
     }
 
-    private SqlType ParseType()
+    private TypeName ParseTypeNode()
     {
-        var text = ExpectIdentifier("a column type").Value;
+        var first = ExpectIdentifierNode("a column type");
+        Identifier? schema = null;
+        var name = first;
         if (Match(TokenKind.Dot))
         {
             // A schema-qualified user-defined type, e.g. an enum referenced as `app.status`.
-            text += "." + ExpectIdentifier("a schema-qualified type name").Value;
+            schema = first;
+            name = ExpectIdentifierNode("a schema-qualified type name");
         }
+        string? arguments = null;
         if (_current.Kind == TokenKind.LeftParen)
         {
             Advance();
-            var facets = ExpectInteger();
+            arguments = ExpectInteger();
             if (Match(TokenKind.Comma))
             {
-                facets += "," + ExpectInteger();
+                arguments += "," + ExpectInteger();
             }
             Expect(TokenKind.RightParen, "')'");
-            text += $"({facets})";
         }
-        return SqlType.Parse(text);
+        return new TypeName(schema, name, arguments) { Position = first.Position };
     }
 
-    private IdentityOptions? TryParseIdentityOptions()
+    private IdentityOptionsClause? TryParseIdentityOptions()
     {
         if (_current.Kind != TokenKind.LeftParen)
         {
             return null;
         }
+        var clausePosition = _current.Position;
         Advance();
 
         long? start = null, min = null, increment = null;
         do
         {
-            var option = ExpectIdentifier("START, INCREMENT or MINVALUE");
+            var option = ExpectIdentifierNode("START, INCREMENT or MINVALUE");
             var value = ExpectIntegerValue();
-            if (string.Equals(option.Value, "START", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(option.Text, "START", StringComparison.OrdinalIgnoreCase))
             {
                 start = value;
             }
-            else if (string.Equals(option.Value, "INCREMENT", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Text, "INCREMENT", StringComparison.OrdinalIgnoreCase))
             {
                 increment = value;
             }
-            else if (string.Equals(option.Value, "MINVALUE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Text, "MINVALUE", StringComparison.OrdinalIgnoreCase))
             {
                 min = value;
             }
             else
             {
-                throw Error($"Unknown identity option '{option}'; expected START, INCREMENT or MINVALUE.");
+                throw Error($"Unknown identity option '{option.Text}'; expected START, INCREMENT or MINVALUE.");
             }
         }
         while (Match(TokenKind.Comma));
         Expect(TokenKind.RightParen, "')'");
 
-        return new IdentityOptions(start, min, increment);
+        return new IdentityOptionsClause(start, increment, min) { Position = clausePosition };
     }
 
-    private void ParseConstraint(string? doc, TableBody body)
+    private TableMember ParseConstraint(string? doc)
     {
+        var position = _current.Position;
         Advance(); // CONSTRAINT
-        var name = ExpectIdentifier("a constraint name");
+        var name = ExpectIdentifierNode("a constraint name");
 
         if (_current.IsKeyword("PRIMARY"))
         {
             Advance();
             ExpectKeyword("KEY");
-            var columns = ParseColumnList();
-            if (body.PrimaryKey is not null)
-            {
-                throw Error("A table may declare only one primary key.");
-            }
-            body.PrimaryKey = new PrimaryKey(name, columns, doc);
+            var columns = ParseColumnListNodes();
+            return new PrimaryKeyDefinition(name, columns) { Position = position, Doc = doc };
         }
-        else if (_current.IsKeyword("FOREIGN"))
+        if (_current.IsKeyword("FOREIGN"))
         {
             Advance();
             ExpectKeyword("KEY");
-            var columns = ParseColumnList();
+            var columns = ParseColumnListNodes();
             ExpectKeyword("REFERENCES");
-            var (refSchema, refTable) = ParseQualifiedName();
-            var refColumns = ParseColumnList();
+            var references = ParseQualifiedNameNode();
+            var refColumns = ParseColumnListNodes();
             var (onDelete, onUpdate) = ParseReferentialActions();
-            body.ForeignKeys.Add(new ForeignKey(name, columns, refSchema, refTable, refColumns, onDelete, onUpdate, doc));
+            return new ForeignKeyDefinition(name, columns, references, refColumns, onDelete, onUpdate) { Position = position, Doc = doc };
         }
-        else if (_current.IsKeyword("UNIQUE"))
+        if (_current.IsKeyword("UNIQUE"))
         {
             Advance();
-            var columns = ParseColumnList();
-            body.UniqueConstraints.Add(new UniqueConstraint(name, columns, doc));
+            var columns = ParseColumnListNodes();
+            return new UniqueDefinition(name, columns) { Position = position, Doc = doc };
         }
-        else if (_current.IsKeyword("CHECK"))
+        if (_current.IsKeyword("CHECK"))
         {
             Advance();
             var expression = ReadRawExpression(parenthesised: true);
-            body.CheckConstraints.Add(new CheckConstraint(name, expression, doc));
+            return new CheckDefinition(name, expression) { Position = position, Doc = doc };
         }
-        else if (_current.IsKeyword("EXCLUDE"))
+        if (_current.IsKeyword("EXCLUDE"))
         {
             Advance();
-            body.ExclusionConstraints.Add(ParseExclusion(name, doc));
+            return ParseExclusion(position, name, doc);
         }
-        else
-        {
-            throw Error($"Expected PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK or EXCLUDE, found '{_current.Text}'.");
-        }
+        throw Error($"Expected PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK or EXCLUDE, found '{_current.Text}'.");
     }
 
     private (ReferentialAction OnDelete, ReferentialAction OnUpdate) ParseReferentialActions()
@@ -899,9 +851,9 @@ internal sealed partial class DdlParser
     /// Parses an exclusion constraint body (the <c>EXCLUDE</c> keyword is already consumed):
     /// <c>[USING method] ( element WITH operator [, …] ) [WHERE (predicate)]</c>.
     /// </summary>
-    private ExclusionConstraint ParseExclusion(SqlIdentifier name, string? doc)
+    private ExclusionDefinition ParseExclusion(SourcePosition position, Identifier name, string? doc)
     {
-        var method = TryParseIndexMethod();
+        var method = TryParseIndexMethodNode();
         Expect(TokenKind.LeftParen, "'(' to begin the exclusion elements");
         var elements = new List<ExclusionElement> { ParseExclusionElement() };
         while (Match(TokenKind.Comma))
@@ -910,19 +862,15 @@ internal sealed partial class DdlParser
         }
         Expect(TokenKind.RightParen, "')' or ',' after an exclusion element");
 
-        SqlText? predicate = null;
-        if (_current.IsKeyword("WHERE"))
-        {
-            Advance();
-            predicate = ReadRawExpression(parenthesised: true);
-        }
+        var predicate = TryParseWherePredicate();
 
-        return new ExclusionConstraint(name, elements, method, predicate, doc);
+        return new ExclusionDefinition(name, elements, method, predicate) { Position = position, Doc = doc };
     }
 
     private ExclusionElement ParseExclusionElement()
     {
-        SqlIdentifier? column = null;
+        var position = _current.Position;
+        Identifier? column = null;
         SqlText? expression = null;
         if (_current.Kind == TokenKind.LeftParen)
         {
@@ -930,7 +878,7 @@ internal sealed partial class DdlParser
         }
         else
         {
-            column = ExpectIdentifier("a column name or expression");
+            column = ExpectIdentifierNode("a column name or expression");
         }
 
         if (!_current.IsKeyword("WITH"))
@@ -944,61 +892,66 @@ internal sealed partial class DdlParser
         var raw = CaptureRawSpan("an exclusion operator", [TokenKind.Comma, TokenKind.RightParen]);
         var @operator = raw.TrimStart()["WITH".Length..].Trim();
 
-        return new ExclusionElement(@operator, column, expression);
+        return new ExclusionElement(@operator, column, expression) { Position = position };
     }
 
-    private void ParseIndex(string? doc, bool isUnique, TableBody body)
+    private IndexDefinition ParseIndexMember(string? doc, bool isUnique)
     {
+        var position = _current.Position;
         if (isUnique)
         {
             Advance(); // UNIQUE
         }
         ExpectKeyword("INDEX");
-        var name = ExpectIdentifier("an index name");
-        var method = TryParseIndexMethod();
+        var name = ExpectIdentifierNode("an index name");
+        var method = TryParseIndexMethodNode();
         var columns = ParseIndexColumns();
         var include = TryParseIncludeColumns();
+        var predicate = TryParseWherePredicate();
 
-        SqlText? predicate = null;
-        if (_current.IsKeyword("WHERE"))
-        {
-            Advance();
-            predicate = ReadRawExpression(parenthesised: true);
-        }
-
-        body.Indexes.Add(new TableIndex(name, columns, isUnique, doc, predicate, method, include));
+        return new IndexDefinition(name, isUnique, columns, method, include, predicate) { Position = position, Doc = doc };
     }
 
     /// <summary>Parses the optional <c>USING &lt;method&gt;</c> clause of an index; returns <see langword="null"/> when absent (default B-tree).</summary>
-    private string? TryParseIndexMethod()
+    private Identifier? TryParseIndexMethodNode()
     {
         if (!_current.IsKeyword("USING"))
         {
             return null;
         }
         Advance();
-        return ExpectIdentifier("an index access method").Value;
+        return ExpectIdentifierNode("an index access method");
     }
 
     /// <summary>Parses the optional covering <c>INCLUDE (cols)</c> clause of an index; returns an empty list when absent.</summary>
-    private List<SqlIdentifier> TryParseIncludeColumns()
+    private List<Identifier> TryParseIncludeColumns()
     {
         if (!_current.IsKeyword("INCLUDE"))
         {
             return [];
         }
         Advance();
-        return ParseColumnList();
+        return ParseColumnListNodes();
+    }
+
+    private SqlText? TryParseWherePredicate()
+    {
+        if (!_current.IsKeyword("WHERE"))
+        {
+            return null;
+        }
+        Advance();
+        return ReadRawExpression(parenthesised: true);
     }
 
     /// <summary>
     /// Parses an index key list: each key is a column name or a parenthesised expression, with an optional
     /// <c>ASC</c>/<c>DESC</c> and <c>NULLS FIRST</c>/<c>NULLS LAST</c>.
     /// </summary>
-    private List<IndexColumn> ParseIndexColumns()
+    private List<IndexElement> ParseIndexColumns()
     {
         Expect(TokenKind.LeftParen, "'('");
-        var keys = new List<IndexColumn> { ParseIndexKey() };
+        var keys = new List<IndexElement> { ParseIndexKey() };
         while (Match(TokenKind.Comma))
         {
             keys.Add(ParseIndexKey());
@@ -1007,9 +960,10 @@ internal sealed partial class DdlParser
         return keys;
     }
 
-    private IndexColumn ParseIndexKey()
+    private IndexElement ParseIndexKey()
     {
-        SqlIdentifier? column = null;
+        var position = _current.Position;
+        Identifier? column = null;
         SqlText? expression = null;
         if (_current.Kind == TokenKind.LeftParen)
         {
@@ -1018,7 +972,7 @@ internal sealed partial class DdlParser
         }
         else
         {
-            column = ExpectIdentifier("a column name or expression");
+            column = ExpectIdentifierNode("a column name or expression");
         }
 
         var sort = IndexSort.Default;
@@ -1053,33 +1007,32 @@ internal sealed partial class DdlParser
             }
         }
 
-        return new IndexColumn(column, expression, sort, nulls);
+        return new IndexElement(column, expression, sort, nulls) { Position = position };
     }
 
-    private List<SqlIdentifier> ParseColumnList()
+    private List<Identifier> ParseColumnListNodes()
     {
         Expect(TokenKind.LeftParen, "'('");
-        var columns = new List<SqlIdentifier> { ExpectIdentifier("a column name") };
+        var columns = new List<Identifier> { ExpectIdentifierNode("a column name") };
         while (Match(TokenKind.Comma))
         {
-            columns.Add(ExpectIdentifier("a column name"));
+            columns.Add(ExpectIdentifierNode("a column name"));
         }
         Expect(TokenKind.RightParen, "')'");
         return columns;
     }
 
     /// <summary>
-    /// Captures an opaque SQL expression as raw text by rewinding the scanner to the current lookahead token and
-    /// re-reading from there: a balanced <c>( … )</c> when <paramref name="parenthesised"/> (CHECK / WHERE), or an
-    /// unparenthesised DEFAULT value otherwise (terminated by the enclosing column list's <c>,</c> / <c>)</c> or a
-    /// <c>RENAMED</c> clause). Re-syncs the lookahead afterwards.
+    /// Captures an opaque SQL expression as raw text: a balanced <c>( … )</c> when <paramref name="parenthesised"/>
+    /// (CHECK / WHERE), or an unparenthesised DEFAULT value otherwise (terminated by the enclosing column list's
+    /// <c>,</c> / <c>)</c> or a <c>RENAMED</c> clause).
     /// </summary>
     private SqlText ReadRawExpression(bool parenthesised) => new(
         parenthesised
             ? CaptureParenthesized()
             : CaptureRawSpan("a default expression", [TokenKind.Comma, TokenKind.RightParen], "RENAMED"));
 
-    private SqlIdentifier? TryParseRenamedFrom()
+    private Identifier? TryParseRenamedFrom()
     {
         if (!_current.IsKeyword("RENAMED"))
         {
@@ -1087,19 +1040,6 @@ internal sealed partial class DdlParser
         }
         Advance(); // RENAMED
         ExpectKeyword("FROM");
-        return ExpectIdentifier("a previous name");
-    }
-
-    /// <summary>Mutable scratch space for the members of one table as its body is parsed.</summary>
-    private sealed class TableBody
-    {
-        public PrimaryKey? PrimaryKey { get; set; }
-        public List<Column> Columns { get; } = [];
-        public List<ForeignKey> ForeignKeys { get; } = [];
-        public List<UniqueConstraint> UniqueConstraints { get; } = [];
-        public List<CheckConstraint> CheckConstraints { get; } = [];
-        public List<ExclusionConstraint> ExclusionConstraints { get; } = [];
-        public List<TableIndex> Indexes { get; } = [];
-        public List<(SqlIdentifier TemplateName, int ColumnPosition)> Includes { get; } = [];
+        return ExpectIdentifierNode("a previous name");
     }
 }

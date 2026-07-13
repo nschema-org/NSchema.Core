@@ -11,7 +11,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 /// </summary>
 public sealed class DdlParserScriptStatementTests
 {
-    private static DdlDocument Read(string source) => new DdlParser(source).Parse();
+    private static DdlDocument Read(string source) => new TestDdlParser(source).Parse();
 
     private static IReadOnlyList<Script> Migrations(DdlDocument document) =>
         [.. document.Scripts.Where(s => s.Event is ChangeEvent)];

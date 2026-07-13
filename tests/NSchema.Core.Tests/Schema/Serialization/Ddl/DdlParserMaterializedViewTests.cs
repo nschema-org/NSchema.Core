@@ -10,7 +10,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 public sealed class DdlParserMaterializedViewTests
 {
     private static View ParseView(string sql) =>
-        new DdlParser("CREATE SCHEMA app; " + sql).Parse().Schema
+        new TestDdlParser("CREATE SCHEMA app; " + sql).Parse().Schema
             .Schemas.ShouldHaveSingleItem().Views.ShouldHaveSingleItem();
 
     [Fact]
@@ -56,24 +56,24 @@ public sealed class DdlParserMaterializedViewTests
     [Fact]
     public void Parse_IndexOnPlainView_Throws()
         => Should.Throw<DdlSyntaxException>(() =>
-            new DdlParser("CREATE SCHEMA app; CREATE VIEW app.v AS SELECT 1; CREATE INDEX ix ON app.v (x);").Parse())
+            new TestDdlParser("CREATE SCHEMA app; CREATE VIEW app.v AS SELECT 1; CREATE INDEX ix ON app.v (x);").Parse())
             .Message.ShouldContain("not a materialized view");
 
     [Fact]
     public void Parse_IndexOnUnknownRelation_Throws()
         => Should.Throw<DdlSyntaxException>(() =>
-            new DdlParser("CREATE SCHEMA app; CREATE INDEX ix ON app.ghost (x);").Parse())
+            new TestDdlParser("CREATE SCHEMA app; CREATE INDEX ix ON app.ghost (x);").Parse())
             .Message.ShouldContain("unknown table or materialized view");
 
     [Fact]
     public void Parse_DuplicateIndexOnView_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new DdlParser(
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser(
             "CREATE SCHEMA app; CREATE MATERIALIZED VIEW app.m AS SELECT x FROM app.t; " +
             "CREATE INDEX ix ON app.m (x); CREATE INDEX ix ON app.m (y);").Parse())
             .Message.ShouldContain("already declared");
 
     [Fact]
     public void Parse_DropMaterializedView_RecordsDroppedView()
-        => ShouldlyIdentifierExtensions.ShouldBe(new DdlParser("CREATE SCHEMA app; DROP MATERIALIZED VIEW app.daily;").Parse().Schema
+        => ShouldlyIdentifierExtensions.ShouldBe(new TestDdlParser("CREATE SCHEMA app; DROP MATERIALIZED VIEW app.daily;").Parse().Schema
                 .Schemas.ShouldHaveSingleItem().DroppedViews.ShouldHaveSingleItem(), "daily");
 }
