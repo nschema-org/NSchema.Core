@@ -119,7 +119,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
         foreach (var index in table.Indexes.Where(i => i is { Kind: ChangeKind.Add, Definition.IsUnique: true }))
         {
             // An expression key is opaque, so it is assumed to read pre-existing data.
-            if (index.Definition!.Columns.Any(k => k.IsExpression || !addedColumns.Contains(new SqlIdentifier(k.Expression))))
+            if (index.Definition!.Columns.Any(k => k.Column is not { } column || !addedColumns.Contains(column)))
             {
                 yield return $"Unique index '{index.Name}' on '{qualified}' is added over existing data; the " +
                              "migration will fail if existing rows hold duplicates.";

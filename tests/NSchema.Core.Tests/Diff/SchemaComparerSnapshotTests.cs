@@ -117,10 +117,10 @@ public sealed class SchemaComparerSnapshotTests
                         UniqueConstraints: [new UniqueConstraint(new SqlIdentifier("users_email_uq"), [new SqlIdentifier("email_address")])],
                         CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_id_chk"), "id > 0")],
                         ExclusionConstraints: [new ExclusionConstraint(new SqlIdentifier("users_span_excl"),
-                            [new ExclusionElement("int4range(0, id)", "&&", IsExpression: true)], Method: "gist")],
+                            [new ExclusionElement("&&", Expression: "int4range(0, id)")], Method: "gist")],
                         // A covering, expression, descending index exercising the richer index grammar.
                         Indexes: [new TableIndex(new SqlIdentifier("users_email_ix"),
-                            [new IndexColumn("email_address", Sort: IndexSort.Descending, Nulls: IndexNulls.Last), new IndexColumn("lower(email_address)", IsExpression: true)],
+                            [new IndexColumn(new SqlIdentifier("email_address"), Sort: IndexSort.Descending, Nulls: IndexNulls.Last), new IndexColumn(Expression: "lower(email_address)")],
                             IsUnique: true, Method: "btree", Include: [new SqlIdentifier("id")])]),
                 ],
                 Views:

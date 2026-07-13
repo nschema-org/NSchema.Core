@@ -161,14 +161,14 @@
                 comment: no overlap,
                 elements: [
                   {
-                    expression: code,
                     operator: =,
-                    isExpression: false
+                    column: code,
+                    expression: null
                   },
                   {
-                    expression: int4range(0, balance),
                     operator: &&,
-                    isExpression: true
+                    column: null,
+                    expression: int4range(0, balance)
                   }
                 ]
               }
@@ -182,8 +182,8 @@
                 method: null,
                 columns: [
                   {
-                    expression: name,
-                    isExpression: false,
+                    column: name,
+                    expression: null,
                     sort: Default,
                     nulls: Default
                   }
@@ -197,14 +197,14 @@
                 method: btree,
                 columns: [
                   {
-                    expression: balance,
-                    isExpression: false,
+                    column: balance,
+                    expression: null,
                     sort: Descending,
                     nulls: Last
                   },
                   {
+                    column: null,
                     expression: lower(name),
-                    isExpression: true,
                     sort: Default,
                     nulls: Default
                   }
@@ -322,8 +322,8 @@ END
                 method: null,
                 columns: [
                   {
-                    expression: name,
-                    isExpression: false,
+                    column: name,
+                    expression: null,
                     sort: Default,
                     nulls: Default
                   }

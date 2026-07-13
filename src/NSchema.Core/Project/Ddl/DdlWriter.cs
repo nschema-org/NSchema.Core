@@ -659,7 +659,7 @@ public sealed class DdlWriter
     }
 
     private static string ExclusionElementText(ExclusionElement element) =>
-        $"{(element.IsExpression ? $"({element.Expression})" : element.Expression)} WITH {element.Operator}";
+        $"{(element.Column is { } column ? column.Value : $"({element.Expression})")} WITH {element.Operator}";
 
     private static string IndexText(TableIndex index)
     {
@@ -719,7 +719,7 @@ public sealed class DdlWriter
     private static string IndexKey(IndexColumn column)
     {
         var sb = new StringBuilder();
-        sb.Append(column.IsExpression ? $"({column.Expression})" : column.Expression);
+        sb.Append(column.Column is { } name ? name.Value : $"({column.Expression})");
         sb.Append(column.Sort switch
         {
             IndexSort.Ascending => " ASC",

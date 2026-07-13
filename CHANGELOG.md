@@ -37,6 +37,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **`IStateLockManager.Acquire` takes `LockAcquireArguments`.** Operation, TTL, and skip-lock in one record; `StateLockRequest` stays the backend's.
 - **`IPlanFileManager.Read` returns `Result<PlanFileEnvelope>`.** An unreadable or corrupt plan file is a failure carrying diagnostics.
 - **Project reads report every broken file at once.** An unreadable or unparseable file (and no-files-matched) is an error diagnostic on the project.
+- **Index keys and exclusion elements are column-or-expression now.** `IndexColumn` and `ExclusionElement` carry mutually exclusive `Column` (an identifier) and `Expression` (verbatim SQL) properties.
 - **References are value objects now.** `Trigger.Function` carries a `RoutineReference` (optionally schema-qualified; unqualified resolves via the engine's search path)
 - **`ObjectReference` addresses a schema-level object.** Always fully qualified. Each part compares as an identifier. State and plan-file payloads serialize the reference structurally.
 - **Object names are `SqlIdentifier` now.** Every name-bearing property across the schema, diff, plan, and state models carries a value object.

@@ -67,12 +67,12 @@ public sealed class PlanLinearizerSnapshotTests
             ],
             Grants: [],
             Indexes: [new IndexDiff(ChangeKind.Add, new SqlIdentifier("orders_total_ix"),
-                new TableIndex(new SqlIdentifier("orders_total_ix"), [new IndexColumn("total", Sort: IndexSort.Descending)], Method: "btree", Include: [new SqlIdentifier("code")]), null)],
+                new TableIndex(new SqlIdentifier("orders_total_ix"), [new IndexColumn(new SqlIdentifier("total"), Sort: IndexSort.Descending)], Method: "btree", Include: [new SqlIdentifier("code")]), null)],
             ForeignKeys: [new ForeignKeyDiff(ChangeKind.Remove, new SqlIdentifier("orders_user_fk"), null)],
             UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("orders_code_uq"), new UniqueConstraint(new SqlIdentifier("orders_code_uq"), [new SqlIdentifier("code")]))],
             Checks: [new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("orders_total_chk"), new CheckConstraint(new SqlIdentifier("orders_total_chk"), "total >= 0"))],
             ExclusionConstraints: [new ExclusionConstraintDiff(ChangeKind.Add, new SqlIdentifier("orders_slot_excl"),
-                new ExclusionConstraint(new SqlIdentifier("orders_slot_excl"), [new ExclusionElement("slot", "&&")], "gist"))]);
+                new ExclusionConstraint(new SqlIdentifier("orders_slot_excl"), [new ExclusionElement("&&", new SqlIdentifier("slot"))], "gist"))]);
 
         // Listed dependent-first on purpose: the dependency sort must reorder them so user_summary (which
         // reads active_users) is created after it.

@@ -77,7 +77,7 @@ public sealed class DiffReaderSnapshotTests
             Checks: [new CheckConstraintDiff(ChangeKind.Remove, new SqlIdentifier("orders_total_chk"), null)],
             ExclusionConstraints:
             [
-                new ExclusionConstraintDiff(ChangeKind.Add, new SqlIdentifier("orders_slot_excl"), new ExclusionConstraint(new SqlIdentifier("orders_slot_excl"), [new ExclusionElement("slot", "&&")], "gist")),
+                new ExclusionConstraintDiff(ChangeKind.Add, new SqlIdentifier("orders_slot_excl"), new ExclusionConstraint(new SqlIdentifier("orders_slot_excl"), [new ExclusionElement("&&", new SqlIdentifier("slot"))], "gist")),
                 new ExclusionConstraintDiff(ChangeKind.Remove, new SqlIdentifier("orders_old_excl"), null),
             ]);
 

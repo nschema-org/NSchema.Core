@@ -45,9 +45,9 @@ public sealed class StructuralIntegritySchemaPolicyTests
     {
         // Arrange — index names are schema-scoped, so two tables can't both declare 'ix_updated_at'.
         var invoices = new Table(new SqlIdentifier("invoices"), Columns: [Col("updated_at")],
-            Indexes: [new TableIndex(new SqlIdentifier("ix_updated_at"), [new IndexColumn("updated_at")])]);
+            Indexes: [new TableIndex(new SqlIdentifier("ix_updated_at"), [new IndexColumn(new SqlIdentifier("updated_at"))])]);
         var orders = new Table(new SqlIdentifier("orders"), Columns: [Col("updated_at")],
-            Indexes: [new TableIndex(new SqlIdentifier("ix_updated_at"), [new IndexColumn("updated_at")])]);
+            Indexes: [new TableIndex(new SqlIdentifier("ix_updated_at"), [new IndexColumn(new SqlIdentifier("updated_at"))])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(invoices, orders)).ToList();
@@ -66,7 +66,7 @@ public sealed class StructuralIntegritySchemaPolicyTests
         // Arrange — a PRIMARY KEY creates an index bearing its name, so it shares the schema-wide pool.
         var invoices = new Table(new SqlIdentifier("invoices"), PrimaryKey: new PrimaryKey(new SqlIdentifier("shared_name"), [new SqlIdentifier("id")]), Columns: [Col("id")]);
         var orders = new Table(new SqlIdentifier("orders"), Columns: [Col("id")],
-            Indexes: [new TableIndex(new SqlIdentifier("shared_name"), [new IndexColumn("id")])]);
+            Indexes: [new TableIndex(new SqlIdentifier("shared_name"), [new IndexColumn(new SqlIdentifier("id"))])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(invoices, orders)).ToList();
@@ -80,7 +80,7 @@ public sealed class StructuralIntegritySchemaPolicyTests
     {
         // Arrange
         var table = new Table(new SqlIdentifier("invoices"), Columns: [Col("updated_at")],
-            Indexes: [new TableIndex(new SqlIdentifier("ix_updated_at"), [new IndexColumn("updated_at")])]);
+            Indexes: [new TableIndex(new SqlIdentifier("ix_updated_at"), [new IndexColumn(new SqlIdentifier("updated_at"))])]);
         var schema = new DatabaseSchema(
         [
             new SchemaDefinition(new SqlIdentifier("billing"), Tables: [table]),

@@ -139,7 +139,7 @@ internal sealed class StructuralIntegritySchemaPolicy : IProjectPolicy
         {
             // Only plain-column keys (and covering INCLUDE columns) reference table columns directly; an
             // expression key (e.g. (lower(email))) names columns inside opaque text we don't parse.
-            var referenced = index.Columns.Where(c => !c.IsExpression).Select(c => new SqlIdentifier(c.Expression)).Concat(index.Include);
+            var referenced = index.Columns.Select(c => c.Column).OfType<SqlIdentifier>().Concat(index.Include);
             foreach (var missing in referenced.Where(c => !columns.Contains(c)))
             {
                 diagnostics.Add(Error($"Index '{index.Name}' on '{qualified}' references unknown column '{missing}'."));
@@ -220,8 +220,8 @@ internal sealed class StructuralIntegritySchemaPolicy : IProjectPolicy
         // (its keys aren't plain columns), so neither counts. INCLUDE columns aren't part of the uniqueness key,
         // so they don't affect the match.
         return table.Indexes.Any(i => i is { IsUnique: true, Predicate: null }
-            && i.Columns.All(c => !c.IsExpression)
-            && referenced.SetEquals(i.Columns.Select(c => new SqlIdentifier(c.Expression))));
+            && i.Columns.All(c => c.Column is not null)
+            && referenced.SetEquals(i.Columns.Select(c => c.Column!.Value)));
     }
 
     private static IEnumerable<SqlIdentifier> Duplicates(IEnumerable<SqlIdentifier> names) => names

@@ -85,7 +85,7 @@ public static class TestData
                         ExclusionConstraints:
                         [
                             new ExclusionConstraint(new SqlIdentifier("users_code_excl"),
-                                [new ExclusionElement("code", "="), new ExclusionElement("int4range(0, balance)", "&&", IsExpression: true)],
+                                [new ExclusionElement("=", new SqlIdentifier("code")), new ExclusionElement("&&", Expression: "int4range(0, balance)")],
                                 Method: "gist", Predicate: "balance > 0", Comment: "no overlap"),
                         ],
                         Indexes:
@@ -93,7 +93,7 @@ public static class TestData
                             new TableIndex(new SqlIdentifier("users_name_ix"), ["name"], IsUnique: true,
                                 Comment: "unique names", Predicate: "name IS NOT NULL"),
                             new TableIndex(new SqlIdentifier("users_balance_ix"),
-                                [new IndexColumn("balance", Sort: IndexSort.Descending, Nulls: IndexNulls.Last), new IndexColumn("lower(name)", IsExpression: true)],
+                                [new IndexColumn(new SqlIdentifier("balance"), Sort: IndexSort.Descending, Nulls: IndexNulls.Last), new IndexColumn(Expression: "lower(name)")],
                                 Method: "btree", Include: [new SqlIdentifier("code")], Comment: "covering balance index"),
                         ],
                         Grants: [new TableGrant(new SqlIdentifier("readers"), TablePrivilege.All)],

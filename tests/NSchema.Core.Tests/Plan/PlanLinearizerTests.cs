@@ -477,7 +477,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_AddExclusionConstraint_EmitsAddExclusionConstraint()
     {
-        var exclusion = new ExclusionConstraint(new SqlIdentifier("no_overlap"), [new ExclusionElement("during", "&&")], "gist");
+        var exclusion = new ExclusionConstraint(new SqlIdentifier("no_overlap"), [new ExclusionElement("&&", new SqlIdentifier("during"))], "gist");
         var constraint = new ExclusionConstraintDiff(ChangeKind.Add, new SqlIdentifier("no_overlap"), exclusion);
 
         LinearizeTable(TableNode("bookings", ChangeKind.Modify, exclusionConstraints: [constraint]))

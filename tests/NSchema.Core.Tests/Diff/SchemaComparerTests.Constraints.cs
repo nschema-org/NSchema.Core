@@ -313,7 +313,7 @@ public partial class SchemaComparerTests
     {
         var table = DiffTable(
             new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("a"), SqlType.Int)], Indexes: [new TableIndex(new SqlIdentifier("t_ix"), ["a"])]),
-            new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("a"), SqlType.Int)], Indexes: [new TableIndex(new SqlIdentifier("t_ix"), [new IndexColumn("a", Sort: IndexSort.Descending)])]));
+            new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("a"), SqlType.Int)], Indexes: [new TableIndex(new SqlIdentifier("t_ix"), [new IndexColumn(new SqlIdentifier("a"), Sort: IndexSort.Descending)])]));
 
         table!.Indexes.Select(i => i.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
     }
@@ -323,7 +323,7 @@ public partial class SchemaComparerTests
     // -------------------------------------------------------------------------
 
     private static ExclusionConstraint NoOverlap(string? method = "gist", string? comment = null) =>
-        new(new SqlIdentifier("no_overlap"), [new ExclusionElement("room", "="), new ExclusionElement("during", "&&")], method, Comment: comment);
+        new(new SqlIdentifier("no_overlap"), [new ExclusionElement("=", new SqlIdentifier("room")), new ExclusionElement("&&", new SqlIdentifier("during"))], method, Comment: comment);
 
     private static Table Bookings(params ExclusionConstraint[] exclusions) =>
         new(new SqlIdentifier("bookings"), Columns: [new Column(new SqlIdentifier("room"), SqlType.Int), new Column(new SqlIdentifier("during"), SqlType.Int)], ExclusionConstraints: exclusions);

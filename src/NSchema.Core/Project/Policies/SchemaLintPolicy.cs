@@ -53,7 +53,7 @@ internal sealed class SchemaLintPolicy : IProjectPolicy
         {
             // Duplicate-column linting applies to plain-column keys; expression keys are opaque.
             ReportDuplicates(diagnostics, qualified, $"index '{index.Name}'",
-                index.Columns.Where(c => !c.IsExpression).Select(c => new SqlIdentifier(c.Expression)).ToList());
+                index.Columns.Select(c => c.Column).OfType<SqlIdentifier>().ToList());
         }
 
         foreach (var foreignKey in table.ForeignKeys)

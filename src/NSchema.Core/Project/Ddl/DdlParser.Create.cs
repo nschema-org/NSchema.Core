@@ -922,17 +922,15 @@ internal sealed partial class DdlParser
 
     private ExclusionElement ParseExclusionElement()
     {
-        string expression;
-        bool isExpression;
+        SqlIdentifier? column = null;
+        string? expression = null;
         if (_current.Kind == TokenKind.LeftParen)
         {
             expression = ReadRawExpression(parenthesised: true);
-            isExpression = true;
         }
         else
         {
-            expression = ExpectIdentifier("a column name or expression").Value;
-            isExpression = false;
+            column = ExpectIdentifier("a column name or expression");
         }
 
         if (!_current.IsKeyword("WITH"))
@@ -946,7 +944,7 @@ internal sealed partial class DdlParser
         var raw = CaptureRawSpan("an exclusion operator", [TokenKind.Comma, TokenKind.RightParen]);
         var @operator = raw.TrimStart()["WITH".Length..].Trim();
 
-        return new ExclusionElement(expression, @operator, isExpression);
+        return new ExclusionElement(@operator, column, expression);
     }
 
     private void ParseIndex(string? doc, bool isUnique, TableBody body)
@@ -1011,18 +1009,16 @@ internal sealed partial class DdlParser
 
     private IndexColumn ParseIndexKey()
     {
-        string expression;
-        bool isExpression;
+        SqlIdentifier? column = null;
+        string? expression = null;
         if (_current.Kind == TokenKind.LeftParen)
         {
             // A parenthesised expression key, e.g. (lower(email)).
             expression = ReadRawExpression(parenthesised: true);
-            isExpression = true;
         }
         else
         {
-            expression = ExpectIdentifier("a column name or expression").Value;
-            isExpression = false;
+            column = ExpectIdentifier("a column name or expression");
         }
 
         var sort = IndexSort.Default;
@@ -1057,7 +1053,7 @@ internal sealed partial class DdlParser
             }
         }
 
-        return new IndexColumn(expression, isExpression, sort, nulls);
+        return new IndexColumn(column, expression, sort, nulls);
     }
 
     private List<SqlIdentifier> ParseColumnList()

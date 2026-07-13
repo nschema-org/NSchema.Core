@@ -118,7 +118,7 @@ public class MigrationAnnotatorTests
         var diff = ModifiedTable(ExclusionConstraints:
         [
             new ExclusionConstraintDiff(ChangeKind.Add, new SqlIdentifier("no_overlap"),
-                new ExclusionConstraint(new SqlIdentifier("no_overlap"), [new ExclusionElement("during", "&&")], "gist")),
+                new ExclusionConstraint(new SqlIdentifier("no_overlap"), [new ExclusionElement("&&", new SqlIdentifier("during"))], "gist")),
         ]);
 
         // Act

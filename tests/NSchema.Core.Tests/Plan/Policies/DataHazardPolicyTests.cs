@@ -304,7 +304,7 @@ public class DataHazardPolicyTests
         var diff = ModifiedTable(Indexes:
         [
             new IndexDiff(ChangeKind.Add, new SqlIdentifier("ix_users_email"),
-                new TableIndex(new SqlIdentifier("ix_users_email"), [new IndexColumn("lower(email)", IsExpression: true)], IsUnique: true)),
+                new TableIndex(new SqlIdentifier("ix_users_email"), [new IndexColumn(Expression: "lower(email)")], IsUnique: true)),
         ]);
 
         // Act
