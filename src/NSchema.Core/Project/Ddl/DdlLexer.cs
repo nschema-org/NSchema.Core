@@ -1,3 +1,4 @@
+using NSchema.Project.Nsql;
 using System.Text;
 using NSchema.Project.Ddl.Models;
 
@@ -349,7 +350,7 @@ internal sealed class DdlLexer(string source, bool emitComments = false)
         }
     }
 
-    private char Advance()
+    private void Advance()
     {
         var c = _source[_offset++];
         if (c == '\n')
@@ -361,7 +362,6 @@ internal sealed class DdlLexer(string source, bool emitComments = false)
         {
             _column++;
         }
-        return c;
     }
 
     private static bool IsIdentifierStart(char c) => char.IsAsciiLetter(c) || c == '_';

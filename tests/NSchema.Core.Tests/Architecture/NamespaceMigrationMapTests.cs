@@ -58,6 +58,7 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchemaApplicationOptions)] = Root,
         [typeof(NSchema.Result)] = Root,
         [typeof(NSchema.Result<>)] = Root,
+        [typeof(NSchema.Result<,>)] = Root, // the diagnostic-typed result — folds upward as Result<T> without translation
         [typeof(NSchema.Diagnostic)] = Root,
         [typeof(NSchema.DiagnosticSeverity)] = Root,
         [typeof(PolicyEnforcement)] = Root, // absorbed DestructiveActionPolicy
@@ -82,7 +83,7 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Project.Ddl.DdlWriter)] = ProjectDdl,
         [typeof(NSchema.Project.Ddl.DdlFormatter)] = ProjectDdl,
         [typeof(DdlDocument)] = ProjectDdlModels, // becomes the parsed-project root of the full AST
-        [typeof(SourcePosition)] = ProjectDdlModels,
+        [typeof(NSchema.Project.Nsql.SourcePosition)] = ProjectNsql,
         // Template constructs are language features, not domain models; reshaped as AST nodes.
         [typeof(TemplateDefinition)] = ProjectDdlModels + ".Templates",
         [typeof(TemplateApplication)] = ProjectDdlModels + ".Templates",
@@ -94,6 +95,8 @@ public sealed class NamespaceMigrationMapTests
         // under .Syntax. Born in their 5.0 home; they replace the Ddl lane as the parser flips to them. ──
         [typeof(NSchema.Project.Nsql.NsqlDocument)] = ProjectNsql,
         [typeof(NSchema.Project.Nsql.NsqlConfigDocument)] = ProjectNsql,
+        [typeof(NSchema.Project.Nsql.NsqlReader)] = ProjectNsql, // the file-aware read seam — stamps provenance onto documents and diagnostics
+        [typeof(NSchema.Project.Nsql.NsqlDiagnostic)] = ProjectNsql, // the lane's positioned diagnostic — file + SourcePosition structurally
         [typeof(Syntax.NsqlNode)] = ProjectNsqlSyntax,
         [typeof(Syntax.NsqlStatement)] = ProjectNsqlSyntax,
         [typeof(Syntax.Identifier)] = ProjectNsqlSyntax,

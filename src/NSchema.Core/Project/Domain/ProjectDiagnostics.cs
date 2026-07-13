@@ -17,18 +17,6 @@ internal static class ProjectDiagnostics
         "No SQL DDL files matched the registered schema sources.");
 
     /// <summary>
-    /// Prefixes a read diagnostic with the file it came from — the reader knows the position, the caller knows the file.
-    /// </summary>
-    public static Diagnostic InFile(string path, Diagnostic diagnostic) =>
-        diagnostic with { Message = $"{path}: {diagnostic.Message}" };
-
-    /// <summary>
-    /// A matched DDL file could not be read from disk.
-    /// </summary>
-    public static Diagnostic UnreadableFile(string path, Exception exception) => Diagnostic.Error(Source,
-        $"Could not read '{path}': {exception.Message}");
-
-    /// <summary>
     /// A script name declared more than once (names are the run-once and diagnostic identity).
     /// </summary>
     public static Diagnostic DuplicateScriptName(SqlIdentifier name) => Diagnostic.Error(Source,

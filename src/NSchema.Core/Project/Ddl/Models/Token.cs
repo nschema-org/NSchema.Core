@@ -1,3 +1,5 @@
+using NSchema.Project.Nsql;
+
 namespace NSchema.Project.Ddl.Models;
 
 /// <summary>

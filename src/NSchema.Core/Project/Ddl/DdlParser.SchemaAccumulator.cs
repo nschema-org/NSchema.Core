@@ -1,4 +1,4 @@
-using NSchema.Project.Ddl.Models;
+using NSchema.Project.Nsql;
 using NSchema.Project.Ddl.Models.Templates;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.CompositeTypes;
@@ -15,7 +15,7 @@ using NSchema.Project.Domain.Models.Views;
 
 namespace NSchema.Project.Ddl;
 
-internal sealed partial class DdlParser
+internal sealed class DdlParser
 {
     /// <summary>
     /// Accumulates parsed statements into a <see cref="DatabaseSchema"/>. Schema entries are vivified on demand so

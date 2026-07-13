@@ -5,11 +5,12 @@ using NSchema.Project.Ddl.Models.Templates;
 using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Project.Nsql;
 
 namespace NSchema.Project;
 
 /// <summary>
-/// The default <see cref="IProjectProvider"/>: reads each registered <see cref="ProjectSource"/>, reads the matched <c>.sql</c> files with <see cref="DdlReader"/>.
+/// The default <see cref="IProjectProvider"/>.
 /// </summary>
 internal sealed class ProjectProvider(IEnumerable<ProjectSource> sources) : IProjectProvider
 {
@@ -102,19 +103,21 @@ internal sealed class ProjectProvider(IEnumerable<ProjectSource> sources) : IPro
 
     private static async Task<Result<DdlDocument>> ReadDocument(string path, CancellationToken cancellationToken)
     {
-        string text;
-        try
+        var read = await NsqlReader.Instance.ReadFile(path, cancellationToken);
+        if (read.IsFailure)
         {
-            text = await File.ReadAllTextAsync(path, cancellationToken);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return Result.Failure<DdlDocument>(ProjectDiagnostics.UnreadableFile(path, ex));
+            return Result.Failure<DdlDocument>(read.Diagnostics);
         }
 
-        var read = DdlReader.Instance.Read(text);
-        return read.IsSuccess
-            ? read
-            : Result.Failure<DdlDocument>(read.Diagnostics.Select(d => ProjectDiagnostics.InFile(path, d)));
+        try
+        {
+            return Result.Success(DocumentProjector.Project(read.Value), read.Diagnostics);
+        }
+        catch (DdlSyntaxException ex)
+        {
+            // An assembly-level finding (a duplicate declaration, a stray-qualified template) carries its
+            // position and file structurally, like a parse error.
+            return Result.Failure<DdlDocument>(NsqlDiagnostics.Syntax(ex) with { File = path });
+        }
     }
 }

@@ -1,6 +1,7 @@
 using NSchema.Current;
 using NSchema.Operations.Progress;
 using NSchema.Project.Ddl;
+using NSchema.Project.Nsql;
 using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
@@ -114,11 +115,20 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
 
     private static async Task<Result<DatabaseSchema>> ReadExisting(string path, CancellationToken cancellationToken)
     {
-        var text = await File.ReadAllTextAsync(path, cancellationToken);
-        var read = DdlReader.Instance.Read(text);
-        return read.IsSuccess
-            ? read.Map(document => document.Schema)
-            : Result.Failure<DatabaseSchema>(read.Diagnostics.Select(d => ProjectDiagnostics.InFile(path, d)));
+        var read = await NsqlReader.Instance.ReadFile(path, cancellationToken);
+        if (read.IsFailure)
+        {
+            return Result.Failure<DatabaseSchema>(read.Diagnostics);
+        }
+
+        try
+        {
+            return DocumentProjector.Project(read.Value).Schema;
+        }
+        catch (DdlSyntaxException ex)
+        {
+            return Result.Failure<DatabaseSchema>(NsqlDiagnostics.Syntax(ex) with { File = path });
+        }
     }
 
     private static DatabaseSchema Merge(DatabaseSchema existing, DatabaseSchema incoming)

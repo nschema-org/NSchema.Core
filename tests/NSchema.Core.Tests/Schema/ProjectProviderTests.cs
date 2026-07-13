@@ -1,3 +1,4 @@
+using NSchema.Project.Nsql;
 using Microsoft.Extensions.FileSystemGlobbing;
 using NSchema.Project;
 using NSchema.Project.Domain;
@@ -50,11 +51,13 @@ public sealed class ProjectProviderTests : IDisposable
 
         var project = await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken);
 
-        // The read fails, naming the broken file — while the readable files still aggregate into the carried project.
+        // The read fails, naming the broken file structurally — while the readable files still aggregate
+        // into the carried project.
         project.IsFailure.ShouldBeTrue();
-        var error = project.Errors.ShouldHaveSingleItem();
+        var error = project.Errors.ShouldHaveSingleItem().ShouldBeOfType<NsqlDiagnostic>();
         error.Source.ShouldBe("syntax");
-        error.Message.ShouldContain(Path.Combine(_root, "bad.sql"));
+        error.File.ShouldBe(Path.Combine(_root, "bad.sql"));
+        error.Position.Line.ShouldBe(1);
         project.Value!.Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
     }
 

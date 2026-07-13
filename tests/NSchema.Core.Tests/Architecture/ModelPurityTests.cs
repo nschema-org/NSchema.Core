@@ -57,7 +57,7 @@ public sealed class ModelPurityTests
             .Should().OnlyDependOn(
                 Types().That().ResideInNamespaceMatching(Subtree("NSchema.Project.Ddl", "NSchema.Project.Domain.Models", "NSchema.Plugins", "System"))
                     .Or().Are(typeof(Result), typeof(Result<>), typeof(Diagnostic),
-                        typeof(NSchema.Project.Nsql.NsqlParser), typeof(NSchema.Project.Nsql.DocumentProjector), typeof(NSchema.Project.Nsql.NsqlDocument)));
+                        typeof(NSchema.Project.Nsql.NsqlParser), typeof(NSchema.Project.Nsql.DocumentProjector), typeof(NSchema.Project.Nsql.NsqlDocument), typeof(NSchema.Project.Nsql.SourcePosition)));
 
         // Assert
         rule.ShouldBeSatisfied();
