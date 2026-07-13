@@ -25,7 +25,7 @@ public sealed record DomainDiff(
     SqlIdentifier? RenamedFrom = null,
     DomainDefinition? Definition = null,
     ValueChange<SqlType>? DataType = null,
-    ValueChange<string>? Default = null,
+    ValueChange<SqlText>? Default = null,
     ValueChange<bool>? NotNull = null,
     IReadOnlyList<CheckConstraintDiff>? Checks = null,
     ValueChange<string>? Comment = null

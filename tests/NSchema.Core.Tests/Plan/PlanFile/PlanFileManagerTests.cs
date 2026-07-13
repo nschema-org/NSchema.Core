@@ -26,15 +26,15 @@ public sealed class PlanFileManagerTests
             {
                 Scripts =
                 [
-                    new Script(new SqlIdentifier("seed"), "INSERT INTO app.config VALUES (1)", new DeploymentEvent(DeploymentPhase.Pre)),
-                    new Script(new SqlIdentifier("backfill"), "UPDATE app.users SET email = ''", new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") }) { RunCondition = RunCondition.Once },
-                    new Script(new SqlIdentifier("reindex"), "REINDEX TABLE app.users", new DeploymentEvent(DeploymentPhase.Post)) { RunOutsideTransaction = true },
+                    new Script(new SqlIdentifier("seed"), new SqlText("INSERT INTO app.config VALUES (1)"), new DeploymentEvent(DeploymentPhase.Pre)),
+                    new Script(new SqlIdentifier("backfill"), new SqlText("UPDATE app.users SET email = ''"), new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") }) { RunCondition = RunCondition.Once },
+                    new Script(new SqlIdentifier("reindex"), new SqlText("REINDEX TABLE app.users"), new DeploymentEvent(DeploymentPhase.Post)) { RunOutsideTransaction = true },
                 ],
             },
             [
-                new SqlStatement("INSERT INTO app.config VALUES (1)"),
-                new SqlStatement("CREATE INDEX CONCURRENTLY ...", RunOutsideTransaction: true),
-                new SqlStatement("REINDEX TABLE app.users", RunOutsideTransaction: true),
+                new SqlStatement(new SqlText("INSERT INTO app.config VALUES (1)")),
+                new SqlStatement(new SqlText("CREATE INDEX CONCURRENTLY ..."), RunOutsideTransaction: true),
+                new SqlStatement(new SqlText("REINDEX TABLE app.users"), RunOutsideTransaction: true),
             ]);
 
         return new PlanFileEnvelope(plan, DateTimeOffset.UnixEpoch);
@@ -104,7 +104,7 @@ public sealed class PlanFileManagerTests
     {
         // Arrange — a diff whose column add is annotated with its matched script, so diff-node persistence and
         // the script-event discriminator inside the diff are both exercised.
-        var migration = new Script(new SqlIdentifier("backfill emails"), "UPDATE app.users SET email = ''",
+        var migration = new Script(new SqlIdentifier("backfill emails"), new SqlText("UPDATE app.users SET email = ''"),
             new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") })
         {
             RunOutsideTransaction = true,
@@ -120,7 +120,7 @@ public sealed class PlanFileManagerTests
             ]),
         ]);
         var envelope = new PlanFileEnvelope(
-            new MigrationPlan(diff with { Scripts = [migration] }, [new SqlStatement("UPDATE app.users SET email = ''", RunOutsideTransaction: true)]),
+            new MigrationPlan(diff with { Scripts = [migration] }, [new SqlStatement(new SqlText("UPDATE app.users SET email = ''"), RunOutsideTransaction: true)]),
             DateTimeOffset.UnixEpoch);
 
         // Act

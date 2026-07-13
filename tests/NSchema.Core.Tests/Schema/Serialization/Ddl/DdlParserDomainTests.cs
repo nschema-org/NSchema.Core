@@ -17,7 +17,7 @@ public sealed class DdlParserDomainTests
     public void Parse_SimpleDomain_CapturesNameAndType()
     {
         var domain = ParseDomain("CREATE DOMAIN app.typeid AS text;");
-        domain.Name.ShouldBe("typeid");
+        ShouldlyIdentifierExtensions.ShouldBe(domain.Name, "typeid");
         domain.DataType.ShouldBe(SqlType.Text);
         domain.NotNull.ShouldBeFalse();
         domain.Default.ShouldBeNull();
@@ -30,14 +30,14 @@ public sealed class DdlParserDomainTests
 
     [Fact]
     public void Parse_Default_IsCapturedVerbatim()
-        => ParseDomain("CREATE DOMAIN app.d AS text DEFAULT 'n/a';").Default.ShouldBe("'n/a'");
+        => ShouldlyIdentifierExtensions.ShouldBe(ParseDomain("CREATE DOMAIN app.d AS text DEFAULT 'n/a';").Default, "'n/a'");
 
     [Fact]
     public void Parse_Check_IsCaptured()
     {
         var check = ParseDomain("CREATE DOMAIN app.d AS text CONSTRAINT d_chk CHECK (VALUE <> '');").Checks.ShouldHaveSingleItem();
-        check.Name.ShouldBe("d_chk");
-        check.Expression.ShouldBe("VALUE <> ''");
+        ShouldlyIdentifierExtensions.ShouldBe(check.Name, "d_chk");
+        ShouldlyIdentifierExtensions.ShouldBe(check.Expression, "VALUE <> ''");
     }
 
     [Fact]
@@ -47,13 +47,13 @@ public sealed class DdlParserDomainTests
             "CREATE DOMAIN app.email AS text NOT NULL CONSTRAINT email_fmt CHECK (VALUE ~ '@') DEFAULT 'x@y';");
         domain.DataType.ShouldBe(SqlType.Text);
         domain.NotNull.ShouldBeTrue();
-        domain.Checks.ShouldHaveSingleItem().Name.ShouldBe("email_fmt");
-        domain.Default.ShouldBe("'x@y'");
+        ShouldlyIdentifierExtensions.ShouldBe(domain.Checks.ShouldHaveSingleItem().Name, "email_fmt");
+        ShouldlyIdentifierExtensions.ShouldBe(domain.Default, "'x@y'");
     }
 
     [Fact]
     public void Parse_RenamedFrom_SetsOldName()
-        => ParseDomain("CREATE DOMAIN app.typeid RENAMED FROM legacy_id AS text;").OldName.ShouldBe("legacy_id");
+        => ShouldlyIdentifierExtensions.ShouldBe(ParseDomain("CREATE DOMAIN app.typeid RENAMED FROM legacy_id AS text;").OldName, "legacy_id");
 
     [Fact]
     public void Parse_WithDocComment_AttachesComment()
@@ -61,8 +61,8 @@ public sealed class DdlParserDomainTests
 
     [Fact]
     public void Parse_DropDomain_RecordsDroppedDomain()
-        => new DdlParser("CREATE SCHEMA app; DROP DOMAIN app.typeid;").Parse().Schema
-            .Schemas.ShouldHaveSingleItem().DroppedDomains.ShouldHaveSingleItem().ShouldBe("typeid");
+        => ShouldlyIdentifierExtensions.ShouldBe(new DdlParser("CREATE SCHEMA app; DROP DOMAIN app.typeid;").Parse().Schema
+                .Schemas.ShouldHaveSingleItem().DroppedDomains.ShouldHaveSingleItem(), "typeid");
 
     [Fact]
     public void Parse_DuplicateDomain_Throws()

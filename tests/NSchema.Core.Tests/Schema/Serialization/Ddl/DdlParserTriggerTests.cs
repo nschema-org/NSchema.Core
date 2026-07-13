@@ -76,9 +76,9 @@ public sealed class DdlParserTriggerTests
         trigger.Events.ShouldBe(TriggerEvent.Insert | TriggerEvent.Delete);
         trigger.Function.ShouldBeNull();
         trigger.Body.ShouldNotBeNull();
-        trigger.Body!.ShouldContain("BEGIN");
-        trigger.Body.ShouldContain("INSERT INTO app.log VALUES (1);");
-        trigger.Body.ShouldContain("END");
+        trigger.Body!.Value.ShouldContain("BEGIN");
+        trigger.Body!.Value.ShouldContain("INSERT INTO app.log VALUES (1);");
+        trigger.Body!.Value.ShouldContain("END");
     }
 
     [Fact]

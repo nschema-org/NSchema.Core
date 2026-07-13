@@ -69,7 +69,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         // The plan exposes the same SQL the caller previews before applying.
         plan.Plan!.Statements.ShouldBe(_executor.Executed!);
         // Post-apply state was captured to the store.
-        _store.Written.ShouldNotBeNull().Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
+        ShouldlyIdentifierExtensions.ShouldBe(_store.Written.ShouldNotBeNull().Schema.Schemas.ShouldHaveSingleItem().Name, "app");
     }
 
     [Fact]
@@ -176,15 +176,15 @@ public sealed class ApplyEndToEndTests : IDisposable
         // plan.RunOnceScripts into the apply).
         (await app.Locks.Acquire(new AcquireLockArguments("apply"), cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         var first = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
-        first.Plan!.Statements.Select(s => s.Sql).ShouldContain("INSERT INTO app.currencies VALUES ('GBP');");
-        first.Plan!.Diff.Scripts.ShouldHaveSingleItem().Name.ShouldBe("seed currencies");
+        first.Plan!.Statements.Select(s => s.Sql).ShouldContain(new SqlText("INSERT INTO app.currencies VALUES ('GBP');"));
+        ShouldlyIdentifierExtensions.ShouldBe(first.Plan!.Diff.Scripts.ShouldHaveSingleItem().Name, "seed currencies");
         await app.Operations.Apply(new ApplyArguments { Plan = first.Plan! }, TestContext.Current.CancellationToken);
 
-        _store.Written.ShouldNotBeNull().Scripts.ShouldHaveSingleItem().Name.ShouldBe("seed currencies");
+        ShouldlyIdentifierExtensions.ShouldBe(_store.Written.ShouldNotBeNull().Scripts.ShouldHaveSingleItem().Name, "seed currencies");
 
         // Second run: the script is skipped, and no longer up for recording.
         var second = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
-        second.Value!.Plan!.Statements.Select(s => s.Sql).ShouldNotContain("INSERT INTO app.currencies VALUES ('GBP');");
+        second.Value!.Plan!.Statements.Select(s => s.Sql).ShouldNotContain(new SqlText("INSERT INTO app.currencies VALUES ('GBP');"));
         second.Value!.Plan!.Diff.Scripts.ShouldBeEmpty();
         second.Diagnostics.ShouldBeEmpty();
     }
@@ -216,6 +216,6 @@ public sealed class ApplyEndToEndTests : IDisposable
         // Nothing to apply: the empty plan never reaches the executor...
         _executor.Executed.ShouldBeNull();
         // ...but a first run against an already-matching database still initialises the store.
-        _store.Written.ShouldNotBeNull().Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
+        ShouldlyIdentifierExtensions.ShouldBe(_store.Written.ShouldNotBeNull().Schema.Schemas.ShouldHaveSingleItem().Name, "app");
     }
 }

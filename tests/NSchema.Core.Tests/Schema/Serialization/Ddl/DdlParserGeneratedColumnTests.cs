@@ -14,8 +14,8 @@ public sealed class DdlParserGeneratedColumnTests
 
     [Fact]
     public void Parse_Generated_CapturesExpression()
-        => ParseColumn("full_name text GENERATED ALWAYS AS (first || ' ' || last) STORED")
-            .GeneratedExpression.ShouldBe("first || ' ' || last");
+        => ShouldlyIdentifierExtensions.ShouldBe(ParseColumn("full_name text GENERATED ALWAYS AS (first || ' ' || last) STORED")
+                .GeneratedExpression, "first || ' ' || last");
 
     [Fact]
     public void Parse_PlainColumn_HasNoGeneration()
@@ -26,7 +26,7 @@ public sealed class DdlParserGeneratedColumnTests
     {
         var column = ParseColumn("area int NOT NULL GENERATED ALWAYS AS (w * h) STORED");
         column.IsNullable.ShouldBeFalse();
-        column.GeneratedExpression.ShouldBe("w * h");
+        ShouldlyIdentifierExtensions.ShouldBe(column.GeneratedExpression, "w * h");
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public sealed class DdlParserGeneratedColumnTests
         var schema = new DdlParser("CREATE TABLE app.t (w int, h int, area int GENERATED ALWAYS AS (w * h) STORED);").Parse().Schema;
         var column = new DdlParser(DdlWriter.Instance.Write(schema)).Parse().Schema
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Columns.Last();
-        column.Name.ShouldBe("area");
-        column.GeneratedExpression.ShouldBe("w * h");
+        ShouldlyIdentifierExtensions.ShouldBe(column.Name, "area");
+        ShouldlyIdentifierExtensions.ShouldBe(column.GeneratedExpression, "w * h");
     }
 }

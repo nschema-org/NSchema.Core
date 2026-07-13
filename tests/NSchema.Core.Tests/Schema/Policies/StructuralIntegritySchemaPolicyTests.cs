@@ -262,7 +262,7 @@ public sealed class StructuralIntegritySchemaPolicyTests
             new SqlIdentifier("target"),
             PrimaryKey: new PrimaryKey(new SqlIdentifier("pk"), [new SqlIdentifier("id")]),
             Columns: [Col("id"), Col("code")],
-            Indexes: [new TableIndex(new SqlIdentifier("uq"), ["code"], IsUnique: true, Predicate: "code IS NOT NULL")]);
+            Indexes: [new TableIndex(new SqlIdentifier("uq"), ["code"], IsUnique: true, Predicate: new SqlText("code IS NOT NULL"))]);
         var source = new Table(
             new SqlIdentifier("source"), Columns: [Col("id"), Col("code")],
             ForeignKeys: [new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("code")], new SqlIdentifier("public"), new SqlIdentifier("target"), [new SqlIdentifier("code")])]);
@@ -282,8 +282,8 @@ public sealed class StructuralIntegritySchemaPolicyTests
         var schema = new DatabaseSchema([
             new SchemaDefinition(new SqlIdentifier("public"), Routines:
             [
-                new Routine(new SqlIdentifier("r"), RoutineKind.Function, "", "RETURNS int AS $$ SELECT 1 $$"),
-                new Routine(new SqlIdentifier("r"), RoutineKind.Procedure, "", "AS $$ SELECT 1 $$"),
+                new Routine(new SqlIdentifier("r"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int AS $$ SELECT 1 $$")),
+                new Routine(new SqlIdentifier("r"), RoutineKind.Procedure, new SqlText(""), new SqlText("AS $$ SELECT 1 $$")),
             ]),
         ]);
 
@@ -301,8 +301,8 @@ public sealed class StructuralIntegritySchemaPolicyTests
         var schema = new DatabaseSchema([
             new SchemaDefinition(new SqlIdentifier("public"), Routines:
             [
-                new Routine(new SqlIdentifier("f"), RoutineKind.Function, "", "RETURNS int AS $$ SELECT 1 $$"),
-                new Routine(new SqlIdentifier("f"), RoutineKind.Function, "a int", "RETURNS int AS $$ SELECT 2 $$"),
+                new Routine(new SqlIdentifier("f"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int AS $$ SELECT 1 $$")),
+                new Routine(new SqlIdentifier("f"), RoutineKind.Function, new SqlText("a int"), new SqlText("RETURNS int AS $$ SELECT 2 $$")),
             ]),
         ]);
 
@@ -320,7 +320,7 @@ public sealed class StructuralIntegritySchemaPolicyTests
         var schema = new DatabaseSchema([
             new SchemaDefinition(new SqlIdentifier("public"),
                 Tables: [new Table(new SqlIdentifier("foo"), Columns: [Col("id")])],
-                Views: [new View(new SqlIdentifier("foo"), "SELECT 1")]),
+                Views: [new View(new SqlIdentifier("foo"), new SqlText("SELECT 1"))]),
         ]);
 
         var diagnostics = _sut.Validate(schema).ToList();
@@ -357,7 +357,7 @@ public sealed class StructuralIntegritySchemaPolicyTests
         var schema = new DatabaseSchema([
             new SchemaDefinition(new SqlIdentifier("public"),
                 Tables: [new Table(new SqlIdentifier("t"), Columns: [Col("id")])],
-                Views: [new View(new SqlIdentifier("v"), "SELECT 1")],
+                Views: [new View(new SqlIdentifier("v"), new SqlText("SELECT 1"))],
                 Sequences: [new Sequence(new SqlIdentifier("s"))],
                 CompositeTypes: [new CompositeType(new SqlIdentifier("c"), [new CompositeField(new SqlIdentifier("f"), SqlType.Int)])],
                 Enums: [new EnumType(new SqlIdentifier("e"), ["a"])],
@@ -370,7 +370,7 @@ public sealed class StructuralIntegritySchemaPolicyTests
     [Fact]
     public void Error_WhenColumnHasBothDefaultAndGenerated()
     {
-        var table = new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("area"), SqlType.Int, DefaultExpression: "0", GeneratedExpression: "w * h")]);
+        var table = new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("area"), SqlType.Int, DefaultExpression: new SqlText("0"), GeneratedExpression: new SqlText("w * h"))]);
 
         _sut.Validate(Db(table)).ShouldContain(d =>
             d.Message.Contains("both a DEFAULT and a GENERATED") && d.Message.Contains("area"));
@@ -381,7 +381,7 @@ public sealed class StructuralIntegritySchemaPolicyTests
     {
         var table = new Table(new SqlIdentifier("t"),
             PrimaryKey: new PrimaryKey(new SqlIdentifier("t_pk"), [new SqlIdentifier("id")]),
-            Columns: [Col("id"), new Column(new SqlIdentifier("area"), SqlType.Int, GeneratedExpression: "w * h")]);
+            Columns: [Col("id"), new Column(new SqlIdentifier("area"), SqlType.Int, GeneratedExpression: new SqlText("w * h"))]);
 
         _sut.Validate(Db(table)).ShouldBeEmpty();
     }

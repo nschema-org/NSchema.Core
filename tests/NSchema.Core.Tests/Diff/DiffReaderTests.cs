@@ -63,7 +63,7 @@ public sealed class DiffReaderTests
         SqlIdentifier? renamedFrom = null,
         ValueChange<SqlType>? type = null,
         ValueChange<bool>? nullability = null,
-        ValueChange<string>? @default = null,
+        ValueChange<SqlText>? @default = null,
         ValueChange<IdentityOptions>? identity = null,
         ValueChange<string>? comment = null)
         => new(new SqlIdentifier(name), ChangeKind.Modify, null, renamedFrom, type, nullability, @default, identity, comment);
@@ -215,7 +215,7 @@ public sealed class DiffReaderTests
     [Fact]
     public void Read_ColumnDefaultChange_EmitsNoneForNull()
         => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify,
-                columns: [ModifyColumn("status", @default: new ValueChange<string>(null, "'active'"))])), ChangeKind.Modify, "status default: <none> → 'active'");
+                columns: [ModifyColumn("status", @default: new ValueChange<SqlText>(null, new SqlText("'active'")))])), ChangeKind.Modify, "status default: <none> → 'active'");
 
     [Fact]
     public void Read_ColumnIdentityChange_EmitsOptionParts()
@@ -317,17 +317,17 @@ public sealed class DiffReaderTests
 
     [Fact]
     public void Read_ViewAdd_EmitsSchemaObjectReference()
-        => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("active_users"), ChangeKind.Add, Definition: new View(new SqlIdentifier("active_users"), "SELECT 1"))), ChangeKind.Add, "view app.active_users");
+        => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("active_users"), ChangeKind.Add, Definition: new View(new SqlIdentifier("active_users"), new SqlText("SELECT 1")))), ChangeKind.Add, "view app.active_users");
 
     [Fact]
     public void Read_ViewAdd_AppendsCommentSuffix()
         => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("active_users"), ChangeKind.Add,
-                Definition: new View(new SqlIdentifier("active_users"), "SELECT 1"), Comment: new ValueChange<string>(null, "active"))), ChangeKind.Add, "view app.active_users (\"active\")");
+                Definition: new View(new SqlIdentifier("active_users"), new SqlText("SELECT 1")), Comment: new ValueChange<string>(null, "active"))), ChangeKind.Add, "view app.active_users (\"active\")");
 
     [Fact]
     public void Read_ViewBodyReplace_EmitsModifyHeader()
         => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("daily_totals"), ChangeKind.Modify,
-                Definition: new View(new SqlIdentifier("daily_totals"), "SELECT sum(x) FROM app.sales"))), ChangeKind.Modify, "view app.daily_totals");
+                Definition: new View(new SqlIdentifier("daily_totals"), new SqlText("SELECT sum(x) FROM app.sales")))), ChangeKind.Modify, "view app.daily_totals");
 
     [Fact]
     public void Read_ViewCommentOnlyChange_EmitsCommentDiff()
@@ -340,14 +340,14 @@ public sealed class DiffReaderTests
     [Fact]
     public void Read_ViewToMaterializedFlip_EmitsLabelTransition()
         => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("totals"), ChangeKind.Modify,
-                Definition: new View(new SqlIdentifier("totals"), "SELECT 1", IsMaterialized: true), IsMaterialized: true,
+                Definition: new View(new SqlIdentifier("totals"), new SqlText("SELECT 1"), IsMaterialized: true), IsMaterialized: true,
                 Materialized: new ValueChange<bool>(false, true), RequiresRecreate: true)),
             ChangeKind.Modify, "view → materialized view app.totals");
 
     [Fact]
     public void Read_MaterializedToViewFlip_EmitsLabelTransition()
         => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("totals"), ChangeKind.Modify,
-                Definition: new View(new SqlIdentifier("totals"), "SELECT 1"),
+                Definition: new View(new SqlIdentifier("totals"), new SqlText("SELECT 1")),
                 Materialized: new ValueChange<bool>(true, false), RequiresRecreate: true)),
             ChangeKind.Modify, "materialized view → view app.totals");
 

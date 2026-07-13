@@ -214,7 +214,7 @@ internal sealed partial class DdlParser
         Expect(TokenKind.Semicolon, "';' to end the view definition");
 
         var dependsOn = ViewDependencyExtractor.Extract(body, schemaName);
-        schemas.AddView(schemaName, new View(viewName, body, oldName, doc, dependsOn, materialized), namePosition);
+        schemas.AddView(schemaName, new View(viewName, new SqlText(body), oldName, doc, dependsOn, materialized), namePosition);
     }
 
     /// <summary>
@@ -234,7 +234,7 @@ internal sealed partial class DdlParser
         var columns = ParseIndexColumns();
         var include = TryParseIncludeColumns();
 
-        string? predicate = null;
+        SqlText? predicate = null;
         if (_current.IsKeyword("WHERE"))
         {
             Advance();
@@ -255,7 +255,7 @@ internal sealed partial class DdlParser
         var (arguments, definition) = ReadRoutineArgumentsAndDefinition(what);
         Expect(TokenKind.Semicolon, $"';' to end {what}");
 
-        schemas.AddRoutine(schemaName, new Routine(routineName, kind, arguments, definition, oldName, doc), namePosition);
+        schemas.AddRoutine(schemaName, new Routine(routineName, kind, new SqlText(arguments), new SqlText(definition), oldName, doc), namePosition);
     }
 
     /// <summary>
@@ -312,7 +312,7 @@ internal sealed partial class DdlParser
         ExpectKeyword("AS");
         var dataType = ParseType();
 
-        string? @default = null;
+        SqlText? @default = null;
         var notNull = false;
         var checks = new List<CheckConstraint>();
 
@@ -340,7 +340,7 @@ internal sealed partial class DdlParser
             {
                 Advance();
                 // The default is opaque and read to the terminating ';', so it must be the final clause.
-                @default = CaptureRawSpan("a domain default", [TokenKind.Semicolon]);
+                @default = new SqlText(CaptureRawSpan("a domain default", [TokenKind.Semicolon]));
             }
             else
             {
@@ -519,7 +519,7 @@ internal sealed partial class DdlParser
             else { throw Error($"Expected ROW or STATEMENT after FOR EACH, found '{_current.Text}'."); }
         }
 
-        string? when = null;
+        SqlText? when = null;
         if (_current.IsKeyword("WHEN"))
         {
             Advance();
@@ -564,7 +564,7 @@ internal sealed partial class DdlParser
         Expect(TokenKind.Semicolon, "';'");
 
         var trigger = new Trigger(name, timing, events, function, level, updateOfColumns,
-            when, string.IsNullOrEmpty(arguments) ? null : arguments, doc, body);
+            when, string.IsNullOrEmpty(arguments) ? null : new SqlText(arguments), doc, body is null ? null : new SqlText(body));
         schemas.AddTrigger(schemaName, tableName, trigger, namePosition);
     }
 
@@ -709,14 +709,14 @@ internal sealed partial class DdlParser
             identity = TryParseIdentityOptions();
         }
 
-        string? defaultExpression = null;
+        SqlText? defaultExpression = null;
         if (_current.IsKeyword("DEFAULT"))
         {
             Advance();
             defaultExpression = ReadRawExpression(parenthesised: false);
         }
 
-        string? generatedExpression = null;
+        SqlText? generatedExpression = null;
         if (_current.IsKeyword("GENERATED"))
         {
             Advance();
@@ -910,7 +910,7 @@ internal sealed partial class DdlParser
         }
         Expect(TokenKind.RightParen, "')' or ',' after an exclusion element");
 
-        string? predicate = null;
+        SqlText? predicate = null;
         if (_current.IsKeyword("WHERE"))
         {
             Advance();
@@ -923,7 +923,7 @@ internal sealed partial class DdlParser
     private ExclusionElement ParseExclusionElement()
     {
         SqlIdentifier? column = null;
-        string? expression = null;
+        SqlText? expression = null;
         if (_current.Kind == TokenKind.LeftParen)
         {
             expression = ReadRawExpression(parenthesised: true);
@@ -959,7 +959,7 @@ internal sealed partial class DdlParser
         var columns = ParseIndexColumns();
         var include = TryParseIncludeColumns();
 
-        string? predicate = null;
+        SqlText? predicate = null;
         if (_current.IsKeyword("WHERE"))
         {
             Advance();
@@ -1010,7 +1010,7 @@ internal sealed partial class DdlParser
     private IndexColumn ParseIndexKey()
     {
         SqlIdentifier? column = null;
-        string? expression = null;
+        SqlText? expression = null;
         if (_current.Kind == TokenKind.LeftParen)
         {
             // A parenthesised expression key, e.g. (lower(email)).
@@ -1074,10 +1074,10 @@ internal sealed partial class DdlParser
     /// unparenthesised DEFAULT value otherwise (terminated by the enclosing column list's <c>,</c> / <c>)</c> or a
     /// <c>RENAMED</c> clause). Re-syncs the lookahead afterwards.
     /// </summary>
-    private string ReadRawExpression(bool parenthesised) =>
+    private SqlText ReadRawExpression(bool parenthesised) => new(
         parenthesised
             ? CaptureParenthesized()
-            : CaptureRawSpan("a default expression", [TokenKind.Comma, TokenKind.RightParen], "RENAMED");
+            : CaptureRawSpan("a default expression", [TokenKind.Comma, TokenKind.RightParen], "RENAMED"));
 
     private SqlIdentifier? TryParseRenamedFrom()
     {

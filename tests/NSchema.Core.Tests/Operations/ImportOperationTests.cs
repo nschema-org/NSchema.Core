@@ -351,11 +351,11 @@ public sealed class ImportOperationTests : IDisposable
 
     private static DatabaseSchema RichSchema() => new([new SchemaDefinition(new SqlIdentifier("app"),
         Tables: [MakeTable("users"), MakeTable("orders")],
-        Views: [new View(new SqlIdentifier("active"), "SELECT 1")],
+        Views: [new View(new SqlIdentifier("active"), new SqlText("SELECT 1"))],
         Routines:
         [
-            new Routine(new SqlIdentifier("calc"), RoutineKind.Function, "", "RETURNS int LANGUAGE sql AS $$ SELECT 1 $$"),
-            new Routine(new SqlIdentifier("sync"), RoutineKind.Procedure, "", "LANGUAGE sql AS $$ SELECT 1 $$"),
+            new Routine(new SqlIdentifier("calc"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int LANGUAGE sql AS $$ SELECT 1 $$")),
+            new Routine(new SqlIdentifier("sync"), RoutineKind.Procedure, new SqlText(""), new SqlText("LANGUAGE sql AS $$ SELECT 1 $$")),
         ],
         Enums: [new EnumType(new SqlIdentifier("status"), ["a"])],
         Sequences: [new Sequence(new SqlIdentifier("order_id"), new SequenceOptions(StartWith: 1))])]);

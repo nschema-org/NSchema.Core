@@ -8,7 +8,7 @@ public sealed record ExclusionElement
     /// <param name="Operator">The exclusion operator (e.g. <c>=</c>, <c>&amp;&amp;</c>).</param>
     /// <param name="Column">The column name; exactly one of <paramref name="Column"/> and <paramref name="Expression"/> must be given.</param>
     /// <param name="Expression">The raw element expression (rendered parenthesized).</param>
-    public ExclusionElement(string Operator, SqlIdentifier? Column = null, string? Expression = null)
+    public ExclusionElement(string Operator, SqlIdentifier? Column = null, SqlText? Expression = null)
     {
         if (Column is null == Expression is null)
         {
@@ -32,5 +32,5 @@ public sealed record ExclusionElement
     /// <summary>
     /// The raw element expression (rendered parenthesised), or <see langword="null"/> for a column element.
     /// </summary>
-    public string? Expression { get; init; }
+    public SqlText? Expression { get; init; }
 }

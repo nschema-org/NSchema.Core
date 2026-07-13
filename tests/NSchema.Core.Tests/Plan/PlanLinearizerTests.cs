@@ -91,17 +91,17 @@ public sealed class PlanLinearizerTests
         SqlIdentifier? renamedFrom = null,
         ValueChange<SqlType>? type = null,
         ValueChange<bool>? nullability = null,
-        ValueChange<string>? @default = null,
+        ValueChange<SqlText>? @default = null,
         ValueChange<IdentityOptions>? identity = null,
         ValueChange<string>? comment = null,
-        ValueChange<string>? generated = null,
+        ValueChange<SqlText>? generated = null,
         Column? definition = null)
         => new(new SqlIdentifier(name), ChangeKind.Modify, definition, renamedFrom, type, nullability, @default, identity, comment, generated);
 
     private static ViewDiff AddView(string name, string schema = "app", params (string Schema, string Name)[] dependsOn)
     {
         var deps = dependsOn.Select(d => new ViewDependency(new SqlIdentifier(d.Schema), new SqlIdentifier(d.Name))).ToList();
-        var view = new View(new SqlIdentifier(name), $"SELECT * FROM source_of_{name}", DependsOn: deps);
+        var view = new View(new SqlIdentifier(name), new SqlText($"SELECT * FROM source_of_{name}"), DependsOn: deps);
         return new ViewDiff(new SqlIdentifier(schema), new SqlIdentifier(name), ChangeKind.Add, Definition: view, DependsOn: deps);
     }
 
@@ -385,7 +385,7 @@ public sealed class PlanLinearizerTests
 
     [Fact]
     public void Linearize_ColumnDefaultChange_EmitsSetColumnDefault()
-        => LinearizeColumn(ModifiedColumn("status", @default: new ValueChange<string>(null, "'active'")))
+        => LinearizeColumn(ModifiedColumn("status", @default: new ValueChange<SqlText>(null, new SqlText("'active'"))))
             .OfType<SetColumnDefault>().ShouldHaveSingleItem()
             .ShouldSatisfyAllConditions(a => a.OldDefault.ShouldBeNull(), a => a.NewDefault.ShouldBe("'active'"));
 
@@ -407,7 +407,7 @@ public sealed class PlanLinearizerTests
 
     [Fact]
     public void Linearize_ColumnGenerationChange_EmitsSetColumnGenerated()
-        => LinearizeColumn(ModifiedColumn("area", generated: new ValueChange<string>(null, "w * h")))
+        => LinearizeColumn(ModifiedColumn("area", generated: new ValueChange<SqlText>(null, new SqlText("w * h"))))
             .OfType<SetColumnGenerated>().ShouldHaveSingleItem()
             .ShouldSatisfyAllConditions(a => a.OldExpression.ShouldBeNull(), a => a.NewExpression.ShouldBe("w * h"));
 
@@ -418,7 +418,7 @@ public sealed class PlanLinearizerTests
             renamedFrom: new SqlIdentifier("identifier"),
             type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
             nullability: new ValueChange<bool>(true, false),
-            @default: new ValueChange<string>(null, "0"),
+            @default: new ValueChange<SqlText>(null, new SqlText("0")),
             identity: new ValueChange<IdentityOptions>(null, new IdentityOptions(1, 1, 1)),
             comment: new ValueChange<string>(null, "pk"));
 
@@ -515,7 +515,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_AddCheckConstraint_EmitsAddCheckConstraint()
     {
-        var check = new CheckConstraint(new SqlIdentifier("users_age_chk"), "age >= 0");
+        var check = new CheckConstraint(new SqlIdentifier("users_age_chk"), new SqlText("age >= 0"));
         var constraint = new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_age_chk"), check);
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, checks: [constraint]))
@@ -924,7 +924,7 @@ public sealed class PlanLinearizerTests
                 [
                     ModifiedColumn("status",
                         type: new ValueChange<SqlType>(SqlType.Text, SqlType.Custom("status")),
-                        @default: new ValueChange<string>(null, "'a'")),
+                        @default: new ValueChange<SqlText>(null, new SqlText("'a'"))),
                 ]),
             ],
             enums: [new EnumDiff(new SqlIdentifier("app"), new SqlIdentifier("status"), ChangeKind.Modify, AddedValues: [new EnumValueAddition("a")])]));
@@ -964,8 +964,8 @@ public sealed class PlanLinearizerTests
     // Functions and procedures
     // -------------------------------------------------------------------------
 
-    private static readonly Routine Fn = new(new SqlIdentifier("f"), RoutineKind.Function, "a int", "RETURNS int LANGUAGE sql AS $$ SELECT 1; $$");
-    private static readonly Routine Proc = new(new SqlIdentifier("p"), RoutineKind.Procedure, "", "LANGUAGE sql AS $$ DELETE FROM app.t; $$");
+    private static readonly Routine Fn = new(new SqlIdentifier("f"), RoutineKind.Function, new SqlText("a int"), new SqlText("RETURNS int LANGUAGE sql AS $$ SELECT 1; $$"));
+    private static readonly Routine Proc = new(new SqlIdentifier("p"), RoutineKind.Procedure, new SqlText(""), new SqlText("LANGUAGE sql AS $$ DELETE FROM app.t; $$"));
 
     [Fact]
     public void Linearize_AddFunction_EmitsCreateRoutineFromDefinition()
@@ -992,7 +992,7 @@ public sealed class PlanLinearizerTests
     public void Linearize_RoutineSignatureChange_EmitsRecreateRoutine()
         => Linearize(SchemaNode("app", routines:
             [new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Modify, RoutineKind.Function, Definition: Fn,
-                Arguments: new ValueChange<string>("a int", "a int, b text"))]))
+                Arguments: new ValueChange<SqlText>(new SqlText("a int"), new SqlText("a int, b text")))]))
             .ShouldHaveSingleItem().ShouldBeOfType<RecreateRoutine>();
 
     [Fact]
@@ -1008,7 +1008,7 @@ public sealed class PlanLinearizerTests
         // The recreate targets the final name, so the rename must land first.
         var plan = Linearize(SchemaNode("app", routines:
             [new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Modify, RoutineKind.Function, RenamedFrom: new SqlIdentifier("old_f"), Definition: Fn,
-                Arguments: new ValueChange<string>("a int", "a int, b text"))]));
+                Arguments: new ValueChange<SqlText>(new SqlText("a int"), new SqlText("a int, b text")))]));
 
         IndexOf<RenameRoutine>(plan).ShouldBeLessThan(IndexOf<RecreateRoutine>(plan));
     }
@@ -1027,7 +1027,7 @@ public sealed class PlanLinearizerTests
         [
             new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("p"), ChangeKind.Add, RoutineKind.Procedure, Definition: Proc),
             new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("q"), ChangeKind.Modify, RoutineKind.Procedure, RenamedFrom: new SqlIdentifier("old_q"),
-                Definition: Proc, Arguments: new ValueChange<string>("", "before date")),
+                Definition: Proc, Arguments: new ValueChange<SqlText>(new SqlText(""), new SqlText("before date"))),
             new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("stale"), ChangeKind.Remove, RoutineKind.Procedure),
         ]));
 

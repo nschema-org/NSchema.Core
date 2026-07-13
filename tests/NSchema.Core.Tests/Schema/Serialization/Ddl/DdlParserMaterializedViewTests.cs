@@ -17,9 +17,9 @@ public sealed class DdlParserMaterializedViewTests
     public void Parse_MaterializedView_SetsFlag()
     {
         var view = ParseView("CREATE MATERIALIZED VIEW app.daily AS SELECT 1;");
-        view.Name.ShouldBe("daily");
+        ShouldlyIdentifierExtensions.ShouldBe(view.Name, "daily");
         view.IsMaterialized.ShouldBeTrue();
-        view.Body.ShouldBe("SELECT 1");
+        ShouldlyIdentifierExtensions.ShouldBe(view.Body, "SELECT 1");
     }
 
     [Fact]
@@ -32,7 +32,7 @@ public sealed class DdlParserMaterializedViewTests
         var view = ParseView(
             "CREATE MATERIALIZED VIEW app.daily AS SELECT date FROM app.t; CREATE INDEX daily_ix ON app.daily (date);");
         var index = view.Indexes.ShouldHaveSingleItem();
-        index.Name.ShouldBe("daily_ix");
+        ShouldlyIdentifierExtensions.ShouldBe(index.Name, "daily_ix");
         index.Columns.Select(c => c.Column?.Value).ShouldBe(["date"]);
         index.IsUnique.ShouldBeFalse();
     }
@@ -44,14 +44,14 @@ public sealed class DdlParserMaterializedViewTests
             "CREATE MATERIALIZED VIEW app.daily AS SELECT date FROM app.t; " +
             "CREATE UNIQUE INDEX daily_ix ON app.daily (date) WHERE (date IS NOT NULL);").Indexes.ShouldHaveSingleItem();
         index.IsUnique.ShouldBeTrue();
-        index.Predicate.ShouldBe("date IS NOT NULL");
+        ShouldlyIdentifierExtensions.ShouldBe(index.Predicate, "date IS NOT NULL");
     }
 
     [Fact]
     public void Parse_IndexBeforeItsMaterializedView_StillAttaches()
         // Build-time resolution: the index may be declared before the matview it targets.
-        => ParseView("CREATE INDEX daily_ix ON app.daily (x); CREATE MATERIALIZED VIEW app.daily AS SELECT x FROM app.t;")
-            .Indexes.ShouldHaveSingleItem().Name.ShouldBe("daily_ix");
+        => ShouldlyIdentifierExtensions.ShouldBe(ParseView("CREATE INDEX daily_ix ON app.daily (x); CREATE MATERIALIZED VIEW app.daily AS SELECT x FROM app.t;")
+                .Indexes.ShouldHaveSingleItem().Name, "daily_ix");
 
     [Fact]
     public void Parse_IndexOnPlainView_Throws()
@@ -74,6 +74,6 @@ public sealed class DdlParserMaterializedViewTests
 
     [Fact]
     public void Parse_DropMaterializedView_RecordsDroppedView()
-        => new DdlParser("CREATE SCHEMA app; DROP MATERIALIZED VIEW app.daily;").Parse().Schema
-            .Schemas.ShouldHaveSingleItem().DroppedViews.ShouldHaveSingleItem().ShouldBe("daily");
+        => ShouldlyIdentifierExtensions.ShouldBe(new DdlParser("CREATE SCHEMA app; DROP MATERIALIZED VIEW app.daily;").Parse().Schema
+                .Schemas.ShouldHaveSingleItem().DroppedViews.ShouldHaveSingleItem(), "daily");
 }

@@ -65,9 +65,9 @@ public sealed class SchemaComparerSnapshotTests
                 ],
                 Routines:
                 [
-                    new Routine(new SqlIdentifier("add_tax"), RoutineKind.Function, "amount numeric", "RETURNS numeric AS $$ SELECT amount * 1.1 $$"),
-                    new Routine(new SqlIdentifier("score"), RoutineKind.Function, "user_id bigint", "RETURNS numeric AS $$ SELECT 1 $$"),
-                    new Routine(new SqlIdentifier("stale_fn"), RoutineKind.Function, "", "RETURNS int AS $$ SELECT 0 $$"),
+                    new Routine(new SqlIdentifier("add_tax"), RoutineKind.Function, new SqlText("amount numeric"), new SqlText("RETURNS numeric AS $$ SELECT amount * 1.1 $$")),
+                    new Routine(new SqlIdentifier("score"), RoutineKind.Function, new SqlText("user_id bigint"), new SqlText("RETURNS numeric AS $$ SELECT 1 $$")),
+                    new Routine(new SqlIdentifier("stale_fn"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int AS $$ SELECT 0 $$")),
                 ],
                 Domains:
                 [
@@ -112,15 +112,15 @@ public sealed class SchemaComparerSnapshotTests
                         [
                             new Column(new SqlIdentifier("id"), SqlType.BigInt),
                             new Column(new SqlIdentifier("email_address"), SqlType.Text, OldName: new SqlIdentifier("email")),
-                            new Column(new SqlIdentifier("email_upper"), SqlType.Text, IsNullable: true, GeneratedExpression: "upper(email_address)"),
+                            new Column(new SqlIdentifier("email_upper"), SqlType.Text, IsNullable: true, GeneratedExpression: new SqlText("upper(email_address)")),
                         ],
                         UniqueConstraints: [new UniqueConstraint(new SqlIdentifier("users_email_uq"), [new SqlIdentifier("email_address")])],
-                        CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_id_chk"), "id > 0")],
+                        CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_id_chk"), new SqlText("id > 0"))],
                         ExclusionConstraints: [new ExclusionConstraint(new SqlIdentifier("users_span_excl"),
-                            [new ExclusionElement("&&", Expression: "int4range(0, id)")], Method: "gist")],
+                            [new ExclusionElement("&&", Expression: new SqlText("int4range(0, id)"))], Method: "gist")],
                         // A covering, expression, descending index exercising the richer index grammar.
                         Indexes: [new TableIndex(new SqlIdentifier("users_email_ix"),
-                            [new IndexColumn(new SqlIdentifier("email_address"), Sort: IndexSort.Descending, Nulls: IndexNulls.Last), new IndexColumn(Expression: "lower(email_address)")],
+                            [new IndexColumn(new SqlIdentifier("email_address"), Sort: IndexSort.Descending, Nulls: IndexNulls.Last), new IndexColumn(Expression: new SqlText("lower(email_address)"))],
                             IsUnique: true, Method: "btree", Include: [new SqlIdentifier("id")])]),
                 ],
                 Views:
@@ -145,10 +145,10 @@ public sealed class SchemaComparerSnapshotTests
                 // Routines: a body replace, a signature change (recreate), an addition, and a procedure.
                 Routines:
                 [
-                    new Routine(new SqlIdentifier("add_tax"), RoutineKind.Function, "amount numeric", "RETURNS numeric AS $$ SELECT amount * 1.2 $$"),
-                    new Routine(new SqlIdentifier("score"), RoutineKind.Function, "user_id bigint, weight numeric", "RETURNS numeric AS $$ SELECT 1 $$"),
-                    new Routine(new SqlIdentifier("brand_new"), RoutineKind.Function, "", "RETURNS int AS $$ SELECT 42 $$"),
-                    new Routine(new SqlIdentifier("archive"), RoutineKind.Procedure, "before date", "LANGUAGE sql AS $$ DELETE $$"),
+                    new Routine(new SqlIdentifier("add_tax"), RoutineKind.Function, new SqlText("amount numeric"), new SqlText("RETURNS numeric AS $$ SELECT amount * 1.2 $$")),
+                    new Routine(new SqlIdentifier("score"), RoutineKind.Function, new SqlText("user_id bigint, weight numeric"), new SqlText("RETURNS numeric AS $$ SELECT 1 $$")),
+                    new Routine(new SqlIdentifier("brand_new"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int AS $$ SELECT 42 $$")),
+                    new Routine(new SqlIdentifier("archive"), RoutineKind.Procedure, new SqlText("before date"), new SqlText("LANGUAGE sql AS $$ DELETE $$")),
                 ],
                 // Domains: code's base type changes (recreate), stale_domain is dropped, postal_code is added.
                 Domains:
@@ -179,5 +179,5 @@ public sealed class SchemaComparerSnapshotTests
 
     // Builds a view with its dependencies derived from the body, exactly as the DDL parser would.
     private static View View(string name, string body, SqlIdentifier? oldName = null) =>
-        new(new SqlIdentifier(name), body, oldName, null, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")));
+        new(new SqlIdentifier(name), new SqlText(body), oldName, null, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")));
 }

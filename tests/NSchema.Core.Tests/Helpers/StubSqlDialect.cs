@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Plan.Backends;
 using NSchema.Plan.Domain.Models;
 using NSchema.Plan.Domain.Models.Scripts;
@@ -13,6 +14,6 @@ internal sealed class StubSqlDialect : ISqlDialect
     public IReadOnlyList<SqlStatement> Generate(MigrationAction action) => action switch
     {
         ExecuteScript script => [script.Statement],
-        _ => [new SqlStatement($"-- {action.GetType().Name}")],
+        _ => [new SqlStatement(new SqlText($"-- {action.GetType().Name}"))],
     };
 }

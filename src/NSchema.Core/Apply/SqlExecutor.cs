@@ -2,6 +2,7 @@ using System.Data;
 using System.Data.Common;
 using Microsoft.Extensions.Options;
 using NSchema.Plan.Domain.Models;
+using NSchema.Project.Domain.Models;
 
 namespace NSchema.Apply;
 
@@ -75,10 +76,10 @@ internal sealed class SqlExecutor(IOptions<SqlOptions> options, DbDataSource? da
         }
     }
 
-    private static async Task ExecuteOn(DbConnection conn, DbTransaction? transaction, string sql, CancellationToken cancellationToken)
+    private static async Task ExecuteOn(DbConnection conn, DbTransaction? transaction, SqlText sql, CancellationToken cancellationToken)
     {
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = sql;
+        cmd.CommandText = sql.Value;
         if (transaction is not null)
         {
             cmd.Transaction = transaction;

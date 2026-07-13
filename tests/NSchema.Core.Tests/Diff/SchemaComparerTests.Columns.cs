@@ -46,9 +46,9 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_ColumnDefaultChange_IsReported()
     {
-        var column = DiffColumn(new Column(new SqlIdentifier("status"), SqlType.Text), new Column(new SqlIdentifier("status"), SqlType.Text, DefaultExpression: "'new'"));
+        var column = DiffColumn(new Column(new SqlIdentifier("status"), SqlType.Text), new Column(new SqlIdentifier("status"), SqlType.Text, DefaultExpression: new SqlText("'new'")));
 
-        column!.Default.ShouldBe(new ValueChange<string>(null, "'new'"));
+        column!.Default.ShouldBe(new ValueChange<SqlText>(null, new SqlText("'new'")));
     }
 
     [Fact]
@@ -107,24 +107,24 @@ public partial class SchemaComparerTests
     {
         var column = DiffColumn(
             new Column(new SqlIdentifier("area"), SqlType.Int),
-            new Column(new SqlIdentifier("area"), SqlType.Int, GeneratedExpression: "w * h"));
+            new Column(new SqlIdentifier("area"), SqlType.Int, GeneratedExpression: new SqlText("w * h")));
 
-        column!.Generated.ShouldBe(new ValueChange<string>(null, "w * h"));
+        column!.Generated.ShouldBe(new ValueChange<SqlText>(null, new SqlText("w * h")));
     }
 
     [Fact]
     public void Compare_GenerationExpressionChanged_IsReported()
     {
         var column = DiffColumn(
-            new Column(new SqlIdentifier("area"), SqlType.Int, GeneratedExpression: "w * h"),
-            new Column(new SqlIdentifier("area"), SqlType.Int, GeneratedExpression: "w * h * 2"));
+            new Column(new SqlIdentifier("area"), SqlType.Int, GeneratedExpression: new SqlText("w * h")),
+            new Column(new SqlIdentifier("area"), SqlType.Int, GeneratedExpression: new SqlText("w * h * 2")));
 
-        column!.Generated.ShouldBe(new ValueChange<string>("w * h", "w * h * 2"));
+        column!.Generated.ShouldBe(new ValueChange<SqlText>(new SqlText("w * h"), new SqlText("w * h * 2")));
     }
 
     [Fact]
     public void Compare_UnchangedGeneratedColumn_ProducesNoDiff()
         => DiffColumn(
-            new Column(new SqlIdentifier("area"), SqlType.Int, GeneratedExpression: "w * h"),
-            new Column(new SqlIdentifier("area"), SqlType.Int, GeneratedExpression: "w * h")).ShouldBeNull();
+            new Column(new SqlIdentifier("area"), SqlType.Int, GeneratedExpression: new SqlText("w * h")),
+            new Column(new SqlIdentifier("area"), SqlType.Int, GeneratedExpression: new SqlText("w * h"))).ShouldBeNull();
 }

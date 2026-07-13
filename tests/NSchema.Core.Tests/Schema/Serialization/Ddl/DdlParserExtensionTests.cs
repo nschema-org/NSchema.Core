@@ -15,7 +15,7 @@ public sealed class DdlParserExtensionTests
     public void Parse_CreateExtension_Bare_RecordsRootLevelExtension()
     {
         var extension = Parse("CREATE EXTENSION citext;").Extensions.ShouldHaveSingleItem();
-        extension.Name.ShouldBe("citext");
+        ShouldlyIdentifierExtensions.ShouldBe(extension.Name, "citext");
         extension.Version.ShouldBeNull();
     }
 
@@ -23,14 +23,14 @@ public sealed class DdlParserExtensionTests
     public void Parse_CreateExtension_WithVersion_CapturesVersion()
     {
         var extension = Parse("CREATE EXTENSION postgis VERSION '3.4';").Extensions.ShouldHaveSingleItem();
-        extension.Name.ShouldBe("postgis");
+        ShouldlyIdentifierExtensions.ShouldBe(extension.Name, "postgis");
         extension.Version.ShouldBe("3.4");
     }
 
     [Fact]
     public void Parse_CreateExtension_QuotedName_AllowsNonIdentifierCharacters()
         // Extension names commonly contain a hyphen (e.g. uuid-ossp), which a bare identifier cannot express.
-        => Parse("CREATE EXTENSION 'uuid-ossp';").Extensions.ShouldHaveSingleItem().Name.ShouldBe("uuid-ossp");
+        => ShouldlyIdentifierExtensions.ShouldBe(Parse("CREATE EXTENSION 'uuid-ossp';").Extensions.ShouldHaveSingleItem().Name, "uuid-ossp");
 
     [Fact]
     public void Parse_CreateExtension_WithDocComment_AttachesComment()
@@ -42,13 +42,13 @@ public sealed class DdlParserExtensionTests
     {
         // An extension declared alongside a schema still lands at the root, not inside the schema.
         var schema = Parse("CREATE SCHEMA app; CREATE EXTENSION citext;");
-        schema.Extensions.ShouldHaveSingleItem().Name.ShouldBe("citext");
-        schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
+        ShouldlyIdentifierExtensions.ShouldBe(schema.Extensions.ShouldHaveSingleItem().Name, "citext");
+        ShouldlyIdentifierExtensions.ShouldBe(schema.Schemas.ShouldHaveSingleItem().Name, "app");
     }
 
     [Fact]
     public void Parse_DropExtension_RecordsDroppedExtension()
-        => Parse("DROP EXTENSION citext;").DroppedExtensions.ShouldHaveSingleItem().ShouldBe("citext");
+        => ShouldlyIdentifierExtensions.ShouldBe(Parse("DROP EXTENSION citext;").DroppedExtensions.ShouldHaveSingleItem(), "citext");
 
     [Fact]
     public void Parse_DuplicateExtension_Throws()

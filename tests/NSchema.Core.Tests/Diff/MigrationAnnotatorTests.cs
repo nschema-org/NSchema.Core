@@ -100,7 +100,7 @@ public class MigrationAnnotatorTests
         // Arrange
         var migration = Migration(ChangeTrigger.AddConstraint, "users_age_chk");
         var diff = ModifiedTable(Checks:
-            [new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_age_chk"), new CheckConstraint(new SqlIdentifier("users_age_chk"), "age >= 0"))]);
+            [new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_age_chk"), new CheckConstraint(new SqlIdentifier("users_age_chk"), new SqlText("age >= 0")))]);
 
         // Act
         var (annotated, unmatched) = MigrationAnnotator.Annotate(diff, [migration]);
@@ -203,7 +203,7 @@ public class MigrationAnnotatorTests
     public void Apply_MatchesCaseInsensitively_OnSchemaTableAndMember()
     {
         // Arrange
-        var migration = new Script(new SqlIdentifier("backfill"), "UPDATE 1", new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("Users"), new SqlIdentifier("EMAIL")) { ScopeSchema = new SqlIdentifier("APP") });
+        var migration = new Script(new SqlIdentifier("backfill"), new SqlText("UPDATE 1"), new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("Users"), new SqlIdentifier("EMAIL")) { ScopeSchema = new SqlIdentifier("APP") });
         var diff = ModifiedTable(Columns:
             [new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text))]);
 
@@ -249,7 +249,7 @@ public class MigrationAnnotatorTests
     }
 
     private static Script Migration(ChangeTrigger trigger, string member, string? name = null) =>
-        new(new SqlIdentifier(name ?? member), $"UPDATE app.users -- {member}", new ChangeEvent(trigger, new SqlIdentifier("users"), new SqlIdentifier(member)) { ScopeSchema = new SqlIdentifier("app") });
+        new(new SqlIdentifier(name ?? member), new SqlText($"UPDATE app.users -- {member}"), new ChangeEvent(trigger, new SqlIdentifier("users"), new SqlIdentifier(member)) { ScopeSchema = new SqlIdentifier("app") });
 
     private static DatabaseDiff ModifiedTable(
         IReadOnlyList<ColumnDiff>? Columns = null,

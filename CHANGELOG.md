@@ -28,6 +28,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **`IPlanFileManager` replaces `IPlanFileWriter`.** It reads saved plans too, so "writer" undersold it.
 - **`ISchemaIntrospector` replaces `ISchemaProvider`.** More honest about what it does now that the interface doesn't serve both the current and desired schema.
 - **Plugin `Configure` returns `Result`.** Configuration errors are diagnostics like everything else.
+- **Opaque SQL is `SqlText` now.** Every schema-model field carrying SQL that NSchema stores verbatim but does not interpret is typed `SqlText` instead of `string`.
 - **`PolicyEnforcement` absorbs `DestructiveActionPolicy`.** `WithDestructiveActionPolicy` takes the shared enum, gaining `Ignore`.
 - **The state ledger field is `scripts` now.** Pre-5.0 `executedScripts` payloads read as an empty ledger. Refresh (or untaint) existing state under the state-format compatibility policy's major-version rules.
 - **`DdlReader.Read` returns `Result<DdlDocument>`.** A syntax error is an error diagnosti instead of a thrown exception.

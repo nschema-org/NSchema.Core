@@ -41,7 +41,7 @@ public partial class SchemaComparerTests
 
     /// <summary>Builds a view with dependencies derived from its body, exactly as the DDL parser would.</summary>
     private static View View(string name, string body, string? comment = null, SqlIdentifier? oldName = null) =>
-        new(new SqlIdentifier(name), body, oldName, comment, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")));
+        new(new SqlIdentifier(name), new SqlText(body), oldName, comment, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")));
 
     [Fact]
     public void Compare_BothEmpty_ProducesEmptyDiff()
@@ -156,7 +156,7 @@ public partial class SchemaComparerTests
                 PrimaryKey: new PrimaryKey(new SqlIdentifier("orders_pkey"), [new SqlIdentifier("id")]),
                 ForeignKeys: [new ForeignKey(new SqlIdentifier("orders_user_fk"), [new SqlIdentifier("user_id")], new SqlIdentifier("app"), new SqlIdentifier("users"), [new SqlIdentifier("id")])],
                 UniqueConstraints: [new UniqueConstraint(new SqlIdentifier("orders_user_uq"), [new SqlIdentifier("user_id")])],
-                CheckConstraints: [new CheckConstraint(new SqlIdentifier("orders_id_chk"), "id > 0")],
+                CheckConstraints: [new CheckConstraint(new SqlIdentifier("orders_id_chk"), new SqlText("id > 0"))],
                 Indexes: [new TableIndex(new SqlIdentifier("orders_user_ix"), ["user_id"])],
                 Grants: [new TableGrant(new SqlIdentifier("reader"), TablePrivilege.Insert)]),
         ]));

@@ -143,7 +143,7 @@ public sealed class DdlWriter
         WriteScriptTail(sb, script.RunOutsideTransaction, script.Sql);
     }
 
-    private static void WriteScriptTail(StringBuilder sb, bool runOutsideTransaction, string sql)
+    private static void WriteScriptTail(StringBuilder sb, bool runOutsideTransaction, SqlText sql)
     {
         if (runOutsideTransaction)
         {
@@ -155,20 +155,20 @@ public sealed class DdlWriter
         // stored without its delimiters round-trips back to the same text.
         var delimiter = DollarDelimiter(sql);
         sb.Append(" AS ").AppendLine(delimiter);
-        sb.AppendLine(sql);
+        sb.AppendLine(sql.Value);
         sb.Append(delimiter).AppendLine(";");
     }
 
-    private static string DollarDelimiter(string body)
+    private static string DollarDelimiter(SqlText body)
     {
-        if (!body.Contains("$$", StringComparison.Ordinal))
+        if (!body.Value.Contains("$$", StringComparison.Ordinal))
         {
             return "$$";
         }
         for (var i = 1; ; i++)
         {
             var tag = $"$body{i.ToString(CultureInfo.InvariantCulture)}$";
-            if (!body.Contains(tag, StringComparison.Ordinal))
+            if (!body.Value.Contains(tag, StringComparison.Ordinal))
             {
                 return tag;
             }
@@ -410,7 +410,7 @@ public sealed class DdlWriter
         }
         // The definition is emitted verbatim (multi-line bodies keep their newlines); TrimEnd guards a
         // code-built definition ending in whitespace so the ';' lands directly after the last character.
-        sb.Append('(').Append(routine.Arguments).Append(") ").Append(routine.Definition.TrimEnd()).AppendLine(";");
+        sb.Append('(').Append(routine.Arguments.Value).Append(") ").Append(routine.Definition.Value.TrimEnd()).AppendLine(";");
     }
 
     private static void WriteView(StringBuilder sb, SqlIdentifier schemaName, View view)
@@ -527,7 +527,7 @@ public sealed class DdlWriter
         {
             var delimiter = DollarDelimiter(body);
             sb.Append(" AS ").AppendLine(delimiter);
-            sb.AppendLine(body);
+            sb.AppendLine(body.Value);
             sb.Append(delimiter).AppendLine(";");
             return;
         }
@@ -538,7 +538,7 @@ public sealed class DdlWriter
             sb.Append(" WHEN (").Append(when).Append(')');
         }
         sb.Append(" EXECUTE FUNCTION ").Append(trigger.Function)
-            .Append('(').Append(trigger.FunctionArguments ?? string.Empty).Append(')').AppendLine(";");
+            .Append('(').Append(trigger.FunctionArguments?.Value ?? string.Empty).Append(')').AppendLine(";");
     }
 
     private static string TriggerTimingText(TriggerTiming timing) => timing switch

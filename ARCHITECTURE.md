@@ -136,9 +136,15 @@ NSchema                     app, builder, options · Result / Result<T> / Result
   it is before shipping it.
 - **Comparing strings**: decide what the string *is* first. An **object name** is an `SqlIdentifier` — case-insensitive equality is baked into the type,
   so name-bearing properties, keyed collections, and record equality follow the rule with no comparer at the call site (and no call site may re-decide
-  it). **Data** (enum labels, expressions, SQL bodies, hashes) compares exactly and stays `string`. **Language keywords and config keys** are the
-  parser/formatter's own case rules and stay explicit at their match sites. A `string`-typed property that actually holds an identifier is an
-  enforcement hole — type it. The type has **no implicit string conversions** and no mixed-operand equality: construction (`new SqlIdentifier(text)`)
+  it). **Opaque SQL** — a body, definition, or expression NSchema carries but does not interpret — is a `SqlText`: ordinal equality (it's data), typed so
+  the type system marks where foreign SQL travels. **Other data** (enum labels, hashes, comments, prose) compares exactly and stays `string`.
+  **Language keywords and config keys** are the parser/formatter's own case rules and stay explicit at their match sites. A `string`-typed property
+  that actually holds an identifier or opaque SQL is an enforcement hole — type it. Both types derive from the abstract `ValueObject` record — one
+  `Value` property, equality by value, renders as its value — and each derived type owns its comparison semantics (the record default is ordinal;
+  `SqlIdentifier` overrides to case-insensitive). The base is machinery, not a framework: no validation or semantics live on it, and serialization is
+  one converter per wire concern, not per type — `ValueObjectJsonConverter` is a `JsonConverterFactory` that covers every `ValueObject<T>`
+  automatically through the type's single-value constructor (the Verify converter and test bridge generalize the same way).
+  The types have **no implicit string conversions** and no mixed-operand equality: construction (`new SqlIdentifier(text)`)
   and reads (`.Value`) are explicit, so a raw string never slips past the checkpoint in either direction. Comparing a value object to a raw primitive
   in domain or application code is usually a sign the primitive side should be elevated to the same type (the template placeholder is an
   `SqlIdentifier` constant for exactly this reason) — asserting on the underlying value is a test-side concern. **`.Value` is exceptional**: it marks

@@ -541,7 +541,7 @@ public sealed class DdlParserTests
     {
         var schema = ParseSingleSchema(
             "CREATE SCHEMA app; CREATE FUNCTION app.f() RETURNS int LANGUAGE plpgsql AS $body$ BEGIN RETURN 1; END; $body$; CREATE TABLE app.t (id int);");
-        schema.Routines.ShouldHaveSingleItem().Definition.ShouldContain("BEGIN RETURN 1; END;");
+        schema.Routines.ShouldHaveSingleItem().Definition.Value.ShouldContain("BEGIN RETURN 1; END;");
         schema.Tables.ShouldHaveSingleItem(); // parsing resumed correctly after the function
     }
 

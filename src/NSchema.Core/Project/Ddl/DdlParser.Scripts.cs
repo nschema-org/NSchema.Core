@@ -52,7 +52,7 @@ internal sealed partial class DdlParser
         }
 
         var (runOutsideTransaction, body) = ParseScriptTail("script");
-        scripts.Add(new Script(new SqlIdentifier(name), body, scriptEvent) { RunOutsideTransaction = runOutsideTransaction, RunCondition = condition });
+        scripts.Add(new Script(new SqlIdentifier(name), new SqlText(body), scriptEvent) { RunOutsideTransaction = runOutsideTransaction, RunCondition = condition });
     }
 
     private ChangeTrigger ParseChangeTrigger()

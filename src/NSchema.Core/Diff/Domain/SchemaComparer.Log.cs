@@ -88,7 +88,7 @@ internal sealed partial class SchemaComparer
     private partial void LogColumnDefaultUnchanged(ObjectReference owner, SqlIdentifier column, string @default);
 
     [LoggerMessage(EventId = 40, Level = LogLevel.Information, Message = "Column '{Owner}.{Column}' default changed: '{OldDefault}' -> '{NewDefault}'")]
-    private partial void LogColumnDefaultChanged(ObjectReference owner, SqlIdentifier column, string? oldDefault, string? newDefault);
+    private partial void LogColumnDefaultChanged(ObjectReference owner, SqlIdentifier column, SqlText? oldDefault, SqlText? newDefault);
 
     [LoggerMessage(EventId = 41, Level = LogLevel.Information, Message = "Column '{Owner}.{Column}' comment changed")]
     private partial void LogColumnCommentChanged(ObjectReference owner, SqlIdentifier column);

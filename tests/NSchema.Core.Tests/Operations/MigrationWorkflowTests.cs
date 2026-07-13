@@ -37,8 +37,8 @@ public sealed class MigrationWorkflowTests
 
     /// <summary>An applied plan carrying one run-once script, so the capture has an execution to record.</summary>
     private static MigrationPlan AppliedPlan(string name, string sql) => new(
-        new DatabaseDiff([]) { Scripts = [new Script(new SqlIdentifier(name), sql, new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = RunCondition.Once }] },
-        [new SqlStatement(sql)]);
+        new DatabaseDiff([]) { Scripts = [new Script(new SqlIdentifier(name), new SqlText(sql), new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = RunCondition.Once }] },
+        [new SqlStatement(new SqlText(sql))]);
 
     private readonly MigrationWorkflow _sut;
 
@@ -140,7 +140,7 @@ public sealed class MigrationWorkflowTests
     public async Task ComputePlan_ReturnsComputedPlan_WithoutRendering()
     {
         // Arrange
-        var plan = new MigrationPlan(new DatabaseDiff([]), [new SqlStatement("CREATE SCHEMA app")]);
+        var plan = new MigrationPlan(new DatabaseDiff([]), [new SqlStatement(new SqlText("CREATE SCHEMA app"))]);
         _planner
             .Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>())
             .Returns(Result.Success(plan));
@@ -186,7 +186,7 @@ public sealed class MigrationWorkflowTests
             [new Table(new SqlIdentifier("users")), new Table(new SqlIdentifier("orders"))])]);
         _desiredProvider.GetProject(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(
-                new ProjectDefinition(desired, [new Script(new SqlIdentifier("seed"), "select 1", new DeploymentEvent(DeploymentPhase.Post))])));
+                new ProjectDefinition(desired, [new Script(new SqlIdentifier("seed"), new SqlText("select 1"), new DeploymentEvent(DeploymentPhase.Post))])));
         _currentProvider
             .GetSchema(SchemaSourceMode.Online, Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))])));
@@ -237,7 +237,7 @@ public sealed class MigrationWorkflowTests
     }
 
     private static Script SeedScript(RunCondition condition = RunCondition.Once) =>
-        new(new SqlIdentifier("seed"), "SELECT 1", new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = condition };
+        new(new SqlIdentifier("seed"), new SqlText("SELECT 1"), new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = condition };
 
     /// <summary>Builds a workflow whose store records <paramref name="executions"/> and whose DDL declares <paramref name="project"/>.</summary>
     private MigrationWorkflow SutWithState(ProjectDefinition project, params ScriptExecution[] executions)
@@ -316,7 +316,7 @@ public sealed class MigrationWorkflowTests
         // Assert
         var execution = _stateSerializer.Deserialize(written!.Value).Scripts.ShouldHaveSingleItem();
         execution.Name.ShouldBe("seed");
-        execution.Hash.ShouldBe(ScriptHashing.Hash("SELECT 1"));
+        execution.Hash.ShouldBe(ScriptHashing.Hash(new SqlText("SELECT 1")));
     }
 
     [Fact]
@@ -354,7 +354,7 @@ public sealed class MigrationWorkflowTests
         await sut.Refresh(AppliedPlan("seed", "SELECT 2"), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        _stateSerializer.Deserialize(written!.Value).Scripts.ShouldHaveSingleItem().Hash.ShouldBe(ScriptHashing.Hash("SELECT 2"));
+        _stateSerializer.Deserialize(written!.Value).Scripts.ShouldHaveSingleItem().Hash.ShouldBe(ScriptHashing.Hash(new SqlText("SELECT 2")));
     }
 
     [Fact]
@@ -560,7 +560,7 @@ public sealed class MigrationWorkflowTests
     public async Task ComputeTeardown_ReturnsTeardownPlan_WithoutRendering()
     {
         // Arrange
-        var plan = new MigrationPlan(new DatabaseDiff([]), [new SqlStatement("DROP SCHEMA app")]);
+        var plan = new MigrationPlan(new DatabaseDiff([]), [new SqlStatement(new SqlText("DROP SCHEMA app"))]);
         _planner.PlanTeardown(Arg.Any<DatabaseSchema>()).Returns(Result.Success(plan));
 
         // Act

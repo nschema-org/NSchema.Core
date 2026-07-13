@@ -60,7 +60,7 @@ public sealed class DdlWriterTests
     [Fact]
     public void Write_DefaultAndRename_AreEmitted()
         => WriteOneTable(new Table(new SqlIdentifier("t"), Columns:
-            [new Column(new SqlIdentifier("flag"), SqlType.Int, DefaultExpression: "0", OldName: new SqlIdentifier("legacy_flag"))]))
+            [new Column(new SqlIdentifier("flag"), SqlType.Int, DefaultExpression: new SqlText("0"), OldName: new SqlIdentifier("legacy_flag"))]))
             .ShouldContain("flag int NOT NULL DEFAULT 0 RENAMED FROM legacy_flag");
 
     [Fact]
@@ -92,13 +92,13 @@ public sealed class DdlWriterTests
     [Fact]
     public void Write_Check_WrapsExpressionInParens()
         => WriteOneTable(new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("age"), SqlType.Int)],
-            CheckConstraints: [new CheckConstraint(new SqlIdentifier("chk"), "age >= 0")]))
+            CheckConstraints: [new CheckConstraint(new SqlIdentifier("chk"), new SqlText("age >= 0"))]))
             .ShouldContain("CONSTRAINT chk CHECK (age >= 0)");
 
     [Fact]
     public void Write_PartialUniqueIndex_IsEmitted()
         => WriteOneTable(new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("email"), SqlType.Text)],
-            Indexes: [new TableIndex(new SqlIdentifier("ux"), ["email"], IsUnique: true, Predicate: "deleted_at IS NULL")]))
+            Indexes: [new TableIndex(new SqlIdentifier("ux"), ["email"], IsUnique: true, Predicate: new SqlText("deleted_at IS NULL"))]))
             .ShouldContain("UNIQUE INDEX ux (email) WHERE (deleted_at IS NULL)");
 
     // -------------------------------------------------------------------------
@@ -150,7 +150,7 @@ public sealed class DdlWriterTests
         // reads back to the same members.
         var schema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
             Tables: [new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])],
-            Views: [new View(new SqlIdentifier("active"), "SELECT 1")])]);
+            Views: [new View(new SqlIdentifier("active"), new SqlText("SELECT 1"))])]);
 
         var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema, declareSchemas: false)).Require().Schema;
 
@@ -212,7 +212,7 @@ public sealed class DdlWriterTests
     public void Write_TriggerWithUpdateOfWhenAndComment_IsEmitted()
     {
         var ddl = WriteTriggerOn(new Trigger(new SqlIdentifier("audit"), TriggerTiming.After, TriggerEvent.Update, new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("log")),
-            TriggerLevel.Row, UpdateOfColumns: [new SqlIdentifier("email")], When: "new.email IS NOT NULL", Comment: "audit"));
+            TriggerLevel.Row, UpdateOfColumns: [new SqlIdentifier("email")], When: new SqlText("new.email IS NOT NULL"), Comment: "audit"));
         ddl.ShouldContain("--- audit\nCREATE TRIGGER audit AFTER UPDATE OF (email) ON app.users FOR EACH ROW WHEN (new.email IS NOT NULL) EXECUTE FUNCTION app.log();");
     }
 
@@ -225,7 +225,7 @@ public sealed class DdlWriterTests
     public void Write_Trigger_RoundTripsThroughParse()
     {
         var trigger = new Trigger(new SqlIdentifier("audit"), TriggerTiming.After, TriggerEvent.Insert | TriggerEvent.Delete, new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("log")),
-            TriggerLevel.Row, When: "true", FunctionArguments: "'x'", Comment: "note");
+            TriggerLevel.Row, When: new SqlText("true"), FunctionArguments: new SqlText("'x'"), Comment: "note");
         var schema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
             Tables: [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], Triggers: [trigger])])]);
 
@@ -238,7 +238,7 @@ public sealed class DdlWriterTests
     [Fact]
     public void Write_InlineBodyTrigger_EmitsDollarQuotedBody()
         => WriteTriggerOn(new Trigger(new SqlIdentifier("audit"), TriggerTiming.After, TriggerEvent.Insert,
-                Body: "BEGIN INSERT INTO app.log VALUES (1); END"))
+                Body: new SqlText("BEGIN INSERT INTO app.log VALUES (1); END")))
             .ShouldContain("CREATE TRIGGER audit AFTER INSERT ON app.users AS $$\nBEGIN INSERT INTO app.log VALUES (1); END\n$$;");
 
     [Fact]
@@ -246,7 +246,7 @@ public sealed class DdlWriterTests
     {
         // A body with its own semicolons survives because it is emitted (and lexed) as one dollar-quoted block.
         var trigger = new Trigger(new SqlIdentifier("audit"), TriggerTiming.InsteadOf, TriggerEvent.Insert | TriggerEvent.Update,
-            Body: "BEGIN\n  UPDATE app.users SET id = id;\n  INSERT INTO app.log VALUES (1);\nEND", Comment: "note");
+            Body: new SqlText("BEGIN\n  UPDATE app.users SET id = id;\n  INSERT INTO app.log VALUES (1);\nEND"), Comment: "note");
         var schema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
             Tables: [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], Triggers: [trigger])])]);
 
@@ -303,7 +303,7 @@ public sealed class DdlWriterTests
     public void Write_View_EmitsCreateViewWithBody()
     {
         var schema = new DatabaseSchema([
-            new SchemaDefinition(new SqlIdentifier("app"), Views: [new View(new SqlIdentifier("active"), "SELECT id FROM app.users WHERE active")]),
+            new SchemaDefinition(new SqlIdentifier("app"), Views: [new View(new SqlIdentifier("active"), new SqlText("SELECT id FROM app.users WHERE active"))]),
         ]);
         DdlWriter.Instance.Write(schema).ShouldContain("CREATE VIEW app.active AS SELECT id FROM app.users WHERE active;");
     }
@@ -334,8 +334,8 @@ public sealed class DdlWriterTests
     [Fact]
     public void Write_DomainWithEveryClause_EmitsInCanonicalOrder()
         => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
-            Domains: [new DomainDefinition(new SqlIdentifier("email"), SqlType.Text, Default: "'x@y'", NotNull: true,
-                Checks: [new CheckConstraint(new SqlIdentifier("email_fmt"), "VALUE ~ '@'")])])]))
+            Domains: [new DomainDefinition(new SqlIdentifier("email"), SqlType.Text, Default: new SqlText("'x@y'"), NotNull: true,
+                Checks: [new CheckConstraint(new SqlIdentifier("email_fmt"), new SqlText("VALUE ~ '@'"))])])]))
             // NOT NULL, then checks, then DEFAULT (last, so its opaque expr reads back to the ';').
             .ShouldContain("CREATE DOMAIN app.email AS text NOT NULL CONSTRAINT email_fmt CHECK (VALUE ~ '@') DEFAULT 'x@y';");
 
@@ -348,8 +348,8 @@ public sealed class DdlWriterTests
     public void Write_Domain_RoundTripsThroughParse()
     {
         var schema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
-            Domains: [new DomainDefinition(new SqlIdentifier("email"), SqlType.Text, Default: "'x@y'", NotNull: true,
-                Checks: [new CheckConstraint(new SqlIdentifier("email_fmt"), "VALUE ~ '@'")], OldName: new SqlIdentifier("addr"), Comment: "an email")])]);
+            Domains: [new DomainDefinition(new SqlIdentifier("email"), SqlType.Text, Default: new SqlText("'x@y'"), NotNull: true,
+                Checks: [new CheckConstraint(new SqlIdentifier("email_fmt"), new SqlText("VALUE ~ '@'"))], OldName: new SqlIdentifier("addr"), Comment: "an email")])]);
 
         var domain = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Require().Schema
             .Schemas.ShouldHaveSingleItem().Domains.ShouldHaveSingleItem();
@@ -396,21 +396,21 @@ public sealed class DdlWriterTests
     [Fact]
     public void Write_MaterializedView_EmitsMaterializedKeyword()
         => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
-            Views: [new View(new SqlIdentifier("daily"), "SELECT 1", IsMaterialized: true)])]))
+            Views: [new View(new SqlIdentifier("daily"), new SqlText("SELECT 1"), IsMaterialized: true)])]))
             .ShouldContain("CREATE MATERIALIZED VIEW app.daily AS SELECT 1;");
 
     [Fact]
     public void Write_MaterializedViewIndex_EmitsStandaloneCreateIndex()
         => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
-            Views: [new View(new SqlIdentifier("daily"), "SELECT x FROM app.t", IsMaterialized: true,
-                Indexes: [new TableIndex(new SqlIdentifier("daily_ix"), ["x"], IsUnique: true, Predicate: "x IS NOT NULL")])])]))
+            Views: [new View(new SqlIdentifier("daily"), new SqlText("SELECT x FROM app.t"), IsMaterialized: true,
+                Indexes: [new TableIndex(new SqlIdentifier("daily_ix"), ["x"], IsUnique: true, Predicate: new SqlText("x IS NOT NULL"))])])]))
             .ShouldContain("CREATE UNIQUE INDEX daily_ix ON app.daily (x) WHERE (x IS NOT NULL);");
 
     [Fact]
     public void Write_MaterializedView_RoundTripsThroughParse()
     {
         var schema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
-            Views: [new View(new SqlIdentifier("daily"), "SELECT x FROM app.t", IsMaterialized: true,
+            Views: [new View(new SqlIdentifier("daily"), new SqlText("SELECT x FROM app.t"), IsMaterialized: true,
                 Indexes: [new TableIndex(new SqlIdentifier("daily_ix"), ["x"])])])]);
 
         var view = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Require().Schema
@@ -469,27 +469,27 @@ public sealed class DdlWriterTests
     public void Write_Function_EmitsArgumentsAndDefinitionVerbatim()
         => DdlWriter.Instance.Write(new DatabaseSchema([
             new SchemaDefinition(new SqlIdentifier("app"), Routines:
-                [new Routine(new SqlIdentifier("add_tax"), RoutineKind.Function, "amount numeric", "RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$")]),
+                [new Routine(new SqlIdentifier("add_tax"), RoutineKind.Function, new SqlText("amount numeric"), new SqlText("RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$"))]),
         ])).ShouldContain("CREATE FUNCTION app.add_tax(amount numeric) RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$;");
 
     [Fact]
     public void Write_Function_MultiLineDefinition_KeepsNewlines()
         => DdlWriter.Instance.Write(new DatabaseSchema([
             new SchemaDefinition(new SqlIdentifier("app"), Routines:
-                [new Routine(new SqlIdentifier("f"), RoutineKind.Function, "", "RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$")]),
+                [new Routine(new SqlIdentifier("f"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$"))]),
         ])).ShouldContain("CREATE FUNCTION app.f() RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$;");
 
     [Fact]
     public void Write_Function_TrailingWhitespaceInDefinition_IsTrimmed()
         // A code-built definition ending in whitespace must not push the ';' onto dangling whitespace.
         => DdlWriter.Instance.Write(new DatabaseSchema([
-            new SchemaDefinition(new SqlIdentifier("app"), Routines: [new Routine(new SqlIdentifier("f"), RoutineKind.Function, "", "RETURNS int AS $$ SELECT 1 $$  \n")]),
+            new SchemaDefinition(new SqlIdentifier("app"), Routines: [new Routine(new SqlIdentifier("f"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int AS $$ SELECT 1 $$  \n"))]),
         ])).ShouldContain("AS $$ SELECT 1 $$;");
 
     [Fact]
     public void Write_Procedure_IsEmitted()
         => DdlWriter.Instance.Write(new DatabaseSchema([
-            new SchemaDefinition(new SqlIdentifier("app"), Routines: [new Routine(new SqlIdentifier("archive"), RoutineKind.Procedure, "before date", "LANGUAGE sql AS $$ DELETE $$")]),
+            new SchemaDefinition(new SqlIdentifier("app"), Routines: [new Routine(new SqlIdentifier("archive"), RoutineKind.Procedure, new SqlText("before date"), new SqlText("LANGUAGE sql AS $$ DELETE $$"))]),
         ])).ShouldContain("CREATE PROCEDURE app.archive(before date) LANGUAGE sql AS $$ DELETE $$;");
 
     [Fact]

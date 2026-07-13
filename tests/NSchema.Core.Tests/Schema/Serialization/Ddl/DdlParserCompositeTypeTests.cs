@@ -17,17 +17,17 @@ public sealed class DdlParserCompositeTypeTests
     public void Parse_SimpleType_CapturesNameAndFields()
     {
         var type = ParseType("CREATE TYPE app.address AS (street text, zip int);");
-        type.Name.ShouldBe("address");
+        ShouldlyIdentifierExtensions.ShouldBe(type.Name, "address");
         type.Fields.Count.ShouldBe(2);
-        type.Fields[0].Name.ShouldBe("street");
+        ShouldlyIdentifierExtensions.ShouldBe(type.Fields[0].Name, "street");
         type.Fields[0].DataType.ShouldBe(SqlType.Text);
-        type.Fields[1].Name.ShouldBe("zip");
+        ShouldlyIdentifierExtensions.ShouldBe(type.Fields[1].Name, "zip");
         type.Fields[1].DataType.ShouldBe(SqlType.Int);
     }
 
     [Fact]
     public void Parse_SingleField_IsCaptured()
-        => ParseType("CREATE TYPE app.point AS (x int);").Fields.ShouldHaveSingleItem().Name.ShouldBe("x");
+        => ShouldlyIdentifierExtensions.ShouldBe(ParseType("CREATE TYPE app.point AS (x int);").Fields.ShouldHaveSingleItem().Name, "x");
 
     [Fact]
     public void Parse_EmptyFieldList_IsCaptured()
@@ -40,7 +40,7 @@ public sealed class DdlParserCompositeTypeTests
 
     [Fact]
     public void Parse_RenamedFrom_SetsOldName()
-        => ParseType("CREATE TYPE app.address RENAMED FROM legacy_address AS (street text);").OldName.ShouldBe("legacy_address");
+        => ShouldlyIdentifierExtensions.ShouldBe(ParseType("CREATE TYPE app.address RENAMED FROM legacy_address AS (street text);").OldName, "legacy_address");
 
     [Fact]
     public void Parse_WithDocComment_AttachesComment()
@@ -48,8 +48,8 @@ public sealed class DdlParserCompositeTypeTests
 
     [Fact]
     public void Parse_DropType_RecordsDroppedCompositeType()
-        => new DdlParser("CREATE SCHEMA app; DROP TYPE app.address;").Parse().Schema
-            .Schemas.ShouldHaveSingleItem().DroppedCompositeTypes.ShouldHaveSingleItem().ShouldBe("address");
+        => ShouldlyIdentifierExtensions.ShouldBe(new DdlParser("CREATE SCHEMA app; DROP TYPE app.address;").Parse().Schema
+                .Schemas.ShouldHaveSingleItem().DroppedCompositeTypes.ShouldHaveSingleItem(), "address");
 
     [Fact]
     public void Parse_DuplicateType_Throws()

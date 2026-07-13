@@ -78,15 +78,15 @@ internal sealed partial class SchemaComparer
             nullability = new ValueChange<bool>(current.IsNullable, desired.IsNullable);
         }
 
-        ValueChange<string>? @default = null;
+        ValueChange<SqlText>? @default = null;
         if (current.DefaultExpression == desired.DefaultExpression)
         {
-            LogColumnDefaultUnchanged(owner, desired.Name, desired.DefaultExpression ?? "no default");
+            LogColumnDefaultUnchanged(owner, desired.Name, desired.DefaultExpression?.Value ?? "no default");
         }
         else
         {
             LogColumnDefaultChanged(owner, desired.Name, current.DefaultExpression, desired.DefaultExpression);
-            @default = new ValueChange<string>(current.DefaultExpression, desired.DefaultExpression);
+            @default = new ValueChange<SqlText>(current.DefaultExpression, desired.DefaultExpression);
         }
 
         ValueChange<string>? comment = null;
@@ -96,10 +96,10 @@ internal sealed partial class SchemaComparer
             comment = new ValueChange<string>(current.Comment, desired.Comment);
         }
 
-        ValueChange<string>? generated = null;
+        ValueChange<SqlText>? generated = null;
         if (current.GeneratedExpression != desired.GeneratedExpression)
         {
-            generated = new ValueChange<string>(current.GeneratedExpression, desired.GeneratedExpression);
+            generated = new ValueChange<SqlText>(current.GeneratedExpression, desired.GeneratedExpression);
         }
 
         // Identity changes when the column is toggled into or out of identity, or when both columns are

@@ -14,11 +14,11 @@ internal static class SchemaToken
     /// Instantiates the token in a script name, producing the instance's identifier.
     /// </summary>
     public static SqlIdentifier Instantiate(SqlIdentifier name, SqlIdentifier schema) =>
-        new(Instantiate(name.Value, schema));
+        new(name.Value.Replace(Token, schema.Value, StringComparison.Ordinal));
 
     /// <summary>
     /// Instantiates the token in raw text (a SQL body).
     /// </summary>
-    public static string Instantiate(string text, SqlIdentifier schema) =>
-        text.Replace(Token, schema.Value, StringComparison.Ordinal);
+    public static SqlText Instantiate(SqlText text, SqlIdentifier schema) =>
+        new(text.Value.Replace(Token, schema.Value, StringComparison.Ordinal));
 }

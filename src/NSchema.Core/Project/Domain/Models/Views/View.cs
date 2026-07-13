@@ -16,7 +16,7 @@ namespace NSchema.Project.Domain.Models.Views;
 [DebuggerDisplay("{Name,nq} (view)")]
 public sealed record View(
     SqlIdentifier Name,
-    string Body,
+    SqlText Body,
     SqlIdentifier? OldName = null,
     string? Comment = null,
     IReadOnlyList<ViewDependency>? DependsOn = null,

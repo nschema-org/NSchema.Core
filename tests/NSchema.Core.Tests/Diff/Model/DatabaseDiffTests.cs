@@ -8,7 +8,7 @@ public sealed class DatabaseDiffTests
 {
     private static readonly DatabaseDiff _diff = new DatabaseDiff([])
     {
-        Scripts = [new Script(new SqlIdentifier("Backfill Emails"), "SELECT 1;", new DeploymentEvent(DeploymentPhase.Pre))],
+        Scripts = [new Script(new SqlIdentifier("Backfill Emails"), new SqlText("SELECT 1;"), new DeploymentEvent(DeploymentPhase.Pre))],
     };
 
     [Fact]

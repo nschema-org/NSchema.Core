@@ -17,7 +17,7 @@ public record ExclusionConstraint(
     SqlIdentifier Name,
     IReadOnlyList<ExclusionElement> Elements,
     string? Method = null,
-    string? Predicate = null,
+    SqlText? Predicate = null,
     string? Comment = null
 ) : INamedObject
 {

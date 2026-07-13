@@ -78,6 +78,6 @@ public sealed class DdlParserIndexDepthTests
         reparsed.Include.ShouldBe(["b"]);
         reparsed.Predicate.ShouldBe("c IS NOT NULL");
         reparsed.Columns[0].ShouldBe(new IndexColumn(new SqlIdentifier("c"), Sort: IndexSort.Descending, Nulls: IndexNulls.Last));
-        reparsed.Columns[1].ShouldBe(new IndexColumn(Expression: "lower(a)"));
+        reparsed.Columns[1].ShouldBe(new IndexColumn(Expression: new SqlText("lower(a)")));
     }
 }
