@@ -9,12 +9,12 @@ using NSchema.Current;
 using NSchema.Current.Locks;
 using NSchema.Current.Storage;
 using NSchema.Diff.Domain;
-using NSchema.Plan.Policies;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
 using NSchema.Operations.Workflow;
 using NSchema.Plan.Domain;
 using NSchema.Plan.PlanFile;
+using NSchema.Plan.Policies;
 using NSchema.Project;
 using NSchema.Project.Policies;
 

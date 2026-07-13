@@ -7,11 +7,11 @@ using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Plan.Policies;
 using NSchema.Project.Domain;
-using NSchema.Tests.Helpers;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Diff;
 

@@ -1,8 +1,8 @@
 using Microsoft.Extensions.FileSystemGlobbing;
 using NSchema.Project;
-using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Tests.Schema;
 
