@@ -19,9 +19,18 @@ public sealed class DdlReader
     /// <param name="source">The NSchema DDL document to read.</param>
     public Result<DdlDocument> Read(string source)
     {
+        var parser = new NsqlParser(source);
+        var document = parser.Parse();
+        if (parser.Errors.Count > 0)
+        {
+            // The parser recovers at statement boundaries, so every syntax error in the document is
+            // reported at once.
+            return Result.Failure<DdlDocument>(parser.Errors.Select(DdlDiagnostics.Syntax));
+        }
+
         try
         {
-            return DocumentProjector.Project(new NsqlParser(source).Parse());
+            return DocumentProjector.Project(document);
         }
         catch (DdlSyntaxException ex)
         {

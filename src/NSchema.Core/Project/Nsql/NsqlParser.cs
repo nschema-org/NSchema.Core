@@ -21,6 +21,14 @@ internal sealed partial class NsqlParser
     // (a table template cannot include another).
     private bool _inTableTemplateBody;
 
+    private readonly List<DdlSyntaxException> _errors = [];
+
+    /// <summary>
+    /// The syntax errors collected while parsing. The parser recovers at statement boundaries, so one
+    /// parse reports every error in the document; the returned tree carries the statements that parsed.
+    /// </summary>
+    public IReadOnlyList<DdlSyntaxException> Errors => _errors;
+
     public NsqlParser(string source)
     {
         _lexer = new DdlLexer(source);
@@ -45,11 +53,35 @@ internal sealed partial class NsqlParser
                 continue;
             }
 
-            statements.Add(ParseStatement(pendingDoc));
+            try
+            {
+                statements.Add(ParseStatement(pendingDoc));
+            }
+            catch (DdlSyntaxException error)
+            {
+                // Record and resync to the next statement boundary, so one parse reports every error.
+                _errors.Add(error);
+                Resync();
+            }
             pendingDoc = null;
         }
 
         return new NsqlDocument(statements);
+    }
+
+    /// <summary>
+    /// Skips to just past the next top-level <c>;</c> (the statement boundary). Strings and dollar-quoted
+    /// bodies are single tokens, so a <c>;</c> inside them is never structural.
+    /// </summary>
+    private void Resync()
+    {
+        while (_current.Kind != TokenKind.EndOfFile)
+        {
+            if (Advance().Kind == TokenKind.Semicolon)
+            {
+                return;
+            }
+        }
     }
 
     private NsqlStatement ParseStatement(string? doc)

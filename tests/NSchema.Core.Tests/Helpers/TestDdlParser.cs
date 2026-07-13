@@ -10,5 +10,14 @@ namespace NSchema.Tests.Helpers;
 /// </summary>
 internal sealed class TestDdlParser(string source)
 {
-    public DdlDocument Parse() => DocumentProjector.Project(new NsqlParser(source).Parse());
+    public DdlDocument Parse()
+    {
+        var parser = new NsqlParser(source);
+        var document = parser.Parse();
+        if (parser.Errors.Count > 0)
+        {
+            throw parser.Errors[0];
+        }
+        return DocumentProjector.Project(document);
+    }
 }

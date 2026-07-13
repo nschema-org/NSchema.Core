@@ -67,7 +67,15 @@ internal sealed partial class NsqlParser
                 {
                     break;
                 }
-                statements.Add(ParseTemplateStatement(statementDoc));
+                try
+                {
+                    statements.Add(ParseTemplateStatement(statementDoc));
+                }
+                catch (DdlSyntaxException error)
+                {
+                    _errors.Add(error);
+                    ResyncInTemplateBody();
+                }
             }
         }
         finally
@@ -110,6 +118,21 @@ internal sealed partial class NsqlParser
         Expect(TokenKind.Semicolon, "';'");
 
         return new TableTemplateStatement(name, members) { Position = position, Doc = doc };
+    }
+
+    /// <summary>
+    /// Skips to just past the next <c>;</c>, stopping short of <c>END</c> so the template's terminator
+    /// still closes the body.
+    /// </summary>
+    private void ResyncInTemplateBody()
+    {
+        while (_current.Kind != TokenKind.EndOfFile && !_current.IsKeyword("END"))
+        {
+            if (Advance().Kind == TokenKind.Semicolon)
+            {
+                return;
+            }
+        }
     }
 
     private NsqlStatement ParseTemplateStatement(string? doc)
