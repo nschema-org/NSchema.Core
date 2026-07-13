@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Diff.Domain.Models.Constraints;
@@ -9,10 +10,10 @@ namespace NSchema.Diff.Domain.Models.Constraints;
 /// <param name="Name">The foreign key constraint name.</param>
 /// <param name="Definition">The foreign key definition for an added foreign key; otherwise <see langword="null"/>.</param>
 /// <param name="Comment">The change to the constraint's comment, if any (carried on a comment-only <see cref="ChangeKind.Modify"/>).</param>
-public sealed record ForeignKeyDiff(ChangeKind Kind, string Name, ForeignKey? Definition = null, ValueChange<string>? Comment = null) : INamedObjectDiff
+public sealed record ForeignKeyDiff(ChangeKind Kind, SqlIdentifier Name, ForeignKey? Definition = null, ValueChange<string>? Comment = null) : INamedObjectDiff
 {
     /// <summary>
     /// The name of the script matched to this change.
     /// </summary>
-    public string? MigrationScript { get; init; }
+    public SqlIdentifier? MigrationScript { get; init; }
 }

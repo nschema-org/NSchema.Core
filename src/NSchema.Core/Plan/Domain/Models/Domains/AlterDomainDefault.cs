@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.Domains;
 
 /// <summary>
@@ -7,7 +8,7 @@ namespace NSchema.Plan.Domain.Models.Domains;
 /// <param name="DomainName">The name of the domain.</param>
 /// <param name="OldDefault">The previous default expression, if any.</param>
 /// <param name="NewDefault">The new default expression, or <see langword="null"/> to drop it.</param>
-public sealed record AlterDomainDefault(string SchemaName, string DomainName, string? OldDefault, string? NewDefault) : MigrationAction
+public sealed record AlterDomainDefault(SqlIdentifier SchemaName, SqlIdentifier DomainName, string? OldDefault, string? NewDefault) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => false;

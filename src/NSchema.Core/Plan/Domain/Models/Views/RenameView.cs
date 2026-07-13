@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.Views;
 
 /// <summary>
@@ -7,7 +8,7 @@ namespace NSchema.Plan.Domain.Models.Views;
 /// <param name="OldName">The current name of the view.</param>
 /// <param name="NewName">The new name of the view.</param>
 /// <param name="IsMaterialized">Whether the view being renamed is a materialized view.</param>
-public sealed record RenameView(string SchemaName, string OldName, string NewName, bool IsMaterialized = false) : MigrationAction
+public sealed record RenameView(SqlIdentifier SchemaName, SqlIdentifier OldName, SqlIdentifier NewName, bool IsMaterialized = false) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => false;

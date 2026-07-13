@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Project.Ddl.Models.Templates;
 
 /// <summary>
@@ -5,4 +6,4 @@ namespace NSchema.Project.Ddl.Models.Templates;
 /// </summary>
 /// <param name="TemplateName">The name of the template to instantiate.</param>
 /// <param name="SchemaNames">The schemas to instantiate the template into.</param>
-public sealed record TemplateApplication(string TemplateName, IReadOnlyList<string> SchemaNames);
+public sealed record TemplateApplication(SqlIdentifier TemplateName, IReadOnlyList<SqlIdentifier> SchemaNames);

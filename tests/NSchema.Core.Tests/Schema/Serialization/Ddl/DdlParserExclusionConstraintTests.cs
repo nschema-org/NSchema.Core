@@ -20,9 +20,9 @@ public sealed class DdlParserExclusionConstraintTests
         exclusion.Name.ShouldBe("no_overlap");
         exclusion.Method.ShouldBe("gist");
         exclusion.Elements.Count.ShouldBe(2);
-        exclusion.Elements[0].Expression.ShouldBe("room");
+        exclusion.Elements[0].Column.ShouldBe("room");
         exclusion.Elements[0].Operator.ShouldBe("=");
-        exclusion.Elements[1].Expression.ShouldBe("during");
+        exclusion.Elements[1].Column.ShouldBe("during");
         exclusion.Elements[1].Operator.ShouldBe("&&");
     }
 
@@ -40,7 +40,7 @@ public sealed class DdlParserExclusionConstraintTests
     {
         var element = ParseExclusion("CONSTRAINT x EXCLUDE USING gist ((int4range(room, during)) WITH &&)")
             .Elements.ShouldHaveSingleItem();
-        element.IsExpression.ShouldBeTrue();
+        element.Column.ShouldBeNull();
         element.Expression.ShouldBe("int4range(room, during)");
         element.Operator.ShouldBe("&&");
     }
@@ -62,6 +62,6 @@ public sealed class DdlParserExclusionConstraintTests
         exclusion.Name.ShouldBe("no_overlap");
         exclusion.Method.ShouldBe("gist");
         exclusion.Predicate.ShouldBe("room > 0");
-        exclusion.Elements.Select(e => (e.Expression, e.Operator)).ShouldBe([("room", "="), ("during", "&&")]);
+        exclusion.Elements.Select(e => (Column: e.Column?.Value, e.Operator)).ShouldBe([("room", "="), ("during", "&&")]);
     }
 }

@@ -1,5 +1,6 @@
 using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Project.Domain.Models;
 namespace NSchema.Diff.Domain.Models;
 
 /// <summary>
@@ -12,7 +13,7 @@ public interface INamedObjectDiff
     /// <summary>
     /// The object name.
     /// </summary>
-    string Name { get; }
+    SqlIdentifier Name { get; }
 
     /// <summary>
     /// The change to the object.

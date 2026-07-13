@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 
 namespace NSchema.Diff.Domain.Models.Columns;
@@ -16,10 +17,10 @@ namespace NSchema.Diff.Domain.Models.Columns;
 /// <param name="Comment">The change to the column's comment, if any.</param>
 /// <param name="Generated">The change to the column's stored generation expression, if any.</param>
 public sealed record ColumnDiff(
-    string Name,
+    SqlIdentifier Name,
     ChangeKind Kind,
     Column? Definition = null,
-    string? RenamedFrom = null,
+    SqlIdentifier? RenamedFrom = null,
     ValueChange<SqlType>? Type = null,
     ValueChange<bool>? Nullability = null,
     ValueChange<string>? Default = null,
@@ -31,5 +32,5 @@ public sealed record ColumnDiff(
     /// <summary>
     /// The name of the script matched to this change.
     /// </summary>
-    public string? MigrationScript { get; init; }
+    public SqlIdentifier? MigrationScript { get; init; }
 }

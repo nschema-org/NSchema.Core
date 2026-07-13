@@ -3,6 +3,7 @@ using NSchema.Operations.Progress;
 using NSchema.Project.Ddl.Models;
 using NSchema.Project.Ddl.Models.Config;
 using NSchema.Project.Ddl.Models.Templates;
+using NSchema.Project.Domain.Models.Triggers;
 
 namespace NSchema.Tests.Architecture;
 
@@ -62,6 +63,9 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Project.IProjectProvider)] = ProjectRoot,
         [typeof(NSchema.Project.Domain.Models.ProjectDefinition)] = ProjectModels, // the project aggregate — raw domain vocabulary the provider returns (the SchemaState parallel), not a seam-shaped message
         [typeof(NSchema.Project.Domain.Models.SchemaScope)] = ProjectModels,
+        [typeof(NSchema.Project.Domain.Models.SqlIdentifier)] = ProjectModels, // the identifier vocabulary primitive — case-insensitive equality baked in, shared by every lane
+        [typeof(NSchema.Project.Domain.Models.ObjectReference)] = ProjectModels, // the address of a schema-level object — always fully qualified
+        [typeof(RoutineReference)] = ProjectModels + ".Triggers", // a routine reference as written — unqualified resolves via the engine's search path; trigger vocabulary, homed with its consumer
 
         // ── Current: the source the project is diffed against — observed live, or recorded. ──
         [typeof(NSchema.Current.ICurrentSchemaProvider)] = CurrentRoot,

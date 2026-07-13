@@ -10,7 +10,7 @@ namespace NSchema.Project.Domain.Models.Extensions;
 /// <param name="Comment">An optional comment or description for the extension.</param>
 [DebuggerDisplay("{Name,nq} (extension)")]
 public sealed record Extension(
-    string Name,
+    SqlIdentifier Name,
     string? Version = null,
     string? Comment = null
 ) : INamedObject;

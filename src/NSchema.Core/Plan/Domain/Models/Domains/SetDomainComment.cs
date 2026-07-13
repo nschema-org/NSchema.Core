@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.Domains;
 
 /// <summary>
@@ -7,7 +8,7 @@ namespace NSchema.Plan.Domain.Models.Domains;
 /// <param name="DomainName">The name of the domain.</param>
 /// <param name="OldComment">The previous comment, if any.</param>
 /// <param name="NewComment">The new comment, if any.</param>
-public sealed record SetDomainComment(string SchemaName, string DomainName, string? OldComment, string? NewComment) : MigrationAction
+public sealed record SetDomainComment(SqlIdentifier SchemaName, SqlIdentifier DomainName, string? OldComment, string? NewComment) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => false;

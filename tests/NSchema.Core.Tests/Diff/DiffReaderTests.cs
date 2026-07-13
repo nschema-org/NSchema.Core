@@ -6,6 +6,7 @@ using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Diff.Domain.Models.Views;
 using NSchema.Diff.Reader;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Indexes;
 using NSchema.Project.Domain.Models.Tables;
@@ -29,17 +30,17 @@ public sealed class DiffReaderTests
     private static SchemaDiff Schema(
         string name,
         ChangeKind? kind = null,
-        string? renamedFrom = null,
+        SqlIdentifier? renamedFrom = null,
         ValueChange<string>? comment = null,
         IReadOnlyList<GrantChange>? grants = null,
         IReadOnlyList<TableDiff>? tables = null
-    ) => new(name, kind, renamedFrom, comment, grants ?? [], tables ?? []);
+    ) => new(new SqlIdentifier(name), kind, renamedFrom, comment, grants ?? [], tables ?? []);
 
     private static TableDiff Table(
         string name,
         ChangeKind kind,
         string schema = "app",
-        string? renamedFrom = null,
+        SqlIdentifier? renamedFrom = null,
         ValueChange<string>? comment = null,
         IReadOnlyList<ColumnDiff>? columns = null,
         IReadOnlyList<GrantChange>? grants = null,
@@ -48,7 +49,7 @@ public sealed class DiffReaderTests
         IReadOnlyList<ForeignKeyDiff>? foreignKeys = null,
         IReadOnlyList<UniqueConstraintDiff>? uniqueConstraints = null,
         IReadOnlyList<CheckConstraintDiff>? checks = null)
-        => new(schema, name, kind, renamedFrom, comment, columns ?? [], grants ?? [], indexes ?? [],
+        => new(new SqlIdentifier(schema), new SqlIdentifier(name), kind, renamedFrom, comment, columns ?? [], grants ?? [], indexes ?? [],
             primaryKey ?? [], foreignKeys ?? [], uniqueConstraints ?? [], checks ?? []);
 
     private static ColumnDiff AddColumn(Column definition, ValueChange<string>? comment = null)
@@ -59,13 +60,13 @@ public sealed class DiffReaderTests
 
     private static ColumnDiff ModifyColumn(
         string name,
-        string? renamedFrom = null,
+        SqlIdentifier? renamedFrom = null,
         ValueChange<SqlType>? type = null,
         ValueChange<bool>? nullability = null,
         ValueChange<string>? @default = null,
         ValueChange<IdentityOptions>? identity = null,
         ValueChange<string>? comment = null)
-        => new(name, ChangeKind.Modify, null, renamedFrom, type, nullability, @default, identity, comment);
+        => new(new SqlIdentifier(name), ChangeKind.Modify, null, renamedFrom, type, nullability, @default, identity, comment);
 
     /// <summary>Wraps a single table-changing schema (null schema kind) for brevity.</summary>
     private static DatabaseDiff WithTable(TableDiff table)
@@ -73,7 +74,7 @@ public sealed class DiffReaderTests
 
     /// <summary>Wraps a single view-changing schema (null schema kind) for brevity.</summary>
     private static DatabaseDiff WithView(ViewDiff view)
-        => DiffOf([new SchemaDiff("app", Views: [view])]);
+        => DiffOf([new SchemaDiff(new SqlIdentifier("app"), Views: [view])]);
 
     // -------------------------------------------------------------------------
     // Empty / summary
@@ -120,7 +121,7 @@ public sealed class DiffReaderTests
 
     [Fact]
     public void Read_SchemaRename_EmitsArrow()
-        => ShouldHaveLine(DiffOf([Schema("app", ChangeKind.Modify, renamedFrom: "legacy")]), ChangeKind.Modify, "schema legacy → app");
+        => ShouldHaveLine(DiffOf([Schema("app", ChangeKind.Modify, renamedFrom: new SqlIdentifier("legacy"))]), ChangeKind.Modify, "schema legacy → app");
 
     [Fact]
     public void Read_SchemaComment_AppendsNewCommentSuffix()
@@ -137,23 +138,23 @@ public sealed class DiffReaderTests
 
     [Fact]
     public void Read_SchemaGrantAdd_EmitsGrantUsage()
-        => ShouldHaveLine(DiffOf([Schema("app", ChangeKind.Add, grants: [new GrantChange(ChangeKind.Add, "reader", null)])]), ChangeKind.Add, "grant usage to reader");
+        => ShouldHaveLine(DiffOf([Schema("app", ChangeKind.Add, grants: [new GrantChange(ChangeKind.Add, new SqlIdentifier("reader"), null)])]), ChangeKind.Add, "grant usage to reader");
 
     [Fact]
     public void Read_SchemaGrantRemove_EmitsRevokeUsage()
-        => ShouldHaveLine(DiffOf([Schema("app", ChangeKind.Modify, grants: [new GrantChange(ChangeKind.Remove, "reader", null)])]), ChangeKind.Remove, "revoke usage from reader");
+        => ShouldHaveLine(DiffOf([Schema("app", ChangeKind.Modify, grants: [new GrantChange(ChangeKind.Remove, new SqlIdentifier("reader"), null)])]), ChangeKind.Remove, "revoke usage from reader");
 
     // -------------------------------------------------------------------------
     // Table
     // -------------------------------------------------------------------------
 
     [Fact]
-    public void Read_TableAdd_EmitsSchemaQualifiedName()
+    public void Read_TableAdd_EmitsSchemaObjectReference()
         => ShouldHaveLine(WithTable(Table("users", ChangeKind.Add)), ChangeKind.Add, "table app.users");
 
     [Fact]
     public void Read_TableRename_EmitsArrowWithSchemaQualifier()
-        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, renamedFrom: "people")), ChangeKind.Modify, "table app.people → users");
+        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, renamedFrom: new SqlIdentifier("people"))), ChangeKind.Modify, "table app.people → users");
 
     [Fact]
     public void Read_TableComment_AppendsChangedCommentSuffix()
@@ -163,8 +164,8 @@ public sealed class DiffReaderTests
     public void Read_AddedTable_SeparatesColumnBlockFromTrailingBlockWithSpacer()
     {
         var table = Table("users", ChangeKind.Add,
-            columns: [AddColumn(new Column("id", SqlType.Int))],
-            indexes: [new IndexDiff(ChangeKind.Add, "users_id_ix", new TableIndex("users_id_ix", ["id"]), null)]);
+            columns: [AddColumn(new Column(new SqlIdentifier("id"), SqlType.Int))],
+            indexes: [new IndexDiff(ChangeKind.Add, new SqlIdentifier("users_id_ix"), new TableIndex(new SqlIdentifier("users_id_ix"), ["id"]), null)]);
 
         var lines = Read(WithTable(table)).Lines;
         var columnIndex = IndexOf(lines, line => line.Text.Contains("id int not null"));
@@ -184,22 +185,22 @@ public sealed class DiffReaderTests
     [Fact]
     public void Read_ColumnAdd_EmitsDefinitionAndCommentSuffix()
     {
-        var column = AddColumn(new Column("id", SqlType.Int), comment: new ValueChange<string>(null, "identifier"));
+        var column = AddColumn(new Column(new SqlIdentifier("id"), SqlType.Int), comment: new ValueChange<string>(null, "identifier"));
 
         ShouldHaveLine(WithTable(Table("users", ChangeKind.Add, columns: [column])), ChangeKind.Add, "id int not null (\"identifier\")");
     }
 
     [Fact]
     public void Read_ColumnAdd_NullableEmitsNull()
-        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Add, columns: [AddColumn(new Column("bio", SqlType.Text, IsNullable: true))])), ChangeKind.Add, "bio text null");
+        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Add, columns: [AddColumn(new Column(new SqlIdentifier("bio"), SqlType.Text, IsNullable: true))])), ChangeKind.Add, "bio text null");
 
     [Fact]
     public void Read_ColumnRemove_EmitsDefinition()
-        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, columns: [RemoveColumn(new Column("id", SqlType.Int))])), ChangeKind.Remove, "id int not null");
+        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, columns: [RemoveColumn(new Column(new SqlIdentifier("id"), SqlType.Int))])), ChangeKind.Remove, "id int not null");
 
     [Fact]
     public void Read_ColumnRename_EmitsArrow()
-        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, columns: [ModifyColumn("email", renamedFrom: "mail")])), ChangeKind.Modify, "rename column: mail → email");
+        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, columns: [ModifyColumn("email", renamedFrom: new SqlIdentifier("mail"))])), ChangeKind.Modify, "rename column: mail → email");
 
     [Fact]
     public void Read_ColumnTypeChange_EmitsOldToNew()
@@ -250,24 +251,24 @@ public sealed class DiffReaderTests
 
     [Fact]
     public void Read_PrimaryKeyConstraint_EmitsLabel()
-        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, primaryKey: [new PrimaryKeyDiff(ChangeKind.Add, "users_pkey", null)])), ChangeKind.Add, "primary key users_pkey");
+        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, primaryKey: [new PrimaryKeyDiff(ChangeKind.Add, new SqlIdentifier("users_pkey"), null)])), ChangeKind.Add, "primary key users_pkey");
 
     [Fact]
     public void Read_ForeignKeyConstraint_EmitsLabel()
-        => ShouldHaveLine(WithTable(Table("orders", ChangeKind.Modify, foreignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null)])), ChangeKind.Remove, "foreign key orders_user_fk");
+        => ShouldHaveLine(WithTable(Table("orders", ChangeKind.Modify, foreignKeys: [new ForeignKeyDiff(ChangeKind.Remove, new SqlIdentifier("orders_user_fk"), null)])), ChangeKind.Remove, "foreign key orders_user_fk");
 
     [Fact]
     public void Read_UniqueConstraint_EmitsLabel()
-        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", null)])), ChangeKind.Add, "unique constraint users_email_uq");
+        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_email_uq"), null)])), ChangeKind.Add, "unique constraint users_email_uq");
 
     [Fact]
     public void Read_CheckConstraint_EmitsLabel()
-        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, checks: [new CheckConstraintDiff(ChangeKind.Remove, "users_age_chk", null)])), ChangeKind.Remove, "check constraint users_age_chk");
+        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, checks: [new CheckConstraintDiff(ChangeKind.Remove, new SqlIdentifier("users_age_chk"), null)])), ChangeKind.Remove, "check constraint users_age_chk");
 
     [Fact]
     public void Read_ConstraintCommentChange_EmitsCommentDiff()
     {
-        var unique = new UniqueConstraintDiff(ChangeKind.Modify, "users_email_uq", null, new ValueChange<string>("old", "new"));
+        var unique = new UniqueConstraintDiff(ChangeKind.Modify, new SqlIdentifier("users_email_uq"), null, new ValueChange<string>("old", "new"));
 
         ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, uniqueConstraints: [unique])), ChangeKind.Modify, "unique constraint users_email_uq comment: \"old\" → \"new\"");
     }
@@ -275,7 +276,7 @@ public sealed class DiffReaderTests
     [Fact]
     public void Read_IndexAdd_EmitsName()
     {
-        var index = new IndexDiff(ChangeKind.Add, "users_email_ux", new TableIndex("users_email_ux", ["email"], IsUnique: true), null);
+        var index = new IndexDiff(ChangeKind.Add, new SqlIdentifier("users_email_ux"), new TableIndex(new SqlIdentifier("users_email_ux"), ["email"], IsUnique: true), null);
 
         ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, indexes: [index])), ChangeKind.Add, "index users_email_ux");
     }
@@ -283,18 +284,18 @@ public sealed class DiffReaderTests
     [Fact]
     public void Read_IndexCommentModify_EmitsOldToNew()
     {
-        var index = new IndexDiff(ChangeKind.Modify, "users_email_ux", null, new ValueChange<string>(null, "speed"));
+        var index = new IndexDiff(ChangeKind.Modify, new SqlIdentifier("users_email_ux"), null, new ValueChange<string>(null, "speed"));
 
         ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, indexes: [index])), ChangeKind.Modify, "index users_email_ux comment: <none> → \"speed\"");
     }
 
     [Fact]
     public void Read_TableGrantAdd_EmitsPrivilegeAndRole()
-        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, grants: [new GrantChange(ChangeKind.Add, "reader", TablePrivilege.Insert)])), ChangeKind.Add, "grant INSERT to reader");
+        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, grants: [new GrantChange(ChangeKind.Add, new SqlIdentifier("reader"), TablePrivilege.Insert)])), ChangeKind.Add, "grant INSERT to reader");
 
     [Fact]
     public void Read_TableGrantRemove_EmitsPrivilegeAndRole()
-        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, grants: [new GrantChange(ChangeKind.Remove, "reader", TablePrivilege.Insert)])), ChangeKind.Remove, "revoke INSERT from reader");
+        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, grants: [new GrantChange(ChangeKind.Remove, new SqlIdentifier("reader"), TablePrivilege.Insert)])), ChangeKind.Remove, "revoke INSERT from reader");
 
     [Theory]
     // Select and its alias ReadOnly share value 1, so a single case proves the alias renders as "SELECT".
@@ -305,7 +306,7 @@ public sealed class DiffReaderTests
     [InlineData(TablePrivilege.None, "no privileges")]
     public void Read_TableGrant_DecomposesPrivilegeFlags(TablePrivilege privileges, string expected)
     {
-        var grant = new GrantChange(ChangeKind.Add, "reader", privileges);
+        var grant = new GrantChange(ChangeKind.Add, new SqlIdentifier("reader"), privileges);
 
         ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, grants: [grant])), ChangeKind.Add, $"grant {expected} to reader");
     }
@@ -315,44 +316,44 @@ public sealed class DiffReaderTests
     // -------------------------------------------------------------------------
 
     [Fact]
-    public void Read_ViewAdd_EmitsSchemaQualifiedName()
-        => ShouldHaveLine(WithView(new ViewDiff("app", "active_users", ChangeKind.Add, Definition: new View("active_users", "SELECT 1"))), ChangeKind.Add, "view app.active_users");
+    public void Read_ViewAdd_EmitsSchemaObjectReference()
+        => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("active_users"), ChangeKind.Add, Definition: new View(new SqlIdentifier("active_users"), "SELECT 1"))), ChangeKind.Add, "view app.active_users");
 
     [Fact]
     public void Read_ViewAdd_AppendsCommentSuffix()
-        => ShouldHaveLine(WithView(new ViewDiff("app", "active_users", ChangeKind.Add,
-                Definition: new View("active_users", "SELECT 1"), Comment: new ValueChange<string>(null, "active"))), ChangeKind.Add, "view app.active_users (\"active\")");
+        => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("active_users"), ChangeKind.Add,
+                Definition: new View(new SqlIdentifier("active_users"), "SELECT 1"), Comment: new ValueChange<string>(null, "active"))), ChangeKind.Add, "view app.active_users (\"active\")");
 
     [Fact]
     public void Read_ViewBodyReplace_EmitsModifyHeader()
-        => ShouldHaveLine(WithView(new ViewDiff("app", "daily_totals", ChangeKind.Modify,
-                Definition: new View("daily_totals", "SELECT sum(x) FROM app.sales"))), ChangeKind.Modify, "view app.daily_totals");
+        => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("daily_totals"), ChangeKind.Modify,
+                Definition: new View(new SqlIdentifier("daily_totals"), "SELECT sum(x) FROM app.sales"))), ChangeKind.Modify, "view app.daily_totals");
 
     [Fact]
     public void Read_ViewCommentOnlyChange_EmitsCommentDiff()
-        => ShouldHaveLine(WithView(new ViewDiff("app", "summary", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new"))), ChangeKind.Modify, "view app.summary comment: \"old\" → \"new\"");
+        => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("summary"), ChangeKind.Modify, Comment: new ValueChange<string>("old", "new"))), ChangeKind.Modify, "view app.summary comment: \"old\" → \"new\"");
 
     [Fact]
     public void Read_ViewRename_EmitsArrowWithSchemaQualifier()
-        => ShouldHaveLine(WithView(new ViewDiff("app", "report", ChangeKind.Modify, RenamedFrom: "legacy_report")), ChangeKind.Modify, "view app.legacy_report → report");
+        => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("report"), ChangeKind.Modify, RenamedFrom: new SqlIdentifier("legacy_report"))), ChangeKind.Modify, "view app.legacy_report → report");
 
     [Fact]
     public void Read_ViewToMaterializedFlip_EmitsLabelTransition()
-        => ShouldHaveLine(WithView(new ViewDiff("app", "totals", ChangeKind.Modify,
-                Definition: new View("totals", "SELECT 1", IsMaterialized: true), IsMaterialized: true,
+        => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("totals"), ChangeKind.Modify,
+                Definition: new View(new SqlIdentifier("totals"), "SELECT 1", IsMaterialized: true), IsMaterialized: true,
                 Materialized: new ValueChange<bool>(false, true), RequiresRecreate: true)),
             ChangeKind.Modify, "view → materialized view app.totals");
 
     [Fact]
     public void Read_MaterializedToViewFlip_EmitsLabelTransition()
-        => ShouldHaveLine(WithView(new ViewDiff("app", "totals", ChangeKind.Modify,
-                Definition: new View("totals", "SELECT 1"),
+        => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("totals"), ChangeKind.Modify,
+                Definition: new View(new SqlIdentifier("totals"), "SELECT 1"),
                 Materialized: new ValueChange<bool>(true, false), RequiresRecreate: true)),
             ChangeKind.Modify, "materialized view → view app.totals");
 
     [Fact]
     public void Read_ViewRemove_EmitsRemoveHeader()
-        => ShouldHaveLine(WithView(new ViewDiff("app", "stale_view", ChangeKind.Remove)), ChangeKind.Remove, "view app.stale_view");
+        => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("stale_view"), ChangeKind.Remove)), ChangeKind.Remove, "view app.stale_view");
 
     // -------------------------------------------------------------------------
     // Document shape
@@ -361,7 +362,7 @@ public sealed class DiffReaderTests
     [Fact]
     public void Read_CarriesChangeKindOnContentLines_WithoutMarkersInText()
     {
-        var diff = WithTable(Table("users", ChangeKind.Add, columns: [AddColumn(new Column("id", SqlType.Int))]));
+        var diff = WithTable(Table("users", ChangeKind.Add, columns: [AddColumn(new Column(new SqlIdentifier("id"), SqlType.Int))]));
 
         var document = Read(diff);
 

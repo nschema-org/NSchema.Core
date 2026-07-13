@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Routines;
 
 namespace NSchema.Plan.Domain.Models.Routines;
@@ -8,7 +9,7 @@ namespace NSchema.Plan.Domain.Models.Routines;
 /// <param name="SchemaName">The name of the schema containing the routine to be removed.</param>
 /// <param name="RoutineName">The name of the routine to be removed.</param>
 /// <param name="Kind">Whether the routine is a function or a procedure.</param>
-public sealed record DropRoutine(string SchemaName, string RoutineName, RoutineKind Kind) : MigrationAction
+public sealed record DropRoutine(SqlIdentifier SchemaName, SqlIdentifier RoutineName, RoutineKind Kind) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => true;

@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.Columns;
 
 /// <summary>
@@ -8,10 +9,10 @@ namespace NSchema.Plan.Domain.Models.Columns;
 /// <param name="OldName">The current name of the column to be renamed.</param>
 /// <param name="NewName">The new name for the column to be renamed.</param>
 public sealed record RenameColumn(
-    string SchemaName,
-    string TableName,
-    string OldName,
-    string NewName
+    SqlIdentifier SchemaName,
+    SqlIdentifier TableName,
+    SqlIdentifier OldName,
+    SqlIdentifier NewName
 ) : MigrationAction
 {
     /// <inheritdoc />

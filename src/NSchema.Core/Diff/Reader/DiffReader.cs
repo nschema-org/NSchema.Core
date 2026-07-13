@@ -9,6 +9,7 @@ using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Sequences;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Diff.Domain.Models.Views;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Routines;
 using NSchema.Project.Domain.Models.Scripts;
@@ -114,7 +115,7 @@ public sealed class DiffReader
 
     private void RenderSchema(List<DiffLine> lines, SchemaDiff schema, ChangeKind kind)
     {
-        var target = schema.RenamedFrom is null ? schema.Name : $"{schema.RenamedFrom} → {schema.Name}";
+        var target = schema.RenamedFrom is null ? schema.Name.Value : $"{schema.RenamedFrom} → {schema.Name}";
         AppendHeader(lines, kind, $"schema {target}{CommentSuffix(schema.Comment)}");
 
         foreach (var grant in schema.Grants)
@@ -477,7 +478,7 @@ public sealed class DiffReader
             ? $" ({FormatComment(comment.New)})"
             : $" ({FormatComment(comment.Old)} → {FormatComment(comment.New)})";
 
-    private static string MigrationSuffix(string? migrationName) =>
+    private static string MigrationSuffix(SqlIdentifier? migrationName) =>
         migrationName is null ? string.Empty : $" (with migration '{migrationName}')";
 
     // Decompose the privilege flags into the underlying SQL privileges rather than rendering the enum name,
@@ -518,7 +519,7 @@ public sealed class DiffReader
     private static string FormatVersion(string? version) => version ?? "<default>";
 
     // A constraint Modify is always a comment-only change (structural changes are Remove + Add).
-    private string ConstraintText(string label, string name, ChangeKind kind, ValueChange<string>? comment) =>
+    private string ConstraintText(string label, SqlIdentifier name, ChangeKind kind, ValueChange<string>? comment) =>
         kind == ChangeKind.Modify
             ? $"{label} {name} comment: {FormatComment(comment?.Old)} → {FormatComment(comment?.New)}"
             : $"{label} {name}";

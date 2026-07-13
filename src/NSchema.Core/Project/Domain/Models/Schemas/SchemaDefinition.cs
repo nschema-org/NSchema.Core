@@ -33,25 +33,25 @@ namespace NSchema.Project.Domain.Models.Schemas;
 /// <param name="DroppedCompositeTypes">A list of composite types that have been dropped from the schema.</param>
 [DebuggerDisplay("{Name,nq} ({Tables.Count} tables)")]
 public record SchemaDefinition(
-    string Name,
-    string? OldName = null,
+    SqlIdentifier Name,
+    SqlIdentifier? OldName = null,
     bool IsPartial = false,
     string? Comment = null,
     IReadOnlyList<Table>? Tables = null,
-    IReadOnlyList<string>? DroppedTables = null,
+    IReadOnlyList<SqlIdentifier>? DroppedTables = null,
     IReadOnlyList<SchemaGrant>? Grants = null,
     IReadOnlyList<View>? Views = null,
-    IReadOnlyList<string>? DroppedViews = null,
+    IReadOnlyList<SqlIdentifier>? DroppedViews = null,
     IReadOnlyList<EnumType>? Enums = null,
-    IReadOnlyList<string>? DroppedEnums = null,
+    IReadOnlyList<SqlIdentifier>? DroppedEnums = null,
     IReadOnlyList<Sequence>? Sequences = null,
-    IReadOnlyList<string>? DroppedSequences = null,
+    IReadOnlyList<SqlIdentifier>? DroppedSequences = null,
     IReadOnlyList<Routine>? Routines = null,
-    IReadOnlyList<string>? DroppedRoutines = null,
+    IReadOnlyList<SqlIdentifier>? DroppedRoutines = null,
     IReadOnlyList<DomainDefinition>? Domains = null,
-    IReadOnlyList<string>? DroppedDomains = null,
+    IReadOnlyList<SqlIdentifier>? DroppedDomains = null,
     IReadOnlyList<CompositeType>? CompositeTypes = null,
-    IReadOnlyList<string>? DroppedCompositeTypes = null
+    IReadOnlyList<SqlIdentifier>? DroppedCompositeTypes = null
 ) : IRenameableObject
 {
     /// <summary>
@@ -62,7 +62,7 @@ public record SchemaDefinition(
     /// <summary>
     /// A list of tables that have been dropped from the schema.
     /// </summary>
-    public IReadOnlyList<string> DroppedTables { get; init; } = DroppedTables ?? [];
+    public IReadOnlyList<SqlIdentifier> DroppedTables { get; init; } = DroppedTables ?? [];
 
     /// <summary>
     /// A list of views that are part of the schema.
@@ -72,7 +72,7 @@ public record SchemaDefinition(
     /// <summary>
     /// A list of views that have been dropped from the schema.
     /// </summary>
-    public IReadOnlyList<string> DroppedViews { get; init; } = DroppedViews ?? [];
+    public IReadOnlyList<SqlIdentifier> DroppedViews { get; init; } = DroppedViews ?? [];
 
     /// <summary>
     /// A list of enum types that are part of the schema.
@@ -82,7 +82,7 @@ public record SchemaDefinition(
     /// <summary>
     /// A list of enum types that have been dropped from the schema.
     /// </summary>
-    public IReadOnlyList<string> DroppedEnums { get; init; } = DroppedEnums ?? [];
+    public IReadOnlyList<SqlIdentifier> DroppedEnums { get; init; } = DroppedEnums ?? [];
 
     /// <summary>
     /// A list of sequences that are part of the schema.
@@ -92,7 +92,7 @@ public record SchemaDefinition(
     /// <summary>
     /// A list of sequences that have been dropped from the schema.
     /// </summary>
-    public IReadOnlyList<string> DroppedSequences { get; init; } = DroppedSequences ?? [];
+    public IReadOnlyList<SqlIdentifier> DroppedSequences { get; init; } = DroppedSequences ?? [];
 
     /// <summary>
     /// A list of routines (functions and procedures) that are part of the schema. Functions and procedures share
@@ -103,7 +103,7 @@ public record SchemaDefinition(
     /// <summary>
     /// A list of routines that have been dropped from the schema.
     /// </summary>
-    public IReadOnlyList<string> DroppedRoutines { get; init; } = DroppedRoutines ?? [];
+    public IReadOnlyList<SqlIdentifier> DroppedRoutines { get; init; } = DroppedRoutines ?? [];
 
     /// <summary>
     /// A list of domains that are part of the schema.
@@ -113,7 +113,7 @@ public record SchemaDefinition(
     /// <summary>
     /// A list of domains that have been dropped from the schema.
     /// </summary>
-    public IReadOnlyList<string> DroppedDomains { get; init; } = DroppedDomains ?? [];
+    public IReadOnlyList<SqlIdentifier> DroppedDomains { get; init; } = DroppedDomains ?? [];
 
     /// <summary>
     /// A list of composite types that are part of the schema.
@@ -123,7 +123,7 @@ public record SchemaDefinition(
     /// <summary>
     /// A list of composite types that have been dropped from the schema.
     /// </summary>
-    public IReadOnlyList<string> DroppedCompositeTypes { get; init; } = DroppedCompositeTypes ?? [];
+    public IReadOnlyList<SqlIdentifier> DroppedCompositeTypes { get; init; } = DroppedCompositeTypes ?? [];
 
     /// <summary>
     /// A list of grants that define the permissions associated with the schema.

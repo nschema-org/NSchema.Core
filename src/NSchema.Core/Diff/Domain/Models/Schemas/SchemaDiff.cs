@@ -5,6 +5,7 @@ using NSchema.Diff.Domain.Models.Routines;
 using NSchema.Diff.Domain.Models.Sequences;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Diff.Domain.Models.Views;
+using NSchema.Project.Domain.Models;
 namespace NSchema.Diff.Domain.Models.Schemas;
 
 /// <summary>
@@ -23,9 +24,9 @@ namespace NSchema.Diff.Domain.Models.Schemas;
 /// <param name="Domains">The changed domains within this schema, ordered by name.</param>
 /// <param name="CompositeTypes">The changed composite types within this schema, ordered by name.</param>
 public sealed record SchemaDiff(
-    string Name,
+    SqlIdentifier Name,
     ChangeKind? Kind = null,
-    string? RenamedFrom = null,
+    SqlIdentifier? RenamedFrom = null,
     ValueChange<string>? Comment = null,
     IReadOnlyList<GrantChange>? Grants = null,
     IReadOnlyList<TableDiff>? Tables = null,

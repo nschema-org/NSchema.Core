@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Plan.Domain.Models.Tables;
@@ -9,8 +10,8 @@ namespace NSchema.Plan.Domain.Models.Tables;
 /// <param name="TableName">The name of the table to which the primary key will be added.</param>
 /// <param name="PrimaryKey">The definition of the primary key constraint to be added.</param>
 public sealed record AddPrimaryKey(
-    string SchemaName,
-    string TableName,
+    SqlIdentifier SchemaName,
+    SqlIdentifier TableName,
     PrimaryKey PrimaryKey
 ) : MigrationAction
 {

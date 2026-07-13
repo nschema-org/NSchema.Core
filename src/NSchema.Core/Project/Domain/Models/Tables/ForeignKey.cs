@@ -15,11 +15,11 @@ namespace NSchema.Project.Domain.Models.Tables;
 /// <param name="Comment">An optional comment or description for the constraint.</param>
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
 public record ForeignKey(
-    string Name,
-    IReadOnlyList<string> ColumnNames,
-    string ReferencedSchema,
-    string ReferencedTable,
-    IReadOnlyList<string> ReferencedColumnNames,
+    SqlIdentifier Name,
+    IReadOnlyList<SqlIdentifier> ColumnNames,
+    SqlIdentifier ReferencedSchema,
+    SqlIdentifier ReferencedTable,
+    IReadOnlyList<SqlIdentifier> ReferencedColumnNames,
     ReferentialAction OnDelete = ReferentialAction.NoAction,
     ReferentialAction OnUpdate = ReferentialAction.NoAction,
     string? Comment = null
@@ -28,12 +28,12 @@ public record ForeignKey(
     /// <summary>
     /// A list of column names in the current table that are part of the foreign key constraint.
     /// </summary>
-    public IReadOnlyList<string> ColumnNames { get; init; } = ColumnNames ?? [];
+    public IReadOnlyList<SqlIdentifier> ColumnNames { get; init; } = ColumnNames ?? [];
 
     /// <summary>
     /// A list of column names in the referenced table that are part of the foreign key constraint.
     /// </summary>
-    public IReadOnlyList<string> ReferencedColumnNames { get; init; } = ReferencedColumnNames ?? [];
+    public IReadOnlyList<SqlIdentifier> ReferencedColumnNames { get; init; } = ReferencedColumnNames ?? [];
 
     private string DebuggerDisplay =>
         $"{Name}: ({string.Join(", ", ColumnNames)}) -> {ReferencedSchema}.{ReferencedTable} ({string.Join(", ", ReferencedColumnNames)})";

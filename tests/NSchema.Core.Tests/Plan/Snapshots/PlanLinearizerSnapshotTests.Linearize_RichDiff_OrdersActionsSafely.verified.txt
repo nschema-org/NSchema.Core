@@ -307,9 +307,8 @@
         Method: gist,
         Elements: [
           {
-            Expression: slot,
             Operator: &&,
-            IsExpression: false
+            Column: slot
           }
         ]
       },
@@ -326,8 +325,7 @@
         IsUnique: true,
         Columns: [
           {
-            Expression: name,
-            IsExpression: false
+            Column: name
           }
         ]
       },
@@ -345,8 +343,7 @@
         Method: btree,
         Columns: [
           {
-            Expression: total,
-            IsExpression: false,
+            Column: total,
             Sort: Descending
           }
         ],

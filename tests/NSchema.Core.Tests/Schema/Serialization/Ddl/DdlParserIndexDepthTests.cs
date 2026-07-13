@@ -1,4 +1,5 @@
 using NSchema.Project.Ddl;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Indexes;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
@@ -29,7 +30,7 @@ public sealed class DdlParserIndexDepthTests
     public void Parse_AscDescAndNulls_AreCaptured()
     {
         var keys = ParseIndex("CREATE INDEX t_ix ON app.t (a DESC NULLS LAST, b ASC NULLS FIRST);").Columns;
-        keys[0].Expression.ShouldBe("a");
+        keys[0].Column.ShouldBe("a");
         keys[0].Sort.ShouldBe(IndexSort.Descending);
         keys[0].Nulls.ShouldBe(IndexNulls.Last);
         keys[1].Sort.ShouldBe(IndexSort.Ascending);
@@ -40,7 +41,8 @@ public sealed class DdlParserIndexDepthTests
     public void Parse_PlainColumn_HasDefaultOrdering()
     {
         var key = ParseIndex("CREATE INDEX t_a_ix ON app.t (a);").Columns.ShouldHaveSingleItem();
-        key.IsExpression.ShouldBeFalse();
+        key.Column.ShouldBe("a");
+        key.Expression.ShouldBeNull();
         key.Sort.ShouldBe(IndexSort.Default);
         key.Nulls.ShouldBe(IndexNulls.Default);
     }
@@ -49,7 +51,7 @@ public sealed class DdlParserIndexDepthTests
     public void Parse_ExpressionKey_IsCaptured()
     {
         var key = ParseIndex("CREATE INDEX t_lower_ix ON app.t ((lower(a)));").Columns.ShouldHaveSingleItem();
-        key.IsExpression.ShouldBeTrue();
+        key.Column.ShouldBeNull();
         key.Expression.ShouldBe("lower(a)");
     }
 
@@ -75,7 +77,7 @@ public sealed class DdlParserIndexDepthTests
         reparsed.Method.ShouldBe("btree");
         reparsed.Include.ShouldBe(["b"]);
         reparsed.Predicate.ShouldBe("c IS NOT NULL");
-        reparsed.Columns[0].ShouldBe(new IndexColumn("c", false, IndexSort.Descending, IndexNulls.Last));
-        reparsed.Columns[1].ShouldBe(new IndexColumn("lower(a)", true));
+        reparsed.Columns[0].ShouldBe(new IndexColumn(new SqlIdentifier("c"), Sort: IndexSort.Descending, Nulls: IndexNulls.Last));
+        reparsed.Columns[1].ShouldBe(new IndexColumn(Expression: "lower(a)"));
     }
 }

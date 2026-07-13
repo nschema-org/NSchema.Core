@@ -11,8 +11,8 @@ namespace NSchema.Tests.State;
 
 public sealed class CurrentSchemaProviderTests
 {
-    private static readonly DatabaseSchema _onlineSchema = new DatabaseSchema([new SchemaDefinition("online")]);
-    private static readonly DatabaseSchema _offlineSchema = new DatabaseSchema([new SchemaDefinition("offline")]);
+    private static readonly DatabaseSchema _onlineSchema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("online"))]);
+    private static readonly DatabaseSchema _offlineSchema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("offline"))]);
     private static readonly ISchemaStateSerializer _serializer = new SchemaStateSerializer();
 
     private static CurrentSchemaProvider Create(ISchemaIntrospector? online = null, ISchemaStateStore? store = null) =>
@@ -50,7 +50,7 @@ public sealed class CurrentSchemaProviderTests
         // The fake ignores its scope entirely — the provider's re-filter is what keeps scoping honest.
         var sut = Create(online: new FakeIntrospector());
 
-        var result = await sut.GetSchema(SchemaSourceMode.Online, SchemaScope.Of("other"), TestContext.Current.CancellationToken);
+        var result = await sut.GetSchema(SchemaSourceMode.Online, SchemaScope.Of(new SqlIdentifier("other")), TestContext.Current.CancellationToken);
 
         result.Require().Schemas.ShouldBeEmpty();
     }

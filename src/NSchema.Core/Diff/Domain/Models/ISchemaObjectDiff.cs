@@ -1,4 +1,5 @@
 using NSchema.Diff.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models;
 namespace NSchema.Diff.Domain.Models;
 
 /// <summary>
@@ -11,10 +12,10 @@ public interface ISchemaObjectDiff : INamedObjectDiff
     /// <summary>
     /// The name of the schema the object belongs to.
     /// </summary>
-    string Schema { get; }
+    SqlIdentifier Schema { get; }
 
     /// <summary>
     /// The previous object name when the object is being renamed; otherwise <see langword="null"/>.
     /// </summary>
-    string? RenamedFrom { get; }
+    SqlIdentifier? RenamedFrom { get; }
 }

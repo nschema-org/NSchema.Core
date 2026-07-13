@@ -70,7 +70,7 @@ internal sealed class ProjectProvider(IEnumerable<ProjectSource> sources) : IPro
     /// </summary>
     private static IEnumerable<Diagnostic> ValidateScriptNames(IEnumerable<Script> scripts)
     {
-        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var names = new HashSet<SqlIdentifier>();
         foreach (var name in scripts.Select(s => s.Name))
         {
             if (!names.Add(name))
@@ -86,10 +86,10 @@ internal sealed class ProjectProvider(IEnumerable<ProjectSource> sources) : IPro
     /// </summary>
     private static IEnumerable<Diagnostic> ValidateChangeTargets(IEnumerable<Script> scripts)
     {
-        var targets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var targets = new HashSet<(ChangeTrigger Trigger, SqlIdentifier? Schema, SqlIdentifier Table, SqlIdentifier Member)>();
         foreach (var change in scripts.Select(s => s.Event).OfType<ChangeEvent>())
         {
-            if (!targets.Add($"{change.Trigger}:{change.Path}"))
+            if (!targets.Add((change.Trigger, change.ScopeSchema, change.TableName, change.MemberName)))
             {
                 yield return ProjectDiagnostics.DuplicateChangeTarget(change);
             }

@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.CompositeTypes;
 
@@ -10,4 +11,4 @@ namespace NSchema.Diff.Domain.Models.CompositeTypes;
 /// <param name="Name">The field name.</param>
 /// <param name="Definition">The field definition for an added field; otherwise <see langword="null"/>.</param>
 /// <param name="Type">The change to the field's type, set on an in-place retype (<c>ALTER ATTRIBUTE … TYPE</c>).</param>
-public sealed record CompositeFieldDiff(ChangeKind Kind, string Name, CompositeField? Definition = null, ValueChange<SqlType>? Type = null);
+public sealed record CompositeFieldDiff(ChangeKind Kind, SqlIdentifier Name, CompositeField? Definition = null, ValueChange<SqlType>? Type = null);

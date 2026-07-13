@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Constraints;
 
 namespace NSchema.Plan.Domain.Models.Constraints;
@@ -9,8 +10,8 @@ namespace NSchema.Plan.Domain.Models.Constraints;
 /// <param name="TableName">The name of the table to which the exclusion constraint will be added.</param>
 /// <param name="ExclusionConstraint">The definition of the exclusion constraint to be added.</param>
 public sealed record AddExclusionConstraint(
-    string SchemaName,
-    string TableName,
+    SqlIdentifier SchemaName,
+    SqlIdentifier TableName,
     ExclusionConstraint ExclusionConstraint
 ) : MigrationAction
 {

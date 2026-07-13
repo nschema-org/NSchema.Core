@@ -1,4 +1,5 @@
 using NSchema.Diff.Domain.Models.Constraints;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Domains;
 
@@ -18,10 +19,10 @@ namespace NSchema.Diff.Domain.Models.Domains;
 /// <param name="Checks">In-place check-constraint changes (added/dropped via <c>ALTER DOMAIN</c>).</param>
 /// <param name="Comment">The change to the domain's comment, if any.</param>
 public sealed record DomainDiff(
-    string Schema,
-    string Name,
+    SqlIdentifier Schema,
+    SqlIdentifier Name,
     ChangeKind Kind,
-    string? RenamedFrom = null,
+    SqlIdentifier? RenamedFrom = null,
     DomainDefinition? Definition = null,
     ValueChange<SqlType>? DataType = null,
     ValueChange<string>? Default = null,

@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using NSchema.Current.Domain.Models;
+using NSchema.Project.Domain;
 
 namespace NSchema.Current.Storage;
 
@@ -16,7 +17,7 @@ internal sealed class SchemaStateSerializer : ISchemaStateSerializer
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-        Converters = { new JsonStringEnumConverter() },
+        Converters = { new JsonStringEnumConverter(), new SqlIdentifierJsonConverter() },
         TypeInfoResolver = new DefaultJsonTypeInfoResolver { Modifiers = { JsonHelpers.IgnoreComputedProperties } },
     };
 

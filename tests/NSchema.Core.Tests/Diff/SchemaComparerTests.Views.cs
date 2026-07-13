@@ -1,4 +1,5 @@
 using NSchema.Diff.Domain.Models;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Views;
 
@@ -17,7 +18,7 @@ public partial class SchemaComparerTests
 
         diff!.Kind.ShouldBe(ChangeKind.Add);
         diff.Definition.ShouldNotBeNull();
-        diff.DependsOn.ShouldHaveSingleItem().ShouldBe(new ViewDependency("app", "users"));
+        diff.DependsOn.ShouldHaveSingleItem().ShouldBe(new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users")));
     }
 
     [Fact]
@@ -28,7 +29,7 @@ public partial class SchemaComparerTests
 
         diff!.Kind.ShouldBe(ChangeKind.Remove);
         diff.Definition.ShouldBeNull();
-        diff.DependsOn.ShouldHaveSingleItem().ShouldBe(new ViewDependency("app", "users"));
+        diff.DependsOn.ShouldHaveSingleItem().ShouldBe(new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users")));
     }
 
     [Fact]
@@ -60,7 +61,7 @@ public partial class SchemaComparerTests
     {
         var diff = DiffViews(
             [View("legacy", "SELECT * FROM app.users")],
-            [View("active", "SELECT * FROM app.users", oldName: "legacy")]);
+            [View("active", "SELECT * FROM app.users", oldName: new SqlIdentifier("legacy"))]);
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.RenamedFrom.ShouldBe("legacy");
@@ -110,8 +111,8 @@ public partial class SchemaComparerTests
     {
         // The view exists in the database but isn't declared; a partial schema must not drop it.
         var diff = _sut.Compare(
-            Db(new SchemaDefinition("app", Views: [View("active", "SELECT * FROM app.users")])),
-            Db(new SchemaDefinition("app", IsPartial: true)));
+            Db(new SchemaDefinition(new SqlIdentifier("app"), Views: [View("active", "SELECT * FROM app.users")])),
+            Db(new SchemaDefinition(new SqlIdentifier("app"), IsPartial: true)));
 
         diff.Schemas.ShouldBeEmpty();
     }

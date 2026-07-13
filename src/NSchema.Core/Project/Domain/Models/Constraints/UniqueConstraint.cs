@@ -9,12 +9,12 @@ namespace NSchema.Project.Domain.Models.Constraints;
 /// <param name="ColumnNames">A list of column names that are part of the unique constraint.</param>
 /// <param name="Comment">An optional comment or description for the constraint.</param>
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public record UniqueConstraint(string Name, IReadOnlyList<string> ColumnNames, string? Comment = null) : INamedObject
+public record UniqueConstraint(SqlIdentifier Name, IReadOnlyList<SqlIdentifier> ColumnNames, string? Comment = null) : INamedObject
 {
     /// <summary>
     /// A list of column names that are part of the unique constraint.
     /// </summary>
-    public IReadOnlyList<string> ColumnNames { get; init; } = ColumnNames ?? [];
+    public IReadOnlyList<SqlIdentifier> ColumnNames { get; init; } = ColumnNames ?? [];
 
     private string DebuggerDisplay => $"{Name}: ({string.Join(", ", ColumnNames)})";
 

@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 
 namespace NSchema.Plan.Domain.Models.Columns;
@@ -11,9 +12,9 @@ namespace NSchema.Plan.Domain.Models.Columns;
 /// <param name="OldOptions">The current identity sequence options of the column before alteration. This may be null if the column did not previously have identity options.</param>
 /// <param name="NewOptions">The new identity sequence options of the column after alteration. This may be null if the column is being altered to remove identity options.</param>
 public sealed record AlterIdentitySequence(
-    string SchemaName,
-    string TableName,
-    string ColumnName,
+    SqlIdentifier SchemaName,
+    SqlIdentifier TableName,
+    SqlIdentifier ColumnName,
     IdentityOptions? OldOptions,
     IdentityOptions? NewOptions
 ) : MigrationAction

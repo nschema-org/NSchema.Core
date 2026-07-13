@@ -1,6 +1,7 @@
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Constraints;
 using NSchema.Diff.Domain.Models.Indexes;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Constraints;
 using NSchema.Project.Domain.Models.Indexes;
 using NSchema.Project.Domain.Models.Tables;
@@ -11,7 +12,7 @@ internal sealed partial class SchemaComparer
 {
     // The primary key is single-valued (not a list member), so it keeps its own comparison rather than the
     // shared CompareTableMembers skeleton.
-    private List<PrimaryKeyDiff> ComparePrimaryKey(string schemaName, string tableName, PrimaryKey? current, PrimaryKey? desired)
+    private List<PrimaryKeyDiff> ComparePrimaryKey(ObjectReference owner, PrimaryKey? current, PrimaryKey? desired)
     {
         var result = new List<PrimaryKeyDiff>();
 
@@ -20,30 +21,30 @@ internal sealed partial class SchemaComparer
         {
             if (current.Comment != desired.Comment)
             {
-                LogPrimaryKeyCommentChanged(desired.Name, schemaName, tableName);
+                LogPrimaryKeyCommentChanged(desired.Name, owner);
                 result.Add(new PrimaryKeyDiff(ChangeKind.Modify, desired.Name, null, new ValueChange<string>(current.Comment, desired.Comment)));
             }
             else
             {
-                LogPrimaryKeyUnchanged(schemaName, tableName);
+                LogPrimaryKeyUnchanged(owner);
             }
             return result;
         }
 
         if (current is null && desired is null)
         {
-            LogPrimaryKeyUnchanged(schemaName, tableName);
+            LogPrimaryKeyUnchanged(owner);
             return result;
         }
 
         if (current is not null)
         {
-            LogPrimaryKeyDropping(current.Name, schemaName, tableName);
+            LogPrimaryKeyDropping(current.Name, owner);
             result.Add(new PrimaryKeyDiff(ChangeKind.Remove, current.Name, null));
         }
         if (desired is not null)
         {
-            LogPrimaryKeyAdding(desired.Name, schemaName, tableName);
+            LogPrimaryKeyAdding(desired.Name, owner);
             result.Add(new PrimaryKeyDiff(ChangeKind.Add, desired.Name, desired));
             if (desired.Comment is not null)
             {
@@ -53,23 +54,23 @@ internal sealed partial class SchemaComparer
         return result;
     }
 
-    private List<ForeignKeyDiff> CompareForeignKeys(string schemaName, string tableName, IReadOnlyList<ForeignKey> current, IReadOnlyList<ForeignKey> desired) =>
-        CompareTableMembers(schemaName, tableName, "Foreign key", current, desired,
+    private List<ForeignKeyDiff> CompareForeignKeys(ObjectReference owner, IReadOnlyList<ForeignKey> current, IReadOnlyList<ForeignKey> desired) =>
+        CompareTableMembers(owner, "Foreign key", current, desired,
             (kind, name, definition, comment) => new ForeignKeyDiff(kind, name, definition, comment));
 
-    private List<UniqueConstraintDiff> CompareUniqueConstraints(string schemaName, string tableName, IReadOnlyList<UniqueConstraint> current, IReadOnlyList<UniqueConstraint> desired) =>
-        CompareTableMembers(schemaName, tableName, "Unique constraint", current, desired,
+    private List<UniqueConstraintDiff> CompareUniqueConstraints(ObjectReference owner, IReadOnlyList<UniqueConstraint> current, IReadOnlyList<UniqueConstraint> desired) =>
+        CompareTableMembers(owner, "Unique constraint", current, desired,
             (kind, name, definition, comment) => new UniqueConstraintDiff(kind, name, definition, comment));
 
-    private List<CheckConstraintDiff> CompareChecks(string schemaName, string tableName, IReadOnlyList<CheckConstraint> current, IReadOnlyList<CheckConstraint> desired) =>
-        CompareTableMembers(schemaName, tableName, "Check constraint", current, desired,
+    private List<CheckConstraintDiff> CompareChecks(ObjectReference owner, IReadOnlyList<CheckConstraint> current, IReadOnlyList<CheckConstraint> desired) =>
+        CompareTableMembers(owner, "Check constraint", current, desired,
             (kind, name, definition, comment) => new CheckConstraintDiff(kind, name, definition, comment));
 
-    private List<ExclusionConstraintDiff> CompareExclusionConstraints(string schemaName, string tableName, IReadOnlyList<ExclusionConstraint> current, IReadOnlyList<ExclusionConstraint> desired) =>
-        CompareTableMembers(schemaName, tableName, "Exclusion constraint", current, desired,
+    private List<ExclusionConstraintDiff> CompareExclusionConstraints(ObjectReference owner, IReadOnlyList<ExclusionConstraint> current, IReadOnlyList<ExclusionConstraint> desired) =>
+        CompareTableMembers(owner, "Exclusion constraint", current, desired,
             (kind, name, definition, comment) => new ExclusionConstraintDiff(kind, name, definition, comment));
 
-    private List<IndexDiff> CompareIndexes(string schemaName, string tableName, IReadOnlyList<TableIndex> current, IReadOnlyList<TableIndex> desired) =>
-        CompareTableMembers(schemaName, tableName, "Index", current, desired,
+    private List<IndexDiff> CompareIndexes(ObjectReference owner, IReadOnlyList<TableIndex> current, IReadOnlyList<TableIndex> desired) =>
+        CompareTableMembers(owner, "Index", current, desired,
             (kind, name, definition, comment) => new IndexDiff(kind, name, definition, comment));
 }

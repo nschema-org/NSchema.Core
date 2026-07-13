@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.Tables;
 
 /// <summary>
@@ -7,9 +8,9 @@ namespace NSchema.Plan.Domain.Models.Tables;
 /// <param name="TableName">The name of the table from which the foreign key will be removed.</param>
 /// <param name="ForeignKeyName">The name of the foreign key constraint to be removed.</param>
 public sealed record DropForeignKey(
-    string SchemaName,
-    string TableName,
-    string ForeignKeyName
+    SqlIdentifier SchemaName,
+    SqlIdentifier TableName,
+    SqlIdentifier ForeignKeyName
 ) : MigrationAction
 {
     /// <inheritdoc />

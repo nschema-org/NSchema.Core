@@ -32,7 +32,7 @@ public sealed class AddProjectSourceTests : IDisposable
     }
 
     private static async Task<List<string>> ResolveSchemaNames(Action<NSchemaApplicationBuilder> configure) =>
-        (await ResolveProject(configure)).Schema.Schemas.Select(s => s.Name).ToList();
+        (await ResolveProject(configure)).Schema.Schemas.Select(s => s.Name.Value).ToList();
 
     [Fact]
     public async Task AddSqlSchemas_LoadsSingleFile()
@@ -108,7 +108,7 @@ public sealed class AddProjectSourceTests : IDisposable
     {
         File.WriteAllText(Path.Combine(_root, "multi.sql"), "CREATE SCHEMA app; CREATE SCHEMA audit;");
 
-        var project = await ResolveProject(b => b.AddProjectSource(_root), scope: SchemaScope.Of("app"));
+        var project = await ResolveProject(b => b.AddProjectSource(_root), scope: SchemaScope.Of(new SqlIdentifier("app")));
 
         project.Schema.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }

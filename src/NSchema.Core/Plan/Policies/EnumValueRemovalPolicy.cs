@@ -1,4 +1,3 @@
-using NSchema.Diff.Domain.Models;
 using NSchema.Plan.Domain.Models;
 
 namespace NSchema.Plan.Policies;
