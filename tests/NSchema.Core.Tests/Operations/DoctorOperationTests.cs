@@ -18,7 +18,7 @@ public sealed class DoctorOperationTests
     private readonly ISchemaStateSerializer _serializer = new SchemaStateSerializer();
     private readonly RecordingStateLock _stateLock = new();
 
-    private DoctorOperation BuildSut(ISchemaProvider? online = null, ISchemaStateStore? store = null, IStateLock? stateLock = null) =>
+    private DoctorOperation BuildSut(ISchemaIntrospector? online = null, ISchemaStateStore? store = null, IStateLock? stateLock = null) =>
         new(_progress, _serializer, online, store, stateLock);
 
     private Task<Result<DoctorResult>> Run(DoctorOperation sut) => sut.Execute(new DoctorArguments(), TestContext.Current.CancellationToken);
@@ -60,7 +60,7 @@ public sealed class DoctorOperationTests
     {
         // Arrange
         var schema = new DatabaseSchema(Schemas: [new SchemaDefinition("app"), new SchemaDefinition("billing")]);
-        var sut = BuildSut(online: new InMemorySchemaProvider(schema));
+        var sut = BuildSut(online: new InMemoryIntrospector(schema));
 
         // Act
         var result = await Run(sut);
@@ -74,7 +74,7 @@ public sealed class DoctorOperationTests
     public async Task Run_WhenDatabaseUnreachable_ReportsAndFails()
     {
         // Arrange
-        var sut = BuildSut(online: new ThrowingSchemaProvider(new InvalidOperationException("connection refused")));
+        var sut = BuildSut(online: new ThrowingIntrospector(new InvalidOperationException("connection refused")));
 
         // Act
         var result = await Run(sut);
@@ -181,7 +181,7 @@ public sealed class DoctorOperationTests
     {
         // Arrange
         var sut = BuildSut(
-            online: new ThrowingSchemaProvider(new InvalidOperationException("db down")),
+            online: new ThrowingIntrospector(new InvalidOperationException("db down")),
             store: new ThrowingStateStore(new IOException("store down")));
 
         // Act — both failures are surfaced together in one result, not one-at-a-time.
@@ -194,9 +194,9 @@ public sealed class DoctorOperationTests
         result.Value!.Errors.Select(e => e.Message).ShouldContain(m => m.Contains("store down"));
     }
 
-    private sealed class ThrowingSchemaProvider(Exception exception) : ISchemaProvider
+    private sealed class ThrowingIntrospector(Exception exception) : ISchemaIntrospector
     {
-        public ValueTask<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default) =>
+        public ValueTask<DatabaseSchema> GetSchema(SchemaScope scope, CancellationToken cancellationToken = default) =>
             throw exception;
     }
 

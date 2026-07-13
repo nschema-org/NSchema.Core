@@ -9,12 +9,12 @@ using NSchema.Current;
 using NSchema.Current.Locks;
 using NSchema.Current.Storage;
 using NSchema.Diff.Domain;
-using NSchema.Diff.Policies;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
 using NSchema.Operations.Workflow;
 using NSchema.Plan.Domain;
 using NSchema.Plan.PlanFile;
+using NSchema.Plan.Policies;
 using NSchema.Project;
 using NSchema.Project.Policies;
 
@@ -49,11 +49,11 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         _innerBuilder.Services.AddOptions<DataHazardOptions>();
 
         // Policies registered up front so users can remove them before Build().
-        AddSchemaPolicy<StructuralIntegritySchemaPolicy>();
-        AddSchemaPolicy<SchemaLintPolicy>();
-        AddDiffPolicy<DestructiveActionDiffPolicy>();
-        AddDiffPolicy<DataHazardDiffPolicy>();
-        AddDiffPolicy<EnumValueRemovalDiffPolicy>();
+        AddProjectPolicy<StructuralIntegritySchemaPolicy>();
+        AddProjectPolicy<SchemaLintPolicy>();
+        AddPlanPolicy<DestructiveActionPolicy>();
+        AddPlanPolicy<DataHazardPolicy>();
+        AddPlanPolicy<EnumValueRemovalPolicy>();
     }
 
     /// <inheritdoc />
@@ -112,7 +112,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // Plan
         services.TryAddSingleton<IPlanLinearizer, PlanLinearizer>();
         services.TryAddSingleton<IMigrationPlanner, MigrationPlanner>();
-        services.TryAddSingleton<IPlanFileWriter, PlanFileWriter>();
+        services.TryAddSingleton<IPlanFileManager, PlanFileManager>();
 
         // Schemas
         services.TryAddSingleton<ICurrentSchemaProvider, CurrentSchemaProvider>();
@@ -124,6 +124,6 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         // State
         services.TryAddSingleton<ISchemaStateSerializer, SchemaStateSerializer>();
         services.TryAddSingleton<ISchemaStateManager, SchemaStateManager>();
-        services.TryAddSingleton<IStateLockCoordinator, StateLockCoordinator>();
+        services.TryAddSingleton<IStateLockManager, StateLockManager>();
     }
 }

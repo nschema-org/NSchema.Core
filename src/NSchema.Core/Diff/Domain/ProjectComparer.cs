@@ -51,16 +51,12 @@ internal sealed class ProjectComparer(ISchemaComparer comparer) : IProjectCompar
 
             if (!string.Equals(recordedHash, script.Hash, StringComparison.OrdinalIgnoreCase))
             {
-                diagnostics.Add(Diagnostic.Warning("run-once", $"Run-once script '{script.Name}' has changed since it was executed and stays skipped."));
+                diagnostics.Add(DiffDiagnostics.ChangedRunOnceScript(script));
             }
         }
 
         return Result.From(newScripts, diagnostics);
     }
 
-    private static Diagnostic DeadMigrationDiagnostic(Script migration) => Diagnostic.Info(
-        "data-migrations",
-        $"Migration '{migration.Name}' ({migration.Event.Description}) matches " +
-        "no change in this plan and will not run. If the change it supports has been applied everywhere, the block is safe to delete."
-    );
+    private static Diagnostic DeadMigrationDiagnostic(Script migration) => DiffDiagnostics.DeadMigration(migration);
 }

@@ -3,10 +3,46 @@ using System.Diagnostics.CodeAnalysis;
 namespace NSchema;
 
 /// <summary>
-/// The non-generic base shared by every <see cref="Result{T}"/>.
+/// The outcome of an operation that yields no value.
 /// </summary>
-public abstract class Result
+public class Result
 {
+    internal Result(IReadOnlyList<Diagnostic> diagnostics)
+    {
+        Diagnostics = diagnostics;
+    }
+
+    /// <summary>
+    /// Whether the operation succeeded; true if there are no errors.
+    /// </summary>
+    public virtual bool IsSuccess => !Errors.Any();
+
+    /// <summary>
+    /// Whether the operation failed; true if there are errors.
+    /// </summary>
+    public virtual bool IsFailure => !IsSuccess;
+
+    /// <summary>
+    /// Every finding produced, of any severity. Empty on a clean success.
+    /// </summary>
+    public IReadOnlyList<Diagnostic> Diagnostics { get; }
+
+    /// <summary>
+    /// The error-severity subset of <see cref="Diagnostics"/>.
+    /// </summary>
+    public IEnumerable<Diagnostic> Errors => Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error);
+
+    /// <summary>
+    /// A clean value-less success.
+    /// </summary>
+    public static Result Success() => new([]);
+
+    /// <summary>
+    /// A value-less result built from an aggregated set of diagnostics; a failure when any is an error.
+    /// </summary>
+    /// <param name="diagnostics">Every finding produced.</param>
+    public static Result From(params IEnumerable<Diagnostic> diagnostics) => new([.. diagnostics]);
+
     /// <summary>
     /// A successful <see cref="Result{T}"/> carrying <paramref name="value"/>, optionally with advisory diagnostics.
     /// </summary>
@@ -38,10 +74,9 @@ public abstract class Result
 /// <typeparam name="T">The value produced on success.</typeparam>
 public sealed class Result<T> : Result
 {
-    internal Result(T? value, IReadOnlyList<Diagnostic> diagnostics)
+    internal Result(T? value, IReadOnlyList<Diagnostic> diagnostics) : base(diagnostics)
     {
         Value = value;
-        Diagnostics = diagnostics;
     }
 
     /// <summary>
@@ -49,27 +84,13 @@ public sealed class Result<T> : Result
     /// </summary>
     public T? Value { get; }
 
-    /// <summary>
-    /// Whether the operation succeeded; true if there are no errors.
-    /// </summary>
+    /// <inheritdoc />
     [MemberNotNullWhen(true, nameof(Value))]
-    public bool IsSuccess => !Errors.Any();
+    public override bool IsSuccess => base.IsSuccess;
 
-    /// <summary>
-    /// Whether the operation failed; true if there are errors.
-    /// </summary>
+    /// <inheritdoc />
     [MemberNotNullWhen(false, nameof(Value))]
-    public bool IsFailure => !IsSuccess;
-
-    /// <summary>
-    /// Every finding produced, of any severity. Empty on a clean success.
-    /// </summary>
-    public IReadOnlyList<Diagnostic> Diagnostics { get; }
-
-    /// <summary>
-    /// The error-severity subset of <see cref="Diagnostics"/>.
-    /// </summary>
-    public IEnumerable<Diagnostic> Errors => Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error);
+    public override bool IsFailure => base.IsFailure;
 
     /// <summary>
     /// Returns the value of the result, or throws an exception if it's missing.
@@ -82,7 +103,7 @@ public sealed class Result<T> : Result
     /// </summary>
     /// <typeparam name="TResult">The type both branches produce.</typeparam>
     /// <param name="onSuccess">Invoked with <see cref="Value"/> when the result is successful.</param>
-    /// <param name="onFailure">Invoked with <see cref="Diagnostics"/> when the result is a failure.</param>
+    /// <param name="onFailure">Invoked with <see cref="Result.Diagnostics"/> when the result is a failure.</param>
     /// <returns>The value produced by the invoked branch.</returns>
     public TResult Match<TResult>(Func<T, TResult> onSuccess, Func<IReadOnlyList<Diagnostic>, TResult> onFailure) =>
         IsSuccess ? onSuccess(Value) : onFailure(Diagnostics);

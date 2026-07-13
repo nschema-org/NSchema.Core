@@ -34,7 +34,7 @@ internal static class SchemaAggregator
         {
             if (!seenExtensions.Add(extension.Name))
             {
-                diagnostics.Add(Diagnostic.Error("project", $"Duplicate extension '{extension.Name}' declared."));
+                diagnostics.Add(ProjectDiagnostics.DuplicateExtension(extension.Name));
                 continue;
             }
 
@@ -69,14 +69,14 @@ internal static class SchemaAggregator
         var comments = schemas.Select(s => s.Comment).Where(c => c is not null).Distinct().ToList();
         if (comments.Count > 1)
         {
-            diagnostics.Add(Diagnostic.Error("project", $"Conflicting comments specified for schema '{schemaName}'."));
+            diagnostics.Add(ProjectDiagnostics.ConflictingComments(schemaName));
         }
         var comment = comments.FirstOrDefault();
 
         var oldNames = schemas.Select(s => s.OldName).Where(n => n is not null).Distinct().ToList();
         if (oldNames.Count > 1)
         {
-            diagnostics.Add(Diagnostic.Error("project", $"Conflicting old names specified for schema '{schemaName}'."));
+            diagnostics.Add(ProjectDiagnostics.ConflictingOldNames(schemaName));
         }
         var oldName = oldNames.FirstOrDefault();
 
@@ -119,7 +119,7 @@ internal static class SchemaAggregator
         {
             if (!seen.Add(name(item)))
             {
-                diagnostics.Add(Diagnostic.Error("project", $"Duplicate {kind} '{name(item)}' found in schema '{schemaName}'{suffix}."));
+                diagnostics.Add(ProjectDiagnostics.DuplicateObject(kind, name(item), schemaName, suffix));
                 continue;
             }
 

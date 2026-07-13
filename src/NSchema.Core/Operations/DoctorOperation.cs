@@ -3,6 +3,7 @@ using NSchema.Current.Locks.Backends;
 using NSchema.Current.Storage;
 using NSchema.Current.Storage.Backends;
 using NSchema.Operations.Progress;
+using NSchema.Project.Domain.Models;
 
 namespace NSchema.Operations;
 
@@ -15,7 +16,7 @@ namespace NSchema.Operations;
 internal sealed class DoctorOperation(
     IProgress<OperationProgress> progress,
     ISchemaStateSerializer serializer,
-    ISchemaProvider? online = null,
+    ISchemaIntrospector? online = null,
     ISchemaStateStore? store = null,
     IStateLock? stateLock = null
 ) : IOperation<DoctorArguments, Result<DoctorResult>>
@@ -50,7 +51,7 @@ internal sealed class DoctorOperation(
         try
         {
             // A full introspection is the honest end-to-end probe: it exercises the same path plan/apply rely on.
-            var schema = await online.GetSchema(schemaNames: null, cancellationToken);
+            var schema = await online.GetSchema(SchemaScope.All, cancellationToken);
             return Diagnostic.Info(source, $"Database: connected ({schema.Schemas.Count} schema{(schema.Schemas.Count == 1 ? "" : "s")} visible).");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

@@ -1,12 +1,12 @@
-namespace NSchema.Diff.Policies;
+namespace NSchema.Plan.Policies;
 
 /// <summary>
-/// Configures <see cref="DestructiveActionDiffPolicy"/>.
+/// Configures <see cref="DestructiveActionPolicy"/>.
 /// </summary>
 public class DestructiveActionOptions
 {
     /// <summary>
     /// Specifies the policy to apply when a destructive action is encountered during the migration process.
     /// </summary>
-    public DestructiveActionPolicy Policy { get; set; } = DestructiveActionPolicy.Error;
+    public PolicyEnforcement Policy { get; set; } = PolicyEnforcement.Error;
 }

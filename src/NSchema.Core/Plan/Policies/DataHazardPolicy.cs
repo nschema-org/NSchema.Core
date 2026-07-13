@@ -1,24 +1,26 @@
 using Microsoft.Extensions.Options;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Plan.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 
-namespace NSchema.Diff.Policies;
+namespace NSchema.Plan.Policies;
 
 /// <summary>
-/// A diff policy that flags changes which are valid against the schema but can fail at apply time depending on the data already in the table.
+/// A plan policy that flags changes which are valid against the schema but can fail at apply time depending on the data already in the table.
 /// </summary>
 /// <remarks>
 /// Examples of diagnostics: required columns added without a default, columns tightened to NOT NULL, type changes
 /// whose cast can fail, and uniqueness added over pre-existing columns. Each hazard is reported as its own
 /// diagnostic, at the severity configured by <see cref="DataHazardOptions"/>.
 /// </remarks>
-internal sealed class DataHazardDiffPolicy(IOptions<DataHazardOptions> options) : IDiffPolicy
+internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IPlanPolicy
 {
     private const string PolicyName = "data-hazards";
 
-    public IEnumerable<Diagnostic> Validate(DatabaseDiff diff)
+    public IEnumerable<Diagnostic> Validate(MigrationPlan plan)
     {
+        var diff = plan.Diff;
         if (options.Value.Policy == PolicyEnforcement.Ignore)
         {
             return [];

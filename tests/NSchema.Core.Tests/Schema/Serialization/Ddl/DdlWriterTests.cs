@@ -153,7 +153,7 @@ public sealed class DdlWriterTests
             Tables: [new Table("t", Columns: [new Column("id", SqlType.Int)])],
             Views: [new View("active", "SELECT 1")])]);
 
-        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema, declareSchemas: false)).Schema;
+        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema, declareSchemas: false)).Require().Schema;
 
         var app = reparsed.Schemas.ShouldHaveSingleItem();
         app.Tables.ShouldHaveSingleItem().Name.ShouldBe("t");
@@ -178,7 +178,7 @@ public sealed class DdlWriterTests
     public void Write_ThenParse_PreservesModelStructurally()
     {
         var original = TestData.RichSchema();
-        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(original)).Schema;
+        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(original)).Require().Schema;
         Canonical(reparsed).ShouldBe(Canonical(original));
     }
 
@@ -186,7 +186,7 @@ public sealed class DdlWriterTests
     public void Write_IsStableThroughParseRoundTrip()
     {
         var ddl = DdlWriter.Instance.Write(TestData.RichSchema());
-        var reEmitted = DdlWriter.Instance.Write(DdlReader.Instance.Read(ddl).Schema);
+        var reEmitted = DdlWriter.Instance.Write(DdlReader.Instance.Read(ddl).Require().Schema);
         reEmitted.ShouldBe(ddl);
     }
 
@@ -230,7 +230,7 @@ public sealed class DdlWriterTests
         var schema = new DatabaseSchema([new SchemaDefinition("app",
             Tables: [new Table("users", Columns: [new Column("id", SqlType.Int)], Triggers: [trigger])])]);
 
-        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema;
+        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Require().Schema;
         var roundTripped = reparsed.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Triggers.ShouldHaveSingleItem();
         roundTripped.ShouldBe(trigger);            // structural equality (excludes the comment)
         roundTripped.Comment.ShouldBe("note");     // ... so assert the comment round-tripped too
@@ -251,7 +251,7 @@ public sealed class DdlWriterTests
         var schema = new DatabaseSchema([new SchemaDefinition("app",
             Tables: [new Table("users", Columns: [new Column("id", SqlType.Int)], Triggers: [trigger])])]);
 
-        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema;
+        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Require().Schema;
         var roundTripped = reparsed.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Triggers.ShouldHaveSingleItem();
         roundTripped.ShouldBe(trigger);
         roundTripped.Body.ShouldBe(trigger.Body);
@@ -292,7 +292,7 @@ public sealed class DdlWriterTests
     {
         var schema = new DatabaseSchema(Extensions:
             [new Extension("citext"), new Extension("uuid-ossp", Comment: "ids"), new Extension("postgis", Version: "3.4")]);
-        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema;
+        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Require().Schema;
         reparsed.Extensions.ShouldBe(schema.Extensions);
     }
 
@@ -313,8 +313,8 @@ public sealed class DdlWriterTests
     public void Write_View_RoundTripsThroughParse()
     {
         var source = "CREATE SCHEMA app;\n\nCREATE VIEW app.active AS SELECT id, name FROM app.users WHERE active;\n";
-        var reEmitted = DdlWriter.Instance.Write(DdlReader.Instance.Read(source).Schema);
-        var reparsed = DdlReader.Instance.Read(reEmitted).Schema;
+        var reEmitted = DdlWriter.Instance.Write(DdlReader.Instance.Read(source).Require().Schema);
+        var reparsed = DdlReader.Instance.Read(reEmitted).Require().Schema;
 
         var view = reparsed.Schemas.ShouldHaveSingleItem().Views.ShouldHaveSingleItem();
         view.Name.ShouldBe("active");
@@ -352,7 +352,7 @@ public sealed class DdlWriterTests
             Domains: [new DomainDefinition("email", SqlType.Text, Default: "'x@y'", NotNull: true,
                 Checks: [new CheckConstraint("email_fmt", "VALUE ~ '@'")], OldName: "addr", Comment: "an email")])]);
 
-        var domain = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema
+        var domain = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Require().Schema
             .Schemas.ShouldHaveSingleItem().Domains.ShouldHaveSingleItem();
         domain.DataType.ShouldBe(SqlType.Text);
         domain.NotNull.ShouldBeTrue();
@@ -382,7 +382,7 @@ public sealed class DdlWriterTests
             CompositeTypes: [new CompositeType("address", [new CompositeField("street", SqlType.Text), new CompositeField("zip", SqlType.Int)],
                 OldName: "legacy_address", Comment: "a postal address")])]);
 
-        var type = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema
+        var type = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Require().Schema
             .Schemas.ShouldHaveSingleItem().CompositeTypes.ShouldHaveSingleItem();
         type.Name.ShouldBe("address");
         type.Fields.Count.ShouldBe(2);
@@ -414,7 +414,7 @@ public sealed class DdlWriterTests
             Views: [new View("daily", "SELECT x FROM app.t", IsMaterialized: true,
                 Indexes: [new TableIndex("daily_ix", ["x"])])])]);
 
-        var view = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema
+        var view = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Require().Schema
             .Schemas.ShouldHaveSingleItem().Views.ShouldHaveSingleItem();
         view.IsMaterialized.ShouldBeTrue();
         view.Indexes.ShouldHaveSingleItem().Name.ShouldBe("daily_ix");

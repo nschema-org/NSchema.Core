@@ -14,6 +14,6 @@ internal sealed class ValidateOperation(IMigrationWorkflow workflow, IProgress<O
         progress.Report(OperationProgress.Step("Validating schema. No database or state store will be contacted."));
 
         var findings = await workflow.Validate(cancellationToken);
-        return Result.Success(new ValidateResult(findings));
+        return Result.From(new ValidateResult(), findings.Diagnostics);
     }
 }

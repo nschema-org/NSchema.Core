@@ -1,9 +1,9 @@
 using NSchema.Apply;
 using NSchema.Current.Storage;
-using NSchema.Diff.Policies;
 using NSchema.Operations.Progress;
 using NSchema.Operations.Workflow;
 using NSchema.Plan.Domain.Models;
+using NSchema.Plan.Policies;
 
 namespace NSchema.Operations;
 
@@ -13,7 +13,7 @@ namespace NSchema.Operations;
 internal sealed class ApplyOperation(
     IMigrationWorkflow workflow,
     IProgress<OperationProgress> progress,
-    IEnumerable<IDiffPolicy> diffPolicies,
+    IEnumerable<IPlanPolicy> planPolicies,
     ISchemaStateManager stateManager,
     ISqlExecutor? sqlExecutor = null
 ) : IOperation<ApplyArguments, Result<ApplyResult>>
@@ -24,19 +24,17 @@ internal sealed class ApplyOperation(
         // recorded is refused up front. A disposable database opts out explicitly with ephemeral state.
         if (!stateManager.IsConfigured)
         {
-            return Result.Failure<ApplyResult>(Diagnostic.Error("apply",
-                "Applying a plan requires a state store to record the run. Register one, or declare the database disposable with ephemeral state."));
+            return Result.Failure<ApplyResult>(ApplyDiagnostics.StoreRequired);
         }
 
         // Make sure policies are enforced at the point of execution.
-        var findings = diffPolicies.SelectMany(p => p.Validate(args.Plan.Diff)).ToList();
+        var findings = planPolicies.SelectMany(p => p.Validate(args.Plan)).ToList();
         if (findings.Any(f => f.Severity == DiagnosticSeverity.Error))
         {
             // Demote errors to warnings if the apply is forced.
             if (!args.Force)
             {
-                return Result.Failure<ApplyResult>(findings.Append(Diagnostic.Error("apply",
-                    "The plan is blocked by policy and was not applied. Re-run with force to apply it anyway.")));
+                return Result.Failure<ApplyResult>(findings.Append(ApplyDiagnostics.BlockedByPolicy));
             }
             findings = [.. findings.Select(f => f.Downgrade(DiagnosticSeverity.Warning))];
         }
@@ -50,7 +48,7 @@ internal sealed class ApplyOperation(
 
         if (sqlExecutor is null)
         {
-            return Result.Failure<ApplyResult>(Diagnostic.Error("apply", "Applying a plan requires a database provider to execute SQL, but none is registered."));
+            return Result.Failure<ApplyResult>(ApplyDiagnostics.MissingExecutor);
         }
 
         progress.Report(OperationProgress.Step("Applying the migration plan..."));

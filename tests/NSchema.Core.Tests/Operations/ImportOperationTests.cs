@@ -37,8 +37,8 @@ public sealed class ImportOperationTests : IDisposable
     public void Dispose() => Directory.Delete(_dir, recursive: true);
 
     private void Source(DatabaseSchema schema) => _currentSchema
-        .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-        .Returns(ValueTask.FromResult(schema));
+        .GetSchema(Arg.Any<SchemaSourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
+        .Returns(Result.Success(schema));
 
     private ImportOperation BuildSut() => new(_currentSchema, _progress);
 
@@ -48,7 +48,7 @@ public sealed class ImportOperationTests : IDisposable
     private static async Task<DatabaseSchema> ReadSchema(string path)
     {
         var text = await File.ReadAllTextAsync(path);
-        return DdlReader.Instance.Read(text).Schema;
+        return DdlReader.Instance.Read(text).Require().Schema;
     }
 
     private string ObjectPath(string type, string name) => Path.Combine(_dir, "app", type, $"{name}.sql");
@@ -87,18 +87,18 @@ public sealed class ImportOperationTests : IDisposable
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
         await _currentSchema.Received(1).GetSchema(
-            SchemaSourceMode.Online, Arg.Any<string[]?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+            SchemaSourceMode.Online, Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Execute_PassesSchemaFilterToSource()
     {
-        var arguments = new ImportArguments { OutputDirectory = _dir, Schemas = ["app", "audit"] };
+        var arguments = new ImportArguments { OutputDirectory = _dir, Scope = SchemaScope.Of("app", "audit") };
 
         await Execute(arguments);
 
         await _currentSchema.Received(1).GetSchema(
-            SchemaSourceMode.Online, arguments.Schemas, Arg.Any<bool>(), Arg.Any<CancellationToken>());
+            SchemaSourceMode.Online, arguments.Scope, Arg.Any<CancellationToken>());
     }
 
     [Fact]

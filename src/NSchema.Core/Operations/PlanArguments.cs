@@ -1,3 +1,5 @@
+using NSchema.Project.Domain.Models;
+
 namespace NSchema.Operations;
 
 /// <summary>
@@ -9,7 +11,7 @@ public sealed record PlanArguments
     /// The schemas to scope the plan to. When <see langword="null"/>, scope is derived from the desired schema.
     /// Ignored for a <see cref="PlanTarget.Teardown"/>, which is unscoped.
     /// </summary>
-    public string[]? Schemas { get; init; }
+    public SchemaScope Scope { get; init; } = SchemaScope.All;
 
     /// <summary>
     /// When set, the computed plan is written to this file path so it can be applied later.

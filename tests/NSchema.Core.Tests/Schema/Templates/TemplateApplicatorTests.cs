@@ -13,7 +13,7 @@ public sealed class TemplateApplicatorTests
 
     private static Result<ProjectDefinition> Apply(string source)
     {
-        var document = DdlReader.Instance.Read(source);
+        var document = DdlReader.Instance.Read(source).Require();
         return TemplateApplicator.Apply(new ProjectDefinition(document.Schema, document.Scripts), document.Templates);
     }
 
@@ -424,7 +424,7 @@ public sealed class TemplateApplicatorTests
               SCRIPT 'backfill trace' RUN ON ADD COLUMN outbox_events.trace_id AS $$ UPDATE {schema}.outbox_events SET trace_id = ''; $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales, billing;
-            """);
+            """).Require();
 
         // Act
         var instances = TemplateApplicator.Apply(new ProjectDefinition(document.Schema, document.Scripts), document.Templates).Require().Scripts;
@@ -450,7 +450,7 @@ public sealed class TemplateApplicatorTests
               CREATE TABLE outbox_events ( id int NOT NULL );
               SCRIPT 'backfill {schema}' RUN ON ADD COLUMN outbox_events.trace_id AS $$ SELECT 1; $$;
             END;
-            """);
+            """).Require();
 
         // Act
         var instances = TemplateApplicator.Apply(new ProjectDefinition(document.Schema, document.Scripts), document.Templates).Require().Scripts;
@@ -472,7 +472,7 @@ public sealed class TemplateApplicatorTests
               SCRIPT 'version {schema}' RUN ON ADD COLUMN outbox_events.trace_id (run_outside_transaction = true) AS $$ SELECT version(); $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales;
-            """);
+            """).Require();
 
         // Act
         var migration = TemplateApplicator.Apply(new ProjectDefinition(document.Schema, document.Scripts), document.Templates).Require().Scripts.ShouldHaveSingleItem();
@@ -496,7 +496,7 @@ public sealed class TemplateApplicatorTests
               SCRIPT 'seed {schema}' RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales, billing;
-            """);
+            """).Require();
 
         // Act
         var scripts = TemplateApplicator.Apply(new ProjectDefinition(document.Schema, document.Scripts), document.Templates).Require().Scripts;

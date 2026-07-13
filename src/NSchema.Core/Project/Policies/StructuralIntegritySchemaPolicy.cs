@@ -7,13 +7,14 @@ namespace NSchema.Project.Policies;
 /// <summary>
 /// Validates that every primary key, index, and foreign key references columns and tables that actually exist within the document.
 /// </summary>
-internal sealed class StructuralIntegritySchemaPolicy : ISchemaPolicy
+internal sealed class StructuralIntegritySchemaPolicy : IProjectPolicy
 {
     private const string PolicyName = "structural-integrity";
 
     /// <inheritdoc />
-    public IEnumerable<Diagnostic> Validate(DatabaseSchema schema)
+    public IEnumerable<Diagnostic> Validate(ProjectDefinition project)
     {
+        var schema = project.Schema;
         var managedSchemas = new HashSet<string>(schema.Schemas.Select(s => s.Name), StringComparer.OrdinalIgnoreCase);
         var partialSchemas = new HashSet<string>(
             schema.Schemas.Where(s => s.IsPartial).Select(s => s.Name), StringComparer.OrdinalIgnoreCase);

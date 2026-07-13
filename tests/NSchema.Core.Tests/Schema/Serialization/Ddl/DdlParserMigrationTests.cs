@@ -10,7 +10,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 public sealed class DdlParserMigrationTests
 {
     private static IReadOnlyList<Script> ReadMigrations(string source) =>
-        DdlReader.Instance.Read(source).Scripts.Where(s => s.Event is ChangeEvent).ToList();
+        new DdlParser(source).Parse().Scripts.Where(s => s.Event is ChangeEvent).ToList();
 
     [Fact]
     public void Parse_AddColumnTrigger_CapturesTriggerAndPathParts()
@@ -117,14 +117,14 @@ public sealed class DdlParserMigrationTests
     public void Parse_MigrationInsideTemplateBody_BindsToThePlaceholderSchema()
     {
         // Arrange — inside a template the path is unqualified (table.member); the schema binds per application.
-        var document = DdlReader.Instance.Read(
+        var document = new DdlParser(
             """
             TEMPLATE t
             BEGIN
               CREATE TABLE users ( id int NOT NULL );
               SCRIPT 'backfill' RUN ON ADD COLUMN users.email (run_outside_transaction = true) AS $$ UPDATE {schema}.users SET email = ''; $$;
             END;
-            """);
+            """).Parse();
 
         // Assert — the migration rides the definition, not the document's top-level list.
         document.Scripts.ShouldBeEmpty();
@@ -153,13 +153,13 @@ public sealed class DdlParserMigrationTests
     public void Parse_TemplateMigrationForUndeclaredTable_IsAccepted()
         // The table may come from another template applied to the same schemas (e.g. a migration rolled out
         // to only some instances); whether the change matches is decided at diff time, not parse time.
-        => Should.NotThrow(() => DdlReader.Instance.Read(
+        => Should.NotThrow(() => new DdlParser(
             """
             TEMPLATE t
             BEGIN
               SCRIPT 'x' RUN ON ADD COLUMN orders.total AS $$ SELECT 1; $$;
             END;
-            """));
+            """).Parse());
 
     [Fact]
     public void Parse_MigrationInsideTableTemplateBody_IsRejected()

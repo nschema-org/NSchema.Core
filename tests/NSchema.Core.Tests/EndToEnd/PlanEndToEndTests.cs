@@ -31,7 +31,7 @@ public sealed class PlanEndToEndTests : IDisposable
     private NSchemaApplicationBuilder NewBuilder(DatabaseSchema current)
     {
         var builder = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions());
-        builder.Services.AddSingleton<ISchemaProvider>(new InMemorySchemaProvider(current));
+        builder.Services.AddSingleton<ISchemaIntrospector>(new InMemoryIntrospector(current));
         // Planning requires a state store; these tests diff against the live provider, so an empty in-memory one suffices.
         builder.UseEphemeralState();
         return builder;

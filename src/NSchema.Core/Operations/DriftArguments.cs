@@ -1,3 +1,5 @@
+using NSchema.Project.Domain.Models;
+
 namespace NSchema.Operations;
 
 /// <summary>
@@ -8,5 +10,5 @@ public sealed record DriftArguments
     /// <summary>
     /// The schemas to scope the drift check to. When <see langword="null"/>, the whole recorded state is checked.
     /// </summary>
-    public string[]? Schemas { get; init; }
+    public SchemaScope Scope { get; init; } = SchemaScope.All;
 }

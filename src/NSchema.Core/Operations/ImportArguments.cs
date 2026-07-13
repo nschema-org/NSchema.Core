@@ -1,3 +1,5 @@
+using NSchema.Project.Domain.Models;
+
 namespace NSchema.Operations;
 
 /// <summary>
@@ -8,7 +10,7 @@ public sealed record ImportArguments
     /// <summary>
     /// The schema namespaces to import. When <see langword="null"/>, all namespaces are imported.
     /// </summary>
-    public string[]? Schemas { get; init; }
+    public SchemaScope Scope { get; init; } = SchemaScope.All;
 
     /// <summary>
     /// The root directory to write the imported schema into. Defaults to the current directory.

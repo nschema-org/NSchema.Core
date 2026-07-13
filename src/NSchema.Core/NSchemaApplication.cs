@@ -16,20 +16,20 @@ public sealed class NSchemaApplication : IDisposable
 {
     private readonly IHost _host;
     private readonly Lazy<INSchemaOperations> _operations;
-    private readonly Lazy<IStateLockCoordinator> _locks;
+    private readonly Lazy<IStateLockManager> _locks;
     private readonly Lazy<ICurrentSchemaProvider> _currentSchema;
     private readonly Lazy<IProjectProvider> _project;
-    private readonly Lazy<IPlanFileWriter> _planFile;
+    private readonly Lazy<IPlanFileManager> _planFile;
     private readonly Lazy<ISchemaStateManager> _state;
 
     internal NSchemaApplication(IHost host)
     {
         _host = host;
         _operations = new Lazy<INSchemaOperations>(() => _host.Services.GetRequiredService<INSchemaOperations>());
-        _locks = new Lazy<IStateLockCoordinator>(() => _host.Services.GetRequiredService<IStateLockCoordinator>());
+        _locks = new Lazy<IStateLockManager>(() => _host.Services.GetRequiredService<IStateLockManager>());
         _currentSchema = new Lazy<ICurrentSchemaProvider>(() => _host.Services.GetRequiredService<ICurrentSchemaProvider>());
         _project = new Lazy<IProjectProvider>(() => _host.Services.GetRequiredService<IProjectProvider>());
-        _planFile = new Lazy<IPlanFileWriter>(() => _host.Services.GetRequiredService<IPlanFileWriter>());
+        _planFile = new Lazy<IPlanFileManager>(() => _host.Services.GetRequiredService<IPlanFileManager>());
         _state = new Lazy<ISchemaStateManager>(() => _host.Services.GetRequiredService<ISchemaStateManager>());
     }
 
@@ -46,7 +46,7 @@ public sealed class NSchemaApplication : IDisposable
     /// <summary>
     /// Takes the state lock around an operation.
     /// </summary>
-    public IStateLockCoordinator Locks => _locks.Value;
+    public IStateLockManager Locks => _locks.Value;
 
     /// <summary>
     /// Reads the current schema, the recorded (offline) state or the live (online) database.
@@ -61,7 +61,7 @@ public sealed class NSchemaApplication : IDisposable
     /// <summary>
     /// Reads and writes saved plan files.
     /// </summary>
-    public IPlanFileWriter PlanFile => _planFile.Value;
+    public IPlanFileManager PlanFile => _planFile.Value;
 
     /// <summary>
     /// Reads and writes the recorded state.

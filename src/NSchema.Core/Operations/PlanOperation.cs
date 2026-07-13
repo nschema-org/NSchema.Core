@@ -7,18 +7,18 @@ namespace NSchema.Operations;
 /// <summary>
 /// Computes a migration plan.
 /// </summary>
-internal sealed class PlanOperation(IMigrationWorkflow workflow, IPlanFileWriter planFile)
+internal sealed class PlanOperation(IMigrationWorkflow workflow, IPlanFileManager planFile)
     : IOperation<PlanArguments, Result<PlanResult>>
 {
     public async Task<Result<PlanResult>> Execute(PlanArguments args, CancellationToken cancellationToken = default)
     {
-        // A teardown reads the managed schema (recorded, or the desired files); a preview reads the recorded state with
-        // a live fallback; an apply must read the live database.
+        // A teardown reads the managed (recorded) schema; a preview reads the recorded state; an apply must read
+        // the live database.
         var planned = args.Target switch
         {
             PlanTarget.Teardown => await workflow.ComputeTeardown(cancellationToken),
-            PlanTarget.Live => await workflow.ComputePlan(SchemaSourceMode.Online, required: true, args.Schemas, cancellationToken),
-            _ => await workflow.ComputePlan(SchemaSourceMode.Offline, required: false, args.Schemas, cancellationToken),
+            PlanTarget.Live => await workflow.ComputePlan(SchemaSourceMode.Online, args.Scope, cancellationToken),
+            _ => await workflow.ComputePlan(SchemaSourceMode.Offline, args.Scope, cancellationToken),
         };
 
         if (planned.Value is { } plan && args.OutFile is not null)

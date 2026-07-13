@@ -42,7 +42,7 @@ public sealed class RefreshEndToEndTests : IDisposable
         var store = new RecordingStateStore();
         using var app = NSchemaApplication.CreateBuilder()
             .UseStateStore(store)
-            .Tap(b => b.Services.AddSingleton<ISchemaProvider>(new InMemorySchemaProvider(LiveSchema())))
+            .Tap(b => b.Services.AddSingleton<ISchemaIntrospector>(new InMemoryIntrospector(LiveSchema())))
             .UseSqlDialect<StubSqlDialect>().Build();
 
         await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken);
@@ -56,7 +56,7 @@ public sealed class RefreshEndToEndTests : IDisposable
         // 1. Capture the live schema to the store via Refresh.
         using (var capture = NSchemaApplication.CreateBuilder()
             .UseFileStateStore(_statePath)
-            .Tap(b => b.Services.AddSingleton<ISchemaProvider>(new InMemorySchemaProvider(LiveSchema())))
+            .Tap(b => b.Services.AddSingleton<ISchemaIntrospector>(new InMemoryIntrospector(LiveSchema())))
             .Build())
         {
             await capture.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken);

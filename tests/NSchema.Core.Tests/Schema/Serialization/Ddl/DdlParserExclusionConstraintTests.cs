@@ -10,7 +10,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 public sealed class DdlParserExclusionConstraintTests
 {
     private static ExclusionConstraint ParseExclusion(string constraint) =>
-        DdlReader.Instance.Read($"CREATE TABLE app.bookings (room int, during int, {constraint});").Schema
+        new DdlParser($"CREATE TABLE app.bookings (room int, during int, {constraint});").Parse().Schema
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().ExclusionConstraints.ShouldHaveSingleItem();
 
     [Fact]
@@ -53,11 +53,11 @@ public sealed class DdlParserExclusionConstraintTests
     [Fact]
     public void Parse_Exclusion_RoundTripsThroughWriter()
     {
-        var schema = DdlReader.Instance.Read(
+        var schema = new DdlParser(
             "CREATE TABLE app.bookings (room int, during int, " +
-            "CONSTRAINT no_overlap EXCLUDE USING gist (room WITH =, during WITH &&) WHERE (room > 0));").Schema;
+            "CONSTRAINT no_overlap EXCLUDE USING gist (room WITH =, during WITH &&) WHERE (room > 0));").Parse().Schema;
 
-        var exclusion = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema
+        var exclusion = new DdlParser(DdlWriter.Instance.Write(schema)).Parse().Schema
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().ExclusionConstraints.ShouldHaveSingleItem();
         exclusion.Name.ShouldBe("no_overlap");
         exclusion.Method.ShouldBe("gist");

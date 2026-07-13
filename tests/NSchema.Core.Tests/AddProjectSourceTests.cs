@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileSystemGlobbing;
 using NSchema.Project;
+using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
 
@@ -22,12 +23,12 @@ public sealed class AddProjectSourceTests : IDisposable
     }
 
     // Resolves the desired project the way the operations do — through the aggregated IProjectProvider.
-    private static async Task<ProjectDefinition> ResolveProject(Action<NSchemaApplicationBuilder> configure, string[]? scope = null)
+    private static async Task<ProjectDefinition> ResolveProject(Action<NSchemaApplicationBuilder> configure, SchemaScope? scope = null)
     {
         var builder = NSchemaApplication.CreateBuilder();
         configure(builder);
         using var app = builder.Build();
-        return (await app.Services.GetRequiredService<IProjectProvider>().GetProject(scope, TestContext.Current.CancellationToken)).Value!;
+        return (await app.Services.GetRequiredService<IProjectProvider>().GetProject(scope ?? SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
     }
 
     private static async Task<List<string>> ResolveSchemaNames(Action<NSchemaApplicationBuilder> configure) =>
@@ -87,14 +88,19 @@ public sealed class AddProjectSourceTests : IDisposable
     }
 
     [Fact]
-    public async Task AddSqlSchemas_MatchingNothing_Throws()
+    public async Task AddSqlSchemas_MatchingNothing_FailsTheRead()
     {
         // Planning against an empty desired schema would read as "drop everything", so a pattern that
         // resolves to no files is a configuration error rather than an empty schema.
-        var ex = await Should.ThrowAsync<FileNotFoundException>(
-            () => ResolveSchemaNames(b => b.AddProjectSource(_root)));
+        var builder = NSchemaApplication.CreateBuilder();
+        builder.AddProjectSource(_root);
+        using var app = builder.Build();
 
-        ex.Message.ShouldContain("No SQL DDL files matched");
+        var project = await app.Services.GetRequiredService<IProjectProvider>()
+            .GetProject(SchemaScope.All, TestContext.Current.CancellationToken);
+
+        project.IsFailure.ShouldBeTrue();
+        project.Errors.ShouldHaveSingleItem().ShouldBe(ProjectDiagnostics.NoFilesMatched());
     }
 
     [Fact]
@@ -102,7 +108,7 @@ public sealed class AddProjectSourceTests : IDisposable
     {
         File.WriteAllText(Path.Combine(_root, "multi.sql"), "CREATE SCHEMA app; CREATE SCHEMA audit;");
 
-        var project = await ResolveProject(b => b.AddProjectSource(_root), scope: ["app"]);
+        var project = await ResolveProject(b => b.AddProjectSource(_root), scope: SchemaScope.Of("app"));
 
         project.Schema.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
@@ -143,7 +149,7 @@ public sealed class AddProjectSourceTests : IDisposable
         app.Services.GetServices<ProjectSource>().ShouldHaveSingleItem();
         WriteSchemaFile("late.sql", "late");
 
-        var project = (await app.Services.GetRequiredService<IProjectProvider>().GetProject(cancellationToken: TestContext.Current.CancellationToken)).Value!;
+        var project = (await app.Services.GetRequiredService<IProjectProvider>().GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
         project.Schema.Schemas.Select(s => s.Name).ShouldBe(["late"]);
     }
 }

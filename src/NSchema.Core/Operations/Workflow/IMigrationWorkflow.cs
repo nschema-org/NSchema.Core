@@ -1,6 +1,6 @@
 using NSchema.Current;
 using NSchema.Plan.Domain.Models;
-using NSchema.Policies;
+using NSchema.Project.Domain.Models;
 
 namespace NSchema.Operations.Workflow;
 
@@ -14,16 +14,15 @@ internal interface IMigrationWorkflow
     /// Validates the desired schema against the schema policies.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<PolicyDiagnostics> Validate(CancellationToken cancellationToken = default);
+    Task<Result> Validate(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Loads the desired and current schemas and computes the migration plan.
     /// </summary>
     /// <param name="currentSource">Which source to read the current schema from.</param>
-    /// <param name="required">Whether <paramref name="currentSource"/> must be available, or may fall back to the other source.</param>
-    /// <param name="schemas">The schemas to scope to, or <see langword="null"/> to derive scope from the desired schema.</param>
+    /// <param name="scope">The schemas under management this run.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<Result<MigrationPlan>> ComputePlan(SchemaSourceMode currentSource, bool required, string[]? schemas, CancellationToken cancellationToken = default);
+    Task<Result<MigrationPlan>> ComputePlan(SchemaSourceMode currentSource, SchemaScope scope, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Computes the teardown plan for the managed schema.

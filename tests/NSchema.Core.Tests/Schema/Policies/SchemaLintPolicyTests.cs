@@ -4,6 +4,7 @@ using NSchema.Project.Domain.Models.Indexes;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Policies;
+using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Schema.Policies;
 

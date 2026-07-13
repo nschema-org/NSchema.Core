@@ -1,13 +1,15 @@
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Enums;
 using NSchema.Diff.Domain.Models.Schemas;
-using NSchema.Diff.Policies;
+using NSchema.Plan.Policies;
 
-namespace NSchema.Tests.Diff.Policies;
+using NSchema.Tests.Helpers;
 
-public sealed class EnumValueRemovalDiffPolicyTests
+namespace NSchema.Tests.Plan.Policies;
+
+public sealed class EnumValueRemovalPolicyTests
 {
-    private readonly EnumValueRemovalDiffPolicy _sut = new();
+    private readonly EnumValueRemovalPolicy _sut = new();
 
     private static DatabaseDiff DiffWithEnum(EnumDiff enumDiff) =>
         new([new SchemaDiff("app", Enums: [enumDiff])]);
