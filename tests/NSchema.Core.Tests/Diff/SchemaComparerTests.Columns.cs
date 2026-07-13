@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Diff.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Tables;
@@ -14,8 +15,8 @@ public partial class SchemaComparerTests
     public void Compare_ColumnInCurrentButNotDesired_IsRemoved()
     {
         var table = DiffTable(
-            new Table("users", Columns: [new Column("id", SqlType.Int), new Column("email", SqlType.Text)]),
-            new Table("users", Columns: [new Column("id", SqlType.Int)]));
+            new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int), new Column(new SqlIdentifier("email"), SqlType.Text)]),
+            new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]));
 
         var column = table!.Columns.ShouldHaveSingleItem();
         column.Name.ShouldBe("email");
@@ -26,7 +27,7 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_ColumnRename_SetsRenamedFrom()
     {
-        var column = DiffColumn(new Column("mail", SqlType.Text), new Column("email", SqlType.Text, OldName: "mail"));
+        var column = DiffColumn(new Column(new SqlIdentifier("mail"), SqlType.Text), new Column(new SqlIdentifier("email"), SqlType.Text, OldName: new SqlIdentifier("mail")));
 
         column!.RenamedFrom.ShouldBe("mail");
         column.Kind.ShouldBe(ChangeKind.Modify);
@@ -35,7 +36,7 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_ColumnTypeChange_IsReportedInIsolation()
     {
-        var column = DiffColumn(new Column("total", SqlType.Int), new Column("total", SqlType.BigInt));
+        var column = DiffColumn(new Column(new SqlIdentifier("total"), SqlType.Int), new Column(new SqlIdentifier("total"), SqlType.BigInt));
 
         column!.Type.ShouldBe(new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt));
         column.Nullability.ShouldBeNull();
@@ -45,7 +46,7 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_ColumnDefaultChange_IsReported()
     {
-        var column = DiffColumn(new Column("status", SqlType.Text), new Column("status", SqlType.Text, DefaultExpression: "'new'"));
+        var column = DiffColumn(new Column(new SqlIdentifier("status"), SqlType.Text), new Column(new SqlIdentifier("status"), SqlType.Text, DefaultExpression: "'new'"));
 
         column!.Default.ShouldBe(new ValueChange<string>(null, "'new'"));
     }
@@ -56,8 +57,8 @@ public partial class SchemaComparerTests
         // The desired column rides along on a modified column's Definition so a dialect whose in-place ALTER COLUMN
         // must restate the whole column (SQL Server) can read the final type and nullability together.
         var column = DiffColumn(
-            new Column("total", SqlType.Int, IsNullable: false),
-            new Column("total", SqlType.BigInt, IsNullable: false));
+            new Column(new SqlIdentifier("total"), SqlType.Int, IsNullable: false),
+            new Column(new SqlIdentifier("total"), SqlType.BigInt, IsNullable: false));
 
         column!.Definition.ShouldNotBeNull();
         column.Definition!.Type.ShouldBe(SqlType.BigInt);
@@ -67,8 +68,8 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_IdentityOptionsChange_IsReported_WhenBothColumnsAreIdentity()
     {
-        var current = new Column("id", SqlType.Int, IsIdentity: true, IdentityOptions: new IdentityOptions(1, 1, 1));
-        var desired = new Column("id", SqlType.Int, IsIdentity: true, IdentityOptions: new IdentityOptions(100, 1, 1));
+        var current = new Column(new SqlIdentifier("id"), SqlType.Int, IsIdentity: true, IdentityOptions: new IdentityOptions(1, 1, 1));
+        var desired = new Column(new SqlIdentifier("id"), SqlType.Int, IsIdentity: true, IdentityOptions: new IdentityOptions(100, 1, 1));
 
         var column = DiffColumn(current, desired);
 
@@ -78,8 +79,8 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_IdentityEnabled_ReportsChangeFromNullToDesiredOptions()
     {
-        var current = new Column("id", SqlType.Int);
-        var desired = new Column("id", SqlType.Int, IsIdentity: true, IdentityOptions: new IdentityOptions(1, 1, 1));
+        var current = new Column(new SqlIdentifier("id"), SqlType.Int);
+        var desired = new Column(new SqlIdentifier("id"), SqlType.Int, IsIdentity: true, IdentityOptions: new IdentityOptions(1, 1, 1));
 
         var column = DiffColumn(current, desired);
 
@@ -89,8 +90,8 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_IdentityDisabled_ReportsChangeFromCurrentOptionsToNull()
     {
-        var current = new Column("id", SqlType.Int, IsIdentity: true, IdentityOptions: new IdentityOptions(1, 1, 1));
-        var desired = new Column("id", SqlType.Int);
+        var current = new Column(new SqlIdentifier("id"), SqlType.Int, IsIdentity: true, IdentityOptions: new IdentityOptions(1, 1, 1));
+        var desired = new Column(new SqlIdentifier("id"), SqlType.Int);
 
         var column = DiffColumn(current, desired);
 
@@ -99,14 +100,14 @@ public partial class SchemaComparerTests
 
     [Fact]
     public void Compare_UnchangedColumn_ProducesNoDiff()
-        => DiffColumn(new Column("id", SqlType.Int), new Column("id", SqlType.Int)).ShouldBeNull();
+        => DiffColumn(new Column(new SqlIdentifier("id"), SqlType.Int), new Column(new SqlIdentifier("id"), SqlType.Int)).ShouldBeNull();
 
     [Fact]
     public void Compare_GenerationExpressionAdded_IsReported()
     {
         var column = DiffColumn(
-            new Column("area", SqlType.Int),
-            new Column("area", SqlType.Int, GeneratedExpression: "w * h"));
+            new Column(new SqlIdentifier("area"), SqlType.Int),
+            new Column(new SqlIdentifier("area"), SqlType.Int, GeneratedExpression: "w * h"));
 
         column!.Generated.ShouldBe(new ValueChange<string>(null, "w * h"));
     }
@@ -115,8 +116,8 @@ public partial class SchemaComparerTests
     public void Compare_GenerationExpressionChanged_IsReported()
     {
         var column = DiffColumn(
-            new Column("area", SqlType.Int, GeneratedExpression: "w * h"),
-            new Column("area", SqlType.Int, GeneratedExpression: "w * h * 2"));
+            new Column(new SqlIdentifier("area"), SqlType.Int, GeneratedExpression: "w * h"),
+            new Column(new SqlIdentifier("area"), SqlType.Int, GeneratedExpression: "w * h * 2"));
 
         column!.Generated.ShouldBe(new ValueChange<string>("w * h", "w * h * 2"));
     }
@@ -124,6 +125,6 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_UnchangedGeneratedColumn_ProducesNoDiff()
         => DiffColumn(
-            new Column("area", SqlType.Int, GeneratedExpression: "w * h"),
-            new Column("area", SqlType.Int, GeneratedExpression: "w * h")).ShouldBeNull();
+            new Column(new SqlIdentifier("area"), SqlType.Int, GeneratedExpression: "w * h"),
+            new Column(new SqlIdentifier("area"), SqlType.Int, GeneratedExpression: "w * h")).ShouldBeNull();
 }

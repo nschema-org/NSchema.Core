@@ -58,7 +58,7 @@ public sealed class DdlParserTableTests
         => Column("data jsonb").Type.ShouldBe(SqlType.Custom("jsonb"));
 
     [Fact]
-    public void Column_SchemaQualifiedType_CapturesQualifiedName()
+    public void Column_SchemaQualifiedType_CapturesObjectReference()
         => Column("state app.status").Type.ShouldBe(SqlType.Custom("app.status"));
 
     [Fact]
@@ -278,12 +278,12 @@ public sealed class DdlParserTableTests
         table.OldName.ShouldBe("line_items");
         table.Comment.ShouldBe("Line items for an order.");
         table.Columns.Select(c => c.Name).ShouldBe(["order_id", "product_id", "quantity", "note"]);
-        table.Columns.Single(c => c.Name == "quantity").DefaultExpression.ShouldBe("1");
-        table.Columns.Single(c => c.Name == "note").OldName.ShouldBe("comment");
+        table.Columns.Single(c => c.Name.Value.Equals("quantity")).DefaultExpression.ShouldBe("1");
+        table.Columns.Single(c => c.Name.Value.Equals("note")).OldName.ShouldBe("comment");
         table.PrimaryKey!.ColumnNames.ShouldBe(["order_id", "product_id"]);
         table.ForeignKeys.Single().ReferencedTable.ShouldBe("orders");
         table.CheckConstraints.Single().Expression.ShouldBe("quantity > 0");
-        table.Indexes.Select(i => (i.Name, i.IsUnique)).ShouldBe([("ix_product", false), ("ux_note", true)]);
-        table.Indexes.Single(i => i.Name == "ux_note").Predicate.ShouldBe("note IS NOT NULL");
+        table.Indexes.Select(i => (i.Name.Value, i.IsUnique)).ShouldBe([("ix_product", false), ("ux_note", true)]);
+        table.Indexes.Single(i => i.Name.Value.Equals("ux_note")).Predicate.ShouldBe("note IS NOT NULL");
     }
 }

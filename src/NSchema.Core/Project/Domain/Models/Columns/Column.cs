@@ -16,12 +16,12 @@ namespace NSchema.Project.Domain.Models.Columns;
 /// <param name="GeneratedExpression">An optional expression for a stored generated column (<c>GENERATED ALWAYS AS (expr) STORED</c>); mutually exclusive with a default.</param>
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
 public record Column(
-    string Name,
+    SqlIdentifier Name,
     SqlType Type,
     bool IsNullable = false,
     bool IsIdentity = false,
     string? DefaultExpression = null,
-    string? OldName = null,
+    SqlIdentifier? OldName = null,
     string? Comment = null,
     IdentityOptions? IdentityOptions = null,
     string? GeneratedExpression = null

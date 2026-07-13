@@ -53,7 +53,7 @@ public sealed class DdlLexerTests
     }
 
     [Fact]
-    public void Lex_QualifiedName_IsIdentifierDotIdentifier()
+    public void Lex_ObjectReference_IsIdentifierDotIdentifier()
     {
         Tokens("app.users").Select(t => (t.Kind, t.Text)).ShouldBe(
             [(TokenKind.Identifier, "app"), (TokenKind.Dot, "."), (TokenKind.Identifier, "users")]);

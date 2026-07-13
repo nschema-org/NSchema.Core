@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Columns;
 using NSchema.Diff.Domain.Models.Constraints;
@@ -11,11 +12,11 @@ namespace NSchema.Diff.Domain;
 
 internal sealed partial class SchemaComparer
 {
-    private List<TableDiff> CompareTables(string schemaName, IReadOnlyList<Table> current, SchemaDefinition desired)
+    private List<TableDiff> CompareTables(SqlIdentifier schemaName, IReadOnlyList<Table> current, SchemaDefinition desired)
     {
         var result = new List<TableDiff>();
         var droppedTables = desired.DroppedTables;
-        var (forDesired, currentMatched) = MatchEntities(current, desired.Tables, "table", schemaName);
+        var (forDesired, currentMatched) = MatchEntities(current, desired.Tables, "table", schemaName.Value);
 
         for (var j = 0; j < current.Count; j++)
         {
@@ -24,7 +25,7 @@ internal sealed partial class SchemaComparer
             {
                 LogTableExists(schemaName, currentTable.Name);
             }
-            else if (droppedTables.Contains(currentTable.Name, StringComparer.OrdinalIgnoreCase))
+            else if (droppedTables.Contains(currentTable.Name))
             {
                 LogTableExplicitlyDropped(schemaName, currentTable.Name);
                 result.Add(RemovedTable(schemaName, currentTable.Name));
@@ -57,12 +58,13 @@ internal sealed partial class SchemaComparer
         return result;
     }
 
-    private static TableDiff RemovedTable(string schema, string name) =>
+    private static TableDiff RemovedTable(SqlIdentifier schema, SqlIdentifier name) =>
         new(schema, name, ChangeKind.Remove);
 
-    private TableDiff BuildNewTable(string schemaName, Table table)
+    private TableDiff BuildNewTable(SqlIdentifier schemaName, Table table)
     {
         LogTableCreating(schemaName, table.Name);
+        var owner = new ObjectReference(schemaName, table.Name);
 
         var columns = table.Columns
             .Select(column => new ColumnDiff(
@@ -76,7 +78,7 @@ internal sealed partial class SchemaComparer
         var foreignKeys = new List<ForeignKeyDiff>();
         foreach (var fk in table.ForeignKeys)
         {
-            LogForeignKeyAddingToNewTable(fk.Name, schemaName, table.Name);
+            LogForeignKeyAddingToNewTable(fk.Name, owner);
             foreignKeys.Add(new ForeignKeyDiff(ChangeKind.Add, fk.Name, fk));
             if (fk.Comment is not null)
             {
@@ -87,7 +89,7 @@ internal sealed partial class SchemaComparer
         var uniqueConstraints = new List<UniqueConstraintDiff>();
         foreach (var uq in table.UniqueConstraints)
         {
-            LogUniqueConstraintAddingToNewTable(uq.Name, schemaName, table.Name);
+            LogUniqueConstraintAddingToNewTable(uq.Name, owner);
             uniqueConstraints.Add(new UniqueConstraintDiff(ChangeKind.Add, uq.Name, uq));
             if (uq.Comment is not null)
             {
@@ -98,7 +100,7 @@ internal sealed partial class SchemaComparer
         var checks = new List<CheckConstraintDiff>();
         foreach (var ck in table.CheckConstraints)
         {
-            LogCheckConstraintAddingToNewTable(ck.Name, schemaName, table.Name);
+            LogCheckConstraintAddingToNewTable(ck.Name, owner);
             checks.Add(new CheckConstraintDiff(ChangeKind.Add, ck.Name, ck));
             if (ck.Comment is not null)
             {
@@ -126,7 +128,7 @@ internal sealed partial class SchemaComparer
         var indexes = new List<IndexDiff>();
         foreach (var idx in table.Indexes)
         {
-            LogIndexAddingToNewTable(idx.Name, schemaName, table.Name);
+            LogIndexAddingToNewTable(idx.Name, owner);
             indexes.Add(new IndexDiff(ChangeKind.Add, idx.Name, idx, null));
             if (idx.Comment is not null)
             {
@@ -137,7 +139,7 @@ internal sealed partial class SchemaComparer
         var grants = new List<GrantChange>();
         foreach (var grant in table.Grants)
         {
-            LogTablePrivilegesGrantingToNewTable(schemaName, table.Name, grant.Role);
+            LogTablePrivilegesGrantingToNewTable(owner, grant.Role);
             grants.Add(new GrantChange(ChangeKind.Add, grant.Role, grant.Privileges));
         }
 
@@ -159,9 +161,9 @@ internal sealed partial class SchemaComparer
         return new TableDiff(schemaName, table.Name, ChangeKind.Add, null, comment, columns, grants, indexes, primaryKey, foreignKeys, uniqueConstraints, checks, exclusions, triggers, table);
     }
 
-    private TableDiff? BuildModifiedTable(string schemaName, Table current, Table desired)
+    private TableDiff? BuildModifiedTable(SqlIdentifier schemaName, Table current, Table desired)
     {
-        string? renamedFrom = null;
+        SqlIdentifier? renamedFrom = null;
         if (current.Name == desired.Name)
         {
             LogTableUnchanged(schemaName, desired.Name);
@@ -179,17 +181,18 @@ internal sealed partial class SchemaComparer
             comment = new ValueChange<string>(current.Comment, desired.Comment);
         }
 
-        var columns = CompareColumns(schemaName, desired.Name, current.Columns, desired.Columns);
+        var owner = new ObjectReference(schemaName, desired.Name);
+        var columns = CompareColumns(owner, current.Columns, desired.Columns);
 
-        var primaryKey = ComparePrimaryKey(schemaName, desired.Name, current.PrimaryKey, desired.PrimaryKey);
-        var foreignKeys = CompareForeignKeys(schemaName, desired.Name, current.ForeignKeys, desired.ForeignKeys);
-        var uniqueConstraints = CompareUniqueConstraints(schemaName, desired.Name, current.UniqueConstraints, desired.UniqueConstraints);
-        var checks = CompareChecks(schemaName, desired.Name, current.CheckConstraints, desired.CheckConstraints);
-        var exclusions = CompareExclusionConstraints(schemaName, desired.Name, current.ExclusionConstraints, desired.ExclusionConstraints);
+        var primaryKey = ComparePrimaryKey(owner, current.PrimaryKey, desired.PrimaryKey);
+        var foreignKeys = CompareForeignKeys(owner, current.ForeignKeys, desired.ForeignKeys);
+        var uniqueConstraints = CompareUniqueConstraints(owner, current.UniqueConstraints, desired.UniqueConstraints);
+        var checks = CompareChecks(owner, current.CheckConstraints, desired.CheckConstraints);
+        var exclusions = CompareExclusionConstraints(owner, current.ExclusionConstraints, desired.ExclusionConstraints);
 
-        var indexes = CompareIndexes(schemaName, desired.Name, current.Indexes, desired.Indexes);
-        var grants = CompareTableGrants(schemaName, desired.Name, current.Grants, desired.Grants);
-        var triggers = CompareTriggers(schemaName, desired.Name, current.Triggers, desired.Triggers);
+        var indexes = CompareIndexes(owner, current.Indexes, desired.Indexes);
+        var grants = CompareTableGrants(owner, current.Grants, desired.Grants);
+        var triggers = CompareTriggers(owner, current.Triggers, desired.Triggers);
 
         var hasChange = renamedFrom is not null || comment is not null || columns.Count > 0
             || primaryKey.Count > 0 || foreignKeys.Count > 0 || uniqueConstraints.Count > 0 || checks.Count > 0

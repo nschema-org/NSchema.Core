@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Views;
 
 namespace NSchema.Project.Ddl;
@@ -31,13 +32,13 @@ internal static class ViewDependencyExtractor
     /// </summary>
     /// <param name="body">The view's defining query (the text after <c>AS</c>).</param>
     /// <param name="defaultSchema">The schema an unqualified reference is resolved against (the view's own schema).</param>
-    public static IReadOnlyList<ViewDependency> Extract(string body, string defaultSchema)
+    public static IReadOnlyList<ViewDependency> Extract(string body, SqlIdentifier defaultSchema)
     {
         var tokens = Tokenize(body);
         var ctes = CollectCteNames(tokens);
 
         var result = new List<ViewDependency>();
-        var seen = new HashSet<(string, string)>();
+        var seen = new HashSet<(SqlIdentifier, SqlIdentifier)>();
 
         // The outer scan visits every token, so FROM/JOIN clauses are found at any nesting depth (in sub-queries,
         // WHERE/SELECT-list scalar sub-queries, CTE bodies). The per-clause readers below use a *local* cursor and
@@ -69,9 +70,9 @@ internal static class ViewDependencyExtractor
     private static void ReadFromList(
         IReadOnlyList<Token> tokens,
         int j,
-        string defaultSchema,
+        SqlIdentifier defaultSchema,
         HashSet<string> ctes,
-        HashSet<(string, string)> seen,
+        HashSet<(SqlIdentifier, SqlIdentifier)> seen,
         List<ViewDependency> result)
     {
         while (j < tokens.Count)
@@ -100,9 +101,9 @@ internal static class ViewDependencyExtractor
     private static bool TryReadReference(
         IReadOnlyList<Token> tokens,
         ref int j,
-        string defaultSchema,
+        SqlIdentifier defaultSchema,
         HashSet<string> ctes,
-        HashSet<(string, string)> seen,
+        HashSet<(SqlIdentifier, SqlIdentifier)> seen,
         List<ViewDependency> result
     )
     {
@@ -130,14 +131,14 @@ internal static class ViewDependencyExtractor
             var schema = first;
             var name = tokens[j + 1].Text;
             j += 2;
-            Add(seen, result, new ViewDependency(schema, name));
+            Add(seen, result, new ViewDependency(new SqlIdentifier(schema), new SqlIdentifier(name)));
             return true;
         }
 
         // Unqualified: a CTE name is local and must not be treated as a real object.
         if (!ctes.Contains(first))
         {
-            Add(seen, result, new ViewDependency(defaultSchema, first));
+            Add(seen, result, new ViewDependency(defaultSchema, new SqlIdentifier(first)));
         }
         return true;
     }
@@ -208,7 +209,7 @@ internal static class ViewDependencyExtractor
         }
     }
 
-    private static void Add(HashSet<(string, string)> seen, List<ViewDependency> result, ViewDependency dependency)
+    private static void Add(HashSet<(SqlIdentifier, SqlIdentifier)> seen, List<ViewDependency> result, ViewDependency dependency)
     {
         if (seen.Add((dependency.Schema, dependency.Name)))
         {

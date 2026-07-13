@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Ddl;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
@@ -10,7 +11,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 public sealed class ViewDependencyExtractorTests
 {
     private static (string Schema, string Name)[] Extract(string body, string defaultSchema = "app")
-        => ViewDependencyExtractor.Extract(body, defaultSchema).Select(d => (d.Schema, d.Name)).ToArray();
+        => ViewDependencyExtractor.Extract(body, new SqlIdentifier(defaultSchema)).Select(d => (d.Schema.Value, d.Name.Value)).ToArray();
 
     [Fact]
     public void Extract_SimpleFrom_FindsQualifiedTable()

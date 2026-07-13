@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 
 namespace NSchema.Plan.Domain.Models.Columns;
@@ -16,9 +17,9 @@ namespace NSchema.Plan.Domain.Models.Columns;
 /// Altering a column's nullability may lead to data loss if changing from nullable to non-nullable, as existing null values would need to be handled appropriately.
 /// </remarks>
 public sealed record AlterColumnNullability(
-    string SchemaName,
-    string TableName,
-    string ColumnName,
+    SqlIdentifier SchemaName,
+    SqlIdentifier TableName,
+    SqlIdentifier ColumnName,
     bool OldNullable,
     bool NewNullable,
     SqlType? ColumnType = null

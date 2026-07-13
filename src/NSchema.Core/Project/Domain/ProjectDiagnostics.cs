@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Project.Domain;
@@ -30,9 +31,9 @@ internal static class ProjectDiagnostics
     /// <summary>
     /// A script name declared more than once (names are the run-once and diagnostic identity).
     /// </summary>
-    public static Diagnostic DuplicateScriptName(string name) => Diagnostic.Error(Source,
+    public static Diagnostic DuplicateScriptName(SqlIdentifier name) => Diagnostic.Error(Source,
         $"Duplicate script name '{name}' declared. Script names must be unique across the project; " +
-        "a script declared in a template applied to multiple schemas can include the {schema} token in its name.");
+        $"a script declared in a template applied to multiple schemas can include the {SchemaToken.Token} token in its name.");
 
     /// <summary>
     /// Two change-event scripts declared for the same trigger and path.
@@ -43,24 +44,24 @@ internal static class ProjectDiagnostics
     /// <summary>
     /// A database-global extension declared more than once.
     /// </summary>
-    public static Diagnostic DuplicateExtension(string name) => Diagnostic.Error(Source,
+    public static Diagnostic DuplicateExtension(SqlIdentifier name) => Diagnostic.Error(Source,
         $"Duplicate extension '{name}' declared.");
 
     /// <summary>
     /// Two declarations of the same schema carry different comments.
     /// </summary>
-    public static Diagnostic ConflictingComments(string schemaName) => Diagnostic.Error(Source,
+    public static Diagnostic ConflictingComments(SqlIdentifier schemaName) => Diagnostic.Error(Source,
         $"Conflicting comments specified for schema '{schemaName}'.");
 
     /// <summary>
     /// Two declarations of the same schema carry different rename hints.
     /// </summary>
-    public static Diagnostic ConflictingOldNames(string schemaName) => Diagnostic.Error(Source,
+    public static Diagnostic ConflictingOldNames(SqlIdentifier schemaName) => Diagnostic.Error(Source,
         $"Conflicting old names specified for schema '{schemaName}'.");
 
     /// <summary>
     /// The same named object declared more than once within a schema.
     /// </summary>
-    public static Diagnostic DuplicateObject(string kind, string name, string schemaName, string suffix) => Diagnostic.Error(Source,
+    public static Diagnostic DuplicateObject(string kind, SqlIdentifier name, SqlIdentifier schemaName, string suffix) => Diagnostic.Error(Source,
         $"Duplicate {kind} '{name}' found in schema '{schemaName}'{suffix}.");
 }

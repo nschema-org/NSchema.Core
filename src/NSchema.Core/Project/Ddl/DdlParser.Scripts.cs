@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Ddl.Models;
 using NSchema.Project.Domain.Models.Scripts;
 
@@ -51,7 +52,7 @@ internal sealed partial class DdlParser
         }
 
         var (runOutsideTransaction, body) = ParseScriptTail("script");
-        scripts.Add(new Script(name, body, scriptEvent) { RunOutsideTransaction = runOutsideTransaction, RunCondition = condition });
+        scripts.Add(new Script(new SqlIdentifier(name), body, scriptEvent) { RunOutsideTransaction = runOutsideTransaction, RunCondition = condition });
     }
 
     private ChangeTrigger ParseChangeTrigger()
@@ -86,7 +87,7 @@ internal sealed partial class DdlParser
     /// constraint name depending on the trigger), or the unqualified <c>table.member</c> inside a template body,
     /// where the schema binds to each schema the template is applied to.
     /// </summary>
-    private (string Schema, string Table, string Member) ParseMemberPath()
+    private (SqlIdentifier Schema, SqlIdentifier Table, SqlIdentifier Member) ParseMemberPath()
     {
         var first = ExpectIdentifier(_templateSchemaContext is null ? "a schema name" : "a table name");
         Expect(TokenKind.Dot, "'.' in the migration target path");
@@ -160,7 +161,7 @@ internal sealed partial class DdlParser
             do
             {
                 var keyPosition = _current.Position;
-                var key = ExpectIdentifier($"a {what} option name");
+                var key = ExpectIdentifier($"a {what} option name").Value;
                 Expect(TokenKind.Equals, "'=' after an option name");
                 var value = ParseConfigValue();
                 switch (key.ToLowerInvariant())

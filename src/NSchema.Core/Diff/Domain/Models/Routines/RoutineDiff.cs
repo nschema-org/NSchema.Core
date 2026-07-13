@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Routines;
 
 namespace NSchema.Diff.Domain.Models.Routines;
@@ -14,11 +15,11 @@ namespace NSchema.Diff.Domain.Models.Routines;
 /// <param name="Arguments">The change to the argument list, set when the signature changed (which forces a recreate).</param>
 /// <param name="Comment">The change to the routine's comment, if any.</param>
 public sealed record RoutineDiff(
-    string Schema,
-    string Name,
+    SqlIdentifier Schema,
+    SqlIdentifier Name,
     ChangeKind Kind,
     RoutineKind RoutineKind,
-    string? RenamedFrom = null,
+    SqlIdentifier? RenamedFrom = null,
     Routine? Definition = null,
     ValueChange<string>? Arguments = null,
     ValueChange<string>? Comment = null

@@ -23,8 +23,8 @@ namespace NSchema.Project.Domain.Models.Tables;
 /// <param name="Triggers">A list of triggers defined on the table.</param>
 [DebuggerDisplay("{Name,nq} ({Columns.Count} columns)")]
 public record Table(
-    string Name,
-    string? OldName = null,
+    SqlIdentifier Name,
+    SqlIdentifier? OldName = null,
     PrimaryKey? PrimaryKey = null,
     string? Comment = null,
     IReadOnlyList<Column>? Columns = null,

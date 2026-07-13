@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.Schemas;
 
 /// <summary>
@@ -8,7 +9,7 @@ namespace NSchema.Plan.Domain.Models.Schemas;
 /// <remarks>
 /// This action allows the specified role to access and use the schema, but does not grant any additional permissions such as SELECT, INSERT, UPDATE, or DELETE on the objects within the schema.
 /// </remarks>
-public sealed record GrantSchemaUsage(string SchemaName, string Role) : MigrationAction
+public sealed record GrantSchemaUsage(SqlIdentifier SchemaName, SqlIdentifier Role) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => false;

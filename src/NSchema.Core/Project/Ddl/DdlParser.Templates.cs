@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Ddl.Models;
 using NSchema.Project.Ddl.Models.Templates;
 using NSchema.Project.Domain.Models.Schemas;
@@ -49,7 +50,7 @@ internal sealed partial class DdlParser
         throw Error($"Expected SCHEMA or TABLE after FOR, found '{_current.Text}'.");
     }
 
-    private TemplateDefinition ParseSchemaTemplateBody(string name, SourcePosition namePosition)
+    private TemplateDefinition ParseSchemaTemplateBody(SqlIdentifier name, SourcePosition namePosition)
     {
         // The body gets its own accumulator, so its objects — and the INCLUDEs written in its table bodies, which
         // belong to the definition and re-target per instance at expansion — never mix with the document's.
@@ -105,7 +106,7 @@ internal sealed partial class DdlParser
     /// Parses a table template's body — comma-separated table members, the same grammar as a table body — carried
     /// as a single placeholder-named table.
     /// </summary>
-    private TemplateDefinition ParseTableTemplateBody(string name)
+    private TemplateDefinition ParseTableTemplateBody(SqlIdentifier name)
     {
         var body = new TableBody();
         _templateSchemaContext = TemplateDefinition.TargetSchemaPlaceholder;
@@ -167,12 +168,12 @@ internal sealed partial class DdlParser
         ExpectKeyword("IN");
         ExpectKeyword("SCHEMA");
 
-        var schemaNames = new List<string>();
+        var schemaNames = new List<SqlIdentifier>();
         do
         {
             var position = _current.Position;
             var schemaName = ExpectIdentifier("a schema name");
-            if (schemaNames.Contains(schemaName, StringComparer.OrdinalIgnoreCase))
+            if (schemaNames.Contains(schemaName))
             {
                 throw new DdlSyntaxException($"Schema '{schemaName}' is listed more than once.", position);
             }

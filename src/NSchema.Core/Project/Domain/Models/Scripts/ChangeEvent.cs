@@ -8,8 +8,8 @@ namespace NSchema.Project.Domain.Models.Scripts;
 /// <param name="MemberName">The column or constraint name the change targets.</param>
 public sealed record ChangeEvent(
     ChangeTrigger Trigger,
-    string TableName,
-    string MemberName
+    SqlIdentifier TableName,
+    SqlIdentifier MemberName
 ) : ScriptEvent
 {
     /// <summary>

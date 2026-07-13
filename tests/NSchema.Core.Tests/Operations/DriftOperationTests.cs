@@ -15,9 +15,9 @@ public sealed class DriftOperationTests
     private readonly ISchemaComparer _comparer = Substitute.For<ISchemaComparer>();
     private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
 
-    private readonly DatabaseSchema _recorded = new([new SchemaDefinition("app")]);
-    private readonly DatabaseSchema _live = new([new SchemaDefinition("app"), new SchemaDefinition("audit")]);
-    private readonly DatabaseDiff _diff = new([new SchemaDiff("audit", ChangeKind.Add)]);
+    private readonly DatabaseSchema _recorded = new([new SchemaDefinition(new SqlIdentifier("app"))]);
+    private readonly DatabaseSchema _live = new([new SchemaDefinition(new SqlIdentifier("app")), new SchemaDefinition(new SqlIdentifier("audit"))]);
+    private readonly DatabaseDiff _diff = new([new SchemaDiff(new SqlIdentifier("audit"), ChangeKind.Add)]);
 
     private readonly DriftOperation _sut;
 
@@ -59,11 +59,11 @@ public sealed class DriftOperationTests
     public async Task Execute_ForwardsScopeToBothReads()
     {
         // Act
-        await _sut.Execute(Args(SchemaScope.Of("app")), TestContext.Current.CancellationToken);
+        await _sut.Execute(Args(SchemaScope.Of(new SqlIdentifier("app"))), TestContext.Current.CancellationToken);
 
         // Assert
-        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Offline, Arg.Is<SchemaScope>(s => s.Includes("app") && !s.IsAll), Arg.Any<CancellationToken>());
-        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Online, Arg.Is<SchemaScope>(s => s.Includes("app") && !s.IsAll), Arg.Any<CancellationToken>());
+        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Offline, Arg.Is<SchemaScope>(s => s.Includes(new SqlIdentifier("app")) && !s.IsAll), Arg.Any<CancellationToken>());
+        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Online, Arg.Is<SchemaScope>(s => s.Includes(new SqlIdentifier("app")) && !s.IsAll), Arg.Any<CancellationToken>());
     }
 
     [Fact]

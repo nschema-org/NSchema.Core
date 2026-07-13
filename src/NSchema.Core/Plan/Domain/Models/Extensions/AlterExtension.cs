@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.Extensions;
 
 /// <summary>
@@ -6,7 +7,7 @@ namespace NSchema.Plan.Domain.Models.Extensions;
 /// <param name="ExtensionName">The name of the extension to update.</param>
 /// <param name="OldVersion">The extension's version before the update, if known.</param>
 /// <param name="NewVersion">The extension's requested version after the update.</param>
-public sealed record AlterExtension(string ExtensionName, string? OldVersion, string? NewVersion) : MigrationAction
+public sealed record AlterExtension(SqlIdentifier ExtensionName, string? OldVersion, string? NewVersion) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => false;

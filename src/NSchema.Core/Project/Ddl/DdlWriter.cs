@@ -79,7 +79,7 @@ public sealed class DdlWriter
         foreach (var dropped in document.Schema.DroppedExtensions)
         {
             Separate(sb, ref first);
-            sb.Append("DROP EXTENSION ").Append(ExtensionName(dropped)).AppendLine(";");
+            sb.Append("DROP EXTENSION ").Append(ExtensionName(dropped.Value)).AppendLine(";");
         }
 
         foreach (var script in document.Scripts)
@@ -134,7 +134,7 @@ public sealed class DdlWriter
 
     private static void WriteScript(StringBuilder sb, Script script)
     {
-        sb.Append("SCRIPT '").Append(script.Name.Replace("'", "''")).Append("' RUN");
+        sb.Append("SCRIPT '").Append(script.Name.Value.Replace("'", "''")).Append("' RUN");
         if (script.RunCondition == RunCondition.Once)
         {
             sb.Append(" ONCE");
@@ -283,7 +283,7 @@ public sealed class DdlWriter
     private static void WriteExtension(StringBuilder sb, Extension extension)
     {
         WriteDocComment(sb, extension.Comment, indent: "");
-        sb.Append("CREATE EXTENSION ").Append(ExtensionName(extension.Name));
+        sb.Append("CREATE EXTENSION ").Append(ExtensionName(extension.Name.Value));
         if (extension.Version is { } version)
         {
             sb.Append(" VERSION '").Append(version.Replace("'", "''")).Append('\'');
@@ -303,7 +303,7 @@ public sealed class DdlWriter
         && (char.IsAsciiLetter(name[0]) || name[0] == '_')
         && name.All(c => char.IsAsciiLetterOrDigit(c) || c == '_');
 
-    private static void WriteEnum(StringBuilder sb, string schemaName, EnumType enumType)
+    private static void WriteEnum(StringBuilder sb, SqlIdentifier schemaName, EnumType enumType)
     {
         WriteDocComment(sb, enumType.Comment, indent: "");
         sb.Append("CREATE ENUM ").Append(schemaName).Append('.').Append(enumType.Name);
@@ -314,7 +314,7 @@ public sealed class DdlWriter
         sb.Append(" (").Append(string.Join(", ", enumType.Values.Select(v => $"'{v.Replace("'", "''")}'"))).AppendLine(");");
     }
 
-    private static void WriteDomain(StringBuilder sb, string schemaName, DomainDefinition domain)
+    private static void WriteDomain(StringBuilder sb, SqlIdentifier schemaName, DomainDefinition domain)
     {
         WriteDocComment(sb, domain.Comment, indent: "");
         sb.Append("CREATE DOMAIN ").Append(schemaName).Append('.').Append(domain.Name);
@@ -339,7 +339,7 @@ public sealed class DdlWriter
         sb.AppendLine(";");
     }
 
-    private static void WriteCompositeType(StringBuilder sb, string schemaName, CompositeType compositeType)
+    private static void WriteCompositeType(StringBuilder sb, SqlIdentifier schemaName, CompositeType compositeType)
     {
         WriteDocComment(sb, compositeType.Comment, indent: "");
         sb.Append("CREATE TYPE ").Append(schemaName).Append('.').Append(compositeType.Name);
@@ -350,7 +350,7 @@ public sealed class DdlWriter
         sb.Append(" AS (").Append(string.Join(", ", compositeType.Fields.Select(f => $"{f.Name} {f.DataType}"))).AppendLine(");");
     }
 
-    private static void WriteSequence(StringBuilder sb, string schemaName, Sequence sequence)
+    private static void WriteSequence(StringBuilder sb, SqlIdentifier schemaName, Sequence sequence)
     {
         WriteDocComment(sb, sequence.Comment, indent: "");
         sb.Append("CREATE SEQUENCE ").Append(schemaName).Append('.').Append(sequence.Name);
@@ -399,7 +399,7 @@ public sealed class DdlWriter
         return parts.Count == 0 ? null : string.Join(", ", parts);
     }
 
-    private static void WriteRoutine(StringBuilder sb, string schemaName, Routine routine)
+    private static void WriteRoutine(StringBuilder sb, SqlIdentifier schemaName, Routine routine)
     {
         WriteDocComment(sb, routine.Comment, indent: "");
         sb.Append(routine.Kind == RoutineKind.Procedure ? "CREATE PROCEDURE " : "CREATE FUNCTION ")
@@ -413,7 +413,7 @@ public sealed class DdlWriter
         sb.Append('(').Append(routine.Arguments).Append(") ").Append(routine.Definition.TrimEnd()).AppendLine(";");
     }
 
-    private static void WriteView(StringBuilder sb, string schemaName, View view)
+    private static void WriteView(StringBuilder sb, SqlIdentifier schemaName, View view)
     {
         WriteDocComment(sb, view.Comment, indent: "");
         sb.Append("CREATE ");
@@ -452,7 +452,7 @@ public sealed class DdlWriter
         }
     }
 
-    private static void WriteTable(StringBuilder sb, string schemaName, Table table)
+    private static void WriteTable(StringBuilder sb, SqlIdentifier schemaName, Table table)
     {
         WriteDocComment(sb, table.Comment, indent: "");
         sb.Append("CREATE TABLE ").Append(schemaName).Append('.').Append(table.Name);
@@ -514,7 +514,7 @@ public sealed class DdlWriter
         }
     }
 
-    private static void WriteTrigger(StringBuilder sb, string schemaName, string tableName, Trigger trigger)
+    private static void WriteTrigger(StringBuilder sb, SqlIdentifier schemaName, SqlIdentifier tableName, Trigger trigger)
     {
         WriteDocComment(sb, trigger.Comment, indent: "");
         sb.Append("CREATE TRIGGER ").Append(trigger.Name).Append(' ').Append(TriggerTimingText(trigger.Timing))
@@ -711,7 +711,7 @@ public sealed class DdlWriter
         return string.Join(", ", parts);
     }
 
-    private static string Columns(IReadOnlyList<string> columns) => string.Join(", ", columns);
+    private static string Columns(IReadOnlyList<SqlIdentifier> columns) => string.Join(", ", columns);
 
     /// <summary>Renders an index's key list: each column or parenthesised expression with optional sort/null ordering.</summary>
     private static string IndexKeys(IReadOnlyList<IndexColumn> columns) => string.Join(", ", columns.Select(IndexKey));
@@ -735,7 +735,7 @@ public sealed class DdlWriter
         return sb.ToString();
     }
 
-    private static string IncludeClause(IReadOnlyList<string> include) =>
+    private static string IncludeClause(IReadOnlyList<SqlIdentifier> include) =>
         include.Count > 0 ? $" INCLUDE ({Columns(include)})" : string.Empty;
 
     private static void WriteDocComment(StringBuilder sb, string? comment, string indent)

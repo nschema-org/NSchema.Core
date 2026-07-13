@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Ddl.Models;
 using NSchema.Project.Ddl.Models.Templates;
 using NSchema.Project.Domain.Models.Columns;
@@ -415,41 +416,41 @@ internal sealed partial class DdlParser
             {
                 if (alreadySet)
                 {
-                    throw new DdlSyntaxException($"Sequence option '{option.ToUpperInvariant()}' is specified more than once.", optionPosition);
+                    throw new DdlSyntaxException($"Sequence option '{option.Value.ToUpperInvariant()}' is specified more than once.", optionPosition);
                 }
             }
 
-            if (string.Equals(option, "AS", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(option.Value, "AS", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(dataType is not null);
-                dataType = SqlType.Parse(ExpectIdentifier("a type name"));
+                dataType = SqlType.Parse(ExpectIdentifier("a type name").Value);
             }
-            else if (string.Equals(option, "START", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, "START", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(start is not null);
                 start = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option, "INCREMENT", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, "INCREMENT", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(increment is not null);
                 increment = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option, "MINVALUE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, "MINVALUE", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(min is not null);
                 min = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option, "MAXVALUE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, "MAXVALUE", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(max is not null);
                 max = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option, "CACHE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, "CACHE", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(cache is not null);
                 cache = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option, "CYCLE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, "CYCLE", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(cycle);
                 cycle = true;
@@ -487,8 +488,8 @@ internal sealed partial class DdlParser
     /// (<c>'uuid-ossp'</c>) — extension names commonly contain characters, such as a hyphen, that a bare
     /// identifier cannot.
     /// </summary>
-    private string ParseExtensionName() =>
-        _current.Kind == TokenKind.String ? Advance().Text : ExpectIdentifier("an extension name");
+    private SqlIdentifier ParseExtensionName() =>
+        _current.Kind == TokenKind.String ? new SqlIdentifier(Advance().Text) : ExpectIdentifier("an extension name");
 
     /// <summary>
     /// Parses a standalone trigger: <c>CREATE TRIGGER name {BEFORE|AFTER|INSTEAD OF} event {OR event} ON s.t
@@ -525,7 +526,7 @@ internal sealed partial class DdlParser
             when = ReadRawExpression(parenthesised: true);
         }
 
-        string? function = null;
+        RoutineReference? function = null;
         string? arguments = null;
         string? body = null;
         if (_current.IsKeyword("EXECUTE"))
@@ -540,11 +541,10 @@ internal sealed partial class DdlParser
                 throw Error($"Expected FUNCTION or PROCEDURE after EXECUTE, found '{_current.Text}'.");
             }
 
-            function = ExpectIdentifier("a function name");
-            if (Match(TokenKind.Dot))
-            {
-                function += "." + ExpectIdentifier("a function name");
-            }
+            var first = ExpectIdentifier("a function name");
+            function = Match(TokenKind.Dot)
+                ? new RoutineReference(first, ExpectIdentifier("a function name"))
+                : new RoutineReference(null, first);
 
             // The argument list is captured verbatim (opaque), like a routine's; usually empty for a trigger function.
             arguments = CaptureParenthesized();
@@ -576,10 +576,10 @@ internal sealed partial class DdlParser
         throw Error($"Expected BEFORE, AFTER or INSTEAD OF, found '{_current.Text}'.");
     }
 
-    private (TriggerEvent Events, List<string>? UpdateOfColumns) ParseTriggerEvents()
+    private (TriggerEvent Events, List<SqlIdentifier>? UpdateOfColumns) ParseTriggerEvents()
     {
         var events = TriggerEvent.None;
-        List<string>? updateOfColumns = null;
+        List<SqlIdentifier>? updateOfColumns = null;
         while (true)
         {
             var position = _current.Position;
@@ -674,17 +674,17 @@ internal sealed partial class DdlParser
             {
                 throw Error("INCLUDE is not supported inside a table template; a table template cannot include another.");
             }
-            body.Includes.Add((Advance().Text, body.Columns.Count));
+            body.Includes.Add((new SqlIdentifier(Advance().Text), body.Columns.Count));
             return;
         }
 
-        ParseColumn(include.Text, doc, body);
+        ParseColumn(new SqlIdentifier(include.Text), doc, body);
     }
 
     private void ParseColumn(string? doc, TableBody body)
         => ParseColumn(ExpectIdentifier("a column name"), doc, body);
 
-    private void ParseColumn(string name, string? doc, TableBody body)
+    private void ParseColumn(SqlIdentifier name, string? doc, TableBody body)
     {
         var type = ParseType();
 
@@ -733,11 +733,11 @@ internal sealed partial class DdlParser
 
     private SqlType ParseType()
     {
-        var text = ExpectIdentifier("a column type");
+        var text = ExpectIdentifier("a column type").Value;
         if (Match(TokenKind.Dot))
         {
             // A schema-qualified user-defined type, e.g. an enum referenced as `app.status`.
-            text += "." + ExpectIdentifier("a schema-qualified type name");
+            text += "." + ExpectIdentifier("a schema-qualified type name").Value;
         }
         if (_current.Kind == TokenKind.LeftParen)
         {
@@ -766,15 +766,15 @@ internal sealed partial class DdlParser
         {
             var option = ExpectIdentifier("START, INCREMENT or MINVALUE");
             var value = ExpectIntegerValue();
-            if (string.Equals(option, "START", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(option.Value, "START", StringComparison.OrdinalIgnoreCase))
             {
                 start = value;
             }
-            else if (string.Equals(option, "INCREMENT", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, "INCREMENT", StringComparison.OrdinalIgnoreCase))
             {
                 increment = value;
             }
-            else if (string.Equals(option, "MINVALUE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, "MINVALUE", StringComparison.OrdinalIgnoreCase))
             {
                 min = value;
             }
@@ -899,7 +899,7 @@ internal sealed partial class DdlParser
     /// Parses an exclusion constraint body (the <c>EXCLUDE</c> keyword is already consumed):
     /// <c>[USING method] ( element WITH operator [, …] ) [WHERE (predicate)]</c>.
     /// </summary>
-    private ExclusionConstraint ParseExclusion(string name, string? doc)
+    private ExclusionConstraint ParseExclusion(SqlIdentifier name, string? doc)
     {
         var method = TryParseIndexMethod();
         Expect(TokenKind.LeftParen, "'(' to begin the exclusion elements");
@@ -931,7 +931,7 @@ internal sealed partial class DdlParser
         }
         else
         {
-            expression = ExpectIdentifier("a column name or expression");
+            expression = ExpectIdentifier("a column name or expression").Value;
             isExpression = false;
         }
 
@@ -979,11 +979,11 @@ internal sealed partial class DdlParser
             return null;
         }
         Advance();
-        return ExpectIdentifier("an index access method");
+        return ExpectIdentifier("an index access method").Value;
     }
 
     /// <summary>Parses the optional covering <c>INCLUDE (cols)</c> clause of an index; returns an empty list when absent.</summary>
-    private List<string> TryParseIncludeColumns()
+    private List<SqlIdentifier> TryParseIncludeColumns()
     {
         if (!_current.IsKeyword("INCLUDE"))
         {
@@ -1021,7 +1021,7 @@ internal sealed partial class DdlParser
         }
         else
         {
-            expression = ExpectIdentifier("a column name or expression");
+            expression = ExpectIdentifier("a column name or expression").Value;
             isExpression = false;
         }
 
@@ -1060,10 +1060,10 @@ internal sealed partial class DdlParser
         return new IndexColumn(expression, isExpression, sort, nulls);
     }
 
-    private List<string> ParseColumnList()
+    private List<SqlIdentifier> ParseColumnList()
     {
         Expect(TokenKind.LeftParen, "'('");
-        var columns = new List<string> { ExpectIdentifier("a column name") };
+        var columns = new List<SqlIdentifier> { ExpectIdentifier("a column name") };
         while (Match(TokenKind.Comma))
         {
             columns.Add(ExpectIdentifier("a column name"));
@@ -1083,7 +1083,7 @@ internal sealed partial class DdlParser
             ? CaptureParenthesized()
             : CaptureRawSpan("a default expression", [TokenKind.Comma, TokenKind.RightParen], "RENAMED");
 
-    private string? TryParseRenamedFrom()
+    private SqlIdentifier? TryParseRenamedFrom()
     {
         if (!_current.IsKeyword("RENAMED"))
         {
@@ -1104,6 +1104,6 @@ internal sealed partial class DdlParser
         public List<CheckConstraint> CheckConstraints { get; } = [];
         public List<ExclusionConstraint> ExclusionConstraints { get; } = [];
         public List<TableIndex> Indexes { get; } = [];
-        public List<(string TemplateName, int ColumnPosition)> Includes { get; } = [];
+        public List<(SqlIdentifier TemplateName, int ColumnPosition)> Includes { get; } = [];
     }
 }

@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.CompositeTypes;
 
 /// <summary>
@@ -5,7 +6,7 @@ namespace NSchema.Plan.Domain.Models.CompositeTypes;
 /// </summary>
 /// <param name="SchemaName">The name of the schema containing the composite type to be removed.</param>
 /// <param name="TypeName">The name of the composite type to be removed.</param>
-public sealed record DropCompositeType(string SchemaName, string TypeName) : MigrationAction
+public sealed record DropCompositeType(SqlIdentifier SchemaName, SqlIdentifier TypeName) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => true;

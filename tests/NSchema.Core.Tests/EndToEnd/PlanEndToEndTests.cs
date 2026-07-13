@@ -6,7 +6,6 @@ using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Tables;
-using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.EndToEnd;
 
@@ -41,8 +40,8 @@ public sealed class PlanEndToEndTests : IDisposable
     public async Task Plan_ReportsStructuredDiffBetweenCurrentAndDesired()
     {
         // Current: app.users(id). Desired: app.users(id, email) + a new app.orders table.
-        var current = new DatabaseSchema([new SchemaDefinition("app", Tables:
-            [new Table("users", Columns: [new Column("id", SqlType.Int)])])]);
+        var current = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), Tables:
+            [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
 
         var desired = WriteDdl("schema.sql",
             """
@@ -65,20 +64,20 @@ public sealed class PlanEndToEndTests : IDisposable
         var schema = result.Value.ShouldNotBeNull().Plan.ShouldNotBeNull().Diff.Schemas.ShouldHaveSingleItem();
         schema.Name.ShouldBe("app");
 
-        var users = schema.Tables.Single(t => t.Name == "users");
+        var users = schema.Tables.Single(t => t.Name.Value.Equals("users"));
         users.Kind.ShouldBe(ChangeKind.Modify);
         users.Columns.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
             c => c.Name.ShouldBe("email"),
             c => c.Kind.ShouldBe(ChangeKind.Add));
 
-        schema.Tables.Single(t => t.Name == "orders").Kind.ShouldBe(ChangeKind.Add);
+        schema.Tables.Single(t => t.Name.Value.Equals("orders")).Kind.ShouldBe(ChangeKind.Add);
     }
 
     [Fact]
     public async Task Plan_WithNoChanges_ReportsEmptyDiff()
     {
-        var schema = new DatabaseSchema([new SchemaDefinition("app", Tables:
-            [new Table("users", Columns: [new Column("id", SqlType.Int)])])]);
+        var schema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), Tables:
+            [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
 
         var desired = WriteDdl("schema.sql",
             """
@@ -132,8 +131,8 @@ public sealed class PlanEndToEndTests : IDisposable
     public async Task Plan_Teardown_DiffsTheManagedSchemaDownToNothing()
     {
         // The managed schema is the recorded state, so the refresh records the live schema before tearing down.
-        var current = new DatabaseSchema([new SchemaDefinition("app", Tables:
-            [new Table("users", Columns: [new Column("id", SqlType.Int)])])]);
+        var current = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), Tables:
+            [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
         var desired = WriteDdl("schema.sql",
             """
             CREATE SCHEMA app;
@@ -150,6 +149,6 @@ public sealed class PlanEndToEndTests : IDisposable
 
         // The teardown plan drops the managed table.
         var schema = result.Value.ShouldNotBeNull().Plan.ShouldNotBeNull().Diff.Schemas.ShouldHaveSingleItem();
-        schema.Tables.ShouldContain(t => t.Name == "users" && t.Kind == ChangeKind.Remove);
+        schema.Tables.ShouldContain(t => t.Name.Value.Equals("users") && t.Kind == ChangeKind.Remove);
     }
 }

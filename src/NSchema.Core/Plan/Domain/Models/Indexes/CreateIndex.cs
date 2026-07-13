@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Indexes;
 
 namespace NSchema.Plan.Domain.Models.Indexes;
@@ -9,8 +10,8 @@ namespace NSchema.Plan.Domain.Models.Indexes;
 /// <param name="TableName">The name of the table to which the index will be added.</param>
 /// <param name="Index">The definition of the index to be added.</param>
 public sealed record CreateIndex(
-    string SchemaName,
-    string TableName,
+    SqlIdentifier SchemaName,
+    SqlIdentifier TableName,
     TableIndex Index
 ) : MigrationAction
 {

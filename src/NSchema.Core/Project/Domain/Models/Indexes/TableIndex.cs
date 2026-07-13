@@ -14,13 +14,13 @@ namespace NSchema.Project.Domain.Models.Indexes;
 /// <param name="Include">Non-key columns carried in the index leaf pages (a covering <c>INCLUDE</c> clause).</param>
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
 public record TableIndex(
-    string Name,
+    SqlIdentifier Name,
     IReadOnlyList<IndexColumn> Columns,
     bool IsUnique = false,
     string? Comment = null,
     string? Predicate = null,
     string? Method = null,
-    IReadOnlyList<string>? Include = null
+    IReadOnlyList<SqlIdentifier>? Include = null
 ) : INamedObject
 {
     /// <summary>
@@ -31,7 +31,7 @@ public record TableIndex(
     /// <summary>
     /// Non-key columns carried in the index leaf pages (a covering <c>INCLUDE</c> clause).
     /// </summary>
-    public IReadOnlyList<string> Include { get; init; } = Include ?? [];
+    public IReadOnlyList<SqlIdentifier> Include { get; init; } = Include ?? [];
 
     private string DebuggerDisplay =>
         $"{Name}: ({string.Join(", ", Columns.Select(c => c.Expression))})" +

@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Diff.Domain.Models.Indexes;
 using NSchema.Project.Domain.Models.Views;
 
@@ -18,10 +19,10 @@ namespace NSchema.Diff.Domain.Models.Views;
 /// <param name="RequiresRecreate">Whether the change must be applied as a drop + recreate rather than an in-place replace</param>
 /// <param name="Indexes">In-place index changes on a materialized view whose body is unchanged.</param>
 public sealed record ViewDiff(
-    string Schema,
-    string Name,
+    SqlIdentifier Schema,
+    SqlIdentifier Name,
     ChangeKind Kind,
-    string? RenamedFrom = null,
+    SqlIdentifier? RenamedFrom = null,
     View? Definition = null,
     ValueChange<string>? Comment = null,
     IReadOnlyList<ViewDependency>? DependsOn = null,

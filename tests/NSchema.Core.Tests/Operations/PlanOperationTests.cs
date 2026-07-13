@@ -15,7 +15,7 @@ public sealed class PlanOperationTests
     private readonly IPlanFileManager _planFile = Substitute.For<IPlanFileManager>();
 
     private readonly MigrationPlan _plan = new(
-        new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add)]),
+        new DatabaseDiff([new SchemaDiff(new SqlIdentifier("app"), ChangeKind.Add)]),
         [new SqlStatement("CREATE SCHEMA app")]);
 
     private readonly PlanOperation _sut;
@@ -67,12 +67,12 @@ public sealed class PlanOperationTests
     public async Task Execute_ForwardsScopeToComputePlan()
     {
         // Act
-        await _sut.Execute(Args(PlanTarget.Live, scope: SchemaScope.Of("app", "legacy")), TestContext.Current.CancellationToken);
+        await _sut.Execute(Args(PlanTarget.Live, scope: SchemaScope.Of(new SqlIdentifier("app"), new SqlIdentifier("legacy"))), TestContext.Current.CancellationToken);
 
         // Assert
         await _workflow.Received(1).ComputePlan(
             Arg.Any<SchemaSourceMode>(),
-            Arg.Is<SchemaScope>(s => !s.IsAll && s.Includes("app") && s.Includes("legacy")), Arg.Any<CancellationToken>());
+            Arg.Is<SchemaScope>(s => !s.IsAll && s.Includes(new SqlIdentifier("app")) && s.Includes(new SqlIdentifier("legacy"))), Arg.Any<CancellationToken>());
     }
 
     [Fact]

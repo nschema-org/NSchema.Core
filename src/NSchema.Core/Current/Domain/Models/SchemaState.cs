@@ -31,7 +31,7 @@ public sealed record SchemaState(DatabaseSchema Schema, IReadOnlyList<ScriptExec
         }
 
         var merged = Scripts
-            .Where(e => !executions.Any(s => string.Equals(s.Name, e.Name, StringComparison.OrdinalIgnoreCase)))
+            .Where(e => executions.All(s => s.Name != e.Name))
             .Concat(executions)
             .ToList();
         return this with { Scripts = merged };
@@ -41,18 +41,15 @@ public sealed record SchemaState(DatabaseSchema Schema, IReadOnlyList<ScriptExec
     /// Finds the recorded execution for the given script name, or <see langword="null"/> when none is recorded.
     /// </summary>
     /// <param name="name">The script's declared name.</param>
-    public ScriptExecution? FindExecution(string name) =>
-        Scripts.FirstOrDefault(e => string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
+    public ScriptExecution? FindExecution(SqlIdentifier name) => Scripts.FirstOrDefault(e => e.Name == name);
 
     /// <summary>
     /// Removes the recorded execution for the given script name, so a later plan runs the script again.
     /// </summary>
     /// <param name="name">The script's declared name.</param>
-    public SchemaState RemoveExecution(string name)
+    public SchemaState RemoveExecution(SqlIdentifier name)
     {
-        var executions = Scripts
-            .Where(e => !string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        var executions = Scripts.Where(e => e.Name != name).ToList();
         return executions.Count == Scripts.Count ? this : this with { Scripts = executions };
     }
 }

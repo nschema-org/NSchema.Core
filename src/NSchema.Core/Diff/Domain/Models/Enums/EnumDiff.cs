@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Enums;
 
 namespace NSchema.Diff.Domain.Models.Enums;
@@ -15,10 +16,10 @@ namespace NSchema.Diff.Domain.Models.Enums;
 /// cannot be planned), so drift can display it.</param>
 /// <param name="Comment">The change to the enum's comment, if any.</param>
 public sealed record EnumDiff(
-    string Schema,
-    string Name,
+    SqlIdentifier Schema,
+    SqlIdentifier Name,
     ChangeKind Kind,
-    string? RenamedFrom = null,
+    SqlIdentifier? RenamedFrom = null,
     EnumType? Definition = null,
     IReadOnlyList<EnumValueAddition>? AddedValues = null,
     ValueChange<IReadOnlyList<string>>? Values = null,

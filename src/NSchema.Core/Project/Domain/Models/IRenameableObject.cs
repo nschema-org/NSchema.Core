@@ -9,5 +9,5 @@ public interface IRenameableObject : INamedObject
     /// <summary>
     /// The object's previous name, if it has been renamed.
     /// </summary>
-    string? OldName { get; }
+    SqlIdentifier? OldName { get; }
 }

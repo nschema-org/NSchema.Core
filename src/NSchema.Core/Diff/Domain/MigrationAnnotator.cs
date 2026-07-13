@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Project.Domain.Models.Scripts;
@@ -25,7 +26,7 @@ internal static class MigrationAnnotator
         return new MigrationAnnotationResult(diff with { Schemas = schemas }, unmatched);
     }
 
-    private static TableDiff Annotate(string schemaName, TableDiff table, IReadOnlyList<Script> migrations, HashSet<Script> matched)
+    private static TableDiff Annotate(SqlIdentifier schemaName, TableDiff table, IReadOnlyList<Script> migrations, HashSet<Script> matched)
     {
         if (table.Kind != ChangeKind.Modify)
         {
@@ -34,8 +35,8 @@ internal static class MigrationAnnotator
 
         var candidates = migrations
             .Where(m => m.Event is ChangeEvent e
-                && string.Equals(e.ScopeSchema, schemaName, StringComparison.OrdinalIgnoreCase)
-                && e.TableName.Equals(table.Name, StringComparison.OrdinalIgnoreCase))
+                && e.ScopeSchema == schemaName
+                && e.TableName == table.Name)
             .ToList();
         if (candidates.Count == 0)
         {
@@ -67,10 +68,10 @@ internal static class MigrationAnnotator
                 .ToList(),
         };
 
-        Script? Take(ChangeTrigger trigger, string memberName)
+        Script? Take(ChangeTrigger trigger, SqlIdentifier memberName)
         {
             var migration = candidates.FirstOrDefault(m =>
-                m.Event is ChangeEvent e && e.Trigger == trigger && e.MemberName.Equals(memberName, StringComparison.OrdinalIgnoreCase));
+                m.Event is ChangeEvent e && e.Trigger == trigger && e.MemberName == memberName);
             if (migration is not null)
             {
                 matched.Add(migration);

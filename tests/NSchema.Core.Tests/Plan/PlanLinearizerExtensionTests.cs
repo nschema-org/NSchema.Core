@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Extensions;
 using NSchema.Diff.Domain.Models.Schemas;
@@ -23,8 +24,8 @@ public sealed class PlanLinearizerExtensionTests
     public void CreateExtension_IsEmittedBeforeSchemaCreation()
     {
         var actions = _linearizer.Linearize(Diff(
-            [new ExtensionDiff("citext", ChangeKind.Add, Definition: new Extension("citext"))],
-            new SchemaDiff("app", ChangeKind.Add)));
+            [new ExtensionDiff(new SqlIdentifier("citext"), ChangeKind.Add, Definition: new Extension(new SqlIdentifier("citext")))],
+            new SchemaDiff(new SqlIdentifier("app"), ChangeKind.Add)));
 
         var createExtension = actions.Select((a, i) => (a, i)).Single(x => x.a is CreateExtension).i;
         var createSchema = actions.Select((a, i) => (a, i)).Single(x => x.a is CreateSchema).i;
@@ -35,8 +36,8 @@ public sealed class PlanLinearizerExtensionTests
     public void DropExtension_IsEmittedAfterSchemaDrop()
     {
         var actions = _linearizer.Linearize(Diff(
-            [new ExtensionDiff("citext", ChangeKind.Remove)],
-            new SchemaDiff("app", ChangeKind.Remove)));
+            [new ExtensionDiff(new SqlIdentifier("citext"), ChangeKind.Remove)],
+            new SchemaDiff(new SqlIdentifier("app"), ChangeKind.Remove)));
 
         var dropExtension = actions.Select((a, i) => (a, i)).Single(x => x.a is DropExtension).i;
         var dropSchema = actions.Select((a, i) => (a, i)).Single(x => x.a is DropSchema).i;
@@ -47,7 +48,7 @@ public sealed class PlanLinearizerExtensionTests
     public void AddedExtension_WithComment_EmitsCreateThenSetComment()
     {
         var actions = _linearizer.Linearize(Diff(
-            [new ExtensionDiff("postgis", ChangeKind.Add, Definition: new Extension("postgis", Comment: "gis"),
+            [new ExtensionDiff(new SqlIdentifier("postgis"), ChangeKind.Add, Definition: new Extension(new SqlIdentifier("postgis"), Comment: "gis"),
                 Comment: new ValueChange<string>(null, "gis"))]));
 
         actions.OfType<CreateExtension>().ShouldHaveSingleItem().Extension.Name.ShouldBe("postgis");
@@ -58,7 +59,7 @@ public sealed class PlanLinearizerExtensionTests
     public void ModifiedExtension_VersionChange_EmitsAlterExtension()
     {
         var actions = _linearizer.Linearize(Diff(
-            [new ExtensionDiff("postgis", ChangeKind.Modify, Version: new ValueChange<string>("3.3", "3.4"))]));
+            [new ExtensionDiff(new SqlIdentifier("postgis"), ChangeKind.Modify, Version: new ValueChange<string>("3.3", "3.4"))]));
 
         var alter = actions.OfType<AlterExtension>().ShouldHaveSingleItem();
         alter.OldVersion.ShouldBe("3.3");

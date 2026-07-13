@@ -5,7 +5,6 @@ using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Tables;
-using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.EndToEnd;
 
@@ -33,8 +32,8 @@ public sealed class RefreshEndToEndTests : IDisposable
         return path;
     }
 
-    private static DatabaseSchema LiveSchema() => new([new SchemaDefinition("app", Tables:
-        [new Table("users", Columns: [new Column("id", SqlType.Int)])])]);
+    private static DatabaseSchema LiveSchema() => new([new SchemaDefinition(new SqlIdentifier("app"), Tables:
+        [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
 
     [Fact]
     public async Task Refresh_WritesLiveSchemaToStateStore()

@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Sequences;
 
 namespace NSchema.Diff.Domain.Models.Sequences;
@@ -13,10 +14,10 @@ namespace NSchema.Diff.Domain.Models.Sequences;
 /// <param name="Options">The change to the sequence's options, if any.</param>
 /// <param name="Comment">The change to the sequence's comment, if any.</param>
 public sealed record SequenceDiff(
-    string Schema,
-    string Name,
+    SqlIdentifier Schema,
+    SqlIdentifier Name,
     ChangeKind Kind,
-    string? RenamedFrom = null,
+    SqlIdentifier? RenamedFrom = null,
     Sequence? Definition = null,
     ValueChange<SequenceOptions>? Options = null,
     ValueChange<string>? Comment = null

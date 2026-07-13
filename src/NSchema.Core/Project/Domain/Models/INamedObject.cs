@@ -9,7 +9,7 @@ public interface INamedObject
     /// <summary>
     /// The object's name.
     /// </summary>
-    string Name { get; }
+    SqlIdentifier Name { get; }
 
     /// <summary>
     /// An optional comment or description for the object.

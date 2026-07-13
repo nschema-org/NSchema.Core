@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.Triggers;
 
 /// <summary>
@@ -8,7 +9,7 @@ namespace NSchema.Plan.Domain.Models.Triggers;
 /// <param name="TriggerName">The name of the trigger.</param>
 /// <param name="OldComment">The previous comment, if any.</param>
 /// <param name="NewComment">The new comment, if any.</param>
-public sealed record SetTriggerComment(string SchemaName, string TableName, string TriggerName, string? OldComment, string? NewComment) : MigrationAction
+public sealed record SetTriggerComment(SqlIdentifier SchemaName, SqlIdentifier TableName, SqlIdentifier TriggerName, string? OldComment, string? NewComment) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => false;

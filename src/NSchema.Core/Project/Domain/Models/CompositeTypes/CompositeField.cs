@@ -7,4 +7,4 @@ namespace NSchema.Project.Domain.Models.CompositeTypes;
 /// </summary>
 /// <param name="Name">The field name.</param>
 /// <param name="DataType">The field's type.</param>
-public sealed record CompositeField(string Name, SqlType DataType);
+public sealed record CompositeField(SqlIdentifier Name, SqlType DataType);

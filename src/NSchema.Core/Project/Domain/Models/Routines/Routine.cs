@@ -13,10 +13,10 @@ namespace NSchema.Project.Domain.Models.Routines;
 /// <param name="Comment">An optional comment or description for the routine.</param>
 [DebuggerDisplay("{Name,nq} ({Kind})")]
 public sealed record Routine(
-    string Name,
+    SqlIdentifier Name,
     RoutineKind Kind,
     string Arguments,
     string Definition,
-    string? OldName = null,
+    SqlIdentifier? OldName = null,
     string? Comment = null
 ) : IRenameableObject;

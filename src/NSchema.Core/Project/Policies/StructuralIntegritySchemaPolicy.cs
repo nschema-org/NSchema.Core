@@ -15,9 +15,9 @@ internal sealed class StructuralIntegritySchemaPolicy : IProjectPolicy
     public IEnumerable<Diagnostic> Validate(ProjectDefinition project)
     {
         var schema = project.Schema;
-        var managedSchemas = new HashSet<string>(schema.Schemas.Select(s => s.Name), StringComparer.OrdinalIgnoreCase);
-        var partialSchemas = new HashSet<string>(
-            schema.Schemas.Where(s => s.IsPartial).Select(s => s.Name), StringComparer.OrdinalIgnoreCase);
+        var managedSchemas = schema.Schemas.Select(s => s.Name).ToHashSet();
+        var partialSchemas = new HashSet<SqlIdentifier>(
+            schema.Schemas.Where(s => s.IsPartial).Select(s => s.Name));
         var tablesByKey = schema.Schemas
             .SelectMany(s => s.Tables.Select(t => (Key: Key(s.Name, t.Name), Table: t)))
             .GroupBy(x => x.Key)
@@ -46,13 +46,13 @@ internal sealed class StructuralIntegritySchemaPolicy : IProjectPolicy
             .SelectMany(t => t.Indexes.Select(i => (i.Name, Kind: "index", On: t.Name))
                 .Concat(t.PrimaryKey is { } pk
                     ? [(pk.Name, Kind: "primary key", On: t.Name)]
-                    : Array.Empty<(string Name, string Kind, string On)>())
+                    : Array.Empty<(SqlIdentifier Name, string Kind, SqlIdentifier On)>())
                 .Concat(t.UniqueConstraints.Select(u => (u.Name, Kind: "unique constraint", On: t.Name)))
                 .Concat(t.ExclusionConstraints.Select(x => (x.Name, Kind: "exclusion constraint", On: t.Name))))
             .Concat(definition.Views.Where(v => v.IsMaterialized)
                 .SelectMany(v => v.Indexes.Select(i => (i.Name, Kind: "index", On: v.Name))));
 
-        foreach (var collision in named.GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
+        foreach (var collision in named.GroupBy(x => x.Name).Where(g => g.Count() > 1))
         {
             var sites = string.Join(", ", collision.Select(x => $"{x.Kind} on '{definition.Name}.{x.On}'"));
             diagnostics.Add(Error(
@@ -74,7 +74,7 @@ internal sealed class StructuralIntegritySchemaPolicy : IProjectPolicy
             .Concat(definition.Enums.Select(e => (e.Name, Kind: "enum")))
             .Concat(definition.Domains.Select(d => (d.Name, Kind: "domain")));
 
-        foreach (var collision in named.GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
+        foreach (var collision in named.GroupBy(x => x.Name).Where(g => g.Count() > 1))
         {
             var kinds = collision.Select(x => x.Kind).ToList();
             // A single kind appearing twice (e.g. two sequences) reads as a plain duplicate; a mix of kinds reads
@@ -102,13 +102,13 @@ internal sealed class StructuralIntegritySchemaPolicy : IProjectPolicy
     private static void ValidateTable(
         SchemaDefinition definition,
         Table table,
-        HashSet<string> managedSchemas,
-        HashSet<string> partialSchemas,
-        IReadOnlyDictionary<string, Table> tablesByKey,
+        HashSet<SqlIdentifier> managedSchemas,
+        HashSet<SqlIdentifier> partialSchemas,
+        IReadOnlyDictionary<(SqlIdentifier Schema, SqlIdentifier Table), Table> tablesByKey,
         List<Diagnostic> diagnostics)
     {
         var qualified = $"{definition.Name}.{table.Name}";
-        var columns = new HashSet<string>(table.Columns.Select(c => c.Name), StringComparer.OrdinalIgnoreCase);
+        var columns = table.Columns.Select(c => c.Name).ToHashSet();
 
         if (table.Columns.Count == 0)
         {
@@ -139,7 +139,7 @@ internal sealed class StructuralIntegritySchemaPolicy : IProjectPolicy
         {
             // Only plain-column keys (and covering INCLUDE columns) reference table columns directly; an
             // expression key (e.g. (lower(email))) names columns inside opaque text we don't parse.
-            var referenced = index.Columns.Where(c => !c.IsExpression).Select(c => c.Expression).Concat(index.Include);
+            var referenced = index.Columns.Where(c => !c.IsExpression).Select(c => new SqlIdentifier(c.Expression)).Concat(index.Include);
             foreach (var missing in referenced.Where(c => !columns.Contains(c)))
             {
                 diagnostics.Add(Error($"Index '{index.Name}' on '{qualified}' references unknown column '{missing}'."));
@@ -155,10 +155,10 @@ internal sealed class StructuralIntegritySchemaPolicy : IProjectPolicy
     private static void ValidateForeignKey(
         string qualified,
         ForeignKey foreignKey,
-        HashSet<string> localColumns,
-        HashSet<string> managedSchemas,
-        HashSet<string> partialSchemas,
-        IReadOnlyDictionary<string, Table> tablesByKey,
+        HashSet<SqlIdentifier> localColumns,
+        HashSet<SqlIdentifier> managedSchemas,
+        HashSet<SqlIdentifier> partialSchemas,
+        IReadOnlyDictionary<(SqlIdentifier Schema, SqlIdentifier Table), Table> tablesByKey,
         List<Diagnostic> diagnostics)
     {
         foreach (var missing in foreignKey.ColumnNames.Where(c => !localColumns.Contains(c)))
@@ -191,7 +191,7 @@ internal sealed class StructuralIntegritySchemaPolicy : IProjectPolicy
             return;
         }
 
-        var referencedColumns = new HashSet<string>(referencedTable.Columns.Select(c => c.Name), StringComparer.OrdinalIgnoreCase);
+        var referencedColumns = referencedTable.Columns.Select(c => c.Name).ToHashSet();
         var missingReferenced = foreignKey.ReferencedColumnNames.Where(c => !referencedColumns.Contains(c)).ToList();
         foreach (var missing in missingReferenced)
         {
@@ -207,9 +207,9 @@ internal sealed class StructuralIntegritySchemaPolicy : IProjectPolicy
         }
     }
 
-    private static bool IsUniquelyConstrained(Table table, IReadOnlyList<string> columnNames)
+    private static bool IsUniquelyConstrained(Table table, IReadOnlyList<SqlIdentifier> columnNames)
     {
-        var referenced = new HashSet<string>(columnNames, StringComparer.OrdinalIgnoreCase);
+        var referenced = new HashSet<SqlIdentifier>(columnNames);
 
         if (table.PrimaryKey is { } primaryKey && referenced.SetEquals(primaryKey.ColumnNames))
         {
@@ -221,16 +221,16 @@ internal sealed class StructuralIntegritySchemaPolicy : IProjectPolicy
         // so they don't affect the match.
         return table.Indexes.Any(i => i is { IsUnique: true, Predicate: null }
             && i.Columns.All(c => !c.IsExpression)
-            && referenced.SetEquals(i.Columns.Select(c => c.Expression)));
+            && referenced.SetEquals(i.Columns.Select(c => new SqlIdentifier(c.Expression))));
     }
 
-    private static IEnumerable<string> Duplicates(IEnumerable<string> names) => names
-        .GroupBy(n => n, StringComparer.OrdinalIgnoreCase)
+    private static IEnumerable<SqlIdentifier> Duplicates(IEnumerable<SqlIdentifier> names) => names
+        .GroupBy(n => n)
         .Where(g => g.Count() > 1)
         .Select(g => g.Key);
 
     // The NUL character cannot appear in an identifier, so it is a safe composite-key separator even for quoted names.
-    private static string Key(string schema, string table) => $"{schema.ToLowerInvariant()}\0{table.ToLowerInvariant()}";
+    private static (SqlIdentifier Schema, SqlIdentifier Table) Key(SqlIdentifier schema, SqlIdentifier table) => (schema, table);
 
     private static Diagnostic Error(string message) => Diagnostic.Error(PolicyName, message);
 }

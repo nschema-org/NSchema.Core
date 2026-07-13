@@ -225,7 +225,10 @@
                 name: users_audit,
                 timing: After,
                 events: Insert, Update,
-                function: app.log_change,
+                function: {
+                  schema: app,
+                  name: log_change
+                },
                 level: Row,
                 when: new.balance > 0,
                 functionArguments: null,
@@ -240,7 +243,10 @@
                 name: users_stamp,
                 timing: Before,
                 events: Update,
-                function: app.touch_updated_at,
+                function: {
+                  schema: app,
+                  name: touch_updated_at
+                },
                 level: Statement,
                 when: null,
                 functionArguments: null,

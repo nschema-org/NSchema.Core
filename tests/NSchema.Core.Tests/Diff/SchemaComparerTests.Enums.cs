@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Enums;
 using NSchema.Project.Domain.Models.Enums;
@@ -13,13 +14,13 @@ public partial class SchemaComparerTests
 
     /// <summary>Diffs two <c>app</c> schemas holding the given enums, returning the single enum diff (null when unchanged).</summary>
     private EnumDiff? DiffEnums(IReadOnlyList<EnumType> current, IReadOnlyList<EnumType> desired) => _sut
-        .Compare(Db(new SchemaDefinition("app", Enums: current)), Db(new SchemaDefinition("app", Enums: desired)))
+        .Compare(Db(new SchemaDefinition(new SqlIdentifier("app"), Enums: current)), Db(new SchemaDefinition(new SqlIdentifier("app"), Enums: desired)))
         .Schemas.SingleOrDefault()?.Enums.SingleOrDefault();
 
     [Fact]
     public void Compare_NewEnum_IsAddCarryingDefinition()
     {
-        var diff = DiffEnums([], [new EnumType("status", ["a", "b"])]);
+        var diff = DiffEnums([], [new EnumType(new SqlIdentifier("status"), ["a", "b"])]);
 
         diff!.Kind.ShouldBe(ChangeKind.Add);
         diff.Definition!.Values.ShouldBe(["a", "b"]);
@@ -29,7 +30,7 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_RemovedEnum_IsRemove()
     {
-        var diff = DiffEnums([new EnumType("status", ["a"])], []);
+        var diff = DiffEnums([new EnumType(new SqlIdentifier("status"), ["a"])], []);
 
         diff!.Kind.ShouldBe(ChangeKind.Remove);
         diff.Definition.ShouldBeNull();
@@ -37,14 +38,14 @@ public partial class SchemaComparerTests
 
     [Fact]
     public void Compare_UnchangedEnum_ProducesNoDiff()
-        => DiffEnums([new EnumType("status", ["a", "b"])], [new EnumType("status", ["a", "b"])]).ShouldBeNull();
+        => DiffEnums([new EnumType(new SqlIdentifier("status"), ["a", "b"])], [new EnumType(new SqlIdentifier("status"), ["a", "b"])]).ShouldBeNull();
 
     [Fact]
     public void Compare_RenamedEnum_SetsRenamedFrom()
     {
         var diff = DiffEnums(
-            [new EnumType("state", ["a"])],
-            [new EnumType("status", ["a"], OldName: "state")]);
+            [new EnumType(new SqlIdentifier("state"), ["a"])],
+            [new EnumType(new SqlIdentifier("status"), ["a"], OldName: new SqlIdentifier("state"))]);
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.RenamedFrom.ShouldBe("state");
@@ -56,8 +57,8 @@ public partial class SchemaComparerTests
     public void Compare_EnumCommentOnlyChange_IsModify()
     {
         var diff = DiffEnums(
-            [new EnumType("status", ["a"], Comment: "old")],
-            [new EnumType("status", ["a"], Comment: "new")]);
+            [new EnumType(new SqlIdentifier("status"), ["a"], Comment: "old")],
+            [new EnumType(new SqlIdentifier("status"), ["a"], Comment: "new")]);
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.Comment.ShouldBe(new ValueChange<string>("old", "new"));
@@ -68,8 +69,8 @@ public partial class SchemaComparerTests
     public void Compare_EnumAppendedValue_AnchorsAfterThePreviousValue()
     {
         var diff = DiffEnums(
-            [new EnumType("status", ["a", "b"])],
-            [new EnumType("status", ["a", "b", "c"])]);
+            [new EnumType(new SqlIdentifier("status"), ["a", "b"])],
+            [new EnumType(new SqlIdentifier("status"), ["a", "b", "c"])]);
 
         diff!.AddedValues.ShouldHaveSingleItem().ShouldBe(new EnumValueAddition("c", After: "b"));
         diff.RequiresRecreate.ShouldBeFalse();
@@ -81,8 +82,8 @@ public partial class SchemaComparerTests
     public void Compare_EnumHeadInsertion_AnchorsBeforeTheFirstExistingValue()
     {
         var diff = DiffEnums(
-            [new EnumType("status", ["c"])],
-            [new EnumType("status", ["a", "b", "c"])]);
+            [new EnumType(new SqlIdentifier("status"), ["c"])],
+            [new EnumType(new SqlIdentifier("status"), ["a", "b", "c"])]);
 
         // a goes before the only existing value; b then chains after a, which exists once a is added.
         diff!.AddedValues.ShouldBe([
@@ -95,8 +96,8 @@ public partial class SchemaComparerTests
     public void Compare_EnumMiddleInsertion_AnchorsAfterThePrecedingValue()
     {
         var diff = DiffEnums(
-            [new EnumType("status", ["a", "c"])],
-            [new EnumType("status", ["a", "b", "c"])]);
+            [new EnumType(new SqlIdentifier("status"), ["a", "c"])],
+            [new EnumType(new SqlIdentifier("status"), ["a", "b", "c"])]);
 
         diff!.AddedValues.ShouldHaveSingleItem().ShouldBe(new EnumValueAddition("b", After: "a"));
     }
@@ -105,8 +106,8 @@ public partial class SchemaComparerTests
     public void Compare_EnumConsecutiveInsertions_ChainTheirAnchors()
     {
         var diff = DiffEnums(
-            [new EnumType("status", ["a"])],
-            [new EnumType("status", ["a", "b", "c"])]);
+            [new EnumType(new SqlIdentifier("status"), ["a"])],
+            [new EnumType(new SqlIdentifier("status"), ["a", "b", "c"])]);
 
         diff!.AddedValues.ShouldBe([
             new EnumValueAddition("b", After: "a"),
@@ -118,8 +119,8 @@ public partial class SchemaComparerTests
     public void Compare_EnumWithEmptyCurrent_AppendsWithoutAnchors()
     {
         var diff = DiffEnums(
-            [new EnumType("status")],
-            [new EnumType("status", ["a", "b"])]);
+            [new EnumType(new SqlIdentifier("status"))],
+            [new EnumType(new SqlIdentifier("status"), ["a", "b"])]);
 
         diff!.AddedValues.ShouldBe([
             new EnumValueAddition("a"),
@@ -131,8 +132,8 @@ public partial class SchemaComparerTests
     public void Compare_EnumValueRemoval_RequiresRecreate()
     {
         var diff = DiffEnums(
-            [new EnumType("status", ["a", "b", "c"])],
-            [new EnumType("status", ["a", "c"])]);
+            [new EnumType(new SqlIdentifier("status"), ["a", "b", "c"])],
+            [new EnumType(new SqlIdentifier("status"), ["a", "c"])]);
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.AddedValues.ShouldBeEmpty();
@@ -146,8 +147,8 @@ public partial class SchemaComparerTests
     public void Compare_EnumValueReorder_RequiresRecreate()
     {
         var diff = DiffEnums(
-            [new EnumType("status", ["a", "b"])],
-            [new EnumType("status", ["b", "a"])]);
+            [new EnumType(new SqlIdentifier("status"), ["a", "b"])],
+            [new EnumType(new SqlIdentifier("status"), ["b", "a"])]);
 
         diff!.AddedValues.ShouldBeEmpty();
         diff.RequiresRecreate.ShouldBeTrue();
@@ -155,15 +156,15 @@ public partial class SchemaComparerTests
 
     [Fact]
     public void Compare_EnumValues_AreCaseSensitive()
-        => DiffEnums([new EnumType("status", ["Active"])], [new EnumType("status", ["active"])])!
+        => DiffEnums([new EnumType(new SqlIdentifier("status"), ["Active"])], [new EnumType(new SqlIdentifier("status"), ["active"])])!
             .RequiresRecreate.ShouldBeTrue();
 
     [Fact]
     public void Compare_PartialSchema_LeavesUnmanagedEnumAlone()
     {
         var diff = _sut.Compare(
-            Db(new SchemaDefinition("app", Enums: [new EnumType("status", ["a"])])),
-            Db(new SchemaDefinition("app", IsPartial: true)));
+            Db(new SchemaDefinition(new SqlIdentifier("app"), Enums: [new EnumType(new SqlIdentifier("status"), ["a"])])),
+            Db(new SchemaDefinition(new SqlIdentifier("app"), IsPartial: true)));
 
         diff.Schemas.ShouldBeEmpty();
     }
@@ -172,8 +173,8 @@ public partial class SchemaComparerTests
     public void Compare_PartialSchema_DropsExplicitlyDroppedEnum()
     {
         var diff = _sut.Compare(
-            Db(new SchemaDefinition("app", Enums: [new EnumType("status", ["a"])])),
-            Db(new SchemaDefinition("app", IsPartial: true, DroppedEnums: ["status"])));
+            Db(new SchemaDefinition(new SqlIdentifier("app"), Enums: [new EnumType(new SqlIdentifier("status"), ["a"])])),
+            Db(new SchemaDefinition(new SqlIdentifier("app"), IsPartial: true, DroppedEnums: [new SqlIdentifier("status")])));
 
         diff.Schemas.ShouldHaveSingleItem().Enums.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
     }

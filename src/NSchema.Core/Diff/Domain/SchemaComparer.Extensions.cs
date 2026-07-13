@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Extensions;
 using NSchema.Project.Domain.Models.Extensions;
@@ -17,14 +18,14 @@ internal sealed partial class SchemaComparer
     private static List<ExtensionDiff> CompareExtensions(
         IReadOnlyList<Extension> current,
         IReadOnlyList<Extension> desired,
-        IReadOnlyList<string> droppedNames
+        IReadOnlyList<SqlIdentifier> droppedNames
     )
     {
         var result = new List<ExtensionDiff>();
 
         foreach (var name in droppedNames)
         {
-            var existing = current.FirstOrDefault(e => string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
+            var existing = current.FirstOrDefault(e => e.Name == name);
             if (existing is not null)
             {
                 result.Add(new ExtensionDiff(existing.Name, ChangeKind.Remove));
@@ -33,7 +34,7 @@ internal sealed partial class SchemaComparer
 
         foreach (var desiredExtension in desired)
         {
-            var match = current.FirstOrDefault(e => string.Equals(e.Name, desiredExtension.Name, StringComparison.OrdinalIgnoreCase));
+            var match = current.FirstOrDefault(e => e.Name == desiredExtension.Name);
             if (match is null)
             {
                 result.Add(BuildNewExtension(desiredExtension));
@@ -44,7 +45,7 @@ internal sealed partial class SchemaComparer
             }
         }
 
-        result.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
+        result.Sort((a, b) => a.Name.CompareTo(b.Name));
         return result;
     }
 

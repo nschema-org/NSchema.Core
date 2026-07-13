@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.Schemas;
 
 /// <summary>
@@ -7,7 +8,7 @@ namespace NSchema.Plan.Domain.Models.Schemas;
 /// <remarks>
 /// This action is used to define a new namespace for database objects, allowing for better organization and separation of concerns within the database schema.
 /// </remarks>
-public sealed record CreateSchema(string SchemaName) : MigrationAction
+public sealed record CreateSchema(SqlIdentifier SchemaName) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => false;

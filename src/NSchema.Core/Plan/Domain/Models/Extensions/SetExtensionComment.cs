@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.Extensions;
 
 /// <summary>
@@ -6,7 +7,7 @@ namespace NSchema.Plan.Domain.Models.Extensions;
 /// <param name="ExtensionName">The name of the extension.</param>
 /// <param name="OldComment">The previous comment, if any.</param>
 /// <param name="NewComment">The new comment, if any.</param>
-public sealed record SetExtensionComment(string ExtensionName, string? OldComment, string? NewComment) : MigrationAction
+public sealed record SetExtensionComment(SqlIdentifier ExtensionName, string? OldComment, string? NewComment) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => false;

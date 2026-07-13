@@ -21,43 +21,43 @@ public sealed class DatabaseSchemaSnapshotTests
         // Two providers contribute to "app" (tables and views merged); a third owns "reporting" on its own.
         var core = new DatabaseSchema(
         [
-            new SchemaDefinition("app", Comment: "application schema",
+            new SchemaDefinition(new SqlIdentifier("app"), Comment: "application schema",
                 Tables:
                 [
-                    new Table("users",
-                        PrimaryKey: new PrimaryKey("users_pkey", ["id"]),
-                        Columns: [new Column("id", SqlType.BigInt), new Column("name", SqlType.VarChar(255))]),
+                    new Table(new SqlIdentifier("users"),
+                        PrimaryKey: new PrimaryKey(new SqlIdentifier("users_pkey"), [new SqlIdentifier("id")]),
+                        Columns: [new Column(new SqlIdentifier("id"), SqlType.BigInt), new Column(new SqlIdentifier("name"), SqlType.VarChar(255))]),
                 ],
                 Views:
                 [
-                    new View("active_users", "SELECT id, name FROM app.users", Comment: "currently active users",
-                        DependsOn: [new ViewDependency("app", "users")]),
+                    new View(new SqlIdentifier("active_users"), "SELECT id, name FROM app.users", Comment: "currently active users",
+                        DependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users"))]),
                 ]),
         ]);
 
         var billing = new DatabaseSchema(
         [
-            new SchemaDefinition("app",
+            new SchemaDefinition(new SqlIdentifier("app"),
                 Tables:
                 [
-                    new Table("invoices",
-                        Columns: [new Column("id", SqlType.BigInt), new Column("amount", SqlType.Decimal(18, 2))]),
+                    new Table(new SqlIdentifier("invoices"),
+                        Columns: [new Column(new SqlIdentifier("id"), SqlType.BigInt), new Column(new SqlIdentifier("amount"), SqlType.Decimal(18, 2))]),
                 ],
                 Views:
                 [
-                    new View("invoice_totals", "SELECT id, amount FROM app.invoices",
-                        DependsOn: [new ViewDependency("app", "invoices")]),
+                    new View(new SqlIdentifier("invoice_totals"), "SELECT id, amount FROM app.invoices",
+                        DependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("invoices"))]),
                 ]),
         ]);
 
         var reporting = new DatabaseSchema(
         [
-            new SchemaDefinition("reporting", Comment: "analytics",
-                Tables: [new Table("daily_totals", Columns: [new Column("day", SqlType.Date)])],
+            new SchemaDefinition(new SqlIdentifier("reporting"), Comment: "analytics",
+                Tables: [new Table(new SqlIdentifier("daily_totals"), Columns: [new Column(new SqlIdentifier("day"), SqlType.Date)])],
                 Views:
                 [
-                    new View("weekly_rollup", "SELECT day FROM reporting.daily_totals",
-                        DependsOn: [new ViewDependency("reporting", "daily_totals")]),
+                    new View(new SqlIdentifier("weekly_rollup"), "SELECT day FROM reporting.daily_totals",
+                        DependsOn: [new ViewDependency(new SqlIdentifier("reporting"), new SqlIdentifier("daily_totals"))]),
                 ]),
         ]);
 

@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Plan.Domain.Models.Tables;
@@ -9,7 +10,7 @@ namespace NSchema.Plan.Domain.Models.Tables;
 /// <param name="TableName">The name of the table for which privileges are being granted.</param>
 /// <param name="Role">The name of the role to which the privileges will be granted.</param>
 /// <param name="Privileges">The specific privileges being granted to the role for the table.</param>
-public sealed record GrantTablePrivileges(string SchemaName, string TableName, string Role, TablePrivilege Privileges) : MigrationAction
+public sealed record GrantTablePrivileges(SqlIdentifier SchemaName, SqlIdentifier TableName, SqlIdentifier Role, TablePrivilege Privileges) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => false;

@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using System.Text;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Columns;
@@ -7,7 +8,6 @@ using NSchema.Plan.Domain.Models;
 using NSchema.Plan.PlanFile;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Scripts;
-using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Plan.PlanFile;
 
@@ -26,9 +26,9 @@ public sealed class PlanFileManagerTests
             {
                 Scripts =
                 [
-                    new Script("seed", "INSERT INTO app.config VALUES (1)", new DeploymentEvent(DeploymentPhase.Pre)),
-                    new Script("backfill", "UPDATE app.users SET email = ''", new ChangeEvent(ChangeTrigger.AddColumn, "users", "email") { ScopeSchema = "app" }) { RunCondition = RunCondition.Once },
-                    new Script("reindex", "REINDEX TABLE app.users", new DeploymentEvent(DeploymentPhase.Post)) { RunOutsideTransaction = true },
+                    new Script(new SqlIdentifier("seed"), "INSERT INTO app.config VALUES (1)", new DeploymentEvent(DeploymentPhase.Pre)),
+                    new Script(new SqlIdentifier("backfill"), "UPDATE app.users SET email = ''", new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") }) { RunCondition = RunCondition.Once },
+                    new Script(new SqlIdentifier("reindex"), "REINDEX TABLE app.users", new DeploymentEvent(DeploymentPhase.Post)) { RunOutsideTransaction = true },
                 ],
             },
             [
@@ -104,18 +104,18 @@ public sealed class PlanFileManagerTests
     {
         // Arrange — a diff whose column add is annotated with its matched script, so diff-node persistence and
         // the script-event discriminator inside the diff are both exercised.
-        var migration = new Script("backfill emails", "UPDATE app.users SET email = ''",
-            new ChangeEvent(ChangeTrigger.AddColumn, "users", "email") { ScopeSchema = "app" })
+        var migration = new Script(new SqlIdentifier("backfill emails"), "UPDATE app.users SET email = ''",
+            new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") })
         {
             RunOutsideTransaction = true,
         };
         var diff = new DatabaseDiff(
         [
-            new SchemaDiff("app", Tables:
+            new SchemaDiff(new SqlIdentifier("app"), Tables:
             [
-                new TableDiff("app", "users", ChangeKind.Modify, Columns:
+                new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify, Columns:
                 [
-                    new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text)) { MigrationScript = migration.Name },
+                    new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text)) { MigrationScript = migration.Name },
                 ]),
             ]),
         ]);

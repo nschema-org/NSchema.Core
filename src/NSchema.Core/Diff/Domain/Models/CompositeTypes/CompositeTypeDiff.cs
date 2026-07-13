@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.CompositeTypes;
 
 namespace NSchema.Diff.Domain.Models.CompositeTypes;
@@ -13,10 +14,10 @@ namespace NSchema.Diff.Domain.Models.CompositeTypes;
 /// <param name="Fields">In-place field changes (added/dropped/retyped via <c>ALTER TYPE</c>) on an existing type.</param>
 /// <param name="Comment">The change to the type's comment, if any.</param>
 public sealed record CompositeTypeDiff(
-    string Schema,
-    string Name,
+    SqlIdentifier Schema,
+    SqlIdentifier Name,
     ChangeKind Kind,
-    string? RenamedFrom = null,
+    SqlIdentifier? RenamedFrom = null,
     CompositeType? Definition = null,
     IReadOnlyList<CompositeFieldDiff>? Fields = null,
     ValueChange<string>? Comment = null

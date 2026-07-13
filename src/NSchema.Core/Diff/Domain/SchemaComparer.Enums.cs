@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Enums;
 using NSchema.Project.Domain.Models.Enums;
@@ -7,22 +8,22 @@ namespace NSchema.Diff.Domain;
 
 internal sealed partial class SchemaComparer
 {
-    private static List<EnumDiff> CompareEnums(string schemaName, IReadOnlyList<EnumType> current, SchemaDefinition desired) =>
+    private static List<EnumDiff> CompareEnums(SqlIdentifier schemaName, IReadOnlyList<EnumType> current, SchemaDefinition desired) =>
         CompareObjects(schemaName, "enum", current, desired.Enums, desired.DroppedEnums, desired.IsPartial,
             enumType => new EnumDiff(schemaName, enumType.Name, ChangeKind.Remove),
             enumType => BuildNewEnum(schemaName, enumType),
             (currentEnum, desiredEnum) => BuildModifiedEnum(schemaName, currentEnum, desiredEnum));
 
-    private static EnumDiff BuildNewEnum(string schema, EnumType enumType) =>
+    private static EnumDiff BuildNewEnum(SqlIdentifier schema, EnumType enumType) =>
         new(schema, enumType.Name, ChangeKind.Add, Definition: enumType,
             Comment: ValueChanges.Changed(null, enumType.Comment));
 
     // Enum values are additions-only: a value-compatible change carries the anchored additions, while a removal
     // or reorder carries only the old/new value lists (AddedValues stays empty, so RequiresRecreate is true).
     // The diff still records the latter so drift can display it; planning it is rejected by policy.
-    private static EnumDiff? BuildModifiedEnum(string schema, EnumType current, EnumType desired)
+    private static EnumDiff? BuildModifiedEnum(SqlIdentifier schema, EnumType current, EnumType desired)
     {
-        var renamedFrom = current.Name == desired.Name ? null : current.Name;
+        var renamedFrom = current.Name == desired.Name ? (SqlIdentifier?)null : current.Name;
         var comment = ValueChanges.Changed(current.Comment, desired.Comment);
 
         ValueChange<IReadOnlyList<string>>? values = null;

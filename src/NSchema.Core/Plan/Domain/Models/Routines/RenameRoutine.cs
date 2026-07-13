@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Routines;
 
 namespace NSchema.Plan.Domain.Models.Routines;
@@ -9,7 +10,7 @@ namespace NSchema.Plan.Domain.Models.Routines;
 /// <param name="OldName">The current name of the routine.</param>
 /// <param name="NewName">The new name of the routine.</param>
 /// <param name="Kind">Whether the routine is a function or a procedure.</param>
-public sealed record RenameRoutine(string SchemaName, string OldName, string NewName, RoutineKind Kind) : MigrationAction
+public sealed record RenameRoutine(SqlIdentifier SchemaName, SqlIdentifier OldName, SqlIdentifier NewName, RoutineKind Kind) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => false;

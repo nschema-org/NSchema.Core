@@ -8,7 +8,6 @@ using NSchema.Operations;
 using NSchema.Operations.Progress;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Operations;
 
@@ -59,7 +58,7 @@ public sealed class DoctorOperationTests
     public async Task Run_WhenDatabaseReachable_ReportsConnectedWithSchemaCount()
     {
         // Arrange
-        var schema = new DatabaseSchema(Schemas: [new SchemaDefinition("app"), new SchemaDefinition("billing")]);
+        var schema = new DatabaseSchema(Schemas: [new SchemaDefinition(new SqlIdentifier("app")), new SchemaDefinition(new SqlIdentifier("billing"))]);
         var sut = BuildSut(online: new InMemoryIntrospector(schema));
 
         // Act
@@ -104,7 +103,7 @@ public sealed class DoctorOperationTests
     {
         // Arrange
         var store = new RecordingStateStore();
-        await store.Write(_serializer.Serialize(new SchemaState(new DatabaseSchema(Schemas: [new SchemaDefinition("app")]))), TestContext.Current.CancellationToken);
+        await store.Write(_serializer.Serialize(new SchemaState(new DatabaseSchema(Schemas: [new SchemaDefinition(new SqlIdentifier("app"))]))), TestContext.Current.CancellationToken);
         var sut = BuildSut(store: store);
 
         // Act

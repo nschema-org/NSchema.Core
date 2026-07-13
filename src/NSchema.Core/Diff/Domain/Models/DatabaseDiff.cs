@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Diff.Domain.Models.Extensions;
 using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Scripts;
@@ -32,8 +33,7 @@ public sealed record DatabaseDiff(
     /// <summary>
     /// Resolves a script on <see cref="Scripts"/> by name.
     /// </summary>
-    public Script? FindScript(string name) =>
-        Scripts.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
+    public Script? FindScript(SqlIdentifier name) => Scripts.FirstOrDefault(s => s.Name == name);
 
     /// <summary>
     /// Gets a value indicating whether the diff contains no changes at all — no schema changes and no script runs.

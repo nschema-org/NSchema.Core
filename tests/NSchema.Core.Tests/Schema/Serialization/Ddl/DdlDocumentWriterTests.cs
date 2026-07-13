@@ -217,7 +217,7 @@ public sealed class DdlDocumentWriterTests
     [Fact]
     public void Write_DatabaseSchemaOverload_EmitsNoConfigOrScripts()
     {
-        var ddl = DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition("app")]));
+        var ddl = DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]));
 
         ddl.ShouldNotContain("PROVIDER");
         ddl.ShouldNotContain("DEPLOYMENT");

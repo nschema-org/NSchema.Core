@@ -23,13 +23,13 @@ internal static class SchemaAggregator
 
         var droppedSchemas = first.DroppedSchemas
             .Concat(second.DroppedSchemas)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Distinct()
             .ToList();
 
         // Extensions are database-global, so they aggregate at the root (not per schema). A name declared by
         // more than one source is a conflict, mirroring how duplicate tables/enums are rejected.
         var extensions = new List<Extension>();
-        var seenExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenExtensions = new HashSet<SqlIdentifier>();
         foreach (var extension in first.Extensions.Concat(second.Extensions))
         {
             if (!seenExtensions.Add(extension.Name))
@@ -43,7 +43,7 @@ internal static class SchemaAggregator
 
         var droppedExtensions = first.DroppedExtensions
             .Concat(second.DroppedExtensions)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Distinct()
             .ToList();
 
         return Result.From(new DatabaseSchema(mergedSchemas, droppedSchemas, extensions, droppedExtensions), diagnostics);
@@ -107,14 +107,14 @@ internal static class SchemaAggregator
     private static List<T> MergeUnique<T>(
         IReadOnlyList<SchemaDefinition> schemas,
         Func<SchemaDefinition, IEnumerable<T>> select,
-        Func<T, string> name,
-        string schemaName,
+        Func<T, SqlIdentifier> name,
+        SqlIdentifier schemaName,
         string kind,
         List<Diagnostic> diagnostics,
         string suffix = "")
     {
         var result = new List<T>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seen = new HashSet<SqlIdentifier>();
         foreach (var item in schemas.SelectMany(select))
         {
             if (!seen.Add(name(item)))
@@ -129,6 +129,6 @@ internal static class SchemaAggregator
         return result;
     }
 
-    private static List<string> MergeDropped(IReadOnlyList<SchemaDefinition> schemas, Func<SchemaDefinition, IEnumerable<string>> select) =>
-        schemas.SelectMany(select).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    private static List<SqlIdentifier> MergeDropped(IReadOnlyList<SchemaDefinition> schemas, Func<SchemaDefinition, IEnumerable<SqlIdentifier>> select) =>
+        schemas.SelectMany(select).Distinct().ToList();
 }

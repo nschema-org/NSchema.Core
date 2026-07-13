@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Columns;
@@ -19,7 +20,7 @@ public class MigrationAnnotatorTests
         // Arrange
         var migration = Migration(ChangeTrigger.AddColumn, "email");
         var diff = ModifiedTable(Columns:
-            [new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))]);
+            [new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text))]);
 
         // Act
         var (annotated, unmatched) = MigrationAnnotator.Annotate(diff, [migration]);
@@ -35,7 +36,7 @@ public class MigrationAnnotatorTests
         // Arrange
         var migration = Migration(ChangeTrigger.AlterColumnType, "total");
         var diff = ModifiedTable(Columns:
-            [new ColumnDiff("total", ChangeKind.Modify, Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int))]);
+            [new ColumnDiff(new SqlIdentifier("total"), ChangeKind.Modify, Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int))]);
 
         // Act
         var (annotated, unmatched) = MigrationAnnotator.Annotate(diff, [migration]);
@@ -51,7 +52,7 @@ public class MigrationAnnotatorTests
         // Arrange
         var migration = Migration(ChangeTrigger.AddConstraint, "users_pk");
         var diff = ModifiedTable(PrimaryKey:
-            [new PrimaryKeyDiff(ChangeKind.Add, "users_pk", new PrimaryKey("users_pk", ["id"]))]);
+            [new PrimaryKeyDiff(ChangeKind.Add, new SqlIdentifier("users_pk"), new PrimaryKey(new SqlIdentifier("users_pk"), [new SqlIdentifier("id")]))]);
 
         // Act
         var (annotated, unmatched) = MigrationAnnotator.Annotate(diff, [migration]);
@@ -67,7 +68,7 @@ public class MigrationAnnotatorTests
         // Arrange
         var migration = Migration(ChangeTrigger.AddConstraint, "users_email_uq");
         var diff = ModifiedTable(UniqueConstraints:
-            [new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint("users_email_uq", ["email"]))]);
+            [new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_email_uq"), new UniqueConstraint(new SqlIdentifier("users_email_uq"), [new SqlIdentifier("email")]))]);
 
         // Act
         var (annotated, unmatched) = MigrationAnnotator.Annotate(diff, [migration]);
@@ -83,7 +84,7 @@ public class MigrationAnnotatorTests
         // Arrange
         var migration = Migration(ChangeTrigger.AddConstraint, "users_org_fk");
         var diff = ModifiedTable(ForeignKeys:
-            [new ForeignKeyDiff(ChangeKind.Add, "users_org_fk", new ForeignKey("users_org_fk", ["org_id"], "app", "orgs", ["id"]))]);
+            [new ForeignKeyDiff(ChangeKind.Add, new SqlIdentifier("users_org_fk"), new ForeignKey(new SqlIdentifier("users_org_fk"), [new SqlIdentifier("org_id")], new SqlIdentifier("app"), new SqlIdentifier("orgs"), [new SqlIdentifier("id")]))]);
 
         // Act
         var (annotated, unmatched) = MigrationAnnotator.Annotate(diff, [migration]);
@@ -99,7 +100,7 @@ public class MigrationAnnotatorTests
         // Arrange
         var migration = Migration(ChangeTrigger.AddConstraint, "users_age_chk");
         var diff = ModifiedTable(Checks:
-            [new CheckConstraintDiff(ChangeKind.Add, "users_age_chk", new CheckConstraint("users_age_chk", "age >= 0"))]);
+            [new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_age_chk"), new CheckConstraint(new SqlIdentifier("users_age_chk"), "age >= 0"))]);
 
         // Act
         var (annotated, unmatched) = MigrationAnnotator.Annotate(diff, [migration]);
@@ -116,8 +117,8 @@ public class MigrationAnnotatorTests
         var migration = Migration(ChangeTrigger.AddConstraint, "no_overlap");
         var diff = ModifiedTable(ExclusionConstraints:
         [
-            new ExclusionConstraintDiff(ChangeKind.Add, "no_overlap",
-                new ExclusionConstraint("no_overlap", [new ExclusionElement("during", "&&")], "gist")),
+            new ExclusionConstraintDiff(ChangeKind.Add, new SqlIdentifier("no_overlap"),
+                new ExclusionConstraint(new SqlIdentifier("no_overlap"), [new ExclusionElement("during", "&&")], "gist")),
         ]);
 
         // Act
@@ -134,7 +135,7 @@ public class MigrationAnnotatorTests
         // Arrange
         var migration = Migration(ChangeTrigger.AddColumn, "phone");
         var diff = ModifiedTable(Columns:
-            [new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))]);
+            [new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text))]);
 
         // Act
         var (annotated, unmatched) = MigrationAnnotator.Annotate(diff, [migration]);
@@ -150,7 +151,7 @@ public class MigrationAnnotatorTests
         // Arrange — an AlterColumnType block targeting a column that is being added, not retyped.
         var migration = Migration(ChangeTrigger.AlterColumnType, "email");
         var diff = ModifiedTable(Columns:
-            [new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))]);
+            [new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text))]);
 
         // Act
         var (annotated, unmatched) = MigrationAnnotator.Annotate(diff, [migration]);
@@ -166,7 +167,7 @@ public class MigrationAnnotatorTests
         // Arrange — the column changes, but not its type, so a type-change migration has nothing to prepare.
         var migration = Migration(ChangeTrigger.AlterColumnType, "email");
         var diff = ModifiedTable(Columns:
-            [new ColumnDiff("email", ChangeKind.Modify, Nullability: new ValueChange<bool>(true, false))]);
+            [new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Modify, Nullability: new ValueChange<bool>(true, false))]);
 
         // Act
         var (annotated, unmatched) = MigrationAnnotator.Annotate(diff, [migration]);
@@ -182,11 +183,11 @@ public class MigrationAnnotatorTests
         // Arrange — an added table is empty, so a migration targeting it has no data to move.
         var migration = Migration(ChangeTrigger.AddColumn, "email");
         var diff = new DatabaseDiff([
-            new SchemaDiff("app", Tables:
+            new SchemaDiff(new SqlIdentifier("app"), Tables:
             [
-                new TableDiff("app", "users", ChangeKind.Add,
-                    Columns: [new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))],
-                    Definition: new Table("users", Columns: [new Column("email", SqlType.Text)])),
+                new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Add,
+                    Columns: [new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text))],
+                    Definition: new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("email"), SqlType.Text)])),
             ]),
         ]);
 
@@ -202,9 +203,9 @@ public class MigrationAnnotatorTests
     public void Apply_MatchesCaseInsensitively_OnSchemaTableAndMember()
     {
         // Arrange
-        var migration = new Script("backfill", "UPDATE 1", new ChangeEvent(ChangeTrigger.AddColumn, "Users", "EMAIL") { ScopeSchema = "APP" });
+        var migration = new Script(new SqlIdentifier("backfill"), "UPDATE 1", new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("Users"), new SqlIdentifier("EMAIL")) { ScopeSchema = new SqlIdentifier("APP") });
         var diff = ModifiedTable(Columns:
-            [new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))]);
+            [new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text))]);
 
         // Act
         var (annotated, unmatched) = MigrationAnnotator.Annotate(diff, [migration]);
@@ -222,7 +223,7 @@ public class MigrationAnnotatorTests
         var matched = Migration(ChangeTrigger.AddColumn, "email", name: "matched");
         var deadLast = Migration(ChangeTrigger.AddConstraint, "missing_uq", name: "last");
         var diff = ModifiedTable(Columns:
-            [new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))]);
+            [new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text))]);
 
         // Act
         var (annotated, unmatched) = MigrationAnnotator.Annotate(diff, [deadFirst, matched, deadLast]);
@@ -237,7 +238,7 @@ public class MigrationAnnotatorTests
     {
         // Arrange
         var diff = ModifiedTable(Columns:
-            [new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))]);
+            [new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text))]);
 
         // Act
         var (annotated, unmatched) = MigrationAnnotator.Annotate(diff, []);
@@ -248,7 +249,7 @@ public class MigrationAnnotatorTests
     }
 
     private static Script Migration(ChangeTrigger trigger, string member, string? name = null) =>
-        new(name ?? member, $"UPDATE app.users -- {member}", new ChangeEvent(trigger, "users", member) { ScopeSchema = "app" });
+        new(new SqlIdentifier(name ?? member), $"UPDATE app.users -- {member}", new ChangeEvent(trigger, new SqlIdentifier("users"), new SqlIdentifier(member)) { ScopeSchema = new SqlIdentifier("app") });
 
     private static DatabaseDiff ModifiedTable(
         IReadOnlyList<ColumnDiff>? Columns = null,
@@ -258,9 +259,9 @@ public class MigrationAnnotatorTests
         IReadOnlyList<CheckConstraintDiff>? Checks = null,
         IReadOnlyList<ExclusionConstraintDiff>? ExclusionConstraints = null) =>
         new([
-            new SchemaDiff("app", Tables:
+            new SchemaDiff(new SqlIdentifier("app"), Tables:
             [
-                new TableDiff("app", "users", ChangeKind.Modify,
+                new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify,
                     Columns: Columns, PrimaryKey: PrimaryKey, ForeignKeys: ForeignKeys,
                     UniqueConstraints: UniqueConstraints, Checks: Checks, ExclusionConstraints: ExclusionConstraints),
             ]),

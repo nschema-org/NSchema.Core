@@ -8,7 +8,7 @@ namespace NSchema.Project.Domain.Models.Triggers;
 /// <param name="Name">The trigger name (unique within its table).</param>
 /// <param name="Timing">When the trigger fires relative to the operation.</param>
 /// <param name="Events">The operation(s) that fire the trigger.</param>
-/// <param name="Function">The (optionally schema-qualified) function the trigger executes; null for an inline-body trigger.</param>
+/// <param name="Function">The function the trigger executes (optionally schema-qualified); null for an inline-body trigger.</param>
 /// <param name="Level">Whether the trigger fires per row or per statement.</param>
 /// <param name="UpdateOfColumns">The columns an <c>UPDATE</c> trigger is narrowed to, if any; empty otherwise.</param>
 /// <param name="When">An optional <c>WHEN</c> condition, stored verbatim (opaque SQL).</param>
@@ -17,12 +17,12 @@ namespace NSchema.Project.Domain.Models.Triggers;
 /// <param name="Body">The trigger's inline statement body, stored verbatim (opaque SQL). Use <see langword="null"/> for a function-style trigger.</param>
 [DebuggerDisplay("{Name,nq} (trigger)")]
 public record Trigger(
-    string Name,
+    SqlIdentifier Name,
     TriggerTiming Timing,
     TriggerEvent Events,
-    string? Function = null,
+    RoutineReference? Function = null,
     TriggerLevel Level = TriggerLevel.Statement,
-    IReadOnlyList<string>? UpdateOfColumns = null,
+    IReadOnlyList<SqlIdentifier>? UpdateOfColumns = null,
     string? When = null,
     string? FunctionArguments = null,
     string? Comment = null,
@@ -32,7 +32,7 @@ public record Trigger(
     /// <summary>
     /// The columns an <c>UPDATE</c> trigger is narrowed to (<c>UPDATE OF (…)</c>), if any.
     /// </summary>
-    public IReadOnlyList<string> UpdateOfColumns { get; init; } = UpdateOfColumns ?? [];
+    public IReadOnlyList<SqlIdentifier> UpdateOfColumns { get; init; } = UpdateOfColumns ?? [];
 
     /// <summary>
     /// Determines structural equality, <em>excluding</em> <see cref="Comment"/>.

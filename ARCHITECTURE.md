@@ -134,3 +134,27 @@ NSchema                     app, builder, options · Result / Result<T> / Result
   (where annotatable) a `MigrationName` reference on the diff nodes it attaches to.
 - **Adding a public type**: it must occupy a recognized position (or join the root closed list). The classification tests fail otherwise — decide what
   it is before shipping it.
+- **Comparing strings**: decide what the string *is* first. An **object name** is an `SqlIdentifier` — case-insensitive equality is baked into the type,
+  so name-bearing properties, keyed collections, and record equality follow the rule with no comparer at the call site (and no call site may re-decide
+  it). **Data** (enum labels, expressions, SQL bodies, hashes) compares exactly and stays `string`. **Language keywords and config keys** are the
+  parser/formatter's own case rules and stay explicit at their match sites. A `string`-typed property that actually holds an identifier is an
+  enforcement hole — type it. The type has **no implicit string conversions** and no mixed-operand equality: construction (`new SqlIdentifier(text)`)
+  and reads (`.Value`) are explicit, so a raw string never slips past the checkpoint in either direction. Comparing a value object to a raw primitive
+  in domain or application code is usually a sign the primitive side should be elevated to the same type (the template placeholder is an
+  `SqlIdentifier` constant for exactly this reason) — asserting on the underlying value is a test-side concern. **`.Value` is exceptional**: it marks
+  an intentional exit from identifier semantics into text work (rendering, file paths, keyword matching, token substitution), and it belongs inside
+  the component doing that text work — an unwrap whose result feeds another identifier-shaped parameter, a keyed collection, or a constructor is
+  laundering, not an exit (ToString covers interpolation, so even display rarely needs it). Diagnostic factories and prose helpers take the value
+  object and render it themselves; callers pass what they hold.
+- **Names label; addresses identify.** A `Name` in the schema tree is a *scoped label* — meaningful only within its container (a column's name
+  identifies it within its table, as `pg_attribute` keys on `(attrelid, attname)`); no node in the aggregate is self-identifying, by design.
+  `SqlIdentifier` models the engine's name-resolution semantics (fold on compare), which is why it is domain vocabulary and not a lexing concern —
+  the lexer tokenizes, it never compares; the written form (position, quoting) belongs to the language lane's own identifier node when the AST lands.
+  Pointing at a node *from outside the tree* takes an **address**: `ObjectReference` (schema + name, both required — an address that isn't fully
+  qualified identifies nothing; component-wise identifier equality, never a dotted string smuggled through `SqlIdentifier`) and, when the directives
+  land, `MemberPath` (schema + object + member). An address is distinct from a **reference as written** (`RoutineReference`, optionally qualified —
+  an unqualified routine reference is resolved by the engine's search path, so it stays as declared; resolving one sets its schema part, never
+  concatenates text). Renames, change-event script matching, and targeting
+  all consume addresses. Address *resolution* (address → node) is a domain service over the pure tree (`SchemaIndex`, when its first consumer
+  arrives), and *walking* is the per-kind handler orchestrator — the tree stays the stored truth because it is the language's truth; flatness lives
+  at the seams that want it (index keys, the linearizer's output).

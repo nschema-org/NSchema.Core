@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Project.Domain;
 
 namespace NSchema.Plan.PlanFile;
 
@@ -18,7 +19,7 @@ internal class PlanFileManager : IPlanFileManager
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-        Converters = { new JsonStringEnumConverter() },
+        Converters = { new JsonStringEnumConverter(), new SqlIdentifierJsonConverter() },
         TypeInfoResolver = new DefaultJsonTypeInfoResolver
         {
             Modifiers = { JsonHelpers.IgnoreComputedProperties, ConfigurePolymorphism },

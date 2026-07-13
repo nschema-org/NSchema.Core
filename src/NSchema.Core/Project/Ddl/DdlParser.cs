@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Ddl.Models;
 using NSchema.Project.Ddl.Models.Config;
 using NSchema.Project.Ddl.Models.Templates;
@@ -15,7 +16,7 @@ internal sealed partial class DdlParser
 
     // Stores the name of the current schema while parsing a TEMPLATE body.
     // This is used to automatically qualify any identifiers missing a schema.
-    private string? _templateSchemaContext;
+    private SqlIdentifier? _templateSchemaContext;
 
     // True while parsing a FOR TABLE template's member body, where INCLUDE members are rejected (a table
     // template cannot include another).
@@ -114,7 +115,7 @@ internal sealed partial class DdlParser
 
     // --- shared helpers -------------------------------------------------------
 
-    private (string Schema, string Table) ParseQualifiedName()
+    private (SqlIdentifier Schema, SqlIdentifier Table) ParseQualifiedName()
     {
         var schema = ExpectIdentifier("a schema name");
         if (!Match(TokenKind.Dot))
@@ -157,13 +158,13 @@ internal sealed partial class DdlParser
         Advance();
     }
 
-    private string ExpectIdentifier(string what)
+    private SqlIdentifier ExpectIdentifier(string what)
     {
         if (_current.Kind != TokenKind.Identifier)
         {
             throw Error($"Expected {what}.");
         }
-        return Advance().Text;
+        return new SqlIdentifier(Advance().Text);
     }
 
     private string ExpectInteger() => Expect(TokenKind.Integer, "an integer").Text;

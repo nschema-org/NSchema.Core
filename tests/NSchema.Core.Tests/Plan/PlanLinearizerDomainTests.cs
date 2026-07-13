@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Constraints;
 using NSchema.Diff.Domain.Models.Domains;
@@ -22,23 +23,23 @@ public sealed class PlanLinearizerDomainTests
     private readonly PlanLinearizer _linearizer = new();
 
     private IReadOnlyList<MigrationAction> Linearize(DomainDiff domain) =>
-        _linearizer.Linearize(new DatabaseDiff([new SchemaDiff("app", Domains: [domain])]));
+        _linearizer.Linearize(new DatabaseDiff([new SchemaDiff(new SqlIdentifier("app"), Domains: [domain])]));
 
     [Fact]
     public void AddedDomain_EmitsCreateDomain()
-        => Linearize(new DomainDiff("app", "d", ChangeKind.Add, Definition: new DomainDefinition("d", SqlType.Text)))
+        => Linearize(new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("d"), ChangeKind.Add, Definition: new DomainDefinition(new SqlIdentifier("d"), SqlType.Text)))
             .ShouldHaveSingleItem().ShouldBeOfType<CreateDomain>().DomainDefinition.Name.ShouldBe("d");
 
     [Fact]
     public void BaseTypeChange_EmitsRecreateDomain()
-        => Linearize(new DomainDiff("app", "d", ChangeKind.Modify, Definition: new DomainDefinition("d", SqlType.Int),
+        => Linearize(new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("d"), ChangeKind.Modify, Definition: new DomainDefinition(new SqlIdentifier("d"), SqlType.Int),
                 DataType: new ValueChange<SqlType>(SqlType.Text, SqlType.Int)))
             .ShouldHaveSingleItem().ShouldBeOfType<RecreateDomain>();
 
     [Fact]
     public void DefaultAndNotNullChange_EmitInPlaceAlters()
     {
-        var plan = Linearize(new DomainDiff("app", "d", ChangeKind.Modify,
+        var plan = Linearize(new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("d"), ChangeKind.Modify,
             Default: new ValueChange<string>(null, "0"),
             NotNull: new ValueChange<bool>(false, true)));
 
@@ -50,10 +51,10 @@ public sealed class PlanLinearizerDomainTests
     [Fact]
     public void CheckChanges_EmitAddAndDropDomainCheck()
     {
-        var plan = Linearize(new DomainDiff("app", "d", ChangeKind.Modify, Checks:
+        var plan = Linearize(new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("d"), ChangeKind.Modify, Checks:
         [
-            new CheckConstraintDiff(ChangeKind.Add, "new_chk", new NSchema.Project.Domain.Models.Constraints.CheckConstraint("new_chk", "VALUE > 0")),
-            new CheckConstraintDiff(ChangeKind.Remove, "old_chk"),
+            new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("new_chk"), new NSchema.Project.Domain.Models.Constraints.CheckConstraint(new SqlIdentifier("new_chk"), "VALUE > 0")),
+            new CheckConstraintDiff(ChangeKind.Remove, new SqlIdentifier("old_chk")),
         ]));
 
         plan.OfType<AddDomainCheck>().ShouldHaveSingleItem().Check.Name.ShouldBe("new_chk");
@@ -64,9 +65,9 @@ public sealed class PlanLinearizerDomainTests
     public void DomainCreate_IsOrderedBeforeCreateTable()
     {
         // A column may use the domain as its type, so the domain must be created first.
-        var plan = _linearizer.Linearize(new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add,
-            Tables: [new TableDiff("app", "t", ChangeKind.Add, Definition: new Table("t"))],
-            Domains: [new DomainDiff("app", "d", ChangeKind.Add, Definition: new DomainDefinition("d", SqlType.Text))])]));
+        var plan = _linearizer.Linearize(new DatabaseDiff([new SchemaDiff(new SqlIdentifier("app"), ChangeKind.Add,
+            Tables: [new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("t"), ChangeKind.Add, Definition: new Table(new SqlIdentifier("t")))],
+            Domains: [new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("d"), ChangeKind.Add, Definition: new DomainDefinition(new SqlIdentifier("d"), SqlType.Text))])]));
 
         var createDomain = plan.Select((a, i) => (a, i)).Single(x => x.a is CreateDomain).i;
         var createTable = plan.Select((a, i) => (a, i)).Single(x => x.a is CreateTable).i;

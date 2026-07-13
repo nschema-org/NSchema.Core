@@ -40,7 +40,7 @@ internal sealed class SchemaLintPolicy : IProjectPolicy
         }
         else
         {
-            var nullableColumns = new HashSet<string>(table.Columns.Where(c => c.IsNullable).Select(c => c.Name), StringComparer.OrdinalIgnoreCase);
+            var nullableColumns = table.Columns.Where(c => c.IsNullable).Select(c => c.Name).ToHashSet();
             foreach (var column in primaryKey.ColumnNames.Where(nullableColumns.Contains))
             {
                 diagnostics.Add(Warning($"Column '{column}' on '{qualified}' is part of the primary key but is declared nullable; it will be forced NOT NULL."));
@@ -53,7 +53,7 @@ internal sealed class SchemaLintPolicy : IProjectPolicy
         {
             // Duplicate-column linting applies to plain-column keys; expression keys are opaque.
             ReportDuplicates(diagnostics, qualified, $"index '{index.Name}'",
-                index.Columns.Where(c => !c.IsExpression).Select(c => c.Expression).ToList());
+                index.Columns.Where(c => !c.IsExpression).Select(c => new SqlIdentifier(c.Expression)).ToList());
         }
 
         foreach (var foreignKey in table.ForeignKeys)
@@ -63,10 +63,10 @@ internal sealed class SchemaLintPolicy : IProjectPolicy
     }
 
     private static void ReportDuplicates(
-        List<Diagnostic> diagnostics, string qualified, string owner, IEnumerable<string> columnNames)
+        List<Diagnostic> diagnostics, string qualified, string owner, IEnumerable<SqlIdentifier> columnNames)
     {
         var duplicates = columnNames
-            .GroupBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(n => n)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key);
 
