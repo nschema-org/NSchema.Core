@@ -15,12 +15,12 @@ public sealed class CurrentSchemaProviderTests
     private static readonly DatabaseSchema _offlineSchema = new DatabaseSchema([new SchemaDefinition("offline")]);
     private static readonly ISchemaStateSerializer _serializer = new SchemaStateSerializer();
 
-    private static CurrentSchemaProvider Create(ISchemaProvider? online = null, ISchemaStateStore? store = null) =>
-        new(_serializer, online, store);
+    private static CurrentSchemaProvider Create(ISchemaIntrospector? online = null, ISchemaStateStore? store = null) =>
+        new(new SchemaStateManager(_serializer, store), online);
 
-    private sealed class FakeOnlineProvider : ISchemaProvider
+    private sealed class FakeIntrospector : ISchemaIntrospector
     {
-        public ValueTask<DatabaseSchema> GetSchema(string[]? schemaNames = null, CancellationToken cancellationToken = default) =>
+        public ValueTask<DatabaseSchema> GetSchema(SchemaScope scope, CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(_onlineSchema);
     }
 
@@ -34,109 +34,77 @@ public sealed class CurrentSchemaProviderTests
             Task.CompletedTask;
     }
 
-    // --- required: true (strict) ---
-
     [Fact]
-    public async Task GetSchema_Online_Required_ReturnsOnlineSchema()
+    public async Task GetSchema_Online_ReturnsOnlineSchema()
     {
-        var sut = Create(online: new FakeOnlineProvider());
+        var sut = Create(online: new FakeIntrospector());
 
-        var result = await sut.GetSchema(SchemaSourceMode.Online, null, true, TestContext.Current.CancellationToken);
+        var result = await sut.GetSchema(SchemaSourceMode.Online, SchemaScope.All, TestContext.Current.CancellationToken);
 
-        result.ShouldBe(_onlineSchema);
+        result.Require().ShouldBe(_onlineSchema);
     }
 
     [Fact]
-    public void GetSchema_Online_Required_WhenNotConfigured_Throws()
+    public async Task GetSchema_Online_ReAppliesTheScope_WhenTheIntrospectorOverReturns()
+    {
+        // The fake ignores its scope entirely — the provider's re-filter is what keeps scoping honest.
+        var sut = Create(online: new FakeIntrospector());
+
+        var result = await sut.GetSchema(SchemaSourceMode.Online, SchemaScope.Of("other"), TestContext.Current.CancellationToken);
+
+        result.Require().Schemas.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task GetSchema_Online_WhenNotConfigured_Fails()
     {
         var sut = Create();
 
-        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Online, null));
+        var result = await sut.GetSchema(SchemaSourceMode.Online, SchemaScope.All, TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("live database provider");
     }
 
     [Fact]
-    public void GetSchema_Online_Required_WhenOnlyOfflineConfigured_Throws()
+    public async Task GetSchema_Online_WhenOnlyOfflineConfigured_Fails_WithoutFallingBack()
     {
         var sut = Create(store: new FakeStateStore());
 
-        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Online, null));
+        var result = await sut.GetSchema(SchemaSourceMode.Online, SchemaScope.All, TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
     }
 
     [Fact]
-    public async Task GetSchema_Offline_Required_ReturnsOfflineSchema()
+    public async Task GetSchema_Offline_ReturnsOfflineSchema()
     {
         var sut = Create(store: new FakeStateStore());
 
-        var result = await sut.GetSchema(SchemaSourceMode.Offline, null, true, TestContext.Current.CancellationToken);
+        var result = await sut.GetSchema(SchemaSourceMode.Offline, SchemaScope.All, TestContext.Current.CancellationToken);
 
-        result.Schemas.ShouldHaveSingleItem().Name.ShouldBe("offline");
+        result.Require().Schemas.ShouldHaveSingleItem().Name.ShouldBe("offline");
     }
 
     [Fact]
-    public void GetSchema_Offline_Required_WhenNotConfigured_Throws()
+    public async Task GetSchema_Offline_WhenNotConfigured_Fails()
     {
         var sut = Create();
 
-        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Offline, null, true, TestContext.Current.CancellationToken));
+        var result = await sut.GetSchema(SchemaSourceMode.Offline, SchemaScope.All, TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("state store");
     }
 
     [Fact]
-    public void GetSchema_Offline_Required_WhenOnlyOnlineConfigured_Throws()
+    public async Task GetSchema_Offline_WhenOnlyOnlineConfigured_Fails_WithoutFallingBack()
     {
-        var sut = Create(online: new FakeOnlineProvider());
+        var sut = Create(online: new FakeIntrospector());
 
-        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Offline, null));
-    }
+        var result = await sut.GetSchema(SchemaSourceMode.Offline, SchemaScope.All, TestContext.Current.CancellationToken);
 
-    // --- required: false (with fallback) ---
-
-    [Fact]
-    public async Task GetSchema_Online_NotRequired_ReturnsOnlineSchema_WhenConfigured()
-    {
-        var sut = Create(online: new FakeOnlineProvider());
-
-        var result = await sut.GetSchema(SchemaSourceMode.Online, null, required: false, TestContext.Current.CancellationToken);
-
-        result.ShouldBe(_onlineSchema);
-    }
-
-    [Fact]
-    public async Task GetSchema_Online_NotRequired_FallsBackToOffline_WhenOnlineNotConfigured()
-    {
-        var sut = Create(store: new FakeStateStore());
-
-        var result = await sut.GetSchema(SchemaSourceMode.Online, null, required: false, TestContext.Current.CancellationToken);
-
-        result.Schemas.ShouldHaveSingleItem().Name.ShouldBe("offline");
-    }
-
-    [Fact]
-    public async Task GetSchema_Offline_NotRequired_ReturnsOfflineSchema_WhenConfigured()
-    {
-        var sut = Create(online: new FakeOnlineProvider(), store: new FakeStateStore());
-
-        var result = await sut.GetSchema(SchemaSourceMode.Offline, null, required: false, TestContext.Current.CancellationToken);
-
-        result.Schemas.ShouldHaveSingleItem().Name.ShouldBe("offline");
-    }
-
-    [Fact]
-    public async Task GetSchema_Offline_NotRequired_FallsBackToOnline_WhenOfflineNotConfigured()
-    {
-        var sut = Create(online: new FakeOnlineProvider());
-
-        var result = await sut.GetSchema(SchemaSourceMode.Offline, null, required: false, TestContext.Current.CancellationToken);
-
-        result.ShouldBe(_onlineSchema);
-    }
-
-    [Fact]
-    public void GetSchema_NotRequired_WhenNeitherConfigured_Throws()
-    {
-        var sut = Create();
-
-        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Offline, null, required: false));
-        Should.Throw<InvalidOperationException>(() => sut.GetSchema(SchemaSourceMode.Online, null, required: false));
+        result.IsFailure.ShouldBeTrue();
     }
 
     // --- DI integration ---
@@ -145,13 +113,15 @@ public sealed class CurrentSchemaProviderTests
     public async Task UseCurrentSchema_RegistersOnlineSource()
     {
         var builder = NSchemaApplication.CreateBuilder();
-        builder.UseCurrentSchema<FakeOnlineProvider>();
+        builder.UseCurrentSchema<FakeIntrospector>();
         using var app = builder.Build();
         var current = app.Services.GetRequiredService<ICurrentSchemaProvider>();
 
-        var online = await current.GetSchema(SchemaSourceMode.Online, null, true, TestContext.Current.CancellationToken);
-        online.ShouldBe(_onlineSchema);
-        Should.Throw<InvalidOperationException>(() => current.GetSchema(SchemaSourceMode.Offline, null));
+        var online = await current.GetSchema(SchemaSourceMode.Online, SchemaScope.All, TestContext.Current.CancellationToken);
+        var offline = await current.GetSchema(SchemaSourceMode.Offline, SchemaScope.All, TestContext.Current.CancellationToken);
+
+        online.Require().ShouldBe(_onlineSchema);
+        offline.IsFailure.ShouldBeTrue();
     }
 
     [Fact]
@@ -162,23 +132,25 @@ public sealed class CurrentSchemaProviderTests
         using var app = builder.Build();
         var current = app.Services.GetRequiredService<ICurrentSchemaProvider>();
 
-        var offline = await current.GetSchema(SchemaSourceMode.Offline, null, true, TestContext.Current.CancellationToken);
-        offline.Schemas.ShouldHaveSingleItem().Name.ShouldBe("offline");
-        Should.Throw<InvalidOperationException>(() => current.GetSchema(SchemaSourceMode.Online, null));
+        var offline = await current.GetSchema(SchemaSourceMode.Offline, SchemaScope.All, TestContext.Current.CancellationToken);
+        var online = await current.GetSchema(SchemaSourceMode.Online, SchemaScope.All, TestContext.Current.CancellationToken);
+
+        offline.Require().Schemas.ShouldHaveSingleItem().Name.ShouldBe("offline");
+        online.IsFailure.ShouldBeTrue();
     }
 
     [Fact]
     public async Task UseCurrentSchema_AndStateStore_BothSourcesAvailable()
     {
         var builder = NSchemaApplication.CreateBuilder();
-        builder.UseCurrentSchema<FakeOnlineProvider>().UseStateStore(new FakeStateStore());
+        builder.UseCurrentSchema<FakeIntrospector>().UseStateStore(new FakeStateStore());
         using var app = builder.Build();
         var current = app.Services.GetRequiredService<ICurrentSchemaProvider>();
 
-        var online = await current.GetSchema(SchemaSourceMode.Online, null, true, TestContext.Current.CancellationToken);
-        var offline = await current.GetSchema(SchemaSourceMode.Offline, null, true, TestContext.Current.CancellationToken);
+        var online = await current.GetSchema(SchemaSourceMode.Online, SchemaScope.All, TestContext.Current.CancellationToken);
+        var offline = await current.GetSchema(SchemaSourceMode.Offline, SchemaScope.All, TestContext.Current.CancellationToken);
 
-        online.Schemas.ShouldHaveSingleItem().Name.ShouldBe("online");
-        offline.Schemas.ShouldHaveSingleItem().Name.ShouldBe("offline");
+        online.Require().Schemas.ShouldHaveSingleItem().Name.ShouldBe("online");
+        offline.Require().Schemas.ShouldHaveSingleItem().Name.ShouldBe("offline");
     }
 }

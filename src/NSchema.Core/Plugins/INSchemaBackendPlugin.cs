@@ -12,5 +12,5 @@ public interface INSchemaBackendPlugin : INSchemaPlugin
     /// </summary>
     /// <param name="builder">The application builder to register the backend's services on.</param>
     /// <param name="block">The project's <c>BACKEND</c> configuration block.</param>
-    PluginConfigureResult Configure(NSchemaApplicationBuilder builder, ConfigBlock block);
+    Result Configure(NSchemaApplicationBuilder builder, ConfigBlock block);
 }

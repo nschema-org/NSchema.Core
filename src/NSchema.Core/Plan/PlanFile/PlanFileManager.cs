@@ -8,7 +8,7 @@ namespace NSchema.Plan.PlanFile;
 /// <summary>
 /// Reads and writes saved plan files.
 /// </summary>
-internal class PlanFileWriter : IPlanFileWriter
+internal class PlanFileManager : IPlanFileManager
 {
     private static readonly IReadOnlyList<JsonDerivedType> _eventTypes = DerivedTypes(typeof(ScriptEvent));
 
@@ -31,10 +31,26 @@ internal class PlanFileWriter : IPlanFileWriter
             .Select(t => new JsonDerivedType(t, t.Name))
             .ToList();
 
-    public async Task<PlanFileEnvelope> Read(string path, CancellationToken cancellationToken)
+    public async Task<Result<PlanFileEnvelope>> Read(string path, CancellationToken cancellationToken)
     {
-        var bytes = await File.ReadAllBytesAsync(path, cancellationToken);
-        return Deserialize(bytes);
+        byte[] bytes;
+        try
+        {
+            bytes = await File.ReadAllBytesAsync(path, cancellationToken);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return Result.Failure<PlanFileEnvelope>(PlanFileDiagnostics.UnreadableFile(path, ex));
+        }
+
+        try
+        {
+            return Deserialize(bytes);
+        }
+        catch (Exception ex) when (ex is PlanFileDeserializationException or NotSupportedException)
+        {
+            return Result.Failure<PlanFileEnvelope>(PlanFileDiagnostics.InvalidPayload(path, ex));
+        }
     }
 
     public async Task Write(string path, PlanFileEnvelope envelope, CancellationToken cancellationToken)

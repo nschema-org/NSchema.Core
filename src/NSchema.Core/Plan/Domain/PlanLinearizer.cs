@@ -491,7 +491,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                     }
                     // Additions are emitted in list order so each anchor exists when its addition runs (the
                     // stable priority sort preserves this). A removal/reorder has no AddedValues — it cannot be
-                    // planned, and the always-on EnumValueRemovalDiffPolicy fails the run before execution.
+                    // planned, and the always-on EnumValueRemovalPolicy fails the run before execution.
                     foreach (var addition in enumDiff.AddedValues)
                     {
                         actions.Add(new AddEnumValue(enumDiff.Schema, enumDiff.Name, addition.Value, addition.Before, addition.After));

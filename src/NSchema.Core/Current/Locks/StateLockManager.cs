@@ -3,18 +3,18 @@ using NSchema.Current.Locks.Backends;
 namespace NSchema.Current.Locks;
 
 /// <summary>
-/// The default <see cref="IStateLockCoordinator"/>.
+/// The default <see cref="IStateLockManager"/>.
 /// </summary>
 /// <remarks>
 /// Wraps the configured <see cref="IStateLock"/> (when any) with the offline / <c>--no-lock</c> / contention handling,
 /// returning a handle the caller releases when done.
 /// </remarks>
-internal sealed class StateLockCoordinator(IStateLock? stateLock = null) : IStateLockCoordinator
+internal sealed class StateLockManager(IStateLock? stateLock = null) : IStateLockManager
 {
     public async Task<StateLockInfo?> Peek(CancellationToken cancellationToken = default) =>
         stateLock is null ? null : await stateLock.Peek(cancellationToken);
 
-    public async Task<Result<IStateLockHandle>> Acquire(StateLockRequest request, bool skipLock = false, CancellationToken cancellationToken = default)
+    public async Task<Result<IStateLockHandle>> Acquire(AcquireLockArguments arguments, CancellationToken cancellationToken = default)
     {
         // No backend lock to take — this is an ordinary offline run, not a deliberate skip, so say nothing.
         if (stateLock is null)
@@ -22,29 +22,21 @@ internal sealed class StateLockCoordinator(IStateLock? stateLock = null) : IStat
             return Result.Success<IStateLockHandle>(NullStateLockHandle.Instance);
         }
 
-        if (skipLock)
+        if (arguments.SkipLock)
         {
             // Peek so the warning is honest: name the lock we are running past rather than ignoring it silently.
             var held = await stateLock.Peek(cancellationToken);
-            var warning = Diagnostic.Warning(request.Operation, held is null
-                ? "Running without the state lock; make sure no other operation runs against this state at the same time."
-                : $"Running without the state lock; the state is currently locked by {held.Who} " +
-                  $"(operation '{held.Operation}', since {held.CreatedUtc:u}) — proceeding anyway.");
-            return Result.From<IStateLockHandle>(NullStateLockHandle.Instance, [warning]);
+            return Result.From<IStateLockHandle>(NullStateLockHandle.Instance, [LockDiagnostics.RunningUnlocked(arguments.Operation, held)]);
         }
 
         try
         {
-            return Result.Success<IStateLockHandle>(await stateLock.Acquire(request, cancellationToken));
+            return Result.Success<IStateLockHandle>(await stateLock.Acquire(new StateLockRequest(arguments.Operation, arguments.TimeToLive), cancellationToken));
         }
         catch (StateLockedException ex)
         {
             // Contention is a recoverable, user-facing outcome, not a bug — surface it as a failure the caller renders.
-            return Result.Failure<IStateLockHandle>(ex.ExistingLock is { } held
-                ? Diagnostic.Error(request.Operation,
-                    $"The state is locked by {held.Who} (operation '{held.Operation}', since {held.CreatedUtc:u}). " +
-                    "Wait for it to finish, or re-run with --no-lock to proceed anyway.")
-                : Diagnostic.Error(request.Operation, ex.Message));
+            return Result.Failure<IStateLockHandle>(LockDiagnostics.StateLocked(arguments.Operation, ex));
         }
     }
 

@@ -1,7 +1,7 @@
-namespace NSchema.Diff.Policies;
+namespace NSchema.Plan.Policies;
 
 /// <summary>
-/// Configures <see cref="DataHazardDiffPolicy"/>.
+/// Configures <see cref="DataHazardPolicy"/>.
 /// </summary>
 public class DataHazardOptions
 {

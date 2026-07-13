@@ -1,18 +1,19 @@
 using NSchema.Diff.Domain.Models;
+using NSchema.Plan.Domain.Models;
 
-namespace NSchema.Diff.Policies;
+namespace NSchema.Plan.Policies;
 
 /// <summary>
-/// A diff policy that rejects enum value removals and reorders. Enum values can only be added, so such a change
+/// A plan policy that rejects enum value removals and reorders. Enum values can only be added, so such a change
 /// cannot be planned — the type must be recreated manually. This policy is always-on (not gated by
 /// <see cref="DestructiveActionOptions"/>): allowing destructive actions cannot make the change expressible.
 /// </summary>
-internal sealed class EnumValueRemovalDiffPolicy : IDiffPolicy
+internal sealed class EnumValueRemovalPolicy : IPlanPolicy
 {
     private const string PolicyName = "enum-value-removal";
 
-    public IEnumerable<Diagnostic> Validate(DatabaseDiff diff) =>
-        diff.Schemas
+    public IEnumerable<Diagnostic> Validate(MigrationPlan plan) =>
+        plan.Diff.Schemas
             .SelectMany(schema => schema.Enums)
             .Where(enumDiff => enumDiff.RequiresRecreate)
             .Select(enumDiff => Diagnostic.Error(PolicyName,

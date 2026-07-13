@@ -9,7 +9,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 public sealed class DdlParserGeneratedColumnTests
 {
     private static Column ParseColumn(string body) =>
-        DdlReader.Instance.Read($"CREATE TABLE app.t ({body});").Schema
+        new DdlParser($"CREATE TABLE app.t ({body});").Parse().Schema
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Columns.ShouldHaveSingleItem();
 
     [Fact]
@@ -32,8 +32,8 @@ public sealed class DdlParserGeneratedColumnTests
     [Fact]
     public void Parse_Generated_RoundTripsThroughWriter()
     {
-        var schema = DdlReader.Instance.Read("CREATE TABLE app.t (w int, h int, area int GENERATED ALWAYS AS (w * h) STORED);").Schema;
-        var column = DdlReader.Instance.Read(DdlWriter.Instance.Write(schema)).Schema
+        var schema = new DdlParser("CREATE TABLE app.t (w int, h int, area int GENERATED ALWAYS AS (w * h) STORED);").Parse().Schema;
+        var column = new DdlParser(DdlWriter.Instance.Write(schema)).Parse().Schema
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Columns.Last();
         column.Name.ShouldBe("area");
         column.GeneratedExpression.ShouldBe("w * h");

@@ -8,6 +8,7 @@ using NSchema.Diff.Domain.Models.Routines;
 using NSchema.Diff.Domain.Models.Sequences;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Diff.Domain.Models.Views;
+using NSchema.Plan.Domain.Models;
 using NSchema.Plan.Domain.Models.Columns;
 using NSchema.Plan.Domain.Models.CompositeTypes;
 using NSchema.Plan.Domain.Models.Constraints;
@@ -20,18 +21,24 @@ using NSchema.Plan.Domain.Models.Sequences;
 using NSchema.Plan.Domain.Models.Tables;
 using NSchema.Plan.Domain.Models.Views;
 
-namespace NSchema.Diff.Policies;
+namespace NSchema.Plan.Policies;
 
 /// <summary>
-/// A diff policy that checks for destructive changes and applies the configured policy.
+/// A plan policy that checks for destructive changes and applies the configured policy.
 /// Non-fatal outcomes are returned as Info/Warning diagnostics so the pipeline can surface them without aborting.
 /// </summary>
-internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOptions> options) : IDiffPolicy
+internal sealed class DestructiveActionPolicy(IOptions<DestructiveActionOptions> options) : IPlanPolicy
 {
     private const string PolicyName = "destructive-actions";
 
-    public IEnumerable<Diagnostic> Validate(DatabaseDiff diff)
+    public IEnumerable<Diagnostic> Validate(MigrationPlan plan)
     {
+        var diff = plan.Diff;
+        if (options.Value.Policy == PolicyEnforcement.Ignore)
+        {
+            return [];
+        }
+
         var destructive = DestructiveChanges(diff).Distinct().ToList();
         if (destructive.Count == 0)
         {
@@ -42,8 +49,8 @@ internal sealed class DestructiveActionDiffPolicy(IOptions<DestructiveActionOpti
 
         return options.Value.Policy switch
         {
-            DestructiveActionPolicy.Allow => [Diagnostic.Info(PolicyName, $"Allowing destructive actions in migration plan: {typeString}.")],
-            DestructiveActionPolicy.Warn => [Diagnostic.Warning(PolicyName, $"Migration plan contains destructive actions: {typeString}.")],
+            PolicyEnforcement.Allow => [Diagnostic.Info(PolicyName, $"Allowing destructive actions in migration plan: {typeString}.")],
+            PolicyEnforcement.Warn => [Diagnostic.Warning(PolicyName, $"Migration plan contains destructive actions: {typeString}.")],
             _ => [Diagnostic.Error(PolicyName, $"Destructive actions blocked by policy: {typeString}.")]
         };
     }

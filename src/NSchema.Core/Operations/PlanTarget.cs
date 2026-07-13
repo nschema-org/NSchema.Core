@@ -20,9 +20,9 @@ public enum PlanTarget
     /// A teardown of the managed schema.
     /// </summary>
     /// <remarks>
-    /// Unlike a forward migration it has no current-schema source choice: the managed schema is defined by the recorded state
-    /// (or the desired files when there is no state store), never the live database, so a teardown is always computed against
-    /// that offline snapshot, and <see cref="PlanArguments.Schemas"/> does not apply.
+    /// Unlike a forward migration it has no current-schema source choice: the managed schema is defined by the
+    /// recorded state, never the live database, so a teardown is always computed against that offline snapshot,
+    /// and <see cref="PlanArguments.Scope"/> does not apply.
     /// </remarks>
     Teardown,
 }

@@ -8,7 +8,6 @@ using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Sequences;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Diff.Domain.Models.Views;
-using NSchema.Diff.Policies;
 using NSchema.Plan.Domain.Models.Constraints;
 using NSchema.Plan.Domain.Models.Enums;
 using NSchema.Plan.Domain.Models.Extensions;
@@ -16,6 +15,7 @@ using NSchema.Plan.Domain.Models.Routines;
 using NSchema.Plan.Domain.Models.Sequences;
 using NSchema.Plan.Domain.Models.Tables;
 using NSchema.Plan.Domain.Models.Views;
+using NSchema.Plan.Policies;
 using NSchema.Project.Domain.Models.Enums;
 using NSchema.Project.Domain.Models.Extensions;
 using NSchema.Project.Domain.Models.Routines;
@@ -23,24 +23,24 @@ using NSchema.Project.Domain.Models.Sequences;
 using NSchema.Project.Domain.Models.Views;
 using NSchema.Tests.Helpers;
 
-namespace NSchema.Tests.Diff.Policies;
+namespace NSchema.Tests.Plan.Policies;
 
-public class DestructiveActionDiffPolicyTests
+public class DestructiveActionPolicyTests
 {
     private readonly IOptions<DestructiveActionOptions> _options = Options.Create(new DestructiveActionOptions());
 
-    private readonly DestructiveActionDiffPolicy _sut;
+    private readonly DestructiveActionPolicy _sut;
 
-    public DestructiveActionDiffPolicyTests()
+    public DestructiveActionPolicyTests()
     {
-        _sut = new DestructiveActionDiffPolicy(_options);
+        _sut = new DestructiveActionPolicy(_options);
     }
 
     [Fact]
     public void Validate_WhenPolicyIsError_ReturnsErrorForDestructiveAction()
     {
         // Arrange
-        _options.Value.Policy = DestructiveActionPolicy.Error;
+        _options.Value.Policy = PolicyEnforcement.Error;
 
         // Act
         var errors = _sut.Validate(TestData.DestructiveDiff).ToList();
@@ -53,10 +53,23 @@ public class DestructiveActionDiffPolicyTests
     }
 
     [Fact]
+    public void Validate_WhenPolicyIsIgnore_ReturnsNothing()
+    {
+        // Arrange
+        _options.Value.Policy = PolicyEnforcement.Ignore;
+
+        // Act
+        var results = _sut.Validate(TestData.DestructiveDiff);
+
+        // Assert
+        results.ShouldBeEmpty();
+    }
+
+    [Fact]
     public void Validate_WhenPolicyIsAllow_ReturnsInfoDiagnostic()
     {
         // Arrange
-        _options.Value.Policy = DestructiveActionPolicy.Allow;
+        _options.Value.Policy = PolicyEnforcement.Allow;
 
         // Act
         var results = _sut.Validate(TestData.DestructiveDiff).ToList();
@@ -70,7 +83,7 @@ public class DestructiveActionDiffPolicyTests
     public void Validate_WhenPolicyIsWarn_ReturnsWarningDiagnostic()
     {
         // Arrange
-        _options.Value.Policy = DestructiveActionPolicy.Warn;
+        _options.Value.Policy = PolicyEnforcement.Warn;
 
         // Act
         var results = _sut.Validate(TestData.DestructiveDiff).ToList();
@@ -85,7 +98,7 @@ public class DestructiveActionDiffPolicyTests
     public void Validate_NonDestructiveAction_ReturnsNothingRegardlessOfPolicy()
     {
         // Arrange
-        _options.Value.Policy = DestructiveActionPolicy.Error;
+        _options.Value.Policy = PolicyEnforcement.Error;
 
         // Act
         var results = _sut.Validate(TestData.NonDestructiveDiff).ToList();
@@ -99,7 +112,7 @@ public class DestructiveActionDiffPolicyTests
     {
         // Arrange
         var diff = TestData.DiffWithDroppedTables("users", "accounts");
-        _options.Value.Policy = DestructiveActionPolicy.Error;
+        _options.Value.Policy = PolicyEnforcement.Error;
 
         // Act
         var errors = _sut.Validate(diff).ToList();
@@ -112,7 +125,7 @@ public class DestructiveActionDiffPolicyTests
     public void Validate_DroppedUniqueConstraint_IsDestructive()
     {
         // Arrange — dropping a unique constraint removes a structural guarantee (and a possible FK target).
-        _options.Value.Policy = DestructiveActionPolicy.Error;
+        _options.Value.Policy = PolicyEnforcement.Error;
         var diff = TableChange(new TableDiff("app", "users", ChangeKind.Modify, null, null, [], [], [],
             UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Remove, "users_email_uq", null)]));
 
@@ -128,7 +141,7 @@ public class DestructiveActionDiffPolicyTests
     public void Validate_DroppedExclusionConstraint_IsDestructive()
     {
         // Arrange — dropping an exclusion constraint removes a structural guarantee, like a unique constraint.
-        _options.Value.Policy = DestructiveActionPolicy.Error;
+        _options.Value.Policy = PolicyEnforcement.Error;
         var diff = TableChange(new TableDiff("app", "bookings", ChangeKind.Modify, null, null, [], [], [],
             ExclusionConstraints: [new ExclusionConstraintDiff(ChangeKind.Remove, "no_overlap", null)]));
 
@@ -144,7 +157,7 @@ public class DestructiveActionDiffPolicyTests
     public void Validate_DroppedCheckConstraint_IsNotDestructive()
     {
         // Arrange — dropping a check only loosens validation; no data is lost, so it is not destructive.
-        _options.Value.Policy = DestructiveActionPolicy.Error;
+        _options.Value.Policy = PolicyEnforcement.Error;
         var diff = TableChange(new TableDiff("app", "users", ChangeKind.Modify, null, null, [], [], [],
             Checks: [new CheckConstraintDiff(ChangeKind.Remove, "users_age_chk", null)]));
 
@@ -156,7 +169,7 @@ public class DestructiveActionDiffPolicyTests
     public void Validate_DroppedView_IsDestructive()
     {
         // Arrange — dropping a view is destructive (its definition is lost from managed state).
-        _options.Value.Policy = DestructiveActionPolicy.Error;
+        _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff([
             new SchemaDiff("app", null, null, null, [], [], [new ViewDiff("app", "active_users", ChangeKind.Remove)]),
         ]);
@@ -173,7 +186,7 @@ public class DestructiveActionDiffPolicyTests
     public void Validate_AddedView_IsNotDestructive()
     {
         // Arrange — creating a view loses nothing.
-        _options.Value.Policy = DestructiveActionPolicy.Error;
+        _options.Value.Policy = PolicyEnforcement.Error;
         var view = new View("active_users", "SELECT * FROM app.users");
         var diff = new DatabaseDiff([
             new SchemaDiff("app", null, null, null, [], [], [new ViewDiff("app", "active_users", ChangeKind.Add, Definition: view)]),
@@ -187,7 +200,7 @@ public class DestructiveActionDiffPolicyTests
     public void Validate_DroppedEnum_IsDestructive()
     {
         // Arrange — dropping an enum is destructive (columns using it would lose their type definition).
-        _options.Value.Policy = DestructiveActionPolicy.Error;
+        _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff([
             new SchemaDiff("app", Enums: [new EnumDiff("app", "status", ChangeKind.Remove)]),
         ]);
@@ -204,7 +217,7 @@ public class DestructiveActionDiffPolicyTests
     public void Validate_DroppedSequence_IsDestructive()
     {
         // Arrange — dropping a sequence loses its current position.
-        _options.Value.Policy = DestructiveActionPolicy.Error;
+        _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff([
             new SchemaDiff("app", Sequences: [new SequenceDiff("app", "order_id", ChangeKind.Remove)]),
         ]);
@@ -221,7 +234,7 @@ public class DestructiveActionDiffPolicyTests
     public void Validate_AddedEnumAndSequence_AreNotDestructive()
     {
         // Arrange — creating an enum or sequence loses nothing.
-        _options.Value.Policy = DestructiveActionPolicy.Error;
+        _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff([
             new SchemaDiff("app",
                 Enums: [new EnumDiff("app", "status", ChangeKind.Add, Definition: new EnumType("status", ["a"]))],
@@ -236,7 +249,7 @@ public class DestructiveActionDiffPolicyTests
     public void Validate_DroppedRoutines_AreDestructive()
     {
         // Arrange — dropping a routine loses its definition from managed state.
-        _options.Value.Policy = DestructiveActionPolicy.Error;
+        _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff([
             new SchemaDiff("app", Routines:
             [
@@ -258,7 +271,7 @@ public class DestructiveActionDiffPolicyTests
     {
         // Arrange — a signature change is a declared edit; the database blocks the underlying drop loudly if
         // dependents exist, so the policy does not gate it.
-        _options.Value.Policy = DestructiveActionPolicy.Error;
+        _options.Value.Policy = PolicyEnforcement.Error;
         var fn = new Routine("f", RoutineKind.Function, "a int, b text", "RETURNS int AS $$ SELECT 1 $$");
         var diff = new DatabaseDiff([
             new SchemaDiff("app", Routines:
@@ -276,7 +289,7 @@ public class DestructiveActionDiffPolicyTests
     public void Validate_DroppedExtension_IsDestructive()
     {
         // Arrange — dropping a database-global extension removes shared infrastructure (and its dependents).
-        _options.Value.Policy = DestructiveActionPolicy.Error;
+        _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff(Extensions: [new ExtensionDiff("citext", ChangeKind.Remove)]);
 
         // Act
@@ -291,7 +304,7 @@ public class DestructiveActionDiffPolicyTests
     public void Validate_AddedExtension_IsNotDestructive()
     {
         // Arrange — installing an extension loses nothing.
-        _options.Value.Policy = DestructiveActionPolicy.Error;
+        _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff(Extensions:
             [new ExtensionDiff("citext", ChangeKind.Add, Definition: new Extension("citext"))]);
 

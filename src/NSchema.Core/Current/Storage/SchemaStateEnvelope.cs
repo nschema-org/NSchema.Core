@@ -18,5 +18,5 @@ internal sealed record SchemaStateEnvelope(int Version, DatabaseSchema Schema)
     /// <summary>
     /// The recorded script executions.
     /// </summary>
-    public IReadOnlyList<ScriptExecution> ExecutedScripts { get; init; } = [];
+    public IReadOnlyList<ScriptExecution> Scripts { get; init; } = [];
 }

@@ -11,7 +11,7 @@ public sealed class DdlParserTests
 {
     private static DatabaseSchema Parse(string source) => new DdlParser(source).Parse().Schema;
 
-    private static IReadOnlyList<ConfigBlock> ReadConfig(string source) => DdlReader.Instance.Read(source).Config;
+    private static IReadOnlyList<ConfigBlock> ReadConfig(string source) => new DdlParser(source).Parse().Config;
 
     private static SchemaDefinition ParseSingleSchema(string source) => Parse(source).Schemas.ShouldHaveSingleItem();
 
@@ -191,12 +191,12 @@ public sealed class DdlParserTests
     [Fact]
     public void Parse_ConfigAndSchema_Intermixed_BothSurface()
     {
-        var document = DdlReader.Instance.Read(
+        var document = new DdlParser(
             """
             BACKEND file ( path = 'state/app.nsstate' );
             CREATE SCHEMA app;
             PROVIDER postgres ( schema_search_path = 'app' );
-            """);
+            """).Parse();
 
         document.Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
         document.Config.Select(b => b.Type).ShouldBe(["backend", "provider"]);

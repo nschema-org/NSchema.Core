@@ -11,9 +11,9 @@ using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Plan.PlanFile;
 
-public sealed class PlanFileWriterTests
+public sealed class PlanFileManagerTests
 {
-    private static readonly PlanFileWriter _sut = new();
+    private static readonly PlanFileManager _sut = new();
 
     private static string Json(PlanFileEnvelope envelope) => Encoding.UTF8.GetString(_sut.Serialize(envelope).Span);
 
@@ -91,7 +91,7 @@ public sealed class PlanFileWriterTests
             await _sut.Write(path, SampleEnvelope(), TestContext.Current.CancellationToken);
             var roundTripped = await _sut.Read(path, TestContext.Current.CancellationToken);
 
-            Json(roundTripped).ShouldBe(Json(SampleEnvelope()));
+            Json(roundTripped.Require()).ShouldBe(Json(SampleEnvelope()));
         }
         finally
         {

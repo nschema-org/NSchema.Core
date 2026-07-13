@@ -37,7 +37,7 @@ public sealed class SchemaStateManagerTests
 
         // Assert
         result.IsFailure.ShouldBeTrue();
-        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("No state store is configured");
+        result.Errors.ShouldHaveSingleItem().ShouldBe(StateDiagnostics.NotConfigured);
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class SchemaStateManagerTests
 
         // Assert
         result.IsFailure.ShouldBeTrue();
-        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("No state store is configured");
+        result.Errors.ShouldHaveSingleItem().ShouldBe(StateDiagnostics.NotConfigured);
     }
 
     [Fact]

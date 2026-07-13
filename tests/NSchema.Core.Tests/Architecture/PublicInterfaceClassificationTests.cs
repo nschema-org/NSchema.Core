@@ -5,10 +5,10 @@ using NSchema.Current.Locks.Backends;
 using NSchema.Current.Storage;
 using NSchema.Current.Storage.Backends;
 using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Policies;
 using NSchema.Operations;
 using NSchema.Plan.Backends;
 using NSchema.Plan.PlanFile;
+using NSchema.Plan.Policies;
 using NSchema.Plugins;
 using NSchema.Project;
 using NSchema.Project.Domain.Models;
@@ -60,12 +60,12 @@ public sealed class PublicInterfaceClassificationTests
         [typeof(INSchemaOperations)] = InterfaceRole.ApplicationSeam,
         [typeof(ICurrentSchemaProvider)] = InterfaceRole.ApplicationSeam,
         [typeof(IProjectProvider)] = InterfaceRole.ApplicationSeam,
-        [typeof(IPlanFileWriter)] = InterfaceRole.ApplicationSeam,
-        [typeof(IStateLockCoordinator)] = InterfaceRole.ApplicationSeam,
+        [typeof(IPlanFileManager)] = InterfaceRole.ApplicationSeam,
+        [typeof(IStateLockManager)] = InterfaceRole.ApplicationSeam,
         [typeof(ISchemaStateManager)] = InterfaceRole.ApplicationSeam,
 
         // Backend SPIs — implemented by provider/backend packages.
-        [typeof(ISchemaProvider)] = InterfaceRole.BackendSpi,
+        [typeof(ISchemaIntrospector)] = InterfaceRole.BackendSpi,
         [typeof(ISqlDialect)] = InterfaceRole.BackendSpi,
         [typeof(ISchemaStateStore)] = InterfaceRole.BackendSpi,
         [typeof(IStateLock)] = InterfaceRole.BackendSpi,
@@ -74,8 +74,8 @@ public sealed class PublicInterfaceClassificationTests
         [typeof(INSchemaBackendPlugin)] = InterfaceRole.BackendSpi,
 
         // Policy seams — domain extension points.
-        [typeof(ISchemaPolicy)] = InterfaceRole.PolicySeam,
-        [typeof(IDiffPolicy)] = InterfaceRole.PolicySeam,
+        [typeof(IProjectPolicy)] = InterfaceRole.PolicySeam,
+        [typeof(IPlanPolicy)] = InterfaceRole.PolicySeam,
 
         // Model contracts — shapes on the domain models.
         [typeof(INamedObject)] = InterfaceRole.ModelContract,
@@ -83,7 +83,7 @@ public sealed class PublicInterfaceClassificationTests
         [typeof(INamedObjectDiff)] = InterfaceRole.ModelContract,
         [typeof(ISchemaObjectDiff)] = InterfaceRole.ModelContract,
 
-        // Shared contracts — returned by the coordinator seam, produced by the lock SPI.
+        // Shared contracts — returned by the manager seam, produced by the lock SPI.
         [typeof(IStateLockHandle)] = InterfaceRole.SharedContract,
     };
 

@@ -3,7 +3,7 @@ namespace NSchema.Plan.PlanFile;
 /// <summary>
 /// Thrown when a saved plan file cannot be deserialized into a <see cref="PlanFileEnvelope"/>.
 /// </summary>
-public sealed class PlanFileDeserializationException : Exception
+internal sealed class PlanFileDeserializationException : Exception
 {
     /// <summary>
     /// Creates a new <see cref="PlanFileDeserializationException"/>.

@@ -5,13 +5,14 @@ using NSchema.Operations;
 using NSchema.Operations.Workflow;
 using NSchema.Plan.Domain.Models;
 using NSchema.Plan.PlanFile;
+using NSchema.Project.Domain.Models;
 
 namespace NSchema.Tests.Operations;
 
 public sealed class PlanOperationTests
 {
     private readonly IMigrationWorkflow _workflow = Substitute.For<IMigrationWorkflow>();
-    private readonly IPlanFileWriter _planFile = Substitute.For<IPlanFileWriter>();
+    private readonly IPlanFileManager _planFile = Substitute.For<IPlanFileManager>();
 
     private readonly MigrationPlan _plan = new(
         new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add)]),
@@ -22,14 +23,14 @@ public sealed class PlanOperationTests
     public PlanOperationTests()
     {
         var planned = Result.Success(_plan);
-        _workflow.ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>()).Returns(planned);
+        _workflow.ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>()).Returns(planned);
         _workflow.ComputeTeardown(Arg.Any<CancellationToken>()).Returns(planned);
 
         _sut = new PlanOperation(_workflow, _planFile);
     }
 
-    private static PlanArguments Args(PlanTarget target = PlanTarget.Recorded, string[]? schemas = null, string? outFile = null) =>
-        new() { Target = target, Schemas = schemas, OutFile = outFile };
+    private static PlanArguments Args(PlanTarget target = PlanTarget.Recorded, SchemaScope? scope = null, string? outFile = null) =>
+        new() { Target = target, Scope = scope ?? SchemaScope.All, OutFile = outFile };
 
     [Fact]
     public async Task Execute_Live_ComputesOnlinePlan_Required()
@@ -38,7 +39,7 @@ public sealed class PlanOperationTests
         await _sut.Execute(Args(PlanTarget.Live), TestContext.Current.CancellationToken);
 
         // Assert — an apply-bound plan must read the live database.
-        await _workflow.Received(1).ComputePlan(SchemaSourceMode.Online, true, Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+        await _workflow.Received(1).ComputePlan(SchemaSourceMode.Online, Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -48,7 +49,7 @@ public sealed class PlanOperationTests
         await _sut.Execute(Args(), TestContext.Current.CancellationToken);
 
         // Assert — a preview prefers the recorded state but may fall back, so it is not required.
-        await _workflow.Received(1).ComputePlan(SchemaSourceMode.Offline, false, Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+        await _workflow.Received(1).ComputePlan(SchemaSourceMode.Offline, Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -59,19 +60,19 @@ public sealed class PlanOperationTests
 
         // Assert
         await _workflow.Received(1).ComputeTeardown(Arg.Any<CancellationToken>());
-        await _workflow.DidNotReceive().ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>());
+        await _workflow.DidNotReceive().ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Execute_ForwardsScopeToComputePlan()
     {
         // Act
-        await _sut.Execute(Args(PlanTarget.Live, schemas: ["app", "legacy"]), TestContext.Current.CancellationToken);
+        await _sut.Execute(Args(PlanTarget.Live, scope: SchemaScope.Of("app", "legacy")), TestContext.Current.CancellationToken);
 
         // Assert
         await _workflow.Received(1).ComputePlan(
-            Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(),
-            Arg.Is<string[]?>(s => s != null && s.SequenceEqual(new[] { "app", "legacy" })), Arg.Any<CancellationToken>());
+            Arg.Any<SchemaSourceMode>(),
+            Arg.Is<SchemaScope>(s => !s.IsAll && s.Includes("app") && s.Includes("legacy")), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -104,7 +105,7 @@ public sealed class PlanOperationTests
     {
         // Arrange — a policy blocks the plan; the failure still carries the full artifact so the offending
         // change (and its SQL) stays visible.
-        _workflow.ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
+        _workflow.ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.From(_plan, [Diagnostic.Error("destructive", "drops table")]));
 
         // Act
@@ -121,7 +122,7 @@ public sealed class PlanOperationTests
     {
         // Arrange — the file is a review artifact, not a bypass: apply enforces the policies again against the
         // carried diff, so writing a blocked plan is safe and the failing result reports the block.
-        _workflow.ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
+        _workflow.ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.From(_plan, [Diagnostic.Error("destructive", "drops table")]));
 
         // Act
@@ -136,7 +137,7 @@ public sealed class PlanOperationTests
     public async Task Execute_WhenPlanningProducesNoValue_CarriesNoPlan()
     {
         // Arrange — planning could not run at all (e.g. no provider registered).
-        _workflow.ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<bool>(), Arg.Any<string[]?>(), Arg.Any<CancellationToken>())
+        _workflow.ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<MigrationPlan>(Diagnostic.Error("plan", "no provider")));
 
         // Act

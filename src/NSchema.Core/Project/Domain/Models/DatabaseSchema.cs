@@ -49,24 +49,4 @@ public record DatabaseSchema(
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
-    /// <summary>
-    /// Restricts the schema to the named schemas.
-    /// </summary>
-    /// <param name="schemaNames">The names of the schemas to include in the filtered result.</param>
-    /// <returns>A new <see cref="DatabaseSchema"/> containing only the schemas and dropped schemas that match the provided names.</returns>
-    public DatabaseSchema Filter(string[]? schemaNames)
-    {
-        // Extensions are database-global, not schema-scoped, so they pass through a namespace filter untouched:
-        // an extension is a prerequisite of the whole database regardless of which schemas are in scope.
-        if (schemaNames is not { Length: > 0 })
-        {
-            return new DatabaseSchema(Schemas, DroppedSchemas, Extensions, DroppedExtensions);
-        }
-
-        var scope = new HashSet<string>(schemaNames, StringComparer.OrdinalIgnoreCase);
-        var filtered = Schemas.Where(s => scope.Contains(s.Name)).ToList();
-        var filteredDropped = DroppedSchemas.Where(scope.Contains).ToList();
-        return new DatabaseSchema(filtered, filteredDropped, Extensions, DroppedExtensions);
-    }
-
 }
