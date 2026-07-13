@@ -1,4 +1,5 @@
 using NSchema.Diff.Domain.Models;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Tables;
 
@@ -14,8 +15,8 @@ public partial class SchemaComparerTests
     public void Compare_TableGrantRevoked_EmitsRemove()
     {
         var table = DiffTable(
-            new Table("users", Columns: [new Column("id", SqlType.Int)], Grants: [new TableGrant("reader", TablePrivilege.Select)]),
-            new Table("users", Columns: [new Column("id", SqlType.Int)]));
+            new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], Grants: [new TableGrant(new SqlIdentifier("reader"), TablePrivilege.Select)]),
+            new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]));
 
         var grant = table!.Grants.ShouldHaveSingleItem();
         grant.Kind.ShouldBe(ChangeKind.Remove);
@@ -26,8 +27,8 @@ public partial class SchemaComparerTests
     public void Compare_TableGrantPrivilegesChanged_EmitsRemoveThenAdd()
     {
         var table = DiffTable(
-            new Table("users", Columns: [new Column("id", SqlType.Int)], Grants: [new TableGrant("reader", TablePrivilege.Select)]),
-            new Table("users", Columns: [new Column("id", SqlType.Int)], Grants: [new TableGrant("reader", TablePrivilege.All)]));
+            new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], Grants: [new TableGrant(new SqlIdentifier("reader"), TablePrivilege.Select)]),
+            new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], Grants: [new TableGrant(new SqlIdentifier("reader"), TablePrivilege.All)]));
 
         table!.Grants.Select(g => (g.Kind, g.Privileges)).ShouldBe(
             [(ChangeKind.Remove, TablePrivilege.Select), (ChangeKind.Add, TablePrivilege.All)]);

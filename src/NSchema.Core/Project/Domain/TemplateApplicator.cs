@@ -22,7 +22,7 @@ internal static class TemplateApplicator
         var schema = project.Schema;
         var scripts = project.Scripts.ToList();
 
-        var byName = new Dictionary<string, TemplateDefinition>(StringComparer.OrdinalIgnoreCase);
+        var byName = new Dictionary<SqlIdentifier, TemplateDefinition>();
         foreach (var template in templates.Definitions)
         {
             if (!byName.TryAdd(template.Name, template))
@@ -47,7 +47,7 @@ internal static class TemplateApplicator
 
             foreach (var schemaName in application.SchemaNames)
             {
-                if (!schema.Schemas.Any(s => string.Equals(s.Name, schemaName, StringComparison.OrdinalIgnoreCase)))
+                if (schema.Schemas.All(s => s.Name != schemaName))
                 {
                     diagnostics.Add(TemplateDiagnostics.UnknownTargetSchema(template.Name, schemaName));
                     continue;
@@ -82,16 +82,16 @@ internal static class TemplateApplicator
     /// the name and SQL body, and the instance is scoped to the applied schema (for a change event that also
     /// re-homes its target path — the scope is the target's schema).
     /// </summary>
-    private static Script Instantiate(Script script, string schemaName) => script with
+    private static Script Instantiate(Script script, SqlIdentifier schemaName) => script with
     {
-        Name = script.Name.Replace("{schema}", schemaName, StringComparison.Ordinal),
-        Sql = script.Sql.Replace("{schema}", schemaName, StringComparison.Ordinal),
+        Name = SchemaToken.Instantiate(script.Name, schemaName),
+        Sql = SchemaToken.Instantiate(script.Sql, schemaName),
         Event = script.Event with { ScopeSchema = schemaName },
     };
 
     private static DatabaseSchema ResolveIncludes(
         DatabaseSchema schema,
-        Dictionary<string, TemplateDefinition> templates,
+        Dictionary<SqlIdentifier, TemplateDefinition> templates,
         List<TemplateInclude> includes,
         List<Diagnostic> diagnostics)
     {
@@ -104,7 +104,7 @@ internal static class TemplateApplicator
             .GroupBy(i => Key(i.SchemaName, i.TableName))
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        var consumed = new HashSet<string>();
+        var consumed = new HashSet<(SqlIdentifier Schema, SqlIdentifier Table)>();
         var resolved = schema.Schemas
             .Select(definition => definition with
             {
@@ -135,16 +135,15 @@ internal static class TemplateApplicator
     }
 
     // The NUL character cannot appear in an identifier, so it is a safe composite-key separator.
-    private static string Key(string schema, string table) => $"{schema.ToLowerInvariant()}\0{table.ToLowerInvariant()}";
+    private static (SqlIdentifier Schema, SqlIdentifier Table) Key(SqlIdentifier schema, SqlIdentifier table) => (schema, table);
 
     /// <summary>
     /// Merges each included table template's members into <paramref name="table"/>: columns land at the position
     /// the include was written, foreign keys referencing the placeholder re-point at the including table's schema,
     /// and everything else appends. A member the table already declares is rejected.
     /// </summary>
-    private static Table MergeIncludes(string schemaName, Table table, List<TemplateInclude> includes, Dictionary<string, TemplateDefinition> templates, List<Diagnostic> diagnostics)
+    private static Table MergeIncludes(SqlIdentifier schemaName, Table table, List<TemplateInclude> includes, Dictionary<SqlIdentifier, TemplateDefinition> templates, List<Diagnostic> diagnostics)
     {
-        var qualified = $"{schemaName}.{table.Name}";
         var columns = table.Columns.ToList();
         var foreignKeys = table.ForeignKeys.ToList();
         var uniqueConstraints = table.UniqueConstraints.ToList();
@@ -158,12 +157,12 @@ internal static class TemplateApplicator
         {
             if (!templates.TryGetValue(include.TemplateName, out var template))
             {
-                diagnostics.Add(TemplateDiagnostics.IncludeUnknownTemplate(qualified, include.TemplateName));
+                diagnostics.Add(TemplateDiagnostics.IncludeUnknownTemplate(schemaName, table.Name, include.TemplateName));
                 continue;
             }
             if (template.Kind != TemplateKind.Table)
             {
-                diagnostics.Add(TemplateDiagnostics.IncludedSchemaTemplate(qualified, template.Name));
+                diagnostics.Add(TemplateDiagnostics.IncludedSchemaTemplate(schemaName, table.Name, template.Name));
                 continue;
             }
 
@@ -173,14 +172,14 @@ internal static class TemplateApplicator
             var conflicts = new List<Diagnostic>();
             foreach (var column in members.Columns)
             {
-                if (columns.Any(c => string.Equals(c.Name, column.Name, StringComparison.OrdinalIgnoreCase)))
+                if (columns.Any(c => c.Name == column.Name))
                 {
-                    conflicts.Add(TemplateDiagnostics.IncludeColumnConflict(template.Name, column.Name, qualified));
+                    conflicts.Add(TemplateDiagnostics.IncludeColumnConflict(template.Name, column.Name, schemaName, table.Name));
                 }
             }
             if (members.PrimaryKey is not null && primaryKey is not null)
             {
-                conflicts.Add(TemplateDiagnostics.IncludePrimaryKeyConflict(template.Name, qualified));
+                conflicts.Add(TemplateDiagnostics.IncludePrimaryKeyConflict(template.Name, schemaName, table.Name));
             }
             if (conflicts.Count > 0)
             {
@@ -224,15 +223,15 @@ internal static class TemplateApplicator
     /// trigger function qualifies to the target when the template itself declares it. An unqualified name the
     /// template does not declare is left alone — a built-in type, or a name the database resolves by search path.
     /// </summary>
-    private static SchemaDefinition Apply(TemplateDefinition template, string schemaName)
+    private static SchemaDefinition Apply(TemplateDefinition template, SqlIdentifier schemaName)
     {
         var objects = template.Objects;
 
         var declaredTypes = objects.Enums.Select(e => e.Name)
             .Concat(objects.Domains.Select(d => d.Name))
             .Concat(objects.CompositeTypes.Select(t => t.Name))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var declaredRoutines = objects.Routines.Select(r => r.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            .ToHashSet();
+        var declaredRoutines = objects.Routines.Select(r => r.Name).ToHashSet();
 
         return objects with
         {
@@ -254,7 +253,7 @@ internal static class TemplateApplicator
         };
     }
 
-    private static SqlType Qualify(SqlType type, HashSet<string> declaredTypes, string schemaName)
+    private static SqlType Qualify(SqlType type, HashSet<SqlIdentifier> declaredTypes, SqlIdentifier schemaName)
     {
         if (type.Name.Contains('.'))
         {
@@ -264,7 +263,7 @@ internal static class TemplateApplicator
         // A custom type may carry its facets in the name text; only the base name identifies it.
         var paren = type.Name.IndexOf('(');
         var baseName = paren < 0 ? type.Name : type.Name[..paren];
-        if (!declaredTypes.Contains(baseName))
+        if (!declaredTypes.Contains(new SqlIdentifier(baseName)))
         {
             return type;
         }
@@ -274,8 +273,8 @@ internal static class TemplateApplicator
         return new SqlType($"{schemaName}.{type.Name}") { Length = type.Length, Precision = type.Precision, Scale = type.Scale };
     }
 
-    private static Trigger Qualify(Trigger trigger, HashSet<string> declaredRoutines, string schemaName)
-        => trigger.Function is { } function && !function.Contains('.') && declaredRoutines.Contains(function)
-            ? trigger with { Function = $"{schemaName}.{function}" }
+    private static Trigger Qualify(Trigger trigger, HashSet<SqlIdentifier> declaredRoutines, SqlIdentifier schemaName)
+        => trigger.Function is { Schema: null } function && declaredRoutines.Contains(function.Name)
+            ? trigger with { Function = function with { Schema = schemaName } }
             : trigger;
 }

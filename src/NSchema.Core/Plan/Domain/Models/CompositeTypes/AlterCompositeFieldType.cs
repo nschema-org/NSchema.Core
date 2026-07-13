@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 
 namespace NSchema.Plan.Domain.Models.CompositeTypes;
@@ -10,7 +11,7 @@ namespace NSchema.Plan.Domain.Models.CompositeTypes;
 /// <param name="FieldName">The name of the field whose type changes.</param>
 /// <param name="OldType">The field's type before the change.</param>
 /// <param name="NewType">The field's type after the change.</param>
-public sealed record AlterCompositeFieldType(string SchemaName, string TypeName, string FieldName, SqlType OldType, SqlType NewType) : MigrationAction
+public sealed record AlterCompositeFieldType(SqlIdentifier SchemaName, SqlIdentifier TypeName, SqlIdentifier FieldName, SqlType OldType, SqlType NewType) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => false;

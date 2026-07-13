@@ -14,20 +14,20 @@ public sealed class SchemaStateTests
         var state = SchemaState.Empty;
 
         // Act
-        var recorded = state.RecordExecution([new ScriptExecution("seed", "abc", _now)]);
+        var recorded = state.RecordExecution([new ScriptExecution(new SqlIdentifier("seed"), "abc", _now)]);
 
         // Assert
-        recorded.Scripts.ShouldHaveSingleItem().ShouldBe(new ScriptExecution("seed", "abc", _now));
+        recorded.Scripts.ShouldHaveSingleItem().ShouldBe(new ScriptExecution(new SqlIdentifier("seed"), "abc", _now));
     }
 
     [Fact]
     public void RecordScripts_ReplacesAnEarlierExecutionByName_CaseInsensitively()
     {
         // Arrange
-        var state = new SchemaState(new DatabaseSchema(), [new ScriptExecution("Seed", "old", DateTimeOffset.UnixEpoch)]);
+        var state = new SchemaState(new DatabaseSchema(), [new ScriptExecution(new SqlIdentifier("Seed"), "old", DateTimeOffset.UnixEpoch)]);
 
         // Act
-        var recorded = state.RecordExecution([new ScriptExecution("seed", "new", _now)]);
+        var recorded = state.RecordExecution([new ScriptExecution(new SqlIdentifier("seed"), "new", _now)]);
 
         // Assert
         recorded.Scripts.ShouldHaveSingleItem().Hash.ShouldBe("new");
@@ -37,14 +37,14 @@ public sealed class SchemaStateTests
     public void RecordScripts_LeavesOtherEntriesAlone()
     {
         // Arrange
-        var existing = new ScriptExecution("api-login", "hash", DateTimeOffset.UnixEpoch);
+        var existing = new ScriptExecution(new SqlIdentifier("api-login"), "hash", DateTimeOffset.UnixEpoch);
         var state = new SchemaState(new DatabaseSchema(), [existing]);
 
         // Act
-        var recorded = state.RecordExecution([new ScriptExecution("seed", "abc", _now)]);
+        var recorded = state.RecordExecution([new ScriptExecution(new SqlIdentifier("seed"), "abc", _now)]);
 
         // Assert
-        recorded.Scripts.ShouldBe([existing, new ScriptExecution("seed", "abc", _now)]);
+        recorded.Scripts.ShouldBe([existing, new ScriptExecution(new SqlIdentifier("seed"), "abc", _now)]);
     }
 
     [Fact]
@@ -55,11 +55,11 @@ public sealed class SchemaStateTests
     public void FindScript_MatchesByName_CaseInsensitively()
     {
         // Arrange
-        var existing = new ScriptExecution("Seed", "abc", _now);
+        var existing = new ScriptExecution(new SqlIdentifier("Seed"), "abc", _now);
         var state = new SchemaState(new DatabaseSchema(), [existing]);
 
         // Act
-        var found = state.FindExecution("seed");
+        var found = state.FindExecution(new SqlIdentifier("seed"));
 
         // Assert
         found.ShouldBe(existing);
@@ -67,17 +67,17 @@ public sealed class SchemaStateTests
 
     [Fact]
     public void FindScript_NothingRecordedUnderTheName_ReturnsNull()
-        => SchemaState.Empty.FindExecution("seed").ShouldBeNull();
+        => SchemaState.Empty.FindExecution(new SqlIdentifier("seed")).ShouldBeNull();
 
     [Fact]
     public void RemoveScript_RemovesTheEntryByName_CaseInsensitively()
     {
         // Arrange
-        var other = new ScriptExecution("api-login", "hash", _now);
-        var state = new SchemaState(new DatabaseSchema(), [new ScriptExecution("Seed", "abc", _now), other]);
+        var other = new ScriptExecution(new SqlIdentifier("api-login"), "hash", _now);
+        var state = new SchemaState(new DatabaseSchema(), [new ScriptExecution(new SqlIdentifier("Seed"), "abc", _now), other]);
 
         // Act
-        var removed = state.RemoveExecution("seed");
+        var removed = state.RemoveExecution(new SqlIdentifier("seed"));
 
         // Assert
         removed.Scripts.ShouldBe([other]);
@@ -85,5 +85,5 @@ public sealed class SchemaStateTests
 
     [Fact]
     public void RemoveScript_NothingRecordedUnderTheName_ReturnsTheSameState()
-        => SchemaState.Empty.RemoveExecution("seed").ShouldBeSameAs(SchemaState.Empty);
+        => SchemaState.Empty.RemoveExecution(new SqlIdentifier("seed")).ShouldBeSameAs(SchemaState.Empty);
 }

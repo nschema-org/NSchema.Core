@@ -56,7 +56,7 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
         }
 
         // The diff presents schemas ordered by name (tables likewise, within each schema).
-        result.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
+        result.Sort((a, b) => a.Name.CompareTo(b.Name));
         return result;
     }
 
@@ -146,7 +146,7 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
 
             if (oldNameStillDeclared || newNameAlreadyTaken)
             {
-                var qualified = container is null ? newName : $"{container}.{newName}";
+                var qualified = container is null ? newName.Value : $"{container}.{newName}";
                 var reason = oldNameStillDeclared
                     ? $"its previous name '{renamedFrom}' is still declared"
                     : $"a {entityKind} named '{newName}' already exists";
@@ -167,11 +167,11 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
     /// pair. Only the per-kind build logic varies; the matching and partial-schema semantics live here, once.
     /// </summary>
     private static List<TDiff> CompareObjects<TModel, TDiff>(
-        string schemaName,
+        SqlIdentifier schemaName,
         string entityKind,
         IReadOnlyList<TModel> current,
         IReadOnlyList<TModel> desired,
-        IReadOnlyList<string> droppedNames,
+        IReadOnlyList<SqlIdentifier> droppedNames,
         bool isPartial,
         Func<TModel, TDiff> buildRemoved,
         Func<TModel, TDiff> buildNew,
@@ -179,7 +179,7 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
     ) where TModel : class, IRenameableObject where TDiff : class
     {
         var result = new List<TDiff>();
-        var (forDesired, currentMatched) = MatchEntities(current, desired, entityKind, schemaName);
+        var (forDesired, currentMatched) = MatchEntities(current, desired, entityKind, schemaName.Value);
 
         for (var j = 0; j < current.Count; j++)
         {
@@ -188,7 +188,7 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
                 continue;
             }
 
-            if (droppedNames.Contains(current[j].Name, StringComparer.OrdinalIgnoreCase) || !isPartial)
+            if (droppedNames.Contains(current[j].Name) || !isPartial)
             {
                 result.Add(buildRemoved(current[j]));
             }
@@ -217,12 +217,11 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
     /// <em>excluding</em> <see cref="INamedObject.Comment"/>, or the comment-only branch is unreachable.
     /// </summary>
     private List<TDiff> CompareTableMembers<TModel, TDiff>(
-        string schemaName,
-        string tableName,
+        ObjectReference owner,
         string memberKind,
         IReadOnlyList<TModel> current,
         IReadOnlyList<TModel> desired,
-        Func<ChangeKind, string, TModel?, ValueChange<string>?, TDiff> diff
+        Func<ChangeKind, SqlIdentifier, TModel?, ValueChange<string>?, TDiff> diff
     ) where TModel : class, INamedObject
     {
         var result = new List<TDiff>();
@@ -232,17 +231,17 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
             var matchingDesired = desired.FirstOrDefault(d => d.Name == currentMember.Name);
             if (matchingDesired is null || !currentMember.Equals(matchingDesired))
             {
-                LogTableMemberMissingOrChanged(memberKind, currentMember.Name, schemaName, tableName);
+                LogTableMemberMissingOrChanged(memberKind, currentMember.Name, owner);
                 result.Add(diff(ChangeKind.Remove, currentMember.Name, null, null));
             }
             else if (currentMember.Comment != matchingDesired.Comment)
             {
-                LogTableMemberCommentChanged(memberKind, currentMember.Name, schemaName, tableName);
+                LogTableMemberCommentChanged(memberKind, currentMember.Name, owner);
                 result.Add(diff(ChangeKind.Modify, currentMember.Name, null, new ValueChange<string>(currentMember.Comment, matchingDesired.Comment)));
             }
             else
             {
-                LogTableMemberUnchanged(memberKind, currentMember.Name, schemaName, tableName);
+                LogTableMemberUnchanged(memberKind, currentMember.Name, owner);
             }
         }
 
@@ -251,7 +250,7 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
             var matchingCurrent = current.FirstOrDefault(c => c.Name == desiredMember.Name);
             if (matchingCurrent is null || !matchingCurrent.Equals(desiredMember))
             {
-                LogTableMemberNewOrChanged(memberKind, desiredMember.Name, schemaName, tableName);
+                LogTableMemberNewOrChanged(memberKind, desiredMember.Name, owner);
                 result.Add(diff(ChangeKind.Add, desiredMember.Name, desiredMember, null));
                 if (desiredMember.Comment is not null)
                 {
@@ -260,7 +259,7 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
             }
             else
             {
-                LogTableMemberUnchanged(memberKind, desiredMember.Name, schemaName, tableName);
+                LogTableMemberUnchanged(memberKind, desiredMember.Name, owner);
             }
         }
 
@@ -271,37 +270,37 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
     {
         var tables = desired.Tables
             .Select(table => BuildNewTable(desired.Name, table))
-            .OrderBy(table => table.Name, StringComparer.Ordinal)
+            .OrderBy(table => table.Name)
             .ToList();
 
         var views = desired.Views
             .Select(view => BuildNewView(desired.Name, view))
-            .OrderBy(view => view.Name, StringComparer.Ordinal)
+            .OrderBy(view => view.Name)
             .ToList();
 
         var enums = desired.Enums
             .Select(enumType => BuildNewEnum(desired.Name, enumType))
-            .OrderBy(enumType => enumType.Name, StringComparer.Ordinal)
+            .OrderBy(enumType => enumType.Name)
             .ToList();
 
         var sequences = desired.Sequences
             .Select(sequence => BuildNewSequence(desired.Name, sequence))
-            .OrderBy(sequence => sequence.Name, StringComparer.Ordinal)
+            .OrderBy(sequence => sequence.Name)
             .ToList();
 
         var routines = desired.Routines
             .Select(routine => BuildNewRoutine(desired.Name, routine))
-            .OrderBy(routine => routine.Name, StringComparer.Ordinal)
+            .OrderBy(routine => routine.Name)
             .ToList();
 
         var domains = desired.Domains
             .Select(domain => BuildNewDomain(desired.Name, domain))
-            .OrderBy(domain => domain.Name, StringComparer.Ordinal)
+            .OrderBy(domain => domain.Name)
             .ToList();
 
         var compositeTypes = desired.CompositeTypes
             .Select(type => BuildNewCompositeType(desired.Name, type))
-            .OrderBy(type => type.Name, StringComparer.Ordinal)
+            .OrderBy(type => type.Name)
             .ToList();
 
         var comment = desired.Comment is not null ? new ValueChange<string>(null, desired.Comment) : null;
@@ -319,18 +318,18 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
         return new SchemaDiff(
             current.Name,
             ChangeKind.Remove,
-            Tables: CompareTables(current.Name, current.Tables, empty).OrderBy(t => t.Name, StringComparer.Ordinal).ToList(),
-            Views: CompareViews(current.Name, current.Views, empty).OrderBy(v => v.Name, StringComparer.Ordinal).ToList(),
-            Enums: CompareEnums(current.Name, current.Enums, empty).OrderBy(e => e.Name, StringComparer.Ordinal).ToList(),
-            Sequences: CompareSequences(current.Name, current.Sequences, empty).OrderBy(s => s.Name, StringComparer.Ordinal).ToList(),
-            Routines: CompareRoutines(current.Name, current.Routines, empty).OrderBy(r => r.Name, StringComparer.Ordinal).ToList(),
-            Domains: CompareDomains(current.Name, current.Domains, empty).OrderBy(d => d.Name, StringComparer.Ordinal).ToList(),
-            CompositeTypes: CompareCompositeTypes(current.Name, current.CompositeTypes, empty).OrderBy(c => c.Name, StringComparer.Ordinal).ToList());
+            Tables: CompareTables(current.Name, current.Tables, empty).OrderBy(t => t.Name).ToList(),
+            Views: CompareViews(current.Name, current.Views, empty).OrderBy(v => v.Name).ToList(),
+            Enums: CompareEnums(current.Name, current.Enums, empty).OrderBy(e => e.Name).ToList(),
+            Sequences: CompareSequences(current.Name, current.Sequences, empty).OrderBy(s => s.Name).ToList(),
+            Routines: CompareRoutines(current.Name, current.Routines, empty).OrderBy(r => r.Name).ToList(),
+            Domains: CompareDomains(current.Name, current.Domains, empty).OrderBy(d => d.Name).ToList(),
+            CompositeTypes: CompareCompositeTypes(current.Name, current.CompositeTypes, empty).OrderBy(c => c.Name).ToList());
     }
 
     private SchemaDiff? BuildModifiedSchema(SchemaDefinition current, SchemaDefinition desired)
     {
-        string? renamedFrom = null;
+        SqlIdentifier? renamedFrom = null;
         if (current.Name == desired.Name)
         {
             LogSchemaUnchanged(desired.Name);
@@ -350,25 +349,25 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
 
         var grants = CompareSchemaGrants(desired.Name, current.Grants, desired.Grants);
         var tables = CompareTables(desired.Name, current.Tables, desired)
-            .OrderBy(table => table.Name, StringComparer.Ordinal)
+            .OrderBy(table => table.Name)
             .ToList();
         var views = CompareViews(desired.Name, current.Views, desired)
-            .OrderBy(view => view.Name, StringComparer.Ordinal)
+            .OrderBy(view => view.Name)
             .ToList();
         var enums = CompareEnums(desired.Name, current.Enums, desired)
-            .OrderBy(enumType => enumType.Name, StringComparer.Ordinal)
+            .OrderBy(enumType => enumType.Name)
             .ToList();
         var sequences = CompareSequences(desired.Name, current.Sequences, desired)
-            .OrderBy(sequence => sequence.Name, StringComparer.Ordinal)
+            .OrderBy(sequence => sequence.Name)
             .ToList();
         var routines = CompareRoutines(desired.Name, current.Routines, desired)
-            .OrderBy(routine => routine.Name, StringComparer.Ordinal)
+            .OrderBy(routine => routine.Name)
             .ToList();
         var domains = CompareDomains(desired.Name, current.Domains, desired)
-            .OrderBy(domain => domain.Name, StringComparer.Ordinal)
+            .OrderBy(domain => domain.Name)
             .ToList();
         var compositeTypes = CompareCompositeTypes(desired.Name, current.CompositeTypes, desired)
-            .OrderBy(type => type.Name, StringComparer.Ordinal)
+            .OrderBy(type => type.Name)
             .ToList();
 
         // The schema entity itself only changes when it is renamed or its comment/grants change; a schema that

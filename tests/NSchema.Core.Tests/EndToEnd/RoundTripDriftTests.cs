@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using NSchema.Diff.Domain;
 using NSchema.Project.Ddl;
-using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.EndToEnd;
 

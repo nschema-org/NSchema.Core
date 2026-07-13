@@ -15,9 +15,9 @@ namespace NSchema.Project.Domain.Models.Views;
 /// <param name="Indexes">Indexes on the view. Only materialized views carry indexes; empty for a plain view.</param>
 [DebuggerDisplay("{Name,nq} (view)")]
 public sealed record View(
-    string Name,
+    SqlIdentifier Name,
     string Body,
-    string? OldName = null,
+    SqlIdentifier? OldName = null,
     string? Comment = null,
     IReadOnlyList<ViewDependency>? DependsOn = null,
     bool IsMaterialized = false,

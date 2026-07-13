@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Project.Ddl.Models.Templates;
 
 /// <summary>
@@ -7,4 +8,4 @@ namespace NSchema.Project.Ddl.Models.Templates;
 /// <param name="TableName">The name of the including table.</param>
 /// <param name="TemplateName">The name of the table template to include.</param>
 /// <param name="ColumnPosition">The index among the table's declared columns where the include appeared.</param>
-public sealed record TemplateInclude(string SchemaName, string TableName, string TemplateName, int ColumnPosition);
+public sealed record TemplateInclude(SqlIdentifier SchemaName, SqlIdentifier TableName, SqlIdentifier TemplateName, int ColumnPosition);

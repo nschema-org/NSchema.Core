@@ -1,5 +1,6 @@
 using NSchema.Diff.Domain.Models;
 using NSchema.Project.Ddl;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Indexes;
 using NSchema.Project.Domain.Models.Views;
 
@@ -12,7 +13,7 @@ public partial class SchemaComparerTests
     // -------------------------------------------------------------------------
 
     private static View Matview(string name, string body, IReadOnlyList<TableIndex>? indexes = null, string? comment = null) =>
-        new(name, body, null, comment, ViewDependencyExtractor.Extract(body, "app"), IsMaterialized: true, Indexes: indexes);
+        new(new SqlIdentifier(name), body, null, comment, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")), IsMaterialized: true, Indexes: indexes);
 
     [Fact]
     public void Compare_NewMaterializedView_IsAddWithMaterializedFlag()
@@ -69,7 +70,7 @@ public partial class SchemaComparerTests
     {
         var diff = DiffViews(
             [Matview("daily", "SELECT 1")],
-            [Matview("daily", "SELECT 1", indexes: [new TableIndex("daily_ix", ["x"])])]);
+            [Matview("daily", "SELECT 1", indexes: [new TableIndex(new SqlIdentifier("daily_ix"), ["x"])])]);
 
         diff!.RequiresRecreate.ShouldBeFalse();
         diff.Definition.ShouldBeNull(); // body unchanged
@@ -80,8 +81,8 @@ public partial class SchemaComparerTests
     public void Compare_MaterializedViewBodyAndIndexChange_RecreatesWithIndexesOnDefinition()
     {
         var diff = DiffViews(
-            [Matview("daily", "SELECT 1", indexes: [new TableIndex("a", ["x"])])],
-            [Matview("daily", "SELECT 2", indexes: [new TableIndex("b", ["y"])])]);
+            [Matview("daily", "SELECT 1", indexes: [new TableIndex(new SqlIdentifier("a"), ["x"])])],
+            [Matview("daily", "SELECT 2", indexes: [new TableIndex(new SqlIdentifier("b"), ["y"])])]);
 
         diff!.RequiresRecreate.ShouldBeTrue();
         diff.Indexes.ShouldBeEmpty(); // not diffed in place during a recreate

@@ -24,10 +24,10 @@ internal sealed partial class DdlParser
     private sealed class SchemaAccumulator
     {
         private readonly List<Entry> _entries = [];
-        private readonly Dictionary<string, Entry> _byName = new(StringComparer.OrdinalIgnoreCase);
-        private readonly List<string> _droppedSchemas = [];
+        private readonly Dictionary<SqlIdentifier, Entry> _byName = new();
+        private readonly List<SqlIdentifier> _droppedSchemas = [];
         private readonly List<Extension> _extensions = [];
-        private readonly List<string> _droppedExtensions = [];
+        private readonly List<SqlIdentifier> _droppedExtensions = [];
         private readonly List<PendingGrant> _tableGrants = [];
         private readonly List<PendingTrigger> _triggers = [];
         private readonly List<PendingIndex> _standaloneIndexes = [];
@@ -42,7 +42,7 @@ internal sealed partial class DdlParser
 
         public void AddInclude(TemplateInclude include) => _includes.Add(include);
 
-        public void DeclareSchema(string name, string? oldName, bool isPartial, string? comment, SourcePosition position)
+        public void DeclareSchema(SqlIdentifier name, SqlIdentifier? oldName, bool isPartial, string? comment, SourcePosition position)
         {
             var entry = GetOrAdd(name);
             if (entry.Declared)
@@ -55,7 +55,7 @@ internal sealed partial class DdlParser
             entry.Comment = comment;
         }
 
-        public void AddTable(string schema, Table table, SourcePosition position)
+        public void AddTable(SqlIdentifier schema, Table table, SourcePosition position)
         {
             var entry = GetOrAdd(schema);
             if (entry.Tables.Any(t => t.Name == table.Name))
@@ -65,7 +65,7 @@ internal sealed partial class DdlParser
             entry.Tables.Add(table);
         }
 
-        public void AddView(string schema, View view, SourcePosition position)
+        public void AddView(SqlIdentifier schema, View view, SourcePosition position)
         {
             var entry = GetOrAdd(schema);
             if (entry.Views.Any(v => v.Name == view.Name))
@@ -75,7 +75,7 @@ internal sealed partial class DdlParser
             entry.Views.Add(view);
         }
 
-        public void AddEnum(string schema, EnumType enumType, SourcePosition position)
+        public void AddEnum(SqlIdentifier schema, EnumType enumType, SourcePosition position)
         {
             var entry = GetOrAdd(schema);
             if (entry.Enums.Any(e => e.Name == enumType.Name))
@@ -85,7 +85,7 @@ internal sealed partial class DdlParser
             entry.Enums.Add(enumType);
         }
 
-        public void AddSequence(string schema, Sequence sequence, SourcePosition position)
+        public void AddSequence(SqlIdentifier schema, Sequence sequence, SourcePosition position)
         {
             var entry = GetOrAdd(schema);
             if (entry.Sequences.Any(s => s.Name == sequence.Name))
@@ -95,7 +95,7 @@ internal sealed partial class DdlParser
             entry.Sequences.Add(sequence);
         }
 
-        public void AddDomain(string schema, DomainDefinition domain, SourcePosition position)
+        public void AddDomain(SqlIdentifier schema, DomainDefinition domain, SourcePosition position)
         {
             var entry = GetOrAdd(schema);
             if (entry.Domains.Any(d => d.Name == domain.Name))
@@ -105,7 +105,7 @@ internal sealed partial class DdlParser
             entry.Domains.Add(domain);
         }
 
-        public void AddCompositeType(string schema, CompositeType compositeType, SourcePosition position)
+        public void AddCompositeType(SqlIdentifier schema, CompositeType compositeType, SourcePosition position)
         {
             var entry = GetOrAdd(schema);
             if (entry.CompositeTypes.Any(t => t.Name == compositeType.Name))
@@ -117,10 +117,10 @@ internal sealed partial class DdlParser
 
         // Functions and procedures are one routine pool sharing a single name space, as they do in the database:
         // a function and a procedure with the same name cannot coexist in a schema, which a single list enforces.
-        public void AddRoutine(string schema, Routine routine, SourcePosition position)
+        public void AddRoutine(SqlIdentifier schema, Routine routine, SourcePosition position)
         {
             var entry = GetOrAdd(schema);
-            if (entry.Routines.Any(r => string.Equals(r.Name, routine.Name, StringComparison.OrdinalIgnoreCase)))
+            if (entry.Routines.Any(r => r.Name == routine.Name))
             {
                 throw new DdlSyntaxException(
                     $"Routine '{schema}.{routine.Name}' is already declared (functions and procedures share one name space).", position);
@@ -128,7 +128,7 @@ internal sealed partial class DdlParser
             entry.Routines.Add(routine);
         }
 
-        public void AddSchemaGrant(string schema, string role)
+        public void AddSchemaGrant(SqlIdentifier schema, SqlIdentifier role)
         {
             var entry = GetOrAdd(schema);
             if (entry.Grants.All(g => g.Role != role))
@@ -138,103 +138,103 @@ internal sealed partial class DdlParser
         }
 
         // Table grants are resolved at Build, so a grant may appear before or after the table it targets.
-        public void AddTableGrant(string schema, string table, TableGrant grant, SourcePosition position)
+        public void AddTableGrant(SqlIdentifier schema, SqlIdentifier table, TableGrant grant, SourcePosition position)
             => _tableGrants.Add(new PendingGrant(schema, table, grant, position));
 
         // Triggers are standalone statements attached to their table at Build, so a trigger may appear before or
         // after the CREATE TABLE it targets.
-        public void AddTrigger(string schema, string table, Trigger trigger, SourcePosition position)
+        public void AddTrigger(SqlIdentifier schema, SqlIdentifier table, Trigger trigger, SourcePosition position)
             => _triggers.Add(new PendingTrigger(schema, table, trigger, position));
 
         // Standalone indexes attach to their relation (a table or a materialized view) at Build, so an index may
         // appear before or after the CREATE that declares its target.
-        public void AddIndex(string schema, string relation, TableIndex index, SourcePosition position)
+        public void AddIndex(SqlIdentifier schema, SqlIdentifier relation, TableIndex index, SourcePosition position)
             => _standaloneIndexes.Add(new PendingIndex(schema, relation, index, position));
 
         // Extensions are database-global, so they live on the accumulator itself rather than a per-schema entry.
         public void AddExtension(Extension extension, SourcePosition position)
         {
-            if (_extensions.Any(e => string.Equals(e.Name, extension.Name, StringComparison.OrdinalIgnoreCase)))
+            if (_extensions.Any(e => e.Name == extension.Name))
             {
                 throw new DdlSyntaxException($"Extension '{extension.Name}' is already declared.", position);
             }
             _extensions.Add(extension);
         }
 
-        public void DropSchema(string name)
+        public void DropSchema(SqlIdentifier name)
         {
-            if (!_droppedSchemas.Contains(name, StringComparer.OrdinalIgnoreCase))
+            if (!_droppedSchemas.Contains(name))
             {
                 _droppedSchemas.Add(name);
             }
         }
 
-        public void DropExtension(string name)
+        public void DropExtension(SqlIdentifier name)
         {
-            if (!_droppedExtensions.Contains(name, StringComparer.OrdinalIgnoreCase))
+            if (!_droppedExtensions.Contains(name))
             {
                 _droppedExtensions.Add(name);
             }
         }
 
-        public void DropTable(string schema, string table)
+        public void DropTable(SqlIdentifier schema, SqlIdentifier table)
         {
             var entry = GetOrAdd(schema);
-            if (!entry.DroppedTables.Contains(table, StringComparer.OrdinalIgnoreCase))
+            if (!entry.DroppedTables.Contains(table))
             {
                 entry.DroppedTables.Add(table);
             }
         }
 
-        public void DropView(string schema, string view)
+        public void DropView(SqlIdentifier schema, SqlIdentifier view)
         {
             var entry = GetOrAdd(schema);
-            if (!entry.DroppedViews.Contains(view, StringComparer.OrdinalIgnoreCase))
+            if (!entry.DroppedViews.Contains(view))
             {
                 entry.DroppedViews.Add(view);
             }
         }
 
-        public void DropEnum(string schema, string enumName)
+        public void DropEnum(SqlIdentifier schema, SqlIdentifier enumName)
         {
             var entry = GetOrAdd(schema);
-            if (!entry.DroppedEnums.Contains(enumName, StringComparer.OrdinalIgnoreCase))
+            if (!entry.DroppedEnums.Contains(enumName))
             {
                 entry.DroppedEnums.Add(enumName);
             }
         }
 
-        public void DropDomain(string schema, string domain)
+        public void DropDomain(SqlIdentifier schema, SqlIdentifier domain)
         {
             var entry = GetOrAdd(schema);
-            if (!entry.DroppedDomains.Contains(domain, StringComparer.OrdinalIgnoreCase))
+            if (!entry.DroppedDomains.Contains(domain))
             {
                 entry.DroppedDomains.Add(domain);
             }
         }
 
-        public void DropCompositeType(string schema, string compositeType)
+        public void DropCompositeType(SqlIdentifier schema, SqlIdentifier compositeType)
         {
             var entry = GetOrAdd(schema);
-            if (!entry.DroppedCompositeTypes.Contains(compositeType, StringComparer.OrdinalIgnoreCase))
+            if (!entry.DroppedCompositeTypes.Contains(compositeType))
             {
                 entry.DroppedCompositeTypes.Add(compositeType);
             }
         }
 
-        public void DropSequence(string schema, string sequence)
+        public void DropSequence(SqlIdentifier schema, SqlIdentifier sequence)
         {
             var entry = GetOrAdd(schema);
-            if (!entry.DroppedSequences.Contains(sequence, StringComparer.OrdinalIgnoreCase))
+            if (!entry.DroppedSequences.Contains(sequence))
             {
                 entry.DroppedSequences.Add(sequence);
             }
         }
 
-        public void DropRoutine(string schema, string routine)
+        public void DropRoutine(SqlIdentifier schema, SqlIdentifier routine)
         {
             var entry = GetOrAdd(schema);
-            if (!entry.DroppedRoutines.Contains(routine, StringComparer.OrdinalIgnoreCase))
+            if (!entry.DroppedRoutines.Contains(routine))
             {
                 entry.DroppedRoutines.Add(routine);
             }
@@ -289,7 +289,7 @@ internal sealed partial class DdlParser
                 }
 
                 var table = entry.Tables[index];
-                if (table.Triggers.Any(t => string.Equals(t.Name, pending.Trigger.Name, StringComparison.OrdinalIgnoreCase)))
+                if (table.Triggers.Any(t => t.Name == pending.Trigger.Name))
                 {
                     throw new DdlSyntaxException($"Trigger '{pending.Trigger.Name}' on '{pending.Schema}.{pending.Table}' is already declared.", pending.Position);
                 }
@@ -313,7 +313,7 @@ internal sealed partial class DdlParser
                 if (tableIndex >= 0)
                 {
                     var table = entry.Tables[tableIndex];
-                    if (table.Indexes.Any(i => string.Equals(i.Name, pending.Index.Name, StringComparison.OrdinalIgnoreCase)))
+                    if (table.Indexes.Any(i => i.Name == pending.Index.Name))
                     {
                         throw new DdlSyntaxException($"Index '{pending.Index.Name}' on '{qualified}' is already declared.", pending.Position);
                     }
@@ -332,7 +332,7 @@ internal sealed partial class DdlParser
                 {
                     throw new DdlSyntaxException($"CREATE INDEX targets '{qualified}', which is not a materialized view (a plain view cannot be indexed).", pending.Position);
                 }
-                if (view.Indexes.Any(i => string.Equals(i.Name, pending.Index.Name, StringComparison.OrdinalIgnoreCase)))
+                if (view.Indexes.Any(i => i.Name == pending.Index.Name))
                 {
                     throw new DdlSyntaxException($"Index '{pending.Index.Name}' on '{qualified}' is already declared.", pending.Position);
                 }
@@ -341,7 +341,7 @@ internal sealed partial class DdlParser
             }
         }
 
-        private Entry GetOrAdd(string name)
+        private Entry GetOrAdd(SqlIdentifier name)
         {
             if (_byName.TryGetValue(name, out var existing))
             {
@@ -353,34 +353,34 @@ internal sealed partial class DdlParser
             return entry;
         }
 
-        private sealed class Entry(string name)
+        private sealed class Entry(SqlIdentifier name)
         {
-            public string Name { get; } = name;
+            public SqlIdentifier Name { get; } = name;
             public bool Declared { get; set; }
-            public string? OldName { get; set; }
+            public SqlIdentifier? OldName { get; set; }
             public bool IsPartial { get; set; }
             public string? Comment { get; set; }
             public List<Table> Tables { get; } = [];
-            public List<string> DroppedTables { get; } = [];
+            public List<SqlIdentifier> DroppedTables { get; } = [];
             public List<SchemaGrant> Grants { get; } = [];
             public List<View> Views { get; } = [];
-            public List<string> DroppedViews { get; } = [];
+            public List<SqlIdentifier> DroppedViews { get; } = [];
             public List<EnumType> Enums { get; } = [];
-            public List<string> DroppedEnums { get; } = [];
+            public List<SqlIdentifier> DroppedEnums { get; } = [];
             public List<Sequence> Sequences { get; } = [];
-            public List<string> DroppedSequences { get; } = [];
+            public List<SqlIdentifier> DroppedSequences { get; } = [];
             public List<Routine> Routines { get; } = [];
-            public List<string> DroppedRoutines { get; } = [];
+            public List<SqlIdentifier> DroppedRoutines { get; } = [];
             public List<DomainDefinition> Domains { get; } = [];
-            public List<string> DroppedDomains { get; } = [];
+            public List<SqlIdentifier> DroppedDomains { get; } = [];
             public List<CompositeType> CompositeTypes { get; } = [];
-            public List<string> DroppedCompositeTypes { get; } = [];
+            public List<SqlIdentifier> DroppedCompositeTypes { get; } = [];
         }
 
-        private readonly record struct PendingGrant(string Schema, string Table, TableGrant Grant, SourcePosition Position);
+        private readonly record struct PendingGrant(SqlIdentifier Schema, SqlIdentifier Table, TableGrant Grant, SourcePosition Position);
 
-        private readonly record struct PendingTrigger(string Schema, string Table, Trigger Trigger, SourcePosition Position);
+        private readonly record struct PendingTrigger(SqlIdentifier Schema, SqlIdentifier Table, Trigger Trigger, SourcePosition Position);
 
-        private readonly record struct PendingIndex(string Schema, string Relation, TableIndex Index, SourcePosition Position);
+        private readonly record struct PendingIndex(SqlIdentifier Schema, SqlIdentifier Relation, TableIndex Index, SourcePosition Position);
     }
 }

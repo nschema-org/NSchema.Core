@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.Constraints;
 
 /// <summary>
@@ -7,9 +8,9 @@ namespace NSchema.Plan.Domain.Models.Constraints;
 /// <param name="TableName">The name of the table from which the unique constraint will be removed.</param>
 /// <param name="ConstraintName">The name of the unique constraint to be removed.</param>
 public sealed record DropUniqueConstraint(
-    string SchemaName,
-    string TableName,
-    string ConstraintName
+    SqlIdentifier SchemaName,
+    SqlIdentifier TableName,
+    SqlIdentifier ConstraintName
 ) : MigrationAction
 {
     /// <inheritdoc />

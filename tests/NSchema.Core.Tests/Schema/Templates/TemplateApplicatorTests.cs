@@ -19,7 +19,7 @@ public sealed class TemplateApplicatorTests
 
     private static SchemaDefinition Schema(DatabaseSchema schema, string name)
     {
-        var match = schema.Schemas.FirstOrDefault(s => s.Name == name);
+        var match = schema.Schemas.FirstOrDefault(s => s.Name.Value.Equals(name));
         match.ShouldNotBeNull($"expected a schema named '{name}'");
         return match;
     }
@@ -70,7 +70,7 @@ public sealed class TemplateApplicatorTests
             APPLY TEMPLATE t IN SCHEMA billing;
             """);
 
-        var child = Schema(schema, "billing").Tables.First(t => t.Name == "child");
+        var child = Schema(schema, "billing").Tables.First(t => t.Name.Value.Equals("child"));
         var fk = child.ForeignKeys.ShouldHaveSingleItem();
         fk.ReferencedSchema.ShouldBe("billing");
         fk.ReferencedTable.ShouldBe("parent");
@@ -111,8 +111,8 @@ public sealed class TemplateApplicatorTests
             """);
 
         var columns = Schema(schema, "billing").Tables.ShouldHaveSingleItem().Columns;
-        columns.First(c => c.Name == "status").Type.Name.ShouldBe("billing.outbox_status");
-        columns.First(c => c.Name == "payload").Type.Name.ShouldBe("text");
+        columns.First(c => c.Name.Value.Equals("status")).Type.Name.ShouldBe("billing.outbox_status");
+        columns.First(c => c.Name.Value.Equals("payload")).Type.Name.ShouldBe("text");
     }
 
     [Fact]
@@ -129,8 +129,8 @@ public sealed class TemplateApplicatorTests
             """);
 
         var columns = Schema(schema, "billing").Tables.ShouldHaveSingleItem().Columns;
-        columns.First(c => c.Name == "kind").Type.Name.ShouldBe("public.kind_enum");
-        columns.First(c => c.Name == "tag").Type.Name.ShouldBe("citext");
+        columns.First(c => c.Name.Value.Equals("kind")).Type.Name.ShouldBe("public.kind_enum");
+        columns.First(c => c.Name.Value.Equals("tag")).Type.Name.ShouldBe("citext");
     }
 
     [Fact]
@@ -148,8 +148,8 @@ public sealed class TemplateApplicatorTests
             """);
 
         var fields = Schema(schema, "billing").CompositeTypes.ShouldHaveSingleItem().Fields;
-        fields.First(f => f.Name == "state").DataType.Name.ShouldBe("billing.status");
-        fields.First(f => f.Name == "note").DataType.Name.ShouldBe("text");
+        fields.First(f => f.Name.Value.Equals("state")).DataType.Name.ShouldBe("billing.status");
+        fields.First(f => f.Name.Value.Equals("note")).DataType.Name.ShouldBe("text");
     }
 
     [Fact]
@@ -310,7 +310,7 @@ public sealed class TemplateApplicatorTests
             END;
             """);
 
-        var invoices = Schema(schema, "billing").Tables.First(t => t.Name == "invoices");
+        var invoices = Schema(schema, "billing").Tables.First(t => t.Name.Value.Equals("invoices"));
         var fk = invoices.ForeignKeys.ShouldHaveSingleItem();
         fk.ReferencedSchema.ShouldBe("billing");
         fk.ReferencedTable.ShouldBe("tenants");

@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.Schemas;
 
 /// <summary>
@@ -7,7 +8,7 @@ namespace NSchema.Plan.Domain.Models.Schemas;
 /// <remarks>
 /// This action is considered destructive because it may result in data loss if the schema contains tables or other objects.
 /// </remarks>
-public sealed record DropSchema(string SchemaName) : MigrationAction
+public sealed record DropSchema(SqlIdentifier SchemaName) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => true;

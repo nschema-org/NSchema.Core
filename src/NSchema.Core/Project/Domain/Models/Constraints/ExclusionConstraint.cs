@@ -14,7 +14,7 @@ namespace NSchema.Project.Domain.Models.Constraints;
 /// <param name="Comment">An optional comment or description for the constraint.</param>
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
 public record ExclusionConstraint(
-    string Name,
+    SqlIdentifier Name,
     IReadOnlyList<ExclusionElement> Elements,
     string? Method = null,
     string? Predicate = null,

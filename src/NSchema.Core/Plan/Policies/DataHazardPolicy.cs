@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Plan.Domain.Models;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 
 namespace NSchema.Plan.Policies;
@@ -52,7 +53,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
         }
     }
 
-    private static IEnumerable<string> TableHazards(string schemaName, TableDiff table)
+    private static IEnumerable<string> TableHazards(SqlIdentifier schemaName, TableDiff table)
     {
         var qualified = $"{schemaName}.{table.Name}";
 
@@ -92,7 +93,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
         var addedColumns = table.Columns
             .Where(c => c.Kind == ChangeKind.Add)
             .Select(c => c.Name)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            .ToHashSet();
 
         // A matched migration means the user has declared how the data gets into shape (de-duplicated, backfilled) before the constraint lands, so it silences the hazard.
         foreach (var primaryKey in table.PrimaryKey.Where(p => p is { Kind: ChangeKind.Add, MigrationScript: null }))
@@ -118,7 +119,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
         foreach (var index in table.Indexes.Where(i => i is { Kind: ChangeKind.Add, Definition.IsUnique: true }))
         {
             // An expression key is opaque, so it is assumed to read pre-existing data.
-            if (index.Definition!.Columns.Any(k => k.IsExpression || !addedColumns.Contains(k.Expression)))
+            if (index.Definition!.Columns.Any(k => k.Column is not { } column || !addedColumns.Contains(column)))
             {
                 yield return $"Unique index '{index.Name}' on '{qualified}' is added over existing data; the " +
                              "migration will fail if existing rows hold duplicates.";
@@ -126,10 +127,10 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
         }
     }
 
-    private static List<string> ExistingColumns(IReadOnlyList<string>? columnNames, IReadOnlySet<string> addedColumns) =>
+    private static List<SqlIdentifier> ExistingColumns(IReadOnlyList<SqlIdentifier>? columnNames, IReadOnlySet<SqlIdentifier> addedColumns) =>
         columnNames?.Where(c => !addedColumns.Contains(c)).ToList() ?? [];
 
-    private static string Columns(List<string> names) =>
+    private static string Columns(List<SqlIdentifier> names) =>
         (names.Count == 1 ? "column " : "columns ") + string.Join(", ", names.Select(n => $"'{n}'"));
 
     /// <summary>

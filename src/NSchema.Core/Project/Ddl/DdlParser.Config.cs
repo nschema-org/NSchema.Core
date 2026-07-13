@@ -11,7 +11,7 @@ internal sealed partial class DdlParser
     /// </summary>
     private ConfigBlock ParseConfigBlock()
     {
-        var type = ExpectIdentifier("a configuration block keyword").ToLowerInvariant();
+        var type = ExpectIdentifier("a configuration block keyword").Value.ToLowerInvariant();
 
         // An optional bare-identifier label, e.g. the 'postgres' in `PROVIDER postgres ( … )`. None for `NSCHEMA`.
         string? label = null;
@@ -48,10 +48,10 @@ internal sealed partial class DdlParser
     /// </summary>
     private string ParseConfigKey()
     {
-        var key = ExpectIdentifier("a configuration attribute name");
+        var key = ExpectIdentifier("a configuration attribute name").Value;
         while (Match(TokenKind.Dot))
         {
-            key += "." + ExpectIdentifier("a configuration attribute name segment");
+            key += "." + ExpectIdentifier("a configuration attribute name segment").Value;
         }
         return key;
     }

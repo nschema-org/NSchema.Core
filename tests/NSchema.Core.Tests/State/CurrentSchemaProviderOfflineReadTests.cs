@@ -36,7 +36,7 @@ public sealed class CurrentSchemaProviderOfflineReadTests
     public async Task GetSchema_WithState_ReturnsPersistedSchema()
     {
         // Arrange
-        Persisted(new DatabaseSchema([new SchemaDefinition("app")]));
+        Persisted(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]));
         var sut = BuildSut();
 
         // Act
@@ -50,7 +50,7 @@ public sealed class CurrentSchemaProviderOfflineReadTests
     public async Task GetSchema_EmptyScope_ReturnsPersistedSchema()
     {
         // Arrange: an empty scope normalizes to All.
-        Persisted(new DatabaseSchema([new SchemaDefinition("app")]));
+        Persisted(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]));
         var sut = BuildSut();
 
         // Act
@@ -68,13 +68,13 @@ public sealed class CurrentSchemaProviderOfflineReadTests
         // would plan to drop the unmanaged ones.
         Persisted(new DatabaseSchema(
         [
-            new SchemaDefinition("my_schema"),
-            new SchemaDefinition("public")
+            new SchemaDefinition(new SqlIdentifier("my_schema")),
+            new SchemaDefinition(new SqlIdentifier("public"))
         ]));
         var sut = BuildSut();
 
         // Act
-        var result = await sut.GetSchema(SchemaSourceMode.Offline, SchemaScope.Of("my_schema"), TestContext.Current.CancellationToken);
+        var result = await sut.GetSchema(SchemaSourceMode.Offline, SchemaScope.Of(new SqlIdentifier("my_schema")), TestContext.Current.CancellationToken);
 
         // Assert
         result.Require().Schemas.Select(s => s.Name).ShouldBe(["my_schema"]);
@@ -84,11 +84,11 @@ public sealed class CurrentSchemaProviderOfflineReadTests
     public async Task GetSchema_WithScope_MatchesSchemaNamesCaseInsensitively()
     {
         // Arrange: scope matching mirrors the comparer's OrdinalIgnoreCase comparison.
-        Persisted(new DatabaseSchema([new SchemaDefinition("My_Schema")]));
+        Persisted(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("My_Schema"))]));
         var sut = BuildSut();
 
         // Act
-        var result = await sut.GetSchema(SchemaSourceMode.Offline, SchemaScope.Of("my_schema"), TestContext.Current.CancellationToken);
+        var result = await sut.GetSchema(SchemaSourceMode.Offline, SchemaScope.Of(new SqlIdentifier("my_schema")), TestContext.Current.CancellationToken);
 
         // Assert
         result.Require().Schemas.Select(s => s.Name).ShouldBe(["My_Schema"]);

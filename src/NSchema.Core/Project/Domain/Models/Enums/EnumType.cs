@@ -11,9 +11,9 @@ namespace NSchema.Project.Domain.Models.Enums;
 /// <param name="Comment">An optional comment or description for the enum type.</param>
 [DebuggerDisplay("{Name,nq} (enum)")]
 public sealed record EnumType(
-    string Name,
+    SqlIdentifier Name,
     IReadOnlyList<string>? Values = null,
-    string? OldName = null,
+    SqlIdentifier? OldName = null,
     string? Comment = null
 ) : IRenameableObject
 {

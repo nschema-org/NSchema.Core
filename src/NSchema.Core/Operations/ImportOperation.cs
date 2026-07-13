@@ -40,7 +40,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
 
         foreach (var definition in schema.Schemas)
         {
-            var headerPath = Path.Combine(arguments.OutputDirectory, definition.Name, "schema.sql");
+            var headerPath = Path.Combine(arguments.OutputDirectory, definition.Name.Value, "schema.sql");
             await Import(headerPath, new DatabaseSchema([definition with { Tables = [], Views = [], Routines = [] }]), declareSchemas: true);
 
             foreach (var (path, partition) in ObjectPartitions(definition, arguments.OutputDirectory))
@@ -66,18 +66,18 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
     {
         foreach (var table in s.Tables)
         {
-            yield return (Path.Combine(directory, s.Name, "tables", $"{table.Name}.sql"),
+            yield return (Path.Combine(directory, s.Name.Value, "tables", $"{table.Name}.sql"),
                 new DatabaseSchema([new SchemaDefinition(s.Name, Tables: [table])]));
         }
         foreach (var view in s.Views)
         {
-            yield return (Path.Combine(directory, s.Name, "views", $"{view.Name}.sql"),
+            yield return (Path.Combine(directory, s.Name.Value, "views", $"{view.Name}.sql"),
                 new DatabaseSchema([new SchemaDefinition(s.Name, Views: [view])]));
         }
         // Functions and procedures share one name space, so they share one directory.
         foreach (var routine in s.Routines)
         {
-            yield return (Path.Combine(directory, s.Name, "routines", $"{routine.Name}.sql"),
+            yield return (Path.Combine(directory, s.Name.Value, "routines", $"{routine.Name}.sql"),
                 new DatabaseSchema([new SchemaDefinition(s.Name, Routines: [routine])]));
         }
     }
@@ -125,7 +125,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
     {
         // Strip any objects from existing that appear in the incoming import so the
         // aggregator sees no duplicates, then aggregate. Incoming objects win on conflict.
-        var incomingBySchema = incoming.Schemas.ToDictionary(s => s.Name, s => s, StringComparer.OrdinalIgnoreCase);
+        var incomingBySchema = incoming.Schemas.ToDictionary(s => s.Name, s => s);
 
         var prunedSchemas = existing.Schemas
             .Select(s => incomingBySchema.TryGetValue(s.Name, out var i)
@@ -153,9 +153,9 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
         return SchemaAggregator.Combine(pruned, incoming).Require();
     }
 
-    private static List<T> PruneByName<T>(IReadOnlyList<T> existing, IReadOnlyList<T> incoming, Func<T, string> name)
+    private static List<T> PruneByName<T>(IReadOnlyList<T> existing, IReadOnlyList<T> incoming, Func<T, SqlIdentifier> name)
     {
-        var incomingNames = new HashSet<string>(incoming.Select(name), StringComparer.OrdinalIgnoreCase);
+        var incomingNames = incoming.Select(name).ToHashSet();
         return existing.Where(item => !incomingNames.Contains(name(item))).ToList();
     }
 }

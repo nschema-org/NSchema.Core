@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.Columns;
 
 /// <summary>
@@ -10,9 +11,9 @@ namespace NSchema.Plan.Domain.Models.Columns;
 /// <param name="OldExpression">The current generation expression, or <see langword="null"/> when the column was not generated.</param>
 /// <param name="NewExpression">The new generation expression, or <see langword="null"/> when the column becomes a plain column.</param>
 public sealed record SetColumnGenerated(
-    string SchemaName,
-    string TableName,
-    string ColumnName,
+    SqlIdentifier SchemaName,
+    SqlIdentifier TableName,
+    SqlIdentifier ColumnName,
     string? OldExpression,
     string? NewExpression
 ) : MigrationAction

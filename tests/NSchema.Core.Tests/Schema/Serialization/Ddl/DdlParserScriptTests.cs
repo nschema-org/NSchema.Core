@@ -77,7 +77,7 @@ public sealed class DdlParserScriptTests
             """).Parse();
 
         document.Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
-        document.Scripts.Select(s => (s.Name, s.Event)).ShouldBe(
+        document.Scripts.Select(s => (s.Name.Value, s.Event)).ShouldBe(
             [("pre", (ScriptEvent)new DeploymentEvent(DeploymentPhase.Pre)), ("post", new DeploymentEvent(DeploymentPhase.Post))]);
     }
 

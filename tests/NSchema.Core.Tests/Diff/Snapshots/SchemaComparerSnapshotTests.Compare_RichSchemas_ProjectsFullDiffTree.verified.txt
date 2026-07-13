@@ -68,14 +68,12 @@
                 Method: btree,
                 Columns: [
                   {
-                    Expression: email_address,
-                    IsExpression: false,
+                    Column: email_address,
                     Sort: Descending,
                     Nulls: Last
                   },
                   {
-                    Expression: lower(email_address),
-                    IsExpression: true
+                    Expression: lower(email_address)
                   }
                 ],
                 Include: [
@@ -112,9 +110,8 @@
                 Method: gist,
                 Elements: [
                   {
-                    Expression: int4range(0, id),
                     Operator: &&,
-                    IsExpression: true
+                    Expression: int4range(0, id)
                   }
                 ]
               }

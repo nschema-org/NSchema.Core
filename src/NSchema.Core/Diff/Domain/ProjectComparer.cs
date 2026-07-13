@@ -39,7 +39,7 @@ internal sealed class ProjectComparer(ISchemaComparer comparer) : IProjectCompar
     {
         var diagnostics = new List<Diagnostic>();
         var newScripts = new List<Script>();
-        var executed = current.ToDictionary(s => s.Name, s => s.Hash, StringComparer.OrdinalIgnoreCase);
+        var executed = current.ToDictionary(s => s.Name, s => s.Hash);
 
         foreach (var script in desired)
         {

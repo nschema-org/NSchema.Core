@@ -14,9 +14,9 @@ namespace NSchema.Project.Domain.Models;
 [DebuggerDisplay("{Schemas.Count} schemas")]
 public record DatabaseSchema(
     IReadOnlyList<SchemaDefinition>? Schemas = null,
-    IReadOnlyList<string>? DroppedSchemas = null,
+    IReadOnlyList<SqlIdentifier>? DroppedSchemas = null,
     IReadOnlyList<Extension>? Extensions = null,
-    IReadOnlyList<string>? DroppedExtensions = null
+    IReadOnlyList<SqlIdentifier>? DroppedExtensions = null
 )
 {
     /// <summary>
@@ -27,7 +27,7 @@ public record DatabaseSchema(
     /// <summary>
     /// A list of schema names that have been dropped from the database.
     /// </summary>
-    public IReadOnlyList<string> DroppedSchemas { get; init; } = DroppedSchemas ?? [];
+    public IReadOnlyList<SqlIdentifier> DroppedSchemas { get; init; } = DroppedSchemas ?? [];
 
     /// <summary>
     /// A list of database-global extensions. Extensions are not schema-scoped, so they live at the root of the
@@ -38,15 +38,15 @@ public record DatabaseSchema(
     /// <summary>
     /// A list of extension names that have been dropped from the database.
     /// </summary>
-    public IReadOnlyList<string> DroppedExtensions { get; init; } = DroppedExtensions ?? [];
+    public IReadOnlyList<SqlIdentifier> DroppedExtensions { get; init; } = DroppedExtensions ?? [];
 
     /// <summary>
     /// Gets a combined list of all schema names, including both existing schemas and those that have been dropped.
     /// </summary>
-    public string[] AllSchemaNames => Schemas
+    public SqlIdentifier[] AllSchemaNames => Schemas
         .Select(s => s.Name)
         .Concat(DroppedSchemas)
-        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Distinct()
         .ToArray();
 
 }

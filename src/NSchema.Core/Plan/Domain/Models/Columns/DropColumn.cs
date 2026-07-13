@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 
 namespace NSchema.Plan.Domain.Models.Columns;
@@ -8,10 +9,10 @@ namespace NSchema.Plan.Domain.Models.Columns;
 /// <param name="SchemaName">The name of the schema containing the table from which the column will be removed.</param>
 /// <param name="TableName">The name of the table from which the column will be removed.</param>
 /// <param name="Column">The column to be removed, including its type and nullability.</param>
-public sealed record DropColumn(string SchemaName, string TableName, Column Column) : MigrationAction
+public sealed record DropColumn(SqlIdentifier SchemaName, SqlIdentifier TableName, Column Column) : MigrationAction
 {
     /// <summary>The name of the column to be removed.</summary>
-    public string ColumnName => Column.Name;
+    public SqlIdentifier ColumnName => Column.Name;
 
     /// <inheritdoc />
     public override bool IsDestructive => true;

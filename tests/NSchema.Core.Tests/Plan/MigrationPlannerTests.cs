@@ -9,7 +9,6 @@ using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Policies;
-using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Plan;
 
@@ -42,7 +41,7 @@ public sealed class MigrationPlannerTests
     public void Validate_RunsProjectPoliciesAgainstTheProject()
     {
         // Arrange
-        var desired = new ProjectDefinition(new DatabaseSchema([new SchemaDefinition("app")]), []);
+        var desired = new ProjectDefinition(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]), []);
         var policy = Substitute.For<IProjectPolicy>();
         policy.Validate(desired).Returns([Diagnostic.Error("Test", "bad schema")]);
         _projectPolicies.Add(policy);
@@ -119,10 +118,10 @@ public sealed class MigrationPlannerTests
     public void Plan_RunsPlanPoliciesAgainstTheCompletePlan()
     {
         // Arrange
-        var diff = _emptyDiff with { Scripts = [new Script("seed", "SELECT 1", new DeploymentEvent(DeploymentPhase.Post))] };
+        var diff = _emptyDiff with { Scripts = [new Script(new SqlIdentifier("seed"), "SELECT 1", new DeploymentEvent(DeploymentPhase.Post))] };
         _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(diff, []));
         var policy = Substitute.For<IPlanPolicy>();
-        policy.Validate(Arg.Is<MigrationPlan>(p => p.Diff == diff)).Returns([Diagnostic.Error("Test", "destructive")]);
+        policy.Validate(Arg.Is<MigrationPlan>(p => p!.Diff == diff)).Returns([Diagnostic.Error("Test", "destructive")]);
         _planPolicies.Add(policy);
 
         // Act
@@ -130,7 +129,7 @@ public sealed class MigrationPlannerTests
 
         // Assert — the policy received the rendered plan carrying the diff the differ produced, scripts included.
         result.Diagnostics.ShouldHaveSingleItem().Message.ShouldBe("destructive");
-        policy.Received(1).Validate(Arg.Is<MigrationPlan>(p => p.Diff == diff));
+        policy.Received(1).Validate(Arg.Is<MigrationPlan>(p => p!.Diff == diff));
     }
 
     [Fact]
@@ -138,9 +137,9 @@ public sealed class MigrationPlannerTests
     {
         // Arrange — the linearizer's ordered actions render one by one through the dialect; the stub renders
         // an ExecuteScript as its verbatim Statement, carrying the transaction placement.
-        var script = new Script("seed", "INSERT INTO app.c VALUES (1);", new DeploymentEvent(DeploymentPhase.Post)) { RunOutsideTransaction = true };
+        var script = new Script(new SqlIdentifier("seed"), "INSERT INTO app.c VALUES (1);", new DeploymentEvent(DeploymentPhase.Post)) { RunOutsideTransaction = true };
         _linearizer.Linearize(Arg.Any<DatabaseDiff>())
-            .Returns(_ => [new CreateSchema("app"), new ExecuteScript(script)]);
+            .Returns(_ => [new CreateSchema(new SqlIdentifier("app")), new ExecuteScript(script)]);
 
         // Act
         var result = Sut.Plan(_current, _desired);
@@ -154,7 +153,7 @@ public sealed class MigrationPlannerTests
     public void Plan_CarriesTheDifferDiffOnTheArtifact()
     {
         // Arrange
-        var diff = _emptyDiff with { Scripts = [new Script("seed", "SELECT 1", new DeploymentEvent(DeploymentPhase.Post))] };
+        var diff = _emptyDiff with { Scripts = [new Script(new SqlIdentifier("seed"), "SELECT 1", new DeploymentEvent(DeploymentPhase.Post))] };
         _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(diff, []));
 
         // Act
@@ -183,10 +182,10 @@ public sealed class MigrationPlannerTests
     public void PlanTeardown_RealizesTheTeardownDiff_WithoutDiagnostics()
     {
         // Arrange
-        _linearizer.Linearize(_emptyDiff).Returns([new DropSchema("app")]);
+        _linearizer.Linearize(_emptyDiff).Returns([new DropSchema(new SqlIdentifier("app"))]);
 
         // Act
-        var result = Sut.PlanTeardown(new DatabaseSchema([new SchemaDefinition("app")]));
+        var result = Sut.PlanTeardown(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]));
 
         // Assert
         _differ.Received(1).CompareTeardown(Arg.Any<DatabaseSchema>());
@@ -204,7 +203,7 @@ public sealed class MigrationPlannerTests
         _planPolicies.Add(planPolicy);
 
         // Act
-        Sut.PlanTeardown(new DatabaseSchema([new SchemaDefinition("app")]));
+        Sut.PlanTeardown(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]));
 
         // Assert
         planPolicy.DidNotReceive().Validate(Arg.Any<MigrationPlan>());

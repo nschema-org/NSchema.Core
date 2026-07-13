@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.Enums;
 
 /// <summary>
@@ -10,8 +11,8 @@ namespace NSchema.Plan.Domain.Models.Enums;
 /// <param name="Before">Add the value before this existing value, when set.</param>
 /// <param name="After">Add the value after this existing value, when set.</param>
 public sealed record AddEnumValue(
-    string SchemaName,
-    string EnumName,
+    SqlIdentifier SchemaName,
+    SqlIdentifier EnumName,
     string Value,
     string? Before = null,
     string? After = null

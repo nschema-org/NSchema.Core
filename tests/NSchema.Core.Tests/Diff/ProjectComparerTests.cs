@@ -11,7 +11,6 @@ using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Scripts;
-using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Diff;
 
@@ -34,22 +33,22 @@ public sealed class ProjectComparerTests
     }
 
     private static Script SeedScript() =>
-        new("seed", "INSERT INTO app.c VALUES (1);", new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = RunCondition.Once };
+        new(new SqlIdentifier("seed"), "INSERT INTO app.c VALUES (1);", new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = RunCondition.Once };
 
     private static Script EmailBackfillMigration() =>
-        new("backfill emails", "UPDATE app.users SET email = ''", new ChangeEvent(ChangeTrigger.AddColumn, "users", "email") { ScopeSchema = "app" });
+        new(new SqlIdentifier("backfill emails"), "UPDATE app.users SET email = ''", new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") });
 
     /// <summary>A current state recording <paramref name="sql"/> as script <paramref name="name"/>'s executed body.</summary>
     private static CurrentState Executed(string name, string sql) =>
-        new(_emptySchema, [new ScriptExecution(name, ScriptHashing.Hash(sql), DateTimeOffset.UnixEpoch)]);
+        new(_emptySchema, [new ScriptExecution(new SqlIdentifier(name), ScriptHashing.Hash(sql), DateTimeOffset.UnixEpoch)]);
 
     /// <summary>A diff adding a required, defaultless <c>app.users.email</c> column to an existing table.</summary>
     private static DatabaseDiff AddedEmailColumnDiff() => new(
     [
-        new SchemaDiff("app", Tables:
+        new SchemaDiff(new SqlIdentifier("app"), Tables:
         [
-            new TableDiff("app", "users", ChangeKind.Modify,
-                Columns: [new ColumnDiff("email", ChangeKind.Add, new Column("email", SqlType.Text))]),
+            new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify,
+                Columns: [new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text))]),
         ]),
     ]);
 
@@ -57,8 +56,8 @@ public sealed class ProjectComparerTests
     public void Compare_PassesBothSchemasToTheStructuralComparer()
     {
         // Arrange
-        var current = new DatabaseSchema([new SchemaDefinition("current")]);
-        var desired = new DatabaseSchema([new SchemaDefinition("desired")]);
+        var current = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("current"))]);
+        var desired = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("desired"))]);
 
         // Act
         Sut.Compare(new CurrentState(current), new ProjectDefinition(desired, []));
@@ -189,13 +188,13 @@ public sealed class ProjectComparerTests
     public void CompareTeardown_DiffsManagedSchemaAgainstEmpty_WithNoScripts()
     {
         // Arrange
-        var managed = new DatabaseSchema([new SchemaDefinition("app")]);
+        var managed = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]);
 
         // Act
         var diff = Sut.CompareTeardown(managed);
 
         // Assert
-        _comparer.Received(1).Compare(managed, Arg.Is<DatabaseSchema>(d => d.Schemas.Count == 0 && d.DroppedSchemas.Count == 0));
+        _comparer.Received(1).Compare(managed, Arg.Is<DatabaseSchema>(d => d!.Schemas.Count == 0 && d.DroppedSchemas.Count == 0));
         diff.Scripts.ShouldBeEmpty();
     }
 }

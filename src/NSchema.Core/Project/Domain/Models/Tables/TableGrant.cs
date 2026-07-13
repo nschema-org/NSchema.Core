@@ -5,4 +5,4 @@ namespace NSchema.Project.Domain.Models.Tables;
 /// </summary>
 /// <param name="Role">The name of the role to which the privileges are granted.</param>
 /// <param name="Privileges">The specific privileges that are granted to the role for the table, encapsulated in a TablePrivilege object.</param>
-public record TableGrant(string Role, TablePrivilege Privileges);
+public record TableGrant(SqlIdentifier Role, TablePrivilege Privileges);

@@ -2,6 +2,7 @@ using NSchema.Diff.Domain.Models.Columns;
 using NSchema.Diff.Domain.Models.Constraints;
 using NSchema.Diff.Domain.Models.Indexes;
 using NSchema.Diff.Domain.Models.Triggers;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Diff.Domain.Models.Tables;
@@ -27,10 +28,10 @@ namespace NSchema.Diff.Domain.Models.Tables;
 /// The full table definition when the table is being created (<see cref="ChangeKind.Add"/>); otherwise <see langword="null"/>.
 /// </param>
 public sealed record TableDiff(
-    string Schema,
-    string Name,
+    SqlIdentifier Schema,
+    SqlIdentifier Name,
     ChangeKind Kind,
-    string? RenamedFrom = null,
+    SqlIdentifier? RenamedFrom = null,
     ValueChange<string>? Comment = null,
     IReadOnlyList<ColumnDiff>? Columns = null,
     IReadOnlyList<GrantChange>? Grants = null,

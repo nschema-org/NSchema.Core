@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.CompositeTypes;
 
 namespace NSchema.Plan.Domain.Models.CompositeTypes;
@@ -8,7 +9,7 @@ namespace NSchema.Plan.Domain.Models.CompositeTypes;
 /// <param name="SchemaName">The name of the schema containing the composite type.</param>
 /// <param name="TypeName">The name of the composite type.</param>
 /// <param name="Field">The field to add.</param>
-public sealed record AddCompositeField(string SchemaName, string TypeName, CompositeField Field) : MigrationAction
+public sealed record AddCompositeField(SqlIdentifier SchemaName, SqlIdentifier TypeName, CompositeField Field) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => false;

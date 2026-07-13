@@ -10,7 +10,6 @@ using NSchema.Project.Domain.Models.Sequences;
 using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Domain.Models.Views;
 using NSchema.Project.Policies;
-using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.Schema.Policies;
 
@@ -18,21 +17,21 @@ public sealed class StructuralIntegritySchemaPolicyTests
 {
     private readonly StructuralIntegritySchemaPolicy _sut = new();
 
-    private static Column Col(string name) => new Column(name, SqlType.BigInt);
+    private static Column Col(string name) => new Column(new SqlIdentifier(name), SqlType.BigInt);
 
     private static DatabaseSchema Db(params Table[] tables) =>
-        new DatabaseSchema([new SchemaDefinition("public", Tables: tables)]);
+        new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("public"), Tables: tables)]);
 
     [Fact]
     public void NoDiagnostics_ForAConsistentSchema()
     {
         // Arrange
-        var users = new Table("users", PrimaryKey: new PrimaryKey("users_pk", ["id"]), Columns: [Col("id")]);
+        var users = new Table(new SqlIdentifier("users"), PrimaryKey: new PrimaryKey(new SqlIdentifier("users_pk"), [new SqlIdentifier("id")]), Columns: [Col("id")]);
         var orders = new Table(
-            "orders",
-            PrimaryKey: new PrimaryKey("orders_pk", ["id"]),
+            new SqlIdentifier("orders"),
+            PrimaryKey: new PrimaryKey(new SqlIdentifier("orders_pk"), [new SqlIdentifier("id")]),
             Columns: [Col("id"), Col("user_id")],
-            ForeignKeys: [new ForeignKey("orders_users_fk", ["user_id"], "public", "users", ["id"])]);
+            ForeignKeys: [new ForeignKey(new SqlIdentifier("orders_users_fk"), [new SqlIdentifier("user_id")], new SqlIdentifier("public"), new SqlIdentifier("users"), [new SqlIdentifier("id")])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(users, orders)).ToList();
@@ -45,10 +44,10 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenIndexNameIsReusedAcrossTablesInASchema()
     {
         // Arrange — index names are schema-scoped, so two tables can't both declare 'ix_updated_at'.
-        var invoices = new Table("invoices", Columns: [Col("updated_at")],
-            Indexes: [new TableIndex("ix_updated_at", [new IndexColumn("updated_at")])]);
-        var orders = new Table("orders", Columns: [Col("updated_at")],
-            Indexes: [new TableIndex("ix_updated_at", [new IndexColumn("updated_at")])]);
+        var invoices = new Table(new SqlIdentifier("invoices"), Columns: [Col("updated_at")],
+            Indexes: [new TableIndex(new SqlIdentifier("ix_updated_at"), [new IndexColumn(new SqlIdentifier("updated_at"))])]);
+        var orders = new Table(new SqlIdentifier("orders"), Columns: [Col("updated_at")],
+            Indexes: [new TableIndex(new SqlIdentifier("ix_updated_at"), [new IndexColumn(new SqlIdentifier("updated_at"))])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(invoices, orders)).ToList();
@@ -65,9 +64,9 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenAPrimaryKeyNameCollidesWithAnIndexName()
     {
         // Arrange — a PRIMARY KEY creates an index bearing its name, so it shares the schema-wide pool.
-        var invoices = new Table("invoices", PrimaryKey: new PrimaryKey("shared_name", ["id"]), Columns: [Col("id")]);
-        var orders = new Table("orders", Columns: [Col("id")],
-            Indexes: [new TableIndex("shared_name", [new IndexColumn("id")])]);
+        var invoices = new Table(new SqlIdentifier("invoices"), PrimaryKey: new PrimaryKey(new SqlIdentifier("shared_name"), [new SqlIdentifier("id")]), Columns: [Col("id")]);
+        var orders = new Table(new SqlIdentifier("orders"), Columns: [Col("id")],
+            Indexes: [new TableIndex(new SqlIdentifier("shared_name"), [new IndexColumn(new SqlIdentifier("id"))])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(invoices, orders)).ToList();
@@ -80,12 +79,12 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void NoDiagnostics_WhenTheSameIndexNameIsUsedInDifferentSchemas()
     {
         // Arrange
-        var table = new Table("invoices", Columns: [Col("updated_at")],
-            Indexes: [new TableIndex("ix_updated_at", [new IndexColumn("updated_at")])]);
+        var table = new Table(new SqlIdentifier("invoices"), Columns: [Col("updated_at")],
+            Indexes: [new TableIndex(new SqlIdentifier("ix_updated_at"), [new IndexColumn(new SqlIdentifier("updated_at"))])]);
         var schema = new DatabaseSchema(
         [
-            new SchemaDefinition("billing", Tables: [table]),
-            new SchemaDefinition("ordering", Tables: [table]),
+            new SchemaDefinition(new SqlIdentifier("billing"), Tables: [table]),
+            new SchemaDefinition(new SqlIdentifier("ordering"), Tables: [table]),
         ]);
 
         // Act
@@ -99,7 +98,7 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenTableHasNoColumns()
     {
         // Act
-        var diagnostics = _sut.Validate(Db(new Table("empty"))).ToList();
+        var diagnostics = _sut.Validate(Db(new Table(new SqlIdentifier("empty")))).ToList();
 
         // Assert
         diagnostics.ShouldContain(d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("no columns"));
@@ -109,7 +108,7 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenColumnDeclaredTwice()
     {
         // Act
-        var diagnostics = _sut.Validate(Db(new Table("t", Columns: [Col("id"), Col("ID")]))).ToList();
+        var diagnostics = _sut.Validate(Db(new Table(new SqlIdentifier("t"), Columns: [Col("id"), Col("ID")]))).ToList();
 
         // Assert
         diagnostics.ShouldContain(d => d.Message.Contains("more than once"));
@@ -119,7 +118,7 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenPrimaryKeyReferencesUnknownColumn()
     {
         // Arrange
-        var table = new Table("t", PrimaryKey: new PrimaryKey("pk", ["missing"]), Columns: [Col("id")]);
+        var table = new Table(new SqlIdentifier("t"), PrimaryKey: new PrimaryKey(new SqlIdentifier("pk"), [new SqlIdentifier("missing")]), Columns: [Col("id")]);
 
         // Act
         var diagnostics = _sut.Validate(Db(table)).ToList();
@@ -132,7 +131,7 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenIndexReferencesUnknownColumn()
     {
         // Arrange
-        var table = new Table("t", Columns: [Col("id")], Indexes: [new TableIndex("ix", ["nope"])]);
+        var table = new Table(new SqlIdentifier("t"), Columns: [Col("id")], Indexes: [new TableIndex(new SqlIdentifier("ix"), ["nope"])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(table)).ToList();
@@ -146,8 +145,8 @@ public sealed class StructuralIntegritySchemaPolicyTests
     {
         // Arrange
         var table = new Table(
-            "t", Columns: [Col("id")],
-            ForeignKeys: [new ForeignKey("fk", ["ghost"], "public", "t", ["id"])]);
+            new SqlIdentifier("t"), Columns: [Col("id")],
+            ForeignKeys: [new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("ghost")], new SqlIdentifier("public"), new SqlIdentifier("t"), [new SqlIdentifier("id")])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(table)).ToList();
@@ -161,10 +160,10 @@ public sealed class StructuralIntegritySchemaPolicyTests
     {
         // Arrange
         var table = new Table(
-            "t",
-            PrimaryKey: new PrimaryKey("pk", ["id"]),
+            new SqlIdentifier("t"),
+            PrimaryKey: new PrimaryKey(new SqlIdentifier("pk"), [new SqlIdentifier("id")]),
             Columns: [Col("id"), Col("a"), Col("b")],
-            ForeignKeys: [new ForeignKey("fk", ["a", "b"], "public", "t", ["id"])]);
+            ForeignKeys: [new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("a"), new SqlIdentifier("b")], new SqlIdentifier("public"), new SqlIdentifier("t"), [new SqlIdentifier("id")])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(table)).ToList();
@@ -178,8 +177,8 @@ public sealed class StructuralIntegritySchemaPolicyTests
     {
         // Arrange
         var table = new Table(
-            "t", Columns: [Col("id"), Col("ref")],
-            ForeignKeys: [new ForeignKey("fk", ["ref"], "public", "absent", ["id"])]);
+            new SqlIdentifier("t"), Columns: [Col("id"), Col("ref")],
+            ForeignKeys: [new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("ref")], new SqlIdentifier("public"), new SqlIdentifier("absent"), [new SqlIdentifier("id")])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(table)).ToList();
@@ -193,9 +192,9 @@ public sealed class StructuralIntegritySchemaPolicyTests
     {
         // Arrange
         var table = new Table(
-            "t", Columns: [Col("id"), Col("ref")],
-            ForeignKeys: [new ForeignKey("fk", ["ref"], "public", "absent", ["id"])]);
-        var schema = new DatabaseSchema([new SchemaDefinition("public", IsPartial: true, Tables: [table])]);
+            new SqlIdentifier("t"), Columns: [Col("id"), Col("ref")],
+            ForeignKeys: [new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("ref")], new SqlIdentifier("public"), new SqlIdentifier("absent"), [new SqlIdentifier("id")])]);
+        var schema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("public"), IsPartial: true, Tables: [table])]);
 
         // Act
         var diagnostics = _sut.Validate(schema).ToList();
@@ -209,8 +208,8 @@ public sealed class StructuralIntegritySchemaPolicyTests
     {
         // Arrange — "external" schema is not present in the document at all.
         var table = new Table(
-            "t", Columns: [Col("id"), Col("ref")],
-            ForeignKeys: [new ForeignKey("fk", ["ref"], "external", "other", ["id"])]);
+            new SqlIdentifier("t"), Columns: [Col("id"), Col("ref")],
+            ForeignKeys: [new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("ref")], new SqlIdentifier("external"), new SqlIdentifier("other"), [new SqlIdentifier("id")])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(table)).ToList();
@@ -223,10 +222,10 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenForeignKeyReferencesNonUniqueColumns()
     {
         // Arrange — target column exists but is neither a PK nor a unique index.
-        var target = new Table("target", PrimaryKey: new PrimaryKey("pk", ["id"]), Columns: [Col("id"), Col("code")]);
+        var target = new Table(new SqlIdentifier("target"), PrimaryKey: new PrimaryKey(new SqlIdentifier("pk"), [new SqlIdentifier("id")]), Columns: [Col("id"), Col("code")]);
         var source = new Table(
-            "source", Columns: [Col("id"), Col("code")],
-            ForeignKeys: [new ForeignKey("fk", ["code"], "public", "target", ["code"])]);
+            new SqlIdentifier("source"), Columns: [Col("id"), Col("code")],
+            ForeignKeys: [new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("code")], new SqlIdentifier("public"), new SqlIdentifier("target"), [new SqlIdentifier("code")])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(target, source)).ToList();
@@ -240,13 +239,13 @@ public sealed class StructuralIntegritySchemaPolicyTests
     {
         // Arrange
         var target = new Table(
-            "target",
-            PrimaryKey: new PrimaryKey("pk", ["id"]),
+            new SqlIdentifier("target"),
+            PrimaryKey: new PrimaryKey(new SqlIdentifier("pk"), [new SqlIdentifier("id")]),
             Columns: [Col("id"), Col("code")],
-            Indexes: [new TableIndex("uq", ["code"], IsUnique: true)]);
+            Indexes: [new TableIndex(new SqlIdentifier("uq"), ["code"], IsUnique: true)]);
         var source = new Table(
-            "source", Columns: [Col("id"), Col("code")],
-            ForeignKeys: [new ForeignKey("fk", ["code"], "public", "target", ["code"])]);
+            new SqlIdentifier("source"), Columns: [Col("id"), Col("code")],
+            ForeignKeys: [new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("code")], new SqlIdentifier("public"), new SqlIdentifier("target"), [new SqlIdentifier("code")])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(target, source)).ToList();
@@ -260,13 +259,13 @@ public sealed class StructuralIntegritySchemaPolicyTests
     {
         // Arrange — a partial (predicated) unique index cannot back a foreign key.
         var target = new Table(
-            "target",
-            PrimaryKey: new PrimaryKey("pk", ["id"]),
+            new SqlIdentifier("target"),
+            PrimaryKey: new PrimaryKey(new SqlIdentifier("pk"), [new SqlIdentifier("id")]),
             Columns: [Col("id"), Col("code")],
-            Indexes: [new TableIndex("uq", ["code"], IsUnique: true, Predicate: "code IS NOT NULL")]);
+            Indexes: [new TableIndex(new SqlIdentifier("uq"), ["code"], IsUnique: true, Predicate: "code IS NOT NULL")]);
         var source = new Table(
-            "source", Columns: [Col("id"), Col("code")],
-            ForeignKeys: [new ForeignKey("fk", ["code"], "public", "target", ["code"])]);
+            new SqlIdentifier("source"), Columns: [Col("id"), Col("code")],
+            ForeignKeys: [new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("code")], new SqlIdentifier("public"), new SqlIdentifier("target"), [new SqlIdentifier("code")])]);
 
         // Act
         var diagnostics = _sut.Validate(Db(target, source)).ToList();
@@ -281,10 +280,10 @@ public sealed class StructuralIntegritySchemaPolicyTests
         // Arrange — the parser and aggregation enforce this for parsed schemas; the policy is the catch-all
         // for JSON-sourced and code-built schemas.
         var schema = new DatabaseSchema([
-            new SchemaDefinition("public", Routines:
+            new SchemaDefinition(new SqlIdentifier("public"), Routines:
             [
-                new Routine("r", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 1 $$"),
-                new Routine("r", RoutineKind.Procedure, "", "AS $$ SELECT 1 $$"),
+                new Routine(new SqlIdentifier("r"), RoutineKind.Function, "", "RETURNS int AS $$ SELECT 1 $$"),
+                new Routine(new SqlIdentifier("r"), RoutineKind.Procedure, "", "AS $$ SELECT 1 $$"),
             ]),
         ]);
 
@@ -300,10 +299,10 @@ public sealed class StructuralIntegritySchemaPolicyTests
     {
         // Arrange
         var schema = new DatabaseSchema([
-            new SchemaDefinition("public", Routines:
+            new SchemaDefinition(new SqlIdentifier("public"), Routines:
             [
-                new Routine("f", RoutineKind.Function, "", "RETURNS int AS $$ SELECT 1 $$"),
-                new Routine("f", RoutineKind.Function, "a int", "RETURNS int AS $$ SELECT 2 $$"),
+                new Routine(new SqlIdentifier("f"), RoutineKind.Function, "", "RETURNS int AS $$ SELECT 1 $$"),
+                new Routine(new SqlIdentifier("f"), RoutineKind.Function, "a int", "RETURNS int AS $$ SELECT 2 $$"),
             ]),
         ]);
 
@@ -319,9 +318,9 @@ public sealed class StructuralIntegritySchemaPolicyTests
     {
         // A table and a view called 'foo' cannot coexist — they share one name space in the database.
         var schema = new DatabaseSchema([
-            new SchemaDefinition("public",
-                Tables: [new Table("foo", Columns: [Col("id")])],
-                Views: [new View("foo", "SELECT 1")]),
+            new SchemaDefinition(new SqlIdentifier("public"),
+                Tables: [new Table(new SqlIdentifier("foo"), Columns: [Col("id")])],
+                Views: [new View(new SqlIdentifier("foo"), "SELECT 1")]),
         ]);
 
         var diagnostics = _sut.Validate(schema).ToList();
@@ -334,9 +333,9 @@ public sealed class StructuralIntegritySchemaPolicyTests
     {
         // Relations and types share pg_type (a relation has a row type), so a table and an enum collide too.
         var schema = new DatabaseSchema([
-            new SchemaDefinition("public",
-                Tables: [new Table("status", Columns: [Col("id")])],
-                Enums: [new EnumType("status", ["a", "b"])]),
+            new SchemaDefinition(new SqlIdentifier("public"),
+                Tables: [new Table(new SqlIdentifier("status"), Columns: [Col("id")])],
+                Enums: [new EnumType(new SqlIdentifier("status"), ["a", "b"])]),
         ]);
 
         _sut.Validate(schema).ShouldContain(d => d.Message.Contains("reuses the name 'status'"));
@@ -346,7 +345,7 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenSequenceDeclaredTwice()
     {
         var schema = new DatabaseSchema([
-            new SchemaDefinition("public", Sequences: [new Sequence("seq"), new Sequence("seq")]),
+            new SchemaDefinition(new SqlIdentifier("public"), Sequences: [new Sequence(new SqlIdentifier("seq")), new Sequence(new SqlIdentifier("seq"))]),
         ]);
 
         _sut.Validate(schema).ShouldContain(d => d.Message.Contains("declares sequence 'seq' more than once"));
@@ -356,13 +355,13 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void NoDiagnostics_WhenNamesDifferAcrossKinds()
     {
         var schema = new DatabaseSchema([
-            new SchemaDefinition("public",
-                Tables: [new Table("t", Columns: [Col("id")])],
-                Views: [new View("v", "SELECT 1")],
-                Sequences: [new Sequence("s")],
-                CompositeTypes: [new CompositeType("c", [new CompositeField("f", SqlType.Int)])],
-                Enums: [new EnumType("e", ["a"])],
-                Domains: [new DomainDefinition("d", SqlType.Text)]),
+            new SchemaDefinition(new SqlIdentifier("public"),
+                Tables: [new Table(new SqlIdentifier("t"), Columns: [Col("id")])],
+                Views: [new View(new SqlIdentifier("v"), "SELECT 1")],
+                Sequences: [new Sequence(new SqlIdentifier("s"))],
+                CompositeTypes: [new CompositeType(new SqlIdentifier("c"), [new CompositeField(new SqlIdentifier("f"), SqlType.Int)])],
+                Enums: [new EnumType(new SqlIdentifier("e"), ["a"])],
+                Domains: [new DomainDefinition(new SqlIdentifier("d"), SqlType.Text)]),
         ]);
 
         _sut.Validate(schema).ShouldBeEmpty();
@@ -371,7 +370,7 @@ public sealed class StructuralIntegritySchemaPolicyTests
     [Fact]
     public void Error_WhenColumnHasBothDefaultAndGenerated()
     {
-        var table = new Table("t", Columns: [new Column("area", SqlType.Int, DefaultExpression: "0", GeneratedExpression: "w * h")]);
+        var table = new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("area"), SqlType.Int, DefaultExpression: "0", GeneratedExpression: "w * h")]);
 
         _sut.Validate(Db(table)).ShouldContain(d =>
             d.Message.Contains("both a DEFAULT and a GENERATED") && d.Message.Contains("area"));
@@ -380,9 +379,9 @@ public sealed class StructuralIntegritySchemaPolicyTests
     [Fact]
     public void NoDiagnostics_ForGeneratedColumnWithoutDefault()
     {
-        var table = new Table("t",
-            PrimaryKey: new PrimaryKey("t_pk", ["id"]),
-            Columns: [Col("id"), new Column("area", SqlType.Int, GeneratedExpression: "w * h")]);
+        var table = new Table(new SqlIdentifier("t"),
+            PrimaryKey: new PrimaryKey(new SqlIdentifier("t_pk"), [new SqlIdentifier("id")]),
+            Columns: [Col("id"), new Column(new SqlIdentifier("area"), SqlType.Int, GeneratedExpression: "w * h")]);
 
         _sut.Validate(Db(table)).ShouldBeEmpty();
     }

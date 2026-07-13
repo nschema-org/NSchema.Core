@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.Indexes;
 
 /// <summary>
@@ -7,9 +8,9 @@ namespace NSchema.Plan.Domain.Models.Indexes;
 /// <param name="TableName">The name of the table from which the index will be removed.</param>
 /// <param name="IndexName">The name of the index to be removed.</param>
 public sealed record DropIndex(
-    string SchemaName,
-    string TableName,
-    string IndexName
+    SqlIdentifier SchemaName,
+    SqlIdentifier TableName,
+    SqlIdentifier IndexName
 ) : MigrationAction
 {
     /// <inheritdoc />

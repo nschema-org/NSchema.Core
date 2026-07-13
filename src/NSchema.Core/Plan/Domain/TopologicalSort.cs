@@ -16,26 +16,25 @@ internal static class TopologicalSort
     /// Returns <paramref name="items"/> in dependency order (dependencies first).
     /// </summary>
     /// <typeparam name="T">The item type.</typeparam>
+    /// <typeparam name="TKey">The identity type; equality semantics live on the key (e.g. identifier tuples).</typeparam>
     /// <param name="items">The items to order.</param>
     /// <param name="key">Projects an item's identity.</param>
     /// <param name="dependencies">Projects the identities an item depends on.</param>
-    /// <param name="comparer">Compares identities (e.g. case-insensitively).</param>
     /// <param name="describe">Renders an item's identity for the cycle error message.</param>
     /// <exception cref="InvalidOperationException">A dependency cycle exists among the items.</exception>
-    public static IReadOnlyList<T> Order<T>(
+    public static IReadOnlyList<T> Order<T, TKey>(
         IReadOnlyList<T> items,
-        Func<T, string> key,
-        Func<T, IEnumerable<string>> dependencies,
-        IEqualityComparer<string> comparer,
+        Func<T, TKey> key,
+        Func<T, IEnumerable<TKey>> dependencies,
         Func<T, string> describe
-    )
+    ) where TKey : notnull
     {
         if (items.Count <= 1)
         {
             return items;
         }
 
-        var byKey = new Dictionary<string, T>(comparer);
+        var byKey = new Dictionary<TKey, T>();
         foreach (var item in items)
         {
             // A duplicate key would make ordering ambiguous; the first declaration wins (callers dedupe upstream).
@@ -43,7 +42,7 @@ internal static class TopologicalSort
         }
 
         var ordered = new List<T>(items.Count);
-        var state = new Dictionary<string, Mark>(comparer);
+        var state = new Dictionary<TKey, Mark>();
 
         // Depth-first post-order over the original sequence preserves the input order for independent items.
         foreach (var item in items)

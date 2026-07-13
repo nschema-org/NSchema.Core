@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.Sequences;
 
 /// <summary>
@@ -6,7 +7,7 @@ namespace NSchema.Plan.Domain.Models.Sequences;
 /// <param name="SchemaName">The name of the schema containing the sequence.</param>
 /// <param name="OldName">The current name of the sequence.</param>
 /// <param name="NewName">The new name of the sequence.</param>
-public sealed record RenameSequence(string SchemaName, string OldName, string NewName) : MigrationAction
+public sealed record RenameSequence(SqlIdentifier SchemaName, SqlIdentifier OldName, SqlIdentifier NewName) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => false;

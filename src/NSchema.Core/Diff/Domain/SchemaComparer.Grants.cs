@@ -1,5 +1,6 @@
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Tables;
 
@@ -7,7 +8,7 @@ namespace NSchema.Diff.Domain;
 
 internal sealed partial class SchemaComparer
 {
-    private List<GrantChange> CompareSchemaGrants(string schemaName, IReadOnlyList<SchemaGrant> current, IReadOnlyList<SchemaGrant> desired)
+    private List<GrantChange> CompareSchemaGrants(SqlIdentifier schemaName, IReadOnlyList<SchemaGrant> current, IReadOnlyList<SchemaGrant> desired)
     {
         var result = new List<GrantChange>();
         foreach (var g in current.Where(c => desired.All(d => d.Role != c.Role)))
@@ -23,7 +24,7 @@ internal sealed partial class SchemaComparer
         return result;
     }
 
-    private List<GrantChange> CompareTableGrants(string schemaName, string tableName, IReadOnlyList<TableGrant> current, IReadOnlyList<TableGrant> desired)
+    private List<GrantChange> CompareTableGrants(ObjectReference owner, IReadOnlyList<TableGrant> current, IReadOnlyList<TableGrant> desired)
     {
         var result = new List<GrantChange>();
         foreach (var g in current)
@@ -31,19 +32,19 @@ internal sealed partial class SchemaComparer
             var matching = desired.FirstOrDefault(d => d.Role == g.Role);
             if (matching is null)
             {
-                LogTablePrivilegesRevoking(schemaName, tableName, g.Role);
+                LogTablePrivilegesRevoking(owner, g.Role);
                 result.Add(new GrantChange(ChangeKind.Remove, g.Role, g.Privileges));
             }
             else if (matching.Privileges != g.Privileges)
             {
-                LogTablePrivilegesUpdating(schemaName, tableName, g.Role);
+                LogTablePrivilegesUpdating(owner, g.Role);
                 result.Add(new GrantChange(ChangeKind.Remove, g.Role, g.Privileges));
                 result.Add(new GrantChange(ChangeKind.Add, g.Role, matching.Privileges));
             }
         }
         foreach (var g in desired.Where(d => current.All(c => c.Role != d.Role)))
         {
-            LogTablePrivilegesGranting(schemaName, tableName, g.Role);
+            LogTablePrivilegesGranting(owner, g.Role);
             result.Add(new GrantChange(ChangeKind.Add, g.Role, g.Privileges));
         }
         return result;

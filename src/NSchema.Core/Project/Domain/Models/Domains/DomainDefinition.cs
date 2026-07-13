@@ -16,12 +16,12 @@ namespace NSchema.Project.Domain.Models.Domains;
 /// <param name="Comment">An optional comment or description for the domain.</param>
 [DebuggerDisplay("{Name,nq} (domain)")]
 public sealed record DomainDefinition(
-    string Name,
+    SqlIdentifier Name,
     SqlType DataType,
     string? Default = null,
     bool NotNull = false,
     IReadOnlyList<CheckConstraint>? Checks = null,
-    string? OldName = null,
+    SqlIdentifier? OldName = null,
     string? Comment = null
 ) : IRenameableObject
 {

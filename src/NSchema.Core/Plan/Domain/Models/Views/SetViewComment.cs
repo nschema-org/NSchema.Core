@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.Views;
 
 /// <summary>
@@ -8,7 +9,7 @@ namespace NSchema.Plan.Domain.Models.Views;
 /// <param name="OldComment">The previous comment, if any.</param>
 /// <param name="NewComment">The new comment, if any.</param>
 /// <param name="IsMaterialized">Whether the commented view is a materialized view.</param>
-public sealed record SetViewComment(string SchemaName, string ViewName, string? OldComment, string? NewComment, bool IsMaterialized = false) : MigrationAction
+public sealed record SetViewComment(SqlIdentifier SchemaName, SqlIdentifier ViewName, string? OldComment, string? NewComment, bool IsMaterialized = false) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => false;

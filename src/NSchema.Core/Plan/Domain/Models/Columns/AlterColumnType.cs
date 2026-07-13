@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 
 namespace NSchema.Plan.Domain.Models.Columns;
@@ -16,9 +17,9 @@ namespace NSchema.Plan.Domain.Models.Columns;
 /// Therefore, it is considered a destructive migration action.
 /// </remarks>
 public sealed record AlterColumnType(
-    string SchemaName,
-    string TableName,
-    string ColumnName,
+    SqlIdentifier SchemaName,
+    SqlIdentifier TableName,
+    SqlIdentifier ColumnName,
     SqlType OldType,
     SqlType NewType,
     bool? IsNullable = null

@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 
 namespace NSchema.Plan.Domain.Models.Columns;
@@ -8,7 +9,7 @@ namespace NSchema.Plan.Domain.Models.Columns;
 /// <param name="SchemaName">The name of the schema containing the table to which the column will be added.</param>
 /// <param name="TableName">The name of the table to which the column will be added.</param>
 /// <param name="Column">The definition of the column to be added.</param>
-public sealed record AddColumn(string SchemaName, string TableName, Column Column) : MigrationAction
+public sealed record AddColumn(SqlIdentifier SchemaName, SqlIdentifier TableName, Column Column) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => false;

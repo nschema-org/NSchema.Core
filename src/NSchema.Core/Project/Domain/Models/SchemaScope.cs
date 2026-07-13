@@ -8,7 +8,7 @@ namespace NSchema.Project.Domain.Models;
 /// </summary>
 public sealed record SchemaScope
 {
-    private SchemaScope(IReadOnlyList<string>? schemaNames)
+    private SchemaScope(IReadOnlyList<SqlIdentifier>? schemaNames)
     {
         SchemaNames = schemaNames;
     }
@@ -16,13 +16,13 @@ public sealed record SchemaScope
     /// <summary>
     /// Every schema the source can see.
     /// </summary>
-    public static SchemaScope All { get; } = new((IReadOnlyList<string>?)null);
+    public static SchemaScope All { get; } = new((IReadOnlyList<SqlIdentifier>?)null);
 
     /// <summary>
     /// A scope restricted to the named schemas (case-insensitive). An empty set normalizes to <see cref="All"/>.
     /// </summary>
     /// <param name="schemaNames">The schema names under management.</param>
-    public static SchemaScope Of(params IEnumerable<string> schemaNames)
+    public static SchemaScope Of(params IEnumerable<SqlIdentifier> schemaNames)
     {
         var names = schemaNames.ToList();
         return names.Count == 0 ? All : new SchemaScope(names);
@@ -31,7 +31,7 @@ public sealed record SchemaScope
     /// <summary>
     /// The schema names under management, or <see langword="null"/> when the scope is <see cref="All"/>.
     /// </summary>
-    public IReadOnlyList<string>? SchemaNames { get; }
+    public IReadOnlyList<SqlIdentifier>? SchemaNames { get; }
 
     /// <summary>
     /// Whether this scope includes every schema.
@@ -42,6 +42,6 @@ public sealed record SchemaScope
     /// <summary>
     /// Whether the named schema is inside this scope.
     /// </summary>
-    public bool Includes(string schemaName) =>
-        IsAll || SchemaNames.Contains(schemaName, StringComparer.OrdinalIgnoreCase);
+    public bool Includes(SqlIdentifier schemaName) =>
+        IsAll || SchemaNames.Contains(schemaName);
 }

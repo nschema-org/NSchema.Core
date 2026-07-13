@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Constraints;
 
 namespace NSchema.Plan.Domain.Models.Constraints;
@@ -9,8 +10,8 @@ namespace NSchema.Plan.Domain.Models.Constraints;
 /// <param name="TableName">The name of the table to which the unique constraint will be added.</param>
 /// <param name="UniqueConstraint">The definition of the unique constraint to be added.</param>
 public sealed record AddUniqueConstraint(
-    string SchemaName,
-    string TableName,
+    SqlIdentifier SchemaName,
+    SqlIdentifier TableName,
     UniqueConstraint UniqueConstraint
 ) : MigrationAction
 {

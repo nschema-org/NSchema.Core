@@ -11,9 +11,9 @@ namespace NSchema.Project.Domain.Models.CompositeTypes;
 /// <param name="Comment">An optional comment or description for the composite type.</param>
 [DebuggerDisplay("{Name,nq} (composite type, {Fields.Count} fields)")]
 public sealed record CompositeType(
-    string Name,
+    SqlIdentifier Name,
     IReadOnlyList<CompositeField>? Fields = null,
-    string? OldName = null,
+    SqlIdentifier? OldName = null,
     string? Comment = null
 ) : IRenameableObject
 {

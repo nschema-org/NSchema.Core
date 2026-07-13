@@ -1,5 +1,6 @@
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Routines;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Routines;
 using NSchema.Project.Domain.Models.Schemas;
 
@@ -14,15 +15,15 @@ public partial class SchemaComparerTests
     private const string Def = "RETURNS int LANGUAGE sql AS $$ SELECT 1; $$";
     private const string ProcDef = "LANGUAGE sql AS $$ DELETE FROM app.t; $$";
 
-    private static Routine Fn(string name, string args, string def, string? oldName = null, string? comment = null) =>
-        new(name, RoutineKind.Function, args, def, oldName, comment);
+    private static Routine Fn(string name, string args, string def, SqlIdentifier? oldName = null, string? comment = null) =>
+        new(new SqlIdentifier(name), RoutineKind.Function, args, def, oldName, comment);
 
-    private static Routine Proc(string name, string args, string def, string? oldName = null, string? comment = null) =>
-        new(name, RoutineKind.Procedure, args, def, oldName, comment);
+    private static Routine Proc(string name, string args, string def, SqlIdentifier? oldName = null, string? comment = null) =>
+        new(new SqlIdentifier(name), RoutineKind.Procedure, args, def, oldName, comment);
 
     /// <summary>Diffs two <c>app</c> schemas holding the given routines, returning the single routine diff (null when unchanged).</summary>
     private RoutineDiff? DiffRoutines(IReadOnlyList<Routine> current, IReadOnlyList<Routine> desired) => _sut
-        .Compare(Db(new SchemaDefinition("app", Routines: current)), Db(new SchemaDefinition("app", Routines: desired)))
+        .Compare(Db(new SchemaDefinition(new SqlIdentifier("app"), Routines: current)), Db(new SchemaDefinition(new SqlIdentifier("app"), Routines: desired)))
         .Schemas.SingleOrDefault()?.Routines.SingleOrDefault();
 
     [Fact]
@@ -85,7 +86,7 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_Renamed_SetsRenamedFrom()
     {
-        var diff = DiffRoutines([Fn("old_f", "", Def)], [Fn("f", "", Def, oldName: "old_f")]);
+        var diff = DiffRoutines([Fn("old_f", "", Def)], [Fn("f", "", Def, oldName: new SqlIdentifier("old_f"))]);
 
         diff!.RenamedFrom.ShouldBe("old_f");
         diff.Definition.ShouldBeNull(); // nothing else changed, so it is a rename only
@@ -117,14 +118,14 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_PartialSchema_LeavesUnmanagedRoutineAlone()
         => _sut.Compare(
-            Db(new SchemaDefinition("app", Routines: [Fn("f", "", Def)])),
-            Db(new SchemaDefinition("app", IsPartial: true)))
+            Db(new SchemaDefinition(new SqlIdentifier("app"), Routines: [Fn("f", "", Def)])),
+            Db(new SchemaDefinition(new SqlIdentifier("app"), IsPartial: true)))
             .Schemas.ShouldBeEmpty();
 
     [Fact]
     public void Compare_PartialSchema_DropsExplicitlyDroppedRoutine()
         => _sut.Compare(
-            Db(new SchemaDefinition("app", Routines: [Fn("f", "", Def)])),
-            Db(new SchemaDefinition("app", IsPartial: true, DroppedRoutines: ["f"])))
+            Db(new SchemaDefinition(new SqlIdentifier("app"), Routines: [Fn("f", "", Def)])),
+            Db(new SchemaDefinition(new SqlIdentifier("app"), IsPartial: true, DroppedRoutines: [new SqlIdentifier("f")])))
             .Schemas.ShouldHaveSingleItem().Routines.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
 }

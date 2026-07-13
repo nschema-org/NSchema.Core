@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.Columns;
 
 /// <summary>
@@ -9,9 +10,9 @@ namespace NSchema.Plan.Domain.Models.Columns;
 /// <param name="OldDefault">The current default value of the column before modification. This can be null if there is no existing default value.</param>
 /// <param name="NewDefault">The new default value to be set on the column after modification. This can be null if the default value is being removed.</param>
 public sealed record SetColumnDefault(
-    string SchemaName,
-    string TableName,
-    string ColumnName,
+    SqlIdentifier SchemaName,
+    SqlIdentifier TableName,
+    SqlIdentifier ColumnName,
     string? OldDefault,
     string? NewDefault
 ) : MigrationAction

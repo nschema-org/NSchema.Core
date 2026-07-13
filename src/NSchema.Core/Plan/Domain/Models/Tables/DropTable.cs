@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 namespace NSchema.Plan.Domain.Models.Tables;
 
 /// <summary>
@@ -5,7 +6,7 @@ namespace NSchema.Plan.Domain.Models.Tables;
 /// </summary>
 /// <param name="SchemaName">The name of the schema containing the table to be removed.</param>
 /// <param name="TableName">The name of the table to be removed.</param>
-public sealed record DropTable(string SchemaName, string TableName) : MigrationAction
+public sealed record DropTable(SqlIdentifier SchemaName, SqlIdentifier TableName) : MigrationAction
 {
     /// <inheritdoc />
     public override bool IsDestructive => true;

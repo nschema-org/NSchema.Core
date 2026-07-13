@@ -11,9 +11,9 @@ namespace NSchema.Project.Domain.Models.Sequences;
 /// <param name="Comment">An optional comment or description for the sequence.</param>
 [DebuggerDisplay("{Name,nq} (sequence)")]
 public sealed record Sequence(
-    string Name,
+    SqlIdentifier Name,
     SequenceOptions? Options = null,
-    string? OldName = null,
+    SqlIdentifier? OldName = null,
     string? Comment = null
 ) : IRenameableObject
 {

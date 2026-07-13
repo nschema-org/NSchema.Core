@@ -7,7 +7,7 @@ public sealed class TopologicalSortTests
     private sealed record Node(string Name, params string[] Deps);
 
     private static List<string> Order(params Node[] nodes) =>
-        TopologicalSort.Order(nodes, n => n.Name, n => n.Deps, StringComparer.OrdinalIgnoreCase, n => n.Name)
+        TopologicalSort.Order(nodes, n => n.Name, n => n.Deps, n => n.Name)
             .Select(n => n.Name).ToList();
 
     [Fact]

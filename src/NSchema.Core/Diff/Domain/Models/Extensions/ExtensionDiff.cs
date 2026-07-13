@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Extensions;
 
 namespace NSchema.Diff.Domain.Models.Extensions;
@@ -11,7 +12,7 @@ namespace NSchema.Diff.Domain.Models.Extensions;
 /// <param name="Version">The change to the extension's version, if any.</param>
 /// <param name="Comment">The change to the extension's comment, if any.</param>
 public sealed record ExtensionDiff(
-    string Name,
+    SqlIdentifier Name,
     ChangeKind Kind,
     Extension? Definition = null,
     ValueChange<string>? Version = null,

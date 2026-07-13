@@ -5,7 +5,6 @@ using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Tables;
-using NSchema.Tests.Helpers;
 
 namespace NSchema.Tests.State;
 
@@ -35,7 +34,7 @@ public sealed class SchemaStateSerializerTests
     {
         // Arrange
         var schema = new DatabaseSchema(
-            [new SchemaDefinition("app", Tables: [new Table("t", Columns: [new Column("c", type)])])]);
+            [new SchemaDefinition(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("c"), type)])])]);
 
         // Act
         var roundTripped = _sut.Deserialize(_sut.Serialize(new SchemaState(schema))).Schema;
@@ -58,11 +57,11 @@ public sealed class SchemaStateSerializerTests
         // Arrange
         var schema = new DatabaseSchema(
         [
-            new SchemaDefinition("app", Tables:
+            new SchemaDefinition(new SqlIdentifier("app"), Tables:
             [
-                new Table("users", ForeignKeys:
+                new Table(new SqlIdentifier("users"), ForeignKeys:
                 [
-                    new ForeignKey("fk", ["org_id"], "app", "orgs", ["id"], ReferentialAction.Cascade),
+                    new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("org_id")], new SqlIdentifier("app"), new SqlIdentifier("orgs"), [new SqlIdentifier("id")], ReferentialAction.Cascade),
                 ]),
             ]),
         ]);
@@ -83,9 +82,9 @@ public sealed class SchemaStateSerializerTests
         // of the user-facing serializer, which omits defaults. See DomainModelSerializationContractTests.
         var schema = new DatabaseSchema(
         [
-            new SchemaDefinition("app", Tables:
+            new SchemaDefinition(new SqlIdentifier("app"), Tables:
             [
-                new Table("t", Columns: [new Column("c", SqlType.Int)]),
+                new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("c"), SqlType.Int)]),
             ]),
         ]);
 
@@ -126,8 +125,8 @@ public sealed class SchemaStateSerializerTests
     public void RoundTrip_PreservesExecutedScripts()
     {
         // Arrange
-        var executed = new ScriptExecution("api-login", "abc123", new DateTimeOffset(2026, 7, 10, 12, 0, 0, TimeSpan.Zero));
-        var state = new SchemaState(new DatabaseSchema([new SchemaDefinition("app")]), [executed]);
+        var executed = new ScriptExecution(new SqlIdentifier("api-login"), "abc123", new DateTimeOffset(2026, 7, 10, 12, 0, 0, TimeSpan.Zero));
+        var state = new SchemaState(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]), [executed]);
 
         // Act
         var roundTripped = _sut.Deserialize(_sut.Serialize(state));
@@ -142,7 +141,7 @@ public sealed class SchemaStateSerializerTests
         // Pins the wire field name — renaming it silently empties every existing ledger.
         var state = new SchemaState(
             new DatabaseSchema([]),
-            [new ScriptExecution("api-login", "abc123", DateTimeOffset.UnixEpoch)]);
+            [new ScriptExecution(new SqlIdentifier("api-login"), "abc123", DateTimeOffset.UnixEpoch)]);
 
         var json = Encoding.UTF8.GetString(_sut.Serialize(state).Span);
 
