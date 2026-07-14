@@ -4,7 +4,6 @@ using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Plan.Domain.Models;
 using NSchema.Plan.Domain.Models.Schemas;
 using NSchema.Plan.Domain.Models.Tables;
-using NSchema.Project.Ddl;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.CompositeTypes;
@@ -19,6 +18,7 @@ using NSchema.Project.Domain.Models.Sequences;
 using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Domain.Models.Triggers;
 using NSchema.Project.Domain.Models.Views;
+using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Helpers;
 
@@ -64,10 +64,10 @@ public static class TestData
                             new Column(new SqlIdentifier("id"), SqlType.BigInt, IsIdentity: true,
                                 IdentityOptions: new IdentityOptions(1, 1, 1)),
                             new Column(new SqlIdentifier("name"), SqlType.VarChar(255), Comment: "display name"),
-                            new Column(new SqlIdentifier("balance"), SqlType.Decimal(18, 2), IsNullable: true, DefaultExpression: "0"),
+                            new Column(new SqlIdentifier("balance"), SqlType.Decimal(18, 2), IsNullable: true, DefaultExpression: new SqlText("0")),
                             new Column(new SqlIdentifier("code"), SqlType.Char(8), OldName: new SqlIdentifier("short_code")),
                             new Column(new SqlIdentifier("metadata"), SqlType.Custom("jsonb"), IsNullable: true),
-                            new Column(new SqlIdentifier("name_upper"), SqlType.Text, IsNullable: true, GeneratedExpression: "upper(name)"),
+                            new Column(new SqlIdentifier("name_upper"), SqlType.Text, IsNullable: true, GeneratedExpression: new SqlText("upper(name)")),
                         ],
                         ForeignKeys:
                         [
@@ -80,20 +80,20 @@ public static class TestData
                         ],
                         CheckConstraints:
                         [
-                            new CheckConstraint(new SqlIdentifier("users_balance_chk"), "balance >= 0", Comment: "no overdraft"),
+                            new CheckConstraint(new SqlIdentifier("users_balance_chk"), new SqlText("balance >= 0"), Comment: "no overdraft"),
                         ],
                         ExclusionConstraints:
                         [
                             new ExclusionConstraint(new SqlIdentifier("users_code_excl"),
-                                [new ExclusionElement("=", new SqlIdentifier("code")), new ExclusionElement("&&", Expression: "int4range(0, balance)")],
-                                Method: "gist", Predicate: "balance > 0", Comment: "no overlap"),
+                                [new ExclusionElement("=", new SqlIdentifier("code")), new ExclusionElement("&&", Expression: new SqlText("int4range(0, balance)"))],
+                                Method: "gist", Predicate: new SqlText("balance > 0"), Comment: "no overlap"),
                         ],
                         Indexes:
                         [
                             new TableIndex(new SqlIdentifier("users_name_ix"), ["name"], IsUnique: true,
-                                Comment: "unique names", Predicate: "name IS NOT NULL"),
+                                Comment: "unique names", Predicate: new SqlText("name IS NOT NULL")),
                             new TableIndex(new SqlIdentifier("users_balance_ix"),
-                                [new IndexColumn(new SqlIdentifier("balance"), Sort: IndexSort.Descending, Nulls: IndexNulls.Last), new IndexColumn(Expression: "lower(name)")],
+                                [new IndexColumn(new SqlIdentifier("balance"), Sort: IndexSort.Descending, Nulls: IndexNulls.Last), new IndexColumn(Expression: new SqlText("lower(name)"))],
                                 Method: "btree", Include: [new SqlIdentifier("code")], Comment: "covering balance index"),
                         ],
                         Grants: [new TableGrant(new SqlIdentifier("readers"), TablePrivilege.All)],
@@ -102,13 +102,13 @@ public static class TestData
                             new Trigger(new SqlIdentifier("users_audit"), TriggerTiming.After,
                                 TriggerEvent.Insert | TriggerEvent.Update, new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("log_change")),
                                 TriggerLevel.Row, UpdateOfColumns: [new SqlIdentifier("name"), new SqlIdentifier("balance")],
-                                When: "new.balance > 0", Comment: "audit row changes"),
+                                When: new SqlText("new.balance > 0"), Comment: "audit row changes"),
                             new Trigger(new SqlIdentifier("users_stamp"), TriggerTiming.Before, TriggerEvent.Update,
                                 new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("touch_updated_at"))),
                             // An inline-body (SQL Server-style) trigger: no function, a multi-statement body that
                             // carries its own ';' (so it exercises the dollar-quoted round-trip).
                             new Trigger(new SqlIdentifier("users_guard"), TriggerTiming.InsteadOf, TriggerEvent.Delete,
-                                Body: "BEGIN\n  INSERT INTO app.audit (msg) VALUES ('blocked');\n  RETURN;\nEND",
+                                Body: new SqlText("BEGIN\n  INSERT INTO app.audit (msg) VALUES ('blocked');\n  RETURN;\nEND"),
                                 Comment: "block deletes"),
                         ]),
                 ],
@@ -139,22 +139,22 @@ public static class TestData
                 DroppedSequences: [new SqlIdentifier("stale_seq")],
                 Routines:
                 [
-                    new Routine(new SqlIdentifier("add_tax"), RoutineKind.Function, "amount numeric, rate numeric",
-                        "RETURNS numeric LANGUAGE sql AS $$\n  SELECT amount * (1 + rate);\n$$",
+                    new Routine(new SqlIdentifier("add_tax"), RoutineKind.Function, new SqlText("amount numeric, rate numeric"),
+                        new SqlText("RETURNS numeric LANGUAGE sql AS $$\n  SELECT amount * (1 + rate);\n$$"),
                         Comment: "adds tax"),
-                    new Routine(new SqlIdentifier("normalize_code"), RoutineKind.Function, "code text DEFAULT 'N/A'",
-                        "RETURNS text LANGUAGE sql AS $body$ SELECT upper(code || ';suffix'); $body$",
+                    new Routine(new SqlIdentifier("normalize_code"), RoutineKind.Function, new SqlText("code text DEFAULT 'N/A'"),
+                        new SqlText("RETURNS text LANGUAGE sql AS $body$ SELECT upper(code || ';suffix'); $body$"),
                         OldName: new SqlIdentifier("clean_code")),
-                    new Routine(new SqlIdentifier("archive_users"), RoutineKind.Procedure, "",
-                        "LANGUAGE sql AS $$\n  DELETE FROM app.users WHERE name <> 'a;b';\n$$",
+                    new Routine(new SqlIdentifier("archive_users"), RoutineKind.Procedure, new SqlText(""),
+                        new SqlText("LANGUAGE sql AS $$\n  DELETE FROM app.users WHERE name <> 'a;b';\n$$"),
                         Comment: "archival job"),
                 ],
                 DroppedRoutines: [new SqlIdentifier("stale_fn"), new SqlIdentifier("stale_proc")],
                 Domains:
                 [
                     new DomainDefinition(new SqlIdentifier("typeid"), SqlType.Text, OldName: new SqlIdentifier("legacy_id"), Comment: "unique id as text"),
-                    new DomainDefinition(new SqlIdentifier("positive_amount"), SqlType.Decimal(18, 2), Default: "0", NotNull: true,
-                        Checks: [new CheckConstraint(new SqlIdentifier("positive_amount_chk"), "VALUE >= 0")]),
+                    new DomainDefinition(new SqlIdentifier("positive_amount"), SqlType.Decimal(18, 2), Default: new SqlText("0"), NotNull: true,
+                        Checks: [new CheckConstraint(new SqlIdentifier("positive_amount_chk"), new SqlText("VALUE >= 0"))]),
                 ],
                 DroppedDomains: [new SqlIdentifier("stale_domain")],
                 CompositeTypes:
@@ -176,9 +176,9 @@ public static class TestData
 
     /// <summary>Builds a view with dependencies derived from its body, exactly as the DDL parser would.</summary>
     private static View View(string name, string body, string? comment = null, SqlIdentifier? oldName = null) =>
-        new(new SqlIdentifier(name), body, oldName, comment, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")));
+        new(new SqlIdentifier(name), new SqlText(body), oldName, comment, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")));
 
     /// <summary>Builds a materialized view (optionally with indexes), dependencies derived from its body.</summary>
     private static View MaterializedView(string name, string body, string? comment = null, IReadOnlyList<TableIndex>? indexes = null) =>
-        new(new SqlIdentifier(name), body, null, comment, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")), IsMaterialized: true, Indexes: indexes);
+        new(new SqlIdentifier(name), new SqlText(body), null, comment, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")), IsMaterialized: true, Indexes: indexes);
 }

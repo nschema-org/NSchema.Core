@@ -175,10 +175,10 @@ public partial class SchemaComparerTests
         var table = DiffTable(
             new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("age"), SqlType.Int)]),
             new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("age"), SqlType.Int)],
-                CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_age_chk"), "age >= 0")]));
+                CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_age_chk"), new SqlText("age >= 0"))]));
 
         table!.Checks.ShouldHaveSingleItem().ShouldBe(
-            new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_age_chk"), new CheckConstraint(new SqlIdentifier("users_age_chk"), "age >= 0")));
+            new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_age_chk"), new CheckConstraint(new SqlIdentifier("users_age_chk"), new SqlText("age >= 0"))));
     }
 
     [Fact]
@@ -186,7 +186,7 @@ public partial class SchemaComparerTests
     {
         var table = DiffTable(
             new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("age"), SqlType.Int)],
-                CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_age_chk"), "age >= 0")]),
+                CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_age_chk"), new SqlText("age >= 0"))]),
             new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("age"), SqlType.Int)]));
 
         var check = table!.Checks.ShouldHaveSingleItem();
@@ -199,9 +199,9 @@ public partial class SchemaComparerTests
     {
         var table = DiffTable(
             new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("age"), SqlType.Int)],
-                CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_age_chk"), "age >= 0")]),
+                CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_age_chk"), new SqlText("age >= 0"))]),
             new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("age"), SqlType.Int)],
-                CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_age_chk"), "age > 0")]));
+                CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_age_chk"), new SqlText("age > 0"))]));
 
         table!.Checks.Select(c => c.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
     }
@@ -211,9 +211,9 @@ public partial class SchemaComparerTests
     {
         var table = DiffTable(
             new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("age"), SqlType.Int)],
-                CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_age_chk"), "age >= 0", Comment: "old")]),
+                CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_age_chk"), new SqlText("age >= 0"), Comment: "old")]),
             new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("age"), SqlType.Int)],
-                CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_age_chk"), "age >= 0", Comment: "new")]));
+                CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_age_chk"), new SqlText("age >= 0"), Comment: "new")]));
 
         var check = table!.Checks.ShouldHaveSingleItem();
         check.Kind.ShouldBe(ChangeKind.Modify);
@@ -225,9 +225,9 @@ public partial class SchemaComparerTests
     {
         var table = DiffTable(
             new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("age"), SqlType.Int)],
-                CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_age_chk"), "age >= 0")]),
+                CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_age_chk"), new SqlText("age >= 0"))]),
             new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("age"), SqlType.Int)],
-                CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_age_chk"), "age >= 0")]));
+                CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_age_chk"), new SqlText("age >= 0"))]));
 
         table.ShouldBeNull();
     }
@@ -240,7 +240,7 @@ public partial class SchemaComparerTests
         var desired = new Table(new SqlIdentifier("users"),
             Columns: [new Column(new SqlIdentifier("email"), SqlType.Text), new Column(new SqlIdentifier("age"), SqlType.Int)],
             UniqueConstraints: [new UniqueConstraint(new SqlIdentifier("users_email_uq"), [new SqlIdentifier("email")])],
-            CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_age_chk"), "age >= 0")]);
+            CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_age_chk"), new SqlText("age >= 0"))]);
 
         var table = _sut.Compare(Db(new SchemaDefinition(new SqlIdentifier("app"))),
             Db(new SchemaDefinition(new SqlIdentifier("app"), Tables: [desired]))).Schemas.Single().Tables.Single();
@@ -249,7 +249,7 @@ public partial class SchemaComparerTests
         table.UniqueConstraints.ShouldHaveSingleItem().ShouldBe(
             new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_email_uq"), new UniqueConstraint(new SqlIdentifier("users_email_uq"), [new SqlIdentifier("email")])));
         table.Checks.ShouldHaveSingleItem().ShouldBe(
-            new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_age_chk"), new CheckConstraint(new SqlIdentifier("users_age_chk"), "age >= 0")));
+            new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_age_chk"), new CheckConstraint(new SqlIdentifier("users_age_chk"), new SqlText("age >= 0"))));
     }
 
     // -------------------------------------------------------------------------

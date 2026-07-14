@@ -1,5 +1,3 @@
-using NSchema.Project.Ddl.Models.Config;
-
 namespace NSchema.Plugins;
 
 /// <summary>
@@ -8,9 +6,9 @@ namespace NSchema.Plugins;
 public interface INSchemaBackendPlugin : INSchemaPlugin
 {
     /// <summary>
-    /// Registers this backend onto the application being built, interpreting the project's <c>BACKEND</c> block.
+    /// Registers this backend onto the application being built.
     /// </summary>
     /// <param name="builder">The application builder to register the backend's services on.</param>
-    /// <param name="block">The project's <c>BACKEND</c> configuration block.</param>
-    Result Configure(NSchemaApplicationBuilder builder, ConfigBlock block);
+    /// <param name="settings">The statement's translated settings.</param>
+    Result Configure(NSchemaApplicationBuilder builder, PluginSettings settings);
 }

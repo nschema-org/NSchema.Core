@@ -187,7 +187,7 @@ public class DestructiveActionPolicyTests
     {
         // Arrange — creating a view loses nothing.
         _options.Value.Policy = PolicyEnforcement.Error;
-        var view = new View(new SqlIdentifier("active_users"), "SELECT * FROM app.users");
+        var view = new View(new SqlIdentifier("active_users"), new SqlText("SELECT * FROM app.users"));
         var diff = new DatabaseDiff([
             new SchemaDiff(new SqlIdentifier("app"), null, null, null, [], [], [new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("active_users"), ChangeKind.Add, Definition: view)]),
         ]);
@@ -272,12 +272,12 @@ public class DestructiveActionPolicyTests
         // Arrange — a signature change is a declared edit; the database blocks the underlying drop loudly if
         // dependents exist, so the policy does not gate it.
         _options.Value.Policy = PolicyEnforcement.Error;
-        var fn = new Routine(new SqlIdentifier("f"), RoutineKind.Function, "a int, b text", "RETURNS int AS $$ SELECT 1 $$");
+        var fn = new Routine(new SqlIdentifier("f"), RoutineKind.Function, new SqlText("a int, b text"), new SqlText("RETURNS int AS $$ SELECT 1 $$"));
         var diff = new DatabaseDiff([
             new SchemaDiff(new SqlIdentifier("app"), Routines:
             [
                 new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Modify, RoutineKind.Function, Definition: fn,
-                    Arguments: new ValueChange<string>("a int", "a int, b text")),
+                    Arguments: new ValueChange<SqlText>(new SqlText("a int"), new SqlText("a int, b text"))),
             ]),
         ]);
 

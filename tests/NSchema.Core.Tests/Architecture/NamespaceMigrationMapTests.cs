@@ -1,9 +1,7 @@
 using NSchema.Operations;
 using NSchema.Operations.Progress;
-using NSchema.Project.Ddl.Models;
-using NSchema.Project.Ddl.Models.Config;
-using NSchema.Project.Ddl.Models.Templates;
 using NSchema.Project.Domain.Models.Triggers;
+using Syntax = NSchema.Project.Nsql.Syntax;
 
 namespace NSchema.Tests.Architecture;
 
@@ -24,8 +22,8 @@ public sealed class NamespaceMigrationMapTests
     private const string Root = "NSchema";
     private const string ProjectRoot = "NSchema.Project";
     private const string ProjectModels = "NSchema.Project.Domain.Models";
-    private const string ProjectDdl = "NSchema.Project.Ddl";
-    private const string ProjectDdlModels = "NSchema.Project.Ddl.Models";
+    private const string ProjectNsql = "NSchema.Project.Nsql";
+    private const string ProjectNsqlSyntax = "NSchema.Project.Nsql.Syntax";
     private const string OperationsProgress = "NSchema.Operations.Progress";
     private const string ProjectPolicies = "NSchema.Project.Policies";
     private const string CurrentRoot = "NSchema.Current";
@@ -55,6 +53,7 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchemaApplicationOptions)] = Root,
         [typeof(NSchema.Result)] = Root,
         [typeof(NSchema.Result<>)] = Root,
+        [typeof(NSchema.Result<,>)] = Root, // the diagnostic-typed result — folds upward as Result<T> without translation
         [typeof(NSchema.Diagnostic)] = Root,
         [typeof(NSchema.DiagnosticSeverity)] = Root,
         [typeof(PolicyEnforcement)] = Root, // absorbed DestructiveActionPolicy
@@ -63,7 +62,9 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Project.IProjectProvider)] = ProjectRoot,
         [typeof(NSchema.Project.Domain.Models.ProjectDefinition)] = ProjectModels, // the project aggregate — raw domain vocabulary the provider returns (the SchemaState parallel), not a seam-shaped message
         [typeof(NSchema.Project.Domain.Models.SchemaScope)] = ProjectModels,
+        [typeof(NSchema.Project.Domain.Models.ValueObject<>)] = ProjectModels, // the single-value primitive base — value equality, renders as its value
         [typeof(NSchema.Project.Domain.Models.SqlIdentifier)] = ProjectModels, // the identifier vocabulary primitive — case-insensitive equality baked in, shared by every lane
+        [typeof(NSchema.Project.Domain.Models.SqlText)] = ProjectModels, // the opaque-SQL vocabulary primitive — verbatim foreign SQL, ordinal equality (data)
         [typeof(NSchema.Project.Domain.Models.ObjectReference)] = ProjectModels, // the address of a schema-level object — always fully qualified
         [typeof(RoutineReference)] = ProjectModels + ".Triggers", // a routine reference as written — unqualified resolves via the engine's search path; trigger vocabulary, homed with its consumer
 
@@ -72,18 +73,90 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Current.SchemaSourceMode)] = CurrentRoot,
         [typeof(NSchema.Current.Backends.ISchemaIntrospector)] = CurrentBackends,
 
-        // ── ProjectDefinition.Ddl: the project language — machinery + the full syntax tree. ──
-        [typeof(NSchema.Project.Ddl.DdlReader)] = ProjectDdl,
-        [typeof(NSchema.Project.Ddl.DdlWriter)] = ProjectDdl,
-        [typeof(NSchema.Project.Ddl.DdlFormatter)] = ProjectDdl,
-        [typeof(DdlDocument)] = ProjectDdlModels, // becomes the parsed-project root of the full AST
-        [typeof(SourcePosition)] = ProjectDdlModels,
+        // ── ProjectDefinition.Nsql: the project language — machinery, documents, and the full syntax tree. ──
+        [typeof(NSchema.Project.Nsql.NsqlWriter)] = ProjectNsql, // domain → syntax → text; SyntaxBuilder is its first half
+        [typeof(NSchema.Project.Nsql.NsqlFormatter)] = ProjectNsql, // token-stream reformatter, shares the lexer
+        [typeof(NSchema.Project.Nsql.SourcePosition)] = ProjectNsql,
         // Template constructs are language features, not domain models; reshaped as AST nodes.
-        [typeof(TemplateDefinition)] = ProjectDdlModels + ".Templates",
-        [typeof(TemplateApplication)] = ProjectDdlModels + ".Templates",
-        [typeof(TemplateInclude)] = ProjectDdlModels + ".Templates",
-        [typeof(TemplateKind)] = ProjectDdlModels + ".Templates",
-        [typeof(TemplateSet)] = ProjectDdlModels + ".Templates",
+
+        // ── ProjectDefinition.Nsql: the NSchema language — documents at the lane root, the syntax tree
+        // under .Syntax — the language lane, born in its 5.0 home. ──
+        [typeof(NSchema.Project.Nsql.NsqlDocument)] = ProjectNsql,
+        [typeof(NSchema.Project.Nsql.NsqlConfigDocument)] = ProjectNsql,
+        [typeof(NSchema.Project.Nsql.NsqlReader)] = ProjectNsql, // the file-aware read seam — stamps provenance onto documents and diagnostics
+        [typeof(NSchema.Project.Nsql.NsqlDiagnostic)] = ProjectNsql, // the lane's positioned diagnostic — file + SourcePosition structurally
+        [typeof(Syntax.NsqlNode)] = ProjectNsqlSyntax,
+        [typeof(Syntax.NsqlStatement)] = ProjectNsqlSyntax,
+        [typeof(Syntax.Identifier)] = ProjectNsqlSyntax,
+        [typeof(Syntax.QualifiedName)] = ProjectNsqlSyntax,
+        [typeof(Syntax.MemberPath)] = ProjectNsqlSyntax,
+        [typeof(Syntax.TypeName)] = ProjectNsqlSyntax,
+        [typeof(Syntax.Schemas.CreateSchemaStatement)] = ProjectNsqlSyntax + ".Schemas",
+        [typeof(Syntax.Schemas.GrantSchemaUsageStatement)] = ProjectNsqlSyntax + ".Schemas",
+        [typeof(Syntax.Tables.CreateTableStatement)] = ProjectNsqlSyntax + ".Tables",
+        [typeof(Syntax.Tables.TableMember)] = ProjectNsqlSyntax + ".Tables",
+        [typeof(Syntax.Tables.ColumnDefinition)] = ProjectNsqlSyntax + ".Tables",
+        [typeof(Syntax.Tables.IdentityOptionsClause)] = ProjectNsqlSyntax + ".Tables",
+        [typeof(Syntax.Templates.IncludeMember)] = ProjectNsqlSyntax + ".Templates",
+        [typeof(Syntax.Constraints.PrimaryKeyDefinition)] = ProjectNsqlSyntax + ".Constraints",
+        [typeof(Syntax.Constraints.ForeignKeyDefinition)] = ProjectNsqlSyntax + ".Constraints",
+        [typeof(Syntax.Constraints.UniqueDefinition)] = ProjectNsqlSyntax + ".Constraints",
+        [typeof(Syntax.Constraints.CheckDefinition)] = ProjectNsqlSyntax + ".Constraints",
+        [typeof(Syntax.Constraints.ExclusionDefinition)] = ProjectNsqlSyntax + ".Constraints",
+        [typeof(Syntax.Constraints.ExclusionElement)] = ProjectNsqlSyntax + ".Constraints",
+        [typeof(Syntax.Constraints.ReferentialAction)] = ProjectNsqlSyntax + ".Constraints",
+        [typeof(Syntax.Indexes.IndexDefinition)] = ProjectNsqlSyntax + ".Indexes",
+        [typeof(Syntax.Indexes.CreateIndexStatement)] = ProjectNsqlSyntax + ".Indexes",
+        [typeof(Syntax.Indexes.IndexElement)] = ProjectNsqlSyntax + ".Indexes",
+        [typeof(Syntax.Indexes.IndexSort)] = ProjectNsqlSyntax + ".Indexes",
+        [typeof(Syntax.Indexes.IndexNulls)] = ProjectNsqlSyntax + ".Indexes",
+        [typeof(Syntax.Views.CreateViewStatement)] = ProjectNsqlSyntax + ".Views",
+        [typeof(Syntax.Routines.CreateRoutineStatement)] = ProjectNsqlSyntax + ".Routines",
+        [typeof(Syntax.Routines.RoutineKind)] = ProjectNsqlSyntax + ".Routines",
+        [typeof(Syntax.Enums.CreateEnumStatement)] = ProjectNsqlSyntax + ".Enums",
+        [typeof(Syntax.Domains.CreateDomainStatement)] = ProjectNsqlSyntax + ".Domains",
+        [typeof(Syntax.CompositeTypes.CreateCompositeTypeStatement)] = ProjectNsqlSyntax + ".CompositeTypes",
+        [typeof(Syntax.CompositeTypes.CompositeFieldDefinition)] = ProjectNsqlSyntax + ".CompositeTypes",
+        [typeof(Syntax.Sequences.CreateSequenceStatement)] = ProjectNsqlSyntax + ".Sequences",
+        [typeof(Syntax.Sequences.SequenceOptionsClause)] = ProjectNsqlSyntax + ".Sequences",
+        [typeof(Syntax.Extensions.CreateExtensionStatement)] = ProjectNsqlSyntax + ".Extensions",
+        [typeof(Syntax.Triggers.CreateTriggerStatement)] = ProjectNsqlSyntax + ".Triggers",
+        [typeof(Syntax.Triggers.TriggerAction)] = ProjectNsqlSyntax + ".Triggers",
+        [typeof(Syntax.Triggers.ExecuteFunctionAction)] = ProjectNsqlSyntax + ".Triggers",
+        [typeof(Syntax.Triggers.InlineBodyAction)] = ProjectNsqlSyntax + ".Triggers",
+        [typeof(Syntax.Triggers.TriggerTiming)] = ProjectNsqlSyntax + ".Triggers",
+        [typeof(Syntax.Triggers.TriggerEvent)] = ProjectNsqlSyntax + ".Triggers",
+        [typeof(Syntax.Triggers.TriggerLevel)] = ProjectNsqlSyntax + ".Triggers",
+        [typeof(Syntax.Tables.GrantTableStatement)] = ProjectNsqlSyntax + ".Tables",
+        [typeof(Syntax.Tables.TablePrivilege)] = ProjectNsqlSyntax + ".Tables",
+        [typeof(Syntax.Scripts.ScriptStatement)] = ProjectNsqlSyntax + ".Scripts",
+        [typeof(Syntax.Scripts.ScriptEventClause)] = ProjectNsqlSyntax + ".Scripts",
+        [typeof(Syntax.Scripts.DeploymentEventClause)] = ProjectNsqlSyntax + ".Scripts",
+        [typeof(Syntax.Scripts.ChangeEventClause)] = ProjectNsqlSyntax + ".Scripts",
+        [typeof(Syntax.Scripts.RunCondition)] = ProjectNsqlSyntax + ".Scripts",
+        [typeof(Syntax.Scripts.DeploymentPhase)] = ProjectNsqlSyntax + ".Scripts",
+        [typeof(Syntax.Scripts.ChangeTrigger)] = ProjectNsqlSyntax + ".Scripts",
+        [typeof(Syntax.Templates.SchemaTemplateStatement)] = ProjectNsqlSyntax + ".Templates",
+        [typeof(Syntax.Templates.TableTemplateStatement)] = ProjectNsqlSyntax + ".Templates",
+        [typeof(Syntax.Templates.ApplyTemplateStatement)] = ProjectNsqlSyntax + ".Templates",
+        [typeof(Syntax.Schemas.DropSchemaStatement)] = ProjectNsqlSyntax + ".Schemas",
+        [typeof(Syntax.Tables.DropTableStatement)] = ProjectNsqlSyntax + ".Tables",
+        [typeof(Syntax.Views.DropViewStatement)] = ProjectNsqlSyntax + ".Views",
+        [typeof(Syntax.Enums.DropEnumStatement)] = ProjectNsqlSyntax + ".Enums",
+        [typeof(Syntax.Domains.DropDomainStatement)] = ProjectNsqlSyntax + ".Domains",
+        [typeof(Syntax.CompositeTypes.DropCompositeTypeStatement)] = ProjectNsqlSyntax + ".CompositeTypes",
+        [typeof(Syntax.Sequences.DropSequenceStatement)] = ProjectNsqlSyntax + ".Sequences",
+        [typeof(Syntax.Routines.DropRoutineStatement)] = ProjectNsqlSyntax + ".Routines",
+        [typeof(Syntax.Extensions.DropExtensionStatement)] = ProjectNsqlSyntax + ".Extensions",
+        [typeof(Syntax.Config.ConfigStatement)] = ProjectNsqlSyntax + ".Config",
+        [typeof(Syntax.Config.BackendStatement)] = ProjectNsqlSyntax + ".Config",
+        [typeof(Syntax.Config.ProviderStatement)] = ProjectNsqlSyntax + ".Config",
+        [typeof(Syntax.Config.ConfigAttribute)] = ProjectNsqlSyntax + ".Config",
+        [typeof(Syntax.Config.ConfigValueNode)] = ProjectNsqlSyntax + ".Config",
+        [typeof(Syntax.Config.StringValue)] = ProjectNsqlSyntax + ".Config",
+        [typeof(Syntax.Config.IntegerValue)] = ProjectNsqlSyntax + ".Config",
+        [typeof(Syntax.Config.BooleanValue)] = ProjectNsqlSyntax + ".Config",
+        [typeof(Syntax.Config.IdentifierValue)] = ProjectNsqlSyntax + ".Config",
 
         // ── ProjectDefinition.Policies ──
         [typeof(NSchema.Project.Policies.IProjectPolicy)] = ProjectPolicies,
@@ -310,10 +383,10 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Plugins.INSchemaProviderPlugin)] = Plugins,
         [typeof(NSchema.Plugins.INSchemaBackendPlugin)] = Plugins,
         [typeof(NSchema.Plugins.ScaffoldContext)] = Plugins,
-        // Config settings records: the plugin seam's message (the syntax-node side stays in Schema.Ddl).
-        [typeof(ConfigBlock)] = ProjectDdlModels + ".Config", // parsed language fragment — the parser produces it, plugins consume it; typed AST models replace it in the full-AST pass
-        [typeof(ConfigValue)] = ProjectDdlModels + ".Config", // parsed language fragment — the parser produces it, plugins consume it; typed AST models replace it in the full-AST pass
-        [typeof(ConfigValueKind)] = ProjectDdlModels + ".Config", // parsed language fragment — the parser produces it, plugins consume it; typed AST models replace it in the full-AST pass
+        // Config settings records: the plugin seam's message (the syntax-node side stays in Project.Nsql).
+        [typeof(NSchema.Plugins.ConfigValue)] = Plugins, // the settings scalar — moved with the plugin payload at the config lane split
+        [typeof(NSchema.Plugins.ConfigValueKind)] = Plugins,
+        [typeof(NSchema.Plugins.PluginSettings)] = Plugins, // the statement's translated payload — replaced ConfigBlock on the plugin seam
     };
 
     [Fact]

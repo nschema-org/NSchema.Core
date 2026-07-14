@@ -49,7 +49,7 @@ public sealed class DiffReaderSnapshotTests
             [
                 new ColumnDiff(new SqlIdentifier("id"), ChangeKind.Add, new Column(new SqlIdentifier("id"), SqlType.BigInt, IsIdentity: true,
                     IdentityOptions: new IdentityOptions(1, 1, 1)), null, null, null, null, null, null),
-                new ColumnDiff(new SqlIdentifier("name"), ChangeKind.Add, new Column(new SqlIdentifier("name"), SqlType.VarChar(255), DefaultExpression: "'anonymous'"), null, null, null, null, null, null),
+                new ColumnDiff(new SqlIdentifier("name"), ChangeKind.Add, new Column(new SqlIdentifier("name"), SqlType.VarChar(255), DefaultExpression: new SqlText("'anonymous'")), null, null, null, null, null, null),
             ],
             Grants: [new GrantChange(ChangeKind.Add, new SqlIdentifier("readers"), TablePrivilege.Select)],
             Indexes: [new IndexDiff(ChangeKind.Add, new SqlIdentifier("users_name_ix"), new TableIndex(new SqlIdentifier("users_name_ix"), ["name"], IsUnique: true), null)],
@@ -65,8 +65,8 @@ public sealed class DiffReaderSnapshotTests
                 new ColumnDiff(new SqlIdentifier("total"), ChangeKind.Modify, null, null,
                     Type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
                     Nullability: new ValueChange<bool>(true, false), Default: null, Identity: null, Comment: null),
-                new ColumnDiff(new SqlIdentifier("total_label"), ChangeKind.Modify, Generated: new ValueChange<string>(null, "total::text")),
-                new ColumnDiff(new SqlIdentifier("amount"), ChangeKind.Add, new Column(new SqlIdentifier("amount"), SqlType.Int, GeneratedExpression: "total * 100"), null, null, null, null, null, null),
+                new ColumnDiff(new SqlIdentifier("total_label"), ChangeKind.Modify, Generated: new ValueChange<SqlText>(null, new SqlText("total::text"))),
+                new ColumnDiff(new SqlIdentifier("amount"), ChangeKind.Add, new Column(new SqlIdentifier("amount"), SqlType.Int, GeneratedExpression: new SqlText("total * 100")), null, null, null, null, null, null),
                 new ColumnDiff(new SqlIdentifier("legacy_flag"), ChangeKind.Remove, new Column(new SqlIdentifier("legacy_flag"), SqlType.Boolean), null, null, null, null, null, null),
             ],
             Grants: [new GrantChange(ChangeKind.Remove, new SqlIdentifier("writers"), TablePrivilege.Insert)],
@@ -105,17 +105,17 @@ public sealed class DiffReaderSnapshotTests
                 new SchemaDiff(new SqlIdentifier("app"), Views:
                 [
                     new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("active_users"), ChangeKind.Add,
-                        Definition: new View(new SqlIdentifier("active_users"), "SELECT id FROM app.users WHERE active"),
+                        Definition: new View(new SqlIdentifier("active_users"), new SqlText("SELECT id FROM app.users WHERE active")),
                         Comment: new ValueChange<string>(null, "currently active users")),
                     new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("daily_totals"), ChangeKind.Modify,
-                        Definition: new View(new SqlIdentifier("daily_totals"), "SELECT date, sum(amount) FROM app.sales GROUP BY date")),
+                        Definition: new View(new SqlIdentifier("daily_totals"), new SqlText("SELECT date, sum(amount) FROM app.sales GROUP BY date"))),
                     new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("summary"), ChangeKind.Modify,
                         Comment: new ValueChange<string>("old summary", "new summary")),
                     new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("report"), ChangeKind.Modify, RenamedFrom: new SqlIdentifier("legacy_report")),
                     new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("stale_view"), ChangeKind.Remove),
                     // Materialized views: an add (with index on the definition) and an in-place index change.
                     new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("mv_sales"), ChangeKind.Add,
-                        Definition: new View(new SqlIdentifier("mv_sales"), "SELECT date, sum(amount) FROM app.sales GROUP BY date", IsMaterialized: true),
+                        Definition: new View(new SqlIdentifier("mv_sales"), new SqlText("SELECT date, sum(amount) FROM app.sales GROUP BY date"), IsMaterialized: true),
                         Comment: new ValueChange<string>(null, "sales rollup"), IsMaterialized: true),
                     new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("mv_active"), ChangeKind.Modify, IsMaterialized: true,
                         Indexes:
@@ -125,7 +125,7 @@ public sealed class DiffReaderSnapshotTests
                         ]),
                     // A plain → materialized conversion (a recreate carrying the materialization flip).
                     new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("hourly_totals"), ChangeKind.Modify,
-                        Definition: new View(new SqlIdentifier("hourly_totals"), "SELECT date_trunc('hour', at), sum(amount) FROM app.sales GROUP BY 1", IsMaterialized: true),
+                        Definition: new View(new SqlIdentifier("hourly_totals"), new SqlText("SELECT date_trunc('hour', at), sum(amount) FROM app.sales GROUP BY 1"), IsMaterialized: true),
                         IsMaterialized: true, Materialized: new ValueChange<bool>(false, true), RequiresRecreate: true),
                 ]),
             ]);
@@ -204,7 +204,7 @@ public sealed class DiffReaderSnapshotTests
     /// </summary>
     private static DatabaseDiff RoutineChangesDiff()
     {
-        var addTax = new Routine(new SqlIdentifier("add_tax"), RoutineKind.Function, "amount numeric, rate numeric", "RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$");
+        var addTax = new Routine(new SqlIdentifier("add_tax"), RoutineKind.Function, new SqlText("amount numeric, rate numeric"), new SqlText("RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$"));
         return new DatabaseDiff(
             Schemas:
             [
@@ -214,18 +214,18 @@ public sealed class DiffReaderSnapshotTests
                         new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("add_tax"), ChangeKind.Add, RoutineKind.Function, Definition: addTax,
                             Comment: new ValueChange<string>(null, "adds tax")),
                         new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("normalize"), ChangeKind.Modify, RoutineKind.Function,
-                            Definition: new Routine(new SqlIdentifier("normalize"), RoutineKind.Function, "code text", "RETURNS text AS $$ SELECT lower(code) $$")),
+                            Definition: new Routine(new SqlIdentifier("normalize"), RoutineKind.Function, new SqlText("code text"), new SqlText("RETURNS text AS $$ SELECT lower(code) $$"))),
                         new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("score"), ChangeKind.Modify, RoutineKind.Function,
-                            Definition: new Routine(new SqlIdentifier("score"), RoutineKind.Function, "user_id bigint, weight numeric", "RETURNS numeric AS $$ SELECT 1 $$"),
-                            Arguments: new ValueChange<string>("user_id bigint", "user_id bigint, weight numeric")),
+                            Definition: new Routine(new SqlIdentifier("score"), RoutineKind.Function, new SqlText("user_id bigint, weight numeric"), new SqlText("RETURNS numeric AS $$ SELECT 1 $$")),
+                            Arguments: new ValueChange<SqlText>(new SqlText("user_id bigint"), new SqlText("user_id bigint, weight numeric"))),
                         new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("renamed_fn"), ChangeKind.Modify, RoutineKind.Function, RenamedFrom: new SqlIdentifier("old_fn")),
                         new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("noted"), ChangeKind.Modify, RoutineKind.Function, Comment: new ValueChange<string>("old note", "new note")),
                         new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("stale_fn"), ChangeKind.Remove, RoutineKind.Function),
                         new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("archive"), ChangeKind.Add, RoutineKind.Procedure,
-                            Definition: new Routine(new SqlIdentifier("archive"), RoutineKind.Procedure, "before date", "LANGUAGE sql AS $$ DELETE $$")),
+                            Definition: new Routine(new SqlIdentifier("archive"), RoutineKind.Procedure, new SqlText("before date"), new SqlText("LANGUAGE sql AS $$ DELETE $$"))),
                         new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("cleanup"), ChangeKind.Modify, RoutineKind.Procedure,
-                            Definition: new Routine(new SqlIdentifier("cleanup"), RoutineKind.Procedure, "", "LANGUAGE sql AS $$ TRUNCATE $$"),
-                            Arguments: new ValueChange<string>("batch int", "")),
+                            Definition: new Routine(new SqlIdentifier("cleanup"), RoutineKind.Procedure, new SqlText(""), new SqlText("LANGUAGE sql AS $$ TRUNCATE $$")),
+                            Arguments: new ValueChange<SqlText>(new SqlText("batch int"), new SqlText(""))),
                         new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("stale_proc"), ChangeKind.Remove, RoutineKind.Procedure),
                     ]),
             ]);
@@ -288,9 +288,9 @@ public sealed class DiffReaderSnapshotTests
                         Definition: new DomainDefinition(new SqlIdentifier("code"), SqlType.VarChar(8)),
                         DataType: new ValueChange<SqlType>(SqlType.Text, SqlType.VarChar(8))),
                     new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("amount"), ChangeKind.Modify,
-                        Default: new ValueChange<string>(null, "0"),
+                        Default: new ValueChange<SqlText>(null, new SqlText("0")),
                         NotNull: new ValueChange<bool>(false, true),
-                        Checks: [new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("amount_pos"), new CheckConstraint(new SqlIdentifier("amount_pos"), "VALUE >= 0"))]),
+                        Checks: [new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("amount_pos"), new CheckConstraint(new SqlIdentifier("amount_pos"), new SqlText("VALUE >= 0")))]),
                     new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("email"), ChangeKind.Modify,
                         Checks: [new CheckConstraintDiff(ChangeKind.Remove, new SqlIdentifier("email_fmt"))]),
                     new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("renamed_d"), ChangeKind.Modify, RenamedFrom: new SqlIdentifier("old_d")),
@@ -405,9 +405,9 @@ public sealed class DiffReaderSnapshotTests
         {
             Scripts =
             [
-                new Script(new SqlIdentifier("seed roles"), "INSERT INTO roles VALUES ('admin');", new DeploymentEvent(DeploymentPhase.Pre)),
-                new Script(new SqlIdentifier("backfill emails"), "UPDATE app.users SET email = '';", new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") }),
-                new Script(new SqlIdentifier("refresh views"), "REFRESH MATERIALIZED VIEW app.stats;", new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = RunCondition.Once },
+                new Script(new SqlIdentifier("seed roles"), new SqlText("INSERT INTO roles VALUES ('admin');"), new DeploymentEvent(DeploymentPhase.Pre)),
+                new Script(new SqlIdentifier("backfill emails"), new SqlText("UPDATE app.users SET email = '';"), new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") }),
+                new Script(new SqlIdentifier("refresh views"), new SqlText("REFRESH MATERIALIZED VIEW app.stats;"), new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = RunCondition.Once },
             ],
         };
     }

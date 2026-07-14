@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using Npgsql;
 using NSchema.Apply;
 using NSchema.Plan.Domain.Models;
+using NSchema.Project.Domain.Models;
 using NSchema.Tests.Fixtures;
 
 namespace NSchema.Tests.Sql;
@@ -46,8 +47,8 @@ public sealed class SqlExecutorTests : IAsyncLifetime
         // Arrange
         _options.Value.TransactionMode = TransactionMode.Single;
         IReadOnlyList<SqlStatement> plan = [
-            new SqlStatement($"""INSERT INTO "{_schema}"."t" (id) VALUES (1)"""),
-            new SqlStatement($"""INSERT INTO "{_schema}"."t" (id) VALUES (2)"""),
+            new SqlStatement(new SqlText($"""INSERT INTO "{_schema}"."t" (id) VALUES (1)""")),
+            new SqlStatement(new SqlText($"""INSERT INTO "{_schema}"."t" (id) VALUES (2)""")),
         ];
 
         // Act
@@ -63,8 +64,8 @@ public sealed class SqlExecutorTests : IAsyncLifetime
         // Arrange
         _options.Value.TransactionMode = TransactionMode.Single;
         IReadOnlyList<SqlStatement> plan = [
-            new SqlStatement($"""INSERT INTO "{_schema}"."t" (id) VALUES (1)"""),
-            new SqlStatement("SELECT * FROM nonexistent_table_xyz"),
+            new SqlStatement(new SqlText($"""INSERT INTO "{_schema}"."t" (id) VALUES (1)""")),
+            new SqlStatement(new SqlText("SELECT * FROM nonexistent_table_xyz")),
         ];
 
         // Act
@@ -81,8 +82,8 @@ public sealed class SqlExecutorTests : IAsyncLifetime
         // Arrange
         _options.Value.TransactionMode = TransactionMode.None;
         IReadOnlyList<SqlStatement> plan = [
-            new SqlStatement($"""INSERT INTO "{_schema}"."t" (id) VALUES (1)"""),
-            new SqlStatement("SELECT * FROM nonexistent_table_xyz"),
+            new SqlStatement(new SqlText($"""INSERT INTO "{_schema}"."t" (id) VALUES (1)""")),
+            new SqlStatement(new SqlText("SELECT * FROM nonexistent_table_xyz")),
         ];
 
         // Act
@@ -100,12 +101,12 @@ public sealed class SqlExecutorTests : IAsyncLifetime
         // Arrange
         _options.Value.TransactionMode = TransactionMode.Single;
         IReadOnlyList<SqlStatement> plan = [
-            new SqlStatement($"""INSERT INTO "{_schema}"."t" (id) VALUES (1)"""),
+            new SqlStatement(new SqlText($"""INSERT INTO "{_schema}"."t" (id) VALUES (1)""")),
             // RunOutsideTransaction forces the prior tx to commit even if a later
             // statement fails, so the first insert must survive the rollback below.
-            new SqlStatement($"""INSERT INTO "{_schema}"."t" (id) VALUES (2)""", RunOutsideTransaction: true),
-            new SqlStatement($"""INSERT INTO "{_schema}"."t" (id) VALUES (3)"""),
-            new SqlStatement("SELECT * FROM nonexistent_table_xyz"),
+            new SqlStatement(new SqlText($"""INSERT INTO "{_schema}"."t" (id) VALUES (2)"""), RunOutsideTransaction: true),
+            new SqlStatement(new SqlText($"""INSERT INTO "{_schema}"."t" (id) VALUES (3)""")),
+            new SqlStatement(new SqlText("SELECT * FROM nonexistent_table_xyz")),
         ];
 
         // Act

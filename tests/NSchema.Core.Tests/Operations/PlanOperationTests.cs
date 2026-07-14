@@ -16,7 +16,7 @@ public sealed class PlanOperationTests
 
     private readonly MigrationPlan _plan = new(
         new DatabaseDiff([new SchemaDiff(new SqlIdentifier("app"), ChangeKind.Add)]),
-        [new SqlStatement("CREATE SCHEMA app")]);
+        [new SqlStatement(new SqlText("CREATE SCHEMA app"))]);
 
     private readonly PlanOperation _sut;
 

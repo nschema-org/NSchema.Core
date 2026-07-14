@@ -72,7 +72,7 @@ public class Result
 /// The outcome of an operation that yields a <typeparamref name="T"/> on success or fails with reasons.
 /// </summary>
 /// <typeparam name="T">The value produced on success.</typeparam>
-public sealed class Result<T> : Result
+public class Result<T> : Result
 {
     internal Result(T? value, IReadOnlyList<Diagnostic> diagnostics) : base(diagnostics)
     {
@@ -132,4 +132,49 @@ public sealed class Result<T> : Result
     /// </summary>
     /// <param name="diagnostic">The diagnostic to carry.</param>
     public static implicit operator Result<T>(Diagnostic diagnostic) => Failure<T>(diagnostic);
+}
+
+/// <summary>
+/// A <see cref="Result{T}"/> whose diagnostics are a specialized type — a seam whose findings carry
+/// structured context (a source position, an offending node) exposes them typed, and the result still
+/// folds upward as a plain <see cref="Result{T}"/> without translation.
+/// </summary>
+/// <typeparam name="TValue">The value produced on success.</typeparam>
+/// <typeparam name="TDiagnostic">The diagnostic type the producer mints.</typeparam>
+public sealed class Result<TValue, TDiagnostic> : Result<TValue> where TDiagnostic : Diagnostic
+{
+    internal Result(TValue? value, IReadOnlyList<TDiagnostic> diagnostics) : base(value, diagnostics)
+    {
+    }
+
+    /// <summary>
+    /// Every finding produced, of any severity, in the producer's own diagnostic type.
+    /// </summary>
+    public new IReadOnlyList<TDiagnostic> Diagnostics => (IReadOnlyList<TDiagnostic>)base.Diagnostics;
+
+    /// <summary>
+    /// The error-severity subset of <see cref="Diagnostics"/>.
+    /// </summary>
+    public new IEnumerable<TDiagnostic> Errors => Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error);
+
+    /// <summary>
+    /// A successful result carrying <paramref name="value"/>, optionally with advisory diagnostics.
+    /// </summary>
+    /// <param name="value">The produced value.</param>
+    /// <param name="diagnostics">Advisory diagnostics to surface alongside the success.</param>
+    public static Result<TValue, TDiagnostic> Success(TValue value, params IEnumerable<TDiagnostic> diagnostics) => new(value, [.. diagnostics]);
+
+    /// <summary>
+    /// A failed result — no value — carrying the diagnostics that explain it.
+    /// </summary>
+    /// <param name="diagnostics">The diagnostics describing why the operation failed.</param>
+    public static Result<TValue, TDiagnostic> Failure(params IEnumerable<TDiagnostic> diagnostics) => new(default, [.. diagnostics]);
+
+    /// <summary>
+    /// A result built from <paramref name="value"/> plus an aggregated set of diagnostics, carrying the value
+    /// whether or not the result is a failure.
+    /// </summary>
+    /// <param name="value">The produced value.</param>
+    /// <param name="diagnostics">Every finding produced.</param>
+    public static Result<TValue, TDiagnostic> From(TValue? value, IEnumerable<TDiagnostic> diagnostics) => new(value, [.. diagnostics]);
 }

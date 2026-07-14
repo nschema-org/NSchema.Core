@@ -15,8 +15,8 @@ namespace NSchema.Project.Domain.Models.Routines;
 public sealed record Routine(
     SqlIdentifier Name,
     RoutineKind Kind,
-    string Arguments,
-    string Definition,
+    SqlText Arguments,
+    SqlText Definition,
     SqlIdentifier? OldName = null,
     string? Comment = null
 ) : IRenameableObject;

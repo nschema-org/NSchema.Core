@@ -1,4 +1,5 @@
 using System.Text;
+using NSchema.Project.Domain.Models;
 
 namespace NSchema.Diff.Domain;
 
@@ -22,8 +23,8 @@ namespace NSchema.Diff.Domain;
 internal static class SqlTextNormalizer
 {
     /// <summary>Returns <c>true</c> when two pieces of SQL text differ only cosmetically.</summary>
-    public static bool AreEquivalent(string current, string desired) =>
-        string.Equals(Normalize(current), Normalize(desired), StringComparison.Ordinal);
+    public static bool AreEquivalent(SqlText current, SqlText desired) =>
+        string.Equals(Normalize(current.Value), Normalize(desired.Value), StringComparison.Ordinal);
 
     private static string Normalize(string body)
     {

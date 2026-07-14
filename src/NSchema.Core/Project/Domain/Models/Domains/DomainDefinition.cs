@@ -18,7 +18,7 @@ namespace NSchema.Project.Domain.Models.Domains;
 public sealed record DomainDefinition(
     SqlIdentifier Name,
     SqlType DataType,
-    string? Default = null,
+    SqlText? Default = null,
     bool NotNull = false,
     IReadOnlyList<CheckConstraint>? Checks = null,
     SqlIdentifier? OldName = null,

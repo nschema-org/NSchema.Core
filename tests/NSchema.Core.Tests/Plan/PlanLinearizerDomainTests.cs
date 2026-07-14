@@ -40,7 +40,7 @@ public sealed class PlanLinearizerDomainTests
     public void DefaultAndNotNullChange_EmitInPlaceAlters()
     {
         var plan = Linearize(new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("d"), ChangeKind.Modify,
-            Default: new ValueChange<string>(null, "0"),
+            Default: new ValueChange<SqlText>(null, new SqlText("0")),
             NotNull: new ValueChange<bool>(false, true)));
 
         plan.OfType<RecreateDomain>().ShouldBeEmpty();
@@ -53,7 +53,7 @@ public sealed class PlanLinearizerDomainTests
     {
         var plan = Linearize(new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("d"), ChangeKind.Modify, Checks:
         [
-            new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("new_chk"), new NSchema.Project.Domain.Models.Constraints.CheckConstraint(new SqlIdentifier("new_chk"), "VALUE > 0")),
+            new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("new_chk"), new NSchema.Project.Domain.Models.Constraints.CheckConstraint(new SqlIdentifier("new_chk"), new SqlText("VALUE > 0"))),
             new CheckConstraintDiff(ChangeKind.Remove, new SqlIdentifier("old_chk")),
         ]));
 

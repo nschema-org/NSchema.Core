@@ -1,4 +1,4 @@
-using NSchema.Project.Ddl.Models.Config;
+using NSchema.Plugins;
 
 namespace NSchema.Tests.Configuration;
 

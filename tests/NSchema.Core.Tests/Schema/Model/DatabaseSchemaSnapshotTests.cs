@@ -30,7 +30,7 @@ public sealed class DatabaseSchemaSnapshotTests
                 ],
                 Views:
                 [
-                    new View(new SqlIdentifier("active_users"), "SELECT id, name FROM app.users", Comment: "currently active users",
+                    new View(new SqlIdentifier("active_users"), new SqlText("SELECT id, name FROM app.users"), Comment: "currently active users",
                         DependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users"))]),
                 ]),
         ]);
@@ -45,7 +45,7 @@ public sealed class DatabaseSchemaSnapshotTests
                 ],
                 Views:
                 [
-                    new View(new SqlIdentifier("invoice_totals"), "SELECT id, amount FROM app.invoices",
+                    new View(new SqlIdentifier("invoice_totals"), new SqlText("SELECT id, amount FROM app.invoices"),
                         DependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("invoices"))]),
                 ]),
         ]);
@@ -56,7 +56,7 @@ public sealed class DatabaseSchemaSnapshotTests
                 Tables: [new Table(new SqlIdentifier("daily_totals"), Columns: [new Column(new SqlIdentifier("day"), SqlType.Date)])],
                 Views:
                 [
-                    new View(new SqlIdentifier("weekly_rollup"), "SELECT day FROM reporting.daily_totals",
+                    new View(new SqlIdentifier("weekly_rollup"), new SqlText("SELECT day FROM reporting.daily_totals"),
                         DependsOn: [new ViewDependency(new SqlIdentifier("reporting"), new SqlIdentifier("daily_totals"))]),
                 ]),
         ]);

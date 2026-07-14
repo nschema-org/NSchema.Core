@@ -20,7 +20,7 @@ public sealed class ApplyOperationTests
     private readonly List<IPlanPolicy> _planPolicies = [];
     private readonly ISchemaStateManager _stateManager = Substitute.For<ISchemaStateManager>();
 
-    private readonly MigrationPlan _plan = new(new DatabaseDiff([]), [new SqlStatement("CREATE SCHEMA app")]);
+    private readonly MigrationPlan _plan = new(new DatabaseDiff([]), [new SqlStatement(new SqlText("CREATE SCHEMA app"))]);
     private static readonly MigrationPlan _emptyPlan = new(new DatabaseDiff([]), []);
 
     private ApplyOperation BuildSut(ISqlExecutor? executor) => new(_workflow, _progress, _planPolicies, _stateManager, executor);
@@ -81,7 +81,7 @@ public sealed class ApplyOperationTests
     public async Task Execute_Success_PassesTheAppliedPlanToTheCapture()
     {
         // Arrange — the plan carries its scripts whole; the capture derives the run-once ledger records from it.
-        var plan = _plan with { Diff = new DatabaseDiff([]) { Scripts = [new Script(new SqlIdentifier("seed"), "SELECT 1", new DeploymentEvent(DeploymentPhase.Post))] } };
+        var plan = _plan with { Diff = new DatabaseDiff([]) { Scripts = [new Script(new SqlIdentifier("seed"), new SqlText("SELECT 1"), new DeploymentEvent(DeploymentPhase.Post))] } };
 
         // Act
         await _sut.Execute(Args(plan), TestContext.Current.CancellationToken);
@@ -95,7 +95,7 @@ public sealed class ApplyOperationTests
     {
         // Arrange — whether the plan's run-once scripts ran before the failure is unknowable, so nothing is recorded.
         _executor.Execute(Arg.Any<IReadOnlyList<SqlStatement>>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("boom"));
-        var plan = _plan with { Diff = new DatabaseDiff([]) { Scripts = [new Script(new SqlIdentifier("seed"), "SELECT 1", new DeploymentEvent(DeploymentPhase.Post))] } };
+        var plan = _plan with { Diff = new DatabaseDiff([]) { Scripts = [new Script(new SqlIdentifier("seed"), new SqlText("SELECT 1"), new DeploymentEvent(DeploymentPhase.Post))] } };
 
         // Act
         await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(Args(plan), TestContext.Current.CancellationToken));

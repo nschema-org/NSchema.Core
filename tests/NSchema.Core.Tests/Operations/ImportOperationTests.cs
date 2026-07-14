@@ -1,7 +1,6 @@
 using NSchema.Current;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
-using NSchema.Project.Ddl;
 using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
@@ -13,6 +12,7 @@ using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Sequences;
 using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Domain.Models.Views;
+using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Operations;
 
@@ -48,7 +48,7 @@ public sealed class ImportOperationTests : IDisposable
     private static async Task<DatabaseSchema> ReadSchema(string path)
     {
         var text = await File.ReadAllTextAsync(path);
-        return DdlReader.Instance.Read(text).Require().Schema;
+        return new TestNsqlParser(text).Parse().Schema;
     }
 
     private string ObjectPath(string type, string name) => Path.Combine(_dir, "app", type, $"{name}.sql");
@@ -334,7 +334,7 @@ public sealed class ImportOperationTests : IDisposable
     // ── Canonical layout ─────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Execute_WritesFormatterCanonicalDdl()
+    public async Task Execute_WritesFormatterCanonicalNsql()
     {
         // Import output must already be in the formatter's canonical layout, so running `fmt` over an
         // imported file changes nothing. This is the invariant that keeps the two DDL paths from drifting.
@@ -345,17 +345,17 @@ public sealed class ImportOperationTests : IDisposable
         foreach (var file in Directory.EnumerateFiles(_dir, "*.sql", SearchOption.AllDirectories))
         {
             var text = await File.ReadAllTextAsync(file, TestContext.Current.CancellationToken);
-            DdlFormatter.Instance.Format(text).ShouldBe(text, $"{file} is not formatter-canonical");
+            NsqlFormatter.Format(text).ShouldBe(text, $"{file} is not formatter-canonical");
         }
     }
 
     private static DatabaseSchema RichSchema() => new([new SchemaDefinition(new SqlIdentifier("app"),
         Tables: [MakeTable("users"), MakeTable("orders")],
-        Views: [new View(new SqlIdentifier("active"), "SELECT 1")],
+        Views: [new View(new SqlIdentifier("active"), new SqlText("SELECT 1"))],
         Routines:
         [
-            new Routine(new SqlIdentifier("calc"), RoutineKind.Function, "", "RETURNS int LANGUAGE sql AS $$ SELECT 1 $$"),
-            new Routine(new SqlIdentifier("sync"), RoutineKind.Procedure, "", "LANGUAGE sql AS $$ SELECT 1 $$"),
+            new Routine(new SqlIdentifier("calc"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int LANGUAGE sql AS $$ SELECT 1 $$")),
+            new Routine(new SqlIdentifier("sync"), RoutineKind.Procedure, new SqlText(""), new SqlText("LANGUAGE sql AS $$ SELECT 1 $$")),
         ],
         Enums: [new EnumType(new SqlIdentifier("status"), ["a"])],
         Sequences: [new Sequence(new SqlIdentifier("order_id"), new SequenceOptions(StartWith: 1))])]);

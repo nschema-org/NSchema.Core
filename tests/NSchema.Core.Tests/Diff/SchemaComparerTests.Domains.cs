@@ -22,7 +22,7 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_NewDomain_IsAddCarryingDefinition()
     {
-        var diff = DiffDomains([], [new DomainDefinition(new SqlIdentifier("typeid"), SqlType.Text, Default: "''", NotNull: true)]);
+        var diff = DiffDomains([], [new DomainDefinition(new SqlIdentifier("typeid"), SqlType.Text, Default: new SqlText("''"), NotNull: true)]);
 
         diff!.Kind.ShouldBe(ChangeKind.Add);
         diff.Definition!.DataType.ShouldBe(SqlType.Text);
@@ -52,10 +52,10 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_DefaultChange_IsInPlace()
     {
-        var diff = DiffDomains([new DomainDefinition(new SqlIdentifier("d"), SqlType.Text, Default: "'a'")], [new DomainDefinition(new SqlIdentifier("d"), SqlType.Text, Default: "'b'")]);
+        var diff = DiffDomains([new DomainDefinition(new SqlIdentifier("d"), SqlType.Text, Default: new SqlText("'a'"))], [new DomainDefinition(new SqlIdentifier("d"), SqlType.Text, Default: new SqlText("'b'"))]);
 
         diff!.RequiresRecreate.ShouldBeFalse();
-        diff.Default.ShouldBe(new ValueChange<string>("'a'", "'b'"));
+        diff.Default.ShouldBe(new ValueChange<SqlText>(new SqlText("'a'"), new SqlText("'b'")));
         diff.Definition.ShouldBeNull();
     }
 
@@ -72,8 +72,8 @@ public partial class SchemaComparerTests
     public void Compare_CheckAddedAndRemoved_AreInPlace()
     {
         var diff = DiffDomains(
-            [new DomainDefinition(new SqlIdentifier("d"), SqlType.Text, Checks: [new CheckConstraint(new SqlIdentifier("old_chk"), "VALUE <> ''")])],
-            [new DomainDefinition(new SqlIdentifier("d"), SqlType.Text, Checks: [new CheckConstraint(new SqlIdentifier("new_chk"), "length(VALUE) > 0")])]);
+            [new DomainDefinition(new SqlIdentifier("d"), SqlType.Text, Checks: [new CheckConstraint(new SqlIdentifier("old_chk"), new SqlText("VALUE <> ''"))])],
+            [new DomainDefinition(new SqlIdentifier("d"), SqlType.Text, Checks: [new CheckConstraint(new SqlIdentifier("new_chk"), new SqlText("length(VALUE) > 0"))])]);
 
         diff!.RequiresRecreate.ShouldBeFalse();
         diff.Checks.Select(c => (c.Kind, c.Name.Value)).ShouldBe(

@@ -13,8 +13,8 @@ public sealed record SetColumnDefault(
     SqlIdentifier SchemaName,
     SqlIdentifier TableName,
     SqlIdentifier ColumnName,
-    string? OldDefault,
-    string? NewDefault
+    SqlText? OldDefault,
+    SqlText? NewDefault
 ) : MigrationAction
 {
     /// <inheritdoc />

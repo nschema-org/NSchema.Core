@@ -32,7 +32,7 @@ public sealed class PlanLinearizerDataMigrationTests
         => LinearizeTable(new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify, Columns: [column]), scripts);
 
     private static Script Migration(ChangeTrigger trigger, string member, string? name = null, string? sql = null) =>
-        new(new SqlIdentifier(name ?? member), sql ?? $"UPDATE app.users -- {member}", new ChangeEvent(trigger, new SqlIdentifier("users"), new SqlIdentifier(member)) { ScopeSchema = new SqlIdentifier("app") });
+        new(new SqlIdentifier(name ?? member), new SqlText(sql ?? $"UPDATE app.users -- {member}"), new ChangeEvent(trigger, new SqlIdentifier("users"), new SqlIdentifier(member)) { ScopeSchema = new SqlIdentifier("app") });
 
     [Fact]
     public void Linearize_AnnotatedRequiredColumnAdd_DecomposesIntoNullableAddBackfillAndTighten()
@@ -87,9 +87,9 @@ public sealed class PlanLinearizerDataMigrationTests
         // declared NOT NULL shape and only the migration is appended.
         var definition = shape switch
         {
-            "defaulted" => new Column(new SqlIdentifier("email"), SqlType.Text, DefaultExpression: "''"),
+            "defaulted" => new Column(new SqlIdentifier("email"), SqlType.Text, DefaultExpression: new SqlText("''")),
             "identity" => new Column(new SqlIdentifier("email"), SqlType.BigInt, IsIdentity: true),
-            _ => new Column(new SqlIdentifier("email"), SqlType.Text, GeneratedExpression: "lower(name)"),
+            _ => new Column(new SqlIdentifier("email"), SqlType.Text, GeneratedExpression: new SqlText("lower(name)")),
         };
         var migration = Migration(ChangeTrigger.AddColumn, "email");
         var column = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, definition) { MigrationScript = migration.Name };
@@ -169,7 +169,7 @@ public sealed class PlanLinearizerDataMigrationTests
     public void Linearize_MatchedScript_RidesTheActionWhole()
     {
         // Arrange
-        var migration = new Script(new SqlIdentifier("dedupe"), "DELETE FROM app.users",
+        var migration = new Script(new SqlIdentifier("dedupe"), new SqlText("DELETE FROM app.users"),
             new ChangeEvent(ChangeTrigger.AddConstraint, new SqlIdentifier("users"), new SqlIdentifier("users_pk")) { ScopeSchema = new SqlIdentifier("app") })
         {
             RunOutsideTransaction = true,

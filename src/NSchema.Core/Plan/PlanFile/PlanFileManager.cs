@@ -19,7 +19,7 @@ internal class PlanFileManager : IPlanFileManager
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-        Converters = { new JsonStringEnumConverter(), new SqlIdentifierJsonConverter() },
+        Converters = { new JsonStringEnumConverter(), new ValueObjectJsonConverter() },
         TypeInfoResolver = new DefaultJsonTypeInfoResolver
         {
             Modifiers = { JsonHelpers.IgnoreComputedProperties, ConfigurePolymorphism },

@@ -187,7 +187,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 // definition recreates the view under the new one, so no RenameView is emitted.
                 if (view.RenamedFrom is not null && !view.RequiresRecreate)
                 {
-                    actions.Add(new RenameView(view.Schema, view.RenamedFrom.Value, view.Name, view.IsMaterialized));
+                    actions.Add(new RenameView(view.Schema, view.RenamedFrom, view.Name, view.IsMaterialized));
                 }
 
                 if (view.Kind == ChangeKind.Remove)
@@ -322,7 +322,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             default: // Modify, or a null-Kind container whose tables changed.
                 if (schema.RenamedFrom is not null)
                 {
-                    actions.Add(new RenameSchema(schema.RenamedFrom.Value, schema.Name));
+                    actions.Add(new RenameSchema(schema.RenamedFrom, schema.Name));
                 }
                 EmitSchemaAttributes(schema, actions);
                 EmitEnums(schema, actions);
@@ -355,7 +355,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 default: // Modify
                     if (routine.RenamedFrom is not null)
                     {
-                        actions.Add(new RenameRoutine(routine.Schema, routine.RenamedFrom.Value, routine.Name, routine.RoutineKind));
+                        actions.Add(new RenameRoutine(routine.Schema, routine.RenamedFrom, routine.Name, routine.RoutineKind));
                     }
                     // A signature (or kind) change recreates (a replace under different arguments would create a
                     // separate overload); a definition-only change replaces in place.
@@ -394,7 +394,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 default: // Modify
                     if (domain.RenamedFrom is not null)
                     {
-                        actions.Add(new RenameDomain(domain.Schema, domain.RenamedFrom.Value, domain.Name));
+                        actions.Add(new RenameDomain(domain.Schema, domain.RenamedFrom, domain.Name));
                     }
                     // A base-type change can't be altered in place, so it recreates (default/not-null/checks rebuild
                     // with the definition); otherwise each facet is altered in place.
@@ -446,7 +446,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 default: // Modify
                     if (type.RenamedFrom is not null)
                     {
-                        actions.Add(new RenameCompositeType(type.Schema, type.RenamedFrom.Value, type.Name));
+                        actions.Add(new RenameCompositeType(type.Schema, type.RenamedFrom, type.Name));
                     }
                     // Every field change applies in place: a matched field whose type differs is retyped, a missing
                     // field is dropped, a new field is added. There is no recreate.
@@ -486,7 +486,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 default: // Modify
                     if (enumDiff.RenamedFrom is not null)
                     {
-                        actions.Add(new RenameEnum(enumDiff.Schema, enumDiff.RenamedFrom.Value, enumDiff.Name));
+                        actions.Add(new RenameEnum(enumDiff.Schema, enumDiff.RenamedFrom, enumDiff.Name));
                     }
                     // Additions are emitted in list order so each anchor exists when its addition runs (the
                     // stable priority sort preserves this). A removal/reorder has no AddedValues — it cannot be
@@ -522,7 +522,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 default: // Modify
                     if (sequence.RenamedFrom is not null)
                     {
-                        actions.Add(new RenameSequence(sequence.Schema, sequence.RenamedFrom.Value, sequence.Name));
+                        actions.Add(new RenameSequence(sequence.Schema, sequence.RenamedFrom, sequence.Name));
                     }
                     if (sequence.Options is not null)
                     {
@@ -582,7 +582,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             default: // Modify
                 if (table.RenamedFrom is not null)
                 {
-                    actions.Add(new RenameTable(table.Schema, table.RenamedFrom.Value, table.Name));
+                    actions.Add(new RenameTable(table.Schema, table.RenamedFrom, table.Name));
                 }
                 if (table.Comment is not null)
                 {
@@ -635,7 +635,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             case ChangeKind.Modify:
                 if (column.RenamedFrom is not null)
                 {
-                    actions.Add(new RenameColumn(table.Schema, table.Name, column.RenamedFrom.Value, column.Name));
+                    actions.Add(new RenameColumn(table.Schema, table.Name, column.RenamedFrom, column.Name));
                 }
                 if (column.Type is not null)
                 {

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using NSchema.Apply;
 using NSchema.Plan.Domain.Models;
+using NSchema.Project.Domain.Models;
 
 namespace NSchema.Tests.Sql;
 
@@ -22,7 +23,7 @@ public sealed class SqlExecutorOfflineTests
     [Fact]
     public async Task Execute_NonEmptyPlanWithoutDataSource_ThrowsClearError()
     {
-        var act = () => WithoutDataSource().Execute(new[] { new SqlStatement("SELECT 1") });
+        var act = () => WithoutDataSource().Execute(new[] { new SqlStatement(new SqlText("SELECT 1")) });
 
         var ex = await Should.ThrowAsync<InvalidOperationException>(act);
         ex.Message.ShouldContain("database connection");

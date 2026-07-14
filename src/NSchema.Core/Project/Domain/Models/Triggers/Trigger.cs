@@ -23,10 +23,10 @@ public record Trigger(
     RoutineReference? Function = null,
     TriggerLevel Level = TriggerLevel.Statement,
     IReadOnlyList<SqlIdentifier>? UpdateOfColumns = null,
-    string? When = null,
-    string? FunctionArguments = null,
+    SqlText? When = null,
+    SqlText? FunctionArguments = null,
     string? Comment = null,
-    string? Body = null
+    SqlText? Body = null
 ) : INamedObject
 {
     /// <summary>

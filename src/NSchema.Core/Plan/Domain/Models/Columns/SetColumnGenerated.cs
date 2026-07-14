@@ -14,8 +14,8 @@ public sealed record SetColumnGenerated(
     SqlIdentifier SchemaName,
     SqlIdentifier TableName,
     SqlIdentifier ColumnName,
-    string? OldExpression,
-    string? NewExpression
+    SqlText? OldExpression,
+    SqlText? NewExpression
 ) : MigrationAction
 {
     /// <inheritdoc />

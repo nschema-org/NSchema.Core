@@ -25,8 +25,9 @@ public static class VerifyModuleInitializer
         // A converter (rather than TreatAsString<SqlType>) is needed so it matches the subclasses too.
         VerifierSettings.AddExtraSettings(settings => settings.Converters.Add(new SqlTypeConverter()));
 
-        // An identifier is a string in every rendered form; snapshots show its written casing.
-        VerifierSettings.AddExtraSettings(settings => settings.Converters.Add(new SqlIdentifierConverter()));
+        // A value object (identifier, opaque SQL) is a string in every rendered form; snapshots show
+        // its exact underlying text.
+        VerifierSettings.AddExtraSettings(settings => settings.Converters.Add(new ValueObjectConverter()));
 
         // Addresses and routine references render as written.
         VerifierSettings.AddExtraSettings(settings => settings.Converters.Add(new ObjectReferenceConverter()));
@@ -40,10 +41,23 @@ public static class VerifyModuleInitializer
         public override void Write(VerifyJsonWriter writer, object value) => writer.WriteValue(value.ToString());
     }
 
-    private sealed class SqlIdentifierConverter : WriteOnlyJsonConverter<NSchema.Project.Domain.Models.SqlIdentifier>
+    private sealed class ValueObjectConverter : WriteOnlyJsonConverter
     {
-        public override void Write(VerifyJsonWriter writer, NSchema.Project.Domain.Models.SqlIdentifier value) =>
-            writer.WriteValue(value.Value);
+        public override bool CanConvert(Type type)
+        {
+            for (var current = type.BaseType; current is not null; current = current.BaseType)
+            {
+                if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(NSchema.Project.Domain.Models.ValueObject<>))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // ToString is sealed on the base as the value's own rendering, so this is the exact underlying text.
+        public override void Write(VerifyJsonWriter writer, object value) => writer.WriteValue(value.ToString());
     }
 
     private sealed class ObjectReferenceConverter : WriteOnlyJsonConverter<NSchema.Project.Domain.Models.ObjectReference>
