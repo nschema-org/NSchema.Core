@@ -22,9 +22,7 @@ internal sealed class SchemaAccumulator
 {
     private readonly List<Entry> _entries = [];
     private readonly Dictionary<SqlIdentifier, Entry> _byName = new();
-    private readonly List<SqlIdentifier> _droppedSchemas = [];
     private readonly List<Extension> _extensions = [];
-    private readonly List<SqlIdentifier> _droppedExtensions = [];
     private readonly List<PendingGrant> _tableGrants = [];
     private readonly List<PendingTrigger> _triggers = [];
     private readonly List<PendingIndex> _standaloneIndexes = [];
@@ -50,7 +48,7 @@ internal sealed class SchemaAccumulator
 
     public void AddInclude(TemplateInclude include) => _includes.Add(include);
 
-    public void DeclareSchema(SqlIdentifier name, SqlIdentifier? oldName, bool isPartial, string? comment, SourcePosition position)
+    public void DeclareSchema(SqlIdentifier name, string? comment, SourcePosition position)
     {
         var entry = GetOrAdd(name);
         if (entry.Declared)
@@ -60,8 +58,6 @@ internal sealed class SchemaAccumulator
         }
 
         entry.Declared = true;
-        entry.OldName = oldName;
-        entry.IsPartial = isPartial;
         entry.Comment = comment;
     }
 
@@ -186,84 +182,14 @@ internal sealed class SchemaAccumulator
         _extensions.Add(extension);
     }
 
-    public void DropSchema(SqlIdentifier name)
-    {
-        if (!_droppedSchemas.Contains(name))
-        {
-            _droppedSchemas.Add(name);
-        }
-    }
 
-    public void DropExtension(SqlIdentifier name)
-    {
-        if (!_droppedExtensions.Contains(name))
-        {
-            _droppedExtensions.Add(name);
-        }
-    }
 
-    public void DropTable(SqlIdentifier schema, SqlIdentifier table)
-    {
-        var entry = GetOrAdd(schema);
-        if (!entry.DroppedTables.Contains(table))
-        {
-            entry.DroppedTables.Add(table);
-        }
-    }
 
-    public void DropView(SqlIdentifier schema, SqlIdentifier view)
-    {
-        var entry = GetOrAdd(schema);
-        if (!entry.DroppedViews.Contains(view))
-        {
-            entry.DroppedViews.Add(view);
-        }
-    }
 
-    public void DropEnum(SqlIdentifier schema, SqlIdentifier enumName)
-    {
-        var entry = GetOrAdd(schema);
-        if (!entry.DroppedEnums.Contains(enumName))
-        {
-            entry.DroppedEnums.Add(enumName);
-        }
-    }
 
-    public void DropDomain(SqlIdentifier schema, SqlIdentifier domain)
-    {
-        var entry = GetOrAdd(schema);
-        if (!entry.DroppedDomains.Contains(domain))
-        {
-            entry.DroppedDomains.Add(domain);
-        }
-    }
 
-    public void DropCompositeType(SqlIdentifier schema, SqlIdentifier compositeType)
-    {
-        var entry = GetOrAdd(schema);
-        if (!entry.DroppedCompositeTypes.Contains(compositeType))
-        {
-            entry.DroppedCompositeTypes.Add(compositeType);
-        }
-    }
 
-    public void DropSequence(SqlIdentifier schema, SqlIdentifier sequence)
-    {
-        var entry = GetOrAdd(schema);
-        if (!entry.DroppedSequences.Contains(sequence))
-        {
-            entry.DroppedSequences.Add(sequence);
-        }
-    }
 
-    public void DropRoutine(SqlIdentifier schema, SqlIdentifier routine)
-    {
-        var entry = GetOrAdd(schema);
-        if (!entry.DroppedRoutines.Contains(routine))
-        {
-            entry.DroppedRoutines.Add(routine);
-        }
-    }
 
     public DatabaseSchema Build()
     {
@@ -271,11 +197,10 @@ internal sealed class SchemaAccumulator
         ApplyTriggers();
         ApplyIndexes();
         var schemas = _entries
-            .Select(e => new SchemaDefinition(e.Name, e.OldName, e.IsPartial, e.Comment, e.Tables, e.DroppedTables, e.Grants, e.Views, e.DroppedViews,
-                e.Enums, e.DroppedEnums, e.Sequences, e.DroppedSequences,
-                e.Routines, e.DroppedRoutines, e.Domains, e.DroppedDomains, e.CompositeTypes, e.DroppedCompositeTypes))
+            .Select(e => new SchemaDefinition(e.Name, e.Comment, e.Tables, e.Grants, e.Views,
+                e.Enums, e.Sequences, e.Routines, e.Domains, e.CompositeTypes))
             .ToList();
-        return new DatabaseSchema(schemas, _droppedSchemas, _extensions, _droppedExtensions);
+        return new DatabaseSchema(schemas, _extensions);
     }
 
     private void ApplyTableGrants()
@@ -395,24 +320,15 @@ internal sealed class SchemaAccumulator
     {
         public SqlIdentifier Name { get; } = name;
         public bool Declared { get; set; }
-        public SqlIdentifier? OldName { get; set; }
-        public bool IsPartial { get; set; }
         public string? Comment { get; set; }
         public List<Table> Tables { get; } = [];
-        public List<SqlIdentifier> DroppedTables { get; } = [];
         public List<SchemaGrant> Grants { get; } = [];
         public List<View> Views { get; } = [];
-        public List<SqlIdentifier> DroppedViews { get; } = [];
         public List<EnumType> Enums { get; } = [];
-        public List<SqlIdentifier> DroppedEnums { get; } = [];
         public List<Sequence> Sequences { get; } = [];
-        public List<SqlIdentifier> DroppedSequences { get; } = [];
         public List<Routine> Routines { get; } = [];
-        public List<SqlIdentifier> DroppedRoutines { get; } = [];
         public List<DomainDefinition> Domains { get; } = [];
-        public List<SqlIdentifier> DroppedDomains { get; } = [];
         public List<CompositeType> CompositeTypes { get; } = [];
-        public List<SqlIdentifier> DroppedCompositeTypes { get; } = [];
     }
 
     private readonly record struct PendingGrant(SqlIdentifier Schema, SqlIdentifier Table, TableGrant Grant, SourcePosition Position);

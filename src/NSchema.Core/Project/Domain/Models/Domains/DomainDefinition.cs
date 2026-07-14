@@ -12,7 +12,6 @@ namespace NSchema.Project.Domain.Models.Domains;
 /// <param name="Default">An optional default expression, stored verbatim (opaque SQL); <see langword="null"/> when none.</param>
 /// <param name="NotNull">Whether the domain forbids <c>NULL</c>.</param>
 /// <param name="Checks">The domain's <c>CHECK</c> constraints (their expressions reference the domain's <c>VALUE</c>); empty when none.</param>
-/// <param name="OldName">The previous name of the domain, if it has been renamed.</param>
 /// <param name="Comment">An optional comment or description for the domain.</param>
 [DebuggerDisplay("{Name,nq} (domain)")]
 public sealed record DomainDefinition(
@@ -21,9 +20,8 @@ public sealed record DomainDefinition(
     SqlText? Default = null,
     bool NotNull = false,
     IReadOnlyList<CheckConstraint>? Checks = null,
-    SqlIdentifier? OldName = null,
     string? Comment = null
-) : IRenameableObject
+) : INamedObject
 {
     /// <summary>
     /// The domain's <c>CHECK</c> constraints; empty when none.

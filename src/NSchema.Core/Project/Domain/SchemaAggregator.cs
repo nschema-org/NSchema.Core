@@ -18,12 +18,7 @@ internal static class SchemaAggregator
         var mergedSchemas = new[] { first, second }
             .SelectMany(db => db.Schemas)
             .GroupBy(s => s.Name)
-            .Select(s => AggregateSchemaGroup(s.ToList(), diagnostics))
-            .ToList();
-
-        var droppedSchemas = first.DroppedSchemas
-            .Concat(second.DroppedSchemas)
-            .Distinct()
+            .Select(s => AggregateSchemaGroup([..s], diagnostics))
             .ToList();
 
         // Extensions are database-global, so they aggregate at the root (not per schema). A name declared by
@@ -41,12 +36,7 @@ internal static class SchemaAggregator
             extensions.Add(extension);
         }
 
-        var droppedExtensions = first.DroppedExtensions
-            .Concat(second.DroppedExtensions)
-            .Distinct()
-            .ToList();
-
-        return Result.From(new DatabaseSchema(mergedSchemas, droppedSchemas, extensions, droppedExtensions), diagnostics);
+        return Result.From(new DatabaseSchema(mergedSchemas, extensions), diagnostics);
     }
 
     private static SchemaDefinition AggregateSchemaGroup(IReadOnlyList<SchemaDefinition> schemas, List<Diagnostic> diagnostics)
@@ -73,31 +63,12 @@ internal static class SchemaAggregator
         }
         var comment = comments.FirstOrDefault();
 
-        var oldNames = schemas.Select(s => s.OldName).Where(n => n is not null).Distinct().ToList();
-        if (oldNames.Count > 1)
-        {
-            diagnostics.Add(ProjectDiagnostics.ConflictingOldNames(schemaName));
-        }
-        var oldName = oldNames.FirstOrDefault();
-
-        var isPartial = schemas.Any(s => s.IsPartial);
-        var droppedTables = MergeDropped(schemas, s => s.DroppedTables);
-        var droppedViews = MergeDropped(schemas, s => s.DroppedViews);
-        var droppedEnums = MergeDropped(schemas, s => s.DroppedEnums);
-        var droppedSequences = MergeDropped(schemas, s => s.DroppedSequences);
-        var droppedRoutines = MergeDropped(schemas, s => s.DroppedRoutines);
-        var droppedDomains = MergeDropped(schemas, s => s.DroppedDomains);
-        var droppedCompositeTypes = MergeDropped(schemas, s => s.DroppedCompositeTypes);
-
         var grants = schemas
             .SelectMany(s => s.Grants)
             .Distinct()
             .ToList();
 
-        return new SchemaDefinition(
-            schemaName, oldName, isPartial, comment, tables, droppedTables, grants, views, droppedViews,
-            enums, droppedEnums, sequences, droppedSequences,
-            routines, droppedRoutines, domains, droppedDomains, compositeTypes, droppedCompositeTypes);
+        return new SchemaDefinition(schemaName, comment, tables, grants, views, enums, sequences, routines, domains, compositeTypes);
     }
 
     /// <summary>
@@ -128,7 +99,4 @@ internal static class SchemaAggregator
 
         return result;
     }
-
-    private static List<SqlIdentifier> MergeDropped(IReadOnlyList<SchemaDefinition> schemas, Func<SchemaDefinition, IEnumerable<SqlIdentifier>> select) =>
-        schemas.SelectMany(select).Distinct().ToList();
 }

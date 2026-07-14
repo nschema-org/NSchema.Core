@@ -1,8 +1,7 @@
 namespace NSchema.Project.Domain.Models;
 
 /// <summary>
-/// The identity members every named, commentable object shares — table members (constraints, indexes) as well
-/// as schema-level objects. Backs the comparer's shared table-member diffing skeleton.
+/// The identity members every named, commentable object shares.
 /// </summary>
 public interface INamedObject
 {

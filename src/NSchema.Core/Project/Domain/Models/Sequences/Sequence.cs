@@ -7,15 +7,13 @@ namespace NSchema.Project.Domain.Models.Sequences;
 /// </summary>
 /// <param name="Name">The name of the sequence.</param>
 /// <param name="Options">The sequence's options; unset options use the provider's defaults.</param>
-/// <param name="OldName">The previous name of the sequence, if it has been renamed.</param>
 /// <param name="Comment">An optional comment or description for the sequence.</param>
 [DebuggerDisplay("{Name,nq} (sequence)")]
 public sealed record Sequence(
     SqlIdentifier Name,
     SequenceOptions? Options = null,
-    SqlIdentifier? OldName = null,
     string? Comment = null
-) : IRenameableObject
+) : INamedObject
 {
     /// <summary>
     /// The sequence's options; unset options use the provider's defaults.

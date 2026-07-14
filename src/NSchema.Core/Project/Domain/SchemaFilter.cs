@@ -1,4 +1,5 @@
 using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Project.Domain;
 
@@ -17,10 +18,10 @@ internal static class SchemaFilter
             return project;
         }
 
-        var scripts = project.Scripts
-            .Where(s => s.Event.ScopeSchema is not { } schema || scope.Includes(schema))
-            .ToList();
-        return new ProjectDefinition(Apply(project.Schema, scope), scripts);
+        var schema = Apply(project.Schema, scope);
+        var scripts = Apply(project.Scripts, scope);
+        var directives = Apply(project.Directives, scope);
+        return new ProjectDefinition(schema, scripts, directives);
     }
 
     /// <summary>
@@ -36,7 +37,70 @@ internal static class SchemaFilter
         }
 
         var filtered = schema.Schemas.Where(s => scope.Includes(s.Name)).ToList();
-        var filteredDropped = schema.DroppedSchemas.Where(scope.Includes).ToList();
-        return new DatabaseSchema(filtered, filteredDropped, schema.Extensions, schema.DroppedExtensions);
+        return new DatabaseSchema(filtered, schema.Extensions);
+    }
+
+    private static IReadOnlyList<Script> Apply(IEnumerable<Script> scripts, SchemaScope scope)
+    {
+        return scripts
+            .Where(s => s.Event.ScopeSchema is not { } schema || scope.Includes(schema))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Restricts the directives to those addressing in-scope schemas.
+    /// </summary>
+    private static ProjectDirectives Apply(ProjectDirectives directives, SchemaScope scope)
+    {
+        // A current schema name maps to its declared name through the schema renames.
+        var declaredNames = directives.Schemas.Renames.ToDictionary(r => r.From, r => r.To);
+        bool InScope(SqlIdentifier currentSchema) =>
+            scope.Includes(currentSchema)
+            || (declaredNames.TryGetValue(currentSchema, out var declared) && scope.Includes(declared));
+
+        return new ProjectDirectives(
+            directives.Schemas with
+            {
+                Renames = [.. directives.Schemas.Renames.Where(r => scope.Includes(r.From) || scope.Includes(r.To))],
+                Drops = [.. directives.Schemas.Drops.Where(scope.Includes)],
+                Partials = [.. directives.Schemas.Partials.Where(scope.Includes)],
+            },
+            directives.Tables with
+            {
+                Renames = [.. directives.Tables.Renames.Where(r => InScope(r.From.Schema))],
+                Drops = [.. directives.Tables.Drops.Where(d => InScope(d.Schema))],
+                ColumnRenames = [.. directives.Tables.ColumnRenames.Where(r => InScope(r.From.Schema))],
+            },
+            directives.Views with
+            {
+                Renames = [.. directives.Views.Renames.Where(r => InScope(r.From.Schema))],
+                Drops = [.. directives.Views.Drops.Where(d => InScope(d.Schema))],
+            },
+            directives.Enums with
+            {
+                Renames = [.. directives.Enums.Renames.Where(r => InScope(r.From.Schema))],
+                Drops = [.. directives.Enums.Drops.Where(d => InScope(d.Schema))],
+            },
+            directives.Sequences with
+            {
+                Renames = [.. directives.Sequences.Renames.Where(r => InScope(r.From.Schema))],
+                Drops = [.. directives.Sequences.Drops.Where(d => InScope(d.Schema))],
+            },
+            directives.Routines with
+            {
+                Renames = [.. directives.Routines.Renames.Where(r => InScope(r.From.Schema))],
+                Drops = [.. directives.Routines.Drops.Where(d => InScope(d.Schema))],
+            },
+            directives.Domains with
+            {
+                Renames = [.. directives.Domains.Renames.Where(r => InScope(r.From.Schema))],
+                Drops = [.. directives.Domains.Drops.Where(d => InScope(d.Schema))],
+            },
+            directives.CompositeTypes with
+            {
+                Renames = [.. directives.CompositeTypes.Renames.Where(r => InScope(r.From.Schema))],
+                Drops = [.. directives.CompositeTypes.Drops.Where(d => InScope(d.Schema))],
+            },
+            directives.Extensions);
     }
 }

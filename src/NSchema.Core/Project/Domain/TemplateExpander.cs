@@ -264,7 +264,7 @@ internal static class TemplateExpander
             {
                 // The members project once against the placeholder; placeholder references (an unqualified
                 // REFERENCES in the body) re-point per including table below.
-                (members, _) = DocumentProjector.ProjectTableMembers(IncludePlaceholder, null, null, tableTemplate.Members);
+                (members, _) = DocumentProjector.ProjectTableMembers(IncludePlaceholder, null, tableTemplate.Members);
                 memberCache[include.TemplateName] = members;
             }
 

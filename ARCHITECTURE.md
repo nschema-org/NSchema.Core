@@ -46,8 +46,8 @@ Conventions that ride along:
 - **Data shapes separate from the functional surface, fractally.** Within any capability namespace, model/data-shaped types sit in a `Models`
   child (`Project.Ddl.Models`, `Operations.Progress`), keeping the capability root for the machinery and seams. Same instinct as `.Domain.Models`,
   applied at whatever depth the capability lives.
-- **Shape interfaces are earned by machinery, not by pattern-spotting.** `INamedObject`/`IRenameableObject` exist because the comparer's matching
-  dispatches over them; `ScopeSchema` arrived with its consumers. A shared shape with no generic consumer is speculative surface — add it when the
+- **Shape interfaces are earned by machinery, not by pattern-spotting.** `INamedObject` exists because the comparer's matching
+  dispatches over it; `ScopeSchema` arrived with its consumers. A shared shape with no generic consumer is speculative surface — add it when the
   machinery that reads it arrives, shaped by what that machinery actually asks. (Corollary: in the model tree, belonging is *containment*, never a
   denormalized parent-name property.)
 - **Stateless is static; stateful or configured is constructed.** A pure function over data (`NsqlReader`, the assembler, the
@@ -70,9 +70,18 @@ document, a declaration in the project, and an execution record in the ledger, a
 namespace-reference rules:
 
 1. **Source vocabulary** — each source contributes a vocabulary the stages may read, and the diff stage consumes both by definition (it diffs the
-   sources): `Project.Domain.Models` is the subject language (the schema tree; the script declarations and events), `Current.Domain.Models` is the
-   observation language (`SchemaState` and its ledger entries, `ScriptRecord`). Closed: nothing else is promoted into this tier, and the sources
-   never reference the stages or each other.
+   sources): `Project.Domain.Models` is the subject language (the schema tree; the script declarations and events; the management directives),
+   `Current.Domain.Models` is the observation language (`SchemaState` and its ledger entries, `ScriptRecord`). Closed: nothing else is promoted
+   into this tier, and the sources never reference the stages or each other.
+   **Statements declare; directives steer.** The schema tree is pure observation vocabulary — introspection can produce every field on it, so it
+   carries no `OldName`, no `IsPartial`, no `Dropped*`. Management intent lives on `ProjectDirectives`: per-kind slice records in their subject
+   namespaces (kind is encoded *structurally* — which property you are in — so no consumer type-switches, and a kind that cannot take a verb simply
+   lacks the field), cross-kind directives at the root (crossing kinds is the orchestrating walker's job). Directive application is deliberately
+   *not* on the directives (behavior lives with the composition it needs — the comparer's matching); what a directive owns is its address. Directive
+   addresses name **current reality** — the names things have now — with one exception: a partial marks the project's own declaration, so it carries
+   the declared name. The rules that need no current state (target declared, source not, no chains/collisions, no rename-of-dropped, no
+   drop-of-declared) validate at the read; the rule that needs current state (an applied rename is spent) is the differ's, reported as a
+   self-expiry info.
 2. **Stage artifacts** — each stage's output record is its contract with the next stage and flows only forward along the DAG: parsed documents →
    project → `DatabaseDiff` (the complete difference, implied script runs included) → the plan artifact.
 3. **Lane-private models** — the DDL syntax tree, the state envelope, the plan-file envelope. These never cross their cluster boundary; anything
@@ -163,8 +172,7 @@ NSchema                     app, builder, options · Result / Result<T> / Result
   Pointing at a node *from outside the tree* takes an **address**: `ObjectReference` (schema + name, both required — an address that isn't fully
   qualified identifies nothing; component-wise identifier equality, never a dotted string smuggled through `SqlIdentifier`), `ScriptReference`
   (scope schema + name — the one address whose container is *genuinely optional by domain*: a null schema means the script is global, living at the
-  project root, not that resolution is deferred), and, when the directives
-  land, `MemberPath` (schema + object + member). An address is distinct from a **reference as written** (`RoutineReference`, optionally qualified —
+  project root, not that resolution is deferred), and `MemberPath` (schema + object + member — a column rename's subject). An address is distinct from a **reference as written** (`RoutineReference`, optionally qualified —
   an unqualified routine reference is resolved by the engine's search path, so it stays as declared; resolving one sets its schema part, never
   concatenates text). Renames, change-event script matching, and targeting
   all consume addresses. Address *resolution* (address → node) is a domain service over the pure tree (`SchemaIndex`, when its first consumer

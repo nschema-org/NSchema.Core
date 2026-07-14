@@ -7,15 +7,13 @@ namespace NSchema.Project.Domain.Models.CompositeTypes;
 /// </summary>
 /// <param name="Name">The name of the composite type.</param>
 /// <param name="Fields">The ordered fields (attributes) of the type; may be empty.</param>
-/// <param name="OldName">The previous name of the composite type, if it has been renamed.</param>
 /// <param name="Comment">An optional comment or description for the composite type.</param>
 [DebuggerDisplay("{Name,nq} (composite type, {Fields.Count} fields)")]
 public sealed record CompositeType(
     SqlIdentifier Name,
     IReadOnlyList<CompositeField>? Fields = null,
-    SqlIdentifier? OldName = null,
     string? Comment = null
-) : IRenameableObject
+) : INamedObject
 {
     /// <summary>
     /// The fields (attributes) of the type, matched by name; may be empty.
