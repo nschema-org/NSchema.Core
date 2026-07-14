@@ -23,7 +23,7 @@ namespace NSchema.Project.Domain.Models.Schemas;
 /// <param name="Domains">A list of domains that are part of the schema.</param>
 /// <param name="CompositeTypes">A list of composite types that are part of the schema.</param>
 [DebuggerDisplay("{Name,nq} ({Tables.Count} tables)")]
-public record SchemaDefinition(
+public record Schema(
     SqlIdentifier Name,
     string? Comment = null,
     IReadOnlyList<Table>? Tables = null,
@@ -32,7 +32,7 @@ public record SchemaDefinition(
     IReadOnlyList<EnumType>? Enums = null,
     IReadOnlyList<Sequence>? Sequences = null,
     IReadOnlyList<Routine>? Routines = null,
-    IReadOnlyList<DomainDefinition>? Domains = null,
+    IReadOnlyList<DomainType>? Domains = null,
     IReadOnlyList<CompositeType>? CompositeTypes = null
 ) : INamedObject
 {
@@ -65,7 +65,7 @@ public record SchemaDefinition(
     /// <summary>
     /// A list of domains that are part of the schema.
     /// </summary>
-    public IReadOnlyList<DomainDefinition> Domains { get; init; } = Domains ?? [];
+    public IReadOnlyList<DomainType> Domains { get; init; } = Domains ?? [];
 
     /// <summary>
     /// A list of composite types that are part of the schema.

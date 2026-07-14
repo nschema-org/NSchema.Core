@@ -25,9 +25,9 @@ internal interface IMigrationPlanner
     Result<MigrationPlan> Plan(CurrentState current, ProjectDefinition desired);
 
     /// <summary>
-    /// Builds a teardown plan that drops everything in <paramref name="currentSchema"/>.
+    /// Builds a teardown plan that drops everything in <paramref name="database"/>.
     /// </summary>
-    /// <param name="currentSchema">The managed schema to tear down.</param>
+    /// <param name="database">The managed database to tear down.</param>
     /// <returns>The teardown plan, including the structured diff describing the removals.</returns>
-    Result<MigrationPlan> PlanTeardown(DatabaseSchema currentSchema);
+    Result<MigrationPlan> PlanTeardown(Database database);
 }

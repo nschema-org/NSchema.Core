@@ -14,7 +14,7 @@ namespace NSchema.Project.Domain.Models.Domains;
 /// <param name="Checks">The domain's <c>CHECK</c> constraints (their expressions reference the domain's <c>VALUE</c>); empty when none.</param>
 /// <param name="Comment">An optional comment or description for the domain.</param>
 [DebuggerDisplay("{Name,nq} (domain)")]
-public sealed record DomainDefinition(
+public sealed record DomainType(
     SqlIdentifier Name,
     SqlType DataType,
     SqlText? Default = null,
