@@ -128,7 +128,7 @@ public sealed class ApplyEndToEndTests : IDisposable
                     id int NOT NULL,
                     actor text NOT NULL
                 );
-                SCRIPT 'backfill {schema} actors' RUN ON ADD COLUMN events.actor AS $$
+                SCRIPT 'backfill actors' RUN ON ADD COLUMN events.actor AS $$
                 UPDATE {schema}.events SET actor = 'system';
                 $$;
             END;
@@ -153,7 +153,7 @@ public sealed class ApplyEndToEndTests : IDisposable
 
         // Billing's instance is inert this run and says so; sales' matched instance reports nothing.
         var inert = result.Diagnostics.Where(d => d.Source == "data-migrations").ShouldHaveSingleItem();
-        inert.Message.ShouldContain("'backfill billing actors'");
+        inert.Message.ShouldContain("'backfill actors'");
         inert.Message.ShouldContain("billing.events.actor");
     }
 
@@ -180,7 +180,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         ShouldlyIdentifierExtensions.ShouldBe(first.Plan!.Diff.Scripts.ShouldHaveSingleItem().Name, "seed currencies");
         await app.Operations.Apply(new ApplyArguments { Plan = first.Plan! }, TestContext.Current.CancellationToken);
 
-        ShouldlyIdentifierExtensions.ShouldBe(_store.Written.ShouldNotBeNull().Scripts.ShouldHaveSingleItem().Name, "seed currencies");
+        ShouldlyIdentifierExtensions.ShouldBe(_store.Written.ShouldNotBeNull().Scripts.ShouldHaveSingleItem().Script.Name, "seed currencies");
 
         // Second run: the script is skipped, and no longer up for recording.
         var second = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);

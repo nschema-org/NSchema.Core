@@ -143,7 +143,7 @@ internal sealed class MigrationWorkflow(
             // execution records derive here at the state boundary.
             var executed = applied.Diff.Scripts
                 .Where(s => s.RunCondition == RunCondition.Once)
-                .Select(s => new ScriptExecution(s.Name, s.Hash, DateTimeOffset.UtcNow))
+                .Select(s => new ScriptExecution(s.Reference, s.Hash, DateTimeOffset.UtcNow))
                 .ToList();
             state = state.RecordExecution(executed);
         }

@@ -107,7 +107,9 @@ public sealed class DiffReader
 
         foreach (var script in scripts)
         {
-            AppendHeader(lines, ChangeKind.Add, $"script '{script.Name}' ({EventText(script.Event)})");
+            AppendHeader(lines, ChangeKind.Add, script.Event.ScopeSchema is { } scope
+                ? $"script '{script.Name}' (schema {scope}, {EventText(script.Event)})"
+                : $"script '{script.Name}' ({EventText(script.Event)})");
         }
     }
 

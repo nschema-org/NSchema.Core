@@ -13,9 +13,9 @@ public sealed class DatabaseDiffTests
 
     [Fact]
     public void FindScript_ResolvesByName_CaseInsensitively()
-        => _diff.FindScript(new SqlIdentifier("backfill emails")).ShouldBe(_diff.Scripts[0]);
+        => _diff.FindScript(new ScriptReference(null, new SqlIdentifier("backfill emails"))).ShouldBe(_diff.Scripts[0]);
 
     [Fact]
     public void FindScript_UnknownName_ReturnsNull()
-        => _diff.FindScript(new SqlIdentifier("nope")).ShouldBeNull();
+        => _diff.FindScript(new ScriptReference(null, new SqlIdentifier("nope"))).ShouldBeNull();
 }

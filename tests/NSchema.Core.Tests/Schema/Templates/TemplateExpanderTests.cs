@@ -485,19 +485,19 @@ public sealed class TemplateExpanderTests
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL );
-              SCRIPT 'seed {schema}' RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
+              SCRIPT 'seed' RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales, billing;
             """).Require().Scripts;
 
-        // Assert — one instance per applied schema, scoped to it via the event, token substituted in
-        // name and body, run condition carried.
+        // Assert — one instance per applied schema, scoped to it via the event (the shared name is two
+        // distinct scripts), token substituted in the body, run condition carried.
         scripts.Count.ShouldBe(2);
         scripts[0].Event.ShouldBeOfType<DeploymentEvent>().ScopeSchema.ShouldBe("sales");
-        scripts[0].Name.ShouldBe("seed sales");
+        scripts[0].Reference.ShouldBe(new ScriptReference(new SqlIdentifier("sales"), new SqlIdentifier("seed")));
         scripts[0].Sql.ShouldBe("INSERT INTO sales.outbox_events VALUES (1);");
         scripts[0].RunCondition.ShouldBe(RunCondition.Once);
         scripts[1].Event.ShouldBeOfType<DeploymentEvent>().ScopeSchema.ShouldBe("billing");
-        scripts[1].Name.ShouldBe("seed billing");
+        scripts[1].Reference.ShouldBe(new ScriptReference(new SqlIdentifier("billing"), new SqlIdentifier("seed")));
     }
 }

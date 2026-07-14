@@ -38,9 +38,9 @@ public sealed class ProjectComparerTests
     private static Script EmailBackfillMigration() =>
         new(new SqlIdentifier("backfill emails"), new SqlText("UPDATE app.users SET email = ''"), new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") });
 
-    /// <summary>A current state recording <paramref name="sql"/> as script <paramref name="name"/>'s executed body.</summary>
-    private static CurrentState Executed(string name, string sql) =>
-        new(_emptySchema, [new ScriptExecution(new SqlIdentifier(name), ScriptHashing.Hash(new SqlText(sql)), DateTimeOffset.UnixEpoch)]);
+    /// <summary>A current state recording <paramref name="sql"/> as <paramref name="script"/>'s executed body.</summary>
+    private static CurrentState Executed(Script script, string sql) =>
+        new(_emptySchema, [new ScriptExecution(script.Reference, ScriptHashing.Hash(new SqlText(sql)), DateTimeOffset.UnixEpoch)]);
 
     /// <summary>A diff adding a required, defaultless <c>app.users.email</c> column to an existing table.</summary>
     private static DatabaseDiff AddedEmailColumnDiff() => new(
@@ -82,7 +82,7 @@ public sealed class ProjectComparerTests
     public void Compare_ExecutedRunOnceScript_IsNotPartOfTheDifference()
     {
         // Act — the script has already run, so it is not part of the current→desired difference.
-        var comparison = Sut.Compare(Executed("seed", SeedScript().Sql.Value), new ProjectDefinition(_emptySchema, [SeedScript()]));
+        var comparison = Sut.Compare(Executed(SeedScript(), SeedScript().Sql.Value), new ProjectDefinition(_emptySchema, [SeedScript()]));
 
         // Assert
         comparison.Require().Scripts.ShouldBeEmpty();
@@ -94,7 +94,7 @@ public sealed class ProjectComparerTests
     public void Compare_ExecutedRunOnceScriptWithChangedBody_StaysSkippedWithAWarning()
     {
         // Act — the recorded hash is of a different body; silently re-running is never safe.
-        var comparison = Sut.Compare(Executed("seed", "some other body"), new ProjectDefinition(_emptySchema, [SeedScript()]));
+        var comparison = Sut.Compare(Executed(SeedScript(), "some other body"), new ProjectDefinition(_emptySchema, [SeedScript()]));
 
         // Assert
         comparison.Require().Scripts.ShouldBeEmpty();
@@ -104,13 +104,30 @@ public sealed class ProjectComparerTests
     }
 
     [Fact]
+    public void Compare_RunOnceExecutedUnderAnotherScope_StaysPending()
+    {
+        // Arrange — the ledger records (scope, name): an execution recorded for one schema's script does not
+        // satisfy a global (or differently scoped) script sharing the name.
+        var script = SeedScript();
+        var scoped = new CurrentState(_emptySchema,
+            [new ScriptExecution(new ScriptReference(new SqlIdentifier("sales"), script.Name), script.Hash, DateTimeOffset.UnixEpoch)]);
+
+        // Act
+        var comparison = Sut.Compare(scoped, new ProjectDefinition(_emptySchema, [script]));
+
+        // Assert
+        comparison.Require().Scripts.ShouldHaveSingleItem().ShouldBe(script);
+        comparison.Diagnostics.ShouldBeEmpty();
+    }
+
+    [Fact]
     public void Compare_AlwaysScript_IgnoresRecordedExecutions()
     {
         // Arrange — same name recorded, but the script is not run-once.
         var script = SeedScript() with { RunCondition = RunCondition.Always };
 
         // Act
-        var comparison = Sut.Compare(Executed("seed", script.Sql.Value), new ProjectDefinition(_emptySchema, [script]));
+        var comparison = Sut.Compare(Executed(script, script.Sql.Value), new ProjectDefinition(_emptySchema, [script]));
 
         // Assert
         comparison.Require().Scripts.ShouldHaveSingleItem();
@@ -160,7 +177,7 @@ public sealed class ProjectComparerTests
         _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(AddedEmailColumnDiff());
 
         // Act
-        var comparison = Sut.Compare(Executed("backfill emails", migration.Sql.Value), new ProjectDefinition(_emptySchema, [migration]));
+        var comparison = Sut.Compare(Executed(migration, migration.Sql.Value), new ProjectDefinition(_emptySchema, [migration]));
 
         // Assert
         comparison.Require().Schemas[0].Tables[0].Columns[0].MigrationScript.ShouldBeNull();

@@ -3,8 +3,8 @@ using NSchema.Project.Domain.Models;
 namespace NSchema.Project.Domain;
 
 /// <summary>
-/// The <c>{schema}</c> substitution token a template script may carry in its name and SQL body, and the
-/// substitution that instantiates it for an applied schema. The single home of the token's spelling.
+/// The <c>{schema}</c> substitution token a template script may carry in its SQL body, and the substitution
+/// that instantiates it for an applied schema. The single home of the token's spelling.
 /// </summary>
 internal static class SchemaToken
 {
@@ -15,12 +15,6 @@ internal static class SchemaToken
     /// include resolution; re-pointed at the applied schema when an instance merges.
     /// </summary>
     public static readonly SqlIdentifier TargetSchemaPlaceholder = new("<template>");
-
-    /// <summary>
-    /// Instantiates the token in a script name, producing the instance's identifier.
-    /// </summary>
-    public static SqlIdentifier Instantiate(SqlIdentifier name, SqlIdentifier schema) =>
-        new(name.Value.Replace(Token, schema.Value, StringComparison.Ordinal));
 
     /// <summary>
     /// Instantiates the token in raw text (a SQL body).

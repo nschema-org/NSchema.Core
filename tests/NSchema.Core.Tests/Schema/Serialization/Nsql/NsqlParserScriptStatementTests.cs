@@ -161,7 +161,7 @@ public sealed class NsqlParserScriptStatementTests
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL );
-              SCRIPT 'seed {schema}' RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
+              SCRIPT 'seed' RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA app;
             """);
@@ -170,7 +170,7 @@ public sealed class NsqlParserScriptStatementTests
         assembled.IsSuccess.ShouldBeTrue();
 
         var script = assembled.Value.Scripts.ShouldHaveSingleItem();
-        script.Name.ShouldBe("seed app");
+        script.Name.ShouldBe("seed");
         script.Sql.Value.ShouldContain("INSERT INTO app.outbox_events");
         script.Event.ShouldBe(new DeploymentEvent(DeploymentPhase.Post) { ScopeSchema = new SqlIdentifier("app") });
         script.RunCondition.ShouldBe(RunCondition.Once);

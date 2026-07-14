@@ -27,6 +27,9 @@ public sealed class ProjectProviderTests : IDisposable
         return new ProjectSource(root, matcher);
     }
 
+    private static ScriptReference Scoped(string schema, string name) =>
+        new(new SqlIdentifier(schema), new SqlIdentifier(name));
+
     [Fact]
     public async Task GetProject_NoSources_Throws()
         => await Should.ThrowAsync<InvalidOperationException>(() => new ProjectProvider([]).GetProject(SchemaScope.All).AsTask());
@@ -254,7 +257,7 @@ public sealed class ProjectProviderTests : IDisposable
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL, trace_id text NOT NULL );
-              SCRIPT 'backfill {schema} trace' RUN ON ADD COLUMN outbox_events.trace_id AS $$ UPDATE {schema}.outbox_events SET trace_id = ''; $$;
+              SCRIPT 'backfill trace' RUN ON ADD COLUMN outbox_events.trace_id AS $$ UPDATE {schema}.outbox_events SET trace_id = ''; $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales, billing;
             """);
@@ -263,18 +266,19 @@ public sealed class ProjectProviderTests : IDisposable
         // Act
         var project = (await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
 
-        // Assert — the {schema} token substitutes in the name as well as the body, keeping instances unique.
+        // Assert — the {schema} token substitutes in the body; the instances keep the declared name and are
+        // kept distinct by their scope.
         project.Scripts.Count.ShouldBe(2);
         project.Scripts.Select(m => ((ChangeEvent)m.Event).Path).ShouldBe(["sales.outbox_events.trace_id", "billing.outbox_events.trace_id"]);
-        project.Scripts.Select(m => m.Name).ShouldBe(["backfill sales trace", "backfill billing trace"]);
+        project.Scripts.Select(m => m.Reference).ShouldBe([Scoped("sales", "backfill trace"), Scoped("billing", "backfill trace")]);
         project.Scripts[1].Sql.ShouldBe("UPDATE billing.outbox_events SET trace_id = '';");
     }
 
     [Fact]
-    public async Task GetProject_TemplateMigrationNameWithoutSchemaToken_FailsOnSecondInstance()
+    public async Task GetProject_TemplateMigrationInstances_AreDistinctPerSchema()
     {
-        // Arrange — applying to two schemas instantiates the block twice; without {schema} in the name the
-        // instances collide.
+        // Arrange — applying to two schemas instantiates the block twice; the instances share a name and are
+        // distinct scripts, because identity is (scope, name) and each scopes to its applied schema.
         Write("schema.sql", "CREATE SCHEMA sales; CREATE SCHEMA billing;");
         Write("outbox.sql",
             """
@@ -291,10 +295,8 @@ public sealed class ProjectProviderTests : IDisposable
         var result = await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken);
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        var error = result.Errors.ShouldHaveSingleItem();
-        error.ShouldBe(ProjectDiagnostics.DuplicateScriptName(new SqlIdentifier("backfill trace")));
-        error.Message.ShouldContain("{schema}");
+        result.IsSuccess.ShouldBeTrue();
+        result.Value!.Scripts.Select(s => s.Reference).ShouldBe([Scoped("sales", "backfill trace"), Scoped("billing", "backfill trace")]);
     }
 
     [Fact]
@@ -328,8 +330,8 @@ public sealed class ProjectProviderTests : IDisposable
     [Fact]
     public async Task GetProject_DuplicateScriptNames_FailTheRead()
     {
-        // Arrange — names identify scripts (run-once tracking, diagnostics), so a collision anywhere in the
-        // project is an error, whichever statement forms are involved.
+        // Arrange — the address identifies a script (run-once tracking, diagnostics), so two globals sharing a
+        // name is a collision, whichever statement forms are involved.
         Write("a.sql", "SCRIPT 'seed' RUN ON POST DEPLOYMENT AS $$ SELECT 1; $$;");
         Write("b.sql", "SCRIPT 'seed' RUN ON POST DEPLOYMENT AS $$ SELECT 2; $$;");
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
@@ -338,7 +340,29 @@ public sealed class ProjectProviderTests : IDisposable
         var result = await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken);
 
         result.IsFailure.ShouldBeTrue();
-        result.Errors.ShouldContain(d => d.Message.Contains("Duplicate script name 'seed'"));
+        result.Errors.ShouldHaveSingleItem()
+            .ShouldBe(ProjectDiagnostics.DuplicateScriptName(new ScriptReference(null, new SqlIdentifier("seed"))));
+    }
+
+    [Fact]
+    public async Task GetProject_DuplicateScriptNamesInTheSameScope_FailTheRead()
+    {
+        // Arrange — two change-event scripts in the same schema sharing a name collide; the diagnostic renders
+        // the scoped address.
+        Write("schema.sql",
+            """
+            CREATE SCHEMA sales;
+            SCRIPT 'seed' RUN ON ADD COLUMN sales.orders.total AS $$ SELECT 1; $$;
+            SCRIPT 'seed' RUN ON ADD COLUMN sales.orders.tax AS $$ SELECT 2; $$;
+            """);
+        var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
+
+        // Act / Assert
+        var result = await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem()
+            .ShouldBe(ProjectDiagnostics.DuplicateScriptName(new ScriptReference(new SqlIdentifier("sales"), new SqlIdentifier("seed"))));
     }
 
     [Fact]
@@ -366,7 +390,7 @@ public sealed class ProjectProviderTests : IDisposable
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL );
-              SCRIPT 'seed {schema}' RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
+              SCRIPT 'seed' RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales, billing;
             """);
@@ -375,8 +399,8 @@ public sealed class ProjectProviderTests : IDisposable
         // Act
         var project = (await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
 
-        // Assert
-        project.Scripts.Select(s => s.Name).ShouldBe(["seed sales", "seed billing"]);
+        // Assert — each instance keeps the declared name and scopes to its applied schema.
+        project.Scripts.Select(s => s.Reference).ShouldBe([Scoped("sales", "seed"), Scoped("billing", "seed")]);
     }
 
     [Fact]
@@ -395,7 +419,7 @@ public sealed class ProjectProviderTests : IDisposable
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL );
-              SCRIPT 'seed {schema}' RUN ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
+              SCRIPT 'seed' RUN ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales, billing;
             """);
@@ -405,31 +429,7 @@ public sealed class ProjectProviderTests : IDisposable
         var project = (await sut.GetProject(SchemaScope.Of(new SqlIdentifier("billing")), TestContext.Current.CancellationToken)).Value!;
 
         // Assert
-        project.Scripts.Select(s => s.Name).ShouldBe(["global", "seed billing"]);
-    }
-
-    [Fact]
-    public async Task GetProject_TemplateDeploymentScriptNameWithoutSchemaToken_FailsOnSecondInstance()
-    {
-        // Arrange
-        Write("schema.sql", "CREATE SCHEMA sales; CREATE SCHEMA billing;");
-        Write("outbox.sql",
-            """
-            TEMPLATE outbox
-            BEGIN
-              CREATE TABLE outbox_events ( id int NOT NULL );
-              SCRIPT 'seed' RUN ON POST DEPLOYMENT AS $$ SELECT 1; $$;
-            END;
-            APPLY TEMPLATE outbox IN SCHEMA sales, billing;
-            """);
-        var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
-
-        // Act
-        var result = await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken);
-
-        // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Errors.ShouldHaveSingleItem().ShouldBe(ProjectDiagnostics.DuplicateScriptName(new SqlIdentifier("seed")));
+        project.Scripts.Select(s => s.Reference).ShouldBe([new ScriptReference(null, new SqlIdentifier("global")), Scoped("billing", "seed")]);
     }
 
     [Fact]

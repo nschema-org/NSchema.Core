@@ -31,9 +31,9 @@ public sealed record DatabaseDiff(
     public IReadOnlyList<Script> Scripts { get; init; } = [];
 
     /// <summary>
-    /// Resolves a script on <see cref="Scripts"/> by name.
+    /// Resolves a script on <see cref="Scripts"/> by address.
     /// </summary>
-    public Script? FindScript(SqlIdentifier name) => Scripts.FirstOrDefault(s => s.Name == name);
+    public Script? FindScript(ScriptReference script) => Scripts.FirstOrDefault(s => s.Reference == script);
 
     /// <summary>
     /// Gets a value indicating whether the diff contains no changes at all — no schema changes and no script runs.

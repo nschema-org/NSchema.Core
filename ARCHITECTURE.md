@@ -161,7 +161,9 @@ NSchema                     app, builder, options · Result / Result<T> / Result
   `SqlIdentifier` models the engine's name-resolution semantics (fold on compare), which is why it is domain vocabulary and not a lexing concern —
   the lexer tokenizes, it never compares; the written form (position, quoting) belongs to the language lane's own identifier node when the AST lands.
   Pointing at a node *from outside the tree* takes an **address**: `ObjectReference` (schema + name, both required — an address that isn't fully
-  qualified identifies nothing; component-wise identifier equality, never a dotted string smuggled through `SqlIdentifier`) and, when the directives
+  qualified identifies nothing; component-wise identifier equality, never a dotted string smuggled through `SqlIdentifier`), `ScriptReference`
+  (scope schema + name — the one address whose container is *genuinely optional by domain*: a null schema means the script is global, living at the
+  project root, not that resolution is deferred), and, when the directives
   land, `MemberPath` (schema + object + member). An address is distinct from a **reference as written** (`RoutineReference`, optionally qualified —
   an unqualified routine reference is resolved by the engine's search path, so it stays as declared; resolving one sets its schema part, never
   concatenates text). Renames, change-event script matching, and targeting

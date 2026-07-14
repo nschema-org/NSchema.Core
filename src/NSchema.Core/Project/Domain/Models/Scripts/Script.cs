@@ -14,6 +14,11 @@ public record Script(SqlIdentifier Name, SqlText Sql, ScriptEvent Event)
     public string Hash => ScriptHashing.Hash(Sql);
 
     /// <summary>
+    /// The script's address: its event's scope schema and its name.
+    /// </summary>
+    public ScriptReference Reference => new(Event.ScopeSchema, Name);
+
+    /// <summary>
     /// When true, the script runs outside the migration's transaction.
     /// </summary>
     public bool RunOutsideTransaction { get; init; }

@@ -39,11 +39,11 @@ internal sealed class ProjectComparer(ISchemaComparer comparer) : IProjectCompar
     {
         var diagnostics = new List<Diagnostic>();
         var newScripts = new List<Script>();
-        var executed = current.ToDictionary(s => s.Name, s => s.Hash);
+        var executed = current.ToDictionary(s => s.Script, s => s.Hash);
 
         foreach (var script in desired)
         {
-            if (script.RunCondition != RunCondition.Once || !executed.TryGetValue(script.Name, out var recordedHash))
+            if (script.RunCondition != RunCondition.Once || !executed.TryGetValue(script.Reference, out var recordedHash))
             {
                 newScripts.Add(script);
                 continue;

@@ -124,7 +124,6 @@ internal static class TemplateExpander
 
         var instanceScripts = scripts.Select(script => script with
         {
-            Name = SchemaToken.Instantiate(script.Name, schemaName),
             Sql = SchemaToken.Instantiate(script.Sql, schemaName),
             Event = script.Event with { ScopeSchema = schemaName },
         }).ToList();

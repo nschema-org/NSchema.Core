@@ -1,11 +1,11 @@
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Current.Domain.Models;
 
 /// <summary>
 /// A recorded script execution.
 /// </summary>
-/// <param name="Name">The script's declared name.</param>
+/// <param name="Script">The address of the script that was executed.</param>
 /// <param name="Hash">The hash of the script body that was executed.</param>
 /// <param name="ExecutedUtc">When the execution was recorded.</param>
-public sealed record ScriptExecution(SqlIdentifier Name, string Hash, DateTimeOffset ExecutedUtc);
+public sealed record ScriptExecution(ScriptReference Script, string Hash, DateTimeOffset ExecutedUtc);

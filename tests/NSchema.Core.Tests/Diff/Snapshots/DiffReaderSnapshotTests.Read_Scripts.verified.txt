@@ -24,7 +24,7 @@
     },
     {
       Kind: Add,
-      Text: script 'backfill emails' (on add column app.users.email)
+      Text: script 'backfill emails' (schema app, on add column app.users.email)
     },
     {
       Text: 

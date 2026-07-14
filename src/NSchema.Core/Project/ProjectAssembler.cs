@@ -77,17 +77,16 @@ internal static class ProjectAssembler
     }
 
     /// <summary>
-    /// Enforces project-wide script-name uniqueness (after template expansion, so instantiated names count).
-    /// Names identify scripts in run-once tracking and diagnostics, so a collision is an error, not a merge.
+    /// Enforces script-address uniqueness per scope.
     /// </summary>
     private static IEnumerable<Diagnostic> ValidateScriptNames(IEnumerable<Script> scripts)
     {
-        var names = new HashSet<SqlIdentifier>();
-        foreach (var name in scripts.Select(s => s.Name))
+        var references = new HashSet<ScriptReference>();
+        foreach (var script in scripts)
         {
-            if (!names.Add(name))
+            if (!references.Add(script.Reference))
             {
-                yield return ProjectDiagnostics.DuplicateScriptName(name);
+                yield return ProjectDiagnostics.DuplicateScriptName(script.Reference);
             }
         }
     }

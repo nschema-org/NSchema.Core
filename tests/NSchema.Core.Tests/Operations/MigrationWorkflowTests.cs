@@ -256,14 +256,14 @@ public sealed class MigrationWorkflowTests
         // Arrange — the planner's "what I have" input is the schema plus the recorded executions; execution
         // records are shared script vocabulary, so the ledger passes straight through.
         var sut = SutWithState(new ProjectDefinition(new DatabaseSchema([]), [SeedScript()]),
-            new ScriptExecution(new SqlIdentifier("seed"), "abc", DateTimeOffset.UnixEpoch));
+            new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "abc", DateTimeOffset.UnixEpoch));
 
         // Act
         await sut.ComputePlan(SchemaSourceMode.Online, SchemaScope.All, TestContext.Current.CancellationToken);
 
         // Assert
         _planner.Received(1).Plan(
-            Arg.Is<CurrentState>(c => c!.ExecutedScripts.Count == 1 && c.ExecutedScripts[0] == new ScriptExecution(new SqlIdentifier("seed"), "abc", DateTimeOffset.UnixEpoch)),
+            Arg.Is<CurrentState>(c => c!.ExecutedScripts.Count == 1 && c.ExecutedScripts[0] == new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "abc", DateTimeOffset.UnixEpoch)),
             Arg.Any<ProjectDefinition>());
     }
 
@@ -315,7 +315,7 @@ public sealed class MigrationWorkflowTests
 
         // Assert
         var execution = _stateSerializer.Deserialize(written!.Value).Scripts.ShouldHaveSingleItem();
-        execution.Name.ShouldBe("seed");
+        execution.Script.Name.ShouldBe("seed");
         execution.Hash.ShouldBe(ScriptHashing.Hash(new SqlText("SELECT 1")));
     }
 
@@ -323,7 +323,7 @@ public sealed class MigrationWorkflowTests
     public async Task Refresh_PreservesTheExistingLedger()
     {
         // Arrange — the ledger is the one part of state a capture cannot rebuild, so it must carry over.
-        var existing = new ScriptExecution(new SqlIdentifier("api-login"), "hash", DateTimeOffset.UnixEpoch);
+        var existing = new ScriptExecution(new ScriptReference(null, new SqlIdentifier("api-login")), "hash", DateTimeOffset.UnixEpoch);
         var store = Substitute.For<ISchemaStateStore>();
         store.Read(Arg.Any<CancellationToken>())
             .Returns(_stateSerializer.Serialize(new SchemaState(new DatabaseSchema([]), [existing])));
@@ -342,7 +342,7 @@ public sealed class MigrationWorkflowTests
     public async Task Refresh_ReRecordingAScript_ReplacesItsEntryByName()
     {
         // Arrange
-        var existing = new ScriptExecution(new SqlIdentifier("seed"), "old-hash", DateTimeOffset.UnixEpoch);
+        var existing = new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "old-hash", DateTimeOffset.UnixEpoch);
         var store = Substitute.For<ISchemaStateStore>();
         store.Read(Arg.Any<CancellationToken>())
             .Returns(_stateSerializer.Serialize(new SchemaState(new DatabaseSchema([]), [existing])));

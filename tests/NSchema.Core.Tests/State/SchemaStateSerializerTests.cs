@@ -2,6 +2,7 @@ using System.Text;
 using NSchema.Current.Domain.Models;
 using NSchema.Current.Storage;
 using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Tables;
@@ -125,7 +126,7 @@ public sealed class SchemaStateSerializerTests
     public void RoundTrip_PreservesExecutedScripts()
     {
         // Arrange
-        var executed = new ScriptExecution(new SqlIdentifier("api-login"), "abc123", new DateTimeOffset(2026, 7, 10, 12, 0, 0, TimeSpan.Zero));
+        var executed = new ScriptExecution(new ScriptReference(null, new SqlIdentifier("api-login")), "abc123", new DateTimeOffset(2026, 7, 10, 12, 0, 0, TimeSpan.Zero));
         var state = new SchemaState(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]), [executed]);
 
         // Act
@@ -141,11 +142,33 @@ public sealed class SchemaStateSerializerTests
         // Pins the wire field name — renaming it silently empties every existing ledger.
         var state = new SchemaState(
             new DatabaseSchema([]),
-            [new ScriptExecution(new SqlIdentifier("api-login"), "abc123", DateTimeOffset.UnixEpoch)]);
+            [new ScriptExecution(new ScriptReference(null, new SqlIdentifier("api-login")), "abc123", DateTimeOffset.UnixEpoch)]);
 
         var json = Encoding.UTF8.GetString(_sut.Serialize(state).Span);
 
         json.ShouldContain("\"scripts\"");
+    }
+
+    [Fact]
+    public Task Serialize_Ledger_MatchesSnapshot()
+        // Pins the ledger entry's wire shape: the script address is structural ({schema, name}, schema null
+        // when the script is global), beside the hash and timestamp.
+        => VerifyJson(Encoding.UTF8.GetString(_sut.Serialize(new SchemaState(new DatabaseSchema([]), [
+            new ScriptExecution(new ScriptReference(null, new SqlIdentifier("api-login")), "abc123", DateTimeOffset.UnixEpoch),
+            new ScriptExecution(new ScriptReference(new SqlIdentifier("sales"), new SqlIdentifier("seed")), "def456", DateTimeOffset.UnixEpoch),
+        ])).Span));
+
+    [Fact]
+    public void Deserialize_LedgerEntryWithoutAScriptAddress_ThrowsStateDeserializationException()
+    {
+        // A pre-(scope, name) payload records executions under a flat name; reading it silently would
+        // misrecord what ran, so the payload is unreadable, not empty.
+        var payload = Encoding.UTF8.GetBytes(
+            """{ "version": 1, "schema": { "schemas": [] }, "scripts": [ { "name": "seed", "hash": "abc", "executedUtc": "2026-07-10T12:00:00+00:00" } ] }""");
+
+        var act = () => _sut.Deserialize(payload);
+
+        act.ShouldThrow<StateDeserializationException>().Message.ShouldContain("without a script address");
     }
 
     [Fact]

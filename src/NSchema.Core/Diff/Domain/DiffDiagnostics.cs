@@ -11,7 +11,7 @@ internal static class DiffDiagnostics
     /// A run-once script whose body has changed since its recorded execution; it stays skipped.
     /// </summary>
     public static Diagnostic ChangedRunOnceScript(Script script) => Diagnostic.Warning("run-once",
-        $"Run-once script '{script.Name}' has changed since it was executed and stays skipped.");
+        $"Run-once script '{script.Name}'{InSchema(script)} has changed since it was executed and stays skipped.");
 
     /// <summary>
     /// A change-event script that matches nothing in this plan and will not run.
@@ -19,4 +19,7 @@ internal static class DiffDiagnostics
     public static Diagnostic DeadMigration(Script migration) => Diagnostic.Info("data-migrations",
         $"Migration '{migration.Name}' ({migration.Event.Description}) matches " +
         "no change in this plan and will not run. If the change it supports has been applied everywhere, the block is safe to delete.");
+
+    private static string InSchema(Script script) =>
+        script.Event.ScopeSchema is { } scope ? $" in schema '{scope}'" : "";
 }

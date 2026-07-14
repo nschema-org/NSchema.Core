@@ -1,5 +1,6 @@
 using NSchema.Current.Domain.Models;
 using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Tests.State;
 
@@ -14,20 +15,20 @@ public sealed class SchemaStateTests
         var state = SchemaState.Empty;
 
         // Act
-        var recorded = state.RecordExecution([new ScriptExecution(new SqlIdentifier("seed"), "abc", _now)]);
+        var recorded = state.RecordExecution([new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "abc", _now)]);
 
         // Assert
-        recorded.Scripts.ShouldHaveSingleItem().ShouldBe(new ScriptExecution(new SqlIdentifier("seed"), "abc", _now));
+        recorded.Scripts.ShouldHaveSingleItem().ShouldBe(new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "abc", _now));
     }
 
     [Fact]
     public void RecordScripts_ReplacesAnEarlierExecutionByName_CaseInsensitively()
     {
         // Arrange
-        var state = new SchemaState(new DatabaseSchema(), [new ScriptExecution(new SqlIdentifier("Seed"), "old", DateTimeOffset.UnixEpoch)]);
+        var state = new SchemaState(new DatabaseSchema(), [new ScriptExecution(new ScriptReference(null, new SqlIdentifier("Seed")), "old", DateTimeOffset.UnixEpoch)]);
 
         // Act
-        var recorded = state.RecordExecution([new ScriptExecution(new SqlIdentifier("seed"), "new", _now)]);
+        var recorded = state.RecordExecution([new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "new", _now)]);
 
         // Assert
         recorded.Scripts.ShouldHaveSingleItem().Hash.ShouldBe("new");
@@ -37,14 +38,14 @@ public sealed class SchemaStateTests
     public void RecordScripts_LeavesOtherEntriesAlone()
     {
         // Arrange
-        var existing = new ScriptExecution(new SqlIdentifier("api-login"), "hash", DateTimeOffset.UnixEpoch);
+        var existing = new ScriptExecution(new ScriptReference(null, new SqlIdentifier("api-login")), "hash", DateTimeOffset.UnixEpoch);
         var state = new SchemaState(new DatabaseSchema(), [existing]);
 
         // Act
-        var recorded = state.RecordExecution([new ScriptExecution(new SqlIdentifier("seed"), "abc", _now)]);
+        var recorded = state.RecordExecution([new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "abc", _now)]);
 
         // Assert
-        recorded.Scripts.ShouldBe([existing, new ScriptExecution(new SqlIdentifier("seed"), "abc", _now)]);
+        recorded.Scripts.ShouldBe([existing, new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "abc", _now)]);
     }
 
     [Fact]
@@ -55,11 +56,11 @@ public sealed class SchemaStateTests
     public void FindScript_MatchesByName_CaseInsensitively()
     {
         // Arrange
-        var existing = new ScriptExecution(new SqlIdentifier("Seed"), "abc", _now);
+        var existing = new ScriptExecution(new ScriptReference(null, new SqlIdentifier("Seed")), "abc", _now);
         var state = new SchemaState(new DatabaseSchema(), [existing]);
 
         // Act
-        var found = state.FindExecution(new SqlIdentifier("seed"));
+        var found = state.FindExecution(new ScriptReference(null, new SqlIdentifier("seed")));
 
         // Assert
         found.ShouldBe(existing);
@@ -67,17 +68,45 @@ public sealed class SchemaStateTests
 
     [Fact]
     public void FindScript_NothingRecordedUnderTheName_ReturnsNull()
-        => SchemaState.Empty.FindExecution(new SqlIdentifier("seed")).ShouldBeNull();
+        => SchemaState.Empty.FindExecution(new ScriptReference(null, new SqlIdentifier("seed"))).ShouldBeNull();
+
+    [Fact]
+    public void FindScript_SameNameInAnotherScope_ReturnsNull()
+    {
+        // Arrange — identity is (scope, name): a scoped execution is not found by the global address, nor by
+        // another schema's.
+        var scoped = new ScriptExecution(new ScriptReference(new SqlIdentifier("sales"), new SqlIdentifier("seed")), "abc", _now);
+        var state = new SchemaState(new DatabaseSchema(), [scoped]);
+
+        // Assert
+        state.FindExecution(new ScriptReference(null, new SqlIdentifier("seed"))).ShouldBeNull();
+        state.FindExecution(new ScriptReference(new SqlIdentifier("billing"), new SqlIdentifier("seed"))).ShouldBeNull();
+        state.FindExecution(new ScriptReference(new SqlIdentifier("sales"), new SqlIdentifier("seed"))).ShouldBe(scoped);
+    }
+
+    [Fact]
+    public void RecordScripts_SameNameInAnotherScope_DoesNotReplace()
+    {
+        // Arrange
+        var global = new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "abc", _now);
+        var state = new SchemaState(new DatabaseSchema(), [global]);
+
+        // Act
+        var recorded = state.RecordExecution([new ScriptExecution(new ScriptReference(new SqlIdentifier("sales"), new SqlIdentifier("seed")), "def", _now)]);
+
+        // Assert
+        recorded.Scripts.Count.ShouldBe(2);
+    }
 
     [Fact]
     public void RemoveScript_RemovesTheEntryByName_CaseInsensitively()
     {
         // Arrange
-        var other = new ScriptExecution(new SqlIdentifier("api-login"), "hash", _now);
-        var state = new SchemaState(new DatabaseSchema(), [new ScriptExecution(new SqlIdentifier("Seed"), "abc", _now), other]);
+        var other = new ScriptExecution(new ScriptReference(null, new SqlIdentifier("api-login")), "hash", _now);
+        var state = new SchemaState(new DatabaseSchema(), [new ScriptExecution(new ScriptReference(null, new SqlIdentifier("Seed")), "abc", _now), other]);
 
         // Act
-        var removed = state.RemoveExecution(new SqlIdentifier("seed"));
+        var removed = state.RemoveExecution(new ScriptReference(null, new SqlIdentifier("seed")));
 
         // Assert
         removed.Scripts.ShouldBe([other]);
@@ -85,5 +114,5 @@ public sealed class SchemaStateTests
 
     [Fact]
     public void RemoveScript_NothingRecordedUnderTheName_ReturnsTheSameState()
-        => SchemaState.Empty.RemoveExecution(new SqlIdentifier("seed")).ShouldBeSameAs(SchemaState.Empty);
+        => SchemaState.Empty.RemoveExecution(new ScriptReference(null, new SqlIdentifier("seed"))).ShouldBeSameAs(SchemaState.Empty);
 }
