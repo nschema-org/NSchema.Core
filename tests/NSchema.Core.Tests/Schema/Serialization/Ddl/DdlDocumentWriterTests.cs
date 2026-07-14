@@ -1,10 +1,9 @@
 using System.Text;
 using NSchema.Current.Domain.Models;
 using NSchema.Current.Storage;
-using NSchema.Project.Ddl;
-using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
@@ -29,11 +28,11 @@ public sealed class ProjectedDocumentWriterTests
     private static string AssertRoundTrips(string source)
     {
         var document = new TestDdlParser(source).Parse();
-        var formatted = DdlWriter.Instance.Write(document.Schema, document.Scripts);
+        var formatted = NsqlWriter.Write(document.Schema, document.Scripts);
 
         var reparsed = new TestDdlParser(formatted).Parse();
         AssertEquivalent(document, reparsed);
-        DdlWriter.Instance.Write(reparsed.Schema, reparsed.Scripts).ShouldBe(formatted);
+        NsqlWriter.Write(reparsed.Schema, reparsed.Scripts).ShouldBe(formatted);
 
         return formatted;
     }
@@ -145,7 +144,7 @@ public sealed class ProjectedDocumentWriterTests
 
             CREATE SCHEMA app;
             """).Parse();
-        var formatted = DdlWriter.Instance.Write(document.Schema, document.Scripts);
+        var formatted = NsqlWriter.Write(document.Schema, document.Scripts);
 
         var schema = formatted.IndexOf("CREATE SCHEMA app", StringComparison.Ordinal);
         var script = formatted.IndexOf("POST DEPLOYMENT", StringComparison.Ordinal);
@@ -156,7 +155,7 @@ public sealed class ProjectedDocumentWriterTests
     [Fact]
     public void Write_DatabaseSchemaOverload_EmitsNoScripts()
     {
-        var ddl = DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]));
+        var ddl = NsqlWriter.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]));
 
         ddl.ShouldNotContain("DEPLOYMENT");
         ddl.ShouldBe("CREATE SCHEMA app;\n");

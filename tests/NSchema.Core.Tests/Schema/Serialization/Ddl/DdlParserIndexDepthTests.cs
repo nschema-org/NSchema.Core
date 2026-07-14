@@ -1,4 +1,4 @@
-using NSchema.Project.Ddl;
+using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Indexes;
 
@@ -71,7 +71,7 @@ public sealed class DdlParserIndexDepthTests
             "CREATE UNIQUE INDEX t_ix ON app.t USING btree (c DESC NULLS LAST, (lower(a))) INCLUDE (b) WHERE (c IS NOT NULL);";
         var schema = new TestDdlParser(ddl).Parse().Schema;
 
-        var reparsed = new TestDdlParser(DdlWriter.Instance.Write(schema)).Parse().Schema
+        var reparsed = new TestDdlParser(NsqlWriter.Write(schema)).Parse().Schema
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Indexes.ShouldHaveSingleItem();
         reparsed.IsUnique.ShouldBeTrue();
         reparsed.Method.ShouldBe("btree");

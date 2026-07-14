@@ -1,4 +1,4 @@
-using NSchema.Project.Ddl;
+using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Schema.Templates;
 
@@ -51,6 +51,6 @@ public sealed class TemplateExpansionSnapshotTests
         read.IsSuccess.ShouldBeTrue();
         var expanded = NSchema.Project.ProjectAssembler.Assemble([read.Value]).Require().Schema;
 
-        return Verify(DdlWriter.Instance.Write(expanded));
+        return Verify(NsqlWriter.Write(expanded));
     }
 }

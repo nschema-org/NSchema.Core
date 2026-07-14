@@ -1,6 +1,6 @@
+using NSchema.Project.Nsql;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSchema.Diff.Domain;
-using NSchema.Project.Ddl;
 
 namespace NSchema.Tests.EndToEnd;
 
@@ -21,7 +21,7 @@ public sealed class RoundTripDriftTests
     {
         // Serialize every domain feature to DDL and read it straight back: the comparer must see no change.
         var original = TestData.RichSchema();
-        var reparsed = new TestDdlParser(DdlWriter.Instance.Write(original)).Parse().Schema;
+        var reparsed = new TestDdlParser(NsqlWriter.Write(original)).Parse().Schema;
 
         _comparer.Compare(original, reparsed).IsEmpty.ShouldBeTrue();
     }

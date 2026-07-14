@@ -1,4 +1,4 @@
-using NSchema.Project.Ddl;
+using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models.Columns;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
@@ -33,7 +33,7 @@ public sealed class DdlParserGeneratedColumnTests
     public void Parse_Generated_RoundTripsThroughWriter()
     {
         var schema = new TestDdlParser("CREATE TABLE app.t (w int, h int, area int GENERATED ALWAYS AS (w * h) STORED);").Parse().Schema;
-        var column = new TestDdlParser(DdlWriter.Instance.Write(schema)).Parse().Schema
+        var column = new TestDdlParser(NsqlWriter.Write(schema)).Parse().Schema
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Columns.Last();
         ShouldlyIdentifierExtensions.ShouldBe(column.Name, "area");
         ShouldlyIdentifierExtensions.ShouldBe(column.GeneratedExpression, "w * h");

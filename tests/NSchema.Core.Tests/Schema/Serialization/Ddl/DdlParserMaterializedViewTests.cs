@@ -1,4 +1,3 @@
-using NSchema.Project.Ddl;
 using NSchema.Project.Domain.Models.Views;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;

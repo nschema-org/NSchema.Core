@@ -1,7 +1,7 @@
+using NSchema.Project.Nsql;
 using System.Text;
 using NSchema.Current.Domain.Models;
 using NSchema.Current.Storage;
-using NSchema.Project.Ddl;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.CompositeTypes;
@@ -22,7 +22,7 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 public sealed class DdlWriterTests
 {
     private static string WriteOneTable(Table table)
-        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), Tables: [table])]));
+        => NsqlWriter.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), Tables: [table])]));
 
     // Canonicalize a schema to a deterministic string for structural-equality comparison,
     // using the internal state serializer (independent of the DDL writer under test).
@@ -117,7 +117,7 @@ public sealed class DdlWriterTests
 
     [Fact]
     public void Write_PartialSchemaWithRename_IsEmitted()
-        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), OldName: new SqlIdentifier("legacy"), IsPartial: true)]))
+        => NsqlWriter.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), OldName: new SqlIdentifier("legacy"), IsPartial: true)]))
             .ShouldContain("CREATE PARTIAL SCHEMA app RENAMED FROM legacy;");
 
     [Fact]
@@ -128,7 +128,7 @@ public sealed class DdlWriterTests
 
     [Fact]
     public void Write_SchemaGrant_IsEmitted()
-        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), Grants: [new SchemaGrant(new SqlIdentifier("app_role"))])]))
+        => NsqlWriter.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), Grants: [new SchemaGrant(new SqlIdentifier("app_role"))])]))
             .ShouldContain("GRANT USAGE ON SCHEMA app TO app_role;");
 
     [Fact]
@@ -137,7 +137,7 @@ public sealed class DdlWriterTests
         var schema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
             Tables: [new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
 
-        var ddl = DdlWriter.Instance.Write(schema, declareSchemas: false);
+        var ddl = NsqlWriter.Write(schema, declareSchemas: false);
 
         ddl.ShouldNotContain("CREATE SCHEMA");
         ddl.ShouldStartWith("CREATE TABLE app.t");
@@ -152,7 +152,7 @@ public sealed class DdlWriterTests
             Tables: [new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])],
             Views: [new View(new SqlIdentifier("active"), new SqlText("SELECT 1"))])]);
 
-        var reparsed = new TestDdlParser(DdlWriter.Instance.Write(schema, declareSchemas: false)).Parse().Schema;
+        var reparsed = new TestDdlParser(NsqlWriter.Write(schema, declareSchemas: false)).Parse().Schema;
 
         var app = reparsed.Schemas.ShouldHaveSingleItem();
         app.Tables.ShouldHaveSingleItem().Name.ShouldBe("t");
@@ -162,7 +162,7 @@ public sealed class DdlWriterTests
     [Fact]
     public void Write_Drops_AreEmitted()
     {
-        var ddl = DdlWriter.Instance.Write(new DatabaseSchema(
+        var ddl = NsqlWriter.Write(new DatabaseSchema(
             [new SchemaDefinition(new SqlIdentifier("app"), DroppedTables: [new SqlIdentifier("old_table")])],
             DroppedSchemas: [new SqlIdentifier("scratch")]));
         ddl.ShouldContain("DROP TABLE app.old_table;");
@@ -177,27 +177,27 @@ public sealed class DdlWriterTests
     public void Write_ThenParse_PreservesModelStructurally()
     {
         var original = TestData.RichSchema();
-        var reparsed = new TestDdlParser(DdlWriter.Instance.Write(original)).Parse().Schema;
+        var reparsed = new TestDdlParser(NsqlWriter.Write(original)).Parse().Schema;
         Canonical(reparsed).ShouldBe(Canonical(original));
     }
 
     [Fact]
     public void Write_IsStableThroughParseRoundTrip()
     {
-        var ddl = DdlWriter.Instance.Write(TestData.RichSchema());
-        var reEmitted = DdlWriter.Instance.Write(new TestDdlParser(ddl).Parse().Schema);
+        var ddl = NsqlWriter.Write(TestData.RichSchema());
+        var reEmitted = NsqlWriter.Write(new TestDdlParser(ddl).Parse().Schema);
         reEmitted.ShouldBe(ddl);
     }
 
     [Fact]
-    public Task Write_RichSchema_MatchesSnapshot() => Verify(DdlWriter.Instance.Write(TestData.RichSchema()));
+    public Task Write_RichSchema_MatchesSnapshot() => Verify(NsqlWriter.Write(TestData.RichSchema()));
 
     // -------------------------------------------------------------------------
     // Triggers
     // -------------------------------------------------------------------------
 
     private static string WriteTriggerOn(Trigger trigger)
-        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
+        => NsqlWriter.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
             Tables: [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], Triggers: [trigger])])]));
 
     [Fact]
@@ -229,7 +229,7 @@ public sealed class DdlWriterTests
         var schema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
             Tables: [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], Triggers: [trigger])])]);
 
-        var reparsed = new TestDdlParser(DdlWriter.Instance.Write(schema)).Parse().Schema;
+        var reparsed = new TestDdlParser(NsqlWriter.Write(schema)).Parse().Schema;
         var roundTripped = reparsed.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Triggers.ShouldHaveSingleItem();
         roundTripped.ShouldBe(trigger);            // structural equality (excludes the comment)
         roundTripped.Comment.ShouldBe("note");     // ... so assert the comment round-tripped too
@@ -250,7 +250,7 @@ public sealed class DdlWriterTests
         var schema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
             Tables: [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], Triggers: [trigger])])]);
 
-        var reparsed = new TestDdlParser(DdlWriter.Instance.Write(schema)).Parse().Schema;
+        var reparsed = new TestDdlParser(NsqlWriter.Write(schema)).Parse().Schema;
         var roundTripped = reparsed.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Triggers.ShouldHaveSingleItem();
         roundTripped.ShouldBe(trigger);
         roundTripped.Body.ShouldBe(trigger.Body);
@@ -262,28 +262,28 @@ public sealed class DdlWriterTests
 
     [Fact]
     public void Write_Extension_EmitsCreateExtension()
-        => DdlWriter.Instance.Write(new DatabaseSchema(Extensions: [new Extension(new SqlIdentifier("citext"))]))
+        => NsqlWriter.Write(new DatabaseSchema(Extensions: [new Extension(new SqlIdentifier("citext"))]))
             .ShouldContain("CREATE EXTENSION citext;");
 
     [Fact]
     public void Write_ExtensionWithVersion_EmitsVersionClause()
-        => DdlWriter.Instance.Write(new DatabaseSchema(Extensions: [new Extension(new SqlIdentifier("postgis"), Version: "3.4")]))
+        => NsqlWriter.Write(new DatabaseSchema(Extensions: [new Extension(new SqlIdentifier("postgis"), Version: "3.4")]))
             .ShouldContain("CREATE EXTENSION postgis VERSION '3.4';");
 
     [Fact]
     public void Write_ExtensionWithNonIdentifierName_QuotesIt()
         // A hyphenated name (e.g. uuid-ossp) must be quoted so it round-trips through the parser.
-        => DdlWriter.Instance.Write(new DatabaseSchema(Extensions: [new Extension(new SqlIdentifier("uuid-ossp"))]))
+        => NsqlWriter.Write(new DatabaseSchema(Extensions: [new Extension(new SqlIdentifier("uuid-ossp"))]))
             .ShouldContain("CREATE EXTENSION 'uuid-ossp';");
 
     [Fact]
     public void Write_ExtensionComment_EmitsDocComment()
-        => DdlWriter.Instance.Write(new DatabaseSchema(Extensions: [new Extension(new SqlIdentifier("postgis"), Comment: "spatial types")]))
+        => NsqlWriter.Write(new DatabaseSchema(Extensions: [new Extension(new SqlIdentifier("postgis"), Comment: "spatial types")]))
             .ShouldContain("--- spatial types\nCREATE EXTENSION postgis;");
 
     [Fact]
     public void Write_DroppedExtension_IsEmitted()
-        => DdlWriter.Instance.Write(new DatabaseSchema(DroppedExtensions: [new SqlIdentifier("stale_ext")]))
+        => NsqlWriter.Write(new DatabaseSchema(DroppedExtensions: [new SqlIdentifier("stale_ext")]))
             .ShouldContain("DROP EXTENSION stale_ext;");
 
     [Fact]
@@ -291,7 +291,7 @@ public sealed class DdlWriterTests
     {
         var schema = new DatabaseSchema(Extensions:
             [new Extension(new SqlIdentifier("citext")), new Extension(new SqlIdentifier("uuid-ossp"), Comment: "ids"), new Extension(new SqlIdentifier("postgis"), Version: "3.4")]);
-        var reparsed = new TestDdlParser(DdlWriter.Instance.Write(schema)).Parse().Schema;
+        var reparsed = new TestDdlParser(NsqlWriter.Write(schema)).Parse().Schema;
         reparsed.Extensions.ShouldBe(schema.Extensions);
     }
 
@@ -305,14 +305,14 @@ public sealed class DdlWriterTests
         var schema = new DatabaseSchema([
             new SchemaDefinition(new SqlIdentifier("app"), Views: [new View(new SqlIdentifier("active"), new SqlText("SELECT id FROM app.users WHERE active"))]),
         ]);
-        DdlWriter.Instance.Write(schema).ShouldContain("CREATE VIEW app.active AS SELECT id FROM app.users WHERE active;");
+        NsqlWriter.Write(schema).ShouldContain("CREATE VIEW app.active AS SELECT id FROM app.users WHERE active;");
     }
 
     [Fact]
     public void Write_View_RoundTripsThroughParse()
     {
         var source = "CREATE SCHEMA app;\n\nCREATE VIEW app.active AS SELECT id, name FROM app.users WHERE active;\n";
-        var reEmitted = DdlWriter.Instance.Write(new TestDdlParser(source).Parse().Schema);
+        var reEmitted = NsqlWriter.Write(new TestDdlParser(source).Parse().Schema);
         var reparsed = new TestDdlParser(reEmitted).Parse().Schema;
 
         var view = reparsed.Schemas.ShouldHaveSingleItem().Views.ShouldHaveSingleItem();
@@ -327,13 +327,13 @@ public sealed class DdlWriterTests
 
     [Fact]
     public void Write_SimpleDomain_EmitsCreateDomain()
-        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
+        => NsqlWriter.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
             Domains: [new DomainDefinition(new SqlIdentifier("typeid"), SqlType.Text)])]))
             .ShouldContain("CREATE DOMAIN app.typeid AS text;");
 
     [Fact]
     public void Write_DomainWithEveryClause_EmitsInCanonicalOrder()
-        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
+        => NsqlWriter.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
             Domains: [new DomainDefinition(new SqlIdentifier("email"), SqlType.Text, Default: new SqlText("'x@y'"), NotNull: true,
                 Checks: [new CheckConstraint(new SqlIdentifier("email_fmt"), new SqlText("VALUE ~ '@'"))])])]))
             // NOT NULL, then checks, then DEFAULT (last, so its opaque expr reads back to the ';').
@@ -341,7 +341,7 @@ public sealed class DdlWriterTests
 
     [Fact]
     public void Write_DroppedDomain_IsEmitted()
-        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), DroppedDomains: [new SqlIdentifier("stale")])]))
+        => NsqlWriter.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), DroppedDomains: [new SqlIdentifier("stale")])]))
             .ShouldContain("DROP DOMAIN app.stale;");
 
     [Fact]
@@ -351,7 +351,7 @@ public sealed class DdlWriterTests
             Domains: [new DomainDefinition(new SqlIdentifier("email"), SqlType.Text, Default: new SqlText("'x@y'"), NotNull: true,
                 Checks: [new CheckConstraint(new SqlIdentifier("email_fmt"), new SqlText("VALUE ~ '@'"))], OldName: new SqlIdentifier("addr"), Comment: "an email")])]);
 
-        var domain = new TestDdlParser(DdlWriter.Instance.Write(schema)).Parse().Schema
+        var domain = new TestDdlParser(NsqlWriter.Write(schema)).Parse().Schema
             .Schemas.ShouldHaveSingleItem().Domains.ShouldHaveSingleItem();
         domain.DataType.ShouldBe(SqlType.Text);
         domain.NotNull.ShouldBeTrue();
@@ -365,13 +365,13 @@ public sealed class DdlWriterTests
 
     [Fact]
     public void Write_SimpleCompositeType_EmitsCreateType()
-        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
+        => NsqlWriter.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
             CompositeTypes: [new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text), new CompositeField(new SqlIdentifier("zip"), SqlType.Int)])])]))
             .ShouldContain("CREATE TYPE app.address AS (street text, zip int);");
 
     [Fact]
     public void Write_DroppedCompositeType_IsEmitted()
-        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), DroppedCompositeTypes: [new SqlIdentifier("stale")])]))
+        => NsqlWriter.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), DroppedCompositeTypes: [new SqlIdentifier("stale")])]))
             .ShouldContain("DROP TYPE app.stale;");
 
     [Fact]
@@ -381,7 +381,7 @@ public sealed class DdlWriterTests
             CompositeTypes: [new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text), new CompositeField(new SqlIdentifier("zip"), SqlType.Int)],
                 OldName: new SqlIdentifier("legacy_address"), Comment: "a postal address")])]);
 
-        var type = new TestDdlParser(DdlWriter.Instance.Write(schema)).Parse().Schema
+        var type = new TestDdlParser(NsqlWriter.Write(schema)).Parse().Schema
             .Schemas.ShouldHaveSingleItem().CompositeTypes.ShouldHaveSingleItem();
         type.Name.ShouldBe("address");
         type.Fields.Count.ShouldBe(2);
@@ -395,13 +395,13 @@ public sealed class DdlWriterTests
 
     [Fact]
     public void Write_MaterializedView_EmitsMaterializedKeyword()
-        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
+        => NsqlWriter.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
             Views: [new View(new SqlIdentifier("daily"), new SqlText("SELECT 1"), IsMaterialized: true)])]))
             .ShouldContain("CREATE MATERIALIZED VIEW app.daily AS SELECT 1;");
 
     [Fact]
     public void Write_MaterializedViewIndex_EmitsStandaloneCreateIndex()
-        => DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
+        => NsqlWriter.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
             Views: [new View(new SqlIdentifier("daily"), new SqlText("SELECT x FROM app.t"), IsMaterialized: true,
                 Indexes: [new TableIndex(new SqlIdentifier("daily_ix"), ["x"], IsUnique: true, Predicate: new SqlText("x IS NOT NULL"))])])]))
             .ShouldContain("CREATE UNIQUE INDEX daily_ix ON app.daily (x) WHERE (x IS NOT NULL);");
@@ -413,7 +413,7 @@ public sealed class DdlWriterTests
             Views: [new View(new SqlIdentifier("daily"), new SqlText("SELECT x FROM app.t"), IsMaterialized: true,
                 Indexes: [new TableIndex(new SqlIdentifier("daily_ix"), ["x"])])])]);
 
-        var view = new TestDdlParser(DdlWriter.Instance.Write(schema)).Parse().Schema
+        var view = new TestDdlParser(NsqlWriter.Write(schema)).Parse().Schema
             .Schemas.ShouldHaveSingleItem().Views.ShouldHaveSingleItem();
         view.IsMaterialized.ShouldBeTrue();
         view.Indexes.ShouldHaveSingleItem().Name.ShouldBe("daily_ix");
@@ -425,25 +425,25 @@ public sealed class DdlWriterTests
 
     [Fact]
     public void Write_Enum_EmitsQuotedValueList()
-        => DdlWriter.Instance.Write(new DatabaseSchema([
+        => NsqlWriter.Write(new DatabaseSchema([
             new SchemaDefinition(new SqlIdentifier("app"), Enums: [new EnumType(new SqlIdentifier("status"), ["pending", "shipped"])]),
         ])).ShouldContain("CREATE ENUM app.status ('pending', 'shipped');");
 
     [Fact]
     public void Write_EnumValueWithQuote_EscapesIt()
-        => DdlWriter.Instance.Write(new DatabaseSchema([
+        => NsqlWriter.Write(new DatabaseSchema([
             new SchemaDefinition(new SqlIdentifier("app"), Enums: [new EnumType(new SqlIdentifier("status"), ["it's"])]),
         ])).ShouldContain("CREATE ENUM app.status ('it''s');");
 
     [Fact]
     public void Write_Sequence_WithoutOptions_OmitsParens()
-        => DdlWriter.Instance.Write(new DatabaseSchema([
+        => NsqlWriter.Write(new DatabaseSchema([
             new SchemaDefinition(new SqlIdentifier("app"), Sequences: [new Sequence(new SqlIdentifier("order_id"))]),
         ])).ShouldContain("CREATE SEQUENCE app.order_id;");
 
     [Fact]
     public void Write_Sequence_EmitsOptionsInCanonicalOrder()
-        => DdlWriter.Instance.Write(new DatabaseSchema([
+        => NsqlWriter.Write(new DatabaseSchema([
             new SchemaDefinition(new SqlIdentifier("app"), Sequences:
             [
                 new Sequence(new SqlIdentifier("order_id"), new SequenceOptions(SqlType.BigInt, StartWith: 100, IncrementBy: 5,
@@ -454,7 +454,7 @@ public sealed class DdlWriterTests
     [Fact]
     public void Write_EnumAndSequenceDrops_AreEmitted()
     {
-        var ddl = DdlWriter.Instance.Write(new DatabaseSchema([
+        var ddl = NsqlWriter.Write(new DatabaseSchema([
             new SchemaDefinition(new SqlIdentifier("app"), DroppedEnums: [new SqlIdentifier("stale_enum")], DroppedSequences: [new SqlIdentifier("stale_seq")]),
         ]));
         ddl.ShouldContain("DROP ENUM app.stale_enum;");
@@ -467,14 +467,14 @@ public sealed class DdlWriterTests
 
     [Fact]
     public void Write_Function_EmitsArgumentsAndDefinitionVerbatim()
-        => DdlWriter.Instance.Write(new DatabaseSchema([
+        => NsqlWriter.Write(new DatabaseSchema([
             new SchemaDefinition(new SqlIdentifier("app"), Routines:
                 [new Routine(new SqlIdentifier("add_tax"), RoutineKind.Function, new SqlText("amount numeric"), new SqlText("RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$"))]),
         ])).ShouldContain("CREATE FUNCTION app.add_tax(amount numeric) RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$;");
 
     [Fact]
     public void Write_Function_MultiLineDefinition_KeepsNewlines()
-        => DdlWriter.Instance.Write(new DatabaseSchema([
+        => NsqlWriter.Write(new DatabaseSchema([
             new SchemaDefinition(new SqlIdentifier("app"), Routines:
                 [new Routine(new SqlIdentifier("f"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$"))]),
         ])).ShouldContain("CREATE FUNCTION app.f() RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$;");
@@ -482,13 +482,13 @@ public sealed class DdlWriterTests
     [Fact]
     public void Write_Function_TrailingWhitespaceInDefinition_IsTrimmed()
         // A code-built definition ending in whitespace must not push the ';' onto dangling whitespace.
-        => DdlWriter.Instance.Write(new DatabaseSchema([
+        => NsqlWriter.Write(new DatabaseSchema([
             new SchemaDefinition(new SqlIdentifier("app"), Routines: [new Routine(new SqlIdentifier("f"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int AS $$ SELECT 1 $$  \n"))]),
         ])).ShouldContain("AS $$ SELECT 1 $$;");
 
     [Fact]
     public void Write_Procedure_IsEmitted()
-        => DdlWriter.Instance.Write(new DatabaseSchema([
+        => NsqlWriter.Write(new DatabaseSchema([
             new SchemaDefinition(new SqlIdentifier("app"), Routines: [new Routine(new SqlIdentifier("archive"), RoutineKind.Procedure, new SqlText("before date"), new SqlText("LANGUAGE sql AS $$ DELETE $$"))]),
         ])).ShouldContain("CREATE PROCEDURE app.archive(before date) LANGUAGE sql AS $$ DELETE $$;");
 
@@ -496,7 +496,7 @@ public sealed class DdlWriterTests
     public void Write_RoutineDrops_AreEmitted()
     {
         // Routines are recorded by name only (one name space), so they are emitted with kind-agnostic DROP ROUTINE.
-        var ddl = DdlWriter.Instance.Write(new DatabaseSchema([
+        var ddl = NsqlWriter.Write(new DatabaseSchema([
             new SchemaDefinition(new SqlIdentifier("app"), DroppedRoutines: [new SqlIdentifier("stale_fn"), new SqlIdentifier("stale_proc")]),
         ]));
         ddl.ShouldContain("DROP ROUTINE app.stale_fn;");

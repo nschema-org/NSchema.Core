@@ -1,5 +1,3 @@
-using NSchema.Project.Ddl;
-using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.CompositeTypes;
 using NSchema.Project.Domain.Models.Domains;
@@ -12,6 +10,7 @@ using NSchema.Project.Domain.Models.Sequences;
 using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Domain.Models.Triggers;
 using NSchema.Project.Domain.Models.Views;
+using NSchema.Project.Nsql;
 
 namespace NSchema.Project.Domain;
 
@@ -348,7 +347,7 @@ internal sealed class SchemaAccumulator
                 if (table.Indexes.Any(i => i.Name == pending.Index.Name))
                 {
                     AddError($"Index '{pending.Index.Name}' on '{qualified}' is already declared.", pending.Position);
-                continue;
+                    continue;
                 }
 
                 entry.Tables[tableIndex] = table with { Indexes = [.. table.Indexes, pending.Index] };

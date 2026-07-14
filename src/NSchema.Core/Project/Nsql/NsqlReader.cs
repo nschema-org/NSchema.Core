@@ -39,7 +39,7 @@ public static class NsqlReader
         var result = Read(source);
         return Result<NsqlDocument, NsqlDiagnostic>.From(
             result.Value is { } document ? document with { FilePath = path } : null,
-            [..result.Diagnostics.Select(d => d with { File = path })]
+            [.. result.Diagnostics.Select(d => d with { File = path })]
         );
     }
 
@@ -52,7 +52,7 @@ public static class NsqlReader
     {
         var parser = new NsqlParser(source);
         var document = parser.ParseConfig();
-        return Result<NsqlConfigDocument, NsqlDiagnostic>.From(document, [..parser.Errors.Select(NsqlDiagnostics.Syntax)]);
+        return Result<NsqlConfigDocument, NsqlDiagnostic>.From(document, [.. parser.Errors.Select(NsqlDiagnostics.Syntax)]);
     }
 
     /// <summary>
@@ -76,7 +76,7 @@ public static class NsqlReader
         var result = ReadConfig(source);
         return Result<NsqlConfigDocument, NsqlDiagnostic>.From(
             result.Value is { } document ? document with { FilePath = path } : null,
-            [..result.Diagnostics.Select(d => d with { File = path })]
+            [.. result.Diagnostics.Select(d => d with { File = path })]
         );
     }
 }

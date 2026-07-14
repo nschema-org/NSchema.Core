@@ -1,4 +1,4 @@
-using NSchema.Project.Ddl;
+using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models.Constraints;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
@@ -57,7 +57,7 @@ public sealed class DdlParserExclusionConstraintTests
             "CREATE TABLE app.bookings (room int, during int, " +
             "CONSTRAINT no_overlap EXCLUDE USING gist (room WITH =, during WITH &&) WHERE (room > 0));").Parse().Schema;
 
-        var exclusion = new TestDdlParser(DdlWriter.Instance.Write(schema)).Parse().Schema
+        var exclusion = new TestDdlParser(NsqlWriter.Write(schema)).Parse().Schema
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().ExclusionConstraints.ShouldHaveSingleItem();
         exclusion.Name.ShouldBe("no_overlap");
         exclusion.Method.ShouldBe("gist");

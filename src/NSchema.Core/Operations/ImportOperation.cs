@@ -1,10 +1,10 @@
 using NSchema.Current;
 using NSchema.Operations.Progress;
 using NSchema.Project.Ddl;
-using NSchema.Project.Nsql;
 using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Nsql;
 
 namespace NSchema.Operations;
 
@@ -104,7 +104,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
             Directory.CreateDirectory(directory);
         }
 
-        var ddl = DdlFormatter.Instance.Format(DdlWriter.Instance.Write(merged, declareSchemas));
+        var ddl = DdlFormatter.Instance.Format(NsqlWriter.Write(merged, declareSchemas));
         await File.WriteAllTextAsync(path, ddl, cancellationToken);
 
         // Surface whether each object was created fresh or merged into an existing file — import is additive, so

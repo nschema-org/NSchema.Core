@@ -10,6 +10,11 @@ namespace NSchema.Project.Nsql;
 /// <param name="Column">The 1-based column number.</param>
 public readonly record struct SourcePosition(int Offset, int Line, int Column)
 {
+    /// <summary>
+    /// The absent position: a node built synthetically rather than parsed.
+    /// </summary>
+    public static readonly SourcePosition None = default;
+
     /// <inheritdoc/>
     public override string ToString() => $"line {Line}, column {Column}";
 }

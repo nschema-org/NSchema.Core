@@ -71,68 +71,68 @@ internal static class DocumentProjector
                 ProjectTable(s, schemas, context);
                 break;
             case Syn.Views.CreateViewStatement s:
-            {
-                var (schema, name) = Bind(s.Name, context);
-                var dependsOn = ViewDependencyExtractor.Extract(s.Body.Value, schema);
-                schemas.AddView(schema, new View(name, s.Body, OptionalName(s.RenamedFrom), s.Doc, dependsOn, s.IsMaterialized), s.Name.Position);
-                break;
-            }
+                {
+                    var (schema, name) = Bind(s.Name, context);
+                    var dependsOn = ViewDependencyExtractor.Extract(s.Body.Value, schema);
+                    schemas.AddView(schema, new View(name, s.Body, OptionalName(s.RenamedFrom), s.Doc, dependsOn, s.IsMaterialized), s.Name.Position);
+                    break;
+                }
             case Syn.Indexes.CreateIndexStatement s:
-            {
-                var (schema, relation) = Bind(s.On, context);
-                schemas.AddIndex(schema, relation, ProjectIndex(s.Name, s.IsUnique, s.Columns, s.Method, s.Include, s.Predicate, s.Doc), s.Name.Position);
-                break;
-            }
+                {
+                    var (schema, relation) = Bind(s.On, context);
+                    schemas.AddIndex(schema, relation, ProjectIndex(s.Name, s.IsUnique, s.Columns, s.Method, s.Include, s.Predicate, s.Doc), s.Name.Position);
+                    break;
+                }
             case Syn.Routines.CreateRoutineStatement s:
-            {
-                var (schema, name) = Bind(s.Name, context);
-                schemas.AddRoutine(schema, new Routine(name, Map(s.Kind), s.Arguments, s.Definition, OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
-                break;
-            }
+                {
+                    var (schema, name) = Bind(s.Name, context);
+                    schemas.AddRoutine(schema, new Routine(name, Map(s.Kind), s.Arguments, s.Definition, OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
+                    break;
+                }
             case Syn.Enums.CreateEnumStatement s:
-            {
-                var (schema, name) = Bind(s.Name, context);
-                schemas.AddEnum(schema, new EnumType(name, s.Values, OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
-                break;
-            }
+                {
+                    var (schema, name) = Bind(s.Name, context);
+                    schemas.AddEnum(schema, new EnumType(name, s.Values, OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
+                    break;
+                }
             case Syn.Domains.CreateDomainStatement s:
-            {
-                var (schema, name) = Bind(s.Name, context);
-                var checks = s.Checks.Select(c => new CheckConstraint(Name(c.Name), c.Expression)).ToList();
-                schemas.AddDomain(schema, new DomainDefinition(name, ParseType(s.Type), s.Default, s.NotNull, checks, OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
-                break;
-            }
+                {
+                    var (schema, name) = Bind(s.Name, context);
+                    var checks = s.Checks.Select(c => new CheckConstraint(Name(c.Name), c.Expression)).ToList();
+                    schemas.AddDomain(schema, new DomainDefinition(name, ParseType(s.Type), s.Default, s.NotNull, checks, OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
+                    break;
+                }
             case Syn.CompositeTypes.CreateCompositeTypeStatement s:
-            {
-                var (schema, name) = Bind(s.Name, context);
-                var fields = s.Fields.Select(f => new CompositeField(Name(f.Name), ParseType(f.Type))).ToList();
-                schemas.AddCompositeType(schema, new CompositeType(name, fields, OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
-                break;
-            }
+                {
+                    var (schema, name) = Bind(s.Name, context);
+                    var fields = s.Fields.Select(f => new CompositeField(Name(f.Name), ParseType(f.Type))).ToList();
+                    schemas.AddCompositeType(schema, new CompositeType(name, fields, OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
+                    break;
+                }
             case Syn.Sequences.CreateSequenceStatement s:
-            {
-                var (schema, name) = Bind(s.Name, context);
-                schemas.AddSequence(schema, new Sequence(name, ProjectSequenceOptions(s.Options), OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
-                break;
-            }
+                {
+                    var (schema, name) = Bind(s.Name, context);
+                    schemas.AddSequence(schema, new Sequence(name, ProjectSequenceOptions(s.Options), OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
+                    break;
+                }
             case Syn.Extensions.CreateExtensionStatement s:
                 schemas.AddExtension(new Extension(Name(s.Name), s.Version, s.Doc), s.Name.Position);
                 break;
             case Syn.Triggers.CreateTriggerStatement s:
-            {
-                var (schema, table) = Bind(s.On, context);
-                schemas.AddTrigger(schema, table, ProjectTrigger(s), s.Name.Position);
-                break;
-            }
+                {
+                    var (schema, table) = Bind(s.On, context);
+                    schemas.AddTrigger(schema, table, ProjectTrigger(s), s.Name.Position);
+                    break;
+                }
             case Syn.Schemas.GrantSchemaUsageStatement s:
                 schemas.AddSchemaGrant(Name(s.Schema), Name(s.Role));
                 break;
             case Syn.Tables.GrantTableStatement s:
-            {
-                var (schema, table) = Bind(s.On, context);
-                schemas.AddTableGrant(schema, table, new TableGrant(Name(s.Role), Map(s.Privileges)), s.On.Position);
-                break;
-            }
+                {
+                    var (schema, table) = Bind(s.On, context);
+                    schemas.AddTableGrant(schema, table, new TableGrant(Name(s.Role), Map(s.Privileges)), s.On.Position);
+                    break;
+                }
             case Syn.Scripts.ScriptStatement s:
                 scripts.Add(ProjectScript(s, context));
                 break;
@@ -140,47 +140,47 @@ internal static class DocumentProjector
                 schemas.DropSchema(Name(s.Name));
                 break;
             case Syn.Tables.DropTableStatement s:
-            {
-                var (schema, name) = Bind(s.Name, context);
-                schemas.DropTable(schema, name);
-                break;
-            }
+                {
+                    var (schema, name) = Bind(s.Name, context);
+                    schemas.DropTable(schema, name);
+                    break;
+                }
             case Syn.Views.DropViewStatement s:
-            {
-                var (schema, name) = Bind(s.Name, context);
-                schemas.DropView(schema, name);
-                break;
-            }
+                {
+                    var (schema, name) = Bind(s.Name, context);
+                    schemas.DropView(schema, name);
+                    break;
+                }
             case Syn.Enums.DropEnumStatement s:
-            {
-                var (schema, name) = Bind(s.Name, context);
-                schemas.DropEnum(schema, name);
-                break;
-            }
+                {
+                    var (schema, name) = Bind(s.Name, context);
+                    schemas.DropEnum(schema, name);
+                    break;
+                }
             case Syn.Domains.DropDomainStatement s:
-            {
-                var (schema, name) = Bind(s.Name, context);
-                schemas.DropDomain(schema, name);
-                break;
-            }
+                {
+                    var (schema, name) = Bind(s.Name, context);
+                    schemas.DropDomain(schema, name);
+                    break;
+                }
             case Syn.CompositeTypes.DropCompositeTypeStatement s:
-            {
-                var (schema, name) = Bind(s.Name, context);
-                schemas.DropCompositeType(schema, name);
-                break;
-            }
+                {
+                    var (schema, name) = Bind(s.Name, context);
+                    schemas.DropCompositeType(schema, name);
+                    break;
+                }
             case Syn.Sequences.DropSequenceStatement s:
-            {
-                var (schema, name) = Bind(s.Name, context);
-                schemas.DropSequence(schema, name);
-                break;
-            }
+                {
+                    var (schema, name) = Bind(s.Name, context);
+                    schemas.DropSequence(schema, name);
+                    break;
+                }
             case Syn.Routines.DropRoutineStatement s:
-            {
-                var (schema, name) = Bind(s.Name, context);
-                schemas.DropRoutine(schema, name);
-                break;
-            }
+                {
+                    var (schema, name) = Bind(s.Name, context);
+                    schemas.DropRoutine(schema, name);
+                    break;
+                }
             case Syn.Extensions.DropExtensionStatement s:
                 schemas.DropExtension(Name(s.Name));
                 break;
@@ -224,16 +224,16 @@ internal static class DocumentProjector
                     primaryKey = new PrimaryKey(Name(m.Name), Names(m.Columns), m.Doc);
                     break;
                 case Syn.Constraints.ForeignKeyDefinition m:
-                {
-                    // A foreign key's referenced table binds like any other name (the context inside a template
-                    // body; the include placeholder when projecting a table template's members).
-                    var refSchema = m.References.Schema is { } qualifier
-                        ? new SqlIdentifier(qualifier.Text)
-                        : context ?? SchemaToken.TargetSchemaPlaceholder;
-                    foreignKeys.Add(new ForeignKey(Name(m.Name), Names(m.Columns), refSchema, Name(m.References.Name),
-                        Names(m.ReferencedColumns), Map(m.OnDelete), Map(m.OnUpdate), m.Doc));
-                    break;
-                }
+                    {
+                        // A foreign key's referenced table binds like any other name (the context inside a template
+                        // body; the include placeholder when projecting a table template's members).
+                        var refSchema = m.References.Schema is { } qualifier
+                            ? new SqlIdentifier(qualifier.Text)
+                            : context ?? SchemaToken.TargetSchemaPlaceholder;
+                        foreignKeys.Add(new ForeignKey(Name(m.Name), Names(m.Columns), refSchema, Name(m.References.Name),
+                            Names(m.ReferencedColumns), Map(m.OnDelete), Map(m.OnUpdate), m.Doc));
+                        break;
+                    }
                 case Syn.Constraints.UniqueDefinition m:
                     uniqueConstraints.Add(new UniqueConstraint(Name(m.Name), Names(m.Columns), m.Doc));
                     break;
