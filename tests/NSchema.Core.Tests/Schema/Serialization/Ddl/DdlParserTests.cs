@@ -1,4 +1,4 @@
-using NSchema.Project.Ddl;
+using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
@@ -89,7 +89,7 @@ public sealed class DdlParserTests
 
     [Fact]
     public void Parse_ConfigStatement_InProjectSource_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("PROVIDER postgres ( dialect = 'postgres' );"))
+        => Should.Throw<NsqlSyntaxException>(() => Parse("PROVIDER postgres ( dialect = 'postgres' );"))
             .Message.ShouldContain("configuration statement");
 
     // -------------------------------------------------------------------------
@@ -115,7 +115,7 @@ public sealed class DdlParserTests
 
     [Fact]
     public void Parse_MissingSemicolon_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE SCHEMA app")).Message.ShouldContain("';'");
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE SCHEMA app")).Message.ShouldContain("';'");
 
     [Fact]
     public void Parse_DuplicateSchema_FailsTheRead()
@@ -124,15 +124,15 @@ public sealed class DdlParserTests
 
     [Fact]
     public void Parse_UnknownAfterCreate_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE THING app;")).Message.ShouldContain("Expected SCHEMA, TABLE, VIEW, MATERIALIZED VIEW, ENUM, DOMAIN, TYPE, SEQUENCE, FUNCTION, PROCEDURE, EXTENSION, TRIGGER or INDEX");
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE THING app;")).Message.ShouldContain("Expected SCHEMA, TABLE, VIEW, MATERIALIZED VIEW, ENUM, DOMAIN, TYPE, SEQUENCE, FUNCTION, PROCEDURE, EXTENSION, TRIGGER or INDEX");
 
     [Fact]
     public void Parse_PartialTable_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE PARTIAL TABLE app.t (id int);")).Message.ShouldContain("PARTIAL applies to SCHEMA");
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE PARTIAL TABLE app.t (id int);")).Message.ShouldContain("PARTIAL applies to SCHEMA");
 
     [Fact]
     public void Parse_EmptyTableBody_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE TABLE app.users ();")).Message.ShouldContain("column or constraint");
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE TABLE app.users ();")).Message.ShouldContain("column or constraint");
 
     // -------------------------------------------------------------------------
     // Standalone indexes (CREATE INDEX ... ON s.t) — equivalent to an inline table index
@@ -223,7 +223,7 @@ public sealed class DdlParserTests
 
     [Fact]
     public void Parse_PartialView_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE PARTIAL VIEW app.v AS SELECT 1 FROM app.t;")).Message.ShouldContain("PARTIAL applies to SCHEMA");
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE PARTIAL VIEW app.v AS SELECT 1 FROM app.t;")).Message.ShouldContain("PARTIAL applies to SCHEMA");
 
     [Fact]
     public void Parse_ViewBodyWithSemicolonInString_StopsAtRealTerminator()
@@ -291,17 +291,17 @@ public sealed class DdlParserTests
 
     [Fact]
     public void Parse_DuplicateEnumValue_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE ENUM app.e ('a', 'a');"))
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE ENUM app.e ('a', 'a');"))
             .Message.ShouldContain("more than once");
 
     [Fact]
     public void Parse_EnumValueMustBeQuoted_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE ENUM app.e (pending);"))
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE ENUM app.e (pending);"))
             .Message.ShouldContain("an enum value");
 
     [Fact]
     public void Parse_PartialEnum_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE PARTIAL ENUM app.e ('a');"))
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE PARTIAL ENUM app.e ('a');"))
             .Message.ShouldContain("PARTIAL applies to SCHEMA");
 
     // -------------------------------------------------------------------------
@@ -356,17 +356,17 @@ public sealed class DdlParserTests
 
     [Fact]
     public void Parse_UnknownSequenceOption_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE SEQUENCE app.q (WIBBLE 1);"))
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE SEQUENCE app.q (WIBBLE 1);"))
             .Message.ShouldContain("Unknown sequence option 'WIBBLE'");
 
     [Fact]
     public void Parse_DuplicateSequenceOption_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE SEQUENCE app.q (START 1, START 2);"))
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE SEQUENCE app.q (START 1, START 2);"))
             .Message.ShouldContain("more than once");
 
     [Fact]
     public void Parse_PartialSequence_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE PARTIAL SEQUENCE app.q;"))
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE PARTIAL SEQUENCE app.q;"))
             .Message.ShouldContain("PARTIAL applies to SCHEMA");
 
     // -------------------------------------------------------------------------
@@ -405,7 +405,7 @@ public sealed class DdlParserTests
 
     [Fact]
     public void Parse_CreateFunction_MissingDefinition_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE FUNCTION app.f();"))
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE FUNCTION app.f();"))
             .Message.ShouldContain("Expected a function definition");
 
     [Fact]
@@ -420,7 +420,7 @@ public sealed class DdlParserTests
 
     [Fact]
     public void Parse_PartialFunction_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE PARTIAL FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$;"))
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE PARTIAL FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$;"))
             .Message.ShouldContain("PARTIAL applies to SCHEMA");
 
     [Fact]

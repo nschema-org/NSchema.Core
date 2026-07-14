@@ -1,6 +1,5 @@
-using NSchema.Project.Nsql;
 
-namespace NSchema.Project.Ddl.Models;
+namespace NSchema.Project.Nsql.Tokens;
 
 /// <summary>
 /// A single lexical token from a DDL source document.
@@ -15,7 +14,9 @@ namespace NSchema.Project.Ddl.Models;
 /// <param name="Position">Where the token begins in the source.</param>
 internal readonly record struct Token(TokenKind Kind, string Text, SourcePosition Position)
 {
-    /// <summary>Whether this token is an identifier whose text matches <paramref name="keyword"/>, case-insensitively.</summary>
+    /// <summary>
+    /// Whether this token is an identifier whose text matches <paramref name="keyword"/>, case-insensitively.
+    /// </summary>
     /// <param name="keyword">The keyword to test against.</param>
     public bool IsKeyword(string keyword) =>
         Kind == TokenKind.Identifier && string.Equals(Text, keyword, StringComparison.OrdinalIgnoreCase);

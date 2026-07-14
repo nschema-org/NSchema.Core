@@ -1,13 +1,12 @@
 using System.Text;
-using NSchema.Project.Ddl.Models;
-using NSchema.Project.Nsql;
+using NSchema.Project.Nsql.Tokens;
 
-namespace NSchema.Project.Ddl;
+namespace NSchema.Project.Nsql;
 
 /// <summary>
 /// Scanner for NSchema DDL.
 /// </summary>
-internal sealed class DdlLexer(string source, bool emitComments = false)
+internal sealed class NsqlLexer(string source, bool emitComments = false)
 {
     private readonly string _source = source ?? throw new ArgumentNullException(nameof(source));
 
@@ -148,7 +147,7 @@ internal sealed class DdlLexer(string source, bool emitComments = false)
             Advance();
         }
 
-        throw new DdlSyntaxException("Unterminated dollar-quoted string", pos);
+        throw new NsqlSyntaxException("Unterminated dollar-quoted string", pos);
     }
 
     /// <summary>
@@ -222,7 +221,7 @@ internal sealed class DdlLexer(string source, bool emitComments = false)
         {
             if (AtEnd)
             {
-                throw new DdlSyntaxException("Unterminated doc-comment", pos);
+                throw new NsqlSyntaxException("Unterminated doc-comment", pos);
             }
             if (Current == '*' && Peek(1) == '/')
             {
@@ -242,7 +241,7 @@ internal sealed class DdlLexer(string source, bool emitComments = false)
         {
             if (AtEnd)
             {
-                throw new DdlSyntaxException("Unterminated string literal", pos);
+                throw new NsqlSyntaxException("Unterminated string literal", pos);
             }
 
             var c = Current;
@@ -312,7 +311,7 @@ internal sealed class DdlLexer(string source, bool emitComments = false)
         {
             if (AtEnd)
             {
-                throw new DdlSyntaxException("Unterminated block comment", pos);
+                throw new NsqlSyntaxException("Unterminated block comment", pos);
             }
             if (Current == '*' && Peek(1) == '/')
             {
@@ -331,7 +330,7 @@ internal sealed class DdlLexer(string source, bool emitComments = false)
         {
             if (AtEnd)
             {
-                throw new DdlSyntaxException("Unterminated block comment", pos);
+                throw new NsqlSyntaxException("Unterminated block comment", pos);
             }
             if (Current == '*' && Peek(1) == '/')
             {

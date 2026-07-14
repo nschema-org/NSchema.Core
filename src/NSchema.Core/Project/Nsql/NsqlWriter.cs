@@ -16,9 +16,7 @@ public static class NsqlWriter
     /// Writes <paramref name="schema"/> as canonical NSchema source.
     /// </summary>
     /// <param name="schema">The schema to write.</param>
-    /// <param name="declareSchemas">Whether to emit a <c>CREATE SCHEMA</c> statement for each schema; pass <c>false</c> to write only the member objects (the reader vivifies the schema from their qualified names).</param>
-    public static string Write(DatabaseSchema schema, bool declareSchemas = true) =>
-        Write(SyntaxBuilder.Build(schema, [], declareSchemas));
+    public static string Write(DatabaseSchema schema) => Write(SyntaxBuilder.Build(schema, []));
 
     /// <summary>
     /// Writes a schema and its scripts as canonical NSchema source.

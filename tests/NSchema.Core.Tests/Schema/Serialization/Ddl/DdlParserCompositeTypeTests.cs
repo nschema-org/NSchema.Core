@@ -1,4 +1,4 @@
-using NSchema.Project.Ddl;
+using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.CompositeTypes;
 
@@ -58,6 +58,6 @@ public sealed class DdlParserCompositeTypeTests
 
     [Fact]
     public void Parse_PartialType_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("CREATE PARTIAL TYPE app.t AS (a int);").Parse())
+        => Should.Throw<NsqlSyntaxException>(() => new TestDdlParser("CREATE PARTIAL TYPE app.t AS (a int);").Parse())
             .Message.ShouldContain("PARTIAL applies to SCHEMA");
 }

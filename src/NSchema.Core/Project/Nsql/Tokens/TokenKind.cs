@@ -1,7 +1,7 @@
-namespace NSchema.Project.Ddl.Models;
+namespace NSchema.Project.Nsql.Tokens;
 
 /// <summary>
-/// The kinds of token the <see cref="DdlLexer"/> produces for NSchema DDL. Keywords are not distinguished here —
+/// The kinds of token the <see cref="NsqlLexer"/> produces for NSchema DDL. Keywords are not distinguished here —
 /// they are lexed as <see cref="Identifier"/> and matched case-insensitively by the parser.
 /// </summary>
 internal enum TokenKind

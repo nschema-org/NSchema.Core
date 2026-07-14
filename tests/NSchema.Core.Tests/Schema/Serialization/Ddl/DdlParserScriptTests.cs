@@ -1,4 +1,4 @@
-using NSchema.Project.Ddl;
+using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
@@ -87,26 +87,26 @@ public sealed class DdlParserScriptTests
 
     [Fact]
     public void Parse_MissingDeploymentKeyword_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadScripts("SCRIPT 'x' RUN ON PRE 'y' AS $$ SELECT 1; $$;"))
+        => Should.Throw<NsqlSyntaxException>(() => ReadScripts("SCRIPT 'x' RUN ON PRE 'y' AS $$ SELECT 1; $$;"))
             .Message.ShouldContain("DEPLOYMENT");
 
     [Fact]
     public void Parse_WrongTokenBeforeBody_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadScripts("SCRIPT 'x' RUN ON PRE DEPLOYMENT WHEN $$ SELECT 1; $$;"))
+        => Should.Throw<NsqlSyntaxException>(() => ReadScripts("SCRIPT 'x' RUN ON PRE DEPLOYMENT WHEN $$ SELECT 1; $$;"))
             .Message.ShouldContain("AS");
 
     [Fact]
     public void Parse_BodyWithoutAs_Throws()
         // With no 'AS' anchor the body's '$' is reached as an unexpected character — still rejected.
-        => Should.Throw<DdlSyntaxException>(() => ReadScripts("SCRIPT 'x' RUN ON PRE DEPLOYMENT $$ SELECT 1; $$;"));
+        => Should.Throw<NsqlSyntaxException>(() => ReadScripts("SCRIPT 'x' RUN ON PRE DEPLOYMENT $$ SELECT 1; $$;"));
 
     [Fact]
     public void Parse_UnknownOption_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadScripts("SCRIPT 'x' RUN ON PRE DEPLOYMENT (whoops = true) AS $$ SELECT 1; $$;"))
+        => Should.Throw<NsqlSyntaxException>(() => ReadScripts("SCRIPT 'x' RUN ON PRE DEPLOYMENT (whoops = true) AS $$ SELECT 1; $$;"))
             .Message.ShouldContain("run_outside_transaction");
 
     [Fact]
     public void Parse_UnterminatedBody_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadScripts("SCRIPT 'x' RUN ON PRE DEPLOYMENT AS $$ SELECT 1;"))
+        => Should.Throw<NsqlSyntaxException>(() => ReadScripts("SCRIPT 'x' RUN ON PRE DEPLOYMENT AS $$ SELECT 1;"))
             .Message.ShouldContain("Unterminated");
 }

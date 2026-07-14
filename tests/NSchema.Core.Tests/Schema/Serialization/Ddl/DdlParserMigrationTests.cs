@@ -1,4 +1,4 @@
-using NSchema.Project.Ddl;
+using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
@@ -90,27 +90,27 @@ public sealed class DdlParserMigrationTests
 
     [Fact]
     public void Parse_UnknownTrigger_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadMigrations("SCRIPT 'x' RUN ON ADD INDEX app.users.email AS $$ SELECT 1; $$;"))
+        => Should.Throw<NsqlSyntaxException>(() => ReadMigrations("SCRIPT 'x' RUN ON ADD INDEX app.users.email AS $$ SELECT 1; $$;"))
             .Message.ShouldContain("Expected 'ADD COLUMN', 'ALTER COLUMN TYPE' or 'ADD CONSTRAINT'.");
 
     [Fact]
     public void Parse_TwoPartPath_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadMigrations("SCRIPT 'x' RUN ON ADD COLUMN app.users AS $$ SELECT 1; $$;"))
+        => Should.Throw<NsqlSyntaxException>(() => ReadMigrations("SCRIPT 'x' RUN ON ADD COLUMN app.users AS $$ SELECT 1; $$;"))
             .Message.ShouldContain("'.'");
 
     [Fact]
     public void Parse_WrongTokenBeforeBody_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadMigrations("SCRIPT 'x' RUN ON ADD COLUMN app.users.email WHEN $$ SELECT 1; $$;"))
+        => Should.Throw<NsqlSyntaxException>(() => ReadMigrations("SCRIPT 'x' RUN ON ADD COLUMN app.users.email WHEN $$ SELECT 1; $$;"))
             .Message.ShouldContain("AS");
 
     [Fact]
     public void Parse_UnknownOption_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadMigrations("SCRIPT 'x' RUN ON ADD COLUMN app.users.email (whoops = true) AS $$ SELECT 1; $$;"))
+        => Should.Throw<NsqlSyntaxException>(() => ReadMigrations("SCRIPT 'x' RUN ON ADD COLUMN app.users.email (whoops = true) AS $$ SELECT 1; $$;"))
             .Message.ShouldContain("run_outside_transaction");
 
     [Fact]
     public void Parse_MissingTerminatingSemicolon_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadMigrations("SCRIPT 'x' RUN ON ADD COLUMN app.users.email AS $$ SELECT 1; $$"))
+        => Should.Throw<NsqlSyntaxException>(() => ReadMigrations("SCRIPT 'x' RUN ON ADD COLUMN app.users.email AS $$ SELECT 1; $$"))
             .Message.ShouldContain("';' to end the script");
 
     [Fact]
@@ -142,7 +142,7 @@ public sealed class DdlParserMigrationTests
 
     [Fact]
     public void Parse_QualifiedPathInsideTemplateBody_IsRejected()
-        => Should.Throw<DdlSyntaxException>(() => ReadMigrations(
+        => Should.Throw<NsqlSyntaxException>(() => ReadMigrations(
             """
             TEMPLATE t
             BEGIN
@@ -166,7 +166,7 @@ public sealed class DdlParserMigrationTests
     [Fact]
     public void Parse_MigrationInsideTableTemplateBody_IsRejected()
         // A table template's body holds comma-separated members, not statements, so SCRIPT has no home there.
-        => Should.Throw<DdlSyntaxException>(() => ReadMigrations(
+        => Should.Throw<NsqlSyntaxException>(() => ReadMigrations(
             """
             TEMPLATE t FOR TABLE
             BEGIN

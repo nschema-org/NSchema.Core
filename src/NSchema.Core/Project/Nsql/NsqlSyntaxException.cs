@@ -1,12 +1,10 @@
-using NSchema.Project.Nsql;
 
-namespace NSchema.Project.Ddl;
+namespace NSchema.Project.Nsql;
 
 /// <summary>
-/// Thrown when NSchema DDL cannot be lexed or parsed. Parser-internal bail machinery: the read seams catch it
-/// and surface an error diagnostic; it never crosses a public surface.
+/// Thrown when NSchema source cannot be lexed or parsed.
 /// </summary>
-internal sealed class DdlSyntaxException : Exception
+internal sealed class NsqlSyntaxException : Exception
 {
     /// <summary>
     /// The position in the source where the error was detected.
@@ -15,7 +13,7 @@ internal sealed class DdlSyntaxException : Exception
 
     /// <param name="message">A description of the problem (without the position; it is appended).</param>
     /// <param name="position">Where in the source the problem was detected.</param>
-    public DdlSyntaxException(string message, SourcePosition position)
+    public NsqlSyntaxException(string message, SourcePosition position)
         : base($"{message} (at {position}).")
     {
         Position = position;

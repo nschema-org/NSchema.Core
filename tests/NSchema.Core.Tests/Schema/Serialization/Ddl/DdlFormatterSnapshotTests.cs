@@ -1,11 +1,11 @@
-using NSchema.Project.Ddl;
+using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
 /// <summary>
-/// Snapshot coverage for <see cref="DdlFormatter"/> over the template statement family.
+/// Snapshot coverage for <see cref="NsqlFormatter"/> over the template statement family.
 /// </summary>
-public sealed class DdlFormatterSnapshotTests
+public sealed class NsqlFormatterSnapshotTests
 {
     [Fact]
     public Task Format_TemplateDocument()
@@ -38,7 +38,7 @@ public sealed class DdlFormatterSnapshotTests
                 apply template outbox in schema billing,   ordering;
             """;
 
-        return Verify(DdlFormatter.Instance.Format(source));
+        return Verify(NsqlFormatter.Format(source));
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public sealed class DdlFormatterSnapshotTests
             $$;
             """;
 
-        return Verify(DdlFormatter.Instance.Format(source));
+        return Verify(NsqlFormatter.Format(source));
     }
 
     [Fact]
@@ -85,6 +85,6 @@ public sealed class DdlFormatterSnapshotTests
             $$;
             """;
 
-        return Verify(DdlFormatter.Instance.Format(source));
+        return Verify(NsqlFormatter.Format(source));
     }
 }

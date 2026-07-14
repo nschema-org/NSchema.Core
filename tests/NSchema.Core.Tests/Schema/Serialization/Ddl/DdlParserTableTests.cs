@@ -1,4 +1,4 @@
-using NSchema.Project.Ddl;
+using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Tables;
 
@@ -129,7 +129,7 @@ public sealed class DdlParserTableTests
 
     [Fact]
     public void Constraint_TwoPrimaryKeys_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ParseTable("id int, CONSTRAINT pk1 PRIMARY KEY (id), CONSTRAINT pk2 PRIMARY KEY (id)"))
+        => Should.Throw<NsqlSyntaxException>(() => ParseTable("id int, CONSTRAINT pk1 PRIMARY KEY (id), CONSTRAINT pk2 PRIMARY KEY (id)"))
             .Message.ShouldContain("only one primary key");
 
     [Fact]
@@ -246,7 +246,7 @@ public sealed class DdlParserTableTests
 
     [Fact]
     public void Grant_UnknownPrivilege_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("CREATE TABLE app.t (id int); GRANT TRUNCATE ON app.t TO r;").Parse().Schema)
+        => Should.Throw<NsqlSyntaxException>(() => new TestDdlParser("CREATE TABLE app.t (id int); GRANT TRUNCATE ON app.t TO r;").Parse().Schema)
             .Message.ShouldContain("privilege");
 
     // -------------------------------------------------------------------------

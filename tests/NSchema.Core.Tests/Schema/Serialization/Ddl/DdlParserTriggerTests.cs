@@ -1,4 +1,4 @@
-using NSchema.Project.Ddl;
+using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models.Triggers;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
@@ -88,7 +88,7 @@ public sealed class DdlParserTriggerTests
 
     [Fact]
     public void Parse_TriggerActionMissing_Throws()
-        => Should.Throw<DdlSyntaxException>(() =>
+        => Should.Throw<NsqlSyntaxException>(() =>
             new TestDdlParser(Table + "CREATE TRIGGER t AFTER INSERT ON app.users;").Parse())
             .Message.ShouldContain("Expected EXECUTE or AS");
 
@@ -106,19 +106,19 @@ public sealed class DdlParserTriggerTests
 
     [Fact]
     public void Parse_DuplicateEvent_Throws()
-        => Should.Throw<DdlSyntaxException>(() =>
+        => Should.Throw<NsqlSyntaxException>(() =>
             new TestDdlParser(Table + "CREATE TRIGGER t AFTER INSERT OR INSERT ON app.users EXECUTE FUNCTION app.f();").Parse())
             .Message.ShouldContain("more than once");
 
     [Fact]
     public void Parse_BadTiming_Throws()
-        => Should.Throw<DdlSyntaxException>(() =>
+        => Should.Throw<NsqlSyntaxException>(() =>
             new TestDdlParser(Table + "CREATE TRIGGER t DURING INSERT ON app.users EXECUTE FUNCTION app.f();").Parse())
             .Message.ShouldContain("Expected BEFORE, AFTER or INSTEAD OF");
 
     [Fact]
     public void Parse_PartialTrigger_Throws()
-        => Should.Throw<DdlSyntaxException>(() =>
+        => Should.Throw<NsqlSyntaxException>(() =>
             new TestDdlParser("CREATE PARTIAL TRIGGER t AFTER INSERT ON app.users EXECUTE FUNCTION app.f();").Parse())
             .Message.ShouldContain("PARTIAL applies to SCHEMA");
 }

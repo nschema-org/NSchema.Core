@@ -1,18 +1,13 @@
 using System.Text;
-using NSchema.Project.Ddl.Models;
+using NSchema.Project.Nsql.Tokens;
 
-namespace NSchema.Project.Ddl;
+namespace NSchema.Project.Nsql;
 
 /// <summary>
 /// Reformats NSchema DDL <em>gently</em>, normalizing layout.
 /// </summary>
-public sealed class DdlFormatter
+public static class NsqlFormatter
 {
-    /// <summary>
-    /// The singleton instance of <see cref="DdlFormatter"/> for convenience.
-    /// </summary>
-    public static readonly DdlFormatter Instance = new();
-
     private const int MaxBlankLines = 1;
     private const string Indent = "  ";
 
@@ -21,7 +16,7 @@ public sealed class DdlFormatter
     /// </summary>
     /// <param name="source">The DDL source text to format.</param>
     /// <returns>The formatted DDL, ending in a single newline (empty input yields an empty string).</returns>
-    public string Format(string source)
+    public static string Format(string source)
     {
         ArgumentNullException.ThrowIfNull(source);
 
@@ -32,7 +27,7 @@ public sealed class DdlFormatter
 
     private static List<Token> Lex(string source)
     {
-        var lexer = new DdlLexer(source, emitComments: true);
+        var lexer = new NsqlLexer(source, emitComments: true);
         var tokens = new List<Token>();
         while (true)
         {
@@ -527,13 +522,7 @@ public sealed class DdlFormatter
     /// <summary>The number of wholly-blank lines between a line that ends at <paramref name="endLine"/> and one that starts at <paramref name="startLine"/>.</summary>
     private static int BlankLinesBetween(int endLine, int startLine) => Math.Max(0, startLine - endLine - 1);
 
-    private static bool IsStatementKeyword(string text) =>
-        text.Equals("CREATE", StringComparison.OrdinalIgnoreCase)
-        || text.Equals("DROP", StringComparison.OrdinalIgnoreCase)
-        || text.Equals("GRANT", StringComparison.OrdinalIgnoreCase)
-        || text.Equals("TEMPLATE", StringComparison.OrdinalIgnoreCase)
-        || text.Equals("APPLY", StringComparison.OrdinalIgnoreCase)
-        || text.Equals("SCRIPT", StringComparison.OrdinalIgnoreCase);
+    private static bool IsStatementKeyword(string text) => NsqlKeywords.StatementOpeners.Contains(text);
 
     private static string FormatComment(Token token) => token.Kind switch
     {

@@ -1,7 +1,7 @@
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Views;
 
-namespace NSchema.Project.Ddl;
+namespace NSchema.Project.Nsql;
 
 /// <summary>
 /// Extracts the objects a view reads from its (opaque) body, by scanning for the targets of <c>FROM</c> and
@@ -221,7 +221,7 @@ internal static class ViewDependencyExtractor
         token.Kind == TokenType.Word && string.Equals(token.Text, keyword, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// A forgiving scanner over an opaque SQL body. Unlike <see cref="DdlLexer"/> (which only accepts the DDL
+    /// A forgiving scanner over an opaque SQL body. Unlike <see cref="NsqlLexer"/> (which only accepts the DDL
     /// character set) this tolerates any SQL: it recognises identifiers, dots, parentheses and commas, swallows
     /// string literals and comments, and ignores every other character (operators, <c>*</c>, etc.).
     /// </summary>

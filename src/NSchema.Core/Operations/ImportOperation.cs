@@ -1,6 +1,5 @@
 using NSchema.Current;
 using NSchema.Operations.Progress;
-using NSchema.Project.Ddl;
 using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
@@ -104,7 +103,10 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
             Directory.CreateDirectory(directory);
         }
 
-        var ddl = DdlFormatter.Instance.Format(NsqlWriter.Write(merged, declareSchemas));
+        // The partition's document either declares its schemas (a header, the extensions file) or holds
+        // member objects only — a property of the constructed document, not a rendering flag.
+        var document = SyntaxBuilder.Build(merged, [], declareSchemas);
+        var ddl = NsqlFormatter.Format(NsqlWriter.Write(document));
         await File.WriteAllTextAsync(path, ddl, cancellationToken);
 
         // Surface whether each object was created fresh or merged into an existing file — import is additive, so

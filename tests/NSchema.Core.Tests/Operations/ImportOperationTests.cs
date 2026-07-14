@@ -1,7 +1,7 @@
+using NSchema.Project.Nsql;
 using NSchema.Current;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
-using NSchema.Project.Ddl;
 using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
@@ -345,7 +345,7 @@ public sealed class ImportOperationTests : IDisposable
         foreach (var file in Directory.EnumerateFiles(_dir, "*.sql", SearchOption.AllDirectories))
         {
             var text = await File.ReadAllTextAsync(file, TestContext.Current.CancellationToken);
-            DdlFormatter.Instance.Format(text).ShouldBe(text, $"{file} is not formatter-canonical");
+            NsqlFormatter.Format(text).ShouldBe(text, $"{file} is not formatter-canonical");
         }
     }
 

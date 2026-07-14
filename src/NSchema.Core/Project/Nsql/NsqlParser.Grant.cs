@@ -1,7 +1,7 @@
-using NSchema.Project.Ddl.Models;
 using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Syntax.Schemas;
 using NSchema.Project.Nsql.Syntax.Tables;
+using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql;
 

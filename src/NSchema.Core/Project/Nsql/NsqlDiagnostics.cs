@@ -1,4 +1,3 @@
-using NSchema.Project.Ddl;
 
 namespace NSchema.Project.Nsql;
 
@@ -12,7 +11,7 @@ internal static class NsqlDiagnostics
     /// <summary>
     /// A source document that could not be lexed or parsed.
     /// </summary>
-    public static NsqlDiagnostic Syntax(DdlSyntaxException exception) =>
+    public static NsqlDiagnostic Syntax(NsqlSyntaxException exception) =>
         new(Source, exception.Message, DiagnosticSeverity.Error, exception.Position);
 
     /// <summary>

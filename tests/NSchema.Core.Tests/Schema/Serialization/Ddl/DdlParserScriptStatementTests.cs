@@ -1,4 +1,3 @@
-using NSchema.Project.Ddl;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Nsql;
@@ -88,27 +87,27 @@ public sealed class DdlParserScriptStatementTests
 
     [Fact]
     public void Parse_UnlessExists_IsReserved()
-        => Should.Throw<DdlSyntaxException>(() => Read("SCRIPT 'x' RUN UNLESS EXISTS (SELECT 1) ON POST DEPLOYMENT AS $$ SELECT 1; $$;"))
+        => Should.Throw<NsqlSyntaxException>(() => Read("SCRIPT 'x' RUN UNLESS EXISTS (SELECT 1) ON POST DEPLOYMENT AS $$ SELECT 1; $$;"))
             .Message.ShouldContain("'UNLESS EXISTS' is reserved for a future release");
 
     [Fact]
     public void Parse_MissingName_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Read("SCRIPT RUN ON PRE DEPLOYMENT AS $$ SELECT 1; $$;"))
+        => Should.Throw<NsqlSyntaxException>(() => Read("SCRIPT RUN ON PRE DEPLOYMENT AS $$ SELECT 1; $$;"))
             .Message.ShouldContain("Expected a quoted script name");
 
     [Fact]
     public void Parse_MissingRun_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Read("SCRIPT 'x' ON PRE DEPLOYMENT AS $$ SELECT 1; $$;"))
+        => Should.Throw<NsqlSyntaxException>(() => Read("SCRIPT 'x' ON PRE DEPLOYMENT AS $$ SELECT 1; $$;"))
             .Message.ShouldContain("Expected 'RUN'");
 
     [Fact]
     public void Parse_MissingOn_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Read("SCRIPT 'x' RUN AS $$ SELECT 1; $$;"))
+        => Should.Throw<NsqlSyntaxException>(() => Read("SCRIPT 'x' RUN AS $$ SELECT 1; $$;"))
             .Message.ShouldContain("Expected 'ON'");
 
     [Fact]
     public void Parse_UnknownEvent_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Read("SCRIPT 'x' RUN ON DELETE TABLE app.users AS $$ SELECT 1; $$;"))
+        => Should.Throw<NsqlSyntaxException>(() => Read("SCRIPT 'x' RUN ON DELETE TABLE app.users AS $$ SELECT 1; $$;"))
             .Message.ShouldContain("Expected a script event");
 
     // -------------------------------------------------------------------------
@@ -117,12 +116,12 @@ public sealed class DdlParserScriptStatementTests
 
     [Fact]
     public void Parse_OldDeploymentForm_NoLongerParses()
-        => Should.Throw<DdlSyntaxException>(() => Read("POST DEPLOYMENT 'reindex' AS $$ SELECT 1; $$;"))
+        => Should.Throw<NsqlSyntaxException>(() => Read("POST DEPLOYMENT 'reindex' AS $$ SELECT 1; $$;"))
             .Message.ShouldContain("Unknown statement 'POST'");
 
     [Fact]
     public void Parse_OldMigrationForm_NoLongerParses()
-        => Should.Throw<DdlSyntaxException>(() => Read("MIGRATION 'backfill' FOR ADD COLUMN app.users.email AS $$ SELECT 1; $$;"))
+        => Should.Throw<NsqlSyntaxException>(() => Read("MIGRATION 'backfill' FOR ADD COLUMN app.users.email AS $$ SELECT 1; $$;"))
             .Message.ShouldContain("Unknown statement 'MIGRATION'");
 
     // -------------------------------------------------------------------------
@@ -179,7 +178,7 @@ public sealed class DdlParserScriptStatementTests
 
     [Fact]
     public void Parse_OldMigrationFormInTemplate_IsRejected()
-        => Should.Throw<DdlSyntaxException>(() => Read(
+        => Should.Throw<NsqlSyntaxException>(() => Read(
             """
             TEMPLATE outbox
             BEGIN

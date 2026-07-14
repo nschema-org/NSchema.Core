@@ -1,10 +1,10 @@
+using NSchema.Project.Nsql;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Plan.Domain.Models;
 using NSchema.Plan.Domain.Models.Schemas;
 using NSchema.Plan.Domain.Models.Tables;
-using NSchema.Project.Ddl;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.CompositeTypes;

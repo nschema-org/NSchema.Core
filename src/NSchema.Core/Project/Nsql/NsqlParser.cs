@@ -1,6 +1,5 @@
-using NSchema.Project.Ddl;
-using NSchema.Project.Ddl.Models;
 using NSchema.Project.Nsql.Syntax;
+using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql;
 
@@ -10,7 +9,7 @@ namespace NSchema.Project.Nsql;
 /// </summary>
 internal sealed partial class NsqlParser
 {
-    private readonly DdlLexer _lexer;
+    private readonly NsqlLexer _lexer;
     private Token _current;
 
     // True while parsing a template body, where unqualified names are legal (they bind to the applied
@@ -21,17 +20,17 @@ internal sealed partial class NsqlParser
     // (a table template cannot include another).
     private bool _inTableTemplateBody;
 
-    private readonly List<DdlSyntaxException> _errors = [];
+    private readonly List<NsqlSyntaxException> _errors = [];
 
     /// <summary>
     /// The syntax errors collected while parsing. The parser recovers at statement boundaries, so one
     /// parse reports every error in the document; the returned tree carries the statements that parsed.
     /// </summary>
-    public IReadOnlyList<DdlSyntaxException> Errors => _errors;
+    public IReadOnlyList<NsqlSyntaxException> Errors => _errors;
 
     public NsqlParser(string source)
     {
-        _lexer = new DdlLexer(source);
+        _lexer = new NsqlLexer(source);
         _current = _lexer.Next();
     }
 
@@ -57,7 +56,7 @@ internal sealed partial class NsqlParser
             {
                 statements.Add(ParseStatement(pendingDoc));
             }
-            catch (DdlSyntaxException error)
+            catch (NsqlSyntaxException error)
             {
                 // Record and resync to the next statement boundary, so one parse reports every error.
                 _errors.Add(error);
@@ -84,6 +83,8 @@ internal sealed partial class NsqlParser
         }
     }
 
+    // Dispatches on NsqlKeywords.StatementOpeners — a new opener is added there first, so the formatter
+    // recognizes it as a statement boundary.
     private NsqlStatement ParseStatement(string? doc)
     {
         if (_current.IsKeyword("CREATE"))
@@ -209,7 +210,7 @@ internal sealed partial class NsqlParser
         return doc;
     }
 
-    private DdlSyntaxException Error(string message) => new(message, _current.Position);
+    private NsqlSyntaxException Error(string message) => new(message, _current.Position);
 
     // --- opaque-span capture --------------------------------------------------
     //
@@ -231,7 +232,7 @@ internal sealed partial class NsqlParser
         {
             if (_current.Kind == TokenKind.EndOfFile)
             {
-                throw new DdlSyntaxException("Unterminated expression", open.Position);
+                throw new NsqlSyntaxException("Unterminated expression", open.Position);
             }
             if (_current.Kind == TokenKind.LeftParen)
             {
@@ -295,7 +296,7 @@ internal sealed partial class NsqlParser
         var text = _lexer.Slice(startToken.Position.Offset, _current.Position.Offset).Trim();
         if (!allowEmpty && text.Length == 0)
         {
-            throw new DdlSyntaxException($"Expected {what}", startToken.Position);
+            throw new NsqlSyntaxException($"Expected {what}", startToken.Position);
         }
         return text;
     }

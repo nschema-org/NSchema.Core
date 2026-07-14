@@ -1,10 +1,10 @@
+using NSchema.Project.Nsql;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Columns;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Diff.Domain.Models.Views;
-using NSchema.Project.Ddl;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Constraints;

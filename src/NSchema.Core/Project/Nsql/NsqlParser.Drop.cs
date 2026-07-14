@@ -1,4 +1,3 @@
-using NSchema.Project.Ddl.Models;
 using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Syntax.CompositeTypes;
 using NSchema.Project.Nsql.Syntax.Domains;
@@ -9,6 +8,7 @@ using NSchema.Project.Nsql.Syntax.Schemas;
 using NSchema.Project.Nsql.Syntax.Sequences;
 using NSchema.Project.Nsql.Syntax.Tables;
 using NSchema.Project.Nsql.Syntax.Views;
+using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql;
 

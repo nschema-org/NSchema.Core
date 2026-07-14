@@ -1,8 +1,7 @@
-using NSchema.Project.Ddl;
-using NSchema.Project.Ddl.Models;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Syntax.Scripts;
+using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql;
 
@@ -174,7 +173,7 @@ internal sealed partial class NsqlParser
                         runOutsideTransaction = AsBoolean(value);
                         break;
                     default:
-                        throw new DdlSyntaxException($"Unknown {what} option '{key}'. Expected 'run_outside_transaction'.", keyPosition);
+                        throw new NsqlSyntaxException($"Unknown {what} option '{key}'. Expected 'run_outside_transaction'.", keyPosition);
                 }
             }
             while (Match(TokenKind.Comma));

@@ -1,5 +1,4 @@
 using NSchema.Project;
-using NSchema.Project.Ddl;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Nsql;
@@ -203,7 +202,7 @@ public sealed class DdlParserTemplateTests
 
     [Fact]
     public void Parse_ApplyTemplate_DuplicateSchema_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("APPLY TEMPLATE t IN SCHEMA a, A;").Parse())
+        => Should.Throw<NsqlSyntaxException>(() => new TestDdlParser("APPLY TEMPLATE t IN SCHEMA a, A;").Parse())
             .Message.ShouldContain("more than once");
 
     [Fact]
@@ -214,58 +213,58 @@ public sealed class DdlParserTemplateTests
 
     [Fact]
     public void Parse_Template_CreateSchemaInside_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN CREATE SCHEMA app; END;").Parse())
+        => Should.Throw<NsqlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN CREATE SCHEMA app; END;").Parse())
             .Message.ShouldContain("CREATE SCHEMA is not supported inside a template");
 
     [Fact]
     public void Parse_Template_CreateViewInside_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN CREATE VIEW v AS SELECT 1; END;").Parse())
+        => Should.Throw<NsqlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN CREATE VIEW v AS SELECT 1; END;").Parse())
             .Message.ShouldContain("CREATE VIEW is not supported inside a template");
 
     [Fact]
     public void Parse_Template_CreateMaterializedViewInside_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN CREATE MATERIALIZED VIEW v AS SELECT 1; END;").Parse())
+        => Should.Throw<NsqlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN CREATE MATERIALIZED VIEW v AS SELECT 1; END;").Parse())
             .Message.ShouldContain("CREATE MATERIALIZED VIEW is not supported inside a template");
 
     [Fact]
     public void Parse_Template_CreateExtensionInside_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN CREATE EXTENSION citext; END;").Parse())
+        => Should.Throw<NsqlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN CREATE EXTENSION citext; END;").Parse())
             .Message.ShouldContain("CREATE EXTENSION is not supported inside a template");
 
     [Fact]
     public void Parse_Template_GrantUsageOnSchemaInside_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN GRANT USAGE ON SCHEMA app TO svc; END;").Parse())
+        => Should.Throw<NsqlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN GRANT USAGE ON SCHEMA app TO svc; END;").Parse())
             .Message.ShouldContain("GRANT USAGE ON SCHEMA is not supported inside a template");
 
     [Fact]
     public void Parse_Template_DropInside_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN DROP TABLE app.x; END;").Parse())
+        => Should.Throw<NsqlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN DROP TABLE app.x; END;").Parse())
             .Message.ShouldContain("inside a template");
 
     [Fact]
     public void Parse_Template_OldDeploymentFormInside_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN PRE DEPLOYMENT 'x' AS $$ SELECT 1; $$; END;").Parse())
+        => Should.Throw<NsqlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN PRE DEPLOYMENT 'x' AS $$ SELECT 1; $$; END;").Parse())
             .Message.ShouldContain("inside a template");
 
     [Fact]
     public void Parse_Template_NestedTemplateInside_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN TEMPLATE u BEGIN END; END;").Parse())
+        => Should.Throw<NsqlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN TEMPLATE u BEGIN END; END;").Parse())
             .Message.ShouldContain("inside a template");
 
     [Fact]
     public void Parse_Template_Unterminated_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN CREATE TABLE x (id int NOT NULL);").Parse())
+        => Should.Throw<NsqlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN CREATE TABLE x (id int NOT NULL);").Parse())
             .Message.ShouldContain("Unterminated template 't'");
 
     [Fact]
     public void Parse_Template_MissingBegin_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t CREATE TABLE x (id int NOT NULL); END;").Parse())
+        => Should.Throw<NsqlSyntaxException>(() => new TestDdlParser("TEMPLATE t CREATE TABLE x (id int NOT NULL); END;").Parse())
             .Message.ShouldContain("BEGIN");
 
     [Fact]
     public void Parse_UnqualifiedNameOutsideTemplate_StillThrows()
         // The template-body binding must not leak: outside a template every name stays schema-qualified.
-        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("CREATE TABLE outbox (id int NOT NULL);").Parse())
+        => Should.Throw<NsqlSyntaxException>(() => new TestDdlParser("CREATE TABLE outbox (id int NOT NULL);").Parse())
             .Message.ShouldContain("Expected '.'");
 
     // --- table templates (FOR TABLE) and INCLUDE members -----------------------
@@ -300,7 +299,7 @@ public sealed class DdlParserTemplateTests
 
     [Fact]
     public void Parse_ForUnknownKind_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t FOR VIEW BEGIN END;").Parse())
+        => Should.Throw<NsqlSyntaxException>(() => new TestDdlParser("TEMPLATE t FOR VIEW BEGIN END;").Parse())
             .Message.ShouldContain("Expected SCHEMA or TABLE after FOR");
 
     [Fact]
@@ -334,7 +333,7 @@ public sealed class DdlParserTemplateTests
 
     [Fact]
     public void Parse_TableTemplate_IncludeInside_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser(
+        => Should.Throw<NsqlSyntaxException>(() => new TestDdlParser(
                 """
                 TEMPLATE t FOR TABLE
                 BEGIN

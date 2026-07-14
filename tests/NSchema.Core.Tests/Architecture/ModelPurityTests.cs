@@ -46,22 +46,6 @@ public sealed class ModelPurityTests
         rule.ShouldBeSatisfied();
     }
 
-    [Fact]
-    public void DdlNamespace_DependsOnlyOnModelsTheBcl_AndTheOutcomeGrammar()
-    {
-        // Arrange — the read seam returns Result, so the language lane may also reference the root
-        // outcome grammar (Result/Diagnostic), but nothing else outside its lane. TRANSITIONAL: the old
-        // lane's seam delegates to the Nsql pipeline (parser + projector) until NsqlReader replaces it
-        // at the reader realignment; the sanctioned edge dies with DdlReader.
-        var rule = Types().That().ResideInNamespaceMatching(Subtree("NSchema.Project.Ddl"))
-            .Should().OnlyDependOn(
-                Types().That().ResideInNamespaceMatching(Subtree("NSchema.Project.Ddl", "NSchema.Project.Domain.Models", "NSchema.Plugins", "System"))
-                    .Or().Are(typeof(Result), typeof(Result<>), typeof(Diagnostic),
-                        typeof(NSchema.Project.Nsql.NsqlParser), typeof(NSchema.Project.Nsql.DocumentProjector), typeof(NSchema.Project.Nsql.NsqlDocument), typeof(NSchema.Project.Nsql.SourcePosition)));
-
-        // Assert
-        rule.ShouldBeSatisfied();
-    }
 
     [Fact]
     public void SchemaModel_DependsOnlyOnItselfTheBcl_AndTheHashingDomainService()

@@ -1,7 +1,6 @@
-using NSchema.Project.Ddl;
-using NSchema.Project.Ddl.Models;
 using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Syntax.Config;
+using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql;
 
@@ -29,7 +28,7 @@ internal sealed partial class NsqlParser
             {
                 statements.Add(ParseConfigGrammarStatement(pendingDoc));
             }
-            catch (DdlSyntaxException error)
+            catch (NsqlSyntaxException error)
             {
                 _errors.Add(error);
                 Resync();
@@ -84,7 +83,7 @@ internal sealed partial class NsqlParser
                 var key = ParseConfigKey();
                 if (attributes.Any(a => string.Equals(a.Key, key, StringComparison.OrdinalIgnoreCase)))
                 {
-                    throw new DdlSyntaxException($"Configuration attribute '{key}' is specified more than once.", keyPosition);
+                    throw new NsqlSyntaxException($"Configuration attribute '{key}' is specified more than once.", keyPosition);
                 }
                 Expect(TokenKind.Equals, "'=' after a configuration attribute name");
                 var value = ParseConfigValueNode();

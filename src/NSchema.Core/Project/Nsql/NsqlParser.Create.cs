@@ -1,5 +1,3 @@
-using NSchema.Project.Ddl;
-using NSchema.Project.Ddl.Models;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Syntax.CompositeTypes;
@@ -15,6 +13,7 @@ using NSchema.Project.Nsql.Syntax.Tables;
 using NSchema.Project.Nsql.Syntax.Templates;
 using NSchema.Project.Nsql.Syntax.Triggers;
 using NSchema.Project.Nsql.Syntax.Views;
+using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql;
 
@@ -225,7 +224,7 @@ internal sealed partial class NsqlParser
                 var value = Expect(TokenKind.String, "an enum value (a quoted string)").Text;
                 if (values.Contains(value, StringComparer.Ordinal))
                 {
-                    throw new DdlSyntaxException($"Enum value '{value}' is declared more than once.", valuePosition);
+                    throw new NsqlSyntaxException($"Enum value '{value}' is declared more than once.", valuePosition);
                 }
                 values.Add(value);
             }
@@ -353,7 +352,7 @@ internal sealed partial class NsqlParser
             {
                 if (alreadySet)
                 {
-                    throw new DdlSyntaxException($"Sequence option '{option.Text.ToUpperInvariant()}' is specified more than once.", optionPosition);
+                    throw new NsqlSyntaxException($"Sequence option '{option.Text.ToUpperInvariant()}' is specified more than once.", optionPosition);
                 }
             }
 
@@ -395,7 +394,7 @@ internal sealed partial class NsqlParser
             }
             else
             {
-                throw new DdlSyntaxException(
+                throw new NsqlSyntaxException(
                     $"Unknown sequence option '{option.Text}'; expected AS, START, INCREMENT, MINVALUE, MAXVALUE, CACHE or CYCLE.", optionPosition);
             }
         }
@@ -563,7 +562,7 @@ internal sealed partial class NsqlParser
         {
             if (events.HasFlag(next))
             {
-                throw new DdlSyntaxException($"Trigger event '{next.ToString().ToUpperInvariant()}' is specified more than once.", position);
+                throw new NsqlSyntaxException($"Trigger event '{next.ToString().ToUpperInvariant()}' is specified more than once.", position);
             }
             events |= next;
         }

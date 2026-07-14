@@ -1,5 +1,5 @@
+using NSchema.Project.Nsql;
 using NSchema.Diff.Domain.Models;
-using NSchema.Project.Ddl;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Indexes;
 using NSchema.Project.Domain.Models.Views;

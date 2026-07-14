@@ -77,7 +77,7 @@ public sealed class NamespaceMigrationMapTests
 
         // ── ProjectDefinition.Ddl: the project language — machinery + the full syntax tree. ──
         [typeof(NSchema.Project.Nsql.NsqlWriter)] = ProjectNsql, // domain → syntax → text; SyntaxBuilder is its first half
-        [typeof(NSchema.Project.Ddl.DdlFormatter)] = ProjectDdl,
+        [typeof(NSchema.Project.Nsql.NsqlFormatter)] = ProjectNsql, // token-stream reformatter, shares the lexer
         [typeof(NSchema.Project.Nsql.SourcePosition)] = ProjectNsql,
         // Template constructs are language features, not domain models; reshaped as AST nodes.
 

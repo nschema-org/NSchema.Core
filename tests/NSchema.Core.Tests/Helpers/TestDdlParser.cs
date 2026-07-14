@@ -4,7 +4,7 @@ namespace NSchema.Tests.Helpers;
 
 /// <summary>
 /// The parse-and-project pipeline with the old parser's shape: construct with source, <see cref="Parse"/> to a
-/// projected document, syntax and assembly errors thrown as <c>DdlSyntaxException</c> (the reader folds
+/// projected document, syntax and assembly errors thrown as <c>NsqlSyntaxException</c> (the reader folds
 /// them into a <c>Result</c>; these tests assert the raw errors).
 /// </summary>
 internal sealed class TestDdlParser(string source)

@@ -1,14 +1,13 @@
-using NSchema.Project.Ddl;
-using NSchema.Project.Ddl.Models;
 using NSchema.Project.Nsql;
+using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
-public sealed class DdlLexerTests
+public sealed class NsqlLexerTests
 {
     private static List<Token> Tokens(string source)
     {
-        var lexer = new DdlLexer(source);
+        var lexer = new NsqlLexer(source);
         var tokens = new List<Token>();
         while (true)
         {
@@ -86,7 +85,7 @@ public sealed class DdlLexerTests
     [Fact]
     public void Lex_UnterminatedString_Throws()
     {
-        var ex = Should.Throw<DdlSyntaxException>(() => Tokens("'oops"));
+        var ex = Should.Throw<NsqlSyntaxException>(() => Tokens("'oops"));
         ex.Message.ShouldContain("Unterminated string");
     }
 
@@ -164,11 +163,11 @@ public sealed class DdlLexerTests
 
     [Fact]
     public void Lex_UnterminatedBlockComment_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Tokens("/* never ends")).Message.ShouldContain("Unterminated block comment");
+        => Should.Throw<NsqlSyntaxException>(() => Tokens("/* never ends")).Message.ShouldContain("Unterminated block comment");
 
     [Fact]
     public void Lex_UnterminatedDocBlock_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Tokens("/** never ends")).Message.ShouldContain("Unterminated doc-comment");
+        => Should.Throw<NsqlSyntaxException>(() => Tokens("/** never ends")).Message.ShouldContain("Unterminated doc-comment");
 
     // -------------------------------------------------------------------------
     // Positions and lookahead
@@ -186,7 +185,7 @@ public sealed class DdlLexerTests
     [Fact]
     public void Peek_DoesNotConsume()
     {
-        var lexer = new DdlLexer("a b");
+        var lexer = new NsqlLexer("a b");
         lexer.Peek().Text.ShouldBe("a");
         lexer.Peek().Text.ShouldBe("a");   // still 'a'
         lexer.Next().Text.ShouldBe("a");
@@ -196,7 +195,7 @@ public sealed class DdlLexerTests
     [Fact]
     public void Next_AtEnd_ReturnsEndOfFileRepeatedly()
     {
-        var lexer = new DdlLexer("");
+        var lexer = new NsqlLexer("");
         lexer.Next().Kind.ShouldBe(TokenKind.EndOfFile);
         lexer.Next().Kind.ShouldBe(TokenKind.EndOfFile);
     }
@@ -242,6 +241,6 @@ public sealed class DdlLexerTests
 
     [Fact]
     public void Lex_UnterminatedDollarString_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Tokens("$$ SELECT 1;"))
+        => Should.Throw<NsqlSyntaxException>(() => Tokens("$$ SELECT 1;"))
             .Message.ShouldContain("Unterminated dollar-quoted string");
 }

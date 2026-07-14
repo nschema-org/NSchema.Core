@@ -137,7 +137,7 @@ public sealed class DdlWriterTests
         var schema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
             Tables: [new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
 
-        var ddl = NsqlWriter.Write(schema, declareSchemas: false);
+        var ddl = NsqlWriter.Write(SyntaxBuilder.Build(schema, [], declareSchemas: false));
 
         ddl.ShouldNotContain("CREATE SCHEMA");
         ddl.ShouldStartWith("CREATE TABLE app.t");
@@ -152,7 +152,7 @@ public sealed class DdlWriterTests
             Tables: [new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])],
             Views: [new View(new SqlIdentifier("active"), new SqlText("SELECT 1"))])]);
 
-        var reparsed = new TestDdlParser(NsqlWriter.Write(schema, declareSchemas: false)).Parse().Schema;
+        var reparsed = new TestDdlParser(NsqlWriter.Write(SyntaxBuilder.Build(schema, [], declareSchemas: false))).Parse().Schema;
 
         var app = reparsed.Schemas.ShouldHaveSingleItem();
         app.Tables.ShouldHaveSingleItem().Name.ShouldBe("t");

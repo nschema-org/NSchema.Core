@@ -1,8 +1,7 @@
-using NSchema.Project.Ddl;
-using NSchema.Project.Ddl.Models;
 using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Syntax.Tables;
 using NSchema.Project.Nsql.Syntax.Templates;
+using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql;
 
@@ -59,7 +58,7 @@ internal sealed partial class NsqlParser
             {
                 if (_current.Kind == TokenKind.EndOfFile)
                 {
-                    throw new DdlSyntaxException($"Unterminated template '{name.Text}'; expected END.", namePosition);
+                    throw new NsqlSyntaxException($"Unterminated template '{name.Text}'; expected END.", namePosition);
                 }
 
                 var statementDoc = TakePendingDoc();
@@ -71,7 +70,7 @@ internal sealed partial class NsqlParser
                 {
                     statements.Add(ParseTemplateStatement(statementDoc));
                 }
-                catch (DdlSyntaxException error)
+                catch (NsqlSyntaxException error)
                 {
                     _errors.Add(error);
                     ResyncInTemplateBody();
@@ -171,7 +170,7 @@ internal sealed partial class NsqlParser
             var schemaName = ExpectIdentifierNode("a schema name");
             if (schemaNames.Any(s => string.Equals(s.Text, schemaName.Text, StringComparison.OrdinalIgnoreCase)))
             {
-                throw new DdlSyntaxException($"Schema '{schemaName.Text}' is listed more than once.", schemaPosition);
+                throw new NsqlSyntaxException($"Schema '{schemaName.Text}' is listed more than once.", schemaPosition);
             }
             schemaNames.Add(schemaName);
         }

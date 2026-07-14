@@ -1,10 +1,10 @@
-using NSchema.Project.Ddl;
+using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
-public sealed class DdlFormatterTests
+public sealed class NsqlFormatterTests
 {
-    private static string Format(string source) => DdlFormatter.Instance.Format(source);
+    private static string Format(string source) => NsqlFormatter.Format(source);
 
     // -------------------------------------------------------------------------
     // Layout normalisation

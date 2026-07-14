@@ -1,4 +1,4 @@
-using NSchema.Project.Ddl;
+using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
@@ -57,11 +57,11 @@ public sealed class DdlParserExtensionTests
 
     [Fact]
     public void Parse_PartialExtension_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE PARTIAL EXTENSION citext;"))
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE PARTIAL EXTENSION citext;"))
             .Message.ShouldContain("PARTIAL applies to SCHEMA");
 
     [Fact]
     public void Parse_CreateExtension_MissingVersionString_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE EXTENSION postgis VERSION;"))
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE EXTENSION postgis VERSION;"))
             .Message.ShouldContain("a version string");
 }
