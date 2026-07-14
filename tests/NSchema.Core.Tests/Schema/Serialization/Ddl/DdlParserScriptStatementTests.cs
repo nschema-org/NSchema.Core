@@ -1,5 +1,6 @@
+using NSchema.Project.Nsql;
 using NSchema.Project.Ddl;
-using NSchema.Project.Ddl.Models;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
@@ -11,9 +12,9 @@ namespace NSchema.Tests.Schema.Serialization.Ddl;
 /// </summary>
 public sealed class DdlParserScriptStatementTests
 {
-    private static DdlDocument Read(string source) => new TestDdlParser(source).Parse();
+    private static ProjectedDocument Read(string source) => new TestDdlParser(source).Parse();
 
-    private static IReadOnlyList<Script> Migrations(DdlDocument document) =>
+    private static IReadOnlyList<Script> Migrations(ProjectedDocument document) =>
         [.. document.Scripts.Where(s => s.Event is ChangeEvent)];
 
     // -------------------------------------------------------------------------
@@ -131,33 +132,48 @@ public sealed class DdlParserScriptStatementTests
     [Fact]
     public void Parse_ChangeEventScriptInTemplate_BindsTheSchemaPerApplication()
     {
-        var migration = Read(
+        var read = NSchema.Project.Nsql.NsqlReader.Read(
             """
+            CREATE SCHEMA billing;
+            CREATE SCHEMA ordering;
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL, trace_id text NOT NULL );
               SCRIPT 'backfill {schema} trace' RUN ON ADD COLUMN outbox_events.trace_id AS $$ UPDATE {schema}.outbox_events SET trace_id = ''; $$;
             END;
-            """).Templates.Definitions.ShouldHaveSingleItem().Scripts.ShouldHaveSingleItem();
+            APPLY TEMPLATE outbox IN SCHEMA billing, ordering;
+            """);
+        read.IsSuccess.ShouldBeTrue();
+        var assembled = NSchema.Project.ProjectAssembler.Assemble([read.Value]);
+        assembled.IsSuccess.ShouldBeTrue();
 
-        var change = migration.Event.ShouldBeOfType<ChangeEvent>();
-        change.TableName.ShouldBe("outbox_events");
-        change.MemberName.ShouldBe("trace_id");
+        var changes = assembled.Value.Scripts.Select(s => s.Event).Cast<ChangeEvent>().ToList();
+        changes.Select(c => c.ScopeSchema!.Value).ShouldBe(["billing", "ordering"]);
+        changes.ShouldAllBe(c => c.TableName == new SqlIdentifier("outbox_events"));
+        changes.ShouldAllBe(c => c.MemberName == new SqlIdentifier("trace_id"));
     }
 
     [Fact]
-    public void Parse_DeploymentScriptInTemplate_LandsOnTheTemplate()
+    public void Parse_DeploymentScriptInTemplate_InstantiatesPerAppliedSchema()
     {
-        var script = Read(
+        var read = NSchema.Project.Nsql.NsqlReader.Read(
             """
+            CREATE SCHEMA app;
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL );
               SCRIPT 'seed {schema}' RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
             END;
-            """).Templates.Definitions.ShouldHaveSingleItem().Scripts.ShouldHaveSingleItem();
+            APPLY TEMPLATE outbox IN SCHEMA app;
+            """);
+        read.IsSuccess.ShouldBeTrue();
+        var assembled = NSchema.Project.ProjectAssembler.Assemble([read.Value]);
+        assembled.IsSuccess.ShouldBeTrue();
 
-        script.Event.ShouldBe(new DeploymentEvent(DeploymentPhase.Post));
+        var script = assembled.Value.Scripts.ShouldHaveSingleItem();
+        script.Name.ShouldBe("seed app");
+        script.Sql.Value.ShouldContain("INSERT INTO app.outbox_events");
+        script.Event.ShouldBe(new DeploymentEvent(DeploymentPhase.Post) { ScopeSchema = new SqlIdentifier("app") });
         script.RunCondition.ShouldBe(RunCondition.Once);
     }
 

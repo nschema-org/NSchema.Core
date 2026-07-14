@@ -114,28 +114,30 @@ public sealed class DdlParserMigrationTests
             .Message.ShouldContain("';' to end the script");
 
     [Fact]
-    public void Parse_MigrationInsideTemplateBody_BindsToThePlaceholderSchema()
+    public void Parse_MigrationInsideTemplate_InstantiatesPerAppliedSchema()
     {
-        // Arrange — inside a template the path is unqualified (table.member); the schema binds per application.
-        var document = new TestDdlParser(
+        var read = NSchema.Project.Nsql.NsqlReader.Read(
             """
+            CREATE SCHEMA app;
             TEMPLATE t
             BEGIN
               CREATE TABLE users ( id int NOT NULL );
               SCRIPT 'backfill' RUN ON ADD COLUMN users.email (run_outside_transaction = true) AS $$ UPDATE {schema}.users SET email = ''; $$;
             END;
-            """).Parse();
+            APPLY TEMPLATE t IN SCHEMA app;
+            """);
+        read.IsSuccess.ShouldBeTrue();
+        var assembled = NSchema.Project.ProjectAssembler.Assemble([read.Value]);
+        assembled.IsSuccess.ShouldBeTrue();
 
-        // Assert — the migration rides the definition, not the document's top-level list.
-        document.Scripts.ShouldBeEmpty();
-        var migration = document.Templates.Definitions.ShouldHaveSingleItem().Scripts.ShouldHaveSingleItem();
+        var migration = assembled.Value.Scripts.ShouldHaveSingleItem();
         migration.Name.ShouldBe("backfill");
         var change = migration.Event.ShouldBeOfType<ChangeEvent>();
-        change.ScopeSchema.ShouldBe("<template>");
+        change.ScopeSchema.ShouldBe("app");
         change.TableName.ShouldBe("users");
         change.MemberName.ShouldBe("email");
         migration.RunOutsideTransaction.ShouldBeTrue();
-        migration.Sql.ShouldBe("UPDATE {schema}.users SET email = '';");
+        migration.Sql.Value.ShouldBe("UPDATE app.users SET email = '';");
     }
 
     [Fact]

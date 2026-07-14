@@ -1,6 +1,4 @@
 using NSchema.Project.Ddl;
-using NSchema.Project.Domain;
-using NSchema.Project.Domain.Models;
 
 namespace NSchema.Tests.Schema.Templates;
 
@@ -49,8 +47,9 @@ public sealed class TemplateExpansionSnapshotTests
             APPLY TEMPLATE outbox IN SCHEMA billing, ordering;
             """;
 
-        var document = DdlReader.Instance.Read(source).Require();
-        var expanded = TemplateApplicator.Apply(new ProjectDefinition(document.Schema, document.Scripts), document.Templates).Require().Schema;
+        var read = NSchema.Project.Nsql.NsqlReader.Read(source);
+        read.IsSuccess.ShouldBeTrue();
+        var expanded = NSchema.Project.ProjectAssembler.Assemble([read.Value]).Require().Schema;
 
         return Verify(DdlWriter.Instance.Write(expanded));
     }

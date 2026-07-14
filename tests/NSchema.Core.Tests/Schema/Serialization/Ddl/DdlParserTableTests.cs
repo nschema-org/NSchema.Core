@@ -240,8 +240,8 @@ public sealed class DdlParserTableTests
     }
 
     [Fact]
-    public void Grant_UnknownTable_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("GRANT SELECT ON app.ghost TO readers;").Parse().Schema)
+    public void Grant_UnknownTable_FailsTheRead()
+        => new TestDdlParser("GRANT SELECT ON app.ghost TO readers;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("unknown table");
 
     [Fact]

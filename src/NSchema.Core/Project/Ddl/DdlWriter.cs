@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text;
-using NSchema.Project.Ddl.Models;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.CompositeTypes;
@@ -35,48 +34,49 @@ public sealed class DdlWriter
     /// <param name="schema">The schema to write.</param>
     /// <param name="declareSchemas">Whether to emit a <c>CREATE SCHEMA</c> statement for each schema; pass <c>false</c> to write only the member objects (the reader vivifies the schema from their qualified names).</param>
     /// <returns>The canonical NSchema DDL for <paramref name="schema"/>.</returns>
-    public string Write(DatabaseSchema schema, bool declareSchemas = true) => Write(new DdlDocument(schema, []), declareSchemas);
+    public string Write(DatabaseSchema schema, bool declareSchemas = true) => Write(schema, [], declareSchemas);
 
     /// <summary>
-    /// Writes a full <see cref="DdlDocument"/> as canonical NSchema DDL.
+    /// Writes a schema and its scripts as canonical NSchema DDL.
     /// </summary>
-    /// <param name="document">The document to write.</param>
-    /// <returns>The canonical NSchema DDL for <paramref name="document"/>.</returns>
-    public string Write(DdlDocument document) => Write(document, declareSchemas: true);
+    /// <param name="schema">The schema to write.</param>
+    /// <param name="scripts">The scripts to write after the schema.</param>
+    /// <returns>The canonical NSchema DDL.</returns>
+    public string Write(DatabaseSchema schema, IReadOnlyList<Script> scripts) => Write(schema, scripts, declareSchemas: true);
 
-    private static string Write(DdlDocument document, bool declareSchemas)
+    private static string Write(DatabaseSchema schema, IReadOnlyList<Script> scripts, bool declareSchemas)
     {
         var sb = new StringBuilder();
         var first = true;
 
 
         // Extensions are database-global and are created first, so they precede the schemas.
-        foreach (var extension in document.Schema.Extensions)
+        foreach (var extension in schema.Extensions)
         {
             Separate(sb, ref first);
             WriteExtension(sb, extension);
         }
 
-        foreach (var definition in document.Schema.Schemas)
+        foreach (var definition in schema.Schemas)
         {
             Separate(sb, ref first);
             WriteSchema(sb, definition, declareSchemas);
         }
 
-        foreach (var dropped in document.Schema.DroppedSchemas)
+        foreach (var dropped in schema.DroppedSchemas)
         {
             Separate(sb, ref first);
             sb.Append("DROP SCHEMA ").Append(dropped).AppendLine(";");
         }
 
         // Extensions are dropped last, so their drops trail the schema drops.
-        foreach (var dropped in document.Schema.DroppedExtensions)
+        foreach (var dropped in schema.DroppedExtensions)
         {
             Separate(sb, ref first);
             sb.Append("DROP EXTENSION ").Append(ExtensionName(dropped.Value)).AppendLine(";");
         }
 
-        foreach (var script in document.Scripts)
+        foreach (var script in scripts)
         {
             Separate(sb, ref first);
             WriteScript(sb, script);

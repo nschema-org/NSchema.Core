@@ -1,5 +1,3 @@
-using NSchema.Project.Ddl;
-using NSchema.Project.Ddl.Models.Templates;
 using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
@@ -27,42 +25,39 @@ internal static class ProjectAssembler
         {
             var accumulator = new SchemaAccumulator();
             var documentScripts = new List<Script>();
-            try
+            var documentDiagnostics = new List<NsqlDiagnostic>();
+            foreach (var statement in document.Statements)
             {
-                foreach (var statement in document.Statements)
+                switch (statement)
                 {
-                    switch (statement)
-                    {
-                        case SchemaTemplateStatement template:
-                            // Projecting the body validates it (internal duplicates, stray-qualified
-                            // declarations) at read time, whether or not the template is ever applied.
-                            DocumentProjector.ProjectSchemaTemplate(template);
-                            schemaTemplates.Add(template);
-                            break;
-                        case TableTemplateStatement template:
-                            tableTemplates.Add(template);
-                            break;
-                        case ApplyTemplateStatement application:
-                            applications.Add(application);
-                            break;
-                        case Nsql.Syntax.Config.ConfigStatement:
-                            // Configuration is not project content; the config read seam interprets it.
-                            break;
-                        default:
-                            DocumentProjector.ProjectStatement(statement, accumulator, documentScripts, context: null);
-                            break;
-                    }
+                    case SchemaTemplateStatement template:
+                        // Validating the body (internal duplicates, stray-qualified declarations) at read
+                        // time, whether or not the template is ever applied.
+                        documentDiagnostics.AddRange(DocumentProjector.ValidateTemplateBody(template));
+                        schemaTemplates.Add(template);
+                        break;
+                    case TableTemplateStatement template:
+                        tableTemplates.Add(template);
+                        break;
+                    case ApplyTemplateStatement application:
+                        applications.Add(application);
+                        break;
+                    case Nsql.Syntax.Config.ConfigStatement:
+                        // Configuration is not project content; the config read seam interprets it.
+                        break;
+                    default:
+                        DocumentProjector.ProjectStatement(statement, accumulator, documentScripts, context: null);
+                        break;
                 }
             }
-            catch (DdlSyntaxException error)
-            {
-                // A same-file finding (a duplicate declaration, a broken template body) carries its position
-                // and file structurally, like a parse error; the document's remainder is skipped.
-                diagnostics.Add(NsqlDiagnostics.Syntax(error) with { File = document.FilePath });
-                continue;
-            }
 
-            var merged = SchemaAggregator.Combine(schema, accumulator.Build());
+            // A same-file finding (a duplicate declaration, a broken template body) carries its position and
+            // file structurally, like a parse error — and the document's healthy statements still aggregate.
+            var fragment = accumulator.Build();
+            documentDiagnostics.AddRange(accumulator.Diagnostics);
+            diagnostics.AddRange(documentDiagnostics.Select(d => d with { File = document.FilePath }));
+
+            var merged = SchemaAggregator.Combine(schema, fragment);
             diagnostics.AddRange(merged.Diagnostics);
             schema = merged.Require();
             scripts.AddRange(documentScripts);

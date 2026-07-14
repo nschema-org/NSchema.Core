@@ -1,7 +1,5 @@
 using NSchema.Operations;
 using NSchema.Operations.Progress;
-using NSchema.Project.Ddl.Models;
-using NSchema.Project.Ddl.Models.Templates;
 using NSchema.Project.Domain.Models.Triggers;
 using Syntax = NSchema.Project.Nsql.Syntax;
 
@@ -78,17 +76,10 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Current.Backends.ISchemaIntrospector)] = CurrentBackends,
 
         // ── ProjectDefinition.Ddl: the project language — machinery + the full syntax tree. ──
-        [typeof(NSchema.Project.Ddl.DdlReader)] = ProjectDdl,
         [typeof(NSchema.Project.Ddl.DdlWriter)] = ProjectDdl,
         [typeof(NSchema.Project.Ddl.DdlFormatter)] = ProjectDdl,
-        [typeof(DdlDocument)] = ProjectDdlModels, // becomes the parsed-project root of the full AST
         [typeof(NSchema.Project.Nsql.SourcePosition)] = ProjectNsql,
         // Template constructs are language features, not domain models; reshaped as AST nodes.
-        [typeof(TemplateDefinition)] = ProjectDdlModels + ".Templates",
-        [typeof(TemplateApplication)] = ProjectDdlModels + ".Templates",
-        [typeof(TemplateInclude)] = ProjectDdlModels + ".Templates",
-        [typeof(TemplateKind)] = ProjectDdlModels + ".Templates",
-        [typeof(TemplateSet)] = ProjectDdlModels + ".Templates",
 
         // ── ProjectDefinition.Nsql: the NSchema language — documents at the lane root, the syntax tree
         // under .Syntax. Born in their 5.0 home; they replace the Ddl lane as the parser flips to them. ──

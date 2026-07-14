@@ -93,16 +93,15 @@ public sealed class DdlParserTriggerTests
             .Message.ShouldContain("Expected EXECUTE or AS");
 
     [Fact]
-    public void Parse_TriggerOnUnknownTable_Throws()
-        => Should.Throw<DdlSyntaxException>(() =>
-            new TestDdlParser("CREATE SCHEMA app; CREATE TRIGGER t AFTER INSERT ON app.ghost EXECUTE FUNCTION app.f();").Parse())
+    public void Parse_TriggerOnUnknownTable_FailsTheRead()
+        => new TestDdlParser("CREATE SCHEMA app; CREATE TRIGGER t AFTER INSERT ON app.ghost EXECUTE FUNCTION app.f();").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("unknown table");
 
     [Fact]
-    public void Parse_DuplicateTrigger_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser(Table +
+    public void Parse_DuplicateTrigger_FailsTheRead()
+        => new TestDdlParser(Table +
             "CREATE TRIGGER t AFTER INSERT ON app.users EXECUTE FUNCTION app.f(); " +
-            "CREATE TRIGGER t AFTER DELETE ON app.users EXECUTE FUNCTION app.f();").Parse())
+            "CREATE TRIGGER t AFTER DELETE ON app.users EXECUTE FUNCTION app.f();").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("already declared");
 
     [Fact]

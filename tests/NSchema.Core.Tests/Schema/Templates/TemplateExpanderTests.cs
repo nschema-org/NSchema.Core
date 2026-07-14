@@ -1,20 +1,21 @@
-using NSchema.Project.Ddl;
-using NSchema.Project.Domain;
+using NSchema.Project;
+using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Tests.Schema.Templates;
 
-public sealed class TemplateApplicatorTests
+public sealed class TemplateExpanderTests
 {
-    /// <summary>Parses <paramref name="source"/> and expands its templates, as the project provider would.</summary>
+    /// <summary>Parses <paramref name="source"/> and assembles it, expanding its templates as the project provider would.</summary>
     private static DatabaseSchema Expand(string source) => Apply(source).Require().Schema;
 
     private static Result<ProjectDefinition> Apply(string source)
     {
-        var document = DdlReader.Instance.Read(source).Require();
-        return TemplateApplicator.Apply(new ProjectDefinition(document.Schema, document.Scripts), document.Templates);
+        var result = NsqlReader.Read(source);
+        result.IsSuccess.ShouldBeTrue();
+        return ProjectAssembler.Assemble([result.Value]);
     }
 
     private static SchemaDefinition Schema(DatabaseSchema schema, string name)
@@ -413,8 +414,8 @@ public sealed class TemplateApplicatorTests
     [Fact]
     public void Expand_InstantiatesTemplateMigrationsPerAppliedSchema()
     {
-        // Arrange
-        var document = DdlReader.Instance.Read(
+        // Act
+        var instances = Apply(
             """
             CREATE SCHEMA sales;
             CREATE SCHEMA billing;
@@ -424,10 +425,7 @@ public sealed class TemplateApplicatorTests
               SCRIPT 'backfill trace' RUN ON ADD COLUMN outbox_events.trace_id AS $$ UPDATE {schema}.outbox_events SET trace_id = ''; $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales, billing;
-            """).Require();
-
-        // Act
-        var instances = TemplateApplicator.Apply(new ProjectDefinition(document.Schema, document.Scripts), document.Templates).Require().Scripts;
+            """).Require().Scripts;
 
         // Assert — one instance per applied schema, with the schema bound and the {schema} token substituted.
         instances.Count.ShouldBe(2);
@@ -441,8 +439,8 @@ public sealed class TemplateApplicatorTests
     [Fact]
     public void Expand_UnappliedTemplate_InstantiatesNoMigrations()
     {
-        // Arrange — a declared-but-never-applied template contributes nothing.
-        var document = DdlReader.Instance.Read(
+        // Act — a declared-but-never-applied template contributes nothing.
+        var instances = Apply(
             """
             CREATE SCHEMA sales;
             TEMPLATE outbox
@@ -450,10 +448,7 @@ public sealed class TemplateApplicatorTests
               CREATE TABLE outbox_events ( id int NOT NULL );
               SCRIPT 'backfill {schema}' RUN ON ADD COLUMN outbox_events.trace_id AS $$ SELECT 1; $$;
             END;
-            """).Require();
-
-        // Act
-        var instances = TemplateApplicator.Apply(new ProjectDefinition(document.Schema, document.Scripts), document.Templates).Require().Scripts;
+            """).Require().Scripts;
 
         // Assert
         instances.ShouldBeEmpty();
@@ -462,8 +457,8 @@ public sealed class TemplateApplicatorTests
     [Fact]
     public void Expand_MigrationWithoutToken_KeepsSqlVerbatim()
     {
-        // Arrange
-        var document = DdlReader.Instance.Read(
+        // Act
+        var migration = Apply(
             """
             CREATE SCHEMA sales;
             TEMPLATE outbox
@@ -472,10 +467,7 @@ public sealed class TemplateApplicatorTests
               SCRIPT 'version {schema}' RUN ON ADD COLUMN outbox_events.trace_id (run_outside_transaction = true) AS $$ SELECT version(); $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales;
-            """).Require();
-
-        // Act
-        var migration = TemplateApplicator.Apply(new ProjectDefinition(document.Schema, document.Scripts), document.Templates).Require().Scripts.ShouldHaveSingleItem();
+            """).Require().Scripts.ShouldHaveSingleItem();
 
         // Assert — no token, no rewriting; the option carries onto the instance.
         migration.Sql.ShouldBe("SELECT version();");
@@ -485,8 +477,8 @@ public sealed class TemplateApplicatorTests
     [Fact]
     public void Expand_InstantiatesTemplateDeploymentScriptsPerAppliedSchema()
     {
-        // Arrange
-        var document = DdlReader.Instance.Read(
+        // Act
+        var scripts = Apply(
             """
             CREATE SCHEMA sales;
             CREATE SCHEMA billing;
@@ -496,10 +488,7 @@ public sealed class TemplateApplicatorTests
               SCRIPT 'seed {schema}' RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales, billing;
-            """).Require();
-
-        // Act
-        var scripts = TemplateApplicator.Apply(new ProjectDefinition(document.Schema, document.Scripts), document.Templates).Require().Scripts;
+            """).Require().Scripts;
 
         // Assert — one instance per applied schema, scoped to it via the event, token substituted in
         // name and body, run condition carried.

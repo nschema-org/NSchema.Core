@@ -121,14 +121,9 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
             return Result.Failure<DatabaseSchema>(read.Diagnostics);
         }
 
-        try
-        {
-            return DocumentProjector.Project(read.Value).Schema;
-        }
-        catch (DdlSyntaxException ex)
-        {
-            return Result.Failure<DatabaseSchema>(NsqlDiagnostics.Syntax(ex) with { File = path });
-        }
+        var projected = DocumentProjector.Project(read.Value);
+        return Result.From(projected.Require().Schema,
+            projected.Diagnostics.Select(Diagnostic (d) => d with { File = path }));
     }
 
     private static DatabaseSchema Merge(DatabaseSchema existing, DatabaseSchema incoming)

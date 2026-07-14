@@ -41,6 +41,42 @@ public sealed class NsqlReaderTests : IDisposable
     }
 
     [Fact]
+    public void Read_MultipleSyntaxErrors_ReportsThemAll()
+    {
+        // Three statements; the first and last are broken, the middle is fine — the parser resyncs at
+        // statement boundaries, so both errors surface in one read.
+        var result = NsqlReader.Read(
+            "CREATE TABLE app.users (id, name text);\n" +
+            "CREATE SCHEMA app;\n" +
+            "GRANT TRUNCATE ON app.users TO readers;");
+
+        result.IsFailure.ShouldBeTrue();
+        var errors = result.Errors.ToList();
+        errors.Count.ShouldBe(2);
+        errors[0].Position.Line.ShouldBe(1);
+        errors[1].Position.Line.ShouldBe(3);
+    }
+
+    [Fact]
+    public void Read_ErrorInsideTemplate_RecoversToTheNextTemplateStatement()
+    {
+        // A broken statement inside the body; the template's remaining statement still parses, and the
+        // statement after the template is reached.
+        var result = NsqlReader.Read(
+            "TEMPLATE audit BEGIN\n" +
+            "    CREATE TABLE log (id, at timestamptz);\n" +
+            "    CREATE TABLE trail (id int);\n" +
+            "END;\n" +
+            "CREATE SCHEMA app");
+
+        result.IsFailure.ShouldBeTrue();
+        var errors = result.Errors.ToList();
+        errors.Count.ShouldBe(2);
+        errors[0].Position.Line.ShouldBe(2);
+        errors[1].Position.Line.ShouldBe(5);
+    }
+
+    [Fact]
     public async Task ReadFile_StampsThePath_OnTheDocumentAndEveryDiagnostic()
     {
         // Arrange

@@ -1,5 +1,3 @@
-using NSchema.Project.Ddl;
-using NSchema.Project.Ddl.Models.Templates;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
@@ -23,7 +21,7 @@ internal static class TemplateExpander
     /// The schema name table-template members project against for include resolution; re-pointed at the
     /// including table's schema when the include merges.
     /// </summary>
-    private static readonly SqlIdentifier IncludePlaceholder = TemplateDefinition.TargetSchemaPlaceholder;
+    private static readonly SqlIdentifier IncludePlaceholder = SchemaToken.TargetSchemaPlaceholder;
 
     public static Result<ProjectDefinition> Expand(
         ProjectDefinition project,

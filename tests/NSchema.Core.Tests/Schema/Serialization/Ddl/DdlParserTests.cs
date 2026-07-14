@@ -1,4 +1,3 @@
-using NSchema.Project.Nsql;
 using NSchema.Project.Ddl;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
@@ -119,8 +118,8 @@ public sealed class DdlParserTests
         => Should.Throw<DdlSyntaxException>(() => Parse("CREATE SCHEMA app")).Message.ShouldContain("';'");
 
     [Fact]
-    public void Parse_DuplicateSchema_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE SCHEMA app;"))
+    public void Parse_DuplicateSchema_FailsTheRead()
+        => new TestDdlParser("CREATE SCHEMA app; CREATE SCHEMA app;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("already declared");
 
     [Fact]
@@ -170,10 +169,10 @@ public sealed class DdlParserTests
             .Tables.ShouldHaveSingleItem().Indexes.ShouldHaveSingleItem().Name.ShouldBe("users_id_ix");
 
     [Fact]
-    public void Parse_StandaloneIndexDuplicatingInlineName_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse(
-            "CREATE SCHEMA app; CREATE TABLE app.users (id int NOT NULL, INDEX dup (id)); CREATE INDEX dup ON app.users (id);"))
-            .Message.ShouldContain("already declared");
+    public void Parse_StandaloneIndexDuplicatingInlineName_FailsTheRead()
+        => new TestDdlParser(
+            "CREATE SCHEMA app; CREATE TABLE app.users (id int NOT NULL, INDEX dup (id)); CREATE INDEX dup ON app.users (id);")
+            .Project().Errors.ShouldHaveSingleItem().Message.ShouldContain("already declared");
 
     // -------------------------------------------------------------------------
     // Views
@@ -218,9 +217,8 @@ public sealed class DdlParserTests
     }
 
     [Fact]
-    public void Parse_DuplicateView_Throws()
-        => Should.Throw<DdlSyntaxException>(() =>
-            Parse("CREATE SCHEMA app; CREATE VIEW app.v AS SELECT 1 FROM app.t; CREATE VIEW app.v AS SELECT 2 FROM app.t;"))
+    public void Parse_DuplicateView_FailsTheRead()
+        => new TestDdlParser("CREATE SCHEMA app; CREATE VIEW app.v AS SELECT 1 FROM app.t; CREATE VIEW app.v AS SELECT 2 FROM app.t;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("already declared");
 
     [Fact]
@@ -287,9 +285,8 @@ public sealed class DdlParserTests
             .DroppedEnums.ShouldHaveSingleItem().ShouldBe("stale");
 
     [Fact]
-    public void Parse_DuplicateEnum_Throws()
-        => Should.Throw<DdlSyntaxException>(() =>
-            Parse("CREATE SCHEMA app; CREATE ENUM app.e ('a'); CREATE ENUM app.e ('b');"))
+    public void Parse_DuplicateEnum_FailsTheRead()
+        => new TestDdlParser("CREATE SCHEMA app; CREATE ENUM app.e ('a'); CREATE ENUM app.e ('b');").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("already declared");
 
     [Fact]
@@ -353,9 +350,8 @@ public sealed class DdlParserTests
             .DroppedSequences.ShouldHaveSingleItem().ShouldBe("stale");
 
     [Fact]
-    public void Parse_DuplicateSequence_Throws()
-        => Should.Throw<DdlSyntaxException>(() =>
-            Parse("CREATE SCHEMA app; CREATE SEQUENCE app.q; CREATE SEQUENCE app.q;"))
+    public void Parse_DuplicateSequence_FailsTheRead()
+        => new TestDdlParser("CREATE SCHEMA app; CREATE SEQUENCE app.q; CREATE SEQUENCE app.q;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("already declared");
 
     [Fact]
@@ -438,27 +434,23 @@ public sealed class DdlParserTests
     }
 
     [Fact]
-    public void Parse_DuplicateFunction_Throws()
-        => Should.Throw<DdlSyntaxException>(() =>
-            Parse("CREATE SCHEMA app; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 2 $$;"))
+    public void Parse_DuplicateFunction_FailsTheRead()
+        => new TestDdlParser("CREATE SCHEMA app; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 2 $$;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("already declared");
 
     [Fact]
-    public void Parse_DuplicateProcedure_Throws()
-        => Should.Throw<DdlSyntaxException>(() =>
-            Parse("CREATE SCHEMA app; CREATE PROCEDURE app.p() AS $$ SELECT 1 $$; CREATE PROCEDURE app.p() AS $$ SELECT 2 $$;"))
+    public void Parse_DuplicateProcedure_FailsTheRead()
+        => new TestDdlParser("CREATE SCHEMA app; CREATE PROCEDURE app.p() AS $$ SELECT 1 $$; CREATE PROCEDURE app.p() AS $$ SELECT 2 $$;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("already declared");
 
     [Fact]
-    public void Parse_ProcedureNamedLikeAFunction_Throws()
-        => Should.Throw<DdlSyntaxException>(() =>
-            Parse("CREATE SCHEMA app; CREATE FUNCTION app.r() RETURNS int AS $$ SELECT 1 $$; CREATE PROCEDURE app.r() AS $$ SELECT 1 $$;"))
+    public void Parse_ProcedureNamedLikeAFunction_FailsTheRead()
+        => new TestDdlParser("CREATE SCHEMA app; CREATE FUNCTION app.r() RETURNS int AS $$ SELECT 1 $$; CREATE PROCEDURE app.r() AS $$ SELECT 1 $$;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("share one name space");
 
     [Fact]
-    public void Parse_FunctionNamedLikeAProcedure_Throws()
-        => Should.Throw<DdlSyntaxException>(() =>
-            Parse("CREATE SCHEMA app; CREATE PROCEDURE app.r() AS $$ SELECT 1 $$; CREATE FUNCTION app.r() RETURNS int AS $$ SELECT 1 $$;"))
+    public void Parse_FunctionNamedLikeAProcedure_FailsTheRead()
+        => new TestDdlParser("CREATE SCHEMA app; CREATE PROCEDURE app.r() AS $$ SELECT 1 $$; CREATE FUNCTION app.r() RETURNS int AS $$ SELECT 1 $$;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("share one name space");
 
     [Fact]

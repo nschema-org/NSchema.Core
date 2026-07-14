@@ -1,6 +1,5 @@
 using NSchema.Project.Ddl;
-using NSchema.Project.Ddl.Models;
-using NSchema.Project.Ddl.Models.Templates;
+using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.CompositeTypes;
@@ -10,7 +9,6 @@ using NSchema.Project.Domain.Models.Enums;
 using NSchema.Project.Domain.Models.Extensions;
 using NSchema.Project.Domain.Models.Indexes;
 using NSchema.Project.Domain.Models.Routines;
-using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Domain.Models.Sequences;
 using NSchema.Project.Domain.Models.Tables;
@@ -21,33 +19,26 @@ using Syn = NSchema.Project.Nsql.Syntax;
 namespace NSchema.Project.Nsql;
 
 /// <summary>
-/// Lowers a parsed <see cref="NsqlDocument"/> into the domain-facing <see cref="DdlDocument"/>: builds the
-/// schema fragment through the accumulator (duplicate checks and their positions unchanged), binds template
-/// bodies to the placeholder schema, and carries config, scripts, and template constructs across.
+/// Projects a parsed document into the domain.
 /// </summary>
 internal static class DocumentProjector
 {
-    public static DdlDocument Project(NsqlDocument document)
+    public static Result<ProjectedDocument, NsqlDiagnostic> Project(NsqlDocument document)
     {
         var schemas = new SchemaAccumulator();
         var scripts = new List<Script>();
-        var templates = new List<TemplateDefinition>();
-        var applications = new List<TemplateApplication>();
+        var diagnostics = new List<NsqlDiagnostic>();
 
         foreach (var statement in document.Statements)
         {
             switch (statement)
             {
-                case Syn.Templates.SchemaTemplateStatement schemaTemplate:
-                    templates.Add(ProjectSchemaTemplate(schemaTemplate));
+                case Syn.Templates.SchemaTemplateStatement template:
+                    // Validating the body (internal duplicates, stray-qualified declarations) at read time,
+                    // whether or not the template is ever applied; instantiation happens at assembly.
+                    diagnostics.AddRange(ValidateTemplateBody(template));
                     break;
-                case Syn.Templates.TableTemplateStatement tableTemplate:
-                    templates.Add(ProjectTableTemplate(tableTemplate));
-                    break;
-                case Syn.Templates.ApplyTemplateStatement apply:
-                    applications.Add(new TemplateApplication(
-                        new SqlIdentifier(apply.TemplateName.Text),
-                        apply.Schemas.Select(s => new SqlIdentifier(s.Text)).ToList()));
+                case Syn.Templates.TableTemplateStatement or Syn.Templates.ApplyTemplateStatement:
                     break;
                 case Syn.Config.ConfigStatement:
                     // Configuration is not project content; the config read seam interprets it.
@@ -58,10 +49,11 @@ internal static class DocumentProjector
             }
         }
 
-        return new DdlDocument(schemas.Build(), scripts)
-        {
-            Templates = new TemplateSet(templates, applications, schemas.Includes),
-        };
+        // Assembly findings are diagnostics, not exceptions: the fragment carries everything that projected
+        // cleanly, and one pass reports every finding.
+        var schema = schemas.Build();
+        diagnostics.AddRange(schemas.Diagnostics);
+        return Result<ProjectedDocument, NsqlDiagnostic>.From(new ProjectedDocument(schema, scripts), diagnostics);
     }
 
     /// <summary>
@@ -237,7 +229,7 @@ internal static class DocumentProjector
                     // body; the include placeholder when projecting a table template's members).
                     var refSchema = m.References.Schema is { } qualifier
                         ? new SqlIdentifier(qualifier.Text)
-                        : context ?? TemplateDefinition.TargetSchemaPlaceholder;
+                        : context ?? SchemaToken.TargetSchemaPlaceholder;
                     foreignKeys.Add(new ForeignKey(Name(m.Name), Names(m.Columns), refSchema, Name(m.References.Name),
                         Names(m.ReferencedColumns), Map(m.OnDelete), Map(m.OnUpdate), m.Doc));
                     break;
@@ -316,45 +308,32 @@ internal static class DocumentProjector
         };
     }
 
-    internal static TemplateDefinition ProjectSchemaTemplate(Syn.Templates.SchemaTemplateStatement statement)
+    /// <summary>
+    /// Validates a schema template's body by projecting it against the placeholder: internal duplicates
+    /// surface through the accumulator, and a qualified declaration inside the body is rejected — it would
+    /// create the same object once per application.
+    /// </summary>
+    internal static IReadOnlyList<NsqlDiagnostic> ValidateTemplateBody(Syn.Templates.SchemaTemplateStatement statement)
     {
-        // The body gets its own accumulator, so its objects — and the INCLUDEs written in its table bodies, which
-        // belong to the definition and re-target per instance at expansion — never mix with the document's.
         var body = new SchemaAccumulator();
         var scripts = new List<Script>();
         foreach (var inner in statement.Statements)
         {
-            ProjectStatement(inner, body, scripts, TemplateDefinition.TargetSchemaPlaceholder);
+            ProjectStatement(inner, body, scripts, SchemaToken.TargetSchemaPlaceholder);
         }
 
-        // Every declaration must have bound to the placeholder — a qualified CREATE inside the body would create
-        // the same object once per application, so it is rejected here (qualified *references* are fine and never
-        // reach the accumulator as a schema entry).
         var fragment = body.Build();
-        var stray = fragment.Schemas.FirstOrDefault(s => s.Name != TemplateDefinition.TargetSchemaPlaceholder);
+        var diagnostics = body.Diagnostics.ToList();
+        var stray = fragment.Schemas.FirstOrDefault(s => s.Name != SchemaToken.TargetSchemaPlaceholder);
         if (stray is not null)
         {
-            throw new DdlSyntaxException(
+            diagnostics.Add(new NsqlDiagnostic("project",
                 $"Template '{statement.Name.Text}' declares objects in schema '{stray.Name}'; objects inside a template must use " +
-                "unqualified names so they are created in each schema the template is applied to.", statement.Name.Position);
+                $"unqualified names so they are created in each schema the template is applied to. (at {statement.Name.Position}).",
+                DiagnosticSeverity.Error, statement.Name.Position));
         }
-
-        var objects = fragment.Schemas.FirstOrDefault() ?? new SchemaDefinition(TemplateDefinition.TargetSchemaPlaceholder);
-
-        return new TemplateDefinition(new SqlIdentifier(statement.Name.Text), TemplateKind.Schema, objects)
-        {
-            Includes = body.Includes,
-            Scripts = scripts,
-        };
+        return diagnostics;
     }
-
-    private static TemplateDefinition ProjectTableTemplate(Syn.Templates.TableTemplateStatement statement)
-    {
-        var (table, _) = ProjectTableMembers(TemplateDefinition.TargetSchemaPlaceholder, null, null, statement.Members);
-        var objects = new SchemaDefinition(TemplateDefinition.TargetSchemaPlaceholder, Tables: [table]);
-        return new TemplateDefinition(new SqlIdentifier(statement.Name.Text), TemplateKind.Table, objects);
-    }
-
 
     // --- name binding and small mappers ----------------------------------------------
 
@@ -371,7 +350,7 @@ internal static class DocumentProjector
     /// template placeholder (the parser rejects unqualified names outside template bodies).
     /// </summary>
     private static (SqlIdentifier Schema, SqlIdentifier Name) Bind(Syn.QualifiedName name, SqlIdentifier? context) =>
-        (name.Schema is { } schema ? new SqlIdentifier(schema.Text) : context ?? TemplateDefinition.TargetSchemaPlaceholder,
+        (name.Schema is { } schema ? new SqlIdentifier(schema.Text) : context ?? SchemaToken.TargetSchemaPlaceholder,
          new SqlIdentifier(name.Name.Text));
 
     private static SqlType ParseType(Syn.TypeName type)

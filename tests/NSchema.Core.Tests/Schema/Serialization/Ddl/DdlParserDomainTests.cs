@@ -65,9 +65,8 @@ public sealed class DdlParserDomainTests
                 .Schemas.ShouldHaveSingleItem().DroppedDomains.ShouldHaveSingleItem(), "typeid");
 
     [Fact]
-    public void Parse_DuplicateDomain_Throws()
-        => Should.Throw<DdlSyntaxException>(() =>
-            new TestDdlParser("CREATE SCHEMA app; CREATE DOMAIN app.d AS text; CREATE DOMAIN app.d AS int;").Parse())
+    public void Parse_DuplicateDomain_FailsTheRead()
+        => new TestDdlParser("CREATE SCHEMA app; CREATE DOMAIN app.d AS text; CREATE DOMAIN app.d AS int;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("already declared");
 
     [Fact]

@@ -2,23 +2,23 @@ using System.Text;
 using NSchema.Current.Domain.Models;
 using NSchema.Current.Storage;
 using NSchema.Project.Ddl;
-using NSchema.Project.Ddl.Models;
+using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
 /// <summary>
-/// Covers <see cref="DdlWriter.Write(DdlDocument)"/> — the full-document round-trip (schema + scripts)
+/// Covers <see cref="DdlWriter.Write(ProjectedDocument)"/> — the full-document round-trip (schema + scripts)
 /// that the <c>fmt</c> command depends on for losslessness.
 /// </summary>
-public sealed class DdlDocumentWriterTests
+public sealed class ProjectedDocumentWriterTests
 {
     // Canonicalize the schema half via the internal state serializer (independent of the writer under test).
     private static string Canonical(DatabaseSchema schema)
         => Encoding.UTF8.GetString(new SchemaStateSerializer().Serialize(new SchemaState(schema)).Span);
 
-    private static void AssertEquivalent(DdlDocument expected, DdlDocument actual)
+    private static void AssertEquivalent(ProjectedDocument expected, ProjectedDocument actual)
     {
         Canonical(actual.Schema).ShouldBe(Canonical(expected.Schema));
         actual.Scripts.ShouldBe(expected.Scripts);
@@ -28,12 +28,12 @@ public sealed class DdlDocumentWriterTests
     // Write produces byte-identical output (formatting is idempotent — the property `fmt --check` relies on).
     private static string AssertRoundTrips(string source)
     {
-        var document = DdlReader.Instance.Read(source).Require();
-        var formatted = DdlWriter.Instance.Write(document);
+        var document = new TestDdlParser(source).Parse();
+        var formatted = DdlWriter.Instance.Write(document.Schema, document.Scripts);
 
-        var reparsed = DdlReader.Instance.Read(formatted).Require();
+        var reparsed = new TestDdlParser(formatted).Parse();
         AssertEquivalent(document, reparsed);
-        DdlWriter.Instance.Write(reparsed).ShouldBe(formatted);
+        DdlWriter.Instance.Write(reparsed.Schema, reparsed.Scripts).ShouldBe(formatted);
 
         return formatted;
     }
@@ -139,12 +139,13 @@ public sealed class DdlDocumentWriterTests
     public void Write_EmitsSchemaThenScripts_RegardlessOfSourceOrder()
     {
         // Source deliberately interleaves: script, then schema.
-        var formatted = DdlWriter.Instance.Write(DdlReader.Instance.Read(
+        var document = new TestDdlParser(
             """
             SCRIPT 'seed' RUN ON POST DEPLOYMENT AS $$ SELECT 1 $$;
 
             CREATE SCHEMA app;
-            """).Require());
+            """).Parse();
+        var formatted = DdlWriter.Instance.Write(document.Schema, document.Scripts);
 
         var schema = formatted.IndexOf("CREATE SCHEMA app", StringComparison.Ordinal);
         var script = formatted.IndexOf("POST DEPLOYMENT", StringComparison.Ordinal);

@@ -54,22 +54,20 @@ public sealed class DdlParserMaterializedViewTests
                 .Indexes.ShouldHaveSingleItem().Name, "daily_ix");
 
     [Fact]
-    public void Parse_IndexOnPlainView_Throws()
-        => Should.Throw<DdlSyntaxException>(() =>
-            new TestDdlParser("CREATE SCHEMA app; CREATE VIEW app.v AS SELECT 1; CREATE INDEX ix ON app.v (x);").Parse())
+    public void Parse_IndexOnPlainView_FailsTheRead()
+        => new TestDdlParser("CREATE SCHEMA app; CREATE VIEW app.v AS SELECT 1; CREATE INDEX ix ON app.v (x);").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("not a materialized view");
 
     [Fact]
-    public void Parse_IndexOnUnknownRelation_Throws()
-        => Should.Throw<DdlSyntaxException>(() =>
-            new TestDdlParser("CREATE SCHEMA app; CREATE INDEX ix ON app.ghost (x);").Parse())
+    public void Parse_IndexOnUnknownRelation_FailsTheRead()
+        => new TestDdlParser("CREATE SCHEMA app; CREATE INDEX ix ON app.ghost (x);").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("unknown table or materialized view");
 
     [Fact]
-    public void Parse_DuplicateIndexOnView_Throws()
-        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser(
+    public void Parse_DuplicateIndexOnView_FailsTheRead()
+        => new TestDdlParser(
             "CREATE SCHEMA app; CREATE MATERIALIZED VIEW app.m AS SELECT x FROM app.t; " +
-            "CREATE INDEX ix ON app.m (x); CREATE INDEX ix ON app.m (y);").Parse())
+            "CREATE INDEX ix ON app.m (x); CREATE INDEX ix ON app.m (y);").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("already declared");
 
     [Fact]

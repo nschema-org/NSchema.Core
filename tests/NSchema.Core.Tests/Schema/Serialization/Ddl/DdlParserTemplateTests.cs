@@ -1,33 +1,70 @@
+using NSchema.Project;
 using NSchema.Project.Ddl;
-using NSchema.Project.Ddl.Models.Templates;
+using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Nsql;
+using NSchema.Project.Nsql.Syntax.Schemas;
+using NSchema.Project.Nsql.Syntax.Tables;
+using NSchema.Project.Nsql.Syntax.Templates;
 
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
+/// <summary>
+/// Template statements: the syntax shapes they parse to, the read-time validation of their bodies, and the
+/// projection semantics their instances carry (bodies stay unexpanded in the tree; expansion is covered in
+/// depth by <c>TemplateExpanderTests</c>).
+/// </summary>
 public sealed class DdlParserTemplateTests
 {
-    private static TemplateDefinition ReadTemplate(string source) =>
-        new TestDdlParser(source).Parse().Templates.Definitions.ShouldHaveSingleItem();
+    private static IReadOnlyList<NSchema.Project.Nsql.Syntax.NsqlStatement> Statements(string source)
+    {
+        var result = NsqlReader.Read(source);
+        result.IsSuccess.ShouldBeTrue();
+        return result.Value.Statements;
+    }
+
+    /// <summary>Assembles a template plus an application into schema <c>app</c>, returning the instance.</summary>
+    private static SchemaDefinition ExpandIntoApp(string templateSource)
+    {
+        var source = $"CREATE SCHEMA app;\n{templateSource}\nAPPLY TEMPLATE t IN SCHEMA app;";
+        var read = NsqlReader.Read(source);
+        read.IsSuccess.ShouldBeTrue();
+        var assembled = ProjectAssembler.Assemble([read.Value]);
+        assembled.IsSuccess.ShouldBeTrue();
+        return assembled.Value.Schema.Schemas.ShouldHaveSingleItem();
+    }
 
     [Fact]
-    public void Parse_Template_CapturesNameAndObjects()
+    public void Parse_Template_BodyStaysUnexpandedInTheTree()
     {
-        var template = ReadTemplate(
+        var template = Statements(
             """
-            TEMPLATE outbox
+            TEMPLATE t
             BEGIN
-              CREATE TABLE outbox (
-                id uuid NOT NULL,
-                payload text NOT NULL,
-                CONSTRAINT pk_outbox PRIMARY KEY (id)
-              );
+              CREATE TABLE outbox (id uuid NOT NULL);
+              CREATE SEQUENCE outbox_seq;
+            END;
+            """).ShouldHaveSingleItem().ShouldBeOfType<SchemaTemplateStatement>();
+
+        template.Name.Text.ShouldBe("t");
+        template.Statements.Count.ShouldBe(2);
+        template.Statements[0].ShouldBeOfType<CreateTableStatement>().Name.Schema.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Expand_Template_InstantiatesObjectsIntoTheTargetSchema()
+    {
+        var app = ExpandIntoApp(
+            """
+            TEMPLATE t
+            BEGIN
+              CREATE TABLE outbox (id uuid NOT NULL);
               CREATE SEQUENCE outbox_seq;
             END;
             """);
 
-        template.Name.ShouldBe("outbox");
-        template.Objects.Name.ShouldBe(TemplateDefinition.TargetSchemaPlaceholder);
-        template.Objects.Tables.ShouldHaveSingleItem().Name.ShouldBe("outbox");
-        template.Objects.Sequences.ShouldHaveSingleItem().Name.ShouldBe("outbox_seq");
+        app.Tables.ShouldHaveSingleItem().Name.ShouldBe("outbox");
+        app.Sequences.ShouldHaveSingleItem().Name.ShouldBe("outbox_seq");
     }
 
     [Fact]
@@ -36,28 +73,28 @@ public sealed class DdlParserTemplateTests
             .Schema.Schemas.ShouldBeEmpty();
 
     [Fact]
-    public void Parse_Template_UnqualifiedForeignKeyBindsToPlaceholder()
+    public void Expand_Template_UnqualifiedForeignKeyBindsToTheAppliedSchema()
     {
-        var template = ReadTemplate(
+        var app = ExpandIntoApp(
             """
             TEMPLATE t
             BEGIN
+              CREATE TABLE parent (id int NOT NULL);
               CREATE TABLE child (
-                parent_id int NOT NULL,
-                CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES parent (id)
+                user_id int NOT NULL,
+                CONSTRAINT fk FOREIGN KEY (user_id) REFERENCES parent (id)
               );
             END;
             """);
 
-        var fk = template.Objects.Tables.ShouldHaveSingleItem().ForeignKeys.ShouldHaveSingleItem();
-        fk.ReferencedSchema.ShouldBe(TemplateDefinition.TargetSchemaPlaceholder);
-        fk.ReferencedTable.ShouldBe("parent");
+        app.Tables.Single(t => t.Name == new SqlIdentifier("child")).ForeignKeys.ShouldHaveSingleItem()
+            .ReferencedSchema.ShouldBe("app");
     }
 
     [Fact]
-    public void Parse_Template_QualifiedForeignKeyEscapes()
+    public void Expand_Template_QualifiedForeignKeyEscapes()
     {
-        var template = ReadTemplate(
+        var app = ExpandIntoApp(
             """
             TEMPLATE t
             BEGIN
@@ -68,14 +105,14 @@ public sealed class DdlParserTemplateTests
             END;
             """);
 
-        template.Objects.Tables.ShouldHaveSingleItem().ForeignKeys.ShouldHaveSingleItem()
+        app.Tables.ShouldHaveSingleItem().ForeignKeys.ShouldHaveSingleItem()
             .ReferencedSchema.ShouldBe("public");
     }
 
     [Fact]
-    public void Parse_Template_StandaloneIndexAttachesToItsTable()
+    public void Expand_Template_StandaloneIndexAttachesToItsTable()
     {
-        var template = ReadTemplate(
+        var app = ExpandIntoApp(
             """
             TEMPLATE t
             BEGIN
@@ -84,14 +121,14 @@ public sealed class DdlParserTemplateTests
             END;
             """);
 
-        template.Objects.Tables.ShouldHaveSingleItem().Indexes.ShouldHaveSingleItem()
+        app.Tables.ShouldHaveSingleItem().Indexes.ShouldHaveSingleItem()
             .Name.ShouldBe("ix_outbox_created_at");
     }
 
     [Fact]
-    public void Parse_Template_TriggerAttachesToItsTable()
+    public void Expand_Template_TriggerAttachesToItsTable()
     {
-        var template = ReadTemplate(
+        var app = ExpandIntoApp(
             """
             TEMPLATE t
             BEGIN
@@ -100,14 +137,14 @@ public sealed class DdlParserTemplateTests
             END;
             """);
 
-        template.Objects.Tables.ShouldHaveSingleItem().Triggers.ShouldHaveSingleItem()
+        app.Tables.ShouldHaveSingleItem().Triggers.ShouldHaveSingleItem()
             .Function.ShouldBe("publish");
     }
 
     [Fact]
-    public void Parse_Template_TableGrantAttaches()
+    public void Expand_Template_TableGrantAttaches()
     {
-        var template = ReadTemplate(
+        var app = ExpandIntoApp(
             """
             TEMPLATE t
             BEGIN
@@ -116,13 +153,13 @@ public sealed class DdlParserTemplateTests
             END;
             """);
 
-        template.Objects.Tables.ShouldHaveSingleItem().Grants.ShouldHaveSingleItem().Role.ShouldBe("svc");
+        app.Tables.ShouldHaveSingleItem().Grants.ShouldHaveSingleItem().Role.ShouldBe("svc");
     }
 
     [Fact]
-    public void Parse_Template_DocCommentAttachesToInnerObject()
+    public void Expand_Template_DocCommentAttachesToInnerObject()
     {
-        var template = ReadTemplate(
+        var app = ExpandIntoApp(
             """
             TEMPLATE t
             BEGIN
@@ -131,40 +168,37 @@ public sealed class DdlParserTemplateTests
             END;
             """);
 
-        template.Objects.Tables.ShouldHaveSingleItem().Comment.ShouldBe("The transactional outbox.");
+        app.Tables.ShouldHaveSingleItem().Comment.ShouldBe("The transactional outbox.");
     }
 
     [Fact]
-    public void Parse_Template_EmptyBody_YieldsNoObjects()
-    {
-        var template = ReadTemplate("TEMPLATE t BEGIN END;");
-
-        template.Objects.Tables.ShouldBeEmpty();
-    }
+    public void Expand_Template_EmptyBody_AddsNothing()
+        => ExpandIntoApp("TEMPLATE t BEGIN END;").Tables.ShouldBeEmpty();
 
     [Fact]
     public void Parse_TemplateAndSchema_Coexist()
     {
-        var document = new TestDdlParser(
+        var statements = Statements(
             """
             CREATE SCHEMA app;
             TEMPLATE t BEGIN CREATE TABLE x (id int NOT NULL); END;
             APPLY TEMPLATE t IN SCHEMA app;
-            """).Parse();
+            """);
 
-        document.Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
-        document.Templates.Definitions.ShouldHaveSingleItem().Name.ShouldBe("t");
-        document.Templates.Applications.ShouldHaveSingleItem().TemplateName.ShouldBe("t");
+        statements.Count.ShouldBe(3);
+        statements[0].ShouldBeOfType<CreateSchemaStatement>().Name.Text.ShouldBe("app");
+        statements[1].ShouldBeOfType<SchemaTemplateStatement>().Name.Text.ShouldBe("t");
+        statements[2].ShouldBeOfType<ApplyTemplateStatement>().TemplateName.Text.ShouldBe("t");
     }
 
     [Fact]
     public void Parse_ApplyTemplate_CapturesNameAndSchemaList()
     {
-        var application = new TestDdlParser("APPLY TEMPLATE outbox IN SCHEMA billing, ordering, shipping;").Parse()
-            .Templates.Applications.ShouldHaveSingleItem();
+        var application = Statements("APPLY TEMPLATE outbox IN SCHEMA billing, ordering, shipping;")
+            .ShouldHaveSingleItem().ShouldBeOfType<ApplyTemplateStatement>();
 
-        application.TemplateName.ShouldBe("outbox");
-        application.SchemaNames.ShouldBe(["billing", "ordering", "shipping"]);
+        application.TemplateName.Text.ShouldBe("outbox");
+        application.Schemas.Select(s => s.Text).ShouldBe(["billing", "ordering", "shipping"]);
     }
 
     [Fact]
@@ -173,59 +207,59 @@ public sealed class DdlParserTemplateTests
             .Message.ShouldContain("more than once");
 
     [Fact]
-    public void Parse_Template_QualifiedDeclaration_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadTemplate(
-                "TEMPLATE t BEGIN CREATE TABLE app.outbox (id int NOT NULL); END;"))
+    public void Parse_Template_QualifiedDeclaration_FailsTheRead()
+        => new TestDdlParser(
+                "TEMPLATE t BEGIN CREATE TABLE app.outbox (id int NOT NULL); END;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("unqualified");
 
     [Fact]
     public void Parse_Template_CreateSchemaInside_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadTemplate("TEMPLATE t BEGIN CREATE SCHEMA app; END;"))
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN CREATE SCHEMA app; END;").Parse())
             .Message.ShouldContain("CREATE SCHEMA is not supported inside a template");
 
     [Fact]
     public void Parse_Template_CreateViewInside_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadTemplate("TEMPLATE t BEGIN CREATE VIEW v AS SELECT 1; END;"))
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN CREATE VIEW v AS SELECT 1; END;").Parse())
             .Message.ShouldContain("CREATE VIEW is not supported inside a template");
 
     [Fact]
     public void Parse_Template_CreateMaterializedViewInside_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadTemplate("TEMPLATE t BEGIN CREATE MATERIALIZED VIEW v AS SELECT 1; END;"))
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN CREATE MATERIALIZED VIEW v AS SELECT 1; END;").Parse())
             .Message.ShouldContain("CREATE MATERIALIZED VIEW is not supported inside a template");
 
     [Fact]
     public void Parse_Template_CreateExtensionInside_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadTemplate("TEMPLATE t BEGIN CREATE EXTENSION citext; END;"))
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN CREATE EXTENSION citext; END;").Parse())
             .Message.ShouldContain("CREATE EXTENSION is not supported inside a template");
 
     [Fact]
     public void Parse_Template_GrantUsageOnSchemaInside_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadTemplate("TEMPLATE t BEGIN GRANT USAGE ON SCHEMA app TO svc; END;"))
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN GRANT USAGE ON SCHEMA app TO svc; END;").Parse())
             .Message.ShouldContain("GRANT USAGE ON SCHEMA is not supported inside a template");
 
     [Fact]
     public void Parse_Template_DropInside_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadTemplate("TEMPLATE t BEGIN DROP TABLE app.x; END;"))
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN DROP TABLE app.x; END;").Parse())
             .Message.ShouldContain("inside a template");
 
     [Fact]
     public void Parse_Template_OldDeploymentFormInside_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadTemplate("TEMPLATE t BEGIN PRE DEPLOYMENT 'x' AS $$ SELECT 1; $$; END;"))
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN PRE DEPLOYMENT 'x' AS $$ SELECT 1; $$; END;").Parse())
             .Message.ShouldContain("inside a template");
 
     [Fact]
     public void Parse_Template_NestedTemplateInside_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadTemplate("TEMPLATE t BEGIN TEMPLATE u BEGIN END; END;"))
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN TEMPLATE u BEGIN END; END;").Parse())
             .Message.ShouldContain("inside a template");
 
     [Fact]
     public void Parse_Template_Unterminated_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadTemplate("TEMPLATE t BEGIN CREATE TABLE x (id int NOT NULL);"))
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t BEGIN CREATE TABLE x (id int NOT NULL);").Parse())
             .Message.ShouldContain("Unterminated template 't'");
 
     [Fact]
     public void Parse_Template_MissingBegin_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadTemplate("TEMPLATE t CREATE TABLE x (id int NOT NULL); END;"))
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t CREATE TABLE x (id int NOT NULL); END;").Parse())
             .Message.ShouldContain("BEGIN");
 
     [Fact]
@@ -239,7 +273,7 @@ public sealed class DdlParserTemplateTests
     [Fact]
     public void Parse_TableTemplate_CapturesMembers()
     {
-        var template = ReadTemplate(
+        var template = Statements(
             """
             TEMPLATE audit_columns FOR TABLE
             BEGIN
@@ -248,86 +282,89 @@ public sealed class DdlParserTemplateTests
               CONSTRAINT chk_updated CHECK (updated_at >= created_at),
               INDEX ix_updated_at (updated_at)
             END;
-            """);
+            """).ShouldHaveSingleItem().ShouldBeOfType<TableTemplateStatement>();
 
-        template.Kind.ShouldBe(TemplateKind.Table);
-        var members = template.Objects.Tables.ShouldHaveSingleItem();
-        members.Columns.Select(c => c.Name).ShouldBe(["created_at", "updated_at"]);
-        members.CheckConstraints.ShouldHaveSingleItem().Name.ShouldBe("chk_updated");
-        members.Indexes.ShouldHaveSingleItem().Name.ShouldBe("ix_updated_at");
+        template.Members.Count.ShouldBe(4);
+        template.Members.OfType<ColumnDefinition>().Select(c => c.Name.Text).ShouldBe(["created_at", "updated_at"]);
+        template.Members.OfType<NSchema.Project.Nsql.Syntax.Constraints.CheckDefinition>().ShouldHaveSingleItem().Name.Text.ShouldBe("chk_updated");
+        template.Members.OfType<NSchema.Project.Nsql.Syntax.Indexes.IndexDefinition>().ShouldHaveSingleItem().Name.Text.ShouldBe("ix_updated_at");
     }
 
     [Fact]
-    public void Parse_SchemaTemplate_HasSchemaKind()
-        => ReadTemplate("TEMPLATE t BEGIN END;").Kind.ShouldBe(TemplateKind.Schema);
+    public void Parse_TemplateWithoutFor_IsASchemaTemplate()
+        => Statements("TEMPLATE t BEGIN END;").ShouldHaveSingleItem().ShouldBeOfType<SchemaTemplateStatement>();
 
     [Fact]
     public void Parse_ExplicitForSchema_IsAccepted()
-        => ReadTemplate("TEMPLATE t FOR SCHEMA BEGIN END;").Kind.ShouldBe(TemplateKind.Schema);
+        => Statements("TEMPLATE t FOR SCHEMA BEGIN END;").ShouldHaveSingleItem().ShouldBeOfType<SchemaTemplateStatement>();
 
     [Fact]
     public void Parse_ForUnknownKind_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadTemplate("TEMPLATE t FOR VIEW BEGIN END;"))
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser("TEMPLATE t FOR VIEW BEGIN END;").Parse())
             .Message.ShouldContain("Expected SCHEMA or TABLE after FOR");
 
     [Fact]
-    public void Parse_TableTemplate_UnqualifiedForeignKeyBindsToPlaceholder()
+    public void Expand_TableTemplate_UnqualifiedForeignKeyBindsToTheIncludingTablesSchema()
     {
-        var template = ReadTemplate(
+        var source =
             """
+            CREATE SCHEMA app;
+            CREATE TABLE app.tenants (id uuid NOT NULL);
             TEMPLATE tenant_columns FOR TABLE
             BEGIN
               tenant_id uuid NOT NULL,
               CONSTRAINT fk_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (id)
             END;
-            """);
+            CREATE TABLE app.orders (id int NOT NULL, INCLUDE tenant_columns);
+            """;
+        var read = NsqlReader.Read(source);
+        read.IsSuccess.ShouldBeTrue();
+        var assembled = ProjectAssembler.Assemble([read.Value]);
+        assembled.IsSuccess.ShouldBeTrue();
 
-        template.Objects.Tables.ShouldHaveSingleItem().ForeignKeys.ShouldHaveSingleItem()
-            .ReferencedSchema.ShouldBe(TemplateDefinition.TargetSchemaPlaceholder);
+        var orders = assembled.Value.Schema.Schemas.ShouldHaveSingleItem()
+            .Tables.Single(t => t.Name == new SqlIdentifier("orders"));
+        orders.ForeignKeys.ShouldHaveSingleItem().ReferencedSchema.ShouldBe("app");
     }
 
     [Fact]
     public void Parse_TableTemplate_EmptyBody_YieldsNoMembers()
-        => ReadTemplate("TEMPLATE t FOR TABLE BEGIN END;")
-            .Objects.Tables.ShouldHaveSingleItem().Columns.ShouldBeEmpty();
+        => Statements("TEMPLATE t FOR TABLE BEGIN END;").ShouldHaveSingleItem()
+            .ShouldBeOfType<TableTemplateStatement>().Members.ShouldBeEmpty();
 
     [Fact]
     public void Parse_TableTemplate_IncludeInside_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadTemplate(
+        => Should.Throw<DdlSyntaxException>(() => new TestDdlParser(
                 """
                 TEMPLATE t FOR TABLE
                 BEGIN
                   INCLUDE other_template,
                   created_at datetimeoffset NOT NULL
                 END;
-                """))
+                """).Parse())
             .Message.ShouldContain("cannot include another");
 
     [Fact]
-    public void Parse_Include_CapturesTargetNameAndColumnPosition()
+    public void Parse_Include_IsAMemberAtItsWrittenPosition()
     {
-        // Includes never live on the parsed Table — templates are an expansion layer over the domain model —
-        // so the include rides the document, targeting its table by name.
-        var document = new TestDdlParser(
+        var table = Statements(
             """
             CREATE TABLE app.invoices (
               id uuid NOT NULL,
               INCLUDE audit_columns,
               total decimal(18,2) NOT NULL
             );
-            """).Parse();
+            """).ShouldHaveSingleItem().ShouldBeOfType<CreateTableStatement>();
 
-        var include = document.Templates.Includes.ShouldHaveSingleItem();
-        include.SchemaName.ShouldBe("app");
-        include.TableName.ShouldBe("invoices");
-        include.TemplateName.ShouldBe("audit_columns");
-        include.ColumnPosition.ShouldBe(1);
+        table.Members.Count.ShouldBe(3);
+        table.Members[1].ShouldBeOfType<IncludeMember>().TemplateName.Text.ShouldBe("audit_columns");
     }
 
     [Fact]
     public void Parse_Include_AsLastMember()
-        => new TestDdlParser("CREATE TABLE app.t (id int NOT NULL, INCLUDE audit_columns);").Parse()
-            .Templates.Includes.ShouldHaveSingleItem().TemplateName.ShouldBe("audit_columns");
+        => Statements("CREATE TABLE app.t (id int NOT NULL, INCLUDE audit_columns);")
+            .ShouldHaveSingleItem().ShouldBeOfType<CreateTableStatement>()
+            .Members[1].ShouldBeOfType<IncludeMember>().TemplateName.Text.ShouldBe("audit_columns");
 
     [Fact]
     public void Parse_ColumnNamedInclude_StillParsesAsAColumn()
@@ -336,7 +373,6 @@ public sealed class DdlParserTemplateTests
         // as it parsed before templates existed.
         var document = new TestDdlParser("CREATE TABLE app.t (include bigint NOT NULL);").Parse();
 
-        document.Templates.Includes.ShouldBeEmpty();
         var column = document.Schema.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem()
             .Columns.ShouldHaveSingleItem();
         column.Name.ShouldBe("include");
@@ -344,22 +380,22 @@ public sealed class DdlParserTemplateTests
     }
 
     [Fact]
-    public void Parse_IncludeInsideSchemaTemplateTable_RidesTheDefinition()
+    public void Expand_IncludeInsideSchemaTemplateTable_ComposesPerInstance()
     {
-        // Composition: a table declared by a schema template can include a table template. The include belongs
-        // to the definition (not the document, and never the table), re-targeted per instance at expansion.
-        var document = new TestDdlParser(
+        // Composition: a table declared by a schema template can include a table template; the include
+        // re-targets to each instance at expansion.
+        var app = ExpandIntoApp(
             """
-            TEMPLATE outbox
+            TEMPLATE audit_columns FOR TABLE
+            BEGIN
+              created_at datetimeoffset NOT NULL
+            END;
+            TEMPLATE t
             BEGIN
               CREATE TABLE outbox (id uuid NOT NULL, INCLUDE audit_columns);
             END;
-            """).Parse();
+            """);
 
-        document.Templates.Includes.ShouldBeEmpty();
-        var include = document.Templates.Definitions.ShouldHaveSingleItem().Includes.ShouldHaveSingleItem();
-        include.TemplateName.ShouldBe("audit_columns");
-        include.SchemaName.ShouldBe(TemplateDefinition.TargetSchemaPlaceholder);
-        include.TableName.ShouldBe("outbox");
+        app.Tables.ShouldHaveSingleItem().Columns.Select(c => c.Name.Value).ShouldBe(["id", "created_at"]);
     }
 }

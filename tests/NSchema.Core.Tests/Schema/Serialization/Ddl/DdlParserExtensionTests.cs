@@ -51,9 +51,9 @@ public sealed class DdlParserExtensionTests
         => ShouldlyIdentifierExtensions.ShouldBe(Parse("DROP EXTENSION citext;").DroppedExtensions.ShouldHaveSingleItem(), "citext");
 
     [Fact]
-    public void Parse_DuplicateExtension_Throws()
-        => Should.Throw<DdlSyntaxException>(() => Parse("CREATE EXTENSION citext; CREATE EXTENSION citext;"))
-            .Message.ShouldContain("already declared");
+    public void Parse_DuplicateExtension_FailsTheRead()
+        => new TestDdlParser("CREATE EXTENSION citext; CREATE EXTENSION citext;")
+            .Project().Errors.ShouldHaveSingleItem().Message.ShouldContain("already declared");
 
     [Fact]
     public void Parse_PartialExtension_Throws()

@@ -21,7 +21,7 @@ public sealed class RoundTripDriftTests
     {
         // Serialize every domain feature to DDL and read it straight back: the comparer must see no change.
         var original = TestData.RichSchema();
-        var reparsed = DdlReader.Instance.Read(DdlWriter.Instance.Write(original)).Require().Schema;
+        var reparsed = new TestDdlParser(DdlWriter.Instance.Write(original)).Parse().Schema;
 
         _comparer.Compare(original, reparsed).IsEmpty.ShouldBeTrue();
     }

@@ -52,9 +52,8 @@ public sealed class DdlParserCompositeTypeTests
                 .Schemas.ShouldHaveSingleItem().DroppedCompositeTypes.ShouldHaveSingleItem(), "address");
 
     [Fact]
-    public void Parse_DuplicateType_Throws()
-        => Should.Throw<DdlSyntaxException>(() =>
-            new TestDdlParser("CREATE SCHEMA app; CREATE TYPE app.t AS (a int); CREATE TYPE app.t AS (b int);").Parse())
+    public void Parse_DuplicateType_FailsTheRead()
+        => new TestDdlParser("CREATE SCHEMA app; CREATE TYPE app.t AS (a int); CREATE TYPE app.t AS (b int);").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("already declared");
 
     [Fact]
