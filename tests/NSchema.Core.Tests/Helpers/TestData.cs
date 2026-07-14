@@ -1,4 +1,3 @@
-using NSchema.Project.Nsql;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Tables;
@@ -19,6 +18,7 @@ using NSchema.Project.Domain.Models.Sequences;
 using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Domain.Models.Triggers;
 using NSchema.Project.Domain.Models.Views;
+using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Helpers;
 

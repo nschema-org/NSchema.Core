@@ -1,8 +1,8 @@
-using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Sequences;
+using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Schema.Serialization.Nsql;
 

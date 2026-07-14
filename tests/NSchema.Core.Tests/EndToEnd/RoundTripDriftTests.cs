@@ -1,6 +1,6 @@
-using NSchema.Project.Nsql;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSchema.Diff.Domain;
+using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.EndToEnd;
 

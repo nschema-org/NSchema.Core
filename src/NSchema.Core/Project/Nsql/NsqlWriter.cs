@@ -227,84 +227,84 @@ public static class NsqlWriter
         switch (member)
         {
             case Syn.Tables.ColumnDefinition m:
-            {
-                var sb = new StringBuilder();
-                sb.Append(m.Name.Text).Append(' ').Append(TypeText(m.Type));
-                if (!m.IsNullable)
                 {
-                    sb.Append(" NOT NULL");
-                }
-                if (m.IsIdentity)
-                {
-                    sb.Append(" IDENTITY");
-                    if (m.IdentityOptions is { } options && IdentityOptionsText(options) is { } text)
+                    var sb = new StringBuilder();
+                    sb.Append(m.Name.Text).Append(' ').Append(TypeText(m.Type));
+                    if (!m.IsNullable)
                     {
-                        sb.Append(" (").Append(text).Append(')');
+                        sb.Append(" NOT NULL");
                     }
+                    if (m.IsIdentity)
+                    {
+                        sb.Append(" IDENTITY");
+                        if (m.IdentityOptions is { } options && IdentityOptionsText(options) is { } text)
+                        {
+                            sb.Append(" (").Append(text).Append(')');
+                        }
+                    }
+                    if (m.Default is { } @default)
+                    {
+                        sb.Append(" DEFAULT ").Append(@default.Value);
+                    }
+                    if (m.Generated is { } generated)
+                    {
+                        sb.Append(" GENERATED ALWAYS AS (").Append(generated.Value).Append(") STORED");
+                    }
+                    if (m.RenamedFrom is { } oldName)
+                    {
+                        sb.Append(" RENAMED FROM ").Append(oldName.Text);
+                    }
+                    return sb.ToString();
                 }
-                if (m.Default is { } @default)
-                {
-                    sb.Append(" DEFAULT ").Append(@default.Value);
-                }
-                if (m.Generated is { } generated)
-                {
-                    sb.Append(" GENERATED ALWAYS AS (").Append(generated.Value).Append(") STORED");
-                }
-                if (m.RenamedFrom is { } oldName)
-                {
-                    sb.Append(" RENAMED FROM ").Append(oldName.Text);
-                }
-                return sb.ToString();
-            }
             case Syn.Constraints.PrimaryKeyDefinition m:
                 return $"CONSTRAINT {m.Name.Text} PRIMARY KEY ({ColumnsText(m.Columns)})";
             case Syn.Constraints.ForeignKeyDefinition m:
-            {
-                var sb = new StringBuilder();
-                sb.Append("CONSTRAINT ").Append(m.Name.Text)
-                    .Append(" FOREIGN KEY (").Append(ColumnsText(m.Columns)).Append(')')
-                    .Append(" REFERENCES ").Append(Qualified(m.References))
-                    .Append(" (").Append(ColumnsText(m.ReferencedColumns)).Append(')');
-                if (m.OnDelete != Syn.Constraints.ReferentialAction.NoAction)
                 {
-                    sb.Append(" ON DELETE ").Append(ActionText(m.OnDelete));
+                    var sb = new StringBuilder();
+                    sb.Append("CONSTRAINT ").Append(m.Name.Text)
+                        .Append(" FOREIGN KEY (").Append(ColumnsText(m.Columns)).Append(')')
+                        .Append(" REFERENCES ").Append(Qualified(m.References))
+                        .Append(" (").Append(ColumnsText(m.ReferencedColumns)).Append(')');
+                    if (m.OnDelete != Syn.Constraints.ReferentialAction.NoAction)
+                    {
+                        sb.Append(" ON DELETE ").Append(ActionText(m.OnDelete));
+                    }
+                    if (m.OnUpdate != Syn.Constraints.ReferentialAction.NoAction)
+                    {
+                        sb.Append(" ON UPDATE ").Append(ActionText(m.OnUpdate));
+                    }
+                    return sb.ToString();
                 }
-                if (m.OnUpdate != Syn.Constraints.ReferentialAction.NoAction)
-                {
-                    sb.Append(" ON UPDATE ").Append(ActionText(m.OnUpdate));
-                }
-                return sb.ToString();
-            }
             case Syn.Constraints.UniqueDefinition m:
                 return $"CONSTRAINT {m.Name.Text} UNIQUE ({ColumnsText(m.Columns)})";
             case Syn.Constraints.CheckDefinition m:
                 return $"CONSTRAINT {m.Name.Text} CHECK ({m.Expression.Value})";
             case Syn.Constraints.ExclusionDefinition m:
-            {
-                var sb = new StringBuilder();
-                sb.Append("CONSTRAINT ").Append(m.Name.Text).Append(" EXCLUDE");
-                if (m.Method is { } method)
                 {
-                    sb.Append(" USING ").Append(method.Text);
+                    var sb = new StringBuilder();
+                    sb.Append("CONSTRAINT ").Append(m.Name.Text).Append(" EXCLUDE");
+                    if (m.Method is { } method)
+                    {
+                        sb.Append(" USING ").Append(method.Text);
+                    }
+                    sb.Append(" (").Append(string.Join(", ", m.Elements.Select(ExclusionElementText))).Append(')');
+                    if (m.Predicate is { } predicate)
+                    {
+                        sb.Append(" WHERE (").Append(predicate.Value).Append(')');
+                    }
+                    return sb.ToString();
                 }
-                sb.Append(" (").Append(string.Join(", ", m.Elements.Select(ExclusionElementText))).Append(')');
-                if (m.Predicate is { } predicate)
-                {
-                    sb.Append(" WHERE (").Append(predicate.Value).Append(')');
-                }
-                return sb.ToString();
-            }
             case Syn.Indexes.IndexDefinition m:
-            {
-                var sb = new StringBuilder();
-                if (m.IsUnique)
                 {
-                    sb.Append("UNIQUE ");
+                    var sb = new StringBuilder();
+                    if (m.IsUnique)
+                    {
+                        sb.Append("UNIQUE ");
+                    }
+                    sb.Append("INDEX ").Append(m.Name.Text);
+                    AppendIndexTail(sb, m.Method, m.Columns, m.Include, m.Predicate);
+                    return sb.ToString();
                 }
-                sb.Append("INDEX ").Append(m.Name.Text);
-                AppendIndexTail(sb, m.Method, m.Columns, m.Include, m.Predicate);
-                return sb.ToString();
-            }
             default:
                 throw new NotSupportedException($"Table member '{member.GetType().Name}' is not rendered.");
         }

@@ -1,4 +1,3 @@
-using NSchema.Project.Nsql;
 using System.Text;
 using NSchema.Current.Domain.Models;
 using NSchema.Current.Storage;
@@ -16,6 +15,7 @@ using NSchema.Project.Domain.Models.Sequences;
 using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Domain.Models.Triggers;
 using NSchema.Project.Domain.Models.Views;
+using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Schema.Serialization.Nsql;
 
