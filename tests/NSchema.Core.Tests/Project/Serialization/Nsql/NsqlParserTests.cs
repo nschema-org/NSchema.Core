@@ -4,14 +4,22 @@ using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Sequences;
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 public sealed class NsqlParserTests
 {
-    private static DatabaseSchema Parse(string source) => new TestNsqlParser(source).Parse().Schema;
+    private static Database Parse(string source) => new TestNsqlParser(source).Parse().Database;
+
+    /// <summary>Assembles the source into a full project — directives are assembler currency, not tree state.</summary>
+    private static ProjectDirectives Directives(string source)
+    {
+        var read = NSchema.Project.Nsql.NsqlReader.Read(source);
+        read.IsSuccess.ShouldBeTrue();
+        return NSchema.Project.ProjectAssembler.Assemble([read.Value]).Value!.Directives;
+    }
 
 
-    private static SchemaDefinition ParseSingleSchema(string source) => Parse(source).Schemas.ShouldHaveSingleItem();
+    private static Schema ParseSingleSchema(string source) => Parse(source).Schemas.ShouldHaveSingleItem();
 
     // -------------------------------------------------------------------------
     // Schemas
@@ -22,7 +30,6 @@ public sealed class NsqlParserTests
     {
         var schema = Parse("");
         schema.Schemas.ShouldBeEmpty();
-        schema.DroppedSchemas.ShouldBeEmpty();
     }
 
     [Fact]
@@ -30,18 +37,18 @@ public sealed class NsqlParserTests
     {
         var schema = ParseSingleSchema("CREATE SCHEMA app;");
         schema.Name.ShouldBe("app");
-        schema.IsPartial.ShouldBeFalse();
-        schema.OldName.ShouldBeNull();
         schema.Comment.ShouldBeNull();
     }
 
     [Fact]
-    public void Parse_CreatePartialSchema_SetsIsPartial()
-        => ParseSingleSchema("CREATE PARTIAL SCHEMA app;").IsPartial.ShouldBeTrue();
+    public void Parse_CreatePartialSchema_NoLongerParses()
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE PARTIAL SCHEMA app;"))
+            .Message.ShouldContain("after CREATE");
 
     [Fact]
-    public void Parse_CreateSchemaRenamedFrom_SetsOldName()
-        => ParseSingleSchema("CREATE SCHEMA app RENAMED FROM legacy_app;").OldName.ShouldBe("legacy_app");
+    public void Parse_RenamedFromClause_NoLongerParses()
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE SCHEMA app RENAMED FROM legacy_app;"))
+            .Message.ShouldContain("Expected ';'");
 
     [Fact]
     public void Parse_DocCommentBeforeSchema_BecomesComment()
@@ -57,30 +64,32 @@ public sealed class NsqlParserTests
 
     [Fact]
     public void Parse_KeywordsAreCaseInsensitive()
-        => ParseSingleSchema("create partial schema app renamed from old;").IsPartial.ShouldBeTrue();
+        => ParseSingleSchema("create schema app;").Name.ShouldBe("app");
 
     // -------------------------------------------------------------------------
     // Drops
     // -------------------------------------------------------------------------
 
     [Fact]
-    public void Parse_DropSchema_RecordsDroppedSchema()
-        => Parse("DROP SCHEMA scratch;").DroppedSchemas.ShouldHaveSingleItem().ShouldBe("scratch");
+    public void Parse_DropSchema_BecomesADirective()
+        => Directives("DROP SCHEMA scratch;").Schemas.Drops.ShouldHaveSingleItem().ShouldBe("scratch");
 
     [Fact]
-    public void Parse_DropTable_VivifiesSchemaAndRecordsDroppedTable()
+    public void Parse_DropTable_BecomesADirective_AndNeverEntersTheTree()
     {
-        var schema = ParseSingleSchema("DROP TABLE app.old_table;");
-        schema.Name.ShouldBe("app");
-        schema.DroppedTables.ShouldHaveSingleItem().ShouldBe("old_table");
+        var source = "CREATE SCHEMA app; DROP TABLE app.old_table;";
+        Directives(source).Tables.Drops.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("old_table")));
+        ParseSingleSchema(source).Tables.ShouldBeEmpty();
     }
 
     [Fact]
-    public void Parse_DropTableInDeclaredSchema_MergesOntoSameSchema()
+    public void Parse_PartialSchemaWithDrop_BothBecomeDirectives()
     {
-        var schema = ParseSingleSchema("CREATE PARTIAL SCHEMA app; DROP TABLE app.old;");
-        schema.IsPartial.ShouldBeTrue();
-        schema.DroppedTables.ShouldHaveSingleItem().ShouldBe("old");
+        var directives = Directives("CREATE SCHEMA app; PARTIAL SCHEMA app; DROP TABLE app.old;");
+        directives.Schemas.Partials.ShouldHaveSingleItem().ShouldBe("app");
+        directives.Tables.Drops.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("old")));
     }
 
     // -------------------------------------------------------------------------
@@ -103,10 +112,8 @@ public sealed class NsqlParserTests
             """
             CREATE SCHEMA app;
             CREATE SCHEMA reporting;
-            DROP SCHEMA scratch;
             """);
         schema.Schemas.Select(s => s.Name).ShouldBe(["app", "reporting"]);
-        schema.DroppedSchemas.ShouldHaveSingleItem().ShouldBe("scratch");
     }
 
     // -------------------------------------------------------------------------
@@ -128,7 +135,7 @@ public sealed class NsqlParserTests
 
     [Fact]
     public void Parse_PartialTable_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE PARTIAL TABLE app.t (id int);")).Message.ShouldContain("PARTIAL applies to SCHEMA");
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE PARTIAL TABLE app.t (id int);")).Message.ShouldContain("after CREATE");
 
     [Fact]
     public void Parse_EmptyTableBody_Throws()
@@ -196,11 +203,10 @@ public sealed class NsqlParserTests
     }
 
     [Fact]
-    public void Parse_CreateView_RenamedFrom_SetsOldName()
-    {
-        var schema = ParseSingleSchema("CREATE SCHEMA app; CREATE VIEW app.v RENAMED FROM old_v AS SELECT 1 FROM app.t;");
-        schema.Views.ShouldHaveSingleItem().OldName.ShouldBe("old_v");
-    }
+    public void Parse_RenameView_BecomesADirective()
+        => Directives("CREATE SCHEMA app; CREATE VIEW app.v AS SELECT 1 FROM app.t; RENAME VIEW app.old_v TO v;")
+            .Views.Renames.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("old_v")), new SqlIdentifier("v")));
 
     [Fact]
     public void Parse_CreateView_WithDocComment_AttachesComment()
@@ -212,8 +218,9 @@ public sealed class NsqlParserTests
     [Fact]
     public void Parse_DropView_RecordsDroppedView()
     {
-        var schema = ParseSingleSchema("CREATE SCHEMA app; DROP VIEW app.stale;");
-        schema.DroppedViews.ShouldHaveSingleItem().ShouldBe("stale");
+        Directives("CREATE SCHEMA app; DROP VIEW app.stale;")
+            .Views.Drops.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("stale")));
     }
 
     [Fact]
@@ -223,7 +230,7 @@ public sealed class NsqlParserTests
 
     [Fact]
     public void Parse_PartialView_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE PARTIAL VIEW app.v AS SELECT 1 FROM app.t;")).Message.ShouldContain("PARTIAL applies to SCHEMA");
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE PARTIAL VIEW app.v AS SELECT 1 FROM app.t;")).Message.ShouldContain("after CREATE");
 
     [Fact]
     public void Parse_ViewBodyWithSemicolonInString_StopsAtRealTerminator()
@@ -270,9 +277,10 @@ public sealed class NsqlParserTests
             .Enums.ShouldHaveSingleItem().Values.ShouldBe(["it's"]);
 
     [Fact]
-    public void Parse_CreateEnum_RenamedFrom_SetsOldName()
-        => ParseSingleSchema("CREATE SCHEMA app; CREATE ENUM app.status RENAMED FROM state ('a');")
-            .Enums.ShouldHaveSingleItem().OldName.ShouldBe("state");
+    public void Parse_RenameEnum_BecomesADirective()
+        => Directives("CREATE SCHEMA app; CREATE ENUM app.status ('a'); RENAME ENUM app.state TO status;")
+            .Enums.Renames.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("state")), new SqlIdentifier("status")));
 
     [Fact]
     public void Parse_CreateEnum_WithDocComment_AttachesComment()
@@ -281,8 +289,9 @@ public sealed class NsqlParserTests
 
     [Fact]
     public void Parse_DropEnum_RecordsDroppedEnum()
-        => ParseSingleSchema("CREATE SCHEMA app; DROP ENUM app.stale;")
-            .DroppedEnums.ShouldHaveSingleItem().ShouldBe("stale");
+        => Directives("CREATE SCHEMA app; DROP ENUM app.stale;")
+            .Enums.Drops.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("stale")));
 
     [Fact]
     public void Parse_DuplicateEnum_FailsTheRead()
@@ -302,7 +311,7 @@ public sealed class NsqlParserTests
     [Fact]
     public void Parse_PartialEnum_Throws()
         => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE PARTIAL ENUM app.e ('a');"))
-            .Message.ShouldContain("PARTIAL applies to SCHEMA");
+            .Message.ShouldContain("after CREATE");
 
     // -------------------------------------------------------------------------
     // Sequences
@@ -335,9 +344,10 @@ public sealed class NsqlParserTests
     }
 
     [Fact]
-    public void Parse_CreateSequence_RenamedFrom_SetsOldName()
-        => ParseSingleSchema("CREATE SCHEMA app; CREATE SEQUENCE app.invoice_id RENAMED FROM bill_id;")
-            .Sequences.ShouldHaveSingleItem().OldName.ShouldBe("bill_id");
+    public void Parse_RenameSequence_BecomesADirective()
+        => Directives("CREATE SCHEMA app; CREATE SEQUENCE app.invoice_id; RENAME SEQUENCE app.bill_id TO invoice_id;")
+            .Sequences.Renames.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("bill_id")), new SqlIdentifier("invoice_id")));
 
     [Fact]
     public void Parse_CreateSequence_WithDocComment_AttachesComment()
@@ -346,8 +356,9 @@ public sealed class NsqlParserTests
 
     [Fact]
     public void Parse_DropSequence_RecordsDroppedSequence()
-        => ParseSingleSchema("CREATE SCHEMA app; DROP SEQUENCE app.stale;")
-            .DroppedSequences.ShouldHaveSingleItem().ShouldBe("stale");
+        => Directives("CREATE SCHEMA app; DROP SEQUENCE app.stale;")
+            .Sequences.Drops.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("stale")));
 
     [Fact]
     public void Parse_DuplicateSequence_FailsTheRead()
@@ -367,7 +378,7 @@ public sealed class NsqlParserTests
     [Fact]
     public void Parse_PartialSequence_Throws()
         => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE PARTIAL SEQUENCE app.q;"))
-            .Message.ShouldContain("PARTIAL applies to SCHEMA");
+            .Message.ShouldContain("after CREATE");
 
     // -------------------------------------------------------------------------
     // Functions and procedures
@@ -409,9 +420,12 @@ public sealed class NsqlParserTests
             .Message.ShouldContain("Expected a function definition");
 
     [Fact]
-    public void Parse_CreateFunction_RenamedFrom_SetsOldName()
-        => ParseSingleSchema("CREATE SCHEMA app; CREATE FUNCTION app.f RENAMED FROM old_f() RETURNS int AS $$ SELECT 1 $$;")
-            .Routines.ShouldHaveSingleItem().OldName.ShouldBe("old_f");
+    public void Parse_RenameRoutine_AnySpelling_BecomesADirective()
+    {
+        var directives = Directives("CREATE SCHEMA app; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$; RENAME FUNCTION app.old_f TO f;");
+        directives.Routines.Renames.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("old_f")), new SqlIdentifier("f")));
+    }
 
     [Fact]
     public void Parse_CreateFunction_WithDocComment_AttachesComment()
@@ -421,7 +435,7 @@ public sealed class NsqlParserTests
     [Fact]
     public void Parse_PartialFunction_Throws()
         => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE PARTIAL FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$;"))
-            .Message.ShouldContain("PARTIAL applies to SCHEMA");
+            .Message.ShouldContain("after CREATE");
 
     [Fact]
     public void Parse_CreateProcedure_ParsesWithoutReturns()
@@ -454,9 +468,9 @@ public sealed class NsqlParserTests
             .Message.ShouldContain("share one name space");
 
     [Fact]
-    public void Parse_DropFunctionAndProcedure_RecordDrops()
+    public void Parse_DropFunctionAndProcedure_BecomeRoutineDropDirectives()
     {
-        var schema = ParseSingleSchema("CREATE SCHEMA app; DROP FUNCTION app.stale_fn; DROP PROCEDURE app.stale_proc;");
-        schema.DroppedRoutines.ShouldBe(["stale_fn", "stale_proc"], ignoreOrder: true);
+        var directives = Directives("CREATE SCHEMA app; DROP FUNCTION app.stale_fn; DROP PROCEDURE app.stale_proc;");
+        directives.Routines.Drops.Select(d => d.Name).ShouldBe(["stale_fn", "stale_proc"], ignoreOrder: true);
     }
 }

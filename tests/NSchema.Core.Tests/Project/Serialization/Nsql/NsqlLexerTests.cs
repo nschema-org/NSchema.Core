@@ -1,7 +1,7 @@
 using NSchema.Project.Nsql;
 using NSchema.Project.Nsql.Tokens;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 public sealed class NsqlLexerTests
 {

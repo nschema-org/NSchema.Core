@@ -11,16 +11,16 @@ using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Domain.Models.Views;
 using NSchema.Project.Policies;
 
-namespace NSchema.Tests.Schema.Policies;
+namespace NSchema.Tests.Project.Policies;
 
-public sealed class StructuralIntegritySchemaPolicyTests
+public sealed class StructuralIntegrityPolicyTests
 {
-    private readonly StructuralIntegritySchemaPolicy _sut = new();
+    private readonly StructuralIntegrityPolicy _sut = new();
 
     private static Column Col(string name) => new Column(new SqlIdentifier(name), SqlType.BigInt);
 
-    private static DatabaseSchema Db(params Table[] tables) =>
-        new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("public"), Tables: tables)]);
+    private static Database Db(params Table[] tables) =>
+        new Database([new Schema(new SqlIdentifier("public"), Tables: tables)]);
 
     [Fact]
     public void NoDiagnostics_ForAConsistentSchema()
@@ -81,10 +81,10 @@ public sealed class StructuralIntegritySchemaPolicyTests
         // Arrange
         var table = new Table(new SqlIdentifier("invoices"), Columns: [Col("updated_at")],
             Indexes: [new TableIndex(new SqlIdentifier("ix_updated_at"), [new IndexColumn(new SqlIdentifier("updated_at"))])]);
-        var schema = new DatabaseSchema(
+        var schema = new Database(
         [
-            new SchemaDefinition(new SqlIdentifier("billing"), Tables: [table]),
-            new SchemaDefinition(new SqlIdentifier("ordering"), Tables: [table]),
+            new Schema(new SqlIdentifier("billing"), Tables: [table]),
+            new Schema(new SqlIdentifier("ordering"), Tables: [table]),
         ]);
 
         // Act
@@ -194,10 +194,12 @@ public sealed class StructuralIntegritySchemaPolicyTests
         var table = new Table(
             new SqlIdentifier("t"), Columns: [Col("id"), Col("ref")],
             ForeignKeys: [new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("ref")], new SqlIdentifier("public"), new SqlIdentifier("absent"), [new SqlIdentifier("id")])]);
-        var schema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("public"), IsPartial: true, Tables: [table])]);
+        var schema = new Database([new Schema(new SqlIdentifier("public"), Tables: [table])]);
+        var project = new ProjectDefinition(schema, [], new ProjectDirectives(
+            new NSchema.Project.Domain.Models.Schemas.SchemaDirectives(Partials: [new SqlIdentifier("public")])));
 
         // Act
-        var diagnostics = _sut.Validate(schema).ToList();
+        var diagnostics = _sut.Validate(project).ToList();
 
         // Assert
         diagnostics.ShouldBeEmpty();
@@ -279,8 +281,8 @@ public sealed class StructuralIntegritySchemaPolicyTests
     {
         // Arrange — the parser and aggregation enforce this for parsed schemas; the policy is the catch-all
         // for JSON-sourced and code-built schemas.
-        var schema = new DatabaseSchema([
-            new SchemaDefinition(new SqlIdentifier("public"), Routines:
+        var schema = new Database([
+            new Schema(new SqlIdentifier("public"), Routines:
             [
                 new Routine(new SqlIdentifier("r"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int AS $$ SELECT 1 $$")),
                 new Routine(new SqlIdentifier("r"), RoutineKind.Procedure, new SqlText(""), new SqlText("AS $$ SELECT 1 $$")),
@@ -298,8 +300,8 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenFunctionDeclaredTwice()
     {
         // Arrange
-        var schema = new DatabaseSchema([
-            new SchemaDefinition(new SqlIdentifier("public"), Routines:
+        var schema = new Database([
+            new Schema(new SqlIdentifier("public"), Routines:
             [
                 new Routine(new SqlIdentifier("f"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int AS $$ SELECT 1 $$")),
                 new Routine(new SqlIdentifier("f"), RoutineKind.Function, new SqlText("a int"), new SqlText("RETURNS int AS $$ SELECT 2 $$")),
@@ -317,8 +319,8 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenNameReusedAcrossObjectKinds()
     {
         // A table and a view called 'foo' cannot coexist — they share one name space in the database.
-        var schema = new DatabaseSchema([
-            new SchemaDefinition(new SqlIdentifier("public"),
+        var schema = new Database([
+            new Schema(new SqlIdentifier("public"),
                 Tables: [new Table(new SqlIdentifier("foo"), Columns: [Col("id")])],
                 Views: [new View(new SqlIdentifier("foo"), new SqlText("SELECT 1"))]),
         ]);
@@ -332,8 +334,8 @@ public sealed class StructuralIntegritySchemaPolicyTests
     public void Error_WhenNameReusedAcrossTableAndEnum()
     {
         // Relations and types share pg_type (a relation has a row type), so a table and an enum collide too.
-        var schema = new DatabaseSchema([
-            new SchemaDefinition(new SqlIdentifier("public"),
+        var schema = new Database([
+            new Schema(new SqlIdentifier("public"),
                 Tables: [new Table(new SqlIdentifier("status"), Columns: [Col("id")])],
                 Enums: [new EnumType(new SqlIdentifier("status"), ["a", "b"])]),
         ]);
@@ -344,8 +346,8 @@ public sealed class StructuralIntegritySchemaPolicyTests
     [Fact]
     public void Error_WhenSequenceDeclaredTwice()
     {
-        var schema = new DatabaseSchema([
-            new SchemaDefinition(new SqlIdentifier("public"), Sequences: [new Sequence(new SqlIdentifier("seq")), new Sequence(new SqlIdentifier("seq"))]),
+        var schema = new Database([
+            new Schema(new SqlIdentifier("public"), Sequences: [new Sequence(new SqlIdentifier("seq")), new Sequence(new SqlIdentifier("seq"))]),
         ]);
 
         _sut.Validate(schema).ShouldContain(d => d.Message.Contains("declares sequence 'seq' more than once"));
@@ -354,14 +356,14 @@ public sealed class StructuralIntegritySchemaPolicyTests
     [Fact]
     public void NoDiagnostics_WhenNamesDifferAcrossKinds()
     {
-        var schema = new DatabaseSchema([
-            new SchemaDefinition(new SqlIdentifier("public"),
+        var schema = new Database([
+            new Schema(new SqlIdentifier("public"),
                 Tables: [new Table(new SqlIdentifier("t"), Columns: [Col("id")])],
                 Views: [new View(new SqlIdentifier("v"), new SqlText("SELECT 1"))],
                 Sequences: [new Sequence(new SqlIdentifier("s"))],
                 CompositeTypes: [new CompositeType(new SqlIdentifier("c"), [new CompositeField(new SqlIdentifier("f"), SqlType.Int)])],
                 Enums: [new EnumType(new SqlIdentifier("e"), ["a"])],
-                Domains: [new DomainDefinition(new SqlIdentifier("d"), SqlType.Text)]),
+                Domains: [new DomainType(new SqlIdentifier("d"), SqlType.Text)]),
         ]);
 
         _sut.Validate(schema).ShouldBeEmpty();

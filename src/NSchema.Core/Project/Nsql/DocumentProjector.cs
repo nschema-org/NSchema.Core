@@ -24,7 +24,7 @@ internal static class DocumentProjector
 {
     public static Result<ProjectedDocument, NsqlDiagnostic> Project(NsqlDocument document)
     {
-        var schemas = new SchemaAccumulator();
+        var schemas = new DatabaseAccumulator();
         var scripts = new List<Script>();
         var diagnostics = new List<NsqlDiagnostic>();
 
@@ -59,12 +59,12 @@ internal static class DocumentProjector
     /// Projects one schema-shaped statement (create, drop, grant, or script) into the accumulator. Inside a
     /// template body, <paramref name="context"/> is the placeholder schema that unqualified names bind to.
     /// </summary>
-    internal static void ProjectStatement(Syn.NsqlStatement statement, SchemaAccumulator schemas, List<Script> scripts, SqlIdentifier? context)
+    internal static void ProjectStatement(Syn.NsqlStatement statement, DatabaseAccumulator schemas, List<Script> scripts, SqlIdentifier? context)
     {
         switch (statement)
         {
             case Syn.Schemas.CreateSchemaStatement s:
-                schemas.DeclareSchema(Name(s.Name), OptionalName(s.RenamedFrom), s.IsPartial, s.Doc, s.Name.Position);
+                schemas.DeclareSchema(Name(s.Name), s.Doc, s.Name.Position);
                 break;
             case Syn.Tables.CreateTableStatement s:
                 ProjectTable(s, schemas, context);
@@ -73,7 +73,7 @@ internal static class DocumentProjector
                 {
                     var (schema, name) = Bind(s.Name, context);
                     var dependsOn = ViewDependencyExtractor.Extract(s.Body.Value, schema);
-                    schemas.AddView(schema, new View(name, s.Body, OptionalName(s.RenamedFrom), s.Doc, dependsOn, s.IsMaterialized), s.Name.Position);
+                    schemas.AddView(schema, new View(name, s.Body, s.Doc, dependsOn, s.IsMaterialized), s.Name.Position);
                     break;
                 }
             case Syn.Indexes.CreateIndexStatement s:
@@ -85,33 +85,33 @@ internal static class DocumentProjector
             case Syn.Routines.CreateRoutineStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
-                    schemas.AddRoutine(schema, new Routine(name, Map(s.Kind), s.Arguments, s.Definition, OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
+                    schemas.AddRoutine(schema, new Routine(name, Map(s.Kind), s.Arguments, s.Definition, s.Doc), s.Name.Position);
                     break;
                 }
             case Syn.Enums.CreateEnumStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
-                    schemas.AddEnum(schema, new EnumType(name, s.Values, OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
+                    schemas.AddEnum(schema, new EnumType(name, s.Values, s.Doc), s.Name.Position);
                     break;
                 }
             case Syn.Domains.CreateDomainStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
                     var checks = s.Checks.Select(c => new CheckConstraint(Name(c.Name), c.Expression)).ToList();
-                    schemas.AddDomain(schema, new DomainDefinition(name, ParseType(s.Type), s.Default, s.NotNull, checks, OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
+                    schemas.AddDomain(schema, new DomainType(name, ParseType(s.Type), s.Default, s.NotNull, checks, s.Doc), s.Name.Position);
                     break;
                 }
             case Syn.CompositeTypes.CreateCompositeTypeStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
                     var fields = s.Fields.Select(f => new CompositeField(Name(f.Name), ParseType(f.Type))).ToList();
-                    schemas.AddCompositeType(schema, new CompositeType(name, fields, OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
+                    schemas.AddCompositeType(schema, new CompositeType(name, fields, s.Doc), s.Name.Position);
                     break;
                 }
             case Syn.Sequences.CreateSequenceStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
-                    schemas.AddSequence(schema, new Sequence(name, ProjectSequenceOptions(s.Options), OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
+                    schemas.AddSequence(schema, new Sequence(name, ProjectSequenceOptions(s.Options), s.Doc), s.Name.Position);
                     break;
                 }
             case Syn.Extensions.CreateExtensionStatement s:
@@ -135,63 +135,15 @@ internal static class DocumentProjector
             case Syn.Scripts.ScriptStatement s:
                 scripts.Add(ProjectScript(s, context));
                 break;
-            case Syn.Schemas.DropSchemaStatement s:
-                schemas.DropSchema(Name(s.Name));
-                break;
-            case Syn.Tables.DropTableStatement s:
-                {
-                    var (schema, name) = Bind(s.Name, context);
-                    schemas.DropTable(schema, name);
-                    break;
-                }
-            case Syn.Views.DropViewStatement s:
-                {
-                    var (schema, name) = Bind(s.Name, context);
-                    schemas.DropView(schema, name);
-                    break;
-                }
-            case Syn.Enums.DropEnumStatement s:
-                {
-                    var (schema, name) = Bind(s.Name, context);
-                    schemas.DropEnum(schema, name);
-                    break;
-                }
-            case Syn.Domains.DropDomainStatement s:
-                {
-                    var (schema, name) = Bind(s.Name, context);
-                    schemas.DropDomain(schema, name);
-                    break;
-                }
-            case Syn.CompositeTypes.DropCompositeTypeStatement s:
-                {
-                    var (schema, name) = Bind(s.Name, context);
-                    schemas.DropCompositeType(schema, name);
-                    break;
-                }
-            case Syn.Sequences.DropSequenceStatement s:
-                {
-                    var (schema, name) = Bind(s.Name, context);
-                    schemas.DropSequence(schema, name);
-                    break;
-                }
-            case Syn.Routines.DropRoutineStatement s:
-                {
-                    var (schema, name) = Bind(s.Name, context);
-                    schemas.DropRoutine(schema, name);
-                    break;
-                }
-            case Syn.Extensions.DropExtensionStatement s:
-                schemas.DropExtension(Name(s.Name));
-                break;
             default:
                 throw new InvalidOperationException($"Unprojectable statement '{statement.GetType().Name}'.");
         }
     }
 
-    private static void ProjectTable(Syn.Tables.CreateTableStatement statement, SchemaAccumulator schemas, SqlIdentifier? context)
+    private static void ProjectTable(Syn.Tables.CreateTableStatement statement, DatabaseAccumulator schemas, SqlIdentifier? context)
     {
         var (schema, name) = Bind(statement.Name, context);
-        var (table, includes) = ProjectTableMembers(name, OptionalName(statement.RenamedFrom), statement.Doc, statement.Members, context);
+        var (table, includes) = ProjectTableMembers(name, statement.Doc, statement.Members, context);
         schemas.AddTable(schema, table, statement.Name.Position);
         foreach (var (templateName, columnPosition) in includes)
         {
@@ -200,7 +152,7 @@ internal static class DocumentProjector
     }
 
     internal static (Table Table, List<(SqlIdentifier TemplateName, int ColumnPosition)> Includes) ProjectTableMembers(
-        SqlIdentifier name, SqlIdentifier? oldName, string? doc, IReadOnlyList<Syn.Tables.TableMember> members, SqlIdentifier? context = null)
+        SqlIdentifier name, string? doc, IReadOnlyList<Syn.Tables.TableMember> members, SqlIdentifier? context = null)
     {
         PrimaryKey? primaryKey = null;
         var columns = new List<Column>();
@@ -217,7 +169,7 @@ internal static class DocumentProjector
             {
                 case Syn.Tables.ColumnDefinition m:
                     columns.Add(new Column(Name(m.Name), ParseType(m.Type), m.IsNullable, m.IsIdentity, m.Default,
-                        OptionalName(m.RenamedFrom), m.Doc, ProjectIdentityOptions(m.IdentityOptions), m.Generated));
+                        m.Doc, ProjectIdentityOptions(m.IdentityOptions), m.Generated));
                     break;
                 case Syn.Constraints.PrimaryKeyDefinition m:
                     primaryKey = new PrimaryKey(Name(m.Name), Names(m.Columns), m.Doc);
@@ -255,7 +207,7 @@ internal static class DocumentProjector
             }
         }
 
-        var table = new Table(name, oldName, primaryKey, doc,
+        var table = new Table(name, primaryKey, doc,
             columns, foreignKeys, uniqueConstraints, checkConstraints, exclusionConstraints, indexes);
         return (table, includes);
     }
@@ -314,7 +266,7 @@ internal static class DocumentProjector
     /// </summary>
     internal static IReadOnlyList<NsqlDiagnostic> ValidateTemplateBody(Syn.Templates.SchemaTemplateStatement statement)
     {
-        var body = new SchemaAccumulator();
+        var body = new DatabaseAccumulator();
         var scripts = new List<Script>();
         foreach (var inner in statement.Statements)
         {

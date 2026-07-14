@@ -1,0 +1,78 @@
+using Microsoft.Extensions.DependencyInjection;
+using NSchema.Deployment;
+using NSchema.Deployment.Backends;
+using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Schemas;
+
+namespace NSchema.Tests.State;
+
+public sealed class DatabaseProviderTests
+{
+    private static readonly Database _liveSchema = new Database([new Schema(new SqlIdentifier("live"))]);
+
+    private static DatabaseProvider Create(IDatabaseIntrospector? online = null) => new(online);
+
+    private sealed class FakeIntrospector : IDatabaseIntrospector
+    {
+        public ValueTask<Database> GetDatabase(SchemaScope scope, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(_liveSchema);
+    }
+
+    [Fact]
+    public async Task GetLive_ReturnsTheLiveDatabase()
+    {
+        var sut = Create(online: new FakeIntrospector());
+
+        var result = await sut.GetDatabase(SchemaScope.All, TestContext.Current.CancellationToken);
+
+        result.Require().ShouldBe(_liveSchema);
+    }
+
+    [Fact]
+    public async Task GetLive_ReAppliesTheScope_WhenTheIntrospectorOverReturns()
+    {
+        // The fake ignores its scope entirely — the provider's re-filter is what keeps scoping honest.
+        var sut = Create(online: new FakeIntrospector());
+
+        var result = await sut.GetDatabase(SchemaScope.Of(new SqlIdentifier("other")), TestContext.Current.CancellationToken);
+
+        result.Require().Schemas.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task GetLive_WhenNotConfigured_Fails()
+    {
+        var sut = Create();
+
+        var result = await sut.GetDatabase(SchemaScope.All, TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("live database provider");
+    }
+
+    // --- DI integration ---
+
+    [Fact]
+    public async Task UseDatabaseIntrospector_RegistersTheLiveSource()
+    {
+        var builder = NSchemaApplication.CreateBuilder();
+        builder.UseDatabaseIntrospector<FakeIntrospector>();
+        using var app = builder.Build();
+        var provider = app.Services.GetRequiredService<IDatabaseProvider>();
+
+        var live = await provider.GetDatabase(SchemaScope.All, TestContext.Current.CancellationToken);
+
+        live.Require().ShouldBe(_liveSchema);
+    }
+
+    [Fact]
+    public async Task GetLive_WithoutAnIntrospector_Fails()
+    {
+        using var app = NSchemaApplication.CreateBuilder().Build();
+        var provider = app.Services.GetRequiredService<IDatabaseProvider>();
+
+        var live = await provider.GetDatabase(SchemaScope.All, TestContext.Current.CancellationToken);
+
+        live.IsFailure.ShouldBeTrue();
+    }
+}

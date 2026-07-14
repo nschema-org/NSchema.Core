@@ -1,13 +1,13 @@
 using System.Reflection;
-using NSchema.Current.Storage;
+using NSchema.State;
 using NSchema.Project.Domain.Models;
 
-namespace NSchema.Tests.Schema.Model;
+namespace NSchema.Tests.Project.Model;
 
 /// <summary>
 /// Ensures the domain model carries no serialization contract whatsoever: every JSON shaping
 /// decision is owned by a serializer's <c>JsonSerializerOptions</c> — for example state serialization
-/// by <see cref="SchemaStateSerializer"/>.
+/// by <see cref="DatabaseStateSerializer"/>.
 /// An attribute on the shared model would silently bind both formats together, so none is allowed.
 /// </summary>
 public sealed class DomainModelSerializationContractTests
@@ -17,8 +17,8 @@ public sealed class DomainModelSerializationContractTests
     public static TheoryData<Type> DomainTypes()
     {
         var data = new TheoryData<Type>();
-        var types = typeof(DatabaseSchema).Assembly.GetTypes()
-            .Where(t => t.Namespace == typeof(DatabaseSchema).Namespace)
+        var types = typeof(Database).Assembly.GetTypes()
+            .Where(t => t.Namespace == typeof(Database).Namespace)
             .Where(t => t is { IsClass: true, IsAbstract: false } || t.IsValueType)
             .ToList();
         data.AddRange(types);

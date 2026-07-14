@@ -282,10 +282,10 @@ public sealed class DiffReaderSnapshotTests
                 new SchemaDiff(new SqlIdentifier("app"), Domains:
                 [
                     new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("typeid"), ChangeKind.Add,
-                        Definition: new DomainDefinition(new SqlIdentifier("typeid"), SqlType.Text, NotNull: true),
+                        Definition: new DomainType(new SqlIdentifier("typeid"), SqlType.Text, NotNull: true),
                         Comment: new ValueChange<string>(null, "id as text")),
                     new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("code"), ChangeKind.Modify,
-                        Definition: new DomainDefinition(new SqlIdentifier("code"), SqlType.VarChar(8)),
+                        Definition: new DomainType(new SqlIdentifier("code"), SqlType.VarChar(8)),
                         DataType: new ValueChange<SqlType>(SqlType.Text, SqlType.VarChar(8))),
                     new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("amount"), ChangeKind.Modify,
                         Default: new ValueChange<SqlText>(null, new SqlText("0")),

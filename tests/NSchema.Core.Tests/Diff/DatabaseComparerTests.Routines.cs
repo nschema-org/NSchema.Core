@@ -6,7 +6,7 @@ using NSchema.Project.Domain.Models.Schemas;
 
 namespace NSchema.Tests.Diff;
 
-public partial class SchemaComparerTests
+public partial class DatabaseComparerTests
 {
     // -------------------------------------------------------------------------
     // Routines (functions and procedures — one type with a kind discriminator)
@@ -15,15 +15,15 @@ public partial class SchemaComparerTests
     private const string Def = "RETURNS int LANGUAGE sql AS $$ SELECT 1; $$";
     private const string ProcDef = "LANGUAGE sql AS $$ DELETE FROM app.t; $$";
 
-    private static Routine Fn(string name, string args, string def, SqlIdentifier? oldName = null, string? comment = null) =>
-        new(new SqlIdentifier(name), RoutineKind.Function, new SqlText(args), new SqlText(def), oldName, comment);
+    private static Routine Fn(string name, string args, string def, string? comment = null) =>
+        new(new SqlIdentifier(name), RoutineKind.Function, new SqlText(args), new SqlText(def), comment);
 
-    private static Routine Proc(string name, string args, string def, SqlIdentifier? oldName = null, string? comment = null) =>
-        new(new SqlIdentifier(name), RoutineKind.Procedure, new SqlText(args), new SqlText(def), oldName, comment);
+    private static Routine Proc(string name, string args, string def, string? comment = null) =>
+        new(new SqlIdentifier(name), RoutineKind.Procedure, new SqlText(args), new SqlText(def), comment);
 
     /// <summary>Diffs two <c>app</c> schemas holding the given routines, returning the single routine diff (null when unchanged).</summary>
-    private RoutineDiff? DiffRoutines(IReadOnlyList<Routine> current, IReadOnlyList<Routine> desired) => _sut
-        .Compare(Db(new SchemaDefinition(new SqlIdentifier("app"), Routines: current)), Db(new SchemaDefinition(new SqlIdentifier("app"), Routines: desired)))
+    private RoutineDiff? DiffRoutines(IReadOnlyList<Routine> current, IReadOnlyList<Routine> desired, ProjectDirectives? directives = null) =>
+        Compare(Db(new Schema(new SqlIdentifier("app"), Routines: current)), Db(new Schema(new SqlIdentifier("app"), Routines: desired)), directives)
         .Schemas.SingleOrDefault()?.Routines.SingleOrDefault();
 
     [Fact]
@@ -86,7 +86,8 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_Renamed_SetsRenamedFrom()
     {
-        var diff = DiffRoutines([Fn("old_f", "", Def)], [Fn("f", "", Def, oldName: new SqlIdentifier("old_f"))]);
+        var diff = DiffRoutines([Fn("old_f", "", Def)], [Fn("f", "", Def)],
+            new ProjectDirectives(Routines: new RoutineDirectives(Renames: [new ObjectRename(App("old_f"), new SqlIdentifier("f"))])));
 
         diff!.RenamedFrom.ShouldBe("old_f");
         diff.Definition.ShouldBeNull(); // nothing else changed, so it is a rename only
@@ -117,15 +118,16 @@ public partial class SchemaComparerTests
 
     [Fact]
     public void Compare_PartialSchema_LeavesUnmanagedRoutineAlone()
-        => _sut.Compare(
-            Db(new SchemaDefinition(new SqlIdentifier("app"), Routines: [Fn("f", "", Def)])),
-            Db(new SchemaDefinition(new SqlIdentifier("app"), IsPartial: true)))
+        => Compare(
+            Db(new Schema(new SqlIdentifier("app"), Routines: [Fn("f", "", Def)])),
+            Db(new Schema(new SqlIdentifier("app"))), PartialApp())
             .Schemas.ShouldBeEmpty();
 
     [Fact]
     public void Compare_PartialSchema_DropsExplicitlyDroppedRoutine()
-        => _sut.Compare(
-            Db(new SchemaDefinition(new SqlIdentifier("app"), Routines: [Fn("f", "", Def)])),
-            Db(new SchemaDefinition(new SqlIdentifier("app"), IsPartial: true, DroppedRoutines: [new SqlIdentifier("f")])))
+        => Compare(
+            Db(new Schema(new SqlIdentifier("app"), Routines: [Fn("f", "", Def)])),
+            Db(new Schema(new SqlIdentifier("app"))),
+            PartialApp() with { Routines = new RoutineDirectives(Drops: [App("f")]) })
             .Schemas.ShouldHaveSingleItem().Routines.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
 }

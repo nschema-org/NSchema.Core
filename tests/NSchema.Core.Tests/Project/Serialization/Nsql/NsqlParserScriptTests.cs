@@ -1,7 +1,7 @@
 using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 public sealed class NsqlParserScriptTests
 {
@@ -76,14 +76,14 @@ public sealed class NsqlParserScriptTests
             SCRIPT post RUN ON POST DEPLOYMENT AS $$ SELECT 2; $$;
             """).Parse();
 
-        document.Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
+        document.Database.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
         document.Scripts.Select(s => (s.Name.Value, s.Event)).ShouldBe(
             [("pre", (ScriptEvent)new DeploymentEvent(DeploymentPhase.Pre)), ("post", new DeploymentEvent(DeploymentPhase.Post))]);
     }
 
     [Fact]
     public void Parse_DeploymentScripts_AreNotPartOfTheSchema()
-        => new TestNsqlParser("SCRIPT x RUN ON PRE DEPLOYMENT AS $$ SELECT 1; $$;").Parse().Schema.Schemas.ShouldBeEmpty();
+        => new TestNsqlParser("SCRIPT x RUN ON PRE DEPLOYMENT AS $$ SELECT 1; $$;").Parse().Database.Schemas.ShouldBeEmpty();
 
     [Fact]
     public void Parse_MissingDeploymentKeyword_Throws()

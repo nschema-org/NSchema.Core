@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Options;
-using NSchema.Current.Domain.Models;
+using NSchema.State.Domain.Models;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Columns;
@@ -10,6 +10,7 @@ using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Tests.Diff;
@@ -20,16 +21,16 @@ namespace NSchema.Tests.Diff;
 /// </summary>
 public sealed class ProjectComparerTests
 {
-    private static readonly DatabaseSchema _emptySchema = new([]);
+    private static readonly Database _emptySchema = new([]);
     private static readonly DatabaseDiff _emptyDiff = new([]);
 
-    private readonly ISchemaComparer _comparer = Substitute.For<ISchemaComparer>();
+    private readonly IDatabaseComparer _comparer = Substitute.For<IDatabaseComparer>();
 
     private ProjectComparer Sut => new(_comparer);
 
     public ProjectComparerTests()
     {
-        _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(_emptyDiff);
+        _comparer.Compare(Arg.Any<Database>(), Arg.Any<Database>(), Arg.Any<ProjectDirectives>()).Returns(_emptyDiff);
     }
 
     private static Script SeedScript() =>
@@ -56,14 +57,14 @@ public sealed class ProjectComparerTests
     public void Compare_PassesBothSchemasToTheStructuralComparer()
     {
         // Arrange
-        var current = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("current"))]);
-        var desired = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("desired"))]);
+        var current = new Database([new Schema(new SqlIdentifier("current"))]);
+        var desired = new Database([new Schema(new SqlIdentifier("desired"))]);
 
         // Act
         Sut.Compare(new CurrentState(current), new ProjectDefinition(desired, []));
 
         // Assert
-        _comparer.Received(1).Compare(current, desired);
+        _comparer.Received(1).Compare(current, desired, ProjectDirectives.Empty);
     }
 
     [Fact]
@@ -139,7 +140,7 @@ public sealed class ProjectComparerTests
     {
         // Arrange
         var migration = EmailBackfillMigration();
-        _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(AddedEmailColumnDiff());
+        _comparer.Compare(Arg.Any<Database>(), Arg.Any<Database>(), Arg.Any<ProjectDirectives>()).Returns(AddedEmailColumnDiff());
 
         // Act
         var comparison = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, [migration]));
@@ -174,7 +175,7 @@ public sealed class ProjectComparerTests
     {
         // Arrange — the matching change IS in the diff, but the migration already ran: no annotation, no run.
         var migration = EmailBackfillMigration() with { RunCondition = RunCondition.Once };
-        _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(AddedEmailColumnDiff());
+        _comparer.Compare(Arg.Any<Database>(), Arg.Any<Database>(), Arg.Any<ProjectDirectives>()).Returns(AddedEmailColumnDiff());
 
         // Act
         var comparison = Sut.Compare(Executed(migration, migration.Sql.Value), new ProjectDefinition(_emptySchema, [migration]));
@@ -190,7 +191,7 @@ public sealed class ProjectComparerTests
         // Arrange — the hazard policy sees the complete diff, so a matched backfill silences the NOT-NULL-add
         // warning it would otherwise raise.
         var policy = new DataHazardPolicy(Options.Create(new DataHazardOptions()));
-        _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(AddedEmailColumnDiff());
+        _comparer.Compare(Arg.Any<Database>(), Arg.Any<Database>(), Arg.Any<ProjectDirectives>()).Returns(AddedEmailColumnDiff());
 
         // Act
         var unmatched = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, []));
@@ -205,13 +206,48 @@ public sealed class ProjectComparerTests
     public void CompareTeardown_DiffsManagedSchemaAgainstEmpty_WithNoScripts()
     {
         // Arrange
-        var managed = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]);
+        var managed = new Database([new Schema(new SqlIdentifier("app"))]);
 
         // Act
         var diff = Sut.CompareTeardown(managed);
 
         // Assert
-        _comparer.Received(1).Compare(managed, Arg.Is<DatabaseSchema>(d => d!.Schemas.Count == 0 && d.DroppedSchemas.Count == 0));
+        _comparer.Received(1).Compare(managed, Arg.Is<Database>(d => d!.Schemas.Count == 0), ProjectDirectives.Empty);
         diff.Scripts.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Compare_AppliedRename_ReportsTheSpentDirective()
+    {
+        // Arrange — current has 'people' and no 'users': the rename has demonstrably been applied here.
+        var current = new CurrentState(new Database([new Schema(new SqlIdentifier("app"),
+            Tables: [new Table(new SqlIdentifier("people"))])]));
+        var directives = new ProjectDirectives(Tables: new NSchema.Project.Domain.Models.Tables.TableDirectives(
+            Renames: [new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("users")), new SqlIdentifier("people"))]));
+
+        // Act
+        var comparison = Sut.Compare(current, new ProjectDefinition(_emptySchema, [], directives));
+
+        // Assert
+        var diagnostic = comparison.Diagnostics.ShouldHaveSingleItem();
+        diagnostic.Severity.ShouldBe(DiagnosticSeverity.Info);
+        diagnostic.Source.ShouldBe("directives");
+        diagnostic.Message.ShouldContain("Rename of table 'app.users'");
+        diagnostic.Message.ShouldContain("safe to delete");
+    }
+
+    [Fact]
+    public void Compare_RenameOnAFreshDatabase_StaysSilent()
+    {
+        // Arrange — neither side of the rename exists (a fresh environment): the directive is pending, not
+        // spent, so no expiry info fires.
+        var directives = new ProjectDirectives(Tables: new NSchema.Project.Domain.Models.Tables.TableDirectives(
+            Renames: [new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("users")), new SqlIdentifier("people"))]));
+
+        // Act
+        var comparison = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, [], directives));
+
+        // Assert
+        comparison.Diagnostics.ShouldBeEmpty();
     }
 }

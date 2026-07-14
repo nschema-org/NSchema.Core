@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using NSchema.Current.Backends;
+using NSchema.Deployment.Backends;
 using NSchema.Diff.Domain.Models;
 using NSchema.Operations;
 using NSchema.Project.Domain.Models;
@@ -27,10 +27,10 @@ public sealed class PlanEndToEndTests : IDisposable
         return path;
     }
 
-    private NSchemaApplicationBuilder NewBuilder(DatabaseSchema current)
+    private NSchemaApplicationBuilder NewBuilder(Database current)
     {
         var builder = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions());
-        builder.Services.AddSingleton<ISchemaIntrospector>(new InMemoryIntrospector(current));
+        builder.Services.AddSingleton<IDatabaseIntrospector>(new InMemoryIntrospector(current));
         // Planning requires a state store; these tests diff against the live provider, so an empty in-memory one suffices.
         builder.UseEphemeralState();
         return builder;
@@ -40,7 +40,7 @@ public sealed class PlanEndToEndTests : IDisposable
     public async Task Plan_ReportsStructuredDiffBetweenCurrentAndDesired()
     {
         // Current: app.users(id). Desired: app.users(id, email) + a new app.orders table.
-        var current = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), Tables:
+        var current = new Database([new Schema(new SqlIdentifier("app"), Tables:
             [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
 
         var desired = WriteNsql("schema.sql",
@@ -76,7 +76,7 @@ public sealed class PlanEndToEndTests : IDisposable
     [Fact]
     public async Task Plan_WithNoChanges_ReportsEmptyDiff()
     {
-        var schema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), Tables:
+        var schema = new Database([new Schema(new SqlIdentifier("app"), Tables:
             [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
 
         var desired = WriteNsql("schema.sql",
@@ -98,7 +98,7 @@ public sealed class PlanEndToEndTests : IDisposable
     [Fact]
     public async Task Plan_WithDialectRegistered_ProducesSql()
     {
-        var current = new DatabaseSchema([]);
+        var current = new Database([]);
         var desired = WriteNsql("schema.sql", "CREATE SCHEMA app;");
 
         using var app = NewBuilder(current)
@@ -115,7 +115,7 @@ public sealed class PlanEndToEndTests : IDisposable
     [Fact]
     public async Task Plan_WithoutProvider_Fails()
     {
-        var current = new DatabaseSchema([]);
+        var current = new Database([]);
         var desired = WriteNsql("schema.sql", "CREATE SCHEMA app;");
 
         using var app = NewBuilder(current).AddProjectSource(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).Build();
@@ -131,7 +131,7 @@ public sealed class PlanEndToEndTests : IDisposable
     public async Task Plan_Teardown_DiffsTheManagedSchemaDownToNothing()
     {
         // The managed schema is the recorded state, so the refresh records the live schema before tearing down.
-        var current = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), Tables:
+        var current = new Database([new Schema(new SqlIdentifier("app"), Tables:
             [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
         var desired = WriteNsql("schema.sql",
             """

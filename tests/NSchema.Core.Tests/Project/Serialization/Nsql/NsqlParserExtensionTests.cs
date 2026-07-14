@@ -1,15 +1,15 @@
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 /// <summary>
 /// Parser coverage for the database-global <c>CREATE EXTENSION</c> / <c>DROP EXTENSION</c> statements. Extensions
-/// live at the root of the parsed <see cref="DatabaseSchema"/>, not inside a schema.
+/// live at the root of the parsed <see cref="Database"/>, not inside a schema.
 /// </summary>
 public sealed class NsqlParserExtensionTests
 {
-    private static DatabaseSchema Parse(string source) => new TestNsqlParser(source).Parse().Schema;
+    private static Database Parse(string source) => new TestNsqlParser(source).Parse().Database;
 
     [Fact]
     public void Parse_CreateExtension_Bare_RecordsRootLevelExtension()
@@ -47,8 +47,9 @@ public sealed class NsqlParserExtensionTests
     }
 
     [Fact]
-    public void Parse_DropExtension_RecordsDroppedExtension()
-        => ShouldlyIdentifierExtensions.ShouldBe(Parse("DROP EXTENSION citext;").DroppedExtensions.ShouldHaveSingleItem(), "citext");
+    public void Parse_DropExtension_BecomesADirective()
+        => ShouldlyIdentifierExtensions.ShouldBe(Directives("DROP EXTENSION citext;")
+            .Extensions.Drops.ShouldHaveSingleItem(), "citext");
 
     [Fact]
     public void Parse_DuplicateExtension_FailsTheRead()
@@ -58,10 +59,17 @@ public sealed class NsqlParserExtensionTests
     [Fact]
     public void Parse_PartialExtension_Throws()
         => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE PARTIAL EXTENSION citext;"))
-            .Message.ShouldContain("PARTIAL applies to SCHEMA");
+            .Message.ShouldContain("after CREATE");
 
     [Fact]
     public void Parse_CreateExtension_MissingVersionString_Throws()
         => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE EXTENSION postgis VERSION;"))
             .Message.ShouldContain("a version string");
+
+    private static NSchema.Project.Domain.Models.ProjectDirectives Directives(string source)
+    {
+        var read = NSchema.Project.Nsql.NsqlReader.Read(source);
+        read.IsSuccess.ShouldBeTrue();
+        return NSchema.Project.ProjectAssembler.Assemble([read.Value]).Value!.Directives;
+    }
 }

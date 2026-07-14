@@ -1,10 +1,10 @@
-using NSchema.Current.Domain.Models;
+using NSchema.State.Domain.Models;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Tests.State;
 
-public sealed class SchemaStateTests
+public sealed class DatabaseStateTests
 {
     private static readonly DateTimeOffset _now = new(2026, 7, 10, 12, 0, 0, TimeSpan.Zero);
 
@@ -12,7 +12,7 @@ public sealed class SchemaStateTests
     public void RecordScripts_AddsEntriesToTheLedger()
     {
         // Arrange
-        var state = SchemaState.Empty;
+        var state = DatabaseState.Empty;
 
         // Act
         var recorded = state.RecordExecution([new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "abc", _now)]);
@@ -25,7 +25,7 @@ public sealed class SchemaStateTests
     public void RecordScripts_ReplacesAnEarlierExecutionByName_CaseInsensitively()
     {
         // Arrange
-        var state = new SchemaState(new DatabaseSchema(), [new ScriptExecution(new ScriptReference(null, new SqlIdentifier("Seed")), "old", DateTimeOffset.UnixEpoch)]);
+        var state = new DatabaseState(new Database(), [new ScriptExecution(new ScriptReference(null, new SqlIdentifier("Seed")), "old", DateTimeOffset.UnixEpoch)]);
 
         // Act
         var recorded = state.RecordExecution([new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "new", _now)]);
@@ -39,7 +39,7 @@ public sealed class SchemaStateTests
     {
         // Arrange
         var existing = new ScriptExecution(new ScriptReference(null, new SqlIdentifier("api-login")), "hash", DateTimeOffset.UnixEpoch);
-        var state = new SchemaState(new DatabaseSchema(), [existing]);
+        var state = new DatabaseState(new Database(), [existing]);
 
         // Act
         var recorded = state.RecordExecution([new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "abc", _now)]);
@@ -50,14 +50,14 @@ public sealed class SchemaStateTests
 
     [Fact]
     public void RecordScripts_NothingExecuted_ReturnsTheSameState()
-        => SchemaState.Empty.RecordExecution([]).ShouldBeSameAs(SchemaState.Empty);
+        => DatabaseState.Empty.RecordExecution([]).ShouldBeSameAs(DatabaseState.Empty);
 
     [Fact]
     public void FindScript_MatchesByName_CaseInsensitively()
     {
         // Arrange
         var existing = new ScriptExecution(new ScriptReference(null, new SqlIdentifier("Seed")), "abc", _now);
-        var state = new SchemaState(new DatabaseSchema(), [existing]);
+        var state = new DatabaseState(new Database(), [existing]);
 
         // Act
         var found = state.FindExecution(new ScriptReference(null, new SqlIdentifier("seed")));
@@ -68,7 +68,7 @@ public sealed class SchemaStateTests
 
     [Fact]
     public void FindScript_NothingRecordedUnderTheName_ReturnsNull()
-        => SchemaState.Empty.FindExecution(new ScriptReference(null, new SqlIdentifier("seed"))).ShouldBeNull();
+        => DatabaseState.Empty.FindExecution(new ScriptReference(null, new SqlIdentifier("seed"))).ShouldBeNull();
 
     [Fact]
     public void FindScript_SameNameInAnotherScope_ReturnsNull()
@@ -76,7 +76,7 @@ public sealed class SchemaStateTests
         // Arrange — identity is (scope, name): a scoped execution is not found by the global address, nor by
         // another schema's.
         var scoped = new ScriptExecution(new ScriptReference(new SqlIdentifier("sales"), new SqlIdentifier("seed")), "abc", _now);
-        var state = new SchemaState(new DatabaseSchema(), [scoped]);
+        var state = new DatabaseState(new Database(), [scoped]);
 
         // Assert
         state.FindExecution(new ScriptReference(null, new SqlIdentifier("seed"))).ShouldBeNull();
@@ -89,7 +89,7 @@ public sealed class SchemaStateTests
     {
         // Arrange
         var global = new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "abc", _now);
-        var state = new SchemaState(new DatabaseSchema(), [global]);
+        var state = new DatabaseState(new Database(), [global]);
 
         // Act
         var recorded = state.RecordExecution([new ScriptExecution(new ScriptReference(new SqlIdentifier("sales"), new SqlIdentifier("seed")), "def", _now)]);
@@ -103,7 +103,7 @@ public sealed class SchemaStateTests
     {
         // Arrange
         var other = new ScriptExecution(new ScriptReference(null, new SqlIdentifier("api-login")), "hash", _now);
-        var state = new SchemaState(new DatabaseSchema(), [new ScriptExecution(new ScriptReference(null, new SqlIdentifier("Seed")), "abc", _now), other]);
+        var state = new DatabaseState(new Database(), [new ScriptExecution(new ScriptReference(null, new SqlIdentifier("Seed")), "abc", _now), other]);
 
         // Act
         var removed = state.RemoveExecution(new ScriptReference(null, new SqlIdentifier("seed")));
@@ -114,5 +114,5 @@ public sealed class SchemaStateTests
 
     [Fact]
     public void RemoveScript_NothingRecordedUnderTheName_ReturnsTheSameState()
-        => SchemaState.Empty.RemoveExecution(new ScriptReference(null, new SqlIdentifier("seed"))).ShouldBeSameAs(SchemaState.Empty);
+        => DatabaseState.Empty.RemoveExecution(new ScriptReference(null, new SqlIdentifier("seed"))).ShouldBeSameAs(DatabaseState.Empty);
 }

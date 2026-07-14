@@ -1,7 +1,7 @@
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
 
-namespace NSchema.Tests.Schema.Model.Scripts;
+namespace NSchema.Tests.Project.Model.Scripts;
 
 /// <summary>
 /// The script-address contract: the container is genuinely optional (null = global), with component-wise

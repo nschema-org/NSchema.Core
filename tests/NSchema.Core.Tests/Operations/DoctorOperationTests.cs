@@ -1,9 +1,9 @@
-using NSchema.Current.Backends;
-using NSchema.Current.Domain.Models;
-using NSchema.Current.Locks;
-using NSchema.Current.Locks.Backends;
-using NSchema.Current.Storage;
-using NSchema.Current.Storage.Backends;
+using NSchema.Deployment.Backends;
+using NSchema.State.Domain.Models;
+using NSchema.State.Locks;
+using NSchema.State.Locks.Backends;
+using NSchema.State;
+using NSchema.State.Backends;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
 using NSchema.Project.Domain.Models;
@@ -14,10 +14,10 @@ namespace NSchema.Tests.Operations;
 public sealed class DoctorOperationTests
 {
     private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
-    private readonly ISchemaStateSerializer _serializer = new SchemaStateSerializer();
+    private readonly IDatabaseStateSerializer _serializer = new DatabaseStateSerializer();
     private readonly RecordingStateLock _stateLock = new();
 
-    private DoctorOperation BuildSut(ISchemaIntrospector? online = null, ISchemaStateStore? store = null, IStateLock? stateLock = null) =>
+    private DoctorOperation BuildSut(IDatabaseIntrospector? online = null, IDatabaseStateStore? store = null, IStateLock? stateLock = null) =>
         new(_progress, _serializer, online, store, stateLock);
 
     private Task<Result<DoctorResult>> Run(DoctorOperation sut) => sut.Execute(new DoctorArguments(), TestContext.Current.CancellationToken);
@@ -58,7 +58,7 @@ public sealed class DoctorOperationTests
     public async Task Run_WhenDatabaseReachable_ReportsConnectedWithSchemaCount()
     {
         // Arrange
-        var schema = new DatabaseSchema(Schemas: [new SchemaDefinition(new SqlIdentifier("app")), new SchemaDefinition(new SqlIdentifier("billing"))]);
+        var schema = new Database(Schemas: [new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("billing"))]);
         var sut = BuildSut(online: new InMemoryIntrospector(schema));
 
         // Act
@@ -103,7 +103,7 @@ public sealed class DoctorOperationTests
     {
         // Arrange
         var store = new RecordingStateStore();
-        await store.Write(_serializer.Serialize(new SchemaState(new DatabaseSchema(Schemas: [new SchemaDefinition(new SqlIdentifier("app"))]))), TestContext.Current.CancellationToken);
+        await store.Write(_serializer.Serialize(new DatabaseState(new Database(Schemas: [new Schema(new SqlIdentifier("app"))]))), TestContext.Current.CancellationToken);
         var sut = BuildSut(store: store);
 
         // Act
@@ -193,19 +193,19 @@ public sealed class DoctorOperationTests
         result.Value!.Errors.Select(e => e.Message).ShouldContain(m => m.Contains("store down"));
     }
 
-    private sealed class ThrowingIntrospector(Exception exception) : ISchemaIntrospector
+    private sealed class ThrowingIntrospector(Exception exception) : IDatabaseIntrospector
     {
-        public ValueTask<DatabaseSchema> GetSchema(SchemaScope scope, CancellationToken cancellationToken = default) =>
+        public ValueTask<Database> GetDatabase(SchemaScope scope, CancellationToken cancellationToken = default) =>
             throw exception;
     }
 
-    private sealed class ThrowingStateStore(Exception exception) : ISchemaStateStore
+    private sealed class ThrowingStateStore(Exception exception) : IDatabaseStateStore
     {
         public Task<ReadOnlyMemory<byte>?> Read(CancellationToken cancellationToken = default) => throw exception;
         public Task Write(ReadOnlyMemory<byte> state, CancellationToken cancellationToken = default) => throw exception;
     }
 
-    private sealed class ContentStateStore(byte[] content) : ISchemaStateStore
+    private sealed class ContentStateStore(byte[] content) : IDatabaseStateStore
     {
         public Task<ReadOnlyMemory<byte>?> Read(CancellationToken cancellationToken = default) =>
             Task.FromResult<ReadOnlyMemory<byte>?>(content);

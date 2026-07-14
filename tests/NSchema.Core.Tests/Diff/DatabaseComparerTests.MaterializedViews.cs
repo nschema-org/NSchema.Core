@@ -6,14 +6,14 @@ using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Diff;
 
-public partial class SchemaComparerTests
+public partial class DatabaseComparerTests
 {
     // -------------------------------------------------------------------------
     // Materialized views (View with IsMaterialized + Indexes)
     // -------------------------------------------------------------------------
 
     private static View Matview(string name, string body, IReadOnlyList<TableIndex>? indexes = null, string? comment = null) =>
-        new(new SqlIdentifier(name), new SqlText(body), null, comment, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")), IsMaterialized: true, Indexes: indexes);
+        new(new SqlIdentifier(name), new SqlText(body), comment, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")), IsMaterialized: true, Indexes: indexes);
 
     [Fact]
     public void Compare_NewMaterializedView_IsAddWithMaterializedFlag()

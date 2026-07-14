@@ -4,12 +4,12 @@ using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema.Templates;
+namespace NSchema.Tests.Project.Templates;
 
 public sealed class TemplateExpanderTests
 {
     /// <summary>Parses <paramref name="source"/> and assembles it, expanding its templates as the project provider would.</summary>
-    private static DatabaseSchema Expand(string source) => Apply(source).Require().Schema;
+    private static Database Expand(string source) => Apply(source).Require().Database;
 
     private static Result<ProjectDefinition> Apply(string source)
     {
@@ -18,7 +18,7 @@ public sealed class TemplateExpanderTests
         return ProjectAssembler.Assemble([result.Value]);
     }
 
-    private static SchemaDefinition Schema(DatabaseSchema schema, string name)
+    private static Schema Schema(Database schema, string name)
     {
         var match = schema.Schemas.FirstOrDefault(s => s.Name.Value.Equals(name));
         match.ShouldNotBeNull($"expected a schema named '{name}'");

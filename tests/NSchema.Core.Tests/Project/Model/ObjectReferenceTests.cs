@@ -1,6 +1,6 @@
 using NSchema.Project.Domain.Models;
 
-namespace NSchema.Tests.Schema.Model;
+namespace NSchema.Tests.Project.Model;
 
 /// <summary>
 /// The address contract: always fully qualified, with component-wise identifier equality.

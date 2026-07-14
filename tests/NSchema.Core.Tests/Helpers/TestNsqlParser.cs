@@ -23,6 +23,11 @@ internal sealed class TestNsqlParser(string source)
         {
             throw parser.Errors[0];
         }
-        return DocumentProjector.Project(document);
+
+        // Directive statements are assembler currency, never tree state — mirror the assembler and route
+        // them out before projecting.
+        var directives = new NSchema.Project.DirectiveCollector();
+        var declarations = document.Statements.Where(statement => !directives.TryAdd(statement)).ToList();
+        return DocumentProjector.Project(new NsqlDocument(declarations) { FilePath = document.FilePath });
     }
 }

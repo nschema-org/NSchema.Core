@@ -24,29 +24,20 @@ internal sealed partial class NsqlParser
         var position = _current.Position;
         Advance(); // CREATE
 
-        var partial = false;
-        if (_current.IsKeyword("PARTIAL"))
-        {
-            Advance();
-            partial = true;
-        }
-
         if (_current.IsKeyword("SCHEMA"))
         {
             if (_inTemplateBody)
             {
                 throw Error("CREATE SCHEMA is not supported inside a template; apply the template to existing schemas instead.");
             }
-            return ParseCreateSchema(position, doc, partial);
+            return ParseCreateSchema(position, doc);
         }
         if (_current.IsKeyword("TABLE"))
         {
-            RejectPartial(partial, "TABLE");
             return ParseCreateTable(position, doc);
         }
         if (_current.IsKeyword("VIEW"))
         {
-            RejectPartial(partial, "VIEW");
             if (_inTemplateBody)
             {
                 throw Error("CREATE VIEW is not supported inside a template: a view body is opaque, so its references cannot be re-pointed at each target schema.");
@@ -56,7 +47,6 @@ internal sealed partial class NsqlParser
         }
         if (_current.IsKeyword("MATERIALIZED"))
         {
-            RejectPartial(partial, "MATERIALIZED VIEW");
             if (_inTemplateBody)
             {
                 throw Error("CREATE MATERIALIZED VIEW is not supported inside a template: a view body is opaque, so its references cannot be re-pointed at each target schema.");
@@ -67,37 +57,30 @@ internal sealed partial class NsqlParser
         }
         if (_current.IsKeyword("ENUM"))
         {
-            RejectPartial(partial, "ENUM");
             return ParseCreateEnum(position, doc);
         }
         if (_current.IsKeyword("DOMAIN"))
         {
-            RejectPartial(partial, "DOMAIN");
             return ParseCreateDomain(position, doc);
         }
         if (_current.IsKeyword("TYPE"))
         {
-            RejectPartial(partial, "TYPE");
             return ParseCreateCompositeType(position, doc);
         }
         if (_current.IsKeyword("SEQUENCE"))
         {
-            RejectPartial(partial, "SEQUENCE");
             return ParseCreateSequence(position, doc);
         }
         if (_current.IsKeyword("FUNCTION"))
         {
-            RejectPartial(partial, "FUNCTION");
             return ParseCreateRoutine(position, doc, RoutineKind.Function);
         }
         if (_current.IsKeyword("PROCEDURE"))
         {
-            RejectPartial(partial, "PROCEDURE");
             return ParseCreateRoutine(position, doc, RoutineKind.Procedure);
         }
         if (_current.IsKeyword("EXTENSION"))
         {
-            RejectPartial(partial, "EXTENSION");
             if (_inTemplateBody)
             {
                 throw Error("CREATE EXTENSION is not supported inside a template; extensions are database-global.");
@@ -106,45 +89,32 @@ internal sealed partial class NsqlParser
         }
         if (_current.IsKeyword("TRIGGER"))
         {
-            RejectPartial(partial, "TRIGGER");
             return ParseCreateTrigger(position, doc);
         }
         if (_current.IsKeyword("INDEX"))
         {
-            RejectPartial(partial, "INDEX");
             return ParseCreateIndex(position, doc, unique: false);
         }
         if (_current.IsKeyword("UNIQUE"))
         {
-            RejectPartial(partial, "UNIQUE INDEX");
             Advance(); // UNIQUE
             return ParseCreateIndex(position, doc, unique: true);
         }
         throw Error($"Expected SCHEMA, TABLE, VIEW, MATERIALIZED VIEW, ENUM, DOMAIN, TYPE, SEQUENCE, FUNCTION, PROCEDURE, EXTENSION, TRIGGER or INDEX after CREATE, found '{_current.Text}'.");
     }
 
-    private void RejectPartial(bool partial, string kind)
-    {
-        if (partial)
-        {
-            throw Error($"PARTIAL applies to SCHEMA, not {kind}.");
-        }
-    }
-
-    private CreateSchemaStatement ParseCreateSchema(SourcePosition position, string? doc, bool partial)
+    private CreateSchemaStatement ParseCreateSchema(SourcePosition position, string? doc)
     {
         Advance(); // SCHEMA
         var name = ExpectIdentifierNode("a schema name");
-        var oldName = TryParseRenamedFrom();
         Expect(TokenKind.Semicolon, "';'");
-        return new CreateSchemaStatement(name, partial, oldName) { Position = position, Doc = doc };
+        return new CreateSchemaStatement(name) { Position = position, Doc = doc };
     }
 
     private CreateTableStatement ParseCreateTable(SourcePosition position, string? doc)
     {
         Advance(); // TABLE
         var name = ParseQualifiedNameNode();
-        var oldName = TryParseRenamedFrom();
 
         Expect(TokenKind.LeftParen, "'(' to begin the table body");
         var members = new List<TableMember>();
@@ -158,7 +128,7 @@ internal sealed partial class NsqlParser
         Expect(TokenKind.RightParen, "')' or ',' after a table member");
         Expect(TokenKind.Semicolon, "';'");
 
-        return new CreateTableStatement(name, members, oldName) { Position = position, Doc = doc };
+        return new CreateTableStatement(name, members) { Position = position, Doc = doc };
     }
 
     // The "VIEW" keyword has already been consumed by the dispatcher (preceded by "MATERIALIZED" when
@@ -166,14 +136,13 @@ internal sealed partial class NsqlParser
     private CreateViewStatement ParseCreateView(SourcePosition position, string? doc, bool materialized)
     {
         var name = ParseQualifiedNameNode();
-        var oldName = TryParseRenamedFrom();
         ExpectKeyword("AS");
 
         // The body is captured verbatim; projection derives the view's dependencies from it.
         var body = CaptureRawSpan("a view body", [TokenKind.Semicolon]);
         Expect(TokenKind.Semicolon, "';' to end the view definition");
 
-        return new CreateViewStatement(name, new SqlText(body), materialized, oldName) { Position = position, Doc = doc };
+        return new CreateViewStatement(name, new SqlText(body), materialized) { Position = position, Doc = doc };
     }
 
     /// <summary>
@@ -200,19 +169,17 @@ internal sealed partial class NsqlParser
         Advance(); // FUNCTION | PROCEDURE
         var what = kind == RoutineKind.Procedure ? "a procedure definition" : "a function definition";
         var name = ParseQualifiedNameNode();
-        var oldName = TryParseRenamedFrom();
         var arguments = CaptureParenthesized();
         var definition = CaptureRawSpan(what, [TokenKind.Semicolon]);
         Expect(TokenKind.Semicolon, $"';' to end {what}");
 
-        return new CreateRoutineStatement(name, kind, new SqlText(arguments), new SqlText(definition), oldName) { Position = position, Doc = doc };
+        return new CreateRoutineStatement(name, kind, new SqlText(arguments), new SqlText(definition)) { Position = position, Doc = doc };
     }
 
     private CreateEnumStatement ParseCreateEnum(SourcePosition position, string? doc)
     {
         Advance(); // ENUM
         var name = ParseQualifiedNameNode();
-        var oldName = TryParseRenamedFrom();
 
         Expect(TokenKind.LeftParen, "'(' to begin the enum values");
         var values = new List<string>();
@@ -233,7 +200,7 @@ internal sealed partial class NsqlParser
         Expect(TokenKind.RightParen, "')' or ',' after an enum value");
         Expect(TokenKind.Semicolon, "';'");
 
-        return new CreateEnumStatement(name, values, oldName) { Position = position, Doc = doc };
+        return new CreateEnumStatement(name, values) { Position = position, Doc = doc };
     }
 
     /// <summary>
@@ -245,7 +212,6 @@ internal sealed partial class NsqlParser
     {
         Advance(); // DOMAIN
         var name = ParseQualifiedNameNode();
-        var oldName = TryParseRenamedFrom();
         ExpectKeyword("AS");
         var dataType = ParseTypeNode();
 
@@ -288,7 +254,7 @@ internal sealed partial class NsqlParser
 
         Expect(TokenKind.Semicolon, "';'");
 
-        return new CreateDomainStatement(name, dataType, notNull, checks, @default, oldName) { Position = position, Doc = doc };
+        return new CreateDomainStatement(name, dataType, notNull, checks, @default) { Position = position, Doc = doc };
     }
 
     /// <summary>
@@ -298,7 +264,6 @@ internal sealed partial class NsqlParser
     {
         Advance(); // TYPE
         var name = ParseQualifiedNameNode();
-        var oldName = TryParseRenamedFrom();
         ExpectKeyword("AS");
         Expect(TokenKind.LeftParen, "'(' to begin the composite type fields");
 
@@ -317,18 +282,17 @@ internal sealed partial class NsqlParser
         Expect(TokenKind.RightParen, "')' or ',' after a composite type field");
         Expect(TokenKind.Semicolon, "';'");
 
-        return new CreateCompositeTypeStatement(name, fields, oldName) { Position = position, Doc = doc };
+        return new CreateCompositeTypeStatement(name, fields) { Position = position, Doc = doc };
     }
 
     private CreateSequenceStatement ParseCreateSequence(SourcePosition position, string? doc)
     {
         Advance(); // SEQUENCE
         var name = ParseQualifiedNameNode();
-        var oldName = TryParseRenamedFrom();
         var options = TryParseSequenceOptions();
         Expect(TokenKind.Semicolon, "';'");
 
-        return new CreateSequenceStatement(name, options, oldName) { Position = position, Doc = doc };
+        return new CreateSequenceStatement(name, options) { Position = position, Doc = doc };
     }
 
     private SequenceOptionsClause? TryParseSequenceOptions()
@@ -675,9 +639,8 @@ internal sealed partial class NsqlParser
             ExpectKeyword("STORED");
         }
 
-        var oldName = TryParseRenamedFrom();
 
-        return new ColumnDefinition(name, type, isNullable, isIdentity, identity, defaultExpression, generatedExpression, oldName)
+        return new ColumnDefinition(name, type, isNullable, isIdentity, identity, defaultExpression, generatedExpression)
         {
             Position = name.Position,
             Doc = doc,
@@ -1024,21 +987,11 @@ internal sealed partial class NsqlParser
     /// <summary>
     /// Captures an opaque SQL expression as raw text: a balanced <c>( … )</c> when <paramref name="parenthesised"/>
     /// (CHECK / WHERE), or an unparenthesised DEFAULT value otherwise (terminated by the enclosing column list's
-    /// <c>,</c> / <c>)</c> or a <c>RENAMED</c> clause).
+    /// <c>,</c> / <c>)</c>).
     /// </summary>
     private SqlText ReadRawExpression(bool parenthesised) => new(
         parenthesised
             ? CaptureParenthesized()
-            : CaptureRawSpan("a default expression", [TokenKind.Comma, TokenKind.RightParen], "RENAMED"));
+            : CaptureRawSpan("a default expression", [TokenKind.Comma, TokenKind.RightParen]));
 
-    private Identifier? TryParseRenamedFrom()
-    {
-        if (!_current.IsKeyword("RENAMED"))
-        {
-            return null;
-        }
-        Advance(); // RENAMED
-        ExpectKeyword("FROM");
-        return ExpectIdentifierNode("a previous name");
-    }
 }

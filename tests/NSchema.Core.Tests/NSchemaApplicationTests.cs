@@ -1,4 +1,4 @@
-using NSchema.Current;
+using NSchema.Deployment;
 using NSchema.Operations;
 using NSchema.Plan.PlanFile;
 using NSchema.Project;
@@ -15,7 +15,7 @@ public sealed class NSchemaApplicationTests
 
         app.Operations.ShouldNotBeNull();
         app.Locks.ShouldNotBeNull();
-        app.CurrentSchema.ShouldBeAssignableTo<ICurrentSchemaProvider>();
+        app.Database.ShouldBeAssignableTo<IDatabaseProvider>();
         app.ProjectDefinition.ShouldBeAssignableTo<IProjectProvider>();
         app.PlanFile.ShouldBeAssignableTo<IPlanFileManager>();
     }

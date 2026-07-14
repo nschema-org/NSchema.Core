@@ -5,11 +5,11 @@ namespace NSchema.Project.Domain.Models;
 /// <summary>
 /// The desired state declared by the project.
 /// </summary>
-/// <param name="Schema">The aggregated declared schema.</param>
+/// <param name="Database">The declared database structure.</param>
 /// <param name="Scripts">The scripts declared across the project's files.</param>
 /// <param name="Directives">The management directives declared across the project's files.</param>
 public sealed record ProjectDefinition(
-    DatabaseSchema Schema,
+    Database Database,
     IReadOnlyList<Script> Scripts,
     ProjectDirectives? Directives = null
 )
@@ -22,7 +22,7 @@ public sealed record ProjectDefinition(
     /// <summary>
     /// Every schema name the project manages.
     /// </summary>
-    public SqlIdentifier[] ManagedSchemaNames => Schema.Schemas
+    public SqlIdentifier[] ManagedSchemaNames => Database.Schemas
         .Select(s => s.Name)
         .Concat(Directives.Schemas.Drops)
         .Concat(Directives.Schemas.Renames.Select(r => r.From))

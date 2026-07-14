@@ -1,11 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
-using NSchema.Current.Storage.Backends;
+using NSchema.State.Backends;
 
 namespace NSchema.Tests.State;
 
 public sealed class StateStoreRegistrationTests
 {
-    private sealed class FakeStateStore : ISchemaStateStore
+    private sealed class FakeStateStore : IDatabaseStateStore
     {
         public Task<ReadOnlyMemory<byte>?> Read(CancellationToken cancellationToken = default) =>
             Task.FromResult<ReadOnlyMemory<byte>?>(null);
@@ -14,12 +14,12 @@ public sealed class StateStoreRegistrationTests
             Task.CompletedTask;
     }
 
-    private static ISchemaStateStore? ResolveStore(Action<NSchemaApplicationBuilder> configure)
+    private static IDatabaseStateStore? ResolveStore(Action<NSchemaApplicationBuilder> configure)
     {
         var builder = NSchemaApplication.CreateBuilder();
         configure(builder);
         using var app = builder.Build();
-        return app.Services.GetService<ISchemaStateStore>();
+        return app.Services.GetService<IDatabaseStateStore>();
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class StateStoreRegistrationTests
         var store = ResolveStore(b => b.UseFileStateStore("state.json"));
 
         // Assert
-        store.ShouldBeOfType<FileSchemaStateStore>();
+        store.ShouldBeOfType<FileDatabaseStateStore>();
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public sealed class StateStoreRegistrationTests
     {
         var store = ResolveStore(b => b.UseStateStore<FakeStateStore>().UseFileStateStore("state.json"));
 
-        store.ShouldBeOfType<FileSchemaStateStore>();
+        store.ShouldBeOfType<FileDatabaseStateStore>();
     }
 
     [Fact]

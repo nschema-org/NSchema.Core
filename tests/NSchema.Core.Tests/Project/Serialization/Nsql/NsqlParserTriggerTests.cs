@@ -1,7 +1,7 @@
 using NSchema.Project.Domain.Models.Triggers;
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 /// <summary>
 /// Parser coverage for standalone <c>CREATE TRIGGER … ON s.t</c>, which (like <c>GRANT</c>) names its table and is
@@ -12,7 +12,7 @@ public sealed class NsqlParserTriggerTests
     private const string Table = "CREATE SCHEMA app; CREATE TABLE app.users (id int NOT NULL); ";
 
     private static Trigger ParseTrigger(string triggerSql) =>
-        new TestNsqlParser(Table + triggerSql).Parse().Schema
+        new TestNsqlParser(Table + triggerSql).Parse().Database
             .Schemas.ShouldHaveSingleItem()
             .Tables.ShouldHaveSingleItem()
             .Triggers.ShouldHaveSingleItem();
@@ -120,5 +120,5 @@ public sealed class NsqlParserTriggerTests
     public void Parse_PartialTrigger_Throws()
         => Should.Throw<NsqlSyntaxException>(() =>
             new TestNsqlParser("CREATE PARTIAL TRIGGER t AFTER INSERT ON app.users EXECUTE FUNCTION app.f();").Parse())
-            .Message.ShouldContain("PARTIAL applies to SCHEMA");
+            .Message.ShouldContain("after CREATE");
 }

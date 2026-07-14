@@ -1,6 +1,6 @@
 using System.Text;
-using NSchema.Current.Domain.Models;
-using NSchema.Current.Storage;
+using NSchema.State.Domain.Models;
+using NSchema.State;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Domain.Models.Columns;
@@ -9,11 +9,11 @@ using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Tests.State;
 
-public sealed class SchemaStateSerializerTests
+public sealed class DatabaseStateSerializerTests
 {
-    private static readonly ISchemaStateSerializer _sut = new SchemaStateSerializer();
+    private static readonly IDatabaseStateSerializer _sut = new DatabaseStateSerializer();
 
-    private static string Json(DatabaseSchema schema) => Encoding.UTF8.GetString(_sut.Serialize(new SchemaState(schema)).Span);
+    private static string Json(Database schema) => Encoding.UTF8.GetString(_sut.Serialize(new DatabaseState(schema)).Span);
 
     [Fact]
     public void Serialize_ThenDeserialize_RoundTripsAllFeatures()
@@ -23,7 +23,7 @@ public sealed class SchemaStateSerializerTests
 
         // Act: a read + write cycle must reproduce the exact same document.
         var json = Json(original);
-        var roundTripped = _sut.Deserialize(_sut.Serialize(new SchemaState(original))).Schema;
+        var roundTripped = _sut.Deserialize(_sut.Serialize(new DatabaseState(original))).Database;
 
         // Assert
         Json(roundTripped).ShouldBe(json);
@@ -34,11 +34,11 @@ public sealed class SchemaStateSerializerTests
     public void RoundTrip_PreservesSqlType(SqlType type)
     {
         // Arrange
-        var schema = new DatabaseSchema(
-            [new SchemaDefinition(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("c"), type)])])]);
+        var schema = new Database(
+            [new Schema(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("c"), type)])])]);
 
         // Act
-        var roundTripped = _sut.Deserialize(_sut.Serialize(new SchemaState(schema))).Schema;
+        var roundTripped = _sut.Deserialize(_sut.Serialize(new DatabaseState(schema))).Database;
 
         // Assert
         roundTripped.Schemas[0].Tables[0].Columns[0].Type.ShouldBe(type);
@@ -49,16 +49,16 @@ public sealed class SchemaStateSerializerTests
         // The verified snapshot pins the on-disk format. VerifyJson reformats both sides consistently,
         // so whitespace and indentation don't matter — but a domain change that alters the serialized
         // shape fails here. When that's intentional, accept the .received.txt as the new baseline (and
-        // bump SchemaStateEnvelope.CurrentVersion if the on-disk format itself changed).
+        // bump DatabaseStateEnvelope.CurrentVersion if the on-disk format itself changed).
         => VerifyJson(Json(TestData.RichSchema()));
 
     [Fact]
     public void Serialize_WritesEnumsAsNames()
     {
         // Arrange
-        var schema = new DatabaseSchema(
+        var schema = new Database(
         [
-            new SchemaDefinition(new SqlIdentifier("app"), Tables:
+            new Schema(new SqlIdentifier("app"), Tables:
             [
                 new Table(new SqlIdentifier("users"), ForeignKeys:
                 [
@@ -81,9 +81,9 @@ public sealed class SchemaStateSerializerTests
         // The state store is a fact store: a member at its default value must still be recorded, so that
         // "absent" can never be mistaken for "present and equal to today's default". This is the inverse
         // of the user-facing serializer, which omits defaults. See DomainModelSerializationContractTests.
-        var schema = new DatabaseSchema(
+        var schema = new Database(
         [
-            new SchemaDefinition(new SqlIdentifier("app"), Tables:
+            new Schema(new SqlIdentifier("app"), Tables:
             [
                 new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("c"), SqlType.Int)]),
             ]),
@@ -93,33 +93,9 @@ public sealed class SchemaStateSerializerTests
         var json = Json(schema);
 
         // Assert: false bools and null strings are written, not omitted.
-        json.ShouldContain("\"isPartial\": false");
         json.ShouldContain("\"isNullable\": false");
         json.ShouldContain("\"isIdentity\": false");
         json.ShouldContain("\"defaultExpression\": null");
-    }
-
-    [Fact]
-    public void Deserialize_PayloadWithoutEnumOrSequenceCollections_ProducesEmptyCollections()
-    {
-        // A state file written before enums/sequences existed must still load (the collections default empty).
-        const string json =
-            """
-            {
-              "version": 1,
-              "schema": {
-                "schemas": [ { "name": "app", "tables": [] } ],
-                "droppedSchemas": []
-              }
-            }
-            """;
-
-        var schema = _sut.Deserialize(Encoding.UTF8.GetBytes(json)).Schema.Schemas.ShouldHaveSingleItem();
-
-        schema.Enums.ShouldBeEmpty();
-        schema.DroppedEnums.ShouldBeEmpty();
-        schema.Sequences.ShouldBeEmpty();
-        schema.DroppedSequences.ShouldBeEmpty();
     }
 
     [Fact]
@@ -127,7 +103,7 @@ public sealed class SchemaStateSerializerTests
     {
         // Arrange
         var executed = new ScriptExecution(new ScriptReference(null, new SqlIdentifier("api-login")), "abc123", new DateTimeOffset(2026, 7, 10, 12, 0, 0, TimeSpan.Zero));
-        var state = new SchemaState(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]), [executed]);
+        var state = new DatabaseState(new Database([new Schema(new SqlIdentifier("app"))]), [executed]);
 
         // Act
         var roundTripped = _sut.Deserialize(_sut.Serialize(state));
@@ -140,8 +116,8 @@ public sealed class SchemaStateSerializerTests
     public void Serialize_WritesTheLedgerAsScripts()
     {
         // Pins the wire field name — renaming it silently empties every existing ledger.
-        var state = new SchemaState(
-            new DatabaseSchema([]),
+        var state = new DatabaseState(
+            new Database([]),
             [new ScriptExecution(new ScriptReference(null, new SqlIdentifier("api-login")), "abc123", DateTimeOffset.UnixEpoch)]);
 
         var json = Encoding.UTF8.GetString(_sut.Serialize(state).Span);
@@ -153,7 +129,7 @@ public sealed class SchemaStateSerializerTests
     public Task Serialize_Ledger_MatchesSnapshot()
         // Pins the ledger entry's wire shape: the script address is structural ({schema, name}, schema null
         // when the script is global), beside the hash and timestamp.
-        => VerifyJson(Encoding.UTF8.GetString(_sut.Serialize(new SchemaState(new DatabaseSchema([]), [
+        => VerifyJson(Encoding.UTF8.GetString(_sut.Serialize(new DatabaseState(new Database([]), [
             new ScriptExecution(new ScriptReference(null, new SqlIdentifier("api-login")), "abc123", DateTimeOffset.UnixEpoch),
             new ScriptExecution(new ScriptReference(new SqlIdentifier("sales"), new SqlIdentifier("seed")), "def456", DateTimeOffset.UnixEpoch),
         ])).Span));
@@ -223,7 +199,7 @@ public sealed class SchemaStateSerializerTests
             """
             {
               "version": 1,
-              "schema": {
+              "database": {
                 "schemas": [
                   { "name": "app", "tables": [
                     { "name": "t", "columns": [ { "name": "c", "type": {} } ] }

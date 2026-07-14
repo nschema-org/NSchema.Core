@@ -6,15 +6,15 @@ using NSchema.Project.Domain.Models.Sequences;
 
 namespace NSchema.Tests.Diff;
 
-public partial class SchemaComparerTests
+public partial class DatabaseComparerTests
 {
     // -------------------------------------------------------------------------
     // Sequences
     // -------------------------------------------------------------------------
 
     /// <summary>Diffs two <c>app</c> schemas holding the given sequences, returning the single sequence diff (null when unchanged).</summary>
-    private SequenceDiff? DiffSequences(IReadOnlyList<Sequence> current, IReadOnlyList<Sequence> desired) => _sut
-        .Compare(Db(new SchemaDefinition(new SqlIdentifier("app"), Sequences: current)), Db(new SchemaDefinition(new SqlIdentifier("app"), Sequences: desired)))
+    private SequenceDiff? DiffSequences(IReadOnlyList<Sequence> current, IReadOnlyList<Sequence> desired, ProjectDirectives? directives = null) =>
+        Compare(Db(new Schema(new SqlIdentifier("app"), Sequences: current)), Db(new Schema(new SqlIdentifier("app"), Sequences: desired)), directives)
         .Schemas.SingleOrDefault()?.Sequences.SingleOrDefault();
 
     [Fact]
@@ -51,7 +51,8 @@ public partial class SchemaComparerTests
     {
         var diff = DiffSequences(
             [new Sequence(new SqlIdentifier("bill_id"))],
-            [new Sequence(new SqlIdentifier("invoice_id"), OldName: new SqlIdentifier("bill_id"))]);
+            [new Sequence(new SqlIdentifier("invoice_id"))],
+            new ProjectDirectives(Sequences: new SequenceDirectives(Renames: [new ObjectRename(App("bill_id"), new SqlIdentifier("invoice_id"))])));
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.RenamedFrom.ShouldBe("bill_id");
@@ -87,9 +88,9 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_PartialSchema_LeavesUnmanagedSequenceAlone()
     {
-        var diff = _sut.Compare(
-            Db(new SchemaDefinition(new SqlIdentifier("app"), Sequences: [new Sequence(new SqlIdentifier("order_id"))])),
-            Db(new SchemaDefinition(new SqlIdentifier("app"), IsPartial: true)));
+        var diff = Compare(
+            Db(new Schema(new SqlIdentifier("app"), Sequences: [new Sequence(new SqlIdentifier("order_id"))])),
+            Db(new Schema(new SqlIdentifier("app"))), PartialApp());
 
         diff.Schemas.ShouldBeEmpty();
     }
@@ -97,9 +98,10 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_PartialSchema_DropsExplicitlyDroppedSequence()
     {
-        var diff = _sut.Compare(
-            Db(new SchemaDefinition(new SqlIdentifier("app"), Sequences: [new Sequence(new SqlIdentifier("order_id"))])),
-            Db(new SchemaDefinition(new SqlIdentifier("app"), IsPartial: true, DroppedSequences: [new SqlIdentifier("order_id")])));
+        var diff = Compare(
+            Db(new Schema(new SqlIdentifier("app"), Sequences: [new Sequence(new SqlIdentifier("order_id"))])),
+            Db(new Schema(new SqlIdentifier("app"))),
+            PartialApp() with { Sequences = new SequenceDirectives(Drops: [App("order_id")]) });
 
         diff.Schemas.ShouldHaveSingleItem().Sequences.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
     }

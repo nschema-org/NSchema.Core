@@ -1,7 +1,7 @@
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Triggers;
 
-namespace NSchema.Tests.Schema.Model.Triggers;
+namespace NSchema.Tests.Project.Model.Triggers;
 
 /// <summary>
 /// The as-written reference contract: component-wise identifier equality, and the distinction between

@@ -1,6 +1,6 @@
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 /// <summary>
 /// Snapshot coverage for <see cref="NsqlFormatter"/> over the template statement family.

@@ -1,5 +1,5 @@
 using NSchema.Apply;
-using NSchema.Current.Storage;
+using NSchema.State;
 using NSchema.Diff.Domain.Models;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
@@ -18,7 +18,7 @@ public sealed class ApplyOperationTests
     private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
     private readonly ISqlExecutor _executor = Substitute.For<ISqlExecutor>();
     private readonly List<IPlanPolicy> _planPolicies = [];
-    private readonly ISchemaStateManager _stateManager = Substitute.For<ISchemaStateManager>();
+    private readonly IDatabaseStateManager _stateManager = Substitute.For<IDatabaseStateManager>();
 
     private readonly MigrationPlan _plan = new(new DatabaseDiff([]), [new SqlStatement(new SqlText("CREATE SCHEMA app"))]);
     private static readonly MigrationPlan _emptyPlan = new(new DatabaseDiff([]), []);
@@ -31,7 +31,7 @@ public sealed class ApplyOperationTests
     {
         _stateManager.IsConfigured.Returns(true);
         _workflow.Refresh(Arg.Any<MigrationPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new StateCapture(new DatabaseSchema([]), 0)));
+            .Returns(Result.Success(new StateCapture(new Database([]), 0)));
         _sut = BuildSut(_executor);
     }
 

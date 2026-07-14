@@ -1,7 +1,7 @@
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Tables;
 
-namespace NSchema.Tests.Schema.Model;
+namespace NSchema.Tests.Project.Model;
 
 /// <summary>
 /// The identifier contract: case-insensitive identity, written-casing preservation, and the collection

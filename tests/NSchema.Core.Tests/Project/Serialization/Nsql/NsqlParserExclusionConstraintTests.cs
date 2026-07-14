@@ -1,7 +1,7 @@
 using NSchema.Project.Domain.Models.Constraints;
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 /// <summary>
 /// Parser coverage for exclusion constraints:
@@ -10,7 +10,7 @@ namespace NSchema.Tests.Schema.Serialization.Nsql;
 public sealed class NsqlParserExclusionConstraintTests
 {
     private static ExclusionConstraint ParseExclusion(string constraint) =>
-        new TestNsqlParser($"CREATE TABLE app.bookings (room int, during int, {constraint});").Parse().Schema
+        new TestNsqlParser($"CREATE TABLE app.bookings (room int, during int, {constraint});").Parse().Database
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().ExclusionConstraints.ShouldHaveSingleItem();
 
     [Fact]
@@ -55,9 +55,9 @@ public sealed class NsqlParserExclusionConstraintTests
     {
         var schema = new TestNsqlParser(
             "CREATE TABLE app.bookings (room int, during int, " +
-            "CONSTRAINT no_overlap EXCLUDE USING gist (room WITH =, during WITH &&) WHERE (room > 0));").Parse().Schema;
+            "CONSTRAINT no_overlap EXCLUDE USING gist (room WITH =, during WITH &&) WHERE (room > 0));").Parse().Database;
 
-        var exclusion = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Schema
+        var exclusion = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Database
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().ExclusionConstraints.ShouldHaveSingleItem();
         exclusion.Name.ShouldBe("no_overlap");
         exclusion.Method.ShouldBe("gist");

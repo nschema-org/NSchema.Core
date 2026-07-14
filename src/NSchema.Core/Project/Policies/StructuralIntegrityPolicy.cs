@@ -7,24 +7,23 @@ namespace NSchema.Project.Policies;
 /// <summary>
 /// Validates that every primary key, index, and foreign key references columns and tables that actually exist within the document.
 /// </summary>
-internal sealed class StructuralIntegritySchemaPolicy : IProjectPolicy
+internal sealed class StructuralIntegrityPolicy : IProjectPolicy
 {
     private const string PolicyName = "structural-integrity";
 
     /// <inheritdoc />
     public IEnumerable<Diagnostic> Validate(ProjectDefinition project)
     {
-        var schema = project.Schema;
-        var managedSchemas = schema.Schemas.Select(s => s.Name).ToHashSet();
-        var partialSchemas = new HashSet<SqlIdentifier>(
-            schema.Schemas.Where(s => s.IsPartial).Select(s => s.Name));
-        var tablesByKey = schema.Schemas
+        var database = project.Database;
+        var managedSchemas = database.Schemas.Select(s => s.Name).ToHashSet();
+        var partialSchemas = new HashSet<SqlIdentifier>(project.Directives.Schemas.Partials);
+        var tablesByKey = database.Schemas
             .SelectMany(s => s.Tables.Select(t => (Key: Key(s.Name, t.Name), Table: t)))
             .GroupBy(x => x.Key)
             .ToDictionary(g => g.Key, g => g.First().Table);
 
         var diagnostics = new List<Diagnostic>();
-        foreach (var definition in schema.Schemas)
+        foreach (var definition in database.Schemas)
         {
             foreach (var table in definition.Tables)
             {
@@ -40,7 +39,7 @@ internal sealed class StructuralIntegritySchemaPolicy : IProjectPolicy
     }
 
     // Index names are schema-scoped in the database (indexes live in pg_class alongside tables).
-    private static void ValidateIndexNames(SchemaDefinition definition, List<Diagnostic> diagnostics)
+    private static void ValidateIndexNames(Schema definition, List<Diagnostic> diagnostics)
     {
         var named = definition.Tables
             .SelectMany(t => t.Indexes.Select(i => (i.Name, Kind: "index", On: t.Name))
@@ -65,7 +64,7 @@ internal sealed class StructuralIntegritySchemaPolicy : IProjectPolicy
     // schema in the database (Postgres's pg_class), and they additionally share pg_type with enums and domains
     // (every relation has a row type), so none of these kinds may reuse a name within a schema — a table and a
     // view called 'foo' cannot coexist. Routines live in a separate name space (pg_proc) and are checked apart.
-    private static void ValidateObjectNames(SchemaDefinition definition, List<Diagnostic> diagnostics)
+    private static void ValidateObjectNames(Schema definition, List<Diagnostic> diagnostics)
     {
         var named = definition.Tables.Select(t => (t.Name, Kind: "table"))
             .Concat(definition.Views.Select(v => (v.Name, Kind: v.IsMaterialized ? "materialized view" : "view")))
@@ -89,7 +88,7 @@ internal sealed class StructuralIntegritySchemaPolicy : IProjectPolicy
     // routine list; a single duplicate-name check covers both same-kind duplicates and function/procedure
     // collisions. The DDL parser and document aggregation enforce this for parsed schemas; this is the catch-all
     // for code-built ones.
-    private static void ValidateRoutineNames(SchemaDefinition definition, List<Diagnostic> diagnostics)
+    private static void ValidateRoutineNames(Schema definition, List<Diagnostic> diagnostics)
     {
         foreach (var duplicate in Duplicates(definition.Routines.Select(r => r.Name)))
         {
@@ -100,7 +99,7 @@ internal sealed class StructuralIntegritySchemaPolicy : IProjectPolicy
     }
 
     private static void ValidateTable(
-        SchemaDefinition definition,
+        Schema definition,
         Table table,
         HashSet<SqlIdentifier> managedSchemas,
         HashSet<SqlIdentifier> partialSchemas,

@@ -2,7 +2,7 @@ using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 /// <summary>
 /// Covers the unified <c>SCRIPT &lt;name&gt; RUN [ALWAYS | ONCE] ON &lt;event&gt; AS $$ … $$;</c> statement —

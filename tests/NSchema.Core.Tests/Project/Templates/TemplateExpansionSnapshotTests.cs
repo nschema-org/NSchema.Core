@@ -1,6 +1,6 @@
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema.Templates;
+namespace NSchema.Tests.Project.Templates;
 
 /// <summary>
 /// Snapshot coverage for <see cref="TemplateApplicator"/>: the expanded schema is rendered back to DDL with
@@ -49,7 +49,7 @@ public sealed class TemplateExpansionSnapshotTests
 
         var read = NSchema.Project.Nsql.NsqlReader.Read(source);
         read.IsSuccess.ShouldBeTrue();
-        var expanded = NSchema.Project.ProjectAssembler.Assemble([read.Value]).Require().Schema;
+        var expanded = NSchema.Project.ProjectAssembler.Assemble([read.Value]).Require().Database;
 
         return Verify(NsqlWriter.Write(expanded));
     }

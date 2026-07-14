@@ -1,16 +1,13 @@
 ﻿{
   version: 1,
-  schema: {
+  database: {
     schemas: [
       {
         name: app,
-        oldName: legacy_app,
-        isPartial: true,
         comment: application schema,
         tables: [
           {
             name: users,
-            oldName: members,
             primaryKey: {
               name: users_pkey,
               comment: surrogate key,
@@ -31,7 +28,6 @@
                 isNullable: false,
                 isIdentity: true,
                 defaultExpression: null,
-                oldName: null,
                 comment: null,
                 identityOptions: {
                   startWith: 1,
@@ -51,7 +47,6 @@
                 isNullable: false,
                 isIdentity: false,
                 defaultExpression: null,
-                oldName: null,
                 comment: display name,
                 identityOptions: null,
                 generatedExpression: null
@@ -67,7 +62,6 @@
                 isNullable: true,
                 isIdentity: false,
                 defaultExpression: 0,
-                oldName: null,
                 comment: null,
                 identityOptions: null,
                 generatedExpression: null
@@ -83,7 +77,6 @@
                 isNullable: false,
                 isIdentity: false,
                 defaultExpression: null,
-                oldName: short_code,
                 comment: null,
                 identityOptions: null,
                 generatedExpression: null
@@ -99,7 +92,6 @@
                 isNullable: true,
                 isIdentity: false,
                 defaultExpression: null,
-                oldName: null,
                 comment: null,
                 identityOptions: null,
                 generatedExpression: null
@@ -115,7 +107,6 @@
                 isNullable: true,
                 isIdentity: false,
                 defaultExpression: null,
-                oldName: null,
                 comment: null,
                 identityOptions: null,
                 generatedExpression: upper(name)
@@ -271,14 +262,10 @@ END
             ]
           }
         ],
-        droppedTables: [
-          old_table
-        ],
         views: [
           {
             name: active_users,
             body: SELECT id, name FROM app.users WHERE balance > 0,
-            oldName: null,
             comment: currently active users,
             isMaterialized: false,
             dependsOn: [
@@ -291,7 +278,6 @@ END
           {
             name: user_directory,
             body: SELECT name FROM app.active_users,
-            oldName: legacy_directory,
             comment: null,
             isMaterialized: false,
             dependsOn: [
@@ -304,7 +290,6 @@ END
           {
             name: daily_balances,
             body: SELECT name, balance FROM app.users,
-            oldName: null,
             comment: balances rollup,
             isMaterialized: true,
             dependsOn: [
@@ -332,13 +317,9 @@ END
             ]
           }
         ],
-        droppedViews: [
-          stale_report
-        ],
         enums: [
           {
             name: order_status,
-            oldName: null,
             comment: order lifecycle,
             values: [
               pending,
@@ -348,7 +329,6 @@ END
           },
           {
             name: priority,
-            oldName: importance,
             comment: null,
             values: [
               low,
@@ -356,13 +336,9 @@ END
             ]
           }
         ],
-        droppedEnums: [
-          stale_enum
-        ],
         sequences: [
           {
             name: invoice_id,
-            oldName: bill_id,
             comment: null,
             options: {
               dataType: null,
@@ -376,7 +352,6 @@ END
           },
           {
             name: order_id,
-            oldName: null,
             comment: order numbers,
             options: {
               dataType: {
@@ -394,9 +369,6 @@ END
             }
           }
         ],
-        droppedSequences: [
-          stale_seq
-        ],
         routines: [
           {
             name: add_tax,
@@ -406,7 +378,6 @@ END
 RETURNS numeric LANGUAGE sql AS $$
   SELECT amount * (1 + rate);
 $$,
-            oldName: null,
             comment: adds tax
           },
           {
@@ -414,7 +385,6 @@ $$,
             kind: Function,
             arguments: code text DEFAULT 'N/A',
             definition: RETURNS text LANGUAGE sql AS $body$ SELECT upper(code || ';suffix'); $body$,
-            oldName: clean_code,
             comment: null
           },
           {
@@ -425,13 +395,8 @@ $$,
 LANGUAGE sql AS $$
   DELETE FROM app.users WHERE name <> 'a;b';
 $$,
-            oldName: null,
             comment: archival job
           }
-        ],
-        droppedRoutines: [
-          stale_fn,
-          stale_proc
         ],
         domains: [
           {
@@ -444,7 +409,6 @@ $$,
             },
             default: null,
             notNull: false,
-            oldName: legacy_id,
             comment: unique id as text
           },
           {
@@ -457,7 +421,6 @@ $$,
             },
             default: 0,
             notNull: true,
-            oldName: null,
             comment: null,
             checks: [
               {
@@ -468,13 +431,9 @@ $$,
             ]
           }
         ],
-        droppedDomains: [
-          stale_domain
-        ],
         compositeTypes: [
           {
             name: address,
-            oldName: legacy_address,
             comment: a postal address,
             fields: [
               {
@@ -499,7 +458,6 @@ $$,
           },
           {
             name: money_amount,
-            oldName: null,
             comment: null,
             fields: [
               {
@@ -523,18 +481,12 @@ $$,
             ]
           }
         ],
-        droppedCompositeTypes: [
-          stale_type
-        ],
         grants: [
           {
             role: app_role
           }
         ]
       }
-    ],
-    droppedSchemas: [
-      scratch
     ],
     extensions: [
       {
@@ -552,9 +504,6 @@ $$,
         version: null,
         comment: uuid generation
       }
-    ],
-    droppedExtensions: [
-      stale_ext
     ]
   }
 }

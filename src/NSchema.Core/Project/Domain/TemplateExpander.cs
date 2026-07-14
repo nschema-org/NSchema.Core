@@ -32,7 +32,7 @@ internal static class TemplateExpander
     )
     {
         var diagnostics = new List<Diagnostic>();
-        var schema = project.Schema;
+        var database = project.Database;
         var scripts = project.Scripts.ToList();
 
         // One name space across both kinds, as ever: a schema template and a table template cannot share a name.
@@ -64,7 +64,7 @@ internal static class TemplateExpander
             foreach (var schemaNameNode in application.Schemas)
             {
                 var schemaName = new SqlIdentifier(schemaNameNode.Value);
-                if (schema.Schemas.All(s => s.Name != schemaName))
+                if (database.Schemas.All(s => s.Name != schemaName))
                 {
                     diagnostics.Add(TemplateDiagnostics.UnknownTargetSchema(templateName, schemaName));
                     continue;
@@ -74,14 +74,14 @@ internal static class TemplateExpander
 
                 // The merge rejects an object the target schema already declares, exactly as if the
                 // instantiated objects had been written in the target schema by hand.
-                var combined = SchemaAggregator.Combine(schema, new DatabaseSchema([instance]));
+                var combined = DatabaseAggregator.Combine(database, new Database([instance]));
                 if (combined.IsFailure)
                 {
                     diagnostics.AddRange(combined.Diagnostics.Select(d =>
                         d with { Message = $"APPLY TEMPLATE '{templateName}' IN SCHEMA {schemaName}: {d.Message}" }));
                     continue;
                 }
-                schema = combined.Require();
+                database = combined.Require();
 
                 // The instance's own includes resolve with everything else below, so an instantiated table
                 // can itself include a template.
@@ -90,9 +90,9 @@ internal static class TemplateExpander
             }
         }
 
-        schema = ResolveIncludes(schema, byName, pendingIncludes, diagnostics);
+        database = ResolveIncludes(database, byName, pendingIncludes, diagnostics);
 
-        return Result.From(new ProjectDefinition(schema, scripts), diagnostics);
+        return Result.From(new ProjectDefinition(database, scripts), diagnostics);
     }
 
     private static SqlIdentifier Name(object template) => template switch
@@ -109,10 +109,10 @@ internal static class TemplateExpander
     /// the database resolves by search path), and scripts scope to the instance with the <c>{schema}</c> token
     /// substituted.
     /// </summary>
-    private static (SchemaDefinition Instance, IReadOnlyList<TemplateInclude> Includes, IReadOnlyList<Script> Scripts)
+    private static (Schema Instance, IReadOnlyList<TemplateInclude> Includes, IReadOnlyList<Script> Scripts)
         Instantiate(SchemaTemplateStatement template, SqlIdentifier schemaName)
     {
-        var body = new SchemaAccumulator();
+        var body = new DatabaseAccumulator();
         var scripts = new List<Script>();
         foreach (var statement in template.Statements)
         {
@@ -120,7 +120,7 @@ internal static class TemplateExpander
         }
 
         var fragment = body.Build();
-        var instance = Qualify(fragment.Schemas.SingleOrDefault() ?? new SchemaDefinition(schemaName), schemaName);
+        var instance = Qualify(fragment.Schemas.SingleOrDefault() ?? new Schema(schemaName), schemaName);
 
         var instanceScripts = scripts.Select(script => script with
         {
@@ -136,7 +136,7 @@ internal static class TemplateExpander
     /// field whose type the template declares points at the instance schema, as does a trigger function it
     /// declares. Object names already bound at projection.
     /// </summary>
-    private static SchemaDefinition Qualify(SchemaDefinition instance, SqlIdentifier schemaName)
+    private static Schema Qualify(Schema instance, SqlIdentifier schemaName)
     {
         var declaredTypes = instance.Enums.Select(e => e.Name)
             .Concat(instance.Domains.Select(d => d.Name))
@@ -183,8 +183,8 @@ internal static class TemplateExpander
             ? trigger with { Function = function with { Schema = schemaName } }
             : trigger;
 
-    private static DatabaseSchema ResolveIncludes(
-        DatabaseSchema schema,
+    private static Database ResolveIncludes(
+        Database schema,
         Dictionary<SqlIdentifier, object> templates,
         List<TemplateInclude> includes,
         List<Diagnostic> diagnostics)

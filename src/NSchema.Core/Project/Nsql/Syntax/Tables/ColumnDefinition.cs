@@ -13,7 +13,6 @@ namespace NSchema.Project.Nsql.Syntax.Tables;
 /// <param name="IdentityOptions">The identity options clause, or <see langword="null"/>.</param>
 /// <param name="Default">The <c>DEFAULT</c> expression, or <see langword="null"/>.</param>
 /// <param name="Generated">The <c>GENERATED ALWAYS AS</c> expression, or <see langword="null"/>.</param>
-/// <param name="RenamedFrom">The previous name from a <c>RENAMED FROM</c> clause, or <see langword="null"/>.</param>
 public sealed record ColumnDefinition(
     Identifier Name,
     TypeName Type,
@@ -21,6 +20,5 @@ public sealed record ColumnDefinition(
     bool IsIdentity = false,
     IdentityOptionsClause? IdentityOptions = null,
     SqlText? Default = null,
-    SqlText? Generated = null,
-    Identifier? RenamedFrom = null
+    SqlText? Generated = null
 ) : TableMember;

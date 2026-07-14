@@ -7,15 +7,15 @@ using NSchema.Project.Domain.Models.Schemas;
 
 namespace NSchema.Tests.Diff;
 
-public partial class SchemaComparerTests
+public partial class DatabaseComparerTests
 {
     // -------------------------------------------------------------------------
     // Composite types
     // -------------------------------------------------------------------------
 
     /// <summary>Diffs two <c>app</c> schemas holding the given composite types, returning the single diff (null when unchanged).</summary>
-    private CompositeTypeDiff? DiffCompositeTypes(IReadOnlyList<CompositeType> current, IReadOnlyList<CompositeType> desired) => _sut
-        .Compare(Db(new SchemaDefinition(new SqlIdentifier("app"), CompositeTypes: current)), Db(new SchemaDefinition(new SqlIdentifier("app"), CompositeTypes: desired)))
+    private CompositeTypeDiff? DiffCompositeTypes(IReadOnlyList<CompositeType> current, IReadOnlyList<CompositeType> desired, ProjectDirectives? directives = null) =>
+        Compare(Db(new Schema(new SqlIdentifier("app"), CompositeTypes: current)), Db(new Schema(new SqlIdentifier("app"), CompositeTypes: desired)), directives)
         .Schemas.SingleOrDefault()?.CompositeTypes.SingleOrDefault();
 
     private static CompositeType Address(params CompositeField[] fields) => new(new SqlIdentifier("address"), fields);
@@ -82,7 +82,8 @@ public partial class SchemaComparerTests
     {
         var diff = DiffCompositeTypes(
             [new CompositeType(new SqlIdentifier("legacy_address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text)])],
-            [new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text)], OldName: new SqlIdentifier("legacy_address"))]);
+            [new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text)])],
+            new ProjectDirectives(CompositeTypes: new CompositeTypeDirectives(Renames: [new ObjectRename(App("legacy_address"), new SqlIdentifier("address"))])));
 
         diff!.RenamedFrom.ShouldBe("legacy_address");
     }
@@ -100,15 +101,16 @@ public partial class SchemaComparerTests
 
     [Fact]
     public void Compare_PartialSchema_LeavesUnmanagedCompositeTypeAlone()
-        => _sut.Compare(
-            Db(new SchemaDefinition(new SqlIdentifier("app"), CompositeTypes: [Address(new CompositeField(new SqlIdentifier("street"), SqlType.Text))])),
-            Db(new SchemaDefinition(new SqlIdentifier("app"), IsPartial: true)))
+        => Compare(
+            Db(new Schema(new SqlIdentifier("app"), CompositeTypes: [Address(new CompositeField(new SqlIdentifier("street"), SqlType.Text))])),
+            Db(new Schema(new SqlIdentifier("app"))), PartialApp())
             .Schemas.ShouldBeEmpty();
 
     [Fact]
     public void Compare_PartialSchema_DropsExplicitlyDroppedCompositeType()
-        => _sut.Compare(
-            Db(new SchemaDefinition(new SqlIdentifier("app"), CompositeTypes: [Address(new CompositeField(new SqlIdentifier("street"), SqlType.Text))])),
-            Db(new SchemaDefinition(new SqlIdentifier("app"), IsPartial: true, DroppedCompositeTypes: [new SqlIdentifier("address")])))
+        => Compare(
+            Db(new Schema(new SqlIdentifier("app"), CompositeTypes: [Address(new CompositeField(new SqlIdentifier("street"), SqlType.Text))])),
+            Db(new Schema(new SqlIdentifier("app"))),
+            PartialApp() with { CompositeTypes = new CompositeTypeDirectives(Drops: [App("address")]) })
             .Schemas.ShouldHaveSingleItem().CompositeTypes.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
 }

@@ -9,7 +9,7 @@ using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Tests.Diff;
 
-public partial class SchemaComparerTests
+public partial class DatabaseComparerTests
 {
     // -------------------------------------------------------------------------
     // Primary keys
@@ -242,8 +242,8 @@ public partial class SchemaComparerTests
             UniqueConstraints: [new UniqueConstraint(new SqlIdentifier("users_email_uq"), [new SqlIdentifier("email")])],
             CheckConstraints: [new CheckConstraint(new SqlIdentifier("users_age_chk"), new SqlText("age >= 0"))]);
 
-        var table = _sut.Compare(Db(new SchemaDefinition(new SqlIdentifier("app"))),
-            Db(new SchemaDefinition(new SqlIdentifier("app"), Tables: [desired]))).Schemas.Single().Tables.Single();
+        var table = Compare(Db(new Schema(new SqlIdentifier("app"))),
+            Db(new Schema(new SqlIdentifier("app"), Tables: [desired]))).Schemas.Single().Tables.Single();
 
         table.Kind.ShouldBe(ChangeKind.Add);
         table.UniqueConstraints.ShouldHaveSingleItem().ShouldBe(

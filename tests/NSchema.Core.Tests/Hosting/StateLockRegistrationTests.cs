@@ -1,8 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using NSchema.Current.Locks;
-using NSchema.Current.Locks.Backends;
-using NSchema.Current.Storage.Backends;
+using NSchema.State.Locks;
+using NSchema.State.Locks.Backends;
+using NSchema.State.Backends;
 
 namespace NSchema.Tests.Hosting;
 
@@ -38,7 +38,7 @@ public sealed class StateLockRegistrationTests
     {
         var services = Build(b => b.UseEphemeralState());
 
-        var store = services.GetRequiredService<ISchemaStateStore>().ShouldBeOfType<EphemeralStateStore>();
+        var store = services.GetRequiredService<IDatabaseStateStore>().ShouldBeOfType<EphemeralStateStore>();
         services.GetRequiredService<IStateLock>().ShouldBeSameAs(store);
     }
 
@@ -47,7 +47,7 @@ public sealed class StateLockRegistrationTests
     {
         var services = Build(b => b.UseStateStore<LockingStore>());
 
-        var store = services.GetRequiredService<ISchemaStateStore>();
+        var store = services.GetRequiredService<IDatabaseStateStore>();
         var stateLock = services.GetRequiredService<IStateLock>();
 
         stateLock.ShouldBeSameAs(store);
@@ -78,13 +78,13 @@ public sealed class StateLockRegistrationTests
         services.GetRequiredService<IStateLock>().ShouldBeOfType<CustomLock>();
     }
 
-    private sealed class StoreOnly : ISchemaStateStore
+    private sealed class StoreOnly : IDatabaseStateStore
     {
         public Task<ReadOnlyMemory<byte>?> Read(CancellationToken cancellationToken = default) => Task.FromResult<ReadOnlyMemory<byte>?>(null);
         public Task Write(ReadOnlyMemory<byte> state, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
-    private sealed class LockingStore : ISchemaStateStore, IStateLock
+    private sealed class LockingStore : IDatabaseStateStore, IStateLock
     {
         public Task<ReadOnlyMemory<byte>?> Read(CancellationToken cancellationToken = default) => Task.FromResult<ReadOnlyMemory<byte>?>(null);
         public Task Write(ReadOnlyMemory<byte> state, CancellationToken cancellationToken = default) => Task.CompletedTask;

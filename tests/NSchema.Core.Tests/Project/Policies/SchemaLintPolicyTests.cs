@@ -5,7 +5,7 @@ using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Policies;
 
-namespace NSchema.Tests.Schema.Policies;
+namespace NSchema.Tests.Project.Policies;
 
 public sealed class SchemaLintPolicyTests
 {
@@ -13,8 +13,8 @@ public sealed class SchemaLintPolicyTests
 
     private static Column Col(string name, bool nullable = false) => new Column(new SqlIdentifier(name), SqlType.BigInt, IsNullable: nullable);
 
-    private static DatabaseSchema Db(params Table[] tables) =>
-        new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("public"), Tables: tables)]);
+    private static Database Db(params Table[] tables) =>
+        new Database([new Schema(new SqlIdentifier("public"), Tables: tables)]);
 
     [Fact]
     public void NoDiagnostics_ForATableWithANonNullablePrimaryKey()

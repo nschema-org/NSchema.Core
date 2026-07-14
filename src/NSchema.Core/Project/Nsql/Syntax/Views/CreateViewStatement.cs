@@ -8,10 +8,8 @@ namespace NSchema.Project.Nsql.Syntax.Views;
 /// <param name="Name">The view name as written.</param>
 /// <param name="Body">The defining query, verbatim (the text after <c>AS</c>).</param>
 /// <param name="IsMaterialized">Whether the view is materialized.</param>
-/// <param name="RenamedFrom">The previous name from a <c>RENAMED FROM</c> clause, or <see langword="null"/>.</param>
 public sealed record CreateViewStatement(
     QualifiedName Name,
     SqlText Body,
-    bool IsMaterialized = false,
-    Identifier? RenamedFrom = null
+    bool IsMaterialized = false
 ) : NsqlStatement;

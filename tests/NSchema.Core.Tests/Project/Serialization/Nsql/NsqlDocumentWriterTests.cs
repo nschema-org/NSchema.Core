@@ -1,11 +1,11 @@
 using System.Text;
-using NSchema.Current.Domain.Models;
-using NSchema.Current.Storage;
+using NSchema.State.Domain.Models;
+using NSchema.State;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 /// <summary>
 /// Covers the full-document round-trip (schema + scripts)
@@ -14,12 +14,12 @@ namespace NSchema.Tests.Schema.Serialization.Nsql;
 public sealed class ProjectedDocumentWriterTests
 {
     // Canonicalize the schema half via the internal state serializer (independent of the writer under test).
-    private static string Canonical(DatabaseSchema schema)
-        => Encoding.UTF8.GetString(new SchemaStateSerializer().Serialize(new SchemaState(schema)).Span);
+    private static string Canonical(Database schema)
+        => Encoding.UTF8.GetString(new DatabaseStateSerializer().Serialize(new DatabaseState(schema)).Span);
 
     private static void AssertEquivalent(ProjectedDocument expected, ProjectedDocument actual)
     {
-        Canonical(actual.Schema).ShouldBe(Canonical(expected.Schema));
+        Canonical(actual.Database).ShouldBe(Canonical(expected.Database));
         actual.Scripts.ShouldBe(expected.Scripts);
     }
 
@@ -28,11 +28,11 @@ public sealed class ProjectedDocumentWriterTests
     private static string AssertRoundTrips(string source)
     {
         var document = new TestNsqlParser(source).Parse();
-        var formatted = NsqlWriter.Write(document.Schema, document.Scripts);
+        var formatted = NsqlWriter.Write(document.Database, document.Scripts);
 
         var reparsed = new TestNsqlParser(formatted).Parse();
         AssertEquivalent(document, reparsed);
-        NsqlWriter.Write(reparsed.Schema, reparsed.Scripts).ShouldBe(formatted);
+        NsqlWriter.Write(reparsed.Database, reparsed.Scripts).ShouldBe(formatted);
 
         return formatted;
     }
@@ -144,7 +144,7 @@ public sealed class ProjectedDocumentWriterTests
 
             CREATE SCHEMA app;
             """).Parse();
-        var formatted = NsqlWriter.Write(document.Schema, document.Scripts);
+        var formatted = NsqlWriter.Write(document.Database, document.Scripts);
 
         var schema = formatted.IndexOf("CREATE SCHEMA app", StringComparison.Ordinal);
         var script = formatted.IndexOf("POST DEPLOYMENT", StringComparison.Ordinal);
@@ -153,9 +153,9 @@ public sealed class ProjectedDocumentWriterTests
     }
 
     [Fact]
-    public void Write_DatabaseSchemaOverload_EmitsNoScripts()
+    public void Write_DatabaseOverload_EmitsNoScripts()
     {
-        var ddl = NsqlWriter.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]));
+        var ddl = NsqlWriter.Write(new Database([new Schema(new SqlIdentifier("app"))]));
 
         ddl.ShouldNotContain("DEPLOYMENT");
         ddl.ShouldBe("CREATE SCHEMA app;\n");

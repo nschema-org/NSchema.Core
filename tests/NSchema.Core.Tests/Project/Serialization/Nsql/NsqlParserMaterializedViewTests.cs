@@ -1,6 +1,6 @@
 using NSchema.Project.Domain.Models.Views;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 /// <summary>
 /// Parser coverage for <c>CREATE MATERIALIZED VIEW</c> and the standalone <c>CREATE [UNIQUE] INDEX … ON s.v</c>
@@ -9,7 +9,7 @@ namespace NSchema.Tests.Schema.Serialization.Nsql;
 public sealed class NsqlParserMaterializedViewTests
 {
     private static View ParseView(string sql) =>
-        new TestNsqlParser("CREATE SCHEMA app; " + sql).Parse().Schema
+        new TestNsqlParser("CREATE SCHEMA app; " + sql).Parse().Database
             .Schemas.ShouldHaveSingleItem().Views.ShouldHaveSingleItem();
 
     [Fact]
@@ -70,7 +70,14 @@ public sealed class NsqlParserMaterializedViewTests
             .Message.ShouldContain("already declared");
 
     [Fact]
-    public void Parse_DropMaterializedView_RecordsDroppedView()
-        => ShouldlyIdentifierExtensions.ShouldBe(new TestNsqlParser("CREATE SCHEMA app; DROP MATERIALIZED VIEW app.daily;").Parse().Schema
-                .Schemas.ShouldHaveSingleItem().DroppedViews.ShouldHaveSingleItem(), "daily");
+    public void Parse_DropMaterializedView_BecomesAViewDropDirective()
+        => ShouldlyIdentifierExtensions.ShouldBe(Directives("CREATE SCHEMA app; DROP MATERIALIZED VIEW app.daily;")
+            .Views.Drops.ShouldHaveSingleItem().Name, "daily");
+
+    private static NSchema.Project.Domain.Models.ProjectDirectives Directives(string source)
+    {
+        var read = NSchema.Project.Nsql.NsqlReader.Read(source);
+        read.IsSuccess.ShouldBeTrue();
+        return NSchema.Project.ProjectAssembler.Assemble([read.Value]).Value!.Directives;
+    }
 }

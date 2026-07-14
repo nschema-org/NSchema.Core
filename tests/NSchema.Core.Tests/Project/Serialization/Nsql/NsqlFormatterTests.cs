@@ -1,6 +1,6 @@
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 public sealed class NsqlFormatterTests
 {

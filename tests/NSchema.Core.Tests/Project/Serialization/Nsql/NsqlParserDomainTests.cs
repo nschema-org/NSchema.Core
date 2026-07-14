@@ -2,15 +2,15 @@ using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Domains;
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 /// <summary>
 /// Parser coverage for <c>CREATE DOMAIN s.d AS &lt;type&gt; [NOT NULL] [CONSTRAINT n CHECK (e)]… [DEFAULT expr]</c>.
 /// </summary>
 public sealed class NsqlParserDomainTests
 {
-    private static DomainDefinition ParseDomain(string sql) =>
-        new TestNsqlParser("CREATE SCHEMA app; " + sql).Parse().Schema
+    private static DomainType ParseDomain(string sql) =>
+        new TestNsqlParser("CREATE SCHEMA app; " + sql).Parse().Database
             .Schemas.ShouldHaveSingleItem().Domains.ShouldHaveSingleItem();
 
     [Fact]
@@ -52,17 +52,18 @@ public sealed class NsqlParserDomainTests
     }
 
     [Fact]
-    public void Parse_RenamedFrom_SetsOldName()
-        => ShouldlyIdentifierExtensions.ShouldBe(ParseDomain("CREATE DOMAIN app.typeid RENAMED FROM legacy_id AS text;").OldName, "legacy_id");
+    public void Parse_RenameDomain_BecomesADirective()
+        => ShouldlyIdentifierExtensions.ShouldBe(Directives("CREATE SCHEMA app; CREATE DOMAIN app.typeid AS text; RENAME DOMAIN app.legacy_id TO typeid;")
+            .Domains.Renames.ShouldHaveSingleItem().From.Name, "legacy_id");
 
     [Fact]
     public void Parse_WithDocComment_AttachesComment()
         => ParseDomain("--- unique id\nCREATE DOMAIN app.typeid AS text;").Comment.ShouldBe("unique id");
 
     [Fact]
-    public void Parse_DropDomain_RecordsDroppedDomain()
-        => ShouldlyIdentifierExtensions.ShouldBe(new TestNsqlParser("CREATE SCHEMA app; DROP DOMAIN app.typeid;").Parse().Schema
-                .Schemas.ShouldHaveSingleItem().DroppedDomains.ShouldHaveSingleItem(), "typeid");
+    public void Parse_DropDomain_BecomesADirective()
+        => ShouldlyIdentifierExtensions.ShouldBe(Directives("CREATE SCHEMA app; DROP DOMAIN app.typeid;")
+            .Domains.Drops.ShouldHaveSingleItem().Name, "typeid");
 
     [Fact]
     public void Parse_DuplicateDomain_FailsTheRead()
@@ -72,11 +73,18 @@ public sealed class NsqlParserDomainTests
     [Fact]
     public void Parse_PartialDomain_Throws()
         => Should.Throw<NsqlSyntaxException>(() => new TestNsqlParser("CREATE PARTIAL DOMAIN app.d AS text;").Parse())
-            .Message.ShouldContain("PARTIAL applies to SCHEMA");
+            .Message.ShouldContain("after CREATE");
 
     [Fact]
     public void Parse_UnknownClause_Throws()
         => Should.Throw<NsqlSyntaxException>(() =>
             new TestNsqlParser("CREATE SCHEMA app; CREATE DOMAIN app.d AS text WIBBLE;").Parse())
             .Message.ShouldContain("Expected NOT NULL, NULL, CONSTRAINT");
+
+    private static NSchema.Project.Domain.Models.ProjectDirectives Directives(string source)
+    {
+        var read = NSchema.Project.Nsql.NsqlReader.Read(source);
+        read.IsSuccess.ShouldBeTrue();
+        return NSchema.Project.ProjectAssembler.Assemble([read.Value]).Value!.Directives;
+    }
 }

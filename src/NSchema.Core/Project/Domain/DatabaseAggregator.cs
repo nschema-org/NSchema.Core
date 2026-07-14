@@ -5,13 +5,11 @@ using NSchema.Project.Domain.Models.Schemas;
 namespace NSchema.Project.Domain;
 
 /// <summary>
-/// Merges declared schemas from multiple sources into one. A name declared by more than one source is an
-/// authoring mistake, reported as an error diagnostic (first declaration wins) — every collision at once,
-/// with the best-effort merge still carried.
+/// Combines partial database model fragments.
 /// </summary>
-internal static class SchemaAggregator
+internal static class DatabaseAggregator
 {
-    public static Result<DatabaseSchema> Combine(DatabaseSchema first, DatabaseSchema second)
+    public static Result<Database> Combine(Database first, Database second)
     {
         var diagnostics = new List<Diagnostic>();
 
@@ -36,10 +34,10 @@ internal static class SchemaAggregator
             extensions.Add(extension);
         }
 
-        return Result.From(new DatabaseSchema(mergedSchemas, extensions), diagnostics);
+        return Result.From(new Database(mergedSchemas, extensions), diagnostics);
     }
 
-    private static SchemaDefinition AggregateSchemaGroup(IReadOnlyList<SchemaDefinition> schemas, List<Diagnostic> diagnostics)
+    private static Schema AggregateSchemaGroup(IReadOnlyList<Schema> schemas, List<Diagnostic> diagnostics)
     {
         var schemaName = schemas[0].Name;
 
@@ -68,7 +66,7 @@ internal static class SchemaAggregator
             .Distinct()
             .ToList();
 
-        return new SchemaDefinition(schemaName, comment, tables, grants, views, enums, sequences, routines, domains, compositeTypes);
+        return new Schema(schemaName, comment, tables, grants, views, enums, sequences, routines, domains, compositeTypes);
     }
 
     /// <summary>
@@ -76,8 +74,8 @@ internal static class SchemaAggregator
     /// declaration wins).
     /// </summary>
     private static List<T> MergeUnique<T>(
-        IReadOnlyList<SchemaDefinition> schemas,
-        Func<SchemaDefinition, IEnumerable<T>> select,
+        IReadOnlyList<Schema> schemas,
+        Func<Schema, IEnumerable<T>> select,
         Func<T, SqlIdentifier> name,
         SqlIdentifier schemaName,
         string kind,

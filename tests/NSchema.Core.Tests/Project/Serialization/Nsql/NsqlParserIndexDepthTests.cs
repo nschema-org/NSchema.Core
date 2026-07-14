@@ -2,7 +2,7 @@ using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Indexes;
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 /// <summary>
 /// Parser coverage for the richer index grammar: <c>USING method</c>, <c>INCLUDE (cols)</c>, per-key
@@ -11,7 +11,7 @@ namespace NSchema.Tests.Schema.Serialization.Nsql;
 public sealed class NsqlParserIndexDepthTests
 {
     private static TableIndex ParseIndex(string statement) =>
-        new TestNsqlParser("CREATE TABLE app.t (a int, b int); " + statement).Parse().Schema
+        new TestNsqlParser("CREATE TABLE app.t (a int, b int); " + statement).Parse().Database
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Indexes.ShouldHaveSingleItem();
 
     [Fact]
@@ -58,7 +58,7 @@ public sealed class NsqlParserIndexDepthTests
     [Fact]
     public void Parse_InlineIndexWithMethodAndInclude_IsCaptured()
     {
-        var index = new TestNsqlParser("CREATE TABLE app.t (a int, b int, INDEX t_ix USING gin (a) INCLUDE (b));").Parse().Schema
+        var index = new TestNsqlParser("CREATE TABLE app.t (a int, b int, INDEX t_ix USING gin (a) INCLUDE (b));").Parse().Database
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Indexes.ShouldHaveSingleItem();
         index.Method.ShouldBe("gin");
         index.Include.ShouldBe(["b"]);
@@ -69,9 +69,9 @@ public sealed class NsqlParserIndexDepthTests
     {
         const string ddl = "CREATE TABLE app.t (a int, b int, c int);\n" +
             "CREATE UNIQUE INDEX t_ix ON app.t USING btree (c DESC NULLS LAST, (lower(a))) INCLUDE (b) WHERE (c IS NOT NULL);";
-        var schema = new TestNsqlParser(ddl).Parse().Schema;
+        var schema = new TestNsqlParser(ddl).Parse().Database;
 
-        var reparsed = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Schema
+        var reparsed = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Database
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Indexes.ShouldHaveSingleItem();
         reparsed.IsUnique.ShouldBeTrue();
         reparsed.Method.ShouldBe("btree");

@@ -5,7 +5,7 @@ using NSchema.Project.Domain.Models.Extensions;
 
 namespace NSchema.Tests.Diff;
 
-public partial class SchemaComparerTests
+public partial class DatabaseComparerTests
 {
     // -------------------------------------------------------------------------
     // Extensions (database-global, root-level)
@@ -15,10 +15,11 @@ public partial class SchemaComparerTests
     private ExtensionDiff? DiffExtensions(
         IReadOnlyList<Extension> current,
         IReadOnlyList<Extension> desired,
-        IReadOnlyList<SqlIdentifier>? dropped = null) => _sut
-        .Compare(
-            new DatabaseSchema(Extensions: current),
-            new DatabaseSchema(Extensions: desired, DroppedExtensions: dropped))
+        IReadOnlyList<SqlIdentifier>? dropped = null) =>
+        Compare(
+            new Database(Extensions: current),
+            new Database(Extensions: desired),
+            dropped is null ? null : new ProjectDirectives(Extensions: new NSchema.Project.Domain.Models.Extensions.ExtensionDirectives(Drops: dropped)))
         .Extensions.SingleOrDefault();
 
     [Fact]

@@ -5,7 +5,7 @@ using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Tests.Diff;
 
-public partial class SchemaComparerTests
+public partial class DatabaseComparerTests
 {
     // -------------------------------------------------------------------------
     // Column-level changes
@@ -27,7 +27,7 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_ColumnRename_SetsRenamedFrom()
     {
-        var column = DiffColumn(new Column(new SqlIdentifier("mail"), SqlType.Text), new Column(new SqlIdentifier("email"), SqlType.Text, OldName: new SqlIdentifier("mail")));
+        var column = DiffColumn(new Column(new SqlIdentifier("mail"), SqlType.Text), new Column(new SqlIdentifier("email"), SqlType.Text), ColumnRename("mail", "email"));
 
         column!.RenamedFrom.ShouldBe("mail");
         column.Kind.ShouldBe(ChangeKind.Modify);

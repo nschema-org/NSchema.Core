@@ -1,25 +1,25 @@
-using NSchema.Current.Domain.Models;
-using NSchema.Current.Storage;
-using NSchema.Current.Storage.Backends;
+using NSchema.State.Domain.Models;
+using NSchema.State;
+using NSchema.State.Backends;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Tests.State;
 
-public sealed class SchemaStateManagerTests
+public sealed class DatabaseStateManagerTests
 {
     private static readonly DateTimeOffset _now = new(2026, 7, 10, 12, 0, 0, TimeSpan.Zero);
 
-    private readonly SchemaStateSerializer _serializer = new();
-    private readonly ISchemaStateStore _store = Substitute.For<ISchemaStateStore>();
-    private readonly SchemaStateManager _sut;
+    private readonly DatabaseStateSerializer _serializer = new();
+    private readonly IDatabaseStateStore _store = Substitute.For<IDatabaseStateStore>();
+    private readonly DatabaseStateManager _sut;
 
-    public SchemaStateManagerTests()
+    public DatabaseStateManagerTests()
     {
-        _sut = new SchemaStateManager(_serializer, _store);
+        _sut = new DatabaseStateManager(_serializer, _store);
     }
 
-    private static SchemaStateManager Unconfigured() => new(new SchemaStateSerializer());
+    private static DatabaseStateManager Unconfigured() => new(new DatabaseStateSerializer());
 
     private void StoreHolds(ReadOnlyMemory<byte>? payload) =>
         _store.Read(Arg.Any<CancellationToken>()).Returns(payload);
@@ -60,7 +60,7 @@ public sealed class SchemaStateManagerTests
     public async Task Read_ReturnsTheRecordedState()
     {
         // Arrange
-        var state = SchemaState.Empty.RecordExecution([new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "abc", _now)]);
+        var state = DatabaseState.Empty.RecordExecution([new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "abc", _now)]);
         StoreHolds(_serializer.Serialize(state));
 
         // Act
@@ -88,7 +88,7 @@ public sealed class SchemaStateManagerTests
     public async Task Write_NoStoreConfigured_IsAFailure()
     {
         // Act
-        var result = await Unconfigured().Write(new StateWriteArguments(SchemaState.Empty), TestContext.Current.CancellationToken);
+        var result = await Unconfigured().Write(new StateWriteArguments(DatabaseState.Empty), TestContext.Current.CancellationToken);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -99,7 +99,7 @@ public sealed class SchemaStateManagerTests
     public async Task Write_PersistsTheSerializedState_AndReportsThePayloadSize()
     {
         // Arrange
-        var state = SchemaState.Empty.RecordExecution([new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "abc", _now)]);
+        var state = DatabaseState.Empty.RecordExecution([new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "abc", _now)]);
         byte[]? written = null;
         await _store.Write(Arg.Do<ReadOnlyMemory<byte>>(m => written = m.ToArray()), Arg.Any<CancellationToken>());
 
@@ -155,7 +155,7 @@ public sealed class SchemaStateManagerTests
     {
         // Arrange — a hand-edited payload is written byte-for-byte, not re-serialized, so nothing the
         // model doesn't understand is silently dropped.
-        var payload = _serializer.Serialize(SchemaState.Empty).ToArray();
+        var payload = _serializer.Serialize(DatabaseState.Empty).ToArray();
         byte[]? written = null;
         await _store.Write(Arg.Do<ReadOnlyMemory<byte>>(m => written = m.ToArray()), Arg.Any<CancellationToken>());
 

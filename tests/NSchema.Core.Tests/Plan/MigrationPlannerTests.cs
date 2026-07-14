@@ -18,7 +18,7 @@ namespace NSchema.Tests.Plan;
 /// </summary>
 public sealed class MigrationPlannerTests
 {
-    private static readonly DatabaseSchema _emptySchema = new([]);
+    private static readonly Database _emptySchema = new([]);
     private static readonly DatabaseDiff _emptyDiff = new([]);
     private static readonly CurrentState _current = new(_emptySchema);
     private static readonly ProjectDefinition _desired = new(_emptySchema, []);
@@ -33,7 +33,7 @@ public sealed class MigrationPlannerTests
     public MigrationPlannerTests()
     {
         _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(_emptyDiff, []));
-        _differ.CompareTeardown(Arg.Any<DatabaseSchema>()).Returns(_emptyDiff);
+        _differ.CompareTeardown(Arg.Any<Database>()).Returns(_emptyDiff);
         _linearizer.Linearize(Arg.Any<DatabaseDiff>()).Returns(_ => []);
     }
 
@@ -41,7 +41,7 @@ public sealed class MigrationPlannerTests
     public void Validate_RunsProjectPoliciesAgainstTheProject()
     {
         // Arrange
-        var desired = new ProjectDefinition(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]), []);
+        var desired = new ProjectDefinition(new Database([new Schema(new SqlIdentifier("app"))]), []);
         var policy = Substitute.For<IProjectPolicy>();
         policy.Validate(desired).Returns([Diagnostic.Error("Test", "bad schema")]);
         _projectPolicies.Add(policy);
@@ -185,10 +185,10 @@ public sealed class MigrationPlannerTests
         _linearizer.Linearize(_emptyDiff).Returns([new DropSchema(new SqlIdentifier("app"))]);
 
         // Act
-        var result = Sut.PlanTeardown(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]));
+        var result = Sut.PlanTeardown(new Database([new Schema(new SqlIdentifier("app"))]));
 
         // Assert
-        _differ.Received(1).CompareTeardown(Arg.Any<DatabaseSchema>());
+        _differ.Received(1).CompareTeardown(Arg.Any<Database>());
         result.Value!.Statements.ShouldHaveSingleItem().Sql.ShouldBe($"-- {nameof(DropSchema)}");
         result.Value!.Diff.ShouldBe(_emptyDiff);
         result.IsSuccess.ShouldBeTrue();
@@ -203,7 +203,7 @@ public sealed class MigrationPlannerTests
         _planPolicies.Add(planPolicy);
 
         // Act
-        Sut.PlanTeardown(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]));
+        Sut.PlanTeardown(new Database([new Schema(new SqlIdentifier("app"))]));
 
         // Assert
         planPolicy.DidNotReceive().Validate(Arg.Any<MigrationPlan>());

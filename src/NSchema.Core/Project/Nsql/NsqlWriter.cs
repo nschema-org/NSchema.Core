@@ -13,18 +13,25 @@ namespace NSchema.Project.Nsql;
 public static class NsqlWriter
 {
     /// <summary>
-    /// Writes <paramref name="schema"/> as canonical NSchema source.
+    /// Writes <paramref name="database"/> as canonical NSchema source.
     /// </summary>
-    /// <param name="schema">The schema to write.</param>
-    public static string Write(DatabaseSchema schema) => Write(SyntaxBuilder.Build(schema, []));
+    /// <param name="database">The schema to write.</param>
+    public static string Write(Database database) => Write(SyntaxBuilder.Build(database, []));
 
     /// <summary>
     /// Writes a schema and its scripts as canonical NSchema source.
     /// </summary>
-    /// <param name="schema">The schema to write.</param>
+    /// <param name="database">The database to write.</param>
     /// <param name="scripts">The scripts to write after the schema.</param>
-    public static string Write(DatabaseSchema schema, IReadOnlyList<Script> scripts) =>
-        Write(SyntaxBuilder.Build(schema, scripts));
+    public static string Write(Database database, IReadOnlyList<Script> scripts) => Write(SyntaxBuilder.Build(database, scripts));
+
+    /// <summary>
+    /// Writes a whole project — schema, scripts, and directives — as canonical NSchema source.
+    /// </summary>
+    /// <param name="database">The database to write.</param>
+    /// <param name="scripts">The scripts to write after the schema.</param>
+    /// <param name="directives">The directives to write after the scripts.</param>
+    public static string Write(Database database, IReadOnlyList<Script> scripts, ProjectDirectives directives) => Write(SyntaxBuilder.Build(database, scripts, directives: directives));
 
     /// <summary>
     /// Renders a syntax document as canonical NSchema source.
@@ -59,7 +66,17 @@ public static class NsqlWriter
         or Syn.Domains.DropDomainStatement
         or Syn.CompositeTypes.DropCompositeTypeStatement
         or Syn.Sequences.DropSequenceStatement
-        or Syn.Routines.DropRoutineStatement;
+        or Syn.Routines.DropRoutineStatement
+        or Syn.Schemas.RenameSchemaStatement
+        or Syn.Tables.RenameTableStatement
+        or Syn.Tables.RenameColumnStatement
+        or Syn.Views.RenameViewStatement
+        or Syn.Enums.RenameEnumStatement
+        or Syn.Domains.RenameDomainStatement
+        or Syn.CompositeTypes.RenameCompositeTypeStatement
+        or Syn.Sequences.RenameSequenceStatement
+        or Syn.Routines.RenameRoutineStatement
+        or Syn.Schemas.PartialSchemaStatement;
 
     private static void WriteStatement(StringBuilder sb, NsqlStatement statement)
     {
@@ -67,14 +84,7 @@ public static class NsqlWriter
         {
             case Syn.Schemas.CreateSchemaStatement s:
                 WriteDocComment(sb, s.Doc, indent: "");
-                sb.Append("CREATE ");
-                if (s.IsPartial)
-                {
-                    sb.Append("PARTIAL ");
-                }
-                sb.Append("SCHEMA ").Append(s.Name.Value);
-                AppendRenamedFrom(sb, s.RenamedFrom);
-                sb.AppendLine(";");
+                sb.Append("CREATE SCHEMA ").Append(s.Name.Value).AppendLine(";");
                 break;
             case Syn.Schemas.GrantSchemaUsageStatement s:
                 sb.Append("GRANT USAGE ON SCHEMA ").Append(s.Schema.Value).Append(" TO ").Append(s.Role.Value).AppendLine(";");
@@ -82,13 +92,11 @@ public static class NsqlWriter
             case Syn.Enums.CreateEnumStatement s:
                 WriteDocComment(sb, s.Doc, indent: "");
                 sb.Append("CREATE ENUM ").Append(Qualified(s.Name));
-                AppendRenamedFrom(sb, s.RenamedFrom);
                 sb.Append(" (").Append(string.Join(", ", s.Values.Select(v => $"'{v.Replace("'", "''")}'"))).AppendLine(");");
                 break;
             case Syn.Domains.CreateDomainStatement s:
                 WriteDocComment(sb, s.Doc, indent: "");
                 sb.Append("CREATE DOMAIN ").Append(Qualified(s.Name));
-                AppendRenamedFrom(sb, s.RenamedFrom);
                 sb.Append(" AS ").Append(TypeText(s.Type));
                 if (s.NotNull)
                 {
@@ -108,13 +116,11 @@ public static class NsqlWriter
             case Syn.CompositeTypes.CreateCompositeTypeStatement s:
                 WriteDocComment(sb, s.Doc, indent: "");
                 sb.Append("CREATE TYPE ").Append(Qualified(s.Name));
-                AppendRenamedFrom(sb, s.RenamedFrom);
                 sb.Append(" AS (").Append(string.Join(", ", s.Fields.Select(f => $"{f.Name.Value} {TypeText(f.Type)}"))).AppendLine(");");
                 break;
             case Syn.Sequences.CreateSequenceStatement s:
                 WriteDocComment(sb, s.Doc, indent: "");
                 sb.Append("CREATE SEQUENCE ").Append(Qualified(s.Name));
-                AppendRenamedFrom(sb, s.RenamedFrom);
                 if (s.Options is { } options && SequenceOptionsText(options) is { } text)
                 {
                     sb.Append(" (").Append(text).Append(')');
@@ -124,7 +130,6 @@ public static class NsqlWriter
             case Syn.Routines.CreateRoutineStatement s:
                 WriteDocComment(sb, s.Doc, indent: "");
                 sb.Append(s.Kind == Syn.Routines.RoutineKind.Procedure ? "CREATE PROCEDURE " : "CREATE FUNCTION ").Append(Qualified(s.Name));
-                AppendRenamedFrom(sb, s.RenamedFrom);
                 // The definition is emitted verbatim (multi-line bodies keep their newlines); TrimEnd guards a
                 // code-built definition ending in whitespace so the ';' lands directly after the last character.
                 sb.Append('(').Append(s.Arguments.Value).Append(") ").Append(s.Definition.Value.TrimEnd()).AppendLine(";");
@@ -148,7 +153,6 @@ public static class NsqlWriter
                     sb.Append("MATERIALIZED ");
                 }
                 sb.Append("VIEW ").Append(Qualified(s.Name));
-                AppendRenamedFrom(sb, s.RenamedFrom);
                 sb.Append(" AS ").Append(s.Body.Value).AppendLine(";");
                 break;
             case Syn.Indexes.CreateIndexStatement s:
@@ -201,6 +205,37 @@ public static class NsqlWriter
             case Syn.Routines.DropRoutineStatement s:
                 sb.Append("DROP ROUTINE ").Append(Qualified(s.Name)).AppendLine(";");
                 break;
+            case Syn.Schemas.PartialSchemaStatement s:
+                sb.Append("PARTIAL SCHEMA ").Append(s.Schema.Value).AppendLine(";");
+                break;
+            case Syn.Schemas.RenameSchemaStatement s:
+                sb.Append("RENAME SCHEMA ").Append(s.From.Value).Append(" TO ").Append(s.To.Value).AppendLine(";");
+                break;
+            case Syn.Tables.RenameTableStatement s:
+                sb.Append("RENAME TABLE ").Append(Qualified(s.From)).Append(" TO ").Append(s.To.Value).AppendLine(";");
+                break;
+            case Syn.Tables.RenameColumnStatement s:
+                sb.Append("RENAME COLUMN ").Append(s.From.Schema!.Value).Append('.').Append(s.From.Table.Value).Append('.').Append(s.From.Member.Value)
+                    .Append(" TO ").Append(s.To.Value).AppendLine(";");
+                break;
+            case Syn.Views.RenameViewStatement s:
+                sb.Append("RENAME VIEW ").Append(Qualified(s.From)).Append(" TO ").Append(s.To.Value).AppendLine(";");
+                break;
+            case Syn.Enums.RenameEnumStatement s:
+                sb.Append("RENAME ENUM ").Append(Qualified(s.From)).Append(" TO ").Append(s.To.Value).AppendLine(";");
+                break;
+            case Syn.Domains.RenameDomainStatement s:
+                sb.Append("RENAME DOMAIN ").Append(Qualified(s.From)).Append(" TO ").Append(s.To.Value).AppendLine(";");
+                break;
+            case Syn.CompositeTypes.RenameCompositeTypeStatement s:
+                sb.Append("RENAME TYPE ").Append(Qualified(s.From)).Append(" TO ").Append(s.To.Value).AppendLine(";");
+                break;
+            case Syn.Sequences.RenameSequenceStatement s:
+                sb.Append("RENAME SEQUENCE ").Append(Qualified(s.From)).Append(" TO ").Append(s.To.Value).AppendLine(";");
+                break;
+            case Syn.Routines.RenameRoutineStatement s:
+                sb.Append("RENAME ROUTINE ").Append(Qualified(s.From)).Append(" TO ").Append(s.To.Value).AppendLine(";");
+                break;
             default:
                 throw new NotSupportedException($"Statement '{statement.GetType().Name}' is not rendered.");
         }
@@ -210,7 +245,6 @@ public static class NsqlWriter
     {
         WriteDocComment(sb, statement.Doc, indent: "");
         sb.Append("CREATE TABLE ").Append(Qualified(statement.Name));
-        AppendRenamedFrom(sb, statement.RenamedFrom);
         sb.AppendLine(" (");
 
         for (var i = 0; i < statement.Members.Count; i++)
@@ -249,10 +283,6 @@ public static class NsqlWriter
                     if (m.Generated is { } generated)
                     {
                         sb.Append(" GENERATED ALWAYS AS (").Append(generated.Value).Append(") STORED");
-                    }
-                    if (m.RenamedFrom is { } oldName)
-                    {
-                        sb.Append(" RENAMED FROM ").Append(oldName.Value);
                     }
                     return sb.ToString();
                 }
@@ -380,13 +410,6 @@ public static class NsqlWriter
 
     // --- clause helpers ----------------------------------------------------------------
 
-    private static void AppendRenamedFrom(StringBuilder sb, Identifier? oldName)
-    {
-        if (oldName is not null)
-        {
-            sb.Append(" RENAMED FROM ").Append(oldName.Value);
-        }
-    }
 
     private static void AppendIndexTail(StringBuilder sb, Identifier? method, IReadOnlyList<Syn.Indexes.IndexElement> columns,
         IReadOnlyList<Identifier>? include, SqlText? predicate)

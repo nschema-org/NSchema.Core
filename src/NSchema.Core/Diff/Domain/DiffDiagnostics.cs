@@ -1,3 +1,4 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Diff.Domain;
@@ -19,4 +20,11 @@ internal static class DiffDiagnostics
     public static Diagnostic DeadMigration(Script migration) => Diagnostic.Info("data-migrations",
         $"Migration '{migration.Reference}' ({migration.Event.Description}) matches " +
         "no change in this plan and will not run. If the change it supports has been applied everywhere, the block is safe to delete.");
+
+    /// <summary>
+    /// A rename directive whose source is gone and whose target already exists.
+    /// </summary>
+    public static Diagnostic AppliedRename(string kind, string address, SqlIdentifier to) => Diagnostic.Info("directives",
+        $"Rename of {kind} '{address}' matches nothing in the current state and '{to}' already exists — the " +
+        "rename has been applied. Once it has been applied everywhere, the directive is safe to delete.");
 }

@@ -6,4 +6,4 @@ namespace NSchema.Project.Nsql;
 /// <summary>
 /// One document's projection into the domain.
 /// </summary>
-internal sealed record ProjectedDocument(DatabaseSchema Schema, IReadOnlyList<Script> Scripts);
+internal sealed record ProjectedDocument(Database Database, IReadOnlyList<Script> Scripts);

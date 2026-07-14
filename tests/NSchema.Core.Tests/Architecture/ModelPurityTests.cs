@@ -35,7 +35,7 @@ public sealed class ModelPurityTests
     [Theory]
     [InlineData("NSchema.Diff.Domain.Models", new[] { "NSchema.Diff.Domain.Models", "NSchema.Project.Domain.Models", "System" })]
     [InlineData("NSchema.Plan.Domain.Models", new[] { "NSchema.Plan.Domain.Models", "NSchema.Project.Domain.Models", "NSchema.Diff.Domain.Models", "System" })]
-    [InlineData("NSchema.Current.Domain.Models", new[] { "NSchema.Current.Domain.Models", "NSchema.Project.Domain.Models", "System" })]
+    [InlineData("NSchema.State.Domain.Models", new[] { "NSchema.State.Domain.Models", "NSchema.Project.Domain.Models", "System" })]
     public void ModelNamespace_DependsOnlyOnModelsAndBcl(string source, string[] allowed)
     {
         // Arrange

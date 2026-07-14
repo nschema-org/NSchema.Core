@@ -5,23 +5,23 @@ using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Domain.Models.Views;
 
-namespace NSchema.Tests.Schema.Model;
+namespace NSchema.Tests.Project.Model;
 
 /// <summary>
-/// Snapshot coverage for <see cref="DatabaseSchema"/>. The per-case assertions in
-/// <see cref="DatabaseSchemaTests"/> pin the merge rules; this captures the whole merged
-/// <c>DatabaseSchema</c> graph for several providers at once, so table grouping, ordering, and
+/// Snapshot coverage for <see cref="Database"/>. The per-case assertions in
+/// <see cref="DatabaseTests"/> pin the merge rules; this captures the whole merged
+/// <c>Database</c> graph for several providers at once, so table grouping, ordering, and
 /// carried-through detail all show up as a single reviewable diff.
 /// </summary>
-public sealed class DatabaseSchemaSnapshotTests
+public sealed class DatabaseSnapshotTests
 {
     [Fact]
     public Task Aggregate_MultipleProviders_MergesIntoSingleGraph()
     {
         // Two providers contribute to "app" (tables and views merged); a third owns "reporting" on its own.
-        var core = new DatabaseSchema(
+        var core = new Database(
         [
-            new SchemaDefinition(new SqlIdentifier("app"), Comment: "application schema",
+            new Schema(new SqlIdentifier("app"), Comment: "application schema",
                 Tables:
                 [
                     new Table(new SqlIdentifier("users"),
@@ -35,9 +35,9 @@ public sealed class DatabaseSchemaSnapshotTests
                 ]),
         ]);
 
-        var billing = new DatabaseSchema(
+        var billing = new Database(
         [
-            new SchemaDefinition(new SqlIdentifier("app"),
+            new Schema(new SqlIdentifier("app"),
                 Tables:
                 [
                     new Table(new SqlIdentifier("invoices"),
@@ -50,9 +50,9 @@ public sealed class DatabaseSchemaSnapshotTests
                 ]),
         ]);
 
-        var reporting = new DatabaseSchema(
+        var reporting = new Database(
         [
-            new SchemaDefinition(new SqlIdentifier("reporting"), Comment: "analytics",
+            new Schema(new SqlIdentifier("reporting"), Comment: "analytics",
                 Tables: [new Table(new SqlIdentifier("daily_totals"), Columns: [new Column(new SqlIdentifier("day"), SqlType.Date)])],
                 Views:
                 [
@@ -61,6 +61,6 @@ public sealed class DatabaseSchemaSnapshotTests
                 ]),
         ]);
 
-        return Verify(SchemaAggregator.Combine(SchemaAggregator.Combine(core, billing).Require(), reporting).Require());
+        return Verify(DatabaseAggregator.Combine(DatabaseAggregator.Combine(core, billing).Require(), reporting).Require());
     }
 }

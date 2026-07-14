@@ -5,7 +5,7 @@ using NSchema.Project.Domain.Models.Views;
 
 namespace NSchema.Tests.Diff;
 
-public partial class SchemaComparerTests
+public partial class DatabaseComparerTests
 {
     // -------------------------------------------------------------------------
     // Views
@@ -61,7 +61,8 @@ public partial class SchemaComparerTests
     {
         var diff = DiffViews(
             [View("legacy", "SELECT * FROM app.users")],
-            [View("active", "SELECT * FROM app.users", oldName: new SqlIdentifier("legacy"))]);
+            [View("active", "SELECT * FROM app.users")],
+            new ProjectDirectives(Views: new NSchema.Project.Domain.Models.Views.ViewDirectives(Renames: [new ObjectRename(App("legacy"), new SqlIdentifier("active"))])));
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.RenamedFrom.ShouldBe("legacy");
@@ -110,9 +111,10 @@ public partial class SchemaComparerTests
     public void Compare_PartialSchema_LeavesUnmanagedViewAlone()
     {
         // The view exists in the database but isn't declared; a partial schema must not drop it.
-        var diff = _sut.Compare(
-            Db(new SchemaDefinition(new SqlIdentifier("app"), Views: [View("active", "SELECT * FROM app.users")])),
-            Db(new SchemaDefinition(new SqlIdentifier("app"), IsPartial: true)));
+        var diff = Compare(
+            Db(new Schema(new SqlIdentifier("app"), Views: [View("active", "SELECT * FROM app.users")])),
+            Db(new Schema(new SqlIdentifier("app"))),
+            PartialApp());
 
         diff.Schemas.ShouldBeEmpty();
     }

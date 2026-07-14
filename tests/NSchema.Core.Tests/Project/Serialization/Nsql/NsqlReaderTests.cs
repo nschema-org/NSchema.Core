@@ -1,7 +1,7 @@
 using NSchema.Project.Nsql;
 using NSchema.Project.Nsql.Syntax.Schemas;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 /// <summary>
 /// The file-aware read seam's contract: results are typed <see cref="NsqlDiagnostic"/>s carrying position

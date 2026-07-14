@@ -2,13 +2,13 @@ using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 public sealed class NsqlParserTableTests
 {
     private static Table ParseTable(string body, string qualifiedName = "app.users")
     {
-        var schema = new TestNsqlParser($"CREATE TABLE {qualifiedName} ({body});").Parse().Schema.Schemas.Single();
+        var schema = new TestNsqlParser($"CREATE TABLE {qualifiedName} ({body});").Parse().Database.Schemas.Single();
         return schema.Tables.Single();
     }
 
@@ -78,16 +78,8 @@ public sealed class NsqlParserTableTests
         => Column("score int DEFAULT coalesce(a, b)").DefaultExpression.ShouldBe("coalesce(a, b)");
 
     [Fact]
-    public void Column_DefaultThenRenamedFrom_StopsDefaultAtKeyword()
-    {
-        var column = Column("flag int DEFAULT 0 RENAMED FROM legacy_flag");
-        column.DefaultExpression.ShouldBe("0");
-        column.OldName.ShouldBe("legacy_flag");
-    }
-
-    [Fact]
-    public void Column_DefaultContainingRenamedAsIdentifierPrefix_DoesNotStop()
-        // 'RENAMED' only terminates the default at a word boundary; embedded in an identifier it is just text.
+    public void Column_DefaultContainingRenamed_IsJustExpressionText()
+        // RENAMED FROM is no longer a clause, so nothing terminates a default early; it reads to the comma.
         => Column("at int DEFAULT renamed_at").DefaultExpression.ShouldBe("renamed_at");
 
     [Fact]
@@ -214,7 +206,7 @@ public sealed class NsqlParserTableTests
             """
             CREATE TABLE app.users (id int);
             GRANT SELECT, INSERT ON app.users TO readers;
-            """).Parse().Schema.Schemas.Single();
+            """).Parse().Database.Schemas.Single();
         var grant = schema.Tables.Single().Grants.Single();
         grant.Role.ShouldBe("readers");
         grant.Privileges.ShouldBe(TablePrivilege.Select | TablePrivilege.Insert);
@@ -228,14 +220,14 @@ public sealed class NsqlParserTableTests
             """
             GRANT SELECT ON app.users TO readers;
             CREATE TABLE app.users (id int);
-            """).Parse().Schema.Schemas.Single();
+            """).Parse().Database.Schemas.Single();
         schema.Tables.Single().Grants.Single().Privileges.ShouldBe(TablePrivilege.Select);
     }
 
     [Fact]
     public void Grant_SchemaUsage_AttachesToSchema()
     {
-        var schema = new TestNsqlParser("CREATE SCHEMA app; GRANT USAGE ON SCHEMA app TO app_role;").Parse().Schema.Schemas.Single();
+        var schema = new TestNsqlParser("CREATE SCHEMA app; GRANT USAGE ON SCHEMA app TO app_role;").Parse().Database.Schemas.Single();
         schema.Grants.Single().Role.ShouldBe("app_role");
     }
 
@@ -246,7 +238,7 @@ public sealed class NsqlParserTableTests
 
     [Fact]
     public void Grant_UnknownPrivilege_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => new TestNsqlParser("CREATE TABLE app.t (id int); GRANT TRUNCATE ON app.t TO r;").Parse().Schema)
+        => Should.Throw<NsqlSyntaxException>(() => new TestNsqlParser("CREATE TABLE app.t (id int); GRANT TRUNCATE ON app.t TO r;").Parse().Database)
             .Message.ShouldContain("privilege");
 
     // -------------------------------------------------------------------------
@@ -259,11 +251,11 @@ public sealed class NsqlParserTableTests
         var table = new TestNsqlParser(
             """
             --- Line items for an order.
-            CREATE TABLE shop.order_items RENAMED FROM line_items (
+            CREATE TABLE shop.order_items (
               order_id    int           NOT NULL,
               product_id  int           NOT NULL,
               quantity    int           NOT NULL DEFAULT 1,
-              note        text          RENAMED FROM comment,
+              note        text,
 
               CONSTRAINT order_items_pkey PRIMARY KEY (order_id, product_id),
               CONSTRAINT fk_order FOREIGN KEY (order_id) REFERENCES shop.orders (id) ON DELETE CASCADE,
@@ -272,14 +264,12 @@ public sealed class NsqlParserTableTests
               INDEX ix_product (product_id),
               UNIQUE INDEX ux_note (note) WHERE (note IS NOT NULL)
             );
-            """).Parse().Schema.Schemas.Single().Tables.Single();
+            """).Parse().Database.Schemas.Single().Tables.Single();
 
         table.Name.ShouldBe("order_items");
-        table.OldName.ShouldBe("line_items");
         table.Comment.ShouldBe("Line items for an order.");
         table.Columns.Select(c => c.Name).ShouldBe(["order_id", "product_id", "quantity", "note"]);
         table.Columns.Single(c => c.Name.Value.Equals("quantity")).DefaultExpression.ShouldBe("1");
-        table.Columns.Single(c => c.Name.Value.Equals("note")).OldName.ShouldBe("comment");
         table.PrimaryKey!.ColumnNames.ShouldBe(["order_id", "product_id"]);
         table.ForeignKeys.Single().ReferencedTable.ShouldBe("orders");
         table.CheckConstraints.Single().Expression.ShouldBe("quantity > 0");

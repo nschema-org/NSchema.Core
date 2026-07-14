@@ -1,9 +1,9 @@
-using NSchema.Current;
-using NSchema.Current.Backends;
-using NSchema.Current.Locks;
-using NSchema.Current.Locks.Backends;
-using NSchema.Current.Storage;
-using NSchema.Current.Storage.Backends;
+using NSchema.Deployment;
+using NSchema.Deployment.Backends;
+using NSchema.State.Locks;
+using NSchema.State.Locks.Backends;
+using NSchema.State;
+using NSchema.State.Backends;
 using NSchema.Diff.Domain.Models;
 using NSchema.Operations;
 using NSchema.Plan.Backends;
@@ -39,7 +39,7 @@ public sealed class PublicInterfaceClassificationTests
         BackendSpi,
 
         /// <summary>
-        /// DomainDefinition extension point validated during planning.
+        /// DomainType extension point validated during planning.
         /// </summary>
         PolicySeam,
 
@@ -58,16 +58,16 @@ public sealed class PublicInterfaceClassificationTests
     {
         // Application seams — the consumer surface on NSchemaApplication.
         [typeof(INSchemaOperations)] = InterfaceRole.ApplicationSeam,
-        [typeof(ICurrentSchemaProvider)] = InterfaceRole.ApplicationSeam,
+        [typeof(IDatabaseProvider)] = InterfaceRole.ApplicationSeam,
         [typeof(IProjectProvider)] = InterfaceRole.ApplicationSeam,
         [typeof(IPlanFileManager)] = InterfaceRole.ApplicationSeam,
         [typeof(IStateLockManager)] = InterfaceRole.ApplicationSeam,
-        [typeof(ISchemaStateManager)] = InterfaceRole.ApplicationSeam,
+        [typeof(IDatabaseStateManager)] = InterfaceRole.ApplicationSeam,
 
         // Backend SPIs — implemented by provider/backend packages.
-        [typeof(ISchemaIntrospector)] = InterfaceRole.BackendSpi,
+        [typeof(IDatabaseIntrospector)] = InterfaceRole.BackendSpi,
         [typeof(ISqlDialect)] = InterfaceRole.BackendSpi,
-        [typeof(ISchemaStateStore)] = InterfaceRole.BackendSpi,
+        [typeof(IDatabaseStateStore)] = InterfaceRole.BackendSpi,
         [typeof(IStateLock)] = InterfaceRole.BackendSpi,
         [typeof(INSchemaPlugin)] = InterfaceRole.BackendSpi,
         [typeof(INSchemaProviderPlugin)] = InterfaceRole.BackendSpi,
@@ -79,7 +79,6 @@ public sealed class PublicInterfaceClassificationTests
 
         // Model contracts — shapes on the domain models.
         [typeof(INamedObject)] = InterfaceRole.ModelContract,
-        [typeof(IRenameableObject)] = InterfaceRole.ModelContract,
         [typeof(INamedObjectDiff)] = InterfaceRole.ModelContract,
         [typeof(ISchemaObjectDiff)] = InterfaceRole.ModelContract,
 

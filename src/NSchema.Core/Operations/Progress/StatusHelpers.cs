@@ -10,8 +10,8 @@ internal static class StatusHelpers
     /// <summary>
     /// A one-line census of a schema's top-level shape, e.g. "2 schemas, 7 tables".
     /// </summary>
-    public static string Describe(DatabaseSchema schema) =>
-        $"{Count(schema.Schemas.Count, "schema")}, {Count(schema.Schemas.Sum(s => s.Tables.Count), "table")}";
+    public static string Describe(Database database) =>
+        $"{Count(database.Schemas.Count, "schema")}, {Count(database.Schemas.Sum(s => s.Tables.Count), "table")}";
 
     /// <summary>
     /// Formats a count with a singular/plural noun, e.g. "1 table" / "3 tables".

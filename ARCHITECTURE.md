@@ -9,14 +9,19 @@ the position rules below are enforced by the architecture tests.
 Every top-level namespace is one of exactly five things. Nothing names a technology, a layer, or a grab-bag (`Schema`, `Sql`, `Configuration`,
 `Policies`, `Helpers`, and `Diagnostics` all dissolve in 5.0).
 
-1. **Sources** — `Project` (the declared desired state; "desired" needs no qualifier — the project *is* what you want) and `Current` (what actually
-   exists: observed live, or recorded). The two inputs the pipeline diffs; neither references the other. **Each source owns its persistence**:
-   the Project's persistence format is DDL files (read via `.Ddl`), and Current's is the state store (`.Storage`, guarded by `.Locks`). Recorded
-   state is two things with different natures: the schema capture is a rebuildable cache of current reality, but the run-once ledger is
-   identity-bearing history — losing it re-runs scripts against data they already mutated. That is why planning and applying require a state
-   store (a disposable database opts out explicitly with ephemeral state) and why replacing an unreadable payload demands force.
+1. **Sources** — the inputs the pipeline diffs. `Project` (the declared desired state; "desired" needs no qualifier — the project *is* what you
+   want, read from DDL files via `.Nsql`); `Deployment` (the live database, read through an introspector — the running instance you are managing);
+   and `State` (what was recorded about the deployment: the captured schema, the run-once ledger, and the locks that guard them). Each names a
+   noun, not a temporal stance — the old `Current` contrasted against a "desired" that is now just `Project`, so it was retired. `Deployment` and
+   `State` are the current side split in two: reading the live database and persisting our record of it are different jobs that were only bundled
+   while one provider fronted both. The sources never reference each other or the stages. Recorded state is two things with different natures: the
+   schema capture is a rebuildable cache of current reality, but the run-once ledger is identity-bearing history — losing it re-runs scripts against
+   data they already mutated. That is why planning and applying require a state store (a disposable database opts out explicitly with ephemeral
+   state) and why replacing an unreadable payload demands force.
 2. **Pipeline stages** — `Diff` → `Plan` → `Apply`: diff the sources, plan the difference, execute the plan. Dependencies point strictly backward
-   along this chain, and stages may reference the sources' vocabulary but never the reverse (enforced by the dependency-direction tests).
+   along this chain, and stages may reference the sources' vocabulary but never the reverse (enforced by the dependency-direction tests). `Apply` is
+   the one *effectful* stage — it writes to the `Deployment` — and stays a stage rather than folding into `Deployment` because it consumes the plan
+   (downstream of `Plan`) while the sources feed `Diff` (upstream): merging them would cycle the DAG through the ledger vocabulary `Diff` reads.
 3. **Supporting capabilities** — `Plugins` (the contract between plugin authors and hosts).
 4. **Orchestration** — `Operations`. Anything that composes *across* capabilities is by definition orchestration and lives here.
 5. **The root grammar** — the bare `NSchema` namespace: the composition entry points (`NSchemaApplication`, `NSchemaApplicationBuilder`, options) and
@@ -37,10 +42,10 @@ A feature is a set of capabilities. A public type's namespace position is its cl
 
 Conventions that ride along:
 
-- **A model lives with what it describes, not who produces it.** `DatabaseSchema` is the output of parsing on one path and introspection on the
+- **A model lives with what it describes, not who produces it.** `Database` is the output of parsing on one path and introspection on the
   other; `ScriptRecord` is stamped by an apply — all live with their meaning, so locations stay meaning-stable.
-- **Consumer facades are `I{X}Manager`** when they front mutation (`ISchemaStateManager`, `IStateLockManager`); read-only sources keep `Provider`.
-  Backends are named for what they concretely are (`ISchemaStateStore`, `IStateLock`, `ISqlDialect`, `ISchemaIntrospector`).
+- **Consumer facades are `I{X}Manager`** when they front mutation (`IDatabaseStateManager`, `IStateLockManager`); read-only sources keep `Provider`.
+  Backends are named for what they concretely are (`IDatabaseStateStore`, `IStateLock`, `ISqlDialect`, `IDatabaseIntrospector`).
 - **No layer words** in namespaces (`Services`, `Helpers`, `Utils`, `Common`) and no grab-bag folders. A namespace names a capability or a position,
   never a layer.
 - **Data shapes separate from the functional surface, fractally.** Within any capability namespace, model/data-shaped types sit in a `Models`
@@ -71,7 +76,7 @@ namespace-reference rules:
 
 1. **Source vocabulary** — each source contributes a vocabulary the stages may read, and the diff stage consumes both by definition (it diffs the
    sources): `Project.Domain.Models` is the subject language (the schema tree; the script declarations and events; the management directives),
-   `Current.Domain.Models` is the observation language (`SchemaState` and its ledger entries, `ScriptRecord`). Closed: nothing else is promoted
+   `State.Domain.Models` is the observation language (`DatabaseState` and its ledger entries, `ScriptExecution`). Closed: nothing else is promoted
    into this tier, and the sources never reference the stages or each other.
    **Statements declare; directives steer.** The schema tree is pure observation vocabulary — introspection can produce every field on it, so it
    carries no `OldName`, no `IsPartial`, no `Dropped*`. Management intent lives on `ProjectDirectives`: per-kind slice records in their subject
@@ -95,23 +100,22 @@ NSchema                     app, builder, options · Result / Result<T> / Result
 ├─ Project                  IProjectProvider (app.Project), Project, ProjectResult — the declared
 │  │                        desired state; seam + messages at the root · no .Backends: DDL files
 │  │                        are the only input
-│  ├─ .Domain.Models        the project vocabulary: the DatabaseSchema tree (per-kind
+│  ├─ .Domain.Models        the project vocabulary: the Database tree (per-kind
 │  │                        sub-namespaces) · the Script declarations and events
 │  ├─ .Domain               projection: aggregation + template expansion + scope filtering
 │  ├─ .Ddl                  DdlReader/DdlWriter/DdlFormatter · the full syntax tree (AST) incl.
 │  │                        templates and config blocks · SourcePosition, DdlDiagnostic
 │  └─ .Policies             IProjectPolicy + built-ins (validate the declared project)
-├─ Current                  ICurrentSchemaProvider (app.CurrentSchema), SchemaSourceMode — what
-│  │                        actually exists; reads the live database or falls back to the
-│  │                        recorded snapshot in its own .Storage
-│  ├─ .Backends             ISchemaIntrospector (the provider SPI)
-│  ├─ .Storage              ISchemaStateManager (app.State) + argument/result records — the
-│  │  │                     recorded snapshot + run-once ledger
-│  │  └─ .Backends          ISchemaStateStore, serializer, file store
+├─ Deployment               IDatabaseProvider (app.Database) — the live database, read through an
+│  │                        introspector; GetLive only, the recorded read is a plain State read
+│  └─ .Backends             IDatabaseIntrospector (the provider SPI)
+├─ State                    IDatabaseStateManager (app.State) + argument/result records — the
+│  │                        recorded snapshot + run-once ledger
+│  ├─ .Backends             IDatabaseStateStore, serializer, file store
 │  ├─ .Locks                IStateLockManager (app.Locks), request/info/handle, lock exceptions —
 │  │  │                     guards the shared record against concurrent runs
 │  │  └─ .Backends          IStateLock, FileStateLock
-│  └─ .Domain.Models        SchemaState + ScriptRecord (its ledger entries; the envelope stays
+│  └─ .Domain.Models        DatabaseState + ScriptExecution (its ledger entries; the envelope stays
 │                           internal)
 ├─ Diff
 │  ├─ .Reader               DiffReader + DiffDocument/DiffLine — the presentation read model (Plan.PlanFile analogue)
@@ -172,9 +176,9 @@ NSchema                     app, builder, options · Result / Result<T> / Result
   Pointing at a node *from outside the tree* takes an **address**: `ObjectReference` (schema + name, both required — an address that isn't fully
   qualified identifies nothing; component-wise identifier equality, never a dotted string smuggled through `SqlIdentifier`), `ScriptReference`
   (scope schema + name — the one address whose container is *genuinely optional by domain*: a null schema means the script is global, living at the
-  project root, not that resolution is deferred), and `MemberPath` (schema + object + member — a column rename's subject). An address is distinct from a **reference as written** (`RoutineReference`, optionally qualified —
+  project root, not that resolution is deferred), and `MemberReference` (schema + object + member — a column rename's subject). An address is distinct from a **reference as written** (`RoutineReference`, optionally qualified —
   an unqualified routine reference is resolved by the engine's search path, so it stays as declared; resolving one sets its schema part, never
   concatenates text). Renames, change-event script matching, and targeting
-  all consume addresses. Address *resolution* (address → node) is a domain service over the pure tree (`SchemaIndex`, when its first consumer
+  all consume addresses. Address *resolution* (address → node) is a domain service over the pure tree (`AddressLookup`, when its first consumer
   arrives), and *walking* is the per-kind handler orchestrator — the tree stays the stored truth because it is the language's truth; flatness lives
   at the seams that want it (index keys, the linearizer's output).

@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using NSchema.Current.Locks.Backends;
-using NSchema.Current.Storage.Backends;
+using NSchema.State.Locks.Backends;
+using NSchema.State.Backends;
 
 namespace NSchema;
 
@@ -14,14 +14,14 @@ public partial class NSchemaApplicationBuilder
     private bool _explicitStateLock;
 
     /// <summary>
-    /// Registers the <see cref="ISchemaStateStore"/> used to persist and read schema snapshots.
+    /// Registers the <see cref="IDatabaseStateStore"/> used to persist and read schema snapshots.
     /// When the store type also implements <see cref="IStateLock"/>, it will be registered as the lock too.
     /// </summary>
     /// <typeparam name="T">The state store implementation to register.</typeparam>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder UseStateStore<T>() where T : class, ISchemaStateStore
+    public NSchemaApplicationBuilder UseStateStore<T>() where T : class, IDatabaseStateStore
     {
-        Services.Replace(ServiceDescriptor.Singleton<ISchemaStateStore, T>());
+        Services.Replace(ServiceDescriptor.Singleton<IDatabaseStateStore, T>());
 
         if (!_explicitStateLock)
         {
@@ -29,7 +29,7 @@ public partial class NSchemaApplicationBuilder
             // Otherwise there is no lock, and operations run unlocked rather than against a placeholder.
             if (typeof(T).IsAssignableTo(typeof(IStateLock)))
             {
-                Services.Replace(ServiceDescriptor.Singleton<IStateLock>(sp => (IStateLock)sp.GetRequiredService<ISchemaStateStore>()));
+                Services.Replace(ServiceDescriptor.Singleton<IStateLock>(sp => (IStateLock)sp.GetRequiredService<IDatabaseStateStore>()));
             }
             else
             {
@@ -41,12 +41,12 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
-    /// Registers an <see cref="ISchemaStateStore"/> instance used to persist and read schema snapshots.
+    /// Registers an <see cref="IDatabaseStateStore"/> instance used to persist and read schema snapshots.
     /// When the instance also implements <see cref="IStateLock"/>, it is registered as the lock too.
     /// </summary>
     /// <param name="store">The state store instance.</param>
     /// <returns>The application builder, for chaining.</returns>
-    public NSchemaApplicationBuilder UseStateStore(ISchemaStateStore store)
+    public NSchemaApplicationBuilder UseStateStore(IDatabaseStateStore store)
     {
         Services.Replace(ServiceDescriptor.Singleton(store));
 
@@ -66,14 +66,14 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
-    /// Registers a <see cref="FileSchemaStateStore"/> that persists schema snapshots to a local file, and a matching <see cref="FileStateLock"/> at <c>&lt;path&gt;.lock</c>.
+    /// Registers a <see cref="FileDatabaseStateStore"/> that persists schema snapshots to a local file, and a matching <see cref="FileStateLock"/> at <c>&lt;path&gt;.lock</c>.
     /// </summary>
     /// <param name="path">The absolute or relative path of the state file.</param>
     /// <returns>The application builder, for chaining.</returns>
     public NSchemaApplicationBuilder UseFileStateStore(string path)
     {
-        Services.Configure<FileSchemaStateStoreOptions>(o => o.Path = path);
-        Services.Replace(ServiceDescriptor.Singleton<ISchemaStateStore, FileSchemaStateStore>());
+        Services.Configure<FileDatabaseStateStoreOptions>(o => o.Path = path);
+        Services.Replace(ServiceDescriptor.Singleton<IDatabaseStateStore, FileDatabaseStateStore>());
 
         if (!_explicitStateLock)
         {

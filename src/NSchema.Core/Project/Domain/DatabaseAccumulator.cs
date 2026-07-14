@@ -15,10 +15,10 @@ using NSchema.Project.Nsql;
 namespace NSchema.Project.Domain;
 
 /// <summary>
-/// Accumulates parsed statements into a <see cref="DatabaseSchema"/>. Schema entries are vivified on demand so
+/// Accumulates parsed statements into a <see cref="Database"/>. Schema entries are vivified on demand so
 /// a <c>DROP TABLE app.x</c> can record the drop even when <c>app</c> was never explicitly declared.
 /// </summary>
-internal sealed class SchemaAccumulator
+internal sealed class DatabaseAccumulator
 {
     private readonly List<Entry> _entries = [];
     private readonly Dictionary<SqlIdentifier, Entry> _byName = new();
@@ -109,12 +109,12 @@ internal sealed class SchemaAccumulator
         entry.Sequences.Add(sequence);
     }
 
-    public void AddDomain(SqlIdentifier schema, DomainDefinition domain, SourcePosition position)
+    public void AddDomain(SqlIdentifier schema, DomainType domain, SourcePosition position)
     {
         var entry = GetOrAdd(schema);
         if (entry.Domains.Any(d => d.Name == domain.Name))
         {
-            AddError($"DomainDefinition '{schema}.{domain.Name}' is already declared.", position);
+            AddError($"DomainType '{schema}.{domain.Name}' is already declared.", position);
             return;
         }
 
@@ -182,25 +182,16 @@ internal sealed class SchemaAccumulator
         _extensions.Add(extension);
     }
 
-
-
-
-
-
-
-
-
-
-    public DatabaseSchema Build()
+    public Database Build()
     {
         ApplyTableGrants();
         ApplyTriggers();
         ApplyIndexes();
         var schemas = _entries
-            .Select(e => new SchemaDefinition(e.Name, e.Comment, e.Tables, e.Grants, e.Views,
+            .Select(e => new Schema(e.Name, e.Comment, e.Tables, e.Grants, e.Views,
                 e.Enums, e.Sequences, e.Routines, e.Domains, e.CompositeTypes))
             .ToList();
-        return new DatabaseSchema(schemas, _extensions);
+        return new Database(schemas, _extensions);
     }
 
     private void ApplyTableGrants()
@@ -327,7 +318,7 @@ internal sealed class SchemaAccumulator
         public List<EnumType> Enums { get; } = [];
         public List<Sequence> Sequences { get; } = [];
         public List<Routine> Routines { get; } = [];
-        public List<DomainDefinition> Domains { get; } = [];
+        public List<DomainType> Domains { get; } = [];
         public List<CompositeType> CompositeTypes { get; } = [];
     }
 

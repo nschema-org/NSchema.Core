@@ -27,12 +27,12 @@ public sealed class PlanLinearizerDomainTests
 
     [Fact]
     public void AddedDomain_EmitsCreateDomain()
-        => Linearize(new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("d"), ChangeKind.Add, Definition: new DomainDefinition(new SqlIdentifier("d"), SqlType.Text)))
-            .ShouldHaveSingleItem().ShouldBeOfType<CreateDomain>().DomainDefinition.Name.ShouldBe("d");
+        => Linearize(new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("d"), ChangeKind.Add, Definition: new DomainType(new SqlIdentifier("d"), SqlType.Text)))
+            .ShouldHaveSingleItem().ShouldBeOfType<CreateDomain>().DomainType.Name.ShouldBe("d");
 
     [Fact]
     public void BaseTypeChange_EmitsRecreateDomain()
-        => Linearize(new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("d"), ChangeKind.Modify, Definition: new DomainDefinition(new SqlIdentifier("d"), SqlType.Int),
+        => Linearize(new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("d"), ChangeKind.Modify, Definition: new DomainType(new SqlIdentifier("d"), SqlType.Int),
                 DataType: new ValueChange<SqlType>(SqlType.Text, SqlType.Int)))
             .ShouldHaveSingleItem().ShouldBeOfType<RecreateDomain>();
 
@@ -67,7 +67,7 @@ public sealed class PlanLinearizerDomainTests
         // A column may use the domain as its type, so the domain must be created first.
         var plan = _linearizer.Linearize(new DatabaseDiff([new SchemaDiff(new SqlIdentifier("app"), ChangeKind.Add,
             Tables: [new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("t"), ChangeKind.Add, Definition: new Table(new SqlIdentifier("t")))],
-            Domains: [new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("d"), ChangeKind.Add, Definition: new DomainDefinition(new SqlIdentifier("d"), SqlType.Text))])]));
+            Domains: [new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("d"), ChangeKind.Add, Definition: new DomainType(new SqlIdentifier("d"), SqlType.Text))])]));
 
         var createDomain = plan.Select((a, i) => (a, i)).Single(x => x.a is CreateDomain).i;
         var createTable = plan.Select((a, i) => (a, i)).Single(x => x.a is CreateTable).i;

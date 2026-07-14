@@ -5,9 +5,9 @@ using Microsoft.Extensions.Diagnostics.Metrics;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NSchema.Apply;
-using NSchema.Current;
-using NSchema.Current.Locks;
-using NSchema.Current.Storage;
+using NSchema.Deployment;
+using NSchema.State.Locks;
+using NSchema.State;
 using NSchema.Diff.Domain;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
@@ -49,7 +49,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         _innerBuilder.Services.AddOptions<DataHazardOptions>();
 
         // Policies registered up front so users can remove them before Build().
-        AddProjectPolicy<StructuralIntegritySchemaPolicy>();
+        AddProjectPolicy<StructuralIntegrityPolicy>();
         AddProjectPolicy<SchemaLintPolicy>();
         AddPlanPolicy<DestructiveActionPolicy>();
         AddPlanPolicy<DataHazardPolicy>();
@@ -94,7 +94,7 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
     private static void ApplyServices(IServiceCollection services)
     {
         // Diffing
-        services.TryAddSingleton<ISchemaComparer, SchemaComparer>();
+        services.TryAddSingleton<IDatabaseComparer, DatabaseComparer>();
         services.TryAddSingleton<IProjectComparer, ProjectComparer>();
 
         // Operations
@@ -115,15 +115,15 @@ public partial class NSchemaApplicationBuilder : IHostApplicationBuilder
         services.TryAddSingleton<IPlanFileManager, PlanFileManager>();
 
         // Schemas
-        services.TryAddSingleton<ICurrentSchemaProvider, CurrentSchemaProvider>();
+        services.TryAddSingleton<IDatabaseProvider, DatabaseProvider>();
         services.TryAddSingleton<IProjectProvider, ProjectProvider>();
 
         // SQL
         services.TryAddSingleton<ISqlExecutor, SqlExecutor>();
 
         // State
-        services.TryAddSingleton<ISchemaStateSerializer, SchemaStateSerializer>();
-        services.TryAddSingleton<ISchemaStateManager, SchemaStateManager>();
+        services.TryAddSingleton<IDatabaseStateSerializer, DatabaseStateSerializer>();
+        services.TryAddSingleton<IDatabaseStateManager, DatabaseStateManager>();
         services.TryAddSingleton<IStateLockManager, StateLockManager>();
     }
 }

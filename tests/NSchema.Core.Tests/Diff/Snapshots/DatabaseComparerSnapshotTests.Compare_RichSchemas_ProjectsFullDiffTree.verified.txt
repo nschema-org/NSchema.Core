@@ -39,8 +39,7 @@
                 Name: email_address,
                 Type: text,
                 IsNullable: false,
-                IsIdentity: false,
-                OldName: email
+                IsIdentity: false
               },
               RenamedFrom: email,
               Type: {

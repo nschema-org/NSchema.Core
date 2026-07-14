@@ -1,7 +1,7 @@
 using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 /// <summary>
 /// Covers the change-event side of the SCRIPT statement — the data-migration declarations

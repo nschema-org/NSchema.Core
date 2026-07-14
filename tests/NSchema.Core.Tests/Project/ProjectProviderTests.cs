@@ -5,7 +5,7 @@ using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema;
+namespace NSchema.Tests.Project;
 
 public sealed class ProjectProviderTests : IDisposable
 {
@@ -61,7 +61,7 @@ public sealed class ProjectProviderTests : IDisposable
         error.Source.ShouldBe("syntax");
         error.File.ShouldBe(Path.Combine(_root, "bad.sql"));
         error.Position.Line.ShouldBe(1);
-        project.Value!.Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
+        project.Value!.Database.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class ProjectProviderTests : IDisposable
 
         var project = (await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
 
-        project.Schema.Schemas.Select(s => s.Name).ShouldBe(["a", "b"], ignoreOrder: true);
+        project.Database.Schemas.Select(s => s.Name).ShouldBe(["a", "b"], ignoreOrder: true);
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public sealed class ProjectProviderTests : IDisposable
 
         var project = (await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
 
-        project.Schema.Schemas.Select(s => s.Name).ShouldBe(["app", "audit"], ignoreOrder: true);
+        project.Database.Schemas.Select(s => s.Name).ShouldBe(["app", "audit"], ignoreOrder: true);
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public sealed class ProjectProviderTests : IDisposable
 
         var project = (await sut.GetProject(SchemaScope.Of(new SqlIdentifier("app")), TestContext.Current.CancellationToken)).Value!;
 
-        project.Schema.Schemas.Select(s => s.Name).ShouldBe(["app"]);
+        project.Database.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
 
     [Fact]
@@ -202,8 +202,8 @@ public sealed class ProjectProviderTests : IDisposable
 
         var project = (await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
 
-        project.Schema.Schemas.Select(s => s.Name).ShouldBe(["billing", "ordering"], ignoreOrder: true);
-        project.Schema.Schemas.ShouldAllBe(s => s.Tables.Count == 1);
+        project.Database.Schemas.Select(s => s.Name).ShouldBe(["billing", "ordering"], ignoreOrder: true);
+        project.Database.Schemas.ShouldAllBe(s => s.Tables.Count == 1);
     }
 
     [Fact]
@@ -225,7 +225,7 @@ public sealed class ProjectProviderTests : IDisposable
 
         var project = (await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
 
-        var table = project.Schema.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem();
+        var table = project.Database.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem();
         table.Columns.Select(c => c.Name).ShouldBe(["id", "created_at"]);
     }
 
@@ -244,7 +244,7 @@ public sealed class ProjectProviderTests : IDisposable
 
         var project = (await sut.GetProject(SchemaScope.Of(new SqlIdentifier("billing")), TestContext.Current.CancellationToken)).Value!;
 
-        project.Schema.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Name.ShouldBe("outbox");
+        project.Database.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Name.ShouldBe("outbox");
     }
 
     [Fact]

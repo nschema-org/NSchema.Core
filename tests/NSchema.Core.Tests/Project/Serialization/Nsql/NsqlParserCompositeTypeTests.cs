@@ -2,7 +2,7 @@ using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.CompositeTypes;
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 /// <summary>
 /// Parser coverage for <c>CREATE TYPE s.t AS (field &lt;type&gt;, …)</c>.
@@ -10,7 +10,7 @@ namespace NSchema.Tests.Schema.Serialization.Nsql;
 public sealed class NsqlParserCompositeTypeTests
 {
     private static CompositeType ParseType(string sql) =>
-        new TestNsqlParser("CREATE SCHEMA app; " + sql).Parse().Schema
+        new TestNsqlParser("CREATE SCHEMA app; " + sql).Parse().Database
             .Schemas.ShouldHaveSingleItem().CompositeTypes.ShouldHaveSingleItem();
 
     [Fact]
@@ -39,17 +39,18 @@ public sealed class NsqlParserCompositeTypeTests
             .DataType.Name.ShouldBe("app.typeid");
 
     [Fact]
-    public void Parse_RenamedFrom_SetsOldName()
-        => ShouldlyIdentifierExtensions.ShouldBe(ParseType("CREATE TYPE app.address RENAMED FROM legacy_address AS (street text);").OldName, "legacy_address");
+    public void Parse_RenameType_BecomesADirective()
+        => Directives("CREATE SCHEMA app; CREATE TYPE app.address AS (street text); RENAME TYPE app.legacy_address TO address;")
+            .CompositeTypes.Renames.ShouldHaveSingleItem().To.ShouldBe(new NSchema.Project.Domain.Models.SqlIdentifier("address"));
 
     [Fact]
     public void Parse_WithDocComment_AttachesComment()
         => ParseType("--- a postal address\nCREATE TYPE app.address AS (street text);").Comment.ShouldBe("a postal address");
 
     [Fact]
-    public void Parse_DropType_RecordsDroppedCompositeType()
-        => ShouldlyIdentifierExtensions.ShouldBe(new TestNsqlParser("CREATE SCHEMA app; DROP TYPE app.address;").Parse().Schema
-                .Schemas.ShouldHaveSingleItem().DroppedCompositeTypes.ShouldHaveSingleItem(), "address");
+    public void Parse_DropType_BecomesADirective()
+        => ShouldlyIdentifierExtensions.ShouldBe(Directives("CREATE SCHEMA app; DROP TYPE app.address;")
+            .CompositeTypes.Drops.ShouldHaveSingleItem().Name, "address");
 
     [Fact]
     public void Parse_DuplicateType_FailsTheRead()
@@ -57,7 +58,14 @@ public sealed class NsqlParserCompositeTypeTests
             .Message.ShouldContain("already declared");
 
     [Fact]
-    public void Parse_PartialType_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => new TestNsqlParser("CREATE PARTIAL TYPE app.t AS (a int);").Parse())
-            .Message.ShouldContain("PARTIAL applies to SCHEMA");
+    public void Parse_PartialType_DoesNotParse()
+        => Should.Throw<NsqlSyntaxException>(() => new TestNsqlParser("PARTIAL TYPE app.t;").Parse())
+            .Message.ShouldContain("Expected 'SCHEMA'");
+
+    private static NSchema.Project.Domain.Models.ProjectDirectives Directives(string source)
+    {
+        var read = NSchema.Project.Nsql.NsqlReader.Read(source);
+        read.IsSuccess.ShouldBeTrue();
+        return NSchema.Project.ProjectAssembler.Assemble([read.Value]).Value!.Directives;
+    }
 }

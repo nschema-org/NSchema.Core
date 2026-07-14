@@ -7,25 +7,25 @@ CREATE EXTENSION postgis VERSION '3.4';
 CREATE EXTENSION 'uuid-ossp';
 
 --- application schema
-CREATE PARTIAL SCHEMA app RENAMED FROM legacy_app;
+CREATE SCHEMA app;
 GRANT USAGE ON SCHEMA app TO app_role;
 
 --- order lifecycle
 CREATE ENUM app.order_status ('pending', 'shipped', 'delivered');
 
-CREATE ENUM app.priority RENAMED FROM importance ('low', 'high');
+CREATE ENUM app.priority ('low', 'high');
 
 --- unique id as text
-CREATE DOMAIN app.typeid RENAMED FROM legacy_id AS text;
+CREATE DOMAIN app.typeid AS text;
 
 CREATE DOMAIN app.positive_amount AS decimal(18,2) NOT NULL CONSTRAINT positive_amount_chk CHECK (VALUE >= 0) DEFAULT 0;
 
 --- a postal address
-CREATE TYPE app.address RENAMED FROM legacy_address AS (street text, zip int);
+CREATE TYPE app.address AS (street text, zip int);
 
 CREATE TYPE app.money_amount AS (amount decimal(18,2), currency text);
 
-CREATE SEQUENCE app.invoice_id RENAMED FROM bill_id;
+CREATE SEQUENCE app.invoice_id;
 
 --- order numbers
 CREATE SEQUENCE app.order_id (AS bigint, START 100, INCREMENT 5, MINVALUE -10, MAXVALUE 999999, CACHE 10, CYCLE);
@@ -35,7 +35,7 @@ CREATE FUNCTION app.add_tax(amount numeric, rate numeric) RETURNS numeric LANGUA
   SELECT amount * (1 + rate);
 $$;
 
-CREATE FUNCTION app.normalize_code RENAMED FROM clean_code(code text DEFAULT 'N/A') RETURNS text LANGUAGE sql AS $body$ SELECT upper(code || ';suffix'); $body$;
+CREATE FUNCTION app.normalize_code(code text DEFAULT 'N/A') RETURNS text LANGUAGE sql AS $body$ SELECT upper(code || ';suffix'); $body$;
 
 --- archival job
 CREATE PROCEDURE app.archive_users() LANGUAGE sql AS $$
@@ -43,12 +43,12 @@ CREATE PROCEDURE app.archive_users() LANGUAGE sql AS $$
 $$;
 
 --- all users
-CREATE TABLE app.users RENAMED FROM members (
+CREATE TABLE app.users (
   id bigint NOT NULL IDENTITY (START 1, INCREMENT 1, MINVALUE 1),
   --- display name
   name varchar(255) NOT NULL,
   balance decimal(18,2) DEFAULT 0,
-  code char(8) NOT NULL RENAMED FROM short_code,
+  code char(8) NOT NULL,
   metadata jsonb,
   name_upper text GENERATED ALWAYS AS (upper(name)) STORED,
   --- surrogate key
@@ -81,20 +81,30 @@ $$;
 --- currently active users
 CREATE VIEW app.active_users AS SELECT id, name FROM app.users WHERE balance > 0;
 
-CREATE VIEW app.user_directory RENAMED FROM legacy_directory AS SELECT name FROM app.active_users;
+CREATE VIEW app.user_directory AS SELECT name FROM app.active_users;
 
 --- balances rollup
 CREATE MATERIALIZED VIEW app.daily_balances AS SELECT name, balance FROM app.users;
 --- by name
 CREATE UNIQUE INDEX daily_balances_name_ix ON app.daily_balances (name);
-DROP TABLE app.old_table;
-DROP VIEW app.stale_report;
-DROP ENUM app.stale_enum;
-DROP DOMAIN app.stale_domain;
-DROP TYPE app.stale_type;
-DROP SEQUENCE app.stale_seq;
-DROP ROUTINE app.stale_fn;
-DROP ROUTINE app.stale_proc;
+PARTIAL SCHEMA app;
+RENAME SCHEMA legacy_app TO app;
+RENAME TABLE legacy_app.members TO users;
+RENAME COLUMN legacy_app.members.short_code TO code;
+RENAME VIEW legacy_app.legacy_directory TO user_directory;
+RENAME ENUM legacy_app.importance TO priority;
+RENAME DOMAIN legacy_app.legacy_id TO typeid;
+RENAME TYPE legacy_app.legacy_address TO address;
+RENAME SEQUENCE legacy_app.bill_id TO invoice_id;
+RENAME ROUTINE legacy_app.clean_code TO normalize_code;
+DROP TABLE legacy_app.old_table;
+DROP VIEW legacy_app.stale_report;
+DROP ENUM legacy_app.stale_enum;
+DROP DOMAIN legacy_app.stale_domain;
+DROP TYPE legacy_app.stale_type;
+DROP SEQUENCE legacy_app.stale_seq;
+DROP ROUTINE legacy_app.stale_fn;
+DROP ROUTINE legacy_app.stale_proc;
 
 DROP SCHEMA scratch;
 

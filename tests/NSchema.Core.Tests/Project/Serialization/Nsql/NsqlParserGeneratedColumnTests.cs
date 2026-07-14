@@ -1,7 +1,7 @@
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 /// <summary>
 /// Parser coverage for stored generated columns: <c>GENERATED ALWAYS AS (expr) STORED</c>.
@@ -9,7 +9,7 @@ namespace NSchema.Tests.Schema.Serialization.Nsql;
 public sealed class NsqlParserGeneratedColumnTests
 {
     private static Column ParseColumn(string body) =>
-        new TestNsqlParser($"CREATE TABLE app.t ({body});").Parse().Schema
+        new TestNsqlParser($"CREATE TABLE app.t ({body});").Parse().Database
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Columns.ShouldHaveSingleItem();
 
     [Fact]
@@ -32,8 +32,8 @@ public sealed class NsqlParserGeneratedColumnTests
     [Fact]
     public void Parse_Generated_RoundTripsThroughWriter()
     {
-        var schema = new TestNsqlParser("CREATE TABLE app.t (w int, h int, area int GENERATED ALWAYS AS (w * h) STORED);").Parse().Schema;
-        var column = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Schema
+        var schema = new TestNsqlParser("CREATE TABLE app.t (w int, h int, area int GENERATED ALWAYS AS (w * h) STORED);").Parse().Database;
+        var column = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Database
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Columns.Last();
         ShouldlyIdentifierExtensions.ShouldBe(column.Name, "area");
         ShouldlyIdentifierExtensions.ShouldBe(column.GeneratedExpression, "w * h");

@@ -5,7 +5,7 @@ using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Tests.Diff;
 
-public partial class SchemaComparerTests
+public partial class DatabaseComparerTests
 {
     // -------------------------------------------------------------------------
     // Table grants

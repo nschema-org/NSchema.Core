@@ -1,6 +1,6 @@
 using NSchema.Project.Domain.Models.Columns;
 
-namespace NSchema.Tests.Schema.Model;
+namespace NSchema.Tests.Project.Model;
 
 public sealed class SqlTypeTests
 {

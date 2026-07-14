@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using NSchema.Diff.Domain;
+using NSchema.Diff.Domain.Models;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.CompositeTypes;
@@ -18,23 +19,23 @@ using NSchema.Project.Nsql;
 namespace NSchema.Tests.Diff;
 
 /// <summary>
-/// Snapshot coverage for <see cref="SchemaComparer"/>. Demonstrates Verify diffing a complex
+/// Snapshot coverage for <see cref="DatabaseComparer"/>. Demonstrates Verify diffing a complex
 /// object graph: the comparer's whole <c>MigrationDiff</c> tree is serialized and pinned, so a change
 /// to the projection (a new field, a reordering, a different <c>ChangeKind</c>) surfaces as a readable
-/// diff. The per-element assertions in <see cref="SchemaComparerTests"/> stay as the precise spec.
+/// diff. The per-element assertions in <see cref="DatabaseComparerTests"/> stay as the precise spec.
 /// </summary>
-public sealed class SchemaComparerSnapshotTests
+public sealed class DatabaseComparerSnapshotTests
 {
-    private readonly SchemaComparer _sut = new(NullLogger<SchemaComparer>.Instance);
+    private readonly DatabaseComparer _sut = new(NullLogger<DatabaseComparer>.Instance);
 
     [Fact]
     public Task Compare_RichSchemas_ProjectsFullDiffTree()
     {
         // Current: an "app" schema with a users table, three views, and a soon-to-be-dropped "scratch" schema that
         // carries its own table, view, enum and sequence (so its removal exercises the contained-object drops).
-        var current = new DatabaseSchema(
+        var current = new Database(
         [
-            new SchemaDefinition(new SqlIdentifier("app"),
+            new Schema(new SqlIdentifier("app"),
                 Tables:
                 [
                     new Table(new SqlIdentifier("users"),
@@ -71,15 +72,15 @@ public sealed class SchemaComparerSnapshotTests
                 ],
                 Domains:
                 [
-                    new DomainDefinition(new SqlIdentifier("code"), SqlType.Text),
-                    new DomainDefinition(new SqlIdentifier("stale_domain"), SqlType.Int),
+                    new DomainType(new SqlIdentifier("code"), SqlType.Text),
+                    new DomainType(new SqlIdentifier("stale_domain"), SqlType.Int),
                 ],
                 CompositeTypes:
                 [
                     new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text), new CompositeField(new SqlIdentifier("zip"), SqlType.Int), new CompositeField(new SqlIdentifier("old_field"), SqlType.Text)]),
                     new CompositeType(new SqlIdentifier("stale_type"), [new CompositeField(new SqlIdentifier("a"), SqlType.Int)]),
                 ]),
-            new SchemaDefinition(new SqlIdentifier("scratch"),
+            new Schema(new SqlIdentifier("scratch"),
                 Tables:
                 [
                     new Table(new SqlIdentifier("temp_data"),
@@ -101,9 +102,9 @@ public sealed class SchemaComparerSnapshotTests
         // constraint, a new check constraint, and a new "reporting" schema. Views: active_users' body changes
         // (a replace), legacy_report is renamed to report, old_summary is dropped, and user_emails is added
         // (reading another view, so it carries a dependency).
-        var desired = new DatabaseSchema(
+        var desired = new Database(
         [
-            new SchemaDefinition(new SqlIdentifier("app"),
+            new Schema(new SqlIdentifier("app"),
                 Tables:
                 [
                     new Table(new SqlIdentifier("users"),
@@ -111,7 +112,7 @@ public sealed class SchemaComparerSnapshotTests
                         Columns:
                         [
                             new Column(new SqlIdentifier("id"), SqlType.BigInt),
-                            new Column(new SqlIdentifier("email_address"), SqlType.Text, OldName: new SqlIdentifier("email")),
+                            new Column(new SqlIdentifier("email_address"), SqlType.Text),
                             new Column(new SqlIdentifier("email_upper"), SqlType.Text, IsNullable: true, GeneratedExpression: new SqlText("upper(email_address)")),
                         ],
                         UniqueConstraints: [new UniqueConstraint(new SqlIdentifier("users_email_uq"), [new SqlIdentifier("email_address")])],
@@ -126,14 +127,14 @@ public sealed class SchemaComparerSnapshotTests
                 Views:
                 [
                     View("active_users", "SELECT id, email_address FROM app.users WHERE active"),
-                    View("report", "SELECT * FROM app.users", oldName: new SqlIdentifier("legacy_report")),
+                    View("report", "SELECT * FROM app.users"),
                     View("user_emails", "SELECT email_address FROM app.active_users"),
                 ],
                 // Enums: a value appended, a rename, a drop, and an addition.
                 Enums:
                 [
                     new EnumType(new SqlIdentifier("order_status"), ["pending", "shipped", "delivered"]),
-                    new EnumType(new SqlIdentifier("priority"), ["low", "high"], OldName: new SqlIdentifier("importance")),
+                    new EnumType(new SqlIdentifier("priority"), ["low", "high"]),
                     new EnumType(new SqlIdentifier("severity"), ["info", "error"]),
                 ],
                 // Sequences: an options change, a drop, and an addition.
@@ -153,8 +154,8 @@ public sealed class SchemaComparerSnapshotTests
                 // Domains: code's base type changes (recreate), stale_domain is dropped, postal_code is added.
                 Domains:
                 [
-                    new DomainDefinition(new SqlIdentifier("code"), SqlType.VarChar(8)),
-                    new DomainDefinition(new SqlIdentifier("postal_code"), SqlType.Text, NotNull: true),
+                    new DomainType(new SqlIdentifier("code"), SqlType.VarChar(8)),
+                    new DomainType(new SqlIdentifier("postal_code"), SqlType.Text, NotNull: true),
                 ],
                 // Composite types: address retypes a field + adds one + drops one (all in place), stale_type
                 // is dropped, and coords is added.
@@ -163,7 +164,7 @@ public sealed class SchemaComparerSnapshotTests
                     new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.VarChar(120)), new CompositeField(new SqlIdentifier("zip"), SqlType.Int), new CompositeField(new SqlIdentifier("country"), SqlType.Text)]),
                     new CompositeType(new SqlIdentifier("coords"), [new CompositeField(new SqlIdentifier("lat"), SqlType.Decimal(9, 6)), new CompositeField(new SqlIdentifier("lng"), SqlType.Decimal(9, 6))]),
                 ]),
-            new SchemaDefinition(new SqlIdentifier("reporting"), Comment: "analytics"),
+            new Schema(new SqlIdentifier("reporting"), Comment: "analytics"),
         ],
         // Extensions: citext unchanged, postgis version bump, legacy_ext dropped, vector added.
         Extensions:
@@ -171,13 +172,25 @@ public sealed class SchemaComparerSnapshotTests
             new Extension(new SqlIdentifier("citext")),
             new Extension(new SqlIdentifier("postgis"), Version: "3.4"),
             new Extension(new SqlIdentifier("vector"), Comment: "embeddings"),
-        ],
-        DroppedExtensions: [new SqlIdentifier("legacy_ext")]);
+        ]);
 
-        return Verify(_sut.Compare(current, desired));
+        // The renames and drops the comment narrates arrive as directives, addressing current reality.
+        var directives = new ProjectDirectives(
+            Tables: new NSchema.Project.Domain.Models.Tables.TableDirectives(ColumnRenames:
+                [new MemberRename(new MemberReference(new SqlIdentifier("app"), new SqlIdentifier("users"), new SqlIdentifier("email")), new SqlIdentifier("email_address"))]),
+            Views: new NSchema.Project.Domain.Models.Views.ViewDirectives(Renames:
+                [new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("legacy_report")), new SqlIdentifier("report"))]),
+            Enums: new NSchema.Project.Domain.Models.Enums.EnumDirectives(Renames:
+                [new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("importance")), new SqlIdentifier("priority"))]),
+            Extensions: new NSchema.Project.Domain.Models.Extensions.ExtensionDirectives(Drops: [new SqlIdentifier("legacy_ext")]));
+
+        return Verify(Compare(current, desired, directives));
     }
 
     // Builds a view with its dependencies derived from the body, exactly as the DDL parser would.
-    private static View View(string name, string body, SqlIdentifier? oldName = null) =>
-        new(new SqlIdentifier(name), new SqlText(body), oldName, null, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")));
+    private static View View(string name, string body) =>
+        new(new SqlIdentifier(name), new SqlText(body), null, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")));
+
+    private DatabaseDiff Compare(Database current, Database desired, ProjectDirectives? directives = null) =>
+        _sut.Compare(current, desired, directives ?? ProjectDirectives.Empty);
 }

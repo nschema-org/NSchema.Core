@@ -2,7 +2,7 @@ using NSchema.Plugins;
 using NSchema.Project.Nsql;
 using NSchema.Project.Nsql.Syntax.Config;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 /// <summary>
 /// The configuration grammar and its settings translation: config files parse to typed statements, a

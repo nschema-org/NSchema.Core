@@ -7,7 +7,7 @@ using NSchema.Project.Domain.Models.Triggers;
 
 namespace NSchema.Tests.Diff;
 
-public partial class SchemaComparerTests
+public partial class DatabaseComparerTests
 {
     // -------------------------------------------------------------------------
     // Triggers (table members)

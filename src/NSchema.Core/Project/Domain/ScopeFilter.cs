@@ -6,7 +6,7 @@ namespace NSchema.Project.Domain;
 /// <summary>
 /// Applies a <see cref="SchemaScope"/> to a given project or schema.
 /// </summary>
-internal static class SchemaFilter
+internal static class ScopeFilter
 {
     /// <summary>
     /// Restricts a project to a given scope.
@@ -18,26 +18,26 @@ internal static class SchemaFilter
             return project;
         }
 
-        var schema = Apply(project.Schema, scope);
+        var database = Apply(project.Database, scope);
         var scripts = Apply(project.Scripts, scope);
         var directives = Apply(project.Directives, scope);
-        return new ProjectDefinition(schema, scripts, directives);
+        return new ProjectDefinition(database, scripts, directives);
     }
 
     /// <summary>
-    /// Restricts <paramref name="schema"/> to the schemas inside <paramref name="scope"/>.
+    /// Restricts <paramref name="database"/> to the schemas inside <paramref name="scope"/>.
     /// </summary>
-    public static DatabaseSchema Apply(DatabaseSchema schema, SchemaScope scope)
+    public static Database Apply(Database database, SchemaScope scope)
     {
         // Extensions are database-global, not schema-scoped, so they pass through a namespace filter untouched:
         // an extension is a prerequisite of the whole database regardless of which schemas are in scope.
         if (scope.IsAll)
         {
-            return schema;
+            return database;
         }
 
-        var filtered = schema.Schemas.Where(s => scope.Includes(s.Name)).ToList();
-        return new DatabaseSchema(filtered, schema.Extensions);
+        var filtered = database.Schemas.Where(s => scope.Includes(s.Name)).ToList();
+        return new Database(filtered, database.Extensions);
     }
 
     private static IReadOnlyList<Script> Apply(IEnumerable<Script> scripts, SchemaScope scope)

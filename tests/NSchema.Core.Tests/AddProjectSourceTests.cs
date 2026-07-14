@@ -32,7 +32,7 @@ public sealed class AddProjectSourceTests : IDisposable
     }
 
     private static async Task<List<string>> ResolveSchemaNames(Action<NSchemaApplicationBuilder> configure) =>
-        (await ResolveProject(configure)).Schema.Schemas.Select(s => s.Name.Value).ToList();
+        (await ResolveProject(configure)).Database.Schemas.Select(s => s.Name.Value).ToList();
 
     [Fact]
     public async Task AddSqlSchemas_LoadsSingleFile()
@@ -110,7 +110,7 @@ public sealed class AddProjectSourceTests : IDisposable
 
         var project = await ResolveProject(b => b.AddProjectSource(_root), scope: SchemaScope.Of(new SqlIdentifier("app")));
 
-        project.Schema.Schemas.Select(s => s.Name).ShouldBe(["app"]);
+        project.Database.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
 
     [Fact]
@@ -150,6 +150,6 @@ public sealed class AddProjectSourceTests : IDisposable
         WriteSchemaFile("late.sql", "late");
 
         var project = (await app.Services.GetRequiredService<IProjectProvider>().GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
-        project.Schema.Schemas.Select(s => s.Name).ShouldBe(["late"]);
+        project.Database.Schemas.Select(s => s.Name).ShouldBe(["late"]);
     }
 }

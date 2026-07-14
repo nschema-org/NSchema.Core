@@ -40,23 +40,20 @@ public static class TestData
             [.. tableNames.Select(name => new TableDiff(new SqlIdentifier("identity"), new SqlIdentifier(name), ChangeKind.Remove, null, null, [], [], [], []))])]);
 
     /// <summary>
-    /// A schema exercising every domain feature (renames, identity, facets, comments, foreign keys,
-    /// indexes, grants, dropped tables and schemas), for serializer round-trip and snapshot coverage.
+    /// A schema exercising every domain feature (identity, facets, comments, foreign keys,
+    /// indexes, grants), for serializer round-trip and snapshot coverage.
     /// Shared so the state and document serializers are pinned against the same input.
     /// </summary>
-    public static DatabaseSchema RichSchema() => new(
+    public static Database RichSchema() => new(
         Schemas:
         [
-            new SchemaDefinition(
+            new Schema(
                 Name: new SqlIdentifier("app"),
-                OldName: new SqlIdentifier("legacy_app"),
-                IsPartial: true,
                 Comment: "application schema",
                 Tables:
                 [
                     new Table(
                         Name: new SqlIdentifier("users"),
-                        OldName: new SqlIdentifier("members"),
                         PrimaryKey: new PrimaryKey(new SqlIdentifier("users_pkey"), [new SqlIdentifier("id")], Comment: "surrogate key"),
                         Comment: "all users",
                         Columns:
@@ -65,7 +62,7 @@ public static class TestData
                                 IdentityOptions: new IdentityOptions(1, 1, 1)),
                             new Column(new SqlIdentifier("name"), SqlType.VarChar(255), Comment: "display name"),
                             new Column(new SqlIdentifier("balance"), SqlType.Decimal(18, 2), IsNullable: true, DefaultExpression: new SqlText("0")),
-                            new Column(new SqlIdentifier("code"), SqlType.Char(8), OldName: new SqlIdentifier("short_code")),
+                            new Column(new SqlIdentifier("code"), SqlType.Char(8)),
                             new Column(new SqlIdentifier("metadata"), SqlType.Custom("jsonb"), IsNullable: true),
                             new Column(new SqlIdentifier("name_upper"), SqlType.Text, IsNullable: true, GeneratedExpression: new SqlText("upper(name)")),
                         ],
@@ -112,73 +109,100 @@ public static class TestData
                                 Comment: "block deletes"),
                         ]),
                 ],
-                DroppedTables: [new SqlIdentifier("old_table")],
                 Grants: [new SchemaGrant(new SqlIdentifier("app_role"))],
                 Views:
                 [
                     View("active_users", "SELECT id, name FROM app.users WHERE balance > 0", comment: "currently active users"),
-                    View("user_directory", "SELECT name FROM app.active_users", oldName: new SqlIdentifier("legacy_directory")),
+                    View("user_directory", "SELECT name FROM app.active_users"),
                     MaterializedView("daily_balances", "SELECT name, balance FROM app.users",
                         comment: "balances rollup",
                         indexes: [new TableIndex(new SqlIdentifier("daily_balances_name_ix"), ["name"], IsUnique: true, Comment: "by name")]),
                 ],
-                DroppedViews: [new SqlIdentifier("stale_report")],
                 Enums:
                 [
                     new EnumType(new SqlIdentifier("order_status"), ["pending", "shipped", "delivered"], Comment: "order lifecycle"),
-                    new EnumType(new SqlIdentifier("priority"), ["low", "high"], OldName: new SqlIdentifier("importance")),
+                    new EnumType(new SqlIdentifier("priority"), ["low", "high"]),
                 ],
-                DroppedEnums: [new SqlIdentifier("stale_enum")],
                 Sequences:
                 [
-                    new Sequence(new SqlIdentifier("invoice_id"), OldName: new SqlIdentifier("bill_id")),
+                    new Sequence(new SqlIdentifier("invoice_id")),
                     new Sequence(new SqlIdentifier("order_id"),
                         new SequenceOptions(SqlType.BigInt, StartWith: 100, IncrementBy: 5, MinValue: -10, MaxValue: 999999, Cache: 10, Cycle: true),
                         Comment: "order numbers"),
                 ],
-                DroppedSequences: [new SqlIdentifier("stale_seq")],
                 Routines:
                 [
                     new Routine(new SqlIdentifier("add_tax"), RoutineKind.Function, new SqlText("amount numeric, rate numeric"),
                         new SqlText("RETURNS numeric LANGUAGE sql AS $$\n  SELECT amount * (1 + rate);\n$$"),
                         Comment: "adds tax"),
                     new Routine(new SqlIdentifier("normalize_code"), RoutineKind.Function, new SqlText("code text DEFAULT 'N/A'"),
-                        new SqlText("RETURNS text LANGUAGE sql AS $body$ SELECT upper(code || ';suffix'); $body$"),
-                        OldName: new SqlIdentifier("clean_code")),
+                        new SqlText("RETURNS text LANGUAGE sql AS $body$ SELECT upper(code || ';suffix'); $body$")),
                     new Routine(new SqlIdentifier("archive_users"), RoutineKind.Procedure, new SqlText(""),
                         new SqlText("LANGUAGE sql AS $$\n  DELETE FROM app.users WHERE name <> 'a;b';\n$$"),
                         Comment: "archival job"),
                 ],
-                DroppedRoutines: [new SqlIdentifier("stale_fn"), new SqlIdentifier("stale_proc")],
                 Domains:
                 [
-                    new DomainDefinition(new SqlIdentifier("typeid"), SqlType.Text, OldName: new SqlIdentifier("legacy_id"), Comment: "unique id as text"),
-                    new DomainDefinition(new SqlIdentifier("positive_amount"), SqlType.Decimal(18, 2), Default: new SqlText("0"), NotNull: true,
+                    new DomainType(new SqlIdentifier("typeid"), SqlType.Text, Comment: "unique id as text"),
+                    new DomainType(new SqlIdentifier("positive_amount"), SqlType.Decimal(18, 2), Default: new SqlText("0"), NotNull: true,
                         Checks: [new CheckConstraint(new SqlIdentifier("positive_amount_chk"), new SqlText("VALUE >= 0"))]),
                 ],
-                DroppedDomains: [new SqlIdentifier("stale_domain")],
                 CompositeTypes:
                 [
                     new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text), new CompositeField(new SqlIdentifier("zip"), SqlType.Int)],
-                        OldName: new SqlIdentifier("legacy_address"), Comment: "a postal address"),
+                        Comment: "a postal address"),
                     new CompositeType(new SqlIdentifier("money_amount"), [new CompositeField(new SqlIdentifier("amount"), SqlType.Decimal(18, 2)), new CompositeField(new SqlIdentifier("currency"), SqlType.Text)]),
-                ],
-                DroppedCompositeTypes: [new SqlIdentifier("stale_type")]),
+                ]),
         ],
-        DroppedSchemas: [new SqlIdentifier("scratch")],
         Extensions:
         [
             new Extension(new SqlIdentifier("citext")),
             new Extension(new SqlIdentifier("postgis"), Version: "3.4", Comment: "spatial types"),
             new Extension(new SqlIdentifier("uuid-ossp"), Comment: "uuid generation"),
-        ],
-        DroppedExtensions: [new SqlIdentifier("stale_ext")]);
+        ]);
+
+    /// <summary>
+    /// Directives exercising every directive statement against <see cref="RichSchema"/>: a rename of every
+    /// renameable kind (addressing current reality — the schema's current name is <c>legacy_app</c>), a drop
+    /// of every droppable kind, and a partial. Shared so the writer round-trip pins the whole grammar.
+    /// </summary>
+    public static ProjectDirectives RichDirectives() => new(
+        new SchemaDirectives(
+            Renames: [new SchemaRename(new SqlIdentifier("legacy_app"), new SqlIdentifier("app"))],
+            Drops: [new SqlIdentifier("scratch")],
+            Partials: [new SqlIdentifier("app")]),
+        new TableDirectives(
+            Renames: [new ObjectRename(Current("members"), new SqlIdentifier("users"))],
+            Drops: [Current("old_table")],
+            ColumnRenames: [new MemberRename(new MemberReference(new SqlIdentifier("legacy_app"), new SqlIdentifier("members"), new SqlIdentifier("short_code")), new SqlIdentifier("code"))]),
+        new ViewDirectives(
+            Renames: [new ObjectRename(Current("legacy_directory"), new SqlIdentifier("user_directory"))],
+            Drops: [Current("stale_report")]),
+        new EnumDirectives(
+            Renames: [new ObjectRename(Current("importance"), new SqlIdentifier("priority"))],
+            Drops: [Current("stale_enum")]),
+        new SequenceDirectives(
+            Renames: [new ObjectRename(Current("bill_id"), new SqlIdentifier("invoice_id"))],
+            Drops: [Current("stale_seq")]),
+        new RoutineDirectives(
+            Renames: [new ObjectRename(Current("clean_code"), new SqlIdentifier("normalize_code"))],
+            Drops: [Current("stale_fn"), Current("stale_proc")]),
+        new DomainDirectives(
+            Renames: [new ObjectRename(Current("legacy_id"), new SqlIdentifier("typeid"))],
+            Drops: [Current("stale_domain")]),
+        new CompositeTypeDirectives(
+            Renames: [new ObjectRename(Current("legacy_address"), new SqlIdentifier("address"))],
+            Drops: [Current("stale_type")]),
+        new ExtensionDirectives(Drops: [new SqlIdentifier("stale_ext")]));
+
+    /// <summary>An address under the schema's current (pre-rename) name.</summary>
+    private static ObjectReference Current(string name) => new(new SqlIdentifier("legacy_app"), new SqlIdentifier(name));
 
     /// <summary>Builds a view with dependencies derived from its body, exactly as the DDL parser would.</summary>
-    private static View View(string name, string body, string? comment = null, SqlIdentifier? oldName = null) =>
-        new(new SqlIdentifier(name), new SqlText(body), oldName, comment, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")));
+    private static View View(string name, string body, string? comment = null) =>
+        new(new SqlIdentifier(name), new SqlText(body), comment, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")));
 
     /// <summary>Builds a materialized view (optionally with indexes), dependencies derived from its body.</summary>
     private static View MaterializedView(string name, string body, string? comment = null, IReadOnlyList<TableIndex>? indexes = null) =>
-        new(new SqlIdentifier(name), new SqlText(body), null, comment, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")), IsMaterialized: true, Indexes: indexes);
+        new(new SqlIdentifier(name), new SqlText(body), comment, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")), IsMaterialized: true, Indexes: indexes);
 }

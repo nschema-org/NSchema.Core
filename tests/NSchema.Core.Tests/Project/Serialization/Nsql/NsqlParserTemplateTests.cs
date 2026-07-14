@@ -6,7 +6,7 @@ using NSchema.Project.Nsql.Syntax.Schemas;
 using NSchema.Project.Nsql.Syntax.Tables;
 using NSchema.Project.Nsql.Syntax.Templates;
 
-namespace NSchema.Tests.Schema.Serialization.Nsql;
+namespace NSchema.Tests.Project.Serialization.Nsql;
 
 /// <summary>
 /// Template statements: the syntax shapes they parse to, the read-time validation of their bodies, and the
@@ -23,14 +23,14 @@ public sealed class NsqlParserTemplateTests
     }
 
     /// <summary>Assembles a template plus an application into schema <c>app</c>, returning the instance.</summary>
-    private static SchemaDefinition ExpandIntoApp(string templateSource)
+    private static Schema ExpandIntoApp(string templateSource)
     {
         var source = $"CREATE SCHEMA app;\n{templateSource}\nAPPLY TEMPLATE t IN SCHEMA app;";
         var read = NsqlReader.Read(source);
         read.IsSuccess.ShouldBeTrue();
         var assembled = ProjectAssembler.Assemble([read.Value]);
         assembled.IsSuccess.ShouldBeTrue();
-        return assembled.Value.Schema.Schemas.ShouldHaveSingleItem();
+        return assembled.Value.Database.Schemas.ShouldHaveSingleItem();
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public sealed class NsqlParserTemplateTests
     [Fact]
     public void Parse_Template_ObjectsAreNotPartOfTheSchema()
         => new TestNsqlParser("TEMPLATE t BEGIN CREATE TABLE x (id int NOT NULL); END;").Parse()
-            .Schema.Schemas.ShouldBeEmpty();
+            .Database.Schemas.ShouldBeEmpty();
 
     [Fact]
     public void Expand_Template_UnqualifiedForeignKeyBindsToTheAppliedSchema()
@@ -321,7 +321,7 @@ public sealed class NsqlParserTemplateTests
         var assembled = ProjectAssembler.Assemble([read.Value]);
         assembled.IsSuccess.ShouldBeTrue();
 
-        var orders = assembled.Value.Schema.Schemas.ShouldHaveSingleItem()
+        var orders = assembled.Value.Database.Schemas.ShouldHaveSingleItem()
             .Tables.Single(t => t.Name == new SqlIdentifier("orders"));
         orders.ForeignKeys.ShouldHaveSingleItem().ReferencedSchema.ShouldBe("app");
     }
@@ -372,7 +372,7 @@ public sealed class NsqlParserTemplateTests
         // as it parsed before templates existed.
         var document = new TestNsqlParser("CREATE TABLE app.t (include bigint NOT NULL);").Parse();
 
-        var column = document.Schema.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem()
+        var column = document.Database.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem()
             .Columns.ShouldHaveSingleItem();
         column.Name.ShouldBe("include");
         column.IsNullable.ShouldBeFalse();

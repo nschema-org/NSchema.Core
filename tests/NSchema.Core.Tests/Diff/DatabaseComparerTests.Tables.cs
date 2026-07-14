@@ -8,7 +8,7 @@ using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Tests.Diff;
 
-public partial class SchemaComparerTests
+public partial class DatabaseComparerTests
 {
     // -------------------------------------------------------------------------
     // Table removal: partial vs full schemas and explicit drops
@@ -17,10 +17,10 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_FullSchema_DropsCurrentTableNotInDesired()
     {
-        var current = Db(new SchemaDefinition(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("stale"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]));
-        var desired = Db(new SchemaDefinition(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("fresh"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]));
+        var current = Db(new Schema(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("stale"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]));
+        var desired = Db(new Schema(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("fresh"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]));
 
-        var tables = _sut.Compare(current, desired).Schemas.Single().Tables;
+        var tables = Compare(current, desired).Schemas.Single().Tables;
 
         tables.Single(t => t.Name.Value.Equals("stale")).Kind.ShouldBe(ChangeKind.Remove);
     }
@@ -28,11 +28,11 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_PartialSchema_LeavesUnlistedCurrentTableUntouched()
     {
-        var current = Db(new SchemaDefinition(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("untracked"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]));
-        var desired = Db(new SchemaDefinition(new SqlIdentifier("app"), IsPartial: true,
+        var current = Db(new Schema(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("untracked"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]));
+        var desired = Db(new Schema(new SqlIdentifier("app"),
             Tables: [new Table(new SqlIdentifier("fresh"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]));
 
-        var tables = _sut.Compare(current, desired).Schemas.Single().Tables;
+        var tables = Compare(current, desired, PartialApp()).Schemas.Single().Tables;
 
         tables.Select(t => t.Name).ShouldBe(["fresh"]); // 'untracked' is neither dropped nor reported
     }
@@ -40,10 +40,11 @@ public partial class SchemaComparerTests
     [Fact]
     public void Compare_PartialSchema_StillDropsExplicitlyDroppedTable()
     {
-        var current = Db(new SchemaDefinition(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("retired"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]));
-        var desired = Db(new SchemaDefinition(new SqlIdentifier("app"), IsPartial: true, DroppedTables: [new SqlIdentifier("retired")]));
+        var current = Db(new Schema(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("retired"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]));
+        var desired = Db(new Schema(new SqlIdentifier("app")));
+        var directives = PartialApp() with { Tables = new NSchema.Project.Domain.Models.Tables.TableDirectives(Drops: [App("retired")]) };
 
-        var table = _sut.Compare(current, desired).Schemas.Single().Tables.ShouldHaveSingleItem();
+        var table = Compare(current, desired, directives).Schemas.Single().Tables.ShouldHaveSingleItem();
 
         table.Name.ShouldBe("retired");
         table.Kind.ShouldBe(ChangeKind.Remove);
@@ -58,7 +59,8 @@ public partial class SchemaComparerTests
     {
         var table = DiffTable(
             new Table(new SqlIdentifier("people"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
-            new Table(new SqlIdentifier("users"), OldName: new SqlIdentifier("people"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]));
+            new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
+            TableRename("people", "users"));
 
         table.ShouldNotBeNull();
         table.Kind.ShouldBe(ChangeKind.Modify);
@@ -70,17 +72,17 @@ public partial class SchemaComparerTests
     {
         // 'people' is renamed to 'users' while 'people' is also still declared. This is indistinguishable from
         // "keep people, add users" and cannot be ordered safely, so it must be rejected rather than guessed.
-        var current = Db(new SchemaDefinition(new SqlIdentifier("app"), Tables:
+        var current = Db(new Schema(new SqlIdentifier("app"), Tables:
         [
             new Table(new SqlIdentifier("people"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
         ]));
-        var desired = Db(new SchemaDefinition(new SqlIdentifier("app"), Tables:
+        var desired = Db(new Schema(new SqlIdentifier("app"), Tables:
         [
-            new Table(new SqlIdentifier("users"), OldName: new SqlIdentifier("people"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
+            new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
             new Table(new SqlIdentifier("people"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
         ]));
 
-        var ex = Should.Throw<InvalidOperationException>(() => _sut.Compare(current, desired));
+        var ex = Should.Throw<InvalidOperationException>(() => Compare(current, desired, TableRename("people", "users")));
         ex.Message.ShouldContain("app.users");
         ex.Message.ShouldContain("people");
     }
@@ -89,17 +91,17 @@ public partial class SchemaComparerTests
     public void Compare_TableRenamedOntoExistingName_Throws()
     {
         // Renaming 'a' to 'b' while a distinct 'b' already exists collides on the target name.
-        var current = Db(new SchemaDefinition(new SqlIdentifier("app"), Tables:
+        var current = Db(new Schema(new SqlIdentifier("app"), Tables:
         [
             new Table(new SqlIdentifier("a"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
             new Table(new SqlIdentifier("b"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
         ]));
-        var desired = Db(new SchemaDefinition(new SqlIdentifier("app"), Tables:
+        var desired = Db(new Schema(new SqlIdentifier("app"), Tables:
         [
-            new Table(new SqlIdentifier("b"), OldName: new SqlIdentifier("a"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
+            new Table(new SqlIdentifier("b"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
         ]));
 
-        var ex = Should.Throw<InvalidOperationException>(() => _sut.Compare(current, desired));
+        var ex = Should.Throw<InvalidOperationException>(() => Compare(current, desired, TableRename("a", "b")));
         ex.Message.ShouldContain("app.b");
     }
 
@@ -110,9 +112,10 @@ public partial class SchemaComparerTests
             new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("mail"), SqlType.Text)]),
             new Table(new SqlIdentifier("t"), Columns:
             [
-                new Column(new SqlIdentifier("email"), SqlType.Text, OldName: new SqlIdentifier("mail")),
+                new Column(new SqlIdentifier("email"), SqlType.Text),
                 new Column(new SqlIdentifier("mail"), SqlType.Text),
-            ]));
+            ]),
+            ColumnRename("mail", "email"));
 
         var ex = act.ShouldThrow<InvalidOperationException>();
         ex.Message.ShouldContain("app.t.email");
@@ -124,7 +127,8 @@ public partial class SchemaComparerTests
         // A rename whose old name is gone and whose new name is free is unambiguous and must still work.
         var table = DiffTable(
             new Table(new SqlIdentifier("people"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
-            new Table(new SqlIdentifier("users"), OldName: new SqlIdentifier("people"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]));
+            new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
+            TableRename("people", "users"));
 
         table.ShouldNotBeNull();
         table.Kind.ShouldBe(ChangeKind.Modify);
@@ -150,8 +154,8 @@ public partial class SchemaComparerTests
             Indexes: [new TableIndex(new SqlIdentifier("orders_user_ix"), ["user_id"], Comment: "lookup")],
             Grants: [new TableGrant(new SqlIdentifier("reader"), TablePrivilege.Select)]);
 
-        var table = _sut.Compare(Db(new SchemaDefinition(new SqlIdentifier("app"))),
-            Db(new SchemaDefinition(new SqlIdentifier("app"), Tables: [desired]))).Schemas.Single().Tables.Single();
+        var table = Compare(Db(new Schema(new SqlIdentifier("app"))),
+            Db(new Schema(new SqlIdentifier("app"), Tables: [desired]))).Schemas.Single().Tables.Single();
 
         table.ForeignKeys.ShouldHaveSingleItem().ShouldBe(new ForeignKeyDiff(ChangeKind.Add, new SqlIdentifier("orders_user_fk"),
             new ForeignKey(new SqlIdentifier("orders_user_fk"), [new SqlIdentifier("user_id")], new SqlIdentifier("app"), new SqlIdentifier("users"), [new SqlIdentifier("id")])));
