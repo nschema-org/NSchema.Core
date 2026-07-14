@@ -72,12 +72,12 @@ public static class NsqlWriter
                 {
                     sb.Append("PARTIAL ");
                 }
-                sb.Append("SCHEMA ").Append(s.Name.Text);
+                sb.Append("SCHEMA ").Append(s.Name.Value);
                 AppendRenamedFrom(sb, s.RenamedFrom);
                 sb.AppendLine(";");
                 break;
             case Syn.Schemas.GrantSchemaUsageStatement s:
-                sb.Append("GRANT USAGE ON SCHEMA ").Append(s.Schema.Text).Append(" TO ").Append(s.Role.Text).AppendLine(";");
+                sb.Append("GRANT USAGE ON SCHEMA ").Append(s.Schema.Value).Append(" TO ").Append(s.Role.Value).AppendLine(";");
                 break;
             case Syn.Enums.CreateEnumStatement s:
                 WriteDocComment(sb, s.Doc, indent: "");
@@ -96,7 +96,7 @@ public static class NsqlWriter
                 }
                 foreach (var check in s.Checks)
                 {
-                    sb.Append(" CONSTRAINT ").Append(check.Name.Text).Append(" CHECK (").Append(check.Expression.Value).Append(')');
+                    sb.Append(" CONSTRAINT ").Append(check.Name.Value).Append(" CHECK (").Append(check.Expression.Value).Append(')');
                 }
                 // The default, if any, comes last: its opaque expression is read back up to the terminating ';'.
                 if (s.Default is { } @default)
@@ -109,7 +109,7 @@ public static class NsqlWriter
                 WriteDocComment(sb, s.Doc, indent: "");
                 sb.Append("CREATE TYPE ").Append(Qualified(s.Name));
                 AppendRenamedFrom(sb, s.RenamedFrom);
-                sb.Append(" AS (").Append(string.Join(", ", s.Fields.Select(f => $"{f.Name.Text} {TypeText(f.Type)}"))).AppendLine(");");
+                sb.Append(" AS (").Append(string.Join(", ", s.Fields.Select(f => $"{f.Name.Value} {TypeText(f.Type)}"))).AppendLine(");");
                 break;
             case Syn.Sequences.CreateSequenceStatement s:
                 WriteDocComment(sb, s.Doc, indent: "");
@@ -135,7 +135,7 @@ public static class NsqlWriter
             case Syn.Tables.GrantTableStatement s:
                 sb.Append("GRANT ").Append(PrivilegesText(s.Privileges))
                     .Append(" ON ").Append(Qualified(s.On))
-                    .Append(" TO ").Append(s.Role.Text).AppendLine(";");
+                    .Append(" TO ").Append(s.Role.Value).AppendLine(";");
                 break;
             case Syn.Triggers.CreateTriggerStatement s:
                 WriteTrigger(sb, s);
@@ -158,13 +158,13 @@ public static class NsqlWriter
                 {
                     sb.Append("UNIQUE ");
                 }
-                sb.Append("INDEX ").Append(s.Name.Text).Append(" ON ").Append(Qualified(s.On));
+                sb.Append("INDEX ").Append(s.Name.Value).Append(" ON ").Append(Qualified(s.On));
                 AppendIndexTail(sb, s.Method, s.Columns, s.Include, s.Predicate);
                 sb.AppendLine(";");
                 break;
             case Syn.Extensions.CreateExtensionStatement s:
                 WriteDocComment(sb, s.Doc, indent: "");
-                sb.Append("CREATE EXTENSION ").Append(ExtensionName(s.Name.Text));
+                sb.Append("CREATE EXTENSION ").Append(ExtensionName(s.Name.Value));
                 if (s.Version is { } version)
                 {
                     sb.Append(" VERSION '").Append(version.Replace("'", "''")).Append('\'');
@@ -175,10 +175,10 @@ public static class NsqlWriter
                 WriteScript(sb, s);
                 break;
             case Syn.Schemas.DropSchemaStatement s:
-                sb.Append("DROP SCHEMA ").Append(s.Name.Text).AppendLine(";");
+                sb.Append("DROP SCHEMA ").Append(s.Name.Value).AppendLine(";");
                 break;
             case Syn.Extensions.DropExtensionStatement s:
-                sb.Append("DROP EXTENSION ").Append(ExtensionName(s.Name.Text)).AppendLine(";");
+                sb.Append("DROP EXTENSION ").Append(ExtensionName(s.Name.Value)).AppendLine(";");
                 break;
             case Syn.Tables.DropTableStatement s:
                 sb.Append("DROP TABLE ").Append(Qualified(s.Name)).AppendLine(";");
@@ -229,7 +229,7 @@ public static class NsqlWriter
             case Syn.Tables.ColumnDefinition m:
                 {
                     var sb = new StringBuilder();
-                    sb.Append(m.Name.Text).Append(' ').Append(TypeText(m.Type));
+                    sb.Append(m.Name.Value).Append(' ').Append(TypeText(m.Type));
                     if (!m.IsNullable)
                     {
                         sb.Append(" NOT NULL");
@@ -252,16 +252,16 @@ public static class NsqlWriter
                     }
                     if (m.RenamedFrom is { } oldName)
                     {
-                        sb.Append(" RENAMED FROM ").Append(oldName.Text);
+                        sb.Append(" RENAMED FROM ").Append(oldName.Value);
                     }
                     return sb.ToString();
                 }
             case Syn.Constraints.PrimaryKeyDefinition m:
-                return $"CONSTRAINT {m.Name.Text} PRIMARY KEY ({ColumnsText(m.Columns)})";
+                return $"CONSTRAINT {m.Name.Value} PRIMARY KEY ({ColumnsText(m.Columns)})";
             case Syn.Constraints.ForeignKeyDefinition m:
                 {
                     var sb = new StringBuilder();
-                    sb.Append("CONSTRAINT ").Append(m.Name.Text)
+                    sb.Append("CONSTRAINT ").Append(m.Name.Value)
                         .Append(" FOREIGN KEY (").Append(ColumnsText(m.Columns)).Append(')')
                         .Append(" REFERENCES ").Append(Qualified(m.References))
                         .Append(" (").Append(ColumnsText(m.ReferencedColumns)).Append(')');
@@ -276,16 +276,16 @@ public static class NsqlWriter
                     return sb.ToString();
                 }
             case Syn.Constraints.UniqueDefinition m:
-                return $"CONSTRAINT {m.Name.Text} UNIQUE ({ColumnsText(m.Columns)})";
+                return $"CONSTRAINT {m.Name.Value} UNIQUE ({ColumnsText(m.Columns)})";
             case Syn.Constraints.CheckDefinition m:
-                return $"CONSTRAINT {m.Name.Text} CHECK ({m.Expression.Value})";
+                return $"CONSTRAINT {m.Name.Value} CHECK ({m.Expression.Value})";
             case Syn.Constraints.ExclusionDefinition m:
                 {
                     var sb = new StringBuilder();
-                    sb.Append("CONSTRAINT ").Append(m.Name.Text).Append(" EXCLUDE");
+                    sb.Append("CONSTRAINT ").Append(m.Name.Value).Append(" EXCLUDE");
                     if (m.Method is { } method)
                     {
-                        sb.Append(" USING ").Append(method.Text);
+                        sb.Append(" USING ").Append(method.Value);
                     }
                     sb.Append(" (").Append(string.Join(", ", m.Elements.Select(ExclusionElementText))).Append(')');
                     if (m.Predicate is { } predicate)
@@ -301,7 +301,7 @@ public static class NsqlWriter
                     {
                         sb.Append("UNIQUE ");
                     }
-                    sb.Append("INDEX ").Append(m.Name.Text);
+                    sb.Append("INDEX ").Append(m.Name.Value);
                     AppendIndexTail(sb, m.Method, m.Columns, m.Include, m.Predicate);
                     return sb.ToString();
                 }
@@ -313,7 +313,7 @@ public static class NsqlWriter
     private static void WriteTrigger(StringBuilder sb, Syn.Triggers.CreateTriggerStatement statement)
     {
         WriteDocComment(sb, statement.Doc, indent: "");
-        sb.Append("CREATE TRIGGER ").Append(statement.Name.Text).Append(' ').Append(TimingText(statement.Timing))
+        sb.Append("CREATE TRIGGER ").Append(statement.Name.Value).Append(' ').Append(TimingText(statement.Timing))
             .Append(' ').Append(EventsText(statement))
             .Append(" ON ").Append(Qualified(statement.On));
 
@@ -340,7 +340,7 @@ public static class NsqlWriter
 
     private static void WriteScript(StringBuilder sb, Syn.Scripts.ScriptStatement statement)
     {
-        sb.Append("SCRIPT '").Append(statement.Name.Replace("'", "''")).Append("' RUN");
+        sb.Append("SCRIPT ").Append(statement.Name).Append(" RUN");
         if (statement.RunCondition == Syn.Scripts.RunCondition.Once)
         {
             sb.Append(" ONCE");
@@ -376,7 +376,7 @@ public static class NsqlWriter
     };
 
     private static string PathText(MemberPath path) =>
-        path.Schema is { } schema ? $"{schema.Text}.{path.Table.Text}.{path.Member.Text}" : $"{path.Table.Text}.{path.Member.Text}";
+        path.Schema is { } schema ? $"{schema.Value}.{path.Table.Value}.{path.Member.Value}" : $"{path.Table.Value}.{path.Member.Value}";
 
     // --- clause helpers ----------------------------------------------------------------
 
@@ -384,7 +384,7 @@ public static class NsqlWriter
     {
         if (oldName is not null)
         {
-            sb.Append(" RENAMED FROM ").Append(oldName.Text);
+            sb.Append(" RENAMED FROM ").Append(oldName.Value);
         }
     }
 
@@ -393,7 +393,7 @@ public static class NsqlWriter
     {
         if (method is not null)
         {
-            sb.Append(" USING ").Append(method.Text);
+            sb.Append(" USING ").Append(method.Value);
         }
         sb.Append(" (").Append(string.Join(", ", columns.Select(IndexKeyText))).Append(')');
         if (include is { Count: > 0 })
@@ -409,7 +409,7 @@ public static class NsqlWriter
     private static string IndexKeyText(Syn.Indexes.IndexElement element)
     {
         var sb = new StringBuilder();
-        sb.Append(element.Column is { } name ? name.Text : $"({element.Expression!.Value})");
+        sb.Append(element.Column is { } name ? name.Value : $"({element.Expression!.Value})");
         sb.Append(element.Sort switch
         {
             Syn.Indexes.IndexSort.Ascending => " ASC",
@@ -426,7 +426,7 @@ public static class NsqlWriter
     }
 
     private static string ExclusionElementText(Syn.Constraints.ExclusionElement element) =>
-        $"{(element.Column is { } column ? column.Text : $"({element.Expression!.Value})")} WITH {element.Operator}";
+        $"{(element.Column is { } column ? column.Value : $"({element.Expression!.Value})")} WITH {element.Operator}";
 
     private static string? SequenceOptionsText(Syn.Sequences.SequenceOptionsClause options)
     {
@@ -540,17 +540,17 @@ public static class NsqlWriter
     }
 
     private static string Qualified(QualifiedName name) =>
-        name.Schema is { } schema ? $"{schema.Text}.{name.Name.Text}" : name.Name.Text;
+        name.Schema is { } schema ? $"{schema.Value}.{name.Name.Value}" : name.Name.Value;
 
     private static string Reference(QualifiedName name) => Qualified(name);
 
     private static string TypeText(TypeName type)
     {
-        var text = type.Schema is { } schema ? $"{schema.Text}.{type.Name.Text}" : type.Name.Text;
+        var text = type.Schema is { } schema ? $"{schema.Value}.{type.Name.Value}" : type.Name.Value;
         return type.Arguments is { } arguments ? $"{text}({arguments})" : text;
     }
 
-    private static string ColumnsText(IReadOnlyList<Identifier> columns) => string.Join(", ", columns.Select(c => c.Text));
+    private static string ColumnsText(IReadOnlyList<Identifier> columns) => string.Join(", ", columns.Select(c => c.Value));
 
     /// <summary>
     /// Renders an extension name: bare when it is a valid identifier, otherwise single-quoted (e.g.

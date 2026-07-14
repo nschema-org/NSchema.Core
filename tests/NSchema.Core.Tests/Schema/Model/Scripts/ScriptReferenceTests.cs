@@ -34,4 +34,11 @@ public class ScriptReferenceTests
         sales.ShouldNotBe(global);
     }
 
+    [Fact]
+    public void ToString_Scoped_RendersLikeAnyOtherReference()
+        => new ScriptReference(new SqlIdentifier("Sales"), new SqlIdentifier("seed")).ToString().ShouldBe("Sales.seed");
+
+    [Fact]
+    public void ToString_Global_RendersTheBareName()
+        => new ScriptReference(null, new SqlIdentifier("seed")).ToString().ShouldBe("seed");
 }

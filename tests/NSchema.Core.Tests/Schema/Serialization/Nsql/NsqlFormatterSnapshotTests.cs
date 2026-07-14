@@ -49,14 +49,14 @@ public sealed class NsqlFormatterSnapshotTests
         const string source =
             """
             create schema app;
-            SCRIPT 'enable_citext' RUN ON PRE DEPLOYMENT AS $$
+            SCRIPT enable_citext RUN ON PRE DEPLOYMENT AS $$
             CREATE EXTENSION IF NOT EXISTS citext;
             $$;
-              script 'seed currencies' run once on post deployment as $$
+              script seed_currencies run once on post deployment as $$
             INSERT INTO app.currencies VALUES ('GBP');
             $$;
             --- Backfill the new email column from the legacy table.
-            SCRIPT 'backfill_emails' RUN ALWAYS ON ADD COLUMN app.users.email (run_outside_transaction = true) AS $$
+            SCRIPT backfill_emails RUN ALWAYS ON ADD COLUMN app.users.email (run_outside_transaction = true) AS $$
             UPDATE app.users u SET email = l.email FROM legacy.users l WHERE l.id = u.id;
             $$;
             """;
@@ -77,10 +77,10 @@ public sealed class NsqlFormatterSnapshotTests
               email text not null,
                 constraint users_pkey primary key(id));
             --- Backfill the new email column from the legacy table.
-            SCRIPT 'backfill_emails' RUN ON ADD COLUMN app.users.email AS $$
+            SCRIPT backfill_emails RUN ON ADD COLUMN app.users.email AS $$
             UPDATE app.users u SET email = l.email FROM legacy.users l WHERE l.id = u.id;
             $$;
-               script 'noop_ids' run on alter column type app.users.id (run_outside_transaction = true) as $$
+               script noop_ids run on alter column type app.users.id (run_outside_transaction = true) as $$
             UPDATE app.users SET id = id;
             $$;
             """;

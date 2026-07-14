@@ -58,7 +58,7 @@ internal sealed partial class NsqlParser
             {
                 if (_current.Kind == TokenKind.EndOfFile)
                 {
-                    throw new NsqlSyntaxException($"Unterminated template '{name.Text}'; expected END.", namePosition);
+                    throw new NsqlSyntaxException($"Unterminated template '{name.Value}'; expected END.", namePosition);
                 }
 
                 var statementDoc = TakePendingDoc();
@@ -168,9 +168,9 @@ internal sealed partial class NsqlParser
         {
             var schemaPosition = _current.Position;
             var schemaName = ExpectIdentifierNode("a schema name");
-            if (schemaNames.Any(s => string.Equals(s.Text, schemaName.Text, StringComparison.OrdinalIgnoreCase)))
+            if (schemaNames.Any(s => string.Equals(s.Value, schemaName.Value, StringComparison.OrdinalIgnoreCase)))
             {
-                throw new NsqlSyntaxException($"Schema '{schemaName.Text}' is listed more than once.", schemaPosition);
+                throw new NsqlSyntaxException($"Schema '{schemaName.Value}' is listed more than once.", schemaPosition);
             }
             schemaNames.Add(schemaName);
         }

@@ -288,20 +288,18 @@ internal static class SyntaxBuilder
     {
         Syn.Scripts.ScriptEventClause clause = script.Event switch
         {
-            DeploymentEvent deployment => new Syn.Scripts.DeploymentEventClause(
-                deployment.Phase == DeploymentPhase.Pre ? Syn.Scripts.DeploymentPhase.Pre : Syn.Scripts.DeploymentPhase.Post)
+            DeploymentEvent deployment => new Syn.Scripts.DeploymentEventClause(deployment.Phase == DeploymentPhase.Pre ? Syn.Scripts.DeploymentPhase.Pre : Syn.Scripts.DeploymentPhase.Post)
             {
                 Position = None,
             },
-            ChangeEvent change => new Syn.Scripts.ChangeEventClause(Trigger(change.Trigger),
-                new MemberPath(OptionalIdentifier(change.ScopeSchema), Ident(change.TableName), Ident(change.MemberName)) { Position = None })
+            ChangeEvent change => new Syn.Scripts.ChangeEventClause(Trigger(change.Trigger), new MemberPath(OptionalIdentifier(change.ScopeSchema), Ident(change.TableName), Ident(change.MemberName)) { Position = None })
             {
                 Position = None,
             },
             _ => throw new InvalidOperationException($"Unbuildable script event '{script.Event.GetType().Name}'."),
         };
 
-        return new Syn.Scripts.ScriptStatement(script.Name.Value,
+        return new Syn.Scripts.ScriptStatement(Ident(script.Name),
             script.RunCondition == RunCondition.Once ? Syn.Scripts.RunCondition.Once : Syn.Scripts.RunCondition.Always,
             clause, script.Sql, script.RunOutsideTransaction)
         {

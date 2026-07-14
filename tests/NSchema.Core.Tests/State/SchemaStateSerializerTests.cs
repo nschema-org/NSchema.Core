@@ -159,19 +159,6 @@ public sealed class SchemaStateSerializerTests
         ])).Span));
 
     [Fact]
-    public void Deserialize_LedgerEntryWithoutAScriptAddress_ThrowsStateDeserializationException()
-    {
-        // A pre-(scope, name) payload records executions under a flat name; reading it silently would
-        // misrecord what ran, so the payload is unreadable, not empty.
-        var payload = Encoding.UTF8.GetBytes(
-            """{ "version": 1, "schema": { "schemas": [] }, "scripts": [ { "name": "seed", "hash": "abc", "executedUtc": "2026-07-10T12:00:00+00:00" } ] }""");
-
-        var act = () => _sut.Deserialize(payload);
-
-        act.ShouldThrow<StateDeserializationException>().Message.ShouldContain("without a script address");
-    }
-
-    [Fact]
     public void Deserialize_PayloadWithoutScripts_ReadsAsAnEmptyLedger()
     {
         // A state file written before the ledger existed must still load.

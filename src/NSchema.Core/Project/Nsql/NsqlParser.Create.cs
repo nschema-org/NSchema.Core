@@ -352,42 +352,42 @@ internal sealed partial class NsqlParser
             {
                 if (alreadySet)
                 {
-                    throw new NsqlSyntaxException($"Sequence option '{option.Text.ToUpperInvariant()}' is specified more than once.", optionPosition);
+                    throw new NsqlSyntaxException($"Sequence option '{option.Value.ToUpperInvariant()}' is specified more than once.", optionPosition);
                 }
             }
 
-            if (string.Equals(option.Text, "AS", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(option.Value, "AS", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(dataType is not null);
                 var typeName = ExpectIdentifierNode("a type name");
                 dataType = new TypeName(null, typeName) { Position = typeName.Position };
             }
-            else if (string.Equals(option.Text, "START", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, "START", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(start is not null);
                 start = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Text, "INCREMENT", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, "INCREMENT", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(increment is not null);
                 increment = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Text, "MINVALUE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, "MINVALUE", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(min is not null);
                 min = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Text, "MAXVALUE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, "MAXVALUE", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(max is not null);
                 max = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Text, "CACHE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, "CACHE", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(cache is not null);
                 cache = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Text, "CYCLE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, "CYCLE", StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(cycle);
                 cycle = true;
@@ -395,7 +395,7 @@ internal sealed partial class NsqlParser
             else
             {
                 throw new NsqlSyntaxException(
-                    $"Unknown sequence option '{option.Text}'; expected AS, START, INCREMENT, MINVALUE, MAXVALUE, CACHE or CYCLE.", optionPosition);
+                    $"Unknown sequence option '{option.Value}'; expected AS, START, INCREMENT, MINVALUE, MAXVALUE, CACHE or CYCLE.", optionPosition);
             }
         }
         while (Match(TokenKind.Comma));
@@ -723,21 +723,21 @@ internal sealed partial class NsqlParser
         {
             var option = ExpectIdentifierNode("START, INCREMENT or MINVALUE");
             var value = ExpectIntegerValue();
-            if (string.Equals(option.Text, "START", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(option.Value, "START", StringComparison.OrdinalIgnoreCase))
             {
                 start = value;
             }
-            else if (string.Equals(option.Text, "INCREMENT", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, "INCREMENT", StringComparison.OrdinalIgnoreCase))
             {
                 increment = value;
             }
-            else if (string.Equals(option.Text, "MINVALUE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, "MINVALUE", StringComparison.OrdinalIgnoreCase))
             {
                 min = value;
             }
             else
             {
-                throw Error($"Unknown identity option '{option.Text}'; expected START, INCREMENT or MINVALUE.");
+                throw Error($"Unknown identity option '{option.Value}'; expected START, INCREMENT or MINVALUE.");
             }
         }
         while (Match(TokenKind.Comma));

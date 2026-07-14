@@ -104,7 +104,7 @@ public sealed class PlanFileManagerTests
     {
         // Arrange — a diff whose column add is annotated with its matched script, so diff-node persistence and
         // the script-event discriminator inside the diff are both exercised.
-        var migration = new Script(new SqlIdentifier("backfill emails"), new SqlText("UPDATE app.users SET email = ''"),
+        var migration = new Script(new SqlIdentifier("backfill_emails"), new SqlText("UPDATE app.users SET email = ''"),
             new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") })
         {
             RunOutsideTransaction = true,

@@ -36,7 +36,7 @@ public sealed class ProjectComparerTests
         new(new SqlIdentifier("seed"), new SqlText("INSERT INTO app.c VALUES (1);"), new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = RunCondition.Once };
 
     private static Script EmailBackfillMigration() =>
-        new(new SqlIdentifier("backfill emails"), new SqlText("UPDATE app.users SET email = ''"), new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") });
+        new(new SqlIdentifier("backfill_emails"), new SqlText("UPDATE app.users SET email = ''"), new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") });
 
     /// <summary>A current state recording <paramref name="sql"/> as <paramref name="script"/>'s executed body.</summary>
     private static CurrentState Executed(Script script, string sql) =>
@@ -165,7 +165,7 @@ public sealed class ProjectComparerTests
         diagnostic.Source.ShouldBe("data-migrations");
         diagnostic.Severity.ShouldBe(DiagnosticSeverity.Info);
         diagnostic.Message.ShouldBe(
-            "Migration 'backfill emails' (ADD COLUMN app.users.email) matches no change in this plan and will " +
+            "Migration 'app.backfill_emails' (ADD COLUMN app.users.email) matches no change in this plan and will " +
             "not run. If the change it supports has been applied everywhere, the block is safe to delete.");
     }
 

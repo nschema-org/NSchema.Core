@@ -227,7 +227,7 @@ internal static class DocumentProjector
                         // A foreign key's referenced table binds like any other name (the context inside a template
                         // body; the include placeholder when projecting a table template's members).
                         var refSchema = m.References.Schema is { } qualifier
-                            ? new SqlIdentifier(qualifier.Text)
+                            ? new SqlIdentifier(qualifier.Value)
                             : context ?? SchemaToken.TargetSchemaPlaceholder;
                         foreignKeys.Add(new ForeignKey(Name(m.Name), Names(m.Columns), refSchema, Name(m.References.Name),
                             Names(m.ReferencedColumns), Map(m.OnDelete), Map(m.OnUpdate), m.Doc));
@@ -242,7 +242,7 @@ internal static class DocumentProjector
                 case Syn.Constraints.ExclusionDefinition m:
                     exclusionConstraints.Add(new ExclusionConstraint(Name(m.Name),
                         m.Elements.Select(e => new ExclusionElement(e.Operator, OptionalName(e.Column), e.Expression)).ToList(),
-                        m.Method?.Text, m.Predicate, m.Doc));
+                        m.Method?.Value, m.Predicate, m.Doc));
                     break;
                 case Syn.Indexes.IndexDefinition m:
                     indexes.Add(ProjectIndex(m.Name, m.IsUnique, m.Columns, m.Method, m.Include, m.Predicate, m.Doc));
@@ -264,7 +264,7 @@ internal static class DocumentProjector
         Syn.Identifier? method, IReadOnlyList<Syn.Identifier>? include, SqlText? predicate, string? doc)
     {
         var keys = columns.Select(c => new IndexColumn(OptionalName(c.Column), c.Expression, Map(c.Sort), Map(c.Nulls))).ToList();
-        return new TableIndex(Name(name), keys, isUnique, doc, predicate, method?.Text, Names(include ?? []));
+        return new TableIndex(Name(name), keys, isUnique, doc, predicate, method?.Value, Names(include ?? []));
     }
 
     private static Trigger ProjectTrigger(Syn.Triggers.CreateTriggerStatement statement)
@@ -295,12 +295,12 @@ internal static class DocumentProjector
             Syn.Scripts.DeploymentEventClause deployment => new DeploymentEvent(Map(deployment.Phase)),
             Syn.Scripts.ChangeEventClause change => new ChangeEvent(Map(change.Trigger), Name(change.Path.Table), Name(change.Path.Member))
             {
-                ScopeSchema = change.Path.Schema is { } schema ? new SqlIdentifier(schema.Text) : context!,
+                ScopeSchema = change.Path.Schema is { } schema ? new SqlIdentifier(schema.Value) : context!,
             },
             _ => throw new InvalidOperationException($"Unprojectable script event '{statement.Event.GetType().Name}'."),
         };
 
-        return new Script(new SqlIdentifier(statement.Name), statement.Body, scriptEvent)
+        return new Script(Name(statement.Name), statement.Body, scriptEvent)
         {
             RunOutsideTransaction = statement.RunOutsideTransaction,
             RunCondition = Map(statement.RunCondition),
@@ -327,7 +327,7 @@ internal static class DocumentProjector
         if (stray is not null)
         {
             diagnostics.Add(new NsqlDiagnostic("project",
-                $"Template '{statement.Name.Text}' declares objects in schema '{stray.Name}'; objects inside a template must use " +
+                $"Template '{statement.Name.Value}' declares objects in schema '{stray.Name}'; objects inside a template must use " +
                 $"unqualified names so they are created in each schema the template is applied to. (at {statement.Name.Position}).",
                 DiagnosticSeverity.Error, statement.Name.Position));
         }
@@ -336,10 +336,10 @@ internal static class DocumentProjector
 
     // --- name binding and small mappers ----------------------------------------------
 
-    private static SqlIdentifier Name(Syn.Identifier identifier) => new(identifier.Text);
+    private static SqlIdentifier Name(Syn.Identifier identifier) => new(identifier.Value);
 
     private static SqlIdentifier? OptionalName(Syn.Identifier? identifier) =>
-        identifier is null ? null : new SqlIdentifier(identifier.Text);
+        identifier is null ? null : new SqlIdentifier(identifier.Value);
 
     private static List<SqlIdentifier> Names(IReadOnlyList<Syn.Identifier> identifiers) =>
         identifiers.Select(Name).ToList();
@@ -349,12 +349,12 @@ internal static class DocumentProjector
     /// template placeholder (the parser rejects unqualified names outside template bodies).
     /// </summary>
     private static (SqlIdentifier Schema, SqlIdentifier Name) Bind(Syn.QualifiedName name, SqlIdentifier? context) =>
-        (name.Schema is { } schema ? new SqlIdentifier(schema.Text) : context ?? SchemaToken.TargetSchemaPlaceholder,
-         new SqlIdentifier(name.Name.Text));
+        (name.Schema is { } schema ? new SqlIdentifier(schema.Value) : context ?? SchemaToken.TargetSchemaPlaceholder,
+         new SqlIdentifier(name.Name.Value));
 
     private static SqlType ParseType(Syn.TypeName type)
     {
-        var text = type.Schema is { } schema ? $"{schema.Text}.{type.Name.Text}" : type.Name.Text;
+        var text = type.Schema is { } schema ? $"{schema.Value}.{type.Name.Value}" : type.Name.Value;
         if (type.Arguments is { } arguments)
         {
             text += $"({arguments})";
@@ -368,7 +368,7 @@ internal static class DocumentProjector
     private static SequenceOptions? ProjectSequenceOptions(Syn.Sequences.SequenceOptionsClause? options) =>
         options is null
             ? null
-            : new SequenceOptions(options.As is { } dataType ? SqlType.Parse(dataType.Name.Text) : null,
+            : new SequenceOptions(options.As is { } dataType ? SqlType.Parse(dataType.Name.Value) : null,
                 options.Start, options.Increment, options.MinValue, options.MaxValue, options.Cache, options.Cycle);
 
     private static RoutineKind Map(Syn.Routines.RoutineKind kind) =>

@@ -39,7 +39,7 @@ public sealed class PlanLinearizerDataMigrationTests
     {
         // Arrange — a NOT NULL, no-default column with a matched backfill cannot land in one step against a
         // populated table: it is added nullable, backfilled, then tightened.
-        var migration = Migration(ChangeTrigger.AddColumn, "email", name: "backfill emails");
+        var migration = Migration(ChangeTrigger.AddColumn, "email", name: "backfill_emails");
         var column = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text)) { MigrationScript = migration.Name };
 
         // Act
@@ -51,7 +51,7 @@ public sealed class PlanLinearizerDataMigrationTests
         add.Column.Name.ShouldBe("email");
         add.Column.IsNullable.ShouldBeTrue();
         var backfill = plan[1].ShouldBeOfType<ExecuteScript>();
-        backfill.Script.Name.ShouldBe("backfill emails");
+        backfill.Script.Name.ShouldBe("backfill_emails");
         backfill.Script.Sql.ShouldBe(migration.Sql);
         var tighten = plan[2].ShouldBeOfType<AlterColumnNullability>();
         tighten.ColumnName.ShouldBe("email");

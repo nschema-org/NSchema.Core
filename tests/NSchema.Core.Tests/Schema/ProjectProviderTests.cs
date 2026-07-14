@@ -95,7 +95,7 @@ public sealed class ProjectProviderTests : IDisposable
         Write("schema.sql",
             """
             CREATE SCHEMA app;
-            SCRIPT 'backfill' RUN ON POST DEPLOYMENT AS $$ UPDATE app.t SET x = 1; $$;
+            SCRIPT backfill RUN ON POST DEPLOYMENT AS $$ UPDATE app.t SET x = 1; $$;
             """);
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
@@ -122,10 +122,10 @@ public sealed class ProjectProviderTests : IDisposable
         Write("a.sql",
             """
             CREATE SCHEMA app;
-            SCRIPT 'backfill' RUN ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;
-            SCRIPT 'retype' RUN ON ALTER COLUMN TYPE app.users.email AS $$ SELECT 2; $$;
+            SCRIPT backfill RUN ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;
+            SCRIPT retype RUN ON ALTER COLUMN TYPE app.users.email AS $$ SELECT 2; $$;
             """);
-        Write("b.sql", "SCRIPT 'guard' RUN ON ADD CONSTRAINT app.orders.total_positive AS $$ SELECT 3; $$;");
+        Write("b.sql", "SCRIPT guard RUN ON ADD CONSTRAINT app.orders.total_positive AS $$ SELECT 3; $$;");
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
         var project = (await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
@@ -139,9 +139,9 @@ public sealed class ProjectProviderTests : IDisposable
         Write("a.sql",
             """
             CREATE SCHEMA app;
-            SCRIPT 'first' RUN ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;
+            SCRIPT first RUN ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;
             """);
-        Write("b.sql", "SCRIPT 'other' RUN ON ADD COLUMN app.users.email AS $$ SELECT 2; $$;");
+        Write("b.sql", "SCRIPT other RUN ON ADD COLUMN app.users.email AS $$ SELECT 2; $$;");
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
         var result = await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken);
@@ -156,9 +156,9 @@ public sealed class ProjectProviderTests : IDisposable
         Write("a.sql",
             """
             CREATE SCHEMA app;
-            SCRIPT 'lower' RUN ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;
+            SCRIPT lower RUN ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;
             """);
-        Write("b.sql", "SCRIPT 'upper' RUN ON ADD COLUMN APP.Users.EMAIL AS $$ SELECT 2; $$;");
+        Write("b.sql", "SCRIPT upper RUN ON ADD COLUMN APP.Users.EMAIL AS $$ SELECT 2; $$;");
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
         var result = await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken);
@@ -176,8 +176,8 @@ public sealed class ProjectProviderTests : IDisposable
             """
             CREATE SCHEMA app;
             CREATE SCHEMA audit;
-            SCRIPT 'app_backfill' RUN ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;
-            SCRIPT 'audit_backfill' RUN ON ADD COLUMN audit.log.detail AS $$ SELECT 2; $$;
+            SCRIPT app_backfill RUN ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;
+            SCRIPT audit_backfill RUN ON ADD COLUMN audit.log.detail AS $$ SELECT 2; $$;
             """);
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
@@ -257,7 +257,7 @@ public sealed class ProjectProviderTests : IDisposable
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL, trace_id text NOT NULL );
-              SCRIPT 'backfill trace' RUN ON ADD COLUMN outbox_events.trace_id AS $$ UPDATE {schema}.outbox_events SET trace_id = ''; $$;
+              SCRIPT backfill_trace RUN ON ADD COLUMN outbox_events.trace_id AS $$ UPDATE {schema}.outbox_events SET trace_id = ''; $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales, billing;
             """);
@@ -270,7 +270,7 @@ public sealed class ProjectProviderTests : IDisposable
         // kept distinct by their scope.
         project.Scripts.Count.ShouldBe(2);
         project.Scripts.Select(m => ((ChangeEvent)m.Event).Path).ShouldBe(["sales.outbox_events.trace_id", "billing.outbox_events.trace_id"]);
-        project.Scripts.Select(m => m.Reference).ShouldBe([Scoped("sales", "backfill trace"), Scoped("billing", "backfill trace")]);
+        project.Scripts.Select(m => m.Reference).ShouldBe([Scoped("sales", "backfill_trace"), Scoped("billing", "backfill_trace")]);
         project.Scripts[1].Sql.ShouldBe("UPDATE billing.outbox_events SET trace_id = '';");
     }
 
@@ -285,7 +285,7 @@ public sealed class ProjectProviderTests : IDisposable
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL, trace_id text NOT NULL );
-              SCRIPT 'backfill trace' RUN ON ADD COLUMN outbox_events.trace_id AS $$ UPDATE {schema}.outbox_events SET trace_id = ''; $$;
+              SCRIPT backfill_trace RUN ON ADD COLUMN outbox_events.trace_id AS $$ UPDATE {schema}.outbox_events SET trace_id = ''; $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales, billing;
             """);
@@ -296,7 +296,7 @@ public sealed class ProjectProviderTests : IDisposable
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
-        result.Value!.Scripts.Select(s => s.Reference).ShouldBe([Scoped("sales", "backfill trace"), Scoped("billing", "backfill trace")]);
+        result.Value!.Scripts.Select(s => s.Reference).ShouldBe([Scoped("sales", "backfill_trace"), Scoped("billing", "backfill_trace")]);
     }
 
     [Fact]
@@ -307,14 +307,14 @@ public sealed class ProjectProviderTests : IDisposable
         Write("schema.sql",
             """
             CREATE SCHEMA sales;
-            SCRIPT 'handwritten' RUN ON ADD COLUMN sales.outbox_events.trace_id AS $$ SELECT 1; $$;
+            SCRIPT handwritten RUN ON ADD COLUMN sales.outbox_events.trace_id AS $$ SELECT 1; $$;
             """);
         Write("outbox.sql",
             """
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL, trace_id text NOT NULL );
-              SCRIPT 'templated {schema}' RUN ON ADD COLUMN outbox_events.trace_id AS $$ SELECT 2; $$;
+              SCRIPT templated RUN ON ADD COLUMN outbox_events.trace_id AS $$ SELECT 2; $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales;
             """);
@@ -332,8 +332,8 @@ public sealed class ProjectProviderTests : IDisposable
     {
         // Arrange — the address identifies a script (run-once tracking, diagnostics), so two globals sharing a
         // name is a collision, whichever statement forms are involved.
-        Write("a.sql", "SCRIPT 'seed' RUN ON POST DEPLOYMENT AS $$ SELECT 1; $$;");
-        Write("b.sql", "SCRIPT 'seed' RUN ON POST DEPLOYMENT AS $$ SELECT 2; $$;");
+        Write("a.sql", "SCRIPT seed RUN ON POST DEPLOYMENT AS $$ SELECT 1; $$;");
+        Write("b.sql", "SCRIPT seed RUN ON POST DEPLOYMENT AS $$ SELECT 2; $$;");
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
         // Act / Assert
@@ -352,8 +352,8 @@ public sealed class ProjectProviderTests : IDisposable
         Write("schema.sql",
             """
             CREATE SCHEMA sales;
-            SCRIPT 'seed' RUN ON ADD COLUMN sales.orders.total AS $$ SELECT 1; $$;
-            SCRIPT 'seed' RUN ON ADD COLUMN sales.orders.tax AS $$ SELECT 2; $$;
+            SCRIPT seed RUN ON ADD COLUMN sales.orders.total AS $$ SELECT 1; $$;
+            SCRIPT seed RUN ON ADD COLUMN sales.orders.tax AS $$ SELECT 2; $$;
             """);
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
@@ -369,7 +369,7 @@ public sealed class ProjectProviderTests : IDisposable
     public async Task GetProject_ScriptStatements_ProduceNoDiagnostics()
     {
         // Arrange
-        Write("scripts.sql", "SCRIPT 'seed' RUN ONCE ON POST DEPLOYMENT AS $$ SELECT 1; $$;");
+        Write("scripts.sql", "SCRIPT seed RUN ONCE ON POST DEPLOYMENT AS $$ SELECT 1; $$;");
         var sut = new ProjectProvider([Source(_root, "**/*.sql")]);
 
         // Act
@@ -390,7 +390,7 @@ public sealed class ProjectProviderTests : IDisposable
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL );
-              SCRIPT 'seed' RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
+              SCRIPT seed RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales, billing;
             """);
@@ -412,14 +412,14 @@ public sealed class ProjectProviderTests : IDisposable
             """
             CREATE SCHEMA sales;
             CREATE SCHEMA billing;
-            SCRIPT 'global' RUN ON PRE DEPLOYMENT AS $$ SELECT 1; $$;
+            SCRIPT global RUN ON PRE DEPLOYMENT AS $$ SELECT 1; $$;
             """);
         Write("outbox.sql",
             """
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL );
-              SCRIPT 'seed' RUN ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
+              SCRIPT seed RUN ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales, billing;
             """);
@@ -442,7 +442,7 @@ public sealed class ProjectProviderTests : IDisposable
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL, trace_id text NOT NULL );
-              SCRIPT 'backfill {schema}' RUN ON ADD COLUMN outbox_events.trace_id AS $$ SELECT 1; $$;
+              SCRIPT backfill RUN ON ADD COLUMN outbox_events.trace_id AS $$ SELECT 1; $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales, billing;
             """);

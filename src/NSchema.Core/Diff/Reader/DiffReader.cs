@@ -107,9 +107,7 @@ public sealed class DiffReader
 
         foreach (var script in scripts)
         {
-            AppendHeader(lines, ChangeKind.Add, script.Event.ScopeSchema is { } scope
-                ? $"script '{script.Name}' (schema {scope}, {EventText(script.Event)})"
-                : $"script '{script.Name}' ({EventText(script.Event)})");
+            AppendHeader(lines, ChangeKind.Add, $"script {script.Reference} ({EventText(script.Event)})");
         }
     }
 
@@ -481,7 +479,7 @@ public sealed class DiffReader
             : $" ({FormatComment(comment.Old)} → {FormatComment(comment.New)})";
 
     private static string MigrationSuffix(SqlIdentifier? migrationName) =>
-        migrationName is null ? string.Empty : $" (with migration '{migrationName}')";
+        migrationName is null ? string.Empty : $" (with migration {migrationName})";
 
     // Decompose the privilege flags into the underlying SQL privileges rather than rendering the enum name,
     // which would surface aliases (e.g. ReadOnly for Select) and composites (All) instead of the real grants.

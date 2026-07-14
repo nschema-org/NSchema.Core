@@ -5,7 +5,7 @@ namespace NSchema.Tests.Schema.Serialization.Nsql;
 
 /// <summary>
 /// Covers the change-event side of the SCRIPT statement — the data-migration declarations
-/// (<c>SCRIPT '&lt;name&gt;' RUN ON &lt;change event&gt; &lt;path&gt; AS $$ … $$;</c>).
+/// (<c>SCRIPT &lt;name&gt; RUN ON &lt;change event&gt; &lt;path&gt; AS $$ … $$;</c>).
 /// </summary>
 public sealed class NsqlParserMigrationTests
 {
@@ -15,7 +15,7 @@ public sealed class NsqlParserMigrationTests
     [Fact]
     public void Parse_AddColumnTrigger_CapturesTriggerAndPathParts()
     {
-        var migration = ReadMigrations("SCRIPT 'backfill' RUN ON ADD COLUMN app.users.email AS $$ UPDATE app.users SET email = ''; $$;")
+        var migration = ReadMigrations("SCRIPT backfill RUN ON ADD COLUMN app.users.email AS $$ UPDATE app.users SET email = ''; $$;")
             .ShouldHaveSingleItem();
 
         var change = migration.Event.ShouldBeOfType<ChangeEvent>();
@@ -29,7 +29,7 @@ public sealed class NsqlParserMigrationTests
     [Fact]
     public void Parse_AlterColumnTypeTrigger_CapturesTriggerAndPathParts()
     {
-        var migration = ReadMigrations("SCRIPT 'retype' RUN ON ALTER COLUMN TYPE app.orders.total AS $$ SELECT 1; $$;")
+        var migration = ReadMigrations("SCRIPT retype RUN ON ALTER COLUMN TYPE app.orders.total AS $$ SELECT 1; $$;")
             .ShouldHaveSingleItem();
 
         var change = migration.Event.ShouldBeOfType<ChangeEvent>();
@@ -40,7 +40,7 @@ public sealed class NsqlParserMigrationTests
     [Fact]
     public void Parse_AddConstraintTrigger_CapturesTriggerAndPathParts()
     {
-        var migration = ReadMigrations("SCRIPT 'dedupe' RUN ON ADD CONSTRAINT app.orders.total_positive AS $$ DELETE FROM app.orders WHERE total <= 0; $$;")
+        var migration = ReadMigrations("SCRIPT dedupe RUN ON ADD CONSTRAINT app.orders.total_positive AS $$ DELETE FROM app.orders WHERE total <= 0; $$;")
             .ShouldHaveSingleItem();
 
         var change = migration.Event.ShouldBeOfType<ChangeEvent>();
@@ -50,17 +50,17 @@ public sealed class NsqlParserMigrationTests
 
     [Fact]
     public void Parse_Migration_CarriesTheName()
-        => ReadMigrations("SCRIPT 'backfill emails' RUN ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;")
-            .ShouldHaveSingleItem().Name.ShouldBe("backfill emails");
+        => ReadMigrations("SCRIPT backfill_emails RUN ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;")
+            .ShouldHaveSingleItem().Name.ShouldBe("backfill_emails");
 
     [Fact]
     public void Parse_RunOutsideTransactionOption_IsCaptured()
-        => ReadMigrations("SCRIPT 'x' RUN ON ADD COLUMN app.users.email (run_outside_transaction = true) AS $$ SELECT 1; $$;")
+        => ReadMigrations("SCRIPT x RUN ON ADD COLUMN app.users.email (run_outside_transaction = true) AS $$ SELECT 1; $$;")
             .ShouldHaveSingleItem().RunOutsideTransaction.ShouldBeTrue();
 
     [Fact]
     public void Parse_WithoutOptions_RunOutsideTransactionDefaultsToFalse()
-        => ReadMigrations("SCRIPT 'x' RUN ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;")
+        => ReadMigrations("SCRIPT x RUN ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;")
             .ShouldHaveSingleItem().RunOutsideTransaction.ShouldBeFalse();
 
     [Fact]
@@ -69,7 +69,7 @@ public sealed class NsqlParserMigrationTests
         // The dollar-quoted body is opaque: inner ';' is part of the migration, not a terminator.
         var migration = ReadMigrations(
             """
-            SCRIPT 'backfill' RUN ON ADD COLUMN app.users.email AS $$
+            SCRIPT backfill RUN ON ADD COLUMN app.users.email AS $$
                 UPDATE app.users SET email = 'a;b';
                 UPDATE app.users SET email = '';
             $$;
@@ -82,7 +82,7 @@ public sealed class NsqlParserMigrationTests
     public void Parse_CustomDollarTag_PreservesEmbeddedDoubleDollar()
     {
         // A differently-tagged $$ inside the body is just content; only the opening tag closes it.
-        var migration = ReadMigrations("SCRIPT 'x' RUN ON ADD COLUMN app.t.c AS $tag$ SELECT $$nested$$; $tag$;")
+        var migration = ReadMigrations("SCRIPT x RUN ON ADD COLUMN app.t.c AS $tag$ SELECT $$nested$$; $tag$;")
             .ShouldHaveSingleItem();
 
         migration.Sql.ShouldBe("SELECT $$nested$$;");
@@ -90,27 +90,27 @@ public sealed class NsqlParserMigrationTests
 
     [Fact]
     public void Parse_UnknownTrigger_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => ReadMigrations("SCRIPT 'x' RUN ON ADD INDEX app.users.email AS $$ SELECT 1; $$;"))
+        => Should.Throw<NsqlSyntaxException>(() => ReadMigrations("SCRIPT x RUN ON ADD INDEX app.users.email AS $$ SELECT 1; $$;"))
             .Message.ShouldContain("Expected 'ADD COLUMN', 'ALTER COLUMN TYPE' or 'ADD CONSTRAINT'.");
 
     [Fact]
     public void Parse_TwoPartPath_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => ReadMigrations("SCRIPT 'x' RUN ON ADD COLUMN app.users AS $$ SELECT 1; $$;"))
+        => Should.Throw<NsqlSyntaxException>(() => ReadMigrations("SCRIPT x RUN ON ADD COLUMN app.users AS $$ SELECT 1; $$;"))
             .Message.ShouldContain("'.'");
 
     [Fact]
     public void Parse_WrongTokenBeforeBody_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => ReadMigrations("SCRIPT 'x' RUN ON ADD COLUMN app.users.email WHEN $$ SELECT 1; $$;"))
+        => Should.Throw<NsqlSyntaxException>(() => ReadMigrations("SCRIPT x RUN ON ADD COLUMN app.users.email WHEN $$ SELECT 1; $$;"))
             .Message.ShouldContain("AS");
 
     [Fact]
     public void Parse_UnknownOption_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => ReadMigrations("SCRIPT 'x' RUN ON ADD COLUMN app.users.email (whoops = true) AS $$ SELECT 1; $$;"))
+        => Should.Throw<NsqlSyntaxException>(() => ReadMigrations("SCRIPT x RUN ON ADD COLUMN app.users.email (whoops = true) AS $$ SELECT 1; $$;"))
             .Message.ShouldContain("run_outside_transaction");
 
     [Fact]
     public void Parse_MissingTerminatingSemicolon_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => ReadMigrations("SCRIPT 'x' RUN ON ADD COLUMN app.users.email AS $$ SELECT 1; $$"))
+        => Should.Throw<NsqlSyntaxException>(() => ReadMigrations("SCRIPT x RUN ON ADD COLUMN app.users.email AS $$ SELECT 1; $$"))
             .Message.ShouldContain("';' to end the script");
 
     [Fact]
@@ -122,7 +122,7 @@ public sealed class NsqlParserMigrationTests
             TEMPLATE t
             BEGIN
               CREATE TABLE users ( id int NOT NULL );
-              SCRIPT 'backfill' RUN ON ADD COLUMN users.email (run_outside_transaction = true) AS $$ UPDATE {schema}.users SET email = ''; $$;
+              SCRIPT backfill RUN ON ADD COLUMN users.email (run_outside_transaction = true) AS $$ UPDATE {schema}.users SET email = ''; $$;
             END;
             APPLY TEMPLATE t IN SCHEMA app;
             """);
@@ -147,7 +147,7 @@ public sealed class NsqlParserMigrationTests
             TEMPLATE t
             BEGIN
               CREATE TABLE users ( id int NOT NULL );
-              SCRIPT 'x' RUN ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;
+              SCRIPT x RUN ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;
             END;
             """)).Message.ShouldContain("A migration inside a template must use an unqualified 'table.member' path");
 
@@ -159,7 +159,7 @@ public sealed class NsqlParserMigrationTests
             """
             TEMPLATE t
             BEGIN
-              SCRIPT 'x' RUN ON ADD COLUMN orders.total AS $$ SELECT 1; $$;
+              SCRIPT x RUN ON ADD COLUMN orders.total AS $$ SELECT 1; $$;
             END;
             """).Parse());
 
@@ -170,7 +170,7 @@ public sealed class NsqlParserMigrationTests
             """
             TEMPLATE t FOR TABLE
             BEGIN
-              SCRIPT 'x' RUN ON ADD COLUMN users.email AS $$ SELECT 1; $$
+              SCRIPT x RUN ON ADD COLUMN users.email AS $$ SELECT 1; $$
             END;
             """));
 }

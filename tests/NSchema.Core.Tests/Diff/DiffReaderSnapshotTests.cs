@@ -360,19 +360,19 @@ public sealed class DiffReaderSnapshotTests
                         [
                             new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text))
                             {
-                                MigrationScript = new SqlIdentifier("backfill emails"),
+                                MigrationScript = new SqlIdentifier("backfill_emails"),
                             },
                             new ColumnDiff(new SqlIdentifier("total"), ChangeKind.Modify,
                                 Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int))
                             {
-                                MigrationScript = new SqlIdentifier("retype totals"),
+                                MigrationScript = new SqlIdentifier("retype_totals"),
                             },
                         ],
                         UniqueConstraints:
                         [
                             new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_email_uq"), new UniqueConstraint(new SqlIdentifier("users_email_uq"), [new SqlIdentifier("email")]))
                             {
-                                MigrationScript = new SqlIdentifier("dedupe emails"),
+                                MigrationScript = new SqlIdentifier("dedupe_emails"),
                             },
                         ]),
                 ]),
@@ -397,7 +397,7 @@ public sealed class DiffReaderSnapshotTests
                         [
                             new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text))
                             {
-                                MigrationScript = new SqlIdentifier("backfill emails"),
+                                MigrationScript = new SqlIdentifier("backfill_emails"),
                             },
                         ]),
                 ]),
@@ -405,9 +405,9 @@ public sealed class DiffReaderSnapshotTests
         {
             Scripts =
             [
-                new Script(new SqlIdentifier("seed roles"), new SqlText("INSERT INTO roles VALUES ('admin');"), new DeploymentEvent(DeploymentPhase.Pre)),
-                new Script(new SqlIdentifier("backfill emails"), new SqlText("UPDATE app.users SET email = '';"), new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") }),
-                new Script(new SqlIdentifier("refresh views"), new SqlText("REFRESH MATERIALIZED VIEW app.stats;"), new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = RunCondition.Once },
+                new Script(new SqlIdentifier("seed_roles"), new SqlText("INSERT INTO roles VALUES ('admin');"), new DeploymentEvent(DeploymentPhase.Pre)),
+                new Script(new SqlIdentifier("backfill_emails"), new SqlText("UPDATE app.users SET email = '';"), new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") }),
+                new Script(new SqlIdentifier("refresh_views"), new SqlText("REFRESH MATERIALIZED VIEW app.stats;"), new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = RunCondition.Once },
             ],
         };
     }

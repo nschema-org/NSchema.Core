@@ -46,28 +46,28 @@ public sealed class ProjectedDocumentWriterTests
     {
         var formatted = AssertRoundTrips(
             """
-            SCRIPT 'enable_citext' RUN ON PRE DEPLOYMENT AS $$
+            SCRIPT enable_citext RUN ON PRE DEPLOYMENT AS $$
                 CREATE EXTENSION IF NOT EXISTS citext;
             $$;
 
-            SCRIPT 'reindex' RUN ON POST DEPLOYMENT (run_outside_transaction = true) AS $$
+            SCRIPT reindex RUN ON POST DEPLOYMENT (run_outside_transaction = true) AS $$
                 CREATE INDEX CONCURRENTLY idx ON app.t (name);
             $$;
             """);
 
-        formatted.ShouldContain("SCRIPT 'enable_citext' RUN ON PRE DEPLOYMENT AS $$");
-        formatted.ShouldContain("SCRIPT 'reindex' RUN ON POST DEPLOYMENT (run_outside_transaction = true) AS $$");
+        formatted.ShouldContain("SCRIPT enable_citext RUN ON PRE DEPLOYMENT AS $$");
+        formatted.ShouldContain("SCRIPT reindex RUN ON POST DEPLOYMENT (run_outside_transaction = true) AS $$");
     }
 
     [Fact]
     public void Write_RunOnceScript_RoundTrips()
-        => AssertRoundTrips("SCRIPT 'seed' RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO app.c VALUES (1); $$;")
-            .ShouldContain("SCRIPT 'seed' RUN ONCE ON POST DEPLOYMENT AS $$");
+        => AssertRoundTrips("SCRIPT seed RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO app.c VALUES (1); $$;")
+            .ShouldContain("SCRIPT seed RUN ONCE ON POST DEPLOYMENT AS $$");
 
     [Fact]
     public void Write_ScriptBodyContainingDoubleDollar_PicksASafeTag()
     {
-        var formatted = AssertRoundTrips("SCRIPT 'x' RUN ON PRE DEPLOYMENT AS $outer$ SELECT '$$' AS v $outer$;");
+        var formatted = AssertRoundTrips("SCRIPT x RUN ON PRE DEPLOYMENT AS $outer$ SELECT '$$' AS v $outer$;");
 
         // The default $$ delimiter would collide with the body, so the writer must choose a tagged delimiter.
         formatted.ShouldNotContain("AS $$");
@@ -82,30 +82,30 @@ public sealed class ProjectedDocumentWriterTests
     public void Write_NamedMigration_RoundTrips()
         => AssertRoundTrips(
             """
-            SCRIPT 'backfill_emails' RUN ON ADD COLUMN app.users.email AS $$
+            SCRIPT backfill_emails RUN ON ADD COLUMN app.users.email AS $$
                 UPDATE app.users SET email = '';
             $$;
-            """).ShouldContain("SCRIPT 'backfill_emails' RUN ON ADD COLUMN app.users.email AS $$");
+            """).ShouldContain("SCRIPT backfill_emails RUN ON ADD COLUMN app.users.email AS $$");
 
     [Fact]
     public void Write_ConstraintMigration_RoundTrips()
         => AssertRoundTrips(
             """
-            SCRIPT 'dedupe' RUN ON ADD CONSTRAINT app.orders.total_positive AS $$
+            SCRIPT dedupe RUN ON ADD CONSTRAINT app.orders.total_positive AS $$
                 DELETE FROM app.orders WHERE total <= 0;
             $$;
-            """).ShouldContain("SCRIPT 'dedupe' RUN ON ADD CONSTRAINT app.orders.total_positive AS $$");
+            """).ShouldContain("SCRIPT dedupe RUN ON ADD CONSTRAINT app.orders.total_positive AS $$");
 
     [Fact]
     public void Write_MigrationWithRunOutsideTransaction_RoundTrips()
         => AssertRoundTrips(
-            "SCRIPT 'retype' RUN ON ALTER COLUMN TYPE app.orders.total (run_outside_transaction = true) AS $$ SELECT 1; $$;")
-            .ShouldContain("SCRIPT 'retype' RUN ON ALTER COLUMN TYPE app.orders.total (run_outside_transaction = true) AS $$");
+            "SCRIPT retype RUN ON ALTER COLUMN TYPE app.orders.total (run_outside_transaction = true) AS $$ SELECT 1; $$;")
+            .ShouldContain("SCRIPT retype RUN ON ALTER COLUMN TYPE app.orders.total (run_outside_transaction = true) AS $$");
 
     [Fact]
     public void Write_MigrationBodyContainingDoubleDollar_PicksASafeTag()
     {
-        var formatted = AssertRoundTrips("SCRIPT 'x' RUN ON ADD COLUMN app.t.c AS $outer$ SELECT '$$' AS v $outer$;");
+        var formatted = AssertRoundTrips("SCRIPT x RUN ON ADD COLUMN app.t.c AS $outer$ SELECT '$$' AS v $outer$;");
 
         // The default $$ delimiter would collide with the body, so the writer must choose a tagged delimiter.
         formatted.ShouldNotContain("AS $$");
@@ -129,7 +129,7 @@ public sealed class ProjectedDocumentWriterTests
                 CONSTRAINT users_pkey PRIMARY KEY (id)
             );
 
-            SCRIPT 'seed' RUN ON POST DEPLOYMENT AS $$
+            SCRIPT seed RUN ON POST DEPLOYMENT AS $$
                 INSERT INTO app.users (name) VALUES ('root');
             $$;
             """);
@@ -140,7 +140,7 @@ public sealed class ProjectedDocumentWriterTests
         // Source deliberately interleaves: script, then schema.
         var document = new TestNsqlParser(
             """
-            SCRIPT 'seed' RUN ON POST DEPLOYMENT AS $$ SELECT 1 $$;
+            SCRIPT seed RUN ON POST DEPLOYMENT AS $$ SELECT 1 $$;
 
             CREATE SCHEMA app;
             """).Parse();

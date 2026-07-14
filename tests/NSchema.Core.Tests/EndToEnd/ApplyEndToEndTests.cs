@@ -87,7 +87,7 @@ public sealed class ApplyEndToEndTests : IDisposable
                 id int NOT NULL,
                 email text NOT NULL
             );
-            SCRIPT 'backfill emails' RUN ON ADD COLUMN app.users.email AS $$
+            SCRIPT backfill_emails RUN ON ADD COLUMN app.users.email AS $$
             UPDATE app.users SET email = 'unknown@example.com';
             $$;
             """);
@@ -128,7 +128,7 @@ public sealed class ApplyEndToEndTests : IDisposable
                     id int NOT NULL,
                     actor text NOT NULL
                 );
-                SCRIPT 'backfill actors' RUN ON ADD COLUMN events.actor AS $$
+                SCRIPT backfill_actors RUN ON ADD COLUMN events.actor AS $$
                 UPDATE {schema}.events SET actor = 'system';
                 $$;
             END;
@@ -153,7 +153,7 @@ public sealed class ApplyEndToEndTests : IDisposable
 
         // Billing's instance is inert this run and says so; sales' matched instance reports nothing.
         var inert = result.Diagnostics.Where(d => d.Source == "data-migrations").ShouldHaveSingleItem();
-        inert.Message.ShouldContain("'backfill actors'");
+        inert.Message.ShouldContain("'billing.backfill_actors'");
         inert.Message.ShouldContain("billing.events.actor");
     }
 
@@ -165,7 +165,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
-            SCRIPT 'seed currencies' RUN ONCE ON POST DEPLOYMENT AS $$
+            SCRIPT seed_currencies RUN ONCE ON POST DEPLOYMENT AS $$
             INSERT INTO app.currencies VALUES ('GBP');
             $$;
             """);
@@ -177,10 +177,10 @@ public sealed class ApplyEndToEndTests : IDisposable
         (await app.Locks.Acquire(new AcquireLockArguments("apply"), cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         var first = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
         first.Plan!.Statements.Select(s => s.Sql).ShouldContain(new SqlText("INSERT INTO app.currencies VALUES ('GBP');"));
-        ShouldlyIdentifierExtensions.ShouldBe(first.Plan!.Diff.Scripts.ShouldHaveSingleItem().Name, "seed currencies");
+        ShouldlyIdentifierExtensions.ShouldBe(first.Plan!.Diff.Scripts.ShouldHaveSingleItem().Name, "seed_currencies");
         await app.Operations.Apply(new ApplyArguments { Plan = first.Plan! }, TestContext.Current.CancellationToken);
 
-        ShouldlyIdentifierExtensions.ShouldBe(_store.Written.ShouldNotBeNull().Scripts.ShouldHaveSingleItem().Script.Name, "seed currencies");
+        ShouldlyIdentifierExtensions.ShouldBe(_store.Written.ShouldNotBeNull().Scripts.ShouldHaveSingleItem().Script.Name, "seed_currencies");
 
         // Second run: the script is skipped, and no longer up for recording.
         var second = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);

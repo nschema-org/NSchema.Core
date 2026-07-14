@@ -10,4 +10,10 @@ namespace NSchema.Project.Domain.Models.Scripts;
 /// </remarks>
 /// <param name="Schema">The schema the script's run is scoped to, or <see langword="null"/> when the script is global.</param>
 /// <param name="Name">The script's declared name.</param>
-public sealed record ScriptReference(SqlIdentifier? Schema, SqlIdentifier Name);
+public sealed record ScriptReference(SqlIdentifier? Schema, SqlIdentifier Name)
+{
+    /// <summary>
+    /// The address rendered like any other reference: <c>schema.name</c> when scoped, the bare name when global.
+    /// </summary>
+    public override string ToString() => Schema == null ? Name.Value: $"{Schema}.{Name}";
+}

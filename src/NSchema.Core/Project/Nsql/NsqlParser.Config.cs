@@ -104,10 +104,10 @@ internal sealed partial class NsqlParser
     /// </summary>
     private string ParseConfigKey()
     {
-        var key = ExpectIdentifierNode("a configuration attribute name").Text;
+        var key = ExpectIdentifierNode("a configuration attribute name").Value;
         while (Match(TokenKind.Dot))
         {
-            key += "." + ExpectIdentifierNode("a configuration attribute name segment").Text;
+            key += "." + ExpectIdentifierNode("a configuration attribute name segment").Value;
         }
         return key;
     }

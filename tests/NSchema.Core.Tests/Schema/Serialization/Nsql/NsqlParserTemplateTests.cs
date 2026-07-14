@@ -45,7 +45,7 @@ public sealed class NsqlParserTemplateTests
             END;
             """).ShouldHaveSingleItem().ShouldBeOfType<SchemaTemplateStatement>();
 
-        template.Name.Text.ShouldBe("t");
+        template.Name.Value.ShouldBe("t");
         template.Statements.Count.ShouldBe(2);
         template.Statements[0].ShouldBeOfType<CreateTableStatement>().Name.Schema.ShouldBeNull();
     }
@@ -185,9 +185,9 @@ public sealed class NsqlParserTemplateTests
             """);
 
         statements.Count.ShouldBe(3);
-        statements[0].ShouldBeOfType<CreateSchemaStatement>().Name.Text.ShouldBe("app");
-        statements[1].ShouldBeOfType<SchemaTemplateStatement>().Name.Text.ShouldBe("t");
-        statements[2].ShouldBeOfType<ApplyTemplateStatement>().TemplateName.Text.ShouldBe("t");
+        statements[0].ShouldBeOfType<CreateSchemaStatement>().Name.Value.ShouldBe("app");
+        statements[1].ShouldBeOfType<SchemaTemplateStatement>().Name.Value.ShouldBe("t");
+        statements[2].ShouldBeOfType<ApplyTemplateStatement>().TemplateName.Value.ShouldBe("t");
     }
 
     [Fact]
@@ -196,8 +196,8 @@ public sealed class NsqlParserTemplateTests
         var application = Statements("APPLY TEMPLATE outbox IN SCHEMA billing, ordering, shipping;")
             .ShouldHaveSingleItem().ShouldBeOfType<ApplyTemplateStatement>();
 
-        application.TemplateName.Text.ShouldBe("outbox");
-        application.Schemas.Select(s => s.Text).ShouldBe(["billing", "ordering", "shipping"]);
+        application.TemplateName.Value.ShouldBe("outbox");
+        application.Schemas.Select(s => s.Value).ShouldBe(["billing", "ordering", "shipping"]);
     }
 
     [Fact]
@@ -284,9 +284,9 @@ public sealed class NsqlParserTemplateTests
             """).ShouldHaveSingleItem().ShouldBeOfType<TableTemplateStatement>();
 
         template.Members.Count.ShouldBe(4);
-        template.Members.OfType<ColumnDefinition>().Select(c => c.Name.Text).ShouldBe(["created_at", "updated_at"]);
-        template.Members.OfType<NSchema.Project.Nsql.Syntax.Constraints.CheckDefinition>().ShouldHaveSingleItem().Name.Text.ShouldBe("chk_updated");
-        template.Members.OfType<NSchema.Project.Nsql.Syntax.Indexes.IndexDefinition>().ShouldHaveSingleItem().Name.Text.ShouldBe("ix_updated_at");
+        template.Members.OfType<ColumnDefinition>().Select(c => c.Name.Value).ShouldBe(["created_at", "updated_at"]);
+        template.Members.OfType<NSchema.Project.Nsql.Syntax.Constraints.CheckDefinition>().ShouldHaveSingleItem().Name.Value.ShouldBe("chk_updated");
+        template.Members.OfType<NSchema.Project.Nsql.Syntax.Indexes.IndexDefinition>().ShouldHaveSingleItem().Name.Value.ShouldBe("ix_updated_at");
     }
 
     [Fact]
@@ -356,14 +356,14 @@ public sealed class NsqlParserTemplateTests
             """).ShouldHaveSingleItem().ShouldBeOfType<CreateTableStatement>();
 
         table.Members.Count.ShouldBe(3);
-        table.Members[1].ShouldBeOfType<IncludeMember>().TemplateName.Text.ShouldBe("audit_columns");
+        table.Members[1].ShouldBeOfType<IncludeMember>().TemplateName.Value.ShouldBe("audit_columns");
     }
 
     [Fact]
     public void Parse_Include_AsLastMember()
         => Statements("CREATE TABLE app.t (id int NOT NULL, INCLUDE audit_columns);")
             .ShouldHaveSingleItem().ShouldBeOfType<CreateTableStatement>()
-            .Members[1].ShouldBeOfType<IncludeMember>().TemplateName.Text.ShouldBe("audit_columns");
+            .Members[1].ShouldBeOfType<IncludeMember>().TemplateName.Value.ShouldBe("audit_columns");
 
     [Fact]
     public void Parse_ColumnNamedInclude_StillParsesAsAColumn()

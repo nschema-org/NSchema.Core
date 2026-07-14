@@ -32,6 +32,6 @@ public sealed record PluginSettings(string? Label, IReadOnlyDictionary<string, C
             });
         }
 
-        return new PluginSettings(statement.Label?.Text, attributes);
+        return new PluginSettings(statement.Label?.Value, attributes);
     }
 }

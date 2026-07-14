@@ -22,7 +22,7 @@ public sealed class NsqlReaderTests : IDisposable
         // Assert
         result.IsSuccess.ShouldBeTrue();
         var statement = result.Value.Statements.ShouldHaveSingleItem().ShouldBeOfType<CreateSchemaStatement>();
-        statement.Name.Text.ShouldBe("app");
+        statement.Name.Value.ShouldBe("app");
         result.Value.FilePath.ShouldBeNull();
     }
 
@@ -37,7 +37,7 @@ public sealed class NsqlReaderTests : IDisposable
         var error = result.Errors.ShouldHaveSingleItem();
         error.Position.Line.ShouldBe(2);
         error.File.ShouldBeNull();
-        result.Value!.Statements.ShouldHaveSingleItem().ShouldBeOfType<CreateSchemaStatement>().Name.Text.ShouldBe("app");
+        result.Value!.Statements.ShouldHaveSingleItem().ShouldBeOfType<CreateSchemaStatement>().Name.Value.ShouldBe("app");
     }
 
     [Fact]

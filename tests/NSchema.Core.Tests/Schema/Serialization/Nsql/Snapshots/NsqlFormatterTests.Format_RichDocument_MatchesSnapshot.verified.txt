@@ -26,6 +26,6 @@ create view app.open_orders as
     from app.orders
     where status = 'pending';
 
-SCRIPT 'reindex' RUN ON POST DEPLOYMENT (run_outside_transaction = true) AS $$
+SCRIPT reindex RUN ON POST DEPLOYMENT (run_outside_transaction = true) AS $$
 REINDEX TABLE app.orders;
 $$;

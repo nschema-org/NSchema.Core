@@ -199,7 +199,7 @@ public sealed class NsqlFormatterTests
     {
         const string input =
             """
-            SCRIPT 'seed' RUN ON PRE DEPLOYMENT AS $$
+            SCRIPT seed RUN ON PRE DEPLOYMENT AS $$
             INSERT INTO app.t VALUES (1);
             INSERT INTO app.t VALUES (2);
             $$;
@@ -216,7 +216,7 @@ public sealed class NsqlFormatterTests
         const string input =
             """
             create schema app;
-            SCRIPT 'backfill' RUN ON ADD COLUMN app.users.email AS $$
+            SCRIPT backfill RUN ON ADD COLUMN app.users.email AS $$
             UPDATE app.users SET email = '';
             $$;
             """;
@@ -225,7 +225,7 @@ public sealed class NsqlFormatterTests
             """
             create schema app;
 
-            SCRIPT 'backfill' RUN ON ADD COLUMN app.users.email AS $$
+            SCRIPT backfill RUN ON ADD COLUMN app.users.email AS $$
             UPDATE app.users SET email = '';
             $$;
             """;
@@ -240,7 +240,7 @@ public sealed class NsqlFormatterTests
             """
             template outbox begin
             create table outbox_events(id int not null, trace_id text not null);
-             SCRIPT 'backfill' run on add column outbox_events.trace_id as $$
+             SCRIPT backfill run on add column outbox_events.trace_id as $$
             UPDATE {schema}.outbox_events SET trace_id = '';
               $$;
             end;
@@ -248,7 +248,7 @@ public sealed class NsqlFormatterTests
 
         var once = Format(input);
         Format(once).ShouldBe(once);
-        once.ShouldContain("SCRIPT 'backfill'");
+        once.ShouldContain("SCRIPT backfill");
     }
 
     [Fact]
@@ -257,7 +257,7 @@ public sealed class NsqlFormatterTests
         const string input =
             """
             create schema app;
-            SCRIPT 'noop_ids' RUN ON ALTER COLUMN TYPE app.users.id (run_outside_transaction = true) AS $$
+            SCRIPT noop_ids RUN ON ALTER COLUMN TYPE app.users.id (run_outside_transaction = true) AS $$
             UPDATE app.users SET id = id;
             $$;
             """;
@@ -427,7 +427,7 @@ public sealed class NsqlFormatterTests
                 from app.orders
                 where status = 'pending';
 
-            SCRIPT 'reindex' RUN ON POST DEPLOYMENT (run_outside_transaction = true) AS $$
+            SCRIPT reindex RUN ON POST DEPLOYMENT (run_outside_transaction = true) AS $$
             REINDEX TABLE app.orders;
             $$;
             """;
@@ -465,7 +465,7 @@ public sealed class NsqlFormatterTests
                 from app.orders
                 where status = 'pending';
 
-            SCRIPT 'reindex' RUN ON POST DEPLOYMENT (run_outside_transaction = true) AS $$
+            SCRIPT reindex RUN ON POST DEPLOYMENT (run_outside_transaction = true) AS $$
             REINDEX TABLE app.orders;
             $$;
             """;

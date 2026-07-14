@@ -422,7 +422,7 @@ public sealed class TemplateExpanderTests
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL, trace_id text NOT NULL );
-              SCRIPT 'backfill trace' RUN ON ADD COLUMN outbox_events.trace_id AS $$ UPDATE {schema}.outbox_events SET trace_id = ''; $$;
+              SCRIPT backfill_trace RUN ON ADD COLUMN outbox_events.trace_id AS $$ UPDATE {schema}.outbox_events SET trace_id = ''; $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales, billing;
             """).Require().Scripts;
@@ -431,7 +431,7 @@ public sealed class TemplateExpanderTests
         instances.Count.ShouldBe(2);
         instances[0].Event.ShouldBeOfType<ChangeEvent>().Path.ShouldBe("sales.outbox_events.trace_id");
         instances[0].Sql.ShouldBe("UPDATE sales.outbox_events SET trace_id = '';");
-        instances[0].Name.ShouldBe("backfill trace");
+        instances[0].Name.ShouldBe("backfill_trace");
         instances[1].Event.ShouldBeOfType<ChangeEvent>().Path.ShouldBe("billing.outbox_events.trace_id");
         instances[1].Sql.ShouldBe("UPDATE billing.outbox_events SET trace_id = '';");
     }
@@ -446,7 +446,7 @@ public sealed class TemplateExpanderTests
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL );
-              SCRIPT 'backfill {schema}' RUN ON ADD COLUMN outbox_events.trace_id AS $$ SELECT 1; $$;
+              SCRIPT backfill RUN ON ADD COLUMN outbox_events.trace_id AS $$ SELECT 1; $$;
             END;
             """).Require().Scripts;
 
@@ -464,7 +464,7 @@ public sealed class TemplateExpanderTests
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL );
-              SCRIPT 'version {schema}' RUN ON ADD COLUMN outbox_events.trace_id (run_outside_transaction = true) AS $$ SELECT version(); $$;
+              SCRIPT version RUN ON ADD COLUMN outbox_events.trace_id (run_outside_transaction = true) AS $$ SELECT version(); $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales;
             """).Require().Scripts.ShouldHaveSingleItem();
@@ -485,7 +485,7 @@ public sealed class TemplateExpanderTests
             TEMPLATE outbox
             BEGIN
               CREATE TABLE outbox_events ( id int NOT NULL );
-              SCRIPT 'seed' RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
+              SCRIPT seed RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales, billing;
             """).Require().Scripts;

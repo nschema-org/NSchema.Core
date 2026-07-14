@@ -119,7 +119,7 @@ public sealed class AddProjectSourceTests : IDisposable
         File.WriteAllText(Path.Combine(_root, "schema.sql"),
             """
             CREATE SCHEMA app;
-            SCRIPT 'backfill' RUN ON POST DEPLOYMENT AS $$ UPDATE app.t SET x = 1; $$;
+            SCRIPT backfill RUN ON POST DEPLOYMENT AS $$ UPDATE app.t SET x = 1; $$;
             """);
 
         var project = await ResolveProject(b => b.AddProjectSource(_root));

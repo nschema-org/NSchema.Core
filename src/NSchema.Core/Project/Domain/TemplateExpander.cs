@@ -49,7 +49,7 @@ internal static class TemplateExpander
         var pendingIncludes = includes.ToList();
         foreach (var application in applications)
         {
-            var templateName = new SqlIdentifier(application.TemplateName.Text);
+            var templateName = new SqlIdentifier(application.TemplateName.Value);
             if (!byName.TryGetValue(templateName, out var template))
             {
                 diagnostics.Add(TemplateDiagnostics.UnknownTemplate(templateName));
@@ -63,7 +63,7 @@ internal static class TemplateExpander
 
             foreach (var schemaNameNode in application.Schemas)
             {
-                var schemaName = new SqlIdentifier(schemaNameNode.Text);
+                var schemaName = new SqlIdentifier(schemaNameNode.Value);
                 if (schema.Schemas.All(s => s.Name != schemaName))
                 {
                     diagnostics.Add(TemplateDiagnostics.UnknownTargetSchema(templateName, schemaName));
@@ -97,8 +97,8 @@ internal static class TemplateExpander
 
     private static SqlIdentifier Name(object template) => template switch
     {
-        SchemaTemplateStatement s => new SqlIdentifier(s.Name.Text),
-        TableTemplateStatement t => new SqlIdentifier(t.Name.Text),
+        SchemaTemplateStatement s => new SqlIdentifier(s.Name.Value),
+        TableTemplateStatement t => new SqlIdentifier(t.Name.Value),
         _ => throw new InvalidOperationException(),
     };
 

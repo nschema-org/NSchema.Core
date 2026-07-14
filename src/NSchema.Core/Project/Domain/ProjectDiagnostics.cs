@@ -20,9 +20,7 @@ internal static class ProjectDiagnostics
     /// A script declared more than once in the same scope (the address is the run-once and diagnostic identity).
     /// </summary>
     public static Diagnostic DuplicateScriptName(ScriptReference script) => Diagnostic.Error(Source,
-        script.Schema is { } schema
-            ? $"Duplicate script '{script.Name}' declared in schema '{schema}'. A script's name must be unique within its scope."
-            : $"Duplicate script '{script.Name}' declared. A script's name must be unique within its scope.");
+        $"Duplicate script '{script}' declared. A script's name must be unique within its scope.");
 
     /// <summary>
     /// Two change-event scripts declared for the same trigger and path.
