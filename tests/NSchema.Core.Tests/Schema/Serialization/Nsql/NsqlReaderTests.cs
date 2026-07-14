@@ -17,7 +17,7 @@ public sealed class NsqlReaderTests : IDisposable
     public void Read_ValidSource_ProducesTheTree()
     {
         // Act
-        var result = NsqlReader.Instance.Read("CREATE SCHEMA app;");
+        var result = NsqlReader.Read("CREATE SCHEMA app;");
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -30,7 +30,7 @@ public sealed class NsqlReaderTests : IDisposable
     public void Read_SyntaxError_CarriesThePositionStructurally_AndThePartialTree()
     {
         // Act — the first statement parses; the second is broken.
-        var result = NsqlReader.Instance.Read("CREATE SCHEMA app;\nCREATE SCHEMA 123;");
+        var result = NsqlReader.Read("CREATE SCHEMA app;\nCREATE SCHEMA 123;");
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -48,7 +48,7 @@ public sealed class NsqlReaderTests : IDisposable
         await File.WriteAllTextAsync(path, "CREATE TABLE app.users (", TestContext.Current.CancellationToken);
 
         // Act
-        var result = await NsqlReader.Instance.ReadFile(path, TestContext.Current.CancellationToken);
+        var result = await NsqlReader.ReadFile(path, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -60,7 +60,7 @@ public sealed class NsqlReaderTests : IDisposable
     public async Task ReadFile_MissingFile_FailsWithADiagnostic()
     {
         // Act
-        var result = await NsqlReader.Instance.ReadFile(Path.Combine(_root, "missing.sql"), TestContext.Current.CancellationToken);
+        var result = await NsqlReader.ReadFile(Path.Combine(_root, "missing.sql"), TestContext.Current.CancellationToken);
 
         // Assert
         result.IsFailure.ShouldBeTrue();

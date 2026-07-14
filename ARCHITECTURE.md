@@ -50,6 +50,10 @@ Conventions that ride along:
   dispatches over them; `ScopeSchema` arrived with its consumers. A shared shape with no generic consumer is speculative surface — add it when the
   machinery that reads it arrives, shaped by what that machinery actually asks. (Corollary: in the model tree, belonging is *containment*, never a
   denormalized parent-name property.)
+- **Stateless is static; stateful or configured is constructed.** A pure function over data (`NsqlReader`, the assembler, the
+  expander, the hashing and token services) is a static class — parameterization, if it comes, is arguments, not instance state.
+  A type is constructed only when instances genuinely differ (a parser's cursor, a configured backend). No `Instance`/`Default`
+  singletons: they leave two spellings of every call and commit to nothing.
 - **Two outcome shapes, and never `!`.** Total and silent → bare `T` (`CompareTeardown`, the structural comparer, the linearizer). Anything with
   findings or failure → `Result<T>` (an all-quiet `Result` is noise; a bare return documents totality). A consumer never uses the null-forgiving
   operator on `Value`: either check honestly (`is not { } x` → propagate) or, where a *producer-side invariant* says the value is always carried

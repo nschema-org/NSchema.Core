@@ -1,5 +1,4 @@
 using NSchema.Project.Ddl;
-using static NSchema.Project.Ddl.DdlParser;
 using NSchema.Project.Ddl.Models;
 using NSchema.Project.Ddl.Models.Config;
 using NSchema.Project.Ddl.Models.Templates;
@@ -71,7 +70,7 @@ internal static class DocumentProjector
     /// Projects one schema-shaped statement (create, drop, grant, or script) into the accumulator. Inside a
     /// template body, <paramref name="context"/> is the placeholder schema that unqualified names bind to.
     /// </summary>
-    private static void ProjectStatement(Syn.NsqlStatement statement, SchemaAccumulator schemas, List<Script> scripts, SqlIdentifier? context)
+    internal static void ProjectStatement(Syn.NsqlStatement statement, SchemaAccumulator schemas, List<Script> scripts, SqlIdentifier? context)
     {
         switch (statement)
         {
@@ -203,7 +202,7 @@ internal static class DocumentProjector
     private static void ProjectTable(Syn.Tables.CreateTableStatement statement, SchemaAccumulator schemas, SqlIdentifier? context)
     {
         var (schema, name) = Bind(statement.Name, context);
-        var (table, includes) = ProjectTableMembers(name, OptionalName(statement.RenamedFrom), statement.Doc, statement.Members);
+        var (table, includes) = ProjectTableMembers(name, OptionalName(statement.RenamedFrom), statement.Doc, statement.Members, context);
         schemas.AddTable(schema, table, statement.Name.Position);
         foreach (var (templateName, columnPosition) in includes)
         {
@@ -211,8 +210,8 @@ internal static class DocumentProjector
         }
     }
 
-    private static (Table Table, List<(SqlIdentifier TemplateName, int ColumnPosition)> Includes) ProjectTableMembers(
-        SqlIdentifier name, SqlIdentifier? oldName, string? doc, IReadOnlyList<Syn.Tables.TableMember> members)
+    internal static (Table Table, List<(SqlIdentifier TemplateName, int ColumnPosition)> Includes) ProjectTableMembers(
+        SqlIdentifier name, SqlIdentifier? oldName, string? doc, IReadOnlyList<Syn.Tables.TableMember> members, SqlIdentifier? context = null)
     {
         PrimaryKey? primaryKey = null;
         var columns = new List<Column>();
@@ -236,10 +235,11 @@ internal static class DocumentProjector
                     break;
                 case Syn.Constraints.ForeignKeyDefinition m:
                 {
-                    // A foreign key's referenced table binds like any other name (the placeholder inside a template).
+                    // A foreign key's referenced table binds like any other name (the context inside a template
+                    // body; the include placeholder when projecting a table template's members).
                     var refSchema = m.References.Schema is { } qualifier
                         ? new SqlIdentifier(qualifier.Text)
-                        : TemplateDefinition.TargetSchemaPlaceholder;
+                        : context ?? TemplateDefinition.TargetSchemaPlaceholder;
                     foreignKeys.Add(new ForeignKey(Name(m.Name), Names(m.Columns), refSchema, Name(m.References.Name),
                         Names(m.ReferencedColumns), Map(m.OnDelete), Map(m.OnUpdate), m.Doc));
                     break;
@@ -318,7 +318,7 @@ internal static class DocumentProjector
         };
     }
 
-    private static TemplateDefinition ProjectSchemaTemplate(Syn.Templates.SchemaTemplateStatement statement)
+    internal static TemplateDefinition ProjectSchemaTemplate(Syn.Templates.SchemaTemplateStatement statement)
     {
         // The body gets its own accumulator, so its objects — and the INCLUDEs written in its table bodies, which
         // belong to the definition and re-target per instance at expansion — never mix with the document's.

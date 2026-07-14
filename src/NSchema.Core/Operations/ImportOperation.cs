@@ -115,7 +115,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
 
     private static async Task<Result<DatabaseSchema>> ReadExisting(string path, CancellationToken cancellationToken)
     {
-        var read = await NsqlReader.Instance.ReadFile(path, cancellationToken);
+        var read = await NsqlReader.ReadFile(path, cancellationToken);
         if (read.IsFailure)
         {
             return Result.Failure<DatabaseSchema>(read.Diagnostics);
