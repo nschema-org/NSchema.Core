@@ -1,7 +1,6 @@
 using NSchema.Operations;
 using NSchema.Operations.Progress;
 using NSchema.Project.Ddl.Models;
-using NSchema.Project.Ddl.Models.Config;
 using NSchema.Project.Ddl.Models.Templates;
 using NSchema.Project.Domain.Models.Triggers;
 using Syntax = NSchema.Project.Nsql.Syntax;
@@ -396,9 +395,9 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Plugins.INSchemaBackendPlugin)] = Plugins,
         [typeof(NSchema.Plugins.ScaffoldContext)] = Plugins,
         // Config settings records: the plugin seam's message (the syntax-node side stays in Schema.Ddl).
-        [typeof(ConfigBlock)] = ProjectDdlModels + ".Config", // parsed language fragment — the parser produces it, plugins consume it; typed AST models replace it in the full-AST pass
-        [typeof(ConfigValue)] = ProjectDdlModels + ".Config", // parsed language fragment — the parser produces it, plugins consume it; typed AST models replace it in the full-AST pass
-        [typeof(ConfigValueKind)] = ProjectDdlModels + ".Config", // parsed language fragment — the parser produces it, plugins consume it; typed AST models replace it in the full-AST pass
+        [typeof(NSchema.Plugins.ConfigValue)] = Plugins, // the settings scalar — moved with the plugin payload at the config lane split
+        [typeof(NSchema.Plugins.ConfigValueKind)] = Plugins,
+        [typeof(NSchema.Plugins.PluginSettings)] = Plugins, // the statement's translated payload — replaced ConfigBlock on the plugin seam
     };
 
     [Fact]

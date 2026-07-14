@@ -1,4 +1,4 @@
-namespace NSchema.Project.Ddl.Models.Config;
+namespace NSchema.Plugins;
 
 /// <summary>
 /// The kind of scalar a <see cref="ConfigValue"/> holds.

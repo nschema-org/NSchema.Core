@@ -1,6 +1,5 @@
 using NSchema.Project.Ddl;
 using NSchema.Project.Ddl.Models;
-using NSchema.Project.Ddl.Models.Config;
 using NSchema.Project.Ddl.Models.Templates;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
@@ -31,7 +30,6 @@ internal static class DocumentProjector
     public static DdlDocument Project(NsqlDocument document)
     {
         var schemas = new SchemaAccumulator();
-        var config = new List<ConfigBlock>();
         var scripts = new List<Script>();
         var templates = new List<TemplateDefinition>();
         var applications = new List<TemplateApplication>();
@@ -51,8 +49,8 @@ internal static class DocumentProjector
                         new SqlIdentifier(apply.TemplateName.Text),
                         apply.Schemas.Select(s => new SqlIdentifier(s.Text)).ToList()));
                     break;
-                case Syn.Config.ConfigStatement configStatement:
-                    config.Add(ProjectConfig(configStatement));
+                case Syn.Config.ConfigStatement:
+                    // Configuration is not project content; the config read seam interprets it.
                     break;
                 default:
                     ProjectStatement(statement, schemas, scripts, context: null);
@@ -60,7 +58,7 @@ internal static class DocumentProjector
             }
         }
 
-        return new DdlDocument(schemas.Build(), config, scripts)
+        return new DdlDocument(schemas.Build(), scripts)
         {
             Templates = new TemplateSet(templates, applications, schemas.Includes),
         };
@@ -357,24 +355,6 @@ internal static class DocumentProjector
         return new TemplateDefinition(new SqlIdentifier(statement.Name.Text), TemplateKind.Table, objects);
     }
 
-    private static ConfigBlock ProjectConfig(Syn.Config.ConfigStatement statement)
-    {
-        var attributes = new Dictionary<string, ConfigValue>(StringComparer.OrdinalIgnoreCase);
-        foreach (var attribute in statement.Attributes)
-        {
-            attributes.Add(attribute.Key, attribute.Value switch
-            {
-                Syn.Config.StringValue v => ConfigValue.OfString(v.Value),
-                Syn.Config.IntegerValue v => ConfigValue.OfInteger(v.Value),
-                Syn.Config.BooleanValue v => ConfigValue.OfBoolean(v.Value),
-                Syn.Config.IdentifierValue v => ConfigValue.OfIdentifier(v.Value),
-                _ => throw new InvalidOperationException($"Unprojectable config value '{attribute.Value.GetType().Name}'."),
-            });
-        }
-
-        var type = statement is Syn.Config.BackendStatement ? "backend" : "provider";
-        return new ConfigBlock(type, statement.Label?.Text, attributes);
-    }
 
     // --- name binding and small mappers ----------------------------------------------
 

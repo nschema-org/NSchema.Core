@@ -8,6 +8,56 @@ namespace NSchema.Project.Nsql;
 internal sealed partial class NsqlParser
 {
     /// <summary>
+    /// Parses the whole document under the configuration grammar: only configuration statements are legal.
+    /// Configuration and project statements never share a file — a file parses as one grammar or the other.
+    /// </summary>
+    public NsqlConfigDocument ParseConfig()
+    {
+        var statements = new List<ConfigStatement>();
+        string? pendingDoc = null;
+
+        while (_current.Kind != TokenKind.EndOfFile)
+        {
+            if (_current.Kind == TokenKind.DocComment)
+            {
+                pendingDoc = _current.Text;
+                Advance();
+                continue;
+            }
+
+            try
+            {
+                statements.Add(ParseConfigGrammarStatement(pendingDoc));
+            }
+            catch (DdlSyntaxException error)
+            {
+                _errors.Add(error);
+                Resync();
+            }
+            pendingDoc = null;
+        }
+
+        return new NsqlConfigDocument(statements);
+    }
+
+    private ConfigStatement ParseConfigGrammarStatement(string? doc)
+    {
+        if (_current.IsKeyword("BACKEND"))
+        {
+            return ParseConfigStatement(doc, backend: true);
+        }
+        if (_current.IsKeyword("PROVIDER"))
+        {
+            return ParseConfigStatement(doc, backend: false);
+        }
+        if (_current.Kind == TokenKind.Identifier)
+        {
+            throw Error($"Unknown configuration statement '{_current.Text}'; a configuration file holds only BACKEND and PROVIDER statements.");
+        }
+        throw Error($"Unexpected '{_current.Text}'; expected a configuration statement.");
+    }
+
+    /// <summary>
     /// Parses a configuration statement: <c>BACKEND|PROVIDER [label] ( key = value , … ) ;</c>.
     /// The optional label is a bare identifier; attributes are a flat, comma-separated list.
     /// </summary>

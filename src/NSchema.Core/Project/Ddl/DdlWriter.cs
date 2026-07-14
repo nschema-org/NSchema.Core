@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text;
 using NSchema.Project.Ddl.Models;
-using NSchema.Project.Ddl.Models.Config;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.CompositeTypes;
@@ -36,7 +35,7 @@ public sealed class DdlWriter
     /// <param name="schema">The schema to write.</param>
     /// <param name="declareSchemas">Whether to emit a <c>CREATE SCHEMA</c> statement for each schema; pass <c>false</c> to write only the member objects (the reader vivifies the schema from their qualified names).</param>
     /// <returns>The canonical NSchema DDL for <paramref name="schema"/>.</returns>
-    public string Write(DatabaseSchema schema, bool declareSchemas = true) => Write(new DdlDocument(schema, [], []), declareSchemas);
+    public string Write(DatabaseSchema schema, bool declareSchemas = true) => Write(new DdlDocument(schema, []), declareSchemas);
 
     /// <summary>
     /// Writes a full <see cref="DdlDocument"/> as canonical NSchema DDL.
@@ -50,11 +49,6 @@ public sealed class DdlWriter
         var sb = new StringBuilder();
         var first = true;
 
-        foreach (var block in document.Config)
-        {
-            Separate(sb, ref first);
-            WriteConfigBlock(sb, block);
-        }
 
         // Extensions are database-global and are created first, so they precede the schemas.
         foreach (var extension in document.Schema.Extensions)
@@ -100,37 +94,7 @@ public sealed class DdlWriter
         first = false;
     }
 
-    private static void WriteConfigBlock(StringBuilder sb, ConfigBlock block)
-    {
-        sb.Append(block.Type.ToUpperInvariant());
-        if (block.Label is { } label)
-        {
-            sb.Append(' ').Append(label);
-        }
-        if (block.Attributes.Count == 0)
-        {
-            sb.AppendLine(" ();");
-            return;
-        }
 
-        sb.AppendLine(" (");
-        var i = 0;
-        foreach (var (key, value) in block.Attributes)
-        {
-            sb.Append("  ").Append(key).Append(" = ").Append(ConfigValueText(value));
-            sb.AppendLine(++i < block.Attributes.Count ? "," : string.Empty);
-        }
-        sb.AppendLine(");");
-    }
-
-    private static string ConfigValueText(ConfigValue value) => value.Kind switch
-    {
-        ConfigValueKind.String => $"'{value.AsString().Replace("'", "''")}'",
-        ConfigValueKind.Integer => value.AsInteger().ToString(CultureInfo.InvariantCulture),
-        ConfigValueKind.Boolean => value.AsBoolean() ? "true" : "false",
-        ConfigValueKind.Identifier => value.AsString(),
-        _ => throw new ArgumentOutOfRangeException(nameof(value), value.Kind, "Unknown configuration value kind."),
-    };
 
     private static void WriteScript(StringBuilder sb, Script script)
     {

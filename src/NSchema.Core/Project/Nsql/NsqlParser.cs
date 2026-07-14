@@ -110,13 +110,9 @@ internal sealed partial class NsqlParser
         {
             return ParseScript(doc);
         }
-        if (_current.IsKeyword("BACKEND"))
+        if (_current.IsKeyword("BACKEND") || _current.IsKeyword("PROVIDER"))
         {
-            return ParseConfigStatement(doc, backend: true);
-        }
-        if (_current.IsKeyword("PROVIDER"))
-        {
-            return ParseConfigStatement(doc, backend: false);
+            throw Error($"'{_current.Text.ToUpperInvariant()}' is a configuration statement; configuration lives in the project's configuration files, not among schema statements.");
         }
         if (_current.Kind == TokenKind.Identifier)
         {

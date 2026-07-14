@@ -9,8 +9,8 @@ using NSchema.Project.Domain.Models.Schemas;
 namespace NSchema.Tests.Schema.Serialization.Ddl;
 
 /// <summary>
-/// Covers <see cref="DdlWriter.Write(DdlDocument)"/> — the full-document round-trip (config blocks + schema +
-/// deployment scripts) that the <c>fmt</c> command depends on for losslessness.
+/// Covers <see cref="DdlWriter.Write(DdlDocument)"/> — the full-document round-trip (schema + scripts)
+/// that the <c>fmt</c> command depends on for losslessness.
 /// </summary>
 public sealed class DdlDocumentWriterTests
 {
@@ -21,20 +21,6 @@ public sealed class DdlDocumentWriterTests
     private static void AssertEquivalent(DdlDocument expected, DdlDocument actual)
     {
         Canonical(actual.Schema).ShouldBe(Canonical(expected.Schema));
-
-        actual.Config.Count.ShouldBe(expected.Config.Count);
-        for (var i = 0; i < expected.Config.Count; i++)
-        {
-            var (e, a) = (expected.Config[i], actual.Config[i]);
-            a.Type.ShouldBe(e.Type);
-            a.Label.ShouldBe(e.Label);
-            a.Attributes.Count.ShouldBe(e.Attributes.Count);
-            foreach (var (key, value) in e.Attributes)
-            {
-                a.Attribute(key).ShouldBe(value);
-            }
-        }
-
         actual.Scripts.ShouldBe(expected.Scripts);
     }
 
@@ -51,44 +37,6 @@ public sealed class DdlDocumentWriterTests
 
         return formatted;
     }
-
-    // -------------------------------------------------------------------------
-    // Configuration blocks
-    // -------------------------------------------------------------------------
-
-    [Fact]
-    public void Write_ConfigBlock_RoundTripsAllValueKinds()
-    {
-        var formatted = AssertRoundTrips(
-            """
-            PROVIDER postgres (
-              dialect = 'postgres',
-              transaction_mode = single,
-              retries = 3,
-              verbose = true,
-              pool.max = -1,
-              note = 'it''s fine'
-            );
-            """);
-
-        formatted.ShouldContain("PROVIDER postgres (");
-        formatted.ShouldContain("dialect = 'postgres'");
-        formatted.ShouldContain("transaction_mode = single");
-        formatted.ShouldContain("retries = 3");
-        formatted.ShouldContain("verbose = true");
-        formatted.ShouldContain("pool.max = -1");
-        formatted.ShouldContain("note = 'it''s fine'");
-    }
-
-    [Fact]
-    public void Write_ConfigBlock_PreservesKeywordAndLabel()
-        => AssertRoundTrips("BACKEND file (\n  path = 'state/app.nsstate'\n);")
-            .ShouldContain("BACKEND file (");
-
-    [Fact]
-    public void Write_ConfigBlock_WithNoAttributes_EmitsEmptyParens()
-        => AssertRoundTrips("PROVIDER postgres ();")
-            .ShouldContain("PROVIDER postgres ();");
 
     // -------------------------------------------------------------------------
     // Deployment scripts
@@ -173,10 +121,6 @@ public sealed class DdlDocumentWriterTests
     public void Write_FullDocument_RoundTripsAndIsIdempotent()
         => AssertRoundTrips(
             """
-            PROVIDER postgres (
-              dialect = 'postgres'
-            );
-
             CREATE SCHEMA app;
 
             CREATE TABLE app.users
@@ -192,34 +136,27 @@ public sealed class DdlDocumentWriterTests
             """);
 
     [Fact]
-    public void Write_EmitsConfigThenSchemaThenScripts_RegardlessOfSourceOrder()
+    public void Write_EmitsSchemaThenScripts_RegardlessOfSourceOrder()
     {
-        // Source deliberately interleaves: script, schema, config.
+        // Source deliberately interleaves: script, then schema.
         var formatted = DdlWriter.Instance.Write(DdlReader.Instance.Read(
             """
             SCRIPT 'seed' RUN ON POST DEPLOYMENT AS $$ SELECT 1 $$;
 
             CREATE SCHEMA app;
-
-            PROVIDER postgres (
-              dialect = 'postgres'
-            );
             """).Require());
 
-        var config = formatted.IndexOf("PROVIDER", StringComparison.Ordinal);
         var schema = formatted.IndexOf("CREATE SCHEMA app", StringComparison.Ordinal);
         var script = formatted.IndexOf("POST DEPLOYMENT", StringComparison.Ordinal);
 
-        config.ShouldBeLessThan(schema);
         schema.ShouldBeLessThan(script);
     }
 
     [Fact]
-    public void Write_DatabaseSchemaOverload_EmitsNoConfigOrScripts()
+    public void Write_DatabaseSchemaOverload_EmitsNoScripts()
     {
         var ddl = DdlWriter.Instance.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]));
 
-        ddl.ShouldNotContain("PROVIDER");
         ddl.ShouldNotContain("DEPLOYMENT");
         ddl.ShouldBe("CREATE SCHEMA app;\n");
     }

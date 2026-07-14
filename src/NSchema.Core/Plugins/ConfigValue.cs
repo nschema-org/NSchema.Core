@@ -1,7 +1,7 @@
-namespace NSchema.Project.Ddl.Models.Config;
+namespace NSchema.Plugins;
 
 /// <summary>
-/// A scalar value of a configuration attribute (see <see cref="ConfigBlock"/>).
+/// A scalar value of a configuration attribute (see <see cref="PluginSettings"/>).
 /// </summary>
 public sealed record ConfigValue
 {

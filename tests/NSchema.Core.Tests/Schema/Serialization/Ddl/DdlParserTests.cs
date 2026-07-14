@@ -1,5 +1,5 @@
+using NSchema.Project.Nsql;
 using NSchema.Project.Ddl;
-using NSchema.Project.Ddl.Models.Config;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
@@ -11,7 +11,6 @@ public sealed class DdlParserTests
 {
     private static DatabaseSchema Parse(string source) => new TestDdlParser(source).Parse().Schema;
 
-    private static IReadOnlyList<ConfigBlock> ReadConfig(string source) => new TestDdlParser(source).Parse().Config;
 
     private static SchemaDefinition ParseSingleSchema(string source) => Parse(source).Schemas.ShouldHaveSingleItem();
 
@@ -86,160 +85,13 @@ public sealed class DdlParserTests
     }
 
     // -------------------------------------------------------------------------
-    // Configuration blocks (captured, not interpreted)
+    // Configuration statements (a separate grammar — rejected here, covered by NsqlConfigTests)
     // -------------------------------------------------------------------------
 
     [Fact]
-    public void Parse_ConfigBlock_IsIgnoredByTheSchemaPath()
-    {
-        // The schema consumer (Parse -> DatabaseSchema) sees only the schema statements.
-        var schema = Parse(
-            """
-            PROVIDER postgres (
-              dialect = 'postgres'
-            );
-            CREATE SCHEMA app;
-            """);
-        schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
-    }
-
-    [Fact]
-    public void Parse_UnlabelledConfigBlock_CapturesTypeAndAttributes()
-    {
-        var block = ReadConfig(
-            """
-            BACKEND (
-              dialect = 'postgres',
-              transaction_mode = 'single'
-            );
-            """).ShouldHaveSingleItem();
-
-        block.Type.ShouldBe("backend");
-        block.Label.ShouldBeNull();
-        block.Attribute("dialect")!.AsString().ShouldBe("postgres");
-        block.Attribute("transaction_mode")!.AsString().ShouldBe("single");
-    }
-
-    [Fact]
-    public void Parse_LabelledConfigBlock_CapturesLabel()
-    {
-        var block = ReadConfig("BACKEND file ( path = 'state/app.nsstate' );").ShouldHaveSingleItem();
-
-        block.Type.ShouldBe("backend");
-        block.Label.ShouldBe("file");
-        block.Attribute("path")!.AsString().ShouldBe("state/app.nsstate");
-    }
-
-    [Fact]
-    public void Parse_ConfigBlock_KeywordTypeIsLowerCased()
-        => ReadConfig("Provider postgres ( x = 1 );").ShouldHaveSingleItem().Type.ShouldBe("provider");
-
-    [Fact]
-    public void Parse_ConfigBlock_CapturesValueKinds()
-    {
-        var block = ReadConfig(
-            """
-            PROVIDER postgres (
-              schema_search_path = 'app',
-              connection_timeout = 1000,
-              statement_cache = -1,
-              prefer_simple = true,
-              ssl = false,
-              transaction_mode = single
-            );
-            """).ShouldHaveSingleItem();
-
-        block.Attribute("schema_search_path")!.Kind.ShouldBe(ConfigValueKind.String);
-        block.Attribute("connection_timeout")!.AsInteger().ShouldBe(1000);
-        block.Attribute("statement_cache")!.AsInteger().ShouldBe(-1);
-        block.Attribute("prefer_simple")!.AsBoolean().ShouldBeTrue();
-        block.Attribute("ssl")!.AsBoolean().ShouldBeFalse();
-        block.Attribute("transaction_mode")!.Kind.ShouldBe(ConfigValueKind.Identifier);
-    }
-
-    [Fact]
-    public void Parse_ConfigBlock_CapturesDottedKeyVerbatim()
-        => ReadConfig("PROVIDER postgres ( pool.max = 10 );")
-            .ShouldHaveSingleItem().Attribute("pool.max")!.AsInteger().ShouldBe(10);
-
-    [Fact]
-    public void Parse_ConfigBlock_LookupIsCaseInsensitive()
-        => ReadConfig("PROVIDER postgres ( Dialect = 'postgres' );")
-            .ShouldHaveSingleItem().Attribute("dialect")!.AsString().ShouldBe("postgres");
-
-    [Fact]
-    public void Parse_ConfigBlock_EmptyAttributeListIsAllowed()
-    {
-        var block = ReadConfig("BACKEND ();").ShouldHaveSingleItem();
-        block.Type.ShouldBe("backend");
-        block.Attributes.ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void Parse_MultipleConfigBlocks_CapturedInDeclarationOrder()
-    {
-        var blocks = ReadConfig(
-            """
-            BACKEND file ( path = 'state/app.nsstate' );
-            PROVIDER postgres ( schema_search_path = 'app' );
-            BACKEND s3 ( bucket = 'state' );
-            """);
-
-        blocks.Select(b => b.Type).ShouldBe(["backend", "provider", "backend"]);
-    }
-
-    [Fact]
-    public void Parse_ConfigAndSchema_Intermixed_BothSurface()
-    {
-        var document = new TestDdlParser(
-            """
-            BACKEND file ( path = 'state/app.nsstate' );
-            CREATE SCHEMA app;
-            PROVIDER postgres ( schema_search_path = 'app' );
-            """).Parse();
-
-        document.Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
-        document.Config.Select(b => b.Type).ShouldBe(["backend", "provider"]);
-    }
-
-    [Fact]
-    public void Parse_UnknownStatementKeyword_Throws()
-    {
-        // The statement set is closed: an unrecognized keyword is a syntax error, never a silent capture.
-        Should.Throw<DdlSyntaxException>(() => ReadConfig("WORKSPACE staging ( region = 'eu' );"))
-            .Message.ShouldContain("Unknown statement 'WORKSPACE'");
-    }
-
-    [Fact]
-    public void Parse_MistypedStatementKeyword_Throws()
-    {
-        Should.Throw<DdlSyntaxException>(() => Parse("CREAT TABLE users ( id int );"))
-            .Message.ShouldContain("Unknown statement 'CREAT'");
-    }
-
-    [Fact]
-    public void Parse_ConfigBlock_DuplicateAttribute_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadConfig("BACKEND file ( path = 'a', path = 'b' );"))
-            .Message.ShouldContain("specified more than once");
-
-    [Fact]
-    public void Parse_ConfigBlock_MissingEquals_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadConfig("BACKEND file ( path 'x' );"))
-            .Message.ShouldContain("'='");
-
-    [Fact]
-    public void Parse_ConfigBlock_MissingValue_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadConfig("BACKEND file ( path = );"))
-            .Message.ShouldContain("configuration value");
-
-    [Fact]
-    public void Parse_ConfigBlock_Unterminated_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadConfig("BACKEND file ( path = 'x'"));
-
-    [Fact]
-    public void Parse_ConfigBlock_MissingSemicolon_Throws()
-        => Should.Throw<DdlSyntaxException>(() => ReadConfig("BACKEND file ( path = 'x' )"))
-            .Message.ShouldContain("';'");
+    public void Parse_ConfigStatement_InProjectSource_Throws()
+        => Should.Throw<DdlSyntaxException>(() => Parse("PROVIDER postgres ( dialect = 'postgres' );"))
+            .Message.ShouldContain("configuration statement");
 
     // -------------------------------------------------------------------------
     // Multiple statements
