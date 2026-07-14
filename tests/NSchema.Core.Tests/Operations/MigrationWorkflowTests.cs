@@ -31,13 +31,13 @@ public sealed class MigrationWorkflowTests
     /// <summary>Planning requires a store, so the default fixture carries an empty in-memory one.</summary>
     private MigrationWorkflow BuildSut() => BuildSut(new EphemeralStateStore());
 
-    private static Result<ProjectDefinition> ProjectDefinition(Database schema) => Result.Success(new ProjectDefinition(schema, []));
+    private static Result<ProjectDefinition> ProjectDefinition(Database schema) => Result.Success(new ProjectDefinition(schema));
 
     private static MigrationPlan EmptyPlan() => new(new DatabaseDiff([]), []);
 
     /// <summary>An applied plan carrying one run-once script, so the capture has an execution to record.</summary>
     private static MigrationPlan AppliedPlan(string name, string sql) => new(
-        new DatabaseDiff([]) { Scripts = [new Script(new SqlIdentifier(name), new SqlText(sql), new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = RunCondition.Once }] },
+        new DatabaseDiff([]) { DeploymentScripts = [new DeploymentScript(new SqlIdentifier(name), new SqlText(sql), null, DeploymentPhase.Post) { RunCondition = RunCondition.Once }] },
         [new SqlStatement(new SqlText(sql))]);
 
     private readonly MigrationWorkflow _sut;
@@ -113,8 +113,7 @@ public sealed class MigrationWorkflowTests
     public async Task ValidateDesiredSchema_ProjectDiagnostics_AreCarriedInTheFindings()
     {
         // Arrange — findings raised while reading the DDL (e.g. deprecated syntax) arrive on the read result.
-        var project = Result.From(new ProjectDefinition(new Database([]), []),
-            [Diagnostic.Warning("deprecations", "old form")]);
+        var project = Result.From(TestProjects.Project(new Database([])), [Diagnostic.Warning("deprecations", "old form")]);
         _desiredProvider.GetProject(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>()).Returns(project);
 
         // Act
@@ -184,7 +183,7 @@ public sealed class MigrationWorkflowTests
             [new Table(new SqlIdentifier("users")), new Table(new SqlIdentifier("orders"))])]);
         _desiredProvider.GetProject(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(
-                new ProjectDefinition(desired, [new Script(new SqlIdentifier("seed"), new SqlText("select 1"), new DeploymentEvent(DeploymentPhase.Post))])));
+                TestProjects.Project(desired, [new DeploymentScript(new SqlIdentifier("seed"), new SqlText("select 1"), null, DeploymentPhase.Post)])));
         _currentProvider
             .GetDatabase(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new Database([new Schema(new SqlIdentifier("app"))])));
@@ -201,8 +200,7 @@ public sealed class MigrationWorkflowTests
     public async Task ComputePlan_ReadDiagnostics_ArePrependedToThePlannerResult()
     {
         // Arrange — the pure planner never sees read provenance; this shell merges it into the outcome.
-        var project = Result.From(new ProjectDefinition(new Database([]), []),
-            [Diagnostic.Warning("deprecations", "old form")]);
+        var project = Result.From(TestProjects.Project(new Database([])), [Diagnostic.Warning("deprecations", "old form")]);
         _desiredProvider.GetProject(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>()).Returns(project);
         _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>())
             .Returns(Result.From(EmptyPlan(),
@@ -220,8 +218,7 @@ public sealed class MigrationWorkflowTests
     public async Task ComputePlan_ReadDiagnostics_AreCarriedOnAPlannerFailureToo()
     {
         // Arrange
-        var project = Result.From(new ProjectDefinition(new Database([]), []),
-            [Diagnostic.Warning("deprecations", "old form")]);
+        var project = Result.From(TestProjects.Project(new Database([])), [Diagnostic.Warning("deprecations", "old form")]);
         _desiredProvider.GetProject(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>()).Returns(project);
         _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>())
             .Returns(Result.Failure<MigrationPlan>([Diagnostic.Error("P1", "blocked")]));
@@ -235,7 +232,7 @@ public sealed class MigrationWorkflowTests
     }
 
     private static Script SeedScript(RunCondition condition = RunCondition.Once) =>
-        new(new SqlIdentifier("seed"), new SqlText("SELECT 1"), new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = condition };
+        new DeploymentScript(new SqlIdentifier("seed"), new SqlText("SELECT 1"), null, DeploymentPhase.Post) { RunCondition = condition };
 
     /// <summary>Builds a workflow whose store records <paramref name="executions"/> and whose DDL declares <paramref name="project"/>.</summary>
     private MigrationWorkflow SutWithState(ProjectDefinition project, params ScriptExecution[] executions)
@@ -253,7 +250,7 @@ public sealed class MigrationWorkflowTests
     {
         // Arrange — the planner's "what I have" input is the schema plus the recorded executions; execution
         // records are shared script vocabulary, so the ledger passes straight through.
-        var sut = SutWithState(new ProjectDefinition(new Database([]), [SeedScript()]),
+        var sut = SutWithState(TestProjects.Project(new Database([]), [SeedScript()]),
             new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "abc", DateTimeOffset.UnixEpoch));
 
         // Act
@@ -474,7 +471,7 @@ public sealed class MigrationWorkflowTests
         var directives = new ProjectDirectives(new NSchema.Project.Domain.Models.Schemas.SchemaDirectives(
             Drops: [new SqlIdentifier("legacy")]));
         _desiredProvider.GetProject(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new ProjectDefinition(desired, [], directives)));
+            .Returns(Result.Success(new ProjectDefinition(desired, directives)));
         SchemaScope? capturedScope = null;
         _currentProvider
             .GetDatabase(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())

@@ -223,14 +223,13 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Project.Domain.Models.Triggers.TriggerTiming)] = ProjectModels + ".Triggers",
         [typeof(NSchema.Project.Domain.Models.Views.View)] = ProjectModels + ".Views",
         [typeof(NSchema.Project.Domain.Models.Views.ViewDependency)] = ProjectModels + ".Views",
-        // The unified script model: one Script, discriminated by the event it runs on.
+        // The script model: an abstract Script with two concrete kinds — ChangeScript and DeploymentScript.
         [typeof(NSchema.Project.Domain.Models.Scripts.Script)] = ProjectModels + ".Scripts",
+        [typeof(NSchema.Project.Domain.Models.Scripts.ChangeScript)] = ProjectModels + ".Scripts",
+        [typeof(NSchema.Project.Domain.Models.Scripts.DeploymentScript)] = ProjectModels + ".Scripts",
         [typeof(NSchema.Project.Domain.Models.Scripts.ScriptReference)] = ProjectModels + ".Scripts",
         [typeof(NSchema.Project.Domain.Models.Scripts.RunCondition)] = ProjectModels + ".Scripts",
-        [typeof(NSchema.Project.Domain.Models.Scripts.ScriptEvent)] = ProjectModels + ".Scripts",
-        [typeof(NSchema.Project.Domain.Models.Scripts.DeploymentEvent)] = ProjectModels + ".Scripts",
         [typeof(NSchema.Project.Domain.Models.Scripts.DeploymentPhase)] = ProjectModels + ".Scripts",
-        [typeof(NSchema.Project.Domain.Models.Scripts.ChangeEvent)] = ProjectModels + ".Scripts",
         [typeof(NSchema.Project.Domain.Models.Scripts.ChangeTrigger)] = ProjectModels + ".Scripts",
 
         // ── Diff: root = reader + presentation read model; tree in Domain.Models. ──

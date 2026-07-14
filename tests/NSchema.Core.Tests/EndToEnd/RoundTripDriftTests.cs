@@ -32,7 +32,7 @@ public sealed class RoundTripDriftTests
     {
         // Write the whole project — schema, and a directive of every kind — read it back, and write it
         // again: the second rendering must be byte-identical, so nothing is lost or reshaped in flight.
-        var first = NsqlWriter.Write(TestData.RichSchema(), [], TestData.RichDirectives());
+        var first = NsqlWriter.Write(TestData.RichSchema(), TestData.RichDirectives());
 
         var read = NsqlReader.Read(first);
         read.IsSuccess.ShouldBeTrue();
@@ -40,6 +40,6 @@ public sealed class RoundTripDriftTests
         assembled.IsSuccess.ShouldBeTrue(string.Join("; ", assembled.Diagnostics.Select(d => d.Message)));
 
         var project = assembled.Value!;
-        NsqlWriter.Write(project.Database, project.Scripts, project.Directives).ShouldBe(first);
+        NsqlWriter.Write(project.Database, project.Directives).ShouldBe(first);
     }
 }

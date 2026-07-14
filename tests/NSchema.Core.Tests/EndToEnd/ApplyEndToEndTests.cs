@@ -177,7 +177,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         (await app.Locks.Acquire(new AcquireLockArguments("apply"), cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         var first = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
         first.Plan!.Statements.Select(s => s.Sql).ShouldContain(new SqlText("INSERT INTO app.currencies VALUES ('GBP');"));
-        ShouldlyIdentifierExtensions.ShouldBe(first.Plan!.Diff.Scripts.ShouldHaveSingleItem().Name, "seed_currencies");
+        ShouldlyIdentifierExtensions.ShouldBe(first.Plan!.Diff.AllScripts().ShouldHaveSingleItem().Name, "seed_currencies");
         await app.Operations.Apply(new ApplyArguments { Plan = first.Plan! }, TestContext.Current.CancellationToken);
 
         ShouldlyIdentifierExtensions.ShouldBe(_store.Written.ShouldNotBeNull().Scripts.ShouldHaveSingleItem().Script.Name, "seed_currencies");
@@ -185,7 +185,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         // Second run: the script is skipped, and no longer up for recording.
         var second = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
         second.Value!.Plan!.Statements.Select(s => s.Sql).ShouldNotContain(new SqlText("INSERT INTO app.currencies VALUES ('GBP');"));
-        second.Value!.Plan!.Diff.Scripts.ShouldBeEmpty();
+        second.Value!.Plan!.Diff.AllScripts().ShouldBeEmpty();
         second.Diagnostics.ShouldBeEmpty();
     }
 

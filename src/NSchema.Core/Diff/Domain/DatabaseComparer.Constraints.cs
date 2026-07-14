@@ -8,7 +8,7 @@ using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Diff.Domain;
 
-internal sealed partial class SchemaComparer
+internal sealed partial class DatabaseComparer
 {
     // The primary key is single-valued (not a list member), so it keeps its own comparison rather than the
     // shared CompareTableMembers skeleton.

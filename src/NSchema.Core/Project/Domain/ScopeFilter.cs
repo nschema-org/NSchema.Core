@@ -19,9 +19,8 @@ internal static class ScopeFilter
         }
 
         var database = Apply(project.Database, scope);
-        var scripts = Apply(project.Scripts, scope);
         var directives = Apply(project.Directives, scope);
-        return new ProjectDefinition(database, scripts, directives);
+        return new ProjectDefinition(database, directives);
     }
 
     /// <summary>
@@ -40,13 +39,6 @@ internal static class ScopeFilter
         return new Database(filtered, database.Extensions);
     }
 
-    private static IReadOnlyList<Script> Apply(IEnumerable<Script> scripts, SchemaScope scope)
-    {
-        return scripts
-            .Where(s => s.Event.ScopeSchema is not { } schema || scope.Includes(schema))
-            .ToList();
-    }
-
     /// <summary>
     /// Restricts the directives to those addressing in-scope schemas.
     /// </summary>
@@ -57,6 +49,9 @@ internal static class ScopeFilter
         bool InScope(SqlIdentifier currentSchema) =>
             scope.Includes(currentSchema)
             || (declaredNames.TryGetValue(currentSchema, out var declared) && scope.Includes(declared));
+
+        bool ScriptInScope(Script script) =>
+            script.ScopeSchema is not { } schema || scope.Includes(schema);
 
         return new ProjectDirectives(
             directives.Schemas with
@@ -70,6 +65,7 @@ internal static class ScopeFilter
                 Renames = [.. directives.Tables.Renames.Where(r => InScope(r.From.Schema))],
                 Drops = [.. directives.Tables.Drops.Where(d => InScope(d.Schema))],
                 ColumnRenames = [.. directives.Tables.ColumnRenames.Where(r => InScope(r.From.Schema))],
+                ChangeScripts = [.. directives.Tables.ChangeScripts.Where(ScriptInScope)],
             },
             directives.Views with
             {
@@ -101,6 +97,9 @@ internal static class ScopeFilter
                 Renames = [.. directives.CompositeTypes.Renames.Where(r => InScope(r.From.Schema))],
                 Drops = [.. directives.CompositeTypes.Drops.Where(d => InScope(d.Schema))],
             },
-            directives.Extensions);
+            directives.Extensions)
+        {
+            DeploymentScripts = [.. directives.DeploymentScripts.Where(ScriptInScope)],
+        };
     }
 }

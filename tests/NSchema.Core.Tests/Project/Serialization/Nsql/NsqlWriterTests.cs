@@ -36,7 +36,7 @@ public sealed class NsqlWriterTests
 
     /// <summary>Writes an empty-schema project carrying only <paramref name="directives"/>.</summary>
     private static string WriteDirectives(ProjectDirectives directives, params Schema[] schemas) =>
-        NsqlWriter.Write(new Database(schemas), [], directives);
+        NsqlWriter.Write(new Database(schemas), directives);
 
     private static ObjectReference InApp(string name) => new(new SqlIdentifier("app"), new SqlIdentifier(name));
 
@@ -157,7 +157,7 @@ public sealed class NsqlWriterTests
         var schema = new Database([new Schema(new SqlIdentifier("app"),
             Tables: [new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
 
-        var ddl = NsqlWriter.Write(SyntaxBuilder.Build(schema, [], declareSchemas: false));
+        var ddl = NsqlWriter.Write(SyntaxBuilder.Build(schema, declareSchemas: false));
 
         ddl.ShouldNotContain("CREATE SCHEMA");
         ddl.ShouldStartWith("CREATE TABLE app.t");
@@ -172,7 +172,7 @@ public sealed class NsqlWriterTests
             Tables: [new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])],
             Views: [new View(new SqlIdentifier("active"), new SqlText("SELECT 1"))])]);
 
-        var reparsed = new TestNsqlParser(NsqlWriter.Write(SyntaxBuilder.Build(schema, [], declareSchemas: false))).Parse().Database;
+        var reparsed = new TestNsqlParser(NsqlWriter.Write(SyntaxBuilder.Build(schema, declareSchemas: false))).Parse().Database;
 
         var app = reparsed.Schemas.ShouldHaveSingleItem();
         app.Tables.ShouldHaveSingleItem().Name.ShouldBe("t");
@@ -211,7 +211,7 @@ public sealed class NsqlWriterTests
     }
 
     [Fact]
-    public Task Write_RichSchema_MatchesSnapshot() => Verify(NsqlWriter.Write(TestData.RichSchema(), [], TestData.RichDirectives()));
+    public Task Write_RichSchema_MatchesSnapshot() => Verify(NsqlWriter.Write(TestData.RichSchema(), TestData.RichDirectives()));
 
     // -------------------------------------------------------------------------
     // Triggers

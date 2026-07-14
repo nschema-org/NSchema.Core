@@ -195,7 +195,7 @@ public sealed class StructuralIntegrityPolicyTests
             new SqlIdentifier("t"), Columns: [Col("id"), Col("ref")],
             ForeignKeys: [new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("ref")], new SqlIdentifier("public"), new SqlIdentifier("absent"), [new SqlIdentifier("id")])]);
         var schema = new Database([new Schema(new SqlIdentifier("public"), Tables: [table])]);
-        var project = new ProjectDefinition(schema, [], new ProjectDirectives(
+        var project = new ProjectDefinition(schema, new ProjectDirectives(
             new NSchema.Project.Domain.Models.Schemas.SchemaDirectives(Partials: [new SqlIdentifier("public")])));
 
         // Act

@@ -10,24 +10,25 @@ namespace NSchema.Diff.Domain;
 /// <summary>
 /// Produces the structured <see cref="DatabaseDiff"/> from a current and desired schema.
 /// </summary>
-internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : ISchemaComparer
+internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger) : IDatabaseComparer
 {
-    public DatabaseDiff Compare(DatabaseSchema current, DatabaseSchema desired)
+    public DatabaseDiff Compare(Database current, Database desired, ProjectDirectives directives)
     {
         LogBeginningComparison();
 
-        var schemas = CompareSchemas(current.Schemas, desired.Schemas);
-        var extensions = CompareExtensions(current.Extensions, desired.Extensions, desired.DroppedExtensions);
+        var index = new DirectiveLookup(directives);
+        var schemas = CompareSchemas(current.Schemas, desired.Schemas, index);
+        var extensions = CompareExtensions(current.Extensions, desired.Extensions, index.ExtensionDrops);
 
         LogComparisonComplete(schemas.Count);
 
         return new DatabaseDiff(schemas, extensions);
     }
 
-    private List<SchemaDiff> CompareSchemas(IReadOnlyList<SchemaDefinition> current, IReadOnlyList<SchemaDefinition> desired)
+    private List<SchemaDiff> CompareSchemas(IReadOnlyList<Schema> current, IReadOnlyList<Schema> desired, DirectiveLookup directives)
     {
         var result = new List<SchemaDiff>();
-        var (forDesired, currentMatched) = MatchEntities(current, desired, "schema");
+        var (forDesired, currentMatched) = MatchEntities(current, desired, directives.SchemaRenames, "schema");
 
         for (var j = 0; j < current.Count; j++)
         {
@@ -49,7 +50,7 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
                 LogSchemaNew(desired[i].Name);
                 result.Add(BuildNewSchema(desired[i]));
             }
-            else if (BuildModifiedSchema(matchingCurrent, desired[i]) is { } diff)
+            else if (BuildModifiedSchema(matchingCurrent, desired[i], directives) is { } diff)
             {
                 result.Add(diff);
             }
@@ -61,8 +62,8 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
     }
 
     /// <summary>
-    /// Pairs each current entity with at most one desired entity. Renames (an explicit <c>OldName</c>) are
-    /// matched first, then remaining desired entities claim a current entity by exact name.
+    /// Pairs each current entity with at most one desired entity. Rename directives are matched first, then
+    /// remaining desired entities claim a current entity by exact name.
     /// </summary>
     /// <remarks>
     /// A rename is rejected when it collides with a surviving entity, because the result cannot be ordered
@@ -73,6 +74,7 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
     /// </remarks>
     /// <param name="current">The current-state entities.</param>
     /// <param name="desired">The desired-state entities.</param>
+    /// <param name="renames">The rename directives scoped to this match's container.</param>
     /// <param name="entityKind">The noun used in the ambiguity error (e.g. <c>"table"</c>).</param>
     /// <param name="container">An optional qualifier for the entity in the error (e.g. the schema name).</param>
     /// <returns>
@@ -82,31 +84,37 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
     private static (T?[] ForDesired, bool[] CurrentMatched) MatchEntities<T>(
         IReadOnlyList<T> current,
         IReadOnlyList<T> desired,
+        IReadOnlyList<RenamePair> renames,
         string entityKind,
         string? container = null
-    ) where T : class, IRenameableObject
+    ) where T : class, INamedObject
     {
         var forDesired = new T?[desired.Count];
         var currentMatched = new bool[current.Count];
-        var matchedByRename = new bool[desired.Count];
+        var renameFrom = new SqlIdentifier?[desired.Count];
 
-        // Pass 1: explicit renames take priority.
-        for (var i = 0; i < desired.Count; i++)
+        // Pass 1: rename directives take priority — each pairs the current entity it addresses with the
+        // declared entity carrying its target name.
+        foreach (var rename in renames)
         {
-            if (desired[i].OldName is not { } renamedFrom)
+            for (var i = 0; i < desired.Count; i++)
             {
-                continue;
-            }
-
-            for (var j = 0; j < current.Count; j++)
-            {
-                if (!currentMatched[j] && current[j].Name == renamedFrom)
+                if (forDesired[i] is not null || desired[i].Name != rename.To)
                 {
-                    forDesired[i] = current[j];
-                    currentMatched[j] = true;
-                    matchedByRename[i] = true;
-                    break;
+                    continue;
                 }
+
+                for (var j = 0; j < current.Count; j++)
+                {
+                    if (!currentMatched[j] && current[j].Name == rename.From)
+                    {
+                        forDesired[i] = current[j];
+                        currentMatched[j] = true;
+                        renameFrom[i] = rename.From;
+                        break;
+                    }
+                }
+                break;
             }
         }
 
@@ -132,13 +140,12 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
         // Reject renames that collide with a surviving entity (see remarks).
         for (var i = 0; i < desired.Count; i++)
         {
-            if (!matchedByRename[i])
+            if (renameFrom[i] is not { } renamedFrom)
             {
                 continue;
             }
 
             var newName = desired[i].Name;
-            var renamedFrom = desired[i].OldName!;
             var index = i;
 
             var oldNameStillDeclared = desired.Where((_, d) => d != index).Any(d => d.Name == renamedFrom);
@@ -171,15 +178,16 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
         string entityKind,
         IReadOnlyList<TModel> current,
         IReadOnlyList<TModel> desired,
+        IReadOnlyList<RenamePair> renames,
         IReadOnlyList<SqlIdentifier> droppedNames,
         bool isPartial,
         Func<TModel, TDiff> buildRemoved,
         Func<TModel, TDiff> buildNew,
         Func<TModel, TModel, TDiff?> buildModified
-    ) where TModel : class, IRenameableObject where TDiff : class
+    ) where TModel : class, INamedObject where TDiff : class
     {
         var result = new List<TDiff>();
-        var (forDesired, currentMatched) = MatchEntities(current, desired, entityKind, schemaName.Value);
+        var (forDesired, currentMatched) = MatchEntities(current, desired, renames, entityKind, schemaName.Value);
 
         for (var j = 0; j < current.Count; j++)
         {
@@ -266,7 +274,7 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
         return result;
     }
 
-    private SchemaDiff BuildNewSchema(SchemaDefinition desired)
+    private SchemaDiff BuildNewSchema(Schema desired)
     {
         var tables = desired.Tables
             .Select(table => BuildNewTable(desired.Name, table))
@@ -312,22 +320,22 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
     // A removed schema takes all of its objects with it. Rather than lean on a provider-specific DROP SCHEMA CASCADE
     // (which Postgres has but SQL Server and SQLite do not), emit an explicit Remove for every contained object — by
     // diffing the schema against an empty one — so the linearizer drops the objects before the schema itself.
-    private SchemaDiff BuildRemovedSchema(SchemaDefinition current)
+    private SchemaDiff BuildRemovedSchema(Schema current)
     {
-        var empty = new SchemaDefinition(current.Name);
+        var empty = new Schema(current.Name);
         return new SchemaDiff(
             current.Name,
             ChangeKind.Remove,
-            Tables: CompareTables(current.Name, current.Tables, empty).OrderBy(t => t.Name).ToList(),
-            Views: CompareViews(current.Name, current.Views, empty).OrderBy(v => v.Name).ToList(),
-            Enums: CompareEnums(current.Name, current.Enums, empty).OrderBy(e => e.Name).ToList(),
-            Sequences: CompareSequences(current.Name, current.Sequences, empty).OrderBy(s => s.Name).ToList(),
-            Routines: CompareRoutines(current.Name, current.Routines, empty).OrderBy(r => r.Name).ToList(),
-            Domains: CompareDomains(current.Name, current.Domains, empty).OrderBy(d => d.Name).ToList(),
-            CompositeTypes: CompareCompositeTypes(current.Name, current.CompositeTypes, empty).OrderBy(c => c.Name).ToList());
+            Tables: CompareTables(current.Name, current.Name, current.Tables, empty, DirectiveLookup.Empty).OrderBy(t => t.Name).ToList(),
+            Views: CompareViews(current.Name, current.Name, current.Views, empty, DirectiveLookup.Empty).OrderBy(v => v.Name).ToList(),
+            Enums: CompareEnums(current.Name, current.Name, current.Enums, empty, DirectiveLookup.Empty).OrderBy(e => e.Name).ToList(),
+            Sequences: CompareSequences(current.Name, current.Name, current.Sequences, empty, DirectiveLookup.Empty).OrderBy(s => s.Name).ToList(),
+            Routines: CompareRoutines(current.Name, current.Name, current.Routines, empty, DirectiveLookup.Empty).OrderBy(r => r.Name).ToList(),
+            Domains: CompareDomains(current.Name, current.Name, current.Domains, empty, DirectiveLookup.Empty).OrderBy(d => d.Name).ToList(),
+            CompositeTypes: CompareCompositeTypes(current.Name, current.Name, current.CompositeTypes, empty, DirectiveLookup.Empty).OrderBy(c => c.Name).ToList());
     }
 
-    private SchemaDiff? BuildModifiedSchema(SchemaDefinition current, SchemaDefinition desired)
+    private SchemaDiff? BuildModifiedSchema(Schema current, Schema desired, DirectiveLookup directives)
     {
         SqlIdentifier? renamedFrom = null;
         if (current.Name == desired.Name)
@@ -348,25 +356,25 @@ internal sealed partial class SchemaComparer(ILogger<SchemaComparer> logger) : I
         }
 
         var grants = CompareSchemaGrants(desired.Name, current.Grants, desired.Grants);
-        var tables = CompareTables(desired.Name, current.Tables, desired)
+        var tables = CompareTables(desired.Name, current.Name, current.Tables, desired, directives)
             .OrderBy(table => table.Name)
             .ToList();
-        var views = CompareViews(desired.Name, current.Views, desired)
+        var views = CompareViews(desired.Name, current.Name, current.Views, desired, directives)
             .OrderBy(view => view.Name)
             .ToList();
-        var enums = CompareEnums(desired.Name, current.Enums, desired)
+        var enums = CompareEnums(desired.Name, current.Name, current.Enums, desired, directives)
             .OrderBy(enumType => enumType.Name)
             .ToList();
-        var sequences = CompareSequences(desired.Name, current.Sequences, desired)
+        var sequences = CompareSequences(desired.Name, current.Name, current.Sequences, desired, directives)
             .OrderBy(sequence => sequence.Name)
             .ToList();
-        var routines = CompareRoutines(desired.Name, current.Routines, desired)
+        var routines = CompareRoutines(desired.Name, current.Name, current.Routines, desired, directives)
             .OrderBy(routine => routine.Name)
             .ToList();
-        var domains = CompareDomains(desired.Name, current.Domains, desired)
+        var domains = CompareDomains(desired.Name, current.Name, current.Domains, desired, directives)
             .OrderBy(domain => domain.Name)
             .ToList();
-        var compositeTypes = CompareCompositeTypes(desired.Name, current.CompositeTypes, desired)
+        var compositeTypes = CompareCompositeTypes(desired.Name, current.Name, current.CompositeTypes, desired, directives)
             .OrderBy(type => type.Name)
             .ToList();
 

@@ -6,10 +6,11 @@ using NSchema.Project.Domain.Models.Schemas;
 
 namespace NSchema.Diff.Domain;
 
-internal sealed partial class SchemaComparer
+internal sealed partial class DatabaseComparer
 {
-    private static List<RoutineDiff> CompareRoutines(SqlIdentifier schemaName, IReadOnlyList<Routine> current, SchemaDefinition desired) =>
-        CompareObjects(schemaName, "routine", current, desired.Routines, desired.DroppedRoutines, desired.IsPartial,
+    private static List<RoutineDiff> CompareRoutines(SqlIdentifier schemaName, SqlIdentifier currentSchemaName, IReadOnlyList<Routine> current, Schema desired, DirectiveLookup directives) =>
+        CompareObjects(schemaName, "routine", current, desired.Routines,
+            directives.RoutineRenames(currentSchemaName), directives.RoutineDrops(currentSchemaName), directives.IsPartial(schemaName),
             routine => new RoutineDiff(schemaName, routine.Name, ChangeKind.Remove, routine.Kind),
             routine => BuildNewRoutine(schemaName, routine),
             (currentRoutine, desiredRoutine) => BuildModifiedRoutine(schemaName, currentRoutine, desiredRoutine));

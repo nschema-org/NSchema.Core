@@ -6,7 +6,7 @@ using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Diff.Domain;
 
-internal sealed partial class SchemaComparer
+internal sealed partial class DatabaseComparer
 {
     private List<GrantChange> CompareSchemaGrants(SqlIdentifier schemaName, IReadOnlyList<SchemaGrant> current, IReadOnlyList<SchemaGrant> desired)
     {

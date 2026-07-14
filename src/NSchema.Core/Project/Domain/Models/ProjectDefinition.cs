@@ -1,18 +1,11 @@
-using NSchema.Project.Domain.Models.Scripts;
-
 namespace NSchema.Project.Domain.Models;
 
 /// <summary>
 /// The desired state declared by the project.
 /// </summary>
 /// <param name="Database">The declared database structure.</param>
-/// <param name="Scripts">The scripts declared across the project's files.</param>
 /// <param name="Directives">The management directives declared across the project's files.</param>
-public sealed record ProjectDefinition(
-    Database Database,
-    IReadOnlyList<Script> Scripts,
-    ProjectDirectives? Directives = null
-)
+public sealed record ProjectDefinition(Database Database, ProjectDirectives? Directives = null)
 {
     /// <summary>
     /// The management directives declared across the project's files.

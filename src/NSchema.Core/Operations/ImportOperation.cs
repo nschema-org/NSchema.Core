@@ -105,7 +105,7 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
 
         // The partition's document either declares its schemas (a header, the extensions file) or holds
         // member objects only — a property of the constructed document, not a rendering flag.
-        var document = SyntaxBuilder.Build(merged, [], declareSchemas);
+        var document = SyntaxBuilder.Build(merged, declareSchemas);
         var ddl = NsqlFormatter.Format(NsqlWriter.Write(document));
         await File.WriteAllTextAsync(path, ddl, cancellationToken);
 

@@ -124,9 +124,9 @@ public sealed class AddProjectSourceTests : IDisposable
 
         var project = await ResolveProject(b => b.AddProjectSource(_root));
 
-        var script = project.Scripts.ShouldHaveSingleItem();
+        var script = project.AllScripts().ShouldHaveSingleItem();
         ShouldlyIdentifierExtensions.ShouldBe(script.Name, "backfill");
-        script.Event.ShouldBe(new DeploymentEvent(DeploymentPhase.Post));
+        script.ShouldBeOfType<DeploymentScript>().Phase.ShouldBe(DeploymentPhase.Post);
     }
 
     [Fact]
@@ -134,7 +134,7 @@ public sealed class AddProjectSourceTests : IDisposable
     {
         WriteSchemaFile("app.sql", "app");
 
-        (await ResolveProject(b => b.AddProjectSource(_root))).Scripts.ShouldBeEmpty();
+        (await ResolveProject(b => b.AddProjectSource(_root))).AllScripts().ShouldBeEmpty();
     }
 
     [Fact]

@@ -21,14 +21,18 @@ public sealed class PlanFileManagerTests
     {
         // A plan carrying a rich diff (including a full Table definition), both script event kinds, and
         // statements with execution metadata, so the round-trip exercises the whole artifact.
+        var backfill = new ChangeScript(new SqlIdentifier("backfill"), new SqlText("UPDATE app.users SET email = ''"),
+            new SqlIdentifier("app"), ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { RunCondition = RunCondition.Once };
+        var email = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text)) { MigrationScript = backfill };
+        var users = new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify, Columns: [email]);
         var plan = new MigrationPlan(
-            TestData.DestructiveDiff with
+            new DatabaseDiff([new SchemaDiff(new SqlIdentifier("app"), Tables: [users])])
             {
-                Scripts =
+                // Both deployment bookends at the root; the change script rides its column above.
+                DeploymentScripts =
                 [
-                    new Script(new SqlIdentifier("seed"), new SqlText("INSERT INTO app.config VALUES (1)"), new DeploymentEvent(DeploymentPhase.Pre)),
-                    new Script(new SqlIdentifier("backfill"), new SqlText("UPDATE app.users SET email = ''"), new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") }) { RunCondition = RunCondition.Once },
-                    new Script(new SqlIdentifier("reindex"), new SqlText("REINDEX TABLE app.users"), new DeploymentEvent(DeploymentPhase.Post)) { RunOutsideTransaction = true },
+                    new DeploymentScript(new SqlIdentifier("seed"), new SqlText("INSERT INTO app.config VALUES (1)"), null, DeploymentPhase.Pre),
+                    new DeploymentScript(new SqlIdentifier("reindex"), new SqlText("REINDEX TABLE app.users"), null, DeploymentPhase.Post) { RunOutsideTransaction = true },
                 ],
             },
             [
@@ -67,10 +71,10 @@ public sealed class PlanFileManagerTests
     {
         var roundTripped = _sut.Deserialize(_sut.Serialize(SampleEnvelope()));
 
-        // The discriminator must reconstruct each concrete event record, not the abstract base, and keep order.
-        roundTripped.Plan.Diff.Scripts.Select(s => s.Event.GetType()).ShouldBe(
-            [typeof(DeploymentEvent), typeof(ChangeEvent), typeof(DeploymentEvent)]);
-        roundTripped.Plan.Diff.Scripts.ShouldBe(SampleEnvelope().Plan.Diff.Scripts);
+        // The discriminator must reconstruct each concrete script record, not the abstract base, and keep order.
+        roundTripped.Plan.Diff.AllScripts().Select(s => s.GetType()).ShouldBe(
+            [typeof(ChangeScript), typeof(DeploymentScript), typeof(DeploymentScript)]);
+        roundTripped.Plan.Diff.AllScripts().ShouldBe(SampleEnvelope().Plan.Diff.AllScripts());
     }
 
     [Fact]
@@ -104,8 +108,8 @@ public sealed class PlanFileManagerTests
     {
         // Arrange — a diff whose column add is annotated with its matched script, so diff-node persistence and
         // the script-event discriminator inside the diff are both exercised.
-        var migration = new Script(new SqlIdentifier("backfill_emails"), new SqlText("UPDATE app.users SET email = ''"),
-            new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") })
+        var migration = new ChangeScript(new SqlIdentifier("backfill_emails"), new SqlText("UPDATE app.users SET email = ''"),
+            new SqlIdentifier("app"), ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email"))
         {
             RunOutsideTransaction = true,
         };
@@ -115,20 +119,20 @@ public sealed class PlanFileManagerTests
             [
                 new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify, Columns:
                 [
-                    new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text)) { MigrationScript = migration.Name },
+                    new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text)) { MigrationScript = migration },
                 ]),
             ]),
         ]);
         var envelope = new PlanFileEnvelope(
-            new MigrationPlan(diff with { Scripts = [migration] }, [new SqlStatement(new SqlText("UPDATE app.users SET email = ''"), RunOutsideTransaction: true)]),
+            new MigrationPlan(diff, [new SqlStatement(new SqlText("UPDATE app.users SET email = ''"), RunOutsideTransaction: true)]),
             DateTimeOffset.UnixEpoch);
 
         // Act
         var roundTripped = _sut.Deserialize(_sut.Serialize(envelope));
 
         // Assert — record equality covers every field, including the init-only RunOutsideTransaction.
-        roundTripped.Plan.Diff.Schemas[0].Tables[0].Columns[0].MigrationScript.ShouldBe(migration.Name);
-        roundTripped.Plan.Diff.Scripts.ShouldHaveSingleItem().ShouldBe(migration);
+        roundTripped.Plan.Diff.Schemas[0].Tables[0].Columns[0].MigrationScript.ShouldBe(migration);
+        roundTripped.Plan.Diff.AllScripts().ShouldHaveSingleItem().ShouldBe(migration);
     }
 
     [Fact]

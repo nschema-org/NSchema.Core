@@ -94,8 +94,40 @@ public sealed class NsqlParserDirectiveTests
             .Message.ShouldContain("Expected 'SCHEMA'");
 
     [Fact]
-    public void Parse_RenameInsideTemplate_IsRejected()
+    public void Parse_ObjectRenameInsideTemplate_BindsPerAppliedSchema()
+    {
+        // An unqualified object rename in a template body binds to each applied schema.
+        var project = new TestNsqlParser(
+            """
+            CREATE SCHEMA sales;
+            CREATE SCHEMA billing;
+            TEMPLATE t BEGIN CREATE TABLE people ( id int NOT NULL ); RENAME TABLE staff TO people; END;
+            APPLY TEMPLATE t IN SCHEMA sales, billing;
+            """).Parse();
+
+        project.Directives.Tables.Renames.Select(r => (r.From.ToString(), r.To.Value))
+            .ShouldBe([("sales.staff", "people"), ("billing.staff", "people")]);
+    }
+
+    [Fact]
+    public void Parse_ColumnRenameInsideTemplate_UsesTwoPartPathBoundPerSchema()
+    {
+        // Inside a template a column path is table.column; the schema binds to each applied schema.
+        var project = new TestNsqlParser(
+            """
+            CREATE SCHEMA sales;
+            CREATE SCHEMA billing;
+            TEMPLATE t BEGIN CREATE TABLE orders ( total int NOT NULL ); RENAME COLUMN orders.amount TO total; END;
+            APPLY TEMPLATE t IN SCHEMA sales, billing;
+            """).Parse();
+
+        project.Directives.Tables.ColumnRenames.Select(r => (r.From.ToString(), r.To.Value))
+            .ShouldBe([("sales.orders.amount", "total"), ("billing.orders.amount", "total")]);
+    }
+
+    [Fact]
+    public void Parse_SchemaRenameInsideTemplate_IsRejected()
         => Should.Throw<NsqlSyntaxException>(() => new TestNsqlParser(
-            "TEMPLATE t BEGIN RENAME TABLE a.b TO c; END;").Parse())
-            .Message.ShouldContain("inside a template");
+            "TEMPLATE t BEGIN RENAME SCHEMA a TO c; END;").Parse())
+            .Message.ShouldContain("not allowed in a template body");
 }

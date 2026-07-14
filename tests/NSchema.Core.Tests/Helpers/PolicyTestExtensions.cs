@@ -16,5 +16,5 @@ internal static class PolicyTestExtensions
         policy.Validate(new MigrationPlan(diff, []));
 
     public static IEnumerable<Diagnostic> Validate(this IProjectPolicy policy, Database schema) =>
-        policy.Validate(new ProjectDefinition(schema, []));
+        policy.Validate(new ProjectDefinition(schema));
 }

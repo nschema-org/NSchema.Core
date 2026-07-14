@@ -6,6 +6,7 @@ using NSchema.Project.Domain.Models.Routines;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Sequences;
 using NSchema.Project.Domain.Models.Tables;
+using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Domain.Models.Views;
 
 namespace NSchema.Project.Domain.Models;
@@ -13,11 +14,6 @@ namespace NSchema.Project.Domain.Models;
 /// <summary>
 /// The management directives a project declares.
 /// </summary>
-/// <remarks>
-/// Directive addresses name current reality — what exists now, before anything is applied — with one
-/// exception: a partial marks the project's own declaration, so it carries the declared name. A future
-/// directive that crosses kinds belongs here at the root, beside the slices, not inside any of them.
-/// </remarks>
 public sealed record ProjectDirectives(
     SchemaDirectives? Schemas = null,
     TableDirectives? Tables = null,
@@ -27,7 +23,8 @@ public sealed record ProjectDirectives(
     RoutineDirectives? Routines = null,
     DomainDirectives? Domains = null,
     CompositeTypeDirectives? CompositeTypes = null,
-    ExtensionDirectives? Extensions = null
+    ExtensionDirectives? Extensions = null,
+    IReadOnlyList<DeploymentScript>? DeploymentScripts = null
 )
 {
     /// <summary>
@@ -79,4 +76,9 @@ public sealed record ProjectDirectives(
     /// The extension directives (drops only).
     /// </summary>
     public ExtensionDirectives Extensions { get; init; } = Extensions ?? new();
+
+    /// <summary>
+    /// The deployment scripts.
+    /// </summary>
+    public IReadOnlyList<DeploymentScript> DeploymentScripts { get; init; } = DeploymentScripts ?? [];
 }

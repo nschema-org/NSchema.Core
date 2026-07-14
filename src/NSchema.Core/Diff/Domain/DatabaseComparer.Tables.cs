@@ -6,17 +6,19 @@ using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Diff.Domain.Models.Triggers;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Diff.Domain;
 
-internal sealed partial class SchemaComparer
+internal sealed partial class DatabaseComparer
 {
-    private List<TableDiff> CompareTables(SqlIdentifier schemaName, IReadOnlyList<Table> current, SchemaDefinition desired)
+    private List<TableDiff> CompareTables(SqlIdentifier schemaName, SqlIdentifier currentSchemaName, IReadOnlyList<Table> current, Schema desired, DirectiveLookup directives)
     {
         var result = new List<TableDiff>();
-        var droppedTables = desired.DroppedTables;
-        var (forDesired, currentMatched) = MatchEntities(current, desired.Tables, "table", schemaName.Value);
+        var droppedTables = directives.TableDrops(currentSchemaName);
+        var isPartial = directives.IsPartial(schemaName);
+        var (forDesired, currentMatched) = MatchEntities(current, desired.Tables, directives.TableRenames(currentSchemaName), "table", schemaName.Value);
 
         for (var j = 0; j < current.Count; j++)
         {
@@ -30,7 +32,7 @@ internal sealed partial class SchemaComparer
                 LogTableExplicitlyDropped(schemaName, currentTable.Name);
                 result.Add(RemovedTable(schemaName, currentTable.Name));
             }
-            else if (!desired.IsPartial)
+            else if (!isPartial)
             {
                 LogTableNotInDesired(schemaName, currentTable.Name);
                 result.Add(RemovedTable(schemaName, currentTable.Name));
@@ -49,9 +51,11 @@ internal sealed partial class SchemaComparer
                 LogTableNew(schemaName, desiredTable.Name);
                 result.Add(BuildNewTable(schemaName, desiredTable));
             }
-            else if (BuildModifiedTable(schemaName, matchingCurrent, desiredTable) is { } diff)
+            else if (BuildModifiedTable(schemaName, currentSchemaName, matchingCurrent, desiredTable, directives) is { } diff)
             {
-                result.Add(diff);
+                // Change-event scripts ride the changes they accompany: attach each to its member diff here,
+                // in the per-table pass that already built those diffs.
+                result.Add(AttachChangeScripts(diff, directives.ChangeScripts(schemaName, desiredTable.Name)));
             }
         }
 
@@ -161,7 +165,7 @@ internal sealed partial class SchemaComparer
         return new TableDiff(schemaName, table.Name, ChangeKind.Add, null, comment, columns, grants, indexes, primaryKey, foreignKeys, uniqueConstraints, checks, exclusions, triggers, table);
     }
 
-    private TableDiff? BuildModifiedTable(SqlIdentifier schemaName, Table current, Table desired)
+    private TableDiff? BuildModifiedTable(SqlIdentifier schemaName, SqlIdentifier currentSchemaName, Table current, Table desired, DirectiveLookup directives)
     {
         SqlIdentifier? renamedFrom = null;
         if (current.Name == desired.Name)
@@ -182,7 +186,7 @@ internal sealed partial class SchemaComparer
         }
 
         var owner = new ObjectReference(schemaName, desired.Name);
-        var columns = CompareColumns(owner, current.Columns, desired.Columns);
+        var columns = CompareColumns(owner, current.Columns, desired.Columns, directives.ColumnRenames(currentSchemaName, current.Name));
 
         var primaryKey = ComparePrimaryKey(owner, current.PrimaryKey, desired.PrimaryKey);
         var foreignKeys = CompareForeignKeys(owner, current.ForeignKeys, desired.ForeignKeys);
@@ -203,5 +207,46 @@ internal sealed partial class SchemaComparer
         }
 
         return new TableDiff(schemaName, desired.Name, ChangeKind.Modify, renamedFrom, comment, columns, grants, indexes, primaryKey, foreignKeys, uniqueConstraints, checks, exclusions, triggers);
+    }
+
+    /// <summary>
+    /// Attaches each change-event script to the member diff it accompanies — an add-column/alter-type on a
+    /// column, an add-constraint on a constraint — matching by trigger and member name. The script rides the
+    /// node directly, so the linearizer runs it without a lookup.
+    /// </summary>
+    private static TableDiff AttachChangeScripts(TableDiff table, IReadOnlyList<ChangeScript> scripts)
+    {
+        if (scripts.Count == 0)
+        {
+            return table;
+        }
+
+        ChangeScript? Match(ChangeTrigger trigger, SqlIdentifier member) => scripts.FirstOrDefault(s =>
+            s.Trigger == trigger && s.MemberName == member);
+
+        return table with
+        {
+            Columns = table.Columns.Select(column => column switch
+            {
+                { Kind: ChangeKind.Add } when Match(ChangeTrigger.AddColumn, column.Name) is { } m => column with { MigrationScript = m },
+                { Kind: ChangeKind.Modify, Type: not null } when Match(ChangeTrigger.AlterColumnType, column.Name) is { } m => column with { MigrationScript = m },
+                _ => column,
+            }).ToList(),
+            PrimaryKey = table.PrimaryKey
+                .Select(pk => pk.Kind == ChangeKind.Add && Match(ChangeTrigger.AddConstraint, pk.Name) is { } m ? pk with { MigrationScript = m } : pk)
+                .ToList(),
+            UniqueConstraints = table.UniqueConstraints
+                .Select(uc => uc.Kind == ChangeKind.Add && Match(ChangeTrigger.AddConstraint, uc.Name) is { } m ? uc with { MigrationScript = m } : uc)
+                .ToList(),
+            ForeignKeys = table.ForeignKeys
+                .Select(fk => fk.Kind == ChangeKind.Add && Match(ChangeTrigger.AddConstraint, fk.Name) is { } m ? fk with { MigrationScript = m } : fk)
+                .ToList(),
+            Checks = table.Checks
+                .Select(check => check.Kind == ChangeKind.Add && Match(ChangeTrigger.AddConstraint, check.Name) is { } m ? check with { MigrationScript = m } : check)
+                .ToList(),
+            ExclusionConstraints = table.ExclusionConstraints
+                .Select(ex => ex.Kind == ChangeKind.Add && Match(ChangeTrigger.AddConstraint, ex.Name) is { } m ? ex with { MigrationScript = m } : ex)
+                .ToList(),
+        };
     }
 }

@@ -2,7 +2,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using NSchema.Project.Domain;
-using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Plan.PlanFile;
 
@@ -11,8 +10,6 @@ namespace NSchema.Plan.PlanFile;
 /// </summary>
 internal class PlanFileManager : IPlanFileManager
 {
-    private static readonly IReadOnlyList<JsonDerivedType> _eventTypes = DerivedTypes(typeof(ScriptEvent));
-
     private static readonly JsonSerializerOptions _options = new()
     {
         WriteIndented = true,
@@ -22,15 +19,9 @@ internal class PlanFileManager : IPlanFileManager
         Converters = { new JsonStringEnumConverter(), new ValueObjectJsonConverter() },
         TypeInfoResolver = new DefaultJsonTypeInfoResolver
         {
-            Modifiers = { JsonHelpers.IgnoreComputedProperties, ConfigurePolymorphism },
+            Modifiers = { JsonHelpers.IgnoreComputedProperties },
         },
     };
-
-    private static IReadOnlyList<JsonDerivedType> DerivedTypes(Type baseType) =>
-        baseType.Assembly.GetTypes()
-            .Where(t => t is { IsAbstract: false } && baseType.IsAssignableFrom(t))
-            .Select(t => new JsonDerivedType(t, t.Name))
-            .ToList();
 
     public async Task<Result<PlanFileEnvelope>> Read(string path, CancellationToken cancellationToken)
     {
@@ -101,28 +92,5 @@ internal class PlanFileManager : IPlanFileManager
         }
 
         return envelope;
-    }
-
-    /// <summary>
-    /// Configures discriminated-union serialization for the one abstract base the plan carries — the
-    /// <see cref="ScriptEvent"/> on each script — so it round-trips to its concrete record.
-    /// </summary>
-    private static void ConfigurePolymorphism(JsonTypeInfo typeInfo)
-    {
-        if (typeInfo.Type != typeof(ScriptEvent))
-        {
-            return;
-        }
-
-        typeInfo.PolymorphismOptions = new JsonPolymorphismOptions
-        {
-            TypeDiscriminatorPropertyName = "$event",
-            UnknownDerivedTypeHandling = JsonUnknownDerivedTypeHandling.FailSerialization,
-        };
-
-        foreach (var derived in _eventTypes)
-        {
-            typeInfo.PolymorphismOptions.DerivedTypes.Add(derived);
-        }
     }
 }

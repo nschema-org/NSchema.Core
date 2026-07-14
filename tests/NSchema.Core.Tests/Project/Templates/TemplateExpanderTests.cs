@@ -425,14 +425,14 @@ public sealed class TemplateExpanderTests
               SCRIPT backfill_trace RUN ON ADD COLUMN outbox_events.trace_id AS $$ UPDATE {schema}.outbox_events SET trace_id = ''; $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales, billing;
-            """).Require().Scripts;
+            """).Require().AllScripts();
 
         // Assert — one instance per applied schema, with the schema bound and the {schema} token substituted.
         instances.Count.ShouldBe(2);
-        instances[0].Event.ShouldBeOfType<ChangeEvent>().Path.ShouldBe("sales.outbox_events.trace_id");
+        instances[0].ShouldBeOfType<ChangeScript>().Path.ShouldBe("sales.outbox_events.trace_id");
         instances[0].Sql.ShouldBe("UPDATE sales.outbox_events SET trace_id = '';");
         instances[0].Name.ShouldBe("backfill_trace");
-        instances[1].Event.ShouldBeOfType<ChangeEvent>().Path.ShouldBe("billing.outbox_events.trace_id");
+        instances[1].ShouldBeOfType<ChangeScript>().Path.ShouldBe("billing.outbox_events.trace_id");
         instances[1].Sql.ShouldBe("UPDATE billing.outbox_events SET trace_id = '';");
     }
 
@@ -448,7 +448,7 @@ public sealed class TemplateExpanderTests
               CREATE TABLE outbox_events ( id int NOT NULL );
               SCRIPT backfill RUN ON ADD COLUMN outbox_events.trace_id AS $$ SELECT 1; $$;
             END;
-            """).Require().Scripts;
+            """).Require().AllScripts();
 
         // Assert
         instances.ShouldBeEmpty();
@@ -467,7 +467,7 @@ public sealed class TemplateExpanderTests
               SCRIPT version RUN ON ADD COLUMN outbox_events.trace_id (run_outside_transaction = true) AS $$ SELECT version(); $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales;
-            """).Require().Scripts.ShouldHaveSingleItem();
+            """).Require().AllScripts().ShouldHaveSingleItem();
 
         // Assert — no token, no rewriting; the option carries onto the instance.
         migration.Sql.ShouldBe("SELECT version();");
@@ -488,16 +488,16 @@ public sealed class TemplateExpanderTests
               SCRIPT seed RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO {schema}.outbox_events VALUES (1); $$;
             END;
             APPLY TEMPLATE outbox IN SCHEMA sales, billing;
-            """).Require().Scripts;
+            """).Require().AllScripts();
 
         // Assert — one instance per applied schema, scoped to it via the event (the shared name is two
         // distinct scripts), token substituted in the body, run condition carried.
         scripts.Count.ShouldBe(2);
-        scripts[0].Event.ShouldBeOfType<DeploymentEvent>().ScopeSchema.ShouldBe("sales");
+        scripts[0].ShouldBeOfType<DeploymentScript>().ScopeSchema.ShouldBe("sales");
         scripts[0].Reference.ShouldBe(new ScriptReference(new SqlIdentifier("sales"), new SqlIdentifier("seed")));
         scripts[0].Sql.ShouldBe("INSERT INTO sales.outbox_events VALUES (1);");
         scripts[0].RunCondition.ShouldBe(RunCondition.Once);
-        scripts[1].Event.ShouldBeOfType<DeploymentEvent>().ScopeSchema.ShouldBe("billing");
+        scripts[1].ShouldBeOfType<DeploymentScript>().ScopeSchema.ShouldBe("billing");
         scripts[1].Reference.ShouldBe(new ScriptReference(new SqlIdentifier("billing"), new SqlIdentifier("seed")));
     }
 }

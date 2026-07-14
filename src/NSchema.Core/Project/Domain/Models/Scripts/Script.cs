@@ -1,12 +1,12 @@
 namespace NSchema.Project.Domain.Models.Scripts;
 
 /// <summary>
-/// A raw-SQL script, together with the event it runs on.
+/// A raw-SQL script and the run semantics common to every script kind.
 /// </summary>
 /// <param name="Name">The name that identifies the script.</param>
-/// <param name="Sql">The raw SQL to run when the event occurs.</param>
-/// <param name="Event">The event that will cause the script to be run.</param>
-public record Script(SqlIdentifier Name, SqlText Sql, ScriptEvent Event)
+/// <param name="Sql">The raw SQL to run.</param>
+/// <param name="ScopeSchema">The schema the run is scoped to, or <see langword="null"/> when the script is global.</param>
+public abstract record Script(SqlIdentifier Name, SqlText Sql, SqlIdentifier? ScopeSchema)
 {
     /// <summary>
     /// The canonical hash of the script body.
@@ -14,9 +14,9 @@ public record Script(SqlIdentifier Name, SqlText Sql, ScriptEvent Event)
     public string Hash => ScriptHashing.Hash(Sql);
 
     /// <summary>
-    /// The script's address: its event's scope schema and its name.
+    /// The script's address: its scope schema and its name.
     /// </summary>
-    public ScriptReference Reference => new(Event.ScopeSchema, Name);
+    public ScriptReference Reference => new(ScopeSchema, Name);
 
     /// <summary>
     /// When true, the script runs outside the migration's transaction.
@@ -27,4 +27,9 @@ public record Script(SqlIdentifier Name, SqlText Sql, ScriptEvent Event)
     /// When the script runs, relative to occurrences of its event.
     /// </summary>
     public RunCondition RunCondition { get; init; } = RunCondition.Always;
+
+    /// <summary>
+    /// The event as written in DDL source.
+    /// </summary>
+    public abstract string Description { get; }
 }

@@ -18,7 +18,7 @@ public sealed class DirectiveValidatorTests
     private static ObjectReference App(string name) => new(_app, new SqlIdentifier(name));
 
     private static ProjectDefinition Project(ProjectDirectives directives, params Schema[] schemas) =>
-        new(new Database(schemas), [], directives);
+        new(new Database(schemas), directives);
 
     private static Schema AppSchema(params Table[] tables) => new(_app, Tables: tables);
 
@@ -161,7 +161,6 @@ public sealed class DirectiveValidatorTests
         var other = new SqlIdentifier("audit");
         var project = new ProjectDefinition(
             new Database([AppSchema(Table("people", "id")), new Schema(other, Tables: [Table("people", "id")])]),
-            [],
             new ProjectDirectives(Tables: new TableDirectives(Renames:
             [
                 new ObjectRename(App("users"), new SqlIdentifier("people")),
@@ -180,7 +179,6 @@ public sealed class DirectiveValidatorTests
         var sales = new SqlIdentifier("sales");
         var project = new ProjectDefinition(
             new Database([new Schema(core, Tables: [Table("people", "id", "full_name")])]),
-            [],
             new ProjectDirectives(
                 new SchemaDirectives(Renames: [new SchemaRename(sales, core)]),
                 new TableDirectives(

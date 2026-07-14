@@ -5,7 +5,7 @@ using NSchema.Project.Domain.Models.Extensions;
 
 namespace NSchema.Diff.Domain;
 
-internal sealed partial class SchemaComparer
+internal sealed partial class DatabaseComparer
 {
     /// <summary>
     /// Compares the database-global extensions. Unlike the per-schema objects, an extension is removed

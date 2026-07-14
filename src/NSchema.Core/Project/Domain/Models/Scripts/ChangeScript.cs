@@ -1,16 +1,22 @@
 namespace NSchema.Project.Domain.Models.Scripts;
 
 /// <summary>
-/// A structural change event: the script is spliced into the plan only when the matching change is also planned.
+/// A script bound to a structural change.
 /// </summary>
+/// <param name="Name">The name that identifies the script.</param>
+/// <param name="Sql">The raw SQL to run.</param>
+/// <param name="ScopeSchema">The schema the change lands in, or <see langword="null"/> when unscoped.</param>
 /// <param name="Trigger">The structural change the script attaches to.</param>
 /// <param name="TableName">The table the change applies to.</param>
 /// <param name="MemberName">The column or constraint name the change targets.</param>
-public sealed record ChangeEvent(
+public sealed record ChangeScript(
+    SqlIdentifier Name,
+    SqlText Sql,
+    SqlIdentifier? ScopeSchema,
     ChangeTrigger Trigger,
     SqlIdentifier TableName,
     SqlIdentifier MemberName
-) : ScriptEvent
+) : Script(Name, Sql, ScopeSchema)
 {
     /// <summary>
     /// The fully qualified path of the change target (<c>schema.table.member</c>).

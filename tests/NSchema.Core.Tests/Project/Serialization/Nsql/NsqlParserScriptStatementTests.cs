@@ -11,10 +11,10 @@ namespace NSchema.Tests.Project.Serialization.Nsql;
 /// </summary>
 public sealed class NsqlParserScriptStatementTests
 {
-    private static ProjectedDocument Read(string source) => new TestNsqlParser(source).Parse();
+    private static ProjectDefinition Read(string source) => new TestNsqlParser(source).Parse();
 
-    private static IReadOnlyList<Script> Migrations(ProjectedDocument document) =>
-        [.. document.Scripts.Where(s => s.Event is ChangeEvent)];
+    private static IReadOnlyList<ChangeScript> Migrations(ProjectDefinition document) =>
+        document.Directives.Tables.ChangeScripts;
 
     // -------------------------------------------------------------------------
     // Deployment events
@@ -24,10 +24,10 @@ public sealed class NsqlParserScriptStatementTests
     public void Parse_PreDeploymentEvent_ProducesAScript()
     {
         var script = Read("SCRIPT enable_citext RUN ON PRE DEPLOYMENT AS $$ CREATE EXTENSION IF NOT EXISTS citext; $$;")
-            .Scripts.ShouldHaveSingleItem();
+            .Directives.DeploymentScripts.ShouldHaveSingleItem();
 
         script.Name.ShouldBe("enable_citext");
-        script.Event.ShouldBe(new DeploymentEvent(DeploymentPhase.Pre));
+        script.Phase.ShouldBe(DeploymentPhase.Pre);
         script.Sql.ShouldBe("CREATE EXTENSION IF NOT EXISTS citext;");
         script.RunCondition.ShouldBe(RunCondition.Always);
     }
@@ -35,22 +35,22 @@ public sealed class NsqlParserScriptStatementTests
     [Fact]
     public void Parse_PostDeploymentEvent_ProducesAScript()
         => Read("SCRIPT reindex RUN ON POST DEPLOYMENT AS $$ SELECT 1; $$;")
-            .Scripts.ShouldHaveSingleItem().Event.ShouldBe(new DeploymentEvent(DeploymentPhase.Post));
+            .Directives.DeploymentScripts.ShouldHaveSingleItem().Phase.ShouldBe(DeploymentPhase.Post);
 
     [Fact]
     public void Parse_RunAlways_IsTheExplicitSpellingOfTheDefault()
         => Read("SCRIPT x RUN ALWAYS ON PRE DEPLOYMENT AS $$ SELECT 1; $$;")
-            .Scripts.ShouldHaveSingleItem().RunCondition.ShouldBe(RunCondition.Always);
+            .Directives.DeploymentScripts.ShouldHaveSingleItem().RunCondition.ShouldBe(RunCondition.Always);
 
     [Fact]
     public void Parse_RunOnce_SetsTheRunCondition()
         => Read("SCRIPT seed RUN ONCE ON POST DEPLOYMENT AS $$ INSERT INTO app.currencies VALUES ('GBP'); $$;")
-            .Scripts.ShouldHaveSingleItem().RunCondition.ShouldBe(RunCondition.Once);
+            .Directives.DeploymentScripts.ShouldHaveSingleItem().RunCondition.ShouldBe(RunCondition.Once);
 
     [Fact]
     public void Parse_Options_AreSharedWithTheOldForm()
         => Read("SCRIPT x RUN ON POST DEPLOYMENT (run_outside_transaction = true) AS $$ SELECT 1; $$;")
-            .Scripts.ShouldHaveSingleItem().RunOutsideTransaction.ShouldBeTrue();
+            .Directives.DeploymentScripts.ShouldHaveSingleItem().RunOutsideTransaction.ShouldBeTrue();
 
     // -------------------------------------------------------------------------
     // Change events
@@ -63,9 +63,8 @@ public sealed class NsqlParserScriptStatementTests
             .ShouldHaveSingleItem();
 
         migration.Name.ShouldBe("backfill_emails");
-        var change = migration.Event.ShouldBeOfType<ChangeEvent>();
-        change.Trigger.ShouldBe(ChangeTrigger.AddColumn);
-        change.Path.ShouldBe("app.users.email");
+        migration.Trigger.ShouldBe(ChangeTrigger.AddColumn);
+        migration.Path.ShouldBe("app.users.email");
         migration.RunCondition.ShouldBe(RunCondition.Always);
     }
 
@@ -74,7 +73,7 @@ public sealed class NsqlParserScriptStatementTests
     [InlineData("ADD CONSTRAINT app.orders.total_positive", ChangeTrigger.AddConstraint)]
     public void Parse_OtherChangeEvents_CarryTheTrigger(string eventText, ChangeTrigger trigger)
         => Migrations(Read($"SCRIPT x RUN ON {eventText} AS $$ SELECT 1; $$;"))
-            .ShouldHaveSingleItem().Event.ShouldBeOfType<ChangeEvent>().Trigger.ShouldBe(trigger);
+            .ShouldHaveSingleItem().Trigger.ShouldBe(trigger);
 
     [Fact]
     public void Parse_RunOnceChangeEvent_SetsTheRunCondition()
@@ -146,7 +145,7 @@ public sealed class NsqlParserScriptStatementTests
         var assembled = NSchema.Project.ProjectAssembler.Assemble([read.Value]);
         assembled.IsSuccess.ShouldBeTrue();
 
-        var changes = assembled.Value.Scripts.Select(s => s.Event).Cast<ChangeEvent>().ToList();
+        var changes = assembled.Value.AllScripts().OfType<ChangeScript>().ToList();
         changes.Select(c => c.ScopeSchema!.Value).ShouldBe(["billing", "ordering"]);
         changes.ShouldAllBe(c => c.TableName == new SqlIdentifier("outbox_events"));
         changes.ShouldAllBe(c => c.MemberName == new SqlIdentifier("trace_id"));
@@ -169,10 +168,12 @@ public sealed class NsqlParserScriptStatementTests
         var assembled = NSchema.Project.ProjectAssembler.Assemble([read.Value]);
         assembled.IsSuccess.ShouldBeTrue();
 
-        var script = assembled.Value.Scripts.ShouldHaveSingleItem();
+        var script = assembled.Value.AllScripts().ShouldHaveSingleItem();
         script.Name.ShouldBe("seed");
         script.Sql.Value.ShouldContain("INSERT INTO app.outbox_events");
-        script.Event.ShouldBe(new DeploymentEvent(DeploymentPhase.Post) { ScopeSchema = new SqlIdentifier("app") });
+        var deployment = script.ShouldBeOfType<DeploymentScript>();
+        deployment.Phase.ShouldBe(DeploymentPhase.Post);
+        deployment.ScopeSchema.ShouldBe(new SqlIdentifier("app"));
         script.RunCondition.ShouldBe(RunCondition.Once);
     }
 

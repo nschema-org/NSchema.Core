@@ -237,9 +237,25 @@ public sealed class NsqlParserTemplateTests
             .Message.ShouldContain("GRANT USAGE ON SCHEMA is not supported inside a template");
 
     [Fact]
-    public void Parse_Template_DropInside_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => new TestNsqlParser("TEMPLATE t BEGIN DROP TABLE app.x; END;").Parse())
-            .Message.ShouldContain("inside a template");
+    public void Parse_Template_ObjectDropInside_BindsPerAppliedSchema()
+    {
+        // An unqualified object drop in a template body binds to each applied schema.
+        var project = new TestNsqlParser(
+            """
+            CREATE SCHEMA sales;
+            CREATE SCHEMA billing;
+            TEMPLATE t BEGIN CREATE TABLE keep ( id int NOT NULL ); DROP TABLE legacy; END;
+            APPLY TEMPLATE t IN SCHEMA sales, billing;
+            """).Parse();
+
+        project.Directives.Tables.Drops.Select(d => d.ToString())
+            .ShouldBe(["sales.legacy", "billing.legacy"]);
+    }
+
+    [Fact]
+    public void Parse_Template_SchemaDropInside_Throws()
+        => Should.Throw<NsqlSyntaxException>(() => new TestNsqlParser("TEMPLATE t BEGIN DROP SCHEMA x; END;").Parse())
+            .Message.ShouldContain("not allowed in a template body");
 
     [Fact]
     public void Parse_Template_OldDeploymentFormInside_Throws()

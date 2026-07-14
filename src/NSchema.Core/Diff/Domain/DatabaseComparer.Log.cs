@@ -4,7 +4,7 @@ using NSchema.Project.Domain.Models.Columns;
 
 namespace NSchema.Diff.Domain;
 
-internal sealed partial class SchemaComparer
+internal sealed partial class DatabaseComparer
 {
     [LoggerMessage(EventId = 1, Level = LogLevel.Debug, Message = "Beginning schema comparison")]
     private partial void LogBeginningComparison();

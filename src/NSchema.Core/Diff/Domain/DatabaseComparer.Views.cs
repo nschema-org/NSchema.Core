@@ -7,10 +7,11 @@ using NSchema.Project.Domain.Models.Views;
 
 namespace NSchema.Diff.Domain;
 
-internal sealed partial class SchemaComparer
+internal sealed partial class DatabaseComparer
 {
-    private List<ViewDiff> CompareViews(SqlIdentifier schemaName, IReadOnlyList<View> current, SchemaDefinition desired) =>
-        CompareObjects(schemaName, "view", current, desired.Views, desired.DroppedViews, desired.IsPartial,
+    private List<ViewDiff> CompareViews(SqlIdentifier schemaName, SqlIdentifier currentSchemaName, IReadOnlyList<View> current, Schema desired, DirectiveLookup directives) =>
+        CompareObjects(schemaName, "view", current, desired.Views,
+            directives.ViewRenames(currentSchemaName), directives.ViewDrops(currentSchemaName), directives.IsPartial(schemaName),
             view => RemovedView(schemaName, view),
             view => BuildNewView(schemaName, view),
             (currentView, desiredView) => BuildModifiedView(schemaName, currentView, desiredView));

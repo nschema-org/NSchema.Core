@@ -1,3 +1,5 @@
+using NSchema.Project.Domain.Models.Scripts;
+
 namespace NSchema.Project.Domain.Models.Tables;
 
 /// <summary>
@@ -6,10 +8,12 @@ namespace NSchema.Project.Domain.Models.Tables;
 /// <param name="Renames">The declared table renames.</param>
 /// <param name="Drops">The tables explicitly declared dropped.</param>
 /// <param name="ColumnRenames">The declared column renames.</param>
+/// <param name="ChangeScripts">The change-event scripts targeting this schema's table members.</param>
 public sealed record TableDirectives(
     IReadOnlyList<ObjectRename>? Renames = null,
     IReadOnlyList<ObjectReference>? Drops = null,
-    IReadOnlyList<MemberRename>? ColumnRenames = null
+    IReadOnlyList<MemberRename>? ColumnRenames = null,
+    IReadOnlyList<ChangeScript>? ChangeScripts = null
 )
 {
     /// <summary>
@@ -26,4 +30,9 @@ public sealed record TableDirectives(
     /// The declared column renames.
     /// </summary>
     public IReadOnlyList<MemberRename> ColumnRenames { get; init; } = ColumnRenames ?? [];
+
+    /// <summary>
+    /// The change-event scripts targeting this schema's table members.
+    /// </summary>
+    public IReadOnlyList<ChangeScript> ChangeScripts { get; init; } = ChangeScripts ?? [];
 }

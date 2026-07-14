@@ -24,13 +24,6 @@
     },
     {
       Kind: Add,
-      Text: script app.backfill_emails (on add column app.users.email)
-    },
-    {
-      Text: 
-    },
-    {
-      Kind: Add,
       Text: script refresh_views (on post deployment)
     }
   ],

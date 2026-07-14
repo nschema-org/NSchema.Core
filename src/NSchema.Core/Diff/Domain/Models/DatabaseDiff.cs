@@ -9,10 +9,7 @@ namespace NSchema.Diff.Domain.Models;
 /// </summary>
 /// <param name="Schemas">The changed schemas.</param>
 /// <param name="Extensions">The changed database-global extensions.</param>
-public sealed record DatabaseDiff(
-    IReadOnlyList<SchemaDiff>? Schemas = null,
-    IReadOnlyList<ExtensionDiff>? Extensions = null
-)
+public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IReadOnlyList<ExtensionDiff>? Extensions = null)
 {
     /// <summary>
     /// The changed schemas.
@@ -25,19 +22,69 @@ public sealed record DatabaseDiff(
     public IReadOnlyList<ExtensionDiff> Extensions { get; init; } = Extensions ?? [];
 
     /// <summary>
-    /// The scripts that need to be run, in declaration order.
+    /// The deployment scripts to run, in declaration order.
     /// </summary>
-    public IReadOnlyList<Script> Scripts { get; init; } = [];
+    public IReadOnlyList<DeploymentScript> DeploymentScripts { get; init; } = [];
 
     /// <summary>
-    /// Resolves a script on <see cref="Scripts"/> by address.
+    /// The change-event scripts attached to the diff's nodes, in walk order.
     /// </summary>
-    public Script? FindScript(ScriptReference script) => Scripts.FirstOrDefault(s => s.Reference == script);
+    public IEnumerable<ChangeScript> ChangeScripts()
+    {
+        foreach (var schema in Schemas)
+        {
+            foreach (var table in schema.Tables)
+            {
+                foreach (var column in table.Columns)
+                {
+                    if (column.MigrationScript is { } s)
+                    {
+                        yield return s;
+                    }
+                }
+                foreach (var pk in table.PrimaryKey)
+                {
+                    if (pk.MigrationScript is { } s)
+                    {
+                        yield return s;
+                    }
+                }
+                foreach (var fk in table.ForeignKeys)
+                {
+                    if (fk.MigrationScript is { } s)
+                    {
+                        yield return s;
+                    }
+                }
+                foreach (var uq in table.UniqueConstraints)
+                {
+                    if (uq.MigrationScript is { } s)
+                    {
+                        yield return s;
+                    }
+                }
+                foreach (var ck in table.Checks)
+                {
+                    if (ck.MigrationScript is { } s)
+                    {
+                        yield return s;
+                    }
+                }
+                foreach (var ex in table.ExclusionConstraints)
+                {
+                    if (ex.MigrationScript is { } s)
+                    {
+                        yield return s;
+                    }
+                }
+            }
+        }
+    }
 
     /// <summary>
-    /// Gets a value indicating whether the diff contains no changes at all — no schema changes and no script runs.
+    /// Gets a value indicating whether the diff contains no changes at all.
     /// </summary>
-    public bool IsEmpty => Schemas.Count == 0 && Extensions.Count == 0 && Scripts.Count == 0;
+    public bool IsEmpty => Schemas.Count == 0 && Extensions.Count == 0 && DeploymentScripts.Count == 0;
 
     /// <summary>
     /// Gets the aggregate counts of every changed element, grouped by <see cref="ChangeKind"/>.

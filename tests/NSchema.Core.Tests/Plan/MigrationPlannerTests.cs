@@ -21,7 +21,7 @@ public sealed class MigrationPlannerTests
     private static readonly Database _emptySchema = new([]);
     private static readonly DatabaseDiff _emptyDiff = new([]);
     private static readonly CurrentState _current = new(_emptySchema);
-    private static readonly ProjectDefinition _desired = new(_emptySchema, []);
+    private static readonly ProjectDefinition _desired = new(_emptySchema);
 
     private readonly IProjectComparer _differ = Substitute.For<IProjectComparer>();
     private readonly IPlanLinearizer _linearizer = Substitute.For<IPlanLinearizer>();
@@ -41,7 +41,7 @@ public sealed class MigrationPlannerTests
     public void Validate_RunsProjectPoliciesAgainstTheProject()
     {
         // Arrange
-        var desired = new ProjectDefinition(new Database([new Schema(new SqlIdentifier("app"))]), []);
+        var desired = new ProjectDefinition(new Database([new Schema(new SqlIdentifier("app"))]));
         var policy = Substitute.For<IProjectPolicy>();
         policy.Validate(desired).Returns([Diagnostic.Error("Test", "bad schema")]);
         _projectPolicies.Add(policy);
@@ -118,7 +118,7 @@ public sealed class MigrationPlannerTests
     public void Plan_RunsPlanPoliciesAgainstTheCompletePlan()
     {
         // Arrange
-        var diff = _emptyDiff with { Scripts = [new Script(new SqlIdentifier("seed"), new SqlText("SELECT 1"), new DeploymentEvent(DeploymentPhase.Post))] };
+        var diff = _emptyDiff with { DeploymentScripts = [new DeploymentScript(new SqlIdentifier("seed"), new SqlText("SELECT 1"), null, DeploymentPhase.Post)] };
         _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(diff, []));
         var policy = Substitute.For<IPlanPolicy>();
         policy.Validate(Arg.Is<MigrationPlan>(p => p!.Diff == diff)).Returns([Diagnostic.Error("Test", "destructive")]);
@@ -137,7 +137,7 @@ public sealed class MigrationPlannerTests
     {
         // Arrange — the linearizer's ordered actions render one by one through the dialect; the stub renders
         // an ExecuteScript as its verbatim Statement, carrying the transaction placement.
-        var script = new Script(new SqlIdentifier("seed"), new SqlText("INSERT INTO app.c VALUES (1);"), new DeploymentEvent(DeploymentPhase.Post)) { RunOutsideTransaction = true };
+        var script = new DeploymentScript(new SqlIdentifier("seed"), new SqlText("INSERT INTO app.c VALUES (1);"), null, DeploymentPhase.Post) { RunOutsideTransaction = true };
         _linearizer.Linearize(Arg.Any<DatabaseDiff>())
             .Returns(_ => [new CreateSchema(new SqlIdentifier("app")), new ExecuteScript(script)]);
 
@@ -153,7 +153,7 @@ public sealed class MigrationPlannerTests
     public void Plan_CarriesTheDifferDiffOnTheArtifact()
     {
         // Arrange
-        var diff = _emptyDiff with { Scripts = [new Script(new SqlIdentifier("seed"), new SqlText("SELECT 1"), new DeploymentEvent(DeploymentPhase.Post))] };
+        var diff = _emptyDiff with { DeploymentScripts = [new DeploymentScript(new SqlIdentifier("seed"), new SqlText("SELECT 1"), null, DeploymentPhase.Post)] };
         _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(diff, []));
 
         // Act

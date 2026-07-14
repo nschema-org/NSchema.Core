@@ -3,6 +3,7 @@ using NSchema.State.Domain.Models;
 using NSchema.State;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;
@@ -17,22 +18,25 @@ public sealed class ProjectedDocumentWriterTests
     private static string Canonical(Database schema)
         => Encoding.UTF8.GetString(new DatabaseStateSerializer().Serialize(new DatabaseState(schema)).Span);
 
-    private static void AssertEquivalent(ProjectedDocument expected, ProjectedDocument actual)
+    private static void AssertEquivalent(ProjectDefinition expected, ProjectDefinition actual)
     {
         Canonical(actual.Database).ShouldBe(Canonical(expected.Database));
-        actual.Scripts.ShouldBe(expected.Scripts);
+        actual.Directives.Tables.ChangeScripts.ShouldBe(expected.Directives.Tables.ChangeScripts);
+        actual.Directives.DeploymentScripts.ShouldBe(expected.Directives.DeploymentScripts);
     }
+
+    private static string Write(ProjectDefinition document) => NsqlWriter.Write(document.Database, document.Directives);
 
     // Round-trip a source through Read -> Write -> Read, asserting the document survives and that a second
     // Write produces byte-identical output (formatting is idempotent — the property `fmt --check` relies on).
     private static string AssertRoundTrips(string source)
     {
         var document = new TestNsqlParser(source).Parse();
-        var formatted = NsqlWriter.Write(document.Database, document.Scripts);
+        var formatted = Write(document);
 
         var reparsed = new TestNsqlParser(formatted).Parse();
         AssertEquivalent(document, reparsed);
-        NsqlWriter.Write(reparsed.Database, reparsed.Scripts).ShouldBe(formatted);
+        Write(reparsed).ShouldBe(formatted);
 
         return formatted;
     }
@@ -144,7 +148,7 @@ public sealed class ProjectedDocumentWriterTests
 
             CREATE SCHEMA app;
             """).Parse();
-        var formatted = NsqlWriter.Write(document.Database, document.Scripts);
+        var formatted = Write(document);
 
         var schema = formatted.IndexOf("CREATE SCHEMA app", StringComparison.Ordinal);
         var script = formatted.IndexOf("POST DEPLOYMENT", StringComparison.Ordinal);

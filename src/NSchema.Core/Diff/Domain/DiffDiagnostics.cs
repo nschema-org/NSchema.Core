@@ -17,8 +17,8 @@ internal static class DiffDiagnostics
     /// <summary>
     /// A change-event script that matches nothing in this plan and will not run.
     /// </summary>
-    public static Diagnostic DeadMigration(Script migration) => Diagnostic.Info("data-migrations",
-        $"Migration '{migration.Reference}' ({migration.Event.Description}) matches " +
+    public static Diagnostic DeadMigration(ChangeScript migration) => Diagnostic.Info("data-migrations",
+        $"Migration '{migration.Reference}' ({migration.Description}) matches " +
         "no change in this plan and will not run. If the change it supports has been applied everywhere, the block is safe to delete.");
 
     /// <summary>

@@ -6,10 +6,11 @@ using NSchema.Project.Domain.Models.Schemas;
 
 namespace NSchema.Diff.Domain;
 
-internal sealed partial class SchemaComparer
+internal sealed partial class DatabaseComparer
 {
-    private static List<EnumDiff> CompareEnums(SqlIdentifier schemaName, IReadOnlyList<EnumType> current, SchemaDefinition desired) =>
-        CompareObjects(schemaName, "enum", current, desired.Enums, desired.DroppedEnums, desired.IsPartial,
+    private static List<EnumDiff> CompareEnums(SqlIdentifier schemaName, SqlIdentifier currentSchemaName, IReadOnlyList<EnumType> current, Schema desired, DirectiveLookup directives) =>
+        CompareObjects(schemaName, "enum", current, desired.Enums,
+            directives.EnumRenames(currentSchemaName), directives.EnumDrops(currentSchemaName), directives.IsPartial(schemaName),
             enumType => new EnumDiff(schemaName, enumType.Name, ChangeKind.Remove),
             enumType => BuildNewEnum(schemaName, enumType),
             (currentEnum, desiredEnum) => BuildModifiedEnum(schemaName, currentEnum, desiredEnum));

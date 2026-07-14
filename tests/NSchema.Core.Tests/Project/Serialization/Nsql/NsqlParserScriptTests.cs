@@ -5,7 +5,7 @@ namespace NSchema.Tests.Project.Serialization.Nsql;
 
 public sealed class NsqlParserScriptTests
 {
-    private static IReadOnlyList<Script> ReadScripts(string source) => new TestNsqlParser(source).Parse().Scripts;
+    private static IReadOnlyList<DeploymentScript> ReadScripts(string source) => new TestNsqlParser(source).Parse().Directives.DeploymentScripts;
 
     [Fact]
     public void Parse_PreDeployment_CapturesNameBodyAndType()
@@ -14,7 +14,7 @@ public sealed class NsqlParserScriptTests
             .ShouldHaveSingleItem();
 
         script.Name.ShouldBe("enable_citext");
-        script.Event.ShouldBe(new DeploymentEvent(DeploymentPhase.Pre));
+        script.Phase.ShouldBe(DeploymentPhase.Pre);
         script.Sql.ShouldBe("CREATE EXTENSION IF NOT EXISTS citext;");
         script.RunOutsideTransaction.ShouldBeFalse();
     }
@@ -22,7 +22,7 @@ public sealed class NsqlParserScriptTests
     [Fact]
     public void Parse_PostDeployment_CapturesType()
         => ReadScripts("SCRIPT backfill RUN ON POST DEPLOYMENT AS $$ UPDATE app.t SET x = 1; $$;")
-            .ShouldHaveSingleItem().Event.ShouldBe(new DeploymentEvent(DeploymentPhase.Post));
+            .ShouldHaveSingleItem().Phase.ShouldBe(DeploymentPhase.Post);
 
     [Fact]
     public void Parse_Body_PreservesInnerSemicolonsAndQuotes()
@@ -77,8 +77,8 @@ public sealed class NsqlParserScriptTests
             """).Parse();
 
         document.Database.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
-        document.Scripts.Select(s => (s.Name.Value, s.Event)).ShouldBe(
-            [("pre", (ScriptEvent)new DeploymentEvent(DeploymentPhase.Pre)), ("post", new DeploymentEvent(DeploymentPhase.Post))]);
+        document.Directives.DeploymentScripts.Select(s => (s.Name.Value, s.Phase)).ShouldBe(
+            [("pre", DeploymentPhase.Pre), ("post", DeploymentPhase.Post)]);
     }
 
     [Fact]

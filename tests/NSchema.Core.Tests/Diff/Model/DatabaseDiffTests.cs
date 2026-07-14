@@ -1,21 +1,56 @@
 using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Domain.Models.Columns;
+using NSchema.Diff.Domain.Models.Schemas;
+using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Tests.Diff.Model;
 
 public sealed class DatabaseDiffTests
 {
-    private static readonly DatabaseDiff _diff = new DatabaseDiff([])
+    private static DeploymentScript Deployment(string name) =>
+        new(new SqlIdentifier(name), new SqlText("SELECT 1;"), null, DeploymentPhase.Pre);
+
+    private static ChangeScript Change(string name) =>
+        new(new SqlIdentifier(name), new SqlText("UPDATE 1;"), new SqlIdentifier("app"),
+            ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email"));
+
+    private static DatabaseDiff WithChangeScript(ChangeScript change)
     {
-        Scripts = [new Script(new SqlIdentifier("Backfill_Emails"), new SqlText("SELECT 1;"), new DeploymentEvent(DeploymentPhase.Pre))],
-    };
+        var column = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text)) { MigrationScript = change };
+        var table = new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify, Columns: [column]);
+        return new DatabaseDiff([new SchemaDiff(new SqlIdentifier("app"), Tables: [table])]);
+    }
 
     [Fact]
-    public void FindScript_ResolvesByName_CaseInsensitively()
-        => _diff.FindScript(new ScriptReference(null, new SqlIdentifier("backfill_emails"))).ShouldBe(_diff.Scripts[0]);
+    public void ChangeScripts_WalksTheNodesTheyRideOn()
+    {
+        var change = Change("backfill");
+
+        WithChangeScript(change).ChangeScripts().ShouldBe(new[] { change });
+    }
 
     [Fact]
-    public void FindScript_UnknownName_ReturnsNull()
-        => _diff.FindScript(new ScriptReference(null, new SqlIdentifier("nope"))).ShouldBeNull();
+    public void AllScripts_IsChangeScriptsThenDeploymentScripts()
+    {
+        var change = Change("backfill");
+        var deploy = Deployment("seed");
+        var diff = WithChangeScript(change) with { DeploymentScripts = [deploy] };
+
+        diff.AllScripts().ShouldBe(new Script[] { change, deploy });
+    }
+
+    [Fact]
+    public void IsEmpty_TrueForNoChangesAndNoDeploymentScripts()
+        => new DatabaseDiff([]).IsEmpty.ShouldBeTrue();
+
+    [Fact]
+    public void IsEmpty_FalseWhenADeploymentScriptRuns()
+    {
+        var diff = new DatabaseDiff([]) with { DeploymentScripts = [Deployment("seed")] };
+
+        diff.IsEmpty.ShouldBeFalse();
+    }
 }

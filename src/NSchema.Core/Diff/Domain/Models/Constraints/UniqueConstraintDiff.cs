@@ -1,5 +1,6 @@
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Constraints;
+using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Diff.Domain.Models.Constraints;
 
@@ -13,7 +14,7 @@ namespace NSchema.Diff.Domain.Models.Constraints;
 public sealed record UniqueConstraintDiff(ChangeKind Kind, SqlIdentifier Name, UniqueConstraint? Definition = null, ValueChange<string>? Comment = null) : INamedObjectDiff
 {
     /// <summary>
-    /// The name of the script matched to this change.
+    /// The change-event script matched to this change, run at this point in the plan (<see langword="null"/> when none).
     /// </summary>
-    public SqlIdentifier? MigrationScript { get; init; }
+    public ChangeScript? MigrationScript { get; init; }
 }

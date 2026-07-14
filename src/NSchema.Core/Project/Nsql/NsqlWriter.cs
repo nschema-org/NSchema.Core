@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Nsql.Syntax;
 using Syn = NSchema.Project.Nsql.Syntax;
 
@@ -16,22 +15,14 @@ public static class NsqlWriter
     /// Writes <paramref name="database"/> as canonical NSchema source.
     /// </summary>
     /// <param name="database">The schema to write.</param>
-    public static string Write(Database database) => Write(SyntaxBuilder.Build(database, []));
+    public static string Write(Database database) => Write(SyntaxBuilder.Build(database));
 
     /// <summary>
-    /// Writes a schema and its scripts as canonical NSchema source.
+    /// Writes a whole project as canonical NSchema source.
     /// </summary>
     /// <param name="database">The database to write.</param>
-    /// <param name="scripts">The scripts to write after the schema.</param>
-    public static string Write(Database database, IReadOnlyList<Script> scripts) => Write(SyntaxBuilder.Build(database, scripts));
-
-    /// <summary>
-    /// Writes a whole project — schema, scripts, and directives — as canonical NSchema source.
-    /// </summary>
-    /// <param name="database">The database to write.</param>
-    /// <param name="scripts">The scripts to write after the schema.</param>
-    /// <param name="directives">The directives to write after the scripts.</param>
-    public static string Write(Database database, IReadOnlyList<Script> scripts, ProjectDirectives directives) => Write(SyntaxBuilder.Build(database, scripts, directives: directives));
+    /// <param name="directives">The directives to write after the schema.</param>
+    public static string Write(Database database, ProjectDirectives directives) => Write(SyntaxBuilder.Build(database, directives));
 
     /// <summary>
     /// Renders a syntax document as canonical NSchema source.

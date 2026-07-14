@@ -14,17 +14,16 @@ internal static class ProjectAssembler
     public static Result<ProjectDefinition> Assemble(IReadOnlyList<NsqlDocument> documents)
     {
         var diagnostics = new List<Diagnostic>();
-        var schema = new DatabaseSchema();
-        var scripts = new List<Script>();
+        var database = new Database();
         var schemaTemplates = new List<SchemaTemplateStatement>();
         var tableTemplates = new List<TableTemplateStatement>();
         var applications = new List<ApplyTemplateStatement>();
         var includes = new List<TemplateInclude>();
+        var directives = new DirectiveCollector();
 
         foreach (var document in documents)
         {
-            var accumulator = new SchemaAccumulator();
-            var documentScripts = new List<Script>();
+            var accumulator = new DatabaseAccumulator();
             var documentDiagnostics = new List<NsqlDiagnostic>();
             foreach (var statement in document.Statements)
             {
@@ -45,8 +44,10 @@ internal static class ProjectAssembler
                     case Nsql.Syntax.Config.ConfigStatement:
                         // Configuration is not project content; the config read seam interprets it.
                         break;
+                    case var directive when directives.TryAdd(directive):
+                        break;
                     default:
-                        DocumentProjector.ProjectStatement(statement, accumulator, documentScripts, context: null);
+                        DocumentProjector.ProjectStatement(statement, accumulator, context: null);
                         break;
                 }
             }
@@ -57,21 +58,27 @@ internal static class ProjectAssembler
             documentDiagnostics.AddRange(accumulator.Diagnostics);
             diagnostics.AddRange(documentDiagnostics.Select(d => d with { File = document.FilePath }));
 
-            var merged = SchemaAggregator.Combine(schema, fragment);
+            var merged = DatabaseAggregator.Combine(database, fragment);
             diagnostics.AddRange(merged.Diagnostics);
-            schema = merged.Require();
-            scripts.AddRange(documentScripts);
+            database = merged.Require();
             includes.AddRange(accumulator.Includes);
         }
 
-        // Apply all templates: application failures accumulate the same way.
-        var expanded = TemplateExpander.Expand(new ProjectDefinition(schema, scripts), schemaTemplates, tableTemplates, applications, includes);
+        // Apply all templates: application failures accumulate the same way. A template instance's directives
+        // (its scripts, its object renames/drops) come back scoped to their applied schema and merge with the
+        // top-level ones, so the whole project's directives assemble in one collector.
+        var expanded = TemplateExpander.Expand(database, schemaTemplates, tableTemplates, applications, includes);
         diagnostics.AddRange(expanded.Diagnostics);
-        var project = expanded.Require();
+        var (expandedDatabase, instanceDirectives) = expanded.Require();
+        directives.Absorb(instanceDirectives);
+
+        var built = directives.Build();
+        var project = new ProjectDefinition(expandedDatabase, built);
 
         // Collisions are project errors, so validate before scoping drops any instance — all of them at once.
-        diagnostics.AddRange(ValidateChangeTargets(project.Scripts));
-        diagnostics.AddRange(ValidateScriptNames(project.Scripts));
+        diagnostics.AddRange(ValidateChangeTargets(built.Tables.ChangeScripts));
+        diagnostics.AddRange(ValidateScriptNames(built));
+        diagnostics.AddRange(DirectiveValidator.Validate(project));
 
         return Result.From(project, diagnostics);
     }
@@ -79,14 +86,14 @@ internal static class ProjectAssembler
     /// <summary>
     /// Enforces script-address uniqueness per scope.
     /// </summary>
-    private static IEnumerable<Diagnostic> ValidateScriptNames(IEnumerable<Script> scripts)
+    private static IEnumerable<Diagnostic> ValidateScriptNames(ProjectDirectives directives)
     {
         var references = new HashSet<ScriptReference>();
-        foreach (var script in scripts)
+        foreach (var reference in directives.Tables.ChangeScripts.Select(s => s.Reference).Concat(directives.DeploymentScripts.Select(s => s.Reference)))
         {
-            if (!references.Add(script.Reference))
+            if (!references.Add(reference))
             {
-                yield return ProjectDiagnostics.DuplicateScriptName(script.Reference);
+                yield return ProjectDiagnostics.DuplicateScriptName(reference);
             }
         }
     }
@@ -95,10 +102,10 @@ internal static class ProjectAssembler
     /// Rejects a second change-event script for the same trigger and path — two blocks preparing the same
     /// change is a conflict, whatever their names.
     /// </summary>
-    private static IEnumerable<Diagnostic> ValidateChangeTargets(IEnumerable<Script> scripts)
+    private static IEnumerable<Diagnostic> ValidateChangeTargets(IReadOnlyList<ChangeScript> scripts)
     {
         var targets = new HashSet<(ChangeTrigger Trigger, SqlIdentifier? Schema, SqlIdentifier Table, SqlIdentifier Member)>();
-        foreach (var change in scripts.Select(s => s.Event).OfType<ChangeEvent>())
+        foreach (var change in scripts)
         {
             if (!targets.Add((change.Trigger, change.ScopeSchema, change.TableName, change.MemberName)))
             {

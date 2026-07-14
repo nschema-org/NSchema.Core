@@ -55,7 +55,6 @@ public sealed class DatabaseTests
         var core = new SqlIdentifier("core");
         var project = new ProjectDefinition(
             new Database([new Schema(core), new Schema(new SqlIdentifier("audit"))]),
-            [],
             new ProjectDirectives(
                 new NSchema.Project.Domain.Models.Schemas.SchemaDirectives(
                     Renames: [new SchemaRename(sales, core)],

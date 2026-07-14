@@ -1,10 +1,8 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSchema.State.Domain.Models;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Domain.Models.Columns;
-using NSchema.Diff.Domain.Models.Schemas;
-using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Plan.Policies;
 using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
@@ -24,57 +22,50 @@ public sealed class ProjectComparerTests
     private static readonly Database _emptySchema = new([]);
     private static readonly DatabaseDiff _emptyDiff = new([]);
 
-    private readonly IDatabaseComparer _comparer = Substitute.For<IDatabaseComparer>();
+    private ProjectComparer Sut => new(new DatabaseComparer(NullLogger<DatabaseComparer>.Instance));
 
-    private ProjectComparer Sut => new(_comparer);
+    /// <summary>Current <c>app.users(id)</c> — the table a column-add migration targets.</summary>
+    private static CurrentState UsersWithId() => new(new Database([new Schema(new SqlIdentifier("app"),
+        Tables: [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]));
 
-    public ProjectComparerTests()
-    {
-        _comparer.Compare(Arg.Any<Database>(), Arg.Any<Database>(), Arg.Any<ProjectDirectives>()).Returns(_emptyDiff);
-    }
+    /// <summary>Desired <c>app.users(id, email)</c> — adds the column the migration accompanies.</summary>
+    private static Database UsersWithEmail(bool required = false) => new([new Schema(new SqlIdentifier("app"),
+        Tables: [new Table(new SqlIdentifier("users"), Columns:
+            [new Column(new SqlIdentifier("id"), SqlType.Int), new Column(new SqlIdentifier("email"), SqlType.Text, IsNullable: !required)])])]);
 
     private static Script SeedScript() =>
-        new(new SqlIdentifier("seed"), new SqlText("INSERT INTO app.c VALUES (1);"), new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = RunCondition.Once };
+        new DeploymentScript(new SqlIdentifier("seed"), new SqlText("INSERT INTO app.c VALUES (1);"), null, DeploymentPhase.Post) { RunCondition = RunCondition.Once };
 
     private static Script EmailBackfillMigration() =>
-        new(new SqlIdentifier("backfill_emails"), new SqlText("UPDATE app.users SET email = ''"), new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") });
+        new ChangeScript(new SqlIdentifier("backfill_emails"), new SqlText("UPDATE app.users SET email = ''"), new SqlIdentifier("app"), ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email"));
 
     /// <summary>A current state recording <paramref name="sql"/> as <paramref name="script"/>'s executed body.</summary>
     private static CurrentState Executed(Script script, string sql) =>
         new(_emptySchema, [new ScriptExecution(script.Reference, ScriptHashing.Hash(new SqlText(sql)), DateTimeOffset.UnixEpoch)]);
 
-    /// <summary>A diff adding a required, defaultless <c>app.users.email</c> column to an existing table.</summary>
-    private static DatabaseDiff AddedEmailColumnDiff() => new(
-    [
-        new SchemaDiff(new SqlIdentifier("app"), Tables:
-        [
-            new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify,
-                Columns: [new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text))]),
-        ]),
-    ]);
-
     [Fact]
-    public void Compare_PassesBothSchemasToTheStructuralComparer()
+    public void Compare_DiffsBothSchemas()
     {
-        // Arrange
-        var current = new Database([new Schema(new SqlIdentifier("current"))]);
-        var desired = new Database([new Schema(new SqlIdentifier("desired"))]);
+        // Arrange — a schema only in current is removed; one only in desired is added.
+        var current = new Database([new Schema(new SqlIdentifier("gone"))]);
+        var desired = new Database([new Schema(new SqlIdentifier("fresh"))]);
 
         // Act
-        Sut.Compare(new CurrentState(current), new ProjectDefinition(desired, []));
+        var diff = Sut.Compare(new CurrentState(current), new ProjectDefinition(desired)).Require();
 
         // Assert
-        _comparer.Received(1).Compare(current, desired, ProjectDirectives.Empty);
+        diff.Schemas.Select(x => (x.Name.Value, x.Kind)).ShouldBe(
+            [("fresh", ChangeKind.Add), ("gone", ChangeKind.Remove)], ignoreOrder: true);
     }
 
     [Fact]
     public void Compare_PendingDeploymentScript_LandsInTheDiff()
     {
         // Act — nothing recorded, so the script is part of the current→desired difference.
-        var comparison = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, [SeedScript()]));
+        var comparison = Sut.Compare(new CurrentState(_emptySchema), TestProjects.Project(_emptySchema, [SeedScript()]));
 
         // Assert
-        comparison.Require().Scripts.ShouldHaveSingleItem().Name.ShouldBe("seed");
+        comparison.Require().AllScripts().ShouldHaveSingleItem().Name.ShouldBe("seed");
         comparison.Require().IsEmpty.ShouldBeFalse();
         comparison.Diagnostics.ShouldBeEmpty();
     }
@@ -83,10 +74,10 @@ public sealed class ProjectComparerTests
     public void Compare_ExecutedRunOnceScript_IsNotPartOfTheDifference()
     {
         // Act — the script has already run, so it is not part of the current→desired difference.
-        var comparison = Sut.Compare(Executed(SeedScript(), SeedScript().Sql.Value), new ProjectDefinition(_emptySchema, [SeedScript()]));
+        var comparison = Sut.Compare(Executed(SeedScript(), SeedScript().Sql.Value), TestProjects.Project(_emptySchema, [SeedScript()]));
 
         // Assert
-        comparison.Require().Scripts.ShouldBeEmpty();
+        comparison.Require().AllScripts().ShouldBeEmpty();
         comparison.Require().IsEmpty.ShouldBeTrue();
         comparison.Diagnostics.ShouldBeEmpty();
     }
@@ -95,10 +86,10 @@ public sealed class ProjectComparerTests
     public void Compare_ExecutedRunOnceScriptWithChangedBody_StaysSkippedWithAWarning()
     {
         // Act — the recorded hash is of a different body; silently re-running is never safe.
-        var comparison = Sut.Compare(Executed(SeedScript(), "some other body"), new ProjectDefinition(_emptySchema, [SeedScript()]));
+        var comparison = Sut.Compare(Executed(SeedScript(), "some other body"), TestProjects.Project(_emptySchema, [SeedScript()]));
 
         // Assert
-        comparison.Require().Scripts.ShouldBeEmpty();
+        comparison.Require().AllScripts().ShouldBeEmpty();
         var diagnostic = comparison.Diagnostics.ShouldHaveSingleItem();
         diagnostic.Severity.ShouldBe(DiagnosticSeverity.Warning);
         diagnostic.Message.ShouldContain("'seed' has changed since it was executed");
@@ -114,10 +105,10 @@ public sealed class ProjectComparerTests
             [new ScriptExecution(new ScriptReference(new SqlIdentifier("sales"), script.Name), script.Hash, DateTimeOffset.UnixEpoch)]);
 
         // Act
-        var comparison = Sut.Compare(scoped, new ProjectDefinition(_emptySchema, [script]));
+        var comparison = Sut.Compare(scoped, TestProjects.Project(_emptySchema, [script]));
 
         // Assert
-        comparison.Require().Scripts.ShouldHaveSingleItem().ShouldBe(script);
+        comparison.Require().AllScripts().ShouldHaveSingleItem().ShouldBe(script);
         comparison.Diagnostics.ShouldBeEmpty();
     }
 
@@ -128,40 +119,39 @@ public sealed class ProjectComparerTests
         var script = SeedScript() with { RunCondition = RunCondition.Always };
 
         // Act
-        var comparison = Sut.Compare(Executed(script, script.Sql.Value), new ProjectDefinition(_emptySchema, [script]));
+        var comparison = Sut.Compare(Executed(script, script.Sql.Value), TestProjects.Project(_emptySchema, [script]));
 
         // Assert
-        comparison.Require().Scripts.ShouldHaveSingleItem();
+        comparison.Require().AllScripts().ShouldHaveSingleItem();
         comparison.Diagnostics.ShouldBeEmpty();
     }
 
     [Fact]
-    public void Compare_MatchedMigration_AnnotatesTheNodeAndLandsInTheDiff()
+    public void Compare_MatchedMigration_RidesTheChangeItAccompanies()
     {
         // Arrange
         var migration = EmailBackfillMigration();
-        _comparer.Compare(Arg.Any<Database>(), Arg.Any<Database>(), Arg.Any<ProjectDirectives>()).Returns(AddedEmailColumnDiff());
 
         // Act
-        var comparison = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, [migration]));
+        var comparison = Sut.Compare(UsersWithId(), TestProjects.Project(UsersWithEmail(), [migration]));
 
-        // Assert — the node references the script by name; the script itself lives once, on the diff's root list.
-        comparison.Require().Schemas[0].Tables[0].Columns[0].MigrationScript.ShouldBe(migration.Name);
-        comparison.Require().Scripts.ShouldBe([migration]);
+        // Assert — the added column carries the script inline; AllScripts walks it up.
+        comparison.Require().Schemas[0].Tables[0].Columns.Single(c => c.Name.Value == "email").MigrationScript.ShouldBe(migration);
+        comparison.Require().AllScripts().ShouldBe([migration]);
         comparison.Diagnostics.ShouldBeEmpty();
     }
 
     [Fact]
     public void Compare_UnmatchedMigration_StaysOutOfTheDiff_WithADeadBlockDiagnostic()
     {
-        // Arrange — the comparer finds no changes, so the declared migration matches nothing.
+        // Arrange — the schema does not change, so the declared migration matches nothing.
         var migration = EmailBackfillMigration();
 
         // Act
-        var comparison = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, [migration]));
+        var comparison = Sut.Compare(new CurrentState(_emptySchema), TestProjects.Project(_emptySchema, [migration]));
 
         // Assert
-        comparison.Require().Scripts.ShouldBeEmpty();
+        comparison.Require().AllScripts().ShouldBeEmpty();
         var diagnostic = comparison.Diagnostics.ShouldHaveSingleItem();
         diagnostic.Source.ShouldBe("data-migrations");
         diagnostic.Severity.ShouldBe(DiagnosticSeverity.Info);
@@ -175,14 +165,15 @@ public sealed class ProjectComparerTests
     {
         // Arrange — the matching change IS in the diff, but the migration already ran: no annotation, no run.
         var migration = EmailBackfillMigration() with { RunCondition = RunCondition.Once };
-        _comparer.Compare(Arg.Any<Database>(), Arg.Any<Database>(), Arg.Any<ProjectDirectives>()).Returns(AddedEmailColumnDiff());
+        var current = new CurrentState(UsersWithId().Database,
+            [new ScriptExecution(migration.Reference, migration.Hash, DateTimeOffset.UnixEpoch)]);
 
         // Act
-        var comparison = Sut.Compare(Executed(migration, migration.Sql.Value), new ProjectDefinition(_emptySchema, [migration]));
+        var comparison = Sut.Compare(current, TestProjects.Project(UsersWithEmail(), [migration]));
 
-        // Assert
-        comparison.Require().Schemas[0].Tables[0].Columns[0].MigrationScript.ShouldBeNull();
-        comparison.Require().Scripts.ShouldBeEmpty();
+        // Assert — the change still lands, but the executed run-once migration does not ride it.
+        comparison.Require().Schemas[0].Tables[0].Columns.Single(c => c.Name.Value == "email").MigrationScript.ShouldBeNull();
+        comparison.Require().AllScripts().ShouldBeEmpty();
     }
 
     [Fact]
@@ -191,11 +182,10 @@ public sealed class ProjectComparerTests
         // Arrange — the hazard policy sees the complete diff, so a matched backfill silences the NOT-NULL-add
         // warning it would otherwise raise.
         var policy = new DataHazardPolicy(Options.Create(new DataHazardOptions()));
-        _comparer.Compare(Arg.Any<Database>(), Arg.Any<Database>(), Arg.Any<ProjectDirectives>()).Returns(AddedEmailColumnDiff());
 
-        // Act
-        var unmatched = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, []));
-        var matched = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, [EmailBackfillMigration()]));
+        // Act — the same required-column add, once without a backfill (hazard) and once with (suppressed).
+        var unmatched = Sut.Compare(UsersWithId(), new ProjectDefinition(UsersWithEmail(required: true)));
+        var matched = Sut.Compare(UsersWithId(), TestProjects.Project(UsersWithEmail(required: true), [EmailBackfillMigration()]));
 
         // Assert
         policy.Validate(unmatched.Require()).ShouldHaveSingleItem().Source.ShouldBe("data-hazards");
@@ -211,9 +201,9 @@ public sealed class ProjectComparerTests
         // Act
         var diff = Sut.CompareTeardown(managed);
 
-        // Assert
-        _comparer.Received(1).Compare(managed, Arg.Is<Database>(d => d!.Schemas.Count == 0), ProjectDirectives.Empty);
-        diff.Scripts.ShouldBeEmpty();
+        // Assert — the managed schema diffs against nothing (a full teardown), carrying no scripts.
+        diff.Schemas.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
+        diff.AllScripts().ShouldBeEmpty();
     }
 
     [Fact]
@@ -226,7 +216,7 @@ public sealed class ProjectComparerTests
             Renames: [new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("users")), new SqlIdentifier("people"))]));
 
         // Act
-        var comparison = Sut.Compare(current, new ProjectDefinition(_emptySchema, [], directives));
+        var comparison = Sut.Compare(current, new ProjectDefinition(_emptySchema, directives));
 
         // Assert
         var diagnostic = comparison.Diagnostics.ShouldHaveSingleItem();
@@ -245,7 +235,7 @@ public sealed class ProjectComparerTests
             Renames: [new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("users")), new SqlIdentifier("people"))]));
 
         // Act
-        var comparison = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, [], directives));
+        var comparison = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, directives));
 
         // Assert
         comparison.Diagnostics.ShouldBeEmpty();

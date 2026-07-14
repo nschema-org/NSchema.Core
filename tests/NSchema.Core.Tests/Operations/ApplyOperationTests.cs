@@ -81,7 +81,7 @@ public sealed class ApplyOperationTests
     public async Task Execute_Success_PassesTheAppliedPlanToTheCapture()
     {
         // Arrange — the plan carries its scripts whole; the capture derives the run-once ledger records from it.
-        var plan = _plan with { Diff = new DatabaseDiff([]) { Scripts = [new Script(new SqlIdentifier("seed"), new SqlText("SELECT 1"), new DeploymentEvent(DeploymentPhase.Post))] } };
+        var plan = _plan with { Diff = new DatabaseDiff([]) { DeploymentScripts = [new DeploymentScript(new SqlIdentifier("seed"), new SqlText("SELECT 1"), null, DeploymentPhase.Post)] } };
 
         // Act
         await _sut.Execute(Args(plan), TestContext.Current.CancellationToken);
@@ -95,7 +95,7 @@ public sealed class ApplyOperationTests
     {
         // Arrange — whether the plan's run-once scripts ran before the failure is unknowable, so nothing is recorded.
         _executor.Execute(Arg.Any<IReadOnlyList<SqlStatement>>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("boom"));
-        var plan = _plan with { Diff = new DatabaseDiff([]) { Scripts = [new Script(new SqlIdentifier("seed"), new SqlText("SELECT 1"), new DeploymentEvent(DeploymentPhase.Post))] } };
+        var plan = _plan with { Diff = new DatabaseDiff([]) { DeploymentScripts = [new DeploymentScript(new SqlIdentifier("seed"), new SqlText("SELECT 1"), null, DeploymentPhase.Post)] } };
 
         // Act
         await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(Args(plan), TestContext.Current.CancellationToken));

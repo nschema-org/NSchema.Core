@@ -25,8 +25,8 @@ internal static class ProjectDiagnostics
     /// <summary>
     /// Two change-event scripts declared for the same trigger and path.
     /// </summary>
-    public static Diagnostic DuplicateChangeTarget(ChangeEvent change) => Diagnostic.Error(Source,
-        $"Duplicate migration for {ChangeEvent.TriggerText(change.Trigger)} '{change.Path}' declared.");
+    public static Diagnostic DuplicateChangeTarget(ChangeScript change) => Diagnostic.Error(Source,
+        $"Duplicate migration for {ChangeScript.TriggerText(change.Trigger)} '{change.Path}' declared.");
 
     /// <summary>
     /// A database-global extension declared more than once.

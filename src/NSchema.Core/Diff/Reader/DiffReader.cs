@@ -88,12 +88,12 @@ public sealed class DiffReader
             }
         }
 
-        RenderScripts(lines, diff.Scripts);
+        RenderDeploymentScripts(lines, diff.DeploymentScripts);
 
         return new DiffDocument(lines, diff.GetSummary());
     }
 
-    private static void RenderScripts(List<DiffLine> lines, IReadOnlyList<Script> scripts)
+    private static void RenderDeploymentScripts(List<DiffLine> lines, IReadOnlyList<DeploymentScript> scripts)
     {
         if (scripts.Count == 0)
         {
@@ -107,11 +107,11 @@ public sealed class DiffReader
 
         foreach (var script in scripts)
         {
-            AppendHeader(lines, ChangeKind.Add, $"script {script.Reference} ({EventText(script.Event)})");
+            AppendHeader(lines, ChangeKind.Add, $"script {script.Reference} ({EventText(script)})");
         }
     }
 
-    private static string EventText(ScriptEvent scriptEvent) => $"on {scriptEvent.Description.ToLowerInvariant()}";
+    private static string EventText(Script script) => $"on {script.Description.ToLowerInvariant()}";
 
     private void RenderSchema(List<DiffLine> lines, SchemaDiff schema, ChangeKind kind)
     {
@@ -478,8 +478,8 @@ public sealed class DiffReader
             ? $" ({FormatComment(comment.New)})"
             : $" ({FormatComment(comment.Old)} → {FormatComment(comment.New)})";
 
-    private static string MigrationSuffix(SqlIdentifier? migrationName) =>
-        migrationName is null ? string.Empty : $" (with migration {migrationName})";
+    private static string MigrationSuffix(ChangeScript? script) =>
+        script is null ? string.Empty : $" (with migration {script.Name})";
 
     // Decompose the privilege flags into the underlying SQL privileges rather than rendering the enum name,
     // which would surface aliases (e.g. ReadOnly for Select) and composites (All) instead of the real grants.

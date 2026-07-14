@@ -6,10 +6,11 @@ using NSchema.Project.Domain.Models.Sequences;
 
 namespace NSchema.Diff.Domain;
 
-internal sealed partial class SchemaComparer
+internal sealed partial class DatabaseComparer
 {
-    private static List<SequenceDiff> CompareSequences(SqlIdentifier schemaName, IReadOnlyList<Sequence> current, SchemaDefinition desired) =>
-        CompareObjects(schemaName, "sequence", current, desired.Sequences, desired.DroppedSequences, desired.IsPartial,
+    private static List<SequenceDiff> CompareSequences(SqlIdentifier schemaName, SqlIdentifier currentSchemaName, IReadOnlyList<Sequence> current, Schema desired, DirectiveLookup directives) =>
+        CompareObjects(schemaName, "sequence", current, desired.Sequences,
+            directives.SequenceRenames(currentSchemaName), directives.SequenceDrops(currentSchemaName), directives.IsPartial(schemaName),
             sequence => new SequenceDiff(schemaName, sequence.Name, ChangeKind.Remove),
             sequence => BuildNewSequence(schemaName, sequence),
             (currentSequence, desiredSequence) => BuildModifiedSequence(schemaName, currentSequence, desiredSequence));

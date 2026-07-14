@@ -5,12 +5,12 @@ using NSchema.Project.Domain.Models.Columns;
 
 namespace NSchema.Diff.Domain;
 
-internal sealed partial class SchemaComparer
+internal sealed partial class DatabaseComparer
 {
-    private List<ColumnDiff> CompareColumns(ObjectReference owner, IReadOnlyList<Column> current, IReadOnlyList<Column> desired)
+    private List<ColumnDiff> CompareColumns(ObjectReference owner, IReadOnlyList<Column> current, IReadOnlyList<Column> desired, IReadOnlyList<RenamePair> renames)
     {
         var result = new List<ColumnDiff>();
-        var (forDesired, currentMatched) = MatchEntities(current, desired, "column", owner.ToString());
+        var (forDesired, currentMatched) = MatchEntities(current, desired, renames, "column", owner.ToString());
 
         for (var j = 0; j < current.Count; j++)
         {

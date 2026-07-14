@@ -101,7 +101,7 @@ public sealed class ProjectProviderTests : IDisposable
 
         var project = (await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
 
-        project.Scripts.ShouldHaveSingleItem().Name.ShouldBe("backfill");
+        project.AllScripts().ShouldHaveSingleItem().Name.ShouldBe("backfill");
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public sealed class ProjectProviderTests : IDisposable
 
         var project = (await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
 
-        project.Scripts.Select(m => m.Name).ShouldBe(["backfill", "retype", "guard"]);
+        project.AllScripts().Select(m => m.Name).ShouldBe(["backfill", "retype", "guard"]);
     }
 
     [Fact]
@@ -183,7 +183,7 @@ public sealed class ProjectProviderTests : IDisposable
 
         var project = (await sut.GetProject(SchemaScope.Of(new SqlIdentifier("app")), TestContext.Current.CancellationToken)).Value!;
 
-        project.Scripts.ShouldHaveSingleItem().Event.ShouldBeOfType<ChangeEvent>().ScopeSchema.ShouldBe("app");
+        project.AllScripts().ShouldHaveSingleItem().ShouldBeOfType<ChangeScript>().ScopeSchema.ShouldBe("app");
     }
 
     [Fact]
@@ -268,10 +268,10 @@ public sealed class ProjectProviderTests : IDisposable
 
         // Assert — the {schema} token substitutes in the body; the instances keep the declared name and are
         // kept distinct by their scope.
-        project.Scripts.Count.ShouldBe(2);
-        project.Scripts.Select(m => ((ChangeEvent)m.Event).Path).ShouldBe(["sales.outbox_events.trace_id", "billing.outbox_events.trace_id"]);
-        project.Scripts.Select(m => m.Reference).ShouldBe([Scoped("sales", "backfill_trace"), Scoped("billing", "backfill_trace")]);
-        project.Scripts[1].Sql.ShouldBe("UPDATE billing.outbox_events SET trace_id = '';");
+        project.AllScripts().Count.ShouldBe(2);
+        project.AllScripts().Cast<ChangeScript>().Select(m => m.Path).ShouldBe(["sales.outbox_events.trace_id", "billing.outbox_events.trace_id"]);
+        project.AllScripts().Select(m => m.Reference).ShouldBe([Scoped("sales", "backfill_trace"), Scoped("billing", "backfill_trace")]);
+        project.AllScripts()[1].Sql.ShouldBe("UPDATE billing.outbox_events SET trace_id = '';");
     }
 
     [Fact]
@@ -296,7 +296,7 @@ public sealed class ProjectProviderTests : IDisposable
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
-        result.Value!.Scripts.Select(s => s.Reference).ShouldBe([Scoped("sales", "backfill_trace"), Scoped("billing", "backfill_trace")]);
+        result.Value!.AllScripts().Select(s => s.Reference).ShouldBe([Scoped("sales", "backfill_trace"), Scoped("billing", "backfill_trace")]);
     }
 
     [Fact]
@@ -377,7 +377,7 @@ public sealed class ProjectProviderTests : IDisposable
 
         // Assert
         result.Diagnostics.ShouldBeEmpty();
-        result.Value!.Scripts.ShouldHaveSingleItem().RunCondition.ShouldBe(RunCondition.Once);
+        result.Value!.AllScripts().ShouldHaveSingleItem().RunCondition.ShouldBe(RunCondition.Once);
     }
 
     [Fact]
@@ -400,7 +400,7 @@ public sealed class ProjectProviderTests : IDisposable
         var project = (await sut.GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
 
         // Assert — each instance keeps the declared name and scopes to its applied schema.
-        project.Scripts.Select(s => s.Reference).ShouldBe([Scoped("sales", "seed"), Scoped("billing", "seed")]);
+        project.AllScripts().Select(s => s.Reference).ShouldBe([Scoped("sales", "seed"), Scoped("billing", "seed")]);
     }
 
     [Fact]
@@ -429,7 +429,7 @@ public sealed class ProjectProviderTests : IDisposable
         var project = (await sut.GetProject(SchemaScope.Of(new SqlIdentifier("billing")), TestContext.Current.CancellationToken)).Value!;
 
         // Assert
-        project.Scripts.Select(s => s.Reference).ShouldBe([new ScriptReference(null, new SqlIdentifier("global")), Scoped("billing", "seed")]);
+        project.AllScripts().Select(s => s.Reference).ShouldBe([new ScriptReference(null, new SqlIdentifier("global")), Scoped("billing", "seed")]);
     }
 
     [Fact]
@@ -452,6 +452,6 @@ public sealed class ProjectProviderTests : IDisposable
         var project = (await sut.GetProject(SchemaScope.Of(new SqlIdentifier("billing")), TestContext.Current.CancellationToken)).Value!;
 
         // Assert — only the in-scope instance survives.
-        project.Scripts.ShouldHaveSingleItem().Event.ShouldBeOfType<ChangeEvent>().Path.ShouldBe("billing.outbox_events.trace_id");
+        project.AllScripts().ShouldHaveSingleItem().ShouldBeOfType<ChangeScript>().Path.ShouldBe("billing.outbox_events.trace_id");
     }
 }

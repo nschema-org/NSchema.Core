@@ -75,13 +75,15 @@ document, a declaration in the project, and an execution record in the ledger, a
 namespace-reference rules:
 
 1. **Source vocabulary** — each source contributes a vocabulary the stages may read, and the diff stage consumes both by definition (it diffs the
-   sources): `Project.Domain.Models` is the subject language (the schema tree; the script declarations and events; the management directives),
+   sources): `Project.Domain.Models` is the subject language (the schema tree; the scripts — an abstract `Script` with `ChangeScript`/`DeploymentScript` kinds, never aggregated; the management directives),
    `State.Domain.Models` is the observation language (`DatabaseState` and its ledger entries, `ScriptExecution`). Closed: nothing else is promoted
    into this tier, and the sources never reference the stages or each other.
    **Statements declare; directives steer.** The schema tree is pure observation vocabulary — introspection can produce every field on it, so it
    carries no `OldName`, no `IsPartial`, no `Dropped*`. Management intent lives on `ProjectDirectives`: per-kind slice records in their subject
    namespaces (kind is encoded *structurally* — which property you are in — so no consumer type-switches, and a kind that cannot take a verb simply
-   lacks the field), cross-kind directives at the root (crossing kinds is the orchestrating walker's job). Directive application is deliberately
+   lacks the field), cross-kind directives at the root (crossing kinds is the orchestrating walker's job). **Scripts are directives too** — a
+   change-event script steers the member it prepares, so it rides that kind's slice (`TableDirectives.ChangeScripts`); a deployment script bookends
+   the run without a subject, so it is the archetypal root directive (`ProjectDirectives.DeploymentScripts`). Directive application is deliberately
    *not* on the directives (behavior lives with the composition it needs — the comparer's matching); what a directive owns is its address. Directive
    addresses name **current reality** — the names things have now — with one exception: a partial marks the project's own declaration, so it carries
    the declared name. The rules that need no current state (target declared, source not, no chains/collisions, no rename-of-dropped, no
@@ -119,8 +121,8 @@ NSchema                     app, builder, options · Result / Result<T> / Result
 │                           internal)
 ├─ Diff
 │  ├─ .Reader               DiffReader + DiffDocument/DiffLine — the presentation read model (Plan.PlanFile analogue)
-│  ├─ .Domain.Models        the DatabaseDiff tree — the complete difference: schema changes plus
-│  │                        the implied script runs (root Scripts list; nodes reference by name)
+│  ├─ .Domain.Models        the DatabaseDiff tree — the complete difference: schema changes with
+│  │                        each change script inlined on its node, deployment scripts at the root
 │  └─ .Domain               project comparer (run-once resolution + matching), structural comparer
 │                           (per-kind handlers), matcher, normalizer, CurrentState
 ├─ Plan                     IMigrationPlanner → the single plan artifact (the complete diff + the

@@ -4,7 +4,7 @@ using NSchema.Project.Domain.Models.Triggers;
 
 namespace NSchema.Diff.Domain;
 
-internal sealed partial class SchemaComparer
+internal sealed partial class DatabaseComparer
 {
     // Triggers are table members like indexes: matched by name, a structural change is a remove + add (Trigger's
     // Equals excludes the comment), and a comment-only change is an in-place modify.
