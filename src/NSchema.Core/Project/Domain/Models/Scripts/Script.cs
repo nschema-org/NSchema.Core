@@ -6,7 +6,7 @@ namespace NSchema.Project.Domain.Models.Scripts;
 /// <param name="Name">The name that identifies the script.</param>
 /// <param name="Sql">The raw SQL to run when the event occurs.</param>
 /// <param name="Event">The event that will cause the script to be run.</param>
-public record Script(SqlIdentifier Name, string Sql, ScriptEvent Event)
+public record Script(SqlIdentifier Name, SqlText Sql, ScriptEvent Event)
 {
     /// <summary>
     /// The canonical hash of the script body.

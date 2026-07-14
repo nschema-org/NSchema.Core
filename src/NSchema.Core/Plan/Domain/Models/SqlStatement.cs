@@ -1,3 +1,5 @@
+using NSchema.Project.Domain.Models;
+
 namespace NSchema.Plan.Domain.Models;
 
 /// <summary>
@@ -9,4 +11,4 @@ namespace NSchema.Plan.Domain.Models;
 /// Use for statements that the database disallows inside a transaction (for example, Postgres's
 /// <c>CREATE INDEX CONCURRENTLY</c>) or for deployment scripts that manage their own transactions.
 /// </param>
-public sealed record SqlStatement(string Sql, bool RunOutsideTransaction = false);
+public sealed record SqlStatement(SqlText Sql, bool RunOutsideTransaction = false);

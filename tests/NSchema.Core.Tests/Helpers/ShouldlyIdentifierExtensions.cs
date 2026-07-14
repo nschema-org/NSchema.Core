@@ -4,17 +4,28 @@ using NSchema.Project.Domain.Models.Triggers;
 namespace NSchema.Tests.Helpers;
 
 /// <summary>
-/// Shouldly bridges for <see cref="SqlIdentifier"/>: asserting an identifier against a string literal compares
-/// the exact written text, so tests keep witnessing that casing is preserved end-to-end.
+/// Shouldly bridges for <see cref="ValueObject"/>s: asserting a value object against a string literal compares
+/// the exact underlying text, so tests keep witnessing that casing is preserved end-to-end.
 /// </summary>
 internal static class ShouldlyIdentifierExtensions
 {
-    public static void ShouldBe(this SqlIdentifier actual, string? expected) => actual.Value.ShouldBe(expected);
+    extension<T>(ValueObject<T>? actual)
+    {
+        // A null receiver still asserts (against default), so a missing value fails rather than silently passing.
+        public void ShouldBe(T? expected) => (actual is null ? default : actual.Value).ShouldBe(expected);
+    }
 
-    public static void ShouldBe(this SqlIdentifier? actual, string? expected) => (actual?.Value).ShouldBe(expected);
+    extension<T>(IEnumerable<ValueObject<T>>? actual)
+    {
+        public void ShouldBe(IEnumerable<T>? expected, bool ignoreOrder = false)
+        {
+            var actualValue = actual?.Select(i => i.Value) ?? [];
+            actualValue.ShouldBe(expected, ignoreOrder);
+        }
+    }
 
-    public static void ShouldBe(this IEnumerable<SqlIdentifier>? actual, IEnumerable<string>? expected, bool ignoreOrder = false) =>
-        actual?.Select(i => i.Value).ShouldBe(expected, ignoreOrder);
-
-    public static void ShouldBe(this RoutineReference? actual, string? expected) => (actual?.ToString()).ShouldBe(expected);
+    extension(RoutineReference? actual)
+    {
+        public void ShouldBe(string? expected) => (actual?.ToString()).ShouldBe(expected);
+    }
 }

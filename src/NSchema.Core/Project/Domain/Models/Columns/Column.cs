@@ -20,11 +20,11 @@ public record Column(
     SqlType Type,
     bool IsNullable = false,
     bool IsIdentity = false,
-    string? DefaultExpression = null,
+    SqlText? DefaultExpression = null,
     SqlIdentifier? OldName = null,
     string? Comment = null,
     IdentityOptions? IdentityOptions = null,
-    string? GeneratedExpression = null
+    SqlText? GeneratedExpression = null
 ) : IRenameableObject
 {
     private string DebuggerDisplay =>

@@ -125,7 +125,7 @@ public sealed class AddProjectSourceTests : IDisposable
         var project = await ResolveProject(b => b.AddProjectSource(_root));
 
         var script = project.Scripts.ShouldHaveSingleItem();
-        script.Name.ShouldBe("backfill");
+        ShouldlyIdentifierExtensions.ShouldBe(script.Name, "backfill");
         script.Event.ShouldBe(new DeploymentEvent(DeploymentPhase.Post));
     }
 

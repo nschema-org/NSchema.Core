@@ -62,7 +62,7 @@ public sealed class PlanLinearizerSnapshotTests
                     Type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
                     Nullability: new ValueChange<bool>(true, false), Default: null, Identity: null, Comment: null),
                 new ColumnDiff(new SqlIdentifier("notes"), ChangeKind.Add, new Column(new SqlIdentifier("notes"), SqlType.Text, IsNullable: true), null, null, null, null, null, null),
-                new ColumnDiff(new SqlIdentifier("total_label"), ChangeKind.Modify, Generated: new ValueChange<string>(null, "total::text")),
+                new ColumnDiff(new SqlIdentifier("total_label"), ChangeKind.Modify, Generated: new ValueChange<SqlText>(null, new SqlText("total::text"))),
                 new ColumnDiff(new SqlIdentifier("legacy_flag"), ChangeKind.Remove, new Column(new SqlIdentifier("legacy_flag"), SqlType.Boolean), null, null, null, null, null, null),
             ],
             Grants: [],
@@ -70,7 +70,7 @@ public sealed class PlanLinearizerSnapshotTests
                 new TableIndex(new SqlIdentifier("orders_total_ix"), [new IndexColumn(new SqlIdentifier("total"), Sort: IndexSort.Descending)], Method: "btree", Include: [new SqlIdentifier("code")]), null)],
             ForeignKeys: [new ForeignKeyDiff(ChangeKind.Remove, new SqlIdentifier("orders_user_fk"), null)],
             UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("orders_code_uq"), new UniqueConstraint(new SqlIdentifier("orders_code_uq"), [new SqlIdentifier("code")]))],
-            Checks: [new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("orders_total_chk"), new CheckConstraint(new SqlIdentifier("orders_total_chk"), "total >= 0"))],
+            Checks: [new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("orders_total_chk"), new CheckConstraint(new SqlIdentifier("orders_total_chk"), new SqlText("total >= 0")))],
             ExclusionConstraints: [new ExclusionConstraintDiff(ChangeKind.Add, new SqlIdentifier("orders_slot_excl"),
                 new ExclusionConstraint(new SqlIdentifier("orders_slot_excl"), [new ExclusionElement("&&", new SqlIdentifier("slot"))], "gist"))]);
 
@@ -79,10 +79,10 @@ public sealed class PlanLinearizerSnapshotTests
         var views = new ViewDiff[]
         {
             new(new SqlIdentifier("app"), new SqlIdentifier("user_summary"), ChangeKind.Add,
-                Definition: new View(new SqlIdentifier("user_summary"), "SELECT * FROM app.active_users", DependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("active_users"))]),
+                Definition: new View(new SqlIdentifier("user_summary"), new SqlText("SELECT * FROM app.active_users"), DependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("active_users"))]),
                 DependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("active_users"))]),
             new(new SqlIdentifier("app"), new SqlIdentifier("active_users"), ChangeKind.Add,
-                Definition: new View(new SqlIdentifier("active_users"), "SELECT * FROM app.users", DependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users"))]),
+                Definition: new View(new SqlIdentifier("active_users"), new SqlText("SELECT * FROM app.users"), DependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users"))]),
                 DependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users"))]),
             new(new SqlIdentifier("app"), new SqlIdentifier("report"), ChangeKind.Modify, RenamedFrom: new SqlIdentifier("legacy_report")),
             new(new SqlIdentifier("app"), new SqlIdentifier("stale_view"), ChangeKind.Remove),
@@ -109,13 +109,13 @@ public sealed class PlanLinearizerSnapshotTests
         var routines = new RoutineDiff[]
         {
             new(new SqlIdentifier("app"), new SqlIdentifier("add_tax"), ChangeKind.Add, RoutineKind.Function,
-                Definition: new Routine(new SqlIdentifier("add_tax"), RoutineKind.Function, "amount numeric", "RETURNS numeric AS $$ SELECT amount $$")),
+                Definition: new Routine(new SqlIdentifier("add_tax"), RoutineKind.Function, new SqlText("amount numeric"), new SqlText("RETURNS numeric AS $$ SELECT amount $$"))),
             new(new SqlIdentifier("app"), new SqlIdentifier("score"), ChangeKind.Modify, RoutineKind.Function, RenamedFrom: new SqlIdentifier("old_score"),
-                Definition: new Routine(new SqlIdentifier("score"), RoutineKind.Function, "user_id bigint, weight numeric", "RETURNS numeric AS $$ SELECT 1 $$"),
-                Arguments: new ValueChange<string>("user_id bigint", "user_id bigint, weight numeric")),
+                Definition: new Routine(new SqlIdentifier("score"), RoutineKind.Function, new SqlText("user_id bigint, weight numeric"), new SqlText("RETURNS numeric AS $$ SELECT 1 $$")),
+                Arguments: new ValueChange<SqlText>(new SqlText("user_id bigint"), new SqlText("user_id bigint, weight numeric"))),
             new(new SqlIdentifier("app"), new SqlIdentifier("stale_fn"), ChangeKind.Remove, RoutineKind.Function),
             new(new SqlIdentifier("app"), new SqlIdentifier("archive"), ChangeKind.Add, RoutineKind.Procedure,
-                Definition: new Routine(new SqlIdentifier("archive"), RoutineKind.Procedure, "before date", "LANGUAGE sql AS $$ DELETE $$")),
+                Definition: new Routine(new SqlIdentifier("archive"), RoutineKind.Procedure, new SqlText("before date"), new SqlText("LANGUAGE sql AS $$ DELETE $$"))),
             new(new SqlIdentifier("app"), new SqlIdentifier("stale_proc"), ChangeKind.Remove, RoutineKind.Procedure),
         };
 

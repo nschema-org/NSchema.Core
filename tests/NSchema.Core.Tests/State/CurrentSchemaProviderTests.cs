@@ -83,7 +83,7 @@ public sealed class CurrentSchemaProviderTests
 
         var result = await sut.GetSchema(SchemaSourceMode.Offline, SchemaScope.All, TestContext.Current.CancellationToken);
 
-        result.Require().Schemas.ShouldHaveSingleItem().Name.ShouldBe("offline");
+        ShouldlyIdentifierExtensions.ShouldBe(result.Require().Schemas.ShouldHaveSingleItem().Name, "offline");
     }
 
     [Fact]
@@ -135,7 +135,7 @@ public sealed class CurrentSchemaProviderTests
         var offline = await current.GetSchema(SchemaSourceMode.Offline, SchemaScope.All, TestContext.Current.CancellationToken);
         var online = await current.GetSchema(SchemaSourceMode.Online, SchemaScope.All, TestContext.Current.CancellationToken);
 
-        offline.Require().Schemas.ShouldHaveSingleItem().Name.ShouldBe("offline");
+        ShouldlyIdentifierExtensions.ShouldBe(offline.Require().Schemas.ShouldHaveSingleItem().Name, "offline");
         online.IsFailure.ShouldBeTrue();
     }
 
@@ -150,7 +150,7 @@ public sealed class CurrentSchemaProviderTests
         var online = await current.GetSchema(SchemaSourceMode.Online, SchemaScope.All, TestContext.Current.CancellationToken);
         var offline = await current.GetSchema(SchemaSourceMode.Offline, SchemaScope.All, TestContext.Current.CancellationToken);
 
-        online.Require().Schemas.ShouldHaveSingleItem().Name.ShouldBe("online");
-        offline.Require().Schemas.ShouldHaveSingleItem().Name.ShouldBe("offline");
+        ShouldlyIdentifierExtensions.ShouldBe(online.Require().Schemas.ShouldHaveSingleItem().Name, "online");
+        ShouldlyIdentifierExtensions.ShouldBe(offline.Require().Schemas.ShouldHaveSingleItem().Name, "offline");
     }
 }

@@ -15,7 +15,7 @@ public sealed class DependencyDirectionTests
     // Sources: no stages, no orchestration, no plugin contracts, not each other.
     [InlineData("NSchema.Project", new[] { "NSchema.Current", "NSchema.Diff", "NSchema.Plan", "NSchema.Apply", "NSchema.Operations", "NSchema.Plugins" })]
     // Current may read the shared vocabulary (Project.Domain.Models) but never the project language or policies.
-    [InlineData("NSchema.Current", new[] { "NSchema.Project.Ddl", "NSchema.Project.Policies", "NSchema.Diff", "NSchema.Plan", "NSchema.Apply", "NSchema.Operations", "NSchema.Plugins" })]
+    [InlineData("NSchema.Current", new[] { "NSchema.Project.Nsql", "NSchema.Project.Policies", "NSchema.Diff", "NSchema.Plan", "NSchema.Apply", "NSchema.Operations", "NSchema.Plugins" })]
     // Pipeline: each stage may see only the stages before it (and the sources' vocabulary).
     [InlineData("NSchema.Diff", new[] { "NSchema.Plan", "NSchema.Apply", "NSchema.Operations", "NSchema.Plugins" })]
     [InlineData("NSchema.Plan", new[] { "NSchema.Apply", "NSchema.Operations", "NSchema.Plugins" })]

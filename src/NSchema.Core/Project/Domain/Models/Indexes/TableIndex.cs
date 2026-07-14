@@ -18,7 +18,7 @@ public record TableIndex(
     IReadOnlyList<IndexColumn> Columns,
     bool IsUnique = false,
     string? Comment = null,
-    string? Predicate = null,
+    SqlText? Predicate = null,
     string? Method = null,
     IReadOnlyList<SqlIdentifier>? Include = null
 ) : INamedObject

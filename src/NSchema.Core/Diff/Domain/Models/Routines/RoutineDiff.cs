@@ -21,7 +21,7 @@ public sealed record RoutineDiff(
     RoutineKind RoutineKind,
     SqlIdentifier? RenamedFrom = null,
     Routine? Definition = null,
-    ValueChange<string>? Arguments = null,
+    ValueChange<SqlText>? Arguments = null,
     ValueChange<string>? Comment = null
 ) : ISchemaObjectDiff
 {

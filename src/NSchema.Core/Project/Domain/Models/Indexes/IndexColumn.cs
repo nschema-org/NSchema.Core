@@ -9,7 +9,7 @@ public sealed record IndexColumn
     /// <param name="Expression">The raw key expression (rendered parenthesized).</param>
     /// <param name="Sort">The sort direction; <see cref="IndexSort.Default"/> leaves it to the database default.</param>
     /// <param name="Nulls">Where nulls sort; <see cref="IndexNulls.Default"/> leaves it to the database default.</param>
-    public IndexColumn(SqlIdentifier? Column = null, string? Expression = null, IndexSort Sort = IndexSort.Default, IndexNulls Nulls = IndexNulls.Default)
+    public IndexColumn(SqlIdentifier? Column = null, SqlText? Expression = null, IndexSort Sort = IndexSort.Default, IndexNulls Nulls = IndexNulls.Default)
     {
         if (Column is null == Expression is null)
         {
@@ -29,7 +29,7 @@ public sealed record IndexColumn
     /// <summary>
     /// The raw key expression (rendered parenthesised), or <see langword="null"/> for a column key.
     /// </summary>
-    public string? Expression { get; init; }
+    public SqlText? Expression { get; init; }
 
     /// <summary>
     /// The sort direction; <see cref="IndexSort.Default"/> leaves it to the database default.

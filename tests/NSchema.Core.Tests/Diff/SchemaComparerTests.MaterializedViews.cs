@@ -1,8 +1,8 @@
 using NSchema.Diff.Domain.Models;
-using NSchema.Project.Ddl;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Indexes;
 using NSchema.Project.Domain.Models.Views;
+using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Diff;
 
@@ -13,7 +13,7 @@ public partial class SchemaComparerTests
     // -------------------------------------------------------------------------
 
     private static View Matview(string name, string body, IReadOnlyList<TableIndex>? indexes = null, string? comment = null) =>
-        new(new SqlIdentifier(name), body, null, comment, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")), IsMaterialized: true, Indexes: indexes);
+        new(new SqlIdentifier(name), new SqlText(body), null, comment, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")), IsMaterialized: true, Indexes: indexes);
 
     [Fact]
     public void Compare_NewMaterializedView_IsAddWithMaterializedFlag()

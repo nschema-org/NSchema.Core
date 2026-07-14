@@ -1,5 +1,3 @@
-using NSchema.Project.Ddl.Models.Config;
-
 namespace NSchema.Plugins;
 
 /// <summary>
@@ -8,11 +6,11 @@ namespace NSchema.Plugins;
 public interface INSchemaProviderPlugin : INSchemaPlugin
 {
     /// <summary>
-    /// Registers this provider onto the application being built, interpreting the project's <c>PROVIDER</c> block.
+    /// Registers this provider onto the application being built, interpreting the project's <c>PROVIDER</c> statement.
     /// </summary>
     /// <param name="builder">The application builder to register the provider's services on.</param>
-    /// <param name="block">The project's <c>PROVIDER</c> configuration block.</param>
-    Result Configure(NSchemaApplicationBuilder builder, ConfigBlock block);
+    /// <param name="settings">The statement's translated settings.</param>
+    Result Configure(NSchemaApplicationBuilder builder, PluginSettings settings);
 
     /// <summary>
     /// Builds the starter desired-schema DDL this provider contributes when a new project is scaffolded.

@@ -9,7 +9,7 @@ namespace NSchema.Project.Domain.Models.Constraints;
 /// <param name="Expression">The SQL boolean expression the constraint enforces.</param>
 /// <param name="Comment">An optional comment or description for the constraint.</param>
 [DebuggerDisplay("{Name,nq}: {Expression,nq}")]
-public record CheckConstraint(SqlIdentifier Name, string Expression, string? Comment = null) : INamedObject
+public record CheckConstraint(SqlIdentifier Name, SqlText Expression, string? Comment = null) : INamedObject
 {
     /// <summary>
     /// Determines whether the specified CheckConstraint is structurally equal to the current one.

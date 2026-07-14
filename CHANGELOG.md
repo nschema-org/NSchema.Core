@@ -28,9 +28,13 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **`IPlanFileManager` replaces `IPlanFileWriter`.** It reads saved plans too, so "writer" undersold it.
 - **`ISchemaIntrospector` replaces `ISchemaProvider`.** More honest about what it does now that the interface doesn't serve both the current and desired schema.
 - **Plugin `Configure` returns `Result`.** Configuration errors are diagnostics like everything else.
+- **Opaque SQL is `SqlText` now.** Every schema-model field carrying SQL that NSchema stores verbatim but does not interpret is typed `SqlText` instead of `string`.
 - **`PolicyEnforcement` absorbs `DestructiveActionPolicy`.** `WithDestructiveActionPolicy` takes the shared enum, gaining `Ignore`.
 - **The state ledger field is `scripts` now.** Pre-5.0 `executedScripts` payloads read as an empty ledger. Refresh (or untaint) existing state under the state-format compatibility policy's major-version rules.
-- **`DdlReader.Read` returns `Result<DdlDocument>`.** A syntax error is an error diagnosti instead of a thrown exception.
+- **Configuration lives in configuration files.** BACKEND and PROVIDER statements now parse under their own grammar. A configuration file holds only configuration statements, and vice versa.
+- **Plugins receive `PluginSettings`.** `INSchemaProviderPlugin`/`INSchemaBackendPlugin.Configure` take a typed `PluginSettings` (label + attributes, translated from the parsed statement via `PluginSettings.From`).
+- **`NsqlReader` replaces `DdlReader` and diagnostics are structural.** `NsqlReader.Read`/`ReadFile` return `Result<NsqlDocument, NsqlDiagnostic>`, the new diagnostic-typed result, with each finding carrying its source position.
+- **`DdlReader.Read` returns `Result<DdlDocument>`.** A syntax error is an error diagnostic instead of a thrown exception, and the parser now recovers at statement boundaries.
 - **`DatabaseSchema` is pure data now.** `Filter` joined `Combine` off the model, into the projection machinery.
 - **`SchemaScope` replaces bare schema-name arrays.** `GetProject`, `GetSchema`, and the plan/drift/import arguments take a scope record.
 - **`ICurrentSchemaProvider.GetSchema` returns `Result<DatabaseSchema>`.** An unconfigured source is a failure instead of a throw.

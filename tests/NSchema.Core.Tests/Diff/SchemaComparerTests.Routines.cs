@@ -16,10 +16,10 @@ public partial class SchemaComparerTests
     private const string ProcDef = "LANGUAGE sql AS $$ DELETE FROM app.t; $$";
 
     private static Routine Fn(string name, string args, string def, SqlIdentifier? oldName = null, string? comment = null) =>
-        new(new SqlIdentifier(name), RoutineKind.Function, args, def, oldName, comment);
+        new(new SqlIdentifier(name), RoutineKind.Function, new SqlText(args), new SqlText(def), oldName, comment);
 
     private static Routine Proc(string name, string args, string def, SqlIdentifier? oldName = null, string? comment = null) =>
-        new(new SqlIdentifier(name), RoutineKind.Procedure, args, def, oldName, comment);
+        new(new SqlIdentifier(name), RoutineKind.Procedure, new SqlText(args), new SqlText(def), oldName, comment);
 
     /// <summary>Diffs two <c>app</c> schemas holding the given routines, returning the single routine diff (null when unchanged).</summary>
     private RoutineDiff? DiffRoutines(IReadOnlyList<Routine> current, IReadOnlyList<Routine> desired) => _sut
@@ -71,7 +71,7 @@ public partial class SchemaComparerTests
     {
         var diff = DiffRoutines([Fn("f", "a int", Def)], [Fn("f", "a int, b text", Def)]);
 
-        diff!.Arguments.ShouldBe(new ValueChange<string>("a int", "a int, b text"));
+        diff!.Arguments.ShouldBe(new ValueChange<SqlText>(new SqlText("a int"), new SqlText("a int, b text")));
         diff.Definition.ShouldNotBeNull(); // the desired definition rides along for the recreate
         diff.RequiresRecreate.ShouldBeTrue();
     }

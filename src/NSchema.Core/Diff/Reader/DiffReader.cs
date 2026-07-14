@@ -524,7 +524,7 @@ public sealed class DiffReader
             ? $"{label} {name} comment: {FormatComment(comment?.Old)} → {FormatComment(comment?.New)}"
             : $"{label} {name}";
 
-    private string FormatDefault(string? value) => value ?? "<none>";
+    private string FormatDefault(SqlText? value) => value?.Value ?? "<none>";
 
     private string FormatNullability(bool? nullable) => nullable == true ? "null" : "not null";
 

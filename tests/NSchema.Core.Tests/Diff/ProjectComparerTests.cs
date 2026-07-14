@@ -33,14 +33,14 @@ public sealed class ProjectComparerTests
     }
 
     private static Script SeedScript() =>
-        new(new SqlIdentifier("seed"), "INSERT INTO app.c VALUES (1);", new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = RunCondition.Once };
+        new(new SqlIdentifier("seed"), new SqlText("INSERT INTO app.c VALUES (1);"), new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = RunCondition.Once };
 
     private static Script EmailBackfillMigration() =>
-        new(new SqlIdentifier("backfill emails"), "UPDATE app.users SET email = ''", new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") });
+        new(new SqlIdentifier("backfill emails"), new SqlText("UPDATE app.users SET email = ''"), new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") });
 
     /// <summary>A current state recording <paramref name="sql"/> as script <paramref name="name"/>'s executed body.</summary>
     private static CurrentState Executed(string name, string sql) =>
-        new(_emptySchema, [new ScriptExecution(new SqlIdentifier(name), ScriptHashing.Hash(sql), DateTimeOffset.UnixEpoch)]);
+        new(_emptySchema, [new ScriptExecution(new SqlIdentifier(name), ScriptHashing.Hash(new SqlText(sql)), DateTimeOffset.UnixEpoch)]);
 
     /// <summary>A diff adding a required, defaultless <c>app.users.email</c> column to an existing table.</summary>
     private static DatabaseDiff AddedEmailColumnDiff() => new(
@@ -82,7 +82,7 @@ public sealed class ProjectComparerTests
     public void Compare_ExecutedRunOnceScript_IsNotPartOfTheDifference()
     {
         // Act — the script has already run, so it is not part of the current→desired difference.
-        var comparison = Sut.Compare(Executed("seed", SeedScript().Sql), new ProjectDefinition(_emptySchema, [SeedScript()]));
+        var comparison = Sut.Compare(Executed("seed", SeedScript().Sql.Value), new ProjectDefinition(_emptySchema, [SeedScript()]));
 
         // Assert
         comparison.Require().Scripts.ShouldBeEmpty();
@@ -110,7 +110,7 @@ public sealed class ProjectComparerTests
         var script = SeedScript() with { RunCondition = RunCondition.Always };
 
         // Act
-        var comparison = Sut.Compare(Executed("seed", script.Sql), new ProjectDefinition(_emptySchema, [script]));
+        var comparison = Sut.Compare(Executed("seed", script.Sql.Value), new ProjectDefinition(_emptySchema, [script]));
 
         // Assert
         comparison.Require().Scripts.ShouldHaveSingleItem();
@@ -160,7 +160,7 @@ public sealed class ProjectComparerTests
         _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(AddedEmailColumnDiff());
 
         // Act
-        var comparison = Sut.Compare(Executed("backfill emails", migration.Sql), new ProjectDefinition(_emptySchema, [migration]));
+        var comparison = Sut.Compare(Executed("backfill emails", migration.Sql.Value), new ProjectDefinition(_emptySchema, [migration]));
 
         // Assert
         comparison.Require().Schemas[0].Tables[0].Columns[0].MigrationScript.ShouldBeNull();

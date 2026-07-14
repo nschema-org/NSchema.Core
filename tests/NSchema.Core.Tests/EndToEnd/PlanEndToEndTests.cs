@@ -20,7 +20,7 @@ public sealed class PlanEndToEndTests : IDisposable
     public PlanEndToEndTests() => Directory.CreateDirectory(_tempDir);
     public void Dispose() => Directory.Delete(_tempDir, recursive: true);
 
-    private string WriteDdl(string name, string content)
+    private string WriteNsql(string name, string content)
     {
         var path = Path.Combine(_tempDir, name);
         File.WriteAllText(path, content);
@@ -43,7 +43,7 @@ public sealed class PlanEndToEndTests : IDisposable
         var current = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), Tables:
             [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
 
-        var desired = WriteDdl("schema.sql",
+        var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
             CREATE TABLE app.users
@@ -79,7 +79,7 @@ public sealed class PlanEndToEndTests : IDisposable
         var schema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), Tables:
             [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
 
-        var desired = WriteDdl("schema.sql",
+        var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
             CREATE TABLE app.users
@@ -99,7 +99,7 @@ public sealed class PlanEndToEndTests : IDisposable
     public async Task Plan_WithDialectRegistered_ProducesSql()
     {
         var current = new DatabaseSchema([]);
-        var desired = WriteDdl("schema.sql", "CREATE SCHEMA app;");
+        var desired = WriteNsql("schema.sql", "CREATE SCHEMA app;");
 
         using var app = NewBuilder(current)
             .AddProjectSource(Path.GetDirectoryName(desired)!, Path.GetFileName(desired))
@@ -116,7 +116,7 @@ public sealed class PlanEndToEndTests : IDisposable
     public async Task Plan_WithoutProvider_Fails()
     {
         var current = new DatabaseSchema([]);
-        var desired = WriteDdl("schema.sql", "CREATE SCHEMA app;");
+        var desired = WriteNsql("schema.sql", "CREATE SCHEMA app;");
 
         using var app = NewBuilder(current).AddProjectSource(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).Build();
 
@@ -133,7 +133,7 @@ public sealed class PlanEndToEndTests : IDisposable
         // The managed schema is the recorded state, so the refresh records the live schema before tearing down.
         var current = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), Tables:
             [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
-        var desired = WriteDdl("schema.sql",
+        var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
             CREATE TABLE app.users

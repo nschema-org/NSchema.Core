@@ -81,8 +81,8 @@ public partial class SchemaComparerTests
     public void Compare_TriggerBodyChange_IsStructural()
     {
         // An inline-body change is part of structural equality, so it is a drop + recreate (not a comment-only modify).
-        var current = new Trigger(new SqlIdentifier("audit"), TriggerTiming.After, TriggerEvent.Insert, Body: "BEGIN SELECT 1 END");
-        var desired = new Trigger(new SqlIdentifier("audit"), TriggerTiming.After, TriggerEvent.Insert, Body: "BEGIN SELECT 2 END");
+        var current = new Trigger(new SqlIdentifier("audit"), TriggerTiming.After, TriggerEvent.Insert, Body: new SqlText("BEGIN SELECT 1 END"));
+        var desired = new Trigger(new SqlIdentifier("audit"), TriggerTiming.After, TriggerEvent.Insert, Body: new SqlText("BEGIN SELECT 2 END"));
 
         DiffTriggers([current], [desired]).Select(d => d.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add], ignoreOrder: true);
     }

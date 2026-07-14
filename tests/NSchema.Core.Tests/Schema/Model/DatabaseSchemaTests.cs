@@ -15,7 +15,7 @@ public sealed class DatabaseSchemaTests
 
     private static Table Table(string name) => new(new SqlIdentifier(name));
 
-    private static View View(string name) => new(new SqlIdentifier(name), $"SELECT * FROM {name}_source");
+    private static View View(string name) => new(new SqlIdentifier(name), new SqlText($"SELECT * FROM {name}_source"));
 
     private static DatabaseSchema Sample() => new(
         [new SchemaDefinition(new SqlIdentifier("app")), new SchemaDefinition(new SqlIdentifier("audit")), new SchemaDefinition(new SqlIdentifier("legacy"))],
@@ -121,8 +121,8 @@ public sealed class DatabaseSchemaTests
     [Fact]
     public void Combine_DuplicateFunctionInSameSchema_IsAnError()
     {
-        var db1 = Db(new SchemaDefinition(new SqlIdentifier("public"), Routines: [new Routine(new SqlIdentifier("f"), RoutineKind.Function, "", "RETURNS int AS $$ SELECT 1 $$")]));
-        var db2 = Db(new SchemaDefinition(new SqlIdentifier("public"), Routines: [new Routine(new SqlIdentifier("f"), RoutineKind.Function, "", "RETURNS int AS $$ SELECT 2 $$")]));
+        var db1 = Db(new SchemaDefinition(new SqlIdentifier("public"), Routines: [new Routine(new SqlIdentifier("f"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int AS $$ SELECT 1 $$"))]));
+        var db2 = Db(new SchemaDefinition(new SqlIdentifier("public"), Routines: [new Routine(new SqlIdentifier("f"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int AS $$ SELECT 2 $$"))]));
 
         SchemaAggregator.Combine(db1, db2).Errors.ShouldHaveSingleItem().Message.ShouldContain("Duplicate routine 'f'");
     }
@@ -130,8 +130,8 @@ public sealed class DatabaseSchemaTests
     [Fact]
     public void Combine_DuplicateProcedureInSameSchema_IsAnError()
     {
-        var db1 = Db(new SchemaDefinition(new SqlIdentifier("public"), Routines: [new Routine(new SqlIdentifier("p"), RoutineKind.Procedure, "", "AS $$ SELECT 1 $$")]));
-        var db2 = Db(new SchemaDefinition(new SqlIdentifier("public"), Routines: [new Routine(new SqlIdentifier("p"), RoutineKind.Procedure, "", "AS $$ SELECT 2 $$")]));
+        var db1 = Db(new SchemaDefinition(new SqlIdentifier("public"), Routines: [new Routine(new SqlIdentifier("p"), RoutineKind.Procedure, new SqlText(""), new SqlText("AS $$ SELECT 1 $$"))]));
+        var db2 = Db(new SchemaDefinition(new SqlIdentifier("public"), Routines: [new Routine(new SqlIdentifier("p"), RoutineKind.Procedure, new SqlText(""), new SqlText("AS $$ SELECT 2 $$"))]));
 
         SchemaAggregator.Combine(db1, db2).Errors.ShouldHaveSingleItem().Message.ShouldContain("Duplicate routine 'p'");
     }
@@ -140,8 +140,8 @@ public sealed class DatabaseSchemaTests
     public void Combine_FunctionAndProcedureWithSameName_IsAnError()
     {
         // Functions and procedures share one name pool, as they do in the database's catalog.
-        var db1 = Db(new SchemaDefinition(new SqlIdentifier("public"), Routines: [new Routine(new SqlIdentifier("r"), RoutineKind.Function, "", "RETURNS int AS $$ SELECT 1 $$")]));
-        var db2 = Db(new SchemaDefinition(new SqlIdentifier("public"), Routines: [new Routine(new SqlIdentifier("r"), RoutineKind.Procedure, "", "AS $$ SELECT 1 $$")]));
+        var db1 = Db(new SchemaDefinition(new SqlIdentifier("public"), Routines: [new Routine(new SqlIdentifier("r"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int AS $$ SELECT 1 $$"))]));
+        var db2 = Db(new SchemaDefinition(new SqlIdentifier("public"), Routines: [new Routine(new SqlIdentifier("r"), RoutineKind.Procedure, new SqlText(""), new SqlText("AS $$ SELECT 1 $$"))]));
 
         SchemaAggregator.Combine(db1, db2).Errors.ShouldHaveSingleItem().Message.ShouldContain("share one name space");
     }

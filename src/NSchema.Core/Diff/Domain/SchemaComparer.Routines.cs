@@ -41,7 +41,7 @@ internal sealed partial class SchemaComparer
         var recreate = argumentsChanged || kindChanged;
         return new RoutineDiff(schema, desired.Name, ChangeKind.Modify, desired.Kind, renamedFrom,
             Definition: recreate || definitionChanged ? desired : null,
-            Arguments: recreate ? new ValueChange<string>(current.Arguments, desired.Arguments) : null,
+            Arguments: recreate ? new ValueChange<SqlText>(current.Arguments, desired.Arguments) : null,
             Comment: comment);
     }
 }

@@ -1,9 +1,9 @@
 using NSchema.Current;
 using NSchema.Operations.Progress;
-using NSchema.Project.Ddl;
 using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Project.Nsql;
 
 namespace NSchema.Operations;
 
@@ -103,7 +103,10 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
             Directory.CreateDirectory(directory);
         }
 
-        var ddl = DdlFormatter.Instance.Format(DdlWriter.Instance.Write(merged, declareSchemas));
+        // The partition's document either declares its schemas (a header, the extensions file) or holds
+        // member objects only — a property of the constructed document, not a rendering flag.
+        var document = SyntaxBuilder.Build(merged, [], declareSchemas);
+        var ddl = NsqlFormatter.Format(NsqlWriter.Write(document));
         await File.WriteAllTextAsync(path, ddl, cancellationToken);
 
         // Surface whether each object was created fresh or merged into an existing file — import is additive, so
@@ -114,11 +117,15 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
 
     private static async Task<Result<DatabaseSchema>> ReadExisting(string path, CancellationToken cancellationToken)
     {
-        var text = await File.ReadAllTextAsync(path, cancellationToken);
-        var read = DdlReader.Instance.Read(text);
-        return read.IsSuccess
-            ? read.Map(document => document.Schema)
-            : Result.Failure<DatabaseSchema>(read.Diagnostics.Select(d => ProjectDiagnostics.InFile(path, d)));
+        var read = await NsqlReader.ReadFile(path, cancellationToken);
+        if (read.IsFailure)
+        {
+            return Result.Failure<DatabaseSchema>(read.Diagnostics);
+        }
+
+        var projected = DocumentProjector.Project(read.Value);
+        return Result.From(projected.Require().Schema,
+            projected.Diagnostics.Select(Diagnostic (d) => d with { File = path }));
     }
 
     private static DatabaseSchema Merge(DatabaseSchema existing, DatabaseSchema incoming)

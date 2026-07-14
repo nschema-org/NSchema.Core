@@ -112,7 +112,7 @@ public class DataHazardPolicyTests
     {
         // Arrange — a default gives existing rows their value, so the add cannot fail.
         var diff = ModifiedTable(Columns:
-            [new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text, DefaultExpression: "''"))]);
+            [new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text, DefaultExpression: new SqlText("''")))]);
 
         // Act / Assert
         _sut.Validate(diff).ShouldBeEmpty();
@@ -145,7 +145,7 @@ public class DataHazardPolicyTests
     {
         // Arrange — a generated column computes its own values for existing rows.
         var diff = ModifiedTable(Columns:
-            [new ColumnDiff(new SqlIdentifier("total"), ChangeKind.Add, new Column(new SqlIdentifier("total"), SqlType.Int, GeneratedExpression: "a + b"))]);
+            [new ColumnDiff(new SqlIdentifier("total"), ChangeKind.Add, new Column(new SqlIdentifier("total"), SqlType.Int, GeneratedExpression: new SqlText("a + b")))]);
 
         // Act / Assert
         _sut.Validate(diff).ShouldBeEmpty();
@@ -304,7 +304,7 @@ public class DataHazardPolicyTests
         var diff = ModifiedTable(Indexes:
         [
             new IndexDiff(ChangeKind.Add, new SqlIdentifier("ix_users_email"),
-                new TableIndex(new SqlIdentifier("ix_users_email"), [new IndexColumn(Expression: "lower(email)")], IsUnique: true)),
+                new TableIndex(new SqlIdentifier("ix_users_email"), [new IndexColumn(Expression: new SqlText("lower(email)"))], IsUnique: true)),
         ]);
 
         // Act
@@ -467,7 +467,7 @@ public class DataHazardPolicyTests
     }
 
     private static Script Migration(ChangeTrigger trigger, string member) =>
-        new(new SqlIdentifier(member), "UPDATE app.users SET email = ''", new ChangeEvent(trigger, new SqlIdentifier("users"), new SqlIdentifier(member)) { ScopeSchema = new SqlIdentifier("app") });
+        new(new SqlIdentifier(member), new SqlText("UPDATE app.users SET email = ''"), new ChangeEvent(trigger, new SqlIdentifier("users"), new SqlIdentifier(member)) { ScopeSchema = new SqlIdentifier("app") });
 
     private static DatabaseDiff ModifiedTable(
         IReadOnlyList<ColumnDiff>? Columns = null,

@@ -1,12 +1,10 @@
-using NSchema.Project.Ddl;
-using NSchema.Project.Domain;
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Schema.Templates;
 
 /// <summary>
 /// Snapshot coverage for <see cref="TemplateApplicator"/>: the expanded schema is rendered back to DDL with
-/// <see cref="DdlWriter"/>, so the snapshot shows exactly what the rest of the pipeline sees per target schema —
+/// <see cref="NSchema.Project.Nsql.NsqlWriter"/>, so the snapshot shows exactly what the rest of the pipeline sees per target schema —
 /// placeholder foreign keys re-pointed, and template-declared types and trigger functions qualified per instance.
 /// </summary>
 public sealed class TemplateExpansionSnapshotTests
@@ -49,9 +47,10 @@ public sealed class TemplateExpansionSnapshotTests
             APPLY TEMPLATE outbox IN SCHEMA billing, ordering;
             """;
 
-        var document = DdlReader.Instance.Read(source).Require();
-        var expanded = TemplateApplicator.Apply(new ProjectDefinition(document.Schema, document.Scripts), document.Templates).Require().Schema;
+        var read = NSchema.Project.Nsql.NsqlReader.Read(source);
+        read.IsSuccess.ShouldBeTrue();
+        var expanded = NSchema.Project.ProjectAssembler.Assemble([read.Value]).Require().Schema;
 
-        return Verify(DdlWriter.Instance.Write(expanded));
+        return Verify(NsqlWriter.Write(expanded));
     }
 }
