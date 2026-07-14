@@ -25,7 +25,7 @@ public sealed class RefreshEndToEndTests : IDisposable
 
     public void Dispose() => Directory.Delete(_tempDir, recursive: true);
 
-    private string WriteDdl(string name, string content)
+    private string WriteNsql(string name, string content)
     {
         var path = Path.Combine(_tempDir, name);
         File.WriteAllText(path, content);
@@ -62,7 +62,7 @@ public sealed class RefreshEndToEndTests : IDisposable
         }
 
         // 2. Plan offline against the captured state with a matching desired schema — no live database involved.
-        var desired = WriteDdl("schema.sql",
+        var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
             CREATE TABLE app.users

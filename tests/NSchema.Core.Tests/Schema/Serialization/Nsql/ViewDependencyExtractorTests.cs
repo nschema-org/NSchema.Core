@@ -1,7 +1,7 @@
 using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models;
 
-namespace NSchema.Tests.Schema.Serialization.Ddl;
+namespace NSchema.Tests.Schema.Serialization.Nsql;
 
 /// <summary>
 /// Pins the shallow FROM/JOIN dependency scan that feeds the planner's view ordering. The scan over-collects by

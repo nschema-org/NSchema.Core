@@ -48,7 +48,7 @@ public sealed class ImportOperationTests : IDisposable
     private static async Task<DatabaseSchema> ReadSchema(string path)
     {
         var text = await File.ReadAllTextAsync(path);
-        return new TestDdlParser(text).Parse().Schema;
+        return new TestNsqlParser(text).Parse().Schema;
     }
 
     private string ObjectPath(string type, string name) => Path.Combine(_dir, "app", type, $"{name}.sql");
@@ -334,7 +334,7 @@ public sealed class ImportOperationTests : IDisposable
     // ── Canonical layout ─────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Execute_WritesFormatterCanonicalDdl()
+    public async Task Execute_WritesFormatterCanonicalNsql()
     {
         // Import output must already be in the formatter's canonical layout, so running `fmt` over an
         // imported file changes nothing. This is the invariant that keeps the two DDL paths from drifting.

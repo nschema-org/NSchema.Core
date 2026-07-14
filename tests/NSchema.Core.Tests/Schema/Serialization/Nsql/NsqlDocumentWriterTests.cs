@@ -5,10 +5,10 @@ using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema.Serialization.Ddl;
+namespace NSchema.Tests.Schema.Serialization.Nsql;
 
 /// <summary>
-/// Covers <see cref="DdlWriter.Write(ProjectedDocument)"/> — the full-document round-trip (schema + scripts)
+/// Covers the full-document round-trip (schema + scripts)
 /// that the <c>fmt</c> command depends on for losslessness.
 /// </summary>
 public sealed class ProjectedDocumentWriterTests
@@ -27,10 +27,10 @@ public sealed class ProjectedDocumentWriterTests
     // Write produces byte-identical output (formatting is idempotent — the property `fmt --check` relies on).
     private static string AssertRoundTrips(string source)
     {
-        var document = new TestDdlParser(source).Parse();
+        var document = new TestNsqlParser(source).Parse();
         var formatted = NsqlWriter.Write(document.Schema, document.Scripts);
 
-        var reparsed = new TestDdlParser(formatted).Parse();
+        var reparsed = new TestNsqlParser(formatted).Parse();
         AssertEquivalent(document, reparsed);
         NsqlWriter.Write(reparsed.Schema, reparsed.Scripts).ShouldBe(formatted);
 
@@ -138,7 +138,7 @@ public sealed class ProjectedDocumentWriterTests
     public void Write_EmitsSchemaThenScripts_RegardlessOfSourceOrder()
     {
         // Source deliberately interleaves: script, then schema.
-        var document = new TestDdlParser(
+        var document = new TestNsqlParser(
             """
             SCRIPT 'seed' RUN ON POST DEPLOYMENT AS $$ SELECT 1 $$;
 

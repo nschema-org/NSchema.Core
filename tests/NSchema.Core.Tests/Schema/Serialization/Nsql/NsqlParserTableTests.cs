@@ -2,13 +2,13 @@ using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Tables;
 
-namespace NSchema.Tests.Schema.Serialization.Ddl;
+namespace NSchema.Tests.Schema.Serialization.Nsql;
 
-public sealed class DdlParserTableTests
+public sealed class NsqlParserTableTests
 {
     private static Table ParseTable(string body, string qualifiedName = "app.users")
     {
-        var schema = new TestDdlParser($"CREATE TABLE {qualifiedName} ({body});").Parse().Schema.Schemas.Single();
+        var schema = new TestNsqlParser($"CREATE TABLE {qualifiedName} ({body});").Parse().Schema.Schemas.Single();
         return schema.Tables.Single();
     }
 
@@ -210,7 +210,7 @@ public sealed class DdlParserTableTests
     [Fact]
     public void Grant_TablePrivileges_AttachToTable()
     {
-        var schema = new TestDdlParser(
+        var schema = new TestNsqlParser(
             """
             CREATE TABLE app.users (id int);
             GRANT SELECT, INSERT ON app.users TO readers;
@@ -224,7 +224,7 @@ public sealed class DdlParserTableTests
     public void Grant_BeforeTable_IsResolvedAtBuild()
     {
         // Grants are order-independent: a grant may precede the CREATE TABLE it targets.
-        var schema = new TestDdlParser(
+        var schema = new TestNsqlParser(
             """
             GRANT SELECT ON app.users TO readers;
             CREATE TABLE app.users (id int);
@@ -235,18 +235,18 @@ public sealed class DdlParserTableTests
     [Fact]
     public void Grant_SchemaUsage_AttachesToSchema()
     {
-        var schema = new TestDdlParser("CREATE SCHEMA app; GRANT USAGE ON SCHEMA app TO app_role;").Parse().Schema.Schemas.Single();
+        var schema = new TestNsqlParser("CREATE SCHEMA app; GRANT USAGE ON SCHEMA app TO app_role;").Parse().Schema.Schemas.Single();
         schema.Grants.Single().Role.ShouldBe("app_role");
     }
 
     [Fact]
     public void Grant_UnknownTable_FailsTheRead()
-        => new TestDdlParser("GRANT SELECT ON app.ghost TO readers;").Project().Errors.ShouldHaveSingleItem()
+        => new TestNsqlParser("GRANT SELECT ON app.ghost TO readers;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("unknown table");
 
     [Fact]
     public void Grant_UnknownPrivilege_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => new TestDdlParser("CREATE TABLE app.t (id int); GRANT TRUNCATE ON app.t TO r;").Parse().Schema)
+        => Should.Throw<NsqlSyntaxException>(() => new TestNsqlParser("CREATE TABLE app.t (id int); GRANT TRUNCATE ON app.t TO r;").Parse().Schema)
             .Message.ShouldContain("privilege");
 
     // -------------------------------------------------------------------------
@@ -256,7 +256,7 @@ public sealed class DdlParserTableTests
     [Fact]
     public void Parse_RichTable_AssemblesEveryMember()
     {
-        var table = new TestDdlParser(
+        var table = new TestNsqlParser(
             """
             --- Line items for an order.
             CREATE TABLE shop.order_items RENAMED FROM line_items (

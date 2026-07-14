@@ -24,7 +24,7 @@ public sealed class ApplyEndToEndTests : IDisposable
 
     public void Dispose() => Directory.Delete(_tempDir, recursive: true);
 
-    private string WriteDdl(string name, string content)
+    private string WriteNsql(string name, string content)
     {
         var path = Path.Combine(_tempDir, name);
         File.WriteAllText(path, content);
@@ -48,7 +48,7 @@ public sealed class ApplyEndToEndTests : IDisposable
     {
         // Current live DB: an empty app schema. Desired: app.users(id) — i.e. create the table.
         var current = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]);
-        var desired = WriteDdl("schema.sql",
+        var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
             CREATE TABLE app.users
@@ -79,7 +79,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         // defaultless email column, with a SCRIPT block declaring the backfill.
         var current = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), Tables:
             [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
-        var desired = WriteDdl("schema.sql",
+        var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
             CREATE TABLE app.users
@@ -117,7 +117,7 @@ public sealed class ApplyEndToEndTests : IDisposable
             new SchemaDefinition(new SqlIdentifier("sales"), Tables: [new Table(new SqlIdentifier("events"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]),
             new SchemaDefinition(new SqlIdentifier("billing")),
         ]);
-        var desired = WriteDdl("schema.sql",
+        var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA sales;
             CREATE SCHEMA billing;
@@ -162,7 +162,7 @@ public sealed class ApplyEndToEndTests : IDisposable
     {
         // A run-once seed script: the first plan includes and records it, the next plan skips it.
         var current = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]);
-        var desired = WriteDdl("schema.sql",
+        var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
             SCRIPT 'seed currencies' RUN ONCE ON POST DEPLOYMENT AS $$
@@ -194,7 +194,7 @@ public sealed class ApplyEndToEndTests : IDisposable
     {
         var schema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), Tables:
             [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
-        var desired = WriteDdl("schema.sql",
+        var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
             CREATE TABLE app.users

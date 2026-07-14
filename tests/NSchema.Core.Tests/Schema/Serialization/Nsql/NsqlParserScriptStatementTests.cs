@@ -2,16 +2,16 @@ using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Nsql;
 
-namespace NSchema.Tests.Schema.Serialization.Ddl;
+namespace NSchema.Tests.Schema.Serialization.Nsql;
 
 /// <summary>
 /// Covers the unified <c>SCRIPT '&lt;name&gt;' RUN [ALWAYS | ONCE] ON &lt;event&gt; AS $$ … $$;</c> statement —
 /// the only form of deployment scripts and data migrations — and the pointed errors raised for the
 /// pre-5.0 spellings.
 /// </summary>
-public sealed class DdlParserScriptStatementTests
+public sealed class NsqlParserScriptStatementTests
 {
-    private static ProjectedDocument Read(string source) => new TestDdlParser(source).Parse();
+    private static ProjectedDocument Read(string source) => new TestNsqlParser(source).Parse();
 
     private static IReadOnlyList<Script> Migrations(ProjectedDocument document) =>
         [.. document.Scripts.Where(s => s.Event is ChangeEvent)];

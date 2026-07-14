@@ -22,8 +22,6 @@ public sealed class NamespaceMigrationMapTests
     private const string Root = "NSchema";
     private const string ProjectRoot = "NSchema.Project";
     private const string ProjectModels = "NSchema.Project.Domain.Models";
-    private const string ProjectDdl = "NSchema.Project.Ddl";
-    private const string ProjectDdlModels = "NSchema.Project.Ddl.Models";
     private const string ProjectNsql = "NSchema.Project.Nsql";
     private const string ProjectNsqlSyntax = "NSchema.Project.Nsql.Syntax";
     private const string OperationsProgress = "NSchema.Operations.Progress";
@@ -75,14 +73,14 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Current.SchemaSourceMode)] = CurrentRoot,
         [typeof(NSchema.Current.Backends.ISchemaIntrospector)] = CurrentBackends,
 
-        // ── ProjectDefinition.Ddl: the project language — machinery + the full syntax tree. ──
+        // ── ProjectDefinition.Nsql: the project language — machinery, documents, and the full syntax tree. ──
         [typeof(NSchema.Project.Nsql.NsqlWriter)] = ProjectNsql, // domain → syntax → text; SyntaxBuilder is its first half
         [typeof(NSchema.Project.Nsql.NsqlFormatter)] = ProjectNsql, // token-stream reformatter, shares the lexer
         [typeof(NSchema.Project.Nsql.SourcePosition)] = ProjectNsql,
         // Template constructs are language features, not domain models; reshaped as AST nodes.
 
         // ── ProjectDefinition.Nsql: the NSchema language — documents at the lane root, the syntax tree
-        // under .Syntax. Born in their 5.0 home; they replace the Ddl lane as the parser flips to them. ──
+        // under .Syntax — the language lane, born in its 5.0 home. ──
         [typeof(NSchema.Project.Nsql.NsqlDocument)] = ProjectNsql,
         [typeof(NSchema.Project.Nsql.NsqlConfigDocument)] = ProjectNsql,
         [typeof(NSchema.Project.Nsql.NsqlReader)] = ProjectNsql, // the file-aware read seam — stamps provenance onto documents and diagnostics
@@ -385,7 +383,7 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Plugins.INSchemaProviderPlugin)] = Plugins,
         [typeof(NSchema.Plugins.INSchemaBackendPlugin)] = Plugins,
         [typeof(NSchema.Plugins.ScaffoldContext)] = Plugins,
-        // Config settings records: the plugin seam's message (the syntax-node side stays in Schema.Ddl).
+        // Config settings records: the plugin seam's message (the syntax-node side stays in Project.Nsql).
         [typeof(NSchema.Plugins.ConfigValue)] = Plugins, // the settings scalar — moved with the plugin payload at the config lane split
         [typeof(NSchema.Plugins.ConfigValueKind)] = Plugins,
         [typeof(NSchema.Plugins.PluginSettings)] = Plugins, // the statement's translated payload — replaced ConfigBlock on the plugin seam

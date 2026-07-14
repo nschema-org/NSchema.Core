@@ -2,15 +2,15 @@ using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.CompositeTypes;
 
-namespace NSchema.Tests.Schema.Serialization.Ddl;
+namespace NSchema.Tests.Schema.Serialization.Nsql;
 
 /// <summary>
 /// Parser coverage for <c>CREATE TYPE s.t AS (field &lt;type&gt;, …)</c>.
 /// </summary>
-public sealed class DdlParserCompositeTypeTests
+public sealed class NsqlParserCompositeTypeTests
 {
     private static CompositeType ParseType(string sql) =>
-        new TestDdlParser("CREATE SCHEMA app; " + sql).Parse().Schema
+        new TestNsqlParser("CREATE SCHEMA app; " + sql).Parse().Schema
             .Schemas.ShouldHaveSingleItem().CompositeTypes.ShouldHaveSingleItem();
 
     [Fact]
@@ -48,16 +48,16 @@ public sealed class DdlParserCompositeTypeTests
 
     [Fact]
     public void Parse_DropType_RecordsDroppedCompositeType()
-        => ShouldlyIdentifierExtensions.ShouldBe(new TestDdlParser("CREATE SCHEMA app; DROP TYPE app.address;").Parse().Schema
+        => ShouldlyIdentifierExtensions.ShouldBe(new TestNsqlParser("CREATE SCHEMA app; DROP TYPE app.address;").Parse().Schema
                 .Schemas.ShouldHaveSingleItem().DroppedCompositeTypes.ShouldHaveSingleItem(), "address");
 
     [Fact]
     public void Parse_DuplicateType_FailsTheRead()
-        => new TestDdlParser("CREATE SCHEMA app; CREATE TYPE app.t AS (a int); CREATE TYPE app.t AS (b int);").Project().Errors.ShouldHaveSingleItem()
+        => new TestNsqlParser("CREATE SCHEMA app; CREATE TYPE app.t AS (a int); CREATE TYPE app.t AS (b int);").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("already declared");
 
     [Fact]
     public void Parse_PartialType_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => new TestDdlParser("CREATE PARTIAL TYPE app.t AS (a int);").Parse())
+        => Should.Throw<NsqlSyntaxException>(() => new TestNsqlParser("CREATE PARTIAL TYPE app.t AS (a int);").Parse())
             .Message.ShouldContain("PARTIAL applies to SCHEMA");
 }

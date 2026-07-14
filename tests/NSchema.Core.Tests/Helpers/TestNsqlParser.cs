@@ -7,7 +7,7 @@ namespace NSchema.Tests.Helpers;
 /// projected document, syntax and assembly errors thrown as <c>NsqlSyntaxException</c> (the reader folds
 /// them into a <c>Result</c>; these tests assert the raw errors).
 /// </summary>
-internal sealed class TestDdlParser(string source)
+internal sealed class TestNsqlParser(string source)
 {
     public ProjectedDocument Parse() => Project().Require();
 

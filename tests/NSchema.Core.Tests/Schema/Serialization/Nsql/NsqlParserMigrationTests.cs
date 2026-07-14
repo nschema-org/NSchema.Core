@@ -1,16 +1,16 @@
 using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models.Scripts;
 
-namespace NSchema.Tests.Schema.Serialization.Ddl;
+namespace NSchema.Tests.Schema.Serialization.Nsql;
 
 /// <summary>
 /// Covers the change-event side of the SCRIPT statement — the data-migration declarations
 /// (<c>SCRIPT '&lt;name&gt;' RUN ON &lt;change event&gt; &lt;path&gt; AS $$ … $$;</c>).
 /// </summary>
-public sealed class DdlParserMigrationTests
+public sealed class NsqlParserMigrationTests
 {
     private static IReadOnlyList<Script> ReadMigrations(string source) =>
-        new TestDdlParser(source).Parse().Scripts.Where(s => s.Event is ChangeEvent).ToList();
+        new TestNsqlParser(source).Parse().Scripts.Where(s => s.Event is ChangeEvent).ToList();
 
     [Fact]
     public void Parse_AddColumnTrigger_CapturesTriggerAndPathParts()
@@ -155,7 +155,7 @@ public sealed class DdlParserMigrationTests
     public void Parse_TemplateMigrationForUndeclaredTable_IsAccepted()
         // The table may come from another template applied to the same schemas (e.g. a migration rolled out
         // to only some instances); whether the change matches is decided at diff time, not parse time.
-        => Should.NotThrow(() => new TestDdlParser(
+        => Should.NotThrow(() => new TestNsqlParser(
             """
             TEMPLATE t
             BEGIN

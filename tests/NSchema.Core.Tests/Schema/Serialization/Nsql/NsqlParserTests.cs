@@ -4,11 +4,11 @@ using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Sequences;
 
-namespace NSchema.Tests.Schema.Serialization.Ddl;
+namespace NSchema.Tests.Schema.Serialization.Nsql;
 
-public sealed class DdlParserTests
+public sealed class NsqlParserTests
 {
-    private static DatabaseSchema Parse(string source) => new TestDdlParser(source).Parse().Schema;
+    private static DatabaseSchema Parse(string source) => new TestNsqlParser(source).Parse().Schema;
 
 
     private static SchemaDefinition ParseSingleSchema(string source) => Parse(source).Schemas.ShouldHaveSingleItem();
@@ -119,7 +119,7 @@ public sealed class DdlParserTests
 
     [Fact]
     public void Parse_DuplicateSchema_FailsTheRead()
-        => new TestDdlParser("CREATE SCHEMA app; CREATE SCHEMA app;").Project().Errors.ShouldHaveSingleItem()
+        => new TestNsqlParser("CREATE SCHEMA app; CREATE SCHEMA app;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("already declared");
 
     [Fact]
@@ -170,7 +170,7 @@ public sealed class DdlParserTests
 
     [Fact]
     public void Parse_StandaloneIndexDuplicatingInlineName_FailsTheRead()
-        => new TestDdlParser(
+        => new TestNsqlParser(
             "CREATE SCHEMA app; CREATE TABLE app.users (id int NOT NULL, INDEX dup (id)); CREATE INDEX dup ON app.users (id);")
             .Project().Errors.ShouldHaveSingleItem().Message.ShouldContain("already declared");
 
@@ -218,7 +218,7 @@ public sealed class DdlParserTests
 
     [Fact]
     public void Parse_DuplicateView_FailsTheRead()
-        => new TestDdlParser("CREATE SCHEMA app; CREATE VIEW app.v AS SELECT 1 FROM app.t; CREATE VIEW app.v AS SELECT 2 FROM app.t;").Project().Errors.ShouldHaveSingleItem()
+        => new TestNsqlParser("CREATE SCHEMA app; CREATE VIEW app.v AS SELECT 1 FROM app.t; CREATE VIEW app.v AS SELECT 2 FROM app.t;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("already declared");
 
     [Fact]
@@ -286,7 +286,7 @@ public sealed class DdlParserTests
 
     [Fact]
     public void Parse_DuplicateEnum_FailsTheRead()
-        => new TestDdlParser("CREATE SCHEMA app; CREATE ENUM app.e ('a'); CREATE ENUM app.e ('b');").Project().Errors.ShouldHaveSingleItem()
+        => new TestNsqlParser("CREATE SCHEMA app; CREATE ENUM app.e ('a'); CREATE ENUM app.e ('b');").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("already declared");
 
     [Fact]
@@ -351,7 +351,7 @@ public sealed class DdlParserTests
 
     [Fact]
     public void Parse_DuplicateSequence_FailsTheRead()
-        => new TestDdlParser("CREATE SCHEMA app; CREATE SEQUENCE app.q; CREATE SEQUENCE app.q;").Project().Errors.ShouldHaveSingleItem()
+        => new TestNsqlParser("CREATE SCHEMA app; CREATE SEQUENCE app.q; CREATE SEQUENCE app.q;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("already declared");
 
     [Fact]
@@ -435,22 +435,22 @@ public sealed class DdlParserTests
 
     [Fact]
     public void Parse_DuplicateFunction_FailsTheRead()
-        => new TestDdlParser("CREATE SCHEMA app; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 2 $$;").Project().Errors.ShouldHaveSingleItem()
+        => new TestNsqlParser("CREATE SCHEMA app; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 2 $$;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("already declared");
 
     [Fact]
     public void Parse_DuplicateProcedure_FailsTheRead()
-        => new TestDdlParser("CREATE SCHEMA app; CREATE PROCEDURE app.p() AS $$ SELECT 1 $$; CREATE PROCEDURE app.p() AS $$ SELECT 2 $$;").Project().Errors.ShouldHaveSingleItem()
+        => new TestNsqlParser("CREATE SCHEMA app; CREATE PROCEDURE app.p() AS $$ SELECT 1 $$; CREATE PROCEDURE app.p() AS $$ SELECT 2 $$;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("already declared");
 
     [Fact]
     public void Parse_ProcedureNamedLikeAFunction_FailsTheRead()
-        => new TestDdlParser("CREATE SCHEMA app; CREATE FUNCTION app.r() RETURNS int AS $$ SELECT 1 $$; CREATE PROCEDURE app.r() AS $$ SELECT 1 $$;").Project().Errors.ShouldHaveSingleItem()
+        => new TestNsqlParser("CREATE SCHEMA app; CREATE FUNCTION app.r() RETURNS int AS $$ SELECT 1 $$; CREATE PROCEDURE app.r() AS $$ SELECT 1 $$;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("share one name space");
 
     [Fact]
     public void Parse_FunctionNamedLikeAProcedure_FailsTheRead()
-        => new TestDdlParser("CREATE SCHEMA app; CREATE PROCEDURE app.r() AS $$ SELECT 1 $$; CREATE FUNCTION app.r() RETURNS int AS $$ SELECT 1 $$;").Project().Errors.ShouldHaveSingleItem()
+        => new TestNsqlParser("CREATE SCHEMA app; CREATE PROCEDURE app.r() AS $$ SELECT 1 $$; CREATE FUNCTION app.r() RETURNS int AS $$ SELECT 1 $$;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("share one name space");
 
     [Fact]

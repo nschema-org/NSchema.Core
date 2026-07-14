@@ -1,11 +1,11 @@
 using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models.Scripts;
 
-namespace NSchema.Tests.Schema.Serialization.Ddl;
+namespace NSchema.Tests.Schema.Serialization.Nsql;
 
-public sealed class DdlParserScriptTests
+public sealed class NsqlParserScriptTests
 {
-    private static IReadOnlyList<Script> ReadScripts(string source) => new TestDdlParser(source).Parse().Scripts;
+    private static IReadOnlyList<Script> ReadScripts(string source) => new TestNsqlParser(source).Parse().Scripts;
 
     [Fact]
     public void Parse_PreDeployment_CapturesNameBodyAndType()
@@ -69,7 +69,7 @@ public sealed class DdlParserScriptTests
     [Fact]
     public void Parse_ScriptsAndSchema_Coexist()
     {
-        var document = new TestDdlParser(
+        var document = new TestNsqlParser(
             """
             SCRIPT 'pre' RUN ON PRE DEPLOYMENT AS $$ SELECT 1; $$;
             CREATE SCHEMA app;
@@ -83,7 +83,7 @@ public sealed class DdlParserScriptTests
 
     [Fact]
     public void Parse_DeploymentScripts_AreNotPartOfTheSchema()
-        => new TestDdlParser("SCRIPT 'x' RUN ON PRE DEPLOYMENT AS $$ SELECT 1; $$;").Parse().Schema.Schemas.ShouldBeEmpty();
+        => new TestNsqlParser("SCRIPT 'x' RUN ON PRE DEPLOYMENT AS $$ SELECT 1; $$;").Parse().Schema.Schemas.ShouldBeEmpty();
 
     [Fact]
     public void Parse_MissingDeploymentKeyword_Throws()

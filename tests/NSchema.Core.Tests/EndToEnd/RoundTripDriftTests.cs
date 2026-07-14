@@ -17,11 +17,11 @@ public sealed class RoundTripDriftTests
     private readonly SchemaComparer _comparer = new(NullLogger<SchemaComparer>.Instance);
 
     [Fact]
-    public void DdlRoundTrip_OfRichSchema_ProducesNoDiff()
+    public void NsqlRoundTrip_OfRichSchema_ProducesNoDiff()
     {
         // Serialize every domain feature to DDL and read it straight back: the comparer must see no change.
         var original = TestData.RichSchema();
-        var reparsed = new TestDdlParser(NsqlWriter.Write(original)).Parse().Schema;
+        var reparsed = new TestNsqlParser(NsqlWriter.Write(original)).Parse().Schema;
 
         _comparer.Compare(original, reparsed).IsEmpty.ShouldBeTrue();
     }

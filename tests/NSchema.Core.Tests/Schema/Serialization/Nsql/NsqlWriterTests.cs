@@ -17,9 +17,9 @@ using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Domain.Models.Triggers;
 using NSchema.Project.Domain.Models.Views;
 
-namespace NSchema.Tests.Schema.Serialization.Ddl;
+namespace NSchema.Tests.Schema.Serialization.Nsql;
 
-public sealed class DdlWriterTests
+public sealed class NsqlWriterTests
 {
     private static string WriteOneTable(Table table)
         => NsqlWriter.Write(new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), Tables: [table])]));
@@ -152,7 +152,7 @@ public sealed class DdlWriterTests
             Tables: [new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])],
             Views: [new View(new SqlIdentifier("active"), new SqlText("SELECT 1"))])]);
 
-        var reparsed = new TestDdlParser(NsqlWriter.Write(SyntaxBuilder.Build(schema, [], declareSchemas: false))).Parse().Schema;
+        var reparsed = new TestNsqlParser(NsqlWriter.Write(SyntaxBuilder.Build(schema, [], declareSchemas: false))).Parse().Schema;
 
         var app = reparsed.Schemas.ShouldHaveSingleItem();
         app.Tables.ShouldHaveSingleItem().Name.ShouldBe("t");
@@ -177,7 +177,7 @@ public sealed class DdlWriterTests
     public void Write_ThenParse_PreservesModelStructurally()
     {
         var original = TestData.RichSchema();
-        var reparsed = new TestDdlParser(NsqlWriter.Write(original)).Parse().Schema;
+        var reparsed = new TestNsqlParser(NsqlWriter.Write(original)).Parse().Schema;
         Canonical(reparsed).ShouldBe(Canonical(original));
     }
 
@@ -185,7 +185,7 @@ public sealed class DdlWriterTests
     public void Write_IsStableThroughParseRoundTrip()
     {
         var ddl = NsqlWriter.Write(TestData.RichSchema());
-        var reEmitted = NsqlWriter.Write(new TestDdlParser(ddl).Parse().Schema);
+        var reEmitted = NsqlWriter.Write(new TestNsqlParser(ddl).Parse().Schema);
         reEmitted.ShouldBe(ddl);
     }
 
@@ -229,7 +229,7 @@ public sealed class DdlWriterTests
         var schema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
             Tables: [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], Triggers: [trigger])])]);
 
-        var reparsed = new TestDdlParser(NsqlWriter.Write(schema)).Parse().Schema;
+        var reparsed = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Schema;
         var roundTripped = reparsed.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Triggers.ShouldHaveSingleItem();
         roundTripped.ShouldBe(trigger);            // structural equality (excludes the comment)
         roundTripped.Comment.ShouldBe("note");     // ... so assert the comment round-tripped too
@@ -250,7 +250,7 @@ public sealed class DdlWriterTests
         var schema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"),
             Tables: [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], Triggers: [trigger])])]);
 
-        var reparsed = new TestDdlParser(NsqlWriter.Write(schema)).Parse().Schema;
+        var reparsed = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Schema;
         var roundTripped = reparsed.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Triggers.ShouldHaveSingleItem();
         roundTripped.ShouldBe(trigger);
         roundTripped.Body.ShouldBe(trigger.Body);
@@ -291,7 +291,7 @@ public sealed class DdlWriterTests
     {
         var schema = new DatabaseSchema(Extensions:
             [new Extension(new SqlIdentifier("citext")), new Extension(new SqlIdentifier("uuid-ossp"), Comment: "ids"), new Extension(new SqlIdentifier("postgis"), Version: "3.4")]);
-        var reparsed = new TestDdlParser(NsqlWriter.Write(schema)).Parse().Schema;
+        var reparsed = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Schema;
         reparsed.Extensions.ShouldBe(schema.Extensions);
     }
 
@@ -312,8 +312,8 @@ public sealed class DdlWriterTests
     public void Write_View_RoundTripsThroughParse()
     {
         var source = "CREATE SCHEMA app;\n\nCREATE VIEW app.active AS SELECT id, name FROM app.users WHERE active;\n";
-        var reEmitted = NsqlWriter.Write(new TestDdlParser(source).Parse().Schema);
-        var reparsed = new TestDdlParser(reEmitted).Parse().Schema;
+        var reEmitted = NsqlWriter.Write(new TestNsqlParser(source).Parse().Schema);
+        var reparsed = new TestNsqlParser(reEmitted).Parse().Schema;
 
         var view = reparsed.Schemas.ShouldHaveSingleItem().Views.ShouldHaveSingleItem();
         view.Name.ShouldBe("active");
@@ -351,7 +351,7 @@ public sealed class DdlWriterTests
             Domains: [new DomainDefinition(new SqlIdentifier("email"), SqlType.Text, Default: new SqlText("'x@y'"), NotNull: true,
                 Checks: [new CheckConstraint(new SqlIdentifier("email_fmt"), new SqlText("VALUE ~ '@'"))], OldName: new SqlIdentifier("addr"), Comment: "an email")])]);
 
-        var domain = new TestDdlParser(NsqlWriter.Write(schema)).Parse().Schema
+        var domain = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Schema
             .Schemas.ShouldHaveSingleItem().Domains.ShouldHaveSingleItem();
         domain.DataType.ShouldBe(SqlType.Text);
         domain.NotNull.ShouldBeTrue();
@@ -381,7 +381,7 @@ public sealed class DdlWriterTests
             CompositeTypes: [new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text), new CompositeField(new SqlIdentifier("zip"), SqlType.Int)],
                 OldName: new SqlIdentifier("legacy_address"), Comment: "a postal address")])]);
 
-        var type = new TestDdlParser(NsqlWriter.Write(schema)).Parse().Schema
+        var type = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Schema
             .Schemas.ShouldHaveSingleItem().CompositeTypes.ShouldHaveSingleItem();
         type.Name.ShouldBe("address");
         type.Fields.Count.ShouldBe(2);
@@ -413,7 +413,7 @@ public sealed class DdlWriterTests
             Views: [new View(new SqlIdentifier("daily"), new SqlText("SELECT x FROM app.t"), IsMaterialized: true,
                 Indexes: [new TableIndex(new SqlIdentifier("daily_ix"), ["x"])])])]);
 
-        var view = new TestDdlParser(NsqlWriter.Write(schema)).Parse().Schema
+        var view = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Schema
             .Schemas.ShouldHaveSingleItem().Views.ShouldHaveSingleItem();
         view.IsMaterialized.ShouldBeTrue();
         view.Indexes.ShouldHaveSingleItem().Name.ShouldBe("daily_ix");

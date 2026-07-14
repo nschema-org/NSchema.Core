@@ -2,15 +2,15 @@ using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Domains;
 
-namespace NSchema.Tests.Schema.Serialization.Ddl;
+namespace NSchema.Tests.Schema.Serialization.Nsql;
 
 /// <summary>
 /// Parser coverage for <c>CREATE DOMAIN s.d AS &lt;type&gt; [NOT NULL] [CONSTRAINT n CHECK (e)]… [DEFAULT expr]</c>.
 /// </summary>
-public sealed class DdlParserDomainTests
+public sealed class NsqlParserDomainTests
 {
     private static DomainDefinition ParseDomain(string sql) =>
-        new TestDdlParser("CREATE SCHEMA app; " + sql).Parse().Schema
+        new TestNsqlParser("CREATE SCHEMA app; " + sql).Parse().Schema
             .Schemas.ShouldHaveSingleItem().Domains.ShouldHaveSingleItem();
 
     [Fact]
@@ -61,22 +61,22 @@ public sealed class DdlParserDomainTests
 
     [Fact]
     public void Parse_DropDomain_RecordsDroppedDomain()
-        => ShouldlyIdentifierExtensions.ShouldBe(new TestDdlParser("CREATE SCHEMA app; DROP DOMAIN app.typeid;").Parse().Schema
+        => ShouldlyIdentifierExtensions.ShouldBe(new TestNsqlParser("CREATE SCHEMA app; DROP DOMAIN app.typeid;").Parse().Schema
                 .Schemas.ShouldHaveSingleItem().DroppedDomains.ShouldHaveSingleItem(), "typeid");
 
     [Fact]
     public void Parse_DuplicateDomain_FailsTheRead()
-        => new TestDdlParser("CREATE SCHEMA app; CREATE DOMAIN app.d AS text; CREATE DOMAIN app.d AS int;").Project().Errors.ShouldHaveSingleItem()
+        => new TestNsqlParser("CREATE SCHEMA app; CREATE DOMAIN app.d AS text; CREATE DOMAIN app.d AS int;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("already declared");
 
     [Fact]
     public void Parse_PartialDomain_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => new TestDdlParser("CREATE PARTIAL DOMAIN app.d AS text;").Parse())
+        => Should.Throw<NsqlSyntaxException>(() => new TestNsqlParser("CREATE PARTIAL DOMAIN app.d AS text;").Parse())
             .Message.ShouldContain("PARTIAL applies to SCHEMA");
 
     [Fact]
     public void Parse_UnknownClause_Throws()
         => Should.Throw<NsqlSyntaxException>(() =>
-            new TestDdlParser("CREATE SCHEMA app; CREATE DOMAIN app.d AS text WIBBLE;").Parse())
+            new TestNsqlParser("CREATE SCHEMA app; CREATE DOMAIN app.d AS text WIBBLE;").Parse())
             .Message.ShouldContain("Expected NOT NULL, NULL, CONSTRAINT");
 }

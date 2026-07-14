@@ -2,16 +2,16 @@ using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Indexes;
 
-namespace NSchema.Tests.Schema.Serialization.Ddl;
+namespace NSchema.Tests.Schema.Serialization.Nsql;
 
 /// <summary>
 /// Parser coverage for the richer index grammar: <c>USING method</c>, <c>INCLUDE (cols)</c>, per-key
 /// <c>ASC</c>/<c>DESC</c> and <c>NULLS FIRST</c>/<c>NULLS LAST</c>, and parenthesised expression keys.
 /// </summary>
-public sealed class DdlParserIndexDepthTests
+public sealed class NsqlParserIndexDepthTests
 {
     private static TableIndex ParseIndex(string statement) =>
-        new TestDdlParser("CREATE TABLE app.t (a int, b int); " + statement).Parse().Schema
+        new TestNsqlParser("CREATE TABLE app.t (a int, b int); " + statement).Parse().Schema
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Indexes.ShouldHaveSingleItem();
 
     [Fact]
@@ -58,7 +58,7 @@ public sealed class DdlParserIndexDepthTests
     [Fact]
     public void Parse_InlineIndexWithMethodAndInclude_IsCaptured()
     {
-        var index = new TestDdlParser("CREATE TABLE app.t (a int, b int, INDEX t_ix USING gin (a) INCLUDE (b));").Parse().Schema
+        var index = new TestNsqlParser("CREATE TABLE app.t (a int, b int, INDEX t_ix USING gin (a) INCLUDE (b));").Parse().Schema
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Indexes.ShouldHaveSingleItem();
         index.Method.ShouldBe("gin");
         index.Include.ShouldBe(["b"]);
@@ -69,9 +69,9 @@ public sealed class DdlParserIndexDepthTests
     {
         const string ddl = "CREATE TABLE app.t (a int, b int, c int);\n" +
             "CREATE UNIQUE INDEX t_ix ON app.t USING btree (c DESC NULLS LAST, (lower(a))) INCLUDE (b) WHERE (c IS NOT NULL);";
-        var schema = new TestDdlParser(ddl).Parse().Schema;
+        var schema = new TestNsqlParser(ddl).Parse().Schema;
 
-        var reparsed = new TestDdlParser(NsqlWriter.Write(schema)).Parse().Schema
+        var reparsed = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Schema
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Indexes.ShouldHaveSingleItem();
         reparsed.IsUnique.ShouldBeTrue();
         reparsed.Method.ShouldBe("btree");

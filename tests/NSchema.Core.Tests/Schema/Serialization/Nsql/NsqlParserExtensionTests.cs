@@ -1,15 +1,15 @@
 using NSchema.Project.Nsql;
 using NSchema.Project.Domain.Models;
 
-namespace NSchema.Tests.Schema.Serialization.Ddl;
+namespace NSchema.Tests.Schema.Serialization.Nsql;
 
 /// <summary>
 /// Parser coverage for the database-global <c>CREATE EXTENSION</c> / <c>DROP EXTENSION</c> statements. Extensions
 /// live at the root of the parsed <see cref="DatabaseSchema"/>, not inside a schema.
 /// </summary>
-public sealed class DdlParserExtensionTests
+public sealed class NsqlParserExtensionTests
 {
-    private static DatabaseSchema Parse(string source) => new TestDdlParser(source).Parse().Schema;
+    private static DatabaseSchema Parse(string source) => new TestNsqlParser(source).Parse().Schema;
 
     [Fact]
     public void Parse_CreateExtension_Bare_RecordsRootLevelExtension()
@@ -52,7 +52,7 @@ public sealed class DdlParserExtensionTests
 
     [Fact]
     public void Parse_DuplicateExtension_FailsTheRead()
-        => new TestDdlParser("CREATE EXTENSION citext; CREATE EXTENSION citext;")
+        => new TestNsqlParser("CREATE EXTENSION citext; CREATE EXTENSION citext;")
             .Project().Errors.ShouldHaveSingleItem().Message.ShouldContain("already declared");
 
     [Fact]
