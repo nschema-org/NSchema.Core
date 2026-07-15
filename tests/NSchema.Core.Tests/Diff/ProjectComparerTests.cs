@@ -194,15 +194,15 @@ public sealed class ProjectComparerTests
     }
 
     [Fact]
-    public void CompareTeardown_DiffsManagedSchemaAgainstEmpty_WithNoScripts()
+    public void Compare_AgainstAnEmptyProject_RemovesEverything_WithNoScripts()
     {
-        // Arrange
-        var managed = new Database([new Schema(new SqlIdentifier("app"))]);
+        // Arrange — a teardown is not a third kind of compare: it is the recorded schema against nothing.
+        var current = new CurrentState(new Database([new Schema(new SqlIdentifier("app"))]));
 
         // Act
-        var diff = Sut.CompareTeardown(managed);
+        var diff = Sut.Compare(current, new ProjectDefinition(new Database())).Require();
 
-        // Assert — the managed schema diffs against nothing (a full teardown), carrying no scripts.
+        // Assert
         diff.Schemas.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
         diff.AllScripts().ShouldBeEmpty();
     }

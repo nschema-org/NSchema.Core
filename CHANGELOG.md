@@ -25,6 +25,9 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **Cohesive plan artifact.** There's now a single `MigrationPlan` model that represents the plan in its entirety rather than being spread across `SqlPlan`, `PlannedMigration`, etc.
 - **Providers are required.** Providers are now required for planning, because the SQL is built into the plan model.
 - **Plan errors are non-blocking.** Even when the plan has errors, you can now still access the resultant plan.
+- **Planning always diffs recorded state against the project.** There is no longer an option to plan against the live database.
+- **A teardown is a plan towards an empty schema.** `PlanTarget.Empty` replaces `PlanTarget.Teardown`, and it obeys `PlanArguments.Scope` like any other plan.
+- **Teardown plans run the policies.** A teardown is fully destructive, so the default destructive-action policy blocks it; the blocked result still carries the complete plan. Set the destructive-action enforcement to `Allow` to apply one.
 - **Policies are enforced at apply.** `Apply` now re-runs all policies against the plan diff before executing.
 - **Policies now cover project and plan.** `IProjectPolicy` replaces `ISchemaPolicy` and `IPlanPolicy` replaces `IDiffPolicy`.
 - **`ISqlDialect` replaces `ISqlGenerator`.** (registered with `UseSqlDialect<T>()`).

@@ -31,7 +31,7 @@ public sealed class PlanEndToEndTests : IDisposable
     {
         var builder = NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions());
         builder.Services.AddSingleton<IDatabaseIntrospector>(new InMemoryIntrospector(current));
-        // Planning requires a state store; these tests diff against the live provider, so an empty in-memory one suffices.
+        // Planning requires a state store; nothing here needs to outlive the app, so an in-memory one suffices.
         builder.UseEphemeralState();
         return builder;
     }
@@ -59,7 +59,9 @@ public sealed class PlanEndToEndTests : IDisposable
 
         using var app = NewBuilder(current).AddProjectSource(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).UseSqlDialect<StubSqlDialect>().Build();
 
-        var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
+        // A plan diffs recorded state against the project, so the refresh is what puts the current schema on record.
+        (await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Project }, TestContext.Current.CancellationToken);
 
         var schema = result.Value.ShouldNotBeNull().Plan.ShouldNotBeNull().Diff.Schemas.ShouldHaveSingleItem();
         schema.Name.ShouldBe("app");
@@ -90,7 +92,8 @@ public sealed class PlanEndToEndTests : IDisposable
 
         using var app = NewBuilder(schema).AddProjectSource(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).UseSqlDialect<StubSqlDialect>().Build();
 
-        var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
+        (await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Project }, TestContext.Current.CancellationToken);
 
         result.Value.ShouldNotBeNull().Plan.ShouldNotBeNull().Diff.IsEmpty.ShouldBeTrue();
     }
@@ -106,7 +109,7 @@ public sealed class PlanEndToEndTests : IDisposable
             .UseSqlDialect<StubSqlDialect>()
             .Build();
 
-        var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
+        var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Project }, TestContext.Current.CancellationToken);
 
         // The stub emits one statement per action; creating a schema yields a CreateSchema action.
         result.Value.ShouldNotBeNull().Plan.ShouldNotBeNull().Statements.ShouldNotBeEmpty();
@@ -145,7 +148,12 @@ public sealed class PlanEndToEndTests : IDisposable
         using var app = NewBuilder(current).AddProjectSource(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).UseSqlDialect<StubSqlDialect>().Build();
         (await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
 
-        var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Teardown }, TestContext.Current.CancellationToken);
+        var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Empty }, TestContext.Current.CancellationToken);
+
+        // A teardown is fully destructive, so the default policy blocks it — it must stay possible, but it does
+        // not have to be easy. The block still carries the complete artifact, so review loses nothing.
+        result.IsFailure.ShouldBeTrue();
+        result.Errors.ShouldContain(d => d.Source == "destructive-actions");
 
         // The teardown plan drops the managed table.
         var schema = result.Value.ShouldNotBeNull().Plan.ShouldNotBeNull().Diff.Schemas.ShouldHaveSingleItem();

@@ -11,14 +11,7 @@ internal sealed class PlanOperation(IMigrationWorkflow workflow, IPlanFileManage
 {
     public async Task<Result<PlanResult>> Execute(PlanArguments args, CancellationToken cancellationToken = default)
     {
-        // A teardown reads the managed (recorded) schema; a preview reads the recorded state; an apply must read
-        // the live database.
-        var planned = args.Target switch
-        {
-            PlanTarget.Teardown => await workflow.ComputeTeardown(cancellationToken),
-            PlanTarget.Live => await workflow.ComputePlan(SourceMode.Live, args.Scope, cancellationToken),
-            _ => await workflow.ComputePlan(SourceMode.Recorded, args.Scope, cancellationToken),
-        };
+        var planned = await workflow.ComputePlan(args.Target, args.Scope, cancellationToken);
 
         if (planned.Value is { } plan && args.OutFile is not null)
         {

@@ -17,10 +17,4 @@ internal interface IProjectComparer
     /// <param name="desired">The desired project: the schema plus the declared scripts.</param>
     /// <returns>The complete difference — always produced and carried, with any findings raised while computing it.</returns>
     Result<DatabaseDiff> Compare(CurrentState current, ProjectDefinition desired);
-
-    /// <summary>
-    /// Computes the teardown difference: everything in <paramref name="database"/> removed, no scripts.
-    /// </summary>
-    /// <param name="database">The managed schema to tear down.</param>
-    DatabaseDiff CompareTeardown(Database database);
 }

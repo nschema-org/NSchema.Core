@@ -36,8 +36,6 @@ internal sealed class ProjectComparer(IDatabaseComparer comparer) : IProjectComp
         return Result.From(diff with { DeploymentScripts = deploymentScripts.Require() }, diagnostics);
     }
 
-    public DatabaseDiff CompareTeardown(Database database) => comparer.Compare(database, new Database(), ProjectDirectives.Empty);
-
     private static IEnumerable<Diagnostic> ValidateRenameDirectives(Database currentSchema, ProjectDirectives directives)
     {
         var current = new DatabaseLookup(currentSchema);

@@ -59,7 +59,7 @@ Conventions that ride along:
   expander, the hashing and token services) is a static class — parameterization, if it comes, is arguments, not instance state.
   A type is constructed only when instances genuinely differ (a parser's cursor, a configured backend). No `Instance`/`Default`
   singletons: they leave two spellings of every call and commit to nothing.
-- **Two outcome shapes, and never `!`.** Total and silent → bare `T` (`CompareTeardown`, the structural comparer, the linearizer). Anything with
+- **Two outcome shapes, and never `!`.** Total and silent → bare `T` (the structural comparer, the linearizer). Anything with
   findings or failure → `Result<T>` (an all-quiet `Result` is noise; a bare return documents totality). A consumer never uses the null-forgiving
   operator on `Value`: either check honestly (`is not { } x` → propagate) or, where a *producer-side invariant* says the value is always carried
   (the project comparer's `Compare`), call `Require()` — a violated invariant then fails loudly at the consumption site, naming the diagnostics,
