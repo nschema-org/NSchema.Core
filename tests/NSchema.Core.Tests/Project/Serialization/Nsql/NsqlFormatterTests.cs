@@ -351,7 +351,7 @@ public sealed class NsqlFormatterTests
         // Regression: dangling comments after the final member must not be flattened onto one line.
         const string input =
             """
-            PROVIDER postgres (
+            DATABASE postgres (
               connection_string = ''
               -- credentials may come from the environment
               -- and override the connection string
@@ -367,7 +367,7 @@ public sealed class NsqlFormatterTests
         // A genuinely same-line comment on the last member stays inline (the fix must not move it to its own line).
         const string input =
             """
-            BACKEND file (
+            STATE file (
               path = './state.json'  -- where state lives
             );
             """;

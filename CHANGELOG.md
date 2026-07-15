@@ -35,7 +35,8 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **Opaque SQL is `SqlText` now.** Every schema-model field carrying SQL that NSchema stores verbatim but does not interpret is typed `SqlText` instead of `string`.
 - **`PolicyEnforcement` absorbs `DestructiveActionPolicy`.** `WithDestructiveActionPolicy` takes the shared enum, gaining `Ignore`.
 - **The state ledger field is `scripts` now.** Pre-5.0 `executedScripts` payloads read as an empty ledger. Refresh (or untaint) existing state under the state-format compatibility policy's major-version rules.
-- **Configuration lives in configuration files.** BACKEND and PROVIDER statements now parse under their own grammar. A configuration file holds only configuration statements, and vice versa.
+- **Configuration lives in configuration files.** DATABASE and STATE statements now parse under their own grammar. A configuration file holds only configuration statements, and vice versa.
+- **`DATABASE` and `STATE` replace `PROVIDER` and `BACKEND`.** Each names the thing it configures rather than the role that supplies it.
 - **Plugins receive `PluginSettings`.** `INSchemaProviderPlugin`/`INSchemaBackendPlugin.Configure` take a typed `PluginSettings` (label + attributes, translated from the parsed statement via `PluginSettings.From`).
 - **`NsqlReader` replaces `DdlReader` and diagnostics are structural.** `NsqlReader.Read`/`ReadFile` return `Result<NsqlDocument, NsqlDiagnostic>`, the new diagnostic-typed result, with each finding carrying its source position.
 - **`DdlReader.Read` returns `Result<DdlDocument>`.** A syntax error is an error diagnostic instead of a thrown exception, and the parser now recovers at statement boundaries.

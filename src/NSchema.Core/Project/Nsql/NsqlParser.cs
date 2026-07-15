@@ -119,7 +119,7 @@ internal sealed partial class NsqlParser
         {
             return ParsePartial(doc);
         }
-        if (_current.IsKeyword("BACKEND") || _current.IsKeyword("PROVIDER"))
+        if (_current.IsKeyword("DATABASE") || _current.IsKeyword("STATE"))
         {
             throw Error($"'{_current.Text.ToUpperInvariant()}' is a configuration statement; configuration lives in the project's configuration files, not among schema statements.");
         }
