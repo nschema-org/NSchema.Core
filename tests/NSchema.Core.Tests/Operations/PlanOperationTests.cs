@@ -21,57 +21,49 @@ public sealed class PlanOperationTests
 
     public PlanOperationTests()
     {
-        var planned = Result.Success(_plan);
-        _workflow.ComputePlan(Arg.Any<SourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>()).Returns(planned);
-        _workflow.ComputeTeardown(Arg.Any<CancellationToken>()).Returns(planned);
+        _workflow.ComputePlan(Arg.Any<PlanTarget>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(_plan));
 
         _sut = new PlanOperation(_workflow, _planFile);
     }
 
-    private static PlanArguments Args(PlanTarget target = PlanTarget.Recorded, SchemaScope? scope = null, string? outFile = null) =>
+    private static PlanArguments Args(PlanTarget target = PlanTarget.Project, SchemaScope? scope = null, string? outFile = null) =>
         new() { Target = target, Scope = scope ?? SchemaScope.All, OutFile = outFile };
 
-    [Fact]
-    public async Task Execute_Live_ComputesOnlinePlan_Required()
+    [Theory]
+    [InlineData(PlanTarget.Project)]
+    [InlineData(PlanTarget.Empty)]
+    public async Task Execute_ForwardsTargetToComputePlan(PlanTarget target)
     {
-        // Act
-        await _sut.Execute(Args(PlanTarget.Live), TestContext.Current.CancellationToken);
-
-        // Assert — an apply-bound plan must read the live database.
-        await _workflow.Received(1).ComputePlan(SourceMode.Live, Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Execute_Recorded_ComputesOfflinePlan_WithLiveFallback()
-    {
-        // Act
-        await _sut.Execute(Args(), TestContext.Current.CancellationToken);
-
-        // Assert — a preview prefers the recorded state but may fall back, so it is not required.
-        await _workflow.Received(1).ComputePlan(SourceMode.Recorded, Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Execute_Teardown_ComputesTeardown_NotAPlan()
-    {
-        // Act
-        await _sut.Execute(Args(PlanTarget.Teardown), TestContext.Current.CancellationToken);
+        // Act — a teardown is not a separate operation shape; it is the same plan path with an empty target.
+        await _sut.Execute(Args(target), TestContext.Current.CancellationToken);
 
         // Assert
-        await _workflow.Received(1).ComputeTeardown(Arg.Any<CancellationToken>());
-        await _workflow.DidNotReceive().ComputePlan(Arg.Any<SourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
+        await _workflow.Received(1).ComputePlan(target, Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Execute_ForwardsScopeToComputePlan()
     {
         // Act
-        await _sut.Execute(Args(PlanTarget.Live, scope: SchemaScope.Of(new SqlIdentifier("app"), new SqlIdentifier("legacy"))), TestContext.Current.CancellationToken);
+        await _sut.Execute(Args(scope: SchemaScope.Of(new SqlIdentifier("app"), new SqlIdentifier("legacy"))), TestContext.Current.CancellationToken);
 
         // Assert
         await _workflow.Received(1).ComputePlan(
-            Arg.Any<SourceMode>(),
+            Arg.Any<PlanTarget>(),
             Arg.Is<SchemaScope>(s => !s!.IsAll && s.Includes(new SqlIdentifier("app")) && s.Includes(new SqlIdentifier("legacy"))), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Execute_Teardown_ForwardsScopeToComputePlan()
+    {
+        // Act — scoping is no longer special-cased: a teardown narrows like any other plan.
+        await _sut.Execute(Args(PlanTarget.Empty, scope: SchemaScope.Of(new SqlIdentifier("app"))), TestContext.Current.CancellationToken);
+
+        // Assert
+        await _workflow.Received(1).ComputePlan(
+            PlanTarget.Empty,
+            Arg.Is<SchemaScope>(s => !s!.IsAll && s.Includes(new SqlIdentifier("app"))), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -104,7 +96,7 @@ public sealed class PlanOperationTests
     {
         // Arrange — a policy blocks the plan; the failure still carries the full artifact so the offending
         // change (and its SQL) stays visible.
-        _workflow.ComputePlan(Arg.Any<SourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
+        _workflow.ComputePlan(Arg.Any<PlanTarget>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.From(_plan, [Diagnostic.Error("destructive", "drops table")]));
 
         // Act
@@ -121,7 +113,7 @@ public sealed class PlanOperationTests
     {
         // Arrange — the file is a review artifact, not a bypass: apply enforces the policies again against the
         // carried diff, so writing a blocked plan is safe and the failing result reports the block.
-        _workflow.ComputePlan(Arg.Any<SourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
+        _workflow.ComputePlan(Arg.Any<PlanTarget>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.From(_plan, [Diagnostic.Error("destructive", "drops table")]));
 
         // Act
@@ -136,7 +128,7 @@ public sealed class PlanOperationTests
     public async Task Execute_WhenPlanningProducesNoValue_CarriesNoPlan()
     {
         // Arrange — planning could not run at all (e.g. no provider registered).
-        _workflow.ComputePlan(Arg.Any<SourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
+        _workflow.ComputePlan(Arg.Any<PlanTarget>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<MigrationPlan>(Diagnostic.Error("plan", "no provider")));
 
         // Act

@@ -59,9 +59,10 @@ public sealed class ApplyEndToEndTests : IDisposable
 
         using var app = BuildApp(current, desired);
 
-        // The CLI-style flow: hold the lock, compute the live plan, apply it, release.
+        // The CLI-style flow: hold the lock, refresh so state reflects the live database, plan, apply, release.
         (await app.Locks.Acquire(new AcquireLockArguments("apply"), cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
-        var plan = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
+        (await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        var plan = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Project }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
         await app.Operations.Apply(new ApplyArguments { Plan = plan.Plan! }, TestContext.Current.CancellationToken);
 
         // The plan reached the executor as a non-empty SQL plan.
@@ -95,7 +96,8 @@ public sealed class ApplyEndToEndTests : IDisposable
         using var app = BuildApp(current, desired);
 
         (await app.Locks.Acquire(new AcquireLockArguments("apply"), cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
-        var plan = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
+        (await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        var plan = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Project }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
         await app.Operations.Apply(new ApplyArguments { Plan = plan.Plan! }, TestContext.Current.CancellationToken);
 
         // The add was decomposed around the backfill: nullable add, the block's SQL, then the tighten — in order.
@@ -138,7 +140,8 @@ public sealed class ApplyEndToEndTests : IDisposable
         using var app = BuildApp(current, desired);
 
         (await app.Locks.Acquire(new AcquireLockArguments("apply"), cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
-        var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
+        (await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Project }, TestContext.Current.CancellationToken);
         var plan = result.Value.ShouldNotBeNull();
         await app.Operations.Apply(new ApplyArguments { Plan = plan.Plan! }, TestContext.Current.CancellationToken);
 
@@ -175,7 +178,8 @@ public sealed class ApplyEndToEndTests : IDisposable
         // First run: the pending script is planned, executed, and recorded (the CLI-style flow threads
         // plan.RunOnceScripts into the apply).
         (await app.Locks.Acquire(new AcquireLockArguments("apply"), cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
-        var first = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
+        (await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        var first = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Project }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
         first.Plan!.Statements.Select(s => s.Sql).ShouldContain(new SqlText("INSERT INTO app.currencies VALUES ('GBP');"));
         ShouldlyIdentifierExtensions.ShouldBe(first.Plan!.Diff.AllScripts().ShouldHaveSingleItem().Name, "seed_currencies");
         await app.Operations.Apply(new ApplyArguments { Plan = first.Plan! }, TestContext.Current.CancellationToken);
@@ -183,7 +187,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         ShouldlyIdentifierExtensions.ShouldBe(_store.Written.ShouldNotBeNull().Scripts.ShouldHaveSingleItem().Script.Name, "seed_currencies");
 
         // Second run: the script is skipped, and no longer up for recording.
-        var second = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
+        var second = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Project }, TestContext.Current.CancellationToken);
         second.Value!.Plan!.Statements.Select(s => s.Sql).ShouldNotContain(new SqlText("INSERT INTO app.currencies VALUES ('GBP');"));
         second.Value!.Plan!.Diff.AllScripts().ShouldBeEmpty();
         second.Diagnostics.ShouldBeEmpty();
@@ -206,7 +210,8 @@ public sealed class ApplyEndToEndTests : IDisposable
         using var app = BuildApp(schema, desired);
 
         (await app.Locks.Acquire(new AcquireLockArguments("apply"), cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
-        var plan = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
+        (await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        var plan = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Project }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
         // The plan carries an empty diff/sql: there is nothing to apply.
         plan.Plan.ShouldNotBeNull().Diff.IsEmpty.ShouldBeTrue();
         plan.Plan!.IsEmpty.ShouldBeTrue();

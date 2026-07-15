@@ -8,8 +8,7 @@ namespace NSchema.Operations;
 public sealed record PlanArguments
 {
     /// <summary>
-    /// The schemas to scope the plan to. When <see langword="null"/>, scope is derived from the desired schema.
-    /// Ignored for a <see cref="PlanTarget.Teardown"/>, which is unscoped.
+    /// The schemas to scope the plan to. When unrestricted, scope is derived from the schemas under management.
     /// </summary>
     public SchemaScope Scope { get; init; } = SchemaScope.All;
 
@@ -19,8 +18,7 @@ public sealed record PlanArguments
     public string? OutFile { get; init; }
 
     /// <summary>
-    /// What to plan. Defaults to <see cref="PlanTarget.Recorded"/> (a preview); an apply uses
-    /// <see cref="PlanTarget.Live"/>, and a teardown uses <see cref="PlanTarget.Teardown"/>.
+    /// The state to plan towards.
     /// </summary>
-    public PlanTarget Target { get; init; } = PlanTarget.Recorded;
+    public PlanTarget Target { get; init; } = PlanTarget.Project;
 }

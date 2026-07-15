@@ -17,18 +17,12 @@ internal interface IMigrationWorkflow
     Task<Result> Validate(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Loads the desired and current schemas and computes the migration plan.
+    /// Loads the recorded state and computes the plan migrating it to <paramref name="target"/>.
     /// </summary>
-    /// <param name="currentSource">Which source to read the current schema from.</param>
+    /// <param name="target">The state to plan towards.</param>
     /// <param name="scope">The schemas under management this run.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<Result<MigrationPlan>> ComputePlan(SourceMode currentSource, SchemaScope scope, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Computes the teardown plan for the managed schema.
-    /// </summary>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<Result<MigrationPlan>> ComputeTeardown(CancellationToken cancellationToken = default);
+    Task<Result<MigrationPlan>> ComputePlan(PlanTarget target, SchemaScope scope, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Updates the state store from the live schema.

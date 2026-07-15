@@ -37,7 +37,7 @@ internal sealed class MigrationWorkflow(
         return Result.From(projectResult.Diagnostics.Concat(planner.Validate(project).Diagnostics));
     }
 
-    public async Task<Result<MigrationPlan>> ComputePlan(SourceMode currentSource, SchemaScope scope, CancellationToken cancellationToken = default)
+    public async Task<Result<MigrationPlan>> ComputePlan(PlanTarget target, SchemaScope scope, CancellationToken cancellationToken = default)
     {
         // The diff is computed against CurrentState — the schema plus the run-once ledger — so planning without
         // a store would plan against knowingly incomplete current state.
@@ -46,20 +46,19 @@ internal sealed class MigrationWorkflow(
             return Result.Failure<MigrationPlan>(WorkflowDiagnostics.StoreRequiredForPlanning);
         }
 
-        progress.Report(OperationProgress.Step("Loading desired schema..."));
-        var desired = await projectProvider.GetProject(scope, cancellationToken);
+        var desired = await ResolveDesired(target, scope, cancellationToken);
         if (desired.Value is not { } project)
         {
             return Result.Failure<MigrationPlan>(desired.Diagnostics);
         }
-        // An unrestricted run derives its scope from the project.
+
+        // An unrestricted run derives its scope from what it manages. A teardown declares nothing, so it stays
+        // unrestricted and covers everything recorded.
         var scopeInEffect = scope.IsAll ? SchemaScope.Of(project.ManagedSchemaNames) : scope;
-        ReportDesiredDetail(project);
 
         progress.Report(OperationProgress.Step($"Migration will be scoped to the following schemas: {Describe(scopeInEffect)}"));
 
-        // One state read serves both halves of the current side: the recorded database (when planning against
-        // recorded state) and the run-once ledger (always).
+        // One state read serves both halves of the current side: the recorded database and the run-once ledger.
         var read = await stateManager.Read(new StateReadArguments(), cancellationToken);
         if (read.IsFailure)
         {
@@ -67,17 +66,10 @@ internal sealed class MigrationWorkflow(
         }
         var state = read.Value.State ?? DatabaseState.Empty;
 
-        progress.Report(OperationProgress.Step("Loading provider schema..."));
-        var currentRead = currentSource == SourceMode.Live
-            ? await databaseProvider.GetDatabase(scopeInEffect, cancellationToken)
-            : Result.Success(ScopeFilter.Apply(state.Database, scopeInEffect));
-        if (currentRead.Value is not { } currentSchema)
-        {
-            return Result.Failure<MigrationPlan>(desired.Diagnostics.Concat(read.Diagnostics).Concat(currentRead.Diagnostics));
-        }
-        progress.Report(OperationProgress.Detail($"Current schema ({currentSource.ToString().ToLowerInvariant()}): {StatusHelpers.Describe(currentSchema)}."));
+        var currentSchema = ScopeFilter.Apply(state.Database, scopeInEffect);
+        progress.Report(OperationProgress.Detail($"Current schema: {StatusHelpers.Describe(currentSchema)}."));
 
-        var readDiagnostics = new List<Diagnostic>(desired.Diagnostics.Concat(read.Diagnostics).Concat(currentRead.Diagnostics));
+        var readDiagnostics = new List<Diagnostic>(desired.Diagnostics.Concat(read.Diagnostics));
 
         progress.Report(OperationProgress.Step("Computing migration plan..."));
 
@@ -93,25 +85,6 @@ internal sealed class MigrationWorkflow(
         return plan.Value is { } value
             ? Result.From(value, diagnostics)
             : Result.Failure<MigrationPlan>(diagnostics);
-    }
-
-    public async Task<Result<MigrationPlan>> ComputeTeardown(CancellationToken cancellationToken = default)
-    {
-        if (!stateManager.IsConfigured)
-        {
-            return Result.Failure<MigrationPlan>(WorkflowDiagnostics.StoreRequiredForPlanning);
-        }
-
-        // The managed schema is the recorded state — state is the record of what NSchema manages, so a teardown
-        // reads it and nothing else. An empty record means nothing is managed, and the teardown is empty.
-        var read = await stateManager.Read(new StateReadArguments(), cancellationToken);
-        if (read.IsFailure)
-        {
-            return Result.Failure<MigrationPlan>(read.Diagnostics);
-        }
-
-        progress.Report(OperationProgress.Step("Computing teardown plan..."));
-        return planner.PlanTeardown((read.Value.State ?? DatabaseState.Empty).Database);
     }
 
     public async Task<Result<StateCapture>> Refresh(MigrationPlan? applied = null, bool force = false, CancellationToken cancellationToken = default)
@@ -164,6 +137,26 @@ internal sealed class MigrationWorkflow(
         }
 
         return Result.Success(new StateCapture(schema, write.PayloadSize), diagnostics);
+    }
+
+    /// <summary>
+    /// Resolves the state being planned towards: the declared project, or nothing for a teardown.
+    /// </summary>
+    private async Task<Result<ProjectDefinition>> ResolveDesired(PlanTarget target, SchemaScope scope, CancellationToken cancellationToken)
+    {
+        if (target == PlanTarget.Empty)
+        {
+            return Result.Success(new ProjectDefinition(new Database()));
+        }
+
+        progress.Report(OperationProgress.Step("Loading desired schema..."));
+        var desired = await projectProvider.GetProject(scope, cancellationToken);
+        if (desired.Value is { } project)
+        {
+            ReportDesiredDetail(project);
+        }
+
+        return desired;
     }
 
     private static string Describe(SchemaScope scope) =>

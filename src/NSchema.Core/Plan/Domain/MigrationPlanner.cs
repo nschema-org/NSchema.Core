@@ -52,19 +52,6 @@ internal sealed class MigrationPlanner(
         return Result.From(plan, diagnostics);
     }
 
-    public Result<MigrationPlan> PlanTeardown(Database database)
-    {
-        if (dialect is null)
-        {
-            return Result.Failure<MigrationPlan>(PlanDiagnostics.MissingDialect);
-        }
-
-        // Don't run policies for teardown. This is a purely destructive action, and needs to be available as an escape.
-        var diff = comparer.CompareTeardown(database);
-        var plan = Realize(diff, dialect);
-        return Result.Success(plan);
-    }
-
     /// <summary>
     /// Constructs an executable plan from a diff.
     /// </summary>

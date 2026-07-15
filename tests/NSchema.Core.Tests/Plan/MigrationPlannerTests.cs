@@ -33,7 +33,6 @@ public sealed class MigrationPlannerTests
     public MigrationPlannerTests()
     {
         _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(_emptyDiff, []));
-        _differ.CompareTeardown(Arg.Any<Database>()).Returns(_emptyDiff);
         _linearizer.Linearize(Arg.Any<DatabaseDiff>()).Returns(_ => []);
     }
 
@@ -178,48 +177,4 @@ public sealed class MigrationPlannerTests
         result.Errors.ShouldHaveSingleItem().ShouldBe(PlanDiagnostics.MissingDialect);
     }
 
-    [Fact]
-    public void PlanTeardown_RealizesTheTeardownDiff_WithoutDiagnostics()
-    {
-        // Arrange
-        _linearizer.Linearize(_emptyDiff).Returns([new DropSchema(new SqlIdentifier("app"))]);
-
-        // Act
-        var result = Sut.PlanTeardown(new Database([new Schema(new SqlIdentifier("app"))]));
-
-        // Assert
-        _differ.Received(1).CompareTeardown(Arg.Any<Database>());
-        result.Value!.Statements.ShouldHaveSingleItem().Sql.ShouldBe($"-- {nameof(DropSchema)}");
-        result.Value!.Diff.ShouldBe(_emptyDiff);
-        result.IsSuccess.ShouldBeTrue();
-        result.Diagnostics.Count.ShouldBe(0);
-    }
-
-    [Fact]
-    public void PlanTeardown_BypassesPolicies()
-    {
-        // Arrange
-        var planPolicy = Substitute.For<IPlanPolicy>();
-        _planPolicies.Add(planPolicy);
-
-        // Act
-        Sut.PlanTeardown(new Database([new Schema(new SqlIdentifier("app"))]));
-
-        // Assert
-        planPolicy.DidNotReceive().Validate(Arg.Any<MigrationPlan>());
-    }
-
-    [Fact]
-    public void PlanTeardown_WithoutADialect_Fails()
-    {
-        // Arrange
-        var sut = new MigrationPlanner(_differ, _linearizer, _projectPolicies, _planPolicies, dialect: null);
-
-        // Act
-        var result = sut.PlanTeardown(_emptySchema);
-
-        // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Errors.ShouldHaveSingleItem().ShouldBe(PlanDiagnostics.MissingDialect);
-    }
 }
