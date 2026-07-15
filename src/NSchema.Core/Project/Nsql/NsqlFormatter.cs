@@ -77,7 +77,7 @@ public static class NsqlFormatter
             var start = i;
             var depth = 0;
             var end = i;
-            var awaitingEnd = token.IsKeyword("TEMPLATE");
+            var awaitingEnd = token.IsKeyword(NsqlKeywords.Template);
             while (end < tokens.Count)
             {
                 var kind = tokens[end].Kind;
@@ -96,7 +96,7 @@ public static class NsqlFormatter
                         depth--;
                     }
                 }
-                else if (depth == 0 && awaitingEnd && tokens[end].IsKeyword("END"))
+                else if (depth == 0 && awaitingEnd && tokens[end].IsKeyword(NsqlKeywords.End))
                 {
                     awaitingEnd = false;
                 }
@@ -185,13 +185,13 @@ public static class NsqlFormatter
         var first = FirstSignificant(tokens, start, end);
         if (first >= 0)
         {
-            if (tokens[first].IsKeyword("TEMPLATE") && RenderTemplate(tokens, source, start, end, hasSemicolon) is { } template)
+            if (tokens[first].IsKeyword(NsqlKeywords.Template) && RenderTemplate(tokens, source, start, end, hasSemicolon) is { } template)
             {
                 return template;
             }
 
             var second = FirstSignificant(tokens, first + 1, end);
-            var isCreateTable = tokens[first].IsKeyword("CREATE") && second >= 0 && tokens[second].IsKeyword("TABLE");
+            var isCreateTable = tokens[first].IsKeyword(NsqlKeywords.Create) && second >= 0 && tokens[second].IsKeyword(NsqlKeywords.Table);
             var isConfigBlock = tokens[first].Kind == TokenKind.Identifier && !IsStatementKeyword(tokens[first].Text);
             if (isCreateTable || isConfigBlock)
             {
@@ -225,7 +225,7 @@ public static class NsqlFormatter
         var begin = -1;
         for (var i = start; i < end; i++)
         {
-            if (tokens[i].IsKeyword("BEGIN"))
+            if (tokens[i].IsKeyword(NsqlKeywords.Begin))
             {
                 begin = i;
                 break;
@@ -233,7 +233,7 @@ public static class NsqlFormatter
         }
 
         var last = LastSignificant(tokens, start, end);
-        if (begin < 0 || last <= begin || !tokens[last].IsKeyword("END"))
+        if (begin < 0 || last <= begin || !tokens[last].IsKeyword(NsqlKeywords.End))
         {
             return null;
         }
@@ -252,7 +252,7 @@ public static class NsqlFormatter
         var isTableTemplate = false;
         for (var i = start; i < begin; i++)
         {
-            if (tokens[i].IsKeyword("TABLE"))
+            if (tokens[i].IsKeyword(NsqlKeywords.Table))
             {
                 isTableTemplate = true;
                 break;
@@ -291,7 +291,7 @@ public static class NsqlFormatter
                 }
             }
         }
-        sb.Append("END");
+        sb.Append(NsqlKeywords.End);
         if (hasSemicolon)
         {
             sb.Append(';');

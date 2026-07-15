@@ -41,11 +41,11 @@ internal sealed partial class NsqlParser
 
     private ConfigStatement ParseConfigGrammarStatement(string? doc)
     {
-        if (_current.IsKeyword("STATE"))
+        if (_current.IsKeyword(NsqlKeywords.State))
         {
             return ParseConfigStatement(doc, state: true);
         }
-        if (_current.IsKeyword("DATABASE"))
+        if (_current.IsKeyword(NsqlKeywords.Database))
         {
             return ParseConfigStatement(doc, state: false);
         }

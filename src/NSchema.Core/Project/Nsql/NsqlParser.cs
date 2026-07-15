@@ -87,39 +87,39 @@ internal sealed partial class NsqlParser
     // recognizes it as a statement boundary.
     private NsqlStatement ParseStatement(string? doc)
     {
-        if (_current.IsKeyword("CREATE"))
+        if (_current.IsKeyword(NsqlKeywords.Create))
         {
             return ParseCreate(doc);
         }
-        if (_current.IsKeyword("DROP"))
+        if (_current.IsKeyword(NsqlKeywords.Drop))
         {
             return ParseDrop(doc);
         }
-        if (_current.IsKeyword("GRANT"))
+        if (_current.IsKeyword(NsqlKeywords.Grant))
         {
             return ParseGrant(doc);
         }
-        if (_current.IsKeyword("TEMPLATE"))
+        if (_current.IsKeyword(NsqlKeywords.Template))
         {
             return ParseTemplate(doc);
         }
-        if (_current.IsKeyword("APPLY"))
+        if (_current.IsKeyword(NsqlKeywords.Apply))
         {
             return ParseApplyTemplate(doc);
         }
-        if (_current.IsKeyword("SCRIPT"))
+        if (_current.IsKeyword(NsqlKeywords.Script))
         {
             return ParseScript(doc);
         }
-        if (_current.IsKeyword("RENAME"))
+        if (_current.IsKeyword(NsqlKeywords.Rename))
         {
             return ParseRename(doc);
         }
-        if (_current.IsKeyword("PARTIAL"))
+        if (_current.IsKeyword(NsqlKeywords.Partial))
         {
             return ParsePartial(doc);
         }
-        if (_current.IsKeyword("DATABASE") || _current.IsKeyword("STATE"))
+        if (_current.IsKeyword(NsqlKeywords.Database) || _current.IsKeyword(NsqlKeywords.State))
         {
             throw Error($"'{_current.Text.ToUpperInvariant()}' is a configuration statement; configuration lives in the project's configuration files, not among schema statements.");
         }

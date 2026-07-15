@@ -12,26 +12,26 @@ internal sealed partial class NsqlParser
         var position = _current.Position;
         Advance(); // GRANT
 
-        if (_current.IsKeyword("USAGE"))
+        if (_current.IsKeyword(NsqlKeywords.Usage))
         {
             if (_inTemplateBody)
             {
                 throw Error("GRANT USAGE ON SCHEMA is not supported inside a template; declare schema grants alongside the schema.");
             }
             Advance();
-            ExpectKeyword("ON");
-            ExpectKeyword("SCHEMA");
+            ExpectKeyword(NsqlKeywords.On);
+            ExpectKeyword(NsqlKeywords.Schema);
             var schema = ExpectIdentifierNode("a schema name");
-            ExpectKeyword("TO");
+            ExpectKeyword(NsqlKeywords.To);
             var role = ExpectIdentifierNode("a role name");
             Expect(TokenKind.Semicolon, "';'");
             return new GrantSchemaUsageStatement(schema, role) { Position = position, Doc = doc };
         }
 
         var privileges = ParseTablePrivileges();
-        ExpectKeyword("ON");
+        ExpectKeyword(NsqlKeywords.On);
         var on = ParseQualifiedNameNode();
-        ExpectKeyword("TO");
+        ExpectKeyword(NsqlKeywords.To);
         var grantee = ExpectIdentifierNode("a role name");
         Expect(TokenKind.Semicolon, "';'");
         return new GrantTableStatement(privileges, on, grantee) { Position = position, Doc = doc };
@@ -49,10 +49,10 @@ internal sealed partial class NsqlParser
 
     private TablePrivilege ParseTablePrivilege()
     {
-        if (_current.IsKeyword("SELECT")) { Advance(); return TablePrivilege.Select; }
-        if (_current.IsKeyword("INSERT")) { Advance(); return TablePrivilege.Insert; }
-        if (_current.IsKeyword("UPDATE")) { Advance(); return TablePrivilege.Update; }
-        if (_current.IsKeyword("DELETE")) { Advance(); return TablePrivilege.Delete; }
+        if (_current.IsKeyword(NsqlKeywords.Select)) { Advance(); return TablePrivilege.Select; }
+        if (_current.IsKeyword(NsqlKeywords.Insert)) { Advance(); return TablePrivilege.Insert; }
+        if (_current.IsKeyword(NsqlKeywords.Update)) { Advance(); return TablePrivilege.Update; }
+        if (_current.IsKeyword(NsqlKeywords.Delete)) { Advance(); return TablePrivilege.Delete; }
         throw Error($"Expected a privilege (SELECT, INSERT, UPDATE, DELETE), found '{_current.Text}'.");
     }
 }

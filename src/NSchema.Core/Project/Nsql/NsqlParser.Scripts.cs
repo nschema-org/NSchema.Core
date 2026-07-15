@@ -15,36 +15,36 @@ internal sealed partial class NsqlParser
         var position = _current.Position;
         Advance(); // SCRIPT
         var name = ExpectIdentifierNode("a script name");
-        ExpectKeyword("RUN");
+        ExpectKeyword(NsqlKeywords.Run);
 
         RunCondition? condition = null;
-        if (_current.IsKeyword("ALWAYS"))
+        if (_current.IsKeyword(NsqlKeywords.Always))
         {
             condition = RunCondition.Always;
             Advance();
         }
-        else if (_current.IsKeyword("ONCE"))
+        else if (_current.IsKeyword(NsqlKeywords.Once))
         {
             condition = RunCondition.Once;
             Advance();
         }
-        else if (_current.IsKeyword("UNLESS"))
+        else if (_current.IsKeyword(NsqlKeywords.Unless))
         {
             throw Error("'UNLESS EXISTS' is reserved for a future release; a script runs ALWAYS (the default) or ONCE.");
         }
 
-        ExpectKeyword("ON");
+        ExpectKeyword(NsqlKeywords.On);
 
         ScriptEventClause scriptEvent;
         var eventPosition = _current.Position;
-        if (_current.IsKeyword("PRE") || _current.IsKeyword("POST"))
+        if (_current.IsKeyword(NsqlKeywords.Pre) || _current.IsKeyword(NsqlKeywords.Post))
         {
-            var phase = _current.IsKeyword("PRE") ? DeploymentPhase.Pre : DeploymentPhase.Post;
+            var phase = _current.IsKeyword(NsqlKeywords.Pre) ? DeploymentPhase.Pre : DeploymentPhase.Post;
             Advance(); // PRE | POST
-            ExpectKeyword("DEPLOYMENT");
+            ExpectKeyword(NsqlKeywords.Deployment);
             scriptEvent = new DeploymentEventClause(phase) { Position = eventPosition };
         }
-        else if (_current.IsKeyword("ADD") || _current.IsKeyword("ALTER"))
+        else if (_current.IsKeyword(NsqlKeywords.Add) || _current.IsKeyword(NsqlKeywords.Alter))
         {
             var trigger = ParseChangeTrigger();
             var path = ParseMemberPathNode();
@@ -61,25 +61,25 @@ internal sealed partial class NsqlParser
 
     private ChangeTrigger ParseChangeTrigger()
     {
-        if (_current.IsKeyword("ADD"))
+        if (_current.IsKeyword(NsqlKeywords.Add))
         {
             Advance(); // ADD
-            if (_current.IsKeyword("COLUMN"))
+            if (_current.IsKeyword(NsqlKeywords.Column))
             {
                 Advance();
                 return ChangeTrigger.AddColumn;
             }
-            if (_current.IsKeyword("CONSTRAINT"))
+            if (_current.IsKeyword(NsqlKeywords.Constraint))
             {
                 Advance();
                 return ChangeTrigger.AddConstraint;
             }
         }
-        else if (_current.IsKeyword("ALTER"))
+        else if (_current.IsKeyword(NsqlKeywords.Alter))
         {
             Advance(); // ALTER
-            ExpectKeyword("COLUMN");
-            ExpectKeyword("TYPE");
+            ExpectKeyword(NsqlKeywords.Column);
+            ExpectKeyword(NsqlKeywords.Type);
             return ChangeTrigger.AlterColumnType;
         }
 
@@ -125,7 +125,7 @@ internal sealed partial class NsqlParser
     {
         var runOutsideTransaction = ParseRunOutsideTransactionOptions(what);
 
-        if (!_current.IsKeyword("AS"))
+        if (!_current.IsKeyword(NsqlKeywords.As))
         {
             throw Error($"Expected 'AS' before the {what} body.");
         }
