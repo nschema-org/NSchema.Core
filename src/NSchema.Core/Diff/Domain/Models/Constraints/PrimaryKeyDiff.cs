@@ -1,6 +1,6 @@
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Diff.Domain.Models.Constraints;
 

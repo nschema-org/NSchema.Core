@@ -16,7 +16,7 @@ internal static class DatabaseAggregator
         var mergedSchemas = new[] { first, second }
             .SelectMany(db => db.Schemas)
             .GroupBy(s => s.Name)
-            .Select(s => AggregateSchemaGroup([..s], diagnostics))
+            .Select(s => AggregateSchemaGroup([.. s], diagnostics))
             .ToList();
 
         // Extensions are database-global, so they aggregate at the root (not per schema). A name declared by

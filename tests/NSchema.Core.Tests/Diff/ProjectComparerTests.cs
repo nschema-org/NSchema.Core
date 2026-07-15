@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using NSchema.State.Domain.Models;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Models;
 using NSchema.Plan.Policies;
@@ -8,8 +7,9 @@ using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Project.Domain.Models.Tables;
+using NSchema.State.Domain.Models;
 
 namespace NSchema.Tests.Diff;
 

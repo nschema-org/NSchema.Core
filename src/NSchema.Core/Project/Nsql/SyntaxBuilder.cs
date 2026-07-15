@@ -77,7 +77,8 @@ internal static class SyntaxBuilder
         {
             statements.Add(new Syn.Tables.RenameColumnStatement(
                 new Syn.MemberPath(Name(rename.From.Schema), Name(rename.From.Object), Name(rename.From.Member)) { Position = None },
-                Name(rename.To)) { Position = None });
+                Name(rename.To))
+            { Position = None });
         }
         foreach (var rename in directives.Views.Renames)
         {

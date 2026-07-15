@@ -6,8 +6,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NSchema.Apply;
 using NSchema.Deployment;
-using NSchema.State.Locks;
-using NSchema.State;
 using NSchema.Diff.Domain;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
@@ -17,6 +15,8 @@ using NSchema.Plan.PlanFile;
 using NSchema.Plan.Policies;
 using NSchema.Project;
 using NSchema.Project.Policies;
+using NSchema.State;
+using NSchema.State.Locks;
 
 namespace NSchema;
 

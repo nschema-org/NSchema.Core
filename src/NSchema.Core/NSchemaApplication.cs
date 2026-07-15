@@ -1,11 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NSchema.Deployment;
-using NSchema.State.Locks;
-using NSchema.State;
 using NSchema.Operations;
 using NSchema.Plan.PlanFile;
 using NSchema.Project;
+using NSchema.State;
+using NSchema.State.Locks;
 
 namespace NSchema;
 

@@ -1,7 +1,4 @@
 using NSchema.Deployment;
-using NSchema.State.Domain.Models;
-using NSchema.State;
-using NSchema.State.Backends;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Models;
 using NSchema.Operations.Progress;
@@ -14,6 +11,9 @@ using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Domain.Models.Tables;
+using NSchema.State;
+using NSchema.State.Backends;
+using NSchema.State.Domain.Models;
 
 namespace NSchema.Tests.Operations;
 

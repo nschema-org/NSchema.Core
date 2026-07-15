@@ -15,5 +15,5 @@ public sealed record ScriptReference(SqlIdentifier? Schema, SqlIdentifier Name)
     /// <summary>
     /// The address rendered like any other reference: <c>schema.name</c> when scoped, the bare name when global.
     /// </summary>
-    public override string ToString() => Schema == null ? Name.Value: $"{Schema}.{Name}";
+    public override string ToString() => Schema == null ? Name.Value : $"{Schema}.{Name}";
 }

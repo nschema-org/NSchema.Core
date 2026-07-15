@@ -1,5 +1,4 @@
 using NSchema.Apply;
-using NSchema.State;
 using NSchema.Diff.Domain.Models;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
@@ -8,6 +7,7 @@ using NSchema.Plan.Domain.Models;
 using NSchema.Plan.Policies;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
+using NSchema.State;
 using NSubstitute.ExceptionExtensions;
 
 namespace NSchema.Tests.Operations;

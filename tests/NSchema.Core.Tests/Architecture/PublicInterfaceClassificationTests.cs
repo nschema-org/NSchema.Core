@@ -1,9 +1,5 @@
 using NSchema.Deployment;
 using NSchema.Deployment.Backends;
-using NSchema.State.Locks;
-using NSchema.State.Locks.Backends;
-using NSchema.State;
-using NSchema.State.Backends;
 using NSchema.Diff.Domain.Models;
 using NSchema.Operations;
 using NSchema.Plan.Backends;
@@ -13,6 +9,10 @@ using NSchema.Plugins;
 using NSchema.Project;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Policies;
+using NSchema.State;
+using NSchema.State.Backends;
+using NSchema.State.Locks;
+using NSchema.State.Locks.Backends;
 
 namespace NSchema.Tests.Architecture;
 

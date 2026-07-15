@@ -1,6 +1,4 @@
 using NSchema.Deployment;
-using NSchema.State.Domain.Models;
-using NSchema.State;
 using NSchema.Diff.Domain;
 using NSchema.Operations.Progress;
 using NSchema.Plan.Domain;
@@ -9,6 +7,8 @@ using NSchema.Project;
 using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
+using NSchema.State;
+using NSchema.State.Domain.Models;
 
 namespace NSchema.Operations.Workflow;
 

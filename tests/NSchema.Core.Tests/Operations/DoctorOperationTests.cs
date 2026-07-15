@@ -1,13 +1,13 @@
 using NSchema.Deployment.Backends;
-using NSchema.State.Domain.Models;
-using NSchema.State.Locks;
-using NSchema.State.Locks.Backends;
-using NSchema.State;
-using NSchema.State.Backends;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
+using NSchema.State;
+using NSchema.State.Backends;
+using NSchema.State.Domain.Models;
+using NSchema.State.Locks;
+using NSchema.State.Locks.Backends;
 
 namespace NSchema.Tests.Operations;
 

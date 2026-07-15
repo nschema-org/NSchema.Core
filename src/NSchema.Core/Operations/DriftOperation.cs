@@ -1,10 +1,10 @@
 using NSchema.Deployment;
-using NSchema.State.Domain.Models;
-using NSchema.State;
 using NSchema.Diff.Domain;
 using NSchema.Operations.Progress;
 using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
+using NSchema.State;
+using NSchema.State.Domain.Models;
 
 namespace NSchema.Operations;
 

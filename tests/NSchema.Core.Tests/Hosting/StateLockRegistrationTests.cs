@@ -1,8 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using NSchema.State.Backends;
 using NSchema.State.Locks;
 using NSchema.State.Locks.Backends;
-using NSchema.State.Backends;
 
 namespace NSchema.Tests.Hosting;
 

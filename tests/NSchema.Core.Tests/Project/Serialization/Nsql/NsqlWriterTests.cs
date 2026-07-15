@@ -1,6 +1,4 @@
 using System.Text;
-using NSchema.State.Domain.Models;
-using NSchema.State;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.CompositeTypes;
@@ -16,6 +14,8 @@ using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Domain.Models.Triggers;
 using NSchema.Project.Domain.Models.Views;
 using NSchema.Project.Nsql;
+using NSchema.State;
+using NSchema.State.Domain.Models;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;
 
