@@ -119,15 +119,20 @@ internal sealed partial class NsqlParser
     }
 
     /// <summary>
-    /// Parses the fully qualified column path (<c>schema.table.column</c>) of a RENAME COLUMN.
+    /// Parses a RENAME COLUMN: <c>schema.table.column</c> at the top level, or <c>table.column</c> inside a template.
     /// </summary>
     private MemberPath ParseColumnPath()
     {
-        var schema = ExpectIdentifierNode("a schema name");
-        Expect(TokenKind.Dot, "'.' in the column path (schema.table.column)");
-        var table = ExpectIdentifierNode("a table name");
+        var first = ExpectIdentifierNode("a schema name");
+        Expect(TokenKind.Dot, "'.' in the column path");
+        var second = ExpectIdentifierNode("a table name");
+        if (_inTemplateBody && !Match(TokenKind.Dot))
+        {
+            // table.column. The schema is decided when the template is applied.
+            return new MemberPath(null, first, second) { Position = first.Position };
+        }
         Expect(TokenKind.Dot, "'.' in the column path (schema.table.column)");
         var column = ExpectIdentifierNode("a column name");
-        return new MemberPath(schema, table, column) { Position = schema.Position };
+        return new MemberPath(first, second, column) { Position = first.Position };
     }
 }

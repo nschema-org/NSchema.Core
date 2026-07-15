@@ -496,7 +496,7 @@ public sealed class TemplateExpanderTests
         scripts[0].ShouldBeOfType<DeploymentScript>().ScopeSchema.ShouldBe("sales");
         scripts[0].Reference.ShouldBe(new ScriptReference(new SqlIdentifier("sales"), new SqlIdentifier("seed")));
         scripts[0].Sql.ShouldBe("INSERT INTO sales.outbox_events VALUES (1);");
-        scripts[0].RunCondition.ShouldBe(RunCondition.Once);
+        scripts[0].ShouldBeOfType<DeploymentScript>().RunCondition.ShouldBe(RunCondition.Once);
         scripts[1].ShouldBeOfType<DeploymentScript>().ScopeSchema.ShouldBe("billing");
         scripts[1].Reference.ShouldBe(new ScriptReference(new SqlIdentifier("billing"), new SqlIdentifier("seed")));
     }

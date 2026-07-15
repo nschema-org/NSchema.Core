@@ -65,7 +65,6 @@ public sealed class NsqlParserScriptStatementTests
         migration.Name.ShouldBe("backfill_emails");
         migration.Trigger.ShouldBe(ChangeTrigger.AddColumn);
         migration.Path.ShouldBe("app.users.email");
-        migration.RunCondition.ShouldBe(RunCondition.Always);
     }
 
     [Theory]
@@ -76,9 +75,11 @@ public sealed class NsqlParserScriptStatementTests
             .ShouldHaveSingleItem().Trigger.ShouldBe(trigger);
 
     [Fact]
-    public void Parse_RunOnceChangeEvent_SetsTheRunCondition()
-        => Migrations(Read("SCRIPT x RUN ONCE ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;"))
-            .ShouldHaveSingleItem().RunCondition.ShouldBe(RunCondition.Once);
+    public void Parse_RunConditionOnChangeEvent_IsRejected()
+        // A change-event script runs whenever its change is planned, so it takes a bare RUN — a condition is
+        // only valid on a deployment event.
+        => Should.Throw<NsqlSyntaxException>(() => Read("SCRIPT x RUN ONCE ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;"))
+            .Message.ShouldContain("only valid on a deployment event");
 
     // -------------------------------------------------------------------------
     // Errors
@@ -174,7 +175,7 @@ public sealed class NsqlParserScriptStatementTests
         var deployment = script.ShouldBeOfType<DeploymentScript>();
         deployment.Phase.ShouldBe(DeploymentPhase.Post);
         deployment.ScopeSchema.ShouldBe(new SqlIdentifier("app"));
-        script.RunCondition.ShouldBe(RunCondition.Once);
+        deployment.RunCondition.ShouldBe(RunCondition.Once);
     }
 
     [Fact]

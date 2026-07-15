@@ -33,10 +33,10 @@ public sealed class ProjectComparerTests
         Tables: [new Table(new SqlIdentifier("users"), Columns:
             [new Column(new SqlIdentifier("id"), SqlType.Int), new Column(new SqlIdentifier("email"), SqlType.Text, IsNullable: !required)])])]);
 
-    private static Script SeedScript() =>
+    private static DeploymentScript SeedScript() =>
         new DeploymentScript(new SqlIdentifier("seed"), new SqlText("INSERT INTO app.c VALUES (1);"), null, DeploymentPhase.Post) { RunCondition = RunCondition.Once };
 
-    private static Script EmailBackfillMigration() =>
+    private static ChangeScript EmailBackfillMigration() =>
         new ChangeScript(new SqlIdentifier("backfill_emails"), new SqlText("UPDATE app.users SET email = ''"), new SqlIdentifier("app"), ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email"));
 
     /// <summary>A current state recording <paramref name="sql"/> as <paramref name="script"/>'s executed body.</summary>
@@ -161,19 +161,20 @@ public sealed class ProjectComparerTests
     }
 
     [Fact]
-    public void Compare_ExecutedRunOnceMigration_IsExcludedFromMatching()
+    public void Compare_ChangeMigration_IgnoresRecordedExecutions()
     {
-        // Arrange — the matching change IS in the diff, but the migration already ran: no annotation, no run.
-        var migration = EmailBackfillMigration() with { RunCondition = RunCondition.Once };
+        // Arrange — a matching execution is on record, but a change-event script has no ledger: its run is
+        // gated by the change alone, so a re-planned change re-runs it.
+        var migration = EmailBackfillMigration();
         var current = new CurrentState(UsersWithId().Database,
             [new ScriptExecution(migration.Reference, migration.Hash, DateTimeOffset.UnixEpoch)]);
 
         // Act
         var comparison = Sut.Compare(current, TestProjects.Project(UsersWithEmail(), [migration]));
 
-        // Assert — the change still lands, but the executed run-once migration does not ride it.
-        comparison.Require().Schemas[0].Tables[0].Columns.Single(c => c.Name.Value == "email").MigrationScript.ShouldBeNull();
-        comparison.Require().AllScripts().ShouldBeEmpty();
+        // Assert — the change lands and the migration rides it, the recorded execution notwithstanding.
+        comparison.Require().Schemas[0].Tables[0].Columns.Single(c => c.Name.Value == "email").MigrationScript.ShouldBe(migration);
+        comparison.Require().AllScripts().ShouldHaveSingleItem().ShouldBe(migration);
     }
 
     [Fact]

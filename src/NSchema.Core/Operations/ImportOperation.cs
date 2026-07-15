@@ -123,9 +123,8 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
             return Result.Failure<Database>(read.Diagnostics);
         }
 
-        var projected = DocumentProjector.Project(read.Value);
-        return Result.From(projected.Require().Database,
-            projected.Diagnostics.Select(Diagnostic (d) => d with { File = path }));
+        var assembled = Project.ProjectAssembler.Assemble([read.Value]);
+        return Result.From(assembled.Require().Database, assembled.Diagnostics);
     }
 
     private static Database Merge(Database existing, Database incoming)

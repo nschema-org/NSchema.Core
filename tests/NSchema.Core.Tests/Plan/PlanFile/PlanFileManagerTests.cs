@@ -22,7 +22,7 @@ public sealed class PlanFileManagerTests
         // A plan carrying a rich diff (including a full Table definition), both script event kinds, and
         // statements with execution metadata, so the round-trip exercises the whole artifact.
         var backfill = new ChangeScript(new SqlIdentifier("backfill"), new SqlText("UPDATE app.users SET email = ''"),
-            new SqlIdentifier("app"), ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { RunCondition = RunCondition.Once };
+            new SqlIdentifier("app"), ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email"));
         var email = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text)) { MigrationScript = backfill };
         var users = new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify, Columns: [email]);
         var plan = new MigrationPlan(
@@ -31,7 +31,7 @@ public sealed class PlanFileManagerTests
                 // Both deployment bookends at the root; the change script rides its column above.
                 DeploymentScripts =
                 [
-                    new DeploymentScript(new SqlIdentifier("seed"), new SqlText("INSERT INTO app.config VALUES (1)"), null, DeploymentPhase.Pre),
+                    new DeploymentScript(new SqlIdentifier("seed"), new SqlText("INSERT INTO app.config VALUES (1)"), null, DeploymentPhase.Pre) { RunCondition = RunCondition.Once },
                     new DeploymentScript(new SqlIdentifier("reindex"), new SqlText("REINDEX TABLE app.users"), null, DeploymentPhase.Post) { RunOutsideTransaction = true },
                 ],
             },

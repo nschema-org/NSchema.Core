@@ -39,6 +39,18 @@ public sealed record DatabaseState(Database Database, IReadOnlyList<ScriptExecut
     }
 
     /// <summary>
+    /// Records the run-once entries implied by a set of applied deployment scripts, keyed by address and body
+    /// hash. The ledger is a deployment-script concern — a change-event script runs whenever its change is
+    /// planned, gated by the diff itself, so it is never recorded.
+    /// </summary>
+    /// <param name="applied">The deployment scripts that ran.</param>
+    /// <param name="executedAt">When they ran.</param>
+    public DatabaseState RecordRunOnce(IReadOnlyList<DeploymentScript> applied, DateTimeOffset executedAt) =>
+        RecordExecution([.. applied
+            .Where(s => s.RunCondition == RunCondition.Once)
+            .Select(s => new ScriptExecution(s.Reference, s.Hash, executedAt))]);
+
+    /// <summary>
     /// Finds the recorded execution for the given script, or <see langword="null"/> when none is recorded.
     /// </summary>
     /// <param name="script">The script's address.</param>

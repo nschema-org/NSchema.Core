@@ -140,6 +140,7 @@ public sealed class NamespaceMigrationMapTests
         [typeof(Syntax.Scripts.RunCondition)] = ProjectNsqlSyntax + ".Scripts",
         [typeof(Syntax.Scripts.DeploymentPhase)] = ProjectNsqlSyntax + ".Scripts",
         [typeof(Syntax.Scripts.ChangeTrigger)] = ProjectNsqlSyntax + ".Scripts",
+        [typeof(Syntax.Templates.TemplateStatement)] = ProjectNsqlSyntax + ".Templates",
         [typeof(Syntax.Templates.SchemaTemplateStatement)] = ProjectNsqlSyntax + ".Templates",
         [typeof(Syntax.Templates.TableTemplateStatement)] = ProjectNsqlSyntax + ".Templates",
         [typeof(Syntax.Templates.ApplyTemplateStatement)] = ProjectNsqlSyntax + ".Templates",

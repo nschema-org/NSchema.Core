@@ -24,11 +24,6 @@ public abstract record Script(SqlIdentifier Name, SqlText Sql, SqlIdentifier? Sc
     public bool RunOutsideTransaction { get; init; }
 
     /// <summary>
-    /// When the script runs, relative to occurrences of its event.
-    /// </summary>
-    public RunCondition RunCondition { get; init; } = RunCondition.Always;
-
-    /// <summary>
     /// The event as written in DDL source.
     /// </summary>
     public abstract string Description { get; }

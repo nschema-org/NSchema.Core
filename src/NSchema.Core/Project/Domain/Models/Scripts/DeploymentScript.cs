@@ -14,6 +14,11 @@ public sealed record DeploymentScript(
     DeploymentPhase Phase
 ) : Script(Name, Sql, ScopeSchema)
 {
+    /// <summary>
+    /// When the script runs relative to deployments.
+    /// </summary>
+    public RunCondition RunCondition { get; init; } = RunCondition.Always;
+
     /// <inheritdoc />
     public override string Description => Phase == DeploymentPhase.Pre ? "PRE DEPLOYMENT" : "POST DEPLOYMENT";
 }

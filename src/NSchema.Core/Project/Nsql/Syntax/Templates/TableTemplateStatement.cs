@@ -8,4 +8,4 @@ namespace NSchema.Project.Nsql.Syntax.Templates;
 /// </summary>
 /// <param name="Name">The template name.</param>
 /// <param name="Members">The body members, unexpanded.</param>
-public sealed record TableTemplateStatement(Identifier Name, IReadOnlyList<TableMember> Members) : NsqlStatement;
+public sealed record TableTemplateStatement(Identifier Name, IReadOnlyList<TableMember> Members) : TemplateStatement(Name);

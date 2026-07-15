@@ -11,7 +11,7 @@ internal static class DiffDiagnostics
     /// <summary>
     /// A run-once script whose body has changed since its recorded execution; it stays skipped.
     /// </summary>
-    public static Diagnostic ChangedRunOnceScript(Script script) => Diagnostic.Warning("run-once",
+    public static Diagnostic ChangedRunOnceScript(DeploymentScript script) => Diagnostic.Warning("run-once",
         $"Run-once script '{script.Reference}' has changed since it was executed and stays skipped.");
 
     /// <summary>

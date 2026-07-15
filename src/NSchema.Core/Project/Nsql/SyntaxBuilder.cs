@@ -21,7 +21,10 @@ internal static class SyntaxBuilder
 {
     private static readonly SourcePosition None = SourcePosition.None;
 
-    public static NsqlDocument Build(Database database, IReadOnlyList<Script> scripts, bool declareSchemas = true, ProjectDirectives? directives = null)
+    public static NsqlDocument Build(Database database, bool declareSchemas = true) =>
+        Build(database, ProjectDirectives.Empty, declareSchemas);
+
+    public static NsqlDocument Build(Database database, ProjectDirectives directives, bool declareSchemas = true)
     {
         var statements = new List<NsqlStatement>();
 
@@ -36,12 +39,17 @@ internal static class SyntaxBuilder
             AddSchema(statements, definition, declareSchemas);
         }
 
-        foreach (var script in scripts)
+        // Scripts are directives; each kind renders straight from its home on the directives.
+        foreach (var script in directives.Tables.ChangeScripts)
+        {
+            statements.Add(Build(script));
+        }
+        foreach (var script in directives.DeploymentScripts)
         {
             statements.Add(Build(script));
         }
 
-        AddDirectives(statements, directives ?? ProjectDirectives.Empty);
+        AddDirectives(statements, directives);
 
         return new NsqlDocument(statements);
     }
@@ -339,22 +347,25 @@ internal static class SyntaxBuilder
 
     private static Syn.Scripts.ScriptStatement Build(Script script)
     {
-        Syn.Scripts.ScriptEventClause clause = script.Event switch
+        Syn.Scripts.ScriptEventClause clause = script switch
         {
-            DeploymentEvent deployment => new Syn.Scripts.DeploymentEventClause(deployment.Phase == DeploymentPhase.Pre ? Syn.Scripts.DeploymentPhase.Pre : Syn.Scripts.DeploymentPhase.Post)
+            DeploymentScript deployment => new Syn.Scripts.DeploymentEventClause(deployment.Phase == DeploymentPhase.Pre ? Syn.Scripts.DeploymentPhase.Pre : Syn.Scripts.DeploymentPhase.Post)
             {
                 Position = None,
             },
-            ChangeEvent change => new Syn.Scripts.ChangeEventClause(Trigger(change.Trigger), new Syn.MemberPath(OptionalIdentifier(change.ScopeSchema), Ident(change.TableName), Ident(change.MemberName)) { Position = None })
+            ChangeScript change => new Syn.Scripts.ChangeEventClause(Trigger(change.Trigger), new Syn.MemberPath(OptionalIdentifier(change.ScopeSchema), Ident(change.TableName), Ident(change.MemberName)) { Position = None })
             {
                 Position = None,
             },
-            _ => throw new InvalidOperationException($"Unbuildable script event '{script.Event.GetType().Name}'."),
+            _ => throw new InvalidOperationException($"Unbuildable script '{script.GetType().Name}'."),
         };
 
-        return new Syn.Scripts.ScriptStatement(Ident(script.Name),
-            script.RunCondition == RunCondition.Once ? Syn.Scripts.RunCondition.Once : Syn.Scripts.RunCondition.Always,
-            clause, script.Sql, script.RunOutsideTransaction)
+        // Only a deployment script carries a run condition; a change-event script renders a bare RUN (null).
+        Syn.Scripts.RunCondition? condition = script is DeploymentScript d
+            ? d.RunCondition == RunCondition.Once ? Syn.Scripts.RunCondition.Once : Syn.Scripts.RunCondition.Always
+            : null;
+
+        return new Syn.Scripts.ScriptStatement(Ident(script.Name), condition, clause, script.Sql, script.RunOutsideTransaction)
         {
             Position = None,
         };

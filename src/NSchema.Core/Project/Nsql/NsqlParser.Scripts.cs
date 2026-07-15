@@ -17,9 +17,10 @@ internal sealed partial class NsqlParser
         var name = ExpectIdentifierNode("a script name");
         ExpectKeyword("RUN");
 
-        var condition = RunCondition.Always;
+        RunCondition? condition = null;
         if (_current.IsKeyword("ALWAYS"))
         {
+            condition = RunCondition.Always;
             Advance();
         }
         else if (_current.IsKeyword("ONCE"))

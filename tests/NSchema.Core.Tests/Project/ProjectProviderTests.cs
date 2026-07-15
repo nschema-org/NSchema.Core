@@ -377,7 +377,7 @@ public sealed class ProjectProviderTests : IDisposable
 
         // Assert
         result.Diagnostics.ShouldBeEmpty();
-        result.Value!.AllScripts().ShouldHaveSingleItem().RunCondition.ShouldBe(RunCondition.Once);
+        result.Value!.AllScripts().ShouldHaveSingleItem().ShouldBeOfType<DeploymentScript>().RunCondition.ShouldBe(RunCondition.Once);
     }
 
     [Fact]

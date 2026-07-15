@@ -1,7 +1,6 @@
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Domain.Models.Triggers;
 using NSchema.Project.Nsql;
@@ -18,13 +17,13 @@ namespace NSchema.Project.Domain;
 internal static class TemplateExpander
 {
     /// <summary>
-    /// The schema name table-template members project against for include resolution; re-pointed at the
-    /// including table's schema when the include merges.
+    /// One schema template instantiated for one applied schema: the instance objects, the includes its body
+    /// carried, and the directives it bound to the applied schema.
     /// </summary>
-    private static readonly SqlIdentifier IncludePlaceholder = SchemaToken.TargetSchemaPlaceholder;
+    private sealed record TemplateInstance(Schema Schema, IReadOnlyList<TemplateInclude> Includes, ProjectDirectives Directives);
 
-    public static Result<ProjectDefinition> Expand(
-        ProjectDefinition project,
+    public static Result<(Database Database, ProjectDirectives Directives)> Expand(
+        Database database,
         IReadOnlyList<SchemaTemplateStatement> schemaTemplates,
         IReadOnlyList<TableTemplateStatement> tableTemplates,
         IReadOnlyList<ApplyTemplateStatement> applications,
@@ -32,14 +31,16 @@ internal static class TemplateExpander
     )
     {
         var diagnostics = new List<Diagnostic>();
-        var database = project.Database;
-        var scripts = project.Scripts.ToList();
+
+        // Each successful instance's directives (its scripts, and object renames/drops) accumulate here,
+        // scoped to their applied schema, and ride back for the assembler to merge with the top-level ones.
+        var instanceDirectives = new DirectiveCollector();
 
         // One name space across both kinds, as ever: a schema template and a table template cannot share a name.
-        var byName = new Dictionary<SqlIdentifier, object>();
-        foreach (var template in schemaTemplates.Cast<object>().Concat(tableTemplates))
+        var byName = new Dictionary<SqlIdentifier, TemplateStatement>();
+        foreach (var template in schemaTemplates.Cast<TemplateStatement>().Concat(tableTemplates))
         {
-            var name = Name(template);
+            var name = new SqlIdentifier(template.Name.Value);
             if (!byName.TryAdd(name, template))
             {
                 diagnostics.Add(TemplateDiagnostics.DuplicateTemplate(name));
@@ -70,11 +71,11 @@ internal static class TemplateExpander
                     continue;
                 }
 
-                var (instance, instanceIncludes, instanceScripts) = Instantiate(schemaTemplate, schemaName);
+                var instance = Instantiate(schemaTemplate, schemaName);
 
                 // The merge rejects an object the target schema already declares, exactly as if the
                 // instantiated objects had been written in the target schema by hand.
-                var combined = DatabaseAggregator.Combine(database, new Database([instance]));
+                var combined = DatabaseAggregator.Combine(database, new Database([instance.Schema]));
                 if (combined.IsFailure)
                 {
                     diagnostics.AddRange(combined.Diagnostics.Select(d =>
@@ -84,51 +85,42 @@ internal static class TemplateExpander
                 database = combined.Require();
 
                 // The instance's own includes resolve with everything else below, so an instantiated table
-                // can itself include a template.
-                pendingIncludes.AddRange(instanceIncludes);
-                scripts.AddRange(instanceScripts);
+                // can itself include a template. Its directives only count once the instance itself lands.
+                pendingIncludes.AddRange(instance.Includes);
+                instanceDirectives.Absorb(instance.Directives);
             }
         }
 
-        database = ResolveIncludes(database, byName, pendingIncludes, diagnostics);
+        var resolver = new IncludeResolver(byName);
+        database = resolver.Resolve(database, pendingIncludes);
+        diagnostics.AddRange(resolver.Diagnostics);
 
-        return Result.From(new ProjectDefinition(database, scripts), diagnostics);
+        return Result.From<(Database, ProjectDirectives)>((database, instanceDirectives.Build()), diagnostics);
     }
 
-    private static SqlIdentifier Name(object template) => template switch
-    {
-        SchemaTemplateStatement s => new SqlIdentifier(s.Name.Value),
-        TableTemplateStatement t => new SqlIdentifier(t.Name.Value),
-        _ => throw new InvalidOperationException(),
-    };
-
     /// <summary>
-    /// Instantiates a schema template for one target schema: the body's statements project with the target as
-    /// their binding context, then the template's own declarations qualify unqualified type and trigger-function
-    /// references (an unqualified name the template does not declare is left alone — a built-in type, or a name
-    /// the database resolves by search path), and scripts scope to the instance with the <c>{schema}</c> token
-    /// substituted.
+    /// Instantiates a schema template for one target schema: the body's declarations project with the target as
+    /// their binding context (then unqualified type and trigger-function references the template itself declares
+    /// are qualified to it), while its directives — scripts, and object renames/drops — bind to the applied
+    /// schema through the collector, the <c>{schema}</c> token substituted in script bodies.
     /// </summary>
-    private static (Schema Instance, IReadOnlyList<TemplateInclude> Includes, IReadOnlyList<Script> Scripts)
-        Instantiate(SchemaTemplateStatement template, SqlIdentifier schemaName)
+    private static TemplateInstance Instantiate(SchemaTemplateStatement template, SqlIdentifier schemaName)
     {
         var body = new DatabaseAccumulator();
-        var scripts = new List<Script>();
+        var directives = new DirectiveCollector();
         foreach (var statement in template.Statements)
         {
-            DocumentProjector.ProjectStatement(statement, body, scripts, schemaName);
+            // Directives instantiate into the applied schema; everything else is a declaration of the instance.
+            if (!directives.TryAdd(statement, schemaName))
+            {
+                DocumentProjector.ProjectStatement(statement, body, schemaName);
+            }
         }
 
         var fragment = body.Build();
         var instance = Qualify(fragment.Schemas.SingleOrDefault() ?? new Schema(schemaName), schemaName);
 
-        var instanceScripts = scripts.Select(script => script with
-        {
-            Sql = SchemaToken.Instantiate(script.Sql, schemaName),
-            Event = script.Event with { ScopeSchema = schemaName },
-        }).ToList();
-
-        return (instance, body.Includes, instanceScripts);
+        return new TemplateInstance(instance, body.Includes, directives.Build());
     }
 
     /// <summary>
@@ -182,138 +174,4 @@ internal static class TemplateExpander
         => trigger.Function is { Schema: null } function && declaredRoutines.Contains(function.Name)
             ? trigger with { Function = function with { Schema = schemaName } }
             : trigger;
-
-    private static Database ResolveIncludes(
-        Database schema,
-        Dictionary<SqlIdentifier, object> templates,
-        List<TemplateInclude> includes,
-        List<Diagnostic> diagnostics)
-    {
-        if (includes.Count == 0)
-        {
-            return schema;
-        }
-
-        var byTable = includes
-            .GroupBy(i => (i.SchemaName, i.TableName))
-            .ToDictionary(g => g.Key, g => g.ToList());
-
-        var members = new Dictionary<SqlIdentifier, Table>();
-
-        var consumed = new HashSet<(SqlIdentifier Schema, SqlIdentifier Table)>();
-        var resolved = schema.Schemas
-            .Select(definition => definition with
-            {
-                Tables = definition.Tables
-                    .Select(table =>
-                    {
-                        var key = (definition.Name, table.Name);
-                        if (!byTable.TryGetValue(key, out var tableIncludes))
-                        {
-                            return table;
-                        }
-                        consumed.Add(key);
-                        return MergeIncludes(definition.Name, table, tableIncludes, templates, members, diagnostics);
-                    })
-                    .ToList(),
-            })
-            .ToList();
-
-        // Parsed includes always name the table whose body they were written in, so a dangling one can only come
-        // from a hand-built document; fail rather than drop it silently.
-        foreach (var dangling in byTable.Keys.Where(key => !consumed.Contains(key)))
-        {
-            var include = byTable[dangling][0];
-            diagnostics.Add(TemplateDiagnostics.IncludeUnknownTable(include.TemplateName, include.SchemaName, include.TableName));
-        }
-
-        return schema with { Schemas = resolved };
-    }
-
-    /// <summary>
-    /// Merges each included table template's members into <paramref name="table"/>: columns land at the position
-    /// the include was written, foreign keys referencing the include placeholder re-point at the including table's
-    /// schema, and everything else appends. A member the table already declares is rejected.
-    /// </summary>
-    private static Table MergeIncludes(SqlIdentifier schemaName, Table table, List<TemplateInclude> includes,
-        Dictionary<SqlIdentifier, object> templates, Dictionary<SqlIdentifier, Table> memberCache, List<Diagnostic> diagnostics)
-    {
-        var columns = table.Columns.ToList();
-        var foreignKeys = table.ForeignKeys.ToList();
-        var uniqueConstraints = table.UniqueConstraints.ToList();
-        var checkConstraints = table.CheckConstraints.ToList();
-        var exclusionConstraints = table.ExclusionConstraints.ToList();
-        var indexes = table.Indexes.ToList();
-        var primaryKey = table.PrimaryKey;
-
-        var offset = 0;
-        foreach (var include in includes)
-        {
-            if (!templates.TryGetValue(include.TemplateName, out var template))
-            {
-                diagnostics.Add(TemplateDiagnostics.IncludeUnknownTemplate(schemaName, table.Name, include.TemplateName));
-                continue;
-            }
-            if (template is not TableTemplateStatement tableTemplate)
-            {
-                diagnostics.Add(TemplateDiagnostics.IncludedSchemaTemplate(schemaName, table.Name, include.TemplateName));
-                continue;
-            }
-
-            if (!memberCache.TryGetValue(include.TemplateName, out var members))
-            {
-                // The members project once against the placeholder; placeholder references (an unqualified
-                // REFERENCES in the body) re-point per including table below.
-                (members, _) = DocumentProjector.ProjectTableMembers(IncludePlaceholder, null, tableTemplate.Members);
-                memberCache[include.TemplateName] = members;
-            }
-
-            // Validate before merging anything, so a conflicted include is skipped whole rather than half-applied.
-            var conflicts = new List<Diagnostic>();
-            foreach (var column in members.Columns)
-            {
-                if (columns.Any(c => c.Name == column.Name))
-                {
-                    conflicts.Add(TemplateDiagnostics.IncludeColumnConflict(include.TemplateName, column.Name, schemaName, table.Name));
-                }
-            }
-            if (members.PrimaryKey is not null && primaryKey is not null)
-            {
-                conflicts.Add(TemplateDiagnostics.IncludePrimaryKeyConflict(include.TemplateName, schemaName, table.Name));
-            }
-            if (conflicts.Count > 0)
-            {
-                diagnostics.AddRange(conflicts);
-                continue;
-            }
-
-            columns.InsertRange(include.ColumnPosition + offset, members.Columns);
-            offset += members.Columns.Count;
-
-            if (members.PrimaryKey is not null)
-            {
-                primaryKey = members.PrimaryKey;
-            }
-
-            foreignKeys.AddRange(members.ForeignKeys.Select(fk =>
-                fk.ReferencedSchema == IncludePlaceholder
-                    ? fk with { ReferencedSchema = schemaName }
-                    : fk));
-            uniqueConstraints.AddRange(members.UniqueConstraints);
-            checkConstraints.AddRange(members.CheckConstraints);
-            exclusionConstraints.AddRange(members.ExclusionConstraints);
-            indexes.AddRange(members.Indexes);
-        }
-
-        return table with
-        {
-            Columns = columns,
-            PrimaryKey = primaryKey,
-            ForeignKeys = foreignKeys,
-            UniqueConstraints = uniqueConstraints,
-            CheckConstraints = checkConstraints,
-            ExclusionConstraints = exclusionConstraints,
-            Indexes = indexes,
-        };
-    }
 }

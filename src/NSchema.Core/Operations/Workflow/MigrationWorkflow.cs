@@ -142,13 +142,8 @@ internal sealed class MigrationWorkflow(
         state = state with { Database = schema };
         if (applied is not null)
         {
-            // Only run-once executions enter the ledger; the plan's diff carries its scripts whole, so the
-            // execution records derive here at the state boundary.
-            var executed = applied.Diff.Scripts
-                .Where(s => s.RunCondition == RunCondition.Once)
-                .Select(s => new ScriptExecution(s.Reference, s.Hash, DateTimeOffset.UtcNow))
-                .ToList();
-            state = state.RecordExecution(executed);
+            // Recording the run-once ledger is a state-domain job; the shell just supplies what ran and when.
+            state = state.RecordRunOnce(applied.Diff.DeploymentScripts, DateTimeOffset.UtcNow);
         }
 
         var written = await stateManager.Write(new StateWriteArguments(state), cancellationToken);
@@ -179,7 +174,8 @@ internal sealed class MigrationWorkflow(
     /// </summary>
     private void ReportDesiredDetail(ProjectDefinition project)
     {
+        var scriptCount = project.Directives.DeploymentScripts.Count + project.Directives.Tables.ChangeScripts.Count;
         progress.Report(OperationProgress.Detail($"Desired schema: {StatusHelpers.Describe(project.Database)}, " +
-            $"{StatusHelpers.Count(project.Scripts.Count, "script")}."));
+            $"{StatusHelpers.Count(scriptCount, "script")}."));
     }
 }
