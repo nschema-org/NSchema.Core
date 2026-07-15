@@ -6,10 +6,8 @@ namespace NSchema.Model;
 /// <param name="Schema">The schema containing the owning object.</param>
 /// <param name="Object">The object that owns the member.</param>
 /// <param name="Member">The member's name within that object.</param>
-public sealed record MemberReference(SqlIdentifier Schema, SqlIdentifier Object, SqlIdentifier Member)
+public sealed record MemberReference(SqlIdentifier Schema, SqlIdentifier Object, SqlIdentifier Member) : Address
 {
-    /// <summary>
-    /// The address as written: <c>schema.object.member</c>.
-    /// </summary>
-    public override string ToString() => $"{Schema}.{Object}.{Member}";
+    /// <inheritdoc />
+    public override string Value => $"{Schema}.{Object}.{Member}";
 }

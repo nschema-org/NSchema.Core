@@ -68,6 +68,7 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Model.ValueObject<>)] = Model, // the single-value primitive base — value equality, renders as its value
         [typeof(NSchema.Model.SqlIdentifier)] = Model, // the identifier vocabulary primitive — case-insensitive equality baked in, shared by every lane
         [typeof(NSchema.Model.SqlText)] = Model, // the opaque-SQL vocabulary primitive — verbatim foreign SQL, ordinal equality (data)
+        [typeof(NSchema.Model.Address)] = Model, // the address base — shaped by containment, carrying neither kind nor name-space (both engine-specific)
         [typeof(NSchema.Model.ObjectReference)] = Model, // the address of a schema-level object — always fully qualified
         [typeof(RoutineReference)] = Model + ".Routines", // a routine reference as written — unqualified resolves via the engine's search path; homed with the routines it names, now the dependency graph resolves them too
 
@@ -180,18 +181,18 @@ public sealed class NamespaceMigrationMapTests
         // Addresses and the directive vocabulary (cross-kind shapes at the root, slices per subject).
         [typeof(NSchema.Model.MemberReference)] = Model,
         [typeof(NSchema.Project.Domain.Models.ProjectDirectives)] = ProjectModels,
-        [typeof(SchemaRenameDirective)] = ProjectModels + ".Schemas", // schema-specific shape — lives with its subject, unlike the cross-kind ObjectRename/MemberRename
+        [typeof(SchemaRenameDirective)] = ProjectModels, // the directives are one vocabulary, kept together rather than mirrored per-kind against the kernel
         [typeof(NSchema.Project.Domain.Models.ObjectRenameDirective)] = ProjectModels,
         [typeof(NSchema.Project.Domain.Models.MemberRenameDirective)] = ProjectModels,
-        [typeof(SchemaDirectives)] = ProjectModels + ".Schemas",
-        [typeof(TableDirectives)] = ProjectModels + ".Tables",
-        [typeof(ViewDirectives)] = ProjectModels + ".Views",
-        [typeof(EnumDirectives)] = ProjectModels + ".Enums",
-        [typeof(SequenceDirectives)] = ProjectModels + ".Sequences",
-        [typeof(RoutineDirectives)] = ProjectModels + ".Routines",
-        [typeof(DomainDirectives)] = ProjectModels + ".Domains",
-        [typeof(CompositeTypeDirectives)] = ProjectModels + ".CompositeTypes",
-        [typeof(ExtensionDirectives)] = ProjectModels + ".Extensions",
+        [typeof(SchemaDirectives)] = ProjectModels,
+        [typeof(TableDirectives)] = ProjectModels,
+        [typeof(ViewDirectives)] = ProjectModels,
+        [typeof(EnumDirectives)] = ProjectModels,
+        [typeof(SequenceDirectives)] = ProjectModels,
+        [typeof(RoutineDirectives)] = ProjectModels,
+        [typeof(DomainDirectives)] = ProjectModels,
+        [typeof(CompositeTypeDirectives)] = ProjectModels,
+        [typeof(ExtensionDirectives)] = ProjectModels,
         [typeof(NSchema.Model.Columns.Column)] = Model + ".Columns",
         [typeof(NSchema.Model.Columns.IdentityOptions)] = Model + ".Columns",
         [typeof(NSchema.Model.Columns.SqlType)] = Model + ".Columns",
