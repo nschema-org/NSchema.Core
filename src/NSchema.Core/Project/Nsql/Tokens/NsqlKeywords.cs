@@ -21,6 +21,6 @@ internal static class NsqlKeywords
     /// </summary>
     public static readonly IReadOnlySet<string> ConfigStatementOpeners = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        "BACKEND", "PROVIDER",
+        "DATABASE", "STATE",
     };
 }

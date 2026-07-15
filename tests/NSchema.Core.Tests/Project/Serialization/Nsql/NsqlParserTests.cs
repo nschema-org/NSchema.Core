@@ -98,7 +98,7 @@ public sealed class NsqlParserTests
 
     [Fact]
     public void Parse_ConfigStatement_InProjectSource_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => Parse("PROVIDER postgres ( dialect = 'postgres' );"))
+        => Should.Throw<NsqlSyntaxException>(() => Parse("DATABASE postgres ( dialect = 'postgres' );"))
             .Message.ShouldContain("configuration statement");
 
     // -------------------------------------------------------------------------

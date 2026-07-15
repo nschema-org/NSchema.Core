@@ -41,31 +41,31 @@ internal sealed partial class NsqlParser
 
     private ConfigStatement ParseConfigGrammarStatement(string? doc)
     {
-        if (_current.IsKeyword("BACKEND"))
+        if (_current.IsKeyword("STATE"))
         {
-            return ParseConfigStatement(doc, backend: true);
+            return ParseConfigStatement(doc, state: true);
         }
-        if (_current.IsKeyword("PROVIDER"))
+        if (_current.IsKeyword("DATABASE"))
         {
-            return ParseConfigStatement(doc, backend: false);
+            return ParseConfigStatement(doc, state: false);
         }
         if (_current.Kind == TokenKind.Identifier)
         {
-            throw Error($"Unknown configuration statement '{_current.Text}'; a configuration file holds only BACKEND and PROVIDER statements.");
+            throw Error($"Unknown configuration statement '{_current.Text}'; a configuration file holds only DATABASE and STATE statements.");
         }
         throw Error($"Unexpected '{_current.Text}'; expected a configuration statement.");
     }
 
     /// <summary>
-    /// Parses a configuration statement: <c>BACKEND|PROVIDER [label] ( key = value , … ) ;</c>.
+    /// Parses a configuration statement: <c>DATABASE|STATE [label] ( key = value , … ) ;</c>.
     /// The optional label is a bare identifier; attributes are a flat, comma-separated list.
     /// </summary>
-    private ConfigStatement ParseConfigStatement(string? doc, bool backend)
+    private ConfigStatement ParseConfigStatement(string? doc, bool state)
     {
         var position = _current.Position;
-        Advance(); // BACKEND | PROVIDER
+        Advance(); // DATABASE | STATE
 
-        // An optional bare-identifier label, e.g. the 'postgres' in `PROVIDER postgres ( … )`.
+        // An optional bare-identifier label, e.g. the 'postgres' in `DATABASE postgres ( … )`.
         Identifier? label = null;
         if (_current.Kind == TokenKind.Identifier)
         {
@@ -94,9 +94,9 @@ internal sealed partial class NsqlParser
         Expect(TokenKind.RightParen, "')' or ',' after a configuration attribute");
         Expect(TokenKind.Semicolon, "';'");
 
-        return backend
-            ? new BackendStatement(label, attributes) { Position = position, Doc = doc }
-            : new ProviderStatement(label, attributes) { Position = position, Doc = doc };
+        return state
+            ? new StateStatement(label, attributes) { Position = position, Doc = doc }
+            : new DatabaseStatement(label, attributes) { Position = position, Doc = doc };
     }
 
     /// <summary>

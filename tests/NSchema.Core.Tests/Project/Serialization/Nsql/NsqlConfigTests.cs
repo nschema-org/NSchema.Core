@@ -21,11 +21,11 @@ public sealed class NsqlConfigTests
     private static PluginSettings Settings(string source) => PluginSettings.From(Read(source).ShouldHaveSingleItem());
 
     [Fact]
-    public void ReadConfig_UnlabelledBackend_TranslatesTypeAndAttributes()
+    public void ReadConfig_UnlabelledStatement_TranslatesTypeAndAttributes()
     {
         var settings = Settings(
             """
-            BACKEND (
+            STATE (
               dialect = 'postgres',
               transaction_mode = 'single'
             );
@@ -37,25 +37,25 @@ public sealed class NsqlConfigTests
     }
 
     [Fact]
-    public void ReadConfig_LabelledBackend_TranslatesLabel()
+    public void ReadConfig_LabelledStatement_TranslatesLabel()
     {
-        Read("BACKEND file ( path = 'state/app.nsstate' );").ShouldHaveSingleItem().ShouldBeOfType<BackendStatement>();
+        Read("STATE file ( path = 'state/app.nsstate' );").ShouldHaveSingleItem().ShouldBeOfType<StateStatement>();
 
-        var settings = Settings("BACKEND file ( path = 'state/app.nsstate' );");
+        var settings = Settings("STATE file ( path = 'state/app.nsstate' );");
         settings.Label.ShouldBe("file");
         settings.Attribute("path")!.AsString().ShouldBe("state/app.nsstate");
     }
 
     [Fact]
     public void ReadConfig_KeywordIsCaseInsensitive()
-        => Read("Provider postgres ( x = 1 );").ShouldHaveSingleItem().ShouldBeOfType<ProviderStatement>();
+        => Read("Database postgres ( x = 1 );").ShouldHaveSingleItem().ShouldBeOfType<DatabaseStatement>();
 
     [Fact]
     public void ReadConfig_TranslatesAllValueKinds()
     {
         var settings = Settings(
             """
-            PROVIDER postgres (
+            DATABASE postgres (
               schema_search_path = 'app',
               connection_timeout = 1000,
               statement_cache = -1,
@@ -75,32 +75,32 @@ public sealed class NsqlConfigTests
 
     [Fact]
     public void ReadConfig_DottedKey_IsPreservedVerbatim()
-        => Settings("PROVIDER postgres ( pool.max = 10 );").Attribute("pool.max")!.AsInteger().ShouldBe(10);
+        => Settings("DATABASE postgres ( pool.max = 10 );").Attribute("pool.max")!.AsInteger().ShouldBe(10);
 
     [Fact]
     public void ReadConfig_AttributeLookup_IsCaseInsensitive()
-        => Settings("PROVIDER postgres ( Dialect = 'postgres' );").Attribute("dialect")!.AsString().ShouldBe("postgres");
+        => Settings("DATABASE postgres ( Dialect = 'postgres' );").Attribute("dialect")!.AsString().ShouldBe("postgres");
 
     [Fact]
     public void ReadConfig_EmptyAttributeList_IsAllowed()
-        => Settings("BACKEND ();").Attributes.ShouldBeEmpty();
+        => Settings("STATE ();").Attributes.ShouldBeEmpty();
 
     [Fact]
     public void ReadConfig_MultipleStatements_KeepDeclarationOrder()
     {
         var statements = Read(
             """
-            BACKEND file ( path = 'state/app.nsstate' );
-            PROVIDER postgres ( schema_search_path = 'app' );
-            BACKEND s3 ( bucket = 'state' );
+            STATE file ( path = 'state/app.nsstate' );
+            DATABASE postgres ( schema_search_path = 'app' );
+            STATE s3 ( bucket = 'state' );
             """);
 
-        statements.Select(s => s.GetType().Name).ShouldBe(["BackendStatement", "ProviderStatement", "BackendStatement"]);
+        statements.Select(s => s.GetType().Name).ShouldBe(["StateStatement", "DatabaseStatement", "StateStatement"]);
     }
 
     [Fact]
     public void ReadConfig_DuplicateAttribute_IsAnError()
-        => NsqlReader.ReadConfig("BACKEND file ( path = 'a', PATH = 'b' );")
+        => NsqlReader.ReadConfig("STATE file ( path = 'a', PATH = 'b' );")
             .Errors.ShouldHaveSingleItem().Message.ShouldContain("more than once");
 
     [Fact]

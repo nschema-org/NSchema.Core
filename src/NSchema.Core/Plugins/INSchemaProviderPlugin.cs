@@ -6,7 +6,7 @@ namespace NSchema.Plugins;
 public interface INSchemaProviderPlugin : INSchemaPlugin
 {
     /// <summary>
-    /// Registers this provider onto the application being built, interpreting the project's <c>PROVIDER</c> statement.
+    /// Registers this provider onto the application being built, interpreting the project's <c>DATABASE</c> statement.
     /// </summary>
     /// <param name="builder">The application builder to register the provider's services on.</param>
     /// <param name="settings">The statement's translated settings.</param>
