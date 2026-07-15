@@ -1,5 +1,5 @@
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Indexes;
+using NSchema.Model;
+using NSchema.Model.Indexes;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;

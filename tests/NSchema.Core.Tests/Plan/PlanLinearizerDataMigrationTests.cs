@@ -8,11 +8,11 @@ using NSchema.Plan.Domain.Models;
 using NSchema.Plan.Domain.Models.Columns;
 using NSchema.Plan.Domain.Models.Constraints;
 using NSchema.Plan.Domain.Models.Scripts;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.Constraints;
-using NSchema.Project.Domain.Models.Scripts;
-using NSchema.Project.Domain.Models.Tables;
+using NSchema.Model;
+using NSchema.Model.Columns;
+using NSchema.Model.Constraints;
+using NSchema.Model.Scripts;
+using NSchema.Model.Tables;
 
 namespace NSchema.Tests.Plan;
 

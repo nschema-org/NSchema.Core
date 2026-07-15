@@ -1,5 +1,5 @@
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.Domains;
+using NSchema.Model.Columns;
+using NSchema.Model.Domains;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;

@@ -1,6 +1,6 @@
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Extensions;
-using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Model;
+using NSchema.Model.Extensions;
+using NSchema.Model.Schemas;
 
 namespace NSchema.Project.Domain;
 

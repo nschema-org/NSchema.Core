@@ -1,14 +1,15 @@
+using NSchema.Model.Services;
+using NSchema.Project.Domain.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Models;
 using NSchema.Plan.Policies;
-using NSchema.Project.Domain;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Scripts;
-using NSchema.Project.Domain.Models.Tables;
+using NSchema.Model;
+using NSchema.Model.Columns;
+using NSchema.Model.Schemas;
+using NSchema.Model.Scripts;
+using NSchema.Model.Tables;
 using NSchema.State.Domain.Models;
 
 namespace NSchema.Tests.Diff;

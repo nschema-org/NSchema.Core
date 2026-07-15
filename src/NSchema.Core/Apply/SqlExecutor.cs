@@ -2,7 +2,7 @@ using System.Data;
 using System.Data.Common;
 using Microsoft.Extensions.Options;
 using NSchema.Plan.Domain.Models;
-using NSchema.Project.Domain.Models;
+using NSchema.Model;
 
 namespace NSchema.Apply;
 

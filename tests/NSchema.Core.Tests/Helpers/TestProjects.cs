@@ -1,6 +1,7 @@
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Domain.Models.Tables;
+using NSchema.Project.Domain.Models;
+using NSchema.Model;
+using NSchema.Model.Scripts;
 
 namespace NSchema.Tests.Helpers;
 

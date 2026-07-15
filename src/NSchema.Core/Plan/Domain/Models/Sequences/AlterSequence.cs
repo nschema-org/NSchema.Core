@@ -1,5 +1,5 @@
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Sequences;
+using NSchema.Model;
+using NSchema.Model.Sequences;
 
 namespace NSchema.Plan.Domain.Models.Sequences;
 

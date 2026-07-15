@@ -1,7 +1,8 @@
-using NSchema.Project;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Project;
+using NSchema.Model;
+using NSchema.Model.Schemas;
+using NSchema.Model.Scripts;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Project.Templates;

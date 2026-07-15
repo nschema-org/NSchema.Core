@@ -1,5 +1,5 @@
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Routines;
+using NSchema.Model;
+using NSchema.Model.Routines;
 
 namespace NSchema.Plan.Domain.Models.Routines;
 

@@ -5,7 +5,7 @@ using NSchema.Diff.Domain.Models.Routines;
 using NSchema.Diff.Domain.Models.Sequences;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Diff.Domain.Models.Views;
-using NSchema.Project.Domain.Models;
+using NSchema.Model;
 namespace NSchema.Diff.Domain.Models.Schemas;
 
 /// <summary>

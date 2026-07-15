@@ -1,8 +1,8 @@
 using NSchema.Deployment.Backends;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Schemas;
+using NSchema.Model;
+using NSchema.Model.Schemas;
 using NSchema.State;
 using NSchema.State.Backends;
 using NSchema.State.Domain.Models;
@@ -195,7 +195,7 @@ public sealed class DoctorOperationTests
 
     private sealed class ThrowingIntrospector(Exception exception) : IDatabaseIntrospector
     {
-        public ValueTask<Database> GetDatabase(SchemaScope scope, CancellationToken cancellationToken = default) =>
+        public ValueTask<Database> GetDatabase(DatabaseScope scope, CancellationToken cancellationToken = default) =>
             throw exception;
     }
 

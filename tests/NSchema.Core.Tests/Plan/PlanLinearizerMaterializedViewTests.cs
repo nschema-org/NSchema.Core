@@ -6,9 +6,9 @@ using NSchema.Plan.Domain;
 using NSchema.Plan.Domain.Models;
 using NSchema.Plan.Domain.Models.Indexes;
 using NSchema.Plan.Domain.Models.Views;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Indexes;
-using NSchema.Project.Domain.Models.Views;
+using NSchema.Model;
+using NSchema.Model.Indexes;
+using NSchema.Model.Views;
 
 namespace NSchema.Tests.Plan;
 

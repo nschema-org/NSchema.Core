@@ -1,12 +1,11 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Deployment;
 using NSchema.Diff.Domain;
 using NSchema.Operations.Progress;
 using NSchema.Plan.Domain;
 using NSchema.Plan.Domain.Models;
 using NSchema.Project;
-using NSchema.Project.Domain;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Model;
 using NSchema.State;
 using NSchema.State.Domain.Models;
 
@@ -23,7 +22,7 @@ internal sealed class MigrationWorkflow(
     public async Task<Result> Validate(CancellationToken cancellationToken = default)
     {
         progress.Report(OperationProgress.Step("Loading desired schema..."));
-        var projectResult = await projectProvider.GetProject(SchemaScope.All, cancellationToken);
+        var projectResult = await projectProvider.GetProject(DatabaseScope.All, cancellationToken);
         if (projectResult.Value is not { } project)
         {
             return Result.From(projectResult.Diagnostics);
@@ -37,7 +36,7 @@ internal sealed class MigrationWorkflow(
         return Result.From(projectResult.Diagnostics.Concat(planner.Validate(project).Diagnostics));
     }
 
-    public async Task<Result<MigrationPlan>> ComputePlan(PlanTarget target, SchemaScope scope, CancellationToken cancellationToken = default)
+    public async Task<Result<MigrationPlan>> ComputePlan(PlanTarget target, DatabaseScope scope, CancellationToken cancellationToken = default)
     {
         // The diff is computed against CurrentState — the schema plus the run-once ledger — so planning without
         // a store would plan against knowingly incomplete current state.
@@ -54,7 +53,7 @@ internal sealed class MigrationWorkflow(
 
         // An unrestricted run derives its scope from what it manages. A teardown declares nothing, so it stays
         // unrestricted and covers everything recorded.
-        var scopeInEffect = scope.IsAll ? SchemaScope.Of(project.ManagedSchemaNames) : scope;
+        var scopeInEffect = scope.IsAll ? DatabaseScope.Of(project.ManagedSchemaNames) : scope;
 
         progress.Report(OperationProgress.Step($"Migration will be scoped to the following schemas: {Describe(scopeInEffect)}"));
 
@@ -66,7 +65,7 @@ internal sealed class MigrationWorkflow(
         }
         var state = read.Value.State ?? DatabaseState.Empty;
 
-        var currentSchema = ScopeFilter.Apply(state.Database, scopeInEffect);
+        var currentSchema = scopeInEffect.Apply(state.Database);
         progress.Report(OperationProgress.Detail($"Current schema: {StatusHelpers.Describe(currentSchema)}."));
 
         var readDiagnostics = new List<Diagnostic>(desired.Diagnostics.Concat(read.Diagnostics));
@@ -95,7 +94,7 @@ internal sealed class MigrationWorkflow(
         }
 
         progress.Report(OperationProgress.Step("Updating state store..."));
-        var live = await databaseProvider.GetDatabase(SchemaScope.All, cancellationToken);
+        var live = await databaseProvider.GetDatabase(DatabaseScope.All, cancellationToken);
         if (live.Value is not { } schema)
         {
             return Result.Failure<StateCapture>(live.Diagnostics);
@@ -142,7 +141,7 @@ internal sealed class MigrationWorkflow(
     /// <summary>
     /// Resolves the state being planned towards: the declared project, or nothing for a teardown.
     /// </summary>
-    private async Task<Result<ProjectDefinition>> ResolveDesired(PlanTarget target, SchemaScope scope, CancellationToken cancellationToken)
+    private async Task<Result<ProjectDefinition>> ResolveDesired(PlanTarget target, DatabaseScope scope, CancellationToken cancellationToken)
     {
         if (target == PlanTarget.Empty)
         {
@@ -159,7 +158,7 @@ internal sealed class MigrationWorkflow(
         return desired;
     }
 
-    private static string Describe(SchemaScope scope) =>
+    private static string Describe(DatabaseScope scope) =>
         scope.SchemaNames is { } names ? string.Join(", ", names) : "(all)";
 
     /// <summary>

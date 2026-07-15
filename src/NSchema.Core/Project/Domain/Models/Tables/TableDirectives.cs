@@ -1,4 +1,5 @@
-using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Model;
+using NSchema.Model.Scripts;
 
 namespace NSchema.Project.Domain.Models.Tables;
 

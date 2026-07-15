@@ -1,6 +1,6 @@
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Model;
+using NSchema.Model.Columns;
+using NSchema.Model.Scripts;
 
 namespace NSchema.Diff.Domain.Models.Columns;
 

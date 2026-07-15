@@ -21,15 +21,15 @@ using NSchema.Plan.Domain.Models.Sequences;
 using NSchema.Plan.Domain.Models.Tables;
 using NSchema.Plan.Domain.Models.Triggers;
 using NSchema.Plan.Domain.Models.Views;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.Constraints;
-using NSchema.Project.Domain.Models.Enums;
-using NSchema.Project.Domain.Models.Indexes;
-using NSchema.Project.Domain.Models.Routines;
-using NSchema.Project.Domain.Models.Sequences;
-using NSchema.Project.Domain.Models.Tables;
-using NSchema.Project.Domain.Models.Views;
+using NSchema.Model;
+using NSchema.Model.Columns;
+using NSchema.Model.Constraints;
+using NSchema.Model.Enums;
+using NSchema.Model.Indexes;
+using NSchema.Model.Routines;
+using NSchema.Model.Sequences;
+using NSchema.Model.Tables;
+using NSchema.Model.Views;
 
 namespace NSchema.Tests.Plan;
 

@@ -1,9 +1,11 @@
-using NSchema.Project.Domain;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Routines;
 using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Tables;
-using NSchema.Project.Domain.Models.Views;
+using NSchema.Project.Domain.Models;
+using NSchema.Project.Domain;
+using NSchema.Model;
+using NSchema.Model.Routines;
+using NSchema.Model.Schemas;
+using NSchema.Model.Tables;
+using NSchema.Model.Views;
 
 namespace NSchema.Tests.Project.Model;
 
@@ -23,7 +25,7 @@ public sealed class DatabaseTests
     [Fact]
     public void Filter_RestrictsSchemas()
     {
-        var result = ScopeFilter.Apply(Sample(), SchemaScope.Of(new SqlIdentifier("app")));
+        var result = DatabaseScope.Of(new SqlIdentifier("app")).Apply(Sample());
 
         result.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
@@ -33,7 +35,7 @@ public sealed class DatabaseTests
     {
         var schema = new Database([new Schema(new SqlIdentifier("App"))]);
 
-        var result = ScopeFilter.Apply(schema, SchemaScope.Of(new SqlIdentifier("app")));
+        var result = DatabaseScope.Of(new SqlIdentifier("app")).Apply(schema);
 
         result.Schemas.Select(s => s.Name).ShouldBe(["App"]);
     }
@@ -41,7 +43,7 @@ public sealed class DatabaseTests
     [Fact]
     public void Filter_NamesNotPresent_AreIgnored()
     {
-        var result = ScopeFilter.Apply(Sample(), SchemaScope.Of(new SqlIdentifier("app"), new SqlIdentifier("does-not-exist")));
+        var result = DatabaseScope.Of(new SqlIdentifier("app"), new SqlIdentifier("does-not-exist")).Apply(Sample());
 
         result.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
@@ -56,7 +58,7 @@ public sealed class DatabaseTests
         var project = new ProjectDefinition(
             new Database([new Schema(core), new Schema(new SqlIdentifier("audit"))]),
             new ProjectDirectives(
-                new NSchema.Project.Domain.Models.Schemas.SchemaDirectives(
+                new SchemaDirectives(
                     Renames: [new SchemaRename(sales, core)],
                     Drops: [new SqlIdentifier("scratch")],
                     Partials: [core, new SqlIdentifier("audit")]),
@@ -68,7 +70,7 @@ public sealed class DatabaseTests
                     ]),
                 Extensions: new NSchema.Project.Domain.Models.Extensions.ExtensionDirectives(Drops: [new SqlIdentifier("stale_ext")])));
 
-        var filtered = ScopeFilter.Apply(project, SchemaScope.Of(core)).Directives;
+        var filtered = ProjectScopeFilter.Apply(project, DatabaseScope.Of(core)).Directives;
 
         filtered.Schemas.Renames.ShouldHaveSingleItem(); // kept — its To side is in scope
         filtered.Schemas.Drops.ShouldBeEmpty();          // scratch is out of scope
@@ -82,7 +84,7 @@ public sealed class DatabaseTests
     {
         var schema = Sample();
 
-        ScopeFilter.Apply(schema, SchemaScope.All).ShouldBe(schema);
+        DatabaseScope.All.Apply(schema).ShouldBe(schema);
     }
 
     [Fact]
@@ -90,7 +92,7 @@ public sealed class DatabaseTests
     {
         var schema = Sample();
 
-        ScopeFilter.Apply(schema, SchemaScope.Of()).ShouldBe(schema);
+        DatabaseScope.Of().Apply(schema).ShouldBe(schema);
     }
 
     // ── Multiple providers, distinct schema names ─────────────────────────────

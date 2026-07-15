@@ -1,5 +1,6 @@
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Model;
+using NSchema.Model.Scripts;
 
 namespace NSchema.Diff.Domain;
 

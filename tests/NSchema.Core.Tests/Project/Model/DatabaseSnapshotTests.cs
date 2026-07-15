@@ -1,9 +1,9 @@
 using NSchema.Project.Domain;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Tables;
-using NSchema.Project.Domain.Models.Views;
+using NSchema.Model;
+using NSchema.Model.Columns;
+using NSchema.Model.Schemas;
+using NSchema.Model.Tables;
+using NSchema.Model.Views;
 
 namespace NSchema.Tests.Project.Model;
 

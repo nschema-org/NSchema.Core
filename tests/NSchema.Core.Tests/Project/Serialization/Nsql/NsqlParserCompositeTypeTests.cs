@@ -1,5 +1,5 @@
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.CompositeTypes;
+using NSchema.Model.Columns;
+using NSchema.Model.CompositeTypes;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;
@@ -41,7 +41,7 @@ public sealed class NsqlParserCompositeTypeTests
     [Fact]
     public void Parse_RenameType_BecomesADirective()
         => Directives("CREATE SCHEMA app; CREATE TYPE app.address AS (street text); RENAME TYPE app.legacy_address TO address;")
-            .CompositeTypes.Renames.ShouldHaveSingleItem().To.ShouldBe(new NSchema.Project.Domain.Models.SqlIdentifier("address"));
+            .CompositeTypes.Renames.ShouldHaveSingleItem().To.ShouldBe(new NSchema.Model.SqlIdentifier("address"));
 
     [Fact]
     public void Parse_WithDocComment_AttachesComment()

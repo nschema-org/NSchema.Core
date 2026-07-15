@@ -1,5 +1,5 @@
 using System.Text;
-using NSchema.Project.Domain.Models;
+using NSchema.Model;
 
 namespace NSchema.Diff.Domain;
 

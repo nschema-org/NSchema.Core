@@ -7,7 +7,7 @@ using NSchema.Plan.PlanFile;
 using NSchema.Plan.Policies;
 using NSchema.Plugins;
 using NSchema.Project;
-using NSchema.Project.Domain.Models;
+using NSchema.Model;
 using NSchema.Project.Policies;
 using NSchema.State;
 using NSchema.State.Backends;

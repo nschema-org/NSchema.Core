@@ -1,6 +1,6 @@
 using NSchema.Plan.Domain;
 using NSchema.Plan.Domain.Models;
-using NSchema.Project.Domain.Models;
+using NSchema.Model;
 
 namespace NSchema.Operations.Workflow;
 
@@ -22,7 +22,7 @@ internal interface IMigrationWorkflow
     /// <param name="target">The state to plan towards.</param>
     /// <param name="scope">The schemas under management this run.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<Result<MigrationPlan>> ComputePlan(PlanTarget target, SchemaScope scope, CancellationToken cancellationToken = default);
+    Task<Result<MigrationPlan>> ComputePlan(PlanTarget target, DatabaseScope scope, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Updates the state store from the live schema.

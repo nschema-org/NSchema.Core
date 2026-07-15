@@ -1,3 +1,4 @@
+using NSchema.Model;
 namespace NSchema.Project.Domain.Models.Extensions;
 
 /// <summary>

@@ -1,7 +1,8 @@
-using NSchema.Diff.Domain.Models;
-using NSchema.Project.Domain;
+using NSchema.Model.Services;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Diff.Domain.Models;
+using NSchema.Model;
+using NSchema.Model.Scripts;
 using NSchema.State.Domain.Models;
 
 namespace NSchema.Diff.Domain;

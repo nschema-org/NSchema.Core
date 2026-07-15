@@ -1,6 +1,6 @@
+using NSchema.Model.Routines;
 using System.Runtime.CompilerServices;
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.Triggers;
+using NSchema.Model.Columns;
 
 namespace NSchema.Tests;
 
@@ -47,7 +47,7 @@ public static class VerifyModuleInitializer
         {
             for (var current = type.BaseType; current is not null; current = current.BaseType)
             {
-                if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(NSchema.Project.Domain.Models.ValueObject<>))
+                if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(Model.ValueObject<>))
                 {
                     return true;
                 }
@@ -60,9 +60,9 @@ public static class VerifyModuleInitializer
         public override void Write(VerifyJsonWriter writer, object value) => writer.WriteValue(value.ToString());
     }
 
-    private sealed class ObjectReferenceConverter : WriteOnlyJsonConverter<NSchema.Project.Domain.Models.ObjectReference>
+    private sealed class ObjectReferenceConverter : WriteOnlyJsonConverter<Model.ObjectReference>
     {
-        public override void Write(VerifyJsonWriter writer, NSchema.Project.Domain.Models.ObjectReference value) =>
+        public override void Write(VerifyJsonWriter writer, Model.ObjectReference value) =>
             writer.WriteValue(value.ToString());
     }
 

@@ -1,7 +1,7 @@
-using System.Text;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Tables;
+using System.Text;
+using NSchema.Model;
+using NSchema.Model.Schemas;
 using NSchema.Project.Nsql;
 using NSchema.State;
 using NSchema.State.Domain.Models;

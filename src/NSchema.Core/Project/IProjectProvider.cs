@@ -1,4 +1,6 @@
 using NSchema.Project.Domain.Models;
+using NSchema.Model;
+
 namespace NSchema.Project;
 
 /// <summary>
@@ -12,5 +14,5 @@ public interface IProjectProvider
     /// <param name="scope">The schemas to include.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The resolved project, with any non-fatal findings raised while reading.</returns>
-    ValueTask<Result<ProjectDefinition>> GetProject(SchemaScope scope, CancellationToken cancellationToken = default);
+    ValueTask<Result<ProjectDefinition>> GetProject(DatabaseScope scope, CancellationToken cancellationToken = default);
 }

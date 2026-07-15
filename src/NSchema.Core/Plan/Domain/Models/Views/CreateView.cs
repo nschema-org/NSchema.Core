@@ -1,5 +1,5 @@
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Views;
+using NSchema.Model;
+using NSchema.Model.Views;
 
 namespace NSchema.Plan.Domain.Models.Views;
 

@@ -1,5 +1,6 @@
-using System.Reflection;
 using NSchema.Project.Domain.Models;
+using System.Reflection;
+using NSchema.Model;
 using NSchema.State;
 
 namespace NSchema.Tests.Project.Model;
@@ -14,11 +15,18 @@ public sealed class DomainModelSerializationContractTests
 {
     private const string JsonSerializationNamespace = "System.Text.Json.Serialization";
 
+    // Both model roots: the shared kernel, and the project's own directive vocabulary.
+    private static readonly string?[] _modelRoots =
+    [
+        typeof(Database).Namespace,
+        typeof(ProjectDefinition).Namespace,
+    ];
+
     public static TheoryData<Type> DomainTypes()
     {
         var data = new TheoryData<Type>();
         var types = typeof(Database).Assembly.GetTypes()
-            .Where(t => t.Namespace == typeof(Database).Namespace)
+            .Where(t => _modelRoots.Contains(t.Namespace))
             .Where(t => t is { IsClass: true, IsAbstract: false } || t.IsValueType)
             .ToList();
         data.AddRange(types);

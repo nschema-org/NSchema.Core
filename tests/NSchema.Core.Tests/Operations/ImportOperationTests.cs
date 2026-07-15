@@ -2,16 +2,16 @@ using NSchema.Deployment;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
 using NSchema.Project.Domain;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.Domains;
-using NSchema.Project.Domain.Models.Enums;
-using NSchema.Project.Domain.Models.Extensions;
-using NSchema.Project.Domain.Models.Routines;
-using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Sequences;
-using NSchema.Project.Domain.Models.Tables;
-using NSchema.Project.Domain.Models.Views;
+using NSchema.Model;
+using NSchema.Model.Columns;
+using NSchema.Model.Domains;
+using NSchema.Model.Enums;
+using NSchema.Model.Extensions;
+using NSchema.Model.Routines;
+using NSchema.Model.Schemas;
+using NSchema.Model.Sequences;
+using NSchema.Model.Tables;
+using NSchema.Model.Views;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Operations;
@@ -39,7 +39,7 @@ public sealed class ImportOperationTests : IDisposable
     private void Source(Database schema)
     {
         _database
-            .GetDatabase(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
+            .GetDatabase(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(schema));
     }
 
@@ -89,13 +89,13 @@ public sealed class ImportOperationTests : IDisposable
     {
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
-        await _database.Received(1).GetDatabase(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
+        await _database.Received(1).GetDatabase(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Execute_PassesScopeFilterToSource()
     {
-        var arguments = new ImportArguments { OutputDirectory = _dir, Scope = SchemaScope.Of(new SqlIdentifier("app"), new SqlIdentifier("audit")) };
+        var arguments = new ImportArguments { OutputDirectory = _dir, Scope = DatabaseScope.Of(new SqlIdentifier("app"), new SqlIdentifier("audit")) };
 
         await Execute(arguments);
 

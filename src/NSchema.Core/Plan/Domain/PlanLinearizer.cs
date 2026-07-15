@@ -20,8 +20,8 @@ using NSchema.Plan.Domain.Models.Sequences;
 using NSchema.Plan.Domain.Models.Tables;
 using NSchema.Plan.Domain.Models.Triggers;
 using NSchema.Plan.Domain.Models.Views;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Model;
+using NSchema.Model.Scripts;
 
 namespace NSchema.Plan.Domain;
 

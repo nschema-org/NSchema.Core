@@ -1,6 +1,6 @@
 using NSchema.Deployment.Backends;
 using NSchema.Operations.Progress;
-using NSchema.Project.Domain.Models;
+using NSchema.Model;
 using NSchema.State;
 using NSchema.State.Backends;
 using NSchema.State.Locks.Backends;
@@ -51,7 +51,7 @@ internal sealed class DoctorOperation(
         try
         {
             // A full introspection is the honest end-to-end probe: it exercises the same path plan/apply rely on.
-            var schema = await online.GetDatabase(SchemaScope.All, cancellationToken);
+            var schema = await online.GetDatabase(DatabaseScope.All, cancellationToken);
             return Diagnostic.Info(source, $"Database: connected ({schema.Schemas.Count} schema{(schema.Schemas.Count == 1 ? "" : "s")} visible).");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
