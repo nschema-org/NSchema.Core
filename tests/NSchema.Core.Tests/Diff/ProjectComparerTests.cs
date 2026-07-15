@@ -214,8 +214,8 @@ public sealed class ProjectComparerTests
         // Arrange — current has 'people' and no 'users': the rename has demonstrably been applied here.
         var current = new CurrentState(new Database([new Schema(new SqlIdentifier("app"),
             Tables: [new Table(new SqlIdentifier("people"))])]));
-        var directives = new ProjectDirectives(Tables: new NSchema.Project.Domain.Models.Tables.TableDirectives(
-            Renames: [new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("users")), new SqlIdentifier("people"))]));
+        var directives = new ProjectDirectives(Tables: new TableDirectives(
+            Renames: [new ObjectRenameDirective(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("users")), new SqlIdentifier("people"))]));
 
         // Act
         var comparison = Sut.Compare(current, new ProjectDefinition(_emptySchema, directives));
@@ -233,8 +233,8 @@ public sealed class ProjectComparerTests
     {
         // Arrange — neither side of the rename exists (a fresh environment): the directive is pending, not
         // spent, so no expiry info fires.
-        var directives = new ProjectDirectives(Tables: new NSchema.Project.Domain.Models.Tables.TableDirectives(
-            Renames: [new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("users")), new SqlIdentifier("people"))]));
+        var directives = new ProjectDirectives(Tables: new TableDirectives(
+            Renames: [new ObjectRenameDirective(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("users")), new SqlIdentifier("people"))]));
 
         // Act
         var comparison = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, directives));

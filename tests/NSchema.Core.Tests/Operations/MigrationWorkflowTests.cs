@@ -567,7 +567,7 @@ public sealed class MigrationWorkflowTests
         // schema and a rename's current name are under management too).
         var desired = new Database(
             [new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("admin"))]);
-        var directives = new ProjectDirectives(new NSchema.Project.Domain.Models.Schemas.SchemaDirectives(
+        var directives = new ProjectDirectives(new SchemaDirectives(
             Drops: [new SqlIdentifier("legacy")]));
         _desiredProvider.GetProject(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new ProjectDefinition(desired, directives)));

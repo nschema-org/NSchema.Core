@@ -1,4 +1,3 @@
-using NSchema.Project.Domain.Models.Domains;
 using NSchema.Project.Domain.Models;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Domains;
@@ -86,7 +85,7 @@ public partial class DatabaseComparerTests
     public void Compare_RenamedDomain_SetsRenamedFrom()
     {
         var diff = DiffDomains([new DomainType(new SqlIdentifier("old_d"), SqlType.Text)], [new DomainType(new SqlIdentifier("d"), SqlType.Text)],
-            new ProjectDirectives(Domains: new DomainDirectives(Renames: [new ObjectRename(App("old_d"), new SqlIdentifier("d"))])));
+            new ProjectDirectives(Domains: new DomainDirectives(Renames: [new ObjectRenameDirective(App("old_d"), new SqlIdentifier("d"))])));
 
         diff!.RenamedFrom.ShouldBe("old_d");
         diff.RequiresRecreate.ShouldBeFalse(); // a rename is in place, not a recreate

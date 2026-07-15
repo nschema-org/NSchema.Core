@@ -207,7 +207,7 @@ public sealed class NsqlParserTests
     public void Parse_RenameView_BecomesADirective()
         => Directives("CREATE SCHEMA app; CREATE VIEW app.v AS SELECT 1 FROM app.t; RENAME VIEW app.old_v TO v;")
             .Views.Renames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("old_v")), new SqlIdentifier("v")));
+            .ShouldBe(new ObjectRenameDirective(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("old_v")), new SqlIdentifier("v")));
 
     [Fact]
     public void Parse_CreateView_WithDocComment_AttachesComment()
@@ -281,7 +281,7 @@ public sealed class NsqlParserTests
     public void Parse_RenameEnum_BecomesADirective()
         => Directives("CREATE SCHEMA app; CREATE ENUM app.status ('a'); RENAME ENUM app.state TO status;")
             .Enums.Renames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("state")), new SqlIdentifier("status")));
+            .ShouldBe(new ObjectRenameDirective(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("state")), new SqlIdentifier("status")));
 
     [Fact]
     public void Parse_CreateEnum_WithDocComment_AttachesComment()
@@ -348,7 +348,7 @@ public sealed class NsqlParserTests
     public void Parse_RenameSequence_BecomesADirective()
         => Directives("CREATE SCHEMA app; CREATE SEQUENCE app.invoice_id; RENAME SEQUENCE app.bill_id TO invoice_id;")
             .Sequences.Renames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("bill_id")), new SqlIdentifier("invoice_id")));
+            .ShouldBe(new ObjectRenameDirective(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("bill_id")), new SqlIdentifier("invoice_id")));
 
     [Fact]
     public void Parse_CreateSequence_WithDocComment_AttachesComment()
@@ -425,7 +425,7 @@ public sealed class NsqlParserTests
     {
         var directives = Directives("CREATE SCHEMA app; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$; RENAME FUNCTION app.old_f TO f;");
         directives.Routines.Renames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("old_f")), new SqlIdentifier("f")));
+            .ShouldBe(new ObjectRenameDirective(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("old_f")), new SqlIdentifier("f")));
     }
 
     [Fact]

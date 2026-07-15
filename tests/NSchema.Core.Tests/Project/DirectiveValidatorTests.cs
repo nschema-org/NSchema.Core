@@ -1,5 +1,3 @@
-using NSchema.Project.Domain.Models.Tables;
-using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models;
 using NSchema.Project;
 using NSchema.Project.Domain;
@@ -34,7 +32,7 @@ public sealed class DirectiveValidatorTests
     public void Validate_WellFormedRenameAndDrop_ProducesNothing()
     {
         var project = Project(new ProjectDirectives(Tables: new TableDirectives(
-                Renames: [new ObjectRename(App("users"), new SqlIdentifier("people"))],
+                Renames: [new ObjectRenameDirective(App("users"), new SqlIdentifier("people"))],
                 Drops: [App("old_table")])),
             AppSchema(Table("people", "id")));
 
@@ -45,7 +43,7 @@ public sealed class DirectiveValidatorTests
     public void Validate_RenameTargetNotDeclared_IsAnError()
     {
         var project = Project(new ProjectDirectives(Tables: new TableDirectives(
-                Renames: [new ObjectRename(App("users"), new SqlIdentifier("people"))])),
+                Renames: [new ObjectRenameDirective(App("users"), new SqlIdentifier("people"))])),
             AppSchema());
 
         Validate(project).ShouldHaveSingleItem()
@@ -56,7 +54,7 @@ public sealed class DirectiveValidatorTests
     public void Validate_RenameSourceStillDeclared_IsAnError()
     {
         var project = Project(new ProjectDirectives(Tables: new TableDirectives(
-                Renames: [new ObjectRename(App("users"), new SqlIdentifier("people"))])),
+                Renames: [new ObjectRenameDirective(App("users"), new SqlIdentifier("people"))])),
             AppSchema(Table("people", "id"), Table("users", "id")));
 
         Validate(project).ShouldHaveSingleItem()
@@ -67,7 +65,7 @@ public sealed class DirectiveValidatorTests
     public void Validate_RenameOfDropped_IsAnError()
     {
         var project = Project(new ProjectDirectives(Tables: new TableDirectives(
-                Renames: [new ObjectRename(App("users"), new SqlIdentifier("people"))],
+                Renames: [new ObjectRenameDirective(App("users"), new SqlIdentifier("people"))],
                 Drops: [App("users")])),
             AppSchema(Table("people", "id")));
 
@@ -108,7 +106,7 @@ public sealed class DirectiveValidatorTests
     public void Validate_SelfRename_IsAnError()
     {
         var project = Project(new ProjectDirectives(Tables: new TableDirectives(
-                Renames: [new ObjectRename(App("users"), new SqlIdentifier("users"))])),
+                Renames: [new ObjectRenameDirective(App("users"), new SqlIdentifier("users"))])),
             AppSchema(Table("users", "id")));
 
         Validate(project).ShouldContain(ProjectDiagnostics.SelfRename("table", "app.users"));
@@ -120,8 +118,8 @@ public sealed class DirectiveValidatorTests
         var project = Project(new ProjectDirectives(Tables: new TableDirectives(
                 Renames:
                 [
-                    new ObjectRename(App("users"), new SqlIdentifier("people")),
-                    new ObjectRename(App("users"), new SqlIdentifier("members")),
+                    new ObjectRenameDirective(App("users"), new SqlIdentifier("people")),
+                    new ObjectRenameDirective(App("users"), new SqlIdentifier("members")),
                 ])),
             AppSchema(Table("people", "id"), Table("members", "id")));
 
@@ -134,8 +132,8 @@ public sealed class DirectiveValidatorTests
         var project = Project(new ProjectDirectives(Tables: new TableDirectives(
                 Renames:
                 [
-                    new ObjectRename(App("users"), new SqlIdentifier("people")),
-                    new ObjectRename(App("members"), new SqlIdentifier("people")),
+                    new ObjectRenameDirective(App("users"), new SqlIdentifier("people")),
+                    new ObjectRenameDirective(App("members"), new SqlIdentifier("people")),
                 ])),
             AppSchema(Table("people", "id")));
 
@@ -149,8 +147,8 @@ public sealed class DirectiveValidatorTests
         var project = Project(new ProjectDirectives(Tables: new TableDirectives(
                 Renames:
                 [
-                    new ObjectRename(App("a"), new SqlIdentifier("b")),
-                    new ObjectRename(App("b"), new SqlIdentifier("c")),
+                    new ObjectRenameDirective(App("a"), new SqlIdentifier("b")),
+                    new ObjectRenameDirective(App("b"), new SqlIdentifier("c")),
                 ])),
             AppSchema(Table("b", "id"), Table("c", "id")));
 
@@ -166,8 +164,8 @@ public sealed class DirectiveValidatorTests
             new Database([AppSchema(Table("people", "id")), new Schema(other, Tables: [Table("people", "id")])]),
             new ProjectDirectives(Tables: new TableDirectives(Renames:
             [
-                new ObjectRename(App("users"), new SqlIdentifier("people")),
-                new ObjectRename(new ObjectReference(other, new SqlIdentifier("users")), new SqlIdentifier("people")),
+                new ObjectRenameDirective(App("users"), new SqlIdentifier("people")),
+                new ObjectRenameDirective(new ObjectReference(other, new SqlIdentifier("users")), new SqlIdentifier("people")),
             ])));
 
         Validate(project).ShouldBeEmpty();
@@ -183,13 +181,13 @@ public sealed class DirectiveValidatorTests
         var project = new ProjectDefinition(
             new Database([new Schema(core, Tables: [Table("people", "id", "full_name")])]),
             new ProjectDirectives(
-                new SchemaDirectives(Renames: [new SchemaRename(sales, core)]),
+                new SchemaDirectives(Renames: [new SchemaRenameDirective(sales, core)]),
                 new TableDirectives(
-                    Renames: [new ObjectRename(new ObjectReference(sales, new SqlIdentifier("users")), new SqlIdentifier("people"))],
+                    Renames: [new ObjectRenameDirective(new ObjectReference(sales, new SqlIdentifier("users")), new SqlIdentifier("people"))],
                     Drops: [new ObjectReference(sales, new SqlIdentifier("old_table"))],
                     ColumnRenames:
                     [
-                        new MemberRename(new MemberReference(sales, new SqlIdentifier("users"), new SqlIdentifier("name")), new SqlIdentifier("full_name")),
+                        new MemberRenameDirective(new MemberReference(sales, new SqlIdentifier("users"), new SqlIdentifier("name")), new SqlIdentifier("full_name")),
                     ])));
 
         Validate(project).ShouldBeEmpty();
@@ -199,7 +197,7 @@ public sealed class DirectiveValidatorTests
     public void Validate_ColumnRenameTargetNotDeclared_IsAnError()
     {
         var project = Project(new ProjectDirectives(Tables: new TableDirectives(
-                ColumnRenames: [new MemberRename(new MemberReference(_app, new SqlIdentifier("users"), new SqlIdentifier("name")), new SqlIdentifier("full_name"))])),
+                ColumnRenames: [new MemberRenameDirective(new MemberReference(_app, new SqlIdentifier("users"), new SqlIdentifier("name")), new SqlIdentifier("full_name"))])),
             AppSchema(Table("users", "id")));
 
         Validate(project).ShouldHaveSingleItem()
@@ -210,7 +208,7 @@ public sealed class DirectiveValidatorTests
     public void Validate_ColumnRenameIntoUndeclaredTable_IsAnError()
     {
         var project = Project(new ProjectDirectives(Tables: new TableDirectives(
-                ColumnRenames: [new MemberRename(new MemberReference(_app, new SqlIdentifier("ghost"), new SqlIdentifier("name")), new SqlIdentifier("full_name"))])),
+                ColumnRenames: [new MemberRenameDirective(new MemberReference(_app, new SqlIdentifier("ghost"), new SqlIdentifier("name")), new SqlIdentifier("full_name"))])),
             AppSchema());
 
         Validate(project).ShouldHaveSingleItem()

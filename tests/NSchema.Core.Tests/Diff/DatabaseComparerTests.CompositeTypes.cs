@@ -1,4 +1,3 @@
-using NSchema.Project.Domain.Models.CompositeTypes;
 using NSchema.Project.Domain.Models;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.CompositeTypes;
@@ -85,7 +84,7 @@ public partial class DatabaseComparerTests
         var diff = DiffCompositeTypes(
             [new CompositeType(new SqlIdentifier("legacy_address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text)])],
             [new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text)])],
-            new ProjectDirectives(CompositeTypes: new CompositeTypeDirectives(Renames: [new ObjectRename(App("legacy_address"), new SqlIdentifier("address"))])));
+            new ProjectDirectives(CompositeTypes: new CompositeTypeDirectives(Renames: [new ObjectRenameDirective(App("legacy_address"), new SqlIdentifier("address"))])));
 
         diff!.RenamedFrom.ShouldBe("legacy_address");
     }

@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Project.Domain.Models.Domains;
+
+namespace NSchema.Project.Domain.Models;
 
 /// <summary>
 /// The management directives declared for domains.
@@ -7,14 +8,14 @@ namespace NSchema.Project.Domain.Models.Domains;
 /// <param name="Renames">The declared domain renames.</param>
 /// <param name="Drops">The domains explicitly declared dropped.</param>
 public sealed record DomainDirectives(
-    IReadOnlyList<ObjectRename>? Renames = null,
+    IReadOnlyList<ObjectRenameDirective>? Renames = null,
     IReadOnlyList<ObjectReference>? Drops = null
 )
 {
     /// <summary>
     /// The declared domain renames.
     /// </summary>
-    public IReadOnlyList<ObjectRename> Renames { get; init; } = Renames ?? [];
+    public IReadOnlyList<ObjectRenameDirective> Renames { get; init; } = Renames ?? [];
 
     /// <summary>
     /// The domains explicitly declared dropped.

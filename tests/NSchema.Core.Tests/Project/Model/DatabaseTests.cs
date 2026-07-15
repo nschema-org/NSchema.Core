@@ -1,4 +1,3 @@
-using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain;
 using NSchema.Model;
@@ -59,16 +58,16 @@ public sealed class DatabaseTests
             new Database([new Schema(core), new Schema(new SqlIdentifier("audit"))]),
             new ProjectDirectives(
                 new SchemaDirectives(
-                    Renames: [new SchemaRename(sales, core)],
+                    Renames: [new SchemaRenameDirective(sales, core)],
                     Drops: [new SqlIdentifier("scratch")],
                     Partials: [core, new SqlIdentifier("audit")]),
-                new NSchema.Project.Domain.Models.Tables.TableDirectives(
+                new TableDirectives(
                     Drops:
                     [
                         new ObjectReference(sales, new SqlIdentifier("old")),
                         new ObjectReference(new SqlIdentifier("audit"), new SqlIdentifier("stale")),
                     ]),
-                Extensions: new NSchema.Project.Domain.Models.Extensions.ExtensionDirectives(Drops: [new SqlIdentifier("stale_ext")])));
+                Extensions: new ExtensionDirectives(Drops: [new SqlIdentifier("stale_ext")])));
 
         var filtered = ProjectScopeFilter.Apply(project, DatabaseScope.Of(core)).Directives;
 

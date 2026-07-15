@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Scripts;
 
-namespace NSchema.Project.Domain.Models.Tables;
+namespace NSchema.Project.Domain.Models;
 
 /// <summary>
 /// The management directives declared for tables.
@@ -11,16 +11,16 @@ namespace NSchema.Project.Domain.Models.Tables;
 /// <param name="ColumnRenames">The declared column renames.</param>
 /// <param name="ChangeScripts">The change-event scripts targeting this schema's table members.</param>
 public sealed record TableDirectives(
-    IReadOnlyList<ObjectRename>? Renames = null,
+    IReadOnlyList<ObjectRenameDirective>? Renames = null,
     IReadOnlyList<ObjectReference>? Drops = null,
-    IReadOnlyList<MemberRename>? ColumnRenames = null,
+    IReadOnlyList<MemberRenameDirective>? ColumnRenames = null,
     IReadOnlyList<ChangeScript>? ChangeScripts = null
 )
 {
     /// <summary>
     /// The declared table renames.
     /// </summary>
-    public IReadOnlyList<ObjectRename> Renames { get; init; } = Renames ?? [];
+    public IReadOnlyList<ObjectRenameDirective> Renames { get; init; } = Renames ?? [];
 
     /// <summary>
     /// The tables explicitly declared dropped.
@@ -30,7 +30,7 @@ public sealed record TableDirectives(
     /// <summary>
     /// The declared column renames.
     /// </summary>
-    public IReadOnlyList<MemberRename> ColumnRenames { get; init; } = ColumnRenames ?? [];
+    public IReadOnlyList<MemberRenameDirective> ColumnRenames { get; init; } = ColumnRenames ?? [];
 
     /// <summary>
     /// The change-event scripts targeting this schema's table members.

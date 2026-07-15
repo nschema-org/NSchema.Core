@@ -1,12 +1,3 @@
-using NSchema.Project.Domain.Models.Extensions;
-using NSchema.Project.Domain.Models.CompositeTypes;
-using NSchema.Project.Domain.Models.Domains;
-using NSchema.Project.Domain.Models.Routines;
-using NSchema.Project.Domain.Models.Sequences;
-using NSchema.Project.Domain.Models.Enums;
-using NSchema.Project.Domain.Models.Views;
-using NSchema.Project.Domain.Models.Tables;
-using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models;
 using NSchema.Model;
 using NSchema.Project.Nsql;
@@ -21,23 +12,23 @@ namespace NSchema.Project;
 internal sealed class DirectiveCollector
 {
     private readonly ProjectedScripts _scripts = new();
-    private readonly List<SchemaRename> _schemaRenames = [];
+    private readonly List<SchemaRenameDirective> _schemaRenames = [];
     private readonly List<SqlIdentifier> _schemaDrops = [];
     private readonly List<SqlIdentifier> _partials = [];
-    private readonly List<ObjectRename> _tableRenames = [];
+    private readonly List<ObjectRenameDirective> _tableRenames = [];
     private readonly List<ObjectReference> _tableDrops = [];
-    private readonly List<MemberRename> _columnRenames = [];
-    private readonly List<ObjectRename> _viewRenames = [];
+    private readonly List<MemberRenameDirective> _columnRenames = [];
+    private readonly List<ObjectRenameDirective> _viewRenames = [];
     private readonly List<ObjectReference> _viewDrops = [];
-    private readonly List<ObjectRename> _enumRenames = [];
+    private readonly List<ObjectRenameDirective> _enumRenames = [];
     private readonly List<ObjectReference> _enumDrops = [];
-    private readonly List<ObjectRename> _sequenceRenames = [];
+    private readonly List<ObjectRenameDirective> _sequenceRenames = [];
     private readonly List<ObjectReference> _sequenceDrops = [];
-    private readonly List<ObjectRename> _routineRenames = [];
+    private readonly List<ObjectRenameDirective> _routineRenames = [];
     private readonly List<ObjectReference> _routineDrops = [];
-    private readonly List<ObjectRename> _domainRenames = [];
+    private readonly List<ObjectRenameDirective> _domainRenames = [];
     private readonly List<ObjectReference> _domainDrops = [];
-    private readonly List<ObjectRename> _compositeTypeRenames = [];
+    private readonly List<ObjectRenameDirective> _compositeTypeRenames = [];
     private readonly List<ObjectReference> _compositeTypeDrops = [];
     private readonly List<SqlIdentifier> _extensionDrops = [];
 
@@ -54,7 +45,7 @@ internal sealed class DirectiveCollector
                 DocumentProjector.ProjectScript(s, context, _scripts);
                 return true;
             case Syn.Schemas.RenameSchemaStatement s:
-                _schemaRenames.Add(new SchemaRename(Name(s.From), Name(s.To)));
+                _schemaRenames.Add(new SchemaRenameDirective(Name(s.From), Name(s.To)));
                 return true;
             case Syn.Schemas.DropSchemaStatement s:
                 AddUnique(_schemaDrops, Name(s.Name));
@@ -63,10 +54,10 @@ internal sealed class DirectiveCollector
                 AddUnique(_partials, Name(s.Schema));
                 return true;
             case Syn.Tables.RenameTableStatement s:
-                _tableRenames.Add(new ObjectRename(Reference(s.From, context), Name(s.To)));
+                _tableRenames.Add(new ObjectRenameDirective(Reference(s.From, context), Name(s.To)));
                 return true;
             case Syn.Tables.RenameColumnStatement s:
-                _columnRenames.Add(new MemberRename(
+                _columnRenames.Add(new MemberRenameDirective(
                     new MemberReference(Bind(s.From.Schema, context), Name(s.From.Table), Name(s.From.Member)),
                     Name(s.To)));
                 return true;
@@ -74,37 +65,37 @@ internal sealed class DirectiveCollector
                 AddUnique(_tableDrops, Reference(s.Name, context));
                 return true;
             case Syn.Views.RenameViewStatement s:
-                _viewRenames.Add(new ObjectRename(Reference(s.From, context), Name(s.To)));
+                _viewRenames.Add(new ObjectRenameDirective(Reference(s.From, context), Name(s.To)));
                 return true;
             case Syn.Views.DropViewStatement s:
                 AddUnique(_viewDrops, Reference(s.Name, context));
                 return true;
             case Syn.Enums.RenameEnumStatement s:
-                _enumRenames.Add(new ObjectRename(Reference(s.From, context), Name(s.To)));
+                _enumRenames.Add(new ObjectRenameDirective(Reference(s.From, context), Name(s.To)));
                 return true;
             case Syn.Enums.DropEnumStatement s:
                 AddUnique(_enumDrops, Reference(s.Name, context));
                 return true;
             case Syn.Sequences.RenameSequenceStatement s:
-                _sequenceRenames.Add(new ObjectRename(Reference(s.From, context), Name(s.To)));
+                _sequenceRenames.Add(new ObjectRenameDirective(Reference(s.From, context), Name(s.To)));
                 return true;
             case Syn.Sequences.DropSequenceStatement s:
                 AddUnique(_sequenceDrops, Reference(s.Name, context));
                 return true;
             case Syn.Routines.RenameRoutineStatement s:
-                _routineRenames.Add(new ObjectRename(Reference(s.From, context), Name(s.To)));
+                _routineRenames.Add(new ObjectRenameDirective(Reference(s.From, context), Name(s.To)));
                 return true;
             case Syn.Routines.DropRoutineStatement s:
                 AddUnique(_routineDrops, Reference(s.Name, context));
                 return true;
             case Syn.Domains.RenameDomainStatement s:
-                _domainRenames.Add(new ObjectRename(Reference(s.From, context), Name(s.To)));
+                _domainRenames.Add(new ObjectRenameDirective(Reference(s.From, context), Name(s.To)));
                 return true;
             case Syn.Domains.DropDomainStatement s:
                 AddUnique(_domainDrops, Reference(s.Name, context));
                 return true;
             case Syn.CompositeTypes.RenameCompositeTypeStatement s:
-                _compositeTypeRenames.Add(new ObjectRename(Reference(s.From, context), Name(s.To)));
+                _compositeTypeRenames.Add(new ObjectRenameDirective(Reference(s.From, context), Name(s.To)));
                 return true;
             case Syn.CompositeTypes.DropCompositeTypeStatement s:
                 AddUnique(_compositeTypeDrops, Reference(s.Name, context));

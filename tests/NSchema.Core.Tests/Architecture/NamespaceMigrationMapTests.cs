@@ -1,7 +1,7 @@
-using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Model.Routines;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
+using NSchema.Project.Domain.Models;
 using Syntax = NSchema.Project.Nsql.Syntax;
 
 namespace NSchema.Tests.Architecture;
@@ -180,18 +180,18 @@ public sealed class NamespaceMigrationMapTests
         // Addresses and the directive vocabulary (cross-kind shapes at the root, slices per subject).
         [typeof(NSchema.Model.MemberReference)] = Model,
         [typeof(NSchema.Project.Domain.Models.ProjectDirectives)] = ProjectModels,
-        [typeof(SchemaRename)] = ProjectModels + ".Schemas", // schema-specific shape — lives with its subject, unlike the cross-kind ObjectRename/MemberRename
-        [typeof(NSchema.Project.Domain.Models.ObjectRename)] = ProjectModels,
-        [typeof(NSchema.Project.Domain.Models.MemberRename)] = ProjectModels,
-        [typeof(NSchema.Project.Domain.Models.Schemas.SchemaDirectives)] = ProjectModels + ".Schemas",
-        [typeof(NSchema.Project.Domain.Models.Tables.TableDirectives)] = ProjectModels + ".Tables",
-        [typeof(NSchema.Project.Domain.Models.Views.ViewDirectives)] = ProjectModels + ".Views",
-        [typeof(NSchema.Project.Domain.Models.Enums.EnumDirectives)] = ProjectModels + ".Enums",
-        [typeof(NSchema.Project.Domain.Models.Sequences.SequenceDirectives)] = ProjectModels + ".Sequences",
-        [typeof(NSchema.Project.Domain.Models.Routines.RoutineDirectives)] = ProjectModels + ".Routines",
-        [typeof(NSchema.Project.Domain.Models.Domains.DomainDirectives)] = ProjectModels + ".Domains",
-        [typeof(NSchema.Project.Domain.Models.CompositeTypes.CompositeTypeDirectives)] = ProjectModels + ".CompositeTypes",
-        [typeof(NSchema.Project.Domain.Models.Extensions.ExtensionDirectives)] = ProjectModels + ".Extensions",
+        [typeof(SchemaRenameDirective)] = ProjectModels + ".Schemas", // schema-specific shape — lives with its subject, unlike the cross-kind ObjectRename/MemberRename
+        [typeof(NSchema.Project.Domain.Models.ObjectRenameDirective)] = ProjectModels,
+        [typeof(NSchema.Project.Domain.Models.MemberRenameDirective)] = ProjectModels,
+        [typeof(SchemaDirectives)] = ProjectModels + ".Schemas",
+        [typeof(TableDirectives)] = ProjectModels + ".Tables",
+        [typeof(ViewDirectives)] = ProjectModels + ".Views",
+        [typeof(EnumDirectives)] = ProjectModels + ".Enums",
+        [typeof(SequenceDirectives)] = ProjectModels + ".Sequences",
+        [typeof(RoutineDirectives)] = ProjectModels + ".Routines",
+        [typeof(DomainDirectives)] = ProjectModels + ".Domains",
+        [typeof(CompositeTypeDirectives)] = ProjectModels + ".CompositeTypes",
+        [typeof(ExtensionDirectives)] = ProjectModels + ".Extensions",
         [typeof(NSchema.Model.Columns.Column)] = Model + ".Columns",
         [typeof(NSchema.Model.Columns.IdentityOptions)] = Model + ".Columns",
         [typeof(NSchema.Model.Columns.SqlType)] = Model + ".Columns",

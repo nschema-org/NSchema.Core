@@ -65,7 +65,7 @@ internal static class DirectiveValidator
         }
 
         // ── Object directives, one uniform rule set per kind ─────────────────────────────
-        var kinds = new (string Kind, IReadOnlyList<ObjectRename> Renames, IReadOnlyList<ObjectReference> Drops, Func<ObjectReference, bool> IsDeclared)[]
+        var kinds = new (string Kind, IReadOnlyList<ObjectRenameDirective> Renames, IReadOnlyList<ObjectReference> Drops, Func<ObjectReference, bool> IsDeclared)[]
         {
             ("table", directives.Tables.Renames, directives.Tables.Drops, index.HasTable),
             ("view", directives.Views.Renames, directives.Views.Drops, index.HasView),

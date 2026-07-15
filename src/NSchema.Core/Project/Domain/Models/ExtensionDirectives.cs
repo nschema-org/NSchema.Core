@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Project.Domain.Models.Extensions;
+
+namespace NSchema.Project.Domain.Models;
 
 /// <summary>
 /// The management directives declared for database-global extensions.

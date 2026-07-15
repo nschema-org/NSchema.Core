@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Project.Domain.Models.Schemas;
+
+namespace NSchema.Project.Domain.Models;
 
 /// <summary>
 /// The management directives declared for schemas.
@@ -8,7 +9,7 @@ namespace NSchema.Project.Domain.Models.Schemas;
 /// <param name="Drops">The schemas explicitly declared dropped.</param>
 /// <param name="Partials">The schemas whose declarations are partial.</param>
 public sealed record SchemaDirectives(
-    IReadOnlyList<SchemaRename>? Renames = null,
+    IReadOnlyList<SchemaRenameDirective>? Renames = null,
     IReadOnlyList<SqlIdentifier>? Drops = null,
     IReadOnlyList<SqlIdentifier>? Partials = null
 )
@@ -16,7 +17,7 @@ public sealed record SchemaDirectives(
     /// <summary>
     /// The declared schema renames.
     /// </summary>
-    public IReadOnlyList<SchemaRename> Renames { get; init; } = Renames ?? [];
+    public IReadOnlyList<SchemaRenameDirective> Renames { get; init; } = Renames ?? [];
 
     /// <summary>
     /// The schemas explicitly declared dropped.

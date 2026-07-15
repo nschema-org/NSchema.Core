@@ -85,7 +85,7 @@ internal sealed class DirectiveLookup(ProjectDirectives directives)
     private static List<T> Find<T>(Dictionary<SqlIdentifier, List<T>> lookup, SqlIdentifier schema) =>
         lookup.TryGetValue(schema, out var entries) ? entries : [];
 
-    private static Dictionary<SqlIdentifier, List<RenamePair>> GroupRenames(IReadOnlyList<ObjectRename> renames) =>
+    private static Dictionary<SqlIdentifier, List<RenamePair>> GroupRenames(IReadOnlyList<ObjectRenameDirective> renames) =>
         renames.GroupBy(r => r.From.Schema).ToDictionary(g => g.Key, g => g.Select(r => new RenamePair(r.From.Name, r.To)).ToList());
 
     private static Dictionary<SqlIdentifier, List<SqlIdentifier>> GroupDrops(IReadOnlyList<ObjectReference> drops) =>

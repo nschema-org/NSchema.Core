@@ -1,4 +1,3 @@
-using NSchema.Project.Domain.Models.Tables;
 using NSchema.Project.Domain.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSchema.Diff.Domain;

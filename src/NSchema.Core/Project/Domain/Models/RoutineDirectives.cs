@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Project.Domain.Models.Routines;
+
+namespace NSchema.Project.Domain.Models;
 
 /// <summary>
 /// The management directives declared for routines.
@@ -7,14 +8,14 @@ namespace NSchema.Project.Domain.Models.Routines;
 /// <param name="Renames">The declared routine renames.</param>
 /// <param name="Drops">The routines explicitly declared dropped.</param>
 public sealed record RoutineDirectives(
-    IReadOnlyList<ObjectRename>? Renames = null,
+    IReadOnlyList<ObjectRenameDirective>? Renames = null,
     IReadOnlyList<ObjectReference>? Drops = null
 )
 {
     /// <summary>
     /// The declared routine renames.
     /// </summary>
-    public IReadOnlyList<ObjectRename> Renames { get; init; } = Renames ?? [];
+    public IReadOnlyList<ObjectRenameDirective> Renames { get; init; } = Renames ?? [];
 
     /// <summary>
     /// The routines explicitly declared dropped.
