@@ -21,7 +21,8 @@ here that you have thoughts on, let me know!
 
 ### [Plan surface](roadmap/plan-surface.md)
 
-Currently the plan arguments are a bit confused, and allow you
+Currently the plan arguments are a bit confused, and the behaviour changes unpredictably. I want to fix this by just removing the ability to plan
+against a live database. State has been mandatory for a while, and the ephemeral store will cover any edge cases.
 
 ### Improved SQL generation
 
