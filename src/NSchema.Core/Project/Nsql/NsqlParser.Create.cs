@@ -24,7 +24,7 @@ internal sealed partial class NsqlParser
         var position = _current.Position;
         Advance(); // CREATE
 
-        if (_current.IsKeyword("SCHEMA"))
+        if (_current.IsKeyword(NsqlKeywords.Schema))
         {
             if (_inTemplateBody)
             {
@@ -32,11 +32,11 @@ internal sealed partial class NsqlParser
             }
             return ParseCreateSchema(position, doc);
         }
-        if (_current.IsKeyword("TABLE"))
+        if (_current.IsKeyword(NsqlKeywords.Table))
         {
             return ParseCreateTable(position, doc);
         }
-        if (_current.IsKeyword("VIEW"))
+        if (_current.IsKeyword(NsqlKeywords.View))
         {
             if (_inTemplateBody)
             {
@@ -45,41 +45,41 @@ internal sealed partial class NsqlParser
             Advance(); // VIEW
             return ParseCreateView(position, doc, materialized: false);
         }
-        if (_current.IsKeyword("MATERIALIZED"))
+        if (_current.IsKeyword(NsqlKeywords.Materialized))
         {
             if (_inTemplateBody)
             {
                 throw Error("CREATE MATERIALIZED VIEW is not supported inside a template: a view body is opaque, so its references cannot be re-pointed at each target schema.");
             }
             Advance(); // MATERIALIZED
-            ExpectKeyword("VIEW");
+            ExpectKeyword(NsqlKeywords.View);
             return ParseCreateView(position, doc, materialized: true);
         }
-        if (_current.IsKeyword("ENUM"))
+        if (_current.IsKeyword(NsqlKeywords.Enum))
         {
             return ParseCreateEnum(position, doc);
         }
-        if (_current.IsKeyword("DOMAIN"))
+        if (_current.IsKeyword(NsqlKeywords.Domain))
         {
             return ParseCreateDomain(position, doc);
         }
-        if (_current.IsKeyword("TYPE"))
+        if (_current.IsKeyword(NsqlKeywords.Type))
         {
             return ParseCreateCompositeType(position, doc);
         }
-        if (_current.IsKeyword("SEQUENCE"))
+        if (_current.IsKeyword(NsqlKeywords.Sequence))
         {
             return ParseCreateSequence(position, doc);
         }
-        if (_current.IsKeyword("FUNCTION"))
+        if (_current.IsKeyword(NsqlKeywords.Function))
         {
             return ParseCreateRoutine(position, doc, RoutineKind.Function);
         }
-        if (_current.IsKeyword("PROCEDURE"))
+        if (_current.IsKeyword(NsqlKeywords.Procedure))
         {
             return ParseCreateRoutine(position, doc, RoutineKind.Procedure);
         }
-        if (_current.IsKeyword("EXTENSION"))
+        if (_current.IsKeyword(NsqlKeywords.Extension))
         {
             if (_inTemplateBody)
             {
@@ -87,15 +87,15 @@ internal sealed partial class NsqlParser
             }
             return ParseCreateExtension(position, doc);
         }
-        if (_current.IsKeyword("TRIGGER"))
+        if (_current.IsKeyword(NsqlKeywords.Trigger))
         {
             return ParseCreateTrigger(position, doc);
         }
-        if (_current.IsKeyword("INDEX"))
+        if (_current.IsKeyword(NsqlKeywords.Index))
         {
             return ParseCreateIndex(position, doc, unique: false);
         }
-        if (_current.IsKeyword("UNIQUE"))
+        if (_current.IsKeyword(NsqlKeywords.Unique))
         {
             Advance(); // UNIQUE
             return ParseCreateIndex(position, doc, unique: true);
@@ -136,7 +136,7 @@ internal sealed partial class NsqlParser
     private CreateViewStatement ParseCreateView(SourcePosition position, string? doc, bool materialized)
     {
         var name = ParseQualifiedNameNode();
-        ExpectKeyword("AS");
+        ExpectKeyword(NsqlKeywords.As);
 
         // The body is captured verbatim; projection derives the view's dependencies from it.
         var body = CaptureRawSpan("a view body", [TokenKind.Semicolon]);
@@ -151,9 +151,9 @@ internal sealed partial class NsqlParser
     /// </summary>
     private CreateIndexStatement ParseCreateIndex(SourcePosition position, string? doc, bool unique)
     {
-        ExpectKeyword("INDEX");
+        ExpectKeyword(NsqlKeywords.Index);
         var name = ExpectIdentifierNode("an index name");
-        ExpectKeyword("ON");
+        ExpectKeyword(NsqlKeywords.On);
         var on = ParseQualifiedNameNode();
         var method = TryParseIndexMethodNode();
         var columns = ParseIndexColumns();
@@ -212,7 +212,7 @@ internal sealed partial class NsqlParser
     {
         Advance(); // DOMAIN
         var name = ParseQualifiedNameNode();
-        ExpectKeyword("AS");
+        ExpectKeyword(NsqlKeywords.As);
         var dataType = ParseTypeNode();
 
         SqlText? @default = null;
@@ -221,26 +221,26 @@ internal sealed partial class NsqlParser
 
         while (@default is null && _current.Kind != TokenKind.Semicolon)
         {
-            if (_current.IsKeyword("NOT"))
+            if (_current.IsKeyword(NsqlKeywords.Not))
             {
                 Advance();
-                ExpectKeyword("NULL");
+                ExpectKeyword(NsqlKeywords.Null);
                 notNull = true;
             }
-            else if (_current.IsKeyword("NULL"))
+            else if (_current.IsKeyword(NsqlKeywords.Null))
             {
                 Advance();
                 notNull = false;
             }
-            else if (_current.IsKeyword("CONSTRAINT"))
+            else if (_current.IsKeyword(NsqlKeywords.Constraint))
             {
                 var checkPosition = _current.Position;
                 Advance();
                 var checkName = ExpectIdentifierNode("a constraint name");
-                ExpectKeyword("CHECK");
+                ExpectKeyword(NsqlKeywords.Check);
                 checks.Add(new CheckDefinition(checkName, ReadRawExpression(parenthesised: true)) { Position = checkPosition });
             }
-            else if (_current.IsKeyword("DEFAULT"))
+            else if (_current.IsKeyword(NsqlKeywords.Default))
             {
                 Advance();
                 // The default is opaque and read to the terminating ';', so it must be the final clause.
@@ -264,7 +264,7 @@ internal sealed partial class NsqlParser
     {
         Advance(); // TYPE
         var name = ParseQualifiedNameNode();
-        ExpectKeyword("AS");
+        ExpectKeyword(NsqlKeywords.As);
         Expect(TokenKind.LeftParen, "'(' to begin the composite type fields");
 
         var fields = new List<CompositeFieldDefinition>();
@@ -320,38 +320,38 @@ internal sealed partial class NsqlParser
                 }
             }
 
-            if (string.Equals(option.Value, "AS", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(option.Value, NsqlKeywords.As, StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(dataType is not null);
                 var typeName = ExpectIdentifierNode("a type name");
                 dataType = new TypeName(null, typeName) { Position = typeName.Position };
             }
-            else if (string.Equals(option.Value, "START", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, NsqlKeywords.Start, StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(start is not null);
                 start = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, "INCREMENT", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, NsqlKeywords.Increment, StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(increment is not null);
                 increment = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, "MINVALUE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, NsqlKeywords.MinValue, StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(min is not null);
                 min = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, "MAXVALUE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, NsqlKeywords.MaxValue, StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(max is not null);
                 max = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, "CACHE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, NsqlKeywords.Cache, StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(cache is not null);
                 cache = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, "CYCLE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, NsqlKeywords.Cycle, StringComparison.OrdinalIgnoreCase))
             {
                 RejectDuplicate(cycle);
                 cycle = true;
@@ -359,7 +359,7 @@ internal sealed partial class NsqlParser
             else
             {
                 throw new NsqlSyntaxException(
-                    $"Unknown sequence option '{option.Value}'; expected AS, START, INCREMENT, MINVALUE, MAXVALUE, CACHE or CYCLE.", optionPosition);
+                    $"Unknown sequence option '{option.Value}'; expected {NsqlKeywords.As}, {NsqlKeywords.Start}, {NsqlKeywords.Increment}, {NsqlKeywords.MinValue}, {NsqlKeywords.MaxValue}, {NsqlKeywords.Cache} or {NsqlKeywords.Cycle}.", optionPosition);
             }
         }
         while (Match(TokenKind.Comma));
@@ -373,7 +373,7 @@ internal sealed partial class NsqlParser
         Advance(); // EXTENSION
         var name = ParseExtensionNameNode();
         string? version = null;
-        if (_current.IsKeyword("VERSION"))
+        if (_current.IsKeyword(NsqlKeywords.Version))
         {
             Advance();
             version = Expect(TokenKind.String, "a version string after VERSION").Text;
@@ -410,21 +410,21 @@ internal sealed partial class NsqlParser
         var timing = ParseTriggerTiming();
         var (events, updateOfColumns) = ParseTriggerEvents();
 
-        ExpectKeyword("ON");
+        ExpectKeyword(NsqlKeywords.On);
         var on = ParseQualifiedNameNode();
 
         var level = TriggerLevel.Statement;
-        if (_current.IsKeyword("FOR"))
+        if (_current.IsKeyword(NsqlKeywords.For))
         {
             Advance();
-            ExpectKeyword("EACH");
-            if (_current.IsKeyword("ROW")) { Advance(); level = TriggerLevel.Row; }
-            else if (_current.IsKeyword("STATEMENT")) { Advance(); level = TriggerLevel.Statement; }
+            ExpectKeyword(NsqlKeywords.Each);
+            if (_current.IsKeyword(NsqlKeywords.Row)) { Advance(); level = TriggerLevel.Row; }
+            else if (_current.IsKeyword(NsqlKeywords.Statement)) { Advance(); level = TriggerLevel.Statement; }
             else { throw Error($"Expected ROW or STATEMENT after FOR EACH, found '{_current.Text}'."); }
         }
 
         SqlText? when = null;
-        if (_current.IsKeyword("WHEN"))
+        if (_current.IsKeyword(NsqlKeywords.When))
         {
             Advance();
             when = ReadRawExpression(parenthesised: true);
@@ -432,10 +432,10 @@ internal sealed partial class NsqlParser
 
         TriggerAction action;
         var actionPosition = _current.Position;
-        if (_current.IsKeyword("EXECUTE"))
+        if (_current.IsKeyword(NsqlKeywords.Execute))
         {
             Advance();
-            if (_current.IsKeyword("FUNCTION") || _current.IsKeyword("PROCEDURE"))
+            if (_current.IsKeyword(NsqlKeywords.Function) || _current.IsKeyword(NsqlKeywords.Procedure))
             {
                 Advance();
             }
@@ -453,7 +453,7 @@ internal sealed partial class NsqlParser
             var arguments = CaptureParenthesized();
             action = new ExecuteFunctionAction(function, new SqlText(arguments)) { Position = actionPosition };
         }
-        else if (_current.IsKeyword("AS"))
+        else if (_current.IsKeyword(NsqlKeywords.As))
         {
             // An inline body is a dollar-quoted block (so it may contain its own ';'), like a deployment script.
             Advance();
@@ -472,9 +472,9 @@ internal sealed partial class NsqlParser
 
     private TriggerTiming ParseTriggerTiming()
     {
-        if (_current.IsKeyword("BEFORE")) { Advance(); return TriggerTiming.Before; }
-        if (_current.IsKeyword("AFTER")) { Advance(); return TriggerTiming.After; }
-        if (_current.IsKeyword("INSTEAD")) { Advance(); ExpectKeyword("OF"); return TriggerTiming.InsteadOf; }
+        if (_current.IsKeyword(NsqlKeywords.Before)) { Advance(); return TriggerTiming.Before; }
+        if (_current.IsKeyword(NsqlKeywords.After)) { Advance(); return TriggerTiming.After; }
+        if (_current.IsKeyword(NsqlKeywords.Instead)) { Advance(); ExpectKeyword(NsqlKeywords.Of); return TriggerTiming.InsteadOf; }
         throw Error($"Expected BEFORE, AFTER or INSTEAD OF, found '{_current.Text}'.");
     }
 
@@ -485,26 +485,26 @@ internal sealed partial class NsqlParser
         while (true)
         {
             var position = _current.Position;
-            if (_current.IsKeyword("INSERT"))
+            if (_current.IsKeyword(NsqlKeywords.Insert))
             {
                 Advance();
                 AddEvent(TriggerEvent.Insert, position);
             }
-            else if (_current.IsKeyword("DELETE"))
+            else if (_current.IsKeyword(NsqlKeywords.Delete))
             {
                 Advance();
                 AddEvent(TriggerEvent.Delete, position);
             }
-            else if (_current.IsKeyword("TRUNCATE"))
+            else if (_current.IsKeyword(NsqlKeywords.Truncate))
             {
                 Advance();
                 AddEvent(TriggerEvent.Truncate, position);
             }
-            else if (_current.IsKeyword("UPDATE"))
+            else if (_current.IsKeyword(NsqlKeywords.Update))
             {
                 Advance();
                 AddEvent(TriggerEvent.Update, position);
-                if (_current.IsKeyword("OF"))
+                if (_current.IsKeyword(NsqlKeywords.Of))
                 {
                     Advance();
                     updateOfColumns = ParseColumnListNodes();
@@ -515,7 +515,7 @@ internal sealed partial class NsqlParser
                 throw Error($"Expected INSERT, UPDATE, DELETE or TRUNCATE, found '{_current.Text}'.");
             }
 
-            if (!_current.IsKeyword("OR"))
+            if (!_current.IsKeyword(NsqlKeywords.Or))
             {
                 return (events, updateOfColumns);
             }
@@ -548,19 +548,19 @@ internal sealed partial class NsqlParser
 
     private TableMember ParseTableItemCore(string? doc)
     {
-        if (_current.IsKeyword("CONSTRAINT"))
+        if (_current.IsKeyword(NsqlKeywords.Constraint))
         {
             return ParseConstraint(doc);
         }
-        if (_current.IsKeyword("UNIQUE"))
+        if (_current.IsKeyword(NsqlKeywords.Unique))
         {
             return ParseIndexMember(doc, isUnique: true);
         }
-        if (_current.IsKeyword("INDEX"))
+        if (_current.IsKeyword(NsqlKeywords.Index))
         {
             return ParseIndexMember(doc, isUnique: false);
         }
-        if (_current.IsKeyword("INCLUDE"))
+        if (_current.IsKeyword(NsqlKeywords.Include))
         {
             return ParseIncludeOrColumn(doc);
         }
@@ -602,20 +602,20 @@ internal sealed partial class NsqlParser
         var type = ParseTypeNode();
 
         var isNullable = true;
-        if (_current.IsKeyword("NOT"))
+        if (_current.IsKeyword(NsqlKeywords.Not))
         {
             Advance();
-            ExpectKeyword("NULL");
+            ExpectKeyword(NsqlKeywords.Null);
             isNullable = false;
         }
-        else if (_current.IsKeyword("NULL"))
+        else if (_current.IsKeyword(NsqlKeywords.Null))
         {
             Advance();
         }
 
         var isIdentity = false;
         IdentityOptionsClause? identity = null;
-        if (_current.IsKeyword("IDENTITY"))
+        if (_current.IsKeyword(NsqlKeywords.Identity))
         {
             Advance();
             isIdentity = true;
@@ -623,20 +623,20 @@ internal sealed partial class NsqlParser
         }
 
         SqlText? defaultExpression = null;
-        if (_current.IsKeyword("DEFAULT"))
+        if (_current.IsKeyword(NsqlKeywords.Default))
         {
             Advance();
             defaultExpression = ReadRawExpression(parenthesised: false);
         }
 
         SqlText? generatedExpression = null;
-        if (_current.IsKeyword("GENERATED"))
+        if (_current.IsKeyword(NsqlKeywords.Generated))
         {
             Advance();
-            ExpectKeyword("ALWAYS");
-            ExpectKeyword("AS");
+            ExpectKeyword(NsqlKeywords.Always);
+            ExpectKeyword(NsqlKeywords.As);
             generatedExpression = ReadRawExpression(parenthesised: true);
-            ExpectKeyword("STORED");
+            ExpectKeyword(NsqlKeywords.Stored);
         }
 
 
@@ -684,23 +684,23 @@ internal sealed partial class NsqlParser
         long? start = null, min = null, increment = null;
         do
         {
-            var option = ExpectIdentifierNode("START, INCREMENT or MINVALUE");
+            var option = ExpectIdentifierNode($"{NsqlKeywords.Start}, {NsqlKeywords.Increment} or {NsqlKeywords.MinValue}");
             var value = ExpectIntegerValue();
-            if (string.Equals(option.Value, "START", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(option.Value, NsqlKeywords.Start, StringComparison.OrdinalIgnoreCase))
             {
                 start = value;
             }
-            else if (string.Equals(option.Value, "INCREMENT", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, NsqlKeywords.Increment, StringComparison.OrdinalIgnoreCase))
             {
                 increment = value;
             }
-            else if (string.Equals(option.Value, "MINVALUE", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(option.Value, NsqlKeywords.MinValue, StringComparison.OrdinalIgnoreCase))
             {
                 min = value;
             }
             else
             {
-                throw Error($"Unknown identity option '{option.Value}'; expected START, INCREMENT or MINVALUE.");
+                throw Error($"Unknown identity option '{option.Value}'; expected {NsqlKeywords.Start}, {NsqlKeywords.Increment} or {NsqlKeywords.MinValue}.");
             }
         }
         while (Match(TokenKind.Comma));
@@ -715,37 +715,37 @@ internal sealed partial class NsqlParser
         Advance(); // CONSTRAINT
         var name = ExpectIdentifierNode("a constraint name");
 
-        if (_current.IsKeyword("PRIMARY"))
+        if (_current.IsKeyword(NsqlKeywords.Primary))
         {
             Advance();
-            ExpectKeyword("KEY");
+            ExpectKeyword(NsqlKeywords.Key);
             var columns = ParseColumnListNodes();
             return new PrimaryKeyDefinition(name, columns) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("FOREIGN"))
+        if (_current.IsKeyword(NsqlKeywords.Foreign))
         {
             Advance();
-            ExpectKeyword("KEY");
+            ExpectKeyword(NsqlKeywords.Key);
             var columns = ParseColumnListNodes();
-            ExpectKeyword("REFERENCES");
+            ExpectKeyword(NsqlKeywords.References);
             var references = ParseQualifiedNameNode();
             var refColumns = ParseColumnListNodes();
             var (onDelete, onUpdate) = ParseReferentialActions();
             return new ForeignKeyDefinition(name, columns, references, refColumns, onDelete, onUpdate) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("UNIQUE"))
+        if (_current.IsKeyword(NsqlKeywords.Unique))
         {
             Advance();
             var columns = ParseColumnListNodes();
             return new UniqueDefinition(name, columns) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("CHECK"))
+        if (_current.IsKeyword(NsqlKeywords.Check))
         {
             Advance();
             var expression = ReadRawExpression(parenthesised: true);
             return new CheckDefinition(name, expression) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("EXCLUDE"))
+        if (_current.IsKeyword(NsqlKeywords.Exclude))
         {
             Advance();
             return ParseExclusion(position, name, doc);
@@ -757,15 +757,15 @@ internal sealed partial class NsqlParser
     {
         var onDelete = ReferentialAction.NoAction;
         var onUpdate = ReferentialAction.NoAction;
-        while (_current.IsKeyword("ON"))
+        while (_current.IsKeyword(NsqlKeywords.On))
         {
             Advance();
-            if (_current.IsKeyword("DELETE"))
+            if (_current.IsKeyword(NsqlKeywords.Delete))
             {
                 Advance();
                 onDelete = ParseReferentialAction();
             }
-            else if (_current.IsKeyword("UPDATE"))
+            else if (_current.IsKeyword(NsqlKeywords.Update))
             {
                 Advance();
                 onUpdate = ParseReferentialAction();
@@ -780,26 +780,26 @@ internal sealed partial class NsqlParser
 
     private ReferentialAction ParseReferentialAction()
     {
-        if (_current.IsKeyword("NO"))
+        if (_current.IsKeyword(NsqlKeywords.No))
         {
             Advance();
-            ExpectKeyword("ACTION");
+            ExpectKeyword(NsqlKeywords.Action);
             return ReferentialAction.NoAction;
         }
-        if (_current.IsKeyword("CASCADE"))
+        if (_current.IsKeyword(NsqlKeywords.Cascade))
         {
             Advance();
             return ReferentialAction.Cascade;
         }
-        if (_current.IsKeyword("SET"))
+        if (_current.IsKeyword(NsqlKeywords.Set))
         {
             Advance();
-            if (_current.IsKeyword("NULL"))
+            if (_current.IsKeyword(NsqlKeywords.Null))
             {
                 Advance();
                 return ReferentialAction.SetNull;
             }
-            if (_current.IsKeyword("DEFAULT"))
+            if (_current.IsKeyword(NsqlKeywords.Default))
             {
                 Advance();
                 return ReferentialAction.SetDefault;
@@ -843,7 +843,7 @@ internal sealed partial class NsqlParser
             column = ExpectIdentifierNode("a column name or expression");
         }
 
-        if (!_current.IsKeyword("WITH"))
+        if (!_current.IsKeyword(NsqlKeywords.With))
         {
             throw Error($"Expected WITH after an exclusion element, found '{_current.Text}'.");
         }
@@ -852,7 +852,7 @@ internal sealed partial class NsqlParser
         // captured verbatim from the WITH keyword up to the element separator or list close, then the leading WITH is
         // stripped.
         var raw = CaptureRawSpan("an exclusion operator", [TokenKind.Comma, TokenKind.RightParen]);
-        var @operator = raw.TrimStart()["WITH".Length..].Trim();
+        var @operator = raw.TrimStart()[NsqlKeywords.With.Length..].Trim();
 
         return new ExclusionElement(@operator, column, expression) { Position = position };
     }
@@ -864,7 +864,7 @@ internal sealed partial class NsqlParser
         {
             Advance(); // UNIQUE
         }
-        ExpectKeyword("INDEX");
+        ExpectKeyword(NsqlKeywords.Index);
         var name = ExpectIdentifierNode("an index name");
         var method = TryParseIndexMethodNode();
         var columns = ParseIndexColumns();
@@ -877,7 +877,7 @@ internal sealed partial class NsqlParser
     /// <summary>Parses the optional <c>USING &lt;method&gt;</c> clause of an index; returns <see langword="null"/> when absent (default B-tree).</summary>
     private Identifier? TryParseIndexMethodNode()
     {
-        if (!_current.IsKeyword("USING"))
+        if (!_current.IsKeyword(NsqlKeywords.Using))
         {
             return null;
         }
@@ -888,7 +888,7 @@ internal sealed partial class NsqlParser
     /// <summary>Parses the optional covering <c>INCLUDE (cols)</c> clause of an index; returns an empty list when absent.</summary>
     private List<Identifier> TryParseIncludeColumns()
     {
-        if (!_current.IsKeyword("INCLUDE"))
+        if (!_current.IsKeyword(NsqlKeywords.Include))
         {
             return [];
         }
@@ -898,7 +898,7 @@ internal sealed partial class NsqlParser
 
     private SqlText? TryParseWherePredicate()
     {
-        if (!_current.IsKeyword("WHERE"))
+        if (!_current.IsKeyword(NsqlKeywords.Where))
         {
             return null;
         }
@@ -938,27 +938,27 @@ internal sealed partial class NsqlParser
         }
 
         var sort = IndexSort.Default;
-        if (_current.IsKeyword("ASC"))
+        if (_current.IsKeyword(NsqlKeywords.Asc))
         {
             Advance();
             sort = IndexSort.Ascending;
         }
-        else if (_current.IsKeyword("DESC"))
+        else if (_current.IsKeyword(NsqlKeywords.Desc))
         {
             Advance();
             sort = IndexSort.Descending;
         }
 
         var nulls = IndexNulls.Default;
-        if (_current.IsKeyword("NULLS"))
+        if (_current.IsKeyword(NsqlKeywords.Nulls))
         {
             Advance();
-            if (_current.IsKeyword("FIRST"))
+            if (_current.IsKeyword(NsqlKeywords.First))
             {
                 Advance();
                 nulls = IndexNulls.First;
             }
-            else if (_current.IsKeyword("LAST"))
+            else if (_current.IsKeyword(NsqlKeywords.Last))
             {
                 Advance();
                 nulls = IndexNulls.Last;

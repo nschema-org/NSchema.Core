@@ -20,7 +20,7 @@ internal sealed partial class NsqlParser
         var namePosition = _current.Position;
         var name = ExpectIdentifierNode("a template name");
         var forTable = ParseTemplateKindIsTable();
-        ExpectKeyword("BEGIN");
+        ExpectKeyword(NsqlKeywords.Begin);
 
         return forTable
             ? ParseTableTemplateBody(position, name, doc)
@@ -32,18 +32,18 @@ internal sealed partial class NsqlParser
     /// </summary>
     private bool ParseTemplateKindIsTable()
     {
-        if (!_current.IsKeyword("FOR"))
+        if (!_current.IsKeyword(NsqlKeywords.For))
         {
             return false;
         }
         Advance(); // FOR
 
-        if (_current.IsKeyword("SCHEMA"))
+        if (_current.IsKeyword(NsqlKeywords.Schema))
         {
             Advance();
             return false;
         }
-        if (_current.IsKeyword("TABLE"))
+        if (_current.IsKeyword(NsqlKeywords.Table))
         {
             Advance();
             return true;
@@ -57,7 +57,7 @@ internal sealed partial class NsqlParser
         _inTemplateBody = true;
         try
         {
-            while (!_current.IsKeyword("END"))
+            while (!_current.IsKeyword(NsqlKeywords.End))
             {
                 if (_current.Kind == TokenKind.EndOfFile)
                 {
@@ -65,7 +65,7 @@ internal sealed partial class NsqlParser
                 }
 
                 var statementDoc = TakePendingDoc();
-                if (_current.IsKeyword("END"))
+                if (_current.IsKeyword(NsqlKeywords.End))
                 {
                     break;
                 }
@@ -100,7 +100,7 @@ internal sealed partial class NsqlParser
         _inTableTemplateBody = true;
         try
         {
-            if (!_current.IsKeyword("END"))
+            if (!_current.IsKeyword(NsqlKeywords.End))
             {
                 var primaryKeySeen = false;
                 do
@@ -116,7 +116,7 @@ internal sealed partial class NsqlParser
             _inTemplateBody = false;
             _inTableTemplateBody = false;
         }
-        ExpectKeyword("END");
+        ExpectKeyword(NsqlKeywords.End);
         Expect(TokenKind.Semicolon, "';'");
 
         return new TableTemplateStatement(name, members) { Position = position, Doc = doc };
@@ -128,7 +128,7 @@ internal sealed partial class NsqlParser
     /// </summary>
     private void ResyncInTemplateBody()
     {
-        while (_current.Kind != TokenKind.EndOfFile && !_current.IsKeyword("END"))
+        while (_current.Kind != TokenKind.EndOfFile && !_current.IsKeyword(NsqlKeywords.End))
         {
             if (Advance().Kind == TokenKind.Semicolon)
             {
@@ -139,23 +139,23 @@ internal sealed partial class NsqlParser
 
     private NsqlStatement ParseTemplateStatement(string? doc)
     {
-        if (_current.IsKeyword("CREATE"))
+        if (_current.IsKeyword(NsqlKeywords.Create))
         {
             return ParseCreate(doc);
         }
-        if (_current.IsKeyword("GRANT"))
+        if (_current.IsKeyword(NsqlKeywords.Grant))
         {
             return ParseGrant(doc);
         }
-        if (_current.IsKeyword("SCRIPT"))
+        if (_current.IsKeyword(NsqlKeywords.Script))
         {
             return ParseScript(doc);
         }
-        if (_current.IsKeyword("RENAME"))
+        if (_current.IsKeyword(NsqlKeywords.Rename))
         {
             return RequireObjectDirective(ParseRename(doc));
         }
-        if (_current.IsKeyword("DROP"))
+        if (_current.IsKeyword(NsqlKeywords.Drop))
         {
             return RequireObjectDirective(ParseDrop(doc));
         }
@@ -184,10 +184,10 @@ internal sealed partial class NsqlParser
     {
         var position = _current.Position;
         Advance(); // APPLY
-        ExpectKeyword("TEMPLATE");
+        ExpectKeyword(NsqlKeywords.Template);
         var name = ExpectIdentifierNode("a template name");
-        ExpectKeyword("IN");
-        ExpectKeyword("SCHEMA");
+        ExpectKeyword(NsqlKeywords.In);
+        ExpectKeyword(NsqlKeywords.Schema);
 
         var schemaNames = new List<Identifier>();
         do

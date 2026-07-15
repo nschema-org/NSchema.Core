@@ -23,68 +23,68 @@ internal sealed partial class NsqlParser
         var position = _current.Position;
         Advance(); // RENAME
 
-        if (_current.IsKeyword("SCHEMA"))
+        if (_current.IsKeyword(NsqlKeywords.Schema))
         {
             Advance();
             var from = ExpectIdentifierNode("a schema name");
             var to = ParseRenameTarget("a schema name");
             return new RenameSchemaStatement(from, to) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("COLUMN"))
+        if (_current.IsKeyword(NsqlKeywords.Column))
         {
             Advance();
             var from = ParseColumnPath();
             var to = ParseRenameTarget("a column name");
             return new RenameColumnStatement(from, to) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("TABLE"))
+        if (_current.IsKeyword(NsqlKeywords.Table))
         {
             Advance();
             var from = ParseQualifiedNameNode();
             var to = ParseRenameTarget("a table name");
             return new RenameTableStatement(from, to) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("VIEW") || _current.IsKeyword("MATERIALIZED"))
+        if (_current.IsKeyword(NsqlKeywords.View) || _current.IsKeyword(NsqlKeywords.Materialized))
         {
             // RENAME VIEW and RENAME MATERIALIZED VIEW both rename a view (the kind is resolved from the
             // current state), mirroring DROP.
-            if (Advance().IsKeyword("MATERIALIZED"))
+            if (Advance().IsKeyword(NsqlKeywords.Materialized))
             {
-                ExpectKeyword("VIEW");
+                ExpectKeyword(NsqlKeywords.View);
             }
             var from = ParseQualifiedNameNode();
             var to = ParseRenameTarget("a view name");
             return new RenameViewStatement(from, to) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("ENUM"))
+        if (_current.IsKeyword(NsqlKeywords.Enum))
         {
             Advance();
             var from = ParseQualifiedNameNode();
             var to = ParseRenameTarget("an enum name");
             return new RenameEnumStatement(from, to) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("DOMAIN"))
+        if (_current.IsKeyword(NsqlKeywords.Domain))
         {
             Advance();
             var from = ParseQualifiedNameNode();
             var to = ParseRenameTarget("a domain name");
             return new RenameDomainStatement(from, to) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("TYPE"))
+        if (_current.IsKeyword(NsqlKeywords.Type))
         {
             Advance();
             var from = ParseQualifiedNameNode();
             var to = ParseRenameTarget("a type name");
             return new RenameCompositeTypeStatement(from, to) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("SEQUENCE"))
+        if (_current.IsKeyword(NsqlKeywords.Sequence))
         {
             Advance();
             var from = ParseQualifiedNameNode();
             var to = ParseRenameTarget("a sequence name");
             return new RenameSequenceStatement(from, to) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("FUNCTION") || _current.IsKeyword("PROCEDURE") || _current.IsKeyword("ROUTINE"))
+        if (_current.IsKeyword(NsqlKeywords.Function) || _current.IsKeyword(NsqlKeywords.Procedure) || _current.IsKeyword(NsqlKeywords.Routine))
         {
             // Functions and procedures share one name space, so all three spellings rename a routine,
             // mirroring DROP.
@@ -104,7 +104,7 @@ internal sealed partial class NsqlParser
     {
         var position = _current.Position;
         Advance(); // PARTIAL
-        ExpectKeyword("SCHEMA");
+        ExpectKeyword(NsqlKeywords.Schema);
         var schema = ExpectIdentifierNode("a schema name");
         Expect(TokenKind.Semicolon, "';'");
         return new PartialSchemaStatement(schema) { Position = position, Doc = doc };
@@ -112,7 +112,7 @@ internal sealed partial class NsqlParser
 
     private Identifier ParseRenameTarget(string what)
     {
-        ExpectKeyword("TO");
+        ExpectKeyword(NsqlKeywords.To);
         var to = ExpectIdentifierNode(what);
         Expect(TokenKind.Semicolon, "';'");
         return to;

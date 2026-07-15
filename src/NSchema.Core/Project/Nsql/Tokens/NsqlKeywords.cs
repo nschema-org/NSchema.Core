@@ -1,19 +1,108 @@
 namespace NSchema.Project.Nsql.Tokens;
 
 /// <summary>
-/// The statement-opening keywords of the NSchema language — the one spelling the parser's dispatch and the
-/// formatter's statement recognition must agree on. Grammar-internal keywords stay at their match sites,
-/// where a typo fails the grammar tests immediately; this set is load-bearing across components.
+/// The vocabulary of the NSchema language.
 /// </summary>
 internal static class NsqlKeywords
 {
+    public const string Action = "ACTION";
+    public const string Add = "ADD";
+    public const string After = "AFTER";
+    public const string Alter = "ALTER";
+    public const string Always = "ALWAYS";
+    public const string Apply = "APPLY";
+    public const string As = "AS";
+    public const string Asc = "ASC";
+    public const string Before = "BEFORE";
+    public const string Begin = "BEGIN";
+    public const string Cache = "CACHE";
+    public const string Cascade = "CASCADE";
+    public const string Check = "CHECK";
+    public const string Column = "COLUMN";
+    public const string Constraint = "CONSTRAINT";
+    public const string Create = "CREATE";
+    public const string Cycle = "CYCLE";
+    public const string Database = "DATABASE";
+    public const string Default = "DEFAULT";
+    public const string Delete = "DELETE";
+    public const string Deployment = "DEPLOYMENT";
+    public const string Desc = "DESC";
+    public const string Domain = "DOMAIN";
+    public const string Drop = "DROP";
+    public const string Each = "EACH";
+    public const string End = "END";
+    public const string Enum = "ENUM";
+    public const string Exclude = "EXCLUDE";
+    public const string Execute = "EXECUTE";
+    public const string Extension = "EXTENSION";
+    public const string First = "FIRST";
+    public const string For = "FOR";
+    public const string Foreign = "FOREIGN";
+    public const string Function = "FUNCTION";
+    public const string Generated = "GENERATED";
+    public const string Grant = "GRANT";
+    public const string Identity = "IDENTITY";
+    public const string In = "IN";
+    public const string Include = "INCLUDE";
+    public const string Increment = "INCREMENT";
+    public const string Index = "INDEX";
+    public const string Insert = "INSERT";
+    public const string Instead = "INSTEAD";
+    public const string Key = "KEY";
+    public const string Last = "LAST";
+    public const string Materialized = "MATERIALIZED";
+    public const string MaxValue = "MAXVALUE";
+    public const string MinValue = "MINVALUE";
+    public const string No = "NO";
+    public const string Not = "NOT";
+    public const string Null = "NULL";
+    public const string Nulls = "NULLS";
+    public const string Of = "OF";
+    public const string On = "ON";
+    public const string Once = "ONCE";
+    public const string Or = "OR";
+    public const string Partial = "PARTIAL";
+    public const string Post = "POST";
+    public const string Pre = "PRE";
+    public const string Primary = "PRIMARY";
+    public const string Procedure = "PROCEDURE";
+    public const string References = "REFERENCES";
+    public const string Rename = "RENAME";
+    public const string Routine = "ROUTINE";
+    public const string Row = "ROW";
+    public const string Run = "RUN";
+    public const string Schema = "SCHEMA";
+    public const string Script = "SCRIPT";
+    public const string Select = "SELECT";
+    public const string Sequence = "SEQUENCE";
+    public const string Set = "SET";
+    public const string State = "STATE";
+    public const string Start = "START";
+    public const string Statement = "STATEMENT";
+    public const string Stored = "STORED";
+    public const string Table = "TABLE";
+    public const string Template = "TEMPLATE";
+    public const string To = "TO";
+    public const string Trigger = "TRIGGER";
+    public const string Truncate = "TRUNCATE";
+    public const string Type = "TYPE";
+    public const string Unique = "UNIQUE";
+    public const string Unless = "UNLESS";
+    public const string Update = "UPDATE";
+    public const string Usage = "USAGE";
+    public const string Using = "USING";
+    public const string Version = "VERSION";
+    public const string View = "VIEW";
+    public const string When = "WHEN";
+    public const string Where = "WHERE";
+    public const string With = "WITH";
+
     /// <summary>
-    /// The keywords that open a project-grammar statement. The formatter treats anything else at statement
-    /// position as a configuration statement (config files format through the same token stream).
+    /// The keywords that open a project-grammar statement.
     /// </summary>
     public static readonly IReadOnlySet<string> StatementOpeners = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        "CREATE", "DROP", "GRANT", "TEMPLATE", "APPLY", "SCRIPT", "RENAME", "PARTIAL",
+        Create, Drop, Grant, Template, Apply, Script, Rename, Partial,
     };
 
     /// <summary>
@@ -21,6 +110,6 @@ internal static class NsqlKeywords
     /// </summary>
     public static readonly IReadOnlySet<string> ConfigStatementOpeners = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        "DATABASE", "STATE",
+        Database, State,
     };
 }

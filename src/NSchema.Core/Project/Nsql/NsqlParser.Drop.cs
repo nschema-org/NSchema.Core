@@ -19,61 +19,61 @@ internal sealed partial class NsqlParser
         var position = _current.Position;
         Advance(); // DROP
 
-        if (_current.IsKeyword("SCHEMA"))
+        if (_current.IsKeyword(NsqlKeywords.Schema))
         {
             Advance();
             var name = ExpectIdentifierNode("a schema name");
             Expect(TokenKind.Semicolon, "';'");
             return new DropSchemaStatement(name) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("TABLE"))
+        if (_current.IsKeyword(NsqlKeywords.Table))
         {
             Advance();
             var name = ParseQualifiedNameNode();
             Expect(TokenKind.Semicolon, "';'");
             return new DropTableStatement(name) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("VIEW") || _current.IsKeyword("MATERIALIZED"))
+        if (_current.IsKeyword(NsqlKeywords.View) || _current.IsKeyword(NsqlKeywords.Materialized))
         {
             // DROP VIEW and DROP MATERIALIZED VIEW both record a dropped view (the kind is resolved from the
             // current state when the drop is planned).
-            if (Advance().IsKeyword("MATERIALIZED"))
+            if (Advance().IsKeyword(NsqlKeywords.Materialized))
             {
-                ExpectKeyword("VIEW");
+                ExpectKeyword(NsqlKeywords.View);
             }
             var name = ParseQualifiedNameNode();
             Expect(TokenKind.Semicolon, "';'");
             return new DropViewStatement(name) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("ENUM"))
+        if (_current.IsKeyword(NsqlKeywords.Enum))
         {
             Advance();
             var name = ParseQualifiedNameNode();
             Expect(TokenKind.Semicolon, "';'");
             return new DropEnumStatement(name) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("DOMAIN"))
+        if (_current.IsKeyword(NsqlKeywords.Domain))
         {
             Advance();
             var name = ParseQualifiedNameNode();
             Expect(TokenKind.Semicolon, "';'");
             return new DropDomainStatement(name) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("TYPE"))
+        if (_current.IsKeyword(NsqlKeywords.Type))
         {
             Advance();
             var name = ParseQualifiedNameNode();
             Expect(TokenKind.Semicolon, "';'");
             return new DropCompositeTypeStatement(name) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("SEQUENCE"))
+        if (_current.IsKeyword(NsqlKeywords.Sequence))
         {
             Advance();
             var name = ParseQualifiedNameNode();
             Expect(TokenKind.Semicolon, "';'");
             return new DropSequenceStatement(name) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("FUNCTION") || _current.IsKeyword("PROCEDURE") || _current.IsKeyword("ROUTINE"))
+        if (_current.IsKeyword(NsqlKeywords.Function) || _current.IsKeyword(NsqlKeywords.Procedure) || _current.IsKeyword(NsqlKeywords.Routine))
         {
             // DROP FUNCTION / DROP PROCEDURE / DROP ROUTINE all record a dropped routine (the kind is resolved
             // from the current state when the drop is planned), since they share one name space.
@@ -82,7 +82,7 @@ internal sealed partial class NsqlParser
             Expect(TokenKind.Semicolon, "';'");
             return new DropRoutineStatement(name) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword("EXTENSION"))
+        if (_current.IsKeyword(NsqlKeywords.Extension))
         {
             Advance();
             var name = ParseExtensionNameNode();
