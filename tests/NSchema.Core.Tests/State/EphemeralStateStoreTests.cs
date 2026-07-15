@@ -1,5 +1,5 @@
-using NSchema.Current.Locks;
-using NSchema.Current.Storage.Backends;
+using NSchema.State.Backends;
+using NSchema.State.Locks;
 
 namespace NSchema.Tests.State;
 

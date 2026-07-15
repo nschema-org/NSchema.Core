@@ -8,7 +8,6 @@ namespace NSchema.Project.Domain.Models.Views;
 /// </summary>
 /// <param name="Name">The name of the view.</param>
 /// <param name="Body">The view's defining query, stored verbatim (the text after <c>AS</c>).</param>
-/// <param name="OldName">The previous name of the view, if it has been renamed.</param>
 /// <param name="Comment">An optional comment or description for the view.</param>
 /// <param name="DependsOn">The objects the view reads, derived from <paramref name="Body"/>.</param>
 /// <param name="IsMaterialized">Whether this is a materialized view (stores its result set).</param>
@@ -17,12 +16,11 @@ namespace NSchema.Project.Domain.Models.Views;
 public sealed record View(
     SqlIdentifier Name,
     SqlText Body,
-    SqlIdentifier? OldName = null,
     string? Comment = null,
     IReadOnlyList<ViewDependency>? DependsOn = null,
     bool IsMaterialized = false,
     IReadOnlyList<TableIndex>? Indexes = null
-) : IRenameableObject
+) : INamedObject
 {
     /// <summary>
     /// The objects the view reads, derived from <see cref="Body"/>.

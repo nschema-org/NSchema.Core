@@ -12,12 +12,16 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 
 ### Changed
 
+- **Better domain mode naming.** `Database` and `Schema` are now the main entry points into the domain model.
+- **Management directives.** The language now separates *declarations* (what the schema is) from *directives* (how the difference is managed). This includes RENAME, DROP and SCRIPT.
 - **Every namespace has moved.** Namespaces are vertically sliced of the form `NSchema.<Feature>.<Capability>`.
 - **DataMigrations are Scripts now.** This reflects the syntax changes introduce in [4.4.0] so the model becomes consistent.
+- **Templates accept object-level directives.** A `TEMPLATE` body may now contain the object-level `RENAME` and `DROP` directives (table, column, enum, domain, type, sequence, routine) alongside its declarations and scripts.
+- **Scripts split into `ChangeScript` and `DeploymentScript`.** `Script` is now an abstract base carrying the common behavior (name, SQL, scope, hash, reference, run condition);
 - **"Desired" is Project now." `IDesiredSchemaProvider` becomes `IProjectProvider` the project is the desired state by definition.
 - **`AddDdlSchemas` is `AddProjectSource` now.** The files describe the whole project (schema, scripts, templates, config), not just schema DDL.
-- **Result<T> use consistency.** Lots of interfaces have been neatened up to return a `Result<T>` instead of throwing to allow for error/warning accumulation. Template application failures (unknown template, unknown target schema, merge collisions, include conflicts) and cross-file duplicate declarations now accumulate as error diagnostics on the project read — all reported at once — instead of throwing on the first. `DatabaseSchema.Combine` moved off the model into the aggregation machinery.
-- **The diff now includes scripts.** Rather than being tacked on to the plan, scripts are now a first-class part of the diff.
+- **Result<T> use consistency.** Lots of interfaces have been neatened up to return a `Result<T>` instead of throwing to allow for error/warning accumulation
+- **The diff now includes scripts.** Rather than being tacked on to the plan, scripts are now a first-class part of the diff, carried where they run rather than in a central list.
 - **Cohesive plan artifact.** There's now a single `MigrationPlan` model that represents the plan in its entirety rather than being spread across `SqlPlan`, `PlannedMigration`, etc.
 - **Providers are required.** Providers are now required for planning, because the SQL is built into the plan model.
 - **Plan errors are non-blocking.** Even when the plan has errors, you can now still access the resultant plan.
@@ -26,7 +30,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **`ISqlDialect` replaces `ISqlGenerator`.** (registered with `UseSqlDialect<T>()`).
 - **`IStateLockManager` replaces `IStateLockCoordinator`.** Lines up with with `ISchemaStateManager`.
 - **`IPlanFileManager` replaces `IPlanFileWriter`.** It reads saved plans too, so "writer" undersold it.
-- **`ISchemaIntrospector` replaces `ISchemaProvider`.** More honest about what it does now that the interface doesn't serve both the current and desired schema.
+- **`IDatabaseIntrospector` replaces `ISchemaProvider`.** More honest about what it does now that the interface doesn't serve both the current and desired sides, and named for what it returns.
 - **Plugin `Configure` returns `Result`.** Configuration errors are diagnostics like everything else.
 - **Opaque SQL is `SqlText` now.** Every schema-model field carrying SQL that NSchema stores verbatim but does not interpret is typed `SqlText` instead of `string`.
 - **`PolicyEnforcement` absorbs `DestructiveActionPolicy`.** `WithDestructiveActionPolicy` takes the shared enum, gaining `Ignore`.
@@ -37,7 +41,6 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **`DdlReader.Read` returns `Result<DdlDocument>`.** A syntax error is an error diagnostic instead of a thrown exception, and the parser now recovers at statement boundaries.
 - **`DatabaseSchema` is pure data now.** `Filter` joined `Combine` off the model, into the projection machinery.
 - **`SchemaScope` replaces bare schema-name arrays.** `GetProject`, `GetSchema`, and the plan/drift/import arguments take a scope record.
-- **`ICurrentSchemaProvider.GetSchema` returns `Result<DatabaseSchema>`.** An unconfigured source is a failure instead of a throw.
 - **`IStateLockManager.Acquire` takes `LockAcquireArguments`.** Operation, TTL, and skip-lock in one record; `StateLockRequest` stays the backend's.
 - **`IPlanFileManager.Read` returns `Result<PlanFileEnvelope>`.** An unreadable or corrupt plan file is a failure carrying diagnostics.
 - **Project reads report every broken file at once.** An unreadable or unparseable file (and no-files-matched) is an error diagnostic on the project.
@@ -56,6 +59,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 ### Removed
 
 - `PRE|POST DEPLOYMENT '<name>' AS $$…$$;` and `MIGRATION ['<name>'] FOR <event> <path> AS $$…$$;` no longer parse.
+- `RENAMED FROM` clauses and `CREATE PARTIAL SCHEMA` no longer parse. Renames and partials are directive statements now (see Management directives above).
 - The `NSCHEMA` configuration block no longer parses.
 - `DataMigration` has been folded into `Script` and now requires a name for so they can maintain a stable identity.
 - **Narrowed public surface.** A variety of types that should never have been exposed have been made internal.

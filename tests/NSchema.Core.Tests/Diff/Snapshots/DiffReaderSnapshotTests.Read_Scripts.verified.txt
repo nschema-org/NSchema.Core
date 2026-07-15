@@ -7,7 +7,7 @@
     {
       Kind: Add,
       Depth: 1,
-      Text: email text not null (with migration 'backfill emails')
+      Text: email text not null (with migration backfill_emails)
     },
     {
       Text: 
@@ -17,21 +17,14 @@
     },
     {
       Kind: Add,
-      Text: script 'seed roles' (on pre deployment)
+      Text: script seed_roles (on pre deployment)
     },
     {
       Text: 
     },
     {
       Kind: Add,
-      Text: script 'backfill emails' (on add column app.users.email)
-    },
-    {
-      Text: 
-    },
-    {
-      Kind: Add,
-      Text: script 'refresh views' (on post deployment)
+      Text: script refresh_views (on post deployment)
     }
   ],
   Summary: {

@@ -13,7 +13,7 @@ internal static class NsqlKeywords
     /// </summary>
     public static readonly IReadOnlySet<string> StatementOpeners = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        "CREATE", "DROP", "GRANT", "TEMPLATE", "APPLY", "SCRIPT",
+        "CREATE", "DROP", "GRANT", "TEMPLATE", "APPLY", "SCRIPT", "RENAME", "PARTIAL",
     };
 
     /// <summary>

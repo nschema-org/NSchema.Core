@@ -1,12 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
 using NSchema.Apply;
-using NSchema.Current.Backends;
-using NSchema.Current.Locks;
+using NSchema.Deployment.Backends;
 using NSchema.Operations;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
 using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Domain.Models.Tables;
+using NSchema.State.Locks;
 
 namespace NSchema.Tests.EndToEnd;
 
@@ -31,7 +31,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         return path;
     }
 
-    private NSchemaApplication BuildApp(DatabaseSchema current, string desiredPath) =>
+    private NSchemaApplication BuildApp(Database current, string desiredPath) =>
         NSchemaApplication.CreateBuilder(new NSchemaApplicationOptions())
             .AddProjectSource(Path.GetDirectoryName(desiredPath)!, Path.GetFileName(desiredPath))
             .UseStateStore(_store)
@@ -39,7 +39,7 @@ public sealed class ApplyEndToEndTests : IDisposable
             .Tap(b =>
             {
                 b.Services.AddSingleton<ISqlExecutor>(_executor);
-                b.Services.AddSingleton<ISchemaIntrospector>(new InMemoryIntrospector(current));
+                b.Services.AddSingleton<IDatabaseIntrospector>(new InMemoryIntrospector(current));
             })
             .Build();
 
@@ -47,7 +47,7 @@ public sealed class ApplyEndToEndTests : IDisposable
     public async Task Apply_GeneratesSql_Executes_AndRefreshesState()
     {
         // Current live DB: an empty app schema. Desired: app.users(id) — i.e. create the table.
-        var current = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]);
+        var current = new Database([new Schema(new SqlIdentifier("app"))]);
         var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
@@ -69,7 +69,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         // The plan exposes the same SQL the caller previews before applying.
         plan.Plan!.Statements.ShouldBe(_executor.Executed!);
         // Post-apply state was captured to the store.
-        ShouldlyIdentifierExtensions.ShouldBe(_store.Written.ShouldNotBeNull().Schema.Schemas.ShouldHaveSingleItem().Name, "app");
+        ShouldlyIdentifierExtensions.ShouldBe(_store.Written.ShouldNotBeNull().Database.Schemas.ShouldHaveSingleItem().Name, "app");
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public sealed class ApplyEndToEndTests : IDisposable
     {
         // Current live DB: a populated-shaped app.users(id). Desired: the same table gaining a NOT NULL,
         // defaultless email column, with a SCRIPT block declaring the backfill.
-        var current = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), Tables:
+        var current = new Database([new Schema(new SqlIdentifier("app"), Tables:
             [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
         var desired = WriteNsql("schema.sql",
             """
@@ -87,7 +87,7 @@ public sealed class ApplyEndToEndTests : IDisposable
                 id int NOT NULL,
                 email text NOT NULL
             );
-            SCRIPT 'backfill emails' RUN ON ADD COLUMN app.users.email AS $$
+            SCRIPT backfill_emails RUN ON ADD COLUMN app.users.email AS $$
             UPDATE app.users SET email = 'unknown@example.com';
             $$;
             """);
@@ -113,9 +113,9 @@ public sealed class ApplyEndToEndTests : IDisposable
         // A template with a migration applied to two schemas: sales.events already exists without the new column
         // (the migration matches and the add decomposes, with {schema} bound), while billing.events is brand new
         // (created empty, so its instance is unmatched and reports as inert).
-        var current = new DatabaseSchema([
-            new SchemaDefinition(new SqlIdentifier("sales"), Tables: [new Table(new SqlIdentifier("events"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]),
-            new SchemaDefinition(new SqlIdentifier("billing")),
+        var current = new Database([
+            new Schema(new SqlIdentifier("sales"), Tables: [new Table(new SqlIdentifier("events"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]),
+            new Schema(new SqlIdentifier("billing")),
         ]);
         var desired = WriteNsql("schema.sql",
             """
@@ -128,7 +128,7 @@ public sealed class ApplyEndToEndTests : IDisposable
                     id int NOT NULL,
                     actor text NOT NULL
                 );
-                SCRIPT 'backfill {schema} actors' RUN ON ADD COLUMN events.actor AS $$
+                SCRIPT backfill_actors RUN ON ADD COLUMN events.actor AS $$
                 UPDATE {schema}.events SET actor = 'system';
                 $$;
             END;
@@ -153,7 +153,7 @@ public sealed class ApplyEndToEndTests : IDisposable
 
         // Billing's instance is inert this run and says so; sales' matched instance reports nothing.
         var inert = result.Diagnostics.Where(d => d.Source == "data-migrations").ShouldHaveSingleItem();
-        inert.Message.ShouldContain("'backfill billing actors'");
+        inert.Message.ShouldContain("'billing.backfill_actors'");
         inert.Message.ShouldContain("billing.events.actor");
     }
 
@@ -161,11 +161,11 @@ public sealed class ApplyEndToEndTests : IDisposable
     public async Task Apply_RunOnceScript_RunsOnce_ThenLaterPlansSkipIt()
     {
         // A run-once seed script: the first plan includes and records it, the next plan skips it.
-        var current = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"))]);
+        var current = new Database([new Schema(new SqlIdentifier("app"))]);
         var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
-            SCRIPT 'seed currencies' RUN ONCE ON POST DEPLOYMENT AS $$
+            SCRIPT seed_currencies RUN ONCE ON POST DEPLOYMENT AS $$
             INSERT INTO app.currencies VALUES ('GBP');
             $$;
             """);
@@ -177,22 +177,22 @@ public sealed class ApplyEndToEndTests : IDisposable
         (await app.Locks.Acquire(new AcquireLockArguments("apply"), cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         var first = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
         first.Plan!.Statements.Select(s => s.Sql).ShouldContain(new SqlText("INSERT INTO app.currencies VALUES ('GBP');"));
-        ShouldlyIdentifierExtensions.ShouldBe(first.Plan!.Diff.Scripts.ShouldHaveSingleItem().Name, "seed currencies");
+        ShouldlyIdentifierExtensions.ShouldBe(first.Plan!.Diff.AllScripts().ShouldHaveSingleItem().Name, "seed_currencies");
         await app.Operations.Apply(new ApplyArguments { Plan = first.Plan! }, TestContext.Current.CancellationToken);
 
-        ShouldlyIdentifierExtensions.ShouldBe(_store.Written.ShouldNotBeNull().Scripts.ShouldHaveSingleItem().Name, "seed currencies");
+        ShouldlyIdentifierExtensions.ShouldBe(_store.Written.ShouldNotBeNull().Scripts.ShouldHaveSingleItem().Script.Name, "seed_currencies");
 
         // Second run: the script is skipped, and no longer up for recording.
         var second = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Live }, TestContext.Current.CancellationToken);
         second.Value!.Plan!.Statements.Select(s => s.Sql).ShouldNotContain(new SqlText("INSERT INTO app.currencies VALUES ('GBP');"));
-        second.Value!.Plan!.Diff.Scripts.ShouldBeEmpty();
+        second.Value!.Plan!.Diff.AllScripts().ShouldBeEmpty();
         second.Diagnostics.ShouldBeEmpty();
     }
 
     [Fact]
     public async Task Apply_WithNoChanges_ShortCircuitsWithoutExecutingButStillCapturesState()
     {
-        var schema = new DatabaseSchema([new SchemaDefinition(new SqlIdentifier("app"), Tables:
+        var schema = new Database([new Schema(new SqlIdentifier("app"), Tables:
             [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
         var desired = WriteNsql("schema.sql",
             """
@@ -216,6 +216,6 @@ public sealed class ApplyEndToEndTests : IDisposable
         // Nothing to apply: the empty plan never reaches the executor...
         _executor.Executed.ShouldBeNull();
         // ...but a first run against an already-matching database still initialises the store.
-        ShouldlyIdentifierExtensions.ShouldBe(_store.Written.ShouldNotBeNull().Schema.Schemas.ShouldHaveSingleItem().Name, "app");
+        ShouldlyIdentifierExtensions.ShouldBe(_store.Written.ShouldNotBeNull().Database.Schemas.ShouldHaveSingleItem().Name, "app");
     }
 }

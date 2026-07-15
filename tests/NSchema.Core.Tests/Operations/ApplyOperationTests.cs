@@ -1,5 +1,4 @@
 using NSchema.Apply;
-using NSchema.Current.Storage;
 using NSchema.Diff.Domain.Models;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
@@ -8,6 +7,7 @@ using NSchema.Plan.Domain.Models;
 using NSchema.Plan.Policies;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
+using NSchema.State;
 using NSubstitute.ExceptionExtensions;
 
 namespace NSchema.Tests.Operations;
@@ -18,7 +18,7 @@ public sealed class ApplyOperationTests
     private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
     private readonly ISqlExecutor _executor = Substitute.For<ISqlExecutor>();
     private readonly List<IPlanPolicy> _planPolicies = [];
-    private readonly ISchemaStateManager _stateManager = Substitute.For<ISchemaStateManager>();
+    private readonly IDatabaseStateManager _stateManager = Substitute.For<IDatabaseStateManager>();
 
     private readonly MigrationPlan _plan = new(new DatabaseDiff([]), [new SqlStatement(new SqlText("CREATE SCHEMA app"))]);
     private static readonly MigrationPlan _emptyPlan = new(new DatabaseDiff([]), []);
@@ -31,7 +31,7 @@ public sealed class ApplyOperationTests
     {
         _stateManager.IsConfigured.Returns(true);
         _workflow.Refresh(Arg.Any<MigrationPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new StateCapture(new DatabaseSchema([]), 0)));
+            .Returns(Result.Success(new StateCapture(new Database([]), 0)));
         _sut = BuildSut(_executor);
     }
 
@@ -81,7 +81,7 @@ public sealed class ApplyOperationTests
     public async Task Execute_Success_PassesTheAppliedPlanToTheCapture()
     {
         // Arrange — the plan carries its scripts whole; the capture derives the run-once ledger records from it.
-        var plan = _plan with { Diff = new DatabaseDiff([]) { Scripts = [new Script(new SqlIdentifier("seed"), new SqlText("SELECT 1"), new DeploymentEvent(DeploymentPhase.Post))] } };
+        var plan = _plan with { Diff = new DatabaseDiff([]) { DeploymentScripts = [new DeploymentScript(new SqlIdentifier("seed"), new SqlText("SELECT 1"), null, DeploymentPhase.Post)] } };
 
         // Act
         await _sut.Execute(Args(plan), TestContext.Current.CancellationToken);
@@ -95,7 +95,7 @@ public sealed class ApplyOperationTests
     {
         // Arrange — whether the plan's run-once scripts ran before the failure is unknowable, so nothing is recorded.
         _executor.Execute(Arg.Any<IReadOnlyList<SqlStatement>>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("boom"));
-        var plan = _plan with { Diff = new DatabaseDiff([]) { Scripts = [new Script(new SqlIdentifier("seed"), new SqlText("SELECT 1"), new DeploymentEvent(DeploymentPhase.Post))] } };
+        var plan = _plan with { Diff = new DatabaseDiff([]) { DeploymentScripts = [new DeploymentScript(new SqlIdentifier("seed"), new SqlText("SELECT 1"), null, DeploymentPhase.Post)] } };
 
         // Act
         await Should.ThrowAsync<InvalidOperationException>(() => _sut.Execute(Args(plan), TestContext.Current.CancellationToken));

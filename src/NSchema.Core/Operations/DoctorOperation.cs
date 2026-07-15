@@ -1,9 +1,9 @@
-using NSchema.Current.Backends;
-using NSchema.Current.Locks.Backends;
-using NSchema.Current.Storage;
-using NSchema.Current.Storage.Backends;
+using NSchema.Deployment.Backends;
 using NSchema.Operations.Progress;
 using NSchema.Project.Domain.Models;
+using NSchema.State;
+using NSchema.State.Backends;
+using NSchema.State.Locks.Backends;
 
 namespace NSchema.Operations;
 
@@ -11,13 +11,13 @@ namespace NSchema.Operations;
 /// Probes the configured infrastructure end to end.
 /// </summary>
 /// <remarks>
-/// The building blocks are injected directly (rather than via <c>ICurrentSchemaProvider</c>) so a missing source reads as "not configured" and the like.
+/// The building blocks are injected directly (rather than via <c>ICurrentDatabaseProvider</c>) so a missing source reads as "not configured" and the like.
 /// </remarks>
 internal sealed class DoctorOperation(
     IProgress<OperationProgress> progress,
-    ISchemaStateSerializer serializer,
-    ISchemaIntrospector? online = null,
-    ISchemaStateStore? store = null,
+    IDatabaseStateSerializer serializer,
+    IDatabaseIntrospector? online = null,
+    IDatabaseStateStore? store = null,
     IStateLock? stateLock = null
 ) : IOperation<DoctorArguments, Result<DoctorResult>>
 {
@@ -51,7 +51,7 @@ internal sealed class DoctorOperation(
         try
         {
             // A full introspection is the honest end-to-end probe: it exercises the same path plan/apply rely on.
-            var schema = await online.GetSchema(SchemaScope.All, cancellationToken);
+            var schema = await online.GetDatabase(SchemaScope.All, cancellationToken);
             return Diagnostic.Info(source, $"Database: connected ({schema.Schemas.Count} schema{(schema.Schemas.Count == 1 ? "" : "s")} visible).");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

@@ -11,14 +11,12 @@ namespace NSchema.Project.Nsql.Syntax.Domains;
 /// <param name="NotNull">Whether the domain is declared <c>NOT NULL</c>.</param>
 /// <param name="Checks">The named check constraints (empty when absent).</param>
 /// <param name="Default">The <c>DEFAULT</c> expression, or <see langword="null"/>.</param>
-/// <param name="RenamedFrom">The previous name from a <c>RENAMED FROM</c> clause, or <see langword="null"/>.</param>
 public sealed record CreateDomainStatement(
     QualifiedName Name,
     TypeName Type,
     bool NotNull = false,
     IReadOnlyList<CheckDefinition>? Checks = null,
-    SqlText? Default = null,
-    Identifier? RenamedFrom = null
+    SqlText? Default = null
 ) : NsqlStatement
 {
     /// <summary>

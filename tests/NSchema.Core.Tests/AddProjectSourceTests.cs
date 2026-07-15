@@ -32,7 +32,7 @@ public sealed class AddProjectSourceTests : IDisposable
     }
 
     private static async Task<List<string>> ResolveSchemaNames(Action<NSchemaApplicationBuilder> configure) =>
-        (await ResolveProject(configure)).Schema.Schemas.Select(s => s.Name.Value).ToList();
+        (await ResolveProject(configure)).Database.Schemas.Select(s => s.Name.Value).ToList();
 
     [Fact]
     public async Task AddSqlSchemas_LoadsSingleFile()
@@ -110,7 +110,7 @@ public sealed class AddProjectSourceTests : IDisposable
 
         var project = await ResolveProject(b => b.AddProjectSource(_root), scope: SchemaScope.Of(new SqlIdentifier("app")));
 
-        project.Schema.Schemas.Select(s => s.Name).ShouldBe(["app"]);
+        project.Database.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
 
     [Fact]
@@ -119,14 +119,14 @@ public sealed class AddProjectSourceTests : IDisposable
         File.WriteAllText(Path.Combine(_root, "schema.sql"),
             """
             CREATE SCHEMA app;
-            SCRIPT 'backfill' RUN ON POST DEPLOYMENT AS $$ UPDATE app.t SET x = 1; $$;
+            SCRIPT backfill RUN ON POST DEPLOYMENT AS $$ UPDATE app.t SET x = 1; $$;
             """);
 
         var project = await ResolveProject(b => b.AddProjectSource(_root));
 
-        var script = project.Scripts.ShouldHaveSingleItem();
+        var script = project.AllScripts().ShouldHaveSingleItem();
         ShouldlyIdentifierExtensions.ShouldBe(script.Name, "backfill");
-        script.Event.ShouldBe(new DeploymentEvent(DeploymentPhase.Post));
+        script.ShouldBeOfType<DeploymentScript>().Phase.ShouldBe(DeploymentPhase.Post);
     }
 
     [Fact]
@@ -134,7 +134,7 @@ public sealed class AddProjectSourceTests : IDisposable
     {
         WriteSchemaFile("app.sql", "app");
 
-        (await ResolveProject(b => b.AddProjectSource(_root))).Scripts.ShouldBeEmpty();
+        (await ResolveProject(b => b.AddProjectSource(_root))).AllScripts().ShouldBeEmpty();
     }
 
     [Fact]
@@ -150,6 +150,6 @@ public sealed class AddProjectSourceTests : IDisposable
         WriteSchemaFile("late.sql", "late");
 
         var project = (await app.Services.GetRequiredService<IProjectProvider>().GetProject(SchemaScope.All, TestContext.Current.CancellationToken)).Value!;
-        project.Schema.Schemas.Select(s => s.Name).ShouldBe(["late"]);
+        project.Database.Schemas.Select(s => s.Name).ShouldBe(["late"]);
     }
 }

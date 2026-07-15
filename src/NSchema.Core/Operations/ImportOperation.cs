@@ -1,4 +1,4 @@
-using NSchema.Current;
+using NSchema.Deployment;
 using NSchema.Operations.Progress;
 using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
@@ -11,12 +11,12 @@ namespace NSchema.Operations;
 /// Reads the live schema and writes it out as desired-schema DDL source files, merging additively into any files that
 /// already exist.
 /// </summary>
-internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IProgress<OperationProgress> progress)
+internal sealed class ImportOperation(IDatabaseProvider database, IProgress<OperationProgress> progress)
     : IOperation<ImportArguments, Result<ImportResult>>
 {
     public async Task<Result<ImportResult>> Execute(ImportArguments arguments, CancellationToken cancellationToken = default)
     {
-        var read = await currentSchema.GetSchema(SchemaSourceMode.Online, arguments.Scope, cancellationToken);
+        var read = await database.GetDatabase(arguments.Scope, cancellationToken);
         if (read.Value is not { } schema)
         {
             return Result.Failure<ImportResult>(read.Diagnostics);
@@ -28,7 +28,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
         var diagnostics = new List<Diagnostic>();
         var written = new List<string>();
 
-        async Task Import(string path, DatabaseSchema partition, bool declareSchemas)
+        async Task Import(string path, Database partition, bool declareSchemas)
         {
             var wrote = await WritePartition(path, partition, declareSchemas, cancellationToken);
             diagnostics.AddRange(wrote.Diagnostics);
@@ -41,7 +41,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
         foreach (var definition in schema.Schemas)
         {
             var headerPath = Path.Combine(arguments.OutputDirectory, definition.Name.Value, "schema.sql");
-            await Import(headerPath, new DatabaseSchema([definition with { Tables = [], Views = [], Routines = [] }]), declareSchemas: true);
+            await Import(headerPath, new Database([definition with { Tables = [], Views = [], Routines = [] }]), declareSchemas: true);
 
             foreach (var (path, partition) in ObjectPartitions(definition, arguments.OutputDirectory))
             {
@@ -54,7 +54,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
         if (schema.Extensions.Count > 0)
         {
             var path = Path.Combine(arguments.OutputDirectory, "extensions.sql");
-            await Import(path, new DatabaseSchema(Extensions: schema.Extensions), declareSchemas: true);
+            await Import(path, new Database(Extensions: schema.Extensions), declareSchemas: true);
         }
 
         return Result.From(new ImportResult(schema, written), diagnostics);
@@ -62,27 +62,27 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
 
     // Each major object (table, view, routine) gets its own file, grouped by type under the schema's directory;
     // the remaining schema-level objects (enums, sequences, grants, comment) share a per-schema header file in that directory.
-    private static IEnumerable<(string path, DatabaseSchema schema)> ObjectPartitions(SchemaDefinition s, string directory)
+    private static IEnumerable<(string path, Database schema)> ObjectPartitions(Schema s, string directory)
     {
         foreach (var table in s.Tables)
         {
             yield return (Path.Combine(directory, s.Name.Value, "tables", $"{table.Name}.sql"),
-                new DatabaseSchema([new SchemaDefinition(s.Name, Tables: [table])]));
+                new Database([new Schema(s.Name, Tables: [table])]));
         }
         foreach (var view in s.Views)
         {
             yield return (Path.Combine(directory, s.Name.Value, "views", $"{view.Name}.sql"),
-                new DatabaseSchema([new SchemaDefinition(s.Name, Views: [view])]));
+                new Database([new Schema(s.Name, Views: [view])]));
         }
         // Functions and procedures share one name space, so they share one directory.
         foreach (var routine in s.Routines)
         {
             yield return (Path.Combine(directory, s.Name.Value, "routines", $"{routine.Name}.sql"),
-                new DatabaseSchema([new SchemaDefinition(s.Name, Routines: [routine])]));
+                new Database([new Schema(s.Name, Routines: [routine])]));
         }
     }
 
-    private async Task<Result> WritePartition(string path, DatabaseSchema incoming, bool declareSchemas, CancellationToken cancellationToken)
+    private async Task<Result> WritePartition(string path, Database incoming, bool declareSchemas, CancellationToken cancellationToken)
     {
         var merged = incoming;
         var mergedIntoExisting = false;
@@ -105,7 +105,7 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
 
         // The partition's document either declares its schemas (a header, the extensions file) or holds
         // member objects only — a property of the constructed document, not a rendering flag.
-        var document = SyntaxBuilder.Build(merged, [], declareSchemas);
+        var document = SyntaxBuilder.Build(merged, declareSchemas);
         var ddl = NsqlFormatter.Format(NsqlWriter.Write(document));
         await File.WriteAllTextAsync(path, ddl, cancellationToken);
 
@@ -115,20 +115,19 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
         return Result.Success();
     }
 
-    private static async Task<Result<DatabaseSchema>> ReadExisting(string path, CancellationToken cancellationToken)
+    private static async Task<Result<Database>> ReadExisting(string path, CancellationToken cancellationToken)
     {
         var read = await NsqlReader.ReadFile(path, cancellationToken);
         if (read.IsFailure)
         {
-            return Result.Failure<DatabaseSchema>(read.Diagnostics);
+            return Result.Failure<Database>(read.Diagnostics);
         }
 
-        var projected = DocumentProjector.Project(read.Value);
-        return Result.From(projected.Require().Schema,
-            projected.Diagnostics.Select(Diagnostic (d) => d with { File = path }));
+        var assembled = Project.ProjectAssembler.Assemble([read.Value]);
+        return Result.From(assembled.Require().Database, assembled.Diagnostics);
     }
 
-    private static DatabaseSchema Merge(DatabaseSchema existing, DatabaseSchema incoming)
+    private static Database Merge(Database existing, Database incoming)
     {
         // Strip any objects from existing that appear in the incoming import so the
         // aggregator sees no duplicates, then aggregate. Incoming objects win on conflict.
@@ -150,14 +149,12 @@ internal sealed class ImportOperation(ICurrentSchemaProvider currentSchema, IPro
 
         // Root-level extensions are pruned by name too, so a re-imported extension merges in (incoming wins)
         // rather than tripping the aggregator's duplicate detection.
-        var pruned = new DatabaseSchema(
+        var pruned = new Database(
             prunedSchemas,
-            existing.DroppedSchemas.ToList(),
-            PruneByName(existing.Extensions, incoming.Extensions, e => e.Name),
-            existing.DroppedExtensions.ToList()
+            PruneByName(existing.Extensions, incoming.Extensions, e => e.Name)
         );
         // Pruning removed every overlapping object first, so this merge cannot collide.
-        return SchemaAggregator.Combine(pruned, incoming).Require();
+        return DatabaseAggregator.Combine(pruned, incoming).Require();
     }
 
     private static List<T> PruneByName<T>(IReadOnlyList<T> existing, IReadOnlyList<T> incoming, Func<T, SqlIdentifier> name)

@@ -1,6 +1,9 @@
 using NSchema.Project.Nsql.Syntax;
+using NSchema.Project.Nsql.Syntax.Extensions;
+using NSchema.Project.Nsql.Syntax.Schemas;
 using NSchema.Project.Nsql.Syntax.Tables;
 using NSchema.Project.Nsql.Syntax.Templates;
+using NSchema.Project.Nsql.Syntax.Views;
 using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql;
@@ -58,7 +61,7 @@ internal sealed partial class NsqlParser
             {
                 if (_current.Kind == TokenKind.EndOfFile)
                 {
-                    throw new NsqlSyntaxException($"Unterminated template '{name.Text}'; expected END.", namePosition);
+                    throw new NsqlSyntaxException($"Unterminated template '{name.Value}'; expected END.", namePosition);
                 }
 
                 var statementDoc = TakePendingDoc();
@@ -148,7 +151,30 @@ internal sealed partial class NsqlParser
         {
             return ParseScript(doc);
         }
-        throw Error($"Unexpected '{_current.Text}' inside a template; expected a CREATE, GRANT, or SCRIPT statement, or END.");
+        if (_current.IsKeyword("RENAME"))
+        {
+            return RequireObjectDirective(ParseRename(doc));
+        }
+        if (_current.IsKeyword("DROP"))
+        {
+            return RequireObjectDirective(ParseDrop(doc));
+        }
+        throw Error($"Unexpected '{_current.Text}' inside a template; expected a CREATE, GRANT, SCRIPT, RENAME, or DROP statement, or END.");
+    }
+
+    /// <summary>
+    /// Rejects the directives whose subject a template can't own: a template describes the objects within a
+    /// schema, so a schema-level or extension directive — or a view directive, views being unavailable in a
+    /// template — has no place in its body.
+    /// </summary>
+    private NsqlStatement RequireObjectDirective(NsqlStatement directive)
+    {
+        if (directive is RenameSchemaStatement or DropSchemaStatement or PartialSchemaStatement
+            or RenameViewStatement or DropViewStatement or DropExtensionStatement)
+        {
+            throw Error($"A {directive.GetType().Name.Replace("Statement", string.Empty)} directive is not allowed in a template body.");
+        }
+        return directive;
     }
 
     /// <summary>
@@ -168,9 +194,9 @@ internal sealed partial class NsqlParser
         {
             var schemaPosition = _current.Position;
             var schemaName = ExpectIdentifierNode("a schema name");
-            if (schemaNames.Any(s => string.Equals(s.Text, schemaName.Text, StringComparison.OrdinalIgnoreCase)))
+            if (schemaNames.Any(s => string.Equals(s.Value, schemaName.Value, StringComparison.OrdinalIgnoreCase)))
             {
-                throw new NsqlSyntaxException($"Schema '{schemaName.Text}' is listed more than once.", schemaPosition);
+                throw new NsqlSyntaxException($"Schema '{schemaName.Value}' is listed more than once.", schemaPosition);
             }
             schemaNames.Add(schemaName);
         }

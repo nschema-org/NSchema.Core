@@ -282,10 +282,10 @@ public sealed class DiffReaderSnapshotTests
                 new SchemaDiff(new SqlIdentifier("app"), Domains:
                 [
                     new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("typeid"), ChangeKind.Add,
-                        Definition: new DomainDefinition(new SqlIdentifier("typeid"), SqlType.Text, NotNull: true),
+                        Definition: new DomainType(new SqlIdentifier("typeid"), SqlType.Text, NotNull: true),
                         Comment: new ValueChange<string>(null, "id as text")),
                     new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("code"), ChangeKind.Modify,
-                        Definition: new DomainDefinition(new SqlIdentifier("code"), SqlType.VarChar(8)),
+                        Definition: new DomainType(new SqlIdentifier("code"), SqlType.VarChar(8)),
                         DataType: new ValueChange<SqlType>(SqlType.Text, SqlType.VarChar(8))),
                     new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("amount"), ChangeKind.Modify,
                         Default: new ValueChange<SqlText>(null, new SqlText("0")),
@@ -350,34 +350,19 @@ public sealed class DiffReaderSnapshotTests
     /// </summary>
     private static DatabaseDiff DataMigrationAnnotationsDiff()
     {
-        return new DatabaseDiff(
-            Schemas:
-            [
-                new SchemaDiff(new SqlIdentifier("app"), Tables:
-                [
-                    new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify,
-                        Columns:
-                        [
-                            new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text))
-                            {
-                                MigrationScript = new SqlIdentifier("backfill emails"),
-                            },
-                            new ColumnDiff(new SqlIdentifier("total"), ChangeKind.Modify,
-                                Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int))
-                            {
-                                MigrationScript = new SqlIdentifier("retype totals"),
-                            },
-                        ],
-                        UniqueConstraints:
-                        [
-                            new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_email_uq"), new UniqueConstraint(new SqlIdentifier("users_email_uq"), [new SqlIdentifier("email")]))
-                            {
-                                MigrationScript = new SqlIdentifier("dedupe emails"),
-                            },
-                        ]),
-                ]),
-            ]);
+        var backfill = ChangeScript("backfill_emails", ChangeTrigger.AddColumn, "email");
+        var retype = ChangeScript("retype_totals", ChangeTrigger.AlterColumnType, "total");
+        var dedupe = ChangeScript("dedupe_emails", ChangeTrigger.AddConstraint, "users_email_uq");
+        var email = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text)) { MigrationScript = backfill };
+        var total = new ColumnDiff(new SqlIdentifier("total"), ChangeKind.Modify, Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int)) { MigrationScript = retype };
+        var uq = new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_email_uq"), new UniqueConstraint(new SqlIdentifier("users_email_uq"), [new SqlIdentifier("email")])) { MigrationScript = dedupe };
+        var table = new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify, Columns: [email, total], UniqueConstraints: [uq]);
+        return new DatabaseDiff([new SchemaDiff(new SqlIdentifier("app"), Tables: [table])]);
     }
+
+    private static ChangeScript ChangeScript(string name, ChangeTrigger trigger, string member) =>
+        new(new SqlIdentifier(name), new SqlText($"-- {name}"), new SqlIdentifier("app"),
+            trigger, new SqlIdentifier("users"), new SqlIdentifier(member));
 
     [Fact]
     public Task Read_DataMigrationAnnotations() => Verify(Read(DataMigrationAnnotationsDiff()));
@@ -387,27 +372,16 @@ public sealed class DiffReaderSnapshotTests
     /// </summary>
     private static DatabaseDiff ScriptsDiff()
     {
-        return new DatabaseDiff(
-            Schemas:
-            [
-                new SchemaDiff(new SqlIdentifier("app"), Tables:
-                [
-                    new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify,
-                        Columns:
-                        [
-                            new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text))
-                            {
-                                MigrationScript = new SqlIdentifier("backfill emails"),
-                            },
-                        ]),
-                ]),
-            ])
+        var backfill = new ChangeScript(new SqlIdentifier("backfill_emails"), new SqlText("UPDATE app.users SET email = '';"),
+            new SqlIdentifier("app"), ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email"));
+        var email = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text)) { MigrationScript = backfill };
+        var table = new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify, Columns: [email]);
+        return new DatabaseDiff([new SchemaDiff(new SqlIdentifier("app"), Tables: [table])])
         {
-            Scripts =
+            DeploymentScripts =
             [
-                new Script(new SqlIdentifier("seed roles"), new SqlText("INSERT INTO roles VALUES ('admin');"), new DeploymentEvent(DeploymentPhase.Pre)),
-                new Script(new SqlIdentifier("backfill emails"), new SqlText("UPDATE app.users SET email = '';"), new ChangeEvent(ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")) { ScopeSchema = new SqlIdentifier("app") }),
-                new Script(new SqlIdentifier("refresh views"), new SqlText("REFRESH MATERIALIZED VIEW app.stats;"), new DeploymentEvent(DeploymentPhase.Post)) { RunCondition = RunCondition.Once },
+                new DeploymentScript(new SqlIdentifier("seed_roles"), new SqlText("INSERT INTO roles VALUES ('admin');"), null, DeploymentPhase.Pre),
+                new DeploymentScript(new SqlIdentifier("refresh_views"), new SqlText("REFRESH MATERIALIZED VIEW app.stats;"), null, DeploymentPhase.Post) { RunCondition = RunCondition.Once },
             ],
         };
     }

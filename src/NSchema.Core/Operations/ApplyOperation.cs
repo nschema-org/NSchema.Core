@@ -1,9 +1,9 @@
 using NSchema.Apply;
-using NSchema.Current.Storage;
 using NSchema.Operations.Progress;
 using NSchema.Operations.Workflow;
 using NSchema.Plan.Domain.Models;
 using NSchema.Plan.Policies;
+using NSchema.State;
 
 namespace NSchema.Operations;
 
@@ -14,7 +14,7 @@ internal sealed class ApplyOperation(
     IMigrationWorkflow workflow,
     IProgress<OperationProgress> progress,
     IEnumerable<IPlanPolicy> planPolicies,
-    ISchemaStateManager stateManager,
+    IDatabaseStateManager stateManager,
     ISqlExecutor? sqlExecutor = null
 ) : IOperation<ApplyArguments, Result<ApplyResult>>
 {

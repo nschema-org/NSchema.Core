@@ -1,31 +1,32 @@
-using NSchema.Current;
-using NSchema.Current.Domain.Models;
-using NSchema.Current.Storage;
+using NSchema.Deployment;
 using NSchema.Diff.Domain;
 using NSchema.Operations.Progress;
 using NSchema.Plan.Domain;
 using NSchema.Plan.Domain.Models;
 using NSchema.Project;
+using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Scripts;
+using NSchema.State;
+using NSchema.State.Domain.Models;
 
 namespace NSchema.Operations.Workflow;
 
 internal sealed class MigrationWorkflow(
     IMigrationPlanner planner,
     IProgress<OperationProgress> progress,
-    ICurrentSchemaProvider currentProvider,
-    IProjectProvider desiredProvider,
-    ISchemaStateManager stateManager
+    IDatabaseProvider databaseProvider,
+    IProjectProvider projectProvider,
+    IDatabaseStateManager stateManager
 ) : IMigrationWorkflow
 {
     public async Task<Result> Validate(CancellationToken cancellationToken = default)
     {
         progress.Report(OperationProgress.Step("Loading desired schema..."));
-        var desired = await desiredProvider.GetProject(SchemaScope.All, cancellationToken);
-        if (desired.Value is not { } project)
+        var projectResult = await projectProvider.GetProject(SchemaScope.All, cancellationToken);
+        if (projectResult.Value is not { } project)
         {
-            return Result.From(desired.Diagnostics);
+            return Result.From(projectResult.Diagnostics);
         }
         ReportDesiredDetail(project);
 
@@ -33,10 +34,10 @@ internal sealed class MigrationWorkflow(
 
         // The findings — including any non-error advisories and findings raised while reading the DDL — are
         // returned as data for the caller to render.
-        return Result.From(desired.Diagnostics.Concat(planner.Validate(project).Diagnostics));
+        return Result.From(projectResult.Diagnostics.Concat(planner.Validate(project).Diagnostics));
     }
 
-    public async Task<Result<MigrationPlan>> ComputePlan(SchemaSourceMode currentSource, SchemaScope scope, CancellationToken cancellationToken = default)
+    public async Task<Result<MigrationPlan>> ComputePlan(SourceMode currentSource, SchemaScope scope, CancellationToken cancellationToken = default)
     {
         // The diff is computed against CurrentState — the schema plus the run-once ledger — so planning without
         // a store would plan against knowingly incomplete current state.
@@ -46,37 +47,39 @@ internal sealed class MigrationWorkflow(
         }
 
         progress.Report(OperationProgress.Step("Loading desired schema..."));
-        var desired = await desiredProvider.GetProject(scope, cancellationToken);
+        var desired = await projectProvider.GetProject(scope, cancellationToken);
         if (desired.Value is not { } project)
         {
             return Result.Failure<MigrationPlan>(desired.Diagnostics);
         }
         // An unrestricted run derives its scope from the project.
-        var scopeInEffect = scope.IsAll ? SchemaScope.Of(project.Schema.AllSchemaNames) : scope;
+        var scopeInEffect = scope.IsAll ? SchemaScope.Of(project.ManagedSchemaNames) : scope;
         ReportDesiredDetail(project);
 
         progress.Report(OperationProgress.Step($"Migration will be scoped to the following schemas: {Describe(scopeInEffect)}"));
 
-        progress.Report(OperationProgress.Step("Loading provider schema..."));
-        var currentRead = await currentProvider.GetSchema(currentSource, scopeInEffect, cancellationToken);
-        if (currentRead.Value is not { } currentSchema)
-        {
-            return Result.Failure<MigrationPlan>(desired.Diagnostics.Concat(currentRead.Diagnostics));
-        }
-        progress.Report(OperationProgress.Detail($"Current schema ({currentSource.ToString().ToLowerInvariant()}): {StatusHelpers.Describe(currentSchema)}."));
-
-        var readDiagnostics = new List<Diagnostic>(desired.Diagnostics.Concat(currentRead.Diagnostics));
-
-        progress.Report(OperationProgress.Step("Computing migration plan..."));
-
+        // One state read serves both halves of the current side: the recorded database (when planning against
+        // recorded state) and the run-once ledger (always).
         var read = await stateManager.Read(new StateReadArguments(), cancellationToken);
         if (read.IsFailure)
         {
-            return Result.Failure<MigrationPlan>(readDiagnostics.Concat(read.Diagnostics));
+            return Result.Failure<MigrationPlan>(desired.Diagnostics.Concat(read.Diagnostics));
         }
+        var state = read.Value.State ?? DatabaseState.Empty;
 
-        readDiagnostics.AddRange(read.Diagnostics);
-        var state = read.Value.State ?? SchemaState.Empty;
+        progress.Report(OperationProgress.Step("Loading provider schema..."));
+        var currentRead = currentSource == SourceMode.Live
+            ? await databaseProvider.GetDatabase(scopeInEffect, cancellationToken)
+            : Result.Success(ScopeFilter.Apply(state.Database, scopeInEffect));
+        if (currentRead.Value is not { } currentSchema)
+        {
+            return Result.Failure<MigrationPlan>(desired.Diagnostics.Concat(read.Diagnostics).Concat(currentRead.Diagnostics));
+        }
+        progress.Report(OperationProgress.Detail($"Current schema ({currentSource.ToString().ToLowerInvariant()}): {StatusHelpers.Describe(currentSchema)}."));
+
+        var readDiagnostics = new List<Diagnostic>(desired.Diagnostics.Concat(read.Diagnostics).Concat(currentRead.Diagnostics));
+
+        progress.Report(OperationProgress.Step("Computing migration plan..."));
 
         var current = new CurrentState(currentSchema, state.Scripts);
         var plan = planner.Plan(current, project);
@@ -101,14 +104,14 @@ internal sealed class MigrationWorkflow(
 
         // The managed schema is the recorded state — state is the record of what NSchema manages, so a teardown
         // reads it and nothing else. An empty record means nothing is managed, and the teardown is empty.
-        var managed = await currentProvider.GetSchema(SchemaSourceMode.Offline, SchemaScope.All, cancellationToken);
-        if (managed.Value is not { } managedSchema)
+        var read = await stateManager.Read(new StateReadArguments(), cancellationToken);
+        if (read.IsFailure)
         {
-            return Result.Failure<MigrationPlan>(managed.Diagnostics);
+            return Result.Failure<MigrationPlan>(read.Diagnostics);
         }
 
         progress.Report(OperationProgress.Step("Computing teardown plan..."));
-        return planner.PlanTeardown(managedSchema);
+        return planner.PlanTeardown((read.Value.State ?? DatabaseState.Empty).Database);
     }
 
     public async Task<Result<StateCapture>> Refresh(MigrationPlan? applied = null, bool force = false, CancellationToken cancellationToken = default)
@@ -119,7 +122,7 @@ internal sealed class MigrationWorkflow(
         }
 
         progress.Report(OperationProgress.Step("Updating state store..."));
-        var live = await currentProvider.GetSchema(SchemaSourceMode.Online, SchemaScope.All, cancellationToken);
+        var live = await databaseProvider.GetDatabase(SchemaScope.All, cancellationToken);
         if (live.Value is not { } schema)
         {
             return Result.Failure<StateCapture>(live.Diagnostics);
@@ -134,18 +137,13 @@ internal sealed class MigrationWorkflow(
             return Result.Failure<StateCapture>(read.Diagnostics.Append(WorkflowDiagnostics.StateNotReplaced));
         }
 
-        var state = read.Value?.State ?? SchemaState.Empty;
+        var state = read.Value?.State ?? DatabaseState.Empty;
 
-        state = state with { Schema = schema };
+        state = state with { Database = schema };
         if (applied is not null)
         {
-            // Only run-once executions enter the ledger; the plan's diff carries its scripts whole, so the
-            // execution records derive here at the state boundary.
-            var executed = applied.Diff.Scripts
-                .Where(s => s.RunCondition == RunCondition.Once)
-                .Select(s => new ScriptExecution(s.Name, s.Hash, DateTimeOffset.UtcNow))
-                .ToList();
-            state = state.RecordExecution(executed);
+            // Recording the run-once ledger is a state-domain job; the shell just supplies what ran and when.
+            state = state.RecordRunOnce(applied.Diff.DeploymentScripts, DateTimeOffset.UtcNow);
         }
 
         var written = await stateManager.Write(new StateWriteArguments(state), cancellationToken);
@@ -176,7 +174,8 @@ internal sealed class MigrationWorkflow(
     /// </summary>
     private void ReportDesiredDetail(ProjectDefinition project)
     {
-        progress.Report(OperationProgress.Detail($"Desired schema: {StatusHelpers.Describe(project.Schema)}, " +
-            $"{StatusHelpers.Count(project.Scripts.Count, "script")}."));
+        var scriptCount = project.Directives.DeploymentScripts.Count + project.Directives.Tables.ChangeScripts.Count;
+        progress.Report(OperationProgress.Detail($"Desired schema: {StatusHelpers.Describe(project.Database)}, " +
+            $"{StatusHelpers.Count(scriptCount, "script")}."));
     }
 }

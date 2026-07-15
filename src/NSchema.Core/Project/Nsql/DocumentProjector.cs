@@ -22,49 +22,16 @@ namespace NSchema.Project.Nsql;
 /// </summary>
 internal static class DocumentProjector
 {
-    public static Result<ProjectedDocument, NsqlDiagnostic> Project(NsqlDocument document)
-    {
-        var schemas = new SchemaAccumulator();
-        var scripts = new List<Script>();
-        var diagnostics = new List<NsqlDiagnostic>();
-
-        foreach (var statement in document.Statements)
-        {
-            switch (statement)
-            {
-                case Syn.Templates.SchemaTemplateStatement template:
-                    // Validating the body (internal duplicates, stray-qualified declarations) at read time,
-                    // whether or not the template is ever applied; instantiation happens at assembly.
-                    diagnostics.AddRange(ValidateTemplateBody(template));
-                    break;
-                case Syn.Templates.TableTemplateStatement or Syn.Templates.ApplyTemplateStatement:
-                    break;
-                case Syn.Config.ConfigStatement:
-                    // Configuration is not project content; the config read seam interprets it.
-                    break;
-                default:
-                    ProjectStatement(statement, schemas, scripts, context: null);
-                    break;
-            }
-        }
-
-        // Assembly findings are diagnostics, not exceptions: the fragment carries everything that projected
-        // cleanly, and one pass reports every finding.
-        var schema = schemas.Build();
-        diagnostics.AddRange(schemas.Diagnostics);
-        return Result<ProjectedDocument, NsqlDiagnostic>.From(new ProjectedDocument(schema, scripts), diagnostics);
-    }
-
     /// <summary>
-    /// Projects one schema-shaped statement (create, drop, grant, or script) into the accumulator. Inside a
-    /// template body, <paramref name="context"/> is the placeholder schema that unqualified names bind to.
+    /// Projects one declaration statement (create or grant) into the accumulator. Directives never reach here. Inside a template body,
+    /// <paramref name="context"/> is the placeholder schema that unqualified names bind to.
     /// </summary>
-    internal static void ProjectStatement(Syn.NsqlStatement statement, SchemaAccumulator schemas, List<Script> scripts, SqlIdentifier? context)
+    public static void ProjectStatement(Syn.NsqlStatement statement, DatabaseAccumulator schemas, SqlIdentifier? context)
     {
         switch (statement)
         {
             case Syn.Schemas.CreateSchemaStatement s:
-                schemas.DeclareSchema(Name(s.Name), OptionalName(s.RenamedFrom), s.IsPartial, s.Doc, s.Name.Position);
+                schemas.DeclareSchema(Name(s.Name), s.Doc, s.Name.Position);
                 break;
             case Syn.Tables.CreateTableStatement s:
                 ProjectTable(s, schemas, context);
@@ -73,7 +40,7 @@ internal static class DocumentProjector
                 {
                     var (schema, name) = Bind(s.Name, context);
                     var dependsOn = ViewDependencyExtractor.Extract(s.Body.Value, schema);
-                    schemas.AddView(schema, new View(name, s.Body, OptionalName(s.RenamedFrom), s.Doc, dependsOn, s.IsMaterialized), s.Name.Position);
+                    schemas.AddView(schema, new View(name, s.Body, s.Doc, dependsOn, s.IsMaterialized), s.Name.Position);
                     break;
                 }
             case Syn.Indexes.CreateIndexStatement s:
@@ -85,33 +52,33 @@ internal static class DocumentProjector
             case Syn.Routines.CreateRoutineStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
-                    schemas.AddRoutine(schema, new Routine(name, Map(s.Kind), s.Arguments, s.Definition, OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
+                    schemas.AddRoutine(schema, new Routine(name, Map(s.Kind), s.Arguments, s.Definition, s.Doc), s.Name.Position);
                     break;
                 }
             case Syn.Enums.CreateEnumStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
-                    schemas.AddEnum(schema, new EnumType(name, s.Values, OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
+                    schemas.AddEnum(schema, new EnumType(name, s.Values, s.Doc), s.Name.Position);
                     break;
                 }
             case Syn.Domains.CreateDomainStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
                     var checks = s.Checks.Select(c => new CheckConstraint(Name(c.Name), c.Expression)).ToList();
-                    schemas.AddDomain(schema, new DomainDefinition(name, ParseType(s.Type), s.Default, s.NotNull, checks, OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
+                    schemas.AddDomain(schema, new DomainType(name, ParseType(s.Type), s.Default, s.NotNull, checks, s.Doc), s.Name.Position);
                     break;
                 }
             case Syn.CompositeTypes.CreateCompositeTypeStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
                     var fields = s.Fields.Select(f => new CompositeField(Name(f.Name), ParseType(f.Type))).ToList();
-                    schemas.AddCompositeType(schema, new CompositeType(name, fields, OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
+                    schemas.AddCompositeType(schema, new CompositeType(name, fields, s.Doc), s.Name.Position);
                     break;
                 }
             case Syn.Sequences.CreateSequenceStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
-                    schemas.AddSequence(schema, new Sequence(name, ProjectSequenceOptions(s.Options), OptionalName(s.RenamedFrom), s.Doc), s.Name.Position);
+                    schemas.AddSequence(schema, new Sequence(name, ProjectSequenceOptions(s.Options), s.Doc), s.Name.Position);
                     break;
                 }
             case Syn.Extensions.CreateExtensionStatement s:
@@ -132,75 +99,13 @@ internal static class DocumentProjector
                     schemas.AddTableGrant(schema, table, new TableGrant(Name(s.Role), Map(s.Privileges)), s.On.Position);
                     break;
                 }
-            case Syn.Scripts.ScriptStatement s:
-                scripts.Add(ProjectScript(s, context));
-                break;
-            case Syn.Schemas.DropSchemaStatement s:
-                schemas.DropSchema(Name(s.Name));
-                break;
-            case Syn.Tables.DropTableStatement s:
-                {
-                    var (schema, name) = Bind(s.Name, context);
-                    schemas.DropTable(schema, name);
-                    break;
-                }
-            case Syn.Views.DropViewStatement s:
-                {
-                    var (schema, name) = Bind(s.Name, context);
-                    schemas.DropView(schema, name);
-                    break;
-                }
-            case Syn.Enums.DropEnumStatement s:
-                {
-                    var (schema, name) = Bind(s.Name, context);
-                    schemas.DropEnum(schema, name);
-                    break;
-                }
-            case Syn.Domains.DropDomainStatement s:
-                {
-                    var (schema, name) = Bind(s.Name, context);
-                    schemas.DropDomain(schema, name);
-                    break;
-                }
-            case Syn.CompositeTypes.DropCompositeTypeStatement s:
-                {
-                    var (schema, name) = Bind(s.Name, context);
-                    schemas.DropCompositeType(schema, name);
-                    break;
-                }
-            case Syn.Sequences.DropSequenceStatement s:
-                {
-                    var (schema, name) = Bind(s.Name, context);
-                    schemas.DropSequence(schema, name);
-                    break;
-                }
-            case Syn.Routines.DropRoutineStatement s:
-                {
-                    var (schema, name) = Bind(s.Name, context);
-                    schemas.DropRoutine(schema, name);
-                    break;
-                }
-            case Syn.Extensions.DropExtensionStatement s:
-                schemas.DropExtension(Name(s.Name));
-                break;
             default:
                 throw new InvalidOperationException($"Unprojectable statement '{statement.GetType().Name}'.");
         }
     }
 
-    private static void ProjectTable(Syn.Tables.CreateTableStatement statement, SchemaAccumulator schemas, SqlIdentifier? context)
-    {
-        var (schema, name) = Bind(statement.Name, context);
-        var (table, includes) = ProjectTableMembers(name, OptionalName(statement.RenamedFrom), statement.Doc, statement.Members, context);
-        schemas.AddTable(schema, table, statement.Name.Position);
-        foreach (var (templateName, columnPosition) in includes)
-        {
-            schemas.AddInclude(new TemplateInclude(schema, name, templateName, columnPosition));
-        }
-    }
-
-    internal static (Table Table, List<(SqlIdentifier TemplateName, int ColumnPosition)> Includes) ProjectTableMembers(
-        SqlIdentifier name, SqlIdentifier? oldName, string? doc, IReadOnlyList<Syn.Tables.TableMember> members, SqlIdentifier? context = null)
+    public static (Table Table, List<(SqlIdentifier TemplateName, int ColumnPosition)> Includes) ProjectTableMembers(
+        SqlIdentifier name, string? doc, IReadOnlyList<Syn.Tables.TableMember> members, SqlIdentifier? context = null)
     {
         PrimaryKey? primaryKey = null;
         var columns = new List<Column>();
@@ -217,7 +122,7 @@ internal static class DocumentProjector
             {
                 case Syn.Tables.ColumnDefinition m:
                     columns.Add(new Column(Name(m.Name), ParseType(m.Type), m.IsNullable, m.IsIdentity, m.Default,
-                        OptionalName(m.RenamedFrom), m.Doc, ProjectIdentityOptions(m.IdentityOptions), m.Generated));
+                        m.Doc, ProjectIdentityOptions(m.IdentityOptions), m.Generated));
                     break;
                 case Syn.Constraints.PrimaryKeyDefinition m:
                     primaryKey = new PrimaryKey(Name(m.Name), Names(m.Columns), m.Doc);
@@ -227,7 +132,7 @@ internal static class DocumentProjector
                         // A foreign key's referenced table binds like any other name (the context inside a template
                         // body; the include placeholder when projecting a table template's members).
                         var refSchema = m.References.Schema is { } qualifier
-                            ? new SqlIdentifier(qualifier.Text)
+                            ? new SqlIdentifier(qualifier.Value)
                             : context ?? SchemaToken.TargetSchemaPlaceholder;
                         foreignKeys.Add(new ForeignKey(Name(m.Name), Names(m.Columns), refSchema, Name(m.References.Name),
                             Names(m.ReferencedColumns), Map(m.OnDelete), Map(m.OnUpdate), m.Doc));
@@ -242,7 +147,7 @@ internal static class DocumentProjector
                 case Syn.Constraints.ExclusionDefinition m:
                     exclusionConstraints.Add(new ExclusionConstraint(Name(m.Name),
                         m.Elements.Select(e => new ExclusionElement(e.Operator, OptionalName(e.Column), e.Expression)).ToList(),
-                        m.Method?.Text, m.Predicate, m.Doc));
+                        m.Method?.Value, m.Predicate, m.Doc));
                     break;
                 case Syn.Indexes.IndexDefinition m:
                     indexes.Add(ProjectIndex(m.Name, m.IsUnique, m.Columns, m.Method, m.Include, m.Predicate, m.Doc));
@@ -255,16 +160,93 @@ internal static class DocumentProjector
             }
         }
 
-        var table = new Table(name, oldName, primaryKey, doc,
+        var table = new Table(name, primaryKey, doc,
             columns, foreignKeys, uniqueConstraints, checkConstraints, exclusionConstraints, indexes);
         return (table, includes);
+    }
+
+    /// <summary>
+    /// Projects a SCRIPT directive into its kind bucket. Inside a template instance, <paramref name="context"/>
+    /// is the applied schema: it scopes the script and substitutes the <c>{schema}</c> token in the body.
+    /// </summary>
+    public static void ProjectScript(Syn.Scripts.ScriptStatement statement, SqlIdentifier? context, ProjectedScripts scripts)
+    {
+        // Outside a template, context is null and the body is verbatim; inside one, the applied schema
+        // substitutes the {schema} token and scopes the run.
+        var sql = context is null ? statement.Body : SchemaToken.Instantiate(statement.Body, context);
+        switch (statement.Event)
+        {
+            case Syn.Scripts.DeploymentEventClause deployment:
+                // A hand-written deployment script is global (null scope); a templated one scopes to the
+                // applied schema. A bare RUN (null condition) is the default, RUN ALWAYS.
+                scripts.Add(new DeploymentScript(Name(statement.Name), sql, context, Map(deployment.Phase))
+                {
+                    RunOutsideTransaction = statement.RunOutsideTransaction,
+                    RunCondition = Map(statement.RunCondition),
+                });
+                break;
+            case Syn.Scripts.ChangeEventClause change:
+                // A change-event script has no run condition; the node's constructor guarantees none was written.
+                scripts.Add(new ChangeScript(Name(statement.Name), sql,
+                    change.Path.Schema is { } schema ? new SqlIdentifier(schema.Value) : context,
+                    Map(change.Trigger), Name(change.Path.Table), Name(change.Path.Member))
+                {
+                    RunOutsideTransaction = statement.RunOutsideTransaction,
+                });
+                break;
+            default:
+                throw new InvalidOperationException($"Unprojectable script event '{statement.Event.GetType().Name}'.");
+        }
+    }
+
+    /// <summary>
+    /// Validates a schema template's body by projecting it against the placeholder: internal duplicates
+    /// surface through the accumulator, and a qualified declaration inside the body is rejected — it would
+    /// create the same object once per application.
+    /// </summary>
+    public static IReadOnlyList<NsqlDiagnostic> ValidateTemplateBody(Syn.Templates.SchemaTemplateStatement statement)
+    {
+        var body = new DatabaseAccumulator();
+        var directives = new DirectiveCollector();
+        foreach (var inner in statement.Statements)
+        {
+            // Only declarations are validated for stray qualification; a directive (a script, a rename, a
+            // drop) carries no schema declaration, so it is filtered out through the collector and skipped.
+            if (!directives.TryAdd(inner, SchemaToken.TargetSchemaPlaceholder))
+            {
+                ProjectStatement(inner, body, SchemaToken.TargetSchemaPlaceholder);
+            }
+        }
+
+        var fragment = body.Build();
+        var diagnostics = body.Diagnostics.ToList();
+        var stray = fragment.Schemas.FirstOrDefault(s => s.Name != SchemaToken.TargetSchemaPlaceholder);
+        if (stray is not null)
+        {
+            diagnostics.Add(new NsqlDiagnostic("project",
+                $"Template '{statement.Name.Value}' declares objects in schema '{stray.Name}'; objects inside a template must use " +
+                $"unqualified names so they are created in each schema the template is applied to. (at {statement.Name.Position}).",
+                DiagnosticSeverity.Error, statement.Name.Position));
+        }
+        return diagnostics;
+    }
+
+    private static void ProjectTable(Syn.Tables.CreateTableStatement statement, DatabaseAccumulator schemas, SqlIdentifier? context)
+    {
+        var (schema, name) = Bind(statement.Name, context);
+        var (table, includes) = ProjectTableMembers(name, statement.Doc, statement.Members, context);
+        schemas.AddTable(schema, table, statement.Name.Position);
+        foreach (var (templateName, columnPosition) in includes)
+        {
+            schemas.AddInclude(new TemplateInclude(schema, name, templateName, columnPosition));
+        }
     }
 
     private static TableIndex ProjectIndex(Syn.Identifier name, bool isUnique, IReadOnlyList<Syn.Indexes.IndexElement> columns,
         Syn.Identifier? method, IReadOnlyList<Syn.Identifier>? include, SqlText? predicate, string? doc)
     {
         var keys = columns.Select(c => new IndexColumn(OptionalName(c.Column), c.Expression, Map(c.Sort), Map(c.Nulls))).ToList();
-        return new TableIndex(Name(name), keys, isUnique, doc, predicate, method?.Text, Names(include ?? []));
+        return new TableIndex(Name(name), keys, isUnique, doc, predicate, method?.Value, Names(include ?? []));
     }
 
     private static Trigger ProjectTrigger(Syn.Triggers.CreateTriggerStatement statement)
@@ -288,58 +270,12 @@ internal static class DocumentProjector
             statement.When, functionArguments, statement.Doc, body);
     }
 
-    private static Script ProjectScript(Syn.Scripts.ScriptStatement statement, SqlIdentifier? context)
-    {
-        ScriptEvent scriptEvent = statement.Event switch
-        {
-            Syn.Scripts.DeploymentEventClause deployment => new DeploymentEvent(Map(deployment.Phase)),
-            Syn.Scripts.ChangeEventClause change => new ChangeEvent(Map(change.Trigger), Name(change.Path.Table), Name(change.Path.Member))
-            {
-                ScopeSchema = change.Path.Schema is { } schema ? new SqlIdentifier(schema.Text) : context!,
-            },
-            _ => throw new InvalidOperationException($"Unprojectable script event '{statement.Event.GetType().Name}'."),
-        };
-
-        return new Script(new SqlIdentifier(statement.Name), statement.Body, scriptEvent)
-        {
-            RunOutsideTransaction = statement.RunOutsideTransaction,
-            RunCondition = Map(statement.RunCondition),
-        };
-    }
-
-    /// <summary>
-    /// Validates a schema template's body by projecting it against the placeholder: internal duplicates
-    /// surface through the accumulator, and a qualified declaration inside the body is rejected — it would
-    /// create the same object once per application.
-    /// </summary>
-    internal static IReadOnlyList<NsqlDiagnostic> ValidateTemplateBody(Syn.Templates.SchemaTemplateStatement statement)
-    {
-        var body = new SchemaAccumulator();
-        var scripts = new List<Script>();
-        foreach (var inner in statement.Statements)
-        {
-            ProjectStatement(inner, body, scripts, SchemaToken.TargetSchemaPlaceholder);
-        }
-
-        var fragment = body.Build();
-        var diagnostics = body.Diagnostics.ToList();
-        var stray = fragment.Schemas.FirstOrDefault(s => s.Name != SchemaToken.TargetSchemaPlaceholder);
-        if (stray is not null)
-        {
-            diagnostics.Add(new NsqlDiagnostic("project",
-                $"Template '{statement.Name.Text}' declares objects in schema '{stray.Name}'; objects inside a template must use " +
-                $"unqualified names so they are created in each schema the template is applied to. (at {statement.Name.Position}).",
-                DiagnosticSeverity.Error, statement.Name.Position));
-        }
-        return diagnostics;
-    }
-
     // --- name binding and small mappers ----------------------------------------------
 
-    private static SqlIdentifier Name(Syn.Identifier identifier) => new(identifier.Text);
+    private static SqlIdentifier Name(Syn.Identifier identifier) => new(identifier.Value);
 
     private static SqlIdentifier? OptionalName(Syn.Identifier? identifier) =>
-        identifier is null ? null : new SqlIdentifier(identifier.Text);
+        identifier is null ? null : new SqlIdentifier(identifier.Value);
 
     private static List<SqlIdentifier> Names(IReadOnlyList<Syn.Identifier> identifiers) =>
         identifiers.Select(Name).ToList();
@@ -349,12 +285,12 @@ internal static class DocumentProjector
     /// template placeholder (the parser rejects unqualified names outside template bodies).
     /// </summary>
     private static (SqlIdentifier Schema, SqlIdentifier Name) Bind(Syn.QualifiedName name, SqlIdentifier? context) =>
-        (name.Schema is { } schema ? new SqlIdentifier(schema.Text) : context ?? SchemaToken.TargetSchemaPlaceholder,
-         new SqlIdentifier(name.Name.Text));
+        (name.Schema is { } schema ? new SqlIdentifier(schema.Value) : context ?? SchemaToken.TargetSchemaPlaceholder,
+         new SqlIdentifier(name.Name.Value));
 
     private static SqlType ParseType(Syn.TypeName type)
     {
-        var text = type.Schema is { } schema ? $"{schema.Text}.{type.Name.Text}" : type.Name.Text;
+        var text = type.Schema is { } schema ? $"{schema.Value}.{type.Name.Value}" : type.Name.Value;
         if (type.Arguments is { } arguments)
         {
             text += $"({arguments})";
@@ -368,7 +304,7 @@ internal static class DocumentProjector
     private static SequenceOptions? ProjectSequenceOptions(Syn.Sequences.SequenceOptionsClause? options) =>
         options is null
             ? null
-            : new SequenceOptions(options.As is { } dataType ? SqlType.Parse(dataType.Name.Text) : null,
+            : new SequenceOptions(options.As is { } dataType ? SqlType.Parse(dataType.Name.Value) : null,
                 options.Start, options.Increment, options.MinValue, options.MaxValue, options.Cache, options.Cycle);
 
     private static RoutineKind Map(Syn.Routines.RoutineKind kind) =>
@@ -436,6 +372,6 @@ internal static class DocumentProjector
         _ => ChangeTrigger.AddConstraint,
     };
 
-    private static RunCondition Map(Syn.Scripts.RunCondition condition) =>
+    private static RunCondition Map(Syn.Scripts.RunCondition? condition) =>
         condition == Syn.Scripts.RunCondition.Once ? RunCondition.Once : RunCondition.Always;
 }

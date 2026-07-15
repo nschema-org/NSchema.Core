@@ -111,6 +111,14 @@ internal sealed partial class NsqlParser
         {
             return ParseScript(doc);
         }
+        if (_current.IsKeyword("RENAME"))
+        {
+            return ParseRename(doc);
+        }
+        if (_current.IsKeyword("PARTIAL"))
+        {
+            return ParsePartial(doc);
+        }
         if (_current.IsKeyword("BACKEND") || _current.IsKeyword("PROVIDER"))
         {
             throw Error($"'{_current.Text.ToUpperInvariant()}' is a configuration statement; configuration lives in the project's configuration files, not among schema statements.");
@@ -249,11 +257,11 @@ internal sealed partial class NsqlParser
     }
 
     /// <summary>
-    /// Captures the verbatim source from the cursor up to — but not consuming — a depth-zero terminator: one of the
-    /// <paramref name="terminators"/> token kinds, or an identifier matching <paramref name="terminatorKeyword"/>.
+    /// Captures the verbatim source from the cursor up to — but not consuming — a depth-zero terminator among the
+    /// <paramref name="terminators"/> token kinds.
     /// Returns it trimmed. Throws <c>Expected {what}</c> when the span is empty unless <paramref name="allowEmpty"/>.
     /// </summary>
-    private string CaptureRawSpan(string what, ReadOnlySpan<TokenKind> terminators, string? terminatorKeyword = null, bool allowEmpty = false)
+    private string CaptureRawSpan(string what, ReadOnlySpan<TokenKind> terminators, bool allowEmpty = false)
     {
         var startToken = _current;
         var depth = 0;
@@ -282,10 +290,6 @@ internal sealed partial class NsqlParser
             else if (depth == 0)
             {
                 if (terminators.Contains(kind))
-                {
-                    break;
-                }
-                if (terminatorKeyword is not null && _current.IsKeyword(terminatorKeyword))
                 {
                     break;
                 }

@@ -1,5 +1,6 @@
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
+using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Diff.Domain.Models.Columns;
 
@@ -30,7 +31,7 @@ public sealed record ColumnDiff(
 ) : INamedObjectDiff
 {
     /// <summary>
-    /// The name of the script matched to this change.
+    /// The change-event script matched to this change, run at this point in the plan (<see langword="null"/> when none).
     /// </summary>
-    public SqlIdentifier? MigrationScript { get; init; }
+    public ChangeScript? MigrationScript { get; init; }
 }

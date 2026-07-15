@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using NSchema.Current.Backends;
+using NSchema.Deployment.Backends;
 using NSchema.Operations;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Columns;
@@ -32,7 +32,7 @@ public sealed class RefreshEndToEndTests : IDisposable
         return path;
     }
 
-    private static DatabaseSchema LiveSchema() => new([new SchemaDefinition(new SqlIdentifier("app"), Tables:
+    private static Database LiveSchema() => new([new Schema(new SqlIdentifier("app"), Tables:
         [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
 
     [Fact]
@@ -41,12 +41,12 @@ public sealed class RefreshEndToEndTests : IDisposable
         var store = new RecordingStateStore();
         using var app = NSchemaApplication.CreateBuilder()
             .UseStateStore(store)
-            .Tap(b => b.Services.AddSingleton<ISchemaIntrospector>(new InMemoryIntrospector(LiveSchema())))
+            .Tap(b => b.Services.AddSingleton<IDatabaseIntrospector>(new InMemoryIntrospector(LiveSchema())))
             .UseSqlDialect<StubSqlDialect>().Build();
 
         await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken);
 
-        store.Written.ShouldNotBeNull().Schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
+        store.Written.ShouldNotBeNull().Database.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public sealed class RefreshEndToEndTests : IDisposable
         // 1. Capture the live schema to the store via Refresh.
         using (var capture = NSchemaApplication.CreateBuilder()
             .UseFileStateStore(_statePath)
-            .Tap(b => b.Services.AddSingleton<ISchemaIntrospector>(new InMemoryIntrospector(LiveSchema())))
+            .Tap(b => b.Services.AddSingleton<IDatabaseIntrospector>(new InMemoryIntrospector(LiveSchema())))
             .Build())
         {
             await capture.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken);

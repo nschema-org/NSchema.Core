@@ -1,18 +1,18 @@
-using NSchema.Current.Domain.Models;
-using NSchema.Current.Storage;
-using NSchema.Current.Storage.Backends;
+using NSchema.State;
+using NSchema.State.Backends;
+using NSchema.State.Domain.Models;
 
 namespace NSchema.Tests.Helpers;
 
 /// <summary>
-/// In-memory <see cref="ISchemaStateStore"/> that captures what was written. Used in place of the file store
+/// In-memory <see cref="IDatabaseStateStore"/> that captures what was written. Used in place of the file store
 /// when a test needs to assert on the persisted schema after the host has disposed its service provider.
 /// </summary>
-internal sealed class RecordingStateStore : ISchemaStateStore
+internal sealed class RecordingStateStore : IDatabaseStateStore
 {
-    private static readonly SchemaStateSerializer _serializer = new();
+    private static readonly DatabaseStateSerializer _serializer = new();
 
-    public SchemaState? Written { get; private set; }
+    public DatabaseState? Written { get; private set; }
 
     // The explicit nullable default matters: a bare `null` here would convert through byte[] to an
     // empty (non-null) ReadOnlyMemory, which reads as a corrupt zero-byte payload rather than "no state".

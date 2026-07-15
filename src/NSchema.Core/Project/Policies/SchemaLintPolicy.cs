@@ -19,7 +19,7 @@ internal sealed class SchemaLintPolicy : IProjectPolicy
     public IEnumerable<Diagnostic> Validate(ProjectDefinition project)
     {
         var diagnostics = new List<Diagnostic>();
-        foreach (var definition in project.Schema.Schemas)
+        foreach (var definition in project.Database.Schemas)
         {
             foreach (var table in definition.Tables)
             {
@@ -30,9 +30,9 @@ internal sealed class SchemaLintPolicy : IProjectPolicy
         return diagnostics;
     }
 
-    private static void ValidateTable(SchemaDefinition definition, Table table, List<Diagnostic> diagnostics)
+    private static void ValidateTable(Schema schema, Table table, List<Diagnostic> diagnostics)
     {
-        var qualified = $"{definition.Name}.{table.Name}";
+        var qualified = $"{schema.Name}.{table.Name}";
 
         if (table.PrimaryKey is not { } primaryKey)
         {

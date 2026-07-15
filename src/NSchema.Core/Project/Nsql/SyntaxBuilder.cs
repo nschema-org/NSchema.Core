@@ -21,45 +21,135 @@ internal static class SyntaxBuilder
 {
     private static readonly SourcePosition None = SourcePosition.None;
 
-    public static NsqlDocument Build(DatabaseSchema schema, IReadOnlyList<Script> scripts, bool declareSchemas = true)
+    public static NsqlDocument Build(Database database, bool declareSchemas = true) =>
+        Build(database, ProjectDirectives.Empty, declareSchemas);
+
+    public static NsqlDocument Build(Database database, ProjectDirectives directives, bool declareSchemas = true)
     {
         var statements = new List<NsqlStatement>();
 
         // Extensions are database-global and are created first, so they precede the schemas.
-        foreach (var extension in schema.Extensions)
+        foreach (var extension in database.Extensions)
         {
             statements.Add(Build(extension));
         }
 
-        foreach (var definition in schema.Schemas)
+        foreach (var definition in database.Schemas)
         {
             AddSchema(statements, definition, declareSchemas);
         }
 
-        foreach (var dropped in schema.DroppedSchemas)
+        // Scripts are directives; each kind renders straight from its home on the directives.
+        foreach (var script in directives.Tables.ChangeScripts)
         {
-            statements.Add(new Syn.Schemas.DropSchemaStatement(Name(dropped)) { Position = None });
+            statements.Add(Build(script));
         }
-
-        // Extensions are dropped last, so their drops trail the schema drops.
-        foreach (var dropped in schema.DroppedExtensions)
-        {
-            statements.Add(new Syn.Extensions.DropExtensionStatement(Name(dropped)) { Position = None });
-        }
-
-        foreach (var script in scripts)
+        foreach (var script in directives.DeploymentScripts)
         {
             statements.Add(Build(script));
         }
 
+        AddDirectives(statements, directives);
+
         return new NsqlDocument(statements);
     }
 
-    private static void AddSchema(List<NsqlStatement> statements, SchemaDefinition schema, bool declare)
+    /// <summary>
+    /// Emits the directive statements after the declarations: partials, then renames, then drops — with
+    /// schema and extension drops last, mirroring their place at the end of a teardown.
+    /// </summary>
+    private static void AddDirectives(List<NsqlStatement> statements, ProjectDirectives directives)
+    {
+        foreach (var partial in directives.Schemas.Partials)
+        {
+            statements.Add(new Syn.Schemas.PartialSchemaStatement(Name(partial)) { Position = None });
+        }
+
+        foreach (var rename in directives.Schemas.Renames)
+        {
+            statements.Add(new Syn.Schemas.RenameSchemaStatement(Name(rename.From), Name(rename.To)) { Position = None });
+        }
+        foreach (var rename in directives.Tables.Renames)
+        {
+            statements.Add(new Syn.Tables.RenameTableStatement(Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)) { Position = None });
+        }
+        foreach (var rename in directives.Tables.ColumnRenames)
+        {
+            statements.Add(new Syn.Tables.RenameColumnStatement(
+                new Syn.MemberPath(Name(rename.From.Schema), Name(rename.From.Object), Name(rename.From.Member)) { Position = None },
+                Name(rename.To))
+            { Position = None });
+        }
+        foreach (var rename in directives.Views.Renames)
+        {
+            statements.Add(new Syn.Views.RenameViewStatement(Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)) { Position = None });
+        }
+        foreach (var rename in directives.Enums.Renames)
+        {
+            statements.Add(new Syn.Enums.RenameEnumStatement(Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)) { Position = None });
+        }
+        foreach (var rename in directives.Domains.Renames)
+        {
+            statements.Add(new Syn.Domains.RenameDomainStatement(Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)) { Position = None });
+        }
+        foreach (var rename in directives.CompositeTypes.Renames)
+        {
+            statements.Add(new Syn.CompositeTypes.RenameCompositeTypeStatement(Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)) { Position = None });
+        }
+        foreach (var rename in directives.Sequences.Renames)
+        {
+            statements.Add(new Syn.Sequences.RenameSequenceStatement(Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)) { Position = None });
+        }
+        foreach (var rename in directives.Routines.Renames)
+        {
+            statements.Add(new Syn.Routines.RenameRoutineStatement(Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)) { Position = None });
+        }
+
+        foreach (var drop in directives.Tables.Drops)
+        {
+            statements.Add(new Syn.Tables.DropTableStatement(Qualified(drop.Schema, drop.Name)) { Position = None });
+        }
+        foreach (var drop in directives.Views.Drops)
+        {
+            statements.Add(new Syn.Views.DropViewStatement(Qualified(drop.Schema, drop.Name)) { Position = None });
+        }
+        foreach (var drop in directives.Enums.Drops)
+        {
+            statements.Add(new Syn.Enums.DropEnumStatement(Qualified(drop.Schema, drop.Name)) { Position = None });
+        }
+        foreach (var drop in directives.Domains.Drops)
+        {
+            statements.Add(new Syn.Domains.DropDomainStatement(Qualified(drop.Schema, drop.Name)) { Position = None });
+        }
+        foreach (var drop in directives.CompositeTypes.Drops)
+        {
+            statements.Add(new Syn.CompositeTypes.DropCompositeTypeStatement(Qualified(drop.Schema, drop.Name)) { Position = None });
+        }
+        foreach (var drop in directives.Sequences.Drops)
+        {
+            statements.Add(new Syn.Sequences.DropSequenceStatement(Qualified(drop.Schema, drop.Name)) { Position = None });
+        }
+        foreach (var drop in directives.Routines.Drops)
+        {
+            statements.Add(new Syn.Routines.DropRoutineStatement(Qualified(drop.Schema, drop.Name)) { Position = None });
+        }
+
+        foreach (var drop in directives.Schemas.Drops)
+        {
+            statements.Add(new Syn.Schemas.DropSchemaStatement(Name(drop)) { Position = None });
+        }
+        // Extensions are dropped last, so their drops trail the schema drops.
+        foreach (var drop in directives.Extensions.Drops)
+        {
+            statements.Add(new Syn.Extensions.DropExtensionStatement(Name(drop)) { Position = None });
+        }
+    }
+
+    private static void AddSchema(List<NsqlStatement> statements, Schema schema, bool declare)
     {
         if (declare)
         {
-            statements.Add(new Syn.Schemas.CreateSchemaStatement(Name(schema.Name), schema.IsPartial, OptionalName(schema.OldName))
+            statements.Add(new Syn.Schemas.CreateSchemaStatement(Name(schema.Name))
             {
                 Position = None,
                 Doc = schema.Comment,
@@ -73,7 +163,7 @@ internal static class SyntaxBuilder
 
         foreach (var enumType in schema.Enums)
         {
-            statements.Add(new Syn.Enums.CreateEnumStatement(Qualified(schema.Name, enumType.Name), enumType.Values, OptionalName(enumType.OldName))
+            statements.Add(new Syn.Enums.CreateEnumStatement(Qualified(schema.Name, enumType.Name), enumType.Values)
             {
                 Position = None,
                 Doc = enumType.Comment,
@@ -84,7 +174,7 @@ internal static class SyntaxBuilder
         {
             statements.Add(new Syn.Domains.CreateDomainStatement(Qualified(schema.Name, domain.Name), Type(domain.DataType), domain.NotNull,
                 domain.Checks.Select(c => new Syn.Constraints.CheckDefinition(Name(c.Name), c.Expression) { Position = None }).ToList(),
-                domain.Default, OptionalName(domain.OldName))
+                domain.Default)
             {
                 Position = None,
                 Doc = domain.Comment,
@@ -94,8 +184,7 @@ internal static class SyntaxBuilder
         foreach (var compositeType in schema.CompositeTypes)
         {
             statements.Add(new Syn.CompositeTypes.CreateCompositeTypeStatement(Qualified(schema.Name, compositeType.Name),
-                compositeType.Fields.Select(f => new Syn.CompositeTypes.CompositeFieldDefinition(Name(f.Name), Type(f.DataType)) { Position = None }).ToList(),
-                OptionalName(compositeType.OldName))
+                compositeType.Fields.Select(f => new Syn.CompositeTypes.CompositeFieldDefinition(Name(f.Name), Type(f.DataType)) { Position = None }).ToList())
             {
                 Position = None,
                 Doc = compositeType.Comment,
@@ -105,7 +194,7 @@ internal static class SyntaxBuilder
         foreach (var sequence in schema.Sequences)
         {
             statements.Add(new Syn.Sequences.CreateSequenceStatement(Qualified(schema.Name, sequence.Name),
-                Options(sequence.Options), OptionalName(sequence.OldName))
+                Options(sequence.Options))
             {
                 Position = None,
                 Doc = sequence.Comment,
@@ -116,7 +205,7 @@ internal static class SyntaxBuilder
         {
             statements.Add(new Syn.Routines.CreateRoutineStatement(Qualified(schema.Name, routine.Name),
                 routine.Kind == RoutineKind.Procedure ? Syn.Routines.RoutineKind.Procedure : Syn.Routines.RoutineKind.Function,
-                routine.Arguments, routine.Definition, OptionalName(routine.OldName))
+                routine.Arguments, routine.Definition)
             {
                 Position = None,
                 Doc = routine.Comment,
@@ -133,34 +222,7 @@ internal static class SyntaxBuilder
             AddView(statements, schema.Name, view);
         }
 
-        foreach (var dropped in schema.DroppedTables)
-        {
-            statements.Add(new Syn.Tables.DropTableStatement(Qualified(schema.Name, dropped)) { Position = None });
-        }
-        foreach (var dropped in schema.DroppedViews)
-        {
-            statements.Add(new Syn.Views.DropViewStatement(Qualified(schema.Name, dropped)) { Position = None });
-        }
-        foreach (var dropped in schema.DroppedEnums)
-        {
-            statements.Add(new Syn.Enums.DropEnumStatement(Qualified(schema.Name, dropped)) { Position = None });
-        }
-        foreach (var dropped in schema.DroppedDomains)
-        {
-            statements.Add(new Syn.Domains.DropDomainStatement(Qualified(schema.Name, dropped)) { Position = None });
-        }
-        foreach (var dropped in schema.DroppedCompositeTypes)
-        {
-            statements.Add(new Syn.CompositeTypes.DropCompositeTypeStatement(Qualified(schema.Name, dropped)) { Position = None });
-        }
-        foreach (var dropped in schema.DroppedSequences)
-        {
-            statements.Add(new Syn.Sequences.DropSequenceStatement(Qualified(schema.Name, dropped)) { Position = None });
-        }
-        foreach (var dropped in schema.DroppedRoutines)
-        {
-            statements.Add(new Syn.Routines.DropRoutineStatement(Qualified(schema.Name, dropped)) { Position = None });
-        }
+
     }
 
     private static void AddTable(List<NsqlStatement> statements, SqlIdentifier schemaName, Table table)
@@ -170,7 +232,7 @@ internal static class SyntaxBuilder
         foreach (var column in table.Columns)
         {
             members.Add(new Syn.Tables.ColumnDefinition(Name(column.Name), Type(column.Type), column.IsNullable, column.IsIdentity,
-                Options(column.IdentityOptions), column.DefaultExpression, column.GeneratedExpression, OptionalName(column.OldName))
+                Options(column.IdentityOptions), column.DefaultExpression, column.GeneratedExpression)
             {
                 Position = None,
                 Doc = column.Comment,
@@ -219,7 +281,7 @@ internal static class SyntaxBuilder
             });
         }
 
-        statements.Add(new Syn.Tables.CreateTableStatement(Qualified(schemaName, table.Name), members, OptionalName(table.OldName))
+        statements.Add(new Syn.Tables.CreateTableStatement(Qualified(schemaName, table.Name), members)
         {
             Position = None,
             Doc = table.Comment,
@@ -243,7 +305,7 @@ internal static class SyntaxBuilder
 
     private static void AddView(List<NsqlStatement> statements, SqlIdentifier schemaName, View view)
     {
-        statements.Add(new Syn.Views.CreateViewStatement(Qualified(schemaName, view.Name), view.Body, view.IsMaterialized, OptionalName(view.OldName))
+        statements.Add(new Syn.Views.CreateViewStatement(Qualified(schemaName, view.Name), view.Body, view.IsMaterialized)
         {
             Position = None,
             Doc = view.Comment,
@@ -286,24 +348,25 @@ internal static class SyntaxBuilder
 
     private static Syn.Scripts.ScriptStatement Build(Script script)
     {
-        Syn.Scripts.ScriptEventClause clause = script.Event switch
+        Syn.Scripts.ScriptEventClause clause = script switch
         {
-            DeploymentEvent deployment => new Syn.Scripts.DeploymentEventClause(
-                deployment.Phase == DeploymentPhase.Pre ? Syn.Scripts.DeploymentPhase.Pre : Syn.Scripts.DeploymentPhase.Post)
+            DeploymentScript deployment => new Syn.Scripts.DeploymentEventClause(deployment.Phase == DeploymentPhase.Pre ? Syn.Scripts.DeploymentPhase.Pre : Syn.Scripts.DeploymentPhase.Post)
             {
                 Position = None,
             },
-            ChangeEvent change => new Syn.Scripts.ChangeEventClause(Trigger(change.Trigger),
-                new MemberPath(OptionalIdentifier(change.ScopeSchema), Ident(change.TableName), Ident(change.MemberName)) { Position = None })
+            ChangeScript change => new Syn.Scripts.ChangeEventClause(Trigger(change.Trigger), new Syn.MemberPath(OptionalIdentifier(change.ScopeSchema), Ident(change.TableName), Ident(change.MemberName)) { Position = None })
             {
                 Position = None,
             },
-            _ => throw new InvalidOperationException($"Unbuildable script event '{script.Event.GetType().Name}'."),
+            _ => throw new InvalidOperationException($"Unbuildable script '{script.GetType().Name}'."),
         };
 
-        return new Syn.Scripts.ScriptStatement(script.Name.Value,
-            script.RunCondition == RunCondition.Once ? Syn.Scripts.RunCondition.Once : Syn.Scripts.RunCondition.Always,
-            clause, script.Sql, script.RunOutsideTransaction)
+        // Only a deployment script carries a run condition; a change-event script renders a bare RUN (null).
+        Syn.Scripts.RunCondition? condition = script is DeploymentScript d
+            ? d.RunCondition == RunCondition.Once ? Syn.Scripts.RunCondition.Once : Syn.Scripts.RunCondition.Always
+            : null;
+
+        return new Syn.Scripts.ScriptStatement(Ident(script.Name), condition, clause, script.Sql, script.RunOutsideTransaction)
         {
             Position = None,
         };

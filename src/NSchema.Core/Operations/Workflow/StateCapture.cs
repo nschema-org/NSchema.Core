@@ -7,4 +7,4 @@ namespace NSchema.Operations.Workflow;
 /// </summary>
 /// <param name="Schema">The live schema written to the state store.</param>
 /// <param name="SnapshotBytes">The size, in bytes, of the serialized snapshot.</param>
-internal sealed record StateCapture(DatabaseSchema Schema, int SnapshotBytes);
+internal sealed record StateCapture(Database Schema, int SnapshotBytes);

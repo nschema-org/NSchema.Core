@@ -1,4 +1,4 @@
-using NSchema.Current;
+using NSchema.Plan.Domain;
 using NSchema.Plan.Domain.Models;
 using NSchema.Project.Domain.Models;
 
@@ -6,7 +6,7 @@ namespace NSchema.Operations.Workflow;
 
 /// <summary>
 /// The imperative shell operations use to run the pure planner: it resolves schemas, invokes
-/// <see cref="NSchema.Plan.Domain.IMigrationPlanner"/>, surfaces diagnostics, and captures state to the store.
+/// <see cref="IMigrationPlanner"/>, surfaces diagnostics, and captures state to the store.
 /// </summary>
 internal interface IMigrationWorkflow
 {
@@ -22,7 +22,7 @@ internal interface IMigrationWorkflow
     /// <param name="currentSource">Which source to read the current schema from.</param>
     /// <param name="scope">The schemas under management this run.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<Result<MigrationPlan>> ComputePlan(SchemaSourceMode currentSource, SchemaScope scope, CancellationToken cancellationToken = default);
+    Task<Result<MigrationPlan>> ComputePlan(SourceMode currentSource, SchemaScope scope, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Computes the teardown plan for the managed schema.

@@ -362,7 +362,7 @@ public class DataHazardPolicyTests
         [
             new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text))
             {
-                MigrationScript = Migration(ChangeTrigger.AddColumn, "email").Name,
+                MigrationScript = Migration(ChangeTrigger.AddColumn, "email"),
             },
         ]);
 
@@ -379,7 +379,7 @@ public class DataHazardPolicyTests
             new ColumnDiff(new SqlIdentifier("value"), ChangeKind.Modify,
                 Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int))
             {
-                MigrationScript = Migration(ChangeTrigger.AlterColumnType, "value").Name,
+                MigrationScript = Migration(ChangeTrigger.AlterColumnType, "value"),
             },
         ]);
 
@@ -398,7 +398,7 @@ public class DataHazardPolicyTests
                 Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int),
                 Nullability: new ValueChange<bool>(true, false))
             {
-                MigrationScript = Migration(ChangeTrigger.AlterColumnType, "email").Name,
+                MigrationScript = Migration(ChangeTrigger.AlterColumnType, "email"),
             },
         ]);
 
@@ -418,7 +418,7 @@ public class DataHazardPolicyTests
         [
             new PrimaryKeyDiff(ChangeKind.Add, new SqlIdentifier("users_pk"), new PrimaryKey(new SqlIdentifier("users_pk"), [new SqlIdentifier("tenant_id"), new SqlIdentifier("email")]))
             {
-                MigrationScript = Migration(ChangeTrigger.AddConstraint, "users_pk").Name,
+                MigrationScript = Migration(ChangeTrigger.AddConstraint, "users_pk"),
             },
         ]);
 
@@ -434,7 +434,7 @@ public class DataHazardPolicyTests
         [
             new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_email_uq"), new UniqueConstraint(new SqlIdentifier("users_email_uq"), [new SqlIdentifier("email")]))
             {
-                MigrationScript = Migration(ChangeTrigger.AddConstraint, "users_email_uq").Name,
+                MigrationScript = Migration(ChangeTrigger.AddConstraint, "users_email_uq"),
             },
         ]);
 
@@ -452,7 +452,7 @@ public class DataHazardPolicyTests
             [
                 new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_email_uq"), new UniqueConstraint(new SqlIdentifier("users_email_uq"), [new SqlIdentifier("email")]))
                 {
-                    MigrationScript = Migration(ChangeTrigger.AddConstraint, "users_email_uq").Name,
+                    MigrationScript = Migration(ChangeTrigger.AddConstraint, "users_email_uq"),
                 },
             ],
             Indexes:
@@ -466,8 +466,8 @@ public class DataHazardPolicyTests
         results[0].Message.ShouldContain("ix_users_name");
     }
 
-    private static Script Migration(ChangeTrigger trigger, string member) =>
-        new(new SqlIdentifier(member), new SqlText("UPDATE app.users SET email = ''"), new ChangeEvent(trigger, new SqlIdentifier("users"), new SqlIdentifier(member)) { ScopeSchema = new SqlIdentifier("app") });
+    private static ChangeScript Migration(ChangeTrigger trigger, string member) =>
+        new(new SqlIdentifier(member), new SqlText("UPDATE app.users SET email = ''"), new SqlIdentifier("app"), trigger, new SqlIdentifier("users"), new SqlIdentifier(member));
 
     private static DatabaseDiff ModifiedTable(
         IReadOnlyList<ColumnDiff>? Columns = null,

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using NSchema.Diff.Domain;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.EndToEnd;
@@ -14,15 +15,31 @@ namespace NSchema.Tests.EndToEnd;
 /// </summary>
 public sealed class RoundTripDriftTests
 {
-    private readonly SchemaComparer _comparer = new(NullLogger<SchemaComparer>.Instance);
+    private readonly DatabaseComparer _comparer = new(NullLogger<DatabaseComparer>.Instance);
 
     [Fact]
     public void NsqlRoundTrip_OfRichSchema_ProducesNoDiff()
     {
         // Serialize every domain feature to DDL and read it straight back: the comparer must see no change.
         var original = TestData.RichSchema();
-        var reparsed = new TestNsqlParser(NsqlWriter.Write(original)).Parse().Schema;
+        var reparsed = new TestNsqlParser(NsqlWriter.Write(original)).Parse().Database;
 
-        _comparer.Compare(original, reparsed).IsEmpty.ShouldBeTrue();
+        _comparer.Compare(original, reparsed, ProjectDirectives.Empty).IsEmpty.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void NsqlRoundTrip_OfDirectives_IsFaithful()
+    {
+        // Write the whole project — schema, and a directive of every kind — read it back, and write it
+        // again: the second rendering must be byte-identical, so nothing is lost or reshaped in flight.
+        var first = NsqlWriter.Write(TestData.RichSchema(), TestData.RichDirectives());
+
+        var read = NsqlReader.Read(first);
+        read.IsSuccess.ShouldBeTrue();
+        var assembled = NSchema.Project.ProjectAssembler.Assemble([read.Value]);
+        assembled.IsSuccess.ShouldBeTrue(string.Join("; ", assembled.Diagnostics.Select(d => d.Message)));
+
+        var project = assembled.Value!;
+        NsqlWriter.Write(project.Database, project.Directives).ShouldBe(first);
     }
 }

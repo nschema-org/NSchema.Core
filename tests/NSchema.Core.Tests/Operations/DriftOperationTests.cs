@@ -1,4 +1,4 @@
-using NSchema.Current;
+using NSchema.Deployment;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Schemas;
@@ -6,30 +6,35 @@ using NSchema.Operations;
 using NSchema.Operations.Progress;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Domain.Models.Schemas;
+using NSchema.State;
+using NSchema.State.Backends;
+using NSchema.State.Domain.Models;
 
 namespace NSchema.Tests.Operations;
 
 public sealed class DriftOperationTests
 {
-    private readonly ICurrentSchemaProvider _currentProvider = Substitute.For<ICurrentSchemaProvider>();
-    private readonly ISchemaComparer _comparer = Substitute.For<ISchemaComparer>();
+    private readonly IDatabaseProvider _provider = Substitute.For<IDatabaseProvider>();
+    private readonly IDatabaseStateStore _store = Substitute.For<IDatabaseStateStore>();
+    private readonly IDatabaseStateSerializer _serializer = new DatabaseStateSerializer();
+    private readonly IDatabaseComparer _comparer = Substitute.For<IDatabaseComparer>();
     private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
 
-    private readonly DatabaseSchema _recorded = new([new SchemaDefinition(new SqlIdentifier("app"))]);
-    private readonly DatabaseSchema _live = new([new SchemaDefinition(new SqlIdentifier("app")), new SchemaDefinition(new SqlIdentifier("audit"))]);
+    private readonly Database _recorded = new([new Schema(new SqlIdentifier("app"))]);
+    private readonly Database _live = new([new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("audit"))]);
     private readonly DatabaseDiff _diff = new([new SchemaDiff(new SqlIdentifier("audit"), ChangeKind.Add)]);
 
     private readonly DriftOperation _sut;
 
     public DriftOperationTests()
     {
-        _currentProvider.GetSchema(SchemaSourceMode.Offline, Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(_recorded));
-        _currentProvider.GetSchema(SchemaSourceMode.Online, Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
+        // Recorded state comes from the store; live comes from the provider.
+        _store.Read(Arg.Any<CancellationToken>()).Returns(_serializer.Serialize(new DatabaseState(_recorded)));
+        _provider.GetDatabase(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(_live));
-        _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(_diff);
+        _comparer.Compare(Arg.Any<Database>(), Arg.Any<Database>(), Arg.Any<ProjectDirectives>()).Returns(_diff);
 
-        _sut = new DriftOperation(_currentProvider, _comparer, _progress);
+        _sut = new DriftOperation(_provider, new DatabaseStateManager(_serializer, _store), _comparer, _progress);
     }
 
     private static DriftArguments Args(SchemaScope? scope = null) => new() { Scope = scope ?? SchemaScope.All };
@@ -41,29 +46,48 @@ public sealed class DriftOperationTests
         await _sut.Execute(Args(), TestContext.Current.CancellationToken);
 
         // Assert — direction is recorded -> live, so the diff describes how live drifted from the recorded state.
-        _comparer.Received(1).Compare(_recorded, _live);
+        // The recorded database round-trips through the state store, so match it by content, not reference.
+        _comparer.Received(1).Compare(
+            Arg.Is<Database>(d => d!.Schemas.Select(s => s.Name.Value).SequenceEqual(new[] { "app" })), _live, ProjectDirectives.Empty);
     }
 
     [Fact]
-    public async Task Execute_ReadsRecordedOffline_AndLiveOnline_BothRequired()
+    public async Task Execute_ReadsRecordedFromState_AndLiveFromProvider()
     {
         // Act
         await _sut.Execute(Args(), TestContext.Current.CancellationToken);
 
         // Assert
-        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Offline, Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
-        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Online, Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
+        await _store.Received(1).Read(Arg.Any<CancellationToken>());
+        await _provider.Received(1).GetDatabase(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Execute_ForwardsScopeToBothReads()
+    public async Task Execute_ForwardsScopeToLive_AndFiltersRecorded()
     {
+        // Arrange — recorded state holds an out-of-scope schema; the scoped read must drop it before diffing.
+        _store.Read(Arg.Any<CancellationToken>())
+            .Returns(_serializer.Serialize(new DatabaseState(new Database([new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("other"))]))));
+
         // Act
         await _sut.Execute(Args(SchemaScope.Of(new SqlIdentifier("app"))), TestContext.Current.CancellationToken);
 
-        // Assert
-        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Offline, Arg.Is<SchemaScope>(s => s!.Includes(new SqlIdentifier("app")) && !s.IsAll), Arg.Any<CancellationToken>());
-        await _currentProvider.Received(1).GetSchema(SchemaSourceMode.Online, Arg.Is<SchemaScope>(s => s!.Includes(new SqlIdentifier("app")) && !s.IsAll), Arg.Any<CancellationToken>());
+        // Assert — live gets the scope directly; recorded is filtered to it before the comparer sees it.
+        await _provider.Received(1).GetDatabase(Arg.Is<SchemaScope>(s => s!.Includes(new SqlIdentifier("app")) && !s.IsAll), Arg.Any<CancellationToken>());
+        _comparer.Received(1).Compare(Arg.Is<Database>(d => d!.Schemas.Select(s => s.Name.Value).SequenceEqual(new[] { "app" })), _live, ProjectDirectives.Empty);
+    }
+
+    [Fact]
+    public async Task Execute_NoRecordedState_DiffsAgainstAnEmptyDatabase()
+    {
+        // Arrange — before anything is recorded, drift measures the whole live database as new.
+        _store.Read(Arg.Any<CancellationToken>()).Returns((ReadOnlyMemory<byte>?)null);
+
+        // Act
+        await _sut.Execute(Args(), TestContext.Current.CancellationToken);
+
+        // Assert — the recorded side is an empty database.
+        _comparer.Received(1).Compare(Arg.Is<Database>(d => d!.Schemas.Count == 0), _live, ProjectDirectives.Empty);
     }
 
     [Fact]
@@ -82,7 +106,7 @@ public sealed class DriftOperationTests
     public async Task Execute_WhenDiffEmpty_ReportsNoDrift()
     {
         // Arrange
-        _comparer.Compare(Arg.Any<DatabaseSchema>(), Arg.Any<DatabaseSchema>()).Returns(new DatabaseDiff([]));
+        _comparer.Compare(Arg.Any<Database>(), Arg.Any<Database>(), Arg.Any<ProjectDirectives>()).Returns(new DatabaseDiff([]));
 
         // Act
         var result = await _sut.Execute(Args(), TestContext.Current.CancellationToken);

@@ -52,7 +52,7 @@ internal sealed class MigrationPlanner(
         return Result.From(plan, diagnostics);
     }
 
-    public Result<MigrationPlan> PlanTeardown(DatabaseSchema currentSchema)
+    public Result<MigrationPlan> PlanTeardown(Database database)
     {
         if (dialect is null)
         {
@@ -60,7 +60,7 @@ internal sealed class MigrationPlanner(
         }
 
         // Don't run policies for teardown. This is a purely destructive action, and needs to be available as an escape.
-        var diff = comparer.CompareTeardown(currentSchema);
+        var diff = comparer.CompareTeardown(database);
         var plan = Realize(diff, dialect);
         return Result.Success(plan);
     }

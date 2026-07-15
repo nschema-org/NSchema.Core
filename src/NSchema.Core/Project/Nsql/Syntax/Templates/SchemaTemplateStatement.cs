@@ -6,4 +6,4 @@ namespace NSchema.Project.Nsql.Syntax.Templates;
 /// </summary>
 /// <param name="Name">The template name.</param>
 /// <param name="Statements">The body statements, unexpanded.</param>
-public sealed record SchemaTemplateStatement(Identifier Name, IReadOnlyList<NsqlStatement> Statements) : NsqlStatement;
+public sealed record SchemaTemplateStatement(Identifier Name, IReadOnlyList<NsqlStatement> Statements) : TemplateStatement(Name);

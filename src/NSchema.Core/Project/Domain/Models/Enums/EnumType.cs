@@ -7,15 +7,13 @@ namespace NSchema.Project.Domain.Models.Enums;
 /// </summary>
 /// <param name="Name">The name of the enum type.</param>
 /// <param name="Values">The allowed values, in order.</param>
-/// <param name="OldName">The previous name of the enum type, if it has been renamed.</param>
 /// <param name="Comment">An optional comment or description for the enum type.</param>
 [DebuggerDisplay("{Name,nq} (enum)")]
 public sealed record EnumType(
     SqlIdentifier Name,
     IReadOnlyList<string>? Values = null,
-    SqlIdentifier? OldName = null,
     string? Comment = null
-) : IRenameableObject
+) : INamedObject
 {
     /// <summary>
     /// The allowed values, in order.

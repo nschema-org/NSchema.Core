@@ -1,4 +1,3 @@
-using NSchema.Current;
 using NSchema.Operations.Workflow;
 using NSchema.Plan.PlanFile;
 
@@ -17,8 +16,8 @@ internal sealed class PlanOperation(IMigrationWorkflow workflow, IPlanFileManage
         var planned = args.Target switch
         {
             PlanTarget.Teardown => await workflow.ComputeTeardown(cancellationToken),
-            PlanTarget.Live => await workflow.ComputePlan(SchemaSourceMode.Online, args.Scope, cancellationToken),
-            _ => await workflow.ComputePlan(SchemaSourceMode.Offline, args.Scope, cancellationToken),
+            PlanTarget.Live => await workflow.ComputePlan(SourceMode.Live, args.Scope, cancellationToken),
+            _ => await workflow.ComputePlan(SourceMode.Recorded, args.Scope, cancellationToken),
         };
 
         if (planned.Value is { } plan && args.OutFile is not null)

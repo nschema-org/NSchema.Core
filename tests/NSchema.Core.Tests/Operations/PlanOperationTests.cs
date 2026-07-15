@@ -1,4 +1,3 @@
-using NSchema.Current;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Operations;
@@ -23,7 +22,7 @@ public sealed class PlanOperationTests
     public PlanOperationTests()
     {
         var planned = Result.Success(_plan);
-        _workflow.ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>()).Returns(planned);
+        _workflow.ComputePlan(Arg.Any<SourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>()).Returns(planned);
         _workflow.ComputeTeardown(Arg.Any<CancellationToken>()).Returns(planned);
 
         _sut = new PlanOperation(_workflow, _planFile);
@@ -39,7 +38,7 @@ public sealed class PlanOperationTests
         await _sut.Execute(Args(PlanTarget.Live), TestContext.Current.CancellationToken);
 
         // Assert — an apply-bound plan must read the live database.
-        await _workflow.Received(1).ComputePlan(SchemaSourceMode.Online, Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
+        await _workflow.Received(1).ComputePlan(SourceMode.Live, Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -49,7 +48,7 @@ public sealed class PlanOperationTests
         await _sut.Execute(Args(), TestContext.Current.CancellationToken);
 
         // Assert — a preview prefers the recorded state but may fall back, so it is not required.
-        await _workflow.Received(1).ComputePlan(SchemaSourceMode.Offline, Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
+        await _workflow.Received(1).ComputePlan(SourceMode.Recorded, Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -60,7 +59,7 @@ public sealed class PlanOperationTests
 
         // Assert
         await _workflow.Received(1).ComputeTeardown(Arg.Any<CancellationToken>());
-        await _workflow.DidNotReceive().ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
+        await _workflow.DidNotReceive().ComputePlan(Arg.Any<SourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -71,7 +70,7 @@ public sealed class PlanOperationTests
 
         // Assert
         await _workflow.Received(1).ComputePlan(
-            Arg.Any<SchemaSourceMode>(),
+            Arg.Any<SourceMode>(),
             Arg.Is<SchemaScope>(s => !s!.IsAll && s.Includes(new SqlIdentifier("app")) && s.Includes(new SqlIdentifier("legacy"))), Arg.Any<CancellationToken>());
     }
 
@@ -105,7 +104,7 @@ public sealed class PlanOperationTests
     {
         // Arrange — a policy blocks the plan; the failure still carries the full artifact so the offending
         // change (and its SQL) stays visible.
-        _workflow.ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
+        _workflow.ComputePlan(Arg.Any<SourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.From(_plan, [Diagnostic.Error("destructive", "drops table")]));
 
         // Act
@@ -122,7 +121,7 @@ public sealed class PlanOperationTests
     {
         // Arrange — the file is a review artifact, not a bypass: apply enforces the policies again against the
         // carried diff, so writing a blocked plan is safe and the failing result reports the block.
-        _workflow.ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
+        _workflow.ComputePlan(Arg.Any<SourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.From(_plan, [Diagnostic.Error("destructive", "drops table")]));
 
         // Act
@@ -137,7 +136,7 @@ public sealed class PlanOperationTests
     public async Task Execute_WhenPlanningProducesNoValue_CarriesNoPlan()
     {
         // Arrange — planning could not run at all (e.g. no provider registered).
-        _workflow.ComputePlan(Arg.Any<SchemaSourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
+        _workflow.ComputePlan(Arg.Any<SourceMode>(), Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<MigrationPlan>(Diagnostic.Error("plan", "no provider")));
 
         // Act

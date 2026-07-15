@@ -158,16 +158,8 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         return [.. ScriptActions(diff, DeploymentPhase.Pre), .. actions, .. ScriptActions(diff, DeploymentPhase.Post)];
     }
 
-    /// <summary>
-    /// Resolves a node's script annotation against the diff. The matcher only annotates with scripts it put on
-    /// the diff, so a miss is an upstream invariant violation, not an input condition.
-    /// </summary>
-    private static Script ResolveScript(DatabaseDiff diff, SqlIdentifier name) =>
-        diff.FindScript(name)
-        ?? throw new InvalidOperationException($"The diff annotates a change with script '{name}', but carries no script with that name.");
-
     private static IEnumerable<ExecuteScript> ScriptActions(DatabaseDiff diff, DeploymentPhase phase) =>
-        diff.Scripts.Where(s => s.Event is DeploymentEvent e && e.Phase == phase).Select(s => new ExecuteScript(s));
+        diff.DeploymentScripts.Where(s => s.Phase == phase).Select(s => new ExecuteScript(s));
 
     /// <summary>
     /// Emits the view actions across every schema. <see cref="CreateView"/>s are appended in dependency order and
@@ -611,7 +603,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 if (column is { MigrationScript: { } backfill, Definition: { IsNullable: false, DefaultExpression: null, IsIdentity: false, GeneratedExpression: null } })
                 {
                     actions.Add(new AddColumn(table.Schema, table.Name, column.Definition with { IsNullable = true }));
-                    actions.Add(new ExecuteScript(ResolveScript(diff, backfill)));
+                    actions.Add(new ExecuteScript(backfill));
                     actions.Add(new AlterColumnNullability(table.Schema, table.Name, column.Name, OldNullable: true, NewNullable: false, column.Definition.Type));
                 }
                 else
@@ -619,7 +611,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                     actions.Add(new AddColumn(table.Schema, table.Name, column.Definition!));
                     if (column.MigrationScript is { } migration)
                     {
-                        actions.Add(new ExecuteScript(ResolveScript(diff, migration)));
+                        actions.Add(new ExecuteScript(migration));
                     }
                 }
                 if (column.Comment is not null)
@@ -642,7 +634,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                     // A matched migration prepares the data for the cast; the priority table runs it first.
                     if (column.MigrationScript is { } prep)
                     {
-                        actions.Add(new ExecuteScript(ResolveScript(diff, prep)));
+                        actions.Add(new ExecuteScript(prep));
                     }
                     actions.Add(new AlterColumnType(table.Schema, table.Name, column.Name, column.Type.Old!, column.Type.New!, column.Definition?.IsNullable));
                 }
@@ -681,7 +673,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         // backfill); the priority table runs every data migration before the constraint adds.
         foreach (var pk in table.PrimaryKey)
         {
-            EmitConstraintMigration(pk.Kind, pk.MigrationScript, diff, actions);
+            EmitConstraintMigration(pk.Kind, pk.MigrationScript, actions);
             actions.Add(pk.Kind switch
             {
                 ChangeKind.Add => new AddPrimaryKey(table.Schema, table.Name, pk.Definition!),
@@ -692,7 +684,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
         foreach (var fk in table.ForeignKeys)
         {
-            EmitConstraintMigration(fk.Kind, fk.MigrationScript, diff, actions);
+            EmitConstraintMigration(fk.Kind, fk.MigrationScript, actions);
             actions.Add(fk.Kind switch
             {
                 ChangeKind.Add => new AddForeignKey(table.Schema, table.Name, fk.Definition!),
@@ -703,7 +695,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
         foreach (var uq in table.UniqueConstraints)
         {
-            EmitConstraintMigration(uq.Kind, uq.MigrationScript, diff, actions);
+            EmitConstraintMigration(uq.Kind, uq.MigrationScript, actions);
             actions.Add(uq.Kind switch
             {
                 ChangeKind.Add => new AddUniqueConstraint(table.Schema, table.Name, uq.Definition!),
@@ -714,7 +706,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
         foreach (var ck in table.Checks)
         {
-            EmitConstraintMigration(ck.Kind, ck.MigrationScript, diff, actions);
+            EmitConstraintMigration(ck.Kind, ck.MigrationScript, actions);
             actions.Add(ck.Kind switch
             {
                 ChangeKind.Add => new AddCheckConstraint(table.Schema, table.Name, ck.Definition!),
@@ -725,7 +717,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
         foreach (var ex in table.ExclusionConstraints)
         {
-            EmitConstraintMigration(ex.Kind, ex.MigrationScript, diff, actions);
+            EmitConstraintMigration(ex.Kind, ex.MigrationScript, actions);
             actions.Add(ex.Kind switch
             {
                 ChangeKind.Add => new AddExclusionConstraint(table.Schema, table.Name, ex.Definition!),
@@ -735,11 +727,11 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         }
     }
 
-    private static void EmitConstraintMigration(ChangeKind kind, SqlIdentifier? migrationName, DatabaseDiff diff, List<MigrationAction> actions)
+    private static void EmitConstraintMigration(ChangeKind kind, ChangeScript? migration, List<MigrationAction> actions)
     {
-        if (kind == ChangeKind.Add && migrationName is { } name)
+        if (kind == ChangeKind.Add && migration is { } script)
         {
-            actions.Add(new ExecuteScript(ResolveScript(diff, name)));
+            actions.Add(new ExecuteScript(script));
         }
     }
 

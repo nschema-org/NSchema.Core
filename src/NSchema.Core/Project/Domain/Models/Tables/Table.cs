@@ -10,7 +10,6 @@ namespace NSchema.Project.Domain.Models.Tables;
 /// Represents a database table.
 /// </summary>
 /// <param name="Name">The name of the table.</param>
-/// <param name="OldName">The previous name of the table, if it has been renamed.</param>
 /// <param name="PrimaryKey">The primary key of the table.</param>
 /// <param name="Comment">An optional comment or description for the table.</param>
 /// <param name="Columns">A list of columns that are part of the table.</param>
@@ -24,7 +23,6 @@ namespace NSchema.Project.Domain.Models.Tables;
 [DebuggerDisplay("{Name,nq} ({Columns.Count} columns)")]
 public record Table(
     SqlIdentifier Name,
-    SqlIdentifier? OldName = null,
     PrimaryKey? PrimaryKey = null,
     string? Comment = null,
     IReadOnlyList<Column>? Columns = null,
@@ -35,7 +33,7 @@ public record Table(
     IReadOnlyList<TableIndex>? Indexes = null,
     IReadOnlyList<TableGrant>? Grants = null,
     IReadOnlyList<Trigger>? Triggers = null
-) : IRenameableObject
+) : INamedObject
 {
     /// <summary>
     /// A list of columns that are part of the table.

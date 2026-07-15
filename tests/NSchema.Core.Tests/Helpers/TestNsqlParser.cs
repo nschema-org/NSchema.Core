@@ -1,21 +1,22 @@
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Helpers;
 
 /// <summary>
-/// The parse-and-project pipeline with the old parser's shape: construct with source, <see cref="Parse"/> to a
-/// projected document, syntax and assembly errors thrown as <c>NsqlSyntaxException</c> (the reader folds
-/// them into a <c>Result</c>; these tests assert the raw errors).
+/// The parse-and-assemble pipeline with the old parser's shape: construct with source, <see cref="Parse"/> to a
+/// projected <see cref="ProjectDefinition"/>. Parse errors throw as <c>NsqlSyntaxException</c> (these tests
+/// assert the raw errors); assembly findings ride as diagnostics on the result.
 /// </summary>
 internal sealed class TestNsqlParser(string source)
 {
-    public ProjectedDocument Parse() => Project().Require();
+    public ProjectDefinition Parse() => Project().Require();
 
     /// <summary>
     /// The full projection result: parse errors still throw (the grammar tests assert the raw exceptions),
     /// while assembly findings — duplicates, unknown references, broken template bodies — ride as diagnostics.
     /// </summary>
-    public Result<ProjectedDocument, NsqlDiagnostic> Project()
+    public Result<ProjectDefinition> Project()
     {
         var parser = new NsqlParser(source);
         var document = parser.Parse();
@@ -23,6 +24,7 @@ internal sealed class TestNsqlParser(string source)
         {
             throw parser.Errors[0];
         }
-        return DocumentProjector.Project(document);
+
+        return NSchema.Project.ProjectAssembler.Assemble([document]);
     }
 }

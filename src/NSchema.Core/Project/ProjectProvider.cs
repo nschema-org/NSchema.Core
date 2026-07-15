@@ -45,7 +45,7 @@ internal sealed class ProjectProvider(IEnumerable<ProjectSource> sources) : IPro
         var assembled = ProjectAssembler.Assemble(documents);
         diagnostics.AddRange(assembled.Diagnostics);
 
-        return Result.From(SchemaFilter.Apply(assembled.Require(), scope), diagnostics);
+        return Result.From(ScopeFilter.Apply(assembled.Require(), scope), diagnostics);
     }
 
     private static IEnumerable<string> ResolveFiles(ProjectSource source) => source.Matcher

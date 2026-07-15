@@ -23,7 +23,7 @@ public sealed record DomainDiff(
     SqlIdentifier Name,
     ChangeKind Kind,
     SqlIdentifier? RenamedFrom = null,
-    DomainDefinition? Definition = null,
+    DomainType? Definition = null,
     ValueChange<SqlType>? DataType = null,
     ValueChange<SqlText>? Default = null,
     ValueChange<bool>? NotNull = null,

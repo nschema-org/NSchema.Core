@@ -14,12 +14,13 @@ internal sealed partial class NsqlParser
     {
         var position = _current.Position;
         Advance(); // SCRIPT
-        var name = Expect(TokenKind.String, "a quoted script name").Text;
+        var name = ExpectIdentifierNode("a script name");
         ExpectKeyword("RUN");
 
-        var condition = RunCondition.Always;
+        RunCondition? condition = null;
         if (_current.IsKeyword("ALWAYS"))
         {
+            condition = RunCondition.Always;
             Advance();
         }
         else if (_current.IsKeyword("ONCE"))
@@ -164,7 +165,7 @@ internal sealed partial class NsqlParser
             do
             {
                 var keyPosition = _current.Position;
-                var key = ExpectIdentifierNode($"a {what} option name").Text;
+                var key = ExpectIdentifierNode($"a {what} option name").Value;
                 Expect(TokenKind.Equals, "'=' after an option name");
                 var value = ParseConfigValueNode();
                 switch (key.ToLowerInvariant())
