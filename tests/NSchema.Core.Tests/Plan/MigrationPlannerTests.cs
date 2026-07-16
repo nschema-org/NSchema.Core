@@ -1,15 +1,15 @@
-using NSchema.Diff.Domain;
-using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Domain.Models.Schemas;
+using NSchema.Diff.Model;
+using NSchema.Diff.Model.Schemas;
+using NSchema.Diff.Model.Services;
 using NSchema.Model;
 using NSchema.Model.Schemas;
 using NSchema.Model.Scripts;
-using NSchema.Plan.Domain;
-using NSchema.Plan.Domain.Models;
-using NSchema.Plan.Domain.Models.Schemas;
-using NSchema.Plan.Domain.Models.Scripts;
+using NSchema.Plan.Model;
+using NSchema.Plan.Model.Schemas;
+using NSchema.Plan.Model.Scripts;
+using NSchema.Plan.Model.Services;
 using NSchema.Plan.Policies;
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Model.Directives;
 using NSchema.Project.Policies;
 
 namespace NSchema.Tests.Plan;

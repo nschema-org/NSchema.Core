@@ -11,7 +11,7 @@ using NSchema.Model.Tables;
 using NSchema.Model.Views;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
-using NSchema.Project.Domain;
+using NSchema.Project.Model.Services;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Operations;

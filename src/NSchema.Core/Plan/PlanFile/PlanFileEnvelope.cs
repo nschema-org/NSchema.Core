@@ -1,4 +1,5 @@
-using NSchema.Plan.Domain.Models;
+using NSchema.Plan.Model;
+
 namespace NSchema.Plan.PlanFile;
 
 /// <summary>

@@ -1,6 +1,6 @@
 using NSchema.State;
 using NSchema.State.Backends;
-using NSchema.State.Domain.Models;
+using NSchema.State.Model;
 
 namespace NSchema.Tests.Helpers;
 

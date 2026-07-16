@@ -1,11 +1,11 @@
 using NSchema.Apply;
-using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Model;
 using NSchema.Model;
 using NSchema.Model.Scripts;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
 using NSchema.Operations.Workflow;
-using NSchema.Plan.Domain.Models;
+using NSchema.Plan.Model;
 using NSchema.Plan.Policies;
 using NSchema.State;
 using NSubstitute.ExceptionExtensions;

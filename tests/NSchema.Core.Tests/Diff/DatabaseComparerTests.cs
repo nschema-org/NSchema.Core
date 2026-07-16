@@ -1,9 +1,8 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using NSchema.Diff.Domain;
-using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Domain.Models.Columns;
-using NSchema.Diff.Domain.Models.Tables;
-using NSchema.Diff.Domain.Models.Views;
+using NSchema.Diff.Model;
+using NSchema.Diff.Model.Columns;
+using NSchema.Diff.Model.Tables;
+using NSchema.Diff.Model.Views;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Constraints;
@@ -11,8 +10,9 @@ using NSchema.Model.Indexes;
 using NSchema.Model.Schemas;
 using NSchema.Model.Tables;
 using NSchema.Model.Views;
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Model.Directives;
 using NSchema.Project.Nsql;
+using DatabaseComparer = NSchema.Diff.Model.Services.DatabaseComparer;
 
 namespace NSchema.Tests.Diff;
 

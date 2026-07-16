@@ -1,6 +1,6 @@
-using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Domain.Models.Schemas;
-using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Diff.Model;
+using NSchema.Diff.Model.Schemas;
+using NSchema.Diff.Model.Tables;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.CompositeTypes;
@@ -15,10 +15,10 @@ using NSchema.Model.Sequences;
 using NSchema.Model.Tables;
 using NSchema.Model.Triggers;
 using NSchema.Model.Views;
-using NSchema.Plan.Domain.Models;
-using NSchema.Plan.Domain.Models.Schemas;
-using NSchema.Plan.Domain.Models.Tables;
-using NSchema.Project.Domain.Models;
+using NSchema.Plan.Model;
+using NSchema.Plan.Model.Schemas;
+using NSchema.Plan.Model.Tables;
+using NSchema.Project.Model.Directives;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Helpers;

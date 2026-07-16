@@ -1,5 +1,5 @@
 using NSchema.Apply;
-using NSchema.Plan.Domain.Models;
+using NSchema.Plan.Model;
 
 namespace NSchema.Tests.Helpers;
 

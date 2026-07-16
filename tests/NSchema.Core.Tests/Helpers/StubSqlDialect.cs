@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Plan.Backends;
-using NSchema.Plan.Domain.Models;
-using NSchema.Plan.Domain.Models.Scripts;
+using NSchema.Plan.Model;
+using NSchema.Plan.Model.Scripts;
 
 namespace NSchema.Tests.Helpers;
 

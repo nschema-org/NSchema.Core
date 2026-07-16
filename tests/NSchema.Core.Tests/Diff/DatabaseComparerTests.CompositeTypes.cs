@@ -1,10 +1,10 @@
-using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Domain.Models.CompositeTypes;
+using NSchema.Diff.Model;
+using NSchema.Diff.Model.CompositeTypes;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.CompositeTypes;
 using NSchema.Model.Schemas;
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Model.Directives;
 
 namespace NSchema.Tests.Diff;
 

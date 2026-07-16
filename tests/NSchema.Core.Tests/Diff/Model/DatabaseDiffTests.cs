@@ -1,8 +1,8 @@
-using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Domain.Models.Columns;
-using NSchema.Diff.Domain.Models.Schemas;
-using NSchema.Diff.Domain.Models.Tables;
-using NSchema.Diff.Domain.Models.Views;
+using NSchema.Diff.Model;
+using NSchema.Diff.Model.Columns;
+using NSchema.Diff.Model.Schemas;
+using NSchema.Diff.Model.Tables;
+using NSchema.Diff.Model.Views;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Schemas;

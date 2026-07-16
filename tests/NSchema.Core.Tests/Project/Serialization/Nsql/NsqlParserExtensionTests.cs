@@ -1,4 +1,5 @@
 using NSchema.Model;
+using NSchema.Project.Model.Directives;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;
@@ -66,7 +67,7 @@ public sealed class NsqlParserExtensionTests
         => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE EXTENSION postgis VERSION;"))
             .Message.ShouldContain("a version string");
 
-    private static NSchema.Project.Domain.Models.ProjectDirectives Directives(string source)
+    private static ProjectDirectives Directives(string source)
     {
         var read = NsqlReader.Read(source);
         read.IsSuccess.ShouldBeTrue();

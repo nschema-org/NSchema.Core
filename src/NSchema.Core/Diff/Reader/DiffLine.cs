@@ -1,4 +1,5 @@
-using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Model;
+
 namespace NSchema.Diff.Reader;
 
 /// <summary>

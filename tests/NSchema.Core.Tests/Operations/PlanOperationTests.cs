@@ -1,9 +1,9 @@
-using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Domain.Models.Schemas;
+using NSchema.Diff.Model;
+using NSchema.Diff.Model.Schemas;
 using NSchema.Model;
 using NSchema.Operations;
 using NSchema.Operations.Workflow;
-using NSchema.Plan.Domain.Models;
+using NSchema.Plan.Model;
 using NSchema.Plan.PlanFile;
 
 namespace NSchema.Tests.Operations;

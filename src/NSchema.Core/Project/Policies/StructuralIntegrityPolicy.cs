@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Schemas;
 using NSchema.Model.Tables;
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Model.Directives;
 
 namespace NSchema.Project.Policies;
 

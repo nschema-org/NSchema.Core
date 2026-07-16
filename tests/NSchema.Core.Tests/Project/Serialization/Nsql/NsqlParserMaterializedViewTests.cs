@@ -1,4 +1,5 @@
 using NSchema.Model.Views;
+using NSchema.Project.Model.Directives;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;
 
@@ -74,7 +75,7 @@ public sealed class NsqlParserMaterializedViewTests
         => Directives("CREATE SCHEMA app; DROP MATERIALIZED VIEW app.daily;")
             .Views.Drops.ShouldHaveSingleItem().Name.ShouldBe("daily");
 
-    private static NSchema.Project.Domain.Models.ProjectDirectives Directives(string source)
+    private static ProjectDirectives Directives(string source)
     {
         var read = NSchema.Project.Nsql.NsqlReader.Read(source);
         read.IsSuccess.ShouldBeTrue();

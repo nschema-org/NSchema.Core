@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Services;
-using NSchema.Project.Domain;
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Model.Directives;
+using NSchema.Project.Model.Services;
 
 namespace NSchema.Project;
 

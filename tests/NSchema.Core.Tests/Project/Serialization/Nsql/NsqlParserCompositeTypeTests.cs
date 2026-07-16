@@ -1,5 +1,6 @@
 using NSchema.Model.Columns;
 using NSchema.Model.CompositeTypes;
+using NSchema.Project.Model.Directives;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;
@@ -62,7 +63,7 @@ public sealed class NsqlParserCompositeTypeTests
         => Should.Throw<NsqlSyntaxException>(() => new TestNsqlParser("PARTIAL TYPE app.t;").Parse())
             .Message.ShouldContain("Expected 'SCHEMA'");
 
-    private static NSchema.Project.Domain.Models.ProjectDirectives Directives(string source)
+    private static ProjectDirectives Directives(string source)
     {
         var read = NsqlReader.Read(source);
         read.IsSuccess.ShouldBeTrue();

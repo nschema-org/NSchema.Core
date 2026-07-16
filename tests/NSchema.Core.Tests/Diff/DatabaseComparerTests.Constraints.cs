@@ -1,5 +1,5 @@
-using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Domain.Models.Constraints;
+using NSchema.Diff.Model;
+using NSchema.Diff.Model.Constraints;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Constraints;
