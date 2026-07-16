@@ -1,7 +1,7 @@
+using NSchema.Model.Routines;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
-using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Triggers;
+using NSchema.Project.Domain.Models;
 using Syntax = NSchema.Project.Nsql.Syntax;
 
 namespace NSchema.Tests.Architecture;
@@ -22,6 +22,8 @@ public sealed class NamespaceMigrationMapTests
 
     private const string Root = "NSchema";
     private const string ProjectRoot = "NSchema.Project";
+    private const string Model = "NSchema.Model";
+    private const string ModelServices = "NSchema.Model.Services";
     private const string ProjectModels = "NSchema.Project.Domain.Models";
     private const string ProjectNsql = "NSchema.Project.Nsql";
     private const string ProjectNsqlSyntax = "NSchema.Project.Nsql.Syntax";
@@ -62,12 +64,13 @@ public sealed class NamespaceMigrationMapTests
         // ── ProjectDefinition: the declared desired state — seam and messages at the cluster root. ──
         [typeof(NSchema.Project.IProjectProvider)] = ProjectRoot,
         [typeof(NSchema.Project.Domain.Models.ProjectDefinition)] = ProjectModels, // the project aggregate — raw domain vocabulary the provider returns (the DatabaseState parallel), not a seam-shaped message
-        [typeof(NSchema.Project.Domain.Models.SchemaScope)] = ProjectModels,
-        [typeof(NSchema.Project.Domain.Models.ValueObject<>)] = ProjectModels, // the single-value primitive base — value equality, renders as its value
-        [typeof(NSchema.Project.Domain.Models.SqlIdentifier)] = ProjectModels, // the identifier vocabulary primitive — case-insensitive equality baked in, shared by every lane
-        [typeof(NSchema.Project.Domain.Models.SqlText)] = ProjectModels, // the opaque-SQL vocabulary primitive — verbatim foreign SQL, ordinal equality (data)
-        [typeof(NSchema.Project.Domain.Models.ObjectReference)] = ProjectModels, // the address of a schema-level object — always fully qualified
-        [typeof(RoutineReference)] = ProjectModels + ".Triggers", // a routine reference as written — unqualified resolves via the engine's search path; trigger vocabulary, homed with its consumer
+        [typeof(NSchema.Model.DatabaseScope)] = Model,
+        [typeof(NSchema.Model.ValueObject<>)] = Model, // the single-value primitive base — value equality, renders as its value
+        [typeof(NSchema.Model.SqlIdentifier)] = Model, // the identifier vocabulary primitive — case-insensitive equality baked in, shared by every lane
+        [typeof(NSchema.Model.SqlText)] = Model, // the opaque-SQL vocabulary primitive — verbatim foreign SQL, ordinal equality (data)
+        [typeof(NSchema.Model.Address)] = Model, // the address base — shaped by containment, carrying neither kind nor name-space (both engine-specific)
+        [typeof(NSchema.Model.ObjectReference)] = Model, // the address of a schema-level object — always fully qualified
+        [typeof(RoutineReference)] = Model + ".Routines", // a routine reference as written — unqualified resolves via the engine's search path; homed with the routines it names, now the dependency graph resolves them too
 
         // ── Current: the source the project is diffed against — observed live, or recorded. ──
         [typeof(NSchema.Deployment.IDatabaseProvider)] = DeploymentRoot,
@@ -173,65 +176,65 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Project.Policies.IProjectPolicy)] = ProjectPolicies,
 
         // ── ProjectDefinition.Domain.Models: the shared pipeline vocabulary (the schema tree + the script models). ──
-        [typeof(NSchema.Project.Domain.Models.Database)] = ProjectModels,
-        [typeof(NSchema.Project.Domain.Models.INamedObject)] = ProjectModels,
+        [typeof(NSchema.Model.Database)] = Model,
+        [typeof(NSchema.Model.INamedObject)] = Model,
         // Addresses and the directive vocabulary (cross-kind shapes at the root, slices per subject).
-        [typeof(NSchema.Project.Domain.Models.MemberReference)] = ProjectModels,
+        [typeof(NSchema.Model.MemberReference)] = Model,
         [typeof(NSchema.Project.Domain.Models.ProjectDirectives)] = ProjectModels,
-        [typeof(SchemaRename)] = ProjectModels + ".Schemas", // schema-specific shape — lives with its subject, unlike the cross-kind ObjectRename/MemberRename
-        [typeof(NSchema.Project.Domain.Models.ObjectRename)] = ProjectModels,
-        [typeof(NSchema.Project.Domain.Models.MemberRename)] = ProjectModels,
-        [typeof(NSchema.Project.Domain.Models.Schemas.SchemaDirectives)] = ProjectModels + ".Schemas",
-        [typeof(NSchema.Project.Domain.Models.Tables.TableDirectives)] = ProjectModels + ".Tables",
-        [typeof(NSchema.Project.Domain.Models.Views.ViewDirectives)] = ProjectModels + ".Views",
-        [typeof(NSchema.Project.Domain.Models.Enums.EnumDirectives)] = ProjectModels + ".Enums",
-        [typeof(NSchema.Project.Domain.Models.Sequences.SequenceDirectives)] = ProjectModels + ".Sequences",
-        [typeof(NSchema.Project.Domain.Models.Routines.RoutineDirectives)] = ProjectModels + ".Routines",
-        [typeof(NSchema.Project.Domain.Models.Domains.DomainDirectives)] = ProjectModels + ".Domains",
-        [typeof(NSchema.Project.Domain.Models.CompositeTypes.CompositeTypeDirectives)] = ProjectModels + ".CompositeTypes",
-        [typeof(NSchema.Project.Domain.Models.Extensions.ExtensionDirectives)] = ProjectModels + ".Extensions",
-        [typeof(NSchema.Project.Domain.Models.Columns.Column)] = ProjectModels + ".Columns",
-        [typeof(NSchema.Project.Domain.Models.Columns.IdentityOptions)] = ProjectModels + ".Columns",
-        [typeof(NSchema.Project.Domain.Models.Columns.SqlType)] = ProjectModels + ".Columns",
-        [typeof(NSchema.Project.Domain.Models.CompositeTypes.CompositeField)] = ProjectModels + ".CompositeTypes",
-        [typeof(NSchema.Project.Domain.Models.CompositeTypes.CompositeType)] = ProjectModels + ".CompositeTypes",
-        [typeof(NSchema.Project.Domain.Models.Constraints.CheckConstraint)] = ProjectModels + ".Constraints",
-        [typeof(NSchema.Project.Domain.Models.Constraints.ExclusionConstraint)] = ProjectModels + ".Constraints",
-        [typeof(NSchema.Project.Domain.Models.Constraints.ExclusionElement)] = ProjectModels + ".Constraints",
-        [typeof(NSchema.Project.Domain.Models.Constraints.UniqueConstraint)] = ProjectModels + ".Constraints",
-        [typeof(NSchema.Project.Domain.Models.Domains.DomainType)] = ProjectModels + ".Domains",
-        [typeof(NSchema.Project.Domain.Models.Enums.EnumType)] = ProjectModels + ".Enums",
-        [typeof(NSchema.Project.Domain.Models.Extensions.Extension)] = ProjectModels + ".Extensions",
-        [typeof(NSchema.Project.Domain.Models.Indexes.IndexColumn)] = ProjectModels + ".Indexes",
-        [typeof(NSchema.Project.Domain.Models.Indexes.IndexNulls)] = ProjectModels + ".Indexes",
-        [typeof(NSchema.Project.Domain.Models.Indexes.IndexSort)] = ProjectModels + ".Indexes",
-        [typeof(NSchema.Project.Domain.Models.Indexes.TableIndex)] = ProjectModels + ".Indexes",
-        [typeof(NSchema.Project.Domain.Models.Routines.Routine)] = ProjectModels + ".Routines",
-        [typeof(NSchema.Project.Domain.Models.Routines.RoutineKind)] = ProjectModels + ".Routines",
-        [typeof(NSchema.Project.Domain.Models.Schemas.Schema)] = ProjectModels + ".Schemas",
-        [typeof(NSchema.Project.Domain.Models.Schemas.SchemaGrant)] = ProjectModels + ".Schemas",
-        [typeof(NSchema.Project.Domain.Models.Sequences.Sequence)] = ProjectModels + ".Sequences",
-        [typeof(NSchema.Project.Domain.Models.Sequences.SequenceOptions)] = ProjectModels + ".Sequences",
-        [typeof(NSchema.Project.Domain.Models.Tables.ForeignKey)] = ProjectModels + ".Tables",
-        [typeof(NSchema.Project.Domain.Models.Tables.PrimaryKey)] = ProjectModels + ".Tables",
-        [typeof(NSchema.Project.Domain.Models.Tables.ReferentialAction)] = ProjectModels + ".Tables",
-        [typeof(NSchema.Project.Domain.Models.Tables.Table)] = ProjectModels + ".Tables",
-        [typeof(NSchema.Project.Domain.Models.Tables.TableGrant)] = ProjectModels + ".Tables",
-        [typeof(NSchema.Project.Domain.Models.Tables.TablePrivilege)] = ProjectModels + ".Tables",
-        [typeof(NSchema.Project.Domain.Models.Triggers.Trigger)] = ProjectModels + ".Triggers",
-        [typeof(NSchema.Project.Domain.Models.Triggers.TriggerEvent)] = ProjectModels + ".Triggers",
-        [typeof(NSchema.Project.Domain.Models.Triggers.TriggerLevel)] = ProjectModels + ".Triggers",
-        [typeof(NSchema.Project.Domain.Models.Triggers.TriggerTiming)] = ProjectModels + ".Triggers",
-        [typeof(NSchema.Project.Domain.Models.Views.View)] = ProjectModels + ".Views",
-        [typeof(NSchema.Project.Domain.Models.Views.ViewDependency)] = ProjectModels + ".Views",
+        [typeof(SchemaRenameDirective)] = ProjectModels, // the directives are one vocabulary, kept together rather than mirrored per-kind against the kernel
+        [typeof(NSchema.Project.Domain.Models.ObjectRenameDirective)] = ProjectModels,
+        [typeof(NSchema.Project.Domain.Models.MemberRenameDirective)] = ProjectModels,
+        [typeof(SchemaDirectives)] = ProjectModels,
+        [typeof(TableDirectives)] = ProjectModels,
+        [typeof(ViewDirectives)] = ProjectModels,
+        [typeof(EnumDirectives)] = ProjectModels,
+        [typeof(SequenceDirectives)] = ProjectModels,
+        [typeof(RoutineDirectives)] = ProjectModels,
+        [typeof(DomainDirectives)] = ProjectModels,
+        [typeof(CompositeTypeDirectives)] = ProjectModels,
+        [typeof(ExtensionDirectives)] = ProjectModels,
+        [typeof(NSchema.Model.Columns.Column)] = Model + ".Columns",
+        [typeof(NSchema.Model.Columns.IdentityOptions)] = Model + ".Columns",
+        [typeof(NSchema.Model.Columns.SqlType)] = Model + ".Columns",
+        [typeof(NSchema.Model.CompositeTypes.CompositeField)] = Model + ".CompositeTypes",
+        [typeof(NSchema.Model.CompositeTypes.CompositeType)] = Model + ".CompositeTypes",
+        [typeof(NSchema.Model.Constraints.CheckConstraint)] = Model + ".Constraints",
+        [typeof(NSchema.Model.Constraints.ExclusionConstraint)] = Model + ".Constraints",
+        [typeof(NSchema.Model.Constraints.ExclusionElement)] = Model + ".Constraints",
+        [typeof(NSchema.Model.Constraints.UniqueConstraint)] = Model + ".Constraints",
+        [typeof(NSchema.Model.Domains.DomainType)] = Model + ".Domains",
+        [typeof(NSchema.Model.Enums.EnumType)] = Model + ".Enums",
+        [typeof(NSchema.Model.Extensions.Extension)] = Model + ".Extensions",
+        [typeof(NSchema.Model.Indexes.IndexColumn)] = Model + ".Indexes",
+        [typeof(NSchema.Model.Indexes.IndexNulls)] = Model + ".Indexes",
+        [typeof(NSchema.Model.Indexes.IndexSort)] = Model + ".Indexes",
+        [typeof(NSchema.Model.Indexes.TableIndex)] = Model + ".Indexes",
+        [typeof(NSchema.Model.Routines.Routine)] = Model + ".Routines",
+        [typeof(NSchema.Model.Routines.RoutineKind)] = Model + ".Routines",
+        [typeof(NSchema.Model.Schemas.Schema)] = Model + ".Schemas",
+        [typeof(NSchema.Model.Schemas.SchemaGrant)] = Model + ".Schemas",
+        [typeof(NSchema.Model.Sequences.Sequence)] = Model + ".Sequences",
+        [typeof(NSchema.Model.Sequences.SequenceOptions)] = Model + ".Sequences",
+        [typeof(NSchema.Model.Tables.ForeignKey)] = Model + ".Tables",
+        [typeof(NSchema.Model.Tables.PrimaryKey)] = Model + ".Tables",
+        [typeof(NSchema.Model.Tables.ReferentialAction)] = Model + ".Tables",
+        [typeof(NSchema.Model.Tables.Table)] = Model + ".Tables",
+        [typeof(NSchema.Model.Tables.TableGrant)] = Model + ".Tables",
+        [typeof(NSchema.Model.Tables.TablePrivilege)] = Model + ".Tables",
+        [typeof(NSchema.Model.Triggers.Trigger)] = Model + ".Triggers",
+        [typeof(NSchema.Model.Triggers.TriggerEvent)] = Model + ".Triggers",
+        [typeof(NSchema.Model.Triggers.TriggerLevel)] = Model + ".Triggers",
+        [typeof(NSchema.Model.Triggers.TriggerTiming)] = Model + ".Triggers",
+        [typeof(NSchema.Model.Views.View)] = Model + ".Views",
+        [typeof(NSchema.Model.Views.ViewDependency)] = Model + ".Views",
         // The script model: an abstract Script with two concrete kinds — ChangeScript and DeploymentScript.
-        [typeof(NSchema.Project.Domain.Models.Scripts.Script)] = ProjectModels + ".Scripts",
-        [typeof(NSchema.Project.Domain.Models.Scripts.ChangeScript)] = ProjectModels + ".Scripts",
-        [typeof(NSchema.Project.Domain.Models.Scripts.DeploymentScript)] = ProjectModels + ".Scripts",
-        [typeof(NSchema.Project.Domain.Models.Scripts.ScriptReference)] = ProjectModels + ".Scripts",
-        [typeof(NSchema.Project.Domain.Models.Scripts.RunCondition)] = ProjectModels + ".Scripts",
-        [typeof(NSchema.Project.Domain.Models.Scripts.DeploymentPhase)] = ProjectModels + ".Scripts",
-        [typeof(NSchema.Project.Domain.Models.Scripts.ChangeTrigger)] = ProjectModels + ".Scripts",
+        [typeof(NSchema.Model.Scripts.Script)] = Model + ".Scripts",
+        [typeof(NSchema.Model.Scripts.ChangeScript)] = Model + ".Scripts",
+        [typeof(NSchema.Model.Scripts.DeploymentScript)] = Model + ".Scripts",
+        [typeof(NSchema.Model.Scripts.ScriptReference)] = Model + ".Scripts",
+        [typeof(NSchema.Model.Scripts.RunCondition)] = Model + ".Scripts",
+        [typeof(NSchema.Model.Scripts.DeploymentPhase)] = Model + ".Scripts",
+        [typeof(NSchema.Model.Scripts.ChangeTrigger)] = Model + ".Scripts",
 
         // ── Diff: root = reader + presentation read model; tree in Domain.Models. ──
         [typeof(NSchema.Diff.Reader.DiffReader)] = DiffReaderNs,

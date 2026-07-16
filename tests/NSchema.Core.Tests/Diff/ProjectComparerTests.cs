@@ -2,13 +2,14 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Models;
+using NSchema.Model;
+using NSchema.Model.Columns;
+using NSchema.Model.Schemas;
+using NSchema.Model.Scripts;
+using NSchema.Model.Services;
+using NSchema.Model.Tables;
 using NSchema.Plan.Policies;
-using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Scripts;
-using NSchema.Project.Domain.Models.Tables;
 using NSchema.State.Domain.Models;
 
 namespace NSchema.Tests.Diff;
@@ -213,8 +214,8 @@ public sealed class ProjectComparerTests
         // Arrange — current has 'people' and no 'users': the rename has demonstrably been applied here.
         var current = new CurrentState(new Database([new Schema(new SqlIdentifier("app"),
             Tables: [new Table(new SqlIdentifier("people"))])]));
-        var directives = new ProjectDirectives(Tables: new NSchema.Project.Domain.Models.Tables.TableDirectives(
-            Renames: [new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("users")), new SqlIdentifier("people"))]));
+        var directives = new ProjectDirectives(Tables: new TableDirectives(
+            Renames: [new ObjectRenameDirective(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("users")), new SqlIdentifier("people"))]));
 
         // Act
         var comparison = Sut.Compare(current, new ProjectDefinition(_emptySchema, directives));
@@ -232,8 +233,8 @@ public sealed class ProjectComparerTests
     {
         // Arrange — neither side of the rename exists (a fresh environment): the directive is pending, not
         // spent, so no expiry info fires.
-        var directives = new ProjectDirectives(Tables: new NSchema.Project.Domain.Models.Tables.TableDirectives(
-            Renames: [new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("users")), new SqlIdentifier("people"))]));
+        var directives = new ProjectDirectives(Tables: new TableDirectives(
+            Renames: [new ObjectRenameDirective(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("users")), new SqlIdentifier("people"))]));
 
         // Act
         var comparison = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, directives));

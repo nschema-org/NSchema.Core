@@ -1,4 +1,4 @@
-using NSchema.Project.Domain.Models.Constraints;
+using NSchema.Model.Constraints;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;

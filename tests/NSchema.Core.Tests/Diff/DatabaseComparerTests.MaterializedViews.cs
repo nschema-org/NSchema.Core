@@ -1,7 +1,7 @@
 using NSchema.Diff.Domain.Models;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Indexes;
-using NSchema.Project.Domain.Models.Views;
+using NSchema.Model;
+using NSchema.Model.Indexes;
+using NSchema.Model.Views;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Diff;

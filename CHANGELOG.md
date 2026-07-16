@@ -15,6 +15,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **Better domain mode naming.** `Database` and `Schema` are now the main entry points into the domain model.
 - **Management directives.** The language now separates *declarations* (what the schema is) from *directives* (how the difference is managed). This includes RENAME, DROP and SCRIPT.
 - **Every namespace has moved.** Namespaces are vertically sliced of the form `NSchema.<Feature>.<Capability>`.
+- **The schema model is `NSchema.Model` now.** It owns the top-level domain model for databases.
 - **DataMigrations are Scripts now.** This reflects the syntax changes introduce in [4.4.0] so the model becomes consistent.
 - **Templates accept object-level directives.** A `TEMPLATE` body may now contain the object-level `RENAME` and `DROP` directives (table, column, enum, domain, type, sequence, routine) alongside its declarations and scripts.
 - **Scripts split into `ChangeScript` and `DeploymentScript`.** `Script` is now an abstract base carrying the common behavior (name, SQL, scope, hash, reference, run condition);

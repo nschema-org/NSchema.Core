@@ -1,7 +1,8 @@
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Extensions;
+using NSchema.Model;
+using NSchema.Model.Extensions;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Extensions;
 
 namespace NSchema.Tests.Diff;
 
@@ -19,7 +20,7 @@ public partial class DatabaseComparerTests
         Compare(
             new Database(Extensions: current),
             new Database(Extensions: desired),
-            dropped is null ? null : new ProjectDirectives(Extensions: new NSchema.Project.Domain.Models.Extensions.ExtensionDirectives(Drops: dropped)))
+            dropped is null ? null : new ProjectDirectives(Extensions: new ExtensionDirectives(Drops: dropped)))
         .Extensions.SingleOrDefault();
 
     [Fact]

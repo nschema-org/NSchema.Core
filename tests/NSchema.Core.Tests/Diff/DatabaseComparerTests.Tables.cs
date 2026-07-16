@@ -1,10 +1,11 @@
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Constraints;
+using NSchema.Model;
+using NSchema.Model.Columns;
+using NSchema.Model.Indexes;
+using NSchema.Model.Schemas;
+using NSchema.Model.Tables;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.Indexes;
-using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Tests.Diff;
 
@@ -42,7 +43,7 @@ public partial class DatabaseComparerTests
     {
         var current = Db(new Schema(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("retired"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]));
         var desired = Db(new Schema(new SqlIdentifier("app")));
-        var directives = PartialApp() with { Tables = new NSchema.Project.Domain.Models.Tables.TableDirectives(Drops: [App("retired")]) };
+        var directives = PartialApp() with { Tables = new TableDirectives(Drops: [App("retired")]) };
 
         var table = Compare(current, desired, directives).Schemas.Single().Tables.ShouldHaveSingleItem();
 

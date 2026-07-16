@@ -1,4 +1,4 @@
-using NSchema.Project.Domain.Models;
+using NSchema.Model;
 
 namespace NSchema.Deployment.Backends;
 
@@ -18,5 +18,5 @@ public interface IDatabaseIntrospector
     /// engine re-applies the scope after every read, so scoping semantics stay single-sourced. A schema name
     /// that does not exist is simply not included in the returned schema.
     /// </remarks>
-    ValueTask<Database> GetDatabase(SchemaScope scope, CancellationToken cancellationToken = default);
+    ValueTask<Database> GetDatabase(DatabaseScope scope, CancellationToken cancellationToken = default);
 }

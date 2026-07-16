@@ -1,6 +1,6 @@
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.CompositeTypes;
+using NSchema.Model;
+using NSchema.Model.Columns;
+using NSchema.Model.CompositeTypes;
 
 namespace NSchema.Diff.Domain.Models.CompositeTypes;
 

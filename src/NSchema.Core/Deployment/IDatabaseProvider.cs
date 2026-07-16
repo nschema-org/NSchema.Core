@@ -1,4 +1,4 @@
-using NSchema.Project.Domain.Models;
+using NSchema.Model;
 
 namespace NSchema.Deployment;
 
@@ -13,5 +13,5 @@ public interface IDatabaseProvider
     /// </summary>
     /// <param name="scope">The schemas to include.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task<Result<Database>> GetDatabase(SchemaScope scope, CancellationToken cancellationToken = default);
+    Task<Result<Database>> GetDatabase(DatabaseScope scope, CancellationToken cancellationToken = default);
 }

@@ -1,7 +1,8 @@
 using NSchema.Diff.Domain.Models;
+using NSchema.Model;
+using NSchema.Model.Schemas;
+using NSchema.Model.Views;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Views;
 
 namespace NSchema.Tests.Diff;
 
@@ -62,7 +63,7 @@ public partial class DatabaseComparerTests
         var diff = DiffViews(
             [View("legacy", "SELECT * FROM app.users")],
             [View("active", "SELECT * FROM app.users")],
-            new ProjectDirectives(Views: new NSchema.Project.Domain.Models.Views.ViewDirectives(Renames: [new ObjectRename(App("legacy"), new SqlIdentifier("active"))])));
+            new ProjectDirectives(Views: new ViewDirectives(Renames: [new ObjectRenameDirective(App("legacy"), new SqlIdentifier("active"))])));
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.RenamedFrom.ShouldBe("legacy");

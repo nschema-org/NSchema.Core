@@ -5,13 +5,13 @@ using NSchema.Diff.Domain.Models.Constraints;
 using NSchema.Diff.Domain.Models.Indexes;
 using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Model;
+using NSchema.Model.Columns;
+using NSchema.Model.Constraints;
+using NSchema.Model.Indexes;
+using NSchema.Model.Scripts;
+using NSchema.Model.Tables;
 using NSchema.Plan.Policies;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.Constraints;
-using NSchema.Project.Domain.Models.Indexes;
-using NSchema.Project.Domain.Models.Scripts;
-using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Tests.Plan.Policies;
 

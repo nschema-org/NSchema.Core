@@ -1,8 +1,8 @@
 using NSchema.Deployment;
+using NSchema.Model;
+using NSchema.Model.Schemas;
 using NSchema.Operations.Progress;
 using NSchema.Project.Domain;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Operations;

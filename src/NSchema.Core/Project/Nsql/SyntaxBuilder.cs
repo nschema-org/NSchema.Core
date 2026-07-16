@@ -1,14 +1,15 @@
+using NSchema.Model;
+using NSchema.Model.Columns;
+using NSchema.Model.Extensions;
+using NSchema.Model.Indexes;
+using NSchema.Model.Routines;
+using NSchema.Model.Schemas;
+using NSchema.Model.Scripts;
+using NSchema.Model.Sequences;
+using NSchema.Model.Tables;
+using NSchema.Model.Triggers;
+using NSchema.Model.Views;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.Extensions;
-using NSchema.Project.Domain.Models.Indexes;
-using NSchema.Project.Domain.Models.Routines;
-using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Scripts;
-using NSchema.Project.Domain.Models.Sequences;
-using NSchema.Project.Domain.Models.Tables;
-using NSchema.Project.Domain.Models.Triggers;
-using NSchema.Project.Domain.Models.Views;
 using NSchema.Project.Nsql.Syntax;
 using Syn = NSchema.Project.Nsql.Syntax;
 

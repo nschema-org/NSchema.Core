@@ -1,6 +1,6 @@
 using NSchema.Diff.Domain.Models;
+using NSchema.Model.Scripts;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Tests.Helpers;
 

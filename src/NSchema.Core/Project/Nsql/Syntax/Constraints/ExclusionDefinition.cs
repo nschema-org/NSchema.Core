@@ -1,4 +1,4 @@
-using NSchema.Project.Domain.Models;
+using NSchema.Model;
 using NSchema.Project.Nsql.Syntax.Tables;
 
 namespace NSchema.Project.Nsql.Syntax.Constraints;

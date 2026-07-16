@@ -1,6 +1,6 @@
 using NSchema.Diff.Domain.Models.Triggers;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Triggers;
+using NSchema.Model;
+using NSchema.Model.Triggers;
 
 namespace NSchema.Diff.Domain;
 

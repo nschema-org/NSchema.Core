@@ -1,13 +1,4 @@
-using NSchema.Project.Domain.Models.CompositeTypes;
-using NSchema.Project.Domain.Models.Domains;
-using NSchema.Project.Domain.Models.Enums;
-using NSchema.Project.Domain.Models.Extensions;
-using NSchema.Project.Domain.Models.Routines;
-using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Scripts;
-using NSchema.Project.Domain.Models.Sequences;
-using NSchema.Project.Domain.Models.Tables;
-using NSchema.Project.Domain.Models.Views;
+using NSchema.Model.Scripts;
 
 namespace NSchema.Project.Domain.Models;
 

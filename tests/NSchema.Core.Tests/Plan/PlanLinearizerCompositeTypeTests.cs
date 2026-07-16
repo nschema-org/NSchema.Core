@@ -2,14 +2,14 @@ using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.CompositeTypes;
 using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Model;
+using NSchema.Model.Columns;
+using NSchema.Model.CompositeTypes;
+using NSchema.Model.Tables;
 using NSchema.Plan.Domain;
 using NSchema.Plan.Domain.Models;
 using NSchema.Plan.Domain.Models.CompositeTypes;
 using NSchema.Plan.Domain.Models.Tables;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.CompositeTypes;
-using NSchema.Project.Domain.Models.Tables;
 
 namespace NSchema.Tests.Plan;
 

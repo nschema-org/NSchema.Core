@@ -22,6 +22,11 @@ internal static class ArchitectureTestSupport
     public static readonly ArchUnitNET.Domain.Architecture Architecture = new ArchLoader().LoadAssemblies(CoreAssembly).Build();
 
     /// <summary>
+    /// The kernel's model namespaces: <c>NSchema.Model</c> and its per-kind children, but not its services.
+    /// </summary>
+    public const string KernelModels = @"^NSchema\.Model(?!\.Services)(?:$|\.)";
+
+    /// <summary>
     /// Returns a regex matching the given namespaces and everything nested beneath them.
     /// </summary>
     public static string Subtree(params string[] roots) =>

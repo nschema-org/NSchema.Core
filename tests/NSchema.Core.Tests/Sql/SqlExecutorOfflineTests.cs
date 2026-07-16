@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Options;
 using NSchema.Apply;
+using NSchema.Model;
 using NSchema.Plan.Domain.Models;
-using NSchema.Project.Domain.Models;
 
 namespace NSchema.Tests.Sql;
 

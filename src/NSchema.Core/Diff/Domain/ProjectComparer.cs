@@ -1,7 +1,8 @@
 using NSchema.Diff.Domain.Models;
-using NSchema.Project.Domain;
+using NSchema.Model;
+using NSchema.Model.Scripts;
+using NSchema.Model.Services;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Scripts;
 using NSchema.State.Domain.Models;
 
 namespace NSchema.Diff.Domain;
@@ -48,7 +49,7 @@ internal sealed class ProjectComparer(IDatabaseComparer comparer) : IProjectComp
             }
         }
 
-        var kinds = new (string Kind, IReadOnlyList<ObjectRename> Renames, Func<ObjectReference, bool> Exists)[]
+        var kinds = new (string Kind, IReadOnlyList<ObjectRenameDirective> Renames, Func<ObjectReference, bool> Exists)[]
         {
             ("table", directives.Tables.Renames, current.HasTable),
             ("view", directives.Views.Renames, current.HasView),

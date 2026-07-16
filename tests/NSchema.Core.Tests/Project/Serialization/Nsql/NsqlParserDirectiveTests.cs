@@ -1,5 +1,5 @@
+using NSchema.Model;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Schemas;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;
@@ -25,19 +25,19 @@ public sealed class NsqlParserDirectiveTests
     public void Parse_RenameSchema_TakesBareNames()
         => Directives("CREATE SCHEMA core; RENAME SCHEMA sales TO core;")
             .Schemas.Renames.ShouldHaveSingleItem()
-            .ShouldBe(new SchemaRename(new SqlIdentifier("sales"), new SqlIdentifier("core")));
+            .ShouldBe(new SchemaRenameDirective(new SqlIdentifier("sales"), new SqlIdentifier("core")));
 
     [Fact]
     public void Parse_RenameTable_TakesQualifiedFromAndBareTo()
         => Directives("CREATE SCHEMA app; CREATE TABLE app.people ( id int NOT NULL ); RENAME TABLE app.users TO people;")
             .Tables.Renames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRename(App("users"), new SqlIdentifier("people")));
+            .ShouldBe(new ObjectRenameDirective(App("users"), new SqlIdentifier("people")));
 
     [Fact]
     public void Parse_RenameColumn_TakesAThreePartPath()
         => Directives("CREATE SCHEMA app; CREATE TABLE app.users ( full_name text NOT NULL ); RENAME COLUMN app.users.name TO full_name;")
             .Tables.ColumnRenames.ShouldHaveSingleItem()
-            .ShouldBe(new MemberRename(
+            .ShouldBe(new MemberRenameDirective(
                 new MemberReference(new SqlIdentifier("app"), new SqlIdentifier("users"), new SqlIdentifier("name")),
                 new SqlIdentifier("full_name")));
 

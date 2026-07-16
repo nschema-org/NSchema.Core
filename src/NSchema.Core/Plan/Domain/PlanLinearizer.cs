@@ -5,6 +5,8 @@ using NSchema.Diff.Domain.Models.Extensions;
 using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Diff.Domain.Models.Views;
+using NSchema.Model;
+using NSchema.Model.Scripts;
 using NSchema.Plan.Domain.Models;
 using NSchema.Plan.Domain.Models.Columns;
 using NSchema.Plan.Domain.Models.CompositeTypes;
@@ -20,8 +22,6 @@ using NSchema.Plan.Domain.Models.Sequences;
 using NSchema.Plan.Domain.Models.Tables;
 using NSchema.Plan.Domain.Models.Triggers;
 using NSchema.Plan.Domain.Models.Views;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Scripts;
 
 namespace NSchema.Plan.Domain;
 

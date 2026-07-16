@@ -1,19 +1,20 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Models;
+using NSchema.Model;
+using NSchema.Model.Columns;
+using NSchema.Model.CompositeTypes;
+using NSchema.Model.Constraints;
+using NSchema.Model.Domains;
+using NSchema.Model.Enums;
+using NSchema.Model.Extensions;
+using NSchema.Model.Indexes;
+using NSchema.Model.Routines;
+using NSchema.Model.Schemas;
+using NSchema.Model.Sequences;
+using NSchema.Model.Tables;
+using NSchema.Model.Views;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.CompositeTypes;
-using NSchema.Project.Domain.Models.Constraints;
-using NSchema.Project.Domain.Models.Domains;
-using NSchema.Project.Domain.Models.Enums;
-using NSchema.Project.Domain.Models.Extensions;
-using NSchema.Project.Domain.Models.Indexes;
-using NSchema.Project.Domain.Models.Routines;
-using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Sequences;
-using NSchema.Project.Domain.Models.Tables;
-using NSchema.Project.Domain.Models.Views;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Diff;
@@ -176,13 +177,13 @@ public sealed class DatabaseComparerSnapshotTests
 
         // The renames and drops the comment narrates arrive as directives, addressing current reality.
         var directives = new ProjectDirectives(
-            Tables: new NSchema.Project.Domain.Models.Tables.TableDirectives(ColumnRenames:
-                [new MemberRename(new MemberReference(new SqlIdentifier("app"), new SqlIdentifier("users"), new SqlIdentifier("email")), new SqlIdentifier("email_address"))]),
-            Views: new NSchema.Project.Domain.Models.Views.ViewDirectives(Renames:
-                [new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("legacy_report")), new SqlIdentifier("report"))]),
-            Enums: new NSchema.Project.Domain.Models.Enums.EnumDirectives(Renames:
-                [new ObjectRename(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("importance")), new SqlIdentifier("priority"))]),
-            Extensions: new NSchema.Project.Domain.Models.Extensions.ExtensionDirectives(Drops: [new SqlIdentifier("legacy_ext")]));
+            Tables: new TableDirectives(ColumnRenames:
+                [new MemberRenameDirective(new MemberReference(new SqlIdentifier("app"), new SqlIdentifier("users"), new SqlIdentifier("email")), new SqlIdentifier("email_address"))]),
+            Views: new ViewDirectives(Renames:
+                [new ObjectRenameDirective(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("legacy_report")), new SqlIdentifier("report"))]),
+            Enums: new EnumDirectives(Renames:
+                [new ObjectRenameDirective(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("importance")), new SqlIdentifier("priority"))]),
+            Extensions: new ExtensionDirectives(Drops: [new SqlIdentifier("legacy_ext")]));
 
         return Verify(Compare(current, desired, directives));
     }

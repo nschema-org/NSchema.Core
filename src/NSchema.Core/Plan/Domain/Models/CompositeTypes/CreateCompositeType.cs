@@ -1,5 +1,5 @@
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.CompositeTypes;
+using NSchema.Model;
+using NSchema.Model.CompositeTypes;
 
 namespace NSchema.Plan.Domain.Models.CompositeTypes;
 

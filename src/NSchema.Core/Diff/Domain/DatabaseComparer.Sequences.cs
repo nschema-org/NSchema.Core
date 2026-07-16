@@ -1,8 +1,8 @@
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Sequences;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Sequences;
+using NSchema.Model;
+using NSchema.Model.Schemas;
+using NSchema.Model.Sequences;
 
 namespace NSchema.Diff.Domain;
 

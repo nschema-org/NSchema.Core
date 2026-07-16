@@ -1,8 +1,9 @@
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Enums;
+using NSchema.Model;
+using NSchema.Model.Enums;
+using NSchema.Model.Schemas;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Enums;
-using NSchema.Project.Domain.Models.Schemas;
 
 namespace NSchema.Tests.Diff;
 
@@ -46,7 +47,7 @@ public partial class DatabaseComparerTests
         var diff = DiffEnums(
             [new EnumType(new SqlIdentifier("state"), ["a"])],
             [new EnumType(new SqlIdentifier("status"), ["a"])],
-            new ProjectDirectives(Enums: new EnumDirectives(Renames: [new ObjectRename(App("state"), new SqlIdentifier("status"))])));
+            new ProjectDirectives(Enums: new EnumDirectives(Renames: [new ObjectRenameDirective(App("state"), new SqlIdentifier("status"))])));
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.RenamedFrom.ShouldBe("state");

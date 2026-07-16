@@ -1,5 +1,5 @@
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Extensions;
+using NSchema.Model;
+using NSchema.Model.Extensions;
 
 namespace NSchema.Diff.Domain.Models.Extensions;
 

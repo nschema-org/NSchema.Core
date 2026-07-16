@@ -1,17 +1,18 @@
 using NSchema.Deployment;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Models;
+using NSchema.Model;
+using NSchema.Model.Schemas;
+using NSchema.Model.Scripts;
+using NSchema.Model.Services;
+using NSchema.Model.Tables;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
 using NSchema.Operations.Workflow;
 using NSchema.Plan.Domain;
 using NSchema.Plan.Domain.Models;
 using NSchema.Project;
-using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Scripts;
-using NSchema.Project.Domain.Models.Tables;
 using NSchema.State;
 using NSchema.State.Backends;
 using NSchema.State.Domain.Models;
@@ -46,11 +47,11 @@ public sealed class MigrationWorkflowTests
     public MigrationWorkflowTests()
     {
         _currentProvider
-            .GetDatabase(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
+            .GetDatabase(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>())
             .Returns(new Database([]));
 
         _desiredProvider
-            .GetProject(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
+            .GetProject(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>())
             .Returns(ProjectDefinition(new Database([])));
 
         _planner.Validate(Arg.Any<ProjectDefinition>()).Returns(Result.Success());
@@ -75,7 +76,7 @@ public sealed class MigrationWorkflowTests
     {
         // Arrange
         var desired = new Database([new Schema(new SqlIdentifier("app"))]);
-        _desiredProvider.GetProject(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>()).Returns(ProjectDefinition(desired));
+        _desiredProvider.GetProject(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>()).Returns(ProjectDefinition(desired));
 
         // Act
         var findings = await _sut.Validate(TestContext.Current.CancellationToken);
@@ -119,7 +120,7 @@ public sealed class MigrationWorkflowTests
     {
         // Arrange — findings raised while reading the DDL (e.g. deprecated syntax) arrive on the read result.
         var project = Result.From(TestProjects.Project(new Database([])), [Diagnostic.Warning("deprecations", "old form")]);
-        _desiredProvider.GetProject(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>()).Returns(project);
+        _desiredProvider.GetProject(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>()).Returns(project);
 
         // Act
         var findings = await _sut.Validate(TestContext.Current.CancellationToken);
@@ -136,7 +137,7 @@ public sealed class MigrationWorkflowTests
         await _sut.Validate(TestContext.Current.CancellationToken);
 
         // Assert
-        await _currentProvider.DidNotReceive().GetDatabase(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
+        await _currentProvider.DidNotReceive().GetDatabase(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -149,7 +150,7 @@ public sealed class MigrationWorkflowTests
             .Returns(Result.Success(plan));
 
         // Act
-        var result = await _sut.ComputePlan(PlanTarget.Project, SchemaScope.All, TestContext.Current.CancellationToken);
+        var result = await _sut.ComputePlan(PlanTarget.Project, DatabaseScope.All, TestContext.Current.CancellationToken);
 
         // Assert — the result is returned for the caller to render; the workflow renders nothing itself.
         result.Value!.ShouldBe(plan);
@@ -163,10 +164,10 @@ public sealed class MigrationWorkflowTests
         // Planning is always a pure state read — the current side is the recorded database, never the live one.
 
         // Act
-        await _sut.ComputePlan(target, SchemaScope.All, TestContext.Current.CancellationToken);
+        await _sut.ComputePlan(target, DatabaseScope.All, TestContext.Current.CancellationToken);
 
         // Assert
-        await _currentProvider.DidNotReceive().GetDatabase(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
+        await _currentProvider.DidNotReceive().GetDatabase(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>());
         _planner.Received(1).Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>());
     }
 
@@ -177,7 +178,7 @@ public sealed class MigrationWorkflowTests
         var sut = SutWithRecordedSchema(new Database([new Schema(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("users"))])]));
 
         // Act
-        await sut.ComputePlan(PlanTarget.Project, SchemaScope.All, TestContext.Current.CancellationToken);
+        await sut.ComputePlan(PlanTarget.Project, DatabaseScope.All, TestContext.Current.CancellationToken);
 
         // Assert — the database round-trips through the store, so match it by content, not reference.
         _planner.Received(1).Plan(
@@ -191,13 +192,13 @@ public sealed class MigrationWorkflowTests
         // Arrange
         var desired = new Database([new Schema(new SqlIdentifier("app"), Tables:
             [new Table(new SqlIdentifier("users")), new Table(new SqlIdentifier("orders"))])]);
-        _desiredProvider.GetProject(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
+        _desiredProvider.GetProject(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(
                 TestProjects.Project(desired, [new DeploymentScript(new SqlIdentifier("seed"), new SqlText("select 1"), null, DeploymentPhase.Post)])));
         var sut = SutWithRecordedSchema(new Database([new Schema(new SqlIdentifier("app"))]));
 
         // Act
-        await sut.ComputePlan(PlanTarget.Project, SchemaScope.All, TestContext.Current.CancellationToken);
+        await sut.ComputePlan(PlanTarget.Project, DatabaseScope.All, TestContext.Current.CancellationToken);
 
         // Assert — verbose census is transient narration, emitted as Detail-level progress.
         _progress.Received().Report(OperationProgress.Detail("Desired schema: 1 schema, 2 tables, 1 script."));
@@ -210,10 +211,10 @@ public sealed class MigrationWorkflowTests
         // A teardown converges on nothing, so there is no project to read.
 
         // Act
-        await _sut.ComputePlan(PlanTarget.Empty, SchemaScope.All, TestContext.Current.CancellationToken);
+        await _sut.ComputePlan(PlanTarget.Empty, DatabaseScope.All, TestContext.Current.CancellationToken);
 
         // Assert
-        await _desiredProvider.DidNotReceive().GetProject(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
+        await _desiredProvider.DidNotReceive().GetProject(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -223,7 +224,7 @@ public sealed class MigrationWorkflowTests
         var sut = SutWithRecordedSchema(new Database([new Schema(new SqlIdentifier("app"))]));
 
         // Act
-        await sut.ComputePlan(PlanTarget.Empty, SchemaScope.All, TestContext.Current.CancellationToken);
+        await sut.ComputePlan(PlanTarget.Empty, DatabaseScope.All, TestContext.Current.CancellationToken);
 
         // Assert
         _planner.Received(1).Plan(
@@ -239,7 +240,7 @@ public sealed class MigrationWorkflowTests
             [new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("billing"))]));
 
         // Act
-        await sut.ComputePlan(PlanTarget.Empty, SchemaScope.Of(new SqlIdentifier("app")), TestContext.Current.CancellationToken);
+        await sut.ComputePlan(PlanTarget.Empty, DatabaseScope.Of(new SqlIdentifier("app")), TestContext.Current.CancellationToken);
 
         // Assert — only the scoped schema is torn down.
         _planner.Received(1).Plan(
@@ -255,7 +256,7 @@ public sealed class MigrationWorkflowTests
             [new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("billing"))]));
 
         // Act
-        await sut.ComputePlan(PlanTarget.Empty, SchemaScope.All, TestContext.Current.CancellationToken);
+        await sut.ComputePlan(PlanTarget.Empty, DatabaseScope.All, TestContext.Current.CancellationToken);
 
         // Assert
         _planner.Received(1).Plan(
@@ -272,7 +273,7 @@ public sealed class MigrationWorkflowTests
             .Returns(Result.From(EmptyPlan(), [Diagnostic.Error("destructive", "drops everything")]));
 
         // Act
-        var result = await _sut.ComputePlan(PlanTarget.Empty, SchemaScope.All, TestContext.Current.CancellationToken);
+        var result = await _sut.ComputePlan(PlanTarget.Empty, DatabaseScope.All, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -286,7 +287,7 @@ public sealed class MigrationWorkflowTests
         var sut = BuildSut(store: null);
 
         // Act
-        var result = await sut.ComputePlan(PlanTarget.Empty, SchemaScope.All, TestContext.Current.CancellationToken);
+        var result = await sut.ComputePlan(PlanTarget.Empty, DatabaseScope.All, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -299,13 +300,13 @@ public sealed class MigrationWorkflowTests
     {
         // Arrange — the pure planner never sees read provenance; this shell merges it into the outcome.
         var project = Result.From(TestProjects.Project(new Database([])), [Diagnostic.Warning("deprecations", "old form")]);
-        _desiredProvider.GetProject(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>()).Returns(project);
+        _desiredProvider.GetProject(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>()).Returns(project);
         _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>())
             .Returns(Result.From(EmptyPlan(),
                 [Diagnostic.Warning("data-hazards", "hazard")]));
 
         // Act
-        var result = await _sut.ComputePlan(PlanTarget.Project, SchemaScope.All, TestContext.Current.CancellationToken);
+        var result = await _sut.ComputePlan(PlanTarget.Project, DatabaseScope.All, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -317,12 +318,12 @@ public sealed class MigrationWorkflowTests
     {
         // Arrange
         var project = Result.From(TestProjects.Project(new Database([])), [Diagnostic.Warning("deprecations", "old form")]);
-        _desiredProvider.GetProject(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>()).Returns(project);
+        _desiredProvider.GetProject(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>()).Returns(project);
         _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>())
             .Returns(Result.Failure<MigrationPlan>([Diagnostic.Error("P1", "blocked")]));
 
         // Act
-        var result = await _sut.ComputePlan(PlanTarget.Project, SchemaScope.All, TestContext.Current.CancellationToken);
+        var result = await _sut.ComputePlan(PlanTarget.Project, DatabaseScope.All, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -338,7 +339,7 @@ public sealed class MigrationWorkflowTests
         var store = Substitute.For<IDatabaseStateStore>();
         store.Read(Arg.Any<CancellationToken>())
             .Returns(_stateSerializer.Serialize(new DatabaseState(new Database([]), executions)));
-        _desiredProvider.GetProject(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
+        _desiredProvider.GetProject(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(project));
         return BuildSut(store);
     }
@@ -352,7 +353,7 @@ public sealed class MigrationWorkflowTests
             new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "abc", DateTimeOffset.UnixEpoch));
 
         // Act
-        await sut.ComputePlan(PlanTarget.Project, SchemaScope.All, TestContext.Current.CancellationToken);
+        await sut.ComputePlan(PlanTarget.Project, DatabaseScope.All, TestContext.Current.CancellationToken);
 
         // Assert
         _planner.Received(1).Plan(
@@ -370,7 +371,7 @@ public sealed class MigrationWorkflowTests
         var sut = BuildSut(store);
 
         // Act
-        var result = await sut.ComputePlan(PlanTarget.Project, SchemaScope.All, TestContext.Current.CancellationToken);
+        var result = await sut.ComputePlan(PlanTarget.Project, DatabaseScope.All, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -386,7 +387,7 @@ public sealed class MigrationWorkflowTests
         var sut = BuildSut(store: null);
 
         // Act
-        var result = await sut.ComputePlan(PlanTarget.Project, SchemaScope.All, TestContext.Current.CancellationToken);
+        var result = await sut.ComputePlan(PlanTarget.Project, DatabaseScope.All, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -517,7 +518,7 @@ public sealed class MigrationWorkflowTests
             .Returns(Result.Failure<MigrationPlan>(errors));
 
         // Act — the failure is carried in the result, not thrown; the caller decides how to surface it.
-        var result = await _sut.ComputePlan(PlanTarget.Project, SchemaScope.All, TestContext.Current.CancellationToken);
+        var result = await _sut.ComputePlan(PlanTarget.Project, DatabaseScope.All, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -535,7 +536,7 @@ public sealed class MigrationWorkflowTests
             .Returns(Result.From(new MigrationPlan(diff, []), errors));
 
         // Act
-        var result = await _sut.ComputePlan(PlanTarget.Project, SchemaScope.All, TestContext.Current.CancellationToken);
+        var result = await _sut.ComputePlan(PlanTarget.Project, DatabaseScope.All, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -552,7 +553,7 @@ public sealed class MigrationWorkflowTests
             .Returns(Result.From(plan, diagnostics));
 
         // Act
-        var result = await _sut.ComputePlan(PlanTarget.Project, SchemaScope.All, TestContext.Current.CancellationToken);
+        var result = await _sut.ComputePlan(PlanTarget.Project, DatabaseScope.All, TestContext.Current.CancellationToken);
 
         // Assert — advisories ride in the result, rendered by the caller, not reported here.
         result.Diagnostics.ShouldBe(diagnostics);
@@ -566,9 +567,9 @@ public sealed class MigrationWorkflowTests
         // schema and a rename's current name are under management too).
         var desired = new Database(
             [new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("admin"))]);
-        var directives = new ProjectDirectives(new NSchema.Project.Domain.Models.Schemas.SchemaDirectives(
+        var directives = new ProjectDirectives(new SchemaDirectives(
             Drops: [new SqlIdentifier("legacy")]));
-        _desiredProvider.GetProject(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
+        _desiredProvider.GetProject(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new ProjectDefinition(desired, directives)));
         // The recorded state carries an unmanaged schema too, so the derived scope is observable in what the
         // current side keeps.
@@ -580,7 +581,7 @@ public sealed class MigrationWorkflowTests
         ]));
 
         // Act
-        await sut.ComputePlan(PlanTarget.Project, SchemaScope.All, TestContext.Current.CancellationToken);
+        await sut.ComputePlan(PlanTarget.Project, DatabaseScope.All, TestContext.Current.CancellationToken);
 
         // Assert — the diff never plans to drop unmanaged schemas.
         _planner.Received(1).Plan(
@@ -592,12 +593,12 @@ public sealed class MigrationWorkflowTests
     public async Task Prepare_PassesExplicitScopeToTheProjectProvider()
     {
         // Arrange
-        SchemaScope? desiredScope = null;
-        _desiredProvider.GetProject(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
-            .Returns(call => { desiredScope = call.Arg<SchemaScope>(); return ProjectDefinition(new Database([])); });
+        DatabaseScope? desiredScope = null;
+        _desiredProvider.GetProject(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>())
+            .Returns(call => { desiredScope = call.Arg<DatabaseScope>(); return ProjectDefinition(new Database([])); });
 
         // Act
-        await _sut.ComputePlan(PlanTarget.Project, SchemaScope.Of(new SqlIdentifier("app"), new SqlIdentifier("legacy")), TestContext.Current.CancellationToken);
+        await _sut.ComputePlan(PlanTarget.Project, DatabaseScope.Of(new SqlIdentifier("app"), new SqlIdentifier("legacy")), TestContext.Current.CancellationToken);
 
         // Assert — the project read is load-bearing: template instances bind at aggregation.
         desiredScope!.SchemaNames.ShouldBe(["app", "legacy"]);
@@ -611,7 +612,7 @@ public sealed class MigrationWorkflowTests
             [new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("other"))]));
 
         // Act
-        await sut.ComputePlan(PlanTarget.Project, SchemaScope.Of(new SqlIdentifier("app")), TestContext.Current.CancellationToken);
+        await sut.ComputePlan(PlanTarget.Project, DatabaseScope.Of(new SqlIdentifier("app")), TestContext.Current.CancellationToken);
 
         // Assert — scope applies symmetrically, so both sides of the diff cover the same schemas.
         _planner.Received(1).Plan(
@@ -623,12 +624,12 @@ public sealed class MigrationWorkflowTests
     public async Task Prepare_PassesTheAllScopeToTheDesiredProvider_WhenNoExplicitScope()
     {
         // Arrange
-        SchemaScope? desiredScope = null;
-        _desiredProvider.GetProject(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
-            .Returns(call => { desiredScope = call.Arg<SchemaScope>(); return ProjectDefinition(new Database([])); });
+        DatabaseScope? desiredScope = null;
+        _desiredProvider.GetProject(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>())
+            .Returns(call => { desiredScope = call.Arg<DatabaseScope>(); return ProjectDefinition(new Database([])); });
 
         // Act
-        await _sut.ComputePlan(PlanTarget.Project, SchemaScope.All, TestContext.Current.CancellationToken);
+        await _sut.ComputePlan(PlanTarget.Project, DatabaseScope.All, TestContext.Current.CancellationToken);
 
         // Assert — the project read is unrestricted; only the current read gets the derived scope.
         desiredScope.ShouldNotBeNull();
@@ -642,7 +643,7 @@ public sealed class MigrationWorkflowTests
         var schema = new Database([new Schema(new SqlIdentifier("app"))]);
         var store = Substitute.For<IDatabaseStateStore>();
         _currentProvider
-            .GetDatabase(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>())
+            .GetDatabase(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>())
             .Returns(schema);
         var sut = BuildSut(store);
 
@@ -653,7 +654,7 @@ public sealed class MigrationWorkflowTests
 
         // Assert
         capture.ShouldNotBeNull();
-        await _currentProvider.Received(1).GetDatabase(Arg.Is<SchemaScope>(s => s!.IsAll), Arg.Any<CancellationToken>());
+        await _currentProvider.Received(1).GetDatabase(Arg.Is<DatabaseScope>(s => s!.IsAll), Arg.Any<CancellationToken>());
         await store.Received(1).Write(
             Arg.Is<ReadOnlyMemory<byte>>(m => m.ToArray().SequenceEqual(expected)), Arg.Any<CancellationToken>());
     }
@@ -670,6 +671,6 @@ public sealed class MigrationWorkflowTests
         // Assert: fails (never throws) and does not touch the live database.
         capture.IsFailure.ShouldBeTrue();
         capture.Errors.ShouldHaveSingleItem().Message.ShouldContain("without a configured state store");
-        await _currentProvider.DidNotReceive().GetDatabase(Arg.Any<SchemaScope>(), Arg.Any<CancellationToken>());
+        await _currentProvider.DidNotReceive().GetDatabase(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>());
     }
 }

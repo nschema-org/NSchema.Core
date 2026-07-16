@@ -1,4 +1,4 @@
-using NSchema.Project.Domain.Models.Triggers;
+using NSchema.Model.Triggers;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;

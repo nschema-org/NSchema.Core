@@ -1,4 +1,4 @@
-using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Model.Scripts;
 
 namespace NSchema.Plan.Domain.Models.Scripts;
 

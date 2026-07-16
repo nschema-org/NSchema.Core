@@ -1,8 +1,9 @@
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Sequences;
+using NSchema.Model;
+using NSchema.Model.Schemas;
+using NSchema.Model.Sequences;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Sequences;
 
 namespace NSchema.Tests.Diff;
 
@@ -52,7 +53,7 @@ public partial class DatabaseComparerTests
         var diff = DiffSequences(
             [new Sequence(new SqlIdentifier("bill_id"))],
             [new Sequence(new SqlIdentifier("invoice_id"))],
-            new ProjectDirectives(Sequences: new SequenceDirectives(Renames: [new ObjectRename(App("bill_id"), new SqlIdentifier("invoice_id"))])));
+            new ProjectDirectives(Sequences: new SequenceDirectives(Renames: [new ObjectRenameDirective(App("bill_id"), new SqlIdentifier("invoice_id"))])));
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.RenamedFrom.ShouldBe("bill_id");

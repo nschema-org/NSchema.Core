@@ -1,5 +1,5 @@
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Triggers;
+using NSchema.Model;
+using NSchema.Model.Routines;
 
 namespace NSchema.Tests.Helpers;
 

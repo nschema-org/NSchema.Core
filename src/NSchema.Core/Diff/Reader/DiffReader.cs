@@ -9,12 +9,12 @@ using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Sequences;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Diff.Domain.Models.Views;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.Routines;
-using NSchema.Project.Domain.Models.Scripts;
-using NSchema.Project.Domain.Models.Sequences;
-using NSchema.Project.Domain.Models.Tables;
+using NSchema.Model;
+using NSchema.Model.Columns;
+using NSchema.Model.Routines;
+using NSchema.Model.Scripts;
+using NSchema.Model.Sequences;
+using NSchema.Model.Tables;
 
 namespace NSchema.Diff.Reader;
 

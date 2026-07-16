@@ -1,4 +1,4 @@
-using NSchema.Project.Domain.Models.Views;
+using NSchema.Model.Views;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;
 

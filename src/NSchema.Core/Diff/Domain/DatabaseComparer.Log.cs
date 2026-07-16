@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Columns;
+using NSchema.Model;
+using NSchema.Model.Columns;
 
 namespace NSchema.Diff.Domain;
 

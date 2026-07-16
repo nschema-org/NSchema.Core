@@ -1,6 +1,7 @@
+using NSchema.Model;
+using NSchema.Model.Scripts;
 using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Scripts;
 using NSchema.Project.Nsql;
 using NSchema.Project.Nsql.Syntax.Templates;
 

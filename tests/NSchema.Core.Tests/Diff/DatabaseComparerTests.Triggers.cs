@@ -1,9 +1,10 @@
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Triggers;
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.Tables;
-using NSchema.Project.Domain.Models.Triggers;
+using NSchema.Model;
+using NSchema.Model.Columns;
+using NSchema.Model.Routines;
+using NSchema.Model.Tables;
+using NSchema.Model.Triggers;
 
 namespace NSchema.Tests.Diff;
 

@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
-using NSchema.Project.Domain;
+using NSchema.Model.Services;
 using NSchema.State.Domain.Models;
 
 namespace NSchema.State;

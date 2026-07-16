@@ -1,7 +1,6 @@
 using NSchema.Deployment;
 using NSchema.Diff.Domain;
 using NSchema.Operations.Progress;
-using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
 using NSchema.State;
 using NSchema.State.Domain.Models;
@@ -23,7 +22,7 @@ internal sealed class DriftOperation(IDatabaseProvider provider, IDatabaseStateM
             return Result.Failure<DriftResult>(recorded.Diagnostics);
         }
         // Before anything is recorded, drift measures against nothing.
-        var recordedSchema = ScopeFilter.Apply((recordedState.State ?? DatabaseState.Empty).Database, args.Scope);
+        var recordedSchema = args.Scope.Apply((recordedState.State ?? DatabaseState.Empty).Database);
 
         progress.Report(OperationProgress.Step("Reading live database..."));
         var live = await provider.GetDatabase(args.Scope, cancellationToken);

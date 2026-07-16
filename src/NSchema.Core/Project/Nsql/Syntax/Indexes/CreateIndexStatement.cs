@@ -1,4 +1,4 @@
-using NSchema.Project.Domain.Models;
+using NSchema.Model;
 
 namespace NSchema.Project.Nsql.Syntax.Indexes;
 

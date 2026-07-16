@@ -1,6 +1,5 @@
 using NSchema.Deployment.Backends;
-using NSchema.Project.Domain;
-using NSchema.Project.Domain.Models;
+using NSchema.Model;
 
 namespace NSchema.Deployment;
 
@@ -11,7 +10,7 @@ namespace NSchema.Deployment;
 internal sealed class DatabaseProvider(IDatabaseIntrospector? online = null) : IDatabaseProvider
 {
     /// <inheritdoc />
-    public async Task<Result<Database>> GetDatabase(SchemaScope scope, CancellationToken cancellationToken = default)
+    public async Task<Result<Database>> GetDatabase(DatabaseScope scope, CancellationToken cancellationToken = default)
     {
         if (online is null)
         {
@@ -21,6 +20,6 @@ internal sealed class DatabaseProvider(IDatabaseIntrospector? online = null) : I
         // The introspector's scope is an optimization hint that may over-return, so the scope is
         // re-applied here — scoping semantics live in one place, whatever the provider did.
         var live = await online.GetDatabase(scope, cancellationToken);
-        return ScopeFilter.Apply(live, scope);
+        return scope.Apply(live);
     }
 }

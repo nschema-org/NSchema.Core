@@ -1,4 +1,5 @@
 using Microsoft.Extensions.FileSystemGlobbing;
+using NSchema.Model;
 using NSchema.Project.Domain;
 using NSchema.Project.Domain.Models;
 using NSchema.Project.Nsql;
@@ -10,7 +11,7 @@ namespace NSchema.Project;
 /// </summary>
 internal sealed class ProjectProvider(IEnumerable<ProjectSource> sources) : IProjectProvider
 {
-    public async ValueTask<Result<ProjectDefinition>> GetProject(SchemaScope scope, CancellationToken cancellationToken = default)
+    public async ValueTask<Result<ProjectDefinition>> GetProject(DatabaseScope scope, CancellationToken cancellationToken = default)
     {
         var sourceList = sources.ToList();
         if (sourceList.Count == 0)
@@ -45,7 +46,7 @@ internal sealed class ProjectProvider(IEnumerable<ProjectSource> sources) : IPro
         var assembled = ProjectAssembler.Assemble(documents);
         diagnostics.AddRange(assembled.Diagnostics);
 
-        return Result.From(ScopeFilter.Apply(assembled.Require(), scope), diagnostics);
+        return Result.From(ProjectScopeFilter.Apply(assembled.Require(), scope), diagnostics);
     }
 
     private static IEnumerable<string> ResolveFiles(ProjectSource source) => source.Matcher

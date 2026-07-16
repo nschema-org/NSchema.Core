@@ -1,5 +1,5 @@
-using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Scripts;
+using NSchema.Model;
+using NSchema.Model.Scripts;
 using NSchema.State;
 using NSchema.State.Backends;
 using NSchema.State.Domain.Models;

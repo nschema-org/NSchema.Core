@@ -1,23 +1,24 @@
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Model;
+using NSchema.Model.Columns;
+using NSchema.Model.CompositeTypes;
+using NSchema.Model.Constraints;
+using NSchema.Model.Domains;
+using NSchema.Model.Enums;
+using NSchema.Model.Extensions;
+using NSchema.Model.Indexes;
+using NSchema.Model.Routines;
+using NSchema.Model.Schemas;
+using NSchema.Model.Sequences;
+using NSchema.Model.Tables;
+using NSchema.Model.Triggers;
+using NSchema.Model.Views;
 using NSchema.Plan.Domain.Models;
 using NSchema.Plan.Domain.Models.Schemas;
 using NSchema.Plan.Domain.Models.Tables;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.CompositeTypes;
-using NSchema.Project.Domain.Models.Constraints;
-using NSchema.Project.Domain.Models.Domains;
-using NSchema.Project.Domain.Models.Enums;
-using NSchema.Project.Domain.Models.Extensions;
-using NSchema.Project.Domain.Models.Indexes;
-using NSchema.Project.Domain.Models.Routines;
-using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Sequences;
-using NSchema.Project.Domain.Models.Tables;
-using NSchema.Project.Domain.Models.Triggers;
-using NSchema.Project.Domain.Models.Views;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Helpers;
@@ -168,30 +169,30 @@ public static class TestData
     /// </summary>
     public static ProjectDirectives RichDirectives() => new(
         new SchemaDirectives(
-            Renames: [new SchemaRename(new SqlIdentifier("legacy_app"), new SqlIdentifier("app"))],
+            Renames: [new SchemaRenameDirective(new SqlIdentifier("legacy_app"), new SqlIdentifier("app"))],
             Drops: [new SqlIdentifier("scratch")],
             Partials: [new SqlIdentifier("app")]),
         new TableDirectives(
-            Renames: [new ObjectRename(Current("members"), new SqlIdentifier("users"))],
+            Renames: [new ObjectRenameDirective(Current("members"), new SqlIdentifier("users"))],
             Drops: [Current("old_table")],
-            ColumnRenames: [new MemberRename(new MemberReference(new SqlIdentifier("legacy_app"), new SqlIdentifier("members"), new SqlIdentifier("short_code")), new SqlIdentifier("code"))]),
+            ColumnRenames: [new MemberRenameDirective(new MemberReference(new SqlIdentifier("legacy_app"), new SqlIdentifier("members"), new SqlIdentifier("short_code")), new SqlIdentifier("code"))]),
         new ViewDirectives(
-            Renames: [new ObjectRename(Current("legacy_directory"), new SqlIdentifier("user_directory"))],
+            Renames: [new ObjectRenameDirective(Current("legacy_directory"), new SqlIdentifier("user_directory"))],
             Drops: [Current("stale_report")]),
         new EnumDirectives(
-            Renames: [new ObjectRename(Current("importance"), new SqlIdentifier("priority"))],
+            Renames: [new ObjectRenameDirective(Current("importance"), new SqlIdentifier("priority"))],
             Drops: [Current("stale_enum")]),
         new SequenceDirectives(
-            Renames: [new ObjectRename(Current("bill_id"), new SqlIdentifier("invoice_id"))],
+            Renames: [new ObjectRenameDirective(Current("bill_id"), new SqlIdentifier("invoice_id"))],
             Drops: [Current("stale_seq")]),
         new RoutineDirectives(
-            Renames: [new ObjectRename(Current("clean_code"), new SqlIdentifier("normalize_code"))],
+            Renames: [new ObjectRenameDirective(Current("clean_code"), new SqlIdentifier("normalize_code"))],
             Drops: [Current("stale_fn"), Current("stale_proc")]),
         new DomainDirectives(
-            Renames: [new ObjectRename(Current("legacy_id"), new SqlIdentifier("typeid"))],
+            Renames: [new ObjectRenameDirective(Current("legacy_id"), new SqlIdentifier("typeid"))],
             Drops: [Current("stale_domain")]),
         new CompositeTypeDirectives(
-            Renames: [new ObjectRename(Current("legacy_address"), new SqlIdentifier("address"))],
+            Renames: [new ObjectRenameDirective(Current("legacy_address"), new SqlIdentifier("address"))],
             Drops: [Current("stale_type")]),
         new ExtensionDirectives(Drops: [new SqlIdentifier("stale_ext")]));
 

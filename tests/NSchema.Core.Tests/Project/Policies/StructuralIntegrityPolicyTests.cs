@@ -1,14 +1,15 @@
+using NSchema.Model;
+using NSchema.Model.Columns;
+using NSchema.Model.CompositeTypes;
+using NSchema.Model.Domains;
+using NSchema.Model.Enums;
+using NSchema.Model.Indexes;
+using NSchema.Model.Routines;
+using NSchema.Model.Schemas;
+using NSchema.Model.Sequences;
+using NSchema.Model.Tables;
+using NSchema.Model.Views;
 using NSchema.Project.Domain.Models;
-using NSchema.Project.Domain.Models.Columns;
-using NSchema.Project.Domain.Models.CompositeTypes;
-using NSchema.Project.Domain.Models.Domains;
-using NSchema.Project.Domain.Models.Enums;
-using NSchema.Project.Domain.Models.Indexes;
-using NSchema.Project.Domain.Models.Routines;
-using NSchema.Project.Domain.Models.Schemas;
-using NSchema.Project.Domain.Models.Sequences;
-using NSchema.Project.Domain.Models.Tables;
-using NSchema.Project.Domain.Models.Views;
 using NSchema.Project.Policies;
 
 namespace NSchema.Tests.Project.Policies;
@@ -196,7 +197,7 @@ public sealed class StructuralIntegrityPolicyTests
             ForeignKeys: [new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("ref")], new SqlIdentifier("public"), new SqlIdentifier("absent"), [new SqlIdentifier("id")])]);
         var schema = new Database([new Schema(new SqlIdentifier("public"), Tables: [table])]);
         var project = new ProjectDefinition(schema, new ProjectDirectives(
-            new NSchema.Project.Domain.Models.Schemas.SchemaDirectives(Partials: [new SqlIdentifier("public")])));
+            new SchemaDirectives(Partials: [new SqlIdentifier("public")])));
 
         // Act
         var diagnostics = _sut.Validate(project).ToList();

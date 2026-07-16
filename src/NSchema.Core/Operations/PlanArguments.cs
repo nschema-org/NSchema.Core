@@ -1,4 +1,4 @@
-using NSchema.Project.Domain.Models;
+using NSchema.Model;
 
 namespace NSchema.Operations;
 
@@ -10,7 +10,7 @@ public sealed record PlanArguments
     /// <summary>
     /// The schemas to scope the plan to. When unrestricted, scope is derived from the schemas under management.
     /// </summary>
-    public SchemaScope Scope { get; init; } = SchemaScope.All;
+    public DatabaseScope Scope { get; init; } = DatabaseScope.All;
 
     /// <summary>
     /// When set, the computed plan is written to this file path so it can be applied later.
