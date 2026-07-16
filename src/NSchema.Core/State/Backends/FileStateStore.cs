@@ -14,12 +14,12 @@ internal sealed class FileDatabaseStateStore(IOptions<FileDatabaseStateStoreOpti
     /// <inheritdoc />
     public async Task<ReadOnlyMemory<byte>?> Read(CancellationToken cancellationToken = default)
     {
-        if (!System.IO.File.Exists(options.Value.Path))
+        if (!File.Exists(options.Value.Path))
         {
             return null;
         }
 
-        return await System.IO.File.ReadAllBytesAsync(options.Value.Path, cancellationToken);
+        return await File.ReadAllBytesAsync(options.Value.Path, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -38,8 +38,8 @@ internal sealed class FileDatabaseStateStore(IOptions<FileDatabaseStateStoreOpti
         var temp = $"{path}.{Guid.NewGuid():N}.tmp";
         try
         {
-            await System.IO.File.WriteAllBytesAsync(temp, state, cancellationToken);
-            System.IO.File.Move(temp, path, overwrite: true);
+            await File.WriteAllBytesAsync(temp, state, cancellationToken);
+            File.Move(temp, path, overwrite: true);
         }
         catch
         {
@@ -53,9 +53,9 @@ internal sealed class FileDatabaseStateStore(IOptions<FileDatabaseStateStoreOpti
     {
         try
         {
-            if (System.IO.File.Exists(path))
+            if (File.Exists(path))
             {
-                System.IO.File.Delete(path);
+                File.Delete(path);
             }
         }
         catch

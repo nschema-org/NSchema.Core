@@ -14,7 +14,7 @@ public sealed class NsqlParserDirectiveTests
     /// <summary>Assembles the source and returns its directives (declarations included so validation passes).</summary>
     private static ProjectDirectives Directives(string source)
     {
-        var read = NSchema.Project.Nsql.NsqlReader.Read(source);
+        var read = NsqlReader.Read(source);
         read.IsSuccess.ShouldBeTrue();
         return NSchema.Project.ProjectAssembler.Assemble([read.Value]).Value!.Directives;
     }

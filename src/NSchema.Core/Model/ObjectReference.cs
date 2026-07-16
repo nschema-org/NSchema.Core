@@ -9,4 +9,7 @@ public sealed record ObjectReference(SqlIdentifier Schema, SqlIdentifier Name) :
 {
     /// <inheritdoc />
     public override string Value => $"{Schema}.{Name}";
+
+    /// <inheritdoc />
+    public override SqlIdentifier? SchemaName => Schema;
 }

@@ -15,7 +15,7 @@ public sealed class NsqlParserExtensionTests
     public void Parse_CreateExtension_Bare_RecordsRootLevelExtension()
     {
         var extension = Parse("CREATE EXTENSION citext;").Extensions.ShouldHaveSingleItem();
-        ShouldlyIdentifierExtensions.ShouldBe(extension.Name, "citext");
+        extension.Name.ShouldBe("citext");
         extension.Version.ShouldBeNull();
     }
 
@@ -23,14 +23,14 @@ public sealed class NsqlParserExtensionTests
     public void Parse_CreateExtension_WithVersion_CapturesVersion()
     {
         var extension = Parse("CREATE EXTENSION postgis VERSION '3.4';").Extensions.ShouldHaveSingleItem();
-        ShouldlyIdentifierExtensions.ShouldBe(extension.Name, "postgis");
+        extension.Name.ShouldBe("postgis");
         extension.Version.ShouldBe("3.4");
     }
 
     [Fact]
     public void Parse_CreateExtension_QuotedName_AllowsNonIdentifierCharacters()
         // Extension names commonly contain a hyphen (e.g. uuid-ossp), which a bare identifier cannot express.
-        => ShouldlyIdentifierExtensions.ShouldBe(Parse("CREATE EXTENSION 'uuid-ossp';").Extensions.ShouldHaveSingleItem().Name, "uuid-ossp");
+        => Parse("CREATE EXTENSION 'uuid-ossp';").Extensions.ShouldHaveSingleItem().Name.ShouldBe("uuid-ossp");
 
     [Fact]
     public void Parse_CreateExtension_WithDocComment_AttachesComment()
@@ -42,14 +42,14 @@ public sealed class NsqlParserExtensionTests
     {
         // An extension declared alongside a schema still lands at the root, not inside the schema.
         var schema = Parse("CREATE SCHEMA app; CREATE EXTENSION citext;");
-        ShouldlyIdentifierExtensions.ShouldBe(schema.Extensions.ShouldHaveSingleItem().Name, "citext");
-        ShouldlyIdentifierExtensions.ShouldBe(schema.Schemas.ShouldHaveSingleItem().Name, "app");
+        schema.Extensions.ShouldHaveSingleItem().Name.ShouldBe("citext");
+        schema.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
     }
 
     [Fact]
     public void Parse_DropExtension_BecomesADirective()
-        => ShouldlyIdentifierExtensions.ShouldBe(Directives("DROP EXTENSION citext;")
-            .Extensions.Drops.ShouldHaveSingleItem(), "citext");
+        => Directives("DROP EXTENSION citext;")
+            .Extensions.Drops.ShouldHaveSingleItem().ShouldBe("citext");
 
     [Fact]
     public void Parse_DuplicateExtension_FailsTheRead()
@@ -68,7 +68,7 @@ public sealed class NsqlParserExtensionTests
 
     private static NSchema.Project.Domain.Models.ProjectDirectives Directives(string source)
     {
-        var read = NSchema.Project.Nsql.NsqlReader.Read(source);
+        var read = NsqlReader.Read(source);
         read.IsSuccess.ShouldBeTrue();
         return NSchema.Project.ProjectAssembler.Assemble([read.Value]).Value!.Directives;
     }

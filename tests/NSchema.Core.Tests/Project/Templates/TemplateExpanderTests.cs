@@ -1,4 +1,5 @@
 using NSchema.Model;
+using NSchema.Model.Columns;
 using NSchema.Model.Schemas;
 using NSchema.Model.Scripts;
 using NSchema.Project;
@@ -113,8 +114,9 @@ public sealed class TemplateExpanderTests
             """);
 
         var columns = Schema(schema, "billing").Tables.ShouldHaveSingleItem().Columns;
-        columns.First(c => c.Name.Value.Equals("status")).Type.Name.ShouldBe("billing.outbox_status");
-        columns.First(c => c.Name.Value.Equals("payload")).Type.Name.ShouldBe("text");
+        // The template-declared enum binds to the instance's schema as a component; the built-in does not.
+        columns.First(c => c.Name.Value.Equals("status")).Type.ShouldBe(SqlType.Custom(new SqlIdentifier("billing"), "outbox_status"));
+        columns.First(c => c.Name.Value.Equals("payload")).Type.ShouldBe(SqlType.Text);
     }
 
     [Fact]
@@ -131,8 +133,9 @@ public sealed class TemplateExpanderTests
             """);
 
         var columns = Schema(schema, "billing").Tables.ShouldHaveSingleItem().Columns;
-        columns.First(c => c.Name.Value.Equals("kind")).Type.Name.ShouldBe("public.kind_enum");
-        columns.First(c => c.Name.Value.Equals("tag")).Type.Name.ShouldBe("citext");
+        // A qualified type keeps its schema as a component; an unqualified one leaves resolution to the engine.
+        columns.First(c => c.Name.Value.Equals("kind")).Type.ShouldBe(SqlType.Custom(new SqlIdentifier("public"), "kind_enum"));
+        columns.First(c => c.Name.Value.Equals("tag")).Type.ShouldBe(SqlType.Custom("citext"));
     }
 
     [Fact]
@@ -150,8 +153,8 @@ public sealed class TemplateExpanderTests
             """);
 
         var fields = Schema(schema, "billing").CompositeTypes.ShouldHaveSingleItem().Fields;
-        fields.First(f => f.Name.Value.Equals("state")).DataType.Name.ShouldBe("billing.status");
-        fields.First(f => f.Name.Value.Equals("note")).DataType.Name.ShouldBe("text");
+        fields.First(f => f.Name.Value.Equals("state")).DataType.ShouldBe(SqlType.Custom(new SqlIdentifier("billing"), "status"));
+        fields.First(f => f.Name.Value.Equals("note")).DataType.ShouldBe(SqlType.Text);
     }
 
     [Fact]

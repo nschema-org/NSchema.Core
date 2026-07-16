@@ -1,5 +1,6 @@
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Model;
 using NSchema.Model.Schemas;
 using NSchema.Model.Scripts;
@@ -37,6 +38,57 @@ public sealed class MigrationPlannerTests
         _linearizer.Linearize(Arg.Any<DatabaseDiff>()).Returns(_ => []);
     }
 
+    /// <summary>A difference touching two schemas, so a scope has something to narrow away.</summary>
+    private static DatabaseDiff TwoSchemaDiff() => new(
+    [
+        new SchemaDiff(new SqlIdentifier("app"), ChangeKind.Remove),
+        new SchemaDiff(new SqlIdentifier("billing"), ChangeKind.Remove),
+    ]);
+
+    [Fact]
+    public void Plan_ComparesTheWholeStates_ThenNarrowsTheDifferenceToTheScope()
+    {
+        // Arrange — the comparer answers what differs between two whole states, a complete question that
+        // needs no scope; the planner applies the scope to its answer.
+        _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(TwoSchemaDiff(), []));
+
+        // Act
+        var result = Sut.Plan(_current, _desired, PlanningScope.Of(new SqlIdentifier("app")));
+
+        // Assert
+        result.Value!.Diff.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
+    }
+
+    [Fact]
+    public void Plan_RunsPlanPoliciesAgainstTheNarrowedDiff_NotTheWholeComparison()
+    {
+        // Arrange — comparing whole states manufactures a removal for every out-of-scope schema. If policies
+        // saw those, an ordinary scoped plan would report changes it is never going to make.
+        _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(TwoSchemaDiff(), []));
+        var policy = Substitute.For<IPlanPolicy>();
+        _planPolicies.Add(policy);
+
+        // Act
+        Sut.Plan(_current, _desired, PlanningScope.Of(new SqlIdentifier("app")));
+
+        // Assert
+        policy.Received(1).Validate(Arg.Is<MigrationPlan>(p => p!.Diff.Schemas.Count == 1
+            && p.Diff.Schemas[0].Name == new SqlIdentifier("app")));
+    }
+
+    [Fact]
+    public void Plan_LinearizesOnlyTheNarrowedDiff()
+    {
+        // Arrange — the SQL must not contain out-of-scope work either.
+        _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(TwoSchemaDiff(), []));
+
+        // Act
+        Sut.Plan(_current, _desired, PlanningScope.Of(new SqlIdentifier("app")));
+
+        // Assert
+        _linearizer.Received(1).Linearize(Arg.Is<DatabaseDiff>(d => d!.Schemas.Count == 1));
+    }
+
     [Fact]
     public void Validate_RunsProjectPoliciesAgainstTheProject()
     {
@@ -63,7 +115,7 @@ public sealed class MigrationPlannerTests
         _projectPolicies.Add(policy);
 
         // Act
-        var result = Sut.Plan(_current, _desired);
+        var result = Sut.Plan(_current, _desired, PlanningScope.All);
 
         // Assert: a policy block means "may not apply", not "stopped computing" — the failure carries the
         // complete plan so the offending change stays visible.
@@ -82,7 +134,7 @@ public sealed class MigrationPlannerTests
         _projectPolicies.Add(policy);
 
         // Act
-        var result = Sut.Plan(_current, _desired);
+        var result = Sut.Plan(_current, _desired, PlanningScope.All);
 
         // Assert: a non-error schema finding is carried through alongside the plan.
         result.IsSuccess.ShouldBeTrue();
@@ -93,7 +145,7 @@ public sealed class MigrationPlannerTests
     public void Plan_PassesCurrentAndDesiredToTheDiffer()
     {
         // Act
-        Sut.Plan(_current, _desired);
+        Sut.Plan(_current, _desired, PlanningScope.All);
 
         // Assert
         _differ.Received(1).Compare(_current, _desired);
@@ -107,7 +159,7 @@ public sealed class MigrationPlannerTests
             .Returns(Result.From(_emptyDiff, [Diagnostic.Info("data-migrations", "inert block")]));
 
         // Act
-        var result = Sut.Plan(_current, _desired);
+        var result = Sut.Plan(_current, _desired, PlanningScope.All);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -125,7 +177,7 @@ public sealed class MigrationPlannerTests
         _planPolicies.Add(policy);
 
         // Act
-        var result = Sut.Plan(_current, _desired);
+        var result = Sut.Plan(_current, _desired, PlanningScope.All);
 
         // Assert — the policy received the rendered plan carrying the diff the differ produced, scripts included.
         result.Diagnostics.ShouldHaveSingleItem().Message.ShouldBe("destructive");
@@ -142,7 +194,7 @@ public sealed class MigrationPlannerTests
             .Returns(_ => [new CreateSchema(new SqlIdentifier("app")), new ExecuteScript(script)]);
 
         // Act
-        var result = Sut.Plan(_current, _desired);
+        var result = Sut.Plan(_current, _desired, PlanningScope.All);
 
         // Assert
         result.Value!.Statements.Select(s => s.Sql).ShouldBe([$"-- {nameof(CreateSchema)}", script.Sql.Value]);
@@ -157,7 +209,7 @@ public sealed class MigrationPlannerTests
         _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(diff, []));
 
         // Act
-        var result = Sut.Plan(_current, _desired);
+        var result = Sut.Plan(_current, _desired, PlanningScope.All);
 
         // Assert
         result.Value!.Diff.ShouldBe(diff);
@@ -170,7 +222,7 @@ public sealed class MigrationPlannerTests
         var sut = new MigrationPlanner(_differ, _linearizer, _projectPolicies, _planPolicies, dialect: null);
 
         // Act
-        var result = sut.Plan(_current, _desired);
+        var result = sut.Plan(_current, _desired, PlanningScope.All);
 
         // Assert — a dialect is required: there is no SQL-less plan.
         result.IsFailure.ShouldBeTrue();

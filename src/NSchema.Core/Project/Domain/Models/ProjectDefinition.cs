@@ -22,4 +22,19 @@ public sealed record ProjectDefinition(Database Database, ProjectDirectives? Dir
         .Concat(Directives.Schemas.Renames.Select(r => r.From))
         .Distinct()
         .ToArray();
+
+    /// <summary>
+    /// Restricts a project to a given scope.
+    /// </summary>
+    public ProjectDefinition ScopedTo(PlanningScope scope)
+    {
+        if (scope.IsAll)
+        {
+            return this;
+        }
+
+        var database = Database.ScopedTo(scope);
+        var directives = Directives.ScopedTo(scope);
+        return new ProjectDefinition(database, directives);
+    }
 }

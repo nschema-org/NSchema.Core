@@ -18,5 +18,5 @@ public interface IDatabaseIntrospector
     /// engine re-applies the scope after every read, so scoping semantics stay single-sourced. A schema name
     /// that does not exist is simply not included in the returned schema.
     /// </remarks>
-    ValueTask<Database> GetDatabase(DatabaseScope scope, CancellationToken cancellationToken = default);
+    ValueTask<Database> GetDatabase(PlanningScope scope, CancellationToken cancellationToken = default);
 }

@@ -195,7 +195,7 @@ public sealed class DoctorOperationTests
 
     private sealed class ThrowingIntrospector(Exception exception) : IDatabaseIntrospector
     {
-        public ValueTask<Database> GetDatabase(DatabaseScope scope, CancellationToken cancellationToken = default) =>
+        public ValueTask<Database> GetDatabase(PlanningScope scope, CancellationToken cancellationToken = default) =>
             throw exception;
     }
 

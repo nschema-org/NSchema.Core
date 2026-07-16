@@ -70,7 +70,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         // The plan exposes the same SQL the caller previews before applying.
         plan.Plan!.Statements.ShouldBe(_executor.Executed!);
         // Post-apply state was captured to the store.
-        ShouldlyIdentifierExtensions.ShouldBe(_store.Written.ShouldNotBeNull().Database.Schemas.ShouldHaveSingleItem().Name, "app");
+        _store.Written.ShouldNotBeNull().Database.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
     }
 
     [Fact]
@@ -181,10 +181,10 @@ public sealed class ApplyEndToEndTests : IDisposable
         (await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         var first = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Project }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
         first.Plan!.Statements.Select(s => s.Sql).ShouldContain(new SqlText("INSERT INTO app.currencies VALUES ('GBP');"));
-        ShouldlyIdentifierExtensions.ShouldBe(first.Plan!.Diff.AllScripts().ShouldHaveSingleItem().Name, "seed_currencies");
+        first.Plan!.Diff.AllScripts().ShouldHaveSingleItem().Name.ShouldBe("seed_currencies");
         await app.Operations.Apply(new ApplyArguments { Plan = first.Plan! }, TestContext.Current.CancellationToken);
 
-        ShouldlyIdentifierExtensions.ShouldBe(_store.Written.ShouldNotBeNull().Scripts.ShouldHaveSingleItem().Script.Name, "seed_currencies");
+        _store.Written.ShouldNotBeNull().Scripts.ShouldHaveSingleItem().Script.Name.ShouldBe("seed_currencies");
 
         // Second run: the script is skipped, and no longer up for recording.
         var second = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Project }, TestContext.Current.CancellationToken);
@@ -221,6 +221,6 @@ public sealed class ApplyEndToEndTests : IDisposable
         // Nothing to apply: the empty plan never reaches the executor...
         _executor.Executed.ShouldBeNull();
         // ...but a first run against an already-matching database still initialises the store.
-        ShouldlyIdentifierExtensions.ShouldBe(_store.Written.ShouldNotBeNull().Database.Schemas.ShouldHaveSingleItem().Name, "app");
+        _store.Written.ShouldNotBeNull().Database.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
     }
 }

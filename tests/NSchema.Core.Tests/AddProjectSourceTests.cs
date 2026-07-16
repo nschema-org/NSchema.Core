@@ -24,12 +24,12 @@ public sealed class AddProjectSourceTests : IDisposable
     }
 
     // Resolves the desired project the way the operations do — through the aggregated IProjectProvider.
-    private static async Task<ProjectDefinition> ResolveProject(Action<NSchemaApplicationBuilder> configure, DatabaseScope? scope = null)
+    private static async Task<ProjectDefinition> ResolveProject(Action<NSchemaApplicationBuilder> configure, PlanningScope? scope = null)
     {
         var builder = NSchemaApplication.CreateBuilder();
         configure(builder);
         using var app = builder.Build();
-        return (await app.Services.GetRequiredService<IProjectProvider>().GetProject(scope ?? DatabaseScope.All, TestContext.Current.CancellationToken)).Value!;
+        return (await app.Services.GetRequiredService<IProjectProvider>().GetProject(scope ?? PlanningScope.All, TestContext.Current.CancellationToken)).Value!;
     }
 
     private static async Task<List<string>> ResolveSchemaNames(Action<NSchemaApplicationBuilder> configure) =>
@@ -98,7 +98,7 @@ public sealed class AddProjectSourceTests : IDisposable
         using var app = builder.Build();
 
         var project = await app.Services.GetRequiredService<IProjectProvider>()
-            .GetProject(DatabaseScope.All, TestContext.Current.CancellationToken);
+            .GetProject(PlanningScope.All, TestContext.Current.CancellationToken);
 
         project.IsFailure.ShouldBeTrue();
         project.Errors.ShouldHaveSingleItem().ShouldBe(ProjectDiagnostics.NoFilesMatched());
@@ -109,7 +109,7 @@ public sealed class AddProjectSourceTests : IDisposable
     {
         File.WriteAllText(Path.Combine(_root, "multi.sql"), "CREATE SCHEMA app; CREATE SCHEMA audit;");
 
-        var project = await ResolveProject(b => b.AddProjectSource(_root), scope: DatabaseScope.Of(new SqlIdentifier("app")));
+        var project = await ResolveProject(b => b.AddProjectSource(_root), scope: PlanningScope.Of(new SqlIdentifier("app")));
 
         project.Database.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
@@ -126,7 +126,7 @@ public sealed class AddProjectSourceTests : IDisposable
         var project = await ResolveProject(b => b.AddProjectSource(_root));
 
         var script = project.AllScripts().ShouldHaveSingleItem();
-        ShouldlyIdentifierExtensions.ShouldBe(script.Name, "backfill");
+        script.Name.ShouldBe("backfill");
         script.ShouldBeOfType<DeploymentScript>().Phase.ShouldBe(DeploymentPhase.Post);
     }
 
@@ -150,7 +150,7 @@ public sealed class AddProjectSourceTests : IDisposable
         app.Services.GetServices<ProjectSource>().ShouldHaveSingleItem();
         WriteSchemaFile("late.sql", "late");
 
-        var project = (await app.Services.GetRequiredService<IProjectProvider>().GetProject(DatabaseScope.All, TestContext.Current.CancellationToken)).Value!;
+        var project = (await app.Services.GetRequiredService<IProjectProvider>().GetProject(PlanningScope.All, TestContext.Current.CancellationToken)).Value!;
         project.Database.Schemas.Select(s => s.Name).ShouldBe(["late"]);
     }
 }

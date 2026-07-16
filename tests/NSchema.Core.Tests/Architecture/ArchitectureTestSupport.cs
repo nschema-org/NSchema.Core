@@ -39,7 +39,8 @@ internal static class ArchitectureTestSupport
         /// </summary>
         public void ShouldBeSatisfied()
         {
-            var violations = rule.Evaluate(Architecture)
+            var result = rule.Evaluate(Architecture);
+            var violations = result
                 .Where(r => !r.Passed)
                 .Select(r => r.Description)
                 .ToList();

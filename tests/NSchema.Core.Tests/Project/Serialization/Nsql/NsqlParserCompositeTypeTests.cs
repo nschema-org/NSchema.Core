@@ -17,17 +17,17 @@ public sealed class NsqlParserCompositeTypeTests
     public void Parse_SimpleType_CapturesNameAndFields()
     {
         var type = ParseType("CREATE TYPE app.address AS (street text, zip int);");
-        ShouldlyIdentifierExtensions.ShouldBe(type.Name, "address");
+        type.Name.ShouldBe("address");
         type.Fields.Count.ShouldBe(2);
-        ShouldlyIdentifierExtensions.ShouldBe(type.Fields[0].Name, "street");
+        type.Fields[0].Name.ShouldBe("street");
         type.Fields[0].DataType.ShouldBe(SqlType.Text);
-        ShouldlyIdentifierExtensions.ShouldBe(type.Fields[1].Name, "zip");
+        type.Fields[1].Name.ShouldBe("zip");
         type.Fields[1].DataType.ShouldBe(SqlType.Int);
     }
 
     [Fact]
     public void Parse_SingleField_IsCaptured()
-        => ShouldlyIdentifierExtensions.ShouldBe(ParseType("CREATE TYPE app.point AS (x int);").Fields.ShouldHaveSingleItem().Name, "x");
+        => ParseType("CREATE TYPE app.point AS (x int);").Fields.ShouldHaveSingleItem().Name.ShouldBe("x");
 
     [Fact]
     public void Parse_EmptyFieldList_IsCaptured()
@@ -36,7 +36,7 @@ public sealed class NsqlParserCompositeTypeTests
     [Fact]
     public void Parse_QualifiedFieldType_IsCaptured()
         => ParseType("CREATE TYPE app.t AS (id app.typeid);").Fields.ShouldHaveSingleItem()
-            .DataType.Name.ShouldBe("app.typeid");
+            .DataType.ShouldBe(SqlType.Custom(new NSchema.Model.SqlIdentifier("app"), "typeid"));
 
     [Fact]
     public void Parse_RenameType_BecomesADirective()
@@ -49,8 +49,8 @@ public sealed class NsqlParserCompositeTypeTests
 
     [Fact]
     public void Parse_DropType_BecomesADirective()
-        => ShouldlyIdentifierExtensions.ShouldBe(Directives("CREATE SCHEMA app; DROP TYPE app.address;")
-            .CompositeTypes.Drops.ShouldHaveSingleItem().Name, "address");
+        => Directives("CREATE SCHEMA app; DROP TYPE app.address;")
+            .CompositeTypes.Drops.ShouldHaveSingleItem().Name.ShouldBe("address");
 
     [Fact]
     public void Parse_DuplicateType_FailsTheRead()
@@ -64,7 +64,7 @@ public sealed class NsqlParserCompositeTypeTests
 
     private static NSchema.Project.Domain.Models.ProjectDirectives Directives(string source)
     {
-        var read = NSchema.Project.Nsql.NsqlReader.Read(source);
+        var read = NsqlReader.Read(source);
         read.IsSuccess.ShouldBeTrue();
         return NSchema.Project.ProjectAssembler.Assemble([read.Value]).Value!.Directives;
     }

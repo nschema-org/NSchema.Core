@@ -33,7 +33,7 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
             await using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
             await JsonSerializer.SerializeAsync(stream, info, cancellationToken: cancellationToken);
         }
-        catch (IOException) when (System.IO.File.Exists(path))
+        catch (IOException) when (File.Exists(path))
         {
             var existing = await TryReadInfo(path, cancellationToken);
             var heldBy = existing is null
@@ -50,7 +50,7 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
     public async Task<StateLockInfo?> Peek(CancellationToken cancellationToken = default)
     {
         var path = options.Value.Path;
-        return System.IO.File.Exists(path) ? await TryReadInfo(path, cancellationToken) : null;
+        return File.Exists(path) ? await TryReadInfo(path, cancellationToken) : null;
     }
 
     public ValueTask Release(CancellationToken cancellationToken = default)
@@ -60,7 +60,7 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
         // Forcing release: delete whatever lock file is present, regardless of who wrote it.
         try
         {
-            System.IO.File.Delete(path);
+            File.Delete(path);
         }
         catch (Exception ex) when (ex is IOException or DirectoryNotFoundException)
         {
@@ -105,7 +105,7 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
             {
                 try
                 {
-                    System.IO.File.Delete(path);
+                    File.Delete(path);
                 }
                 catch (IOException)
                 {

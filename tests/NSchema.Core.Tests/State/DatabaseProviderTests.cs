@@ -14,7 +14,7 @@ public sealed class DatabaseProviderTests
 
     private sealed class FakeIntrospector : IDatabaseIntrospector
     {
-        public ValueTask<Database> GetDatabase(DatabaseScope scope, CancellationToken cancellationToken = default) =>
+        public ValueTask<Database> GetDatabase(PlanningScope scope, CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(_liveSchema);
     }
 
@@ -23,7 +23,7 @@ public sealed class DatabaseProviderTests
     {
         var sut = Create(online: new FakeIntrospector());
 
-        var result = await sut.GetDatabase(DatabaseScope.All, TestContext.Current.CancellationToken);
+        var result = await sut.GetDatabase(PlanningScope.All, TestContext.Current.CancellationToken);
 
         result.Require().ShouldBe(_liveSchema);
     }
@@ -34,7 +34,7 @@ public sealed class DatabaseProviderTests
         // The fake ignores its scope entirely — the provider's re-filter is what keeps scoping honest.
         var sut = Create(online: new FakeIntrospector());
 
-        var result = await sut.GetDatabase(DatabaseScope.Of(new SqlIdentifier("other")), TestContext.Current.CancellationToken);
+        var result = await sut.GetDatabase(PlanningScope.Of(new SqlIdentifier("other")), TestContext.Current.CancellationToken);
 
         result.Require().Schemas.ShouldBeEmpty();
     }
@@ -44,7 +44,7 @@ public sealed class DatabaseProviderTests
     {
         var sut = Create();
 
-        var result = await sut.GetDatabase(DatabaseScope.All, TestContext.Current.CancellationToken);
+        var result = await sut.GetDatabase(PlanningScope.All, TestContext.Current.CancellationToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Errors.ShouldHaveSingleItem().Message.ShouldContain("live database provider");
@@ -60,7 +60,7 @@ public sealed class DatabaseProviderTests
         using var app = builder.Build();
         var provider = app.Services.GetRequiredService<IDatabaseProvider>();
 
-        var live = await provider.GetDatabase(DatabaseScope.All, TestContext.Current.CancellationToken);
+        var live = await provider.GetDatabase(PlanningScope.All, TestContext.Current.CancellationToken);
 
         live.Require().ShouldBe(_liveSchema);
     }
@@ -71,7 +71,7 @@ public sealed class DatabaseProviderTests
         using var app = NSchemaApplication.CreateBuilder().Build();
         var provider = app.Services.GetRequiredService<IDatabaseProvider>();
 
-        var live = await provider.GetDatabase(DatabaseScope.All, TestContext.Current.CancellationToken);
+        var live = await provider.GetDatabase(PlanningScope.All, TestContext.Current.CancellationToken);
 
         live.IsFailure.ShouldBeTrue();
     }

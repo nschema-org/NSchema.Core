@@ -132,7 +132,7 @@ public sealed class NsqlParserScriptStatementTests
     [Fact]
     public void Parse_ChangeEventScriptInTemplate_BindsTheSchemaPerApplication()
     {
-        var read = NSchema.Project.Nsql.NsqlReader.Read(
+        var read = NsqlReader.Read(
             """
             CREATE SCHEMA billing;
             CREATE SCHEMA ordering;
@@ -156,7 +156,7 @@ public sealed class NsqlParserScriptStatementTests
     [Fact]
     public void Parse_DeploymentScriptInTemplate_InstantiatesPerAppliedSchema()
     {
-        var read = NSchema.Project.Nsql.NsqlReader.Read(
+        var read = NsqlReader.Read(
             """
             CREATE SCHEMA app;
             TEMPLATE outbox

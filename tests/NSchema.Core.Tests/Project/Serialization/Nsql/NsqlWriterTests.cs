@@ -46,6 +46,20 @@ public sealed class NsqlWriterTests
         => WriteOneTable(new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])).ShouldContain("id int NOT NULL");
 
     [Fact]
+    public void Write_SchemaQualifiedColumnType_EmitsTheQualifier()
+        // The qualifier is a component now; writing it reads schema and name straight across, no string split.
+        => WriteOneTable(new Table(new SqlIdentifier("t"),
+            Columns: [new Column(new SqlIdentifier("state"), SqlType.Custom(new SqlIdentifier("app"), "status"))]))
+            .ShouldContain("state app.status NOT NULL");
+
+    [Fact]
+    public void Write_ParameterisedColumnType_EmitsFacetsFromComponents()
+        // Facets are structural too, so a parameterised type round-trips without the writer parsing text.
+        => WriteOneTable(new Table(new SqlIdentifier("t"),
+            Columns: [new Column(new SqlIdentifier("code"), SqlType.VarChar(64))]))
+            .ShouldContain("code varchar(64) NOT NULL");
+
+    [Fact]
     public void Write_NullableColumn_OmitsNullKeyword()
     {
         var ddl = WriteOneTable(new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("note"), SqlType.Text, IsNullable: true)]));

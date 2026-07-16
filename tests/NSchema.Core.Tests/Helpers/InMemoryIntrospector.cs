@@ -3,9 +3,11 @@ using NSchema.Model;
 
 namespace NSchema.Tests.Helpers;
 
-/// <summary>An <see cref="IDatabaseIntrospector"/> that returns a fixed in-memory schema (honouring scope filtering).</summary>
+/// <summary>
+/// An <see cref="IDatabaseIntrospector"/> that returns a fixed in-memory schema (honoring scope filtering).
+/// </summary>
 internal sealed class InMemoryIntrospector(Database schema) : IDatabaseIntrospector
 {
-    public ValueTask<Database> GetDatabase(DatabaseScope scope, CancellationToken cancellationToken = default)
-        => ValueTask.FromResult(scope.Apply(schema));
+    public ValueTask<Database> GetDatabase(PlanningScope scope, CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(schema.ScopedTo(scope));
 }

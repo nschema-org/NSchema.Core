@@ -10,4 +10,7 @@ public sealed record MemberReference(SqlIdentifier Schema, SqlIdentifier Object,
 {
     /// <inheritdoc />
     public override string Value => $"{Schema}.{Object}.{Member}";
+
+    /// <inheritdoc />
+    public override SqlIdentifier? SchemaName => Schema;
 }

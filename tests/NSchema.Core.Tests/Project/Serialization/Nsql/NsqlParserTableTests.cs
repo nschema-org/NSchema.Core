@@ -1,3 +1,4 @@
+using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Tables;
 using NSchema.Project.Nsql;
@@ -58,14 +59,14 @@ public sealed class NsqlParserTableTests
         => Column("data jsonb").Type.ShouldBe(SqlType.Custom("jsonb"));
 
     [Fact]
-    public void Column_SchemaQualifiedType_CapturesObjectReference()
-        => Column("state app.status").Type.ShouldBe(SqlType.Custom("app.status"));
+    public void Column_SchemaQualifiedType_CapturesTheQualifierStructurally()
+        => Column("state app.status").Type.ShouldBe(SqlType.Custom(new SqlIdentifier("app"), "status"));
 
     [Fact]
     public void Column_SchemaQualifiedType_WithConstraint_Parses()
     {
         var column = Column("state app.status NOT NULL");
-        column.Type.ShouldBe(SqlType.Custom("app.status"));
+        column.Type.ShouldBe(SqlType.Custom(new SqlIdentifier("app"), "status"));
         column.IsNullable.ShouldBeFalse();
     }
 

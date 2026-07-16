@@ -1,4 +1,5 @@
 using NSchema.Diff.Domain;
+using NSchema.Model;
 using NSchema.Plan.Domain.Models;
 using NSchema.Project.Domain.Models;
 
@@ -21,6 +22,7 @@ internal interface IMigrationPlanner
     /// </summary>
     /// <param name="current">What currently exists.</param>
     /// <param name="desired">The desired project to plan towards.</param>
+    /// <param name="scope">The objects that are covered by this plan.</param>
     /// <returns>The plan and every finding produced.</returns>
-    Result<MigrationPlan> Plan(CurrentState current, ProjectDefinition desired);
+    Result<MigrationPlan> Plan(CurrentState current, ProjectDefinition desired, PlanningScope scope);
 }

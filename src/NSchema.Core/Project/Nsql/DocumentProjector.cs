@@ -290,11 +290,12 @@ internal static class DocumentProjector
 
     private static SqlType ParseType(Syn.TypeName type)
     {
-        var text = type.Schema is { } schema ? $"{schema.Value}.{type.Name.Value}" : type.Name.Value;
-        if (type.Arguments is { } arguments)
+        if (type.Schema is { } schema)
         {
-            text += $"({arguments})";
+            return SqlType.Custom(new SqlIdentifier(schema.Value), type.Name.Value);
         }
+
+        var text = type.Arguments is { } arguments ? $"{type.Name.Value}({arguments})" : type.Name.Value;
         return SqlType.Parse(text);
     }
 

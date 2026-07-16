@@ -39,7 +39,7 @@ public sealed class ImportOperationTests : IDisposable
     private void Source(Database schema)
     {
         _database
-            .GetDatabase(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>())
+            .GetDatabase(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(schema));
     }
 
@@ -89,13 +89,13 @@ public sealed class ImportOperationTests : IDisposable
     {
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
-        await _database.Received(1).GetDatabase(Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>());
+        await _database.Received(1).GetDatabase(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Execute_PassesScopeFilterToSource()
     {
-        var arguments = new ImportArguments { OutputDirectory = _dir, Scope = DatabaseScope.Of(new SqlIdentifier("app"), new SqlIdentifier("audit")) };
+        var arguments = new ImportArguments { OutputDirectory = _dir, Scope = PlanningScope.Of(new SqlIdentifier("app"), new SqlIdentifier("audit")) };
 
         await Execute(arguments);
 

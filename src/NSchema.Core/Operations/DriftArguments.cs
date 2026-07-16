@@ -10,5 +10,5 @@ public sealed record DriftArguments
     /// <summary>
     /// The schemas to scope the drift check to. When <see langword="null"/>, the whole recorded state is checked.
     /// </summary>
-    public DatabaseScope Scope { get; init; } = DatabaseScope.All;
+    public PlanningScope Scope { get; init; } = PlanningScope.All;
 }

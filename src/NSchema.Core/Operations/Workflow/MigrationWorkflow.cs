@@ -22,7 +22,7 @@ internal sealed class MigrationWorkflow(
     public async Task<Result> Validate(CancellationToken cancellationToken = default)
     {
         progress.Report(OperationProgress.Step("Loading desired schema..."));
-        var projectResult = await projectProvider.GetProject(DatabaseScope.All, cancellationToken);
+        var projectResult = await projectProvider.GetProject(PlanningScope.All, cancellationToken);
         if (projectResult.Value is not { } project)
         {
             return Result.From(projectResult.Diagnostics);
@@ -36,7 +36,7 @@ internal sealed class MigrationWorkflow(
         return Result.From(projectResult.Diagnostics.Concat(planner.Validate(project).Diagnostics));
     }
 
-    public async Task<Result<MigrationPlan>> ComputePlan(PlanTarget target, DatabaseScope scope, CancellationToken cancellationToken = default)
+    public async Task<Result<MigrationPlan>> ComputePlan(PlanTarget target, PlanningScope scope, CancellationToken cancellationToken = default)
     {
         // The diff is computed against CurrentState — the schema plus the run-once ledger — so planning without
         // a store would plan against knowingly incomplete current state.
@@ -53,7 +53,7 @@ internal sealed class MigrationWorkflow(
 
         // An unrestricted run derives its scope from what it manages. A teardown declares nothing, so it stays
         // unrestricted and covers everything recorded.
-        var scopeInEffect = scope.IsAll ? DatabaseScope.Of(project.ManagedSchemaNames) : scope;
+        var scopeInEffect = scope.IsAll ? PlanningScope.Of(project.ManagedSchemaNames) : scope;
 
         progress.Report(OperationProgress.Step($"Migration will be scoped to the following schemas: {Describe(scopeInEffect)}"));
 
@@ -65,15 +65,17 @@ internal sealed class MigrationWorkflow(
         }
         var state = read.Value.State ?? DatabaseState.Empty;
 
-        var currentSchema = scopeInEffect.Apply(state.Database);
-        progress.Report(OperationProgress.Detail($"Current schema: {StatusHelpers.Describe(currentSchema)}."));
+        // The current side is not narrowed here: scope applies to the difference, once computed. Filtering it
+        // away first would hide the out-of-scope objects a scoped run may still disturb.
+        // TODO: Move progress reporting down into the planner where the scoping is done?
+        progress.Report(OperationProgress.Detail($"Current schema: {StatusHelpers.Describe(state.Database.ScopedTo(scopeInEffect))}."));
 
         var readDiagnostics = new List<Diagnostic>(desired.Diagnostics.Concat(read.Diagnostics));
 
         progress.Report(OperationProgress.Step("Computing migration plan..."));
 
-        var current = new CurrentState(currentSchema, state.Scripts);
-        var plan = planner.Plan(current, project);
+        var current = new CurrentState(state.Database, state.Scripts);
+        var plan = planner.Plan(current, project, scopeInEffect);
 
         if (readDiagnostics.Count == 0)
         {
@@ -94,7 +96,7 @@ internal sealed class MigrationWorkflow(
         }
 
         progress.Report(OperationProgress.Step("Updating state store..."));
-        var live = await databaseProvider.GetDatabase(DatabaseScope.All, cancellationToken);
+        var live = await databaseProvider.GetDatabase(PlanningScope.All, cancellationToken);
         if (live.Value is not { } schema)
         {
             return Result.Failure<StateCapture>(live.Diagnostics);
@@ -141,7 +143,7 @@ internal sealed class MigrationWorkflow(
     /// <summary>
     /// Resolves the state being planned towards: the declared project, or nothing for a teardown.
     /// </summary>
-    private async Task<Result<ProjectDefinition>> ResolveDesired(PlanTarget target, DatabaseScope scope, CancellationToken cancellationToken)
+    private async Task<Result<ProjectDefinition>> ResolveDesired(PlanTarget target, PlanningScope scope, CancellationToken cancellationToken)
     {
         if (target == PlanTarget.Empty)
         {
@@ -158,7 +160,7 @@ internal sealed class MigrationWorkflow(
         return desired;
     }
 
-    private static string Describe(DatabaseScope scope) =>
+    private static string Describe(PlanningScope scope) =>
         scope.SchemaNames is { } names ? string.Join(", ", names) : "(all)";
 
     /// <summary>

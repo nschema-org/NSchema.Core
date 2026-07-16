@@ -10,6 +10,11 @@ public abstract record Address
     /// </summary>
     public abstract string Value { get; }
 
+    /// <summary>
+    /// The schema this address sits in, or <see langword="null"/> when it names something database-global.
+    /// </summary>
+    public abstract SqlIdentifier? SchemaName { get; }
+
     /// <inheritdoc />
     public sealed override string ToString() => Value;
 }
