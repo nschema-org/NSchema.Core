@@ -14,4 +14,7 @@ public sealed record ScriptReference(SqlIdentifier? Schema, SqlIdentifier Name) 
 {
     /// <inheritdoc />
     public override string Value => Schema == null ? Name.Value : $"{Schema}.{Name}";
+
+    /// <inheritdoc />
+    public override SqlIdentifier? SchemaName => Schema;
 }
