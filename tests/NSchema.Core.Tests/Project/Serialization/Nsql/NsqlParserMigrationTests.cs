@@ -113,7 +113,7 @@ public sealed class NsqlParserMigrationTests
     [Fact]
     public void Parse_MigrationInsideTemplate_InstantiatesPerAppliedSchema()
     {
-        var read = NSchema.Project.Nsql.NsqlReader.Read(
+        var read = NsqlReader.Read(
             """
             CREATE SCHEMA app;
             TEMPLATE t

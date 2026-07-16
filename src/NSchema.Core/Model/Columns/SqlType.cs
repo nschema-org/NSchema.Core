@@ -12,6 +12,11 @@ public sealed record SqlType(string Name)
     public string Name { get; init; } = Name.Trim().ToLowerInvariant();
 
     /// <summary>
+    /// The schema qualifying a user-defined type.
+    /// </summary>
+    public SqlIdentifier? Schema { get; init; }
+
+    /// <summary>
     /// The length facet for fixed- and variable-length types (char/varchar/binary). Null means unbounded.
     /// </summary>
     public int? Length { get; init; }
@@ -142,27 +147,41 @@ public sealed record SqlType(string Name)
     public static SqlType Custom(string typeName) => new(typeName);
 
     /// <summary>
-    /// Renders the canonical string form, e.g. <c>"bigint"</c>, <c>"varchar(255)"</c>, <c>"decimal(18,2)"</c>.
+    /// A user-defined type qualified by the schema that owns it (e.g. <c>app.order_status</c>).
+    /// </summary>
+    /// <param name="schema">The schema the type belongs to.</param>
+    /// <param name="typeName">The type's name within that schema.</param>
+    public static SqlType Custom(SqlIdentifier schema, string typeName) => new(typeName) { Schema = schema };
+
+    /// <summary>
+    /// Renders the canonical string form, e.g. <c>"bigint"</c>, <c>"varchar(255)"</c>, <c>"app.order_status"</c>.
     /// </summary>
     public override string ToString()
     {
+        var qualified = Schema is { } schema ? $"{schema}.{Name}" : Name;
+
         if (Precision is { } precision)
         {
-            return $"{Name}({precision},{Scale})";
+            return $"{qualified}({precision},{Scale})";
         }
 
         if (Length is { } length)
         {
-            return $"{Name}({length})";
+            return $"{qualified}({length})";
         }
 
-        return Name;
+        return qualified;
     }
 
     /// <summary>
-    /// Parses a SQL type from its canonical string representation, as produced by <see cref="ToString"/>.
-    /// An unrecognized name is preserved verbatim as a <see cref="Custom"/> type.
+    /// Parses a built-in SQL type from its canonical string form, normalizing dialect spellings (e.g.
+    /// <c>int4</c> to <c>int</c>). An unrecognized name is preserved verbatim as a <see cref="Custom(string)"/> type.
     /// </summary>
+    /// <remarks>
+    /// The input is an unqualified type expression — a schema qualifier is a structural component
+    /// (<see cref="Schema"/>), set via <see cref="Custom(SqlIdentifier, string)"/> when projecting a parsed
+    /// type, not recovered by splitting a string here.
+    /// </remarks>
     public static SqlType Parse(string value)
     {
         var (name, args) = Tokenize(value);

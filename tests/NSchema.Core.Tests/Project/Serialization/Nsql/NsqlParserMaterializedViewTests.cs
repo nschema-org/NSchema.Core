@@ -16,9 +16,9 @@ public sealed class NsqlParserMaterializedViewTests
     public void Parse_MaterializedView_SetsFlag()
     {
         var view = ParseView("CREATE MATERIALIZED VIEW app.daily AS SELECT 1;");
-        ShouldlyIdentifierExtensions.ShouldBe(view.Name, "daily");
+        view.Name.ShouldBe("daily");
         view.IsMaterialized.ShouldBeTrue();
-        ShouldlyIdentifierExtensions.ShouldBe(view.Body, "SELECT 1");
+        view.Body.ShouldBe("SELECT 1");
     }
 
     [Fact]
@@ -31,7 +31,7 @@ public sealed class NsqlParserMaterializedViewTests
         var view = ParseView(
             "CREATE MATERIALIZED VIEW app.daily AS SELECT date FROM app.t; CREATE INDEX daily_ix ON app.daily (date);");
         var index = view.Indexes.ShouldHaveSingleItem();
-        ShouldlyIdentifierExtensions.ShouldBe(index.Name, "daily_ix");
+        index.Name.ShouldBe("daily_ix");
         index.Columns.Select(c => c.Column?.Value).ShouldBe(["date"]);
         index.IsUnique.ShouldBeFalse();
     }
@@ -43,14 +43,14 @@ public sealed class NsqlParserMaterializedViewTests
             "CREATE MATERIALIZED VIEW app.daily AS SELECT date FROM app.t; " +
             "CREATE UNIQUE INDEX daily_ix ON app.daily (date) WHERE (date IS NOT NULL);").Indexes.ShouldHaveSingleItem();
         index.IsUnique.ShouldBeTrue();
-        ShouldlyIdentifierExtensions.ShouldBe(index.Predicate, "date IS NOT NULL");
+        index.Predicate.ShouldBe("date IS NOT NULL");
     }
 
     [Fact]
     public void Parse_IndexBeforeItsMaterializedView_StillAttaches()
         // Build-time resolution: the index may be declared before the matview it targets.
-        => ShouldlyIdentifierExtensions.ShouldBe(ParseView("CREATE INDEX daily_ix ON app.daily (x); CREATE MATERIALIZED VIEW app.daily AS SELECT x FROM app.t;")
-                .Indexes.ShouldHaveSingleItem().Name, "daily_ix");
+        => ParseView("CREATE INDEX daily_ix ON app.daily (x); CREATE MATERIALIZED VIEW app.daily AS SELECT x FROM app.t;")
+            .Indexes.ShouldHaveSingleItem().Name.ShouldBe("daily_ix");
 
     [Fact]
     public void Parse_IndexOnPlainView_FailsTheRead()
@@ -71,8 +71,8 @@ public sealed class NsqlParserMaterializedViewTests
 
     [Fact]
     public void Parse_DropMaterializedView_BecomesAViewDropDirective()
-        => ShouldlyIdentifierExtensions.ShouldBe(Directives("CREATE SCHEMA app; DROP MATERIALIZED VIEW app.daily;")
-            .Views.Drops.ShouldHaveSingleItem().Name, "daily");
+        => Directives("CREATE SCHEMA app; DROP MATERIALIZED VIEW app.daily;")
+            .Views.Drops.ShouldHaveSingleItem().Name.ShouldBe("daily");
 
     private static NSchema.Project.Domain.Models.ProjectDirectives Directives(string source)
     {

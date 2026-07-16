@@ -10,7 +10,7 @@ public sealed record ImportArguments
     /// <summary>
     /// The schema namespaces to import. When <see langword="null"/>, all namespaces are imported.
     /// </summary>
-    public DatabaseScope Scope { get; init; } = DatabaseScope.All;
+    public PlanningScope Scope { get; init; } = PlanningScope.All;
 
     /// <summary>
     /// The root directory to write the imported schema into. Defaults to the current directory.

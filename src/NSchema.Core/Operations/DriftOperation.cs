@@ -22,7 +22,7 @@ internal sealed class DriftOperation(IDatabaseProvider provider, IDatabaseStateM
             return Result.Failure<DriftResult>(recorded.Diagnostics);
         }
         // Before anything is recorded, drift measures against nothing.
-        var recordedSchema = args.Scope.Apply((recordedState.State ?? DatabaseState.Empty).Database);
+        var recordedSchema = (recordedState.State ?? DatabaseState.Empty).Database.ScopedTo(args.Scope);
 
         progress.Report(OperationProgress.Step("Reading live database..."));
         var live = await provider.GetDatabase(args.Scope, cancellationToken);

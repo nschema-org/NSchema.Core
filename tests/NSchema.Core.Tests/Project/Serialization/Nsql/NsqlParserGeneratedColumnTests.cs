@@ -14,8 +14,8 @@ public sealed class NsqlParserGeneratedColumnTests
 
     [Fact]
     public void Parse_Generated_CapturesExpression()
-        => ShouldlyIdentifierExtensions.ShouldBe(ParseColumn("full_name text GENERATED ALWAYS AS (first || ' ' || last) STORED")
-                .GeneratedExpression, "first || ' ' || last");
+        => ParseColumn("full_name text GENERATED ALWAYS AS (first || ' ' || last) STORED")
+            .GeneratedExpression.ShouldBe("first || ' ' || last");
 
     [Fact]
     public void Parse_PlainColumn_HasNoGeneration()
@@ -26,7 +26,7 @@ public sealed class NsqlParserGeneratedColumnTests
     {
         var column = ParseColumn("area int NOT NULL GENERATED ALWAYS AS (w * h) STORED");
         column.IsNullable.ShouldBeFalse();
-        ShouldlyIdentifierExtensions.ShouldBe(column.GeneratedExpression, "w * h");
+        column.GeneratedExpression.ShouldBe("w * h");
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public sealed class NsqlParserGeneratedColumnTests
         var schema = new TestNsqlParser("CREATE TABLE app.t (w int, h int, area int GENERATED ALWAYS AS (w * h) STORED);").Parse().Database;
         var column = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Database
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Columns.Last();
-        ShouldlyIdentifierExtensions.ShouldBe(column.Name, "area");
-        ShouldlyIdentifierExtensions.ShouldBe(column.GeneratedExpression, "w * h");
+        column.Name.ShouldBe("area");
+        column.GeneratedExpression.ShouldBe("w * h");
     }
 }

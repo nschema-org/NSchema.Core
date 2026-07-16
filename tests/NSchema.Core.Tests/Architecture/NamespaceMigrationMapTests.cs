@@ -54,27 +54,27 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchemaApplication)] = Root,
         [typeof(NSchemaApplicationBuilder)] = Root,
         [typeof(NSchemaApplicationOptions)] = Root,
-        [typeof(NSchema.Result)] = Root,
-        [typeof(NSchema.Result<>)] = Root,
-        [typeof(NSchema.Result<,>)] = Root, // the diagnostic-typed result — folds upward as Result<T> without translation
-        [typeof(NSchema.Diagnostic)] = Root,
-        [typeof(NSchema.DiagnosticSeverity)] = Root,
+        [typeof(Result)] = Root,
+        [typeof(Result<>)] = Root,
+        [typeof(Result<,>)] = Root, // the diagnostic-typed result — folds upward as Result<T> without translation
+        [typeof(Diagnostic)] = Root,
+        [typeof(DiagnosticSeverity)] = Root,
         [typeof(PolicyEnforcement)] = Root, // absorbed DestructiveActionPolicy
 
         // ── ProjectDefinition: the declared desired state — seam and messages at the cluster root. ──
         [typeof(NSchema.Project.IProjectProvider)] = ProjectRoot,
-        [typeof(NSchema.Project.Domain.Models.ProjectDefinition)] = ProjectModels, // the project aggregate — raw domain vocabulary the provider returns (the DatabaseState parallel), not a seam-shaped message
-        [typeof(NSchema.Model.DatabaseScope)] = Model,
-        [typeof(NSchema.Model.ValueObject<>)] = Model, // the single-value primitive base — value equality, renders as its value
-        [typeof(NSchema.Model.SqlIdentifier)] = Model, // the identifier vocabulary primitive — case-insensitive equality baked in, shared by every lane
-        [typeof(NSchema.Model.SqlText)] = Model, // the opaque-SQL vocabulary primitive — verbatim foreign SQL, ordinal equality (data)
-        [typeof(NSchema.Model.Address)] = Model, // the address base — shaped by containment, carrying neither kind nor name-space (both engine-specific)
-        [typeof(NSchema.Model.ObjectReference)] = Model, // the address of a schema-level object — always fully qualified
+        [typeof(ProjectDefinition)] = ProjectModels, // the project aggregate — raw domain vocabulary the provider returns (the DatabaseState parallel), not a seam-shaped message
+        [typeof(Model.PlanningScope)] = Model,
+        [typeof(Model.ValueObject<>)] = Model, // the single-value primitive base — value equality, renders as its value
+        [typeof(Model.SqlIdentifier)] = Model, // the identifier vocabulary primitive — case-insensitive equality baked in, shared by every lane
+        [typeof(Model.SqlText)] = Model, // the opaque-SQL vocabulary primitive — verbatim foreign SQL, ordinal equality (data)
+        [typeof(Model.Address)] = Model, // the address base — shaped by containment, carrying neither kind nor name-space (both engine-specific)
+        [typeof(Model.ObjectReference)] = Model, // the address of a schema-level object — always fully qualified
         [typeof(RoutineReference)] = Model + ".Routines", // a routine reference as written — unqualified resolves via the engine's search path; homed with the routines it names, now the dependency graph resolves them too
 
         // ── Current: the source the project is diffed against — observed live, or recorded. ──
-        [typeof(NSchema.Deployment.IDatabaseProvider)] = DeploymentRoot,
-        [typeof(NSchema.Deployment.Backends.IDatabaseIntrospector)] = DeploymentBackends,
+        [typeof(Deployment.IDatabaseProvider)] = DeploymentRoot,
+        [typeof(Deployment.Backends.IDatabaseIntrospector)] = DeploymentBackends,
 
         // ── ProjectDefinition.Nsql: the project language — machinery, documents, and the full syntax tree. ──
         [typeof(NSchema.Project.Nsql.NsqlWriter)] = ProjectNsql, // domain → syntax → text; SyntaxBuilder is its first half
@@ -176,14 +176,14 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Project.Policies.IProjectPolicy)] = ProjectPolicies,
 
         // ── ProjectDefinition.Domain.Models: the shared pipeline vocabulary (the schema tree + the script models). ──
-        [typeof(NSchema.Model.Database)] = Model,
-        [typeof(NSchema.Model.INamedObject)] = Model,
+        [typeof(Model.Database)] = Model,
+        [typeof(Model.INamedObject)] = Model,
         // Addresses and the directive vocabulary (cross-kind shapes at the root, slices per subject).
-        [typeof(NSchema.Model.MemberReference)] = Model,
-        [typeof(NSchema.Project.Domain.Models.ProjectDirectives)] = ProjectModels,
+        [typeof(Model.MemberReference)] = Model,
+        [typeof(ProjectDirectives)] = ProjectModels,
         [typeof(SchemaRenameDirective)] = ProjectModels, // the directives are one vocabulary, kept together rather than mirrored per-kind against the kernel
-        [typeof(NSchema.Project.Domain.Models.ObjectRenameDirective)] = ProjectModels,
-        [typeof(NSchema.Project.Domain.Models.MemberRenameDirective)] = ProjectModels,
+        [typeof(ObjectRenameDirective)] = ProjectModels,
+        [typeof(MemberRenameDirective)] = ProjectModels,
         [typeof(SchemaDirectives)] = ProjectModels,
         [typeof(TableDirectives)] = ProjectModels,
         [typeof(ViewDirectives)] = ProjectModels,
@@ -193,48 +193,48 @@ public sealed class NamespaceMigrationMapTests
         [typeof(DomainDirectives)] = ProjectModels,
         [typeof(CompositeTypeDirectives)] = ProjectModels,
         [typeof(ExtensionDirectives)] = ProjectModels,
-        [typeof(NSchema.Model.Columns.Column)] = Model + ".Columns",
-        [typeof(NSchema.Model.Columns.IdentityOptions)] = Model + ".Columns",
-        [typeof(NSchema.Model.Columns.SqlType)] = Model + ".Columns",
-        [typeof(NSchema.Model.CompositeTypes.CompositeField)] = Model + ".CompositeTypes",
-        [typeof(NSchema.Model.CompositeTypes.CompositeType)] = Model + ".CompositeTypes",
-        [typeof(NSchema.Model.Constraints.CheckConstraint)] = Model + ".Constraints",
-        [typeof(NSchema.Model.Constraints.ExclusionConstraint)] = Model + ".Constraints",
-        [typeof(NSchema.Model.Constraints.ExclusionElement)] = Model + ".Constraints",
-        [typeof(NSchema.Model.Constraints.UniqueConstraint)] = Model + ".Constraints",
-        [typeof(NSchema.Model.Domains.DomainType)] = Model + ".Domains",
-        [typeof(NSchema.Model.Enums.EnumType)] = Model + ".Enums",
-        [typeof(NSchema.Model.Extensions.Extension)] = Model + ".Extensions",
-        [typeof(NSchema.Model.Indexes.IndexColumn)] = Model + ".Indexes",
-        [typeof(NSchema.Model.Indexes.IndexNulls)] = Model + ".Indexes",
-        [typeof(NSchema.Model.Indexes.IndexSort)] = Model + ".Indexes",
-        [typeof(NSchema.Model.Indexes.TableIndex)] = Model + ".Indexes",
-        [typeof(NSchema.Model.Routines.Routine)] = Model + ".Routines",
-        [typeof(NSchema.Model.Routines.RoutineKind)] = Model + ".Routines",
-        [typeof(NSchema.Model.Schemas.Schema)] = Model + ".Schemas",
-        [typeof(NSchema.Model.Schemas.SchemaGrant)] = Model + ".Schemas",
-        [typeof(NSchema.Model.Sequences.Sequence)] = Model + ".Sequences",
-        [typeof(NSchema.Model.Sequences.SequenceOptions)] = Model + ".Sequences",
-        [typeof(NSchema.Model.Tables.ForeignKey)] = Model + ".Tables",
-        [typeof(NSchema.Model.Tables.PrimaryKey)] = Model + ".Tables",
-        [typeof(NSchema.Model.Tables.ReferentialAction)] = Model + ".Tables",
-        [typeof(NSchema.Model.Tables.Table)] = Model + ".Tables",
-        [typeof(NSchema.Model.Tables.TableGrant)] = Model + ".Tables",
-        [typeof(NSchema.Model.Tables.TablePrivilege)] = Model + ".Tables",
-        [typeof(NSchema.Model.Triggers.Trigger)] = Model + ".Triggers",
-        [typeof(NSchema.Model.Triggers.TriggerEvent)] = Model + ".Triggers",
-        [typeof(NSchema.Model.Triggers.TriggerLevel)] = Model + ".Triggers",
-        [typeof(NSchema.Model.Triggers.TriggerTiming)] = Model + ".Triggers",
-        [typeof(NSchema.Model.Views.View)] = Model + ".Views",
-        [typeof(NSchema.Model.Views.ViewDependency)] = Model + ".Views",
+        [typeof(Model.Columns.Column)] = Model + ".Columns",
+        [typeof(Model.Columns.IdentityOptions)] = Model + ".Columns",
+        [typeof(Model.Columns.SqlType)] = Model + ".Columns",
+        [typeof(Model.CompositeTypes.CompositeField)] = Model + ".CompositeTypes",
+        [typeof(Model.CompositeTypes.CompositeType)] = Model + ".CompositeTypes",
+        [typeof(Model.Constraints.CheckConstraint)] = Model + ".Constraints",
+        [typeof(Model.Constraints.ExclusionConstraint)] = Model + ".Constraints",
+        [typeof(Model.Constraints.ExclusionElement)] = Model + ".Constraints",
+        [typeof(Model.Constraints.UniqueConstraint)] = Model + ".Constraints",
+        [typeof(Model.Domains.DomainType)] = Model + ".Domains",
+        [typeof(Model.Enums.EnumType)] = Model + ".Enums",
+        [typeof(Model.Extensions.Extension)] = Model + ".Extensions",
+        [typeof(Model.Indexes.IndexColumn)] = Model + ".Indexes",
+        [typeof(Model.Indexes.IndexNulls)] = Model + ".Indexes",
+        [typeof(Model.Indexes.IndexSort)] = Model + ".Indexes",
+        [typeof(Model.Indexes.TableIndex)] = Model + ".Indexes",
+        [typeof(Routine)] = Model + ".Routines",
+        [typeof(RoutineKind)] = Model + ".Routines",
+        [typeof(Model.Schemas.Schema)] = Model + ".Schemas",
+        [typeof(Model.Schemas.SchemaGrant)] = Model + ".Schemas",
+        [typeof(Model.Sequences.Sequence)] = Model + ".Sequences",
+        [typeof(Model.Sequences.SequenceOptions)] = Model + ".Sequences",
+        [typeof(Model.Tables.ForeignKey)] = Model + ".Tables",
+        [typeof(Model.Tables.PrimaryKey)] = Model + ".Tables",
+        [typeof(Model.Tables.ReferentialAction)] = Model + ".Tables",
+        [typeof(Model.Tables.Table)] = Model + ".Tables",
+        [typeof(Model.Tables.TableGrant)] = Model + ".Tables",
+        [typeof(Model.Tables.TablePrivilege)] = Model + ".Tables",
+        [typeof(Model.Triggers.Trigger)] = Model + ".Triggers",
+        [typeof(Model.Triggers.TriggerEvent)] = Model + ".Triggers",
+        [typeof(Model.Triggers.TriggerLevel)] = Model + ".Triggers",
+        [typeof(Model.Triggers.TriggerTiming)] = Model + ".Triggers",
+        [typeof(Model.Views.View)] = Model + ".Views",
+        [typeof(Model.Views.ViewDependency)] = Model + ".Views",
         // The script model: an abstract Script with two concrete kinds — ChangeScript and DeploymentScript.
-        [typeof(NSchema.Model.Scripts.Script)] = Model + ".Scripts",
-        [typeof(NSchema.Model.Scripts.ChangeScript)] = Model + ".Scripts",
-        [typeof(NSchema.Model.Scripts.DeploymentScript)] = Model + ".Scripts",
-        [typeof(NSchema.Model.Scripts.ScriptReference)] = Model + ".Scripts",
-        [typeof(NSchema.Model.Scripts.RunCondition)] = Model + ".Scripts",
-        [typeof(NSchema.Model.Scripts.DeploymentPhase)] = Model + ".Scripts",
-        [typeof(NSchema.Model.Scripts.ChangeTrigger)] = Model + ".Scripts",
+        [typeof(Model.Scripts.Script)] = Model + ".Scripts",
+        [typeof(Model.Scripts.ChangeScript)] = Model + ".Scripts",
+        [typeof(Model.Scripts.DeploymentScript)] = Model + ".Scripts",
+        [typeof(Model.Scripts.ScriptReference)] = Model + ".Scripts",
+        [typeof(Model.Scripts.RunCondition)] = Model + ".Scripts",
+        [typeof(Model.Scripts.DeploymentPhase)] = Model + ".Scripts",
+        [typeof(Model.Scripts.ChangeTrigger)] = Model + ".Scripts",
 
         // ── Diff: root = reader + presentation read model; tree in Domain.Models. ──
         [typeof(NSchema.Diff.Reader.DiffReader)] = DiffReaderNs,
@@ -358,7 +358,7 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Plan.PlanFile.PlanFileEnvelope)] = PlanFile, // likely thins once the single artifact lands
 
         // ── Apply: plan execution. ──
-        [typeof(NSchema.Apply.TransactionMode)] = Apply,
+        [typeof(Apply.TransactionMode)] = Apply,
 
         // ── Current.Locks: guards the shared record against concurrent runs. ──
         [typeof(NSchema.State.Locks.IStateLockManager)] = StateLocks,
@@ -388,33 +388,33 @@ public sealed class NamespaceMigrationMapTests
 
         // ── Operations: one seam, one vocabulary — publics flatten to the root. ──
         [typeof(INSchemaOperations)] = Operations,
-        [typeof(NSchema.Operations.PlanArguments)] = Operations,
-        [typeof(NSchema.Operations.PlanResult)] = Operations,
-        [typeof(NSchema.Operations.PlanTarget)] = Operations,
-        [typeof(NSchema.Operations.ApplyArguments)] = Operations,
-        [typeof(NSchema.Operations.ApplyResult)] = Operations,
-        [typeof(NSchema.Operations.RefreshArguments)] = Operations,
-        [typeof(NSchema.Operations.RefreshResult)] = Operations,
-        [typeof(NSchema.Operations.ValidateArguments)] = Operations,
-        [typeof(NSchema.Operations.ValidateResult)] = Operations,
-        [typeof(NSchema.Operations.DriftArguments)] = Operations,
-        [typeof(NSchema.Operations.DriftResult)] = Operations,
-        [typeof(NSchema.Operations.ImportArguments)] = Operations,
-        [typeof(NSchema.Operations.ImportResult)] = Operations,
-        [typeof(NSchema.Operations.DoctorArguments)] = Operations,
-        [typeof(NSchema.Operations.DoctorResult)] = Operations,
+        [typeof(PlanArguments)] = Operations,
+        [typeof(PlanResult)] = Operations,
+        [typeof(PlanTarget)] = Operations,
+        [typeof(ApplyArguments)] = Operations,
+        [typeof(ApplyResult)] = Operations,
+        [typeof(RefreshArguments)] = Operations,
+        [typeof(RefreshResult)] = Operations,
+        [typeof(ValidateArguments)] = Operations,
+        [typeof(ValidateResult)] = Operations,
+        [typeof(DriftArguments)] = Operations,
+        [typeof(DriftResult)] = Operations,
+        [typeof(ImportArguments)] = Operations,
+        [typeof(ImportResult)] = Operations,
+        [typeof(DoctorArguments)] = Operations,
+        [typeof(DoctorResult)] = Operations,
         [typeof(OperationProgress)] = OperationsProgress,
         [typeof(ProgressLevel)] = OperationsProgress,
 
         // ── Plugins: the host ↔ plugin-author contract. ──
-        [typeof(NSchema.Plugins.INSchemaPlugin)] = Plugins,
-        [typeof(NSchema.Plugins.INSchemaProviderPlugin)] = Plugins,
-        [typeof(NSchema.Plugins.INSchemaBackendPlugin)] = Plugins,
-        [typeof(NSchema.Plugins.ScaffoldContext)] = Plugins,
+        [typeof(Plugins.INSchemaPlugin)] = Plugins,
+        [typeof(Plugins.INSchemaProviderPlugin)] = Plugins,
+        [typeof(Plugins.INSchemaBackendPlugin)] = Plugins,
+        [typeof(Plugins.ScaffoldContext)] = Plugins,
         // Config settings records: the plugin seam's message (the syntax-node side stays in Project.Nsql).
-        [typeof(NSchema.Plugins.ConfigValue)] = Plugins, // the settings scalar — moved with the plugin payload at the config lane split
-        [typeof(NSchema.Plugins.ConfigValueKind)] = Plugins,
-        [typeof(NSchema.Plugins.PluginSettings)] = Plugins, // the statement's translated payload — replaced ConfigBlock on the plugin seam
+        [typeof(Plugins.ConfigValue)] = Plugins, // the settings scalar — moved with the plugin payload at the config lane split
+        [typeof(Plugins.ConfigValueKind)] = Plugins,
+        [typeof(Plugins.PluginSettings)] = Plugins, // the statement's translated payload — replaced ConfigBlock on the plugin seam
     };
 
     [Fact]

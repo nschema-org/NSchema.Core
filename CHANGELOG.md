@@ -37,6 +37,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **`IDatabaseIntrospector` replaces `ISchemaProvider`.** More honest about what it does now that the interface doesn't serve both the current and desired sides, and named for what it returns.
 - **Plugin `Configure` returns `Result`.** Configuration errors are diagnostics like everything else.
 - **Opaque SQL is `SqlText` now.** Every schema-model field carrying SQL that NSchema stores verbatim but does not interpret is typed `SqlText` instead of `string`.
+- **A qualified type's schema is a component now.** `SqlType` carries the schema of a user-defined type (e.g. `app` in `app.order_status`) as a structural `Schema` property rather than folded into its nam.
 - **`PolicyEnforcement` absorbs `DestructiveActionPolicy`.** `WithDestructiveActionPolicy` takes the shared enum, gaining `Ignore`.
 - **The state ledger field is `scripts` now.** Pre-5.0 `executedScripts` payloads read as an empty ledger. Refresh (or untaint) existing state under the state-format compatibility policy's major-version rules.
 - **Configuration lives in configuration files.** DATABASE and STATE statements now parse under their own grammar. A configuration file holds only configuration statements, and vice versa.

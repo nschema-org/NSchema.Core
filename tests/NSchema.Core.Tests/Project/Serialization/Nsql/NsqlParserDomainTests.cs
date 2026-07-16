@@ -17,7 +17,7 @@ public sealed class NsqlParserDomainTests
     public void Parse_SimpleDomain_CapturesNameAndType()
     {
         var domain = ParseDomain("CREATE DOMAIN app.typeid AS text;");
-        ShouldlyIdentifierExtensions.ShouldBe(domain.Name, "typeid");
+        domain.Name.ShouldBe("typeid");
         domain.DataType.ShouldBe(SqlType.Text);
         domain.NotNull.ShouldBeFalse();
         domain.Default.ShouldBeNull();
@@ -30,14 +30,14 @@ public sealed class NsqlParserDomainTests
 
     [Fact]
     public void Parse_Default_IsCapturedVerbatim()
-        => ShouldlyIdentifierExtensions.ShouldBe(ParseDomain("CREATE DOMAIN app.d AS text DEFAULT 'n/a';").Default, "'n/a'");
+        => ParseDomain("CREATE DOMAIN app.d AS text DEFAULT 'n/a';").Default.ShouldBe("'n/a'");
 
     [Fact]
     public void Parse_Check_IsCaptured()
     {
         var check = ParseDomain("CREATE DOMAIN app.d AS text CONSTRAINT d_chk CHECK (VALUE <> '');").Checks.ShouldHaveSingleItem();
-        ShouldlyIdentifierExtensions.ShouldBe(check.Name, "d_chk");
-        ShouldlyIdentifierExtensions.ShouldBe(check.Expression, "VALUE <> ''");
+        check.Name.ShouldBe("d_chk");
+        check.Expression.ShouldBe("VALUE <> ''");
     }
 
     [Fact]
@@ -47,14 +47,14 @@ public sealed class NsqlParserDomainTests
             "CREATE DOMAIN app.email AS text NOT NULL CONSTRAINT email_fmt CHECK (VALUE ~ '@') DEFAULT 'x@y';");
         domain.DataType.ShouldBe(SqlType.Text);
         domain.NotNull.ShouldBeTrue();
-        ShouldlyIdentifierExtensions.ShouldBe(domain.Checks.ShouldHaveSingleItem().Name, "email_fmt");
-        ShouldlyIdentifierExtensions.ShouldBe(domain.Default, "'x@y'");
+        domain.Checks.ShouldHaveSingleItem().Name.ShouldBe("email_fmt");
+        domain.Default.ShouldBe("'x@y'");
     }
 
     [Fact]
     public void Parse_RenameDomain_BecomesADirective()
-        => ShouldlyIdentifierExtensions.ShouldBe(Directives("CREATE SCHEMA app; CREATE DOMAIN app.typeid AS text; RENAME DOMAIN app.legacy_id TO typeid;")
-            .Domains.Renames.ShouldHaveSingleItem().From.Name, "legacy_id");
+        => Directives("CREATE SCHEMA app; CREATE DOMAIN app.typeid AS text; RENAME DOMAIN app.legacy_id TO typeid;")
+            .Domains.Renames.ShouldHaveSingleItem().From.Name.ShouldBe("legacy_id");
 
     [Fact]
     public void Parse_WithDocComment_AttachesComment()
@@ -62,8 +62,8 @@ public sealed class NsqlParserDomainTests
 
     [Fact]
     public void Parse_DropDomain_BecomesADirective()
-        => ShouldlyIdentifierExtensions.ShouldBe(Directives("CREATE SCHEMA app; DROP DOMAIN app.typeid;")
-            .Domains.Drops.ShouldHaveSingleItem().Name, "typeid");
+        => Directives("CREATE SCHEMA app; DROP DOMAIN app.typeid;")
+            .Domains.Drops.ShouldHaveSingleItem().Name.ShouldBe("typeid");
 
     [Fact]
     public void Parse_DuplicateDomain_FailsTheRead()
@@ -83,7 +83,7 @@ public sealed class NsqlParserDomainTests
 
     private static NSchema.Project.Domain.Models.ProjectDirectives Directives(string source)
     {
-        var read = NSchema.Project.Nsql.NsqlReader.Read(source);
+        var read = NsqlReader.Read(source);
         read.IsSuccess.ShouldBeTrue();
         return NSchema.Project.ProjectAssembler.Assemble([read.Value]).Value!.Directives;
     }

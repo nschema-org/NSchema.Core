@@ -21,14 +21,14 @@ public sealed class PlanOperationTests
 
     public PlanOperationTests()
     {
-        _workflow.ComputePlan(Arg.Any<PlanTarget>(), Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>())
+        _workflow.ComputePlan(Arg.Any<PlanTarget>(), Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(_plan));
 
         _sut = new PlanOperation(_workflow, _planFile);
     }
 
-    private static PlanArguments Args(PlanTarget target = PlanTarget.Project, DatabaseScope? scope = null, string? outFile = null) =>
-        new() { Target = target, Scope = scope ?? DatabaseScope.All, OutFile = outFile };
+    private static PlanArguments Args(PlanTarget target = PlanTarget.Project, PlanningScope? scope = null, string? outFile = null) =>
+        new() { Target = target, Scope = scope ?? PlanningScope.All, OutFile = outFile };
 
     [Theory]
     [InlineData(PlanTarget.Project)]
@@ -39,31 +39,31 @@ public sealed class PlanOperationTests
         await _sut.Execute(Args(target), TestContext.Current.CancellationToken);
 
         // Assert
-        await _workflow.Received(1).ComputePlan(target, Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>());
+        await _workflow.Received(1).ComputePlan(target, Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Execute_ForwardsScopeToComputePlan()
     {
         // Act
-        await _sut.Execute(Args(scope: DatabaseScope.Of(new SqlIdentifier("app"), new SqlIdentifier("legacy"))), TestContext.Current.CancellationToken);
+        await _sut.Execute(Args(scope: PlanningScope.Of(new SqlIdentifier("app"), new SqlIdentifier("legacy"))), TestContext.Current.CancellationToken);
 
         // Assert
         await _workflow.Received(1).ComputePlan(
             Arg.Any<PlanTarget>(),
-            Arg.Is<DatabaseScope>(s => !s!.IsAll && s.Includes(new SqlIdentifier("app")) && s.Includes(new SqlIdentifier("legacy"))), Arg.Any<CancellationToken>());
+            Arg.Is<PlanningScope>(s => !s!.IsAll && s.Includes(new SqlIdentifier("app")) && s.Includes(new SqlIdentifier("legacy"))), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Execute_Teardown_ForwardsScopeToComputePlan()
     {
         // Act — scoping is no longer special-cased: a teardown narrows like any other plan.
-        await _sut.Execute(Args(PlanTarget.Empty, scope: DatabaseScope.Of(new SqlIdentifier("app"))), TestContext.Current.CancellationToken);
+        await _sut.Execute(Args(PlanTarget.Empty, scope: PlanningScope.Of(new SqlIdentifier("app"))), TestContext.Current.CancellationToken);
 
         // Assert
         await _workflow.Received(1).ComputePlan(
             PlanTarget.Empty,
-            Arg.Is<DatabaseScope>(s => !s!.IsAll && s.Includes(new SqlIdentifier("app"))), Arg.Any<CancellationToken>());
+            Arg.Is<PlanningScope>(s => !s!.IsAll && s.Includes(new SqlIdentifier("app"))), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public sealed class PlanOperationTests
     {
         // Arrange — a policy blocks the plan; the failure still carries the full artifact so the offending
         // change (and its SQL) stays visible.
-        _workflow.ComputePlan(Arg.Any<PlanTarget>(), Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>())
+        _workflow.ComputePlan(Arg.Any<PlanTarget>(), Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.From(_plan, [Diagnostic.Error("destructive", "drops table")]));
 
         // Act
@@ -113,7 +113,7 @@ public sealed class PlanOperationTests
     {
         // Arrange — the file is a review artifact, not a bypass: apply enforces the policies again against the
         // carried diff, so writing a blocked plan is safe and the failing result reports the block.
-        _workflow.ComputePlan(Arg.Any<PlanTarget>(), Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>())
+        _workflow.ComputePlan(Arg.Any<PlanTarget>(), Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.From(_plan, [Diagnostic.Error("destructive", "drops table")]));
 
         // Act
@@ -128,7 +128,7 @@ public sealed class PlanOperationTests
     public async Task Execute_WhenPlanningProducesNoValue_CarriesNoPlan()
     {
         // Arrange — planning could not run at all (e.g. no provider registered).
-        _workflow.ComputePlan(Arg.Any<PlanTarget>(), Arg.Any<DatabaseScope>(), Arg.Any<CancellationToken>())
+        _workflow.ComputePlan(Arg.Any<PlanTarget>(), Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<MigrationPlan>(Diagnostic.Error("plan", "no provider")));
 
         // Act

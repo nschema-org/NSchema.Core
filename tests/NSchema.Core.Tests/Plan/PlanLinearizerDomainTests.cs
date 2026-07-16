@@ -5,6 +5,7 @@ using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Model;
 using NSchema.Model.Columns;
+using NSchema.Model.Constraints;
 using NSchema.Model.Domains;
 using NSchema.Model.Tables;
 using NSchema.Plan.Domain;
@@ -53,7 +54,7 @@ public sealed class PlanLinearizerDomainTests
     {
         var plan = Linearize(new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("d"), ChangeKind.Modify, Checks:
         [
-            new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("new_chk"), new NSchema.Model.Constraints.CheckConstraint(new SqlIdentifier("new_chk"), new SqlText("VALUE > 0"))),
+            new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("new_chk"), new CheckConstraint(new SqlIdentifier("new_chk"), new SqlText("VALUE > 0"))),
             new CheckConstraintDiff(ChangeKind.Remove, new SqlIdentifier("old_chk")),
         ]));
 

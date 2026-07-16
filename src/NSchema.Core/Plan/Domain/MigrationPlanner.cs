@@ -1,3 +1,4 @@
+using NSchema.Model;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Models;
 using NSchema.Plan.Backends;
@@ -27,7 +28,7 @@ internal sealed class MigrationPlanner(
     public Result Validate(ProjectDefinition desired) =>
         Result.From(projectPolicies.SelectMany(p => p.Validate(desired)));
 
-    public Result<MigrationPlan> Plan(CurrentState current, ProjectDefinition desired)
+    public Result<MigrationPlan> Plan(CurrentState current, ProjectDefinition desired, PlanningScope scope)
     {
         if (dialect is null)
         {
@@ -42,7 +43,11 @@ internal sealed class MigrationPlanner(
         // Compare it with the current state.
         var compared = comparer.Compare(current, desired);
         diagnostics.AddRange(compared.Diagnostics);
-        var diff = compared.Require();
+
+        // Compute and scope the resulting diff.
+        var scopeResult = compared.Require().ScopedTo(scope, current.Database);
+        diagnostics.AddRange(scopeResult.Diagnostics);
+        var diff = scopeResult.Require();
 
         var plan = Realize(diff, dialect);
 

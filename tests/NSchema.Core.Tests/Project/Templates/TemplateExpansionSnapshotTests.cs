@@ -47,7 +47,7 @@ public sealed class TemplateExpansionSnapshotTests
             APPLY TEMPLATE outbox IN SCHEMA billing, ordering;
             """;
 
-        var read = NSchema.Project.Nsql.NsqlReader.Read(source);
+        var read = NsqlReader.Read(source);
         read.IsSuccess.ShouldBeTrue();
         var expanded = NSchema.Project.ProjectAssembler.Assemble([read.Value]).Require().Database;
 

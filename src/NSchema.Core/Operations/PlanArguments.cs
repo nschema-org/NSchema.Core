@@ -10,7 +10,7 @@ public sealed record PlanArguments
     /// <summary>
     /// The schemas to scope the plan to. When unrestricted, scope is derived from the schemas under management.
     /// </summary>
-    public DatabaseScope Scope { get; init; } = DatabaseScope.All;
+    public PlanningScope Scope { get; init; } = PlanningScope.All;
 
     /// <summary>
     /// When set, the computed plan is written to this file path so it can be applied later.

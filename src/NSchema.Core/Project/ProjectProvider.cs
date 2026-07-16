@@ -11,7 +11,7 @@ namespace NSchema.Project;
 /// </summary>
 internal sealed class ProjectProvider(IEnumerable<ProjectSource> sources) : IProjectProvider
 {
-    public async ValueTask<Result<ProjectDefinition>> GetProject(DatabaseScope scope, CancellationToken cancellationToken = default)
+    public async ValueTask<Result<ProjectDefinition>> GetProject(PlanningScope scope, CancellationToken cancellationToken = default)
     {
         var sourceList = sources.ToList();
         if (sourceList.Count == 0)
@@ -43,10 +43,11 @@ internal sealed class ProjectProvider(IEnumerable<ProjectSource> sources) : IPro
             }
         }
 
-        var assembled = ProjectAssembler.Assemble(documents);
-        diagnostics.AddRange(assembled.Diagnostics);
+        var project = ProjectAssembler.Assemble(documents);
+        diagnostics.AddRange(project.Diagnostics);
 
-        return Result.From(ProjectScopeFilter.Apply(assembled.Require(), scope), diagnostics);
+        var scopedProject = project.Require().ScopedTo(scope);
+        return Result.From(scopedProject, diagnostics);
     }
 
     private static IEnumerable<string> ResolveFiles(ProjectSource source) => source.Matcher

@@ -77,7 +77,7 @@ internal static class SyntaxBuilder
         foreach (var rename in directives.Tables.ColumnRenames)
         {
             statements.Add(new Syn.Tables.RenameColumnStatement(
-                new Syn.MemberPath(Name(rename.From.Schema), Name(rename.From.Object), Name(rename.From.Member)) { Position = None },
+                new MemberPath(Name(rename.From.Schema), Name(rename.From.Object), Name(rename.From.Member)) { Position = None },
                 Name(rename.To))
             { Position = None });
         }
@@ -355,7 +355,7 @@ internal static class SyntaxBuilder
             {
                 Position = None,
             },
-            ChangeScript change => new Syn.Scripts.ChangeEventClause(Trigger(change.Trigger), new Syn.MemberPath(OptionalIdentifier(change.ScopeSchema), Ident(change.TableName), Ident(change.MemberName)) { Position = None })
+            ChangeScript change => new Syn.Scripts.ChangeEventClause(Trigger(change.Trigger), new MemberPath(OptionalIdentifier(change.ScopeSchema), Ident(change.TableName), Ident(change.MemberName)) { Position = None })
             {
                 Position = None,
             },
@@ -401,18 +401,21 @@ internal static class SyntaxBuilder
     /// </summary>
     private static TypeName Type(SqlType type)
     {
-        var text = type.ToString();
-        string? arguments = null;
-        var paren = text.IndexOf('(');
-        if (paren >= 0)
+        // The type carries its qualifier and arguments as components, so read them straight across — no
+        // rendering to a string and splitting it back apart.
+        var schema = type.Schema is { } qualifier ? new Identifier(qualifier.Value) { Position = None } : null;
+        var arguments = Arguments(type);
+        return new TypeName(schema, new Identifier(type.Name) { Position = None }, arguments) { Position = None };
+    }
+
+    private static string? Arguments(SqlType type)
+    {
+        if (type.Precision is { } precision)
         {
-            arguments = text[(paren + 1)..text.LastIndexOf(')')];
-            text = text[..paren];
+            return $"{precision},{type.Scale}";
         }
-        var dot = text.IndexOf('.');
-        return dot < 0
-            ? new TypeName(null, new Identifier(text) { Position = None }, arguments) { Position = None }
-            : new TypeName(new Identifier(text[..dot]) { Position = None }, new Identifier(text[(dot + 1)..]) { Position = None }, arguments) { Position = None };
+
+        return type.Length is { } length ? length.ToString() : null;
     }
 
     private static Syn.Tables.IdentityOptionsClause? Options(IdentityOptions? options) =>

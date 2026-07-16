@@ -152,22 +152,19 @@ internal static class TemplateExpander
 
     private static SqlType Qualify(SqlType type, HashSet<SqlIdentifier> declaredTypes, SqlIdentifier schemaName)
     {
-        if (type.Name.Contains('.'))
+        if (type.Schema is not null)
         {
             return type; // explicitly qualified — escapes the template
         }
 
-        // A custom type may carry its facets in the name text; only the base name identifies it.
-        var paren = type.Name.IndexOf('(');
-        var baseName = paren < 0 ? type.Name : type.Name[..paren];
-        if (!declaredTypes.Contains(new SqlIdentifier(baseName)))
+        // Only a type the instance itself declares binds to the target schema; a built-in or a type from
+        // elsewhere is left for the engine's search path to resolve.
+        if (!declaredTypes.Contains(new SqlIdentifier(type.Name)))
         {
             return type;
         }
 
-        // A fresh SqlType lower-cases the qualified name through its primary constructor (a with-expression would
-        // bypass that normalization); the facet properties carry over.
-        return new SqlType($"{schemaName}.{type.Name}") { Length = type.Length, Precision = type.Precision, Scale = type.Scale };
+        return type with { Schema = schemaName };
     }
 
     private static Trigger Qualify(Trigger trigger, HashSet<SqlIdentifier> declaredRoutines, SqlIdentifier schemaName)

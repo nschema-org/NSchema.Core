@@ -131,6 +131,52 @@ public sealed class PlanEndToEndTests : IDisposable
     }
 
     [Fact]
+    public async Task Plan_PartialTeardown_SeversWhatItCostsOutsideItsScope()
+    {
+        // A scoped teardown is the one plan that can be asked to remove something another schema depends on.
+        // billing.orders keeps its rows; only the constraint aimed into app goes.
+        var current = new Database(
+        [
+            new Schema(new SqlIdentifier("app"), Tables:
+                [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]),
+            new Schema(new SqlIdentifier("billing"), Tables:
+            [
+                new Table(new SqlIdentifier("orders"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])
+                {
+                    ForeignKeys =
+                    [
+                        new ForeignKey(new SqlIdentifier("fk_orders_user"), [new SqlIdentifier("id")],
+                            new SqlIdentifier("app"), new SqlIdentifier("users"), [new SqlIdentifier("id")]),
+                    ],
+                },
+            ]),
+        ]);
+        var desired = WriteNsql("schema.sql", "CREATE SCHEMA app;");
+
+        using var app = NewBuilder(current).AddProjectSource(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).UseSqlDialect<StubSqlDialect>().Build();
+        (await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+
+        var result = await app.Operations.Plan(
+            new PlanArguments { Target = PlanTarget.Empty, Scope = PlanningScope.Of(new SqlIdentifier("app")) },
+            TestContext.Current.CancellationToken);
+
+        var diff = result.Value.ShouldNotBeNull().Plan.ShouldNotBeNull().Diff;
+
+        // app goes entirely...
+        diff.Schemas.Single(s => s.Name.Value.Equals("app")).Kind.ShouldBe(ChangeKind.Remove);
+
+        // ...and billing is disturbed, but not torn down: the table survives, minus the constraint.
+        var billing = diff.Schemas.Single(s => s.Name.Value.Equals("billing"));
+        billing.Kind.ShouldBeNull();
+        var orders = billing.Tables.ShouldHaveSingleItem();
+        orders.Kind.ShouldBe(ChangeKind.Modify);
+        orders.ForeignKeys.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
+
+        // And the reach outside the scope is announced rather than done quietly.
+        result.Diagnostics.ShouldContain(d => d.Source == "scope" && d.Message.Contains("billing.orders.fk_orders_user"));
+    }
+
+    [Fact]
     public async Task Plan_Teardown_DiffsTheManagedSchemaDownToNothing()
     {
         // The managed schema is the recorded state, so the refresh records the live schema before tearing down.

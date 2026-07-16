@@ -61,7 +61,7 @@ public sealed class NsqlParserExclusionConstraintTests
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().ExclusionConstraints.ShouldHaveSingleItem();
         exclusion.Name.ShouldBe("no_overlap");
         exclusion.Method.ShouldBe("gist");
-        ShouldlyIdentifierExtensions.ShouldBe(exclusion.Predicate, "room > 0");
+        exclusion.Predicate.ShouldBe("room > 0");
         exclusion.Elements.Select(e => (Column: e.Column?.Value, e.Operator)).ShouldBe([("room", "="), ("during", "&&")]);
     }
 }

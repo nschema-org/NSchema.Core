@@ -51,7 +51,7 @@ internal sealed class DoctorOperation(
         try
         {
             // A full introspection is the honest end-to-end probe: it exercises the same path plan/apply rely on.
-            var schema = await online.GetDatabase(DatabaseScope.All, cancellationToken);
+            var schema = await online.GetDatabase(PlanningScope.All, cancellationToken);
             return Diagnostic.Info(source, $"Database: connected ({schema.Schemas.Count} schema{(schema.Schemas.Count == 1 ? "" : "s")} visible).");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -98,13 +98,13 @@ internal sealed class DoctorOperation(
         }
     }
 
-    private async Task<Diagnostic> CheckStateLock(IStateLock stateLock, CancellationToken cancellationToken)
+    private async Task<Diagnostic> CheckStateLock(IStateLock @lock, CancellationToken cancellationToken)
     {
         const string source = "state-lock";
         progress.Report(OperationProgress.Step("Checking state lock..."));
         try
         {
-            var info = await stateLock.Peek(cancellationToken);
+            var info = await @lock.Peek(cancellationToken);
             return info is null
                 ? Diagnostic.Info(source, "State lock: free.")
                 // A held lock is a state, not a misconfiguration — it may be a legitimately-running operation — so

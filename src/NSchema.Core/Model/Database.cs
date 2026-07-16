@@ -22,4 +22,20 @@ public record Database(IReadOnlyList<Schema>? Schemas = null, IReadOnlyList<Exte
     /// database schema rather than inside a <see cref="Schema"/>.
     /// </summary>
     public IReadOnlyList<Extension> Extensions { get; init; } = Extensions ?? [];
+
+    /// <summary>
+    /// Returns a new database model restricted to the current scope.
+    /// </summary>
+    public Database ScopedTo(PlanningScope scope)
+    {
+        // Extensions are database-global, not schema-scoped, so they pass through a namespace filter untouched:
+        // an extension is a prerequisite of the whole database regardless of which schemas are in scope.
+        if (scope.IsAll)
+        {
+            return this;
+        }
+
+        var filtered = Schemas.Where(s => scope.Includes(s.Name)).ToList();
+        return new Database(filtered, Extensions);
+    }
 }

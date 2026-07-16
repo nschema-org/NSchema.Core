@@ -22,33 +22,33 @@ public sealed class DatabaseTests
         [new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("audit")), new Schema(new SqlIdentifier("legacy"))]);
 
     [Fact]
-    public void Filter_RestrictsSchemas()
+    public void ScopedTo_RestrictsSchemas()
     {
-        var result = DatabaseScope.Of(new SqlIdentifier("app")).Apply(Sample());
+        var result = Sample().ScopedTo(PlanningScope.Of(new SqlIdentifier("app")));
 
         result.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
 
     [Fact]
-    public void Filter_IsCaseInsensitive()
+    public void ScopedTo_IsCaseInsensitive()
     {
         var schema = new Database([new Schema(new SqlIdentifier("App"))]);
 
-        var result = DatabaseScope.Of(new SqlIdentifier("app")).Apply(schema);
+        var result = schema.ScopedTo(PlanningScope.Of(new SqlIdentifier("app")));
 
         result.Schemas.Select(s => s.Name).ShouldBe(["App"]);
     }
 
     [Fact]
-    public void Filter_NamesNotPresent_AreIgnored()
+    public void ScopedTo_NamesNotPresent_AreIgnored()
     {
-        var result = DatabaseScope.Of(new SqlIdentifier("app"), new SqlIdentifier("does-not-exist")).Apply(Sample());
+        var result = Sample().ScopedTo(PlanningScope.Of(new SqlIdentifier("app"), new SqlIdentifier("does-not-exist")));
 
         result.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
 
     [Fact]
-    public void Filter_RestrictsDirectivesToInScopeSchemas()
+    public void ScopedTo_RestrictsDirectivesToInScopeSchemas()
     {
         // Directives address current reality, so a schema rename keeps its object directives in scope through
         // either side; unrelated schemas' directives drop out. Extension drops are global and pass through.
@@ -69,7 +69,7 @@ public sealed class DatabaseTests
                     ]),
                 Extensions: new ExtensionDirectives(Drops: [new SqlIdentifier("stale_ext")])));
 
-        var filtered = ProjectScopeFilter.Apply(project, DatabaseScope.Of(core)).Directives;
+        var filtered = project.ScopedTo(PlanningScope.Of(core)).Directives;
 
         filtered.Schemas.Renames.ShouldHaveSingleItem(); // kept — its To side is in scope
         filtered.Schemas.Drops.ShouldBeEmpty();          // scratch is out of scope
@@ -79,19 +79,19 @@ public sealed class DatabaseTests
     }
 
     [Fact]
-    public void Filter_AllScope_ReturnsEverything()
+    public void ScopedTo_AllScope_ReturnsEverything()
     {
         var schema = Sample();
 
-        DatabaseScope.All.Apply(schema).ShouldBe(schema);
+        schema.ScopedTo(PlanningScope.All).ShouldBe(schema);
     }
 
     [Fact]
-    public void Filter_EmptyScope_NormalizesToAll()
+    public void ScopedTo_EmptyScope_NormalizesToAll()
     {
         var schema = Sample();
 
-        DatabaseScope.Of().Apply(schema).ShouldBe(schema);
+        schema.ScopedTo(PlanningScope.Of()).ShouldBe(schema);
     }
 
     // ── Multiple providers, distinct schema names ─────────────────────────────
