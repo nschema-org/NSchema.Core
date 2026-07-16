@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Tables;
 
-namespace NSchema.Diff.Domain.Models.Tables;
+namespace NSchema.Diff.Model.Tables;
 
 /// <summary>
 /// Describes a privilege granted to or revoked from a role.

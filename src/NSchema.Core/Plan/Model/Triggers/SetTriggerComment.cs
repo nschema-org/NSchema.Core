@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Triggers;
+
+namespace NSchema.Plan.Model.Triggers;
 
 /// <summary>
 /// Represents setting, changing, or clearing the comment on a trigger.

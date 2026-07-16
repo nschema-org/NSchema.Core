@@ -1,6 +1,6 @@
 using NSchema.Model.Scripts;
 
-namespace NSchema.State.Domain.Models;
+namespace NSchema.State.Model;
 
 /// <summary>
 /// A recorded script execution.

@@ -1,13 +1,12 @@
-using NSchema.Diff.Domain;
-using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Model;
+using NSchema.Diff.Model.Services;
 using NSchema.Model;
 using NSchema.Plan.Backends;
-using NSchema.Plan.Domain.Models;
 using NSchema.Plan.Policies;
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Model.Directives;
 using NSchema.Project.Policies;
 
-namespace NSchema.Plan.Domain;
+namespace NSchema.Plan.Model.Services;
 
 /// <summary>
 /// Default <see cref="IMigrationPlanner"/>.

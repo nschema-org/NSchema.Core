@@ -1,6 +1,7 @@
-using NSchema.Diff.Domain.Models.Schemas;
+using NSchema.Diff.Model.Schemas;
 using NSchema.Model;
-namespace NSchema.Diff.Domain.Models;
+
+namespace NSchema.Diff.Model;
 
 /// <summary>
 /// The members every schema-level object diff shares. Implemented by the per-kind diff records so kind-agnostic

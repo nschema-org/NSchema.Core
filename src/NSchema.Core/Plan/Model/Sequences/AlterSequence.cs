@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Sequences;
 
-namespace NSchema.Plan.Domain.Models.Sequences;
+namespace NSchema.Plan.Model.Sequences;
 
 /// <summary>
 /// Represents altering the options of an existing sequence.

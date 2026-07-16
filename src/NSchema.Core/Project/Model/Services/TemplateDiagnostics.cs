@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Project.Domain;
+
+namespace NSchema.Project.Model.Services;
 
 /// <summary>
 /// The diagnostics minted while applying templates and resolving includes.

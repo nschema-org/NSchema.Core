@@ -2,7 +2,7 @@ using NSchema.Model;
 using NSchema.Model.Extensions;
 using NSchema.Model.Schemas;
 
-namespace NSchema.Project.Domain;
+namespace NSchema.Project.Model.Services;
 
 /// <summary>
 /// Combines partial database model fragments.

@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Domains;
+
+namespace NSchema.Plan.Model.Domains;
 
 /// <summary>
 /// Represents adding or dropping a domain's not-null requirement (<c>ALTER DOMAIN … SET/DROP NOT NULL</c>).

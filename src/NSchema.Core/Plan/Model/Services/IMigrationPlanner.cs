@@ -1,9 +1,8 @@
-using NSchema.Diff.Domain;
+using NSchema.Diff.Model.Services;
 using NSchema.Model;
-using NSchema.Plan.Domain.Models;
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Model.Directives;
 
-namespace NSchema.Plan.Domain;
+namespace NSchema.Plan.Model.Services;
 
 /// <summary>
 /// Builds a <see cref="MigrationPlan"/> by diffing the desired schema against the current database state.

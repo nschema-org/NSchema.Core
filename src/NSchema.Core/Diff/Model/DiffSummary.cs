@@ -1,4 +1,4 @@
-namespace NSchema.Diff.Domain.Models;
+namespace NSchema.Diff.Model;
 
 /// <summary>
 /// Aggregate counts of the top-level changes in a <see cref="DatabaseDiff"/>. Each changed schema and each

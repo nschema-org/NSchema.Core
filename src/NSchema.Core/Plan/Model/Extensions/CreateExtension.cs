@@ -1,6 +1,6 @@
 using NSchema.Model.Extensions;
 
-namespace NSchema.Plan.Domain.Models.Extensions;
+namespace NSchema.Plan.Model.Extensions;
 
 /// <summary>
 /// Represents the creation of a database extension.

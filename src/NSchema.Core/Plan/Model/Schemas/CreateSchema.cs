@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Schemas;
+
+namespace NSchema.Plan.Model.Schemas;
 
 /// <summary>
 /// Represents the creation of a new schema in the database.

@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Columns;
 
-namespace NSchema.Plan.Domain.Models.Columns;
+namespace NSchema.Plan.Model.Columns;
 
 /// <summary>
 /// Represents the removal of an existing column from a table in the database schema.

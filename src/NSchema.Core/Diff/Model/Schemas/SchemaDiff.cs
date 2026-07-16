@@ -1,12 +1,13 @@
-using NSchema.Diff.Domain.Models.CompositeTypes;
-using NSchema.Diff.Domain.Models.Domains;
-using NSchema.Diff.Domain.Models.Enums;
-using NSchema.Diff.Domain.Models.Routines;
-using NSchema.Diff.Domain.Models.Sequences;
-using NSchema.Diff.Domain.Models.Tables;
-using NSchema.Diff.Domain.Models.Views;
+using NSchema.Diff.Model.CompositeTypes;
+using NSchema.Diff.Model.Domains;
+using NSchema.Diff.Model.Enums;
+using NSchema.Diff.Model.Routines;
+using NSchema.Diff.Model.Sequences;
+using NSchema.Diff.Model.Tables;
+using NSchema.Diff.Model.Views;
 using NSchema.Model;
-namespace NSchema.Diff.Domain.Models.Schemas;
+
+namespace NSchema.Diff.Model.Schemas;
 
 /// <summary>
 /// Describes the changes in a given schema and its tables.

@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Views;
 
-namespace NSchema.Plan.Domain.Models.Views;
+namespace NSchema.Plan.Model.Views;
 
 /// <summary>
 /// Represents the creation (or in-place replacement) of a view.

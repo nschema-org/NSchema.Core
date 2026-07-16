@@ -1,7 +1,7 @@
 using NSchema.Model;
-using NSchema.State.Domain.Models;
+using NSchema.State.Model;
 
-namespace NSchema.Diff.Domain;
+namespace NSchema.Diff.Model.Services;
 
 /// <summary>
 /// Defines what state currently exists in the context of a migration.

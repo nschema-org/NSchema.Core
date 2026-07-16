@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Domains;
+
+namespace NSchema.Plan.Model.Domains;
 
 /// <summary>
 /// Represents setting, changing, or dropping a domain's default expression (<c>ALTER DOMAIN … SET/DROP DEFAULT</c>).

@@ -2,7 +2,7 @@ using NSchema.Model;
 using NSchema.Model.Constraints;
 using NSchema.Model.Scripts;
 
-namespace NSchema.Diff.Domain.Models.Constraints;
+namespace NSchema.Diff.Model.Constraints;
 
 /// <summary>
 /// Describes a change to a table's unique constraint. A changed unique constraint surfaces as a Remove followed by an Add.

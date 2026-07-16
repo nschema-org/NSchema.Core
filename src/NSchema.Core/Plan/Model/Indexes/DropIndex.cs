@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Indexes;
+
+namespace NSchema.Plan.Model.Indexes;
 
 /// <summary>
 /// Represents the removal of an existing index from a table in the database schema.

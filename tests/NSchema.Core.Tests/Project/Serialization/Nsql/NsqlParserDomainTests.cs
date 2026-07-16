@@ -1,5 +1,6 @@
 using NSchema.Model.Columns;
 using NSchema.Model.Domains;
+using NSchema.Project.Model.Directives;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;
@@ -81,7 +82,7 @@ public sealed class NsqlParserDomainTests
             new TestNsqlParser("CREATE SCHEMA app; CREATE DOMAIN app.d AS text WIBBLE;").Parse())
             .Message.ShouldContain("Expected NOT NULL, NULL, CONSTRAINT");
 
-    private static NSchema.Project.Domain.Models.ProjectDirectives Directives(string source)
+    private static ProjectDirectives Directives(string source)
     {
         var read = NsqlReader.Read(source);
         read.IsSuccess.ShouldBeTrue();

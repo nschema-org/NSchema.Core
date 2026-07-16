@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Enums;
 
-namespace NSchema.Plan.Domain.Models.Enums;
+namespace NSchema.Plan.Model.Enums;
 
 /// <summary>
 /// Represents the creation of an enum type.

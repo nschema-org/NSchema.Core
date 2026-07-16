@@ -1,6 +1,6 @@
 using NSchema.Model;
 
-namespace NSchema.Project.Domain;
+namespace NSchema.Project.Model.Services;
 
 /// <summary>
 /// The <c>{schema}</c> substitution token a template script may carry in its SQL body, and the substitution

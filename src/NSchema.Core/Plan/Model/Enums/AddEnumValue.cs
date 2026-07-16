@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Enums;
+
+namespace NSchema.Plan.Model.Enums;
 
 /// <summary>
 /// Represents adding one value to an existing enum type, optionally anchored to a neighbouring value. At most

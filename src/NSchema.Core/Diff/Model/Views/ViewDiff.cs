@@ -1,8 +1,8 @@
-using NSchema.Diff.Domain.Models.Indexes;
+using NSchema.Diff.Model.Indexes;
 using NSchema.Model;
 using NSchema.Model.Views;
 
-namespace NSchema.Diff.Domain.Models.Views;
+namespace NSchema.Diff.Model.Views;
 
 /// <summary>
 /// Describes a change to a view (plain or materialized).

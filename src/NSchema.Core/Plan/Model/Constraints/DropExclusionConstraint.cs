@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Constraints;
+
+namespace NSchema.Plan.Model.Constraints;
 
 /// <summary>
 /// Represents the removal of an existing exclusion constraint from a table in the database schema.

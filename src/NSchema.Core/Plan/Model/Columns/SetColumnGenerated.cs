@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Columns;
+
+namespace NSchema.Plan.Model.Columns;
 
 /// <summary>
 /// Represents changing the stored generation expression of an existing column (adding, dropping, or replacing a

@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Schemas;
+
+namespace NSchema.Plan.Model.Schemas;
 
 /// <summary>
 /// Represents the removal of an existing schema from the database schema.

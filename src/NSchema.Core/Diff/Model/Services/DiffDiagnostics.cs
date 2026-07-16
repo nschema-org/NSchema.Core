@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Scripts;
 
-namespace NSchema.Diff.Domain;
+namespace NSchema.Diff.Model.Services;
 
 /// <summary>
 /// The diagnostics minted while computing the diff.

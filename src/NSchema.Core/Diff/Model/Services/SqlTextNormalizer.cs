@@ -1,7 +1,7 @@
 using System.Text;
 using NSchema.Model;
 
-namespace NSchema.Diff.Domain;
+namespace NSchema.Diff.Model.Services;
 
 /// <summary>
 /// Decides whether two pieces of opaque SQL text — view bodies, routine argument lists and routine

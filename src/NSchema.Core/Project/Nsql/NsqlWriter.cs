@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
 using NSchema.Model;
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Model.Directives;
 using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Tokens;
 using Syn = NSchema.Project.Nsql.Syntax;

@@ -1,9 +1,9 @@
 using NSchema.Deployment;
-using NSchema.Diff.Domain;
+using NSchema.Diff.Model.Services;
 using NSchema.Operations.Progress;
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Model.Directives;
 using NSchema.State;
-using NSchema.State.Domain.Models;
+using NSchema.State.Model;
 
 namespace NSchema.Operations;
 

@@ -1,4 +1,4 @@
-namespace NSchema.Plan.Domain;
+namespace NSchema.Plan.Model.Services;
 
 /// <summary>
 /// The diagnostics minted by the planner.

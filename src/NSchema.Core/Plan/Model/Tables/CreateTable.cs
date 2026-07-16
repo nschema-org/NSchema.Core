@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Tables;
 
-namespace NSchema.Plan.Domain.Models.Tables;
+namespace NSchema.Plan.Model.Tables;
 
 /// <summary>
 /// Represents the creation of a new table in the database schema.

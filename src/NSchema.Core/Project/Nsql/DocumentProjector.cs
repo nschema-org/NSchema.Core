@@ -12,7 +12,7 @@ using NSchema.Model.Sequences;
 using NSchema.Model.Tables;
 using NSchema.Model.Triggers;
 using NSchema.Model.Views;
-using NSchema.Project.Domain;
+using NSchema.Project.Model.Services;
 using Syn = NSchema.Project.Nsql.Syntax;
 
 namespace NSchema.Project.Nsql;

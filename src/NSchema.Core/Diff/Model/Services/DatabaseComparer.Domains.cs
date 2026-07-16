@@ -1,12 +1,11 @@
-using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Domain.Models.Constraints;
-using NSchema.Diff.Domain.Models.Domains;
+using NSchema.Diff.Model.Constraints;
+using NSchema.Diff.Model.Domains;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Domains;
 using NSchema.Model.Schemas;
 
-namespace NSchema.Diff.Domain;
+namespace NSchema.Diff.Model.Services;
 
 internal sealed partial class DatabaseComparer
 {

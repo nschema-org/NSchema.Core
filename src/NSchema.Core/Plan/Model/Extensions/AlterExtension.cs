@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Extensions;
+
+namespace NSchema.Plan.Model.Extensions;
 
 /// <summary>
 /// Represents updating an existing extension to a different version.

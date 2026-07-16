@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Domains;
+
+namespace NSchema.Plan.Model.Domains;
 
 /// <summary>
 /// Represents renaming an existing domain.

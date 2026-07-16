@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Scripts;
 
-namespace NSchema.Project.Domain;
+namespace NSchema.Project.Model.Services;
 
 /// <summary>
 /// The diagnostics minted while reading and aggregating the project.

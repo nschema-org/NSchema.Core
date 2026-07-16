@@ -1,6 +1,6 @@
 using NSchema.Model;
 
-namespace NSchema.Project.Domain.Models;
+namespace NSchema.Project.Model.Directives;
 
 /// <summary>
 /// The management directives declared for views.

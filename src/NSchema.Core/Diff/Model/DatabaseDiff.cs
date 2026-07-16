@@ -1,13 +1,14 @@
-using NSchema.Diff.Domain.Models.Constraints;
-using NSchema.Diff.Domain.Models.Extensions;
-using NSchema.Diff.Domain.Models.Schemas;
-using NSchema.Diff.Domain.Models.Tables;
-using NSchema.Diff.Domain.Models.Views;
+using NSchema.Diff.Model.Constraints;
+using NSchema.Diff.Model.Extensions;
+using NSchema.Diff.Model.Schemas;
+using NSchema.Diff.Model.Services;
+using NSchema.Diff.Model.Tables;
+using NSchema.Diff.Model.Views;
 using NSchema.Model;
 using NSchema.Model.Scripts;
 using NSchema.Model.Services;
 
-namespace NSchema.Diff.Domain.Models;
+namespace NSchema.Diff.Model;
 
 /// <summary>
 /// The complete difference between the current and desired states.

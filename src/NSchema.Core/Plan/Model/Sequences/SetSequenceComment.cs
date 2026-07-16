@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Sequences;
+
+namespace NSchema.Plan.Model.Sequences;
 
 /// <summary>
 /// Represents setting, changing, or clearing the comment on a sequence.

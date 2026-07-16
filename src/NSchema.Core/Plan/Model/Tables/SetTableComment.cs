@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Tables;
+
+namespace NSchema.Plan.Model.Tables;
 
 /// <summary>
 /// Represents the modification of a comment on an existing table in the database schema.

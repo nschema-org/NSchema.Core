@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.CompositeTypes;
 
-namespace NSchema.Plan.Domain.Models.CompositeTypes;
+namespace NSchema.Plan.Model.CompositeTypes;
 
 /// <summary>
 /// Represents the creation of a composite type, with its fields inline.

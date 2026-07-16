@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.CompositeTypes;
+
+namespace NSchema.Plan.Model.CompositeTypes;
 
 /// <summary>
 /// Represents the removal of an existing composite type.

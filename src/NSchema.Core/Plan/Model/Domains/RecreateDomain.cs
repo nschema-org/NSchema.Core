@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Domains;
 
-namespace NSchema.Plan.Domain.Models.Domains;
+namespace NSchema.Plan.Model.Domains;
 
 /// <summary>
 /// Represents dropping and recreating a domain whose base type changed.

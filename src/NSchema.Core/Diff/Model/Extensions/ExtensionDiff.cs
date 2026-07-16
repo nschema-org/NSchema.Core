@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Extensions;
 
-namespace NSchema.Diff.Domain.Models.Extensions;
+namespace NSchema.Diff.Model.Extensions;
 
 /// <summary>
 /// Describes a change to a database extension.

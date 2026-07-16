@@ -1,4 +1,4 @@
-namespace NSchema.Diff.Domain.Models.Enums;
+namespace NSchema.Diff.Model.Enums;
 
 /// <summary>
 /// Describes one value being added to an enum type, anchored to a neighbouring value so the addition lands at

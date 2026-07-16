@@ -1,6 +1,6 @@
 using NSchema.Model.Scripts;
 
-namespace NSchema.Plan.Domain.Models.Scripts;
+namespace NSchema.Plan.Model.Scripts;
 
 /// <summary>
 /// Runs a declared script's raw SQL at its place in the plan.

@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Columns;
+
+namespace NSchema.Plan.Model.Columns;
 
 /// <summary>
 /// Represents the renaming of an existing column in a table in the database schema.

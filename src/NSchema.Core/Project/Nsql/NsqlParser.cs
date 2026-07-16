@@ -1,3 +1,4 @@
+using NSchema.Project.Model.Directives;
 using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Tokens;
 
@@ -5,7 +6,7 @@ namespace NSchema.Project.Nsql;
 
 /// <summary>
 /// Recursive-descent parser for the NSchema language, producing the syntax tree.
-/// The AST is then assembled into a <see cref="NSchema.Project.Domain.Models.ProjectDefinition"/> model.
+/// The AST is then assembled into a <see cref="ProjectDefinition"/> model.
 /// </summary>
 internal sealed partial class NsqlParser
 {

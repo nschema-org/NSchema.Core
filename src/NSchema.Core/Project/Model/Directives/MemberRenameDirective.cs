@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Project.Domain.Models;
+
+namespace NSchema.Project.Model.Directives;
 
 /// <summary>
 /// A table-member rename directive.

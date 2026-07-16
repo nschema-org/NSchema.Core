@@ -12,7 +12,7 @@ using NSchema.Model.Triggers;
 using NSchema.Model.Views;
 using NSchema.Project.Nsql;
 
-namespace NSchema.Project.Domain;
+namespace NSchema.Project.Model.Services;
 
 /// <summary>
 /// Accumulates parsed statements into a <see cref="Database"/>. Schema entries are vivified on demand so

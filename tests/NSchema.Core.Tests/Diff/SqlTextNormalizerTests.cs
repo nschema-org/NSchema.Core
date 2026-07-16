@@ -1,4 +1,4 @@
-using NSchema.Diff.Domain;
+using NSchema.Diff.Model.Services;
 using NSchema.Model;
 
 namespace NSchema.Tests.Diff;

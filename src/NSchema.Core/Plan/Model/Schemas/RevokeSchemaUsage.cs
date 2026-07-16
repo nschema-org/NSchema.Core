@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Schemas;
+
+namespace NSchema.Plan.Model.Schemas;
 
 /// <summary>
 /// Represents the revocation of usage permissions on a schema from a specific role in the database schema.

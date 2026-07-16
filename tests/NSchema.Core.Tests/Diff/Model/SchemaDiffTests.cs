@@ -1,13 +1,13 @@
-using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Domain.Models.Columns;
-using NSchema.Diff.Domain.Models.Constraints;
-using NSchema.Diff.Domain.Models.Enums;
-using NSchema.Diff.Domain.Models.Indexes;
-using NSchema.Diff.Domain.Models.Routines;
-using NSchema.Diff.Domain.Models.Schemas;
-using NSchema.Diff.Domain.Models.Sequences;
-using NSchema.Diff.Domain.Models.Tables;
-using NSchema.Diff.Domain.Models.Views;
+using NSchema.Diff.Model;
+using NSchema.Diff.Model.Columns;
+using NSchema.Diff.Model.Constraints;
+using NSchema.Diff.Model.Enums;
+using NSchema.Diff.Model.Indexes;
+using NSchema.Diff.Model.Routines;
+using NSchema.Diff.Model.Schemas;
+using NSchema.Diff.Model.Sequences;
+using NSchema.Diff.Model.Tables;
+using NSchema.Diff.Model.Views;
 using NSchema.Model;
 using NSchema.Model.Routines;
 

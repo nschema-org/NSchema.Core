@@ -1,4 +1,4 @@
-namespace NSchema.Plan.Domain.Models;
+namespace NSchema.Plan.Model;
 
 /// <summary>
 /// Represents a single action to be performed during a database migration.

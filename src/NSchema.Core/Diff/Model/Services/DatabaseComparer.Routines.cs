@@ -1,10 +1,9 @@
-using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Domain.Models.Routines;
+using NSchema.Diff.Model.Routines;
 using NSchema.Model;
 using NSchema.Model.Routines;
 using NSchema.Model.Schemas;
 
-namespace NSchema.Diff.Domain;
+namespace NSchema.Diff.Model.Services;
 
 internal sealed partial class DatabaseComparer
 {

@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Indexes;
+
+namespace NSchema.Plan.Model.Indexes;
 
 /// <summary>
 /// Represents the modification of a comment on an existing index in the database schema.

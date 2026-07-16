@@ -1,4 +1,4 @@
-namespace NSchema.Diff.Domain.Models;
+namespace NSchema.Diff.Model;
 
 /// <summary>
 /// Represents a change to a single value, capturing its previous and new state.

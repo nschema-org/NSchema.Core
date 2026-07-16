@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Sequences;
 
-namespace NSchema.Diff.Domain.Models.Sequences;
+namespace NSchema.Diff.Model.Sequences;
 
 /// <summary>
 /// Describes a change to a sequence.

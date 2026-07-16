@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Columns;
 
-namespace NSchema.Plan.Domain.Models.CompositeTypes;
+namespace NSchema.Plan.Model.CompositeTypes;
 
 /// <summary>
 /// Represents changing the type of a composite type's field (<c>ALTER TYPE … ALTER ATTRIBUTE … TYPE …</c>).

@@ -1,6 +1,6 @@
 using NSchema.Model;
 
-namespace NSchema.Plan.Domain.Models;
+namespace NSchema.Plan.Model;
 
 /// <summary>
 /// A single SQL statement in a <see cref="Sql"/>, together with execution metadata.

@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Scripts;
 
-namespace NSchema.Project.Domain.Models;
+namespace NSchema.Project.Model.Directives;
 
 /// <summary>
 /// The management directives a project declares.

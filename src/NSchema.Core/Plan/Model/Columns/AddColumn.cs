@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Columns;
 
-namespace NSchema.Plan.Domain.Models.Columns;
+namespace NSchema.Plan.Model.Columns;
 
 /// <summary>
 /// Represents adding a new column to an existing table in the database schema.

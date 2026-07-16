@@ -2,7 +2,7 @@ using Microsoft.Extensions.FileSystemGlobbing;
 using NSchema.Model;
 using NSchema.Model.Scripts;
 using NSchema.Project;
-using NSchema.Project.Domain;
+using NSchema.Project.Model.Services;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Project;

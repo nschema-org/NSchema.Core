@@ -1,4 +1,4 @@
-namespace NSchema.Diff.Domain.Models;
+namespace NSchema.Diff.Model;
 
 /// <summary>
 /// The kind of change a diff element represents.

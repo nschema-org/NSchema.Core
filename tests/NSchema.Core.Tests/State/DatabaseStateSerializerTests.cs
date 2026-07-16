@@ -5,7 +5,7 @@ using NSchema.Model.Schemas;
 using NSchema.Model.Scripts;
 using NSchema.Model.Tables;
 using NSchema.State;
-using NSchema.State.Domain.Models;
+using NSchema.State.Model;
 
 namespace NSchema.Tests.State;
 

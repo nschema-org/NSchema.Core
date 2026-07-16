@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Indexes;
 
-namespace NSchema.Plan.Domain.Models.Indexes;
+namespace NSchema.Plan.Model.Indexes;
 
 /// <summary>
 /// Represents adding a new index to an existing table in the database schema.

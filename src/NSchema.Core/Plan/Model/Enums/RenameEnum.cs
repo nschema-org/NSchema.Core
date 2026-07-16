@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Enums;
+
+namespace NSchema.Plan.Model.Enums;
 
 /// <summary>
 /// Represents renaming an existing enum type.

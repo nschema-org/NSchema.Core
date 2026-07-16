@@ -1,4 +1,4 @@
-namespace NSchema.Plan.Domain;
+namespace NSchema.Plan.Model.Services;
 
 /// <summary>
 /// Orders items so that every item appears after the items it depends on. This is the instance-level ordering the

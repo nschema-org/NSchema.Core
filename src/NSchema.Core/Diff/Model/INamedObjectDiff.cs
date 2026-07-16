@@ -1,7 +1,8 @@
-using NSchema.Diff.Domain.Models.Schemas;
-using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Diff.Model.Schemas;
+using NSchema.Diff.Model.Tables;
 using NSchema.Model;
-namespace NSchema.Diff.Domain.Models;
+
+namespace NSchema.Diff.Model;
 
 /// <summary>
 /// The members every named-object diff shares — table members (columns, constraints, indexes) as well as

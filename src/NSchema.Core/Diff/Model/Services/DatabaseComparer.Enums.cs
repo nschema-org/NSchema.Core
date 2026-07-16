@@ -1,10 +1,9 @@
-using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Domain.Models.Enums;
+using NSchema.Diff.Model.Enums;
 using NSchema.Model;
 using NSchema.Model.Enums;
 using NSchema.Model.Schemas;
 
-namespace NSchema.Diff.Domain;
+namespace NSchema.Diff.Model.Services;
 
 internal sealed partial class DatabaseComparer
 {

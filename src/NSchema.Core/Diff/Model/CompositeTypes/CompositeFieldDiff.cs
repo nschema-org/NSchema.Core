@@ -2,7 +2,7 @@ using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.CompositeTypes;
 
-namespace NSchema.Diff.Domain.Models.CompositeTypes;
+namespace NSchema.Diff.Model.CompositeTypes;
 
 /// <summary>
 /// Describes a change to a single field of a composite type.

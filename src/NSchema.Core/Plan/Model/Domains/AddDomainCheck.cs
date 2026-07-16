@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Constraints;
 
-namespace NSchema.Plan.Domain.Models.Domains;
+namespace NSchema.Plan.Model.Domains;
 
 /// <summary>
 /// Represents adding a check constraint to a domain (<c>ALTER DOMAIN … ADD CONSTRAINT … CHECK (…)</c>).

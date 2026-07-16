@@ -1,9 +1,9 @@
-using NSchema.Diff.Domain.Models.Constraints;
+using NSchema.Diff.Model.Constraints;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Domains;
 
-namespace NSchema.Diff.Domain.Models.Domains;
+namespace NSchema.Diff.Model.Domains;
 
 /// <summary>
 /// Describes a change to a domain.

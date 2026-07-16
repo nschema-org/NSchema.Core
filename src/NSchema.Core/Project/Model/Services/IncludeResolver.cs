@@ -3,7 +3,7 @@ using NSchema.Model.Tables;
 using NSchema.Project.Nsql;
 using NSchema.Project.Nsql.Syntax.Templates;
 
-namespace NSchema.Project.Domain;
+namespace NSchema.Project.Model.Services;
 
 /// <summary>
 /// Resolves <c>INCLUDE name</c> members: merges each referenced table template's members into the table the

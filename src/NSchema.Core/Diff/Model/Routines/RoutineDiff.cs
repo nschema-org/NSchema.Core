@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Routines;
 
-namespace NSchema.Diff.Domain.Models.Routines;
+namespace NSchema.Diff.Model.Routines;
 
 /// <summary>
 /// Describes a change to a routine (a function or a procedure).

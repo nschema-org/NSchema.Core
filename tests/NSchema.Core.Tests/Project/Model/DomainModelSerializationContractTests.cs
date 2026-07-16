@@ -1,6 +1,6 @@
 using System.Reflection;
 using NSchema.Model;
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Model.Directives;
 using NSchema.State;
 
 namespace NSchema.Tests.Project.Model;

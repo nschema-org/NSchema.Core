@@ -9,7 +9,7 @@ using NSchema.Model.Schemas;
 using NSchema.Model.Sequences;
 using NSchema.Model.Tables;
 using NSchema.Model.Views;
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Model.Directives;
 using NSchema.Project.Policies;
 
 namespace NSchema.Tests.Project.Policies;

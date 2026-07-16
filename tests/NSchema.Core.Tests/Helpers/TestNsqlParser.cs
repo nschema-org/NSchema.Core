@@ -1,4 +1,4 @@
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Model.Directives;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Helpers;

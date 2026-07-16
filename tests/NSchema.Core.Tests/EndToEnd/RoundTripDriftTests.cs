@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using NSchema.Diff.Domain;
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Model.Directives;
 using NSchema.Project.Nsql;
+using DatabaseComparer = NSchema.Diff.Model.Services.DatabaseComparer;
 
 namespace NSchema.Tests.EndToEnd;
 

@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Domains;
 
-namespace NSchema.Plan.Domain.Models.Domains;
+namespace NSchema.Plan.Model.Domains;
 
 /// <summary>
 /// Represents the creation of a domain, with its default, not-null requirement and check constraints inline.

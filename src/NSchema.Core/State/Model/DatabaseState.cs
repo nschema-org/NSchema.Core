@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Scripts;
 
-namespace NSchema.State.Domain.Models;
+namespace NSchema.State.Model;
 
 /// <summary>
 /// Represents the recorded state of a deployed database: the captured schema snapshot plus the run-once script executions.

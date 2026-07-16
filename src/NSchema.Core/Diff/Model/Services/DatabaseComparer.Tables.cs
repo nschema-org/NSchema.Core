@@ -1,15 +1,14 @@
-using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Domain.Models.Columns;
-using NSchema.Diff.Domain.Models.Constraints;
-using NSchema.Diff.Domain.Models.Indexes;
-using NSchema.Diff.Domain.Models.Tables;
-using NSchema.Diff.Domain.Models.Triggers;
+using NSchema.Diff.Model.Columns;
+using NSchema.Diff.Model.Constraints;
+using NSchema.Diff.Model.Indexes;
+using NSchema.Diff.Model.Tables;
+using NSchema.Diff.Model.Triggers;
 using NSchema.Model;
 using NSchema.Model.Schemas;
 using NSchema.Model.Scripts;
 using NSchema.Model.Tables;
 
-namespace NSchema.Diff.Domain;
+namespace NSchema.Diff.Model.Services;
 
 internal sealed partial class DatabaseComparer
 {

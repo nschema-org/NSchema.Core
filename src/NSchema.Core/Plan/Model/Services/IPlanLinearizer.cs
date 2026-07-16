@@ -1,7 +1,6 @@
-using NSchema.Diff.Domain.Models;
-using NSchema.Plan.Domain.Models;
+using NSchema.Diff.Model;
 
-namespace NSchema.Plan.Domain;
+namespace NSchema.Plan.Model.Services;
 
 /// <summary>
 /// Linearizes a structured <see cref="DatabaseDiff"/> into an executable list of actions.

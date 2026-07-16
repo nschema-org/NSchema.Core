@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Enums;
 
-namespace NSchema.Diff.Domain.Models.Enums;
+namespace NSchema.Diff.Model.Enums;
 
 /// <summary>
 /// Describes a change to an enum type.

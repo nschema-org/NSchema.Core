@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using NSchema.Model;
 using NSchema.Model.Columns;
 
-namespace NSchema.Diff.Domain;
+namespace NSchema.Diff.Model.Services;
 
 internal sealed partial class DatabaseComparer
 {

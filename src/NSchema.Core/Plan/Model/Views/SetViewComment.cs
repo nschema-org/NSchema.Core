@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Views;
+
+namespace NSchema.Plan.Model.Views;
 
 /// <summary>
 /// Represents setting, changing, or clearing the comment on a view.

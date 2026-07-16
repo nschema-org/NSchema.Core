@@ -2,11 +2,11 @@ using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Schemas;
 using NSchema.Model.Triggers;
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Model.Directives;
 using NSchema.Project.Nsql;
 using NSchema.Project.Nsql.Syntax.Templates;
 
-namespace NSchema.Project.Domain;
+namespace NSchema.Project.Model.Services;
 
 /// <summary>
 /// Expands template applications during project assembly: a template instantiates by projecting its

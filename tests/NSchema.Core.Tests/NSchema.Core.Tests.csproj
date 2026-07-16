@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+<!--    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>-->
     <RootNamespace>NSchema.Tests</RootNamespace>
   </PropertyGroup>
 

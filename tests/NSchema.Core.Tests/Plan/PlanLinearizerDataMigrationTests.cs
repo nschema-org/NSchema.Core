@@ -1,18 +1,18 @@
-using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Domain.Models.Columns;
-using NSchema.Diff.Domain.Models.Constraints;
-using NSchema.Diff.Domain.Models.Schemas;
-using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Diff.Model;
+using NSchema.Diff.Model.Columns;
+using NSchema.Diff.Model.Constraints;
+using NSchema.Diff.Model.Schemas;
+using NSchema.Diff.Model.Tables;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Constraints;
 using NSchema.Model.Scripts;
 using NSchema.Model.Tables;
-using NSchema.Plan.Domain;
-using NSchema.Plan.Domain.Models;
-using NSchema.Plan.Domain.Models.Columns;
-using NSchema.Plan.Domain.Models.Constraints;
-using NSchema.Plan.Domain.Models.Scripts;
+using NSchema.Plan.Model;
+using NSchema.Plan.Model.Columns;
+using NSchema.Plan.Model.Constraints;
+using NSchema.Plan.Model.Scripts;
+using NSchema.Plan.Model.Services;
 
 namespace NSchema.Tests.Plan;
 

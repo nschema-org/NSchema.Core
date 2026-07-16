@@ -1,7 +1,6 @@
-using NSchema.Diff.Domain.Models;
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Model.Directives;
 
-namespace NSchema.Diff.Domain;
+namespace NSchema.Diff.Model.Services;
 
 /// <summary>
 /// Computes the complete difference between what currently exists and the desired project: the structural schema

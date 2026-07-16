@@ -1,6 +1,6 @@
 using NSchema.Deployment;
 using NSchema.Deployment.Backends;
-using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Model;
 using NSchema.Model;
 using NSchema.Operations;
 using NSchema.Plan.Backends;

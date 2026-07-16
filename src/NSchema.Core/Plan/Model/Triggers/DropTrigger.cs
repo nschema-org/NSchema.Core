@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Triggers;
+
+namespace NSchema.Plan.Model.Triggers;
 
 /// <summary>
 /// Represents the removal of an existing trigger from a table.

@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.CompositeTypes;
 
-namespace NSchema.Diff.Domain.Models.CompositeTypes;
+namespace NSchema.Diff.Model.CompositeTypes;
 
 /// <summary>
 /// Describes a change to a composite type.

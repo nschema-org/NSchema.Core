@@ -1,8 +1,8 @@
-using NSchema.Diff.Domain.Models.Triggers;
+using NSchema.Diff.Model.Triggers;
 using NSchema.Model;
 using NSchema.Model.Triggers;
 
-namespace NSchema.Diff.Domain;
+namespace NSchema.Diff.Model.Services;
 
 internal sealed partial class DatabaseComparer
 {

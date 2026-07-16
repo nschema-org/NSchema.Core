@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Project.Domain.Models;
+
+namespace NSchema.Project.Model.Directives;
 
 /// <summary>
 /// The desired state declared by the project.

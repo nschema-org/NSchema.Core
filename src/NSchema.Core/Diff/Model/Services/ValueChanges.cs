@@ -1,6 +1,4 @@
-using NSchema.Diff.Domain.Models;
-
-namespace NSchema.Diff.Domain;
+namespace NSchema.Diff.Model.Services;
 
 /// <summary>
 /// Helpers for building <see cref="ValueChange{T}"/> instances from a current/desired pair.

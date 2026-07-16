@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Constraints;
 
-namespace NSchema.Plan.Domain.Models.Constraints;
+namespace NSchema.Plan.Model.Constraints;
 
 /// <summary>
 /// Represents adding a new exclusion constraint to an existing table in the database schema.

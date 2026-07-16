@@ -2,7 +2,7 @@ using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Scripts;
 
-namespace NSchema.Diff.Domain.Models.Columns;
+namespace NSchema.Diff.Model.Columns;
 
 /// <summary>
 /// Describes the changes affecting a single column.

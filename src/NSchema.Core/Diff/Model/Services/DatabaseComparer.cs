@@ -1,12 +1,11 @@
 using Microsoft.Extensions.Logging;
-using NSchema.Diff.Domain.Models;
-using NSchema.Diff.Domain.Models.Schemas;
-using NSchema.Diff.Domain.Models.Tables;
+using NSchema.Diff.Model.Schemas;
+using NSchema.Diff.Model.Tables;
 using NSchema.Model;
 using NSchema.Model.Schemas;
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Model.Directives;
 
-namespace NSchema.Diff.Domain;
+namespace NSchema.Diff.Model.Services;
 
 /// <summary>
 /// Produces the structured <see cref="DatabaseDiff"/> from a current and desired schema.

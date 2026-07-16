@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Triggers;
 
-namespace NSchema.Plan.Domain.Models.Triggers;
+namespace NSchema.Plan.Model.Triggers;
 
 /// <summary>
 /// Represents adding a new trigger to an existing table.

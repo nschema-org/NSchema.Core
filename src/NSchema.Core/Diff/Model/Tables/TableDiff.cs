@@ -1,11 +1,11 @@
-using NSchema.Diff.Domain.Models.Columns;
-using NSchema.Diff.Domain.Models.Constraints;
-using NSchema.Diff.Domain.Models.Indexes;
-using NSchema.Diff.Domain.Models.Triggers;
+using NSchema.Diff.Model.Columns;
+using NSchema.Diff.Model.Constraints;
+using NSchema.Diff.Model.Indexes;
+using NSchema.Diff.Model.Triggers;
 using NSchema.Model;
 using NSchema.Model.Tables;
 
-namespace NSchema.Diff.Domain.Models.Tables;
+namespace NSchema.Diff.Model.Tables;
 
 /// <summary>
 /// Describes the changes affecting a single table.

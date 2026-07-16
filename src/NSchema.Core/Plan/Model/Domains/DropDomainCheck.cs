@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Plan.Domain.Models.Domains;
+
+namespace NSchema.Plan.Model.Domains;
 
 /// <summary>
 /// Represents dropping a check constraint from a domain (<c>ALTER DOMAIN … DROP CONSTRAINT …</c>).

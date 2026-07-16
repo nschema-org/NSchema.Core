@@ -1,9 +1,8 @@
-using NSchema.Diff.Domain.Models;
 using NSchema.Model;
-using NSchema.Plan.Domain;
-using NSchema.Project.Domain.Models;
+using NSchema.Plan.Model.Services;
+using NSchema.Project.Model.Directives;
 
-namespace NSchema.Diff.Domain;
+namespace NSchema.Diff.Model.Services;
 
 /// <summary>
 /// Defines a contract for comparing two database schemas and producing the structured <see cref="DatabaseDiff"/>

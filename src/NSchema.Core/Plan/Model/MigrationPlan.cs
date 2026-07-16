@@ -1,6 +1,6 @@
-using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Model;
 
-namespace NSchema.Plan.Domain.Models;
+namespace NSchema.Plan.Model;
 
 /// <summary>
 /// The complete executable plan.

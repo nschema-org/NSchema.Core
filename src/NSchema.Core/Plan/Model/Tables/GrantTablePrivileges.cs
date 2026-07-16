@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Tables;
 
-namespace NSchema.Plan.Domain.Models.Tables;
+namespace NSchema.Plan.Model.Tables;
 
 /// <summary>
 /// Represents granting specific privileges on a table to a role in the database schema.

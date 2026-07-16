@@ -1,8 +1,8 @@
-using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Model;
 using NSchema.Model;
 using NSchema.Model.Schemas;
 using NSchema.Model.Views;
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Model.Directives;
 
 namespace NSchema.Tests.Diff;
 

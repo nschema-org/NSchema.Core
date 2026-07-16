@@ -1,6 +1,6 @@
 using NSchema.Model;
-using NSchema.Plan.Domain;
-using NSchema.Plan.Domain.Models;
+using NSchema.Plan.Model;
+using NSchema.Plan.Model.Services;
 
 namespace NSchema.Operations.Workflow;
 

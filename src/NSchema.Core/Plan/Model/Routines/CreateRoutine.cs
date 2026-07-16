@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Routines;
 
-namespace NSchema.Plan.Domain.Models.Routines;
+namespace NSchema.Plan.Model.Routines;
 
 /// <summary>
 /// Represents the creation (or in-place body replacement) of a routine.

@@ -1,8 +1,8 @@
 using NSchema.Model;
 using NSchema.Model.Scripts;
-using NSchema.Project.Domain.Models;
+using NSchema.Project.Model.Directives;
 
-namespace NSchema.Diff.Domain;
+namespace NSchema.Diff.Model.Services;
 
 /// <summary>
 /// The comparer's view of a project's directives.

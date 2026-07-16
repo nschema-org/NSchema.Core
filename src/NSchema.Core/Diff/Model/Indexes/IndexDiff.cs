@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Indexes;
 
-namespace NSchema.Diff.Domain.Models.Indexes;
+namespace NSchema.Diff.Model.Indexes;
 
 /// <summary>
 /// Describes a change to a table index.

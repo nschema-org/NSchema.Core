@@ -1,6 +1,6 @@
 using NSchema.Model;
 
-namespace NSchema.Diff.Domain;
+namespace NSchema.Diff.Model.Services;
 
 /// <summary>
 /// A rename hint for the comparer's matching: the entity currently named <paramref name="From"/> is the one

@@ -1,5 +1,6 @@
 using NSchema.Model;
-namespace NSchema.Project.Domain;
+
+namespace NSchema.Project.Model.Services;
 
 /// <summary>
 /// An <c>INCLUDE name</c> member inside a table body, targeting the table it was written in by name.

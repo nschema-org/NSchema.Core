@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Triggers;
 
-namespace NSchema.Diff.Domain.Models.Triggers;
+namespace NSchema.Diff.Model.Triggers;
 
 /// <summary>
 /// Describes a change to a table trigger.

@@ -1,7 +1,37 @@
+using NSchema.Diff.Model;
+using NSchema.Diff.Model.Columns;
+using NSchema.Diff.Model.CompositeTypes;
+using NSchema.Diff.Model.Constraints;
+using NSchema.Diff.Model.Domains;
+using NSchema.Diff.Model.Enums;
+using NSchema.Diff.Model.Extensions;
+using NSchema.Diff.Model.Indexes;
+using NSchema.Diff.Model.Routines;
+using NSchema.Diff.Model.Schemas;
+using NSchema.Diff.Model.Sequences;
+using NSchema.Diff.Model.Tables;
+using NSchema.Diff.Model.Triggers;
+using NSchema.Diff.Model.Views;
 using NSchema.Model.Routines;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
-using NSchema.Project.Domain.Models;
+using NSchema.Plan.Model;
+using NSchema.Plan.Model.Columns;
+using NSchema.Plan.Model.CompositeTypes;
+using NSchema.Plan.Model.Constraints;
+using NSchema.Plan.Model.Domains;
+using NSchema.Plan.Model.Enums;
+using NSchema.Plan.Model.Extensions;
+using NSchema.Plan.Model.Indexes;
+using NSchema.Plan.Model.Routines;
+using NSchema.Plan.Model.Schemas;
+using NSchema.Plan.Model.Scripts;
+using NSchema.Plan.Model.Sequences;
+using NSchema.Plan.Model.Tables;
+using NSchema.Plan.Model.Triggers;
+using NSchema.Plan.Model.Views;
+using NSchema.Project.Model.Directives;
+using NSchema.State.Model;
 using Syntax = NSchema.Project.Nsql.Syntax;
 
 namespace NSchema.Tests.Architecture;
@@ -240,120 +270,120 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.Diff.Reader.DiffReader)] = DiffReaderNs,
         [typeof(NSchema.Diff.Reader.DiffDocument)] = DiffReaderNs,
         [typeof(NSchema.Diff.Reader.DiffLine)] = DiffReaderNs,
-        [typeof(NSchema.Diff.Domain.Models.DiffSummary)] = DiffModels, // produced by DatabaseDiff.GetSummary — model vocabulary, not a seam message
+        [typeof(DiffSummary)] = DiffModels, // produced by DatabaseDiff.GetSummary — model vocabulary, not a seam message
         [typeof(NSchema.Plan.Policies.IPlanPolicy)] = PlanPolicies,
         [typeof(NSchema.Plan.Policies.DataHazardOptions)] = PlanPolicies,
         [typeof(NSchema.Plan.Policies.DestructiveActionOptions)] = PlanPolicies,
-        [typeof(NSchema.Diff.Domain.Models.ChangeKind)] = DiffModels,
-        [typeof(NSchema.Diff.Domain.Models.DatabaseDiff)] = DiffModels,
-        [typeof(NSchema.Diff.Domain.Models.INamedObjectDiff)] = DiffModels,
-        [typeof(NSchema.Diff.Domain.Models.ISchemaObjectDiff)] = DiffModels,
-        [typeof(NSchema.Diff.Domain.Models.Schemas.SchemaDiff)] = DiffModels + ".Schemas",
-        [typeof(NSchema.Diff.Domain.Models.Tables.TableDiff)] = DiffModels + ".Tables",
-        [typeof(NSchema.Diff.Domain.Models.Columns.ColumnDiff)] = DiffModels + ".Columns",
-        [typeof(NSchema.Diff.Domain.Models.Constraints.CheckConstraintDiff)] = DiffModels + ".Constraints",
-        [typeof(NSchema.Diff.Domain.Models.Constraints.UniqueConstraintDiff)] = DiffModels + ".Constraints",
-        [typeof(NSchema.Diff.Domain.Models.Constraints.ExclusionConstraintDiff)] = DiffModels + ".Constraints",
-        [typeof(NSchema.Diff.Domain.Models.Constraints.ForeignKeyDiff)] = DiffModels + ".Constraints",
-        [typeof(NSchema.Diff.Domain.Models.Constraints.PrimaryKeyDiff)] = DiffModels + ".Constraints",
-        [typeof(NSchema.Diff.Domain.Models.Indexes.IndexDiff)] = DiffModels + ".Indexes",
-        [typeof(NSchema.Diff.Domain.Models.Views.ViewDiff)] = DiffModels + ".Views",
-        [typeof(NSchema.Diff.Domain.Models.Routines.RoutineDiff)] = DiffModels + ".Routines",
-        [typeof(NSchema.Diff.Domain.Models.Sequences.SequenceDiff)] = DiffModels + ".Sequences",
-        [typeof(NSchema.Diff.Domain.Models.Enums.EnumDiff)] = DiffModels + ".Enums",
-        [typeof(NSchema.Diff.Domain.Models.Enums.EnumValueAddition)] = DiffModels + ".Enums",
-        [typeof(NSchema.Diff.Domain.Models.Domains.DomainDiff)] = DiffModels + ".Domains",
-        [typeof(NSchema.Diff.Domain.Models.CompositeTypes.CompositeTypeDiff)] = DiffModels + ".CompositeTypes",
-        [typeof(NSchema.Diff.Domain.Models.CompositeTypes.CompositeFieldDiff)] = DiffModels + ".CompositeTypes",
-        [typeof(NSchema.Diff.Domain.Models.Extensions.ExtensionDiff)] = DiffModels + ".Extensions",
-        [typeof(NSchema.Diff.Domain.Models.Triggers.TriggerDiff)] = DiffModels + ".Triggers",
-        [typeof(NSchema.Diff.Domain.Models.Tables.GrantChange)] = DiffModels + ".Tables",
-        [typeof(NSchema.Diff.Domain.Models.ValueChange<>)] = DiffModels,
+        [typeof(ChangeKind)] = DiffModels,
+        [typeof(DatabaseDiff)] = DiffModels,
+        [typeof(INamedObjectDiff)] = DiffModels,
+        [typeof(ISchemaObjectDiff)] = DiffModels,
+        [typeof(SchemaDiff)] = DiffModels + ".Schemas",
+        [typeof(TableDiff)] = DiffModels + ".Tables",
+        [typeof(ColumnDiff)] = DiffModels + ".Columns",
+        [typeof(CheckConstraintDiff)] = DiffModels + ".Constraints",
+        [typeof(UniqueConstraintDiff)] = DiffModels + ".Constraints",
+        [typeof(ExclusionConstraintDiff)] = DiffModels + ".Constraints",
+        [typeof(ForeignKeyDiff)] = DiffModels + ".Constraints",
+        [typeof(PrimaryKeyDiff)] = DiffModels + ".Constraints",
+        [typeof(IndexDiff)] = DiffModels + ".Indexes",
+        [typeof(ViewDiff)] = DiffModels + ".Views",
+        [typeof(RoutineDiff)] = DiffModels + ".Routines",
+        [typeof(SequenceDiff)] = DiffModels + ".Sequences",
+        [typeof(EnumDiff)] = DiffModels + ".Enums",
+        [typeof(EnumValueAddition)] = DiffModels + ".Enums",
+        [typeof(DomainDiff)] = DiffModels + ".Domains",
+        [typeof(CompositeTypeDiff)] = DiffModels + ".CompositeTypes",
+        [typeof(CompositeFieldDiff)] = DiffModels + ".CompositeTypes",
+        [typeof(ExtensionDiff)] = DiffModels + ".Extensions",
+        [typeof(TriggerDiff)] = DiffModels + ".Triggers",
+        [typeof(GrantChange)] = DiffModels + ".Tables",
+        [typeof(ValueChange<>)] = DiffModels,
 
         // ── Plan: the single artifact at the root; dialect SPI in Backends; actions in Domain.Models. ──
-        [typeof(NSchema.Plan.Domain.Models.MigrationPlan)] = PlanModels, // the boundary artifact is vocabulary — roots hold seams, and may be empty // the single plan artifact: diff + scripts + statements
+        [typeof(MigrationPlan)] = PlanModels, // the boundary artifact is vocabulary — roots hold seams, and may be empty // the single plan artifact: diff + scripts + statements
         [typeof(NSchema.Plan.Backends.ISqlDialect)] = PlanBackends,
-        [typeof(NSchema.Plan.Domain.Models.SqlStatement)] = PlanModels,
-        [typeof(NSchema.Plan.Domain.Models.MigrationAction)] = PlanModels,
-        [typeof(NSchema.Plan.Domain.Models.Columns.AddColumn)] = PlanModels + ".Columns",
-        [typeof(NSchema.Plan.Domain.Models.Columns.AlterColumnNullability)] = PlanModels + ".Columns",
-        [typeof(NSchema.Plan.Domain.Models.Columns.AlterColumnType)] = PlanModels + ".Columns",
-        [typeof(NSchema.Plan.Domain.Models.Columns.AlterIdentitySequence)] = PlanModels + ".Columns",
-        [typeof(NSchema.Plan.Domain.Models.Columns.DropColumn)] = PlanModels + ".Columns",
-        [typeof(NSchema.Plan.Domain.Models.Columns.RenameColumn)] = PlanModels + ".Columns",
-        [typeof(NSchema.Plan.Domain.Models.Columns.SetColumnComment)] = PlanModels + ".Columns",
-        [typeof(NSchema.Plan.Domain.Models.Columns.SetColumnDefault)] = PlanModels + ".Columns",
-        [typeof(NSchema.Plan.Domain.Models.Columns.SetColumnGenerated)] = PlanModels + ".Columns",
-        [typeof(NSchema.Plan.Domain.Models.CompositeTypes.AddCompositeField)] = PlanModels + ".CompositeTypes",
-        [typeof(NSchema.Plan.Domain.Models.CompositeTypes.AlterCompositeFieldType)] = PlanModels + ".CompositeTypes",
-        [typeof(NSchema.Plan.Domain.Models.CompositeTypes.CreateCompositeType)] = PlanModels + ".CompositeTypes",
-        [typeof(NSchema.Plan.Domain.Models.CompositeTypes.DropCompositeField)] = PlanModels + ".CompositeTypes",
-        [typeof(NSchema.Plan.Domain.Models.CompositeTypes.DropCompositeType)] = PlanModels + ".CompositeTypes",
-        [typeof(NSchema.Plan.Domain.Models.CompositeTypes.RenameCompositeType)] = PlanModels + ".CompositeTypes",
-        [typeof(NSchema.Plan.Domain.Models.CompositeTypes.SetCompositeTypeComment)] = PlanModels + ".CompositeTypes",
-        [typeof(NSchema.Plan.Domain.Models.Constraints.AddCheckConstraint)] = PlanModels + ".Constraints",
-        [typeof(NSchema.Plan.Domain.Models.Constraints.AddExclusionConstraint)] = PlanModels + ".Constraints",
-        [typeof(NSchema.Plan.Domain.Models.Constraints.AddUniqueConstraint)] = PlanModels + ".Constraints",
-        [typeof(NSchema.Plan.Domain.Models.Constraints.DropCheckConstraint)] = PlanModels + ".Constraints",
-        [typeof(NSchema.Plan.Domain.Models.Constraints.DropExclusionConstraint)] = PlanModels + ".Constraints",
-        [typeof(NSchema.Plan.Domain.Models.Constraints.DropUniqueConstraint)] = PlanModels + ".Constraints",
-        [typeof(NSchema.Plan.Domain.Models.Constraints.SetConstraintComment)] = PlanModels + ".Constraints",
-        [typeof(NSchema.Plan.Domain.Models.Domains.AddDomainCheck)] = PlanModels + ".Domains",
-        [typeof(NSchema.Plan.Domain.Models.Domains.AlterDomainDefault)] = PlanModels + ".Domains",
-        [typeof(NSchema.Plan.Domain.Models.Domains.AlterDomainNotNull)] = PlanModels + ".Domains",
-        [typeof(NSchema.Plan.Domain.Models.Domains.CreateDomain)] = PlanModels + ".Domains",
-        [typeof(NSchema.Plan.Domain.Models.Domains.DropDomain)] = PlanModels + ".Domains",
-        [typeof(NSchema.Plan.Domain.Models.Domains.DropDomainCheck)] = PlanModels + ".Domains",
-        [typeof(NSchema.Plan.Domain.Models.Domains.RecreateDomain)] = PlanModels + ".Domains",
-        [typeof(NSchema.Plan.Domain.Models.Domains.RenameDomain)] = PlanModels + ".Domains",
-        [typeof(NSchema.Plan.Domain.Models.Domains.SetDomainComment)] = PlanModels + ".Domains",
-        [typeof(NSchema.Plan.Domain.Models.Enums.AddEnumValue)] = PlanModels + ".Enums",
-        [typeof(NSchema.Plan.Domain.Models.Enums.CreateEnum)] = PlanModels + ".Enums",
-        [typeof(NSchema.Plan.Domain.Models.Enums.DropEnum)] = PlanModels + ".Enums",
-        [typeof(NSchema.Plan.Domain.Models.Enums.RenameEnum)] = PlanModels + ".Enums",
-        [typeof(NSchema.Plan.Domain.Models.Enums.SetEnumComment)] = PlanModels + ".Enums",
-        [typeof(NSchema.Plan.Domain.Models.Extensions.AlterExtension)] = PlanModels + ".Extensions",
-        [typeof(NSchema.Plan.Domain.Models.Extensions.CreateExtension)] = PlanModels + ".Extensions",
-        [typeof(NSchema.Plan.Domain.Models.Extensions.DropExtension)] = PlanModels + ".Extensions",
-        [typeof(NSchema.Plan.Domain.Models.Extensions.SetExtensionComment)] = PlanModels + ".Extensions",
-        [typeof(NSchema.Plan.Domain.Models.Indexes.CreateIndex)] = PlanModels + ".Indexes",
-        [typeof(NSchema.Plan.Domain.Models.Indexes.DropIndex)] = PlanModels + ".Indexes",
-        [typeof(NSchema.Plan.Domain.Models.Indexes.SetIndexComment)] = PlanModels + ".Indexes",
-        [typeof(NSchema.Plan.Domain.Models.Routines.CreateRoutine)] = PlanModels + ".Routines",
-        [typeof(NSchema.Plan.Domain.Models.Routines.DropRoutine)] = PlanModels + ".Routines",
-        [typeof(NSchema.Plan.Domain.Models.Routines.RecreateRoutine)] = PlanModels + ".Routines",
-        [typeof(NSchema.Plan.Domain.Models.Routines.RenameRoutine)] = PlanModels + ".Routines",
-        [typeof(NSchema.Plan.Domain.Models.Routines.SetRoutineComment)] = PlanModels + ".Routines",
-        [typeof(NSchema.Plan.Domain.Models.Schemas.CreateSchema)] = PlanModels + ".Schemas",
-        [typeof(NSchema.Plan.Domain.Models.Schemas.DropSchema)] = PlanModels + ".Schemas",
-        [typeof(NSchema.Plan.Domain.Models.Schemas.GrantSchemaUsage)] = PlanModels + ".Schemas",
-        [typeof(NSchema.Plan.Domain.Models.Schemas.RenameSchema)] = PlanModels + ".Schemas",
-        [typeof(NSchema.Plan.Domain.Models.Schemas.RevokeSchemaUsage)] = PlanModels + ".Schemas",
-        [typeof(NSchema.Plan.Domain.Models.Schemas.SetSchemaComment)] = PlanModels + ".Schemas",
+        [typeof(SqlStatement)] = PlanModels,
+        [typeof(MigrationAction)] = PlanModels,
+        [typeof(AddColumn)] = PlanModels + ".Columns",
+        [typeof(AlterColumnNullability)] = PlanModels + ".Columns",
+        [typeof(AlterColumnType)] = PlanModels + ".Columns",
+        [typeof(AlterIdentitySequence)] = PlanModels + ".Columns",
+        [typeof(DropColumn)] = PlanModels + ".Columns",
+        [typeof(RenameColumn)] = PlanModels + ".Columns",
+        [typeof(SetColumnComment)] = PlanModels + ".Columns",
+        [typeof(SetColumnDefault)] = PlanModels + ".Columns",
+        [typeof(SetColumnGenerated)] = PlanModels + ".Columns",
+        [typeof(AddCompositeField)] = PlanModels + ".CompositeTypes",
+        [typeof(AlterCompositeFieldType)] = PlanModels + ".CompositeTypes",
+        [typeof(CreateCompositeType)] = PlanModels + ".CompositeTypes",
+        [typeof(DropCompositeField)] = PlanModels + ".CompositeTypes",
+        [typeof(DropCompositeType)] = PlanModels + ".CompositeTypes",
+        [typeof(RenameCompositeType)] = PlanModels + ".CompositeTypes",
+        [typeof(SetCompositeTypeComment)] = PlanModels + ".CompositeTypes",
+        [typeof(AddCheckConstraint)] = PlanModels + ".Constraints",
+        [typeof(AddExclusionConstraint)] = PlanModels + ".Constraints",
+        [typeof(AddUniqueConstraint)] = PlanModels + ".Constraints",
+        [typeof(DropCheckConstraint)] = PlanModels + ".Constraints",
+        [typeof(DropExclusionConstraint)] = PlanModels + ".Constraints",
+        [typeof(DropUniqueConstraint)] = PlanModels + ".Constraints",
+        [typeof(SetConstraintComment)] = PlanModels + ".Constraints",
+        [typeof(AddDomainCheck)] = PlanModels + ".Domains",
+        [typeof(AlterDomainDefault)] = PlanModels + ".Domains",
+        [typeof(AlterDomainNotNull)] = PlanModels + ".Domains",
+        [typeof(CreateDomain)] = PlanModels + ".Domains",
+        [typeof(DropDomain)] = PlanModels + ".Domains",
+        [typeof(DropDomainCheck)] = PlanModels + ".Domains",
+        [typeof(RecreateDomain)] = PlanModels + ".Domains",
+        [typeof(RenameDomain)] = PlanModels + ".Domains",
+        [typeof(SetDomainComment)] = PlanModels + ".Domains",
+        [typeof(AddEnumValue)] = PlanModels + ".Enums",
+        [typeof(CreateEnum)] = PlanModels + ".Enums",
+        [typeof(DropEnum)] = PlanModels + ".Enums",
+        [typeof(RenameEnum)] = PlanModels + ".Enums",
+        [typeof(SetEnumComment)] = PlanModels + ".Enums",
+        [typeof(AlterExtension)] = PlanModels + ".Extensions",
+        [typeof(CreateExtension)] = PlanModels + ".Extensions",
+        [typeof(DropExtension)] = PlanModels + ".Extensions",
+        [typeof(SetExtensionComment)] = PlanModels + ".Extensions",
+        [typeof(CreateIndex)] = PlanModels + ".Indexes",
+        [typeof(DropIndex)] = PlanModels + ".Indexes",
+        [typeof(SetIndexComment)] = PlanModels + ".Indexes",
+        [typeof(CreateRoutine)] = PlanModels + ".Routines",
+        [typeof(DropRoutine)] = PlanModels + ".Routines",
+        [typeof(RecreateRoutine)] = PlanModels + ".Routines",
+        [typeof(RenameRoutine)] = PlanModels + ".Routines",
+        [typeof(SetRoutineComment)] = PlanModels + ".Routines",
+        [typeof(CreateSchema)] = PlanModels + ".Schemas",
+        [typeof(DropSchema)] = PlanModels + ".Schemas",
+        [typeof(GrantSchemaUsage)] = PlanModels + ".Schemas",
+        [typeof(RenameSchema)] = PlanModels + ".Schemas",
+        [typeof(RevokeSchemaUsage)] = PlanModels + ".Schemas",
+        [typeof(SetSchemaComment)] = PlanModels + ".Schemas",
         // Sequences: fixes the lone-singular folder while it moves.
-        [typeof(NSchema.Plan.Domain.Models.Sequences.AlterSequence)] = PlanModels + ".Sequences",
-        [typeof(NSchema.Plan.Domain.Models.Sequences.CreateSequence)] = PlanModels + ".Sequences",
-        [typeof(NSchema.Plan.Domain.Models.Sequences.DropSequence)] = PlanModels + ".Sequences",
-        [typeof(NSchema.Plan.Domain.Models.Sequences.RenameSequence)] = PlanModels + ".Sequences",
-        [typeof(NSchema.Plan.Domain.Models.Sequences.SetSequenceComment)] = PlanModels + ".Sequences",
-        [typeof(NSchema.Plan.Domain.Models.Tables.AddForeignKey)] = PlanModels + ".Tables",
-        [typeof(NSchema.Plan.Domain.Models.Tables.AddPrimaryKey)] = PlanModels + ".Tables",
-        [typeof(NSchema.Plan.Domain.Models.Tables.CreateTable)] = PlanModels + ".Tables",
-        [typeof(NSchema.Plan.Domain.Models.Tables.DropForeignKey)] = PlanModels + ".Tables",
-        [typeof(NSchema.Plan.Domain.Models.Tables.DropPrimaryKey)] = PlanModels + ".Tables",
-        [typeof(NSchema.Plan.Domain.Models.Tables.DropTable)] = PlanModels + ".Tables",
-        [typeof(NSchema.Plan.Domain.Models.Tables.GrantTablePrivileges)] = PlanModels + ".Tables",
-        [typeof(NSchema.Plan.Domain.Models.Tables.RenameTable)] = PlanModels + ".Tables",
-        [typeof(NSchema.Plan.Domain.Models.Tables.RevokeTablePrivileges)] = PlanModels + ".Tables",
-        [typeof(NSchema.Plan.Domain.Models.Tables.SetTableComment)] = PlanModels + ".Tables",
-        [typeof(NSchema.Plan.Domain.Models.Triggers.CreateTrigger)] = PlanModels + ".Triggers",
-        [typeof(NSchema.Plan.Domain.Models.Triggers.DropTrigger)] = PlanModels + ".Triggers",
-        [typeof(NSchema.Plan.Domain.Models.Triggers.SetTriggerComment)] = PlanModels + ".Triggers",
-        [typeof(NSchema.Plan.Domain.Models.Scripts.ExecuteScript)] = PlanModels + ".Scripts",
-        [typeof(NSchema.Plan.Domain.Models.Views.CreateView)] = PlanModels + ".Views",
-        [typeof(NSchema.Plan.Domain.Models.Views.DropView)] = PlanModels + ".Views",
-        [typeof(NSchema.Plan.Domain.Models.Views.RenameView)] = PlanModels + ".Views",
-        [typeof(NSchema.Plan.Domain.Models.Views.SetViewComment)] = PlanModels + ".Views",
+        [typeof(AlterSequence)] = PlanModels + ".Sequences",
+        [typeof(CreateSequence)] = PlanModels + ".Sequences",
+        [typeof(DropSequence)] = PlanModels + ".Sequences",
+        [typeof(RenameSequence)] = PlanModels + ".Sequences",
+        [typeof(SetSequenceComment)] = PlanModels + ".Sequences",
+        [typeof(AddForeignKey)] = PlanModels + ".Tables",
+        [typeof(AddPrimaryKey)] = PlanModels + ".Tables",
+        [typeof(CreateTable)] = PlanModels + ".Tables",
+        [typeof(DropForeignKey)] = PlanModels + ".Tables",
+        [typeof(DropPrimaryKey)] = PlanModels + ".Tables",
+        [typeof(DropTable)] = PlanModels + ".Tables",
+        [typeof(GrantTablePrivileges)] = PlanModels + ".Tables",
+        [typeof(RenameTable)] = PlanModels + ".Tables",
+        [typeof(RevokeTablePrivileges)] = PlanModels + ".Tables",
+        [typeof(SetTableComment)] = PlanModels + ".Tables",
+        [typeof(CreateTrigger)] = PlanModels + ".Triggers",
+        [typeof(DropTrigger)] = PlanModels + ".Triggers",
+        [typeof(SetTriggerComment)] = PlanModels + ".Triggers",
+        [typeof(ExecuteScript)] = PlanModels + ".Scripts",
+        [typeof(CreateView)] = PlanModels + ".Views",
+        [typeof(DropView)] = PlanModels + ".Views",
+        [typeof(RenameView)] = PlanModels + ".Views",
+        [typeof(SetViewComment)] = PlanModels + ".Views",
         [typeof(NSchema.Plan.PlanFile.IPlanFileManager)] = PlanFile,
         [typeof(NSchema.Plan.PlanFile.PlanFileEnvelope)] = PlanFile, // likely thins once the single artifact lands
 
@@ -383,8 +413,8 @@ public sealed class NamespaceMigrationMapTests
         [typeof(NSchema.State.Backends.IDatabaseStateStore)] = StateBackends,
 
         // ── Current.Domain.Models ──
-        [typeof(NSchema.State.Domain.Models.DatabaseState)] = StateModels,
-        [typeof(NSchema.State.Domain.Models.ScriptExecution)] = StateModels, // the ledger entry — DatabaseState is its aggregate root; the differ reads it as source vocabulary
+        [typeof(DatabaseState)] = StateModels,
+        [typeof(ScriptExecution)] = StateModels, // the ledger entry — DatabaseState is its aggregate root; the differ reads it as source vocabulary
 
         // ── Operations: one seam, one vocabulary — publics flatten to the root. ──
         [typeof(INSchemaOperations)] = Operations,
