@@ -1,8 +1,8 @@
-using NSchema.Model.Routines;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Triggers;
 using NSchema.Model;
 using NSchema.Model.Columns;
+using NSchema.Model.Routines;
 using NSchema.Model.Tables;
 using NSchema.Model.Triggers;
 

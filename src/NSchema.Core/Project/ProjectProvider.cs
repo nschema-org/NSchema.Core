@@ -1,7 +1,7 @@
-using NSchema.Project.Domain.Models;
 using Microsoft.Extensions.FileSystemGlobbing;
-using NSchema.Project.Domain;
 using NSchema.Model;
+using NSchema.Project.Domain;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Project;

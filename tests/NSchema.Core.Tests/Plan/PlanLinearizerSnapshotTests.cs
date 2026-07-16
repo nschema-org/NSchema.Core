@@ -8,7 +8,6 @@ using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Sequences;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Diff.Domain.Models.Views;
-using NSchema.Plan.Domain;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Constraints;
@@ -18,6 +17,7 @@ using NSchema.Model.Routines;
 using NSchema.Model.Sequences;
 using NSchema.Model.Tables;
 using NSchema.Model.Views;
+using NSchema.Plan.Domain;
 
 namespace NSchema.Tests.Plan;
 

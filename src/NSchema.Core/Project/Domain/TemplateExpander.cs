@@ -1,8 +1,8 @@
-using NSchema.Project.Domain.Models;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Schemas;
 using NSchema.Model.Triggers;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Nsql;
 using NSchema.Project.Nsql.Syntax.Templates;
 

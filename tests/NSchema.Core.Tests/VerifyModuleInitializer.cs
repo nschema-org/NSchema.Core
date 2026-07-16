@@ -1,6 +1,6 @@
-using NSchema.Model.Routines;
 using System.Runtime.CompilerServices;
 using NSchema.Model.Columns;
+using NSchema.Model.Routines;
 
 namespace NSchema.Tests;
 

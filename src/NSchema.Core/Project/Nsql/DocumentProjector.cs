@@ -1,4 +1,3 @@
-using NSchema.Project.Domain;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.CompositeTypes;
@@ -13,6 +12,7 @@ using NSchema.Model.Sequences;
 using NSchema.Model.Tables;
 using NSchema.Model.Triggers;
 using NSchema.Model.Views;
+using NSchema.Project.Domain;
 using Syn = NSchema.Project.Nsql.Syntax;
 
 namespace NSchema.Project.Nsql;

@@ -1,10 +1,10 @@
-using NSchema.Project.Domain.Models;
-using NSchema.Project;
-using NSchema.Project.Domain;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Schemas;
 using NSchema.Model.Tables;
+using NSchema.Project;
+using NSchema.Project.Domain;
+using NSchema.Project.Domain.Models;
 
 namespace NSchema.Tests.Project;
 

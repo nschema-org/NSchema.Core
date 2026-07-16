@@ -1,13 +1,13 @@
 using NSchema.Deployment;
 using NSchema.Deployment.Backends;
 using NSchema.Diff.Domain.Models;
+using NSchema.Model;
 using NSchema.Operations;
 using NSchema.Plan.Backends;
 using NSchema.Plan.PlanFile;
 using NSchema.Plan.Policies;
 using NSchema.Plugins;
 using NSchema.Project;
-using NSchema.Model;
 using NSchema.Project.Policies;
 using NSchema.State;
 using NSchema.State.Backends;

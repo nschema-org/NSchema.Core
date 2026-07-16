@@ -1,6 +1,6 @@
-using NSchema.Project;
 using NSchema.Model;
 using NSchema.Model.Schemas;
+using NSchema.Project;
 using NSchema.Project.Nsql;
 using NSchema.Project.Nsql.Syntax.Schemas;
 using NSchema.Project.Nsql.Syntax.Tables;

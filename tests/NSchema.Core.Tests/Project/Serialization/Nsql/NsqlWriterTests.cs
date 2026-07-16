@@ -1,4 +1,3 @@
-using NSchema.Project.Domain.Models;
 using System.Text;
 using NSchema.Model;
 using NSchema.Model.Columns;
@@ -14,6 +13,7 @@ using NSchema.Model.Sequences;
 using NSchema.Model.Tables;
 using NSchema.Model.Triggers;
 using NSchema.Model.Views;
+using NSchema.Project.Domain.Models;
 using NSchema.Project.Nsql;
 using NSchema.State;
 using NSchema.State.Domain.Models;

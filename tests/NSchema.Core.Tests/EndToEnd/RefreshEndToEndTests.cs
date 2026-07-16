@@ -1,10 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using NSchema.Deployment.Backends;
-using NSchema.Operations;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Schemas;
 using NSchema.Model.Tables;
+using NSchema.Operations;
 
 namespace NSchema.Tests.EndToEnd;
 

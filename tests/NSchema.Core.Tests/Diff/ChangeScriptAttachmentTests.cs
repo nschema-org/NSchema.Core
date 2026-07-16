@@ -1,4 +1,3 @@
-using NSchema.Project.Domain.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Models.Tables;
@@ -8,6 +7,7 @@ using NSchema.Model.Constraints;
 using NSchema.Model.Schemas;
 using NSchema.Model.Scripts;
 using NSchema.Model.Tables;
+using NSchema.Project.Domain.Models;
 
 namespace NSchema.Tests.Diff;
 

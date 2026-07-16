@@ -1,4 +1,3 @@
-using NSchema.Project.Domain.Models;
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Domains;
 using NSchema.Model;
@@ -6,6 +5,7 @@ using NSchema.Model.Columns;
 using NSchema.Model.Constraints;
 using NSchema.Model.Domains;
 using NSchema.Model.Schemas;
+using NSchema.Project.Domain.Models;
 
 namespace NSchema.Tests.Diff;
 

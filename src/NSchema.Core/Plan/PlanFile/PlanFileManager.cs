@@ -1,7 +1,7 @@
-using NSchema.Model.Services;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using NSchema.Model.Services;
 
 namespace NSchema.Plan.PlanFile;
 

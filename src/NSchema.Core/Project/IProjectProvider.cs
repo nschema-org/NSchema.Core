@@ -1,5 +1,5 @@
-using NSchema.Project.Domain.Models;
 using NSchema.Model;
+using NSchema.Project.Domain.Models;
 
 namespace NSchema.Project;
 

@@ -1,8 +1,8 @@
 using NSchema.Diff.Domain.Models;
 using NSchema.Diff.Domain.Models.Enums;
 using NSchema.Diff.Domain.Models.Schemas;
-using NSchema.Plan.Policies;
 using NSchema.Model;
+using NSchema.Plan.Policies;
 
 namespace NSchema.Tests.Plan.Policies;
 

@@ -1,8 +1,8 @@
 using NSchema.Deployment.Backends;
-using NSchema.Operations;
-using NSchema.Operations.Progress;
 using NSchema.Model;
 using NSchema.Model.Schemas;
+using NSchema.Operations;
+using NSchema.Operations.Progress;
 using NSchema.State;
 using NSchema.State.Backends;
 using NSchema.State.Domain.Models;

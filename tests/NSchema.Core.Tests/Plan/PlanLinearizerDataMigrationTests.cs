@@ -3,16 +3,16 @@ using NSchema.Diff.Domain.Models.Columns;
 using NSchema.Diff.Domain.Models.Constraints;
 using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Tables;
-using NSchema.Plan.Domain;
-using NSchema.Plan.Domain.Models;
-using NSchema.Plan.Domain.Models.Columns;
-using NSchema.Plan.Domain.Models.Constraints;
-using NSchema.Plan.Domain.Models.Scripts;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Constraints;
 using NSchema.Model.Scripts;
 using NSchema.Model.Tables;
+using NSchema.Plan.Domain;
+using NSchema.Plan.Domain.Models;
+using NSchema.Plan.Domain.Models.Columns;
+using NSchema.Plan.Domain.Models.Constraints;
+using NSchema.Plan.Domain.Models.Scripts;
 
 namespace NSchema.Tests.Plan;
 

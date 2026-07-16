@@ -1,5 +1,5 @@
-using NSchema.Model.Routines;
 using System.Diagnostics;
+using NSchema.Model.Routines;
 
 namespace NSchema.Model.Triggers;
 

@@ -1,11 +1,11 @@
-using NSchema.Project.Domain.Models;
 using NSchema.Deployment;
 using NSchema.Diff.Domain;
+using NSchema.Model;
 using NSchema.Operations.Progress;
 using NSchema.Plan.Domain;
 using NSchema.Plan.Domain.Models;
 using NSchema.Project;
-using NSchema.Model;
+using NSchema.Project.Domain.Models;
 using NSchema.State;
 using NSchema.State.Domain.Models;
 

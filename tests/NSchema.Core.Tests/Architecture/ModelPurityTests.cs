@@ -1,7 +1,7 @@
-using NSchema.Model.Services;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
+using NSchema.Model.Services;
 using static ArchUnitNET.Fluent.ArchRuleDefinition;
 using static NSchema.Tests.Architecture.ArchitectureTestSupport;
 

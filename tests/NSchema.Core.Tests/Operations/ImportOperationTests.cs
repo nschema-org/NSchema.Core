@@ -1,7 +1,4 @@
 using NSchema.Deployment;
-using NSchema.Operations;
-using NSchema.Operations.Progress;
-using NSchema.Project.Domain;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Domains;
@@ -12,6 +9,9 @@ using NSchema.Model.Schemas;
 using NSchema.Model.Sequences;
 using NSchema.Model.Tables;
 using NSchema.Model.Views;
+using NSchema.Operations;
+using NSchema.Operations.Progress;
+using NSchema.Project.Domain;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Operations;

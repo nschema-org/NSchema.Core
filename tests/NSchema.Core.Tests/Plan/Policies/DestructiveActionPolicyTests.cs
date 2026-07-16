@@ -8,6 +8,12 @@ using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain.Models.Sequences;
 using NSchema.Diff.Domain.Models.Tables;
 using NSchema.Diff.Domain.Models.Views;
+using NSchema.Model;
+using NSchema.Model.Enums;
+using NSchema.Model.Extensions;
+using NSchema.Model.Routines;
+using NSchema.Model.Sequences;
+using NSchema.Model.Views;
 using NSchema.Plan.Domain.Models.Constraints;
 using NSchema.Plan.Domain.Models.Enums;
 using NSchema.Plan.Domain.Models.Extensions;
@@ -16,12 +22,6 @@ using NSchema.Plan.Domain.Models.Sequences;
 using NSchema.Plan.Domain.Models.Tables;
 using NSchema.Plan.Domain.Models.Views;
 using NSchema.Plan.Policies;
-using NSchema.Model;
-using NSchema.Model.Enums;
-using NSchema.Model.Extensions;
-using NSchema.Model.Routines;
-using NSchema.Model.Sequences;
-using NSchema.Model.Views;
 
 namespace NSchema.Tests.Plan.Policies;
 
