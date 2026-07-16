@@ -1,5 +1,5 @@
-using NSchema.Model;
 using NSchema.Diff.Domain;
+using NSchema.Model;
 using NSchema.Plan.Domain.Models;
 using NSchema.Project.Domain.Models;
 

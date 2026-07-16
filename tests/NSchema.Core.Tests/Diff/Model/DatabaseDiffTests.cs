@@ -58,7 +58,7 @@ public sealed class DatabaseDiffTests
         diff.IsEmpty.ShouldBeFalse();
     }
 
-      /// <summary>
+    /// <summary>
     /// app.users, with billing.orders pointing an FK at it and billing.summary reading it.
     /// </summary>
     private static Database CurrentDatabase() => new(

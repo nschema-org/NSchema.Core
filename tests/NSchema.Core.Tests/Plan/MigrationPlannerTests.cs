@@ -1,6 +1,6 @@
-using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Diff.Domain;
 using NSchema.Diff.Domain.Models;
+using NSchema.Diff.Domain.Models.Schemas;
 using NSchema.Model;
 using NSchema.Model.Schemas;
 using NSchema.Model.Scripts;

@@ -1,5 +1,5 @@
-using NSchema.Model.Columns;
 using NSchema.Model;
+using NSchema.Model.Columns;
 using NSchema.Model.Schemas;
 using NSchema.Model.Scripts;
 using NSchema.Project;
