@@ -43,7 +43,7 @@ public partial class DatabaseComparerTests
     {
         var current = Db(new Schema(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("retired"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]));
         var desired = Db(new Schema(new SqlIdentifier("app")));
-        var directives = PartialApp() with { Tables = new TableDirectives(Drops: [App("retired")]) };
+        var directives = PartialApp() with { Drops = [new ObjectDropDirective(ObjectKind.Table, App("retired"))] };
 
         var table = Compare(current, desired, directives).Schemas.Single().Tables.ShouldHaveSingleItem();
 

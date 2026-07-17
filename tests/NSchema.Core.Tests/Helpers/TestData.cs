@@ -170,31 +170,31 @@ public static class TestData
     public static ProjectDirectives RichDirectives() => new(
         new SchemaDirectives(
             Renames: [new SchemaRenameDirective(new SqlIdentifier("legacy_app"), new SqlIdentifier("app"))],
-            Drops: [new SqlIdentifier("scratch")],
-            Partials: [new SqlIdentifier("app")]),
-        new TableDirectives(
-            Renames: [new ObjectRenameDirective(Current("members"), new SqlIdentifier("users"))],
-            Drops: [Current("old_table")],
-            ColumnRenames: [new MemberRenameDirective(new MemberReference(new SqlIdentifier("legacy_app"), new SqlIdentifier("members"), new SqlIdentifier("short_code")), new SqlIdentifier("code"))]),
-        new ViewDirectives(
-            Renames: [new ObjectRenameDirective(Current("legacy_directory"), new SqlIdentifier("user_directory"))],
-            Drops: [Current("stale_report")]),
-        new EnumDirectives(
-            Renames: [new ObjectRenameDirective(Current("importance"), new SqlIdentifier("priority"))],
-            Drops: [Current("stale_enum")]),
-        new SequenceDirectives(
-            Renames: [new ObjectRenameDirective(Current("bill_id"), new SqlIdentifier("invoice_id"))],
-            Drops: [Current("stale_seq")]),
-        new RoutineDirectives(
-            Renames: [new ObjectRenameDirective(Current("clean_code"), new SqlIdentifier("normalize_code"))],
-            Drops: [Current("stale_fn"), Current("stale_proc")]),
-        new DomainDirectives(
-            Renames: [new ObjectRenameDirective(Current("legacy_id"), new SqlIdentifier("typeid"))],
-            Drops: [Current("stale_domain")]),
-        new CompositeTypeDirectives(
-            Renames: [new ObjectRenameDirective(Current("legacy_address"), new SqlIdentifier("address"))],
-            Drops: [Current("stale_type")]),
-        new ExtensionDirectives(Drops: [new SqlIdentifier("stale_ext")]));
+            Drops: [new SchemaDropDirective(new SqlIdentifier("scratch"))],
+            Partials: [new SchemaPartialDirective(new SqlIdentifier("app"))]),
+        Renames:
+        [
+            new ObjectRenameDirective(ObjectKind.Table, Current("members"), new SqlIdentifier("users")),
+            new ObjectRenameDirective(ObjectKind.View, Current("legacy_directory"), new SqlIdentifier("user_directory")),
+            new ObjectRenameDirective(ObjectKind.Enum, Current("importance"), new SqlIdentifier("priority")),
+            new ObjectRenameDirective(ObjectKind.Sequence, Current("bill_id"), new SqlIdentifier("invoice_id")),
+            new ObjectRenameDirective(ObjectKind.Routine, Current("clean_code"), new SqlIdentifier("normalize_code")),
+            new ObjectRenameDirective(ObjectKind.Domain, Current("legacy_id"), new SqlIdentifier("typeid")),
+            new ObjectRenameDirective(ObjectKind.CompositeType, Current("legacy_address"), new SqlIdentifier("address")),
+        ],
+        Drops:
+        [
+            new ObjectDropDirective(ObjectKind.Table, Current("old_table")),
+            new ObjectDropDirective(ObjectKind.View, Current("stale_report")),
+            new ObjectDropDirective(ObjectKind.Enum, Current("stale_enum")),
+            new ObjectDropDirective(ObjectKind.Sequence, Current("stale_seq")),
+            new ObjectDropDirective(ObjectKind.Routine, Current("stale_fn")),
+            new ObjectDropDirective(ObjectKind.Routine, Current("stale_proc")),
+            new ObjectDropDirective(ObjectKind.Domain, Current("stale_domain")),
+            new ObjectDropDirective(ObjectKind.CompositeType, Current("stale_type")),
+        ],
+        ColumnRenames: [new MemberRenameDirective(new MemberReference(new SqlIdentifier("legacy_app"), new SqlIdentifier("members"), new SqlIdentifier("short_code")), new SqlIdentifier("code"))],
+        ExtensionDrops: [new ExtensionDropDirective(new SqlIdentifier("stale_ext"))]);
 
     /// <summary>An address under the schema's current (pre-rename) name.</summary>
     private static ObjectReference Current(string name) => new(new SqlIdentifier("legacy_app"), new SqlIdentifier(name));

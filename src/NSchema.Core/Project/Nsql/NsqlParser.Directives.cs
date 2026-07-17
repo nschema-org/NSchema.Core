@@ -1,12 +1,7 @@
+using NSchema.Model;
 using NSchema.Project.Nsql.Syntax;
-using NSchema.Project.Nsql.Syntax.CompositeTypes;
-using NSchema.Project.Nsql.Syntax.Domains;
-using NSchema.Project.Nsql.Syntax.Enums;
-using NSchema.Project.Nsql.Syntax.Routines;
 using NSchema.Project.Nsql.Syntax.Schemas;
-using NSchema.Project.Nsql.Syntax.Sequences;
 using NSchema.Project.Nsql.Syntax.Tables;
-using NSchema.Project.Nsql.Syntax.Views;
 using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql;
@@ -37,61 +32,11 @@ internal sealed partial class NsqlParser
             var to = ParseRenameTarget("a column name");
             return new RenameColumnStatement(from, to) { Position = position, Doc = doc };
         }
-        if (_current.IsKeyword(NsqlKeywords.Table))
+        if (TryParseObjectKind() is { } kind)
         {
-            Advance();
             var from = ParseQualifiedNameNode();
-            var to = ParseRenameTarget("a table name");
-            return new RenameTableStatement(from, to) { Position = position, Doc = doc };
-        }
-        if (_current.IsKeyword(NsqlKeywords.View) || _current.IsKeyword(NsqlKeywords.Materialized))
-        {
-            // RENAME VIEW and RENAME MATERIALIZED VIEW both rename a view (the kind is resolved from the
-            // current state), mirroring DROP.
-            if (Advance().IsKeyword(NsqlKeywords.Materialized))
-            {
-                ExpectKeyword(NsqlKeywords.View);
-            }
-            var from = ParseQualifiedNameNode();
-            var to = ParseRenameTarget("a view name");
-            return new RenameViewStatement(from, to) { Position = position, Doc = doc };
-        }
-        if (_current.IsKeyword(NsqlKeywords.Enum))
-        {
-            Advance();
-            var from = ParseQualifiedNameNode();
-            var to = ParseRenameTarget("an enum name");
-            return new RenameEnumStatement(from, to) { Position = position, Doc = doc };
-        }
-        if (_current.IsKeyword(NsqlKeywords.Domain))
-        {
-            Advance();
-            var from = ParseQualifiedNameNode();
-            var to = ParseRenameTarget("a domain name");
-            return new RenameDomainStatement(from, to) { Position = position, Doc = doc };
-        }
-        if (_current.IsKeyword(NsqlKeywords.Type))
-        {
-            Advance();
-            var from = ParseQualifiedNameNode();
-            var to = ParseRenameTarget("a type name");
-            return new RenameCompositeTypeStatement(from, to) { Position = position, Doc = doc };
-        }
-        if (_current.IsKeyword(NsqlKeywords.Sequence))
-        {
-            Advance();
-            var from = ParseQualifiedNameNode();
-            var to = ParseRenameTarget("a sequence name");
-            return new RenameSequenceStatement(from, to) { Position = position, Doc = doc };
-        }
-        if (_current.IsKeyword(NsqlKeywords.Function) || _current.IsKeyword(NsqlKeywords.Procedure) || _current.IsKeyword(NsqlKeywords.Routine))
-        {
-            // Functions and procedures share one name space, so all three spellings rename a routine,
-            // mirroring DROP.
-            Advance();
-            var from = ParseQualifiedNameNode();
-            var to = ParseRenameTarget("a routine name");
-            return new RenameRoutineStatement(from, to) { Position = position, Doc = doc };
+            var to = ParseRenameTarget(RenameTargetNoun(kind));
+            return new RenameObjectStatement(kind, from, to) { Position = position, Doc = doc };
         }
 
         throw Error("Expected a renameable kind: SCHEMA, TABLE, COLUMN, VIEW, ENUM, DOMAIN, TYPE, SEQUENCE, FUNCTION, PROCEDURE or ROUTINE.");
@@ -109,6 +54,70 @@ internal sealed partial class NsqlParser
         Expect(TokenKind.Semicolon, "';'");
         return new PartialSchemaStatement(schema) { Position = position, Doc = doc };
     }
+
+    /// <summary>
+    /// Consumes an object-kind keyword when the current token names a schema-level object kind. VIEW and
+    /// MATERIALIZED VIEW both name a view, and FUNCTION, PROCEDURE and ROUTINE all name a routine (they share
+    /// one name space) — the concrete kind is resolved from the current state when the directive is planned.
+    /// </summary>
+    private ObjectKind? TryParseObjectKind()
+    {
+        if (_current.IsKeyword(NsqlKeywords.Table))
+        {
+            Advance();
+            return ObjectKind.Table;
+        }
+        if (_current.IsKeyword(NsqlKeywords.View) || _current.IsKeyword(NsqlKeywords.Materialized))
+        {
+            if (Advance().IsKeyword(NsqlKeywords.Materialized))
+            {
+                ExpectKeyword(NsqlKeywords.View);
+            }
+            return ObjectKind.View;
+        }
+        if (_current.IsKeyword(NsqlKeywords.Enum))
+        {
+            Advance();
+            return ObjectKind.Enum;
+        }
+        if (_current.IsKeyword(NsqlKeywords.Domain))
+        {
+            Advance();
+            return ObjectKind.Domain;
+        }
+        if (_current.IsKeyword(NsqlKeywords.Type))
+        {
+            Advance();
+            return ObjectKind.CompositeType;
+        }
+        if (_current.IsKeyword(NsqlKeywords.Sequence))
+        {
+            Advance();
+            return ObjectKind.Sequence;
+        }
+        if (_current.IsKeyword(NsqlKeywords.Function) || _current.IsKeyword(NsqlKeywords.Procedure) || _current.IsKeyword(NsqlKeywords.Routine))
+        {
+            Advance();
+            return ObjectKind.Routine;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// What a rename's target should be, for the error when it is missing. The noun follows the keyword the
+    /// kind is written as, not the model's name for it (a composite type is written <c>TYPE</c>).
+    /// </summary>
+    private static string RenameTargetNoun(ObjectKind kind) => kind switch
+    {
+        ObjectKind.Table => "a table name",
+        ObjectKind.View => "a view name",
+        ObjectKind.Enum => "an enum name",
+        ObjectKind.Domain => "a domain name",
+        ObjectKind.CompositeType => "a type name",
+        ObjectKind.Sequence => "a sequence name",
+        ObjectKind.Routine => "a routine name",
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+    };
 
     private Identifier ParseRenameTarget(string what)
     {

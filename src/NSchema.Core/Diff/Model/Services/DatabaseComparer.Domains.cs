@@ -11,7 +11,7 @@ internal sealed partial class DatabaseComparer
 {
     private List<DomainDiff> CompareDomains(SqlIdentifier schemaName, SqlIdentifier currentSchemaName, IReadOnlyList<DomainType> current, Schema desired, DirectiveLookup directives) =>
         CompareObjects(schemaName, "domain", current, desired.Domains,
-            directives.DomainRenames(currentSchemaName), directives.DomainDrops(currentSchemaName), directives.IsPartial(schemaName),
+            directives.Renames(ObjectKind.Domain, currentSchemaName), directives.Drops(ObjectKind.Domain, currentSchemaName), directives.IsPartial(schemaName),
             domain => new DomainDiff(schemaName, domain.Name, ChangeKind.Remove),
             domain => BuildNewDomain(schemaName, domain),
             (currentDomain, desiredDomain) => BuildModifiedDomain(schemaName, currentDomain, desiredDomain));

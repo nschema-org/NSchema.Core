@@ -90,21 +90,21 @@ CREATE UNIQUE INDEX daily_balances_name_ix ON app.daily_balances (name);
 PARTIAL SCHEMA app;
 RENAME SCHEMA legacy_app TO app;
 RENAME TABLE legacy_app.members TO users;
-RENAME COLUMN legacy_app.members.short_code TO code;
 RENAME VIEW legacy_app.legacy_directory TO user_directory;
 RENAME ENUM legacy_app.importance TO priority;
-RENAME DOMAIN legacy_app.legacy_id TO typeid;
-RENAME TYPE legacy_app.legacy_address TO address;
 RENAME SEQUENCE legacy_app.bill_id TO invoice_id;
 RENAME ROUTINE legacy_app.clean_code TO normalize_code;
+RENAME DOMAIN legacy_app.legacy_id TO typeid;
+RENAME TYPE legacy_app.legacy_address TO address;
+RENAME COLUMN legacy_app.members.short_code TO code;
 DROP TABLE legacy_app.old_table;
 DROP VIEW legacy_app.stale_report;
 DROP ENUM legacy_app.stale_enum;
-DROP DOMAIN legacy_app.stale_domain;
-DROP TYPE legacy_app.stale_type;
 DROP SEQUENCE legacy_app.stale_seq;
 DROP ROUTINE legacy_app.stale_fn;
 DROP ROUTINE legacy_app.stale_proc;
+DROP DOMAIN legacy_app.stale_domain;
+DROP TYPE legacy_app.stale_type;
 
 DROP SCHEMA scratch;
 

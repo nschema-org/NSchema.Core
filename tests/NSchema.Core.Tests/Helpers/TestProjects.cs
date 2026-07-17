@@ -15,7 +15,7 @@ internal static class TestProjects
     {
         scripts ??= [];
         var directives = new ProjectDirectives(
-            Tables: new TableDirectives(ChangeScripts: [.. scripts.OfType<ChangeScript>()]),
+            ChangeScripts: [.. scripts.OfType<ChangeScript>()],
             DeploymentScripts: [.. scripts.OfType<DeploymentScript>()]);
         return new ProjectDefinition(database, directives);
     }

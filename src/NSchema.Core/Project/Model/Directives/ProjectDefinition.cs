@@ -19,7 +19,7 @@ public sealed record ProjectDefinition(Database Database, ProjectDirectives? Dir
     /// </summary>
     public SqlIdentifier[] ManagedSchemaNames => Database.Schemas
         .Select(s => s.Name)
-        .Concat(Directives.Schemas.Drops)
+        .Concat(Directives.Schemas.Drops.Select(d => d.Name))
         .Concat(Directives.Schemas.Renames.Select(r => r.From))
         .Distinct()
         .ToArray();

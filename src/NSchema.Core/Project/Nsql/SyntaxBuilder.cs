@@ -41,7 +41,7 @@ internal static class SyntaxBuilder
         }
 
         // Scripts are directives; each kind renders straight from its home on the directives.
-        foreach (var script in directives.Tables.ChangeScripts)
+        foreach (var script in directives.ChangeScripts)
         {
             statements.Add(Build(script));
         }
@@ -63,86 +63,38 @@ internal static class SyntaxBuilder
     {
         foreach (var partial in directives.Schemas.Partials)
         {
-            statements.Add(new Syn.Schemas.PartialSchemaStatement(Name(partial)) { Position = None });
+            statements.Add(new Syn.Schemas.PartialSchemaStatement(Name(partial.Schema)) { Position = None });
         }
 
         foreach (var rename in directives.Schemas.Renames)
         {
             statements.Add(new Syn.Schemas.RenameSchemaStatement(Name(rename.From), Name(rename.To)) { Position = None });
         }
-        foreach (var rename in directives.Tables.Renames)
+        foreach (var rename in directives.Renames)
         {
-            statements.Add(new Syn.Tables.RenameTableStatement(Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)) { Position = None });
+            statements.Add(new RenameObjectStatement(rename.Kind, Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)) { Position = None });
         }
-        foreach (var rename in directives.Tables.ColumnRenames)
+        foreach (var rename in directives.ColumnRenames)
         {
             statements.Add(new Syn.Tables.RenameColumnStatement(
                 new MemberPath(Name(rename.From.Schema), Name(rename.From.Object), Name(rename.From.Member)) { Position = None },
                 Name(rename.To))
             { Position = None });
         }
-        foreach (var rename in directives.Views.Renames)
-        {
-            statements.Add(new Syn.Views.RenameViewStatement(Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)) { Position = None });
-        }
-        foreach (var rename in directives.Enums.Renames)
-        {
-            statements.Add(new Syn.Enums.RenameEnumStatement(Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)) { Position = None });
-        }
-        foreach (var rename in directives.Domains.Renames)
-        {
-            statements.Add(new Syn.Domains.RenameDomainStatement(Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)) { Position = None });
-        }
-        foreach (var rename in directives.CompositeTypes.Renames)
-        {
-            statements.Add(new Syn.CompositeTypes.RenameCompositeTypeStatement(Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)) { Position = None });
-        }
-        foreach (var rename in directives.Sequences.Renames)
-        {
-            statements.Add(new Syn.Sequences.RenameSequenceStatement(Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)) { Position = None });
-        }
-        foreach (var rename in directives.Routines.Renames)
-        {
-            statements.Add(new Syn.Routines.RenameRoutineStatement(Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)) { Position = None });
-        }
 
-        foreach (var drop in directives.Tables.Drops)
+        foreach (var drop in directives.Drops)
         {
-            statements.Add(new Syn.Tables.DropTableStatement(Qualified(drop.Schema, drop.Name)) { Position = None });
-        }
-        foreach (var drop in directives.Views.Drops)
-        {
-            statements.Add(new Syn.Views.DropViewStatement(Qualified(drop.Schema, drop.Name)) { Position = None });
-        }
-        foreach (var drop in directives.Enums.Drops)
-        {
-            statements.Add(new Syn.Enums.DropEnumStatement(Qualified(drop.Schema, drop.Name)) { Position = None });
-        }
-        foreach (var drop in directives.Domains.Drops)
-        {
-            statements.Add(new Syn.Domains.DropDomainStatement(Qualified(drop.Schema, drop.Name)) { Position = None });
-        }
-        foreach (var drop in directives.CompositeTypes.Drops)
-        {
-            statements.Add(new Syn.CompositeTypes.DropCompositeTypeStatement(Qualified(drop.Schema, drop.Name)) { Position = None });
-        }
-        foreach (var drop in directives.Sequences.Drops)
-        {
-            statements.Add(new Syn.Sequences.DropSequenceStatement(Qualified(drop.Schema, drop.Name)) { Position = None });
-        }
-        foreach (var drop in directives.Routines.Drops)
-        {
-            statements.Add(new Syn.Routines.DropRoutineStatement(Qualified(drop.Schema, drop.Name)) { Position = None });
+            statements.Add(new DropObjectStatement(drop.Kind, Qualified(drop.Address.Schema, drop.Address.Name)) { Position = None });
         }
 
         foreach (var drop in directives.Schemas.Drops)
         {
-            statements.Add(new Syn.Schemas.DropSchemaStatement(Name(drop)) { Position = None });
+            statements.Add(new Syn.Schemas.DropSchemaStatement(Name(drop.Name)) { Position = None });
         }
         // Extensions are dropped last, so their drops trail the schema drops.
-        foreach (var drop in directives.Extensions.Drops)
+        foreach (var drop in directives.ExtensionDrops)
         {
-            statements.Add(new Syn.Extensions.DropExtensionStatement(Name(drop)) { Position = None });
+            statements.Add(new Syn.Extensions.DropExtensionStatement(Name(drop.Name)) { Position = None });
         }
     }
 

@@ -24,6 +24,12 @@ here that you have thoughts on, let me know!
 Currently the plan arguments are a bit confused, and the behaviour changes unpredictably. I want to fix this by just removing the ability to plan
 against a live database. State has been mandatory for a while, and the ephemeral store will cover any edge cases.
 
+### State Rework
+
+At the moment, state is a snapshot of the entire database, not just the managed objects. This is important for dependency management, but it also means
+we're never truly sure what NSchema actually manages. By tracking the managed objects in the state, we can eliminate the need for `PARTIAL` and `DROP`
+directives. This obviously has a lot of knock-on effects, so will need to be considered carefully.
+
 ### Improved SQL generation
 
 At the moment, our `ISqlDialect` interface just has one method to generate SQL for a given migration action. This makes it very easy for database

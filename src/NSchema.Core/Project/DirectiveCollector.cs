@@ -13,24 +13,12 @@ internal sealed class DirectiveCollector
 {
     private readonly ProjectedScripts _scripts = new();
     private readonly List<SchemaRenameDirective> _schemaRenames = [];
-    private readonly List<SqlIdentifier> _schemaDrops = [];
-    private readonly List<SqlIdentifier> _partials = [];
-    private readonly List<ObjectRenameDirective> _tableRenames = [];
-    private readonly List<ObjectReference> _tableDrops = [];
+    private readonly List<SchemaDropDirective> _schemaDrops = [];
+    private readonly List<SchemaPartialDirective> _partials = [];
+    private readonly List<ObjectRenameDirective> _renames = [];
+    private readonly List<ObjectDropDirective> _drops = [];
     private readonly List<MemberRenameDirective> _columnRenames = [];
-    private readonly List<ObjectRenameDirective> _viewRenames = [];
-    private readonly List<ObjectReference> _viewDrops = [];
-    private readonly List<ObjectRenameDirective> _enumRenames = [];
-    private readonly List<ObjectReference> _enumDrops = [];
-    private readonly List<ObjectRenameDirective> _sequenceRenames = [];
-    private readonly List<ObjectReference> _sequenceDrops = [];
-    private readonly List<ObjectRenameDirective> _routineRenames = [];
-    private readonly List<ObjectReference> _routineDrops = [];
-    private readonly List<ObjectRenameDirective> _domainRenames = [];
-    private readonly List<ObjectReference> _domainDrops = [];
-    private readonly List<ObjectRenameDirective> _compositeTypeRenames = [];
-    private readonly List<ObjectReference> _compositeTypeDrops = [];
-    private readonly List<SqlIdentifier> _extensionDrops = [];
+    private readonly List<ExtensionDropDirective> _extensionDrops = [];
 
     /// <summary>
     /// Consumes a directive statement, returning <see langword="false"/> when the statement is not one.
@@ -48,60 +36,24 @@ internal sealed class DirectiveCollector
                 _schemaRenames.Add(new SchemaRenameDirective(Name(s.From), Name(s.To)));
                 return true;
             case Syn.Schemas.DropSchemaStatement s:
-                AddUnique(_schemaDrops, Name(s.Name));
+                AddUnique(_schemaDrops, new SchemaDropDirective(Name(s.Name)));
                 return true;
             case Syn.Schemas.PartialSchemaStatement s:
-                AddUnique(_partials, Name(s.Schema));
+                AddUnique(_partials, new SchemaPartialDirective(Name(s.Schema)));
                 return true;
-            case Syn.Tables.RenameTableStatement s:
-                _tableRenames.Add(new ObjectRenameDirective(Reference(s.From, context), Name(s.To)));
+            case RenameObjectStatement s:
+                _renames.Add(new ObjectRenameDirective(s.Kind, Reference(s.From, context), Name(s.To)));
+                return true;
+            case DropObjectStatement s:
+                AddUnique(_drops, new ObjectDropDirective(s.Kind, Reference(s.Name, context)));
                 return true;
             case Syn.Tables.RenameColumnStatement s:
                 _columnRenames.Add(new MemberRenameDirective(
                     new MemberReference(Bind(s.From.Schema, context), Name(s.From.Table), Name(s.From.Member)),
                     Name(s.To)));
                 return true;
-            case Syn.Tables.DropTableStatement s:
-                AddUnique(_tableDrops, Reference(s.Name, context));
-                return true;
-            case Syn.Views.RenameViewStatement s:
-                _viewRenames.Add(new ObjectRenameDirective(Reference(s.From, context), Name(s.To)));
-                return true;
-            case Syn.Views.DropViewStatement s:
-                AddUnique(_viewDrops, Reference(s.Name, context));
-                return true;
-            case Syn.Enums.RenameEnumStatement s:
-                _enumRenames.Add(new ObjectRenameDirective(Reference(s.From, context), Name(s.To)));
-                return true;
-            case Syn.Enums.DropEnumStatement s:
-                AddUnique(_enumDrops, Reference(s.Name, context));
-                return true;
-            case Syn.Sequences.RenameSequenceStatement s:
-                _sequenceRenames.Add(new ObjectRenameDirective(Reference(s.From, context), Name(s.To)));
-                return true;
-            case Syn.Sequences.DropSequenceStatement s:
-                AddUnique(_sequenceDrops, Reference(s.Name, context));
-                return true;
-            case Syn.Routines.RenameRoutineStatement s:
-                _routineRenames.Add(new ObjectRenameDirective(Reference(s.From, context), Name(s.To)));
-                return true;
-            case Syn.Routines.DropRoutineStatement s:
-                AddUnique(_routineDrops, Reference(s.Name, context));
-                return true;
-            case Syn.Domains.RenameDomainStatement s:
-                _domainRenames.Add(new ObjectRenameDirective(Reference(s.From, context), Name(s.To)));
-                return true;
-            case Syn.Domains.DropDomainStatement s:
-                AddUnique(_domainDrops, Reference(s.Name, context));
-                return true;
-            case Syn.CompositeTypes.RenameCompositeTypeStatement s:
-                _compositeTypeRenames.Add(new ObjectRenameDirective(Reference(s.From, context), Name(s.To)));
-                return true;
-            case Syn.CompositeTypes.DropCompositeTypeStatement s:
-                AddUnique(_compositeTypeDrops, Reference(s.Name, context));
-                return true;
             case Syn.Extensions.DropExtensionStatement s:
-                AddUnique(_extensionDrops, Name(s.Name));
+                AddUnique(_extensionDrops, new ExtensionDropDirective(Name(s.Name)));
                 return true;
             default:
                 return false;
@@ -113,39 +65,24 @@ internal sealed class DirectiveCollector
     /// </summary>
     public void Absorb(ProjectDirectives other)
     {
-        _scripts.Change.AddRange(other.Tables.ChangeScripts);
+        _scripts.Change.AddRange(other.ChangeScripts);
         _scripts.Deployment.AddRange(other.DeploymentScripts);
         _schemaRenames.AddRange(other.Schemas.Renames);
         _schemaDrops.AddRange(other.Schemas.Drops);
         _partials.AddRange(other.Schemas.Partials);
-        _tableRenames.AddRange(other.Tables.Renames);
-        _tableDrops.AddRange(other.Tables.Drops);
-        _columnRenames.AddRange(other.Tables.ColumnRenames);
-        _viewRenames.AddRange(other.Views.Renames);
-        _viewDrops.AddRange(other.Views.Drops);
-        _enumRenames.AddRange(other.Enums.Renames);
-        _enumDrops.AddRange(other.Enums.Drops);
-        _sequenceRenames.AddRange(other.Sequences.Renames);
-        _sequenceDrops.AddRange(other.Sequences.Drops);
-        _routineRenames.AddRange(other.Routines.Renames);
-        _routineDrops.AddRange(other.Routines.Drops);
-        _domainRenames.AddRange(other.Domains.Renames);
-        _domainDrops.AddRange(other.Domains.Drops);
-        _compositeTypeRenames.AddRange(other.CompositeTypes.Renames);
-        _compositeTypeDrops.AddRange(other.CompositeTypes.Drops);
-        _extensionDrops.AddRange(other.Extensions.Drops);
+        _renames.AddRange(other.Renames);
+        _drops.AddRange(other.Drops);
+        _columnRenames.AddRange(other.ColumnRenames);
+        _extensionDrops.AddRange(other.ExtensionDrops);
     }
 
     public ProjectDirectives Build() => new(
         new SchemaDirectives(_schemaRenames, _schemaDrops, _partials),
-        new TableDirectives(_tableRenames, _tableDrops, _columnRenames, _scripts.Change),
-        new ViewDirectives(_viewRenames, _viewDrops),
-        new EnumDirectives(_enumRenames, _enumDrops),
-        new SequenceDirectives(_sequenceRenames, _sequenceDrops),
-        new RoutineDirectives(_routineRenames, _routineDrops),
-        new DomainDirectives(_domainRenames, _domainDrops),
-        new CompositeTypeDirectives(_compositeTypeRenames, _compositeTypeDrops),
-        new ExtensionDirectives(_extensionDrops),
+        _renames,
+        _drops,
+        _columnRenames,
+        _extensionDrops,
+        _scripts.Change,
         _scripts.Deployment
     );
 

@@ -15,9 +15,9 @@ internal sealed partial class DatabaseComparer
     private List<TableDiff> CompareTables(SqlIdentifier schemaName, SqlIdentifier currentSchemaName, IReadOnlyList<Table> current, Schema desired, DirectiveLookup directives)
     {
         var result = new List<TableDiff>();
-        var droppedTables = directives.TableDrops(currentSchemaName);
+        var droppedTables = directives.Drops(ObjectKind.Table, currentSchemaName);
         var isPartial = directives.IsPartial(schemaName);
-        var (forDesired, currentMatched) = MatchEntities(current, desired.Tables, directives.TableRenames(currentSchemaName), "table", schemaName.Value);
+        var (forDesired, currentMatched) = MatchEntities(current, desired.Tables, directives.Renames(ObjectKind.Table, currentSchemaName), "table", schemaName.Value);
 
         for (var j = 0; j < current.Count; j++)
         {

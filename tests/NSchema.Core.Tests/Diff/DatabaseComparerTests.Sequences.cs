@@ -53,7 +53,7 @@ public partial class DatabaseComparerTests
         var diff = DiffSequences(
             [new Sequence(new SqlIdentifier("bill_id"))],
             [new Sequence(new SqlIdentifier("invoice_id"))],
-            new ProjectDirectives(Sequences: new SequenceDirectives(Renames: [new ObjectRenameDirective(App("bill_id"), new SqlIdentifier("invoice_id"))])));
+            new ProjectDirectives(Renames: [new ObjectRenameDirective(ObjectKind.Sequence, App("bill_id"), new SqlIdentifier("invoice_id"))]));
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.RenamedFrom.ShouldBe("bill_id");
@@ -102,7 +102,7 @@ public partial class DatabaseComparerTests
         var diff = Compare(
             Db(new Schema(new SqlIdentifier("app"), Sequences: [new Sequence(new SqlIdentifier("order_id"))])),
             Db(new Schema(new SqlIdentifier("app"))),
-            PartialApp() with { Sequences = new SequenceDirectives(Drops: [App("order_id")]) });
+            PartialApp() with { Drops = [new ObjectDropDirective(ObjectKind.Sequence, App("order_id"))] });
 
         diff.Schemas.ShouldHaveSingleItem().Sequences.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
     }

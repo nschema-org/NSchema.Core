@@ -10,7 +10,7 @@ internal sealed partial class DatabaseComparer
 {
     private List<ViewDiff> CompareViews(SqlIdentifier schemaName, SqlIdentifier currentSchemaName, IReadOnlyList<View> current, Schema desired, DirectiveLookup directives) =>
         CompareObjects(schemaName, "view", current, desired.Views,
-            directives.ViewRenames(currentSchemaName), directives.ViewDrops(currentSchemaName), directives.IsPartial(schemaName),
+            directives.Renames(ObjectKind.View, currentSchemaName), directives.Drops(ObjectKind.View, currentSchemaName), directives.IsPartial(schemaName),
             view => RemovedView(schemaName, view),
             view => BuildNewView(schemaName, view),
             (currentView, desiredView) => BuildModifiedView(schemaName, currentView, desiredView));

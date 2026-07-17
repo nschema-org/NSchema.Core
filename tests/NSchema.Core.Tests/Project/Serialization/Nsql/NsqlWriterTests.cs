@@ -87,8 +87,7 @@ public sealed class NsqlWriterTests
 
     [Fact]
     public void Write_ColumnRenameDirective_IsEmitted()
-        => WriteDirectives(new ProjectDirectives(Tables: new TableDirectives(ColumnRenames:
-                [new MemberRenameDirective(new MemberReference(new SqlIdentifier("app"), new SqlIdentifier("t"), new SqlIdentifier("legacy_flag")), new SqlIdentifier("flag"))])))
+        => WriteDirectives(new ProjectDirectives(ColumnRenames: [new MemberRenameDirective(new MemberReference(new SqlIdentifier("app"), new SqlIdentifier("t"), new SqlIdentifier("legacy_flag")), new SqlIdentifier("flag"))]))
             .ShouldContain("RENAME COLUMN app.t.legacy_flag TO flag;");
 
     [Fact]
@@ -148,7 +147,7 @@ public sealed class NsqlWriterTests
     {
         var ddl = WriteDirectives(new ProjectDirectives(new SchemaDirectives(
                 Renames: [new SchemaRenameDirective(new SqlIdentifier("legacy"), new SqlIdentifier("app"))],
-                Partials: [new SqlIdentifier("app")])),
+                Partials: [new SchemaPartialDirective(new SqlIdentifier("app"))])),
             new Schema(new SqlIdentifier("app")));
         ddl.ShouldContain("CREATE SCHEMA app;");
         ddl.ShouldContain("PARTIAL SCHEMA app;");
@@ -198,8 +197,8 @@ public sealed class NsqlWriterTests
     public void Write_DropDirectives_AreEmitted()
     {
         var ddl = WriteDirectives(new ProjectDirectives(
-                new SchemaDirectives(Drops: [new SqlIdentifier("scratch")]),
-                new TableDirectives(Drops: [InApp("old_table")])),
+                new SchemaDirectives(Drops: [new SchemaDropDirective(new SqlIdentifier("scratch"))]),
+                Drops: [new ObjectDropDirective(ObjectKind.Table, InApp("old_table"))]),
             new Schema(new SqlIdentifier("app")));
         ddl.ShouldContain("DROP TABLE app.old_table;");
         ddl.ShouldContain("DROP SCHEMA scratch;");
@@ -319,7 +318,7 @@ public sealed class NsqlWriterTests
 
     [Fact]
     public void Write_DroppedExtension_IsEmitted()
-        => WriteDirectives(new ProjectDirectives(Extensions: new ExtensionDirectives(Drops: [new SqlIdentifier("stale_ext")])))
+        => WriteDirectives(new ProjectDirectives(ExtensionDrops: [new ExtensionDropDirective(new SqlIdentifier("stale_ext"))]))
             .ShouldContain("DROP EXTENSION stale_ext;");
 
     [Fact]
@@ -377,7 +376,7 @@ public sealed class NsqlWriterTests
 
     [Fact]
     public void Write_DroppedDomain_IsEmitted()
-        => WriteDirectives(new ProjectDirectives(Domains: new DomainDirectives(Drops: [InApp("stale")])), new Schema(new SqlIdentifier("app")))
+        => WriteDirectives(new ProjectDirectives(Drops: [new ObjectDropDirective(ObjectKind.Domain, InApp("stale"))]), new Schema(new SqlIdentifier("app")))
             .ShouldContain("DROP DOMAIN app.stale;");
 
     [Fact]
@@ -407,7 +406,7 @@ public sealed class NsqlWriterTests
 
     [Fact]
     public void Write_DroppedCompositeType_IsEmitted()
-        => WriteDirectives(new ProjectDirectives(CompositeTypes: new CompositeTypeDirectives(Drops: [InApp("stale")])), new Schema(new SqlIdentifier("app")))
+        => WriteDirectives(new ProjectDirectives(Drops: [new ObjectDropDirective(ObjectKind.CompositeType, InApp("stale"))]), new Schema(new SqlIdentifier("app")))
             .ShouldContain("DROP TYPE app.stale;");
 
     [Fact]
@@ -491,8 +490,11 @@ public sealed class NsqlWriterTests
     public void Write_EnumAndSequenceDropDirectives_AreEmitted()
     {
         var ddl = WriteDirectives(new ProjectDirectives(
-                Enums: new EnumDirectives(Drops: [InApp("stale_enum")]),
-                Sequences: new SequenceDirectives(Drops: [InApp("stale_seq")])),
+                Drops:
+                [
+                    new ObjectDropDirective(ObjectKind.Enum, InApp("stale_enum")),
+                    new ObjectDropDirective(ObjectKind.Sequence, InApp("stale_seq")),
+                ]),
             new Schema(new SqlIdentifier("app")));
         ddl.ShouldContain("DROP ENUM app.stale_enum;");
         ddl.ShouldContain("DROP SEQUENCE app.stale_seq;");
@@ -533,7 +535,7 @@ public sealed class NsqlWriterTests
     public void Write_RoutineDrops_AreEmitted()
     {
         // Routines are recorded by name only (one name space), so they are emitted with kind-agnostic DROP ROUTINE.
-        var ddl = WriteDirectives(new ProjectDirectives(Routines: new RoutineDirectives(Drops: [InApp("stale_fn"), InApp("stale_proc")])),
+        var ddl = WriteDirectives(new ProjectDirectives(Drops: [new ObjectDropDirective(ObjectKind.Routine, InApp("stale_fn")), new ObjectDropDirective(ObjectKind.Routine, InApp("stale_proc"))]),
             new Schema(new SqlIdentifier("app")));
         ddl.ShouldContain("DROP ROUTINE app.stale_fn;");
         ddl.ShouldContain("DROP ROUTINE app.stale_proc;");

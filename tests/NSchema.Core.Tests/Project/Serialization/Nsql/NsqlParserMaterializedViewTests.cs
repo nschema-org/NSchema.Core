@@ -73,7 +73,9 @@ public sealed class NsqlParserMaterializedViewTests
     [Fact]
     public void Parse_DropMaterializedView_BecomesAViewDropDirective()
         => Directives("CREATE SCHEMA app; DROP MATERIALIZED VIEW app.daily;")
-            .Views.Drops.ShouldHaveSingleItem().Name.ShouldBe("daily");
+            .Drops.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+                d => d.Kind.ShouldBe(NSchema.Model.ObjectKind.View),
+                d => d.Address.Name.ShouldBe("daily"));
 
     private static ProjectDirectives Directives(string source)
     {

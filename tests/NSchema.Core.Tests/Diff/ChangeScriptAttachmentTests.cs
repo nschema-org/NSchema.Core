@@ -22,7 +22,7 @@ public class ChangeScriptAttachmentTests
     /// <summary>Diffs the given current/desired <c>app.users</c> tables, steered by the given change scripts.</summary>
     private TableDiff Diff(Table current, Table desired, params ChangeScript[] scripts)
     {
-        var directives = new ProjectDirectives(Tables: new TableDirectives(ChangeScripts: scripts));
+        var directives = new ProjectDirectives(ChangeScripts: scripts);
         var currentDb = new Database([new Schema(new SqlIdentifier("app"), Tables: [current])]);
         var desiredDb = new Database([new Schema(new SqlIdentifier("app"), Tables: [desired])]);
         return _sut.Compare(currentDb, desiredDb, directives).Schemas.Single().Tables.Single();

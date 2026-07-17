@@ -8,14 +8,11 @@ namespace NSchema.Project.Model.Directives;
 /// </summary>
 public sealed record ProjectDirectives(
     SchemaDirectives? Schemas = null,
-    TableDirectives? Tables = null,
-    ViewDirectives? Views = null,
-    EnumDirectives? Enums = null,
-    SequenceDirectives? Sequences = null,
-    RoutineDirectives? Routines = null,
-    DomainDirectives? Domains = null,
-    CompositeTypeDirectives? CompositeTypes = null,
-    ExtensionDirectives? Extensions = null,
+    IReadOnlyList<ObjectRenameDirective>? Renames = null,
+    IReadOnlyList<ObjectDropDirective>? Drops = null,
+    IReadOnlyList<MemberRenameDirective>? ColumnRenames = null,
+    IReadOnlyList<ExtensionDropDirective>? ExtensionDrops = null,
+    IReadOnlyList<ChangeScript>? ChangeScripts = null,
     IReadOnlyList<DeploymentScript>? DeploymentScripts = null
 )
 {
@@ -30,44 +27,29 @@ public sealed record ProjectDirectives(
     public SchemaDirectives Schemas { get; init; } = Schemas ?? new();
 
     /// <summary>
-    /// The table directives, column renames included.
+    /// The schema-level object renames, of every kind.
     /// </summary>
-    public TableDirectives Tables { get; init; } = Tables ?? new();
+    public IReadOnlyList<ObjectRenameDirective> Renames { get; init; } = Renames ?? [];
 
     /// <summary>
-    /// The view directives.
+    /// The schema-level objects explicitly declared dropped, of every kind.
     /// </summary>
-    public ViewDirectives Views { get; init; } = Views ?? new();
+    public IReadOnlyList<ObjectDropDirective> Drops { get; init; } = Drops ?? [];
 
     /// <summary>
-    /// The enum-type directives.
+    /// The declared column renames.
     /// </summary>
-    public EnumDirectives Enums { get; init; } = Enums ?? new();
+    public IReadOnlyList<MemberRenameDirective> ColumnRenames { get; init; } = ColumnRenames ?? [];
 
     /// <summary>
-    /// The sequence directives.
+    /// The extensions explicitly declared dropped (extensions are database-global and never rename).
     /// </summary>
-    public SequenceDirectives Sequences { get; init; } = Sequences ?? new();
+    public IReadOnlyList<ExtensionDropDirective> ExtensionDrops { get; init; } = ExtensionDrops ?? [];
 
     /// <summary>
-    /// The routine directives.
+    /// The change-event scripts targeting table members.
     /// </summary>
-    public RoutineDirectives Routines { get; init; } = Routines ?? new();
-
-    /// <summary>
-    /// The domain directives.
-    /// </summary>
-    public DomainDirectives Domains { get; init; } = Domains ?? new();
-
-    /// <summary>
-    /// The composite-type directives.
-    /// </summary>
-    public CompositeTypeDirectives CompositeTypes { get; init; } = CompositeTypes ?? new();
-
-    /// <summary>
-    /// The extension directives (drops only).
-    /// </summary>
-    public ExtensionDirectives Extensions { get; init; } = Extensions ?? new();
+    public IReadOnlyList<ChangeScript> ChangeScripts { get; init; } = ChangeScripts ?? [];
 
     /// <summary>
     /// The deployment scripts.
@@ -86,50 +68,15 @@ public sealed record ProjectDirectives(
             Schemas with
             {
                 Renames = [.. Schemas.Renames.Where(r => scope.Includes(r.From) || scope.Includes(r.To))],
-                Drops = [.. Schemas.Drops.Where(scope.Includes)],
-                Partials = [.. Schemas.Partials.Where(scope.Includes)],
+                Drops = [.. Schemas.Drops.Where(d => scope.Includes(d.Name))],
+                Partials = [.. Schemas.Partials.Where(p => scope.Includes(p.Schema))],
             },
-            Tables with
-            {
-                Renames = [.. Tables.Renames.Where(r => InScope(r.From.Schema))],
-                Drops = [.. Tables.Drops.Where(d => InScope(d.Schema))],
-                ColumnRenames = [.. Tables.ColumnRenames.Where(r => InScope(r.From.Schema))],
-                ChangeScripts = [.. Tables.ChangeScripts.Where(ScriptInScope)],
-            },
-            Views with
-            {
-                Renames = [.. Views.Renames.Where(r => InScope(r.From.Schema))],
-                Drops = [.. Views.Drops.Where(d => InScope(d.Schema))],
-            },
-            Enums with
-            {
-                Renames = [.. Enums.Renames.Where(r => InScope(r.From.Schema))],
-                Drops = [.. Enums.Drops.Where(d => InScope(d.Schema))],
-            },
-            Sequences with
-            {
-                Renames = [.. Sequences.Renames.Where(r => InScope(r.From.Schema))],
-                Drops = [.. Sequences.Drops.Where(d => InScope(d.Schema))],
-            },
-            Routines with
-            {
-                Renames = [.. Routines.Renames.Where(r => InScope(r.From.Schema))],
-                Drops = [.. Routines.Drops.Where(d => InScope(d.Schema))],
-            },
-            Domains with
-            {
-                Renames = [.. Domains.Renames.Where(r => InScope(r.From.Schema))],
-                Drops = [.. Domains.Drops.Where(d => InScope(d.Schema))],
-            },
-            CompositeTypes with
-            {
-                Renames = [.. CompositeTypes.Renames.Where(r => InScope(r.From.Schema))],
-                Drops = [.. CompositeTypes.Drops.Where(d => InScope(d.Schema))],
-            },
-            Extensions)
-        {
-            DeploymentScripts = [.. DeploymentScripts.Where(ScriptInScope)],
-        };
+            [.. Renames.Where(r => InScope(r.From.Schema))],
+            [.. Drops.Where(d => InScope(d.Address.Schema))],
+            [.. ColumnRenames.Where(r => InScope(r.From.Schema))],
+            ExtensionDrops,
+            [.. ChangeScripts.Where(ScriptInScope)],
+            [.. DeploymentScripts.Where(ScriptInScope)]);
 
         bool ScriptInScope(Script script) =>
             script.ScopeSchema is not { } schema || scope.Includes(schema);

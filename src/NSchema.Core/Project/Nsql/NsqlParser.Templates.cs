@@ -1,9 +1,9 @@
+using NSchema.Model;
 using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Syntax.Extensions;
 using NSchema.Project.Nsql.Syntax.Schemas;
 using NSchema.Project.Nsql.Syntax.Tables;
 using NSchema.Project.Nsql.Syntax.Templates;
-using NSchema.Project.Nsql.Syntax.Views;
 using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql;
@@ -169,10 +169,19 @@ internal sealed partial class NsqlParser
     /// </summary>
     private NsqlStatement RequireObjectDirective(NsqlStatement directive)
     {
-        if (directive is RenameSchemaStatement or DropSchemaStatement or PartialSchemaStatement
-            or RenameViewStatement or DropViewStatement or DropExtensionStatement)
+        var rejected = directive switch
         {
-            throw Error($"A {directive.GetType().Name.Replace("Statement", string.Empty)} directive is not allowed in a template body.");
+            RenameSchemaStatement => "RENAME SCHEMA",
+            DropSchemaStatement => "DROP SCHEMA",
+            PartialSchemaStatement => "PARTIAL SCHEMA",
+            DropExtensionStatement => "DROP EXTENSION",
+            RenameObjectStatement { Kind: ObjectKind.View } => "RENAME VIEW",
+            DropObjectStatement { Kind: ObjectKind.View } => "DROP VIEW",
+            _ => null,
+        };
+        if (rejected is not null)
+        {
+            throw Error($"A {rejected} directive is not allowed in a template body.");
         }
         return directive;
     }

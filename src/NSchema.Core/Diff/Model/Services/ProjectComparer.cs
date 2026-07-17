@@ -30,7 +30,7 @@ internal sealed class ProjectComparer(IDatabaseComparer comparer) : IProjectComp
         // A change-event script whose change is not in the diff was not attached — a dead migration.
         var diff = comparer.Compare(current.Database, desired.Database, pendingDirectives);
         var attached = diff.ChangeScripts().ToHashSet();
-        diagnostics.AddRange(allDirectives.Tables.ChangeScripts.Where(s => !attached.Contains(s)).Select(DeadMigrationDiagnostic));
+        diagnostics.AddRange(allDirectives.ChangeScripts.Where(s => !attached.Contains(s)).Select(DeadMigrationDiagnostic));
 
         // Deployment scripts run at the bookends — they attach to no node, so they ride the diff root.
         return Result.From(diff with { DeploymentScripts = deploymentScripts.Require() }, diagnostics);
@@ -48,28 +48,15 @@ internal sealed class ProjectComparer(IDatabaseComparer comparer) : IProjectComp
             }
         }
 
-        var kinds = new (string Kind, IReadOnlyList<ObjectRenameDirective> Renames, Func<ObjectReference, bool> Exists)[]
+        foreach (var rename in directives.Renames)
         {
-            ("table", directives.Tables.Renames, current.HasTable),
-            ("view", directives.Views.Renames, current.HasView),
-            ("enum", directives.Enums.Renames, current.HasEnum),
-            ("sequence", directives.Sequences.Renames, current.HasSequence),
-            ("routine", directives.Routines.Renames, current.HasRoutine),
-            ("domain", directives.Domains.Renames, current.HasDomain),
-            ("composite type", directives.CompositeTypes.Renames, current.HasCompositeType),
-        };
-        foreach (var (kind, renames, exists) in kinds)
-        {
-            foreach (var rename in renames)
+            if (!current.Has(rename.Kind, rename.From) && current.Has(rename.Kind, rename.From with { Name = rename.To }))
             {
-                if (!exists(rename.From) && exists(rename.From with { Name = rename.To }))
-                {
-                    yield return DiffDiagnostics.AppliedRename(kind, rename.From.ToString(), rename.To);
-                }
+                yield return DiffDiagnostics.AppliedRename(rename.Kind.Display(), rename.From.ToString(), rename.To);
             }
         }
 
-        foreach (var rename in directives.Tables.ColumnRenames)
+        foreach (var rename in directives.ColumnRenames)
         {
             if (!current.HasColumn(rename.From) && current.HasColumn(rename.From with { Member = rename.To }))
             {

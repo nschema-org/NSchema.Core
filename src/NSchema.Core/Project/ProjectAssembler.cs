@@ -77,7 +77,7 @@ internal static class ProjectAssembler
         var project = new ProjectDefinition(expandedDatabase, built);
 
         // Collisions are project errors, so validate before scoping drops any instance — all of them at once.
-        diagnostics.AddRange(ValidateChangeTargets(built.Tables.ChangeScripts));
+        diagnostics.AddRange(ValidateChangeTargets(built.ChangeScripts));
         diagnostics.AddRange(ValidateScriptNames(built));
         diagnostics.AddRange(DirectiveValidator.Validate(project));
 
@@ -90,7 +90,7 @@ internal static class ProjectAssembler
     private static IEnumerable<Diagnostic> ValidateScriptNames(ProjectDirectives directives)
     {
         var references = new HashSet<ScriptReference>();
-        foreach (var reference in directives.Tables.ChangeScripts.Select(s => s.Reference).Concat(directives.DeploymentScripts.Select(s => s.Reference)))
+        foreach (var reference in directives.ChangeScripts.Select(s => s.Reference).Concat(directives.DeploymentScripts.Select(s => s.Reference)))
         {
             if (!references.Add(reference))
             {
