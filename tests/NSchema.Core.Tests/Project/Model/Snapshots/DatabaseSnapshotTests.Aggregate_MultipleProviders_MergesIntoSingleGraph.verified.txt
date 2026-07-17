@@ -1,105 +1,108 @@
 ﻿{
   Schemas: [
     {
-      Name: app,
-      Comment: application schema,
       Tables: [
         {
-          Name: users,
           PrimaryKey: {
-            Name: users_pkey,
             ColumnNames: [
               id
-            ]
+            ],
+            Name: users_pkey
           },
           Columns: [
             {
-              Name: id,
               Type: bigint,
               IsNullable: false,
-              IsIdentity: false
+              IsIdentity: false,
+              Name: id
             },
             {
-              Name: name,
               Type: varchar(255),
               IsNullable: false,
-              IsIdentity: false
+              IsIdentity: false,
+              Name: name
             }
-          ]
+          ],
+          Name: users
         },
         {
-          Name: invoices,
           Columns: [
             {
-              Name: id,
               Type: bigint,
               IsNullable: false,
-              IsIdentity: false
+              IsIdentity: false,
+              Name: id
             },
             {
-              Name: amount,
               Type: decimal(18,2),
               IsNullable: false,
-              IsIdentity: false
+              IsIdentity: false,
+              Name: amount
             }
-          ]
+          ],
+          Name: invoices
         }
       ],
       Views: [
         {
-          Name: active_users,
+          Kind: View,
           Body: SELECT id, name FROM app.users,
-          Comment: currently active users,
-          IsMaterialized: false,
           DependsOn: [
             {
               Schema: app,
               Name: users
             }
-          ]
+          ],
+          IsMaterialized: false,
+          Name: active_users,
+          Comment: currently active users
         },
         {
-          Name: invoice_totals,
+          Kind: View,
           Body: SELECT id, amount FROM app.invoices,
-          IsMaterialized: false,
           DependsOn: [
             {
               Schema: app,
               Name: invoices
             }
-          ]
+          ],
+          IsMaterialized: false,
+          Name: invoice_totals
         }
-      ]
+      ],
+      Name: app,
+      Comment: application schema
     },
     {
-      Name: reporting,
-      Comment: analytics,
       Tables: [
         {
-          Name: daily_totals,
           Columns: [
             {
-              Name: day,
               Type: date,
               IsNullable: false,
-              IsIdentity: false
+              IsIdentity: false,
+              Name: day
             }
-          ]
+          ],
+          Name: daily_totals
         }
       ],
       Views: [
         {
-          Name: weekly_rollup,
+          Kind: View,
           Body: SELECT day FROM reporting.daily_totals,
-          IsMaterialized: false,
           DependsOn: [
             {
               Schema: reporting,
               Name: daily_totals
             }
-          ]
+          ],
+          IsMaterialized: false,
+          Name: weekly_rollup
         }
-      ]
+      ],
+      Name: reporting,
+      Comment: analytics
     }
   ]
 }

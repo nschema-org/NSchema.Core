@@ -12,7 +12,7 @@ public sealed class DatabaseTests
 {
     private static Database Db(params Schema[] schemas) => new Database(schemas);
 
-    private static Schema Schema(string name, params Table[] tables) => new Schema(new SqlIdentifier(name), Tables: tables);
+    private static Schema Schema(string name, params Table[] tables) => new Schema(new SqlIdentifier(name), tables: tables);
 
     private static Table Table(string name) => new(new SqlIdentifier(name));
 
@@ -24,7 +24,7 @@ public sealed class DatabaseTests
     [Fact]
     public void ScopedTo_RestrictsSchemas()
     {
-        var result = Sample().ScopedTo(PlanningScope.Of(new SqlIdentifier("app")));
+        var result = Sample().ScopedTo(PlanningScope.To(new SqlIdentifier("app")));
 
         result.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
@@ -34,7 +34,7 @@ public sealed class DatabaseTests
     {
         var schema = new Database([new Schema(new SqlIdentifier("App"))]);
 
-        var result = schema.ScopedTo(PlanningScope.Of(new SqlIdentifier("app")));
+        var result = schema.ScopedTo(PlanningScope.To(new SqlIdentifier("app")));
 
         result.Schemas.Select(s => s.Name).ShouldBe(["App"]);
     }
@@ -42,7 +42,7 @@ public sealed class DatabaseTests
     [Fact]
     public void ScopedTo_NamesNotPresent_AreIgnored()
     {
-        var result = Sample().ScopedTo(PlanningScope.Of(new SqlIdentifier("app"), new SqlIdentifier("does-not-exist")));
+        var result = Sample().ScopedTo(PlanningScope.To(new SqlIdentifier("app"), new SqlIdentifier("does-not-exist")));
 
         result.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
@@ -51,30 +51,23 @@ public sealed class DatabaseTests
     public void ScopedTo_RestrictsDirectivesToInScopeSchemas()
     {
         // Directives address current reality, so a schema rename keeps its object directives in scope through
-        // either side; unrelated schemas' directives drop out. Extension drops are global and pass through.
+        // either side; unrelated schemas' directives drop out.
         var sales = new SqlIdentifier("sales");
         var core = new SqlIdentifier("core");
         var project = new ProjectDefinition(
             new Database([new Schema(core), new Schema(new SqlIdentifier("audit"))]),
             new ProjectDirectives(
-                new SchemaDirectives(
-                    Renames: [new SchemaRenameDirective(sales, core)],
-                    Drops: [new SchemaDropDirective(new SqlIdentifier("scratch"))],
-                    Partials: [new SchemaPartialDirective(core), new SchemaPartialDirective(new SqlIdentifier("audit"))]),
-                Drops:
+                SchemaRenames: [new SchemaRenameDirective(sales, core)],
+                ObjectRenames:
                 [
-                    new ObjectDropDirective(ObjectKind.Table, new ObjectAddress(sales, new SqlIdentifier("old"))),
-                    new ObjectDropDirective(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("audit"), new SqlIdentifier("stale"))),
-                ],
-                ExtensionDrops: [new ExtensionDropDirective(new SqlIdentifier("stale_ext"))]));
+                    new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(sales, new SqlIdentifier("old"))), new SqlIdentifier("current")),
+                    new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("audit"), new SqlIdentifier("stale"))), new SqlIdentifier("fresh")),
+                ]));
 
-        var filtered = project.ScopedTo(PlanningScope.Of(core)).Directives;
+        var filtered = project.ScopedTo(PlanningScope.To(core)).Directives;
 
-        filtered.Schemas.Renames.ShouldHaveSingleItem(); // kept — its To side is in scope
-        filtered.Schemas.Drops.ShouldBeEmpty();          // scratch is out of scope
-        filtered.Schemas.Partials.ShouldBe([new SchemaPartialDirective(core)]);
-        filtered.Drops.ShouldHaveSingleItem().Address.Schema.ShouldBe(sales); // resolves through the rename
-        filtered.ExtensionDrops.ShouldHaveSingleItem();
+        filtered.SchemaRenames.ShouldHaveSingleItem(); // kept — its To side is in scope
+        filtered.ObjectRenames.ShouldHaveSingleItem().From.Schema.ShouldBe(sales); // resolves through the rename
     }
 
     [Fact]
@@ -90,7 +83,7 @@ public sealed class DatabaseTests
     {
         var schema = Sample();
 
-        schema.ScopedTo(PlanningScope.Of()).ShouldBe(schema);
+        schema.ScopedTo(PlanningScope.To()).ShouldBe(schema);
     }
 
     // ── Multiple providers, distinct schema names ─────────────────────────────
@@ -148,8 +141,8 @@ public sealed class DatabaseTests
     [Fact]
     public void Combine_DuplicateFunctionInSameSchema_IsAnError()
     {
-        var db1 = Db(new Schema(new SqlIdentifier("public"), Routines: [new Routine(new SqlIdentifier("f"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int AS $$ SELECT 1 $$"))]));
-        var db2 = Db(new Schema(new SqlIdentifier("public"), Routines: [new Routine(new SqlIdentifier("f"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int AS $$ SELECT 2 $$"))]));
+        var db1 = Db(new Schema(new SqlIdentifier("public"), routines: [new Routine(new SqlIdentifier("f"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int AS $$ SELECT 1 $$"))]));
+        var db2 = Db(new Schema(new SqlIdentifier("public"), routines: [new Routine(new SqlIdentifier("f"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int AS $$ SELECT 2 $$"))]));
 
         DatabaseAggregator.Combine(db1, db2).Errors.ShouldHaveSingleItem().Message.ShouldContain("Duplicate routine 'f'");
     }
@@ -157,8 +150,8 @@ public sealed class DatabaseTests
     [Fact]
     public void Combine_DuplicateProcedureInSameSchema_IsAnError()
     {
-        var db1 = Db(new Schema(new SqlIdentifier("public"), Routines: [new Routine(new SqlIdentifier("p"), RoutineKind.Procedure, new SqlText(""), new SqlText("AS $$ SELECT 1 $$"))]));
-        var db2 = Db(new Schema(new SqlIdentifier("public"), Routines: [new Routine(new SqlIdentifier("p"), RoutineKind.Procedure, new SqlText(""), new SqlText("AS $$ SELECT 2 $$"))]));
+        var db1 = Db(new Schema(new SqlIdentifier("public"), routines: [new Routine(new SqlIdentifier("p"), RoutineKind.Procedure, new SqlText(""), new SqlText("AS $$ SELECT 1 $$"))]));
+        var db2 = Db(new Schema(new SqlIdentifier("public"), routines: [new Routine(new SqlIdentifier("p"), RoutineKind.Procedure, new SqlText(""), new SqlText("AS $$ SELECT 2 $$"))]));
 
         DatabaseAggregator.Combine(db1, db2).Errors.ShouldHaveSingleItem().Message.ShouldContain("Duplicate routine 'p'");
     }
@@ -167,8 +160,8 @@ public sealed class DatabaseTests
     public void Combine_FunctionAndProcedureWithSameName_IsAnError()
     {
         // Functions and procedures share one name pool, as they do in the database's catalog.
-        var db1 = Db(new Schema(new SqlIdentifier("public"), Routines: [new Routine(new SqlIdentifier("r"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int AS $$ SELECT 1 $$"))]));
-        var db2 = Db(new Schema(new SqlIdentifier("public"), Routines: [new Routine(new SqlIdentifier("r"), RoutineKind.Procedure, new SqlText(""), new SqlText("AS $$ SELECT 1 $$"))]));
+        var db1 = Db(new Schema(new SqlIdentifier("public"), routines: [new Routine(new SqlIdentifier("r"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int AS $$ SELECT 1 $$"))]));
+        var db2 = Db(new Schema(new SqlIdentifier("public"), routines: [new Routine(new SqlIdentifier("r"), RoutineKind.Procedure, new SqlText(""), new SqlText("AS $$ SELECT 1 $$"))]));
 
         DatabaseAggregator.Combine(db1, db2).Errors.ShouldHaveSingleItem().Message.ShouldContain("share one name space");
     }
@@ -181,7 +174,7 @@ public sealed class DatabaseTests
     public void Combine_Comment_FromOneOfMultipleProviders_IsPreserved()
     {
         // Arrange
-        var db1 = Db(new Schema(new SqlIdentifier("public"), Comment: "App schema"));
+        var db1 = Db(new Schema(new SqlIdentifier("public")) { Comment = "App schema" });
         var db2 = Db(Schema("public", Table("posts")));
 
         // Act
@@ -196,8 +189,8 @@ public sealed class DatabaseTests
     public void Combine_SameCommentFromMultipleProviders_IsPreserved()
     {
         // Arrange
-        var db1 = Db(new Schema(new SqlIdentifier("public"), Comment: "App schema"));
-        var db2 = Db(new Schema(new SqlIdentifier("public"), Comment: "App schema"));
+        var db1 = Db(new Schema(new SqlIdentifier("public")) { Comment = "App schema" });
+        var db2 = Db(new Schema(new SqlIdentifier("public")) { Comment = "App schema" });
 
         // Act
         var result = DatabaseAggregator.Combine(db1, db2).Require();
@@ -210,8 +203,8 @@ public sealed class DatabaseTests
     public void Combine_ConflictingComments_IsAnError()
     {
         // Arrange
-        var db1 = Db(new Schema(new SqlIdentifier("public"), Comment: "App schema"));
-        var db2 = Db(new Schema(new SqlIdentifier("public"), Comment: "Different comment"));
+        var db1 = Db(new Schema(new SqlIdentifier("public")) { Comment = "App schema" });
+        var db2 = Db(new Schema(new SqlIdentifier("public")) { Comment = "Different comment" });
 
         // Act
         var result = DatabaseAggregator.Combine(db1, db2);
@@ -227,8 +220,8 @@ public sealed class DatabaseTests
     public void Combine_Grants_AreCombinedAcrossProviders()
     {
         // Arrange
-        var db1 = Db(new Schema(new SqlIdentifier("public"), Grants: [new SchemaGrant(new SqlIdentifier("app_user"))]));
-        var db2 = Db(new Schema(new SqlIdentifier("public"), Grants: [new SchemaGrant(new SqlIdentifier("reporting"))]));
+        var db1 = Db(new Schema(new SqlIdentifier("public"), grants: [new SchemaGrant(new SqlIdentifier("app_user"))]));
+        var db2 = Db(new Schema(new SqlIdentifier("public"), grants: [new SchemaGrant(new SqlIdentifier("reporting"))]));
 
         // Act
         var result = DatabaseAggregator.Combine(db1, db2).Require();
@@ -241,8 +234,8 @@ public sealed class DatabaseTests
     public void Combine_DuplicateGrants_AreDeduplicated()
     {
         // Arrange
-        var db1 = Db(new Schema(new SqlIdentifier("public"), Grants: [new SchemaGrant(new SqlIdentifier("app_user"))]));
-        var db2 = Db(new Schema(new SqlIdentifier("public"), Grants: [new SchemaGrant(new SqlIdentifier("app_user"))]));
+        var db1 = Db(new Schema(new SqlIdentifier("public"), grants: [new SchemaGrant(new SqlIdentifier("app_user"))]));
+        var db2 = Db(new Schema(new SqlIdentifier("public"), grants: [new SchemaGrant(new SqlIdentifier("app_user"))]));
 
         // Act
         var result = DatabaseAggregator.Combine(db1, db2).Require();
@@ -257,8 +250,8 @@ public sealed class DatabaseTests
     public void Combine_MultipleProviders_SameSchemaName_MergesViews()
     {
         // Arrange
-        var db1 = Db(new Schema(new SqlIdentifier("public"), Views: [View("active_users")]));
-        var db2 = Db(new Schema(new SqlIdentifier("public"), Views: [View("user_summary")]));
+        var db1 = Db(new Schema(new SqlIdentifier("public"), views: [View("active_users")]));
+        var db2 = Db(new Schema(new SqlIdentifier("public"), views: [View("user_summary")]));
 
         // Act
         var result = DatabaseAggregator.Combine(db1, db2).Require();
@@ -271,8 +264,8 @@ public sealed class DatabaseTests
     public void Combine_DuplicateViewInSameSchema_IsAnError()
     {
         // Arrange
-        var db1 = Db(new Schema(new SqlIdentifier("public"), Views: [View("active_users")]));
-        var db2 = Db(new Schema(new SqlIdentifier("public"), Views: [View("active_users")]));
+        var db1 = Db(new Schema(new SqlIdentifier("public"), views: [View("active_users")]));
+        var db2 = Db(new Schema(new SqlIdentifier("public"), views: [View("active_users")]));
 
         // Act
         var result = DatabaseAggregator.Combine(db1, db2);

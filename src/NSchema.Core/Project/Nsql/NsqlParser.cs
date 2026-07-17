@@ -92,10 +92,6 @@ internal sealed partial class NsqlParser
         {
             return ParseCreate(doc);
         }
-        if (_current.IsKeyword(NsqlKeywords.Drop))
-        {
-            return ParseDrop(doc);
-        }
         if (_current.IsKeyword(NsqlKeywords.Grant))
         {
             return ParseGrant(doc);
@@ -115,10 +111,6 @@ internal sealed partial class NsqlParser
         if (_current.IsKeyword(NsqlKeywords.Rename))
         {
             return ParseRename(doc);
-        }
-        if (_current.IsKeyword(NsqlKeywords.Partial))
-        {
-            return ParsePartial(doc);
         }
         if (_current.IsKeyword(NsqlKeywords.Database) || _current.IsKeyword(NsqlKeywords.State))
         {

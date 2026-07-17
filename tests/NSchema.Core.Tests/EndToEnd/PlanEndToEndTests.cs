@@ -6,6 +6,7 @@ using NSchema.Model.Columns;
 using NSchema.Model.Schemas;
 using NSchema.Model.Tables;
 using NSchema.Operations;
+using NSchema.State;
 
 namespace NSchema.Tests.EndToEnd;
 
@@ -40,8 +41,8 @@ public sealed class PlanEndToEndTests : IDisposable
     public async Task Plan_ReportsStructuredDiffBetweenCurrentAndDesired()
     {
         // Current: app.users(id). Desired: app.users(id, email) + a new app.orders table.
-        var current = new Database([new Schema(new SqlIdentifier("app"), Tables:
-            [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
+        var current = new Database([new Schema(new SqlIdentifier("app"), tables:
+            [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
 
         var desired = WriteNsql("schema.sql",
             """
@@ -78,8 +79,8 @@ public sealed class PlanEndToEndTests : IDisposable
     [Fact]
     public async Task Plan_WithNoChanges_ReportsEmptyDiff()
     {
-        var schema = new Database([new Schema(new SqlIdentifier("app"), Tables:
-            [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
+        var schema = new Database([new Schema(new SqlIdentifier("app"), tables:
+            [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
 
         var desired = WriteNsql("schema.sql",
             """
@@ -137,11 +138,11 @@ public sealed class PlanEndToEndTests : IDisposable
         // billing.orders keeps its rows; only the constraint aimed into app goes.
         var current = new Database(
         [
-            new Schema(new SqlIdentifier("app"), Tables:
-                [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]),
-            new Schema(new SqlIdentifier("billing"), Tables:
+            new Schema(new SqlIdentifier("app"), tables:
+                [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]),
+            new Schema(new SqlIdentifier("billing"), tables:
             [
-                new Table(new SqlIdentifier("orders"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])
+                new Table(new SqlIdentifier("orders"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])
                 {
                     ForeignKeys =
                     [
@@ -156,8 +157,14 @@ public sealed class PlanEndToEndTests : IDisposable
         using var app = NewBuilder(current).AddProjectSource(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).UseSqlDialect<StubSqlDialect>().Build();
         (await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
 
+        // A teardown destroys what NSchema manages; management is normally established by an apply, adopted
+        // here through state surgery. billing stays unmanaged — the plan may only sever, never tear it down.
+        await Manage(app, new IdentitySet(
+            Schemas: [new SqlIdentifier("app")],
+            Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users")))]));
+
         var result = await app.Operations.Plan(
-            new PlanArguments { Target = PlanTarget.Empty, Scope = PlanningScope.Of(new SqlIdentifier("app")) },
+            new PlanArguments { Target = PlanTarget.Empty, Scope = PlanningScope.To(new SqlIdentifier("app")) },
             TestContext.Current.CancellationToken);
 
         var diff = result.Value.ShouldNotBeNull().Plan.ShouldNotBeNull().Diff;
@@ -180,8 +187,8 @@ public sealed class PlanEndToEndTests : IDisposable
     public async Task Plan_Teardown_DiffsTheManagedSchemaDownToNothing()
     {
         // The managed schema is the recorded state, so the refresh records the live schema before tearing down.
-        var current = new Database([new Schema(new SqlIdentifier("app"), Tables:
-            [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
+        var current = new Database([new Schema(new SqlIdentifier("app"), tables:
+            [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
         var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
@@ -194,6 +201,12 @@ public sealed class PlanEndToEndTests : IDisposable
         using var app = NewBuilder(current).AddProjectSource(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).UseSqlDialect<StubSqlDialect>().Build();
         (await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
 
+        // A teardown destroys what NSchema manages; management is normally established by an apply, adopted
+        // here through state surgery.
+        await Manage(app, new IdentitySet(
+            Schemas: [new SqlIdentifier("app")],
+            Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users")))]));
+
         var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Empty }, TestContext.Current.CancellationToken);
 
         // A teardown is fully destructive, so the default policy blocks it — it must stay possible, but it does
@@ -204,5 +217,14 @@ public sealed class PlanEndToEndTests : IDisposable
         // The teardown plan drops the managed table.
         var schema = result.Value.ShouldNotBeNull().Plan.ShouldNotBeNull().Diff.Schemas.ShouldHaveSingleItem();
         schema.Tables.ShouldContain(t => t.Name.Value.Equals("users") && t.Kind == ChangeKind.Remove);
+    }
+
+    /// <summary>Adopts identities into management through state surgery: pull, mutate, push.</summary>
+    private static async Task Manage(NSchemaApplication app, IdentitySet managed)
+    {
+        var read = await app.State.Read(new StateReadArguments(), TestContext.Current.CancellationToken);
+        var state = read.Value.ShouldNotBeNull().State.ShouldNotBeNull();
+        (await app.State.Write(new StateWriteArguments(state with { Managed = managed }), TestContext.Current.CancellationToken))
+            .IsSuccess.ShouldBeTrue();
     }
 }

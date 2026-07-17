@@ -19,4 +19,9 @@ internal sealed record DatabaseStateEnvelope(int Version, Database Database)
     /// The recorded script executions.
     /// </summary>
     public IReadOnlyList<ScriptExecution> Scripts { get; init; } = [];
+
+    /// <summary>
+    /// The identities of objects in the full <see cref="Database"/> that we are responsible for managing.
+    /// </summary>
+    public IdentitySet Managed { get; init; } = IdentitySet.Empty;
 }

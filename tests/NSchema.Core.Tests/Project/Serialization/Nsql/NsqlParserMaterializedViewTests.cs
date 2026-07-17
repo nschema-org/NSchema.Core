@@ -70,13 +70,6 @@ public sealed class NsqlParserMaterializedViewTests
             "CREATE INDEX ix ON app.m (x); CREATE INDEX ix ON app.m (y);").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("already declared");
 
-    [Fact]
-    public void Parse_DropMaterializedView_BecomesAViewDropDirective()
-        => Directives("CREATE SCHEMA app; DROP MATERIALIZED VIEW app.daily;")
-            .Drops.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
-                d => d.Kind.ShouldBe(NSchema.Model.ObjectKind.View),
-                d => d.Address.Name.ShouldBe("daily"));
-
     private static ProjectDirectives Directives(string source)
     {
         var read = NSchema.Project.Nsql.NsqlReader.Read(source);

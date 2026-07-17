@@ -12,20 +12,20 @@
               Name: legacy_flag,
               Kind: Remove,
               Definition: {
-                Name: legacy_flag,
                 Type: boolean,
                 IsNullable: false,
-                IsIdentity: false
+                IsIdentity: false,
+                Name: legacy_flag
               }
             },
             {
               Name: id,
               Kind: Modify,
               Definition: {
-                Name: id,
                 Type: bigint,
                 IsNullable: false,
-                IsIdentity: false
+                IsIdentity: false,
+                Name: id
               },
               Type: {
                 Old: int,
@@ -36,10 +36,10 @@
               Name: email_address,
               Kind: Modify,
               Definition: {
-                Name: email_address,
                 Type: text,
                 IsNullable: false,
-                IsIdentity: false
+                IsIdentity: false,
+                Name: email_address
               },
               RenamedFrom: email,
               Type: {
@@ -50,11 +50,11 @@
             {
               Name: email_upper,
               Definition: {
-                Name: email_upper,
                 Type: text,
                 IsNullable: true,
                 IsIdentity: false,
-                GeneratedExpression: upper(email_address)
+                GeneratedExpression: upper(email_address),
+                Name: email_upper
               }
             }
           ],
@@ -62,9 +62,6 @@
             {
               Name: users_email_ix,
               Definition: {
-                Name: users_email_ix,
-                IsUnique: true,
-                Method: btree,
                 Columns: [
                   {
                     Column: email_address,
@@ -75,9 +72,12 @@
                     Expression: lower(email_address)
                   }
                 ],
+                IsUnique: true,
+                Method: btree,
                 Include: [
                   id
-                ]
+                ],
+                Name: users_email_ix
               }
             }
           ],
@@ -85,10 +85,10 @@
             {
               Name: users_email_uq,
               Definition: {
-                Name: users_email_uq,
                 ColumnNames: [
                   email_address
-                ]
+                ],
+                Name: users_email_uq
               }
             }
           ],
@@ -96,8 +96,8 @@
             {
               Name: users_id_chk,
               Definition: {
-                Name: users_id_chk,
-                Expression: id > 0
+                Expression: id > 0,
+                Name: users_id_chk
               }
             }
           ],
@@ -105,14 +105,14 @@
             {
               Name: users_span_excl,
               Definition: {
-                Name: users_span_excl,
-                Method: gist,
                 Elements: [
                   {
                     Operator: &&,
                     Expression: int4range(0, id)
                   }
-                ]
+                ],
+                Method: gist,
+                Name: users_span_excl
               }
             }
           ]
@@ -124,15 +124,16 @@
           Name: active_users,
           Kind: Modify,
           Definition: {
-            Name: active_users,
+            Kind: View,
             Body: SELECT id, email_address FROM app.users WHERE active,
-            IsMaterialized: false,
             DependsOn: [
               {
                 Schema: app,
                 Name: users
               }
-            ]
+            ],
+            IsMaterialized: false,
+            Name: active_users
           },
           IsMaterialized: false,
           RequiresRecreate: false,
@@ -174,15 +175,16 @@
           Schema: app,
           Name: user_emails,
           Definition: {
-            Name: user_emails,
+            Kind: View,
             Body: SELECT email_address FROM app.active_users,
-            IsMaterialized: false,
             DependsOn: [
               {
                 Schema: app,
                 Name: active_users
               }
-            ]
+            ],
+            IsMaterialized: false,
+            Name: user_emails
           },
           IsMaterialized: false,
           RequiresRecreate: false,
@@ -229,11 +231,12 @@
           Schema: app,
           Name: severity,
           Definition: {
-            Name: severity,
+            Kind: Enum,
             Values: [
               info,
               error
-            ]
+            ],
+            Name: severity
           },
           RequiresRecreate: false
         },
@@ -249,10 +252,11 @@
           Schema: app,
           Name: batch_id,
           Definition: {
-            Name: batch_id,
+            Kind: Sequence,
             Options: {
               Cycle: false
-            }
+            },
+            Name: batch_id
           }
         },
         {
@@ -284,9 +288,10 @@
           Name: add_tax,
           Kind: Modify,
           Definition: {
-            Name: add_tax,
+            Kind: Routine,
             Arguments: amount numeric,
-            Definition: RETURNS numeric AS $$ SELECT amount * 1.2 $$
+            Definition: RETURNS numeric AS $$ SELECT amount * 1.2 $$,
+            Name: add_tax
           },
           RequiresRecreate: false
         },
@@ -295,10 +300,11 @@
           Name: archive,
           RoutineKind: Procedure,
           Definition: {
-            Name: archive,
-            Kind: Procedure,
+            Kind: Routine,
+            RoutineKind: Procedure,
             Arguments: before date,
-            Definition: LANGUAGE sql AS $$ DELETE $$
+            Definition: LANGUAGE sql AS $$ DELETE $$,
+            Name: archive
           },
           RequiresRecreate: false
         },
@@ -306,9 +312,10 @@
           Schema: app,
           Name: brand_new,
           Definition: {
-            Name: brand_new,
+            Kind: Routine,
             Arguments: ,
-            Definition: RETURNS int AS $$ SELECT 42 $$
+            Definition: RETURNS int AS $$ SELECT 42 $$,
+            Name: brand_new
           },
           RequiresRecreate: false
         },
@@ -317,9 +324,10 @@
           Name: score,
           Kind: Modify,
           Definition: {
-            Name: score,
+            Kind: Routine,
             Arguments: user_id bigint, weight numeric,
-            Definition: RETURNS numeric AS $$ SELECT 1 $$
+            Definition: RETURNS numeric AS $$ SELECT 1 $$,
+            Name: score
           },
           Arguments: {
             Old: user_id bigint,
@@ -340,9 +348,10 @@
           Name: code,
           Kind: Modify,
           Definition: {
-            Name: code,
+            Kind: Domain,
             DataType: varchar(8),
-            NotNull: false
+            NotNull: false,
+            Name: code
           },
           DataType: {
             Old: text,
@@ -354,9 +363,10 @@
           Schema: app,
           Name: postal_code,
           Definition: {
-            Name: postal_code,
+            Kind: Domain,
             DataType: text,
-            NotNull: true
+            NotNull: true,
+            Name: postal_code
           },
           RequiresRecreate: false
         },
@@ -398,7 +408,7 @@
           Schema: app,
           Name: coords,
           Definition: {
-            Name: coords,
+            Kind: CompositeType,
             Fields: [
               {
                 Name: lat,
@@ -408,7 +418,8 @@
                 Name: lng,
                 DataType: decimal(9,6)
               }
-            ]
+            ],
+            Name: coords
           }
         },
         {
@@ -483,6 +494,7 @@
     {
       Name: vector,
       Definition: {
+        Kind: Extension,
         Name: vector,
         Comment: embeddings
       },

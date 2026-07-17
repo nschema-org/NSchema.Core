@@ -17,10 +17,9 @@ public sealed record ProjectDefinition(Database Database, ProjectDirectives? Dir
     /// <summary>
     /// Every schema name the project manages.
     /// </summary>
-    public SqlIdentifier[] ManagedSchemaNames => Database.Schemas
+    public SqlIdentifier[] AddressedSchemaNames => Database.Schemas
         .Select(s => s.Name)
-        .Concat(Directives.Schemas.Drops.Select(d => d.Name))
-        .Concat(Directives.Schemas.Renames.Select(r => r.From))
+        .Concat(Directives.SchemaRenames.Select(r => r.From))
         .Distinct()
         .ToArray();
 
@@ -29,7 +28,7 @@ public sealed record ProjectDefinition(Database Database, ProjectDirectives? Dir
     /// </summary>
     public ProjectDefinition ScopedTo(PlanningScope scope)
     {
-        if (scope.IsAll)
+        if (scope.IsUnscoped)
         {
             return this;
         }

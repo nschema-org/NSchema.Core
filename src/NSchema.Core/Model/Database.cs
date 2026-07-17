@@ -7,35 +7,57 @@ namespace NSchema.Model;
 /// <summary>
 /// Represents the overall structure of a database.
 /// </summary>
-/// <param name="Schemas">The schemas declared in the database.</param>
-/// <param name="Extensions">Any extensions that are installed in the database.</param>
+/// <remarks>
+/// Creates a database.
+/// </remarks>
+/// <param name="schemas">The schemas declared in the database.</param>
+/// <param name="extensions">Any extensions that are installed in the database.</param>
 [DebuggerDisplay("{Schemas.Count} schemas")]
-public record Database(IReadOnlyList<Schema>? Schemas = null, IReadOnlyList<Extension>? Extensions = null)
+public sealed class Database(IReadOnlyList<Schema>? schemas = null, IReadOnlyList<Extension>? extensions = null) : IEquatable<Database>
 {
     /// <summary>
     /// A list of Schema objects, each representing a specific schema within the database.
     /// </summary>
-    public IReadOnlyList<Schema> Schemas { get; init; } = Schemas ?? [];
+    public IReadOnlyList<Schema> Schemas { get; init; } = schemas ?? [];
 
     /// <summary>
     /// A list of database-global extensions. Extensions are not schema-scoped, so they live at the root of the
     /// database schema rather than inside a <see cref="Schema"/>.
     /// </summary>
-    public IReadOnlyList<Extension> Extensions { get; init; } = Extensions ?? [];
+    public IReadOnlyList<Extension> Extensions { get; init; } = extensions ?? [];
+
+    /// <summary>
+    /// The identity of everything the database contains: its schemas, their objects, and its extensions.
+    /// </summary>
+    public IdentitySet Identities() => new(
+        [.. Schemas.Select(s => s.Name)],
+        [.. Schemas.SelectMany(s => s.Objects().Select(o => o.Identity!))],
+        [.. Extensions.Select(e => e.Name)]);
+
+    /// <summary>
+    /// Returns the database restricted to the schemas, objects, and extensions whose identity is in the set.
+    /// </summary>
+    public Database FilteredTo(IdentitySet identities) => new(
+        [.. Schemas.Where(s => identities.ContainsSchema(s.Name)).Select(s => s.FilteredTo(identities))],
+        [.. Extensions.Where(identities.Contains)]
+    );
 
     /// <summary>
     /// Returns a new database model restricted to the current scope.
     /// </summary>
-    public Database ScopedTo(PlanningScope scope)
-    {
-        // Extensions are database-global, not schema-scoped, so they pass through a namespace filter untouched:
-        // an extension is a prerequisite of the whole database regardless of which schemas are in scope.
-        if (scope.IsAll)
-        {
-            return this;
-        }
+    public Database ScopedTo(PlanningScope scope) => scope.IsUnscoped ? this : FilteredTo(Identities().CoveredBy(scope));
 
-        var filtered = Schemas.Where(s => scope.Includes(s.Name)).ToList();
-        return new Database(filtered, Extensions);
-    }
+    /// <summary>
+    /// Structural equality over the declared contents.
+    /// </summary>
+    public bool Equals(Database? other) =>
+        other is not null
+        && Schemas.SequenceEqual(other.Schemas)
+        && Extensions.SequenceEqual(other.Extensions);
+
+    /// <inheritdoc/>
+    public override bool Equals(object? obj) => obj is Database other && Equals(other);
+
+    /// <inheritdoc/>
+    public override int GetHashCode() => HashCode.Combine(Schemas.Count, Extensions.Count);
 }

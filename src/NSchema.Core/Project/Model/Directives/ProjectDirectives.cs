@@ -7,11 +7,9 @@ namespace NSchema.Project.Model.Directives;
 /// The management directives a project declares.
 /// </summary>
 public sealed record ProjectDirectives(
-    SchemaDirectives? Schemas = null,
-    IReadOnlyList<ObjectRenameDirective>? Renames = null,
-    IReadOnlyList<ObjectDropDirective>? Drops = null,
-    IReadOnlyList<MemberRenameDirective>? ColumnRenames = null,
-    IReadOnlyList<ExtensionDropDirective>? ExtensionDrops = null,
+    IReadOnlyList<SchemaRenameDirective>? SchemaRenames = null,
+    IReadOnlyList<ObjectRenameDirective>? ObjectRenames = null,
+    IReadOnlyList<MemberRenameDirective>? MemberRenames = null,
     IReadOnlyList<ChangeScript>? ChangeScripts = null,
     IReadOnlyList<DeploymentScript>? DeploymentScripts = null
 )
@@ -22,29 +20,19 @@ public sealed record ProjectDirectives(
     public static ProjectDirectives Empty { get; } = new();
 
     /// <summary>
-    /// The schema directives.
+    /// The declared schema renames.
     /// </summary>
-    public SchemaDirectives Schemas { get; init; } = Schemas ?? new();
+    public IReadOnlyList<SchemaRenameDirective> SchemaRenames { get; init; } = SchemaRenames ?? [];
 
     /// <summary>
     /// The schema-level object renames, of every kind.
     /// </summary>
-    public IReadOnlyList<ObjectRenameDirective> Renames { get; init; } = Renames ?? [];
+    public IReadOnlyList<ObjectRenameDirective> ObjectRenames { get; init; } = ObjectRenames ?? [];
 
     /// <summary>
-    /// The schema-level objects explicitly declared dropped, of every kind.
+    /// The declared member renames.
     /// </summary>
-    public IReadOnlyList<ObjectDropDirective> Drops { get; init; } = Drops ?? [];
-
-    /// <summary>
-    /// The declared column renames.
-    /// </summary>
-    public IReadOnlyList<MemberRenameDirective> ColumnRenames { get; init; } = ColumnRenames ?? [];
-
-    /// <summary>
-    /// The extensions explicitly declared dropped (extensions are database-global and never rename).
-    /// </summary>
-    public IReadOnlyList<ExtensionDropDirective> ExtensionDrops { get; init; } = ExtensionDrops ?? [];
+    public IReadOnlyList<MemberRenameDirective> MemberRenames { get; init; } = MemberRenames ?? [];
 
     /// <summary>
     /// The change-event scripts targeting table members.
@@ -62,27 +50,20 @@ public sealed record ProjectDirectives(
     public ProjectDirectives ScopedTo(PlanningScope scope)
     {
         // A current schema name maps to its declared name through the schema renames.
-        var declaredNames = Schemas.Renames.ToDictionary(r => r.From, r => r.To);
+        var declaredNames = SchemaRenames.ToDictionary(r => r.From, r => r.To);
 
         return new ProjectDirectives(
-            Schemas with
-            {
-                Renames = [.. Schemas.Renames.Where(r => scope.Includes(r.From) || scope.Includes(r.To))],
-                Drops = [.. Schemas.Drops.Where(d => scope.Includes(d.Name))],
-                Partials = [.. Schemas.Partials.Where(p => scope.Includes(p.Schema))],
-            },
-            [.. Renames.Where(r => InScope(r.From.Schema))],
-            [.. Drops.Where(d => InScope(d.Address.Schema))],
-            [.. ColumnRenames.Where(r => InScope(r.From.Schema))],
-            ExtensionDrops,
+            [.. SchemaRenames.Where(r => scope.Contains(r.From) || scope.Contains(r.To))],
+            [.. ObjectRenames.Where(r => InScope(r.From.Schema))],
+            [.. MemberRenames.Where(r => InScope(r.From.Schema))],
             [.. ChangeScripts.Where(ScriptInScope)],
             [.. DeploymentScripts.Where(ScriptInScope)]);
 
         bool ScriptInScope(Script script) =>
-            script.ScopeSchema is not { } schema || scope.Includes(schema);
+            script.ScopeSchema is not { } schema || scope.Contains(schema);
 
         bool InScope(SqlIdentifier currentSchema) =>
-            scope.Includes(currentSchema)
-            || (declaredNames.TryGetValue(currentSchema, out var declared) && scope.Includes(declared));
+            scope.Contains(currentSchema)
+            || (declaredNames.TryGetValue(currentSchema, out var declared) && scope.Contains(declared));
     }
 }

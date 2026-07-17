@@ -3,22 +3,17 @@
   database: {
     schemas: [
       {
-        name: app,
-        comment: application schema,
         tables: [
           {
-            name: users,
             primaryKey: {
-              name: users_pkey,
-              comment: surrogate key,
               columnNames: [
                 id
-              ]
+              ],
+              name: users_pkey,
+              comment: surrogate key
             },
-            comment: all users,
             columns: [
               {
-                name: id,
                 type: {
                   name: bigint,
                   schema: null,
@@ -29,16 +24,16 @@
                 isNullable: false,
                 isIdentity: true,
                 defaultExpression: null,
-                comment: null,
                 identityOptions: {
                   startWith: 1,
                   minValue: 1,
                   incrementBy: 1
                 },
-                generatedExpression: null
+                generatedExpression: null,
+                name: id,
+                comment: null
               },
               {
-                name: name,
                 type: {
                   name: varchar,
                   schema: null,
@@ -49,12 +44,12 @@
                 isNullable: false,
                 isIdentity: false,
                 defaultExpression: null,
-                comment: display name,
                 identityOptions: null,
-                generatedExpression: null
+                generatedExpression: null,
+                name: name,
+                comment: display name
               },
               {
-                name: balance,
                 type: {
                   name: decimal,
                   schema: null,
@@ -65,12 +60,12 @@
                 isNullable: true,
                 isIdentity: false,
                 defaultExpression: 0,
-                comment: null,
                 identityOptions: null,
-                generatedExpression: null
+                generatedExpression: null,
+                name: balance,
+                comment: null
               },
               {
-                name: code,
                 type: {
                   name: char,
                   schema: null,
@@ -81,12 +76,12 @@
                 isNullable: false,
                 isIdentity: false,
                 defaultExpression: null,
-                comment: null,
                 identityOptions: null,
-                generatedExpression: null
+                generatedExpression: null,
+                name: code,
+                comment: null
               },
               {
-                name: metadata,
                 type: {
                   name: jsonb,
                   schema: null,
@@ -97,12 +92,12 @@
                 isNullable: true,
                 isIdentity: false,
                 defaultExpression: null,
-                comment: null,
                 identityOptions: null,
-                generatedExpression: null
+                generatedExpression: null,
+                name: metadata,
+                comment: null
               },
               {
-                name: name_upper,
                 type: {
                   name: text,
                   schema: null,
@@ -113,49 +108,46 @@
                 isNullable: true,
                 isIdentity: false,
                 defaultExpression: null,
-                comment: null,
                 identityOptions: null,
-                generatedExpression: upper(name)
+                generatedExpression: upper(name),
+                name: name_upper,
+                comment: null
               }
             ],
             foreignKeys: [
               {
-                name: users_org_fk,
-                referencedSchema: app,
-                referencedTable: orgs,
-                onDelete: Cascade,
-                onUpdate: SetNull,
-                comment: owning org,
                 columnNames: [
                   org_id
                 ],
+                referencedSchema: app,
+                referencedTable: orgs,
                 referencedColumnNames: [
                   id
-                ]
+                ],
+                onDelete: Cascade,
+                onUpdate: SetNull,
+                name: users_org_fk,
+                comment: owning org
               }
             ],
             uniqueConstraints: [
               {
-                name: users_code_uq,
-                comment: external code,
                 columnNames: [
                   code
-                ]
+                ],
+                name: users_code_uq,
+                comment: external code
               }
             ],
             checkConstraints: [
               {
-                name: users_balance_chk,
                 expression: balance >= 0,
+                name: users_balance_chk,
                 comment: no overdraft
               }
             ],
             exclusionConstraints: [
               {
-                name: users_code_excl,
-                method: gist,
-                predicate: balance > 0,
-                comment: no overlap,
                 elements: [
                   {
                     operator: =,
@@ -167,16 +159,15 @@
                     column: null,
                     expression: int4range(0, balance)
                   }
-                ]
+                ],
+                method: gist,
+                predicate: balance > 0,
+                name: users_code_excl,
+                comment: no overlap
               }
             ],
             indexes: [
               {
-                name: users_name_ix,
-                isUnique: true,
-                comment: unique names,
-                predicate: name IS NOT NULL,
-                method: null,
                 columns: [
                   {
                     column: name,
@@ -184,14 +175,14 @@
                     sort: Default,
                     nulls: Default
                   }
-                ]
+                ],
+                isUnique: true,
+                predicate: name IS NOT NULL,
+                method: null,
+                name: users_name_ix,
+                comment: unique names
               },
               {
-                name: users_balance_ix,
-                isUnique: false,
-                comment: covering balance index,
-                predicate: null,
-                method: btree,
                 columns: [
                   {
                     column: balance,
@@ -206,9 +197,14 @@
                     nulls: Default
                   }
                 ],
+                isUnique: false,
+                predicate: null,
+                method: btree,
                 include: [
                   code
-                ]
+                ],
+                name: users_balance_ix,
+                comment: covering balance index
               }
             ],
             grants: [
@@ -219,7 +215,6 @@
             ],
             triggers: [
               {
-                name: users_audit,
                 timing: After,
                 events: Insert, Update,
                 function: {
@@ -227,17 +222,17 @@
                   name: log_change
                 },
                 level: Row,
-                when: new.balance > 0,
-                functionArguments: null,
-                comment: audit row changes,
-                body: null,
                 updateOfColumns: [
                   name,
                   balance
-                ]
+                ],
+                when: new.balance > 0,
+                functionArguments: null,
+                body: null,
+                name: users_audit,
+                comment: audit row changes
               },
               {
-                name: users_stamp,
                 timing: Before,
                 events: Update,
                 function: {
@@ -247,70 +242,66 @@
                 level: Statement,
                 when: null,
                 functionArguments: null,
-                comment: null,
-                body: null
+                body: null,
+                name: users_stamp,
+                comment: null
               },
               {
-                name: users_guard,
                 timing: InsteadOf,
                 events: Delete,
                 function: null,
                 level: Statement,
                 when: null,
                 functionArguments: null,
-                comment: block deletes,
                 body:
 BEGIN
   INSERT INTO app.audit (msg) VALUES ('blocked');
   RETURN;
-END
+END,
+                name: users_guard,
+                comment: block deletes
               }
-            ]
+            ],
+            name: users,
+            comment: all users
           }
         ],
         views: [
           {
-            name: active_users,
             body: SELECT id, name FROM app.users WHERE balance > 0,
-            comment: currently active users,
-            isMaterialized: false,
-            dependsOn: [
-              {
-                schema: app,
-                name: users
-              }
-            ]
-          },
-          {
-            name: user_directory,
-            body: SELECT name FROM app.active_users,
-            comment: null,
-            isMaterialized: false,
-            dependsOn: [
-              {
-                schema: app,
-                name: active_users
-              }
-            ]
-          },
-          {
-            name: daily_balances,
-            body: SELECT name, balance FROM app.users,
-            comment: balances rollup,
-            isMaterialized: true,
             dependsOn: [
               {
                 schema: app,
                 name: users
               }
             ],
+            isMaterialized: false,
+            name: active_users,
+            comment: currently active users
+          },
+          {
+            body: SELECT name FROM app.active_users,
+            dependsOn: [
+              {
+                schema: app,
+                name: active_users
+              }
+            ],
+            isMaterialized: false,
+            name: user_directory,
+            comment: null
+          },
+          {
+            body: SELECT name, balance FROM app.users,
+            dependsOn: [
+              {
+                schema: app,
+                name: users
+              }
+            ],
+            isMaterialized: true,
             indexes: [
               {
-                name: daily_balances_name_ix,
-                isUnique: true,
-                comment: by name,
-                predicate: null,
-                method: null,
                 columns: [
                   {
                     column: name,
@@ -318,34 +309,39 @@ END
                     sort: Default,
                     nulls: Default
                   }
-                ]
+                ],
+                isUnique: true,
+                predicate: null,
+                method: null,
+                name: daily_balances_name_ix,
+                comment: by name
               }
-            ]
+            ],
+            name: daily_balances,
+            comment: balances rollup
           }
         ],
         enums: [
           {
-            name: order_status,
-            comment: order lifecycle,
             values: [
               pending,
               shipped,
               delivered
-            ]
+            ],
+            name: order_status,
+            comment: order lifecycle
           },
           {
-            name: priority,
-            comment: null,
             values: [
               low,
               high
-            ]
+            ],
+            name: priority,
+            comment: null
           }
         ],
         sequences: [
           {
-            name: invoice_id,
-            comment: null,
             options: {
               dataType: null,
               startWith: null,
@@ -354,11 +350,11 @@ END
               maxValue: null,
               cache: null,
               cycle: false
-            }
+            },
+            name: invoice_id,
+            comment: null
           },
           {
-            name: order_id,
-            comment: order numbers,
             options: {
               dataType: {
                 name: bigint,
@@ -373,41 +369,42 @@ END
               maxValue: 999999,
               cache: 10,
               cycle: true
-            }
+            },
+            name: order_id,
+            comment: order numbers
           }
         ],
         routines: [
           {
-            name: add_tax,
-            kind: Function,
+            routineKind: Function,
             arguments: amount numeric, rate numeric,
             definition:
 RETURNS numeric LANGUAGE sql AS $$
   SELECT amount * (1 + rate);
 $$,
+            name: add_tax,
             comment: adds tax
           },
           {
-            name: normalize_code,
-            kind: Function,
+            routineKind: Function,
             arguments: code text DEFAULT 'N/A',
             definition: RETURNS text LANGUAGE sql AS $body$ SELECT upper(code || ';suffix'); $body$,
+            name: normalize_code,
             comment: null
           },
           {
-            name: archive_users,
-            kind: Procedure,
+            routineKind: Procedure,
             arguments: ,
             definition:
 LANGUAGE sql AS $$
   DELETE FROM app.users WHERE name <> 'a;b';
 $$,
+            name: archive_users,
             comment: archival job
           }
         ],
         domains: [
           {
-            name: typeid,
             dataType: {
               name: text,
               schema: null,
@@ -417,10 +414,10 @@ $$,
             },
             default: null,
             notNull: false,
+            name: typeid,
             comment: unique id as text
           },
           {
-            name: positive_amount,
             dataType: {
               name: decimal,
               schema: null,
@@ -430,20 +427,19 @@ $$,
             },
             default: 0,
             notNull: true,
-            comment: null,
             checks: [
               {
-                name: positive_amount_chk,
                 expression: VALUE >= 0,
+                name: positive_amount_chk,
                 comment: null
               }
-            ]
+            ],
+            name: positive_amount,
+            comment: null
           }
         ],
         compositeTypes: [
           {
-            name: address,
-            comment: a postal address,
             fields: [
               {
                 name: street,
@@ -465,11 +461,11 @@ $$,
                   scale: null
                 }
               }
-            ]
+            ],
+            name: address,
+            comment: a postal address
           },
           {
-            name: money_amount,
-            comment: null,
             fields: [
               {
                 name: amount,
@@ -491,32 +487,37 @@ $$,
                   scale: null
                 }
               }
-            ]
+            ],
+            name: money_amount,
+            comment: null
           }
         ],
         grants: [
           {
             role: app_role
           }
-        ]
+        ],
+        name: app,
+        comment: application schema
       }
     ],
     extensions: [
       {
-        name: citext,
         version: null,
+        name: citext,
         comment: null
       },
       {
-        name: postgis,
         version: 3.4,
+        name: postgis,
         comment: spatial types
       },
       {
-        name: uuid-ossp,
         version: null,
+        name: uuid-ossp,
         comment: uuid generation
       }
     ]
-  }
+  },
+  managed: {}
 }

@@ -9,7 +9,7 @@ internal sealed partial class DatabaseComparer
 {
     private static List<SequenceDiff> CompareSequences(SqlIdentifier schemaName, SqlIdentifier currentSchemaName, IReadOnlyList<Sequence> current, Schema desired, DirectiveLookup directives) =>
         CompareObjects(schemaName, "sequence", current, desired.Sequences,
-            directives.Renames(ObjectKind.Sequence, currentSchemaName), directives.Drops(ObjectKind.Sequence, currentSchemaName), directives.IsPartial(schemaName),
+            directives.Renames(ObjectKind.Sequence, currentSchemaName),
             sequence => new SequenceDiff(schemaName, sequence.Name, ChangeKind.Remove),
             sequence => BuildNewSequence(schemaName, sequence),
             (currentSequence, desiredSequence) => BuildModifiedSequence(schemaName, currentSequence, desiredSequence));

@@ -29,6 +29,13 @@ public static class VerifyModuleInitializer
         // its exact underlying text.
         VerifierSettings.AddExtraSettings(settings => settings.Converters.Add(new ValueObjectConverter()));
 
+        // An object's Identity is derived from its kind, name, and position in the tree — and the parent
+        // references point back up the tree it is rendered inside — so snapshotting them would say everything
+        // twice (or forever). A node's location in the snapshot is its parentage.
+        VerifierSettings.IgnoreMember<Model.DatabaseObject>(o => o.Identity);
+        VerifierSettings.IgnoreMember<Model.DatabaseObject>(o => o.Schema);
+        VerifierSettings.IgnoreMember<Model.DatabaseMember>(m => m.Parent);
+
         // Addresses and routine references render as written.
         VerifierSettings.AddExtraSettings(settings => settings.Converters.Add(new ObjectAddressConverter()));
         VerifierSettings.AddExtraSettings(settings => settings.Converters.Add(new RoutineReferenceConverter()));

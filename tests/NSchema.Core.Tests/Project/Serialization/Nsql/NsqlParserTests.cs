@@ -72,26 +72,14 @@ public sealed class NsqlParserTests
     // -------------------------------------------------------------------------
 
     [Fact]
-    public void Parse_DropSchema_BecomesADirective()
-        => Directives("DROP SCHEMA scratch;").Schemas.Drops.ShouldHaveSingleItem().Name.ShouldBe("scratch");
+    public void Parse_DropStatement_NoLongerParses()
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE SCHEMA app; DROP TABLE app.old_table;"))
+            .Message.ShouldContain("Unknown statement 'DROP'");
 
     [Fact]
-    public void Parse_DropTable_BecomesADirective_AndNeverEntersTheTree()
-    {
-        var source = "CREATE SCHEMA app; DROP TABLE app.old_table;";
-        Directives(source).Drops.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectDropDirective(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("old_table"))));
-        ParseSingleSchema(source).Tables.ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void Parse_PartialSchemaWithDrop_BothBecomeDirectives()
-    {
-        var directives = Directives("CREATE SCHEMA app; PARTIAL SCHEMA app; DROP TABLE app.old;");
-        directives.Schemas.Partials.ShouldHaveSingleItem().Schema.ShouldBe("app");
-        directives.Drops.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectDropDirective(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("old"))));
-    }
+    public void Parse_PartialSchema_NoLongerParses()
+        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE SCHEMA app; PARTIAL SCHEMA app;"))
+            .Message.ShouldContain("Unknown statement 'PARTIAL'");
 
     // -------------------------------------------------------------------------
     // Configuration statements (a separate grammar — rejected here, covered by NsqlConfigTests)
@@ -206,22 +194,14 @@ public sealed class NsqlParserTests
     [Fact]
     public void Parse_RenameView_BecomesADirective()
         => Directives("CREATE SCHEMA app; CREATE VIEW app.v AS SELECT 1 FROM app.t; RENAME VIEW app.old_v TO v;")
-            .Renames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRenameDirective(ObjectKind.View, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("old_v")), new SqlIdentifier("v")));
+            .ObjectRenames.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectRenameDirective(new ObjectIdentity(ObjectKind.View, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("old_v"))), new SqlIdentifier("v")));
 
     [Fact]
     public void Parse_CreateView_WithDocComment_AttachesComment()
     {
         var schema = ParseSingleSchema("CREATE SCHEMA app;\n--- active users\nCREATE VIEW app.active AS SELECT * FROM app.users;");
         schema.Views.ShouldHaveSingleItem().Comment.ShouldBe("active users");
-    }
-
-    [Fact]
-    public void Parse_DropView_RecordsDroppedView()
-    {
-        Directives("CREATE SCHEMA app; DROP VIEW app.stale;")
-            .Drops.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectDropDirective(ObjectKind.View, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("stale"))));
     }
 
     [Fact]
@@ -280,52 +260,13 @@ public sealed class NsqlParserTests
     [Fact]
     public void Parse_RenameEnum_BecomesADirective()
         => Directives("CREATE SCHEMA app; CREATE ENUM app.status ('a'); RENAME ENUM app.state TO status;")
-            .Renames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRenameDirective(ObjectKind.Enum, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("state")), new SqlIdentifier("status")));
+            .ObjectRenames.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Enum, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("state"))), new SqlIdentifier("status")));
 
     [Fact]
     public void Parse_CreateEnum_WithDocComment_AttachesComment()
         => ParseSingleSchema("CREATE SCHEMA app;\n--- order lifecycle\nCREATE ENUM app.status ('a');")
             .Enums.ShouldHaveSingleItem().Comment.ShouldBe("order lifecycle");
-
-    [Fact]
-    public void Parse_DropEnum_RecordsDroppedEnum()
-        => Directives("CREATE SCHEMA app; DROP ENUM app.stale;")
-            .Drops.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectDropDirective(ObjectKind.Enum, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("stale"))));
-
-    [Fact]
-    public void Parse_DuplicateEnum_FailsTheRead()
-        => new TestNsqlParser("CREATE SCHEMA app; CREATE ENUM app.e ('a'); CREATE ENUM app.e ('b');").Project().Errors.ShouldHaveSingleItem()
-            .Message.ShouldContain("already declared");
-
-    [Fact]
-    public void Parse_DuplicateEnumValue_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE ENUM app.e ('a', 'a');"))
-            .Message.ShouldContain("more than once");
-
-    [Fact]
-    public void Parse_EnumValueMustBeQuoted_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE ENUM app.e (pending);"))
-            .Message.ShouldContain("an enum value");
-
-    [Fact]
-    public void Parse_PartialEnum_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE PARTIAL ENUM app.e ('a');"))
-            .Message.ShouldContain("after CREATE");
-
-    // -------------------------------------------------------------------------
-    // Sequences
-    // -------------------------------------------------------------------------
-
-    [Fact]
-    public void Parse_CreateSequence_WithoutOptions_HasEmptyOptions()
-    {
-        var schema = ParseSingleSchema("CREATE SCHEMA app; CREATE SEQUENCE app.order_id;");
-        var sequence = schema.Sequences.ShouldHaveSingleItem();
-        sequence.Name.ShouldBe("order_id");
-        sequence.Options.ShouldBe(new SequenceOptions());
-    }
 
     [Fact]
     public void Parse_CreateSequence_WithEveryOption_CapturesThemAll()
@@ -347,54 +288,13 @@ public sealed class NsqlParserTests
     [Fact]
     public void Parse_RenameSequence_BecomesADirective()
         => Directives("CREATE SCHEMA app; CREATE SEQUENCE app.invoice_id; RENAME SEQUENCE app.bill_id TO invoice_id;")
-            .Renames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRenameDirective(ObjectKind.Sequence, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("bill_id")), new SqlIdentifier("invoice_id")));
+            .ObjectRenames.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Sequence, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("bill_id"))), new SqlIdentifier("invoice_id")));
 
     [Fact]
     public void Parse_CreateSequence_WithDocComment_AttachesComment()
         => ParseSingleSchema("CREATE SCHEMA app;\n--- order numbers\nCREATE SEQUENCE app.order_id;")
             .Sequences.ShouldHaveSingleItem().Comment.ShouldBe("order numbers");
-
-    [Fact]
-    public void Parse_DropSequence_RecordsDroppedSequence()
-        => Directives("CREATE SCHEMA app; DROP SEQUENCE app.stale;")
-            .Drops.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectDropDirective(ObjectKind.Sequence, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("stale"))));
-
-    [Fact]
-    public void Parse_DuplicateSequence_FailsTheRead()
-        => new TestNsqlParser("CREATE SCHEMA app; CREATE SEQUENCE app.q; CREATE SEQUENCE app.q;").Project().Errors.ShouldHaveSingleItem()
-            .Message.ShouldContain("already declared");
-
-    [Fact]
-    public void Parse_UnknownSequenceOption_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE SEQUENCE app.q (WIBBLE 1);"))
-            .Message.ShouldContain("Unknown sequence option 'WIBBLE'");
-
-    [Fact]
-    public void Parse_DuplicateSequenceOption_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE SCHEMA app; CREATE SEQUENCE app.q (START 1, START 2);"))
-            .Message.ShouldContain("more than once");
-
-    [Fact]
-    public void Parse_PartialSequence_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => Parse("CREATE PARTIAL SEQUENCE app.q;"))
-            .Message.ShouldContain("after CREATE");
-
-    // -------------------------------------------------------------------------
-    // Functions and procedures
-    // -------------------------------------------------------------------------
-
-    [Fact]
-    public void Parse_CreateFunction_CapturesArgumentsAndDefinitionVerbatim()
-    {
-        var schema = ParseSingleSchema(
-            "CREATE SCHEMA app; CREATE FUNCTION app.add_tax(amount numeric, rate numeric) RETURNS numeric LANGUAGE sql AS $$ SELECT amount * (1 + rate); $$;");
-        var function = schema.Routines.ShouldHaveSingleItem();
-        function.Name.ShouldBe("add_tax");
-        function.Arguments.ShouldBe("amount numeric, rate numeric");
-        function.Definition.ShouldBe("RETURNS numeric LANGUAGE sql AS $$ SELECT amount * (1 + rate); $$");
-    }
 
     [Fact]
     public void Parse_CreateFunction_DollarQuotedBodyWithInternalSemicolons_RunsToTheRealTerminator()
@@ -424,8 +324,8 @@ public sealed class NsqlParserTests
     public void Parse_RenameRoutine_AnySpelling_BecomesADirective()
     {
         var directives = Directives("CREATE SCHEMA app; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$; RENAME FUNCTION app.old_f TO f;");
-        directives.Renames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRenameDirective(ObjectKind.Routine, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("old_f")), new SqlIdentifier("f")));
+        directives.ObjectRenames.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Routine, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("old_f"))), new SqlIdentifier("f")));
     }
 
     [Fact]
@@ -468,10 +368,4 @@ public sealed class NsqlParserTests
         => new TestNsqlParser("CREATE SCHEMA app; CREATE PROCEDURE app.r() AS $$ SELECT 1 $$; CREATE FUNCTION app.r() RETURNS int AS $$ SELECT 1 $$;").Project().Errors.ShouldHaveSingleItem()
             .Message.ShouldContain("share one name space");
 
-    [Fact]
-    public void Parse_DropFunctionAndProcedure_BecomeRoutineDropDirectives()
-    {
-        var directives = Directives("CREATE SCHEMA app; DROP FUNCTION app.stale_fn; DROP PROCEDURE app.stale_proc;");
-        directives.Drops.Select(d => d.Address.Name).ShouldBe(["stale_fn", "stale_proc"], ignoreOrder: true);
-    }
 }

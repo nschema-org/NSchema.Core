@@ -46,24 +46,24 @@ public sealed class PlanOperationTests
     public async Task Execute_ForwardsScopeToComputePlan()
     {
         // Act
-        await _sut.Execute(Args(scope: PlanningScope.Of(new SqlIdentifier("app"), new SqlIdentifier("legacy"))), TestContext.Current.CancellationToken);
+        await _sut.Execute(Args(scope: PlanningScope.To(new SqlIdentifier("app"), new SqlIdentifier("legacy"))), TestContext.Current.CancellationToken);
 
         // Assert
         await _workflow.Received(1).ComputePlan(
             Arg.Any<PlanTarget>(),
-            Arg.Is<PlanningScope>(s => !s!.IsAll && s.Includes(new SqlIdentifier("app")) && s.Includes(new SqlIdentifier("legacy"))), Arg.Any<CancellationToken>());
+            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.Contains(new SqlIdentifier("app")) && s.Contains(new SqlIdentifier("legacy"))), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Execute_Teardown_ForwardsScopeToComputePlan()
     {
         // Act — scoping is no longer special-cased: a teardown narrows like any other plan.
-        await _sut.Execute(Args(PlanTarget.Empty, scope: PlanningScope.Of(new SqlIdentifier("app"))), TestContext.Current.CancellationToken);
+        await _sut.Execute(Args(PlanTarget.Empty, scope: PlanningScope.To(new SqlIdentifier("app"))), TestContext.Current.CancellationToken);
 
         // Assert
         await _workflow.Received(1).ComputePlan(
             PlanTarget.Empty,
-            Arg.Is<PlanningScope>(s => !s!.IsAll && s.Includes(new SqlIdentifier("app"))), Arg.Any<CancellationToken>());
+            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.Contains(new SqlIdentifier("app"))), Arg.Any<CancellationToken>());
     }
 
     [Fact]

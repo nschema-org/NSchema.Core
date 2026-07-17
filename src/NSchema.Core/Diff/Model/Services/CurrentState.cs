@@ -8,10 +8,26 @@ namespace NSchema.Diff.Model.Services;
 /// </summary>
 /// <param name="Database">The current database structure.</param>
 /// <param name="ExecutedScripts">The recorded script executions.</param>
-internal sealed record CurrentState(Database Database, IReadOnlyList<ScriptExecution> ExecutedScripts)
+/// <param name="Managed">The identities NSchema manages.</param>
+internal sealed record CurrentState(Database Database, IReadOnlyList<ScriptExecution> ExecutedScripts, IdentitySet? Managed = null)
 {
     /// <summary>
-    /// Creates a state carrying only the database structure, with no recorded executions.
+    /// Creates a state carrying only the database structure, with no recorded executions and nothing managed.
     /// </summary>
     public CurrentState(Database database) : this(database, []) { }
+
+    /// <summary>
+    /// The identities NSchema manages.
+    /// </summary>
+    public IdentitySet Managed { get; init; } = Managed ?? IdentitySet.Empty;
+
+    /// <summary>
+    /// Narrows the current state to the given identity set.
+    /// </summary>
+    /// <param name="identities">The identity set to narrow the state to.</param>
+    /// <returns>The state, narrowed to the given identity set.</returns>
+    public CurrentState FilteredTo(IdentitySet identities)
+    {
+        return this with { Database = Database.FilteredTo(identities) };
+    }
 }

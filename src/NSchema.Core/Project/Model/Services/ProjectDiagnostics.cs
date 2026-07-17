@@ -61,18 +61,6 @@ internal static class ProjectDiagnostics
         $"RENAME {kind} '{address}' TO {to}: the previous name is still declared, so the rename cannot be told apart from a retain-plus-create.");
 
     /// <summary>
-    /// A rename of an object the project also drops.
-    /// </summary>
-    public static Diagnostic RenameOfDropped(string kind, string address) => Diagnostic.Error(Source,
-        $"RENAME {kind} '{address}': the object is also dropped; a dropped object cannot be renamed.");
-
-    /// <summary>
-    /// A drop of an object the project also declares.
-    /// </summary>
-    public static Diagnostic DropOfDeclared(string kind, string address) => Diagnostic.Error(Source,
-        $"DROP {kind} '{address}': the project also declares it. To recreate an object, drop it and redeclare it in separate migrations.");
-
-    /// <summary>
     /// A directive addressing a schema the project does not declare.
     /// </summary>
     public static Diagnostic DirectiveSchemaNotDeclared(string directive, SqlIdentifier schema) => Diagnostic.Error(Source,

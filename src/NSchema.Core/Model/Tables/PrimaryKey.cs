@@ -5,29 +5,31 @@ namespace NSchema.Model.Tables;
 /// <summary>
 /// Represents a primary key constraint in a database schema.
 /// </summary>
-/// <param name="Name">The name of the primary key constraint.</param>
-/// <param name="ColumnNames">A list of column names that are part of the primary key constraint.</param>
-/// <param name="Comment">An optional comment or description for the constraint.</param>
+/// <param name="name">The name of the primary key constraint.</param>
+/// <param name="columnNames">A list of column names that are part of the primary key constraint.</param>
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public record PrimaryKey(SqlIdentifier Name, IReadOnlyList<SqlIdentifier> ColumnNames, string? Comment = null) : INamedObject
+public sealed class PrimaryKey(SqlIdentifier name, IReadOnlyList<SqlIdentifier> columnNames) : DatabaseMember(name), IEquatable<PrimaryKey>
 {
     /// <summary>
     /// A list of column names that are part of the primary key constraint.
     /// </summary>
-    public IReadOnlyList<SqlIdentifier> ColumnNames { get; init; } = ColumnNames ?? [];
+    public IReadOnlyList<SqlIdentifier> ColumnNames { get; init; } = columnNames ?? [];
 
-    private string DebuggerDisplay => $"{Name}: ({string.Join(", ", ColumnNames)})";
+    internal PrimaryKey Clone() => new(Name, ColumnNames) { Comment = Comment };
 
     /// <summary>
-    /// Determines whether the specified PrimaryKey is equal to the current PrimaryKey.
+    /// Structural equality over the declared definition.
     /// </summary>
-    /// <param name="other">The PrimaryKey to compare with the current PrimaryKey.</param>
-    /// <returns>true if the specified PrimaryKey is equal to the current PrimaryKey; otherwise, false.</returns>
-    public virtual bool Equals(PrimaryKey? other) =>
-        other != null
-         && Name == other.Name
-         && ColumnNames.SequenceEqual(other.ColumnNames);
+    public bool Equals(PrimaryKey? other) =>
+        other is not null
+        && Name == other.Name
+        && ColumnNames.SequenceEqual(other.ColumnNames);
 
     /// <inheritdoc/>
-    public override int GetHashCode() => HashCode.Combine(Name, ColumnNames);
+    public override bool Equals(object? obj) => obj is PrimaryKey other && Equals(other);
+
+    /// <inheritdoc/>
+    public override int GetHashCode() => HashCode.Combine(Name, ColumnNames.Count);
+
+    private string DebuggerDisplay => $"{Name}: ({string.Join(", ", ColumnNames)})";
 }

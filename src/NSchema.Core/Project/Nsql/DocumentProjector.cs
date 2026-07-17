@@ -40,7 +40,7 @@ internal static class DocumentProjector
                 {
                     var (schema, name) = Bind(s.Name, context);
                     var dependsOn = ViewDependencyExtractor.Extract(s.Body.Value, schema);
-                    schemas.AddView(schema, new View(name, s.Body, s.Doc, dependsOn, s.IsMaterialized), s.Name.Position);
+                    schemas.AddView(schema, new View(name, s.Body, dependsOn, s.IsMaterialized) { Comment = s.Doc }, s.Name.Position);
                     break;
                 }
             case Syn.Indexes.CreateIndexStatement s:
@@ -52,37 +52,37 @@ internal static class DocumentProjector
             case Syn.Routines.CreateRoutineStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
-                    schemas.AddRoutine(schema, new Routine(name, Map(s.Kind), s.Arguments, s.Definition, s.Doc), s.Name.Position);
+                    schemas.AddRoutine(schema, new Routine(name, Map(s.Kind), s.Arguments, s.Definition) { Comment = s.Doc }, s.Name.Position);
                     break;
                 }
             case Syn.Enums.CreateEnumStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
-                    schemas.AddEnum(schema, new EnumType(name, s.Values, s.Doc), s.Name.Position);
+                    schemas.AddEnum(schema, new EnumType(name, s.Values) { Comment = s.Doc }, s.Name.Position);
                     break;
                 }
             case Syn.Domains.CreateDomainStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
                     var checks = s.Checks.Select(c => new CheckConstraint(Name(c.Name), c.Expression)).ToList();
-                    schemas.AddDomain(schema, new DomainType(name, ParseType(s.Type), s.Default, s.NotNull, checks, s.Doc), s.Name.Position);
+                    schemas.AddDomain(schema, new DomainType(name, ParseType(s.Type), s.Default, s.NotNull, checks) { Comment = s.Doc }, s.Name.Position);
                     break;
                 }
             case Syn.CompositeTypes.CreateCompositeTypeStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
                     var fields = s.Fields.Select(f => new CompositeField(Name(f.Name), ParseType(f.Type))).ToList();
-                    schemas.AddCompositeType(schema, new CompositeType(name, fields, s.Doc), s.Name.Position);
+                    schemas.AddCompositeType(schema, new CompositeType(name, fields) { Comment = s.Doc }, s.Name.Position);
                     break;
                 }
             case Syn.Sequences.CreateSequenceStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
-                    schemas.AddSequence(schema, new Sequence(name, ProjectSequenceOptions(s.Options), s.Doc), s.Name.Position);
+                    schemas.AddSequence(schema, new Sequence(name, ProjectSequenceOptions(s.Options)) { Comment = s.Doc }, s.Name.Position);
                     break;
                 }
             case Syn.Extensions.CreateExtensionStatement s:
-                schemas.AddExtension(new Extension(Name(s.Name), s.Version, s.Doc), s.Name.Position);
+                schemas.AddExtension(new Extension(Name(s.Name), s.Version) { Comment = s.Doc }, s.Name.Position);
                 break;
             case Syn.Triggers.CreateTriggerStatement s:
                 {
@@ -122,10 +122,10 @@ internal static class DocumentProjector
             {
                 case Syn.Tables.ColumnDefinition m:
                     columns.Add(new Column(Name(m.Name), ParseType(m.Type), m.IsNullable, m.IsIdentity, m.Default,
-                        m.Doc, ProjectIdentityOptions(m.IdentityOptions), m.Generated));
+                        ProjectIdentityOptions(m.IdentityOptions), m.Generated) { Comment = m.Doc });
                     break;
                 case Syn.Constraints.PrimaryKeyDefinition m:
-                    primaryKey = new PrimaryKey(Name(m.Name), Names(m.Columns), m.Doc);
+                    primaryKey = new PrimaryKey(Name(m.Name), Names(m.Columns)) { Comment = m.Doc };
                     break;
                 case Syn.Constraints.ForeignKeyDefinition m:
                     {
@@ -135,19 +135,19 @@ internal static class DocumentProjector
                             ? new SqlIdentifier(qualifier.Value)
                             : context ?? SchemaToken.TargetSchemaPlaceholder;
                         foreignKeys.Add(new ForeignKey(Name(m.Name), Names(m.Columns), refSchema, Name(m.References.Name),
-                            Names(m.ReferencedColumns), Map(m.OnDelete), Map(m.OnUpdate), m.Doc));
+                            Names(m.ReferencedColumns), Map(m.OnDelete), Map(m.OnUpdate)) { Comment = m.Doc });
                         break;
                     }
                 case Syn.Constraints.UniqueDefinition m:
-                    uniqueConstraints.Add(new UniqueConstraint(Name(m.Name), Names(m.Columns), m.Doc));
+                    uniqueConstraints.Add(new UniqueConstraint(Name(m.Name), Names(m.Columns)) { Comment = m.Doc });
                     break;
                 case Syn.Constraints.CheckDefinition m:
-                    checkConstraints.Add(new CheckConstraint(Name(m.Name), m.Expression, m.Doc));
+                    checkConstraints.Add(new CheckConstraint(Name(m.Name), m.Expression) { Comment = m.Doc });
                     break;
                 case Syn.Constraints.ExclusionDefinition m:
                     exclusionConstraints.Add(new ExclusionConstraint(Name(m.Name),
                         m.Elements.Select(e => new ExclusionElement(e.Operator, OptionalName(e.Column), e.Expression)).ToList(),
-                        m.Method?.Value, m.Predicate, m.Doc));
+                        m.Method?.Value, m.Predicate) { Comment = m.Doc });
                     break;
                 case Syn.Indexes.IndexDefinition m:
                     indexes.Add(ProjectIndex(m.Name, m.IsUnique, m.Columns, m.Method, m.Include, m.Predicate, m.Doc));
@@ -160,8 +160,8 @@ internal static class DocumentProjector
             }
         }
 
-        var table = new Table(name, primaryKey, doc,
-            columns, foreignKeys, uniqueConstraints, checkConstraints, exclusionConstraints, indexes);
+        var table = new Table(name, primaryKey,
+            columns, foreignKeys, uniqueConstraints, checkConstraints, exclusionConstraints, indexes) { Comment = doc };
         return (table, includes);
     }
 
@@ -246,7 +246,7 @@ internal static class DocumentProjector
         Syn.Identifier? method, IReadOnlyList<Syn.Identifier>? include, SqlText? predicate, string? doc)
     {
         var keys = columns.Select(c => new IndexColumn(OptionalName(c.Column), c.Expression, Map(c.Sort), Map(c.Nulls))).ToList();
-        return new TableIndex(Name(name), keys, isUnique, doc, predicate, method?.Value, Names(include ?? []));
+        return new TableIndex(Name(name), keys, isUnique, predicate, method?.Value, Names(include ?? [])) { Comment = doc };
     }
 
     private static Trigger ProjectTrigger(Syn.Triggers.CreateTriggerStatement statement)
@@ -267,7 +267,7 @@ internal static class DocumentProjector
 
         return new Trigger(Name(statement.Name), Map(statement.Timing), Map(statement.Events), function,
             Map(statement.Level), statement.UpdateOfColumns is { } updateOf ? Names(updateOf) : null,
-            statement.When, functionArguments, statement.Doc, body);
+            statement.When, functionArguments, body) { Comment = statement.Doc };
     }
 
     // --- name binding and small mappers ----------------------------------------------

@@ -1,0 +1,19 @@
+﻿{
+  version: 1,
+  database: {},
+  managed: {
+    schemas: [
+      app
+    ],
+    objects: [
+      {
+        kind: Table,
+        schema: app,
+        name: users
+      }
+    ],
+    extensions: [
+      citext
+    ]
+  }
+}

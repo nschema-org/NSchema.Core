@@ -27,7 +27,7 @@ public sealed class PlanLinearizerMaterializedViewTests
     [Fact]
     public void RecreatedMaterializedView_EmitsDropAndCreateBothMaterialized()
     {
-        var mv = new View(new SqlIdentifier("daily"), new SqlText("SELECT 2"), IsMaterialized: true);
+        var mv = new View(new SqlIdentifier("daily"), new SqlText("SELECT 2"), isMaterialized: true);
         var actions = Linearize(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("daily"), ChangeKind.Modify,
             Definition: mv, IsMaterialized: true, RequiresRecreate: true));
 
@@ -38,7 +38,7 @@ public sealed class PlanLinearizerMaterializedViewTests
     [Fact]
     public void RecreatedMaterializedView_DropsBeforeItCreates()
     {
-        var mv = new View(new SqlIdentifier("daily"), new SqlText("SELECT 2"), IsMaterialized: true);
+        var mv = new View(new SqlIdentifier("daily"), new SqlText("SELECT 2"), isMaterialized: true);
         var actions = Linearize(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("daily"), ChangeKind.Modify,
             Definition: mv, IsMaterialized: true, RequiresRecreate: true));
 
@@ -86,7 +86,7 @@ public sealed class PlanLinearizerMaterializedViewTests
     {
         // A rename accompanying a recreate is subsumed by it: the old name is dropped and the definition
         // recreates the view under the new one.
-        var mv = new View(new SqlIdentifier("daily"), new SqlText("SELECT 2"), IsMaterialized: true);
+        var mv = new View(new SqlIdentifier("daily"), new SqlText("SELECT 2"), isMaterialized: true);
         var actions = Linearize(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("daily"), ChangeKind.Modify, RenamedFrom: new SqlIdentifier("nightly"),
             Definition: mv, IsMaterialized: true, RequiresRecreate: true));
 
@@ -99,7 +99,7 @@ public sealed class PlanLinearizerMaterializedViewTests
     public void ViewToMaterializedFlip_DropsAsPlainAndCreatesAsMaterialized()
     {
         // The view being dropped is still the current (plain) one; only the recreate is materialized.
-        var mv = new View(new SqlIdentifier("v"), new SqlText("SELECT 1"), IsMaterialized: true);
+        var mv = new View(new SqlIdentifier("v"), new SqlText("SELECT 1"), isMaterialized: true);
         var actions = Linearize(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("v"), ChangeKind.Modify,
             Definition: mv, IsMaterialized: true,
             Materialized: new ValueChange<bool>(false, true), RequiresRecreate: true));

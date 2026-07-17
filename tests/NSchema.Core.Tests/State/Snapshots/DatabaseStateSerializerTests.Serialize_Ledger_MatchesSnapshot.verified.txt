@@ -18,5 +18,6 @@
       hash: def456,
       executedUtc: DateTimeOffset_1
     }
-  ]
+  ],
+  managed: {}
 }

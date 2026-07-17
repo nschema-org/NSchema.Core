@@ -17,13 +17,13 @@ public partial class DatabaseComparerTests
 
     /// <summary>Diffs two <c>app</c> schemas holding the given domains, returning the single domain diff (null when unchanged).</summary>
     private DomainDiff? DiffDomains(IReadOnlyList<DomainType> current, IReadOnlyList<DomainType> desired, ProjectDirectives? directives = null) =>
-        Compare(Db(new Schema(new SqlIdentifier("app"), Domains: current)), Db(new Schema(new SqlIdentifier("app"), Domains: desired)), directives)
+        Compare(Db(new Schema(new SqlIdentifier("app"), domains: current)), Db(new Schema(new SqlIdentifier("app"), domains: desired)), directives)
         .Schemas.SingleOrDefault()?.Domains.SingleOrDefault();
 
     [Fact]
     public void Compare_NewDomain_IsAddCarryingDefinition()
     {
-        var diff = DiffDomains([], [new DomainType(new SqlIdentifier("typeid"), SqlType.Text, Default: new SqlText("''"), NotNull: true)]);
+        var diff = DiffDomains([], [new DomainType(new SqlIdentifier("typeid"), SqlType.Text, @default: new SqlText("''"), notNull: true)]);
 
         diff!.Kind.ShouldBe(ChangeKind.Add);
         diff.Definition!.DataType.ShouldBe(SqlType.Text);
@@ -53,7 +53,7 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_DefaultChange_IsInPlace()
     {
-        var diff = DiffDomains([new DomainType(new SqlIdentifier("d"), SqlType.Text, Default: new SqlText("'a'"))], [new DomainType(new SqlIdentifier("d"), SqlType.Text, Default: new SqlText("'b'"))]);
+        var diff = DiffDomains([new DomainType(new SqlIdentifier("d"), SqlType.Text, @default: new SqlText("'a'"))], [new DomainType(new SqlIdentifier("d"), SqlType.Text, @default: new SqlText("'b'"))]);
 
         diff!.RequiresRecreate.ShouldBeFalse();
         diff.Default.ShouldBe(new ValueChange<SqlText>(new SqlText("'a'"), new SqlText("'b'")));
@@ -63,7 +63,7 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_NotNullChange_IsInPlace()
     {
-        var diff = DiffDomains([new DomainType(new SqlIdentifier("d"), SqlType.Text)], [new DomainType(new SqlIdentifier("d"), SqlType.Text, NotNull: true)]);
+        var diff = DiffDomains([new DomainType(new SqlIdentifier("d"), SqlType.Text)], [new DomainType(new SqlIdentifier("d"), SqlType.Text, notNull: true)]);
 
         diff!.RequiresRecreate.ShouldBeFalse();
         diff.NotNull.ShouldBe(new ValueChange<bool>(false, true));
@@ -73,8 +73,8 @@ public partial class DatabaseComparerTests
     public void Compare_CheckAddedAndRemoved_AreInPlace()
     {
         var diff = DiffDomains(
-            [new DomainType(new SqlIdentifier("d"), SqlType.Text, Checks: [new CheckConstraint(new SqlIdentifier("old_chk"), new SqlText("VALUE <> ''"))])],
-            [new DomainType(new SqlIdentifier("d"), SqlType.Text, Checks: [new CheckConstraint(new SqlIdentifier("new_chk"), new SqlText("length(VALUE) > 0"))])]);
+            [new DomainType(new SqlIdentifier("d"), SqlType.Text, checks: [new CheckConstraint(new SqlIdentifier("old_chk"), new SqlText("VALUE <> ''"))])],
+            [new DomainType(new SqlIdentifier("d"), SqlType.Text, checks: [new CheckConstraint(new SqlIdentifier("new_chk"), new SqlText("length(VALUE) > 0"))])]);
 
         diff!.RequiresRecreate.ShouldBeFalse();
         diff.Checks.Select(c => (c.Kind, c.Name.Value)).ShouldBe(
@@ -85,7 +85,7 @@ public partial class DatabaseComparerTests
     public void Compare_RenamedDomain_SetsRenamedFrom()
     {
         var diff = DiffDomains([new DomainType(new SqlIdentifier("old_d"), SqlType.Text)], [new DomainType(new SqlIdentifier("d"), SqlType.Text)],
-            new ProjectDirectives(Renames: [new ObjectRenameDirective(ObjectKind.Domain, App("old_d"), new SqlIdentifier("d"))]));
+            new ProjectDirectives(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Domain, App("old_d")), new SqlIdentifier("d"))]));
 
         diff!.RenamedFrom.ShouldBe("old_d");
         diff.RequiresRecreate.ShouldBeFalse(); // a rename is in place, not a recreate
@@ -94,24 +94,9 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_CommentOnlyChange_IsModify()
     {
-        var diff = DiffDomains([new DomainType(new SqlIdentifier("d"), SqlType.Text, Comment: "old")], [new DomainType(new SqlIdentifier("d"), SqlType.Text, Comment: "new")]);
+        var diff = DiffDomains([new DomainType(new SqlIdentifier("d"), SqlType.Text) { Comment = "old" }], [new DomainType(new SqlIdentifier("d"), SqlType.Text) { Comment = "new" }]);
 
         diff!.Comment.ShouldBe(new ValueChange<string>("old", "new"));
         diff.Definition.ShouldBeNull();
     }
-
-    [Fact]
-    public void Compare_PartialSchema_LeavesUnmanagedDomainAlone()
-        => Compare(
-            Db(new Schema(new SqlIdentifier("app"), Domains: [new DomainType(new SqlIdentifier("d"), SqlType.Text)])),
-            Db(new Schema(new SqlIdentifier("app"))), PartialApp())
-            .Schemas.ShouldBeEmpty();
-
-    [Fact]
-    public void Compare_PartialSchema_DropsExplicitlyDroppedDomain()
-        => Compare(
-            Db(new Schema(new SqlIdentifier("app"), Domains: [new DomainType(new SqlIdentifier("d"), SqlType.Text)])),
-            Db(new Schema(new SqlIdentifier("app"))),
-            PartialApp() with { Drops = [new ObjectDropDirective(ObjectKind.Domain, App("d"))] })
-            .Schemas.ShouldHaveSingleItem().Domains.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
 }

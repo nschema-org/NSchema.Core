@@ -55,16 +55,11 @@ public sealed class NsqlParserDomainTests
     [Fact]
     public void Parse_RenameDomain_BecomesADirective()
         => Directives("CREATE SCHEMA app; CREATE DOMAIN app.typeid AS text; RENAME DOMAIN app.legacy_id TO typeid;")
-            .Renames.ShouldHaveSingleItem().From.Name.ShouldBe("legacy_id");
+            .ObjectRenames.ShouldHaveSingleItem().From.Name.ShouldBe("legacy_id");
 
     [Fact]
     public void Parse_WithDocComment_AttachesComment()
         => ParseDomain("--- unique id\nCREATE DOMAIN app.typeid AS text;").Comment.ShouldBe("unique id");
-
-    [Fact]
-    public void Parse_DropDomain_BecomesADirective()
-        => Directives("CREATE SCHEMA app; DROP DOMAIN app.typeid;")
-            .Drops.ShouldHaveSingleItem().Address.Name.ShouldBe("typeid");
 
     [Fact]
     public void Parse_DuplicateDomain_FailsTheRead()

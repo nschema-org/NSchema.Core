@@ -1,6 +1,5 @@
 using NSchema.Diff.Model;
 using NSchema.Model;
-using NSchema.Model.Schemas;
 using NSchema.Model.Views;
 using NSchema.Project.Model.Directives;
 
@@ -63,7 +62,7 @@ public partial class DatabaseComparerTests
         var diff = DiffViews(
             [View("legacy", "SELECT * FROM app.users")],
             [View("active", "SELECT * FROM app.users")],
-            new ProjectDirectives(Renames: [new ObjectRenameDirective(ObjectKind.View, App("legacy"), new SqlIdentifier("active"))]));
+            new ProjectDirectives(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.View, App("legacy")), new SqlIdentifier("active"))]));
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.RenamedFrom.ShouldBe("legacy");
@@ -106,17 +105,5 @@ public partial class DatabaseComparerTests
         var diff = DiffViews([], [View("report", "SELECT * FROM app.orders o JOIN app.customers c ON o.cid = c.id")]);
 
         diff!.DependsOn.Select(d => $"{d.Schema}.{d.Name}").ShouldBe(["app.orders", "app.customers"]);
-    }
-
-    [Fact]
-    public void Compare_PartialSchema_LeavesUnmanagedViewAlone()
-    {
-        // The view exists in the database but isn't declared; a partial schema must not drop it.
-        var diff = Compare(
-            Db(new Schema(new SqlIdentifier("app"), Views: [View("active", "SELECT * FROM app.users")])),
-            Db(new Schema(new SqlIdentifier("app"))),
-            PartialApp());
-
-        diff.Schemas.ShouldBeEmpty();
     }
 }

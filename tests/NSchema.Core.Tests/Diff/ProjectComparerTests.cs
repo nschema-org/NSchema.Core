@@ -28,12 +28,12 @@ public sealed class ProjectComparerTests
 
     /// <summary>Current <c>app.users(id)</c> — the table a column-add migration targets.</summary>
     private static CurrentState UsersWithId() => new(new Database([new Schema(new SqlIdentifier("app"),
-        Tables: [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]));
+        tables: [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]));
 
     /// <summary>Desired <c>app.users(id, email)</c> — adds the column the migration accompanies.</summary>
     private static Database UsersWithEmail(bool required = false) => new([new Schema(new SqlIdentifier("app"),
-        Tables: [new Table(new SqlIdentifier("users"), Columns:
-            [new Column(new SqlIdentifier("id"), SqlType.Int), new Column(new SqlIdentifier("email"), SqlType.Text, IsNullable: !required)])])]);
+        tables: [new Table(new SqlIdentifier("users"), columns:
+            [new Column(new SqlIdentifier("id"), SqlType.Int), new Column(new SqlIdentifier("email"), SqlType.Text, isNullable: !required)])])]);
 
     private static DeploymentScript SeedScript() =>
         new DeploymentScript(new SqlIdentifier("seed"), new SqlText("INSERT INTO app.c VALUES (1);"), null, DeploymentPhase.Post) { RunCondition = RunCondition.Once };
@@ -214,9 +214,9 @@ public sealed class ProjectComparerTests
     {
         // Arrange — current has 'people' and no 'users': the rename has demonstrably been applied here.
         var current = new CurrentState(new Database([new Schema(new SqlIdentifier("app"),
-            Tables: [new Table(new SqlIdentifier("people"))])]));
+            tables: [new Table(new SqlIdentifier("people"))])]));
         var directives = new ProjectDirectives(
-            Renames: [new ObjectRenameDirective(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users")), new SqlIdentifier("people"))]);
+            ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users"))), new SqlIdentifier("people"))]);
 
         // Act
         var comparison = Sut.Compare(current, new ProjectDefinition(_emptySchema, directives));
@@ -235,7 +235,7 @@ public sealed class ProjectComparerTests
         // Arrange — neither side of the rename exists (a fresh environment): the directive is pending, not
         // spent, so no expiry info fires.
         var directives = new ProjectDirectives(
-            Renames: [new ObjectRenameDirective(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users")), new SqlIdentifier("people"))]);
+            ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users"))), new SqlIdentifier("people"))]);
 
         // Act
         var comparison = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, directives));

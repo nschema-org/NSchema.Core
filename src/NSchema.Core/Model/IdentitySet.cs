@@ -1,0 +1,83 @@
+namespace NSchema.Model;
+
+/// <summary>
+/// A set of database identities, structured by the level they live at: schema containers, schema-level
+/// objects, and database-global extensions. Membership is by value.
+/// </summary>
+public sealed record IdentitySet(
+    IReadOnlyList<SqlIdentifier>? Schemas = null,
+    IReadOnlyList<ObjectIdentity>? Objects = null,
+    IReadOnlyList<SqlIdentifier>? Extensions = null
+)
+{
+    /// <summary>
+    /// The set containing no identities.
+    /// </summary>
+    public static IdentitySet Empty { get; } = new();
+
+    /// <summary>
+    /// The schema names in the set.
+    /// </summary>
+    public IReadOnlyList<SqlIdentifier> Schemas { get; init; } = Schemas ?? [];
+
+    /// <summary>
+    /// The schema-level object identities in the set.
+    /// </summary>
+    public IReadOnlyList<ObjectIdentity> Objects { get; init; } = Objects ?? [];
+
+    /// <summary>
+    /// The extension names in the set.
+    /// </summary>
+    public IReadOnlyList<SqlIdentifier> Extensions { get; init; } = Extensions ?? [];
+
+    /// <summary>
+    /// Whether the set contains no identities.
+    /// </summary>
+    public bool IsEmpty => Schemas.Count == 0 && Objects.Count == 0 && Extensions.Count == 0;
+
+    /// <summary>
+    /// Whether the named schema is in the set.
+    /// </summary>
+    public bool ContainsSchema(SqlIdentifier name) => Schemas.Contains(name);
+
+    /// <summary>
+    /// Whether the object identity is in the set.
+    /// </summary>
+    public bool ContainsObject(ObjectIdentity identity) => Objects.Contains(identity);
+
+    /// <summary>
+    /// Whether the object is in the set: schema-scoped objects match by identity, global ones by name.
+    /// </summary>
+    public bool Contains(DatabaseObject obj) =>
+        obj.Identity is { } identity ? ContainsObject(identity) : ContainsExtension(obj.Name);
+
+    /// <summary>
+    /// Whether the named extension is in the set.
+    /// </summary>
+    public bool ContainsExtension(SqlIdentifier name) => Extensions.Contains(name);
+
+    /// <summary>
+    /// The set containing every identity in either set.
+    /// </summary>
+    public IdentitySet Union(IdentitySet other) => new(
+        [.. Schemas.Union(other.Schemas)],
+        [.. Objects.Union(other.Objects)],
+        [.. Extensions.Union(other.Extensions)]);
+
+    /// <summary>
+    /// The subset of identities the scope covers.
+    /// </summary>
+    public IdentitySet CoveredBy(PlanningScope scope) => scope.IsUnscoped ? this : new(
+        [.. Schemas.Where(scope.Contains)],
+        [.. Objects.Where(scope.Contains)],
+        Extensions
+    );
+
+    /// <summary>
+    /// The set containing this set's identities without those in <paramref name="other"/>.
+    /// </summary>
+    public IdentitySet Except(IdentitySet other) => new(
+        [.. Schemas.Except(other.Schemas)],
+        [.. Objects.Except(other.Objects)],
+        [.. Extensions.Except(other.Extensions)]);
+}

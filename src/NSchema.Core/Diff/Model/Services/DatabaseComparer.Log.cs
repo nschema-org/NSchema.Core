@@ -33,14 +33,8 @@ internal sealed partial class DatabaseComparer
     [LoggerMessage(EventId = 20, Level = LogLevel.Debug, Message = "Table '{Schema}.{Table}' exists in desired state")]
     private partial void LogTableExists(SqlIdentifier schema, SqlIdentifier table);
 
-    [LoggerMessage(EventId = 21, Level = LogLevel.Information, Message = "Table '{Schema}.{Table}' explicitly marked for removal")]
-    private partial void LogTableExplicitlyDropped(SqlIdentifier schema, SqlIdentifier table);
-
     [LoggerMessage(EventId = 22, Level = LogLevel.Information, Message = "Table '{Schema}.{Table}' not found in desired state")]
     private partial void LogTableNotInDesired(SqlIdentifier schema, SqlIdentifier table);
-
-    [LoggerMessage(EventId = 23, Level = LogLevel.Information, Message = "Table '{Schema}.{Table}' not in desired state; skipping (partial schema)")]
-    private partial void LogTableSkippedPartial(SqlIdentifier schema, SqlIdentifier table);
 
     [LoggerMessage(EventId = 24, Level = LogLevel.Information, Message = "Table '{Schema}.{Table}' is new")]
     private partial void LogTableNew(SqlIdentifier schema, SqlIdentifier table);

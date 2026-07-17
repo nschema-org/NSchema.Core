@@ -65,7 +65,7 @@ public sealed class PlanLinearizerDataMigrationTests
     {
         // Arrange — a nullable add needs no decomposition: the column lands as declared, then the migration runs.
         var migration = Migration(ChangeTrigger.AddColumn, "email");
-        var column = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text, IsNullable: true)) { MigrationScript = migration };
+        var column = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text, isNullable: true)) { MigrationScript = migration };
 
         // Act
         var plan = LinearizeColumn(column);
@@ -87,9 +87,9 @@ public sealed class PlanLinearizerDataMigrationTests
         // declared NOT NULL shape and only the migration is appended.
         var definition = shape switch
         {
-            "defaulted" => new Column(new SqlIdentifier("email"), SqlType.Text, DefaultExpression: new SqlText("''")),
-            "identity" => new Column(new SqlIdentifier("email"), SqlType.BigInt, IsIdentity: true),
-            _ => new Column(new SqlIdentifier("email"), SqlType.Text, GeneratedExpression: new SqlText("lower(name)")),
+            "defaulted" => new Column(new SqlIdentifier("email"), SqlType.Text, defaultExpression: new SqlText("''")),
+            "identity" => new Column(new SqlIdentifier("email"), SqlType.BigInt, isIdentity: true),
+            _ => new Column(new SqlIdentifier("email"), SqlType.Text, generatedExpression: new SqlText("lower(name)")),
         };
         var migration = Migration(ChangeTrigger.AddColumn, "email");
         var column = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, definition) { MigrationScript = migration };
@@ -148,11 +148,11 @@ public sealed class PlanLinearizerDataMigrationTests
     {
         // Arrange — two annotated column adds; their migrations share a priority band, so the stable sort
         // preserves the diff's declaration order.
-        var first = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text, IsNullable: true))
+        var first = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text, isNullable: true))
         {
             MigrationScript = Migration(ChangeTrigger.AddColumn, "email", name: "first"),
         };
-        var second = new ColumnDiff(new SqlIdentifier("phone"), ChangeKind.Add, new Column(new SqlIdentifier("phone"), SqlType.Text, IsNullable: true))
+        var second = new ColumnDiff(new SqlIdentifier("phone"), ChangeKind.Add, new Column(new SqlIdentifier("phone"), SqlType.Text, isNullable: true))
         {
             MigrationScript = Migration(ChangeTrigger.AddColumn, "phone", name: "second"),
         };

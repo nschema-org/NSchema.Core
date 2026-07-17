@@ -192,7 +192,7 @@ public sealed class DiffReaderTests
 
     [Fact]
     public void Read_ColumnAdd_NullableEmitsNull()
-        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Add, columns: [AddColumn(new Column(new SqlIdentifier("bio"), SqlType.Text, IsNullable: true))])), ChangeKind.Add, "bio text null");
+        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Add, columns: [AddColumn(new Column(new SqlIdentifier("bio"), SqlType.Text, isNullable: true))])), ChangeKind.Add, "bio text null");
 
     [Fact]
     public void Read_ColumnRemove_EmitsDefinition()
@@ -276,7 +276,7 @@ public sealed class DiffReaderTests
     [Fact]
     public void Read_IndexAdd_EmitsName()
     {
-        var index = new IndexDiff(ChangeKind.Add, new SqlIdentifier("users_email_ux"), new TableIndex(new SqlIdentifier("users_email_ux"), ["email"], IsUnique: true), null);
+        var index = new IndexDiff(ChangeKind.Add, new SqlIdentifier("users_email_ux"), new TableIndex(new SqlIdentifier("users_email_ux"), ["email"], isUnique: true), null);
 
         ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, indexes: [index])), ChangeKind.Add, "index users_email_ux");
     }
@@ -340,7 +340,7 @@ public sealed class DiffReaderTests
     [Fact]
     public void Read_ViewToMaterializedFlip_EmitsLabelTransition()
         => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("totals"), ChangeKind.Modify,
-                Definition: new View(new SqlIdentifier("totals"), new SqlText("SELECT 1"), IsMaterialized: true), IsMaterialized: true,
+                Definition: new View(new SqlIdentifier("totals"), new SqlText("SELECT 1"), isMaterialized: true), IsMaterialized: true,
                 Materialized: new ValueChange<bool>(false, true), RequiresRecreate: true)),
             ChangeKind.Modify, "view → materialized view app.totals");
 

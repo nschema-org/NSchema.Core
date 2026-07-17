@@ -1,6 +1,5 @@
 using NSchema.Model;
 using NSchema.Project.Nsql.Syntax;
-using NSchema.Project.Nsql.Syntax.Extensions;
 using NSchema.Project.Nsql.Syntax.Schemas;
 using NSchema.Project.Nsql.Syntax.Tables;
 using NSchema.Project.Nsql.Syntax.Templates;
@@ -155,28 +154,20 @@ internal sealed partial class NsqlParser
         {
             return RequireObjectDirective(ParseRename(doc));
         }
-        if (_current.IsKeyword(NsqlKeywords.Drop))
-        {
-            return RequireObjectDirective(ParseDrop(doc));
-        }
-        throw Error($"Unexpected '{_current.Text}' inside a template; expected a CREATE, GRANT, SCRIPT, RENAME, or DROP statement, or END.");
+        throw Error($"Unexpected '{_current.Text}' inside a template; expected a CREATE, GRANT, SCRIPT, or RENAME statement, or END.");
     }
 
     /// <summary>
     /// Rejects the directives whose subject a template can't own: a template describes the objects within a
-    /// schema, so a schema-level or extension directive — or a view directive, views being unavailable in a
-    /// template — has no place in its body.
+    /// schema, so a schema-level directive — or a view directive, views being unavailable in a template — has
+    /// no place in its body.
     /// </summary>
     private NsqlStatement RequireObjectDirective(NsqlStatement directive)
     {
         var rejected = directive switch
         {
             RenameSchemaStatement => "RENAME SCHEMA",
-            DropSchemaStatement => "DROP SCHEMA",
-            PartialSchemaStatement => "PARTIAL SCHEMA",
-            DropExtensionStatement => "DROP EXTENSION",
             RenameObjectStatement { Kind: ObjectKind.View } => "RENAME VIEW",
-            DropObjectStatement { Kind: ObjectKind.View } => "DROP VIEW",
             _ => null,
         };
         if (rejected is not null)

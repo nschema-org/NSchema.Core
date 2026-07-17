@@ -20,7 +20,7 @@ namespace NSchema.Project.Nsql;
 /// </summary>
 internal static class SyntaxBuilder
 {
-    private static readonly SourcePosition None = SourcePosition.None;
+    private static readonly SourcePosition _none = SourcePosition.None;
 
     public static NsqlDocument Build(Database database, bool declareSchemas = true) =>
         Build(database, ProjectDirectives.Empty, declareSchemas);
@@ -56,46 +56,27 @@ internal static class SyntaxBuilder
     }
 
     /// <summary>
-    /// Emits the directive statements after the declarations: partials, then renames, then drops — with
-    /// schema and extension drops last, mirroring their place at the end of a teardown.
+    /// Emits the directive statements after the declarations: the renames, container level first.
     /// </summary>
     private static void AddDirectives(List<NsqlStatement> statements, ProjectDirectives directives)
     {
-        foreach (var partial in directives.Schemas.Partials)
+        foreach (var rename in directives.SchemaRenames)
         {
-            statements.Add(new Syn.Schemas.PartialSchemaStatement(Name(partial.Schema)) { Position = None });
+            statements.Add(new Syn.Schemas.RenameSchemaStatement(Name(rename.From), Name(rename.To)) { Position = _none });
         }
-
-        foreach (var rename in directives.Schemas.Renames)
+        foreach (var rename in directives.ObjectRenames)
         {
-            statements.Add(new Syn.Schemas.RenameSchemaStatement(Name(rename.From), Name(rename.To)) { Position = None });
+            statements.Add(new RenameObjectStatement(rename.From.Kind, Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)) { Position = _none });
         }
-        foreach (var rename in directives.Renames)
-        {
-            statements.Add(new RenameObjectStatement(rename.Kind, Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)) { Position = None });
-        }
-        foreach (var rename in directives.ColumnRenames)
+        foreach (var rename in directives.MemberRenames)
         {
             statements.Add(new Syn.Tables.RenameColumnStatement(
-                new MemberPath(Name(rename.From.Schema), Name(rename.From.Object), Name(rename.From.Member)) { Position = None },
+                new MemberPath(Name(rename.From.Schema), Name(rename.From.Object), Name(rename.From.Member)) { Position = _none },
                 Name(rename.To))
-            { Position = None });
+            { Position = _none });
         }
 
-        foreach (var drop in directives.Drops)
-        {
-            statements.Add(new DropObjectStatement(drop.Kind, Qualified(drop.Address.Schema, drop.Address.Name)) { Position = None });
-        }
 
-        foreach (var drop in directives.Schemas.Drops)
-        {
-            statements.Add(new Syn.Schemas.DropSchemaStatement(Name(drop.Name)) { Position = None });
-        }
-        // Extensions are dropped last, so their drops trail the schema drops.
-        foreach (var drop in directives.ExtensionDrops)
-        {
-            statements.Add(new Syn.Extensions.DropExtensionStatement(Name(drop.Name)) { Position = None });
-        }
     }
 
     private static void AddSchema(List<NsqlStatement> statements, Schema schema, bool declare)
@@ -104,13 +85,13 @@ internal static class SyntaxBuilder
         {
             statements.Add(new Syn.Schemas.CreateSchemaStatement(Name(schema.Name))
             {
-                Position = None,
+                Position = _none,
                 Doc = schema.Comment,
             });
 
             foreach (var grant in schema.Grants)
             {
-                statements.Add(new Syn.Schemas.GrantSchemaUsageStatement(Name(schema.Name), Name(grant.Role)) { Position = None });
+                statements.Add(new Syn.Schemas.GrantSchemaUsageStatement(Name(schema.Name), Name(grant.Role)) { Position = _none });
             }
         }
 
@@ -118,7 +99,7 @@ internal static class SyntaxBuilder
         {
             statements.Add(new Syn.Enums.CreateEnumStatement(Qualified(schema.Name, enumType.Name), enumType.Values)
             {
-                Position = None,
+                Position = _none,
                 Doc = enumType.Comment,
             });
         }
@@ -126,10 +107,10 @@ internal static class SyntaxBuilder
         foreach (var domain in schema.Domains)
         {
             statements.Add(new Syn.Domains.CreateDomainStatement(Qualified(schema.Name, domain.Name), Type(domain.DataType), domain.NotNull,
-                domain.Checks.Select(c => new Syn.Constraints.CheckDefinition(Name(c.Name), c.Expression) { Position = None }).ToList(),
+                domain.Checks.Select(c => new Syn.Constraints.CheckDefinition(Name(c.Name), c.Expression) { Position = _none }).ToList(),
                 domain.Default)
             {
-                Position = None,
+                Position = _none,
                 Doc = domain.Comment,
             });
         }
@@ -137,9 +118,9 @@ internal static class SyntaxBuilder
         foreach (var compositeType in schema.CompositeTypes)
         {
             statements.Add(new Syn.CompositeTypes.CreateCompositeTypeStatement(Qualified(schema.Name, compositeType.Name),
-                compositeType.Fields.Select(f => new Syn.CompositeTypes.CompositeFieldDefinition(Name(f.Name), Type(f.DataType)) { Position = None }).ToList())
+                compositeType.Fields.Select(f => new Syn.CompositeTypes.CompositeFieldDefinition(Name(f.Name), Type(f.DataType)) { Position = _none }).ToList())
             {
-                Position = None,
+                Position = _none,
                 Doc = compositeType.Comment,
             });
         }
@@ -149,7 +130,7 @@ internal static class SyntaxBuilder
             statements.Add(new Syn.Sequences.CreateSequenceStatement(Qualified(schema.Name, sequence.Name),
                 Options(sequence.Options))
             {
-                Position = None,
+                Position = _none,
                 Doc = sequence.Comment,
             });
         }
@@ -157,10 +138,10 @@ internal static class SyntaxBuilder
         foreach (var routine in schema.Routines)
         {
             statements.Add(new Syn.Routines.CreateRoutineStatement(Qualified(schema.Name, routine.Name),
-                routine.Kind == RoutineKind.Procedure ? Syn.Routines.RoutineKind.Procedure : Syn.Routines.RoutineKind.Function,
+                routine.RoutineKind == RoutineKind.Procedure ? Syn.Routines.RoutineKind.Procedure : Syn.Routines.RoutineKind.Function,
                 routine.Arguments, routine.Definition)
             {
-                Position = None,
+                Position = _none,
                 Doc = routine.Comment,
             });
         }
@@ -187,13 +168,13 @@ internal static class SyntaxBuilder
             members.Add(new Syn.Tables.ColumnDefinition(Name(column.Name), Type(column.Type), column.IsNullable, column.IsIdentity,
                 Options(column.IdentityOptions), column.DefaultExpression, column.GeneratedExpression)
             {
-                Position = None,
+                Position = _none,
                 Doc = column.Comment,
             });
         }
         if (table.PrimaryKey is { } pk)
         {
-            members.Add(new Syn.Constraints.PrimaryKeyDefinition(Name(pk.Name), Names(pk.ColumnNames)) { Position = None, Doc = pk.Comment });
+            members.Add(new Syn.Constraints.PrimaryKeyDefinition(Name(pk.Name), Names(pk.ColumnNames)) { Position = _none, Doc = pk.Comment });
         }
         foreach (var fk in table.ForeignKeys)
         {
@@ -201,42 +182,42 @@ internal static class SyntaxBuilder
                 Qualified(fk.ReferencedSchema, fk.ReferencedTable), Names(fk.ReferencedColumnNames),
                 Action(fk.OnDelete), Action(fk.OnUpdate))
             {
-                Position = None,
+                Position = _none,
                 Doc = fk.Comment,
             });
         }
         foreach (var unique in table.UniqueConstraints)
         {
-            members.Add(new Syn.Constraints.UniqueDefinition(Name(unique.Name), Names(unique.ColumnNames)) { Position = None, Doc = unique.Comment });
+            members.Add(new Syn.Constraints.UniqueDefinition(Name(unique.Name), Names(unique.ColumnNames)) { Position = _none, Doc = unique.Comment });
         }
         foreach (var check in table.CheckConstraints)
         {
-            members.Add(new Syn.Constraints.CheckDefinition(Name(check.Name), check.Expression) { Position = None, Doc = check.Comment });
+            members.Add(new Syn.Constraints.CheckDefinition(Name(check.Name), check.Expression) { Position = _none, Doc = check.Comment });
         }
         foreach (var exclusion in table.ExclusionConstraints)
         {
             members.Add(new Syn.Constraints.ExclusionDefinition(Name(exclusion.Name),
-                exclusion.Elements.Select(e => new Syn.Constraints.ExclusionElement(e.Operator, OptionalName(e.Column), e.Expression) { Position = None }).ToList(),
+                exclusion.Elements.Select(e => new Syn.Constraints.ExclusionElement(e.Operator, OptionalName(e.Column), e.Expression) { Position = _none }).ToList(),
                 OptionalName(exclusion.Method is { } m ? new SqlIdentifier(m) : null), exclusion.Predicate)
             {
-                Position = None,
+                Position = _none,
                 Doc = exclusion.Comment,
             });
         }
         foreach (var index in table.Indexes)
         {
             members.Add(new Syn.Indexes.IndexDefinition(Name(index.Name), index.IsUnique, Keys(index.Columns),
-                index.Method is { } method ? new Identifier(method) { Position = None } : null,
+                index.Method is { } method ? new Identifier(method) { Position = _none } : null,
                 Names(index.Include), index.Predicate)
             {
-                Position = None,
+                Position = _none,
                 Doc = index.Comment,
             });
         }
 
         statements.Add(new Syn.Tables.CreateTableStatement(Qualified(schemaName, table.Name), members)
         {
-            Position = None,
+            Position = _none,
             Doc = table.Comment,
         });
 
@@ -244,7 +225,7 @@ internal static class SyntaxBuilder
         {
             statements.Add(new Syn.Tables.GrantTableStatement(Privileges(grant.Privileges), Qualified(schemaName, table.Name), Name(grant.Role))
             {
-                Position = None,
+                Position = _none,
             });
         }
 
@@ -260,7 +241,7 @@ internal static class SyntaxBuilder
     {
         statements.Add(new Syn.Views.CreateViewStatement(Qualified(schemaName, view.Name), view.Body, view.IsMaterialized)
         {
-            Position = None,
+            Position = _none,
             Doc = view.Comment,
         });
 
@@ -268,10 +249,10 @@ internal static class SyntaxBuilder
         foreach (var index in view.Indexes)
         {
             statements.Add(new Syn.Indexes.CreateIndexStatement(Name(index.Name), index.IsUnique, Qualified(schemaName, view.Name),
-                Keys(index.Columns), index.Method is { } method ? new Identifier(method) { Position = None } : null,
+                Keys(index.Columns), index.Method is { } method ? new Identifier(method) { Position = _none } : null,
                 Names(index.Include), index.Predicate)
             {
-                Position = None,
+                Position = _none,
                 Doc = index.Comment,
             });
         }
@@ -280,12 +261,12 @@ internal static class SyntaxBuilder
     private static Syn.Triggers.CreateTriggerStatement Build(SqlIdentifier schemaName, SqlIdentifier tableName, Trigger trigger)
     {
         Syn.Triggers.TriggerAction action = trigger.Body is { } body
-            ? new Syn.Triggers.InlineBodyAction(body) { Position = None }
+            ? new Syn.Triggers.InlineBodyAction(body) { Position = _none }
             : new Syn.Triggers.ExecuteFunctionAction(
-                new QualifiedName(OptionalIdentifier(trigger.Function!.Schema), Ident(trigger.Function.Name)) { Position = None },
+                new QualifiedName(OptionalIdentifier(trigger.Function!.Schema), Ident(trigger.Function.Name)) { Position = _none },
                 trigger.FunctionArguments ?? new SqlText(string.Empty))
             {
-                Position = None,
+                Position = _none,
             };
 
         return new Syn.Triggers.CreateTriggerStatement(Name(trigger.Name), Timing(trigger.Timing), Events(trigger.Events),
@@ -294,7 +275,7 @@ internal static class SyntaxBuilder
             trigger.Level == TriggerLevel.Row ? Syn.Triggers.TriggerLevel.Row : Syn.Triggers.TriggerLevel.Statement,
             trigger.When)
         {
-            Position = None,
+            Position = _none,
             Doc = trigger.Comment,
         };
     }
@@ -305,11 +286,11 @@ internal static class SyntaxBuilder
         {
             DeploymentScript deployment => new Syn.Scripts.DeploymentEventClause(deployment.Phase == DeploymentPhase.Pre ? Syn.Scripts.DeploymentPhase.Pre : Syn.Scripts.DeploymentPhase.Post)
             {
-                Position = None,
+                Position = _none,
             },
-            ChangeScript change => new Syn.Scripts.ChangeEventClause(Trigger(change.Trigger), new MemberPath(OptionalIdentifier(change.ScopeSchema), Ident(change.TableName), Ident(change.MemberName)) { Position = None })
+            ChangeScript change => new Syn.Scripts.ChangeEventClause(Trigger(change.Trigger), new MemberPath(OptionalIdentifier(change.ScopeSchema), Ident(change.TableName), Ident(change.MemberName)) { Position = _none })
             {
-                Position = None,
+                Position = _none,
             },
             _ => throw new InvalidOperationException($"Unbuildable script '{script.GetType().Name}'."),
         };
@@ -321,20 +302,20 @@ internal static class SyntaxBuilder
 
         return new Syn.Scripts.ScriptStatement(Ident(script.Name), condition, clause, script.Sql, script.RunOutsideTransaction)
         {
-            Position = None,
+            Position = _none,
         };
     }
 
     private static Syn.Extensions.CreateExtensionStatement Build(Extension extension) =>
         new(Name(extension.Name), extension.Version)
         {
-            Position = None,
+            Position = _none,
             Doc = extension.Comment,
         };
 
     // --- leaf conversions -------------------------------------------------------------
 
-    private static Identifier Ident(SqlIdentifier name) => new(name.Value) { Position = None };
+    private static Identifier Ident(SqlIdentifier name) => new(name.Value) { Position = _none };
 
     private static Identifier Name(SqlIdentifier name) => Ident(name);
 
@@ -345,7 +326,7 @@ internal static class SyntaxBuilder
     private static List<Identifier> Names(IReadOnlyList<SqlIdentifier> names) => names.Select(Ident).ToList();
 
     private static QualifiedName Qualified(SqlIdentifier schema, SqlIdentifier name) =>
-        new(Ident(schema), Ident(name)) { Position = None };
+        new(Ident(schema), Ident(name)) { Position = _none };
 
     /// <summary>
     /// Decomposes a type's canonical text (<c>varchar(100)</c>, <c>app.status</c>) into the written form;
@@ -355,9 +336,9 @@ internal static class SyntaxBuilder
     {
         // The type carries its qualifier and arguments as components, so read them straight across — no
         // rendering to a string and splitting it back apart.
-        var schema = type.Schema is { } qualifier ? new Identifier(qualifier.Value) { Position = None } : null;
+        var schema = type.Schema is { } qualifier ? new Identifier(qualifier.Value) { Position = _none } : null;
         var arguments = Arguments(type);
-        return new TypeName(schema, new Identifier(type.Name) { Position = None }, arguments) { Position = None };
+        return new TypeName(schema, new Identifier(type.Name) { Position = _none }, arguments) { Position = _none };
     }
 
     private static string? Arguments(SqlType type)
@@ -371,7 +352,7 @@ internal static class SyntaxBuilder
     }
 
     private static Syn.Tables.IdentityOptionsClause? Options(IdentityOptions? options) =>
-        options is null ? null : new Syn.Tables.IdentityOptionsClause(options.StartWith, options.IncrementBy, options.MinValue) { Position = None };
+        options is null ? null : new Syn.Tables.IdentityOptionsClause(options.StartWith, options.IncrementBy, options.MinValue) { Position = _none };
 
     private static Syn.Sequences.SequenceOptionsClause? Options(SequenceOptions options) =>
         options.DataType is null && options.StartWith is null && options.IncrementBy is null
@@ -380,11 +361,11 @@ internal static class SyntaxBuilder
             : new Syn.Sequences.SequenceOptionsClause(options.DataType is { } type ? Type(type) : null,
                 options.StartWith, options.IncrementBy, options.MinValue, options.MaxValue, options.Cache, options.Cycle)
             {
-                Position = None,
+                Position = _none,
             };
 
     private static List<Syn.Indexes.IndexElement> Keys(IReadOnlyList<IndexColumn> columns) =>
-        columns.Select(c => new Syn.Indexes.IndexElement(OptionalName(c.Column), c.Expression, Sort(c.Sort), Nulls(c.Nulls)) { Position = None }).ToList();
+        columns.Select(c => new Syn.Indexes.IndexElement(OptionalName(c.Column), c.Expression, Sort(c.Sort), Nulls(c.Nulls)) { Position = _none }).ToList();
 
     private static Syn.Constraints.ReferentialAction Action(ReferentialAction action) => action switch
     {

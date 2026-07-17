@@ -51,19 +51,21 @@ internal sealed class MigrationWorkflow(
             return Result.Failure<MigrationPlan>(desired.Diagnostics);
         }
 
-        // An unrestricted run derives its scope from what it manages. A teardown declares nothing, so it stays
-        // unrestricted and covers everything recorded.
-        var scopeInEffect = scope.IsAll ? PlanningScope.Of(project.ManagedSchemaNames) : scope;
-
-        progress.Report(OperationProgress.Step($"Migration will be scoped to the following schemas: {Describe(scopeInEffect)}"));
-
-        // One state read serves both halves of the current side: the recorded database and the run-once ledger.
+        // Fetch the current state.
         var read = await stateManager.Read(new StateReadArguments(), cancellationToken);
         if (read.IsFailure)
         {
             return Result.Failure<MigrationPlan>(desired.Diagnostics.Concat(read.Diagnostics));
         }
+        // Coalesce to empty if it's a first-time run.
         var state = read.Value.State ?? DatabaseState.Empty;
+
+        // An unscoped run auto-scopes to a union of the project and the existing state.
+        var scopeInEffect = scope.IsUnscoped
+            ? PlanningScope.To(project.AddressedSchemaNames.Concat(state.Managed.Schemas).Distinct())
+            : scope;
+
+        progress.Report(OperationProgress.Step($"Migration will be scoped to the following schemas: {Describe(scopeInEffect)}"));
 
         // The current side is not narrowed here: scope applies to the difference, once computed. Filtering it
         // away first would hide the out-of-scope objects a scoped run may still disturb.
@@ -74,7 +76,7 @@ internal sealed class MigrationWorkflow(
 
         progress.Report(OperationProgress.Step("Computing migration plan..."));
 
-        var current = new CurrentState(state.Database, state.Scripts);
+        var current = new CurrentState(state.Database, state.Scripts, state.Managed);
         var plan = planner.Plan(current, project, scopeInEffect);
 
         if (readDiagnostics.Count == 0)
@@ -117,7 +119,8 @@ internal sealed class MigrationWorkflow(
         if (applied is not null)
         {
             // Recording the run-once ledger is a state-domain job; the shell just supplies what ran and when.
-            state = state.RecordRunOnce(applied.Diff.DeploymentScripts, DateTimeOffset.UtcNow);
+            state = state.RecordExecution(applied.Diff.DeploymentScripts, DateTimeOffset.UtcNow)
+                with { Managed = applied.Managed };
         }
 
         var written = await stateManager.Write(new StateWriteArguments(state), cancellationToken);

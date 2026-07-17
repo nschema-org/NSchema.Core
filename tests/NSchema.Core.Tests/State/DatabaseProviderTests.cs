@@ -34,7 +34,7 @@ public sealed class DatabaseProviderTests
         // The fake ignores its scope entirely — the provider's re-filter is what keeps scoping honest.
         var sut = Create(online: new FakeIntrospector());
 
-        var result = await sut.GetDatabase(PlanningScope.Of(new SqlIdentifier("other")), TestContext.Current.CancellationToken);
+        var result = await sut.GetDatabase(PlanningScope.To(new SqlIdentifier("other")), TestContext.Current.CancellationToken);
 
         result.Require().Schemas.ShouldBeEmpty();
     }

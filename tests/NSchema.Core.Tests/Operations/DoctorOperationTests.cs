@@ -58,7 +58,7 @@ public sealed class DoctorOperationTests
     public async Task Run_WhenDatabaseReachable_ReportsConnectedWithSchemaCount()
     {
         // Arrange
-        var schema = new Database(Schemas: [new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("billing"))]);
+        var schema = new Database(schemas: [new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("billing"))]);
         var sut = BuildSut(online: new InMemoryIntrospector(schema));
 
         // Act
@@ -103,7 +103,7 @@ public sealed class DoctorOperationTests
     {
         // Arrange
         var store = new RecordingStateStore();
-        await store.Write(_serializer.Serialize(new DatabaseState(new Database(Schemas: [new Schema(new SqlIdentifier("app"))]))), TestContext.Current.CancellationToken);
+        await store.Write(_serializer.Serialize(new DatabaseState(new Database(schemas: [new Schema(new SqlIdentifier("app"))]))), TestContext.Current.CancellationToken);
         var sut = BuildSut(store: store);
 
         // Act

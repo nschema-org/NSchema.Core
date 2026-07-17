@@ -9,13 +9,13 @@ internal sealed partial class DatabaseComparer
 {
     private static List<RoutineDiff> CompareRoutines(SqlIdentifier schemaName, SqlIdentifier currentSchemaName, IReadOnlyList<Routine> current, Schema desired, DirectiveLookup directives) =>
         CompareObjects(schemaName, "routine", current, desired.Routines,
-            directives.Renames(ObjectKind.Routine, currentSchemaName), directives.Drops(ObjectKind.Routine, currentSchemaName), directives.IsPartial(schemaName),
-            routine => new RoutineDiff(schemaName, routine.Name, ChangeKind.Remove, routine.Kind),
+            directives.Renames(ObjectKind.Routine, currentSchemaName),
+            routine => new RoutineDiff(schemaName, routine.Name, ChangeKind.Remove, routine.RoutineKind),
             routine => BuildNewRoutine(schemaName, routine),
             (currentRoutine, desiredRoutine) => BuildModifiedRoutine(schemaName, currentRoutine, desiredRoutine));
 
     private static RoutineDiff BuildNewRoutine(SqlIdentifier schema, Routine routine) =>
-        new(schema, routine.Name, ChangeKind.Add, routine.Kind, Definition: routine,
+        new(schema, routine.Name, ChangeKind.Add, routine.RoutineKind, Definition: routine,
             Comment: ValueChanges.Changed(null, routine.Comment));
 
     // The arguments and definition are opaque, compared for cosmetic equivalence. A definition-only change is
@@ -31,7 +31,7 @@ internal sealed partial class DatabaseComparer
 
         // A kind change (function ⇄ procedure under the same name) also forces a recreate; it surfaces as an
         // argument change so the diff carries the transition and recreates.
-        var kindChanged = current.Kind != desired.Kind;
+        var kindChanged = current.RoutineKind != desired.RoutineKind;
 
         if (renamedFrom is null && !argumentsChanged && !definitionChanged && comment is null && !kindChanged)
         {
@@ -39,7 +39,7 @@ internal sealed partial class DatabaseComparer
         }
 
         var recreate = argumentsChanged || kindChanged;
-        return new RoutineDiff(schema, desired.Name, ChangeKind.Modify, desired.Kind, renamedFrom,
+        return new RoutineDiff(schema, desired.Name, ChangeKind.Modify, desired.RoutineKind, renamedFrom,
             Definition: recreate || definitionChanged ? desired : null,
             Arguments: recreate ? new ValueChange<SqlText>(current.Arguments, desired.Arguments) : null,
             Comment: comment);

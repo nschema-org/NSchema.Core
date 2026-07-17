@@ -28,7 +28,6 @@ internal static class NsqlKeywords
     public const string Deployment = "DEPLOYMENT";
     public const string Desc = "DESC";
     public const string Domain = "DOMAIN";
-    public const string Drop = "DROP";
     public const string Each = "EACH";
     public const string End = "END";
     public const string Enum = "ENUM";
@@ -61,7 +60,6 @@ internal static class NsqlKeywords
     public const string On = "ON";
     public const string Once = "ONCE";
     public const string Or = "OR";
-    public const string Partial = "PARTIAL";
     public const string Post = "POST";
     public const string Pre = "PRE";
     public const string Primary = "PRIMARY";
@@ -102,7 +100,7 @@ internal static class NsqlKeywords
     /// </summary>
     public static readonly IReadOnlySet<string> StatementOpeners = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        Create, Drop, Grant, Template, Apply, Script, Rename, Partial,
+        Create, Grant, Template, Apply, Script, Rename,
     };
 
     /// <summary>

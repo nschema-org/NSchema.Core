@@ -146,7 +146,7 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
     /// <param name="current">The whole current database — the closure has to see past the scope to be right.</param>
     public Result<DatabaseDiff> ScopedTo(PlanningScope scope, Database current)
     {
-        if (scope.IsAll)
+        if (scope.IsUnscoped)
         {
             return this;
         }

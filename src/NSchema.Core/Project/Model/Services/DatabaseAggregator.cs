@@ -41,17 +41,19 @@ internal static class DatabaseAggregator
     {
         var schemaName = schemas[0].Name;
 
-        var tables = MergeUnique(schemas, s => s.Tables, t => t.Name, schemaName, "table", diagnostics);
-        var views = MergeUnique(schemas, s => s.Views, v => v.Name, schemaName, "view", diagnostics);
-        var enums = MergeUnique(schemas, s => s.Enums, e => e.Name, schemaName, "enum", diagnostics);
-        var sequences = MergeUnique(schemas, s => s.Sequences, q => q.Name, schemaName, "sequence", diagnostics);
-        var domains = MergeUnique(schemas, s => s.Domains, d => d.Name, schemaName, "domain", diagnostics);
-        var compositeTypes = MergeUnique(schemas, s => s.CompositeTypes, c => c.Name, schemaName, "composite type", diagnostics);
+        // The winning declarations are copied into the merged schema — their sources keep them; a node is
+        // never re-parented.
+        var tables = MergeUnique(schemas, s => s.Tables, t => t.Name, t => t.Clone(), schemaName, "table", diagnostics);
+        var views = MergeUnique(schemas, s => s.Views, v => v.Name, v => v.Clone(), schemaName, "view", diagnostics);
+        var enums = MergeUnique(schemas, s => s.Enums, e => e.Name, e => e.Clone(), schemaName, "enum", diagnostics);
+        var sequences = MergeUnique(schemas, s => s.Sequences, q => q.Name, q => q.Clone(), schemaName, "sequence", diagnostics);
+        var domains = MergeUnique(schemas, s => s.Domains, d => d.Name, d => d.Clone(), schemaName, "domain", diagnostics);
+        var compositeTypes = MergeUnique(schemas, s => s.CompositeTypes, c => c.Name, c => c.Clone(), schemaName, "composite type", diagnostics);
 
         // Functions and procedures are one routine pool sharing a single name space, as in the database (e.g.
         // Postgres's pg_proc): a function and a procedure with the same name cannot coexist in a schema. Modeling
         // them as one list makes that fall out of a single duplicate check.
-        var routines = MergeUnique(schemas, s => s.Routines, r => r.Name, schemaName, "routine", diagnostics,
+        var routines = MergeUnique(schemas, s => s.Routines, r => r.Name, r => r.Clone(), schemaName, "routine", diagnostics,
             ": functions and procedures share one name space");
 
         var comments = schemas.Select(s => s.Comment).Where(c => c is not null).Distinct().ToList();
@@ -66,7 +68,7 @@ internal static class DatabaseAggregator
             .Distinct()
             .ToList();
 
-        return new Schema(schemaName, comment, tables, grants, views, enums, sequences, routines, domains, compositeTypes);
+        return new Schema(schemaName, tables, grants, views, enums, sequences, routines, domains, compositeTypes) { Comment = comment };
     }
 
     /// <summary>
@@ -77,6 +79,7 @@ internal static class DatabaseAggregator
         IReadOnlyList<Schema> schemas,
         Func<Schema, IEnumerable<T>> select,
         Func<T, SqlIdentifier> name,
+        Func<T, T> copy,
         SqlIdentifier schemaName,
         string kind,
         List<Diagnostic> diagnostics,
@@ -92,7 +95,7 @@ internal static class DatabaseAggregator
                 continue;
             }
 
-            result.Add(item);
+            result.Add(copy(item));
         }
 
         return result;

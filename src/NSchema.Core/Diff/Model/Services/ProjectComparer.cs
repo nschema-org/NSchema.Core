@@ -40,7 +40,7 @@ internal sealed class ProjectComparer(IDatabaseComparer comparer) : IProjectComp
     {
         var current = new DatabaseLookup(currentSchema);
 
-        foreach (var rename in directives.Schemas.Renames)
+        foreach (var rename in directives.SchemaRenames)
         {
             if (current.FindSchema(rename.From) is null && current.FindSchema(rename.To) is not null)
             {
@@ -48,7 +48,7 @@ internal sealed class ProjectComparer(IDatabaseComparer comparer) : IProjectComp
             }
         }
 
-        foreach (var rename in directives.Renames)
+        foreach (var rename in directives.ObjectRenames)
         {
             if (!current.Has(rename.Kind, rename.From) && current.Has(rename.Kind, rename.From with { Name = rename.To }))
             {
@@ -56,7 +56,7 @@ internal sealed class ProjectComparer(IDatabaseComparer comparer) : IProjectComp
             }
         }
 
-        foreach (var rename in directives.ColumnRenames)
+        foreach (var rename in directives.MemberRenames)
         {
             if (!current.HasColumn(rename.From) && current.HasColumn(rename.From with { Member = rename.To }))
             {

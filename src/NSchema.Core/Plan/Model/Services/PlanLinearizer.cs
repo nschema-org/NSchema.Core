@@ -601,7 +601,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 // themselves and a default covers existing rows, so those adds keep their declared shape.
                 if (column is { MigrationScript: { } backfill, Definition: { IsNullable: false, DefaultExpression: null, IsIdentity: false, GeneratedExpression: null } })
                 {
-                    actions.Add(new AddColumn(table.Schema, table.Name, column.Definition with { IsNullable = true }));
+                    actions.Add(new AddColumn(table.Schema, table.Name, column.Definition.AsNullable()));
                     actions.Add(new ExecuteScript(backfill));
                     actions.Add(new AlterColumnNullability(table.Schema, table.Name, column.Name, OldNullable: true, NewNullable: false, column.Definition.Type));
                 }

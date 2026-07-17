@@ -5,29 +5,31 @@ namespace NSchema.Model.Constraints;
 /// <summary>
 /// Represents a unique constraint in a database schema.
 /// </summary>
-/// <param name="Name">The name of the unique constraint.</param>
-/// <param name="ColumnNames">A list of column names that are part of the unique constraint.</param>
-/// <param name="Comment">An optional comment or description for the constraint.</param>
+/// <param name="name">The name of the unique constraint.</param>
+/// <param name="columnNames">A list of column names that are part of the unique constraint.</param>
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public record UniqueConstraint(SqlIdentifier Name, IReadOnlyList<SqlIdentifier> ColumnNames, string? Comment = null) : INamedObject
+public sealed class UniqueConstraint(SqlIdentifier name, IReadOnlyList<SqlIdentifier> columnNames) : DatabaseMember(name), IEquatable<UniqueConstraint>
 {
     /// <summary>
     /// A list of column names that are part of the unique constraint.
     /// </summary>
-    public IReadOnlyList<SqlIdentifier> ColumnNames { get; init; } = ColumnNames ?? [];
+    public IReadOnlyList<SqlIdentifier> ColumnNames { get; init; } = columnNames ?? [];
 
-    private string DebuggerDisplay => $"{Name}: ({string.Join(", ", ColumnNames)})";
+    internal UniqueConstraint Clone() => new(Name, ColumnNames) { Comment = Comment };
 
     /// <summary>
-    /// Determines whether the specified UniqueConstraint is equal to the current UniqueConstraint.
+    /// Structural equality over the declared definition.
     /// </summary>
-    /// <param name="other">The UniqueConstraint to compare with the current UniqueConstraint.</param>
-    /// <returns>true if the specified UniqueConstraint is equal to the current UniqueConstraint; otherwise, false.</returns>
-    public virtual bool Equals(UniqueConstraint? other) =>
-        other != null
+    public bool Equals(UniqueConstraint? other) =>
+        other is not null
         && Name == other.Name
         && ColumnNames.SequenceEqual(other.ColumnNames);
 
     /// <inheritdoc/>
-    public override int GetHashCode() => HashCode.Combine(Name, ColumnNames);
+    public override bool Equals(object? obj) => obj is UniqueConstraint other && Equals(other);
+
+    /// <inheritdoc/>
+    public override int GetHashCode() => HashCode.Combine(Name, ColumnNames.Count);
+
+    private string DebuggerDisplay => $"{Name}: ({string.Join(", ", ColumnNames)})";
 }

@@ -5,21 +5,28 @@ namespace NSchema.Model.Constraints;
 /// <summary>
 /// Represents a check constraint in a database schema.
 /// </summary>
-/// <param name="Name">The name of the check constraint.</param>
-/// <param name="Expression">The SQL boolean expression the constraint enforces.</param>
-/// <param name="Comment">An optional comment or description for the constraint.</param>
+/// <param name="name">The name of the check constraint.</param>
+/// <param name="expression">The SQL boolean expression the constraint enforces.</param>
 [DebuggerDisplay("{Name,nq}: {Expression,nq}")]
-public record CheckConstraint(SqlIdentifier Name, SqlText Expression, string? Comment = null) : INamedObject
+public sealed class CheckConstraint(SqlIdentifier name, SqlText expression) : DatabaseMember(name), IEquatable<CheckConstraint>
 {
     /// <summary>
-    /// Determines whether the specified CheckConstraint is structurally equal to the current one.
+    /// The SQL boolean expression the constraint enforces.
     /// </summary>
-    /// <param name="other">The CheckConstraint to compare with the current CheckConstraint.</param>
-    /// <returns>true if the specified CheckConstraint is structurally equal; otherwise, false.</returns>
-    public virtual bool Equals(CheckConstraint? other) =>
-        other != null
+    public SqlText Expression { get; init; } = expression;
+
+    internal CheckConstraint Clone() => new(Name, Expression) { Comment = Comment };
+
+    /// <summary>
+    /// Structural equality over the declared definition.
+    /// </summary>
+    public bool Equals(CheckConstraint? other) =>
+        other is not null
         && Name == other.Name
         && Expression == other.Expression;
+
+    /// <inheritdoc/>
+    public override bool Equals(object? obj) => obj is CheckConstraint other && Equals(other);
 
     /// <inheritdoc/>
     public override int GetHashCode() => HashCode.Combine(Name, Expression);

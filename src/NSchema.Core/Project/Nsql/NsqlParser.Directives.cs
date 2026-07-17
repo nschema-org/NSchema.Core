@@ -43,19 +43,6 @@ internal sealed partial class NsqlParser
     }
 
     /// <summary>
-    /// Parses a PARTIAL directive: <c>PARTIAL SCHEMA name;</c>.
-    /// </summary>
-    private PartialSchemaStatement ParsePartial(string? doc)
-    {
-        var position = _current.Position;
-        Advance(); // PARTIAL
-        ExpectKeyword(NsqlKeywords.Schema);
-        var schema = ExpectIdentifierNode("a schema name");
-        Expect(TokenKind.Semicolon, "';'");
-        return new PartialSchemaStatement(schema) { Position = position, Doc = doc };
-    }
-
-    /// <summary>
     /// Consumes an object-kind keyword when the current token names a schema-level object kind. VIEW and
     /// MATERIALIZED VIEW both name a view, and FUNCTION, PROCEDURE and ROUTINE all name a routine (they share
     /// one name space) — the concrete kind is resolved from the current state when the directive is planned.

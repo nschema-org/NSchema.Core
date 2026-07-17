@@ -48,7 +48,7 @@ public sealed class PlanLinearizerExtensionTests
     public void AddedExtension_WithComment_EmitsCreateThenSetComment()
     {
         var actions = _linearizer.Linearize(Diff(
-            [new ExtensionDiff(new SqlIdentifier("postgis"), ChangeKind.Add, Definition: new Extension(new SqlIdentifier("postgis"), Comment: "gis"),
+            [new ExtensionDiff(new SqlIdentifier("postgis"), ChangeKind.Add, Definition: new Extension(new SqlIdentifier("postgis")) { Comment = "gis" },
                 Comment: new ValueChange<string>(null, "gis"))]));
 
         actions.OfType<CreateExtension>().ShouldHaveSingleItem().Extension.Name.ShouldBe("postgis");

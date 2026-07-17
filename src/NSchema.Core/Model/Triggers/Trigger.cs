@@ -6,51 +6,97 @@ namespace NSchema.Model.Triggers;
 /// <summary>
 /// Represents a trigger on a table fired on a table operation.
 /// </summary>
-/// <param name="Name">The trigger name (unique within its table).</param>
-/// <param name="Timing">When the trigger fires relative to the operation.</param>
-/// <param name="Events">The operation(s) that fire the trigger.</param>
-/// <param name="Function">The function the trigger executes (optionally schema-qualified); null for an inline-body trigger.</param>
-/// <param name="Level">Whether the trigger fires per row or per statement.</param>
-/// <param name="UpdateOfColumns">The columns an <c>UPDATE</c> trigger is narrowed to, if any; empty otherwise.</param>
-/// <param name="When">An optional <c>WHEN</c> condition, stored verbatim (opaque SQL).</param>
-/// <param name="FunctionArguments">Optional literal arguments passed to the function, stored verbatim; <see langword="null"/> when none.</param>
-/// <param name="Comment">An optional comment or description for the trigger.</param>
-/// <param name="Body">The trigger's inline statement body, stored verbatim (opaque SQL). Use <see langword="null"/> for a function-style trigger.</param>
+/// <remarks>
+/// Creates a trigger.
+/// </remarks>
+/// <param name="name">The trigger name (unique within its table).</param>
+/// <param name="timing">When the trigger fires relative to the operation.</param>
+/// <param name="events">The operation(s) that fire the trigger.</param>
+/// <param name="function">The function the trigger executes (optionally schema-qualified); null for an inline-body trigger.</param>
+/// <param name="level">Whether the trigger fires per row or per statement.</param>
+/// <param name="updateOfColumns">The columns an <c>UPDATE</c> trigger is narrowed to, if any; empty otherwise.</param>
+/// <param name="when">An optional <c>WHEN</c> condition, stored verbatim (opaque SQL).</param>
+/// <param name="functionArguments">Optional literal arguments passed to the function, stored verbatim; <see langword="null"/> when none.</param>
+/// <param name="body">The trigger's inline statement body, stored verbatim (opaque SQL). Use <see langword="null"/> for a function-style trigger.</param>
 [DebuggerDisplay("{Name,nq} (trigger)")]
-public record Trigger(
-    SqlIdentifier Name,
-    TriggerTiming Timing,
-    TriggerEvent Events,
-    RoutineReference? Function = null,
-    TriggerLevel Level = TriggerLevel.Statement,
-    IReadOnlyList<SqlIdentifier>? UpdateOfColumns = null,
-    SqlText? When = null,
-    SqlText? FunctionArguments = null,
-    string? Comment = null,
-    SqlText? Body = null
-) : INamedObject
+public sealed class Trigger(
+    SqlIdentifier name,
+    TriggerTiming timing,
+    TriggerEvent events,
+    RoutineReference? function = null,
+    TriggerLevel level = TriggerLevel.Statement,
+    IReadOnlyList<SqlIdentifier>? updateOfColumns = null,
+    SqlText? when = null,
+    SqlText? functionArguments = null,
+    SqlText? body = null
+) : DatabaseMember(name), IEquatable<Trigger>
 {
+    /// <summary>
+    /// When the trigger fires relative to the operation.
+    /// </summary>
+    public TriggerTiming Timing { get; init; } = timing;
+
+    /// <summary>
+    /// The operation(s) that fire the trigger.
+    /// </summary>
+    public TriggerEvent Events { get; init; } = events;
+
+    /// <summary>
+    /// The function the trigger executes (optionally schema-qualified); null for an inline-body trigger.
+    /// </summary>
+    public RoutineReference? Function { get; init; } = function;
+
+    /// <summary>
+    /// Whether the trigger fires per row or per statement.
+    /// </summary>
+    public TriggerLevel Level { get; init; } = level;
+
     /// <summary>
     /// The columns an <c>UPDATE</c> trigger is narrowed to (<c>UPDATE OF (…)</c>), if any.
     /// </summary>
-    public IReadOnlyList<SqlIdentifier> UpdateOfColumns { get; init; } = UpdateOfColumns ?? [];
+    public IReadOnlyList<SqlIdentifier> UpdateOfColumns { get; init; } = updateOfColumns ?? [];
 
     /// <summary>
-    /// Determines structural equality, <em>excluding</em> <see cref="Comment"/>.
+    /// An optional <c>WHEN</c> condition, stored verbatim (opaque SQL).
     /// </summary>
-    /// <param name="other">The trigger to compare with.</param>
-    /// <returns><see langword="true"/> when the two triggers are structurally equal.</returns>
-    public virtual bool Equals(Trigger? other) =>
-        other != null
+    public SqlText? When { get; init; } = when;
+
+    /// <summary>
+    /// Optional literal arguments passed to the function, stored verbatim; <see langword="null"/> when none.
+    /// </summary>
+    public SqlText? FunctionArguments { get; init; } = functionArguments;
+
+    /// <summary>
+    /// The trigger's inline statement body, stored verbatim (opaque SQL); <see langword="null"/> for a
+    /// function-style trigger.
+    /// </summary>
+    public SqlText? Body { get; init; } = body;
+
+    /// <summary>
+    /// Returns a copy of the trigger executing the given function, outside any tree.
+    /// </summary>
+    public Trigger WithFunction(RoutineReference function) => Clone(function);
+
+    internal Trigger Clone(RoutineReference? function = null) =>
+        new(Name, Timing, Events, function ?? Function, Level, UpdateOfColumns, When, FunctionArguments, Body) { Comment = Comment };
+
+    /// <summary>
+    /// Structural equality over the declared definition;.
+    /// </summary>
+    public bool Equals(Trigger? other) =>
+        other is not null
         && Name == other.Name
         && Timing == other.Timing
         && Events == other.Events
-        && Function == other.Function
+        && Equals(Function, other.Function)
         && Level == other.Level
         && UpdateOfColumns.SequenceEqual(other.UpdateOfColumns)
-        && When == other.When
-        && FunctionArguments == other.FunctionArguments
-        && Body == other.Body;
+        && Equals(When, other.When)
+        && Equals(FunctionArguments, other.FunctionArguments)
+        && Equals(Body, other.Body);
+
+    /// <inheritdoc/>
+    public override bool Equals(object? obj) => obj is Trigger other && Equals(other);
 
     /// <inheritdoc/>
     public override int GetHashCode() => HashCode.Combine(Name, Timing, Events, Function, Level, When, FunctionArguments, Body);

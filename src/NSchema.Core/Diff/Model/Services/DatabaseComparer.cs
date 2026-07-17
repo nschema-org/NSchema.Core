@@ -18,7 +18,7 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger)
 
         var index = new DirectiveLookup(directives);
         var schemas = CompareSchemas(current.Schemas, desired.Schemas, index);
-        var extensions = CompareExtensions(current.Extensions, desired.Extensions, index.ExtensionDrops);
+        var extensions = CompareExtensions(current.Extensions, desired.Extensions);
 
         LogComparisonComplete(schemas.Count);
 
@@ -87,7 +87,7 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger)
         IReadOnlyList<RenamePair> renames,
         string entityKind,
         string? container = null
-    ) where T : class, INamedObject
+    ) where T : DatabaseElement
     {
         var forDesired = new T?[desired.Count];
         var currentMatched = new bool[current.Count];
@@ -168,10 +168,9 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger)
 
     /// <summary>
     /// The shared per-kind diffing skeleton: pairs current and desired objects via
-    /// <see cref="MatchEntities{T}"/>, treats an unmatched current object as removed — unless the schema is
-    /// partial and the object was not explicitly dropped, mirroring how unmanaged tables are left alone — and
-    /// builds an add for each unmatched desired object or delegates to <paramref name="buildModified"/> for a
-    /// pair. Only the per-kind build logic varies; the matching and partial-schema semantics live here, once.
+    /// <see cref="MatchEntities{T}"/>, treats an unmatched current object as removed, and builds an add for
+    /// each unmatched desired object or delegates to <paramref name="buildModified"/> for a pair. Only the
+    /// per-kind build logic varies; the matching lives here, once.
     /// </summary>
     private static List<TDiff> CompareObjects<TModel, TDiff>(
         SqlIdentifier schemaName,
@@ -179,24 +178,17 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger)
         IReadOnlyList<TModel> current,
         IReadOnlyList<TModel> desired,
         IReadOnlyList<RenamePair> renames,
-        IReadOnlyList<SqlIdentifier> droppedNames,
-        bool isPartial,
         Func<TModel, TDiff> buildRemoved,
         Func<TModel, TDiff> buildNew,
         Func<TModel, TModel, TDiff?> buildModified
-    ) where TModel : class, INamedObject where TDiff : class
+    ) where TModel : DatabaseElement where TDiff : class
     {
         var result = new List<TDiff>();
         var (forDesired, currentMatched) = MatchEntities(current, desired, renames, entityKind, schemaName.Value);
 
         for (var j = 0; j < current.Count; j++)
         {
-            if (currentMatched[j])
-            {
-                continue;
-            }
-
-            if (droppedNames.Contains(current[j].Name) || !isPartial)
+            if (!currentMatched[j])
             {
                 result.Add(buildRemoved(current[j]));
             }
@@ -222,7 +214,7 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger)
     /// indexes): match by exact name — members don't rename — then a structurally changed or missing member is
     /// removed, a changed or new one is added (with its comment folded in as a trailing Modify), and a
     /// comment-only change is a Modify in place. Relies on <typeparamref name="TModel"/>'s equality
-    /// <em>excluding</em> <see cref="INamedObject.Comment"/>, or the comment-only branch is unreachable.
+    /// <em>excluding</em> <see cref="NSchema.Model.DatabaseElement.Comment"/>, or the comment-only branch is unreachable.
     /// </summary>
     private List<TDiff> CompareTableMembers<TModel, TDiff>(
         ObjectAddress owner,
@@ -230,7 +222,7 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger)
         IReadOnlyList<TModel> current,
         IReadOnlyList<TModel> desired,
         Func<ChangeKind, SqlIdentifier, TModel?, ValueChange<string>?, TDiff> diff
-    ) where TModel : class, INamedObject
+    ) where TModel : DatabaseElement
     {
         var result = new List<TDiff>();
 

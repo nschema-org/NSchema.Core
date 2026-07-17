@@ -101,7 +101,7 @@ public sealed class PlanLinearizerTests
     private static ViewDiff AddView(string name, string schema = "app", params (string Schema, string Name)[] dependsOn)
     {
         var deps = dependsOn.Select(d => new ViewDependency(new SqlIdentifier(d.Schema), new SqlIdentifier(d.Name))).ToList();
-        var view = new View(new SqlIdentifier(name), new SqlText($"SELECT * FROM source_of_{name}"), DependsOn: deps);
+        var view = new View(new SqlIdentifier(name), new SqlText($"SELECT * FROM source_of_{name}"), dependsOn: deps);
         return new ViewDiff(new SqlIdentifier(schema), new SqlIdentifier(name), ChangeKind.Add, Definition: view, DependsOn: deps);
     }
 
@@ -318,7 +318,7 @@ public sealed class PlanLinearizerTests
     {
         // Columns of a new table are created inline by CREATE TABLE; only their comments arrive as separate actions.
         var table = TableNode("users", ChangeKind.Add,
-            definition: new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int, Comment: "pk")]),
+            definition: new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int) { Comment = "pk" }]),
             columns: [AddedColumn(new Column(new SqlIdentifier("id"), SqlType.Int), comment: new ValueChange<string>(null, "pk"))]);
 
         var plan = LinearizeTable(table);
@@ -372,14 +372,14 @@ public sealed class PlanLinearizerTests
         // A dialect whose ALTER COLUMN restates the whole column (SQL Server) needs the unchanged nullability; it
         // rides along on the action from the desired column's Definition.
         => LinearizeColumn(ModifiedColumn("id", type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
-                definition: new Column(new SqlIdentifier("id"), SqlType.BigInt, IsNullable: false)))
+                definition: new Column(new SqlIdentifier("id"), SqlType.BigInt, isNullable: false)))
             .OfType<AlterColumnType>().ShouldHaveSingleItem()
             .IsNullable.ShouldBe(false);
 
     [Fact]
     public void Linearize_ColumnNullabilityChange_CarriesFinalTypeFromDefinition()
         => LinearizeColumn(ModifiedColumn("email", nullability: new ValueChange<bool>(true, false),
-                definition: new Column(new SqlIdentifier("email"), SqlType.VarChar(255), IsNullable: false)))
+                definition: new Column(new SqlIdentifier("email"), SqlType.VarChar(255), isNullable: false)))
             .OfType<AlterColumnNullability>().ShouldHaveSingleItem()
             .ColumnType.ShouldBe(SqlType.VarChar(255));
 
@@ -964,12 +964,12 @@ public sealed class PlanLinearizerTests
     // Functions and procedures
     // -------------------------------------------------------------------------
 
-    private static readonly Routine Fn = new(new SqlIdentifier("f"), RoutineKind.Function, new SqlText("a int"), new SqlText("RETURNS int LANGUAGE sql AS $$ SELECT 1; $$"));
-    private static readonly Routine Proc = new(new SqlIdentifier("p"), RoutineKind.Procedure, new SqlText(""), new SqlText("LANGUAGE sql AS $$ DELETE FROM app.t; $$"));
+    private static readonly Routine _fn = new(new SqlIdentifier("f"), RoutineKind.Function, new SqlText("a int"), new SqlText("RETURNS int LANGUAGE sql AS $$ SELECT 1; $$"));
+    private static readonly Routine _proc = new(new SqlIdentifier("p"), RoutineKind.Procedure, new SqlText(""), new SqlText("LANGUAGE sql AS $$ DELETE FROM app.t; $$"));
 
     [Fact]
     public void Linearize_AddFunction_EmitsCreateRoutineFromDefinition()
-        => Linearize(SchemaNode("app", routines: [new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Add, RoutineKind.Function, Definition: Fn)]))
+        => Linearize(SchemaNode("app", routines: [new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Add, RoutineKind.Function, Definition: _fn)]))
             .ShouldHaveSingleItem().ShouldBeOfType<CreateRoutine>().Routine.Arguments.ShouldBe("a int");
 
     [Fact]
@@ -982,7 +982,7 @@ public sealed class PlanLinearizerTests
     {
         // A definition-only change replaces in place (CREATE OR REPLACE semantics, like a view body change).
         var plan = Linearize(SchemaNode("app", routines:
-            [new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Modify, RoutineKind.Function, Definition: Fn)]));
+            [new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Modify, RoutineKind.Function, Definition: _fn)]));
 
         plan.ShouldHaveSingleItem().ShouldBeOfType<CreateRoutine>();
         plan.OfType<RecreateRoutine>().ShouldBeEmpty();
@@ -991,7 +991,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_RoutineSignatureChange_EmitsRecreateRoutine()
         => Linearize(SchemaNode("app", routines:
-            [new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Modify, RoutineKind.Function, Definition: Fn,
+            [new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Modify, RoutineKind.Function, Definition: _fn,
                 Arguments: new ValueChange<SqlText>(new SqlText("a int"), new SqlText("a int, b text")))]))
             .ShouldHaveSingleItem().ShouldBeOfType<RecreateRoutine>();
 
@@ -1007,7 +1007,7 @@ public sealed class PlanLinearizerTests
     {
         // The recreate targets the final name, so the rename must land first.
         var plan = Linearize(SchemaNode("app", routines:
-            [new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Modify, RoutineKind.Function, RenamedFrom: new SqlIdentifier("old_f"), Definition: Fn,
+            [new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Modify, RoutineKind.Function, RenamedFrom: new SqlIdentifier("old_f"), Definition: _fn,
                 Arguments: new ValueChange<SqlText>(new SqlText("a int"), new SqlText("a int, b text")))]));
 
         IndexOf<RenameRoutine>(plan).ShouldBeLessThan(IndexOf<RecreateRoutine>(plan));
@@ -1025,9 +1025,9 @@ public sealed class PlanLinearizerTests
     {
         var plan = Linearize(SchemaNode("app", routines:
         [
-            new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("p"), ChangeKind.Add, RoutineKind.Procedure, Definition: Proc),
+            new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("p"), ChangeKind.Add, RoutineKind.Procedure, Definition: _proc),
             new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("q"), ChangeKind.Modify, RoutineKind.Procedure, RenamedFrom: new SqlIdentifier("old_q"),
-                Definition: Proc, Arguments: new ValueChange<SqlText>(new SqlText(""), new SqlText("before date"))),
+                Definition: _proc, Arguments: new ValueChange<SqlText>(new SqlText(""), new SqlText("before date"))),
             new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("stale"), ChangeKind.Remove, RoutineKind.Procedure),
         ]));
 
@@ -1046,8 +1046,8 @@ public sealed class PlanLinearizerTests
             enums: [new EnumDiff(new SqlIdentifier("app"), new SqlIdentifier("status"), ChangeKind.Add, Definition: new EnumType(new SqlIdentifier("status"), ["a"]))],
             routines:
             [
-                new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Add, RoutineKind.Function, Definition: Fn),
-                new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("p"), ChangeKind.Add, RoutineKind.Procedure, Definition: Proc),
+                new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Add, RoutineKind.Function, Definition: _fn),
+                new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("p"), ChangeKind.Add, RoutineKind.Procedure, Definition: _proc),
             ]));
 
         IndexOf<CreateEnum>(plan).ShouldBeLessThan(IndexOf<CreateRoutine>(plan));
@@ -1074,7 +1074,7 @@ public sealed class PlanLinearizerTests
             views: [AddView("v"), RemoveView("stale_v")],
             routines:
             [
-                new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Add, RoutineKind.Function, Definition: Fn),
+                new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Add, RoutineKind.Function, Definition: _fn),
                 new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("stale_f"), ChangeKind.Remove, RoutineKind.Function),
             ]));
 
