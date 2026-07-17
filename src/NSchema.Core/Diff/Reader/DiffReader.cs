@@ -107,7 +107,7 @@ public sealed class DiffReader
 
         foreach (var script in scripts)
         {
-            AppendHeader(lines, ChangeKind.Add, $"script {script.Reference} ({EventText(script)})");
+            AppendHeader(lines, ChangeKind.Add, $"script {script.Address} ({EventText(script)})");
         }
     }
 

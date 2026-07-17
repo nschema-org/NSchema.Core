@@ -39,7 +39,7 @@ public sealed class NsqlWriterTests
     private static string WriteDirectives(ProjectDirectives directives, params Schema[] schemas) =>
         NsqlWriter.Write(new Database(schemas), directives);
 
-    private static ObjectReference InApp(string name) => new(new SqlIdentifier("app"), new SqlIdentifier(name));
+    private static ObjectAddress InApp(string name) => new(new SqlIdentifier("app"), new SqlIdentifier(name));
 
     [Fact]
     public void Write_NotNullColumn_EmitsNotNull()
@@ -87,7 +87,7 @@ public sealed class NsqlWriterTests
 
     [Fact]
     public void Write_ColumnRenameDirective_IsEmitted()
-        => WriteDirectives(new ProjectDirectives(ColumnRenames: [new MemberRenameDirective(new MemberReference(new SqlIdentifier("app"), new SqlIdentifier("t"), new SqlIdentifier("legacy_flag")), new SqlIdentifier("flag"))]))
+        => WriteDirectives(new ProjectDirectives(ColumnRenames: [new MemberRenameDirective(new MemberAddress(new SqlIdentifier("app"), new SqlIdentifier("t"), new SqlIdentifier("legacy_flag")), new SqlIdentifier("flag"))]))
             .ShouldContain("RENAME COLUMN app.t.legacy_flag TO flag;");
 
     [Fact]

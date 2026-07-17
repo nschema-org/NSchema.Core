@@ -85,11 +85,11 @@ internal static class DirectiveValidator
                 {
                     yield return ProjectDiagnostics.DirectiveSchemaNotDeclared($"RENAME of {kindName} '{rename.From}'", rename.From.Schema);
                 }
-                else if (!index.Has(kind, new ObjectReference(declaredSchema, rename.To)))
+                else if (!index.Has(kind, new ObjectAddress(declaredSchema, rename.To)))
                 {
                     yield return ProjectDiagnostics.RenameTargetNotDeclared(kindName, rename.From.ToString(), rename.To);
                 }
-                if (index.Has(kind, new ObjectReference(declaredSchema, rename.From.Name)))
+                if (index.Has(kind, new ObjectAddress(declaredSchema, rename.From.Name)))
                 {
                     yield return ProjectDiagnostics.RenameSourceStillDeclared(kindName, rename.From.ToString(), rename.To);
                 }
@@ -106,7 +106,7 @@ internal static class DirectiveValidator
                 {
                     yield return ProjectDiagnostics.DirectiveSchemaNotDeclared($"DROP of {kindName} '{drop.Address}'", drop.Address.Schema);
                 }
-                else if (index.Has(kind, new ObjectReference(declaredSchema, drop.Address.Name)))
+                else if (index.Has(kind, new ObjectAddress(declaredSchema, drop.Address.Name)))
                 {
                     yield return ProjectDiagnostics.DropOfDeclared(kindName, drop.Address.ToString());
                 }
@@ -121,7 +121,7 @@ internal static class DirectiveValidator
             yield return d;
         }
 
-        var tableRenames = new Dictionary<ObjectReference, SqlIdentifier>();
+        var tableRenames = new Dictionary<ObjectAddress, SqlIdentifier>();
         foreach (var rename in directives.Renames.Where(r => r.Kind == ObjectKind.Table))
         {
             tableRenames.TryAdd(rename.From, rename.To);
@@ -131,8 +131,8 @@ internal static class DirectiveValidator
             // The path names current reality: resolve the schema and the table through their own renames to
             // find the declared table the column must be declared on.
             var declaredSchema = DeclaredSchema(rename.From.Schema);
-            var declaredTable = tableRenames.GetValueOrDefault(new ObjectReference(rename.From.Schema, rename.From.Object), rename.From.Object);
-            if (index.FindTable(new ObjectReference(declaredSchema, declaredTable)) is not { } table)
+            var declaredTable = tableRenames.GetValueOrDefault(new ObjectAddress(rename.From.Schema, rename.From.Object), rename.From.Object);
+            if (index.FindTable(new ObjectAddress(declaredSchema, declaredTable)) is not { } table)
             {
                 yield return ProjectDiagnostics.DirectiveTableNotDeclared(rename.From);
                 continue;

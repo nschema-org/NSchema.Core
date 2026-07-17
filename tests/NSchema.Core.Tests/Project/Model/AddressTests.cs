@@ -12,10 +12,10 @@ public class AddressTests
 {
     public static TheoryData<Address> Addresses() =>
     [
-        new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("users")),
-        new MemberReference(new SqlIdentifier("app"), new SqlIdentifier("users"), new SqlIdentifier("email")),
-        new ScriptReference(new SqlIdentifier("app"), new SqlIdentifier("seed")),
-        new ScriptReference(null, new SqlIdentifier("seed")),
+        new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users")),
+        new MemberAddress(new SqlIdentifier("app"), new SqlIdentifier("users"), new SqlIdentifier("email")),
+        new ScopedAddress(new SqlIdentifier("app"), new SqlIdentifier("seed")),
+        new ScopedAddress(null, new SqlIdentifier("seed")),
     ];
 
     [Theory]
@@ -42,8 +42,8 @@ public class AddressTests
     public void Addresses_AtDifferentContainmentDepths_AreNeverEqual()
     {
         // Arrange — the graph keys every kind of node in one dictionary, so shapes must not collide.
-        var scoped = new ScriptReference(new SqlIdentifier("app"), new SqlIdentifier("users"));
-        var obj = new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("users"));
+        var scoped = new ScopedAddress(new SqlIdentifier("app"), new SqlIdentifier("users"));
+        var obj = new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users"));
 
         // Assert — both render 'app.users', but they address different things.
         scoped.Value.ShouldBe(obj.Value);

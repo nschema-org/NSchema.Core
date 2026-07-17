@@ -49,7 +49,7 @@ internal sealed class DirectiveCollector
                 return true;
             case Syn.Tables.RenameColumnStatement s:
                 _columnRenames.Add(new MemberRenameDirective(
-                    new MemberReference(Bind(s.From.Schema, context), Name(s.From.Table), Name(s.From.Member)),
+                    new MemberAddress(Bind(s.From.Schema, context), Name(s.From.Table), Name(s.From.Member)),
                     Name(s.To)));
                 return true;
             case Syn.Extensions.DropExtensionStatement s:
@@ -102,7 +102,7 @@ internal sealed class DirectiveCollector
     /// Translates a directive's qualified name into an address, binding an unqualified name (only legal inside
     /// a template body) to the applied schema.
     /// </summary>
-    private static ObjectReference Reference(QualifiedName name, SqlIdentifier? context) =>
+    private static ObjectAddress Reference(QualifiedName name, SqlIdentifier? context) =>
         new(Bind(name.Schema, context), Name(name.Name));
 
     /// <summary>

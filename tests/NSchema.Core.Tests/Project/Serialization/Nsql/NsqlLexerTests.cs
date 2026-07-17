@@ -53,7 +53,7 @@ public sealed class NsqlLexerTests
     }
 
     [Fact]
-    public void Lex_ObjectReference_IsIdentifierDotIdentifier()
+    public void Lex_ObjectAddress_IsIdentifierDotIdentifier()
     {
         Tokens("app.users").Select(t => (t.Kind, t.Text)).ShouldBe(
             [(TokenKind.Identifier, "app"), (TokenKind.Dot, "."), (TokenKind.Identifier, "users")]);

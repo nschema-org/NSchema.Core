@@ -16,13 +16,13 @@ public class DependencyGraphTests
     private static SqlIdentifier Id(string value) => new(value);
 
     private static DependencyNode Table(string schema, string table) =>
-        new(new ObjectReference(Id(schema), Id(table)), DependencyKind.Table);
+        new(new ObjectAddress(Id(schema), Id(table)), DependencyKind.Table);
 
     private static DependencyNode View(string schema, string view) =>
-        new(new ObjectReference(Id(schema), Id(view)), DependencyKind.View);
+        new(new ObjectAddress(Id(schema), Id(view)), DependencyKind.View);
 
     private static DependencyNode ForeignKey(string schema, string table, string name) =>
-        new(new MemberReference(Id(schema), Id(table), Id(name)), DependencyKind.ForeignKey);
+        new(new MemberAddress(Id(schema), Id(table), Id(name)), DependencyKind.ForeignKey);
 
     private static Table WithForeignKey(string name, string constraint, string toSchema, string toTable) =>
         new(Id(name), Columns: [new Column(Id("id"), SqlType.Int)])
@@ -227,7 +227,7 @@ public class DependencyGraphTests
         var graph = new DependencyGraph(CrossSchemaForeignKey());
 
         // Assert
-        graph.At(new ObjectReference(Id("app"), Id("users"))).ShouldHaveSingleItem().ShouldBe(Table("app", "users"));
-        graph.At(new ObjectReference(Id("app"), Id("nope"))).ShouldBeEmpty();
+        graph.At(new ObjectAddress(Id("app"), Id("users"))).ShouldHaveSingleItem().ShouldBe(Table("app", "users"));
+        graph.At(new ObjectAddress(Id("app"), Id("nope"))).ShouldBeEmpty();
     }
 }

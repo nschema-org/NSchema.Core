@@ -33,7 +33,7 @@ internal sealed class DependencyGraph
         // Nodes first: an edge can point at anything, including something declared later.
         foreach (var (schema, table) in allTables)
         {
-            Add(new DependencyNode(new ObjectReference(schema, table.Name), DependencyKind.Table));
+            Add(new DependencyNode(new ObjectAddress(schema, table.Name), DependencyKind.Table));
             foreach (var foreignKey in table.ForeignKeys)
             {
                 Add(ConstraintNode(schema, table.Name, foreignKey));
@@ -42,7 +42,7 @@ internal sealed class DependencyGraph
 
         foreach (var (schema, view) in allViews)
         {
-            Add(new DependencyNode(new ObjectReference(schema, view.Name), DependencyKind.View));
+            Add(new DependencyNode(new ObjectAddress(schema, view.Name), DependencyKind.View));
         }
 
         foreach (var (schema, table) in allTables)
@@ -53,20 +53,20 @@ internal sealed class DependencyGraph
                 // containment. So dropping the referenced table costs the constraint, and nothing more.
                 // The model names that table outright, so the edge is exact.
                 Connect(ConstraintNode(schema, table.Name, foreignKey),
-                    new ObjectReference(foreignKey.ReferencedSchema, foreignKey.ReferencedTable),
+                    new ObjectAddress(foreignKey.ReferencedSchema, foreignKey.ReferencedTable),
                     DependencyCertainty.Stated);
             }
         }
 
         foreach (var (schema, view) in database.Schemas.SelectMany(s => s.Views.Select(v => (Schema: s.Name, View: v))))
         {
-            var node = new DependencyNode(new ObjectReference(schema, view.Name), DependencyKind.View);
+            var node = new DependencyNode(new ObjectAddress(schema, view.Name), DependencyKind.View);
             foreach (var dependency in view.DependsOn)
             {
                 // A view's dependency is embedded in its body: there is nothing to sever but the view itself.
                 // What it reads was scanned out of SQL nobody parsed, so the edge is a guess — a good one for
                 // ordering two things already in a plan, not good enough to drag a third into it unannounced.
-                Connect(node, new ObjectReference(dependency.Schema, dependency.Name), DependencyCertainty.Inferred);
+                Connect(node, new ObjectAddress(dependency.Schema, dependency.Name), DependencyCertainty.Inferred);
             }
         }
     }
@@ -134,7 +134,7 @@ internal sealed class DependencyGraph
     }
 
     private static DependencyNode ConstraintNode(SqlIdentifier schema, SqlIdentifier table, ForeignKey foreignKey) =>
-        new(new MemberReference(schema, table, foreignKey.Name), DependencyKind.ForeignKey);
+        new(new MemberAddress(schema, table, foreignKey.Name), DependencyKind.ForeignKey);
 
     private static IReadOnlyCollection<DependencyNode> Nodes(
         Dictionary<DependencyNode, List<Edge>> edges, DependencyNode node, DependencyCertainty? only = null) =>

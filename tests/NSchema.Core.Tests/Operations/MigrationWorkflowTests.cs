@@ -352,14 +352,14 @@ public sealed class MigrationWorkflowTests
         // Arrange — the planner's "what I have" input is the schema plus the recorded executions; execution
         // records are shared script vocabulary, so the ledger passes straight through.
         var sut = SutWithState(TestProjects.Project(new Database([]), [SeedScript()]),
-            new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "abc", DateTimeOffset.UnixEpoch));
+            new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("seed")), "abc", DateTimeOffset.UnixEpoch));
 
         // Act
         await sut.ComputePlan(PlanTarget.Project, PlanningScope.All, TestContext.Current.CancellationToken);
 
         // Assert
         _planner.Received(1).Plan(
-            Arg.Is<CurrentState>(c => c!.ExecutedScripts.Count == 1 && c.ExecutedScripts[0] == new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "abc", DateTimeOffset.UnixEpoch)),
+            Arg.Is<CurrentState>(c => c!.ExecutedScripts.Count == 1 && c.ExecutedScripts[0] == new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("seed")), "abc", DateTimeOffset.UnixEpoch)),
             Arg.Any<ProjectDefinition>(), Arg.Any<PlanningScope>());
     }
 
@@ -419,7 +419,7 @@ public sealed class MigrationWorkflowTests
     public async Task Refresh_PreservesTheExistingLedger()
     {
         // Arrange — the ledger is the one part of state a capture cannot rebuild, so it must carry over.
-        var existing = new ScriptExecution(new ScriptReference(null, new SqlIdentifier("api-login")), "hash", DateTimeOffset.UnixEpoch);
+        var existing = new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("api-login")), "hash", DateTimeOffset.UnixEpoch);
         var store = Substitute.For<IDatabaseStateStore>();
         store.Read(Arg.Any<CancellationToken>())
             .Returns(_stateSerializer.Serialize(new DatabaseState(new Database([]), [existing])));
@@ -438,7 +438,7 @@ public sealed class MigrationWorkflowTests
     public async Task Refresh_ReRecordingAScript_ReplacesItsEntryByName()
     {
         // Arrange
-        var existing = new ScriptExecution(new ScriptReference(null, new SqlIdentifier("seed")), "old-hash", DateTimeOffset.UnixEpoch);
+        var existing = new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("seed")), "old-hash", DateTimeOffset.UnixEpoch);
         var store = Substitute.For<IDatabaseStateStore>();
         store.Read(Arg.Any<CancellationToken>())
             .Returns(_stateSerializer.Serialize(new DatabaseState(new Database([]), [existing])));

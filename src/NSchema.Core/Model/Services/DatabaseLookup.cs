@@ -14,16 +14,16 @@ internal sealed class DatabaseLookup(Database schema)
 
     public Schema? FindSchema(SqlIdentifier name) => _schemas.GetValueOrDefault(name);
 
-    public Table? FindTable(ObjectReference address) =>
+    public Table? FindTable(ObjectAddress address) =>
         FindSchema(address.Schema)?.Tables.FirstOrDefault(t => t.Name == address.Name);
 
-    public Column? FindColumn(MemberReference address) =>
-        FindTable(new ObjectReference(address.Schema, address.Object))?.Columns.FirstOrDefault(c => c.Name == address.Member);
+    public Column? FindColumn(MemberAddress address) =>
+        FindTable(new ObjectAddress(address.Schema, address.Object))?.Columns.FirstOrDefault(c => c.Name == address.Member);
 
     /// <summary>
     /// Whether an object of <paramref name="kind"/> is declared at <paramref name="address"/>.
     /// </summary>
-    public bool Has(ObjectKind kind, ObjectReference address) => kind switch
+    public bool Has(ObjectKind kind, ObjectAddress address) => kind switch
     {
         ObjectKind.Table => FindTable(address) is not null,
         ObjectKind.View => FindSchema(address.Schema)?.Views.Any(v => v.Name == address.Name) == true,
@@ -35,5 +35,5 @@ internal sealed class DatabaseLookup(Database schema)
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };
 
-    public bool HasColumn(MemberReference address) => FindColumn(address) is not null;
+    public bool HasColumn(MemberAddress address) => FindColumn(address) is not null;
 }

@@ -191,12 +191,12 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
         {
             foreach (var table in schema.Tables.Where(t => t.Kind == ChangeKind.Remove))
             {
-                yield return new DependencyNode(new ObjectReference(schema.Name, table.Name), DependencyKind.Table);
+                yield return new DependencyNode(new ObjectAddress(schema.Name, table.Name), DependencyKind.Table);
             }
 
             foreach (var view in schema.Views.Where(v => v.Kind == ChangeKind.Remove))
             {
-                yield return new DependencyNode(new ObjectReference(schema.Name, view.Name), DependencyKind.View);
+                yield return new DependencyNode(new ObjectAddress(schema.Name, view.Name), DependencyKind.View);
             }
         }
     }
@@ -218,7 +218,7 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
                 Tables: [.. SeveredTables(bySchema)],
                 Views: [.. bySchema
                     .Where(n => n.Kind == DependencyKind.View)
-                    .Select(n => new ViewDiff(bySchema.Key, ((ObjectReference)n.Address).Name, ChangeKind.Remove))
+                    .Select(n => new ViewDiff(bySchema.Key, ((ObjectAddress)n.Address).Name, ChangeKind.Remove))
                     .OrderBy(v => v.Name)]));
 
         return diff with { Schemas = [.. diff.Schemas, .. added] };
@@ -229,7 +229,7 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
     /// </summary>
     private static IEnumerable<TableDiff> SeveredTables(IEnumerable<DependencyNode> severed) => severed
         .Where(n => n.Kind == DependencyKind.ForeignKey)
-        .Select(n => (MemberReference)n.Address)
+        .Select(n => (MemberAddress)n.Address)
         .GroupBy(a => (a.Schema, a.Object))
         .Select(byTable => new TableDiff(
             byTable.Key.Schema,

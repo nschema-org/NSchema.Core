@@ -193,11 +193,11 @@ public static class TestData
             new ObjectDropDirective(ObjectKind.Domain, Current("stale_domain")),
             new ObjectDropDirective(ObjectKind.CompositeType, Current("stale_type")),
         ],
-        ColumnRenames: [new MemberRenameDirective(new MemberReference(new SqlIdentifier("legacy_app"), new SqlIdentifier("members"), new SqlIdentifier("short_code")), new SqlIdentifier("code"))],
+        ColumnRenames: [new MemberRenameDirective(new MemberAddress(new SqlIdentifier("legacy_app"), new SqlIdentifier("members"), new SqlIdentifier("short_code")), new SqlIdentifier("code"))],
         ExtensionDrops: [new ExtensionDropDirective(new SqlIdentifier("stale_ext"))]);
 
     /// <summary>An address under the schema's current (pre-rename) name.</summary>
-    private static ObjectReference Current(string name) => new(new SqlIdentifier("legacy_app"), new SqlIdentifier(name));
+    private static ObjectAddress Current(string name) => new(new SqlIdentifier("legacy_app"), new SqlIdentifier(name));
 
     /// <summary>Builds a view with dependencies derived from its body, exactly as the DDL parser would.</summary>
     private static View View(string name, string body, string? comment = null) =>

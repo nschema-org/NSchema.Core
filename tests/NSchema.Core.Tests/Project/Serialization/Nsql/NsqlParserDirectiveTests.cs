@@ -19,7 +19,7 @@ public sealed class NsqlParserDirectiveTests
         return NSchema.Project.ProjectAssembler.Assemble([read.Value]).Value!.Directives;
     }
 
-    private static ObjectReference App(string name) => new(new SqlIdentifier("app"), new SqlIdentifier(name));
+    private static ObjectAddress App(string name) => new(new SqlIdentifier("app"), new SqlIdentifier(name));
 
     [Fact]
     public void Parse_RenameSchema_TakesBareNames()
@@ -38,7 +38,7 @@ public sealed class NsqlParserDirectiveTests
         => Directives("CREATE SCHEMA app; CREATE TABLE app.users ( full_name text NOT NULL ); RENAME COLUMN app.users.name TO full_name;")
             .ColumnRenames.ShouldHaveSingleItem()
             .ShouldBe(new MemberRenameDirective(
-                new MemberReference(new SqlIdentifier("app"), new SqlIdentifier("users"), new SqlIdentifier("name")),
+                new MemberAddress(new SqlIdentifier("app"), new SqlIdentifier("users"), new SqlIdentifier("name")),
                 new SqlIdentifier("full_name")));
 
     [Fact]

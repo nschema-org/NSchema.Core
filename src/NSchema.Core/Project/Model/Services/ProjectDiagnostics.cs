@@ -19,7 +19,7 @@ internal static class ProjectDiagnostics
     /// <summary>
     /// A script declared more than once in the same scope (the address is the run-once and diagnostic identity).
     /// </summary>
-    public static Diagnostic DuplicateScriptName(ScriptReference script) => Diagnostic.Error(Source,
+    public static Diagnostic DuplicateScriptName(ScopedAddress script) => Diagnostic.Error(Source,
         $"Duplicate script '{script}' declared. A script's name must be unique within its scope.");
 
     /// <summary>
@@ -81,7 +81,7 @@ internal static class ProjectDiagnostics
     /// <summary>
     /// A column rename addressing a table the project does not declare.
     /// </summary>
-    public static Diagnostic DirectiveTableNotDeclared(MemberReference reference) => Diagnostic.Error(Source,
+    public static Diagnostic DirectiveTableNotDeclared(MemberAddress reference) => Diagnostic.Error(Source,
         $"RENAME COLUMN '{reference}' addresses a table the project does not declare.");
 
     /// <summary>
