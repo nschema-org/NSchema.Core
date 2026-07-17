@@ -11,7 +11,7 @@ internal sealed partial class DatabaseComparer
 {
     // The primary key is single-valued (not a list member), so it keeps its own comparison rather than the
     // shared CompareTableMembers skeleton.
-    private List<PrimaryKeyDiff> ComparePrimaryKey(ObjectReference owner, PrimaryKey? current, PrimaryKey? desired)
+    private List<PrimaryKeyDiff> ComparePrimaryKey(ObjectAddress owner, PrimaryKey? current, PrimaryKey? desired)
     {
         var result = new List<PrimaryKeyDiff>();
 
@@ -53,23 +53,23 @@ internal sealed partial class DatabaseComparer
         return result;
     }
 
-    private List<ForeignKeyDiff> CompareForeignKeys(ObjectReference owner, IReadOnlyList<ForeignKey> current, IReadOnlyList<ForeignKey> desired) =>
+    private List<ForeignKeyDiff> CompareForeignKeys(ObjectAddress owner, IReadOnlyList<ForeignKey> current, IReadOnlyList<ForeignKey> desired) =>
         CompareTableMembers(owner, "Foreign key", current, desired,
             (kind, name, definition, comment) => new ForeignKeyDiff(kind, name, definition, comment));
 
-    private List<UniqueConstraintDiff> CompareUniqueConstraints(ObjectReference owner, IReadOnlyList<UniqueConstraint> current, IReadOnlyList<UniqueConstraint> desired) =>
+    private List<UniqueConstraintDiff> CompareUniqueConstraints(ObjectAddress owner, IReadOnlyList<UniqueConstraint> current, IReadOnlyList<UniqueConstraint> desired) =>
         CompareTableMembers(owner, "Unique constraint", current, desired,
             (kind, name, definition, comment) => new UniqueConstraintDiff(kind, name, definition, comment));
 
-    private List<CheckConstraintDiff> CompareChecks(ObjectReference owner, IReadOnlyList<CheckConstraint> current, IReadOnlyList<CheckConstraint> desired) =>
+    private List<CheckConstraintDiff> CompareChecks(ObjectAddress owner, IReadOnlyList<CheckConstraint> current, IReadOnlyList<CheckConstraint> desired) =>
         CompareTableMembers(owner, "Check constraint", current, desired,
             (kind, name, definition, comment) => new CheckConstraintDiff(kind, name, definition, comment));
 
-    private List<ExclusionConstraintDiff> CompareExclusionConstraints(ObjectReference owner, IReadOnlyList<ExclusionConstraint> current, IReadOnlyList<ExclusionConstraint> desired) =>
+    private List<ExclusionConstraintDiff> CompareExclusionConstraints(ObjectAddress owner, IReadOnlyList<ExclusionConstraint> current, IReadOnlyList<ExclusionConstraint> desired) =>
         CompareTableMembers(owner, "Exclusion constraint", current, desired,
             (kind, name, definition, comment) => new ExclusionConstraintDiff(kind, name, definition, comment));
 
-    private List<IndexDiff> CompareIndexes(ObjectReference owner, IReadOnlyList<TableIndex> current, IReadOnlyList<TableIndex> desired) =>
+    private List<IndexDiff> CompareIndexes(ObjectAddress owner, IReadOnlyList<TableIndex> current, IReadOnlyList<TableIndex> desired) =>
         CompareTableMembers(owner, "Index", current, desired,
             (kind, name, definition, comment) => new IndexDiff(kind, name, definition, comment));
 }

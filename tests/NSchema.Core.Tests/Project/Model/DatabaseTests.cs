@@ -63,8 +63,8 @@ public sealed class DatabaseTests
                     Partials: [new SchemaPartialDirective(core), new SchemaPartialDirective(new SqlIdentifier("audit"))]),
                 Drops:
                 [
-                    new ObjectDropDirective(ObjectKind.Table, new ObjectReference(sales, new SqlIdentifier("old"))),
-                    new ObjectDropDirective(ObjectKind.Table, new ObjectReference(new SqlIdentifier("audit"), new SqlIdentifier("stale"))),
+                    new ObjectDropDirective(ObjectKind.Table, new ObjectAddress(sales, new SqlIdentifier("old"))),
+                    new ObjectDropDirective(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("audit"), new SqlIdentifier("stale"))),
                 ],
                 ExtensionDrops: [new ExtensionDropDirective(new SqlIdentifier("stale_ext"))]));
 

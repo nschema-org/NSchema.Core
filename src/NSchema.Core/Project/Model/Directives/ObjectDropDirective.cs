@@ -7,4 +7,4 @@ namespace NSchema.Project.Model.Directives;
 /// </summary>
 /// <param name="Kind">The kind of object being dropped.</param>
 /// <param name="Address">The dropped object's address (its current reality).</param>
-public sealed record ObjectDropDirective(ObjectKind Kind, ObjectReference Address);
+public sealed record ObjectDropDirective(ObjectKind Kind, ObjectAddress Address);

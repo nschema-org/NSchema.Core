@@ -23,7 +23,7 @@ internal sealed partial class DatabaseComparer
         return result;
     }
 
-    private List<GrantChange> CompareTableGrants(ObjectReference owner, IReadOnlyList<TableGrant> current, IReadOnlyList<TableGrant> desired)
+    private List<GrantChange> CompareTableGrants(ObjectAddress owner, IReadOnlyList<TableGrant> current, IReadOnlyList<TableGrant> desired)
     {
         var result = new List<GrantChange>();
         foreach (var g in current)

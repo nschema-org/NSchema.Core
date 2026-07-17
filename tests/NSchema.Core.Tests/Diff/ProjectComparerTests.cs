@@ -43,7 +43,7 @@ public sealed class ProjectComparerTests
 
     /// <summary>A current state recording <paramref name="sql"/> as <paramref name="script"/>'s executed body.</summary>
     private static CurrentState Executed(Script script, string sql) =>
-        new(_emptySchema, [new ScriptExecution(script.Reference, ScriptHashing.Hash(new SqlText(sql)), DateTimeOffset.UnixEpoch)]);
+        new(_emptySchema, [new ScriptExecution(script.Address, ScriptHashing.Hash(new SqlText(sql)), DateTimeOffset.UnixEpoch)]);
 
     [Fact]
     public void Compare_DiffsBothSchemas()
@@ -104,7 +104,7 @@ public sealed class ProjectComparerTests
         // satisfy a global (or differently scoped) script sharing the name.
         var script = SeedScript();
         var scoped = new CurrentState(_emptySchema,
-            [new ScriptExecution(new ScriptReference(new SqlIdentifier("sales"), script.Name), script.Hash, DateTimeOffset.UnixEpoch)]);
+            [new ScriptExecution(new ScopedAddress(new SqlIdentifier("sales"), script.Name), script.Hash, DateTimeOffset.UnixEpoch)]);
 
         // Act
         var comparison = Sut.Compare(scoped, TestProjects.Project(_emptySchema, [script]));
@@ -169,7 +169,7 @@ public sealed class ProjectComparerTests
         // gated by the change alone, so a re-planned change re-runs it.
         var migration = EmailBackfillMigration();
         var current = new CurrentState(UsersWithId().Database,
-            [new ScriptExecution(migration.Reference, migration.Hash, DateTimeOffset.UnixEpoch)]);
+            [new ScriptExecution(migration.Address, migration.Hash, DateTimeOffset.UnixEpoch)]);
 
         // Act
         var comparison = Sut.Compare(current, TestProjects.Project(UsersWithEmail(), [migration]));
@@ -216,7 +216,7 @@ public sealed class ProjectComparerTests
         var current = new CurrentState(new Database([new Schema(new SqlIdentifier("app"),
             Tables: [new Table(new SqlIdentifier("people"))])]));
         var directives = new ProjectDirectives(
-            Renames: [new ObjectRenameDirective(ObjectKind.Table, new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("users")), new SqlIdentifier("people"))]);
+            Renames: [new ObjectRenameDirective(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users")), new SqlIdentifier("people"))]);
 
         // Act
         var comparison = Sut.Compare(current, new ProjectDefinition(_emptySchema, directives));
@@ -235,7 +235,7 @@ public sealed class ProjectComparerTests
         // Arrange — neither side of the rename exists (a fresh environment): the directive is pending, not
         // spent, so no expiry info fires.
         var directives = new ProjectDirectives(
-            Renames: [new ObjectRenameDirective(ObjectKind.Table, new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("users")), new SqlIdentifier("people"))]);
+            Renames: [new ObjectRenameDirective(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users")), new SqlIdentifier("people"))]);
 
         // Act
         var comparison = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, directives));

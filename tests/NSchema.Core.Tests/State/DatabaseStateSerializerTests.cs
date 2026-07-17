@@ -102,7 +102,7 @@ public sealed class DatabaseStateSerializerTests
     public void RoundTrip_PreservesExecutedScripts()
     {
         // Arrange
-        var executed = new ScriptExecution(new ScriptReference(null, new SqlIdentifier("api-login")), "abc123", new DateTimeOffset(2026, 7, 10, 12, 0, 0, TimeSpan.Zero));
+        var executed = new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("api-login")), "abc123", new DateTimeOffset(2026, 7, 10, 12, 0, 0, TimeSpan.Zero));
         var state = new DatabaseState(new Database([new Schema(new SqlIdentifier("app"))]), [executed]);
 
         // Act
@@ -118,7 +118,7 @@ public sealed class DatabaseStateSerializerTests
         // Pins the wire field name — renaming it silently empties every existing ledger.
         var state = new DatabaseState(
             new Database([]),
-            [new ScriptExecution(new ScriptReference(null, new SqlIdentifier("api-login")), "abc123", DateTimeOffset.UnixEpoch)]);
+            [new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("api-login")), "abc123", DateTimeOffset.UnixEpoch)]);
 
         var json = Encoding.UTF8.GetString(_sut.Serialize(state).Span);
 
@@ -130,8 +130,8 @@ public sealed class DatabaseStateSerializerTests
         // Pins the ledger entry's wire shape: the script address is structural ({schema, name}, schema null
         // when the script is global), beside the hash and timestamp.
         => VerifyJson(Encoding.UTF8.GetString(_sut.Serialize(new DatabaseState(new Database([]), [
-            new ScriptExecution(new ScriptReference(null, new SqlIdentifier("api-login")), "abc123", DateTimeOffset.UnixEpoch),
-            new ScriptExecution(new ScriptReference(new SqlIdentifier("sales"), new SqlIdentifier("seed")), "def456", DateTimeOffset.UnixEpoch),
+            new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("api-login")), "abc123", DateTimeOffset.UnixEpoch),
+            new ScriptExecution(new ScopedAddress(new SqlIdentifier("sales"), new SqlIdentifier("seed")), "def456", DateTimeOffset.UnixEpoch),
         ])).Span));
 
     [Fact]

@@ -27,7 +27,7 @@ public sealed class ProjectProviderTests : IDisposable
         return new ProjectSource(root, matcher);
     }
 
-    private static ScriptReference Scoped(string schema, string name) =>
+    private static ScopedAddress Scoped(string schema, string name) =>
         new(new SqlIdentifier(schema), new SqlIdentifier(name));
 
     [Fact]
@@ -270,7 +270,7 @@ public sealed class ProjectProviderTests : IDisposable
         // kept distinct by their scope.
         project.AllScripts().Count.ShouldBe(2);
         project.AllScripts().Cast<ChangeScript>().Select(m => m.Path).ShouldBe(["sales.outbox_events.trace_id", "billing.outbox_events.trace_id"]);
-        project.AllScripts().Select(m => m.Reference).ShouldBe([Scoped("sales", "backfill_trace"), Scoped("billing", "backfill_trace")]);
+        project.AllScripts().Select(m => m.Address).ShouldBe([Scoped("sales", "backfill_trace"), Scoped("billing", "backfill_trace")]);
         project.AllScripts()[1].Sql.ShouldBe("UPDATE billing.outbox_events SET trace_id = '';");
     }
 
@@ -296,7 +296,7 @@ public sealed class ProjectProviderTests : IDisposable
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
-        result.Value!.AllScripts().Select(s => s.Reference).ShouldBe([Scoped("sales", "backfill_trace"), Scoped("billing", "backfill_trace")]);
+        result.Value!.AllScripts().Select(s => s.Address).ShouldBe([Scoped("sales", "backfill_trace"), Scoped("billing", "backfill_trace")]);
     }
 
     [Fact]
@@ -341,7 +341,7 @@ public sealed class ProjectProviderTests : IDisposable
 
         result.IsFailure.ShouldBeTrue();
         result.Errors.ShouldHaveSingleItem()
-            .ShouldBe(ProjectDiagnostics.DuplicateScriptName(new ScriptReference(null, new SqlIdentifier("seed"))));
+            .ShouldBe(ProjectDiagnostics.DuplicateScriptName(new ScopedAddress(null, new SqlIdentifier("seed"))));
     }
 
     [Fact]
@@ -362,7 +362,7 @@ public sealed class ProjectProviderTests : IDisposable
 
         result.IsFailure.ShouldBeTrue();
         result.Errors.ShouldHaveSingleItem()
-            .ShouldBe(ProjectDiagnostics.DuplicateScriptName(new ScriptReference(new SqlIdentifier("sales"), new SqlIdentifier("seed"))));
+            .ShouldBe(ProjectDiagnostics.DuplicateScriptName(new ScopedAddress(new SqlIdentifier("sales"), new SqlIdentifier("seed"))));
     }
 
     [Fact]
@@ -400,7 +400,7 @@ public sealed class ProjectProviderTests : IDisposable
         var project = (await sut.GetProject(PlanningScope.All, TestContext.Current.CancellationToken)).Value!;
 
         // Assert — each instance keeps the declared name and scopes to its applied schema.
-        project.AllScripts().Select(s => s.Reference).ShouldBe([Scoped("sales", "seed"), Scoped("billing", "seed")]);
+        project.AllScripts().Select(s => s.Address).ShouldBe([Scoped("sales", "seed"), Scoped("billing", "seed")]);
     }
 
     [Fact]
@@ -429,7 +429,7 @@ public sealed class ProjectProviderTests : IDisposable
         var project = (await sut.GetProject(PlanningScope.Of(new SqlIdentifier("billing")), TestContext.Current.CancellationToken)).Value!;
 
         // Assert
-        project.AllScripts().Select(s => s.Reference).ShouldBe([new ScriptReference(null, new SqlIdentifier("global")), Scoped("billing", "seed")]);
+        project.AllScripts().Select(s => s.Address).ShouldBe([new ScopedAddress(null, new SqlIdentifier("global")), Scoped("billing", "seed")]);
     }
 
     [Fact]

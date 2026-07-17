@@ -58,80 +58,80 @@ internal sealed partial class DatabaseComparer
     private partial void LogTableCreating(SqlIdentifier schema, SqlIdentifier table);
 
     [LoggerMessage(EventId = 30, Level = LogLevel.Debug, Message = "Column '{Owner}.{Column}' exists in desired state")]
-    private partial void LogColumnExists(ObjectReference owner, SqlIdentifier column);
+    private partial void LogColumnExists(ObjectAddress owner, SqlIdentifier column);
 
     [LoggerMessage(EventId = 31, Level = LogLevel.Information, Message = "Column '{Owner}.{Column}' not found in desired state")]
-    private partial void LogColumnNotInDesired(ObjectReference owner, SqlIdentifier column);
+    private partial void LogColumnNotInDesired(ObjectAddress owner, SqlIdentifier column);
 
     [LoggerMessage(EventId = 32, Level = LogLevel.Information, Message = "Column '{Owner}.{Column}' is new")]
-    private partial void LogColumnNew(ObjectReference owner, SqlIdentifier column);
+    private partial void LogColumnNew(ObjectAddress owner, SqlIdentifier column);
 
     [LoggerMessage(EventId = 33, Level = LogLevel.Debug, Message = "Column '{Owner}.{Column}' is unchanged")]
-    private partial void LogColumnUnchanged(ObjectReference owner, SqlIdentifier column);
+    private partial void LogColumnUnchanged(ObjectAddress owner, SqlIdentifier column);
 
     [LoggerMessage(EventId = 34, Level = LogLevel.Information, Message = "Column '{Owner}.{OldName}' renamed to '{NewName}'")]
-    private partial void LogColumnRenamed(ObjectReference owner, SqlIdentifier oldName, SqlIdentifier newName);
+    private partial void LogColumnRenamed(ObjectAddress owner, SqlIdentifier oldName, SqlIdentifier newName);
 
     [LoggerMessage(EventId = 35, Level = LogLevel.Debug, Message = "Column '{Owner}.{Column}' type is unchanged ({Type})")]
-    private partial void LogColumnTypeUnchanged(ObjectReference owner, SqlIdentifier column, SqlType type);
+    private partial void LogColumnTypeUnchanged(ObjectAddress owner, SqlIdentifier column, SqlType type);
 
     [LoggerMessage(EventId = 36, Level = LogLevel.Information, Message = "Column '{Owner}.{Column}' type changed: {OldType} -> {NewType}")]
-    private partial void LogColumnTypeChanged(ObjectReference owner, SqlIdentifier column, SqlType oldType, SqlType newType);
+    private partial void LogColumnTypeChanged(ObjectAddress owner, SqlIdentifier column, SqlType oldType, SqlType newType);
 
     [LoggerMessage(EventId = 37, Level = LogLevel.Debug, Message = "Column '{Owner}.{Column}' nullability is unchanged ({Nullability})")]
-    private partial void LogColumnNullabilityUnchanged(ObjectReference owner, SqlIdentifier column, string nullability);
+    private partial void LogColumnNullabilityUnchanged(ObjectAddress owner, SqlIdentifier column, string nullability);
 
     [LoggerMessage(EventId = 38, Level = LogLevel.Information, Message = "Column '{Owner}.{Column}' nullability changed: {OldValue} -> {NewValue}")]
-    private partial void LogColumnNullabilityChanged(ObjectReference owner, SqlIdentifier column, bool oldValue, bool newValue);
+    private partial void LogColumnNullabilityChanged(ObjectAddress owner, SqlIdentifier column, bool oldValue, bool newValue);
 
     [LoggerMessage(EventId = 39, Level = LogLevel.Debug, Message = "Column '{Owner}.{Column}' default is unchanged ({Default})")]
-    private partial void LogColumnDefaultUnchanged(ObjectReference owner, SqlIdentifier column, string @default);
+    private partial void LogColumnDefaultUnchanged(ObjectAddress owner, SqlIdentifier column, string @default);
 
     [LoggerMessage(EventId = 40, Level = LogLevel.Information, Message = "Column '{Owner}.{Column}' default changed: '{OldDefault}' -> '{NewDefault}'")]
-    private partial void LogColumnDefaultChanged(ObjectReference owner, SqlIdentifier column, SqlText? oldDefault, SqlText? newDefault);
+    private partial void LogColumnDefaultChanged(ObjectAddress owner, SqlIdentifier column, SqlText? oldDefault, SqlText? newDefault);
 
     [LoggerMessage(EventId = 41, Level = LogLevel.Information, Message = "Column '{Owner}.{Column}' comment changed")]
-    private partial void LogColumnCommentChanged(ObjectReference owner, SqlIdentifier column);
+    private partial void LogColumnCommentChanged(ObjectAddress owner, SqlIdentifier column);
 
     [LoggerMessage(EventId = 42, Level = LogLevel.Information, Message = "Column '{Owner}.{Column}' identity sequence options changed: start {OldStart} -> {NewStart}, min {OldMin} -> {NewMin}, increment {OldIncrement} -> {NewIncrement}")]
-    private partial void LogColumnIdentityChanged(ObjectReference owner, SqlIdentifier column, long? oldStart, long? newStart, long? oldMin, long? newMin, long? oldIncrement, long? newIncrement);
+    private partial void LogColumnIdentityChanged(ObjectAddress owner, SqlIdentifier column, long? oldStart, long? newStart, long? oldMin, long? newMin, long? oldIncrement, long? newIncrement);
 
     [LoggerMessage(EventId = 50, Level = LogLevel.Debug, Message = "Primary key for '{Owner}' is unchanged")]
-    private partial void LogPrimaryKeyUnchanged(ObjectReference owner);
+    private partial void LogPrimaryKeyUnchanged(ObjectAddress owner);
 
     [LoggerMessage(EventId = 51, Level = LogLevel.Information, Message = "Dropping primary key '{KeyName}' from '{Owner}'")]
-    private partial void LogPrimaryKeyDropping(SqlIdentifier keyName, ObjectReference owner);
+    private partial void LogPrimaryKeyDropping(SqlIdentifier keyName, ObjectAddress owner);
 
     [LoggerMessage(EventId = 52, Level = LogLevel.Information, Message = "Adding primary key '{KeyName}' to '{Owner}'")]
-    private partial void LogPrimaryKeyAdding(SqlIdentifier keyName, ObjectReference owner);
+    private partial void LogPrimaryKeyAdding(SqlIdentifier keyName, ObjectAddress owner);
 
     [LoggerMessage(EventId = 63, Level = LogLevel.Information, Message = "Adding foreign key '{FkName}' to new table '{Owner}'")]
-    private partial void LogForeignKeyAddingToNewTable(SqlIdentifier fkName, ObjectReference owner);
+    private partial void LogForeignKeyAddingToNewTable(SqlIdentifier fkName, ObjectAddress owner);
 
     [LoggerMessage(EventId = 67, Level = LogLevel.Information, Message = "Adding unique constraint '{Name}' to new table '{Owner}'")]
-    private partial void LogUniqueConstraintAddingToNewTable(SqlIdentifier name, ObjectReference owner);
+    private partial void LogUniqueConstraintAddingToNewTable(SqlIdentifier name, ObjectAddress owner);
 
     [LoggerMessage(EventId = 68, Level = LogLevel.Information, Message = "Primary key '{Name}' on '{Owner}' comment changed")]
-    private partial void LogPrimaryKeyCommentChanged(SqlIdentifier name, ObjectReference owner);
+    private partial void LogPrimaryKeyCommentChanged(SqlIdentifier name, ObjectAddress owner);
 
     // Shared by CompareTableMembers for every list-member kind (foreign keys, unique/check constraints, indexes).
     [LoggerMessage(EventId = 60, Level = LogLevel.Information, Message = "{MemberKind} '{Name}' on '{Owner}' is missing or changed")]
-    private partial void LogTableMemberMissingOrChanged(string memberKind, SqlIdentifier name, ObjectReference owner);
+    private partial void LogTableMemberMissingOrChanged(string memberKind, SqlIdentifier name, ObjectAddress owner);
 
     [LoggerMessage(EventId = 61, Level = LogLevel.Debug, Message = "{MemberKind} '{Name}' on '{Owner}' is unchanged")]
-    private partial void LogTableMemberUnchanged(string memberKind, SqlIdentifier name, ObjectReference owner);
+    private partial void LogTableMemberUnchanged(string memberKind, SqlIdentifier name, ObjectAddress owner);
 
     [LoggerMessage(EventId = 62, Level = LogLevel.Information, Message = "{MemberKind} '{Name}' on '{Owner}' is new or changed")]
-    private partial void LogTableMemberNewOrChanged(string memberKind, SqlIdentifier name, ObjectReference owner);
+    private partial void LogTableMemberNewOrChanged(string memberKind, SqlIdentifier name, ObjectAddress owner);
 
     [LoggerMessage(EventId = 64, Level = LogLevel.Information, Message = "{MemberKind} '{Name}' on '{Owner}' comment changed")]
-    private partial void LogTableMemberCommentChanged(string memberKind, SqlIdentifier name, ObjectReference owner);
+    private partial void LogTableMemberCommentChanged(string memberKind, SqlIdentifier name, ObjectAddress owner);
 
     [LoggerMessage(EventId = 93, Level = LogLevel.Information, Message = "Adding check constraint '{Name}' to new table '{Owner}'")]
-    private partial void LogCheckConstraintAddingToNewTable(SqlIdentifier name, ObjectReference owner);
+    private partial void LogCheckConstraintAddingToNewTable(SqlIdentifier name, ObjectAddress owner);
 
     [LoggerMessage(EventId = 74, Level = LogLevel.Information, Message = "Adding index '{IndexName}' to new table '{Owner}'")]
-    private partial void LogIndexAddingToNewTable(SqlIdentifier indexName, ObjectReference owner);
+    private partial void LogIndexAddingToNewTable(SqlIdentifier indexName, ObjectAddress owner);
 
     [LoggerMessage(EventId = 80, Level = LogLevel.Information, Message = "Revoking USAGE on schema '{Schema}' from '{Role}'")]
     private partial void LogSchemaUsageRevoking(SqlIdentifier schema, SqlIdentifier role);
@@ -140,14 +140,14 @@ internal sealed partial class DatabaseComparer
     private partial void LogSchemaUsageGranting(SqlIdentifier schema, SqlIdentifier role);
 
     [LoggerMessage(EventId = 82, Level = LogLevel.Information, Message = "Revoking all privileges on '{Owner}' from '{Role}'")]
-    private partial void LogTablePrivilegesRevoking(ObjectReference owner, SqlIdentifier role);
+    private partial void LogTablePrivilegesRevoking(ObjectAddress owner, SqlIdentifier role);
 
     [LoggerMessage(EventId = 83, Level = LogLevel.Information, Message = "Updating privileges on '{Owner}' for '{Role}'")]
-    private partial void LogTablePrivilegesUpdating(ObjectReference owner, SqlIdentifier role);
+    private partial void LogTablePrivilegesUpdating(ObjectAddress owner, SqlIdentifier role);
 
     [LoggerMessage(EventId = 84, Level = LogLevel.Information, Message = "Granting privileges on '{Owner}' to '{Role}'")]
-    private partial void LogTablePrivilegesGranting(ObjectReference owner, SqlIdentifier role);
+    private partial void LogTablePrivilegesGranting(ObjectAddress owner, SqlIdentifier role);
 
     [LoggerMessage(EventId = 85, Level = LogLevel.Information, Message = "Granting privileges on new table '{Owner}' to '{Role}'")]
-    private partial void LogTablePrivilegesGrantingToNewTable(ObjectReference owner, SqlIdentifier role);
+    private partial void LogTablePrivilegesGrantingToNewTable(ObjectAddress owner, SqlIdentifier role);
 }

@@ -67,7 +67,7 @@ internal sealed partial class DatabaseComparer
     private TableDiff BuildNewTable(SqlIdentifier schemaName, Table table)
     {
         LogTableCreating(schemaName, table.Name);
-        var owner = new ObjectReference(schemaName, table.Name);
+        var owner = new ObjectAddress(schemaName, table.Name);
 
         var columns = table.Columns
             .Select(column => new ColumnDiff(
@@ -184,7 +184,7 @@ internal sealed partial class DatabaseComparer
             comment = new ValueChange<string>(current.Comment, desired.Comment);
         }
 
-        var owner = new ObjectReference(schemaName, desired.Name);
+        var owner = new ObjectAddress(schemaName, desired.Name);
         var columns = CompareColumns(owner, current.Columns, desired.Columns, directives.ColumnRenames(currentSchemaName, current.Name));
 
         var primaryKey = ComparePrimaryKey(owner, current.PrimaryKey, desired.PrimaryKey);

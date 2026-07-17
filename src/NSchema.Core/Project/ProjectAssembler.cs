@@ -89,12 +89,12 @@ internal static class ProjectAssembler
     /// </summary>
     private static IEnumerable<Diagnostic> ValidateScriptNames(ProjectDirectives directives)
     {
-        var references = new HashSet<ScriptReference>();
-        foreach (var reference in directives.ChangeScripts.Select(s => s.Reference).Concat(directives.DeploymentScripts.Select(s => s.Reference)))
+        var addresses = new HashSet<ScopedAddress>();
+        foreach (var address in directives.ChangeScripts.Select(s => s.Address).Concat(directives.DeploymentScripts.Select(s => s.Address)))
         {
-            if (!references.Add(reference))
+            if (!addresses.Add(address))
             {
-                yield return ProjectDiagnostics.DuplicateScriptName(reference);
+                yield return ProjectDiagnostics.DuplicateScriptName(address);
             }
         }
     }

@@ -17,7 +17,7 @@ public abstract record Script(SqlIdentifier Name, SqlText Sql, SqlIdentifier? Sc
     /// <summary>
     /// The script's address: its scope schema and its name.
     /// </summary>
-    public ScriptReference Reference => new(ScopeSchema, Name);
+    public ScopedAddress Address => new(ScopeSchema, Name);
 
     /// <summary>
     /// When true, the script runs outside the migration's transaction.

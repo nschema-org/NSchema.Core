@@ -225,7 +225,7 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger)
     /// <em>excluding</em> <see cref="INamedObject.Comment"/>, or the comment-only branch is unreachable.
     /// </summary>
     private List<TDiff> CompareTableMembers<TModel, TDiff>(
-        ObjectReference owner,
+        ObjectAddress owner,
         string memberKind,
         IReadOnlyList<TModel> current,
         IReadOnlyList<TModel> desired,

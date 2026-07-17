@@ -6,7 +6,7 @@ namespace NSchema.Diff.Model.Services;
 
 internal sealed partial class DatabaseComparer
 {
-    private List<ColumnDiff> CompareColumns(ObjectReference owner, IReadOnlyList<Column> current, IReadOnlyList<Column> desired, IReadOnlyList<RenamePair> renames)
+    private List<ColumnDiff> CompareColumns(ObjectAddress owner, IReadOnlyList<Column> current, IReadOnlyList<Column> desired, IReadOnlyList<RenamePair> renames)
     {
         var result = new List<ColumnDiff>();
         var (forDesired, currentMatched) = MatchEntities(current, desired, renames, "column", owner.ToString());
@@ -42,7 +42,7 @@ internal sealed partial class DatabaseComparer
         return result;
     }
 
-    private ColumnDiff? BuildModifiedColumn(ObjectReference owner, Column current, Column desired)
+    private ColumnDiff? BuildModifiedColumn(ObjectAddress owner, Column current, Column desired)
     {
         SqlIdentifier? renamedFrom = null;
         if (current.Name == desired.Name)

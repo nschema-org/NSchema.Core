@@ -149,7 +149,7 @@ public sealed class DiffReaderTests
     // -------------------------------------------------------------------------
 
     [Fact]
-    public void Read_TableAdd_EmitsSchemaObjectReference()
+    public void Read_TableAdd_EmitsSchemaObjectAddress()
         => ShouldHaveLine(WithTable(Table("users", ChangeKind.Add)), ChangeKind.Add, "table app.users");
 
     [Fact]
@@ -316,7 +316,7 @@ public sealed class DiffReaderTests
     // -------------------------------------------------------------------------
 
     [Fact]
-    public void Read_ViewAdd_EmitsSchemaObjectReference()
+    public void Read_ViewAdd_EmitsSchemaObjectAddress()
         => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("active_users"), ChangeKind.Add, Definition: new View(new SqlIdentifier("active_users"), new SqlText("SELECT 1")))), ChangeKind.Add, "view app.active_users");
 
     [Fact]

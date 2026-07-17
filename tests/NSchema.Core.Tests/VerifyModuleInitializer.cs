@@ -30,7 +30,7 @@ public static class VerifyModuleInitializer
         VerifierSettings.AddExtraSettings(settings => settings.Converters.Add(new ValueObjectConverter()));
 
         // Addresses and routine references render as written.
-        VerifierSettings.AddExtraSettings(settings => settings.Converters.Add(new ObjectReferenceConverter()));
+        VerifierSettings.AddExtraSettings(settings => settings.Converters.Add(new ObjectAddressConverter()));
         VerifierSettings.AddExtraSettings(settings => settings.Converters.Add(new RoutineReferenceConverter()));
     }
 
@@ -60,9 +60,9 @@ public static class VerifyModuleInitializer
         public override void Write(VerifyJsonWriter writer, object value) => writer.WriteValue(value.ToString());
     }
 
-    private sealed class ObjectReferenceConverter : WriteOnlyJsonConverter<Model.ObjectReference>
+    private sealed class ObjectAddressConverter : WriteOnlyJsonConverter<Model.ObjectAddress>
     {
-        public override void Write(VerifyJsonWriter writer, Model.ObjectReference value) =>
+        public override void Write(VerifyJsonWriter writer, Model.ObjectAddress value) =>
             writer.WriteValue(value.ToString());
     }
 
