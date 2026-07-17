@@ -47,7 +47,7 @@ public partial class DatabaseComparerTests
         var diff = DiffEnums(
             [new EnumType(new SqlIdentifier("state"), ["a"])],
             [new EnumType(new SqlIdentifier("status"), ["a"])],
-            new ProjectDirectives(Enums: new EnumDirectives(Renames: [new ObjectRenameDirective(App("state"), new SqlIdentifier("status"))])));
+            new ProjectDirectives(Renames: [new ObjectRenameDirective(ObjectKind.Enum, App("state"), new SqlIdentifier("status"))]));
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.RenamedFrom.ShouldBe("state");
@@ -178,7 +178,7 @@ public partial class DatabaseComparerTests
         var diff = Compare(
             Db(new Schema(new SqlIdentifier("app"), Enums: [new EnumType(new SqlIdentifier("status"), ["a"])])),
             Db(new Schema(new SqlIdentifier("app"))),
-            PartialApp() with { Enums = new EnumDirectives(Drops: [App("status")]) });
+            PartialApp() with { Drops = [new ObjectDropDirective(ObjectKind.Enum, App("status"))] });
 
         diff.Schemas.ShouldHaveSingleItem().Enums.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
     }

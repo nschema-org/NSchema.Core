@@ -42,7 +42,7 @@ public sealed class NsqlParserCompositeTypeTests
     [Fact]
     public void Parse_RenameType_BecomesADirective()
         => Directives("CREATE SCHEMA app; CREATE TYPE app.address AS (street text); RENAME TYPE app.legacy_address TO address;")
-            .CompositeTypes.Renames.ShouldHaveSingleItem().To.ShouldBe(new NSchema.Model.SqlIdentifier("address"));
+            .Renames.ShouldHaveSingleItem().To.ShouldBe(new NSchema.Model.SqlIdentifier("address"));
 
     [Fact]
     public void Parse_WithDocComment_AttachesComment()
@@ -51,7 +51,7 @@ public sealed class NsqlParserCompositeTypeTests
     [Fact]
     public void Parse_DropType_BecomesADirective()
         => Directives("CREATE SCHEMA app; DROP TYPE app.address;")
-            .CompositeTypes.Drops.ShouldHaveSingleItem().Name.ShouldBe("address");
+            .Drops.ShouldHaveSingleItem().Address.Name.ShouldBe("address");
 
     [Fact]
     public void Parse_DuplicateType_FailsTheRead()

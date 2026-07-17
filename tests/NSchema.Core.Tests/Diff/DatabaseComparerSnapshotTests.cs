@@ -177,13 +177,13 @@ public sealed class DatabaseComparerSnapshotTests
 
         // The renames and drops the comment narrates arrive as directives, addressing current reality.
         var directives = new ProjectDirectives(
-            Tables: new TableDirectives(ColumnRenames:
-                [new MemberRenameDirective(new MemberReference(new SqlIdentifier("app"), new SqlIdentifier("users"), new SqlIdentifier("email")), new SqlIdentifier("email_address"))]),
-            Views: new ViewDirectives(Renames:
-                [new ObjectRenameDirective(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("legacy_report")), new SqlIdentifier("report"))]),
-            Enums: new EnumDirectives(Renames:
-                [new ObjectRenameDirective(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("importance")), new SqlIdentifier("priority"))]),
-            Extensions: new ExtensionDirectives(Drops: [new SqlIdentifier("legacy_ext")]));
+            ColumnRenames: [new MemberRenameDirective(new MemberReference(new SqlIdentifier("app"), new SqlIdentifier("users"), new SqlIdentifier("email")), new SqlIdentifier("email_address"))],
+            Renames:
+            [
+                new ObjectRenameDirective(ObjectKind.View, new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("legacy_report")), new SqlIdentifier("report")),
+                new ObjectRenameDirective(ObjectKind.Enum, new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("importance")), new SqlIdentifier("priority")),
+            ],
+            ExtensionDrops: [new ExtensionDropDirective(new SqlIdentifier("legacy_ext"))]);
 
         return Verify(Compare(current, desired, directives));
     }

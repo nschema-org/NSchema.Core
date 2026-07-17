@@ -10,7 +10,7 @@ namespace NSchema.Tests.Project.Serialization.Nsql;
 public sealed class NsqlParserMigrationTests
 {
     private static IReadOnlyList<ChangeScript> ReadMigrations(string source) =>
-        new TestNsqlParser(source).Parse().Directives.Tables.ChangeScripts;
+        new TestNsqlParser(source).Parse().Directives.ChangeScripts;
 
     [Fact]
     public void Parse_AddColumnTrigger_CapturesTriggerAndPathParts()

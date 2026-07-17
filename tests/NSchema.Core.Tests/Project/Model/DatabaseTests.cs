@@ -59,23 +59,22 @@ public sealed class DatabaseTests
             new ProjectDirectives(
                 new SchemaDirectives(
                     Renames: [new SchemaRenameDirective(sales, core)],
-                    Drops: [new SqlIdentifier("scratch")],
-                    Partials: [core, new SqlIdentifier("audit")]),
-                new TableDirectives(
-                    Drops:
-                    [
-                        new ObjectReference(sales, new SqlIdentifier("old")),
-                        new ObjectReference(new SqlIdentifier("audit"), new SqlIdentifier("stale")),
-                    ]),
-                Extensions: new ExtensionDirectives(Drops: [new SqlIdentifier("stale_ext")])));
+                    Drops: [new SchemaDropDirective(new SqlIdentifier("scratch"))],
+                    Partials: [new SchemaPartialDirective(core), new SchemaPartialDirective(new SqlIdentifier("audit"))]),
+                Drops:
+                [
+                    new ObjectDropDirective(ObjectKind.Table, new ObjectReference(sales, new SqlIdentifier("old"))),
+                    new ObjectDropDirective(ObjectKind.Table, new ObjectReference(new SqlIdentifier("audit"), new SqlIdentifier("stale"))),
+                ],
+                ExtensionDrops: [new ExtensionDropDirective(new SqlIdentifier("stale_ext"))]));
 
         var filtered = project.ScopedTo(PlanningScope.Of(core)).Directives;
 
         filtered.Schemas.Renames.ShouldHaveSingleItem(); // kept — its To side is in scope
         filtered.Schemas.Drops.ShouldBeEmpty();          // scratch is out of scope
-        filtered.Schemas.Partials.ShouldBe([core]);
-        filtered.Tables.Drops.ShouldHaveSingleItem().Schema.ShouldBe(sales); // resolves through the rename
-        filtered.Extensions.Drops.ShouldHaveSingleItem();
+        filtered.Schemas.Partials.ShouldBe([new SchemaPartialDirective(core)]);
+        filtered.Drops.ShouldHaveSingleItem().Address.Schema.ShouldBe(sales); // resolves through the rename
+        filtered.ExtensionDrops.ShouldHaveSingleItem();
     }
 
     [Fact]

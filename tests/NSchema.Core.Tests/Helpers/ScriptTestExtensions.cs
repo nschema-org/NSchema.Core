@@ -12,7 +12,7 @@ namespace NSchema.Tests.Helpers;
 internal static class ScriptTestExtensions
 {
     public static IReadOnlyList<Script> AllScripts(this ProjectDefinition project) =>
-        [.. project.Directives.Tables.ChangeScripts, .. project.Directives.DeploymentScripts];
+        [.. project.Directives.ChangeScripts, .. project.Directives.DeploymentScripts];
 
     public static IReadOnlyList<Script> AllScripts(this DatabaseDiff diff) =>
         [.. diff.ChangeScripts(), .. diff.DeploymentScripts];

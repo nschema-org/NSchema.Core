@@ -73,14 +73,14 @@ public sealed class NsqlParserTests
 
     [Fact]
     public void Parse_DropSchema_BecomesADirective()
-        => Directives("DROP SCHEMA scratch;").Schemas.Drops.ShouldHaveSingleItem().ShouldBe("scratch");
+        => Directives("DROP SCHEMA scratch;").Schemas.Drops.ShouldHaveSingleItem().Name.ShouldBe("scratch");
 
     [Fact]
     public void Parse_DropTable_BecomesADirective_AndNeverEntersTheTree()
     {
         var source = "CREATE SCHEMA app; DROP TABLE app.old_table;";
-        Directives(source).Tables.Drops.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("old_table")));
+        Directives(source).Drops.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectDropDirective(ObjectKind.Table, new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("old_table"))));
         ParseSingleSchema(source).Tables.ShouldBeEmpty();
     }
 
@@ -88,9 +88,9 @@ public sealed class NsqlParserTests
     public void Parse_PartialSchemaWithDrop_BothBecomeDirectives()
     {
         var directives = Directives("CREATE SCHEMA app; PARTIAL SCHEMA app; DROP TABLE app.old;");
-        directives.Schemas.Partials.ShouldHaveSingleItem().ShouldBe("app");
-        directives.Tables.Drops.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("old")));
+        directives.Schemas.Partials.ShouldHaveSingleItem().Schema.ShouldBe("app");
+        directives.Drops.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectDropDirective(ObjectKind.Table, new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("old"))));
     }
 
     // -------------------------------------------------------------------------
@@ -206,8 +206,8 @@ public sealed class NsqlParserTests
     [Fact]
     public void Parse_RenameView_BecomesADirective()
         => Directives("CREATE SCHEMA app; CREATE VIEW app.v AS SELECT 1 FROM app.t; RENAME VIEW app.old_v TO v;")
-            .Views.Renames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRenameDirective(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("old_v")), new SqlIdentifier("v")));
+            .Renames.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectRenameDirective(ObjectKind.View, new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("old_v")), new SqlIdentifier("v")));
 
     [Fact]
     public void Parse_CreateView_WithDocComment_AttachesComment()
@@ -220,8 +220,8 @@ public sealed class NsqlParserTests
     public void Parse_DropView_RecordsDroppedView()
     {
         Directives("CREATE SCHEMA app; DROP VIEW app.stale;")
-            .Views.Drops.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("stale")));
+            .Drops.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectDropDirective(ObjectKind.View, new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("stale"))));
     }
 
     [Fact]
@@ -280,8 +280,8 @@ public sealed class NsqlParserTests
     [Fact]
     public void Parse_RenameEnum_BecomesADirective()
         => Directives("CREATE SCHEMA app; CREATE ENUM app.status ('a'); RENAME ENUM app.state TO status;")
-            .Enums.Renames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRenameDirective(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("state")), new SqlIdentifier("status")));
+            .Renames.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectRenameDirective(ObjectKind.Enum, new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("state")), new SqlIdentifier("status")));
 
     [Fact]
     public void Parse_CreateEnum_WithDocComment_AttachesComment()
@@ -291,8 +291,8 @@ public sealed class NsqlParserTests
     [Fact]
     public void Parse_DropEnum_RecordsDroppedEnum()
         => Directives("CREATE SCHEMA app; DROP ENUM app.stale;")
-            .Enums.Drops.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("stale")));
+            .Drops.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectDropDirective(ObjectKind.Enum, new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("stale"))));
 
     [Fact]
     public void Parse_DuplicateEnum_FailsTheRead()
@@ -347,8 +347,8 @@ public sealed class NsqlParserTests
     [Fact]
     public void Parse_RenameSequence_BecomesADirective()
         => Directives("CREATE SCHEMA app; CREATE SEQUENCE app.invoice_id; RENAME SEQUENCE app.bill_id TO invoice_id;")
-            .Sequences.Renames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRenameDirective(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("bill_id")), new SqlIdentifier("invoice_id")));
+            .Renames.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectRenameDirective(ObjectKind.Sequence, new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("bill_id")), new SqlIdentifier("invoice_id")));
 
     [Fact]
     public void Parse_CreateSequence_WithDocComment_AttachesComment()
@@ -358,8 +358,8 @@ public sealed class NsqlParserTests
     [Fact]
     public void Parse_DropSequence_RecordsDroppedSequence()
         => Directives("CREATE SCHEMA app; DROP SEQUENCE app.stale;")
-            .Sequences.Drops.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("stale")));
+            .Drops.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectDropDirective(ObjectKind.Sequence, new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("stale"))));
 
     [Fact]
     public void Parse_DuplicateSequence_FailsTheRead()
@@ -424,8 +424,8 @@ public sealed class NsqlParserTests
     public void Parse_RenameRoutine_AnySpelling_BecomesADirective()
     {
         var directives = Directives("CREATE SCHEMA app; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$; RENAME FUNCTION app.old_f TO f;");
-        directives.Routines.Renames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRenameDirective(new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("old_f")), new SqlIdentifier("f")));
+        directives.Renames.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectRenameDirective(ObjectKind.Routine, new ObjectReference(new SqlIdentifier("app"), new SqlIdentifier("old_f")), new SqlIdentifier("f")));
     }
 
     [Fact]
@@ -472,6 +472,6 @@ public sealed class NsqlParserTests
     public void Parse_DropFunctionAndProcedure_BecomeRoutineDropDirectives()
     {
         var directives = Directives("CREATE SCHEMA app; DROP FUNCTION app.stale_fn; DROP PROCEDURE app.stale_proc;");
-        directives.Routines.Drops.Select(d => d.Name).ShouldBe(["stale_fn", "stale_proc"], ignoreOrder: true);
+        directives.Drops.Select(d => d.Address.Name).ShouldBe(["stale_fn", "stale_proc"], ignoreOrder: true);
     }
 }

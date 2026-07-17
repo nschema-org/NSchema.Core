@@ -197,7 +197,7 @@ public sealed class StructuralIntegrityPolicyTests
             ForeignKeys: [new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("ref")], new SqlIdentifier("public"), new SqlIdentifier("absent"), [new SqlIdentifier("id")])]);
         var schema = new Database([new Schema(new SqlIdentifier("public"), Tables: [table])]);
         var project = new ProjectDefinition(schema, new ProjectDirectives(
-            new SchemaDirectives(Partials: [new SqlIdentifier("public")])));
+            new SchemaDirectives(Partials: [new SchemaPartialDirective(new SqlIdentifier("public"))])));
 
         // Act
         var diagnostics = _sut.Validate(project).ToList();

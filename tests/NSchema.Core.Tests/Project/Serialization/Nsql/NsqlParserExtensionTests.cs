@@ -50,7 +50,7 @@ public sealed class NsqlParserExtensionTests
     [Fact]
     public void Parse_DropExtension_BecomesADirective()
         => Directives("DROP EXTENSION citext;")
-            .Extensions.Drops.ShouldHaveSingleItem().ShouldBe("citext");
+            .ExtensionDrops.ShouldHaveSingleItem().Name.ShouldBe("citext");
 
     [Fact]
     public void Parse_DuplicateExtension_FailsTheRead()

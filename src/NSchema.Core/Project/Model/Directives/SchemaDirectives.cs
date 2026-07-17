@@ -1,5 +1,3 @@
-using NSchema.Model;
-
 namespace NSchema.Project.Model.Directives;
 
 /// <summary>
@@ -10,8 +8,8 @@ namespace NSchema.Project.Model.Directives;
 /// <param name="Partials">The schemas whose declarations are partial.</param>
 public sealed record SchemaDirectives(
     IReadOnlyList<SchemaRenameDirective>? Renames = null,
-    IReadOnlyList<SqlIdentifier>? Drops = null,
-    IReadOnlyList<SqlIdentifier>? Partials = null
+    IReadOnlyList<SchemaDropDirective>? Drops = null,
+    IReadOnlyList<SchemaPartialDirective>? Partials = null
 )
 {
     /// <summary>
@@ -22,10 +20,10 @@ public sealed record SchemaDirectives(
     /// <summary>
     /// The schemas explicitly declared dropped.
     /// </summary>
-    public IReadOnlyList<SqlIdentifier> Drops { get; init; } = Drops ?? [];
+    public IReadOnlyList<SchemaDropDirective> Drops { get; init; } = Drops ?? [];
 
     /// <summary>
     /// The schemas whose declarations are partial.
     /// </summary>
-    public IReadOnlyList<SqlIdentifier> Partials { get; init; } = Partials ?? [];
+    public IReadOnlyList<SchemaPartialDirective> Partials { get; init; } = Partials ?? [];
 }

@@ -21,7 +21,7 @@ public sealed class ProjectedDocumentWriterTests
     private static void AssertEquivalent(ProjectDefinition expected, ProjectDefinition actual)
     {
         Canonical(actual.Database).ShouldBe(Canonical(expected.Database));
-        actual.Directives.Tables.ChangeScripts.ShouldBe(expected.Directives.Tables.ChangeScripts);
+        actual.Directives.ChangeScripts.ShouldBe(expected.Directives.ChangeScripts);
         actual.Directives.DeploymentScripts.ShouldBe(expected.Directives.DeploymentScripts);
     }
 

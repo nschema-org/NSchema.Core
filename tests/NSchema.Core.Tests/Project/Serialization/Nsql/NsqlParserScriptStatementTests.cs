@@ -15,7 +15,7 @@ public sealed class NsqlParserScriptStatementTests
     private static ProjectDefinition Read(string source) => new TestNsqlParser(source).Parse();
 
     private static IReadOnlyList<ChangeScript> Migrations(ProjectDefinition document) =>
-        document.Directives.Tables.ChangeScripts;
+        document.Directives.ChangeScripts;
 
     // -------------------------------------------------------------------------
     // Deployment events

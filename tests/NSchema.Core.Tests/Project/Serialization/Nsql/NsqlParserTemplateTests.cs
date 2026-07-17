@@ -248,7 +248,7 @@ public sealed class NsqlParserTemplateTests
             APPLY TEMPLATE t IN SCHEMA sales, billing;
             """).Parse();
 
-        project.Directives.Tables.Drops.Select(d => d.ToString())
+        project.Directives.Drops.Select(d => d.Address.ToString())
             .ShouldBe(["sales.legacy", "billing.legacy"]);
     }
 

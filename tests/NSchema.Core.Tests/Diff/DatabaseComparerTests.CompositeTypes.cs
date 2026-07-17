@@ -84,7 +84,7 @@ public partial class DatabaseComparerTests
         var diff = DiffCompositeTypes(
             [new CompositeType(new SqlIdentifier("legacy_address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text)])],
             [new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text)])],
-            new ProjectDirectives(CompositeTypes: new CompositeTypeDirectives(Renames: [new ObjectRenameDirective(App("legacy_address"), new SqlIdentifier("address"))])));
+            new ProjectDirectives(Renames: [new ObjectRenameDirective(ObjectKind.CompositeType, App("legacy_address"), new SqlIdentifier("address"))]));
 
         diff!.RenamedFrom.ShouldBe("legacy_address");
     }
@@ -112,6 +112,6 @@ public partial class DatabaseComparerTests
         => Compare(
             Db(new Schema(new SqlIdentifier("app"), CompositeTypes: [Address(new CompositeField(new SqlIdentifier("street"), SqlType.Text))])),
             Db(new Schema(new SqlIdentifier("app"))),
-            PartialApp() with { CompositeTypes = new CompositeTypeDirectives(Drops: [App("address")]) })
+            PartialApp() with { Drops = [new ObjectDropDirective(ObjectKind.CompositeType, App("address"))] })
             .Schemas.ShouldHaveSingleItem().CompositeTypes.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
 }

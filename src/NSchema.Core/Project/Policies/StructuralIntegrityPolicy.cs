@@ -17,7 +17,7 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
     {
         var database = project.Database;
         var managedSchemas = database.Schemas.Select(s => s.Name).ToHashSet();
-        var partialSchemas = new HashSet<SqlIdentifier>(project.Directives.Schemas.Partials);
+        var partialSchemas = new HashSet<SqlIdentifier>(project.Directives.Schemas.Partials.Select(p => p.Schema));
         var tablesByKey = database.Schemas
             .SelectMany(s => s.Tables.Select(t => (Key: Key(s.Name, t.Name), Table: t)))
             .GroupBy(x => x.Key)

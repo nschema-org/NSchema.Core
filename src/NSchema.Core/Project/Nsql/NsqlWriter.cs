@@ -53,22 +53,10 @@ public static class NsqlWriter
         or Syn.Tables.GrantTableStatement
         or Syn.Triggers.CreateTriggerStatement
         or Syn.Indexes.CreateIndexStatement
-        or Syn.Tables.DropTableStatement
-        or Syn.Views.DropViewStatement
-        or Syn.Enums.DropEnumStatement
-        or Syn.Domains.DropDomainStatement
-        or Syn.CompositeTypes.DropCompositeTypeStatement
-        or Syn.Sequences.DropSequenceStatement
-        or Syn.Routines.DropRoutineStatement
+        or DropObjectStatement
+        or RenameObjectStatement
         or Syn.Schemas.RenameSchemaStatement
-        or Syn.Tables.RenameTableStatement
         or Syn.Tables.RenameColumnStatement
-        or Syn.Views.RenameViewStatement
-        or Syn.Enums.RenameEnumStatement
-        or Syn.Domains.RenameDomainStatement
-        or Syn.CompositeTypes.RenameCompositeTypeStatement
-        or Syn.Sequences.RenameSequenceStatement
-        or Syn.Routines.RenameRoutineStatement
         or Syn.Schemas.PartialSchemaStatement;
 
     private static void WriteStatement(StringBuilder sb, NsqlStatement statement)
@@ -177,26 +165,8 @@ public static class NsqlWriter
             case Syn.Extensions.DropExtensionStatement s:
                 sb.Append($"{NsqlKeywords.Drop} {NsqlKeywords.Extension} ").Append(ExtensionName(s.Name.Value)).AppendLine(";");
                 break;
-            case Syn.Tables.DropTableStatement s:
-                sb.Append($"{NsqlKeywords.Drop} {NsqlKeywords.Table} ").Append(Qualified(s.Name)).AppendLine(";");
-                break;
-            case Syn.Views.DropViewStatement s:
-                sb.Append($"{NsqlKeywords.Drop} {NsqlKeywords.View} ").Append(Qualified(s.Name)).AppendLine(";");
-                break;
-            case Syn.Enums.DropEnumStatement s:
-                sb.Append($"{NsqlKeywords.Drop} {NsqlKeywords.Enum} ").Append(Qualified(s.Name)).AppendLine(";");
-                break;
-            case Syn.Domains.DropDomainStatement s:
-                sb.Append($"{NsqlKeywords.Drop} {NsqlKeywords.Domain} ").Append(Qualified(s.Name)).AppendLine(";");
-                break;
-            case Syn.CompositeTypes.DropCompositeTypeStatement s:
-                sb.Append($"{NsqlKeywords.Drop} {NsqlKeywords.Type} ").Append(Qualified(s.Name)).AppendLine(";");
-                break;
-            case Syn.Sequences.DropSequenceStatement s:
-                sb.Append($"{NsqlKeywords.Drop} {NsqlKeywords.Sequence} ").Append(Qualified(s.Name)).AppendLine(";");
-                break;
-            case Syn.Routines.DropRoutineStatement s:
-                sb.Append($"{NsqlKeywords.Drop} {NsqlKeywords.Routine} ").Append(Qualified(s.Name)).AppendLine(";");
+            case DropObjectStatement s:
+                sb.Append($"{NsqlKeywords.Drop} {KindKeyword(s.Kind)} ").Append(Qualified(s.Name)).AppendLine(";");
                 break;
             case Syn.Schemas.PartialSchemaStatement s:
                 sb.Append($"{NsqlKeywords.Partial} {NsqlKeywords.Schema} ").Append(s.Schema.Value).AppendLine(";");
@@ -204,30 +174,12 @@ public static class NsqlWriter
             case Syn.Schemas.RenameSchemaStatement s:
                 sb.Append($"{NsqlKeywords.Rename} {NsqlKeywords.Schema} ").Append(s.From.Value).Append($" {NsqlKeywords.To} ").Append(s.To.Value).AppendLine(";");
                 break;
-            case Syn.Tables.RenameTableStatement s:
-                sb.Append($"{NsqlKeywords.Rename} {NsqlKeywords.Table} ").Append(Qualified(s.From)).Append($" {NsqlKeywords.To} ").Append(s.To.Value).AppendLine(";");
+            case RenameObjectStatement s:
+                sb.Append($"{NsqlKeywords.Rename} {KindKeyword(s.Kind)} ").Append(Qualified(s.From)).Append($" {NsqlKeywords.To} ").Append(s.To.Value).AppendLine(";");
                 break;
             case Syn.Tables.RenameColumnStatement s:
                 sb.Append($"{NsqlKeywords.Rename} {NsqlKeywords.Column} ").Append(s.From.Schema!.Value).Append('.').Append(s.From.Table.Value).Append('.').Append(s.From.Member.Value)
                     .Append($" {NsqlKeywords.To} ").Append(s.To.Value).AppendLine(";");
-                break;
-            case Syn.Views.RenameViewStatement s:
-                sb.Append($"{NsqlKeywords.Rename} {NsqlKeywords.View} ").Append(Qualified(s.From)).Append($" {NsqlKeywords.To} ").Append(s.To.Value).AppendLine(";");
-                break;
-            case Syn.Enums.RenameEnumStatement s:
-                sb.Append($"{NsqlKeywords.Rename} {NsqlKeywords.Enum} ").Append(Qualified(s.From)).Append($" {NsqlKeywords.To} ").Append(s.To.Value).AppendLine(";");
-                break;
-            case Syn.Domains.RenameDomainStatement s:
-                sb.Append($"{NsqlKeywords.Rename} {NsqlKeywords.Domain} ").Append(Qualified(s.From)).Append($" {NsqlKeywords.To} ").Append(s.To.Value).AppendLine(";");
-                break;
-            case Syn.CompositeTypes.RenameCompositeTypeStatement s:
-                sb.Append($"{NsqlKeywords.Rename} {NsqlKeywords.Type} ").Append(Qualified(s.From)).Append($" {NsqlKeywords.To} ").Append(s.To.Value).AppendLine(";");
-                break;
-            case Syn.Sequences.RenameSequenceStatement s:
-                sb.Append($"{NsqlKeywords.Rename} {NsqlKeywords.Sequence} ").Append(Qualified(s.From)).Append($" {NsqlKeywords.To} ").Append(s.To.Value).AppendLine(";");
-                break;
-            case Syn.Routines.RenameRoutineStatement s:
-                sb.Append($"{NsqlKeywords.Rename} {NsqlKeywords.Routine} ").Append(Qualified(s.From)).Append($" {NsqlKeywords.To} ").Append(s.To.Value).AppendLine(";");
                 break;
             default:
                 throw new NotSupportedException($"Statement '{statement.GetType().Name}' is not rendered.");
@@ -554,6 +506,22 @@ public static class NsqlWriter
         }
         return string.Join(", ", parts);
     }
+
+    /// <summary>
+    /// The canonical keyword for an object kind; the spelling variants (MATERIALIZED VIEW, FUNCTION,
+    /// PROCEDURE) normalize to it.
+    /// </summary>
+    private static string KindKeyword(ObjectKind kind) => kind switch
+    {
+        ObjectKind.Table => NsqlKeywords.Table,
+        ObjectKind.View => NsqlKeywords.View,
+        ObjectKind.Enum => NsqlKeywords.Enum,
+        ObjectKind.Sequence => NsqlKeywords.Sequence,
+        ObjectKind.Routine => NsqlKeywords.Routine,
+        ObjectKind.Domain => NsqlKeywords.Domain,
+        ObjectKind.CompositeType => NsqlKeywords.Type,
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+    };
 
     private static string Qualified(QualifiedName name) =>
         name.Schema is { } schema ? $"{schema.Value}.{name.Name.Value}" : name.Name.Value;

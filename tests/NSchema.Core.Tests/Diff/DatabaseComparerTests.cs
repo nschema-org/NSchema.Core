@@ -35,7 +35,7 @@ public partial class DatabaseComparerTests
 
     /// <summary>Directives marking <c>app</c> as a partial declaration.</summary>
     private static ProjectDirectives PartialApp() =>
-        new(new SchemaDirectives(Partials: [new SqlIdentifier("app")]));
+        new(new SchemaDirectives(Partials: [new SchemaPartialDirective(new SqlIdentifier("app"))]));
 
     /// <summary>Diffs two single-table <c>app</c> schemas, returning the table diff (null when unchanged).</summary>
     private TableDiff? DiffTable(Table current, Table desired, ProjectDirectives? directives = null) =>
@@ -53,12 +53,11 @@ public partial class DatabaseComparerTests
 
     /// <summary>Directives renaming table <c>app.&lt;from&gt;</c> to <paramref name="to"/>.</summary>
     private static ProjectDirectives TableRename(string from, string to) =>
-        new(Tables: new TableDirectives(Renames: [new ObjectRenameDirective(App(from), new SqlIdentifier(to))]));
+        new(Renames: [new ObjectRenameDirective(ObjectKind.Table, App(from), new SqlIdentifier(to))]);
 
     /// <summary>Directives renaming column <c>app.t.&lt;from&gt;</c> to <paramref name="to"/>.</summary>
     private static ProjectDirectives ColumnRename(string from, string to, string table = "t") =>
-        new(Tables: new TableDirectives(ColumnRenames:
-            [new MemberRenameDirective(new MemberReference(new SqlIdentifier("app"), new SqlIdentifier(table), new SqlIdentifier(from)), new SqlIdentifier(to))]));
+        new(ColumnRenames: [new MemberRenameDirective(new MemberReference(new SqlIdentifier("app"), new SqlIdentifier(table), new SqlIdentifier(from)), new SqlIdentifier(to))]);
 
     /// <summary>Builds a view with dependencies derived from its body, exactly as the DDL parser would.</summary>
     private static View View(string name, string body, string? comment = null) =>
@@ -322,9 +321,8 @@ public partial class DatabaseComparerTests
         var directives = new ProjectDirectives(
             new SchemaDirectives(
                 Renames: [new SchemaRenameDirective(sales, new SqlIdentifier("core"))]),
-            new TableDirectives(
-                Renames: [new ObjectRenameDirective(new ObjectReference(sales, new SqlIdentifier("users")), new SqlIdentifier("people"))],
-                ColumnRenames: [new MemberRenameDirective(new MemberReference(sales, new SqlIdentifier("users"), new SqlIdentifier("name")), new SqlIdentifier("full_name"))]));
+            Renames: [new ObjectRenameDirective(ObjectKind.Table, new ObjectReference(sales, new SqlIdentifier("users")), new SqlIdentifier("people"))],
+            ColumnRenames: [new MemberRenameDirective(new MemberReference(sales, new SqlIdentifier("users"), new SqlIdentifier("name")), new SqlIdentifier("full_name"))]);
 
         var schema = Compare(current, desired, directives).Schemas.ShouldHaveSingleItem();
 

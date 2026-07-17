@@ -570,7 +570,7 @@ public sealed class MigrationWorkflowTests
         var desired = new Database(
             [new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("admin"))]);
         var directives = new ProjectDirectives(new SchemaDirectives(
-            Drops: [new SqlIdentifier("legacy")]));
+            Drops: [new SchemaDropDirective(new SqlIdentifier("legacy"))]));
         _desiredProvider.GetProject(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new ProjectDefinition(desired, directives)));
         var sut = SutWithRecordedSchema(new Database([

@@ -20,7 +20,7 @@ public partial class DatabaseComparerTests
         Compare(
             new Database(Extensions: current),
             new Database(Extensions: desired),
-            dropped is null ? null : new ProjectDirectives(Extensions: new ExtensionDirectives(Drops: dropped)))
+            dropped is null ? null : new ProjectDirectives(ExtensionDrops: [.. dropped.Select(d => new ExtensionDropDirective(d))]))
         .Extensions.SingleOrDefault();
 
     [Fact]

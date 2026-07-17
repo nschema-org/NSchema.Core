@@ -14,31 +14,24 @@ internal sealed class DirectiveLookup(ProjectDirectives directives)
     /// </summary>
     public static DirectiveLookup Empty { get; } = new(ProjectDirectives.Empty);
 
-    private readonly Dictionary<SqlIdentifier, List<RenamePair>> _tableRenames = GroupRenames(directives.Tables.Renames);
-    private readonly Dictionary<SqlIdentifier, List<RenamePair>> _viewRenames = GroupRenames(directives.Views.Renames);
-    private readonly Dictionary<SqlIdentifier, List<RenamePair>> _enumRenames = GroupRenames(directives.Enums.Renames);
-    private readonly Dictionary<SqlIdentifier, List<RenamePair>> _sequenceRenames = GroupRenames(directives.Sequences.Renames);
-    private readonly Dictionary<SqlIdentifier, List<RenamePair>> _routineRenames = GroupRenames(directives.Routines.Renames);
-    private readonly Dictionary<SqlIdentifier, List<RenamePair>> _domainRenames = GroupRenames(directives.Domains.Renames);
-    private readonly Dictionary<SqlIdentifier, List<RenamePair>> _compositeTypeRenames = GroupRenames(directives.CompositeTypes.Renames);
-    private readonly Dictionary<(SqlIdentifier Schema, SqlIdentifier Table), List<RenamePair>> _columnRenames = directives.Tables.ColumnRenames
+    private readonly Dictionary<(ObjectKind Kind, SqlIdentifier Schema), List<RenamePair>> _renames = directives.Renames
+            .GroupBy(r => (r.Kind, r.From.Schema))
+            .ToDictionary(g => g.Key, g => g.Select(r => new RenamePair(r.From.Name, r.To)).ToList());
+
+    private readonly Dictionary<(ObjectKind Kind, SqlIdentifier Schema), List<SqlIdentifier>> _drops = directives.Drops
+            .GroupBy(d => (d.Kind, d.Address.Schema))
+            .ToDictionary(g => g.Key, g => g.Select(d => d.Address.Name).ToList());
+
+    private readonly Dictionary<(SqlIdentifier Schema, SqlIdentifier Table), List<RenamePair>> _columnRenames = directives.ColumnRenames
             .GroupBy(r => (r.From.Schema, r.From.Object))
             .ToDictionary(g => g.Key, g => g.Select(r => new RenamePair(r.From.Member, r.To)).ToList());
 
-    private readonly Dictionary<SqlIdentifier, List<SqlIdentifier>> _tableDrops = GroupDrops(directives.Tables.Drops);
-    private readonly Dictionary<SqlIdentifier, List<SqlIdentifier>> _viewDrops = GroupDrops(directives.Views.Drops);
-    private readonly Dictionary<SqlIdentifier, List<SqlIdentifier>> _enumDrops = GroupDrops(directives.Enums.Drops);
-    private readonly Dictionary<SqlIdentifier, List<SqlIdentifier>> _sequenceDrops = GroupDrops(directives.Sequences.Drops);
-    private readonly Dictionary<SqlIdentifier, List<SqlIdentifier>> _routineDrops = GroupDrops(directives.Routines.Drops);
-    private readonly Dictionary<SqlIdentifier, List<SqlIdentifier>> _domainDrops = GroupDrops(directives.Domains.Drops);
-    private readonly Dictionary<SqlIdentifier, List<SqlIdentifier>> _compositeTypeDrops = GroupDrops(directives.CompositeTypes.Drops);
-
-    private readonly Dictionary<(SqlIdentifier Schema, SqlIdentifier Table), List<ChangeScript>> _changeScripts = directives.Tables.ChangeScripts
+    private readonly Dictionary<(SqlIdentifier Schema, SqlIdentifier Table), List<ChangeScript>> _changeScripts = directives.ChangeScripts
             .Where(script => script.ScopeSchema is not null)
             .GroupBy(script => (script.ScopeSchema!, script.TableName))
             .ToDictionary(g => g.Key, g => g.ToList());
 
-    private readonly HashSet<SqlIdentifier> _partials = [.. directives.Schemas.Partials];
+    private readonly HashSet<SqlIdentifier> _partials = [.. directives.Schemas.Partials.Select(p => p.Schema)];
 
     /// <summary>
     /// The schema rename hints.
@@ -48,14 +41,24 @@ internal sealed class DirectiveLookup(ProjectDirectives directives)
     /// <summary>
     /// The extension drops (extensions are database-global and never rename).
     /// </summary>
-    public IReadOnlyList<SqlIdentifier> ExtensionDrops { get; } = directives.Extensions.Drops;
+    public IReadOnlyList<SqlIdentifier> ExtensionDrops { get; } = [.. directives.ExtensionDrops.Select(d => d.Name)];
 
     /// <summary>
     /// Whether the declaration of <paramref name="declaredSchema"/> is partial.
     /// </summary>
     public bool IsPartial(SqlIdentifier declaredSchema) => _partials.Contains(declaredSchema);
 
-    public IReadOnlyList<RenamePair> TableRenames(SqlIdentifier currentSchema) => Find(_tableRenames, currentSchema);
+    /// <summary>
+    /// The rename hints for objects of <paramref name="kind"/> in <paramref name="currentSchema"/>.
+    /// </summary>
+    public IReadOnlyList<RenamePair> Renames(ObjectKind kind, SqlIdentifier currentSchema) =>
+        _renames.TryGetValue((kind, currentSchema), out var renames) ? renames : [];
+
+    /// <summary>
+    /// The names of objects of <paramref name="kind"/> explicitly declared dropped in <paramref name="currentSchema"/>.
+    /// </summary>
+    public IReadOnlyList<SqlIdentifier> Drops(ObjectKind kind, SqlIdentifier currentSchema) =>
+        _drops.TryGetValue((kind, currentSchema), out var drops) ? drops : [];
 
     /// <summary>
     /// The change-event scripts targeting the given table, keyed by the schema and table the change lands in
@@ -64,30 +67,6 @@ internal sealed class DirectiveLookup(ProjectDirectives directives)
     public IReadOnlyList<ChangeScript> ChangeScripts(SqlIdentifier schema, SqlIdentifier table) =>
         _changeScripts.TryGetValue((schema, table), out var scripts) ? scripts : [];
 
-    public IReadOnlyList<RenamePair> ViewRenames(SqlIdentifier currentSchema) => Find(_viewRenames, currentSchema);
-    public IReadOnlyList<RenamePair> EnumRenames(SqlIdentifier currentSchema) => Find(_enumRenames, currentSchema);
-    public IReadOnlyList<RenamePair> SequenceRenames(SqlIdentifier currentSchema) => Find(_sequenceRenames, currentSchema);
-    public IReadOnlyList<RenamePair> RoutineRenames(SqlIdentifier currentSchema) => Find(_routineRenames, currentSchema);
-    public IReadOnlyList<RenamePair> DomainRenames(SqlIdentifier currentSchema) => Find(_domainRenames, currentSchema);
-    public IReadOnlyList<RenamePair> CompositeTypeRenames(SqlIdentifier currentSchema) => Find(_compositeTypeRenames, currentSchema);
-
     public IReadOnlyList<RenamePair> ColumnRenames(SqlIdentifier currentSchema, SqlIdentifier currentTable) =>
         _columnRenames.TryGetValue((currentSchema, currentTable), out var renames) ? renames : [];
-
-    public IReadOnlyList<SqlIdentifier> TableDrops(SqlIdentifier currentSchema) => Find(_tableDrops, currentSchema);
-    public IReadOnlyList<SqlIdentifier> ViewDrops(SqlIdentifier currentSchema) => Find(_viewDrops, currentSchema);
-    public IReadOnlyList<SqlIdentifier> EnumDrops(SqlIdentifier currentSchema) => Find(_enumDrops, currentSchema);
-    public IReadOnlyList<SqlIdentifier> SequenceDrops(SqlIdentifier currentSchema) => Find(_sequenceDrops, currentSchema);
-    public IReadOnlyList<SqlIdentifier> RoutineDrops(SqlIdentifier currentSchema) => Find(_routineDrops, currentSchema);
-    public IReadOnlyList<SqlIdentifier> DomainDrops(SqlIdentifier currentSchema) => Find(_domainDrops, currentSchema);
-    public IReadOnlyList<SqlIdentifier> CompositeTypeDrops(SqlIdentifier currentSchema) => Find(_compositeTypeDrops, currentSchema);
-
-    private static List<T> Find<T>(Dictionary<SqlIdentifier, List<T>> lookup, SqlIdentifier schema) =>
-        lookup.TryGetValue(schema, out var entries) ? entries : [];
-
-    private static Dictionary<SqlIdentifier, List<RenamePair>> GroupRenames(IReadOnlyList<ObjectRenameDirective> renames) =>
-        renames.GroupBy(r => r.From.Schema).ToDictionary(g => g.Key, g => g.Select(r => new RenamePair(r.From.Name, r.To)).ToList());
-
-    private static Dictionary<SqlIdentifier, List<SqlIdentifier>> GroupDrops(IReadOnlyList<ObjectReference> drops) =>
-        drops.GroupBy(d => d.Schema).ToDictionary(g => g.Key, g => g.Select(d => d.Name).ToList());
 }

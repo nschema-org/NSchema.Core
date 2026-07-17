@@ -30,13 +30,13 @@ public sealed class NsqlParserDirectiveTests
     [Fact]
     public void Parse_RenameTable_TakesQualifiedFromAndBareTo()
         => Directives("CREATE SCHEMA app; CREATE TABLE app.people ( id int NOT NULL ); RENAME TABLE app.users TO people;")
-            .Tables.Renames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRenameDirective(App("users"), new SqlIdentifier("people")));
+            .Renames.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectRenameDirective(ObjectKind.Table, App("users"), new SqlIdentifier("people")));
 
     [Fact]
     public void Parse_RenameColumn_TakesAThreePartPath()
         => Directives("CREATE SCHEMA app; CREATE TABLE app.users ( full_name text NOT NULL ); RENAME COLUMN app.users.name TO full_name;")
-            .Tables.ColumnRenames.ShouldHaveSingleItem()
+            .ColumnRenames.ShouldHaveSingleItem()
             .ShouldBe(new MemberRenameDirective(
                 new MemberReference(new SqlIdentifier("app"), new SqlIdentifier("users"), new SqlIdentifier("name")),
                 new SqlIdentifier("full_name")));
@@ -44,7 +44,9 @@ public sealed class NsqlParserDirectiveTests
     [Fact]
     public void Parse_RenameMaterializedView_IsAViewRename()
         => Directives("CREATE SCHEMA app; CREATE MATERIALIZED VIEW app.daily AS SELECT 1 FROM app.t; RENAME MATERIALIZED VIEW app.old_daily TO daily;")
-            .Views.Renames.ShouldHaveSingleItem().From.Name.ShouldBe("old_daily");
+            .Renames.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+                r => r.Kind.ShouldBe(ObjectKind.View),
+                r => r.From.Name.ShouldBe("old_daily"));
 
     [Theory]
     [InlineData("FUNCTION")]
@@ -52,17 +54,19 @@ public sealed class NsqlParserDirectiveTests
     [InlineData("ROUTINE")]
     public void Parse_RenameRoutineSpellings_AllRenameARoutine(string keyword)
         => Directives($"CREATE SCHEMA app; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$; RENAME {keyword} app.old_f TO f;")
-            .Routines.Renames.ShouldHaveSingleItem().From.Name.ShouldBe("old_f");
+            .Renames.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+                r => r.Kind.ShouldBe(ObjectKind.Routine),
+                r => r.From.Name.ShouldBe("old_f"));
 
     [Fact]
     public void Parse_PartialSchema_MarksTheDeclaredSchema()
         => Directives("CREATE SCHEMA app; PARTIAL SCHEMA app;")
-            .Schemas.Partials.ShouldHaveSingleItem().ShouldBe("app");
+            .Schemas.Partials.ShouldHaveSingleItem().Schema.ShouldBe("app");
 
     [Fact]
     public void Parse_RepeatedDrop_IsIdempotent()
         => Directives("CREATE SCHEMA app; DROP TABLE app.old; DROP TABLE app.old;")
-            .Tables.Drops.ShouldHaveSingleItem();
+            .Drops.ShouldHaveSingleItem();
 
     // -------------------------------------------------------------------------
     // Errors
@@ -105,7 +109,7 @@ public sealed class NsqlParserDirectiveTests
             APPLY TEMPLATE t IN SCHEMA sales, billing;
             """).Parse();
 
-        project.Directives.Tables.Renames.Select(r => (r.From.ToString(), r.To.Value))
+        project.Directives.Renames.Select(r => (r.From.ToString(), r.To.Value))
             .ShouldBe([("sales.staff", "people"), ("billing.staff", "people")]);
     }
 
@@ -121,7 +125,7 @@ public sealed class NsqlParserDirectiveTests
             APPLY TEMPLATE t IN SCHEMA sales, billing;
             """).Parse();
 
-        project.Directives.Tables.ColumnRenames.Select(r => (r.From.ToString(), r.To.Value))
+        project.Directives.ColumnRenames.Select(r => (r.From.ToString(), r.To.Value))
             .ShouldBe([("sales.orders.amount", "total"), ("billing.orders.amount", "total")]);
     }
 
