@@ -34,11 +34,6 @@ I'm currently torn between going through `.editorconfig` and a plugin-based appr
 At the moment, there's no guarantee that the plugins you install are compatible with the version of NSchema you're using. We're also missing a lot of
 utility features like updating plugins, listing outdated plugins, supporting version ranges, lockfiles, etc.
 
-### [Result ergonomics](roadmap/result-ergonomics.md)
-
-Our Result<T> usage could be improved, I think. It's already used consistently, but it has some awkwardness around things like aggregating diagnostics
-across multiple runs that could make life easier.
-
 ### [Project assembly pipeline](roadmap/internal-refactors.md)
 
 The code that assembles the project at the moment doesn't read like a staged pipeline. We should refactor this, so it's actually maintainable.
