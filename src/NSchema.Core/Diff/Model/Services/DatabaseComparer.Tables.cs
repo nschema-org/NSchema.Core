@@ -5,17 +5,16 @@ using NSchema.Diff.Model.Tables;
 using NSchema.Diff.Model.Triggers;
 using NSchema.Model;
 using NSchema.Model.Schemas;
-using NSchema.Model.Scripts;
 using NSchema.Model.Tables;
 
 namespace NSchema.Diff.Model.Services;
 
 internal sealed partial class DatabaseComparer
 {
-    private List<TableDiff> CompareTables(SqlIdentifier schemaName, SqlIdentifier currentSchemaName, IReadOnlyList<Table> current, Schema desired, DirectiveLookup directives)
+    private List<TableDiff> CompareTables(SqlIdentifier schemaName, IReadOnlyList<Table> current, Schema desired, RenameLog renames)
     {
         var result = new List<TableDiff>();
-        var (forDesired, currentMatched) = MatchEntities(current, desired.Tables, directives.Renames(ObjectKind.Table, currentSchemaName), "table", schemaName.Value);
+        var (forDesired, currentMatched) = MatchEntities(current, desired.Tables);
 
         for (var j = 0; j < current.Count; j++)
         {
@@ -39,11 +38,13 @@ internal sealed partial class DatabaseComparer
                 LogTableNew(schemaName, desiredTable.Name);
                 result.Add(BuildNewTable(schemaName, desiredTable));
             }
-            else if (BuildModifiedTable(schemaName, currentSchemaName, matchingCurrent, desiredTable, directives) is { } diff)
+            else
             {
-                // Change-event scripts ride the changes they accompany: attach each to its member diff here,
-                // in the per-table pass that already built those diffs.
-                result.Add(AttachChangeScripts(diff, directives.ChangeScripts(schemaName, desiredTable.Name)));
+                var renamedFrom = renames.RenamedFrom(new ObjectIdentity(ObjectKind.Table, schemaName, desiredTable.Name));
+                if (BuildModifiedTable(schemaName, matchingCurrent, desiredTable, renamedFrom, renames) is { } diff)
+                {
+                    result.Add(diff);
+                }
             }
         }
 
@@ -153,17 +154,15 @@ internal sealed partial class DatabaseComparer
         return new TableDiff(schemaName, table.Name, ChangeKind.Add, null, comment, columns, grants, indexes, primaryKey, foreignKeys, uniqueConstraints, checks, exclusions, triggers, table);
     }
 
-    private TableDiff? BuildModifiedTable(SqlIdentifier schemaName, SqlIdentifier currentSchemaName, Table current, Table desired, DirectiveLookup directives)
+    private TableDiff? BuildModifiedTable(SqlIdentifier schemaName, Table current, Table desired, SqlIdentifier? renamedFrom, RenameLog renames)
     {
-        SqlIdentifier? renamedFrom = null;
-        if (current.Name == desired.Name)
+        if (renamedFrom is null)
         {
             LogTableUnchanged(schemaName, desired.Name);
         }
         else
         {
-            LogTableRenamed(schemaName, current.Name, desired.Name);
-            renamedFrom = current.Name;
+            LogTableRenamed(schemaName, renamedFrom, desired.Name);
         }
 
         ValueChange<string>? comment = null;
@@ -174,7 +173,7 @@ internal sealed partial class DatabaseComparer
         }
 
         var owner = new ObjectAddress(schemaName, desired.Name);
-        var columns = CompareColumns(owner, current.Columns, desired.Columns, directives.ColumnRenames(currentSchemaName, current.Name));
+        var columns = CompareColumns(owner, current.Columns, desired.Columns, renames);
 
         var primaryKey = ComparePrimaryKey(owner, current.PrimaryKey, desired.PrimaryKey);
         var foreignKeys = CompareForeignKeys(owner, current.ForeignKeys, desired.ForeignKeys);
@@ -195,46 +194,5 @@ internal sealed partial class DatabaseComparer
         }
 
         return new TableDiff(schemaName, desired.Name, ChangeKind.Modify, renamedFrom, comment, columns, grants, indexes, primaryKey, foreignKeys, uniqueConstraints, checks, exclusions, triggers);
-    }
-
-    /// <summary>
-    /// Attaches each change-event script to the member diff it accompanies — an add-column/alter-type on a
-    /// column, an add-constraint on a constraint — matching by trigger and member name. The script rides the
-    /// node directly, so the linearizer runs it without a lookup.
-    /// </summary>
-    private static TableDiff AttachChangeScripts(TableDiff table, IReadOnlyList<ChangeScript> scripts)
-    {
-        if (scripts.Count == 0)
-        {
-            return table;
-        }
-
-        ChangeScript? Match(ChangeTrigger trigger, SqlIdentifier member) => scripts.FirstOrDefault(s =>
-            s.Trigger == trigger && s.MemberName == member);
-
-        return table with
-        {
-            Columns = table.Columns.Select(column => column switch
-            {
-                { Kind: ChangeKind.Add } when Match(ChangeTrigger.AddColumn, column.Name) is { } m => column with { MigrationScript = m },
-                { Kind: ChangeKind.Modify, Type: not null } when Match(ChangeTrigger.AlterColumnType, column.Name) is { } m => column with { MigrationScript = m },
-                _ => column,
-            }).ToList(),
-            PrimaryKey = table.PrimaryKey
-                .Select(pk => pk.Kind == ChangeKind.Add && Match(ChangeTrigger.AddConstraint, pk.Name) is { } m ? pk with { MigrationScript = m } : pk)
-                .ToList(),
-            UniqueConstraints = table.UniqueConstraints
-                .Select(uc => uc.Kind == ChangeKind.Add && Match(ChangeTrigger.AddConstraint, uc.Name) is { } m ? uc with { MigrationScript = m } : uc)
-                .ToList(),
-            ForeignKeys = table.ForeignKeys
-                .Select(fk => fk.Kind == ChangeKind.Add && Match(ChangeTrigger.AddConstraint, fk.Name) is { } m ? fk with { MigrationScript = m } : fk)
-                .ToList(),
-            Checks = table.Checks
-                .Select(check => check.Kind == ChangeKind.Add && Match(ChangeTrigger.AddConstraint, check.Name) is { } m ? check with { MigrationScript = m } : check)
-                .ToList(),
-            ExclusionConstraints = table.ExclusionConstraints
-                .Select(ex => ex.Kind == ChangeKind.Add && Match(ChangeTrigger.AddConstraint, ex.Name) is { } m ? ex with { MigrationScript = m } : ex)
-                .ToList(),
-        };
     }
 }

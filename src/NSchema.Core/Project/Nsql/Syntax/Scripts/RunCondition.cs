@@ -13,5 +13,5 @@ public enum RunCondition
     /// <summary>
     /// <c>RUN ONCE</c> — ledger-enforced.
     /// </summary>
-    Once,
+    Once
 }

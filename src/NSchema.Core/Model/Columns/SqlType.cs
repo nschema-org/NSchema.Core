@@ -3,13 +3,14 @@ namespace NSchema.Model.Columns;
 /// <summary>
 /// Represents a SQL data type used for defining columns in a database schema.
 /// </summary>
-/// <param name="Name">The canonical type name, e.g. <c>"varchar"</c>, <c>"decimal"</c>, <c>"citext"</c>.</param>
-public sealed record SqlType(string Name)
+/// <param name="Name">The type name, e.g. <c>"varchar"</c>, <c>"decimal"</c>, <c>"citext"</c>. Written casing is
+/// preserved; names compare case-insensitively, as identifiers do.</param>
+public sealed record SqlType(SqlIdentifier Name)
 {
     /// <summary>
-    /// The canonical type name, e.g. <c>"varchar"</c>, <c>"decimal"</c>, <c>"citext"</c>.
+    /// The type name.
     /// </summary>
-    public string Name { get; init; } = Name.Trim().ToLowerInvariant();
+    public SqlIdentifier Name { get; init; } = Name ?? throw new ArgumentNullException(nameof(Name));
 
     /// <summary>
     /// The schema qualifying a user-defined type.
@@ -34,131 +35,131 @@ public sealed record SqlType(string Name)
     /// <summary>
     /// The SQL boolean type, representing true/false values.
     /// </summary>
-    public static readonly SqlType Boolean = new("boolean");
+    public static readonly SqlType Boolean = new(new SqlIdentifier("boolean"));
 
     /// <summary>
     /// The SQL tinyint type, representing small integer values (0 to 255).
     /// </summary>
-    public static readonly SqlType TinyInt = new("tinyint");
+    public static readonly SqlType TinyInt = new(new SqlIdentifier("tinyint"));
 
     /// <summary>
     /// The SQL smallint type, representing small integer values (-32,768 to 32,767).
     /// </summary>
-    public static readonly SqlType SmallInt = new("smallint");
+    public static readonly SqlType SmallInt = new(new SqlIdentifier("smallint"));
 
     /// <summary>
     /// The SQL int type, representing integer values (-2,147,483,648 to 2,147,483,647).
     /// </summary>
-    public static readonly SqlType Int = new("int");
+    public static readonly SqlType Int = new(new SqlIdentifier("int"));
 
     /// <summary>
     /// The SQL bigint type, representing large integer values.
     /// </summary>
-    public static readonly SqlType BigInt = new("bigint");
+    public static readonly SqlType BigInt = new(new SqlIdentifier("bigint"));
 
     /// <summary>
     /// The SQL float type, representing approximate single-precision numeric values.
     /// </summary>
-    public static readonly SqlType Float = new("float");
+    public static readonly SqlType Float = new(new SqlIdentifier("float"));
 
     /// <summary>
     /// The SQL double type, representing approximate double-precision numeric values.
     /// </summary>
-    public static readonly SqlType Double = new("double");
+    public static readonly SqlType Double = new(new SqlIdentifier("double"));
 
     /// <summary>
     /// The SQL text type, representing large character data.
     /// </summary>
-    public static readonly SqlType Text = new("text");
+    public static readonly SqlType Text = new(new SqlIdentifier("text"));
 
     /// <summary>
     /// The SQL date type, representing calendar dates (year, month, day).
     /// </summary>
-    public static readonly SqlType Date = new("date");
+    public static readonly SqlType Date = new(new SqlIdentifier("date"));
 
     /// <summary>
     /// The SQL time type, representing time of day (hour, minute, second).
     /// </summary>
-    public static readonly SqlType Time = new("time");
+    public static readonly SqlType Time = new(new SqlIdentifier("time"));
 
     /// <summary>
     /// The SQL datetime type, representing date and time values without time zone.
     /// </summary>
-    public static readonly SqlType DateTime = new("datetime");
+    public static readonly SqlType DateTime = new(new SqlIdentifier("datetime"));
 
     /// <summary>
     /// The SQL datetimeoffset type, representing date and time values with time zone awareness.
     /// </summary>
-    public static readonly SqlType DateTimeOffset = new("datetimeoffset");
+    public static readonly SqlType DateTimeOffset = new(new SqlIdentifier("datetimeoffset"));
 
     /// <summary>
     /// The SQL guid type, representing globally unique identifiers (GUIDs/UUIDs).
     /// </summary>
-    public static readonly SqlType Guid = new("guid");
+    public static readonly SqlType Guid = new(new SqlIdentifier("guid"));
 
     /// <summary>
     /// The SQL decimal type, representing fixed-point numeric values with specified precision and scale.
     /// </summary>
     /// <param name="precision">The total number of digits that can be stored.</param>
     /// <param name="scale">The number of digits that can be stored to the right of the decimal point.</param>
-    public static SqlType Decimal(int precision, int scale) => new("decimal") { Precision = precision, Scale = scale };
+    public static SqlType Decimal(int precision, int scale) => new(new SqlIdentifier("decimal")) { Precision = precision, Scale = scale };
 
     /// <summary>
     /// The SQL char type, representing fixed-length character data.
     /// </summary>
     /// <param name="length">The number of characters.</param>
-    public static SqlType Char(int length) => new("char") { Length = length };
+    public static SqlType Char(int length) => new(new SqlIdentifier("char")) { Length = length };
 
     /// <summary>
     /// The SQL nchar type, representing fixed-length Unicode character data.
     /// </summary>
     /// <param name="length">The number of characters.</param>
-    public static SqlType NChar(int length) => new("nchar") { Length = length };
+    public static SqlType NChar(int length) => new(new SqlIdentifier("nchar")) { Length = length };
 
     /// <summary>
     /// The SQL varchar type, representing variable-length character data.
     /// </summary>
     /// <param name="maxLength">The maximum number of characters, or null for unbounded.</param>
-    public static SqlType VarChar(int? maxLength = null) => new("varchar") { Length = maxLength };
+    public static SqlType VarChar(int? maxLength = null) => new(new SqlIdentifier("varchar")) { Length = maxLength };
 
     /// <summary>
     /// The SQL nvarchar type, representing variable-length Unicode character data.
     /// </summary>
     /// <param name="maxLength">The maximum number of characters, or null for unbounded.</param>
-    public static SqlType NVarChar(int? maxLength = null) => new("nvarchar") { Length = maxLength };
+    public static SqlType NVarChar(int? maxLength = null) => new(new SqlIdentifier("nvarchar")) { Length = maxLength };
 
     /// <summary>
     /// The SQL binary type, representing fixed-length binary data.
     /// </summary>
     /// <param name="length">The number of bytes.</param>
-    public static SqlType Binary(int length) => new("binary") { Length = length };
+    public static SqlType Binary(int length) => new(new SqlIdentifier("binary")) { Length = length };
 
     /// <summary>
     /// The SQL varbinary type, representing variable-length binary data.
     /// </summary>
     /// <param name="maxLength">The maximum number of bytes, or null for unbounded.</param>
-    public static SqlType VarBinary(int? maxLength = null) => new("varbinary") { Length = maxLength };
+    public static SqlType VarBinary(int? maxLength = null) => new(new SqlIdentifier("varbinary")) { Length = maxLength };
 
     /// <summary>
     /// A SQL type identified by a raw name the library has no special knowledge of, such as a
     /// database-specific or user-defined type (e.g. Postgres' <c>citext</c>).
     /// </summary>
     /// <param name="typeName">The type name recognized by the target database system.</param>
-    public static SqlType Custom(string typeName) => new(typeName);
+    public static SqlType Custom(string typeName) => new(new SqlIdentifier(typeName.Trim()));
 
     /// <summary>
     /// A user-defined type qualified by the schema that owns it (e.g. <c>app.order_status</c>).
     /// </summary>
     /// <param name="schema">The schema the type belongs to.</param>
     /// <param name="typeName">The type's name within that schema.</param>
-    public static SqlType Custom(SqlIdentifier schema, string typeName) => new(typeName) { Schema = schema };
+    public static SqlType Custom(SqlIdentifier schema, string typeName) => new(new SqlIdentifier(typeName.Trim())) { Schema = schema };
 
     /// <summary>
     /// Renders the canonical string form, e.g. <c>"bigint"</c>, <c>"varchar(255)"</c>, <c>"app.order_status"</c>.
     /// </summary>
     public override string ToString()
     {
-        var qualified = Schema is { } schema ? $"{schema}.{Name}" : Name;
+        var qualified = Schema != null ? $"{Schema}.{Name}" : Name.Value;
 
         if (Precision is { } precision)
         {
@@ -184,6 +185,7 @@ public sealed record SqlType(string Name)
     /// </remarks>
     public static SqlType Parse(string value)
     {
+        value = value.Trim();
         var (name, args) = Tokenize(value);
         return name switch
         {

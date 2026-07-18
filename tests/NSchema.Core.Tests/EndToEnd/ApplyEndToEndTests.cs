@@ -47,7 +47,7 @@ public sealed class ApplyEndToEndTests : IDisposable
     public async Task Apply_GeneratesSql_Executes_AndRefreshesState()
     {
         // Current live DB: an empty app schema. Desired: app.users(id) — i.e. create the table.
-        var current = new Database([new Schema(new SqlIdentifier("app"))]);
+        var current = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] };
         var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
@@ -78,8 +78,7 @@ public sealed class ApplyEndToEndTests : IDisposable
     {
         // Current live DB: a populated-shaped app.users(id). Desired: the same table gaining a NOT NULL,
         // defaultless email column, with a SCRIPT block declaring the backfill.
-        var current = new Database([new Schema(new SqlIdentifier("app"), tables:
-            [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
+        var current = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] }] };
         var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
@@ -115,10 +114,13 @@ public sealed class ApplyEndToEndTests : IDisposable
         // A template with a migration applied to two schemas: sales.events already exists without the new column
         // (the migration matches and the add decomposes, with {schema} bound), while billing.events is brand new
         // (created empty, so its instance is unmatched and reports as inert).
-        var current = new Database([
-            new Schema(new SqlIdentifier("sales"), tables: [new Table(new SqlIdentifier("events"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]),
-            new Schema(new SqlIdentifier("billing")),
-        ]);
+        var current = new Database
+        {
+            Schemas = [
+            new Schema { Name = new SqlIdentifier("sales"), Tables = [new Table { Name = new SqlIdentifier("events"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] },
+            new Schema { Name = new SqlIdentifier("billing") },
+        ],
+        };
         var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA sales;
@@ -164,7 +166,7 @@ public sealed class ApplyEndToEndTests : IDisposable
     public async Task Apply_RunOnceScript_RunsOnce_ThenLaterPlansSkipIt()
     {
         // A run-once seed script: the first plan includes and records it, the next plan skips it.
-        var current = new Database([new Schema(new SqlIdentifier("app"))]);
+        var current = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] };
         var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
@@ -196,8 +198,7 @@ public sealed class ApplyEndToEndTests : IDisposable
     [Fact]
     public async Task Apply_WithNoChanges_ShortCircuitsWithoutExecutingButStillCapturesState()
     {
-        var schema = new Database([new Schema(new SqlIdentifier("app"), tables:
-            [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
+        var schema = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] }] };
         var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;

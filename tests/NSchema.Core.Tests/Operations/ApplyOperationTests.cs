@@ -31,7 +31,7 @@ public sealed class ApplyOperationTests
     {
         _stateManager.IsConfigured.Returns(true);
         _workflow.Refresh(Arg.Any<MigrationPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new StateCapture(new Database([]), 0)));
+            .Returns(Result.Success(new StateCapture(new Database { Schemas = [] }, 0)));
         _sut = BuildSut(_executor);
     }
 

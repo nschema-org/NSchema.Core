@@ -7,34 +7,26 @@ namespace NSchema.Model.Constraints;
 /// true across the listed elements (e.g. <c>EXCLUDE USING gist (room WITH =, during WITH &amp;&amp;)</c> forbids
 /// overlapping bookings of the same room).
 /// </summary>
-/// <param name="name">The name of the exclusion constraint.</param>
-/// <param name="elements">The constrained elements, each a column or expression paired with an operator.</param>
-/// <param name="method">The access method backing the constraint (e.g. <c>gist</c>); <see langword="null"/> means the database default.</param>
-/// <param name="predicate">An optional predicate restricting the constraint to a subset of rows (a partial constraint).</param>
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public sealed class ExclusionConstraint(
-    SqlIdentifier name,
-    IReadOnlyList<ExclusionElement> elements,
-    string? method = null,
-    SqlText? predicate = null
-) : DatabaseMember(name), IEquatable<ExclusionConstraint>
+public sealed class ExclusionConstraint : DatabaseMember, IEquatable<ExclusionConstraint>
 {
     /// <summary>
     /// The constrained elements, each a column or expression paired with an operator.
     /// </summary>
-    public IReadOnlyList<ExclusionElement> Elements { get; init; } = elements ?? [];
+    public required List<ExclusionElement> Elements { get; init; }
 
     /// <summary>
     /// The access method backing the constraint (e.g. <c>gist</c>); <see langword="null"/> means the database default.
     /// </summary>
-    public string? Method { get; init; } = method;
+    public string? Method { get; set; }
 
     /// <summary>
     /// An optional predicate restricting the constraint to a subset of rows (a partial constraint).
     /// </summary>
-    public SqlText? Predicate { get; init; } = predicate;
+    public SqlText? Predicate { get; set; }
 
-    internal ExclusionConstraint Clone() => new(Name, Elements, Method, Predicate) { Comment = Comment };
+    /// <inheritdoc/>
+    public override ExclusionConstraint Clone() => new() { Name = Name, Elements = [.. Elements], Method = Method, Predicate = Predicate, Comment = Comment };
 
     /// <summary>
     /// Structural equality over the declared definition.

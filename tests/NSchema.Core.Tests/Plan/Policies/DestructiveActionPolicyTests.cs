@@ -187,7 +187,7 @@ public class DestructiveActionPolicyTests
     {
         // Arrange — creating a view loses nothing.
         _options.Value.Policy = PolicyEnforcement.Error;
-        var view = new View(new SqlIdentifier("active_users"), new SqlText("SELECT * FROM app.users"));
+        var view = new View { Name = new SqlIdentifier("active_users"), Body = new SqlText("SELECT * FROM app.users") };
         var diff = new DatabaseDiff([
             new SchemaDiff(new SqlIdentifier("app"), null, null, null, [], [], [new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("active_users"), ChangeKind.Add, Definition: view)]),
         ]);
@@ -237,8 +237,8 @@ public class DestructiveActionPolicyTests
         _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff([
             new SchemaDiff(new SqlIdentifier("app"),
-                Enums: [new EnumDiff(new SqlIdentifier("app"), new SqlIdentifier("status"), ChangeKind.Add, Definition: new EnumType(new SqlIdentifier("status"), ["a"]))],
-                Sequences: [new SequenceDiff(new SqlIdentifier("app"), new SqlIdentifier("order_id"), ChangeKind.Add, Definition: new Sequence(new SqlIdentifier("order_id")))]),
+                Enums: [new EnumDiff(new SqlIdentifier("app"), new SqlIdentifier("status"), ChangeKind.Add, Definition: new EnumType { Name = new SqlIdentifier("status"), Values = ["a"] })],
+                Sequences: [new SequenceDiff(new SqlIdentifier("app"), new SqlIdentifier("order_id"), ChangeKind.Add, Definition: new Sequence { Name = new SqlIdentifier("order_id") })]),
         ]);
 
         // Act / Assert
@@ -272,7 +272,7 @@ public class DestructiveActionPolicyTests
         // Arrange — a signature change is a declared edit; the database blocks the underlying drop loudly if
         // dependents exist, so the policy does not gate it.
         _options.Value.Policy = PolicyEnforcement.Error;
-        var fn = new Routine(new SqlIdentifier("f"), RoutineKind.Function, new SqlText("a int, b text"), new SqlText("RETURNS int AS $$ SELECT 1 $$"));
+        var fn = new Routine { Name = new SqlIdentifier("f"), RoutineKind = RoutineKind.Function, Arguments = new SqlText("a int, b text"), Definition = new SqlText("RETURNS int AS $$ SELECT 1 $$") };
         var diff = new DatabaseDiff([
             new SchemaDiff(new SqlIdentifier("app"), Routines:
             [
@@ -306,7 +306,7 @@ public class DestructiveActionPolicyTests
         // Arrange — installing an extension loses nothing.
         _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff(Extensions:
-            [new ExtensionDiff(new SqlIdentifier("citext"), ChangeKind.Add, Definition: new Extension(new SqlIdentifier("citext")))]);
+            [new ExtensionDiff(new SqlIdentifier("citext"), ChangeKind.Add, Definition: new Extension { Name = new SqlIdentifier("citext") })]);
 
         // Act / Assert
         _sut.Validate(diff).ShouldBeEmpty();

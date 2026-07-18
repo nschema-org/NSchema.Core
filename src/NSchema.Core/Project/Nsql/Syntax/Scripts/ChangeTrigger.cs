@@ -18,5 +18,5 @@ public enum ChangeTrigger
     /// <summary>
     /// <c>ADD CONSTRAINT</c>.
     /// </summary>
-    AddConstraint,
+    AddConstraint
 }

@@ -32,7 +32,7 @@ internal static class ViewDependencyExtractor
     /// </summary>
     /// <param name="body">The view's defining query (the text after <c>AS</c>).</param>
     /// <param name="defaultSchema">The schema an unqualified reference is resolved against (the view's own schema).</param>
-    public static IReadOnlyList<ViewDependency> Extract(string body, SqlIdentifier defaultSchema)
+    public static List<ViewDependency> Extract(string body, SqlIdentifier defaultSchema)
     {
         var tokens = Tokenize(body);
         var ctes = CollectCteNames(tokens);

@@ -31,10 +31,10 @@ internal static class DatabaseAggregator
                 continue;
             }
 
-            extensions.Add(extension);
+            extensions.Add(extension.Clone());
         }
 
-        return Result.From(new Database(mergedSchemas, extensions), diagnostics);
+        return Result.From(new Database { Schemas = [.. mergedSchemas], Extensions = [.. extensions] }, diagnostics);
     }
 
     private static Schema AggregateSchemaGroup(IReadOnlyList<Schema> schemas, List<Diagnostic> diagnostics)
@@ -68,14 +68,14 @@ internal static class DatabaseAggregator
             .Distinct()
             .ToList();
 
-        return new Schema(schemaName, tables, grants, views, enums, sequences, routines, domains, compositeTypes) { Comment = comment };
+        return new Schema { Name = schemaName, Tables = tables, Grants = grants, Views = views, Enums = enums, Sequences = sequences, Routines = routines, Domains = domains, CompositeTypes = compositeTypes, Comment = comment };
     }
 
     /// <summary>
     /// Concatenates one object kind across the sources, reporting a duplicate name as an error (first
     /// declaration wins).
     /// </summary>
-    private static List<T> MergeUnique<T>(
+    private static DatabaseObjectCollection<T> MergeUnique<T>(
         IReadOnlyList<Schema> schemas,
         Func<Schema, IEnumerable<T>> select,
         Func<T, SqlIdentifier> name,
@@ -83,9 +83,9 @@ internal static class DatabaseAggregator
         SqlIdentifier schemaName,
         string kind,
         List<Diagnostic> diagnostics,
-        string suffix = "")
+        string suffix = "") where T : DatabaseObject
     {
-        var result = new List<T>();
+        var result = new DatabaseObjectCollection<T>();
         var seen = new HashSet<SqlIdentifier>();
         foreach (var item in schemas.SelectMany(select))
         {

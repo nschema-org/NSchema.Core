@@ -18,5 +18,5 @@ public enum IndexSort
     /// <summary>
     /// <c>DESC</c>.
     /// </summary>
-    Descending,
+    Descending
 }

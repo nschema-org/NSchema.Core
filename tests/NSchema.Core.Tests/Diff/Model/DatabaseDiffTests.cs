@@ -23,7 +23,7 @@ public sealed class DatabaseDiffTests
 
     private static DatabaseDiff WithChangeScript(ChangeScript change)
     {
-        var column = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text)) { MigrationScript = change };
+        var column = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text }) { MigrationScript = change };
         var table = new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify, Columns: [column]);
         return new DatabaseDiff([new SchemaDiff(new SqlIdentifier("app"), Tables: [table])]);
     }
@@ -61,19 +61,18 @@ public sealed class DatabaseDiffTests
     /// <summary>
     /// app.users, with billing.orders pointing an FK at it and billing.summary reading it.
     /// </summary>
-    private static Database CurrentDatabase() => new(
-    [
-        new Schema(new SqlIdentifier("app"), tables: [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]),
-        new Schema(new SqlIdentifier("billing"),
-            tables:
-            [
-                new Table(new SqlIdentifier("orders"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])
-                {
-                    ForeignKeys = [new ForeignKey(new SqlIdentifier("fk_orders_user"), [new SqlIdentifier("id")], new SqlIdentifier("app"), new SqlIdentifier("users"), [new SqlIdentifier("id")])],
-                },
+    private static Database CurrentDatabase() => new Database
+    {
+        Schemas = [
+        new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] },
+        new Schema { Name = new SqlIdentifier("billing"),
+            Tables = [
+                new Table { Name = new SqlIdentifier("orders"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }],
+                    ForeignKeys = [new ForeignKey { Name = new SqlIdentifier("fk_orders_user"), ColumnNames = [new SqlIdentifier("id")], ReferencedSchema = new SqlIdentifier("app"), ReferencedTable = new SqlIdentifier("users"), ReferencedColumnNames = [new SqlIdentifier("id")] }] },
             ],
-            views: [new View(new SqlIdentifier("summary"), new SqlText("select * from app.users"), dependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users"))])]),
-    ]);
+            Views = [new View { Name = new SqlIdentifier("summary"), Body = new SqlText("select * from app.users"), DependsOn = [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users"))] }] },
+    ],
+    };
 
     /// <summary>
     /// The difference a teardown produces before any scope is applied: everything goes.

@@ -21,7 +21,7 @@ namespace NSchema.Tests.Plan;
 /// </summary>
 public sealed class MigrationPlannerTests
 {
-    private static readonly Database _emptySchema = new([]);
+    private static readonly Database _emptySchema = new Database { Schemas = [] };
     private static readonly DatabaseDiff _emptyDiff = new([]);
     private static readonly CurrentState _current = new(_emptySchema);
     private static readonly ProjectDefinition _desired = new(_emptySchema);
@@ -94,7 +94,7 @@ public sealed class MigrationPlannerTests
     public void Validate_RunsProjectPoliciesAgainstTheProject()
     {
         // Arrange
-        var desired = new ProjectDefinition(new Database([new Schema(new SqlIdentifier("app"))]));
+        var desired = new ProjectDefinition(new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] });
         var policy = Substitute.For<IProjectPolicy>();
         policy.Validate(desired).Returns([Diagnostic.Error("Test", "bad schema")]);
         _projectPolicies.Add(policy);
@@ -150,7 +150,7 @@ public sealed class MigrationPlannerTests
 
         // Assert — the current side the differ sees carries the same ledger and managed set.
         _differ.Received(1).Compare(
-            Arg.Is<CurrentState>(c => c.ExecutedScripts == _current.ExecutedScripts && c.Managed == _current.Managed),
+            Arg.Is<CurrentState>(c => c!.ExecutedScripts == _current.ExecutedScripts && c.Managed == _current.Managed),
             _desired);
     }
 
@@ -160,8 +160,7 @@ public sealed class MigrationPlannerTests
         // Arrange — the observation holds a managed and an unmanaged table; only the managed one (and anything
         // declared) is the plan's business.
         var app = new SqlIdentifier("app");
-        var current = new CurrentState(new Database([new Schema(app, tables:
-            [new Table(new SqlIdentifier("mine")), new Table(new SqlIdentifier("theirs"))])]))
+        var current = new CurrentState(new Database { Schemas = [new Schema { Name = app, Tables = [new Table { Name = new SqlIdentifier("mine") }, new Table { Name = new SqlIdentifier("theirs") }] }] })
         {
             Managed = new IdentitySet(
                 Schemas: [app],
@@ -173,7 +172,7 @@ public sealed class MigrationPlannerTests
 
         // Assert
         _differ.Received(1).Compare(
-            Arg.Is<CurrentState>(c => c.Database.Schemas.Single().Tables.Single().Name == new SqlIdentifier("mine")),
+            Arg.Is<CurrentState>(c => c!.Database.Schemas.Single().Tables.Single().Name == new SqlIdentifier("mine")),
             Arg.Any<ProjectDefinition>());
     }
 
@@ -182,7 +181,7 @@ public sealed class MigrationPlannerTests
     {
         // Arrange
         var app = new SqlIdentifier("app");
-        var desired = new ProjectDefinition(new Database([new Schema(app, tables: [new Table(new SqlIdentifier("users"))])]));
+        var desired = new ProjectDefinition(new Database { Schemas = [new Schema { Name = app, Tables = [new Table { Name = new SqlIdentifier("users") }] }] });
 
         // Act
         var plan = Sut.Plan(_current, desired, PlanningScope.All).Value!;
@@ -204,7 +203,7 @@ public sealed class MigrationPlannerTests
                 Schemas: [billing],
                 Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress(billing, new SqlIdentifier("invoices")))]),
         };
-        var desired = new ProjectDefinition(new Database([new Schema(app)]));
+        var desired = new ProjectDefinition(new Database { Schemas = [new Schema { Name = app }] });
 
         // Act
         var plan = Sut.Plan(current, desired, PlanningScope.To(app)).Value!;

@@ -23,5 +23,5 @@ public enum ReferentialAction
     /// <summary>
     /// <c>SET DEFAULT</c>.
     /// </summary>
-    SetDefault,
+    SetDefault
 }

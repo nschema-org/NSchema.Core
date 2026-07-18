@@ -23,7 +23,7 @@ public sealed class PlanFileManagerTests
         // statements with execution metadata, so the round-trip exercises the whole artifact.
         var backfill = new ChangeScript(new SqlIdentifier("backfill"), new SqlText("UPDATE app.users SET email = ''"),
             new SqlIdentifier("app"), ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email"));
-        var email = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text)) { MigrationScript = backfill };
+        var email = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text }) { MigrationScript = backfill };
         var users = new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify, Columns: [email]);
         var plan = new MigrationPlan(
             new DatabaseDiff([new SchemaDiff(new SqlIdentifier("app"), Tables: [users])])
@@ -119,7 +119,7 @@ public sealed class PlanFileManagerTests
             [
                 new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify, Columns:
                 [
-                    new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text)) { MigrationScript = migration },
+                    new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text }) { MigrationScript = migration },
                 ]),
             ]),
         ]);

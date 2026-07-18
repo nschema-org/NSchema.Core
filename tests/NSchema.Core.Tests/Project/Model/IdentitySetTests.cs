@@ -62,7 +62,7 @@ public sealed class IdentitySetTests
     public void Schema_Construction_StampsItselfOntoContainedObjects()
     {
         // Arrange & Act — the object arrives bare; the containing schema completes its identity.
-        var schema = new Schema(_app, tables: [new Table(new SqlIdentifier("users"))]);
+        var schema = new Schema { Name = _app, Tables = [new Table { Name = new SqlIdentifier("users") }] };
 
         // Assert
         var table = schema.Tables.ShouldHaveSingleItem();
@@ -74,11 +74,11 @@ public sealed class IdentitySetTests
     public void Schema_AttachingAnObjectThatBelongsElsewhere_Throws()
     {
         // Arrange — a node has exactly one parent; moving it is refused, never silently copied.
-        var table = new Table(new SqlIdentifier("users"));
-        _ = new Schema(_app, tables: [table]);
+        var table = new Table { Name = new SqlIdentifier("users") };
+        _ = new Schema { Name = _app, Tables = [table] };
 
         // Act & Assert
-        var attach = () => new Schema(new SqlIdentifier("other"), tables: [table]);
+        var attach = () => new Schema { Name = new SqlIdentifier("other"), Tables = [table] };
         attach.ShouldThrow<InvalidOperationException>().Message.ShouldContain("already belongs to schema 'app'");
     }
 
@@ -86,22 +86,22 @@ public sealed class IdentitySetTests
     public void Table_AttachingAMemberThatBelongsElsewhere_Throws()
     {
         // Arrange
-        var column = new Column(new SqlIdentifier("id"), SqlType.Int);
-        _ = new Table(new SqlIdentifier("users"), columns: [column]);
+        var column = new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int };
+        _ = new Table { Name = new SqlIdentifier("users"), Columns = [column] };
 
         // Act & Assert
-        var attach = () => new Table(new SqlIdentifier("orders"), columns: [column]);
+        var attach = () => new Table { Name = new SqlIdentifier("orders"), Columns = [column] };
         attach.ShouldThrow<InvalidOperationException>().Message.ShouldContain("already belongs to 'users'");
     }
 
     [Fact]
-    public void Schema_With_CopiesTheObjectsItIncorporates()
+    public void Schema_Clone_CopiesTheObjectsItIncorporates()
     {
-        // Arrange — With is the explicit copy operation: the copy owns fresh nodes, the source keeps its own.
-        var schema = new Schema(_app, tables: [new Table(new SqlIdentifier("users"))]);
+        // Arrange — Clone is the explicit copy operation: the copy owns fresh nodes, the source keeps its own.
+        var schema = new Schema { Name = _app, Tables = [new Table { Name = new SqlIdentifier("users") }] };
 
         // Act
-        var copy = schema.With(tables: schema.Tables);
+        var copy = schema.Clone();
 
         // Assert
         copy.Tables.ShouldHaveSingleItem().ShouldNotBeSameAs(schema.Tables[0]);
@@ -141,9 +141,11 @@ public sealed class IdentitySetTests
     public void ScopedTo_IsFilteringByTheCover()
     {
         // One tree filter serves both surfaces: scoping a database is filtering it to the covered identities.
-        var database = new Database(
-            [new Schema(_app, tables: [new Table(new SqlIdentifier("users"))]), new Schema(new SqlIdentifier("other"))],
-            extensions: [new Extension(new SqlIdentifier("citext"))]);
+        var database = new Database
+        {
+            Schemas = [new Schema { Name = _app, Tables = [new Table { Name = new SqlIdentifier("users") }] }, new Schema { Name = new SqlIdentifier("other") }],
+            Extensions = [new Extension { Name = new SqlIdentifier("citext") }],
+        };
 
         var scoped = database.ScopedTo(PlanningScope.To(_app));
 
@@ -156,9 +158,11 @@ public sealed class IdentitySetTests
     public void Database_Identities_CoversEveryLevel()
     {
         // Arrange
-        var database = new Database(
-            [new Schema(_app, tables: [new Table(new SqlIdentifier("users"))], views: [new View(new SqlIdentifier("v"), new SqlText("SELECT 1"))])],
-            extensions: [new Extension(new SqlIdentifier("citext"))]);
+        var database = new Database
+        {
+            Schemas = [new Schema { Name = _app, Tables = [new Table { Name = new SqlIdentifier("users") }], Views = [new View { Name = new SqlIdentifier("v"), Body = new SqlText("SELECT 1") }] }],
+            Extensions = [new Extension { Name = new SqlIdentifier("citext") }],
+        };
 
         // Act
         var identities = database.Identities();
@@ -173,12 +177,14 @@ public sealed class IdentitySetTests
     public void Database_FilteredTo_KeepsOnlyMatchingIdentities()
     {
         // Arrange
-        var database = new Database(
-        [
-            new Schema(_app, tables: [new Table(new SqlIdentifier("mine")), new Table(new SqlIdentifier("theirs"))]),
-            new Schema(new SqlIdentifier("other")),
+        var database = new Database
+        {
+            Schemas = [
+            new Schema { Name = _app, Tables = [new Table { Name = new SqlIdentifier("mine") }, new Table { Name = new SqlIdentifier("theirs") }] },
+            new Schema { Name = new SqlIdentifier("other") },
         ],
-        extensions: [new Extension(new SqlIdentifier("citext")), new Extension(new SqlIdentifier("plpgsql"))]);
+            Extensions = [new Extension { Name = new SqlIdentifier("citext") }, new Extension { Name = new SqlIdentifier("plpgsql") }],
+        };
 
         // Act
         var filtered = database.FilteredTo(new IdentitySet(

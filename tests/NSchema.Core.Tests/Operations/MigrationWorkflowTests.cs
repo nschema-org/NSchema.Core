@@ -48,11 +48,11 @@ public sealed class MigrationWorkflowTests
     {
         _currentProvider
             .GetDatabase(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>())
-            .Returns(new Database([]));
+            .Returns(new Database { Schemas = [] });
 
         _desiredProvider
             .GetProject(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>())
-            .Returns(ProjectDefinition(new Database([])));
+            .Returns(ProjectDefinition(new Database { Schemas = [] }));
 
         _planner.Validate(Arg.Any<ProjectDefinition>()).Returns(Result.Success());
 
@@ -78,7 +78,7 @@ public sealed class MigrationWorkflowTests
     public async Task ValidateDesiredSchema_ReturnsNoFindings_WhenNoPolicyErrors()
     {
         // Arrange
-        var desired = new Database([new Schema(new SqlIdentifier("app"))]);
+        var desired = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] };
         _desiredProvider.GetProject(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>()).Returns(ProjectDefinition(desired));
 
         // Act
@@ -122,7 +122,7 @@ public sealed class MigrationWorkflowTests
     public async Task ValidateDesiredSchema_ProjectDiagnostics_AreCarriedInTheFindings()
     {
         // Arrange — findings raised while reading the DDL (e.g. deprecated syntax) arrive on the read result.
-        var project = Result.From(TestProjects.Project(new Database([])), [Diagnostic.Warning("deprecations", "old form")]);
+        var project = Result.From(TestProjects.Project(new Database { Schemas = [] }), [Diagnostic.Warning("deprecations", "old form")]);
         _desiredProvider.GetProject(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>()).Returns(project);
 
         // Act
@@ -178,7 +178,7 @@ public sealed class MigrationWorkflowTests
     public async Task ComputePlan_PlansTheRecordedSchemaAsTheCurrentSide()
     {
         // Arrange
-        var sut = SutWithRecordedSchema(new Database([new Schema(new SqlIdentifier("app"), tables: [new Table(new SqlIdentifier("users"))])]));
+        var sut = SutWithRecordedSchema(new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users") }] }] });
 
         // Act
         await sut.ComputePlan(PlanTarget.Project, PlanningScope.All, TestContext.Current.CancellationToken);
@@ -193,12 +193,11 @@ public sealed class MigrationWorkflowTests
     public async Task Prepare_ReportsVerboseObjectCensusForBothSchemas()
     {
         // Arrange
-        var desired = new Database([new Schema(new SqlIdentifier("app"), tables:
-            [new Table(new SqlIdentifier("users")), new Table(new SqlIdentifier("orders"))])]);
+        var desired = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users") }, new Table { Name = new SqlIdentifier("orders") }] }] };
         _desiredProvider.GetProject(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(
                 TestProjects.Project(desired, [new DeploymentScript(new SqlIdentifier("seed"), new SqlText("select 1"), null, DeploymentPhase.Post)])));
-        var sut = SutWithRecordedSchema(new Database([new Schema(new SqlIdentifier("app"))]));
+        var sut = SutWithRecordedSchema(new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] });
 
         // Act
         await sut.ComputePlan(PlanTarget.Project, PlanningScope.All, TestContext.Current.CancellationToken);
@@ -224,7 +223,7 @@ public sealed class MigrationWorkflowTests
     public async Task ComputePlan_Teardown_PlansTowardsAnEmptySchema()
     {
         // Arrange — teardown is not a third kind of plan: it is the recorded schema diffed against nothing.
-        var sut = SutWithRecordedSchema(new Database([new Schema(new SqlIdentifier("app"))]));
+        var sut = SutWithRecordedSchema(new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] });
 
         // Act
         await sut.ComputePlan(PlanTarget.Empty, PlanningScope.All, TestContext.Current.CancellationToken);
@@ -239,8 +238,10 @@ public sealed class MigrationWorkflowTests
     public async Task ComputePlan_Teardown_ScopesTheRecordedSchema()
     {
         // Arrange — scoping is no longer special-cased; a partial teardown narrows like any other plan.
-        var sut = SutWithRecordedSchema(new Database(
-            [new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("billing"))]));
+        var sut = SutWithRecordedSchema(new Database
+        {
+            Schemas = [new Schema { Name = new SqlIdentifier("app") }, new Schema { Name = new SqlIdentifier("billing") }],
+        });
 
         // Act
         await sut.ComputePlan(PlanTarget.Empty, PlanningScope.To(new SqlIdentifier("app")), TestContext.Current.CancellationToken);
@@ -257,8 +258,10 @@ public sealed class MigrationWorkflowTests
     public async Task ComputePlan_Teardown_Unscoped_CoversEverythingRecorded()
     {
         // Arrange — an empty target declares no managed schemas, so scope derivation leaves the run unrestricted.
-        var sut = SutWithRecordedSchema(new Database(
-            [new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("billing"))]));
+        var sut = SutWithRecordedSchema(new Database
+        {
+            Schemas = [new Schema { Name = new SqlIdentifier("app") }, new Schema { Name = new SqlIdentifier("billing") }],
+        });
 
         // Act
         await sut.ComputePlan(PlanTarget.Empty, PlanningScope.All, TestContext.Current.CancellationToken);
@@ -304,7 +307,7 @@ public sealed class MigrationWorkflowTests
     public async Task ComputePlan_ReadDiagnostics_ArePrependedToThePlannerResult()
     {
         // Arrange — the pure planner never sees read provenance; this shell merges it into the outcome.
-        var project = Result.From(TestProjects.Project(new Database([])), [Diagnostic.Warning("deprecations", "old form")]);
+        var project = Result.From(TestProjects.Project(new Database { Schemas = [] }), [Diagnostic.Warning("deprecations", "old form")]);
         _desiredProvider.GetProject(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>()).Returns(project);
         _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>(), Arg.Any<PlanningScope>())
             .Returns(Result.From(EmptyPlan(),
@@ -322,7 +325,7 @@ public sealed class MigrationWorkflowTests
     public async Task ComputePlan_ReadDiagnostics_AreCarriedOnAPlannerFailureToo()
     {
         // Arrange
-        var project = Result.From(TestProjects.Project(new Database([])), [Diagnostic.Warning("deprecations", "old form")]);
+        var project = Result.From(TestProjects.Project(new Database { Schemas = [] }), [Diagnostic.Warning("deprecations", "old form")]);
         _desiredProvider.GetProject(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>()).Returns(project);
         _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>(), Arg.Any<PlanningScope>())
             .Returns(Result.Failure<MigrationPlan>([Diagnostic.Error("P1", "blocked")]));
@@ -343,7 +346,7 @@ public sealed class MigrationWorkflowTests
     {
         var store = Substitute.For<IDatabaseStateStore>();
         store.Read(Arg.Any<CancellationToken>())
-            .Returns(_stateSerializer.Serialize(new DatabaseState(new Database([]), executions)));
+            .Returns(_stateSerializer.Serialize(new DatabaseState(new Database { Schemas = [] }, executions)));
         _desiredProvider.GetProject(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(project));
         return BuildSut(store);
@@ -354,7 +357,7 @@ public sealed class MigrationWorkflowTests
     {
         // Arrange — the planner's "what I have" input is the schema plus the recorded executions; execution
         // records are shared script vocabulary, so the ledger passes straight through.
-        var sut = SutWithState(TestProjects.Project(new Database([]), [SeedScript()]),
+        var sut = SutWithState(TestProjects.Project(new Database { Schemas = [] }, [SeedScript()]),
             new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("seed")), "abc", DateTimeOffset.UnixEpoch));
 
         // Act
@@ -443,7 +446,7 @@ public sealed class MigrationWorkflowTests
         var managed = new IdentitySet(Schemas: [new SqlIdentifier("app")]);
         var store = Substitute.For<IDatabaseStateStore>();
         store.Read(Arg.Any<CancellationToken>())
-            .Returns(_stateSerializer.Serialize(new DatabaseState(new Database([])) with { Managed = managed }));
+            .Returns(_stateSerializer.Serialize(new DatabaseState(new Database { Schemas = [] }) with { Managed = managed }));
         ReadOnlyMemory<byte>? written = null;
         await store.Write(Arg.Do<ReadOnlyMemory<byte>>(m => written = m), Arg.Any<CancellationToken>());
         var sut = BuildSut(store);
@@ -462,7 +465,7 @@ public sealed class MigrationWorkflowTests
         var existing = new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("api-login")), "hash", DateTimeOffset.UnixEpoch);
         var store = Substitute.For<IDatabaseStateStore>();
         store.Read(Arg.Any<CancellationToken>())
-            .Returns(_stateSerializer.Serialize(new DatabaseState(new Database([]), [existing])));
+            .Returns(_stateSerializer.Serialize(new DatabaseState(new Database { Schemas = [] }, [existing])));
         ReadOnlyMemory<byte>? written = null;
         await store.Write(Arg.Do<ReadOnlyMemory<byte>>(m => written = m), Arg.Any<CancellationToken>());
         var sut = BuildSut(store);
@@ -481,7 +484,7 @@ public sealed class MigrationWorkflowTests
         var existing = new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("seed")), "old-hash", DateTimeOffset.UnixEpoch);
         var store = Substitute.For<IDatabaseStateStore>();
         store.Read(Arg.Any<CancellationToken>())
-            .Returns(_stateSerializer.Serialize(new DatabaseState(new Database([]), [existing])));
+            .Returns(_stateSerializer.Serialize(new DatabaseState(new Database { Schemas = [] }, [existing])));
         ReadOnlyMemory<byte>? written = null;
         await store.Write(Arg.Do<ReadOnlyMemory<byte>>(m => written = m), Arg.Any<CancellationToken>());
         var sut = BuildSut(store);
@@ -539,7 +542,7 @@ public sealed class MigrationWorkflowTests
         // Arrange
         var store = Substitute.For<IDatabaseStateStore>();
         store.Read(Arg.Any<CancellationToken>())
-            .Returns(_stateSerializer.Serialize(new DatabaseState(new Database([]))));
+            .Returns(_stateSerializer.Serialize(new DatabaseState(new Database { Schemas = [] })));
         var sut = BuildSut(store);
 
         // Act
@@ -607,16 +610,21 @@ public sealed class MigrationWorkflowTests
         // Arrange
         // The derived scope covers the declared schemas plus every schema holding managed identities — a
         // schema whose declarations were all removed stays under management until its drops apply.
-        var desired = new Database(
-            [new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("admin"))]);
+        var desired = new Database
+        {
+            Schemas = [new Schema { Name = new SqlIdentifier("app") }, new Schema { Name = new SqlIdentifier("admin") }],
+        };
         _desiredProvider.GetProject(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new ProjectDefinition(desired)));
-        var sut = SutWithRecordedState(new DatabaseState(new Database([
-            new Schema(new SqlIdentifier("app")),
-            new Schema(new SqlIdentifier("admin")),
-            new Schema(new SqlIdentifier("legacy")),
-            new Schema(new SqlIdentifier("unmanaged")),
-        ])) with
+        var sut = SutWithRecordedState(new DatabaseState(new Database
+        {
+            Schemas = [
+            new Schema { Name = new SqlIdentifier("app") },
+            new Schema { Name = new SqlIdentifier("admin") },
+            new Schema { Name = new SqlIdentifier("legacy") },
+            new Schema { Name = new SqlIdentifier("unmanaged") },
+        ],
+        }) with
         { Managed = new IdentitySet(Schemas: [new SqlIdentifier("legacy")]) });
 
         // Act
@@ -635,7 +643,7 @@ public sealed class MigrationWorkflowTests
         // Arrange
         PlanningScope? desiredScope = null;
         _desiredProvider.GetProject(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>())
-            .Returns(call => { desiredScope = call.Arg<PlanningScope>(); return ProjectDefinition(new Database([])); });
+            .Returns(call => { desiredScope = call.Arg<PlanningScope>(); return ProjectDefinition(new Database { Schemas = [] }); });
 
         // Act
         await _sut.ComputePlan(PlanTarget.Project, PlanningScope.To(new SqlIdentifier("app"), new SqlIdentifier("legacy")), TestContext.Current.CancellationToken);
@@ -648,8 +656,10 @@ public sealed class MigrationWorkflowTests
     public async Task Prepare_PassesTheWholeCurrentSideToThePlanner_WithTheScopeBeside()
     {
         // Arrange
-        var sut = SutWithRecordedSchema(new Database(
-            [new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("other"))]));
+        var sut = SutWithRecordedSchema(new Database
+        {
+            Schemas = [new Schema { Name = new SqlIdentifier("app") }, new Schema { Name = new SqlIdentifier("other") }],
+        });
 
         // Act
         await sut.ComputePlan(PlanTarget.Project, PlanningScope.To(new SqlIdentifier("app")), TestContext.Current.CancellationToken);
@@ -668,7 +678,7 @@ public sealed class MigrationWorkflowTests
         // Arrange
         PlanningScope? desiredScope = null;
         _desiredProvider.GetProject(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>())
-            .Returns(call => { desiredScope = call.Arg<PlanningScope>(); return ProjectDefinition(new Database([])); });
+            .Returns(call => { desiredScope = call.Arg<PlanningScope>(); return ProjectDefinition(new Database { Schemas = [] }); });
 
         // Act
         await _sut.ComputePlan(PlanTarget.Project, PlanningScope.All, TestContext.Current.CancellationToken);
@@ -682,7 +692,7 @@ public sealed class MigrationWorkflowTests
     public async Task Refresh_WritesLiveSchemaToStore_Unscoped()
     {
         // Arrange
-        var schema = new Database([new Schema(new SqlIdentifier("app"))]);
+        var schema = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] };
         var store = Substitute.For<IDatabaseStateStore>();
         _currentProvider
             .GetDatabase(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>())

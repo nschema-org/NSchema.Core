@@ -338,7 +338,7 @@ internal static class SyntaxBuilder
         // rendering to a string and splitting it back apart.
         var schema = type.Schema is { } qualifier ? new Identifier(qualifier.Value) { Position = _none } : null;
         var arguments = Arguments(type);
-        return new TypeName(schema, new Identifier(type.Name) { Position = _none }, arguments) { Position = _none };
+        return new TypeName(schema, new Identifier(type.Name.Value) { Position = _none }, arguments) { Position = _none };
     }
 
     private static string? Arguments(SqlType type)

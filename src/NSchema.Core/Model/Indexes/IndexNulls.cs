@@ -18,5 +18,5 @@ public enum IndexNulls
     /// <summary>
     /// Nulls sort last (<c>NULLS LAST</c>).
     /// </summary>
-    Last,
+    Last
 }

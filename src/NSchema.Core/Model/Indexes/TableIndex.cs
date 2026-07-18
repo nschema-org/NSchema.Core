@@ -5,48 +5,45 @@ namespace NSchema.Model.Indexes;
 /// <summary>
 /// Represents an index on a table or materialized view within the database schema.
 /// </summary>
-/// <param name="name">The name of the index.</param>
-/// <param name="columns">The index keys (columns or expressions) in order, each with optional sort/null ordering.</param>
-/// <param name="isUnique">A boolean value indicating whether the index enforces uniqueness on the indexed columns.</param>
-/// <param name="predicate">An optional predicate that defines a partial index.</param>
-/// <param name="method">The access method (e.g. <c>gin</c>, <c>gist</c>, <c>brin</c>); <see langword="null"/> means the database default (B-tree).</param>
-/// <param name="include">Non-key columns carried in the index leaf pages (a covering <c>INCLUDE</c> clause).</param>
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public sealed class TableIndex(
-    SqlIdentifier name,
-    IReadOnlyList<IndexColumn> columns,
-    bool isUnique = false,
-    SqlText? predicate = null,
-    string? method = null,
-    IReadOnlyList<SqlIdentifier>? include = null
-) : DatabaseMember(name), IEquatable<TableIndex>
+public sealed class TableIndex : DatabaseMember, IEquatable<TableIndex>
 {
     /// <summary>
     /// The index keys (columns or expressions) in order.
     /// </summary>
-    public IReadOnlyList<IndexColumn> Columns { get; init; } = columns ?? [];
+    public required List<IndexColumn> Columns { get; init; }
 
     /// <summary>
     /// A boolean value indicating whether the index enforces uniqueness on the indexed columns.
     /// </summary>
-    public bool IsUnique { get; init; } = isUnique;
+    public bool IsUnique { get; set; }
 
     /// <summary>
     /// An optional predicate that defines a partial index.
     /// </summary>
-    public SqlText? Predicate { get; init; } = predicate;
+    public SqlText? Predicate { get; set; }
 
     /// <summary>
     /// The access method; <see langword="null"/> means the database default (B-tree).
     /// </summary>
-    public string? Method { get; init; } = method;
+    public string? Method { get; set; }
 
     /// <summary>
     /// Non-key columns carried in the index leaf pages (a covering <c>INCLUDE</c> clause).
     /// </summary>
-    public IReadOnlyList<SqlIdentifier> Include { get; init; } = include ?? [];
+    public List<SqlIdentifier> Include { get; init; } = [];
 
-    internal TableIndex Clone() => new(Name, Columns, IsUnique, Predicate, Method, Include) { Comment = Comment };
+    /// <inheritdoc/>
+    public override TableIndex Clone() => new()
+    {
+        Name = Name,
+        Columns = [.. Columns],
+        IsUnique = IsUnique,
+        Predicate = Predicate,
+        Method = Method,
+        Include = [.. Include],
+        Comment = Comment,
+    };
 
     /// <summary>
     /// Structural equality over the declared definition; the parent and the comment are excluded.

@@ -7,12 +7,12 @@ namespace NSchema.Diff.Model.Services;
 
 internal sealed partial class DatabaseComparer
 {
-    private static List<EnumDiff> CompareEnums(SqlIdentifier schemaName, SqlIdentifier currentSchemaName, IReadOnlyList<EnumType> current, Schema desired, DirectiveLookup directives) =>
-        CompareObjects(schemaName, "enum", current, desired.Enums,
-            directives.Renames(ObjectKind.Enum, currentSchemaName),
+    private static List<EnumDiff> CompareEnums(SqlIdentifier schemaName, IReadOnlyList<EnumType> current, Schema desired, RenameLog renames) =>
+        CompareObjects(current, desired.Enums,
+            name => renames.RenamedFrom(new ObjectIdentity(ObjectKind.Enum, schemaName, name)),
             enumType => new EnumDiff(schemaName, enumType.Name, ChangeKind.Remove),
             enumType => BuildNewEnum(schemaName, enumType),
-            (currentEnum, desiredEnum) => BuildModifiedEnum(schemaName, currentEnum, desiredEnum));
+            (currentEnum, desiredEnum, renamedFrom) => BuildModifiedEnum(schemaName, currentEnum, desiredEnum, renamedFrom));
 
     private static EnumDiff BuildNewEnum(SqlIdentifier schema, EnumType enumType) =>
         new(schema, enumType.Name, ChangeKind.Add, Definition: enumType,
@@ -21,9 +21,8 @@ internal sealed partial class DatabaseComparer
     // Enum values are additions-only: a value-compatible change carries the anchored additions, while a removal
     // or reorder carries only the old/new value lists (AddedValues stays empty, so RequiresRecreate is true).
     // The diff still records the latter so drift can display it; planning it is rejected by policy.
-    private static EnumDiff? BuildModifiedEnum(SqlIdentifier schema, EnumType current, EnumType desired)
+    private static EnumDiff? BuildModifiedEnum(SqlIdentifier schema, EnumType current, EnumType desired, SqlIdentifier? renamedFrom)
     {
-        var renamedFrom = current.Name == desired.Name ? (SqlIdentifier?)null : current.Name;
         var comment = ValueChanges.Changed(current.Comment, desired.Comment);
 
         ValueChange<IReadOnlyList<string>>? values = null;

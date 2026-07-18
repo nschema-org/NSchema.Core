@@ -11,16 +11,16 @@ public sealed class SchemaLintPolicyTests
 {
     private readonly SchemaLintPolicy _sut = new();
 
-    private static Column Col(string name, bool nullable = false) => new Column(new SqlIdentifier(name), SqlType.BigInt, isNullable: nullable);
+    private static Column Col(string name, bool nullable = false) => new Column { Name = new SqlIdentifier(name), Type = SqlType.BigInt, IsNullable = nullable };
 
     private static Database Db(params Table[] tables) =>
-        new Database([new Schema(new SqlIdentifier("public"), tables: tables)]);
+        new Database { Schemas = [new Schema { Name = new SqlIdentifier("public"), Tables = [.. tables] }] };
 
     [Fact]
     public void NoDiagnostics_ForATableWithANonNullablePrimaryKey()
     {
         // Arrange
-        var table = new Table(new SqlIdentifier("users"), primaryKey: new PrimaryKey(new SqlIdentifier("pk"), [new SqlIdentifier("id")]), columns: [Col("id")]);
+        var table = new Table { Name = new SqlIdentifier("users"), PrimaryKey = new PrimaryKey { Name = new SqlIdentifier("pk"), ColumnNames = [new SqlIdentifier("id")] }, Columns = [Col("id")] };
 
         // Act
         var diagnostics = _sut.Validate(Db(table)).ToList();
@@ -33,7 +33,7 @@ public sealed class SchemaLintPolicyTests
     public void Warns_WhenTableHasNoPrimaryKey()
     {
         // Act
-        var diagnostics = _sut.Validate(Db(new Table(new SqlIdentifier("events"), columns: [Col("id")]))).ToList();
+        var diagnostics = _sut.Validate(Db(new Table { Name = new SqlIdentifier("events"), Columns = [Col("id")] })).ToList();
 
         // Assert
         var diagnostic = diagnostics.ShouldHaveSingleItem();
@@ -45,7 +45,7 @@ public sealed class SchemaLintPolicyTests
     public void Warns_WhenPrimaryKeyColumnIsNullable()
     {
         // Arrange
-        var table = new Table(new SqlIdentifier("t"), primaryKey: new PrimaryKey(new SqlIdentifier("pk"), [new SqlIdentifier("id")]), columns: [Col("id", nullable: true)]);
+        var table = new Table { Name = new SqlIdentifier("t"), PrimaryKey = new PrimaryKey { Name = new SqlIdentifier("pk"), ColumnNames = [new SqlIdentifier("id")] }, Columns = [Col("id", nullable: true)] };
 
         // Act
         var diagnostics = _sut.Validate(Db(table)).ToList();
@@ -59,11 +59,13 @@ public sealed class SchemaLintPolicyTests
     public void Warns_WhenIndexListsAColumnTwice()
     {
         // Arrange
-        var table = new Table(
-            new SqlIdentifier("t"),
-            primaryKey: new PrimaryKey(new SqlIdentifier("pk"), [new SqlIdentifier("id")]),
-            columns: [Col("id"), Col("a")],
-            indexes: [new TableIndex(new SqlIdentifier("ix"), ["a", "a"])]);
+        var table = new Table
+        {
+            Name = new SqlIdentifier("t"),
+            PrimaryKey = new PrimaryKey { Name = new SqlIdentifier("pk"), ColumnNames = [new SqlIdentifier("id")] },
+            Columns = [Col("id"), Col("a")],
+            Indexes = [new TableIndex { Name = new SqlIdentifier("ix"), Columns = ["a", "a"] }],
+        };
 
         // Act
         var diagnostics = _sut.Validate(Db(table)).ToList();

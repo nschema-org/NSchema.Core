@@ -41,7 +41,11 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
         foreach (var definition in schema.Schemas)
         {
             var headerPath = Path.Combine(arguments.OutputDirectory, definition.Name.Value, "schema.sql");
-            await Import(headerPath, new Database([definition.With(tables: [], views: [], routines: [])]), declareSchemas: true);
+            var header = definition.Clone();
+            header.Tables.Clear();
+            header.Views.Clear();
+            header.Routines.Clear();
+            await Import(headerPath, new Database { Schemas = [header] }, declareSchemas: true);
 
             foreach (var (path, partition) in ObjectPartitions(definition, arguments.OutputDirectory))
             {
@@ -54,7 +58,7 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
         if (schema.Extensions.Count > 0)
         {
             var path = Path.Combine(arguments.OutputDirectory, "extensions.sql");
-            await Import(path, new Database(extensions: schema.Extensions), declareSchemas: true);
+            await Import(path, new Database { Extensions = [.. schema.Extensions.Select(e => e.Clone())] }, declareSchemas: true);
         }
 
         return Result.From(new ImportResult(schema, written), diagnostics);
@@ -67,18 +71,18 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
         foreach (var table in s.Tables)
         {
             yield return (Path.Combine(directory, s.Name.Value, "tables", $"{table.Name}.sql"),
-                new Database([new Schema(s.Name, tables: [table.Clone()])]));
+                new Database { Schemas = [new Schema { Name = s.Name, Tables = [table.Clone()] }] });
         }
         foreach (var view in s.Views)
         {
             yield return (Path.Combine(directory, s.Name.Value, "views", $"{view.Name}.sql"),
-                new Database([new Schema(s.Name, views: [view.Clone()])]));
+                new Database { Schemas = [new Schema { Name = s.Name, Views = [view.Clone()] }] });
         }
         // Functions and procedures share one name space, so they share one directory.
         foreach (var routine in s.Routines)
         {
             yield return (Path.Combine(directory, s.Name.Value, "routines", $"{routine.Name}.sql"),
-                new Database([new Schema(s.Name, routines: [routine.Clone()])]));
+                new Database { Schemas = [new Schema { Name = s.Name, Routines = [routine.Clone()] }] });
         }
     }
 
@@ -133,31 +137,32 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
         // aggregator sees no duplicates, then aggregate. Incoming objects win on conflict.
         var incomingBySchema = incoming.Schemas.ToDictionary(s => s.Name, s => s);
 
-        var prunedSchemas = existing.Schemas
-            .Select(s => incomingBySchema.TryGetValue(s.Name, out var i)
-                ? s.With(
-                    tables: PruneByName(s.Tables, i.Tables, t => t.Name),
-                    views: PruneByName(s.Views, i.Views, v => v.Name),
-                    enums: PruneByName(s.Enums, i.Enums, e => e.Name),
-                    sequences: PruneByName(s.Sequences, i.Sequences, q => q.Name),
-                    routines: PruneByName(s.Routines, i.Routines, r => r.Name),
-                    domains: PruneByName(s.Domains, i.Domains, d => d.Name))
-                : s)
-            .ToList();
+        // The existing tree was just parsed from the file, so it is ours to prune in place.
+        foreach (var s in existing.Schemas)
+        {
+            if (!incomingBySchema.TryGetValue(s.Name, out var i))
+            {
+                continue;
+            }
+            PruneByName(s.Tables, i.Tables, t => t.Name);
+            PruneByName(s.Views, i.Views, v => v.Name);
+            PruneByName(s.Enums, i.Enums, e => e.Name);
+            PruneByName(s.Sequences, i.Sequences, q => q.Name);
+            PruneByName(s.Routines, i.Routines, r => r.Name);
+            PruneByName(s.Domains, i.Domains, d => d.Name);
+        }
 
         // Root-level extensions are pruned by name too, so a re-imported extension merges in (incoming wins)
         // rather than tripping the aggregator's duplicate detection.
-        var pruned = new Database(
-            prunedSchemas,
-            PruneByName(existing.Extensions, incoming.Extensions, e => e.Name)
-        );
+        PruneByName(existing.Extensions, incoming.Extensions, e => e.Name);
+
         // Pruning removed every overlapping object first, so this merge cannot collide.
-        return DatabaseAggregator.Combine(pruned, incoming).Require();
+        return DatabaseAggregator.Combine(existing, incoming).Require();
     }
 
-    private static List<T> PruneByName<T>(IReadOnlyList<T> existing, IReadOnlyList<T> incoming, Func<T, SqlIdentifier> name)
+    private static void PruneByName<T>(IList<T> existing, IReadOnlyList<T> incoming, Func<T, SqlIdentifier> name)
     {
         var incomingNames = incoming.Select(name).ToHashSet();
-        return existing.Where(item => !incomingNames.Contains(name(item))).ToList();
+        existing.RemoveWhere(item => incomingNames.Contains(name(item)));
     }
 }

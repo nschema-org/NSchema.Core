@@ -1,7 +1,6 @@
 using NSchema.Deployment;
 using NSchema.Diff.Model.Services;
 using NSchema.Operations.Progress;
-using NSchema.Project.Model.Directives;
 using NSchema.State;
 using NSchema.State.Model;
 
@@ -33,7 +32,7 @@ internal sealed class DriftOperation(IDatabaseProvider provider, IDatabaseStateM
 
         // Diff direction: recorded -> live, so the changes describe how the live database has drifted from what we
         // recorded (an added object appears as Add, an out-of-band drop as Remove).
-        var diff = comparer.Compare(recordedSchema, liveSchema, ProjectDirectives.Empty);
+        var diff = comparer.Compare(AlignedDatabase.Unaligned(recordedSchema), liveSchema);
         return Result.From(new DriftResult(diff), recorded.Diagnostics.Concat(live.Diagnostics));
     }
 }

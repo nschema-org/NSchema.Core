@@ -13,5 +13,5 @@ public enum PlanTarget
     /// <summary>
     /// Plan using an empty database as the target state. Used for performing a teardown.
     /// </summary>
-    Empty,
+    Empty
 }

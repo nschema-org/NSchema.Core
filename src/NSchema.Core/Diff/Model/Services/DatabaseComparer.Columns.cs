@@ -6,10 +6,10 @@ namespace NSchema.Diff.Model.Services;
 
 internal sealed partial class DatabaseComparer
 {
-    private List<ColumnDiff> CompareColumns(ObjectAddress owner, IReadOnlyList<Column> current, IReadOnlyList<Column> desired, IReadOnlyList<RenamePair> renames)
+    private List<ColumnDiff> CompareColumns(ObjectAddress owner, IReadOnlyList<Column> current, IReadOnlyList<Column> desired, RenameLog renames)
     {
         var result = new List<ColumnDiff>();
-        var (forDesired, currentMatched) = MatchEntities(current, desired, renames, "column", owner.ToString());
+        var (forDesired, currentMatched) = MatchEntities(current, desired);
 
         for (var j = 0; j < current.Count; j++)
         {
@@ -33,26 +33,28 @@ internal sealed partial class DatabaseComparer
                 var comment = desiredCol.Comment is not null ? new ValueChange<string>(null, desiredCol.Comment) : null;
                 result.Add(new ColumnDiff(desiredCol.Name, ChangeKind.Add, desiredCol, null, null, null, null, null, comment));
             }
-            else if (BuildModifiedColumn(owner, matchingCurrent, desiredCol) is { } col)
+            else
             {
-                result.Add(col);
+                var renamedFrom = renames.RenamedFrom(new MemberAddress(owner.Schema, owner.Name, desiredCol.Name));
+                if (BuildModifiedColumn(owner, matchingCurrent, desiredCol, renamedFrom) is { } col)
+                {
+                    result.Add(col);
+                }
             }
         }
 
         return result;
     }
 
-    private ColumnDiff? BuildModifiedColumn(ObjectAddress owner, Column current, Column desired)
+    private ColumnDiff? BuildModifiedColumn(ObjectAddress owner, Column current, Column desired, SqlIdentifier? renamedFrom)
     {
-        SqlIdentifier? renamedFrom = null;
-        if (current.Name == desired.Name)
+        if (renamedFrom is null)
         {
             LogColumnUnchanged(owner, desired.Name);
         }
         else
         {
-            LogColumnRenamed(owner, current.Name, desired.Name);
-            renamedFrom = current.Name;
+            LogColumnRenamed(owner, renamedFrom, desired.Name);
         }
 
         ValueChange<SqlType>? type = null;

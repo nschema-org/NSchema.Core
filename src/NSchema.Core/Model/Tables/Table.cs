@@ -7,48 +7,11 @@ using NSchema.Model.Triggers;
 namespace NSchema.Model.Tables;
 
 /// <summary>
-/// Represents a database table.
+/// Represents a database table. Adopts its members.
 /// </summary>
 [DebuggerDisplay("{Name,nq} ({Columns.Count} columns)")]
 public sealed class Table : DatabaseObject, IEquatable<Table>
 {
-    /// <summary>
-    /// Creates a table, adopting the given members.
-    /// </summary>
-    /// <param name="name">The name of the table.</param>
-    /// <param name="primaryKey">The primary key of the table.</param>
-    /// <param name="columns">A list of columns that are part of the table.</param>
-    /// <param name="foreignKeys">A list of foreign keys that define the relationships between this table and other tables in the database schema.</param>
-    /// <param name="uniqueConstraints">A list of unique constraints defined on the table.</param>
-    /// <param name="checkConstraints">A list of check constraints defined on the table.</param>
-    /// <param name="exclusionConstraints">A list of exclusion constraints defined on the table.</param>
-    /// <param name="indexes">A list of indexes that are defined on the table.</param>
-    /// <param name="grants">A list of grants that define the permissions associated with the table.</param>
-    /// <param name="triggers">A list of triggers defined on the table.</param>
-    public Table(
-        SqlIdentifier name,
-        PrimaryKey? primaryKey = null,
-        IReadOnlyList<Column>? columns = null,
-        IReadOnlyList<ForeignKey>? foreignKeys = null,
-        IReadOnlyList<UniqueConstraint>? uniqueConstraints = null,
-        IReadOnlyList<CheckConstraint>? checkConstraints = null,
-        IReadOnlyList<ExclusionConstraint>? exclusionConstraints = null,
-        IReadOnlyList<TableIndex>? indexes = null,
-        IReadOnlyList<TableGrant>? grants = null,
-        IReadOnlyList<Trigger>? triggers = null
-    ) : base(name)
-    {
-        PrimaryKey = primaryKey;
-        Columns = columns ?? [];
-        ForeignKeys = foreignKeys ?? [];
-        UniqueConstraints = uniqueConstraints ?? [];
-        CheckConstraints = checkConstraints ?? [];
-        ExclusionConstraints = exclusionConstraints ?? [];
-        Indexes = indexes ?? [];
-        Grants = grants ?? [];
-        Triggers = triggers ?? [];
-    }
-
     /// <inheritdoc/>
     public override ObjectKind Kind => ObjectKind.Table;
 
@@ -58,9 +21,14 @@ public sealed class Table : DatabaseObject, IEquatable<Table>
     public PrimaryKey? PrimaryKey
     {
         get;
-        init
+        set
         {
+            if (ReferenceEquals(field, value))
+            {
+                return;
+            }
             value?.Parent = this;
+            field?.Parent = null;
             field = value;
         }
     }
@@ -68,69 +36,86 @@ public sealed class Table : DatabaseObject, IEquatable<Table>
     /// <summary>
     /// A list of columns that are part of the table.
     /// </summary>
-    public IReadOnlyList<Column> Columns { get; init => field = value.ForEach(f => f.Parent = this); }
+    public DatabaseMemberCollection<Column> Columns
+    {
+        get => field ??= new(this);
+        init { value.Attach(this); field = value; }
+    }
 
     /// <summary>
     /// A list of foreign keys that define the relationships between this table and other tables in the database schema.
     /// </summary>
-    public IReadOnlyList<ForeignKey> ForeignKeys { get; init => field = value.ForEach(f => f.Parent = this); }
+    public DatabaseMemberCollection<ForeignKey> ForeignKeys
+    {
+        get => field ??= new(this);
+        init { value.Attach(this); field = value; }
+    }
 
     /// <summary>
     /// A list of unique constraints defined on the table.
     /// </summary>
-    public IReadOnlyList<UniqueConstraint> UniqueConstraints { get; init => field = value.ForEach(f => f.Parent = this); }
+    public DatabaseMemberCollection<UniqueConstraint> UniqueConstraints
+    {
+        get => field ??= new(this);
+        init { value.Attach(this); field = value; }
+    }
 
     /// <summary>
     /// A list of check constraints defined on the table.
     /// </summary>
-    public IReadOnlyList<CheckConstraint> CheckConstraints { get; init => field = value.ForEach(f => f.Parent = this); }
+    public DatabaseMemberCollection<CheckConstraint> CheckConstraints
+    {
+        get => field ??= new(this);
+        init { value.Attach(this); field = value; }
+    }
 
     /// <summary>
     /// A list of exclusion constraints defined on the table.
     /// </summary>
-    public IReadOnlyList<ExclusionConstraint> ExclusionConstraints { get; init => field = value.ForEach(f => f.Parent = this); }
+    public DatabaseMemberCollection<ExclusionConstraint> ExclusionConstraints
+    {
+        get => field ??= new(this);
+        init { value.Attach(this); field = value; }
+    }
 
     /// <summary>
     /// A list of indexes that are defined on the table.
     /// </summary>
-    public IReadOnlyList<TableIndex> Indexes { get; init => field = value.ForEach(f => f.Parent = this); }
+    public DatabaseMemberCollection<TableIndex> Indexes
+    {
+        get => field ??= new(this);
+        init { value.Attach(this); field = value; }
+    }
 
     /// <summary>
     /// A list of grants that define the permissions associated with the table.
     /// </summary>
-    public IReadOnlyList<TableGrant> Grants { get; init; }
+    public List<TableGrant> Grants { get; init; } = [];
 
     /// <summary>
     /// A list of triggers defined on the table.
     /// </summary>
-    public IReadOnlyList<Trigger> Triggers { get; init => field = value.ForEach(f => f.Parent = this); }
+    public DatabaseMemberCollection<Trigger> Triggers
+    {
+        get => field ??= new(this);
+        init { value.Attach(this); field = value; }
+    }
 
-    /// <summary>
-    /// Returns a copy of the table with the given members replaced, outside any tree. A <see langword="null"/>
-    /// argument keeps the current members.
-    /// </summary>
-    public Table With(
-        IReadOnlyList<Column>? columns = null,
-        PrimaryKey? primaryKey = null,
-        IReadOnlyList<ForeignKey>? foreignKeys = null,
-        IReadOnlyList<UniqueConstraint>? uniqueConstraints = null,
-        IReadOnlyList<CheckConstraint>? checkConstraints = null,
-        IReadOnlyList<ExclusionConstraint>? exclusionConstraints = null,
-        IReadOnlyList<TableIndex>? indexes = null,
-        IReadOnlyList<TableGrant>? grants = null,
-        IReadOnlyList<Trigger>? triggers = null) =>
-        new(Name, (primaryKey ?? PrimaryKey)?.Clone(),
-            [.. (columns ?? Columns).Select(c => c.Clone())],
-            [.. (foreignKeys ?? ForeignKeys).Select(k => k.Clone())],
-            [.. (uniqueConstraints ?? UniqueConstraints).Select(u => u.Clone())],
-            [.. (checkConstraints ?? CheckConstraints).Select(c => c.Clone())],
-            [.. (exclusionConstraints ?? ExclusionConstraints).Select(x => x.Clone())],
-            [.. (indexes ?? Indexes).Select(i => i.Clone())],
-            grants ?? Grants,
-            [.. (triggers ?? Triggers).Select(t => t.Clone())])
-        { Comment = Comment };
-
-    internal Table Clone() => With();
+    /// <inheritdoc/>
+    public override Table Clone() => new()
+    {
+        Name = Name,
+        PrimaryKey = PrimaryKey?.Clone(),
+        Columns = [.. Columns.Select(c => c.Clone())],
+        ForeignKeys = [.. ForeignKeys.Select(k => k.Clone())],
+        UniqueConstraints = [.. UniqueConstraints.Select(u => u.Clone())],
+        CheckConstraints = [.. CheckConstraints.Select(c => c.Clone())],
+        ExclusionConstraints = [.. ExclusionConstraints.Select(x => x.Clone())],
+        Indexes = [.. Indexes.Select(i => i.Clone())],
+        Grants = [.. Grants],
+        Triggers = [.. Triggers.Select(t => t.Clone())],
+        Comment = Comment,
+    };
 
     /// <summary>
     /// Structural equality over the declared definition; the schema and the comment are excluded.

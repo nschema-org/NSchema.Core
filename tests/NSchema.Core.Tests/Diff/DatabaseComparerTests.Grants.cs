@@ -15,8 +15,8 @@ public partial class DatabaseComparerTests
     public void Compare_TableGrantRevoked_EmitsRemove()
     {
         var table = DiffTable(
-            new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], grants: [new TableGrant(new SqlIdentifier("reader"), TablePrivilege.Select)]),
-            new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]));
+            new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }], Grants = [new TableGrant(new SqlIdentifier("reader"), TablePrivilege.Select)] },
+            new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] });
 
         var grant = table!.Grants.ShouldHaveSingleItem();
         grant.Kind.ShouldBe(ChangeKind.Remove);
@@ -27,8 +27,8 @@ public partial class DatabaseComparerTests
     public void Compare_TableGrantPrivilegesChanged_EmitsRemoveThenAdd()
     {
         var table = DiffTable(
-            new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], grants: [new TableGrant(new SqlIdentifier("reader"), TablePrivilege.Select)]),
-            new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], grants: [new TableGrant(new SqlIdentifier("reader"), TablePrivilege.All)]));
+            new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }], Grants = [new TableGrant(new SqlIdentifier("reader"), TablePrivilege.Select)] },
+            new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }], Grants = [new TableGrant(new SqlIdentifier("reader"), TablePrivilege.All)] });
 
         table!.Grants.Select(g => (g.Kind, g.Privileges)).ShouldBe(
             [(ChangeKind.Remove, TablePrivilege.Select), (ChangeKind.Add, TablePrivilege.All)]);

@@ -18,5 +18,5 @@ public enum TriggerTiming
     /// <summary>
     /// Fires instead of the operation (views).
     /// </summary>
-    InsteadOf,
+    InsteadOf
 }

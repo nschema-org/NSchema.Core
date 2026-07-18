@@ -19,12 +19,12 @@ public sealed class DirectiveValidatorTests
     private static ObjectAddress App(string name) => new(_app, new SqlIdentifier(name));
 
     private static ProjectDefinition Project(ProjectDirectives directives, params Schema[] schemas) =>
-        new(new Database(schemas), directives);
+        new(new Database { Schemas = [.. schemas] }, directives);
 
-    private static Schema AppSchema(params Table[] tables) => new(_app, tables: tables);
+    private static Schema AppSchema(params Table[] tables) => new Schema { Name = _app, Tables = [.. tables] };
 
     private static Table Table(string name, params string[] columns) =>
-        new(new SqlIdentifier(name), columns: [.. columns.Select(c => new Column(new SqlIdentifier(c), SqlType.Int))]);
+        new Table { Name = new SqlIdentifier(name), Columns = [.. columns.Select(c => new Column { Name = new SqlIdentifier(c), Type = SqlType.Int })] };
 
     private static IReadOnlyList<Diagnostic> Validate(ProjectDefinition project) => [.. DirectiveValidator.Validate(project)];
 
@@ -129,7 +129,7 @@ public sealed class DirectiveValidatorTests
         // Renames partition by container: two schemas each renaming their own 'users' is not a conflict.
         var other = new SqlIdentifier("audit");
         var project = new ProjectDefinition(
-            new Database([AppSchema(Table("people", "id")), new Schema(other, tables: [Table("people", "id")])]),
+            new Database { Schemas = [AppSchema(Table("people", "id")), new Schema { Name = other, Tables = [Table("people", "id")] }] },
             new ProjectDirectives(ObjectRenames: [
                 new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, App("users")), new SqlIdentifier("people")),
                 new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(other, new SqlIdentifier("users"))), new SqlIdentifier("people")),
@@ -146,7 +146,7 @@ public sealed class DirectiveValidatorTests
         var core = new SqlIdentifier("core");
         var sales = new SqlIdentifier("sales");
         var project = new ProjectDefinition(
-            new Database([new Schema(core, tables: [Table("people", "id", "full_name")])]),
+            new Database { Schemas = [new Schema { Name = core, Tables = [Table("people", "id", "full_name")] }] },
             new ProjectDirectives(
                 SchemaRenames: [new SchemaRenameDirective(sales, core)],
                 ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(sales, new SqlIdentifier("users"))), new SqlIdentifier("people"))],

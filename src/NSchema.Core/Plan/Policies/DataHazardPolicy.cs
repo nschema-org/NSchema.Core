@@ -159,14 +159,16 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
             (TypeFamily.Decimal, TypeFamily.Integer) => true,
             (TypeFamily.Float, TypeFamily.Integer) => true,
             (TypeFamily.Float, TypeFamily.Decimal) => true,
-            (TypeFamily.Float, TypeFamily.Float) => old.Name == "double" && @new.Name == "float",
+            (TypeFamily.Float, TypeFamily.Float) => NameOf(old) == "double" && NameOf(@new) == "float",
             _ => false,
         };
     }
 
     private enum TypeFamily { String, Binary, Integer, Decimal, Float, Other, Unknown }
 
-    private static TypeFamily FamilyOf(SqlType type) => type.Name switch
+    private static string NameOf(SqlType type) => type.Name.Value.ToLowerInvariant();
+
+    private static TypeFamily FamilyOf(SqlType type) => NameOf(type) switch
     {
         "char" or "nchar" or "varchar" or "nvarchar" or "text" => TypeFamily.String,
         "binary" or "varbinary" => TypeFamily.Binary,
@@ -179,7 +181,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
 
     private static int Capacity(SqlType type) => type.Length ?? int.MaxValue;
 
-    private static int IntegerRank(SqlType type) => type.Name switch
+    private static int IntegerRank(SqlType type) => NameOf(type) switch
     {
         "tinyint" => 0,
         "smallint" => 1,
@@ -188,7 +190,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
     };
 
     /// <summary>The number of decimal digits needed to hold the integer type's full range.</summary>
-    private static int IntegerDigits(SqlType type) => type.Name switch
+    private static int IntegerDigits(SqlType type) => NameOf(type) switch
     {
         "tinyint" => 3,
         "smallint" => 5,

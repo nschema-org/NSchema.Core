@@ -9,12 +9,12 @@ namespace NSchema.Diff.Model.Services;
 
 internal sealed partial class DatabaseComparer
 {
-    private List<DomainDiff> CompareDomains(SqlIdentifier schemaName, SqlIdentifier currentSchemaName, IReadOnlyList<DomainType> current, Schema desired, DirectiveLookup directives) =>
-        CompareObjects(schemaName, "domain", current, desired.Domains,
-            directives.Renames(ObjectKind.Domain, currentSchemaName),
+    private List<DomainDiff> CompareDomains(SqlIdentifier schemaName, IReadOnlyList<DomainType> current, Schema desired, RenameLog renames) =>
+        CompareObjects(current, desired.Domains,
+            name => renames.RenamedFrom(new ObjectIdentity(ObjectKind.Domain, schemaName, name)),
             domain => new DomainDiff(schemaName, domain.Name, ChangeKind.Remove),
             domain => BuildNewDomain(schemaName, domain),
-            (currentDomain, desiredDomain) => BuildModifiedDomain(schemaName, currentDomain, desiredDomain));
+            (currentDomain, desiredDomain, renamedFrom) => BuildModifiedDomain(schemaName, currentDomain, desiredDomain, renamedFrom));
 
     private static DomainDiff BuildNewDomain(SqlIdentifier schema, DomainType domain) =>
         new(schema, domain.Name, ChangeKind.Add, Definition: domain,
@@ -24,9 +24,8 @@ internal sealed partial class DatabaseComparer
     // the default, not-null and checks then ride along on the definition. Every other change (default, not-null,
     // checks, comment, rename) is applied in place, since a domain is depended on by columns and must not be
     // dropped to be modified.
-    private DomainDiff? BuildModifiedDomain(SqlIdentifier schema, DomainType current, DomainType desired)
+    private DomainDiff? BuildModifiedDomain(SqlIdentifier schema, DomainType current, DomainType desired, SqlIdentifier? renamedFrom)
     {
-        var renamedFrom = current.Name == desired.Name ? (SqlIdentifier?)null : current.Name;
         var dataType = current.DataType == desired.DataType ? null : new ValueChange<SqlType>(current.DataType, desired.DataType);
         var comment = ValueChanges.Changed(current.Comment, desired.Comment);
         var requiresRecreate = dataType is not null;

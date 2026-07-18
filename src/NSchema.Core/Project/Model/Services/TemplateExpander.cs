@@ -1,7 +1,6 @@
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Schemas;
-using NSchema.Model.Triggers;
 using NSchema.Project.Model.Directives;
 using NSchema.Project.Nsql;
 using NSchema.Project.Nsql.Syntax.Templates;
@@ -75,7 +74,7 @@ internal static class TemplateExpander
 
                 // The merge rejects an object the target schema already declares, exactly as if the
                 // instantiated objects had been written in the target schema by hand.
-                var combined = DatabaseAggregator.Combine(database, new Database([instance.Schema]));
+                var combined = DatabaseAggregator.Combine(database, new Database { Schemas = [instance.Schema] });
                 if (combined.IsFailure)
                 {
                     diagnostics.AddRange(combined.Diagnostics.Select(d =>
@@ -118,7 +117,7 @@ internal static class TemplateExpander
         }
 
         var fragment = body.Build();
-        var instance = Qualify(fragment.Schemas.SingleOrDefault() ?? new Schema(schemaName), schemaName);
+        var instance = Qualify(fragment.Schemas.SingleOrDefault() ?? new Schema { Name = schemaName }, schemaName);
 
         return new TemplateInstance(instance, body.Includes, directives.Build());
     }
@@ -126,7 +125,8 @@ internal static class TemplateExpander
     /// <summary>
     /// Qualifies unqualified references to what the instance itself declares: a column, domain, or composite
     /// field whose type the template declares points at the instance schema, as does a trigger function it
-    /// declares. Object names already bound at projection.
+    /// declares. Object names already bound at projection. The instance is this expansion's own projection,
+    /// so it is qualified in place.
     /// </summary>
     private static Schema Qualify(Schema instance, SqlIdentifier schemaName)
     {
@@ -136,14 +136,32 @@ internal static class TemplateExpander
             .ToHashSet();
         var declaredRoutines = instance.Routines.Select(r => r.Name).ToHashSet();
 
-        return instance.With(
-            tables: instance.Tables.Select(table => table.With(
-                columns: table.Columns.Select(c => c.WithType(Qualify(c.Type, declaredTypes, schemaName))).ToList(),
-                triggers: table.Triggers.Select(t => Qualify(t, declaredRoutines, schemaName)).ToList())).ToList(),
-            domains: instance.Domains.Select(d => d.WithDataType(Qualify(d.DataType, declaredTypes, schemaName))).ToList(),
-            compositeTypes: instance.CompositeTypes
-                .Select(t => t.WithFields(t.Fields.Select(f => f with { DataType = Qualify(f.DataType, declaredTypes, schemaName) }).ToList()))
-                .ToList());
+        foreach (var table in instance.Tables)
+        {
+            foreach (var column in table.Columns)
+            {
+                column.Type = Qualify(column.Type, declaredTypes, schemaName);
+            }
+            foreach (var trigger in table.Triggers)
+            {
+                if (trigger.Function is { Schema: null } function && declaredRoutines.Contains(function.Name))
+                {
+                    trigger.Function = function with { Schema = schemaName };
+                }
+            }
+        }
+        foreach (var domain in instance.Domains)
+        {
+            domain.DataType = Qualify(domain.DataType, declaredTypes, schemaName);
+        }
+        foreach (var type in instance.CompositeTypes)
+        {
+            for (var i = 0; i < type.Fields.Count; i++)
+            {
+                type.Fields[i] = type.Fields[i] with { DataType = Qualify(type.Fields[i].DataType, declaredTypes, schemaName) };
+            }
+        }
+        return instance;
     }
 
     private static SqlType Qualify(SqlType type, HashSet<SqlIdentifier> declaredTypes, SqlIdentifier schemaName)
@@ -155,7 +173,7 @@ internal static class TemplateExpander
 
         // Only a type the instance itself declares binds to the target schema; a built-in or a type from
         // elsewhere is left for the engine's search path to resolve.
-        if (!declaredTypes.Contains(new SqlIdentifier(type.Name)))
+        if (!declaredTypes.Contains(type.Name))
         {
             return type;
         }
@@ -163,8 +181,4 @@ internal static class TemplateExpander
         return type with { Schema = schemaName };
     }
 
-    private static Trigger Qualify(Trigger trigger, HashSet<SqlIdentifier> declaredRoutines, SqlIdentifier schemaName)
-        => trigger.Function is { Schema: null } function && declaredRoutines.Contains(function.Name)
-            ? trigger.WithFunction(function with { Schema = schemaName })
-            : trigger;
 }

@@ -32,8 +32,7 @@ public sealed class RefreshEndToEndTests : IDisposable
         return path;
     }
 
-    private static Database LiveSchema() => new([new Schema(new SqlIdentifier("app"), tables:
-        [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
+    private static Database LiveSchema() => new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] }] };
 
     [Fact]
     public async Task Refresh_WritesLiveSchemaToStateStore()

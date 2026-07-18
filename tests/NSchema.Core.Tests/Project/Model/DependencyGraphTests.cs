@@ -25,17 +25,21 @@ public class DependencyGraphTests
         new(new MemberAddress(Id(schema), Id(table), Id(name)), DependencyKind.ForeignKey);
 
     private static Table WithForeignKey(string name, string constraint, string toSchema, string toTable) =>
-        new(Id(name), columns: [new Column(Id("id"), SqlType.Int)])
+        new Table
         {
-            ForeignKeys = [new ForeignKey(Id(constraint), [Id("id")], Id(toSchema), Id(toTable), [Id("id")])],
+            Name = Id(name),
+            Columns = [new Column { Name = Id("id"), Type = SqlType.Int }],
+            ForeignKeys = [new ForeignKey { Name = Id(constraint), ColumnNames = [Id("id")], ReferencedSchema = Id(toSchema), ReferencedTable = Id(toTable), ReferencedColumnNames = [Id("id")] }],
         };
 
     /// <summary>app.users, and billing.orders pointing an FK at it.</summary>
-    private static Database CrossSchemaForeignKey() => new(
-    [
-        new Schema(Id("app"), tables: [new Table(Id("users"), columns: [new Column(Id("id"), SqlType.Int)])]),
-        new Schema(Id("billing"), tables: [WithForeignKey("orders", "fk_orders_user", "app", "users")]),
-    ]);
+    private static Database CrossSchemaForeignKey() => new Database
+    {
+        Schemas = [
+        new Schema { Name = Id("app"), Tables = [new Table { Name = Id("users"), Columns = [new Column { Name = Id("id"), Type = SqlType.Int }] }] },
+        new Schema { Name = Id("billing"), Tables = [WithForeignKey("orders", "fk_orders_user", "app", "users")] },
+    ],
+    };
 
     [Fact]
     public void DependentsOf_ReferencedTable_IsTheConstraint_NotTheTableThatOwnsIt()
@@ -55,13 +59,15 @@ public class DependencyGraphTests
     public void DependentsOf_TableReadByAView_IsTheView()
     {
         // Arrange — a view's dependency is embedded in its body, so there is nothing to sever but the view.
-        var database = new Database(
-        [
-            new Schema(Id("app"),
-                tables: [new Table(Id("users"), columns: [new Column(Id("id"), SqlType.Int)])],
-                views: [new View(Id("active_users"), new SqlText("select * from app.users"),
-                    dependsOn: [new ViewDependency(Id("app"), Id("users"))])]),
-        ]);
+        var database = new Database
+        {
+            Schemas = [
+            new Schema { Name = Id("app"),
+                Tables = [new Table { Name = Id("users"), Columns = [new Column { Name = Id("id"), Type = SqlType.Int }] }],
+                Views = [new View { Name = Id("active_users"), Body = new SqlText("select * from app.users"),
+                    DependsOn = [new ViewDependency(Id("app"), Id("users"))] }] },
+        ],
+        };
         var graph = new DependencyGraph(database);
 
         // Act
@@ -100,7 +106,7 @@ public class DependencyGraphTests
     {
         // Arrange — a reference to something not here (unmanaged, or simply absent) is ignored rather than
         // inventing a node, as the linearizer's sort does.
-        var database = new Database([new Schema(Id("billing"), tables: [WithForeignKey("orders", "fk_orders_user", "elsewhere", "users")])]);
+        var database = new Database { Schemas = [new Schema { Name = Id("billing"), Tables = [WithForeignKey("orders", "fk_orders_user", "elsewhere", "users")] }] };
         var graph = new DependencyGraph(database);
 
         // Assert
@@ -111,7 +117,7 @@ public class DependencyGraphTests
     public void SelfReferencingForeignKey_DependsOnItsOwnTable()
     {
         // Arrange — a self-reference is an ordinary edge; cycles are the caller's problem, not the graph's.
-        var database = new Database([new Schema(Id("app"), tables: [WithForeignKey("nodes", "fk_nodes_parent", "app", "nodes")])]);
+        var database = new Database { Schemas = [new Schema { Name = Id("app"), Tables = [WithForeignKey("nodes", "fk_nodes_parent", "app", "nodes")] }] };
         var graph = new DependencyGraph(database);
 
         // Assert
@@ -123,18 +129,19 @@ public class DependencyGraphTests
     public void AllDependentsOf_CollectsTransitively_ExcludingTheSeeds()
     {
         // Arrange — app.users ← app.active_users (view) ← app.recent_users (view on the view).
-        var database = new Database(
-        [
-            new Schema(Id("app"),
-                tables: [new Table(Id("users"), columns: [new Column(Id("id"), SqlType.Int)])],
-                views:
-                [
-                    new View(Id("active_users"), new SqlText("select * from app.users"),
-                        dependsOn: [new ViewDependency(Id("app"), Id("users"))]),
-                    new View(Id("recent_users"), new SqlText("select * from app.active_users"),
-                        dependsOn: [new ViewDependency(Id("app"), Id("active_users"))]),
-                ]),
-        ]);
+        var database = new Database
+        {
+            Schemas = [
+            new Schema { Name = Id("app"),
+                Tables = [new Table { Name = Id("users"), Columns = [new Column { Name = Id("id"), Type = SqlType.Int }] }],
+                Views = [
+                    new View { Name = Id("active_users"), Body = new SqlText("select * from app.users"),
+                        DependsOn = [new ViewDependency(Id("app"), Id("users"))] },
+                    new View { Name = Id("recent_users"), Body = new SqlText("select * from app.active_users"),
+                        DependsOn = [new ViewDependency(Id("app"), Id("active_users"))] },
+                ] },
+        ],
+        };
         var graph = new DependencyGraph(database);
 
         // Act — dropping app.users costs both views, not just the one that names it.
@@ -149,10 +156,12 @@ public class DependencyGraphTests
     {
         // Arrange — mutual foreign keys are legal and common. They are only a cycle if containment is an
         // edge (a needs fk_a_b needs b needs fk_b_a needs a); it isn't, so the walk stays finite by shape.
-        var database = new Database(
-        [
-            new Schema(Id("app"), tables: [WithForeignKey("a", "fk_a_b", "app", "b"), WithForeignKey("b", "fk_b_a", "app", "a")]),
-        ]);
+        var database = new Database
+        {
+            Schemas = [
+            new Schema { Name = Id("app"), Tables = [WithForeignKey("a", "fk_a_b", "app", "b"), WithForeignKey("b", "fk_b_a", "app", "a")] },
+        ],
+        };
         var graph = new DependencyGraph(database);
 
         // Act
@@ -167,18 +176,19 @@ public class DependencyGraphTests
     public void AllDependentsOf_ADiamond_CollectsEachNodeOnce()
     {
         // Arrange — two views read app.users and a third reads both, so 'summary' is reachable by two paths.
-        var database = new Database(
-        [
-            new Schema(Id("app"),
-                tables: [new Table(Id("users"), columns: [new Column(Id("id"), SqlType.Int)])],
-                views:
-                [
-                    new View(Id("active"), new SqlText("select * from app.users"), dependsOn: [new ViewDependency(Id("app"), Id("users"))]),
-                    new View(Id("recent"), new SqlText("select * from app.users"), dependsOn: [new ViewDependency(Id("app"), Id("users"))]),
-                    new View(Id("summary"), new SqlText("select * from app.active, app.recent"),
-                        dependsOn: [new ViewDependency(Id("app"), Id("active")), new ViewDependency(Id("app"), Id("recent"))]),
-                ]),
-        ]);
+        var database = new Database
+        {
+            Schemas = [
+            new Schema { Name = Id("app"),
+                Tables = [new Table { Name = Id("users"), Columns = [new Column { Name = Id("id"), Type = SqlType.Int }] }],
+                Views = [
+                    new View { Name = Id("active"), Body = new SqlText("select * from app.users"), DependsOn = [new ViewDependency(Id("app"), Id("users"))] },
+                    new View { Name = Id("recent"), Body = new SqlText("select * from app.users"), DependsOn = [new ViewDependency(Id("app"), Id("users"))] },
+                    new View { Name = Id("summary"), Body = new SqlText("select * from app.active, app.recent"),
+                        DependsOn = [new ViewDependency(Id("app"), Id("active")), new ViewDependency(Id("app"), Id("recent"))] },
+                ] },
+        ],
+        };
         var graph = new DependencyGraph(database);
 
         // Act
@@ -206,12 +216,14 @@ public class DependencyGraphTests
     {
         // Arrange — app.users has a foreign key pointing at it (the model states that) and a view reading it
         // (scanned out of the body). The full walk sees both; the stated-only walk sees just the constraint.
-        var database = new Database(
-        [
-            new Schema(Id("app"), tables: [new Table(Id("users"), columns: [new Column(Id("id"), SqlType.Int)])],
-                views: [new View(Id("summary"), new SqlText("select * from app.users"), dependsOn: [new ViewDependency(Id("app"), Id("users"))])]),
-            new Schema(Id("billing"), tables: [WithForeignKey("orders", "fk_orders_user", "app", "users")]),
-        ]);
+        var database = new Database
+        {
+            Schemas = [
+            new Schema { Name = Id("app"), Tables = [new Table { Name = Id("users"), Columns = [new Column { Name = Id("id"), Type = SqlType.Int }] }],
+                Views = [new View { Name = Id("summary"), Body = new SqlText("select * from app.users"), DependsOn = [new ViewDependency(Id("app"), Id("users"))] }] },
+            new Schema { Name = Id("billing"), Tables = [WithForeignKey("orders", "fk_orders_user", "app", "users")] },
+        ],
+        };
         var graph = new DependencyGraph(database);
         var seed = new[] { Table("app", "users") };
 

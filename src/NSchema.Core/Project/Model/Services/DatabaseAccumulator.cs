@@ -188,11 +188,20 @@ internal sealed class DatabaseAccumulator
         ApplyTriggers();
         ApplyIndexes();
         var schemas = _entries
-            .Select(e => new Schema(e.Name, e.Tables, e.Grants, e.Views,
-                e.Enums, e.Sequences, e.Routines, e.Domains, e.CompositeTypes)
-            { Comment = e.Comment })
-            .ToList();
-        return new Database(schemas, _extensions);
+            .Select(e => new Schema
+            {
+                Name = e.Name,
+                Tables = e.Tables,
+                Grants = e.Grants,
+                Views = e.Views,
+                Enums = e.Enums,
+                Sequences = e.Sequences,
+                Routines = e.Routines,
+                Domains = e.Domains,
+                CompositeTypes = e.CompositeTypes,
+                Comment = e.Comment,
+            });
+        return new Database { Schemas = [.. schemas], Extensions = [.. _extensions] };
     }
 
     private void ApplyTableGrants()
@@ -205,15 +214,14 @@ internal sealed class DatabaseAccumulator
                 continue;
             }
 
-            var index = entry.Tables.FindIndex(t => t.Name == pending.Table);
-            if (index < 0)
+            var table = entry.Tables.FirstOrDefault(t => t.Name == pending.Table);
+            if (table is null)
             {
                 AddError($"GRANT references unknown table '{pending.Schema}.{pending.Table}'.", pending.Position);
                 continue;
             }
 
-            var table = entry.Tables[index];
-            entry.Tables[index] = table.With(grants: [.. table.Grants, pending.Grant]);
+            table.Grants.Add(pending.Grant);
         }
     }
 
@@ -227,21 +235,20 @@ internal sealed class DatabaseAccumulator
                 continue;
             }
 
-            var index = entry.Tables.FindIndex(t => t.Name == pending.Table);
-            if (index < 0)
+            var table = entry.Tables.FirstOrDefault(t => t.Name == pending.Table);
+            if (table is null)
             {
                 AddError($"CREATE TRIGGER references unknown table '{pending.Schema}.{pending.Table}'.", pending.Position);
                 continue;
             }
 
-            var table = entry.Tables[index];
             if (table.Triggers.Any(t => t.Name == pending.Trigger.Name))
             {
                 AddError($"Trigger '{pending.Trigger.Name}' on '{pending.Schema}.{pending.Table}' is already declared.",
                     pending.Position);
             }
 
-            entry.Tables[index] = table.With(triggers: [.. table.Triggers, pending.Trigger]);
+            table.Triggers.Add(pending.Trigger);
         }
     }
 
@@ -257,28 +264,24 @@ internal sealed class DatabaseAccumulator
             }
 
             // A standalone index attaches to a table (the same as an inline index) or a materialized view.
-            var tableIndex = entry.Tables.FindIndex(t => t.Name == pending.Relation);
-            if (tableIndex >= 0)
+            if (entry.Tables.FirstOrDefault(t => t.Name == pending.Relation) is { } table)
             {
-                var table = entry.Tables[tableIndex];
                 if (table.Indexes.Any(i => i.Name == pending.Index.Name))
                 {
                     AddError($"Index '{pending.Index.Name}' on '{qualified}' is already declared.", pending.Position);
                     continue;
                 }
 
-                entry.Tables[tableIndex] = table.With(indexes: [.. table.Indexes, pending.Index]);
+                table.Indexes.Add(pending.Index);
                 continue;
             }
 
-            var viewIndex = entry.Views.FindIndex(v => v.Name == pending.Relation);
-            if (viewIndex < 0)
+            var view = entry.Views.FirstOrDefault(v => v.Name == pending.Relation);
+            if (view is null)
             {
                 AddError($"CREATE INDEX references unknown table or materialized view '{qualified}'.", pending.Position);
                 continue;
             }
-
-            var view = entry.Views[viewIndex];
             if (!view.IsMaterialized)
             {
                 AddError($"CREATE INDEX targets '{qualified}', which is not a materialized view (a plain view cannot be indexed).", pending.Position);
@@ -291,7 +294,7 @@ internal sealed class DatabaseAccumulator
                 continue;
             }
 
-            entry.Views[viewIndex] = view.With(indexes: [.. view.Indexes, pending.Index]);
+            view.Indexes.Add(pending.Index);
         }
     }
 
@@ -313,14 +316,14 @@ internal sealed class DatabaseAccumulator
         public SqlIdentifier Name { get; } = name;
         public bool Declared { get; set; }
         public string? Comment { get; set; }
-        public List<Table> Tables { get; } = [];
+        public DatabaseObjectCollection<Table> Tables { get; } = [];
         public List<SchemaGrant> Grants { get; } = [];
-        public List<View> Views { get; } = [];
-        public List<EnumType> Enums { get; } = [];
-        public List<Sequence> Sequences { get; } = [];
-        public List<Routine> Routines { get; } = [];
-        public List<DomainType> Domains { get; } = [];
-        public List<CompositeType> CompositeTypes { get; } = [];
+        public DatabaseObjectCollection<View> Views { get; } = [];
+        public DatabaseObjectCollection<EnumType> Enums { get; } = [];
+        public DatabaseObjectCollection<Sequence> Sequences { get; } = [];
+        public DatabaseObjectCollection<Routine> Routines { get; } = [];
+        public DatabaseObjectCollection<DomainType> Domains { get; } = [];
+        public DatabaseObjectCollection<CompositeType> CompositeTypes { get; } = [];
     }
 
     private readonly record struct PendingGrant(SqlIdentifier Schema, SqlIdentifier Table, TableGrant Grant, SourcePosition Position);

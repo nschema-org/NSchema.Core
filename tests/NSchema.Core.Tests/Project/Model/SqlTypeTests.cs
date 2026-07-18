@@ -1,3 +1,4 @@
+using NSchema.Model;
 using NSchema.Model.Columns;
 
 namespace NSchema.Tests.Project.Model;
@@ -8,9 +9,10 @@ public sealed class SqlTypeTests
     [InlineData("citext", "citext")]
     [InlineData("CITEXT", "citext")]
     [InlineData("  CiText  ", "citext")]
-    public void Name_IsTrimmedAndLowerCased(string input, string expected)
+    public void Name_IsTrimmed_AndComparesAsAnIdentifier(string input, string expected)
     {
-        SqlType.Custom(input).Name.ShouldBe(expected);
+        // Written casing is preserved; equality is the identifier's, so any casing matches the canonical name.
+        SqlType.Custom(input).Name.ShouldBe(new SqlIdentifier(expected));
     }
 
     [Fact]
@@ -26,9 +28,9 @@ public sealed class SqlTypeTests
     }
 
     [Fact]
-    public void ToString_UsesNormalizedName()
+    public void ToString_PreservesWrittenCasing()
     {
-        SqlType.Custom("  CITEXT  ").ToString().ShouldBe("citext");
+        SqlType.Custom("  CiText  ").ToString().ShouldBe("CiText");
     }
 
     [Fact]

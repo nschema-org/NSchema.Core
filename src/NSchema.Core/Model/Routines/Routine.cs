@@ -5,12 +5,8 @@ namespace NSchema.Model.Routines;
 /// <summary>
 /// Represents a database routine. A function or a procedure (see <see cref="RoutineKind"/>).
 /// </summary>
-/// <param name="name">The name of the routine.</param>
-/// <param name="routineKind">Whether the routine is a function or a procedure.</param>
-/// <param name="arguments">The argument list, stored verbatim (the text inside the parentheses; may be empty).</param>
-/// <param name="definition">Everything after the argument list, stored verbatim.</param>
 [DebuggerDisplay("{Name,nq} ({RoutineKind})")]
-public sealed class Routine(SqlIdentifier name, RoutineKind routineKind, SqlText arguments, SqlText definition) : DatabaseObject(name), IEquatable<Routine>
+public sealed class Routine : DatabaseObject, IEquatable<Routine>
 {
     /// <inheritdoc/>
     public override ObjectKind Kind => ObjectKind.Routine;
@@ -18,19 +14,20 @@ public sealed class Routine(SqlIdentifier name, RoutineKind routineKind, SqlText
     /// <summary>
     /// Whether the routine is a function or a procedure.
     /// </summary>
-    public RoutineKind RoutineKind { get; init; } = routineKind;
+    public required RoutineKind RoutineKind { get; set; }
 
     /// <summary>
     /// The argument list, stored verbatim (the text inside the parentheses; may be empty).
     /// </summary>
-    public SqlText Arguments { get; init; } = arguments;
+    public required SqlText Arguments { get; set; }
 
     /// <summary>
     /// Everything after the argument list, stored verbatim.
     /// </summary>
-    public SqlText Definition { get; init; } = definition;
+    public required SqlText Definition { get; set; }
 
-    internal Routine Clone() => new(Name, RoutineKind, Arguments, Definition) { Comment = Comment };
+    /// <inheritdoc/>
+    public override Routine Clone() => new() { Name = Name, RoutineKind = RoutineKind, Arguments = Arguments, Definition = Definition, Comment = Comment };
 
     /// <summary>
     /// Structural equality over the declared definition; the schema and the comment are excluded.

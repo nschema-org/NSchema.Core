@@ -8,12 +8,12 @@ namespace NSchema.Diff.Model.Services;
 
 internal sealed partial class DatabaseComparer
 {
-    private List<ViewDiff> CompareViews(SqlIdentifier schemaName, SqlIdentifier currentSchemaName, IReadOnlyList<View> current, Schema desired, DirectiveLookup directives) =>
-        CompareObjects(schemaName, "view", current, desired.Views,
-            directives.Renames(ObjectKind.View, currentSchemaName),
+    private List<ViewDiff> CompareViews(SqlIdentifier schemaName, IReadOnlyList<View> current, Schema desired, RenameLog renames) =>
+        CompareObjects(current, desired.Views,
+            name => renames.RenamedFrom(new ObjectIdentity(ObjectKind.View, schemaName, name)),
             view => RemovedView(schemaName, view),
             view => BuildNewView(schemaName, view),
-            (currentView, desiredView) => BuildModifiedView(schemaName, currentView, desiredView));
+            (currentView, desiredView, renamedFrom) => BuildModifiedView(schemaName, currentView, desiredView, renamedFrom));
 
     private static ViewDiff RemovedView(SqlIdentifier schema, View view) =>
         new(schema, view.Name, ChangeKind.Remove, DependsOn: view.DependsOn, IsMaterialized: view.IsMaterialized);
@@ -27,9 +27,8 @@ internal sealed partial class DatabaseComparer
     // (CREATE OR REPLACE VIEW); for a materialized view it must be a drop + recreate (there is no
     // CREATE OR REPLACE MATERIALIZED VIEW), as must a view ⇄ materialized-view conversion. A rename, comment
     // change, and a materialized view's index changes are tracked independently and may accompany the rest.
-    private ViewDiff? BuildModifiedView(SqlIdentifier schema, View current, View desired)
+    private ViewDiff? BuildModifiedView(SqlIdentifier schema, View current, View desired, SqlIdentifier? renamedFrom)
     {
-        var renamedFrom = current.Name == desired.Name ? (SqlIdentifier?)null : current.Name;
         // Compare bodies for *equivalence*, not byte-equality, so a database's cosmetic re-emission
         // (whitespace, trailing terminator) does not read as a change. See SqlTextNormalizer.
         var bodyChanged = !SqlTextNormalizer.AreEquivalent(current.Body, desired.Body);

@@ -7,12 +7,12 @@ namespace NSchema.Diff.Model.Services;
 
 internal sealed partial class DatabaseComparer
 {
-    private static List<RoutineDiff> CompareRoutines(SqlIdentifier schemaName, SqlIdentifier currentSchemaName, IReadOnlyList<Routine> current, Schema desired, DirectiveLookup directives) =>
-        CompareObjects(schemaName, "routine", current, desired.Routines,
-            directives.Renames(ObjectKind.Routine, currentSchemaName),
+    private static List<RoutineDiff> CompareRoutines(SqlIdentifier schemaName, IReadOnlyList<Routine> current, Schema desired, RenameLog renames) =>
+        CompareObjects(current, desired.Routines,
+            name => renames.RenamedFrom(new ObjectIdentity(ObjectKind.Routine, schemaName, name)),
             routine => new RoutineDiff(schemaName, routine.Name, ChangeKind.Remove, routine.RoutineKind),
             routine => BuildNewRoutine(schemaName, routine),
-            (currentRoutine, desiredRoutine) => BuildModifiedRoutine(schemaName, currentRoutine, desiredRoutine));
+            (currentRoutine, desiredRoutine, renamedFrom) => BuildModifiedRoutine(schemaName, currentRoutine, desiredRoutine, renamedFrom));
 
     private static RoutineDiff BuildNewRoutine(SqlIdentifier schema, Routine routine) =>
         new(schema, routine.Name, ChangeKind.Add, routine.RoutineKind, Definition: routine,
@@ -22,9 +22,8 @@ internal sealed partial class DatabaseComparer
     // a replace (the provider emits CREATE OR REPLACE); an argument change forces a drop + recreate, because a
     // replace under a different signature would create a separate overload rather than replacing — so the diff
     // carries the argument transition and the full desired definition rides along for the recreate.
-    private static RoutineDiff? BuildModifiedRoutine(SqlIdentifier schema, Routine current, Routine desired)
+    private static RoutineDiff? BuildModifiedRoutine(SqlIdentifier schema, Routine current, Routine desired, SqlIdentifier? renamedFrom)
     {
-        var renamedFrom = current.Name == desired.Name ? (SqlIdentifier?)null : current.Name;
         var argumentsChanged = !SqlTextNormalizer.AreEquivalent(current.Arguments, desired.Arguments);
         var definitionChanged = !SqlTextNormalizer.AreEquivalent(current.Definition, desired.Definition);
         var comment = ValueChanges.Changed(current.Comment, desired.Comment);

@@ -101,7 +101,7 @@ public sealed class PlanLinearizerTests
     private static ViewDiff AddView(string name, string schema = "app", params (string Schema, string Name)[] dependsOn)
     {
         var deps = dependsOn.Select(d => new ViewDependency(new SqlIdentifier(d.Schema), new SqlIdentifier(d.Name))).ToList();
-        var view = new View(new SqlIdentifier(name), new SqlText($"SELECT * FROM source_of_{name}"), dependsOn: deps);
+        var view = new View { Name = new SqlIdentifier(name), Body = new SqlText($"SELECT * FROM source_of_{name}"), DependsOn = deps };
         return new ViewDiff(new SqlIdentifier(schema), new SqlIdentifier(name), ChangeKind.Add, Definition: view, DependsOn: deps);
     }
 
@@ -109,7 +109,7 @@ public sealed class PlanLinearizerTests
         => new(new SqlIdentifier(schema), new SqlIdentifier(name), ChangeKind.Remove, DependsOn: dependsOn.Select(d => new ViewDependency(new SqlIdentifier(d.Schema), new SqlIdentifier(d.Name))).ToList());
 
     private static TableDiff AddTable(string name, string schema = "app")
-        => new(new SqlIdentifier(schema), new SqlIdentifier(name), ChangeKind.Add, Definition: new Table(new SqlIdentifier(name)));
+        => new(new SqlIdentifier(schema), new SqlIdentifier(name), ChangeKind.Add, Definition: new Table { Name = new SqlIdentifier(name) });
 
     private static int IndexOfCreateView(IReadOnlyList<MigrationAction> plan, string name)
         => plan.ToList().FindIndex(a => a is CreateView v && v.View.Name.Value.Equals(name));
@@ -227,7 +227,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_AddTable_EmitsCreateTableFromDefinition()
     {
-        var plan = LinearizeTable(TableNode("users", ChangeKind.Add, definition: new Table(new SqlIdentifier("users"))));
+        var plan = LinearizeTable(TableNode("users", ChangeKind.Add, definition: new Table { Name = new SqlIdentifier("users") }));
 
         plan.OfType<CreateTable>().ShouldHaveSingleItem()
             .ShouldSatisfyAllConditions(
@@ -299,8 +299,8 @@ public sealed class PlanLinearizerTests
     public void Linearize_RenamedTable_AddsTargetNewName()
     {
         var table = TableNode("accounts", ChangeKind.Modify, renamedFrom: new SqlIdentifier("users"),
-            uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("accounts_email_uq"), new UniqueConstraint(new SqlIdentifier("accounts_email_uq"), [new SqlIdentifier("email")]))],
-            indexes: [new IndexDiff(ChangeKind.Add, new SqlIdentifier("accounts_email_ix"), new TableIndex(new SqlIdentifier("accounts_email_ix"), ["email"]))]);
+            uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("accounts_email_uq"), new UniqueConstraint { Name = new SqlIdentifier("accounts_email_uq"), ColumnNames = [new SqlIdentifier("email")] })],
+            indexes: [new IndexDiff(ChangeKind.Add, new SqlIdentifier("accounts_email_ix"), new TableIndex { Name = new SqlIdentifier("accounts_email_ix"), Columns = ["email"] })]);
 
         var plan = LinearizeTable(table);
 
@@ -318,8 +318,8 @@ public sealed class PlanLinearizerTests
     {
         // Columns of a new table are created inline by CREATE TABLE; only their comments arrive as separate actions.
         var table = TableNode("users", ChangeKind.Add,
-            definition: new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int) { Comment = "pk" }]),
-            columns: [AddedColumn(new Column(new SqlIdentifier("id"), SqlType.Int), comment: new ValueChange<string>(null, "pk"))]);
+            definition: new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int, Comment = "pk" }] },
+            columns: [AddedColumn(new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }, comment: new ValueChange<string>(null, "pk"))]);
 
         var plan = LinearizeTable(table);
 
@@ -338,7 +338,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_AddColumn_EmitsAddColumnAndComment()
     {
-        var plan = LinearizeColumn(AddedColumn(new Column(new SqlIdentifier("email"), SqlType.Text), comment: new ValueChange<string>(null, "contact")));
+        var plan = LinearizeColumn(AddedColumn(new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text }, comment: new ValueChange<string>(null, "contact")));
 
         plan.OfType<AddColumn>().ShouldHaveSingleItem().Column.Name.ShouldBe("email");
         plan.OfType<SetColumnComment>().ShouldHaveSingleItem().NewComment.ShouldBe("contact");
@@ -346,7 +346,7 @@ public sealed class PlanLinearizerTests
 
     [Fact]
     public void Linearize_RemoveColumn_EmitsDropColumn()
-        => LinearizeColumn(RemovedColumn(new Column(new SqlIdentifier("email"), SqlType.Text)))
+        => LinearizeColumn(RemovedColumn(new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text }))
             .OfType<DropColumn>().ShouldHaveSingleItem().ColumnName.ShouldBe("email");
 
     [Fact]
@@ -372,14 +372,14 @@ public sealed class PlanLinearizerTests
         // A dialect whose ALTER COLUMN restates the whole column (SQL Server) needs the unchanged nullability; it
         // rides along on the action from the desired column's Definition.
         => LinearizeColumn(ModifiedColumn("id", type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
-                definition: new Column(new SqlIdentifier("id"), SqlType.BigInt, isNullable: false)))
+                definition: new Column { Name = new SqlIdentifier("id"), Type = SqlType.BigInt, IsNullable = false }))
             .OfType<AlterColumnType>().ShouldHaveSingleItem()
             .IsNullable.ShouldBe(false);
 
     [Fact]
     public void Linearize_ColumnNullabilityChange_CarriesFinalTypeFromDefinition()
         => LinearizeColumn(ModifiedColumn("email", nullability: new ValueChange<bool>(true, false),
-                definition: new Column(new SqlIdentifier("email"), SqlType.VarChar(255), isNullable: false)))
+                definition: new Column { Name = new SqlIdentifier("email"), Type = SqlType.VarChar(255), IsNullable = false }))
             .OfType<AlterColumnNullability>().ShouldHaveSingleItem()
             .ColumnType.ShouldBe(SqlType.VarChar(255));
 
@@ -439,7 +439,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_AddPrimaryKey_EmitsAddPrimaryKey()
     {
-        var pk = new PrimaryKey(new SqlIdentifier("users_pkey"), [new SqlIdentifier("id")]);
+        var pk = new PrimaryKey { Name = new SqlIdentifier("users_pkey"), ColumnNames = [new SqlIdentifier("id")] };
         var constraint = new PrimaryKeyDiff(ChangeKind.Add, new SqlIdentifier("users_pkey"), pk);
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, primaryKey: [constraint]))
@@ -458,7 +458,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_AddForeignKey_EmitsAddForeignKey()
     {
-        var fk = new ForeignKey(new SqlIdentifier("orders_user_fk"), [new SqlIdentifier("user_id")], new SqlIdentifier("app"), new SqlIdentifier("users"), [new SqlIdentifier("id")]);
+        var fk = new ForeignKey { Name = new SqlIdentifier("orders_user_fk"), ColumnNames = [new SqlIdentifier("user_id")], ReferencedSchema = new SqlIdentifier("app"), ReferencedTable = new SqlIdentifier("users"), ReferencedColumnNames = [new SqlIdentifier("id")] };
         var constraint = new ForeignKeyDiff(ChangeKind.Add, new SqlIdentifier("orders_user_fk"), fk);
 
         LinearizeTable(TableNode("orders", ChangeKind.Modify, foreignKeys: [constraint]))
@@ -477,7 +477,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_AddExclusionConstraint_EmitsAddExclusionConstraint()
     {
-        var exclusion = new ExclusionConstraint(new SqlIdentifier("no_overlap"), [new ExclusionElement("&&", new SqlIdentifier("during"))], "gist");
+        var exclusion = new ExclusionConstraint { Name = new SqlIdentifier("no_overlap"), Elements = [new ExclusionElement("&&", new SqlIdentifier("during"))], Method = "gist" };
         var constraint = new ExclusionConstraintDiff(ChangeKind.Add, new SqlIdentifier("no_overlap"), exclusion);
 
         LinearizeTable(TableNode("bookings", ChangeKind.Modify, exclusionConstraints: [constraint]))
@@ -496,7 +496,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_AddUniqueConstraint_EmitsAddUniqueConstraint()
     {
-        var unique = new UniqueConstraint(new SqlIdentifier("users_email_uq"), [new SqlIdentifier("email")]);
+        var unique = new UniqueConstraint { Name = new SqlIdentifier("users_email_uq"), ColumnNames = [new SqlIdentifier("email")] };
         var constraint = new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_email_uq"), unique);
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, uniqueConstraints: [constraint]))
@@ -515,7 +515,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_AddCheckConstraint_EmitsAddCheckConstraint()
     {
-        var check = new CheckConstraint(new SqlIdentifier("users_age_chk"), new SqlText("age >= 0"));
+        var check = new CheckConstraint { Name = new SqlIdentifier("users_age_chk"), Expression = new SqlText("age >= 0") };
         var constraint = new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_age_chk"), check);
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, checks: [constraint]))
@@ -555,7 +555,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_AddIndex_EmitsCreateIndex()
     {
-        var index = new IndexDiff(ChangeKind.Add, new SqlIdentifier("users_email_ix"), new TableIndex(new SqlIdentifier("users_email_ix"), ["email"]), null);
+        var index = new IndexDiff(ChangeKind.Add, new SqlIdentifier("users_email_ix"), new TableIndex { Name = new SqlIdentifier("users_email_ix"), Columns = ["email"] }, null);
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, indexes: [index]))
             .OfType<CreateIndex>().ShouldHaveSingleItem().Index.Name.ShouldBe("users_email_ix");
@@ -607,7 +607,7 @@ public sealed class PlanLinearizerTests
     public void Linearize_OrdersCreateSchemaBeforeItsTables()
     {
         var plan = Linearize(SchemaNode("app", ChangeKind.Add,
-            tables: [TableNode("users", ChangeKind.Add, definition: new Table(new SqlIdentifier("users")))]));
+            tables: [TableNode("users", ChangeKind.Add, definition: new Table { Name = new SqlIdentifier("users") })]));
 
         IndexOf<CreateSchema>(plan).ShouldBeLessThan(IndexOf<CreateTable>(plan));
     }
@@ -616,7 +616,7 @@ public sealed class PlanLinearizerTests
     public void Linearize_OrdersDropColumnBeforeAddColumn()
     {
         var plan = LinearizeTable(TableNode("users", ChangeKind.Modify,
-            columns: [AddedColumn(new Column(new SqlIdentifier("new_col"), SqlType.Text)), RemovedColumn(new Column(new SqlIdentifier("old_col"), SqlType.Text))]));
+            columns: [AddedColumn(new Column { Name = new SqlIdentifier("new_col"), Type = SqlType.Text }), RemovedColumn(new Column { Name = new SqlIdentifier("old_col"), Type = SqlType.Text })]));
 
         IndexOf<DropColumn>(plan).ShouldBeLessThan(IndexOf<AddColumn>(plan));
     }
@@ -625,8 +625,8 @@ public sealed class PlanLinearizerTests
     public void Linearize_OrdersAddColumnBeforeAddPrimaryKey()
     {
         var plan = LinearizeTable(TableNode("users", ChangeKind.Modify,
-            columns: [AddedColumn(new Column(new SqlIdentifier("id"), SqlType.Int))],
-            primaryKey: [new PrimaryKeyDiff(ChangeKind.Add, new SqlIdentifier("users_pkey"), new PrimaryKey(new SqlIdentifier("users_pkey"), [new SqlIdentifier("id")]))]));
+            columns: [AddedColumn(new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int })],
+            primaryKey: [new PrimaryKeyDiff(ChangeKind.Add, new SqlIdentifier("users_pkey"), new PrimaryKey { Name = new SqlIdentifier("users_pkey"), ColumnNames = [new SqlIdentifier("id")] })]));
 
         IndexOf<AddColumn>(plan).ShouldBeLessThan(IndexOf<AddPrimaryKey>(plan));
     }
@@ -637,7 +637,7 @@ public sealed class PlanLinearizerTests
         var plan = LinearizeTable(TableNode("users", ChangeKind.Modify, primaryKey:
         [
             new PrimaryKeyDiff(ChangeKind.Remove, new SqlIdentifier("users_pkey"), null),
-            new PrimaryKeyDiff(ChangeKind.Add, new SqlIdentifier("users_pkey"), new PrimaryKey(new SqlIdentifier("users_pkey"), [new SqlIdentifier("id"), new SqlIdentifier("tenant")])),
+            new PrimaryKeyDiff(ChangeKind.Add, new SqlIdentifier("users_pkey"), new PrimaryKey { Name = new SqlIdentifier("users_pkey"), ColumnNames = [new SqlIdentifier("id"), new SqlIdentifier("tenant")] }),
         ]));
 
         IndexOf<DropPrimaryKey>(plan).ShouldBeLessThan(IndexOf<AddPrimaryKey>(plan));
@@ -647,7 +647,7 @@ public sealed class PlanLinearizerTests
     public void Linearize_OrdersDropTableAndDropSchemaLast()
     {
         var plan = Linearize(
-            SchemaNode("new_app", ChangeKind.Add, tables: [TableNode("users", ChangeKind.Add, schema: "new_app", definition: new Table(new SqlIdentifier("users")))]),
+            SchemaNode("new_app", ChangeKind.Add, tables: [TableNode("users", ChangeKind.Add, schema: "new_app", definition: new Table { Name = new SqlIdentifier("users") })]),
             SchemaNode("old_app", ChangeKind.Remove),
             SchemaNode("app", tables: [TableNode("stale", ChangeKind.Remove)]));
 
@@ -674,8 +674,8 @@ public sealed class PlanLinearizerTests
     {
         // A foreign key may target a unique constraint, so the constraint must be created first.
         var plan = LinearizeTable(TableNode("orders", ChangeKind.Modify,
-            uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("orders_code_uq"), new UniqueConstraint(new SqlIdentifier("orders_code_uq"), [new SqlIdentifier("code")]))],
-            foreignKeys: [new ForeignKeyDiff(ChangeKind.Add, new SqlIdentifier("orders_user_fk"), new ForeignKey(new SqlIdentifier("orders_user_fk"), [new SqlIdentifier("user_id")], new SqlIdentifier("app"), new SqlIdentifier("users"), [new SqlIdentifier("id")]))]));
+            uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("orders_code_uq"), new UniqueConstraint { Name = new SqlIdentifier("orders_code_uq"), ColumnNames = [new SqlIdentifier("code")] })],
+            foreignKeys: [new ForeignKeyDiff(ChangeKind.Add, new SqlIdentifier("orders_user_fk"), new ForeignKey { Name = new SqlIdentifier("orders_user_fk"), ColumnNames = [new SqlIdentifier("user_id")], ReferencedSchema = new SqlIdentifier("app"), ReferencedTable = new SqlIdentifier("users"), ReferencedColumnNames = [new SqlIdentifier("id")] })]));
 
         IndexOf<AddUniqueConstraint>(plan).ShouldBeLessThan(IndexOf<AddForeignKey>(plan));
     }
@@ -793,7 +793,7 @@ public sealed class PlanLinearizerTests
     public void Linearize_AddEnum_EmitsCreateEnumFromDefinition()
     {
         var plan = Linearize(SchemaNode("app", enums:
-            [new EnumDiff(new SqlIdentifier("app"), new SqlIdentifier("status"), ChangeKind.Add, Definition: new EnumType(new SqlIdentifier("status"), ["a", "b"]))]));
+            [new EnumDiff(new SqlIdentifier("app"), new SqlIdentifier("status"), ChangeKind.Add, Definition: new EnumType { Name = new SqlIdentifier("status"), Values = ["a", "b"] })]));
 
         plan.ShouldHaveSingleItem().ShouldBeOfType<CreateEnum>().Enum.Values.ShouldBe(["a", "b"]);
     }
@@ -859,7 +859,7 @@ public sealed class PlanLinearizerTests
     public void Linearize_AddSequence_EmitsCreateSequenceFromDefinition()
     {
         var plan = Linearize(SchemaNode("app", sequences:
-            [new SequenceDiff(new SqlIdentifier("app"), new SqlIdentifier("order_id"), ChangeKind.Add, Definition: new Sequence(new SqlIdentifier("order_id"), new SequenceOptions(StartWith: 100)))]));
+            [new SequenceDiff(new SqlIdentifier("app"), new SqlIdentifier("order_id"), ChangeKind.Add, Definition: new Sequence { Name = new SqlIdentifier("order_id"), Options = new SequenceOptions(StartWith: 100) })]));
 
         plan.ShouldHaveSingleItem().ShouldBeOfType<CreateSequence>().Sequence.Options.StartWith.ShouldBe(100);
     }
@@ -904,9 +904,9 @@ public sealed class PlanLinearizerTests
     {
         // A column may use the enum type and a default may call the sequence, so both exist first.
         var plan = Linearize(SchemaNode("app", ChangeKind.Add,
-            tables: [TableNode("users", ChangeKind.Add, definition: new Table(new SqlIdentifier("users")))],
-            enums: [new EnumDiff(new SqlIdentifier("app"), new SqlIdentifier("status"), ChangeKind.Add, Definition: new EnumType(new SqlIdentifier("status"), ["a"]))],
-            sequences: [new SequenceDiff(new SqlIdentifier("app"), new SqlIdentifier("order_id"), ChangeKind.Add, Definition: new Sequence(new SqlIdentifier("order_id")))]));
+            tables: [TableNode("users", ChangeKind.Add, definition: new Table { Name = new SqlIdentifier("users") })],
+            enums: [new EnumDiff(new SqlIdentifier("app"), new SqlIdentifier("status"), ChangeKind.Add, Definition: new EnumType { Name = new SqlIdentifier("status"), Values = ["a"] })],
+            sequences: [new SequenceDiff(new SqlIdentifier("app"), new SqlIdentifier("order_id"), ChangeKind.Add, Definition: new Sequence { Name = new SqlIdentifier("order_id") })]));
 
         IndexOf<CreateSchema>(plan).ShouldBeLessThan(IndexOf<CreateEnum>(plan));
         IndexOf<CreateEnum>(plan).ShouldBeLessThan(IndexOf<CreateTable>(plan));
@@ -954,7 +954,7 @@ public sealed class PlanLinearizerTests
     {
         // A new table's columns reference the enum by its new name, so the rename must land first.
         var plan = Linearize(SchemaNode("app",
-            tables: [TableNode("users", ChangeKind.Add, definition: new Table(new SqlIdentifier("users")))],
+            tables: [TableNode("users", ChangeKind.Add, definition: new Table { Name = new SqlIdentifier("users") })],
             enums: [new EnumDiff(new SqlIdentifier("app"), new SqlIdentifier("status"), ChangeKind.Modify, RenamedFrom: new SqlIdentifier("state"))]));
 
         IndexOf<RenameEnum>(plan).ShouldBeLessThan(IndexOf<CreateTable>(plan));
@@ -964,8 +964,8 @@ public sealed class PlanLinearizerTests
     // Functions and procedures
     // -------------------------------------------------------------------------
 
-    private static readonly Routine _fn = new(new SqlIdentifier("f"), RoutineKind.Function, new SqlText("a int"), new SqlText("RETURNS int LANGUAGE sql AS $$ SELECT 1; $$"));
-    private static readonly Routine _proc = new(new SqlIdentifier("p"), RoutineKind.Procedure, new SqlText(""), new SqlText("LANGUAGE sql AS $$ DELETE FROM app.t; $$"));
+    private static readonly Routine _fn = new Routine { Name = new SqlIdentifier("f"), RoutineKind = RoutineKind.Function, Arguments = new SqlText("a int"), Definition = new SqlText("RETURNS int LANGUAGE sql AS $$ SELECT 1; $$") };
+    private static readonly Routine _proc = new Routine { Name = new SqlIdentifier("p"), RoutineKind = RoutineKind.Procedure, Arguments = new SqlText(""), Definition = new SqlText("LANGUAGE sql AS $$ DELETE FROM app.t; $$") };
 
     [Fact]
     public void Linearize_AddFunction_EmitsCreateRoutineFromDefinition()
@@ -1042,8 +1042,8 @@ public sealed class PlanLinearizerTests
     {
         // Column DEFAULTs and CHECKs may call routines, and routine args may use enum types.
         var plan = Linearize(SchemaNode("app", ChangeKind.Add,
-            tables: [TableNode("users", ChangeKind.Add, definition: new Table(new SqlIdentifier("users")))],
-            enums: [new EnumDiff(new SqlIdentifier("app"), new SqlIdentifier("status"), ChangeKind.Add, Definition: new EnumType(new SqlIdentifier("status"), ["a"]))],
+            tables: [TableNode("users", ChangeKind.Add, definition: new Table { Name = new SqlIdentifier("users") })],
+            enums: [new EnumDiff(new SqlIdentifier("app"), new SqlIdentifier("status"), ChangeKind.Add, Definition: new EnumType { Name = new SqlIdentifier("status"), Values = ["a"] })],
             routines:
             [
                 new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Add, RoutineKind.Function, Definition: _fn),

@@ -44,5 +44,5 @@ public enum TablePrivilege
     /// <summary>
     /// Indicates that the role has all privileges (SELECT, INSERT, UPDATE, DELETE) on the table.
     /// </summary>
-    All = Select | Insert | Update | Delete,
+    All = Select | Insert | Update | Delete
 }

@@ -94,5 +94,5 @@ internal enum TokenKind
     /// <summary>
     /// The end of the input.
     /// </summary>
-    EndOfFile,
+    EndOfFile
 }

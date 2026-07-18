@@ -33,8 +33,10 @@ public sealed class DatabaseStateSerializerTests
     public void RoundTrip_PreservesSqlType(SqlType type)
     {
         // Arrange
-        var schema = new Database(
-            [new Schema(new SqlIdentifier("app"), tables: [new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("c"), type)])])]);
+        var schema = new Database
+        {
+            Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("t"), Columns = [new Column { Name = new SqlIdentifier("c"), Type = type }] }] }],
+        };
 
         // Act
         var roundTripped = _sut.Deserialize(_sut.Serialize(new DatabaseState(schema))).Database;
@@ -55,16 +57,16 @@ public sealed class DatabaseStateSerializerTests
     public void Serialize_WritesEnumsAsNames()
     {
         // Arrange
-        var schema = new Database(
-        [
-            new Schema(new SqlIdentifier("app"), tables:
-            [
-                new Table(new SqlIdentifier("users"), foreignKeys:
-                [
-                    new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("org_id")], new SqlIdentifier("app"), new SqlIdentifier("orgs"), [new SqlIdentifier("id")], ReferentialAction.Cascade),
-                ]),
-            ]),
-        ]);
+        var schema = new Database
+        {
+            Schemas = [
+            new Schema { Name = new SqlIdentifier("app"), Tables = [
+                new Table { Name = new SqlIdentifier("users"), ForeignKeys = [
+                    new ForeignKey { Name = new SqlIdentifier("fk"), ColumnNames = [new SqlIdentifier("org_id")], ReferencedSchema = new SqlIdentifier("app"), ReferencedTable = new SqlIdentifier("orgs"), ReferencedColumnNames = [new SqlIdentifier("id")], OnDelete = ReferentialAction.Cascade },
+                ] },
+            ] },
+        ],
+        };
 
         // Act
         var json = Json(schema);
@@ -80,13 +82,14 @@ public sealed class DatabaseStateSerializerTests
         // The state store is a fact store: a member at its default value must still be recorded, so that
         // "absent" can never be mistaken for "present and equal to today's default". This is the inverse
         // of the user-facing serializer, which omits defaults. See DomainModelSerializationContractTests.
-        var schema = new Database(
-        [
-            new Schema(new SqlIdentifier("app"), tables:
-            [
-                new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("c"), SqlType.Int)]),
-            ]),
-        ]);
+        var schema = new Database
+        {
+            Schemas = [
+            new Schema { Name = new SqlIdentifier("app"), Tables = [
+                new Table { Name = new SqlIdentifier("t"), Columns = [new Column { Name = new SqlIdentifier("c"), Type = SqlType.Int }] },
+            ] },
+        ],
+        };
 
         // Act
         var json = Json(schema);
@@ -102,7 +105,7 @@ public sealed class DatabaseStateSerializerTests
     {
         // Arrange
         var executed = new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("api-login")), "abc123", new DateTimeOffset(2026, 7, 10, 12, 0, 0, TimeSpan.Zero));
-        var state = new DatabaseState(new Database([new Schema(new SqlIdentifier("app"))]), [executed]);
+        var state = new DatabaseState(new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] }, [executed]);
 
         // Act
         var roundTripped = _sut.Deserialize(_sut.Serialize(state));
@@ -116,7 +119,7 @@ public sealed class DatabaseStateSerializerTests
     {
         // Pins the wire field name — renaming it silently empties every existing ledger.
         var state = new DatabaseState(
-            new Database([]),
+            new Database { Schemas = [] },
             [new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("api-login")), "abc123", DateTimeOffset.UnixEpoch)]);
 
         var json = Encoding.UTF8.GetString(_sut.Serialize(state).Span);
@@ -128,7 +131,7 @@ public sealed class DatabaseStateSerializerTests
     public Task Serialize_Ledger_MatchesSnapshot()
         // Pins the ledger entry's wire shape: the script address is structural ({schema, name}, schema null
         // when the script is global), beside the hash and timestamp.
-        => VerifyJson(Encoding.UTF8.GetString(_sut.Serialize(new DatabaseState(new Database([]), [
+        => VerifyJson(Encoding.UTF8.GetString(_sut.Serialize(new DatabaseState(new Database { Schemas = [] }, [
             new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("api-login")), "abc123", DateTimeOffset.UnixEpoch),
             new ScriptExecution(new ScopedAddress(new SqlIdentifier("sales"), new SqlIdentifier("seed")), "def456", DateTimeOffset.UnixEpoch),
         ])).Span));
@@ -137,7 +140,7 @@ public sealed class DatabaseStateSerializerTests
     public Task Serialize_ManagedSet_MatchesSnapshot()
         // Pins the managed set's wire shape: schema and extension names beside object identities, each an
         // enum-named kind and a structural address.
-        => VerifyJson(Encoding.UTF8.GetString(_sut.Serialize(new DatabaseState(new Database([]))
+        => VerifyJson(Encoding.UTF8.GetString(_sut.Serialize(new DatabaseState(new Database { Schemas = [] })
         {
             Managed = new IdentitySet(
                 Schemas: [new SqlIdentifier("app")],

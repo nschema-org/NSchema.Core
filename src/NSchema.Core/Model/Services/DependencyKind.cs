@@ -18,5 +18,5 @@ internal enum DependencyKind
     /// <summary>
     /// A foreign key constraint on a table.
     /// </summary>
-    ForeignKey,
+    ForeignKey
 }

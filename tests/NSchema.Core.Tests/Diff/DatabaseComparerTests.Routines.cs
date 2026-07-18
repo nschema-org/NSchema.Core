@@ -17,14 +17,14 @@ public partial class DatabaseComparerTests
     private const string ProcDef = "LANGUAGE sql AS $$ DELETE FROM app.t; $$";
 
     private static Routine Fn(string name, string args, string def, string? comment = null) =>
-        new(new SqlIdentifier(name), RoutineKind.Function, new SqlText(args), new SqlText(def)) { Comment = comment };
+        new Routine { Name = new SqlIdentifier(name), RoutineKind = RoutineKind.Function, Arguments = new SqlText(args), Definition = new SqlText(def), Comment = comment };
 
     private static Routine Proc(string name, string args, string def, string? comment = null) =>
-        new(new SqlIdentifier(name), RoutineKind.Procedure, new SqlText(args), new SqlText(def)) { Comment = comment };
+        new Routine { Name = new SqlIdentifier(name), RoutineKind = RoutineKind.Procedure, Arguments = new SqlText(args), Definition = new SqlText(def), Comment = comment };
 
     /// <summary>Diffs two <c>app</c> schemas holding the given routines, returning the single routine diff (null when unchanged).</summary>
     private RoutineDiff? DiffRoutines(IReadOnlyList<Routine> current, IReadOnlyList<Routine> desired, ProjectDirectives? directives = null) =>
-        Compare(Db(new Schema(new SqlIdentifier("app"), routines: current)), Db(new Schema(new SqlIdentifier("app"), routines: desired)), directives)
+        Compare(Db(new Schema { Name = new SqlIdentifier("app"), Routines = [.. current] }), Db(new Schema { Name = new SqlIdentifier("app"), Routines = [.. desired] }), directives)
         .Schemas.SingleOrDefault()?.Routines.SingleOrDefault();
 
     [Fact]
