@@ -23,10 +23,10 @@ public sealed class ImportOperationTests : IDisposable
     private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
 
     // Tables carry a column because the DDL grammar has no empty-table form.
-    private static Table MakeTable(string name) => new(new SqlIdentifier(name), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]);
+    private static Table MakeTable(string name) => new(new SqlIdentifier(name), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]);
 
     private readonly Database _schema = new Database([new Schema(new SqlIdentifier("app"),
-        Tables: [MakeTable("users"), MakeTable("orders")])]);
+        tables: [MakeTable("users"), MakeTable("orders")])]);
 
     public ImportOperationTests()
     {
@@ -95,7 +95,7 @@ public sealed class ImportOperationTests : IDisposable
     [Fact]
     public async Task Execute_PassesScopeFilterToSource()
     {
-        var arguments = new ImportArguments { OutputDirectory = _dir, Scope = PlanningScope.Of(new SqlIdentifier("app"), new SqlIdentifier("audit")) };
+        var arguments = new ImportArguments { OutputDirectory = _dir, Scope = PlanningScope.To(new SqlIdentifier("app"), new SqlIdentifier("audit")) };
 
         await Execute(arguments);
 
@@ -209,8 +209,8 @@ public sealed class ImportOperationTests : IDisposable
     public async Task Execute_MultipleSchemas_EachGetsItsOwnDirectory()
     {
         Source(new Database([
-            new Schema(new SqlIdentifier("app"), Tables: [MakeTable("users")]),
-            new Schema(new SqlIdentifier("audit"), Tables: [MakeTable("logs")]),
+            new Schema(new SqlIdentifier("app"), tables: [MakeTable("users")]),
+            new Schema(new SqlIdentifier("audit"), tables: [MakeTable("logs")]),
         ]));
 
         await Execute(new ImportArguments { OutputDirectory = _dir });
@@ -245,10 +245,10 @@ public sealed class ImportOperationTests : IDisposable
     public async Task Execute_ReimportPreservesObjectsNotInIncoming()
     {
         // Each object is its own file, so an object absent from a later import is simply not rewritten.
-        Source(new Database([new Schema(new SqlIdentifier("app"), Tables: [MakeTable("audit_log")])]));
+        Source(new Database([new Schema(new SqlIdentifier("app"), tables: [MakeTable("audit_log")])]));
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
-        Source(new Database([new Schema(new SqlIdentifier("app"), Tables: [MakeTable("users")])]));
+        Source(new Database([new Schema(new SqlIdentifier("app"), tables: [MakeTable("users")])]));
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
         (await ReadAll()).Schemas.Single().Tables.Select(t => t.Name).ShouldBe(["audit_log", "users"], ignoreOrder: true);
@@ -258,11 +258,11 @@ public sealed class ImportOperationTests : IDisposable
     public async Task Execute_ReimportReplacesAnObjectInPlace()
     {
         Source(new Database([new Schema(new SqlIdentifier("app"),
-            Tables: [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("old_col"), SqlType.Text)])])]));
+            tables: [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("old_col"), SqlType.Text)])])]));
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
         Source(new Database([new Schema(new SqlIdentifier("app"),
-            Tables: [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("new_col"), SqlType.Text)])])]));
+            tables: [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("new_col"), SqlType.Text)])])]));
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
         var users = (await ReadSchema(ObjectPath("tables", "users"))).Schemas.Single().Tables.Single(t => t.Name.Value.Equals("users"));
@@ -275,17 +275,17 @@ public sealed class ImportOperationTests : IDisposable
         // The header file holds schema-level objects (enums, sequences, domains); a re-import must replace (not
         // duplicate) them.
         var schema = new Database([new Schema(new SqlIdentifier("app"),
-            Enums: [new EnumType(new SqlIdentifier("status"), ["a"])],
-            Sequences: [new Sequence(new SqlIdentifier("order_id"), new SequenceOptions(StartWith: 1))],
-            Domains: [new DomainType(new SqlIdentifier("typeid"), SqlType.Text)])]);
+            enums: [new EnumType(new SqlIdentifier("status"), ["a"])],
+            sequences: [new Sequence(new SqlIdentifier("order_id"), new SequenceOptions(StartWith: 1))],
+            domains: [new DomainType(new SqlIdentifier("typeid"), SqlType.Text)])]);
 
         Source(schema);
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
         Source(new Database([new Schema(new SqlIdentifier("app"),
-            Enums: [new EnumType(new SqlIdentifier("status"), ["a", "b"])],
-            Sequences: [new Sequence(new SqlIdentifier("order_id"), new SequenceOptions(StartWith: 100))],
-            Domains: [new DomainType(new SqlIdentifier("typeid"), SqlType.VarChar(64))])]));
+            enums: [new EnumType(new SqlIdentifier("status"), ["a", "b"])],
+            sequences: [new Sequence(new SqlIdentifier("order_id"), new SequenceOptions(StartWith: 100))],
+            domains: [new DomainType(new SqlIdentifier("typeid"), SqlType.VarChar(64))])]));
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
         var header = (await ReadSchema(HeaderPath)).Schemas.Single();
@@ -299,8 +299,8 @@ public sealed class ImportOperationTests : IDisposable
     [Fact]
     public async Task Execute_WritesExtensionsToTopLevelFile()
     {
-        Source(new Database([new Schema(new SqlIdentifier("app"), Tables: [MakeTable("users")])],
-            Extensions: [new Extension(new SqlIdentifier("citext")), new Extension(new SqlIdentifier("postgis"), Version: "3.4")]));
+        Source(new Database([new Schema(new SqlIdentifier("app"), tables: [MakeTable("users")])],
+            extensions: [new Extension(new SqlIdentifier("citext")), new Extension(new SqlIdentifier("postgis"), version: "3.4")]));
 
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
@@ -320,12 +320,12 @@ public sealed class ImportOperationTests : IDisposable
     [Fact]
     public async Task Execute_ReimportMergesExtensionsAdditively()
     {
-        Source(new Database([new Schema(new SqlIdentifier("app"), Tables: [MakeTable("users")])],
-            Extensions: [new Extension(new SqlIdentifier("citext"))]));
+        Source(new Database([new Schema(new SqlIdentifier("app"), tables: [MakeTable("users")])],
+            extensions: [new Extension(new SqlIdentifier("citext"))]));
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
-        Source(new Database([new Schema(new SqlIdentifier("app"), Tables: [MakeTable("users")])],
-            Extensions: [new Extension(new SqlIdentifier("postgis"), Version: "3.4")]));
+        Source(new Database([new Schema(new SqlIdentifier("app"), tables: [MakeTable("users")])],
+            extensions: [new Extension(new SqlIdentifier("postgis"), version: "3.4")]));
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
         var extensions = (await ReadSchema(Path.Combine(_dir, "extensions.sql"))).Extensions;
@@ -351,13 +351,13 @@ public sealed class ImportOperationTests : IDisposable
     }
 
     private static Database RichSchema() => new([new Schema(new SqlIdentifier("app"),
-        Tables: [MakeTable("users"), MakeTable("orders")],
-        Views: [new View(new SqlIdentifier("active"), new SqlText("SELECT 1"))],
-        Routines:
+        tables: [MakeTable("users"), MakeTable("orders")],
+        views: [new View(new SqlIdentifier("active"), new SqlText("SELECT 1"))],
+        routines:
         [
             new Routine(new SqlIdentifier("calc"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int LANGUAGE sql AS $$ SELECT 1 $$")),
             new Routine(new SqlIdentifier("sync"), RoutineKind.Procedure, new SqlText(""), new SqlText("LANGUAGE sql AS $$ SELECT 1 $$")),
         ],
-        Enums: [new EnumType(new SqlIdentifier("status"), ["a"])],
-        Sequences: [new Sequence(new SqlIdentifier("order_id"), new SequenceOptions(StartWith: 1))])]);
+        enums: [new EnumType(new SqlIdentifier("status"), ["a"])],
+        sequences: [new Sequence(new SqlIdentifier("order_id"), new SequenceOptions(StartWith: 1))])]);
 }

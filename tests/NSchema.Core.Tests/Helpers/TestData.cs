@@ -46,164 +46,144 @@ public static class TestData
     /// Shared so the state and document serializers are pinned against the same input.
     /// </summary>
     public static Database RichSchema() => new(
-        Schemas:
+        schemas:
         [
             new Schema(
-                Name: new SqlIdentifier("app"),
-                Comment: "application schema",
-                Tables:
+                name: new SqlIdentifier("app"),
+
+                tables:
                 [
                     new Table(
-                        Name: new SqlIdentifier("users"),
-                        PrimaryKey: new PrimaryKey(new SqlIdentifier("users_pkey"), [new SqlIdentifier("id")], Comment: "surrogate key"),
-                        Comment: "all users",
-                        Columns:
+                        name: new SqlIdentifier("users"),
+                        primaryKey: new PrimaryKey(new SqlIdentifier("users_pkey"), [new SqlIdentifier("id")]) { Comment = "surrogate key" },
+
+                        columns:
                         [
-                            new Column(new SqlIdentifier("id"), SqlType.BigInt, IsIdentity: true,
-                                IdentityOptions: new IdentityOptions(1, 1, 1)),
-                            new Column(new SqlIdentifier("name"), SqlType.VarChar(255), Comment: "display name"),
-                            new Column(new SqlIdentifier("balance"), SqlType.Decimal(18, 2), IsNullable: true, DefaultExpression: new SqlText("0")),
+                            new Column(new SqlIdentifier("id"), SqlType.BigInt, isIdentity: true,
+                                identityOptions: new IdentityOptions(1, 1, 1)),
+                            new Column(new SqlIdentifier("name"), SqlType.VarChar(255)) { Comment = "display name" },
+                            new Column(new SqlIdentifier("balance"), SqlType.Decimal(18, 2), isNullable: true, defaultExpression: new SqlText("0")),
                             new Column(new SqlIdentifier("code"), SqlType.Char(8)),
-                            new Column(new SqlIdentifier("metadata"), SqlType.Custom("jsonb"), IsNullable: true),
-                            new Column(new SqlIdentifier("name_upper"), SqlType.Text, IsNullable: true, GeneratedExpression: new SqlText("upper(name)")),
+                            new Column(new SqlIdentifier("metadata"), SqlType.Custom("jsonb"), isNullable: true),
+                            new Column(new SqlIdentifier("name_upper"), SqlType.Text, isNullable: true, generatedExpression: new SqlText("upper(name)")),
                         ],
-                        ForeignKeys:
+                        foreignKeys:
                         [
                             new ForeignKey(new SqlIdentifier("users_org_fk"), [new SqlIdentifier("org_id")], new SqlIdentifier("app"), new SqlIdentifier("orgs"), [new SqlIdentifier("id")],
-                                ReferentialAction.Cascade, ReferentialAction.SetNull, Comment: "owning org"),
+                                ReferentialAction.Cascade, ReferentialAction.SetNull) { Comment = "owning org" },
                         ],
-                        UniqueConstraints:
+                        uniqueConstraints:
                         [
-                            new UniqueConstraint(new SqlIdentifier("users_code_uq"), [new SqlIdentifier("code")], Comment: "external code"),
+                            new UniqueConstraint(new SqlIdentifier("users_code_uq"), [new SqlIdentifier("code")]) { Comment = "external code" },
                         ],
-                        CheckConstraints:
+                        checkConstraints:
                         [
-                            new CheckConstraint(new SqlIdentifier("users_balance_chk"), new SqlText("balance >= 0"), Comment: "no overdraft"),
+                            new CheckConstraint(new SqlIdentifier("users_balance_chk"), new SqlText("balance >= 0")) { Comment = "no overdraft" },
                         ],
-                        ExclusionConstraints:
+                        exclusionConstraints:
                         [
                             new ExclusionConstraint(new SqlIdentifier("users_code_excl"),
                                 [new ExclusionElement("=", new SqlIdentifier("code")), new ExclusionElement("&&", Expression: new SqlText("int4range(0, balance)"))],
-                                Method: "gist", Predicate: new SqlText("balance > 0"), Comment: "no overlap"),
+                                method: "gist", predicate: new SqlText("balance > 0")) { Comment = "no overlap" },
                         ],
-                        Indexes:
+                        indexes:
                         [
-                            new TableIndex(new SqlIdentifier("users_name_ix"), ["name"], IsUnique: true,
-                                Comment: "unique names", Predicate: new SqlText("name IS NOT NULL")),
+                            new TableIndex(new SqlIdentifier("users_name_ix"), ["name"], isUnique: true,
+                                predicate: new SqlText("name IS NOT NULL")) { Comment = "unique names" },
                             new TableIndex(new SqlIdentifier("users_balance_ix"),
                                 [new IndexColumn(new SqlIdentifier("balance"), Sort: IndexSort.Descending, Nulls: IndexNulls.Last), new IndexColumn(Expression: new SqlText("lower(name)"))],
-                                Method: "btree", Include: [new SqlIdentifier("code")], Comment: "covering balance index"),
+                                method: "btree", include: [new SqlIdentifier("code")]) { Comment = "covering balance index" },
                         ],
-                        Grants: [new TableGrant(new SqlIdentifier("readers"), TablePrivilege.All)],
-                        Triggers:
+                        grants: [new TableGrant(new SqlIdentifier("readers"), TablePrivilege.All)],
+                        triggers:
                         [
                             new Trigger(new SqlIdentifier("users_audit"), TriggerTiming.After,
                                 TriggerEvent.Insert | TriggerEvent.Update, new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("log_change")),
-                                TriggerLevel.Row, UpdateOfColumns: [new SqlIdentifier("name"), new SqlIdentifier("balance")],
-                                When: new SqlText("new.balance > 0"), Comment: "audit row changes"),
+                                TriggerLevel.Row, updateOfColumns: [new SqlIdentifier("name"), new SqlIdentifier("balance")],
+                                when: new SqlText("new.balance > 0")) { Comment = "audit row changes" },
                             new Trigger(new SqlIdentifier("users_stamp"), TriggerTiming.Before, TriggerEvent.Update,
                                 new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("touch_updated_at"))),
                             // An inline-body (SQL Server-style) trigger: no function, a multi-statement body that
                             // carries its own ';' (so it exercises the dollar-quoted round-trip).
                             new Trigger(new SqlIdentifier("users_guard"), TriggerTiming.InsteadOf, TriggerEvent.Delete,
-                                Body: new SqlText("BEGIN\n  INSERT INTO app.audit (msg) VALUES ('blocked');\n  RETURN;\nEND"),
-                                Comment: "block deletes"),
-                        ]),
+                                body: new SqlText("BEGIN\n  INSERT INTO app.audit (msg) VALUES ('blocked');\n  RETURN;\nEND")) { Comment = "block deletes" },
+                        ]) { Comment = "all users" },
                 ],
-                Grants: [new SchemaGrant(new SqlIdentifier("app_role"))],
-                Views:
+                grants: [new SchemaGrant(new SqlIdentifier("app_role"))],
+                views:
                 [
                     View("active_users", "SELECT id, name FROM app.users WHERE balance > 0", comment: "currently active users"),
                     View("user_directory", "SELECT name FROM app.active_users"),
                     MaterializedView("daily_balances", "SELECT name, balance FROM app.users",
                         comment: "balances rollup",
-                        indexes: [new TableIndex(new SqlIdentifier("daily_balances_name_ix"), ["name"], IsUnique: true, Comment: "by name")]),
+                        indexes: [new TableIndex(new SqlIdentifier("daily_balances_name_ix"), ["name"], isUnique: true) { Comment = "by name" }]),
                 ],
-                Enums:
+                enums:
                 [
-                    new EnumType(new SqlIdentifier("order_status"), ["pending", "shipped", "delivered"], Comment: "order lifecycle"),
+                    new EnumType(new SqlIdentifier("order_status"), ["pending", "shipped", "delivered"]) { Comment = "order lifecycle" },
                     new EnumType(new SqlIdentifier("priority"), ["low", "high"]),
                 ],
-                Sequences:
+                sequences:
                 [
                     new Sequence(new SqlIdentifier("invoice_id")),
                     new Sequence(new SqlIdentifier("order_id"),
-                        new SequenceOptions(SqlType.BigInt, StartWith: 100, IncrementBy: 5, MinValue: -10, MaxValue: 999999, Cache: 10, Cycle: true),
-                        Comment: "order numbers"),
+                        new SequenceOptions(SqlType.BigInt, StartWith: 100, IncrementBy: 5, MinValue: -10, MaxValue: 999999, Cache: 10, Cycle: true)) { Comment = "order numbers" },
                 ],
-                Routines:
+                routines:
                 [
                     new Routine(new SqlIdentifier("add_tax"), RoutineKind.Function, new SqlText("amount numeric, rate numeric"),
-                        new SqlText("RETURNS numeric LANGUAGE sql AS $$\n  SELECT amount * (1 + rate);\n$$"),
-                        Comment: "adds tax"),
+                        new SqlText("RETURNS numeric LANGUAGE sql AS $$\n  SELECT amount * (1 + rate);\n$$")) { Comment = "adds tax" },
                     new Routine(new SqlIdentifier("normalize_code"), RoutineKind.Function, new SqlText("code text DEFAULT 'N/A'"),
                         new SqlText("RETURNS text LANGUAGE sql AS $body$ SELECT upper(code || ';suffix'); $body$")),
                     new Routine(new SqlIdentifier("archive_users"), RoutineKind.Procedure, new SqlText(""),
-                        new SqlText("LANGUAGE sql AS $$\n  DELETE FROM app.users WHERE name <> 'a;b';\n$$"),
-                        Comment: "archival job"),
+                        new SqlText("LANGUAGE sql AS $$\n  DELETE FROM app.users WHERE name <> 'a;b';\n$$")) { Comment = "archival job" },
                 ],
-                Domains:
+                domains:
                 [
-                    new DomainType(new SqlIdentifier("typeid"), SqlType.Text, Comment: "unique id as text"),
-                    new DomainType(new SqlIdentifier("positive_amount"), SqlType.Decimal(18, 2), Default: new SqlText("0"), NotNull: true,
-                        Checks: [new CheckConstraint(new SqlIdentifier("positive_amount_chk"), new SqlText("VALUE >= 0"))]),
+                    new DomainType(new SqlIdentifier("typeid"), SqlType.Text) { Comment = "unique id as text" },
+                    new DomainType(new SqlIdentifier("positive_amount"), SqlType.Decimal(18, 2), @default: new SqlText("0"), notNull: true,
+                        checks: [new CheckConstraint(new SqlIdentifier("positive_amount_chk"), new SqlText("VALUE >= 0"))]),
                 ],
-                CompositeTypes:
+                compositeTypes:
                 [
-                    new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text), new CompositeField(new SqlIdentifier("zip"), SqlType.Int)],
-                        Comment: "a postal address"),
+                    new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text), new CompositeField(new SqlIdentifier("zip"), SqlType.Int)]) { Comment = "a postal address" },
                     new CompositeType(new SqlIdentifier("money_amount"), [new CompositeField(new SqlIdentifier("amount"), SqlType.Decimal(18, 2)), new CompositeField(new SqlIdentifier("currency"), SqlType.Text)]),
-                ]),
+                ]) { Comment = "application schema" },
         ],
-        Extensions:
+        extensions:
         [
             new Extension(new SqlIdentifier("citext")),
-            new Extension(new SqlIdentifier("postgis"), Version: "3.4", Comment: "spatial types"),
-            new Extension(new SqlIdentifier("uuid-ossp"), Comment: "uuid generation"),
+            new Extension(new SqlIdentifier("postgis"), version: "3.4") { Comment = "spatial types" },
+            new Extension(new SqlIdentifier("uuid-ossp")) { Comment = "uuid generation" },
         ]);
 
     /// <summary>
     /// Directives exercising every directive statement against <see cref="RichSchema"/>: a rename of every
-    /// renameable kind (addressing current reality — the schema's current name is <c>legacy_app</c>), a drop
-    /// of every droppable kind, and a partial. Shared so the writer round-trip pins the whole grammar.
+    /// renameable kind (addressing current reality — the schema's current name is <c>legacy_app</c>).
+    /// Shared so the writer round-trip pins the whole grammar.
     /// </summary>
     public static ProjectDirectives RichDirectives() => new(
-        new SchemaDirectives(
-            Renames: [new SchemaRenameDirective(new SqlIdentifier("legacy_app"), new SqlIdentifier("app"))],
-            Drops: [new SchemaDropDirective(new SqlIdentifier("scratch"))],
-            Partials: [new SchemaPartialDirective(new SqlIdentifier("app"))]),
-        Renames:
+        SchemaRenames: [new SchemaRenameDirective(new SqlIdentifier("legacy_app"), new SqlIdentifier("app"))],
+        ObjectRenames:
         [
-            new ObjectRenameDirective(ObjectKind.Table, Current("members"), new SqlIdentifier("users")),
-            new ObjectRenameDirective(ObjectKind.View, Current("legacy_directory"), new SqlIdentifier("user_directory")),
-            new ObjectRenameDirective(ObjectKind.Enum, Current("importance"), new SqlIdentifier("priority")),
-            new ObjectRenameDirective(ObjectKind.Sequence, Current("bill_id"), new SqlIdentifier("invoice_id")),
-            new ObjectRenameDirective(ObjectKind.Routine, Current("clean_code"), new SqlIdentifier("normalize_code")),
-            new ObjectRenameDirective(ObjectKind.Domain, Current("legacy_id"), new SqlIdentifier("typeid")),
-            new ObjectRenameDirective(ObjectKind.CompositeType, Current("legacy_address"), new SqlIdentifier("address")),
+            new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, Current("members")), new SqlIdentifier("users")),
+            new ObjectRenameDirective(new ObjectIdentity(ObjectKind.View, Current("legacy_directory")), new SqlIdentifier("user_directory")),
+            new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Enum, Current("importance")), new SqlIdentifier("priority")),
+            new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Sequence, Current("bill_id")), new SqlIdentifier("invoice_id")),
+            new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Routine, Current("clean_code")), new SqlIdentifier("normalize_code")),
+            new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Domain, Current("legacy_id")), new SqlIdentifier("typeid")),
+            new ObjectRenameDirective(new ObjectIdentity(ObjectKind.CompositeType, Current("legacy_address")), new SqlIdentifier("address")),
         ],
-        Drops:
-        [
-            new ObjectDropDirective(ObjectKind.Table, Current("old_table")),
-            new ObjectDropDirective(ObjectKind.View, Current("stale_report")),
-            new ObjectDropDirective(ObjectKind.Enum, Current("stale_enum")),
-            new ObjectDropDirective(ObjectKind.Sequence, Current("stale_seq")),
-            new ObjectDropDirective(ObjectKind.Routine, Current("stale_fn")),
-            new ObjectDropDirective(ObjectKind.Routine, Current("stale_proc")),
-            new ObjectDropDirective(ObjectKind.Domain, Current("stale_domain")),
-            new ObjectDropDirective(ObjectKind.CompositeType, Current("stale_type")),
-        ],
-        ColumnRenames: [new MemberRenameDirective(new MemberAddress(new SqlIdentifier("legacy_app"), new SqlIdentifier("members"), new SqlIdentifier("short_code")), new SqlIdentifier("code"))],
-        ExtensionDrops: [new ExtensionDropDirective(new SqlIdentifier("stale_ext"))]);
+        MemberRenames: [new MemberRenameDirective(new MemberAddress(new SqlIdentifier("legacy_app"), new SqlIdentifier("members"), new SqlIdentifier("short_code")), new SqlIdentifier("code"))]);
 
     /// <summary>An address under the schema's current (pre-rename) name.</summary>
     private static ObjectAddress Current(string name) => new(new SqlIdentifier("legacy_app"), new SqlIdentifier(name));
 
     /// <summary>Builds a view with dependencies derived from its body, exactly as the DDL parser would.</summary>
     private static View View(string name, string body, string? comment = null) =>
-        new(new SqlIdentifier(name), new SqlText(body), comment, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")));
+        new(new SqlIdentifier(name), new SqlText(body), ViewDependencyExtractor.Extract(body, new SqlIdentifier("app"))) { Comment = comment };
 
     /// <summary>Builds a materialized view (optionally with indexes), dependencies derived from its body.</summary>
     private static View MaterializedView(string name, string body, string? comment = null, IReadOnlyList<TableIndex>? indexes = null) =>
-        new(new SqlIdentifier(name), new SqlText(body), comment, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")), IsMaterialized: true, Indexes: indexes);
+        new(new SqlIdentifier(name), new SqlText(body), ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")), isMaterialized: true, indexes: indexes) { Comment = comment };
 }

@@ -24,19 +24,19 @@ public sealed class NsqlParserDirectiveTests
     [Fact]
     public void Parse_RenameSchema_TakesBareNames()
         => Directives("CREATE SCHEMA core; RENAME SCHEMA sales TO core;")
-            .Schemas.Renames.ShouldHaveSingleItem()
+            .SchemaRenames.ShouldHaveSingleItem()
             .ShouldBe(new SchemaRenameDirective(new SqlIdentifier("sales"), new SqlIdentifier("core")));
 
     [Fact]
     public void Parse_RenameTable_TakesQualifiedFromAndBareTo()
         => Directives("CREATE SCHEMA app; CREATE TABLE app.people ( id int NOT NULL ); RENAME TABLE app.users TO people;")
-            .Renames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRenameDirective(ObjectKind.Table, App("users"), new SqlIdentifier("people")));
+            .ObjectRenames.ShouldHaveSingleItem()
+            .ShouldBe(new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, App("users")), new SqlIdentifier("people")));
 
     [Fact]
     public void Parse_RenameColumn_TakesAThreePartPath()
         => Directives("CREATE SCHEMA app; CREATE TABLE app.users ( full_name text NOT NULL ); RENAME COLUMN app.users.name TO full_name;")
-            .ColumnRenames.ShouldHaveSingleItem()
+            .MemberRenames.ShouldHaveSingleItem()
             .ShouldBe(new MemberRenameDirective(
                 new MemberAddress(new SqlIdentifier("app"), new SqlIdentifier("users"), new SqlIdentifier("name")),
                 new SqlIdentifier("full_name")));
@@ -44,8 +44,8 @@ public sealed class NsqlParserDirectiveTests
     [Fact]
     public void Parse_RenameMaterializedView_IsAViewRename()
         => Directives("CREATE SCHEMA app; CREATE MATERIALIZED VIEW app.daily AS SELECT 1 FROM app.t; RENAME MATERIALIZED VIEW app.old_daily TO daily;")
-            .Renames.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
-                r => r.Kind.ShouldBe(ObjectKind.View),
+            .ObjectRenames.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+                r => r.From.Kind.ShouldBe(ObjectKind.View),
                 r => r.From.Name.ShouldBe("old_daily"));
 
     [Theory]
@@ -54,19 +54,9 @@ public sealed class NsqlParserDirectiveTests
     [InlineData("ROUTINE")]
     public void Parse_RenameRoutineSpellings_AllRenameARoutine(string keyword)
         => Directives($"CREATE SCHEMA app; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$; RENAME {keyword} app.old_f TO f;")
-            .Renames.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
-                r => r.Kind.ShouldBe(ObjectKind.Routine),
+            .ObjectRenames.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+                r => r.From.Kind.ShouldBe(ObjectKind.Routine),
                 r => r.From.Name.ShouldBe("old_f"));
-
-    [Fact]
-    public void Parse_PartialSchema_MarksTheDeclaredSchema()
-        => Directives("CREATE SCHEMA app; PARTIAL SCHEMA app;")
-            .Schemas.Partials.ShouldHaveSingleItem().Schema.ShouldBe("app");
-
-    [Fact]
-    public void Parse_RepeatedDrop_IsIdempotent()
-        => Directives("CREATE SCHEMA app; DROP TABLE app.old; DROP TABLE app.old;")
-            .Drops.ShouldHaveSingleItem();
 
     // -------------------------------------------------------------------------
     // Errors
@@ -95,7 +85,7 @@ public sealed class NsqlParserDirectiveTests
     [Fact]
     public void Parse_PartialOfNonSchema_Throws()
         => Should.Throw<NsqlSyntaxException>(() => new TestNsqlParser("PARTIAL TABLE app.users;").Parse())
-            .Message.ShouldContain("Expected 'SCHEMA'");
+            .Message.ShouldContain("Unknown statement 'PARTIAL'");
 
     [Fact]
     public void Parse_ObjectRenameInsideTemplate_BindsPerAppliedSchema()
@@ -109,7 +99,7 @@ public sealed class NsqlParserDirectiveTests
             APPLY TEMPLATE t IN SCHEMA sales, billing;
             """).Parse();
 
-        project.Directives.Renames.Select(r => (r.From.ToString(), r.To.Value))
+        project.Directives.ObjectRenames.Select(r => (r.From.ToString(), r.To.Value))
             .ShouldBe([("sales.staff", "people"), ("billing.staff", "people")]);
     }
 
@@ -125,7 +115,7 @@ public sealed class NsqlParserDirectiveTests
             APPLY TEMPLATE t IN SCHEMA sales, billing;
             """).Parse();
 
-        project.Directives.ColumnRenames.Select(r => (r.From.ToString(), r.To.Value))
+        project.Directives.MemberRenames.Select(r => (r.From.ToString(), r.To.Value))
             .ShouldBe([("sales.orders.amount", "total"), ("billing.orders.amount", "total")]);
     }
 

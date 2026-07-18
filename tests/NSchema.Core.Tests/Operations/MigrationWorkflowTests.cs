@@ -64,10 +64,13 @@ public sealed class MigrationWorkflowTests
     }
 
     /// <summary>Builds a workflow whose store records <paramref name="recorded"/> as the current schema.</summary>
-    private MigrationWorkflow SutWithRecordedSchema(Database recorded)
+    private MigrationWorkflow SutWithRecordedSchema(Database recorded) =>
+        SutWithRecordedState(new DatabaseState(recorded));
+
+    private MigrationWorkflow SutWithRecordedState(DatabaseState recorded)
     {
         var store = Substitute.For<IDatabaseStateStore>();
-        store.Read(Arg.Any<CancellationToken>()).Returns(_stateSerializer.Serialize(new DatabaseState(recorded)));
+        store.Read(Arg.Any<CancellationToken>()).Returns(_stateSerializer.Serialize(recorded));
         return BuildSut(store);
     }
 
@@ -175,7 +178,7 @@ public sealed class MigrationWorkflowTests
     public async Task ComputePlan_PlansTheRecordedSchemaAsTheCurrentSide()
     {
         // Arrange
-        var sut = SutWithRecordedSchema(new Database([new Schema(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("users"))])]));
+        var sut = SutWithRecordedSchema(new Database([new Schema(new SqlIdentifier("app"), tables: [new Table(new SqlIdentifier("users"))])]));
 
         // Act
         await sut.ComputePlan(PlanTarget.Project, PlanningScope.All, TestContext.Current.CancellationToken);
@@ -190,7 +193,7 @@ public sealed class MigrationWorkflowTests
     public async Task Prepare_ReportsVerboseObjectCensusForBothSchemas()
     {
         // Arrange
-        var desired = new Database([new Schema(new SqlIdentifier("app"), Tables:
+        var desired = new Database([new Schema(new SqlIdentifier("app"), tables:
             [new Table(new SqlIdentifier("users")), new Table(new SqlIdentifier("orders"))])]);
         _desiredProvider.GetProject(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(
@@ -240,14 +243,14 @@ public sealed class MigrationWorkflowTests
             [new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("billing"))]));
 
         // Act
-        await sut.ComputePlan(PlanTarget.Empty, PlanningScope.Of(new SqlIdentifier("app")), TestContext.Current.CancellationToken);
+        await sut.ComputePlan(PlanTarget.Empty, PlanningScope.To(new SqlIdentifier("app")), TestContext.Current.CancellationToken);
 
         // Assert — the scope reaches the planner, which narrows the difference it computes. The current side
         // stays whole: a scoped teardown may still have to disturb what it is not tearing down.
         _planner.Received(1).Plan(
             Arg.Is<CurrentState>(c => c!.Database.Schemas.Select(s => s.Name.Value).SequenceEqual(new[] { "app", "billing" })),
             Arg.Any<ProjectDefinition>(),
-            Arg.Is<PlanningScope>(s => !s!.IsAll && s.SchemaNames!.Select(n => n.Value).SequenceEqual(new[] { "app" })));
+            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.SchemaNames!.Select(n => n.Value).SequenceEqual(new[] { "app" })));
     }
 
     [Fact]
@@ -416,6 +419,43 @@ public sealed class MigrationWorkflowTests
     }
 
     [Fact]
+    public async Task Refresh_AppliedPlan_RecordsItsManagedSet()
+    {
+        // Arrange — an apply establishes exactly the management the plan computed, empty plans included.
+        var store = Substitute.For<IDatabaseStateStore>();
+        ReadOnlyMemory<byte>? written = null;
+        await store.Write(Arg.Do<ReadOnlyMemory<byte>>(m => written = m), Arg.Any<CancellationToken>());
+        var sut = BuildSut(store);
+        var managed = new IdentitySet(Schemas: [new SqlIdentifier("app")]);
+        var applied = EmptyPlan() with { Managed = managed };
+
+        // Act
+        await sut.Refresh(applied, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        _stateSerializer.Deserialize(written!.Value).Managed.Schemas.ShouldBe([new SqlIdentifier("app")]);
+    }
+
+    [Fact]
+    public async Task Refresh_WithoutAnAppliedPlan_PreservesTheManagedSet()
+    {
+        // Arrange — a plain refresh observes; it neither adopts nor abandons anything.
+        var managed = new IdentitySet(Schemas: [new SqlIdentifier("app")]);
+        var store = Substitute.For<IDatabaseStateStore>();
+        store.Read(Arg.Any<CancellationToken>())
+            .Returns(_stateSerializer.Serialize(new DatabaseState(new Database([])) with { Managed = managed }));
+        ReadOnlyMemory<byte>? written = null;
+        await store.Write(Arg.Do<ReadOnlyMemory<byte>>(m => written = m), Arg.Any<CancellationToken>());
+        var sut = BuildSut(store);
+
+        // Act
+        await sut.Refresh(cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        _stateSerializer.Deserialize(written!.Value).Managed.Schemas.ShouldBe([new SqlIdentifier("app")]);
+    }
+
+    [Fact]
     public async Task Refresh_PreservesTheExistingLedger()
     {
         // Arrange — the ledger is the one part of state a capture cannot rebuild, so it must carry over.
@@ -565,20 +605,19 @@ public sealed class MigrationWorkflowTests
     public async Task Prepare_DerivesScopeFromDesiredSchema_WhenNoExplicitScope()
     {
         // Arrange
-        // The derived scope covers the declared schemas plus every schema the directives address (a dropped
-        // schema and a rename's current name are under management too).
+        // The derived scope covers the declared schemas plus every schema holding managed identities — a
+        // schema whose declarations were all removed stays under management until its drops apply.
         var desired = new Database(
             [new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("admin"))]);
-        var directives = new ProjectDirectives(new SchemaDirectives(
-            Drops: [new SchemaDropDirective(new SqlIdentifier("legacy"))]));
         _desiredProvider.GetProject(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new ProjectDefinition(desired, directives)));
-        var sut = SutWithRecordedSchema(new Database([
+            .Returns(Result.Success(new ProjectDefinition(desired)));
+        var sut = SutWithRecordedState(new DatabaseState(new Database([
             new Schema(new SqlIdentifier("app")),
             new Schema(new SqlIdentifier("admin")),
             new Schema(new SqlIdentifier("legacy")),
             new Schema(new SqlIdentifier("unmanaged")),
-        ]));
+        ])) with
+        { Managed = new IdentitySet(Schemas: [new SqlIdentifier("legacy")]) });
 
         // Act
         await sut.ComputePlan(PlanTarget.Project, PlanningScope.All, TestContext.Current.CancellationToken);
@@ -587,7 +626,7 @@ public sealed class MigrationWorkflowTests
         _planner.Received(1).Plan(
             Arg.Any<CurrentState>(),
             Arg.Any<ProjectDefinition>(),
-            Arg.Is<PlanningScope>(s => !s!.IsAll && s.SchemaNames!.Select(n => n.Value).Order().SequenceEqual(new[] { "admin", "app", "legacy" })));
+            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.SchemaNames!.Select(n => n.Value).Order().SequenceEqual(new[] { "admin", "app", "legacy" })));
     }
 
     [Fact]
@@ -599,7 +638,7 @@ public sealed class MigrationWorkflowTests
             .Returns(call => { desiredScope = call.Arg<PlanningScope>(); return ProjectDefinition(new Database([])); });
 
         // Act
-        await _sut.ComputePlan(PlanTarget.Project, PlanningScope.Of(new SqlIdentifier("app"), new SqlIdentifier("legacy")), TestContext.Current.CancellationToken);
+        await _sut.ComputePlan(PlanTarget.Project, PlanningScope.To(new SqlIdentifier("app"), new SqlIdentifier("legacy")), TestContext.Current.CancellationToken);
 
         // Assert — the project read is load-bearing: template instances bind at aggregation.
         desiredScope!.SchemaNames.ShouldBe(["app", "legacy"]);
@@ -613,14 +652,14 @@ public sealed class MigrationWorkflowTests
             [new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("other"))]));
 
         // Act
-        await sut.ComputePlan(PlanTarget.Project, PlanningScope.Of(new SqlIdentifier("app")), TestContext.Current.CancellationToken);
+        await sut.ComputePlan(PlanTarget.Project, PlanningScope.To(new SqlIdentifier("app")), TestContext.Current.CancellationToken);
 
         // Assert — narrowing the current side here would hide the out-of-scope objects a scoped run may still
         // disturb, so the planner is handed everything and told what is in play.
         _planner.Received(1).Plan(
             Arg.Is<CurrentState>(c => c!.Database.Schemas.Select(s => s.Name.Value).SequenceEqual(new[] { "app", "other" })),
             Arg.Any<ProjectDefinition>(),
-            Arg.Is<PlanningScope>(s => !s!.IsAll && s.SchemaNames!.Select(n => n.Value).SequenceEqual(new[] { "app" })));
+            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.SchemaNames!.Select(n => n.Value).SequenceEqual(new[] { "app" })));
     }
 
     [Fact]
@@ -636,7 +675,7 @@ public sealed class MigrationWorkflowTests
 
         // Assert — the project read is unrestricted; only the current read gets the derived scope.
         desiredScope.ShouldNotBeNull();
-        desiredScope!.IsAll.ShouldBeTrue();
+        desiredScope!.IsUnscoped.ShouldBeTrue();
     }
 
     [Fact]
@@ -657,7 +696,7 @@ public sealed class MigrationWorkflowTests
 
         // Assert
         capture.ShouldNotBeNull();
-        await _currentProvider.Received(1).GetDatabase(Arg.Is<PlanningScope>(s => s!.IsAll), Arg.Any<CancellationToken>());
+        await _currentProvider.Received(1).GetDatabase(Arg.Is<PlanningScope>(s => s!.IsUnscoped), Arg.Any<CancellationToken>());
         await store.Received(1).Write(
             Arg.Is<ReadOnlyMemory<byte>>(m => m.ToArray().SequenceEqual(expected)), Arg.Any<CancellationToken>());
     }

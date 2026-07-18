@@ -33,35 +33,31 @@ public partial class DatabaseComparerTests
     /// <summary>An address in the <c>app</c> schema.</summary>
     private static ObjectAddress App(string name) => new(new SqlIdentifier("app"), new SqlIdentifier(name));
 
-    /// <summary>Directives marking <c>app</c> as a partial declaration.</summary>
-    private static ProjectDirectives PartialApp() =>
-        new(new SchemaDirectives(Partials: [new SchemaPartialDirective(new SqlIdentifier("app"))]));
-
     /// <summary>Diffs two single-table <c>app</c> schemas, returning the table diff (null when unchanged).</summary>
     private TableDiff? DiffTable(Table current, Table desired, ProjectDirectives? directives = null) =>
-        Compare(Db(new Schema(new SqlIdentifier("app"), Tables: [current])), Db(new Schema(new SqlIdentifier("app"), Tables: [desired])), directives)
+        Compare(Db(new Schema(new SqlIdentifier("app"), tables: [current])), Db(new Schema(new SqlIdentifier("app"), tables: [desired])), directives)
         .Schemas.SingleOrDefault()?.Tables.SingleOrDefault();
 
     /// <summary>Diffs two single-column <c>app.t</c> tables, returning the column diff (null when unchanged).</summary>
     private ColumnDiff? DiffColumn(Column current, Column desired, ProjectDirectives? directives = null) =>
-        DiffTable(new Table(new SqlIdentifier("t"), Columns: [current]), new Table(new SqlIdentifier("t"), Columns: [desired]), directives)?.Columns.SingleOrDefault();
+        DiffTable(new Table(new SqlIdentifier("t"), columns: [current]), new Table(new SqlIdentifier("t"), columns: [desired]), directives)?.Columns.SingleOrDefault();
 
     /// <summary>Diffs two <c>app</c> schemas holding the given views, returning the single view diff (null when unchanged).</summary>
     private ViewDiff? DiffViews(IReadOnlyList<View> current, IReadOnlyList<View> desired, ProjectDirectives? directives = null) =>
-        Compare(Db(new Schema(new SqlIdentifier("app"), Views: current)), Db(new Schema(new SqlIdentifier("app"), Views: desired)), directives)
+        Compare(Db(new Schema(new SqlIdentifier("app"), views: current)), Db(new Schema(new SqlIdentifier("app"), views: desired)), directives)
         .Schemas.SingleOrDefault()?.Views.SingleOrDefault();
 
     /// <summary>Directives renaming table <c>app.&lt;from&gt;</c> to <paramref name="to"/>.</summary>
     private static ProjectDirectives TableRename(string from, string to) =>
-        new(Renames: [new ObjectRenameDirective(ObjectKind.Table, App(from), new SqlIdentifier(to))]);
+        new(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, App(from)), new SqlIdentifier(to))]);
 
     /// <summary>Directives renaming column <c>app.t.&lt;from&gt;</c> to <paramref name="to"/>.</summary>
     private static ProjectDirectives ColumnRename(string from, string to, string table = "t") =>
-        new(ColumnRenames: [new MemberRenameDirective(new MemberAddress(new SqlIdentifier("app"), new SqlIdentifier(table), new SqlIdentifier(from)), new SqlIdentifier(to))]);
+        new(MemberRenames: [new MemberRenameDirective(new MemberAddress(new SqlIdentifier("app"), new SqlIdentifier(table), new SqlIdentifier(from)), new SqlIdentifier(to))]);
 
     /// <summary>Builds a view with dependencies derived from its body, exactly as the DDL parser would.</summary>
     private static View View(string name, string body, string? comment = null) =>
-        new(new SqlIdentifier(name), new SqlText(body), comment, ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")));
+        new(new SqlIdentifier(name), new SqlText(body), ViewDependencyExtractor.Extract(body, new SqlIdentifier("app"))) { Comment = comment };
 
     [Fact]
     public void Compare_BothEmpty_ProducesEmptyDiff()
@@ -75,14 +71,14 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_NestsTablesUnderSchema_OrderedByName()
     {
-        var current = Db(new Schema(new SqlIdentifier("app"), Tables:
+        var current = Db(new Schema(new SqlIdentifier("app"), tables:
         [
-            new Table(new SqlIdentifier("orders"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
-            new Table(new SqlIdentifier("audit_log"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
+            new Table(new SqlIdentifier("orders"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
+            new Table(new SqlIdentifier("audit_log"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
         ]));
-        var desired = Db(new Schema(new SqlIdentifier("app"), Tables:
+        var desired = Db(new Schema(new SqlIdentifier("app"), tables:
         [
-            new Table(new SqlIdentifier("orders"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int), new Column(new SqlIdentifier("shipped_at"), SqlType.DateTimeOffset)]),
+            new Table(new SqlIdentifier("orders"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int), new Column(new SqlIdentifier("shipped_at"), SqlType.DateTimeOffset)]),
         ]));
 
         var schema = Compare(current, desired).Schemas.ShouldHaveSingleItem();
@@ -97,15 +93,15 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_Summary_CountsEveryChangedElementByKind()
     {
-        var current = Db(new Schema(new SqlIdentifier("app"), Tables:
+        var current = Db(new Schema(new SqlIdentifier("app"), tables:
         [
-            new Table(new SqlIdentifier("orders"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
-            new Table(new SqlIdentifier("audit_log"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
+            new Table(new SqlIdentifier("orders"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
+            new Table(new SqlIdentifier("audit_log"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
         ]));
         var desired = Db(
-            new Schema(new SqlIdentifier("app"), Tables:
+            new Schema(new SqlIdentifier("app"), tables:
             [
-                new Table(new SqlIdentifier("orders"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int), new Column(new SqlIdentifier("shipped_at"), SqlType.DateTimeOffset)]),
+                new Table(new SqlIdentifier("orders"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int), new Column(new SqlIdentifier("shipped_at"), SqlType.DateTimeOffset)]),
             ]),
             new Schema(new SqlIdentifier("reporting")));
 
@@ -116,9 +112,9 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_TableChangeWithoutSchemaChange_LeavesSchemaKindNull()
     {
-        var current = Db(new Schema(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]));
-        var desired = Db(new Schema(new SqlIdentifier("app"), Tables:
-            [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int), new Column(new SqlIdentifier("email"), SqlType.Text)])]));
+        var current = Db(new Schema(new SqlIdentifier("app"), tables: [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]));
+        var desired = Db(new Schema(new SqlIdentifier("app"), tables:
+            [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int), new Column(new SqlIdentifier("email"), SqlType.Text)])]));
 
         var schema = Compare(current, desired).Schemas.ShouldHaveSingleItem();
 
@@ -130,12 +126,12 @@ public partial class DatabaseComparerTests
     public void Compare_CreateTable_AddsEveryColumnWithDefinitionAndFoldedComment()
     {
         var current = Db(new Schema(new SqlIdentifier("app")));
-        var desired = Db(new Schema(new SqlIdentifier("app"), Tables:
+        var desired = Db(new Schema(new SqlIdentifier("app"), tables:
         [
-            new Table(new SqlIdentifier("users"), Columns:
+            new Table(new SqlIdentifier("users"), columns:
             [
-                new Column(new SqlIdentifier("id"), SqlType.Int, IsNullable: false),
-                new Column(new SqlIdentifier("email"), SqlType.Text, IsNullable: false, Comment: "login"),
+                new Column(new SqlIdentifier("id"), SqlType.Int, isNullable: false),
+                new Column(new SqlIdentifier("email"), SqlType.Text, isNullable: false) { Comment = "login" },
             ]),
         ]));
 
@@ -151,10 +147,10 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_MergesMultipleChangesToOneColumnIntoASingleDiff()
     {
-        var current = Db(new Schema(new SqlIdentifier("app"), Tables:
-            [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("email"), SqlType.Text, IsNullable: false, Comment: "old")])]));
-        var desired = Db(new Schema(new SqlIdentifier("app"), Tables:
-            [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("email"), SqlType.Text, IsNullable: true, Comment: "new")])]));
+        var current = Db(new Schema(new SqlIdentifier("app"), tables:
+            [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("email"), SqlType.Text, isNullable: false) { Comment = "old" }])]));
+        var desired = Db(new Schema(new SqlIdentifier("app"), tables:
+            [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("email"), SqlType.Text, isNullable: true) { Comment = "new" }])]));
 
         var column = Compare(current, desired).Schemas.Single().Tables.Single().Columns.ShouldHaveSingleItem();
 
@@ -167,18 +163,18 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_GroupsIndexesConstraintsAndGrantsUnderTheirTable()
     {
-        var columns = new[] { new Column(new SqlIdentifier("id"), SqlType.Int), new Column(new SqlIdentifier("user_id"), SqlType.Int) };
-        var current = Db(new Schema(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("orders"), Columns: columns)]));
-        var desired = Db(new Schema(new SqlIdentifier("app"), Tables:
+        Column[] Columns() => [new Column(new SqlIdentifier("id"), SqlType.Int), new Column(new SqlIdentifier("user_id"), SqlType.Int)];
+        var current = Db(new Schema(new SqlIdentifier("app"), tables: [new Table(new SqlIdentifier("orders"), columns: Columns())]));
+        var desired = Db(new Schema(new SqlIdentifier("app"), tables:
         [
             new Table(new SqlIdentifier("orders"),
-                Columns: columns,
-                PrimaryKey: new PrimaryKey(new SqlIdentifier("orders_pkey"), [new SqlIdentifier("id")]),
-                ForeignKeys: [new ForeignKey(new SqlIdentifier("orders_user_fk"), [new SqlIdentifier("user_id")], new SqlIdentifier("app"), new SqlIdentifier("users"), [new SqlIdentifier("id")])],
-                UniqueConstraints: [new UniqueConstraint(new SqlIdentifier("orders_user_uq"), [new SqlIdentifier("user_id")])],
-                CheckConstraints: [new CheckConstraint(new SqlIdentifier("orders_id_chk"), new SqlText("id > 0"))],
-                Indexes: [new TableIndex(new SqlIdentifier("orders_user_ix"), ["user_id"])],
-                Grants: [new TableGrant(new SqlIdentifier("reader"), TablePrivilege.Insert)]),
+                columns: Columns(),
+                primaryKey: new PrimaryKey(new SqlIdentifier("orders_pkey"), [new SqlIdentifier("id")]),
+                foreignKeys: [new ForeignKey(new SqlIdentifier("orders_user_fk"), [new SqlIdentifier("user_id")], new SqlIdentifier("app"), new SqlIdentifier("users"), [new SqlIdentifier("id")])],
+                uniqueConstraints: [new UniqueConstraint(new SqlIdentifier("orders_user_uq"), [new SqlIdentifier("user_id")])],
+                checkConstraints: [new CheckConstraint(new SqlIdentifier("orders_id_chk"), new SqlText("id > 0"))],
+                indexes: [new TableIndex(new SqlIdentifier("orders_user_ix"), ["user_id"])],
+                grants: [new TableGrant(new SqlIdentifier("reader"), TablePrivilege.Insert)]),
         ]));
 
         var table = Compare(current, desired).Schemas.Single().Tables.Single();
@@ -196,10 +192,10 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_FoldsSchemaRenameCommentAndGrantsIntoSchemaDiff()
     {
-        var current = Db(new Schema(new SqlIdentifier("app_old"), Grants: [new SchemaGrant(new SqlIdentifier("writer"))]));
-        var desired = Db(new Schema(new SqlIdentifier("app"), Comment: "new comment", Grants: [new SchemaGrant(new SqlIdentifier("reader"))]));
-        var directives = new ProjectDirectives(new SchemaDirectives(
-            Renames: [new SchemaRenameDirective(new SqlIdentifier("app_old"), new SqlIdentifier("app"))]));
+        var current = Db(new Schema(new SqlIdentifier("app_old"), grants: [new SchemaGrant(new SqlIdentifier("writer"))]));
+        var desired = Db(new Schema(new SqlIdentifier("app"), grants: [new SchemaGrant(new SqlIdentifier("reader"))]) { Comment = "new comment" });
+        var directives = new ProjectDirectives(
+            SchemaRenames: [new SchemaRenameDirective(new SqlIdentifier("app_old"), new SqlIdentifier("app"))]);
 
         var schema = Compare(current, desired, directives).Schemas.ShouldHaveSingleItem();
 
@@ -219,7 +215,7 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_IdenticalSchemas_ProduceNoDiff()
     {
-        var schema = new Schema(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]);
+        var schema = new Schema(new SqlIdentifier("app"), tables: [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]);
 
         Compare(Db(schema), Db(schema)).IsEmpty.ShouldBeTrue();
     }
@@ -242,7 +238,7 @@ public partial class DatabaseComparerTests
     {
         // A removed schema must take its contained objects with it (rather than relying on DROP SCHEMA CASCADE), so
         // the diff carries a Remove for each nested table, ordered by name.
-        var legacy = new Schema(new SqlIdentifier("legacy"), Tables: [new Table(new SqlIdentifier("widgets")), new Table(new SqlIdentifier("gadgets"))]);
+        var legacy = new Schema(new SqlIdentifier("legacy"), tables: [new Table(new SqlIdentifier("widgets")), new Table(new SqlIdentifier("gadgets"))]);
         var current = Db(new Schema(new SqlIdentifier("app")), legacy);
         var desired = Db(new Schema(new SqlIdentifier("app")));
 
@@ -257,9 +253,10 @@ public partial class DatabaseComparerTests
     {
         var current = Db();
         var desired = Db(new Schema(new SqlIdentifier("reporting"),
-            Comment: "analytics",
-            Grants: [new SchemaGrant(new SqlIdentifier("reader"))],
-            Tables: [new Table(new SqlIdentifier("metrics"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]));
+
+            grants: [new SchemaGrant(new SqlIdentifier("reader"))],
+            tables: [new Table(new SqlIdentifier("metrics"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])
+        { Comment = "analytics" });
 
         var schema = Compare(current, desired).Schemas.ShouldHaveSingleItem();
 
@@ -284,8 +281,8 @@ public partial class DatabaseComparerTests
     {
         // Identifiers are case-insensitive: an introspected "Users" and a declared "users" are the same
         // table, not a drop-and-recreate pair.
-        var current = Db(new Schema(new SqlIdentifier("App"), Tables: [new Table(new SqlIdentifier("Users"), Columns: [new Column(new SqlIdentifier("ID"), SqlType.Int)])]));
-        var desired = Db(new Schema(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]));
+        var current = Db(new Schema(new SqlIdentifier("App"), tables: [new Table(new SqlIdentifier("Users"), columns: [new Column(new SqlIdentifier("ID"), SqlType.Int)])]));
+        var desired = Db(new Schema(new SqlIdentifier("app"), tables: [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]));
 
         var diff = Compare(current, desired);
 
@@ -298,9 +295,9 @@ public partial class DatabaseComparerTests
         // References inside definitions (primary-key and index column lists) are identifiers too, so a
         // casing difference between the introspected and declared spelling is not a change.
         Table Build(string id, string email) => new(new SqlIdentifier("users"),
-            Columns: [new Column(new SqlIdentifier(id), SqlType.Int), new Column(new SqlIdentifier(email), SqlType.Text)],
-            PrimaryKey: new PrimaryKey(new SqlIdentifier("users_pkey"), [new SqlIdentifier(id)]),
-            Indexes: [new TableIndex(new SqlIdentifier("users_email_ix"), [email])]);
+            columns: [new Column(new SqlIdentifier(id), SqlType.Int), new Column(new SqlIdentifier(email), SqlType.Text)],
+            primaryKey: new PrimaryKey(new SqlIdentifier("users_pkey"), [new SqlIdentifier(id)]),
+            indexes: [new TableIndex(new SqlIdentifier("users_email_ix"), [email])]);
 
         var diff = DiffTable(Build("ID", "Email"), Build("id", "email"));
 
@@ -313,16 +310,15 @@ public partial class DatabaseComparerTests
         // Everything is renamed at once: schema sales→core, table users→people, column name→full_name.
         // Every directive addresses current reality (sales.users.name), and the comparer resolves the nested
         // lookups by the current names of each matched pair.
-        var current = Db(new Schema(new SqlIdentifier("sales"), Tables:
-            [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("name"), SqlType.Text)])]));
-        var desired = Db(new Schema(new SqlIdentifier("core"), Tables:
-            [new Table(new SqlIdentifier("people"), Columns: [new Column(new SqlIdentifier("full_name"), SqlType.Text)])]));
+        var current = Db(new Schema(new SqlIdentifier("sales"), tables:
+            [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("name"), SqlType.Text)])]));
+        var desired = Db(new Schema(new SqlIdentifier("core"), tables:
+            [new Table(new SqlIdentifier("people"), columns: [new Column(new SqlIdentifier("full_name"), SqlType.Text)])]));
         var sales = new SqlIdentifier("sales");
         var directives = new ProjectDirectives(
-            new SchemaDirectives(
-                Renames: [new SchemaRenameDirective(sales, new SqlIdentifier("core"))]),
-            Renames: [new ObjectRenameDirective(ObjectKind.Table, new ObjectAddress(sales, new SqlIdentifier("users")), new SqlIdentifier("people"))],
-            ColumnRenames: [new MemberRenameDirective(new MemberAddress(sales, new SqlIdentifier("users"), new SqlIdentifier("name")), new SqlIdentifier("full_name"))]);
+            SchemaRenames: [new SchemaRenameDirective(sales, new SqlIdentifier("core"))],
+            ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(sales, new SqlIdentifier("users"))), new SqlIdentifier("people"))],
+            MemberRenames: [new MemberRenameDirective(new MemberAddress(sales, new SqlIdentifier("users"), new SqlIdentifier("name")), new SqlIdentifier("full_name"))]);
 
         var schema = Compare(current, desired, directives).Schemas.ShouldHaveSingleItem();
 

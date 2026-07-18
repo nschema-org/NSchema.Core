@@ -36,8 +36,8 @@ public static class NsqlWriter
         var first = true;
         foreach (var statement in document.Statements)
         {
-            // A statement attached to its subject (a grant, a trigger, a standalone index, an object-level
-            // drop) renders directly under it; everything else is separated by a blank line.
+            // A statement attached to its subject (a grant, a trigger, a standalone index, a rename)
+            // renders directly under it; everything else is separated by a blank line.
             if (!first && !Attached(statement))
             {
                 sb.AppendLine();
@@ -53,11 +53,9 @@ public static class NsqlWriter
         or Syn.Tables.GrantTableStatement
         or Syn.Triggers.CreateTriggerStatement
         or Syn.Indexes.CreateIndexStatement
-        or DropObjectStatement
         or RenameObjectStatement
         or Syn.Schemas.RenameSchemaStatement
-        or Syn.Tables.RenameColumnStatement
-        or Syn.Schemas.PartialSchemaStatement;
+        or Syn.Tables.RenameColumnStatement;
 
     private static void WriteStatement(StringBuilder sb, NsqlStatement statement)
     {
@@ -158,18 +156,6 @@ public static class NsqlWriter
                 break;
             case Syn.Scripts.ScriptStatement s:
                 WriteScript(sb, s);
-                break;
-            case Syn.Schemas.DropSchemaStatement s:
-                sb.Append($"{NsqlKeywords.Drop} {NsqlKeywords.Schema} ").Append(s.Name.Value).AppendLine(";");
-                break;
-            case Syn.Extensions.DropExtensionStatement s:
-                sb.Append($"{NsqlKeywords.Drop} {NsqlKeywords.Extension} ").Append(ExtensionName(s.Name.Value)).AppendLine(";");
-                break;
-            case DropObjectStatement s:
-                sb.Append($"{NsqlKeywords.Drop} {KindKeyword(s.Kind)} ").Append(Qualified(s.Name)).AppendLine(";");
-                break;
-            case Syn.Schemas.PartialSchemaStatement s:
-                sb.Append($"{NsqlKeywords.Partial} {NsqlKeywords.Schema} ").Append(s.Schema.Value).AppendLine(";");
                 break;
             case Syn.Schemas.RenameSchemaStatement s:
                 sb.Append($"{NsqlKeywords.Rename} {NsqlKeywords.Schema} ").Append(s.From.Value).Append($" {NsqlKeywords.To} ").Append(s.To.Value).AppendLine(";");

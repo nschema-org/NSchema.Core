@@ -15,8 +15,6 @@ internal sealed partial class DatabaseComparer
     private List<TableDiff> CompareTables(SqlIdentifier schemaName, SqlIdentifier currentSchemaName, IReadOnlyList<Table> current, Schema desired, DirectiveLookup directives)
     {
         var result = new List<TableDiff>();
-        var droppedTables = directives.Drops(ObjectKind.Table, currentSchemaName);
-        var isPartial = directives.IsPartial(schemaName);
         var (forDesired, currentMatched) = MatchEntities(current, desired.Tables, directives.Renames(ObjectKind.Table, currentSchemaName), "table", schemaName.Value);
 
         for (var j = 0; j < current.Count; j++)
@@ -26,19 +24,10 @@ internal sealed partial class DatabaseComparer
             {
                 LogTableExists(schemaName, currentTable.Name);
             }
-            else if (droppedTables.Contains(currentTable.Name))
-            {
-                LogTableExplicitlyDropped(schemaName, currentTable.Name);
-                result.Add(RemovedTable(schemaName, currentTable.Name));
-            }
-            else if (!isPartial)
+            else
             {
                 LogTableNotInDesired(schemaName, currentTable.Name);
                 result.Add(RemovedTable(schemaName, currentTable.Name));
-            }
-            else
-            {
-                LogTableSkippedPartial(schemaName, currentTable.Name);
             }
         }
 

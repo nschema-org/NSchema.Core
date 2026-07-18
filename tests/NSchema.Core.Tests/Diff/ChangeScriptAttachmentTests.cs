@@ -23,8 +23,8 @@ public class ChangeScriptAttachmentTests
     private TableDiff Diff(Table current, Table desired, params ChangeScript[] scripts)
     {
         var directives = new ProjectDirectives(ChangeScripts: scripts);
-        var currentDb = new Database([new Schema(new SqlIdentifier("app"), Tables: [current])]);
-        var desiredDb = new Database([new Schema(new SqlIdentifier("app"), Tables: [desired])]);
+        var currentDb = new Database([new Schema(new SqlIdentifier("app"), tables: [current])]);
+        var desiredDb = new Database([new Schema(new SqlIdentifier("app"), tables: [desired])]);
         return _sut.Compare(currentDb, desiredDb, directives).Schemas.Single().Tables.Single();
     }
 
@@ -36,8 +36,8 @@ public class ChangeScriptAttachmentTests
         var uqs = members.OfType<UniqueConstraint>().ToList();
         var cks = members.OfType<CheckConstraint>().ToList();
         var exs = members.OfType<ExclusionConstraint>().ToList();
-        return new Table(new SqlIdentifier("users"), Columns: columns, PrimaryKey: pks.FirstOrDefault(),
-            ForeignKeys: fks, UniqueConstraints: uqs, CheckConstraints: cks, ExclusionConstraints: exs);
+        return new Table(new SqlIdentifier("users"), columns: columns, primaryKey: pks.FirstOrDefault(),
+            foreignKeys: fks, uniqueConstraints: uqs, checkConstraints: cks, exclusionConstraints: exs);
     }
 
     private static Column Id => new(new SqlIdentifier("id"), SqlType.Int);
@@ -83,10 +83,10 @@ public class ChangeScriptAttachmentTests
     public void AddConstraint_AttachesToTheAddedUniqueConstraint()
     {
         var script = Change(ChangeTrigger.AddConstraint, "users_email_uq");
-        var email = new Column(new SqlIdentifier("email"), SqlType.Text);
+        Column Email() => new(new SqlIdentifier("email"), SqlType.Text);
         var diff = Diff(
-            Users(Id, email),
-            Users(Id, email, new UniqueConstraint(new SqlIdentifier("users_email_uq"), [new SqlIdentifier("email")])),
+            Users(Id, Email()),
+            Users(Id, Email(), new UniqueConstraint(new SqlIdentifier("users_email_uq"), [new SqlIdentifier("email")])),
             script);
 
         diff.UniqueConstraints.Single().MigrationScript.ShouldBe(script);
@@ -96,10 +96,10 @@ public class ChangeScriptAttachmentTests
     public void AddConstraint_AttachesToTheAddedForeignKey()
     {
         var script = Change(ChangeTrigger.AddConstraint, "users_org_fk");
-        var orgId = new Column(new SqlIdentifier("org_id"), SqlType.Int);
+        Column OrgId() => new(new SqlIdentifier("org_id"), SqlType.Int);
         var diff = Diff(
-            Users(Id, orgId),
-            Users(Id, orgId, new ForeignKey(new SqlIdentifier("users_org_fk"), [new SqlIdentifier("org_id")], new SqlIdentifier("app"), new SqlIdentifier("orgs"), [new SqlIdentifier("id")])),
+            Users(Id, OrgId()),
+            Users(Id, OrgId(), new ForeignKey(new SqlIdentifier("users_org_fk"), [new SqlIdentifier("org_id")], new SqlIdentifier("app"), new SqlIdentifier("orgs"), [new SqlIdentifier("id")])),
             script);
 
         diff.ForeignKeys.Single().MigrationScript.ShouldBe(script);
@@ -109,10 +109,10 @@ public class ChangeScriptAttachmentTests
     public void AddConstraint_AttachesToTheAddedCheckConstraint()
     {
         var script = Change(ChangeTrigger.AddConstraint, "users_age_chk");
-        var age = new Column(new SqlIdentifier("age"), SqlType.Int);
+        Column Age() => new(new SqlIdentifier("age"), SqlType.Int);
         var diff = Diff(
-            Users(Id, age),
-            Users(Id, age, new CheckConstraint(new SqlIdentifier("users_age_chk"), new SqlText("age >= 0"))),
+            Users(Id, Age()),
+            Users(Id, Age(), new CheckConstraint(new SqlIdentifier("users_age_chk"), new SqlText("age >= 0"))),
             script);
 
         diff.Checks.Single().MigrationScript.ShouldBe(script);
@@ -122,10 +122,10 @@ public class ChangeScriptAttachmentTests
     public void AddConstraint_AttachesToTheAddedExclusionConstraint()
     {
         var script = Change(ChangeTrigger.AddConstraint, "no_overlap");
-        var during = new Column(new SqlIdentifier("during"), SqlType.Text);
+        Column During() => new(new SqlIdentifier("during"), SqlType.Text);
         var diff = Diff(
-            Users(Id, during),
-            Users(Id, during, new ExclusionConstraint(new SqlIdentifier("no_overlap"), [new ExclusionElement("&&", new SqlIdentifier("during"))], "gist")),
+            Users(Id, During()),
+            Users(Id, During(), new ExclusionConstraint(new SqlIdentifier("no_overlap"), [new ExclusionElement("&&", new SqlIdentifier("during"))], "gist")),
             script);
 
         diff.ExclusionConstraints.Single().MigrationScript.ShouldBe(script);
@@ -156,8 +156,8 @@ public class ChangeScriptAttachmentTests
         // The column changes, but not its type, so a type-change script has nothing to prepare.
         var script = Change(ChangeTrigger.AlterColumnType, "email");
         var diff = Diff(
-            Users(Id, new Column(new SqlIdentifier("email"), SqlType.Text, IsNullable: true)),
-            Users(Id, new Column(new SqlIdentifier("email"), SqlType.Text, IsNullable: false)),
+            Users(Id, new Column(new SqlIdentifier("email"), SqlType.Text, isNullable: true)),
+            Users(Id, new Column(new SqlIdentifier("email"), SqlType.Text, isNullable: false)),
             script);
 
         diff.Columns.Single(c => c.Name.Value == "email").MigrationScript.ShouldBeNull();

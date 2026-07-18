@@ -78,8 +78,8 @@ public sealed class ApplyEndToEndTests : IDisposable
     {
         // Current live DB: a populated-shaped app.users(id). Desired: the same table gaining a NOT NULL,
         // defaultless email column, with a SCRIPT block declaring the backfill.
-        var current = new Database([new Schema(new SqlIdentifier("app"), Tables:
-            [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
+        var current = new Database([new Schema(new SqlIdentifier("app"), tables:
+            [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
         var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
@@ -116,7 +116,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         // (the migration matches and the add decomposes, with {schema} bound), while billing.events is brand new
         // (created empty, so its instance is unmatched and reports as inert).
         var current = new Database([
-            new Schema(new SqlIdentifier("sales"), Tables: [new Table(new SqlIdentifier("events"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]),
+            new Schema(new SqlIdentifier("sales"), tables: [new Table(new SqlIdentifier("events"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]),
             new Schema(new SqlIdentifier("billing")),
         ]);
         var desired = WriteNsql("schema.sql",
@@ -196,8 +196,8 @@ public sealed class ApplyEndToEndTests : IDisposable
     [Fact]
     public async Task Apply_WithNoChanges_ShortCircuitsWithoutExecutingButStillCapturesState()
     {
-        var schema = new Database([new Schema(new SqlIdentifier("app"), Tables:
-            [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
+        var schema = new Database([new Schema(new SqlIdentifier("app"), tables:
+            [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
         var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;

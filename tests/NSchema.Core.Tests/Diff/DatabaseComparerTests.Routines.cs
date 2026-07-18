@@ -17,14 +17,14 @@ public partial class DatabaseComparerTests
     private const string ProcDef = "LANGUAGE sql AS $$ DELETE FROM app.t; $$";
 
     private static Routine Fn(string name, string args, string def, string? comment = null) =>
-        new(new SqlIdentifier(name), RoutineKind.Function, new SqlText(args), new SqlText(def), comment);
+        new(new SqlIdentifier(name), RoutineKind.Function, new SqlText(args), new SqlText(def)) { Comment = comment };
 
     private static Routine Proc(string name, string args, string def, string? comment = null) =>
-        new(new SqlIdentifier(name), RoutineKind.Procedure, new SqlText(args), new SqlText(def), comment);
+        new(new SqlIdentifier(name), RoutineKind.Procedure, new SqlText(args), new SqlText(def)) { Comment = comment };
 
     /// <summary>Diffs two <c>app</c> schemas holding the given routines, returning the single routine diff (null when unchanged).</summary>
     private RoutineDiff? DiffRoutines(IReadOnlyList<Routine> current, IReadOnlyList<Routine> desired, ProjectDirectives? directives = null) =>
-        Compare(Db(new Schema(new SqlIdentifier("app"), Routines: current)), Db(new Schema(new SqlIdentifier("app"), Routines: desired)), directives)
+        Compare(Db(new Schema(new SqlIdentifier("app"), routines: current)), Db(new Schema(new SqlIdentifier("app"), routines: desired)), directives)
         .Schemas.SingleOrDefault()?.Routines.SingleOrDefault();
 
     [Fact]
@@ -88,7 +88,7 @@ public partial class DatabaseComparerTests
     public void Compare_Renamed_SetsRenamedFrom()
     {
         var diff = DiffRoutines([Fn("old_f", "", Def)], [Fn("f", "", Def)],
-            new ProjectDirectives(Renames: [new ObjectRenameDirective(ObjectKind.Routine, App("old_f"), new SqlIdentifier("f"))]));
+            new ProjectDirectives(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Routine, App("old_f")), new SqlIdentifier("f"))]));
 
         diff!.RenamedFrom.ShouldBe("old_f");
         diff.Definition.ShouldBeNull(); // nothing else changed, so it is a rename only
@@ -116,19 +116,4 @@ public partial class DatabaseComparerTests
         diff.RequiresRecreate.ShouldBeTrue();
         diff.Definition.ShouldNotBeNull();
     }
-
-    [Fact]
-    public void Compare_PartialSchema_LeavesUnmanagedRoutineAlone()
-        => Compare(
-            Db(new Schema(new SqlIdentifier("app"), Routines: [Fn("f", "", Def)])),
-            Db(new Schema(new SqlIdentifier("app"))), PartialApp())
-            .Schemas.ShouldBeEmpty();
-
-    [Fact]
-    public void Compare_PartialSchema_DropsExplicitlyDroppedRoutine()
-        => Compare(
-            Db(new Schema(new SqlIdentifier("app"), Routines: [Fn("f", "", Def)])),
-            Db(new Schema(new SqlIdentifier("app"))),
-            PartialApp() with { Drops = [new ObjectDropDirective(ObjectKind.Routine, App("f"))] })
-            .Schemas.ShouldHaveSingleItem().Routines.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
 }

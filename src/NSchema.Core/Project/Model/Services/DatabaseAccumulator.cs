@@ -188,8 +188,9 @@ internal sealed class DatabaseAccumulator
         ApplyTriggers();
         ApplyIndexes();
         var schemas = _entries
-            .Select(e => new Schema(e.Name, e.Comment, e.Tables, e.Grants, e.Views,
-                e.Enums, e.Sequences, e.Routines, e.Domains, e.CompositeTypes))
+            .Select(e => new Schema(e.Name, e.Tables, e.Grants, e.Views,
+                e.Enums, e.Sequences, e.Routines, e.Domains, e.CompositeTypes)
+            { Comment = e.Comment })
             .ToList();
         return new Database(schemas, _extensions);
     }
@@ -212,7 +213,7 @@ internal sealed class DatabaseAccumulator
             }
 
             var table = entry.Tables[index];
-            entry.Tables[index] = table with { Grants = [.. table.Grants, pending.Grant] };
+            entry.Tables[index] = table.With(grants: [.. table.Grants, pending.Grant]);
         }
     }
 
@@ -240,7 +241,7 @@ internal sealed class DatabaseAccumulator
                     pending.Position);
             }
 
-            entry.Tables[index] = table with { Triggers = [.. table.Triggers, pending.Trigger] };
+            entry.Tables[index] = table.With(triggers: [.. table.Triggers, pending.Trigger]);
         }
     }
 
@@ -266,7 +267,7 @@ internal sealed class DatabaseAccumulator
                     continue;
                 }
 
-                entry.Tables[tableIndex] = table with { Indexes = [.. table.Indexes, pending.Index] };
+                entry.Tables[tableIndex] = table.With(indexes: [.. table.Indexes, pending.Index]);
                 continue;
             }
 
@@ -290,7 +291,7 @@ internal sealed class DatabaseAccumulator
                 continue;
             }
 
-            entry.Views[viewIndex] = view with { Indexes = [.. view.Indexes, pending.Index] };
+            entry.Views[viewIndex] = view.With(indexes: [.. view.Indexes, pending.Index]);
         }
     }
 

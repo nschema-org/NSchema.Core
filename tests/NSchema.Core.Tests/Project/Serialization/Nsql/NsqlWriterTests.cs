@@ -23,7 +23,7 @@ namespace NSchema.Tests.Project.Serialization.Nsql;
 public sealed class NsqlWriterTests
 {
     private static string WriteOneTable(Table table)
-        => NsqlWriter.Write(new Database([new Schema(new SqlIdentifier("app"), Tables: [table])]));
+        => NsqlWriter.Write(new Database([new Schema(new SqlIdentifier("app"), tables: [table])]));
 
     // Canonicalize a schema to a deterministic string for structural-equality comparison,
     // using the internal state serializer (independent of the DDL writer under test).
@@ -43,26 +43,26 @@ public sealed class NsqlWriterTests
 
     [Fact]
     public void Write_NotNullColumn_EmitsNotNull()
-        => WriteOneTable(new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])).ShouldContain("id int NOT NULL");
+        => WriteOneTable(new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])).ShouldContain("id int NOT NULL");
 
     [Fact]
     public void Write_SchemaQualifiedColumnType_EmitsTheQualifier()
         // The qualifier is a component now; writing it reads schema and name straight across, no string split.
         => WriteOneTable(new Table(new SqlIdentifier("t"),
-            Columns: [new Column(new SqlIdentifier("state"), SqlType.Custom(new SqlIdentifier("app"), "status"))]))
+            columns: [new Column(new SqlIdentifier("state"), SqlType.Custom(new SqlIdentifier("app"), "status"))]))
             .ShouldContain("state app.status NOT NULL");
 
     [Fact]
     public void Write_ParameterisedColumnType_EmitsFacetsFromComponents()
         // Facets are structural too, so a parameterised type round-trips without the writer parsing text.
         => WriteOneTable(new Table(new SqlIdentifier("t"),
-            Columns: [new Column(new SqlIdentifier("code"), SqlType.VarChar(64))]))
+            columns: [new Column(new SqlIdentifier("code"), SqlType.VarChar(64))]))
             .ShouldContain("code varchar(64) NOT NULL");
 
     [Fact]
     public void Write_NullableColumn_OmitsNullKeyword()
     {
-        var ddl = WriteOneTable(new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("note"), SqlType.Text, IsNullable: true)]));
+        var ddl = WriteOneTable(new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("note"), SqlType.Text, isNullable: true)]));
         ddl.ShouldContain("note text");
         ddl.ShouldNotContain("note text NULL");
         ddl.ShouldNotContain("note text NOT NULL");
@@ -70,29 +70,29 @@ public sealed class NsqlWriterTests
 
     [Fact]
     public void Write_IdentityWithOptions_EmitsInStartIncrementMinValueOrder()
-        => WriteOneTable(new Table(new SqlIdentifier("t"), Columns:
-            [new Column(new SqlIdentifier("id"), SqlType.BigInt, IsIdentity: true, IdentityOptions: new IdentityOptions(1, 5, 2))]))
+        => WriteOneTable(new Table(new SqlIdentifier("t"), columns:
+            [new Column(new SqlIdentifier("id"), SqlType.BigInt, isIdentity: true, identityOptions: new IdentityOptions(1, 5, 2))]))
             .ShouldContain("id bigint NOT NULL IDENTITY (START 1, INCREMENT 2, MINVALUE 5)");
 
     [Fact]
     public void Write_BareIdentity_EmitsNoParens()
-        => WriteOneTable(new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("id"), SqlType.BigInt, IsIdentity: true)]))
+        => WriteOneTable(new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("id"), SqlType.BigInt, isIdentity: true)]))
             .ShouldContain("id bigint NOT NULL IDENTITY\n");
 
     [Fact]
     public void Write_Default_IsEmitted()
-        => WriteOneTable(new Table(new SqlIdentifier("t"), Columns:
-            [new Column(new SqlIdentifier("flag"), SqlType.Int, DefaultExpression: new SqlText("0"))]))
+        => WriteOneTable(new Table(new SqlIdentifier("t"), columns:
+            [new Column(new SqlIdentifier("flag"), SqlType.Int, defaultExpression: new SqlText("0"))]))
             .ShouldContain("flag int NOT NULL DEFAULT 0");
 
     [Fact]
     public void Write_ColumnRenameDirective_IsEmitted()
-        => WriteDirectives(new ProjectDirectives(ColumnRenames: [new MemberRenameDirective(new MemberAddress(new SqlIdentifier("app"), new SqlIdentifier("t"), new SqlIdentifier("legacy_flag")), new SqlIdentifier("flag"))]))
+        => WriteDirectives(new ProjectDirectives(MemberRenames: [new MemberRenameDirective(new MemberAddress(new SqlIdentifier("app"), new SqlIdentifier("t"), new SqlIdentifier("legacy_flag")), new SqlIdentifier("flag"))]))
             .ShouldContain("RENAME COLUMN app.t.legacy_flag TO flag;");
 
     [Fact]
     public void Write_ParameterisedType_RendersFacets()
-        => WriteOneTable(new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("amount"), SqlType.Decimal(18, 2))]))
+        => WriteOneTable(new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("amount"), SqlType.Decimal(18, 2))]))
             .ShouldContain("amount decimal(18,2)");
 
     // -------------------------------------------------------------------------
@@ -101,31 +101,31 @@ public sealed class NsqlWriterTests
 
     [Fact]
     public void Write_PrimaryKey_IsEmitted()
-        => WriteOneTable(new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], PrimaryKey: new PrimaryKey(new SqlIdentifier("t_pk"), [new SqlIdentifier("id")])))
+        => WriteOneTable(new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], primaryKey: new PrimaryKey(new SqlIdentifier("t_pk"), [new SqlIdentifier("id")])))
             .ShouldContain("CONSTRAINT t_pk PRIMARY KEY (id)");
 
     [Fact]
     public void Write_ForeignKeyWithActions_IsEmitted()
-        => WriteOneTable(new Table(new SqlIdentifier("orders"), Columns: [new Column(new SqlIdentifier("user_id"), SqlType.Int)],
-            ForeignKeys: [new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("user_id")], new SqlIdentifier("app"), new SqlIdentifier("users"), [new SqlIdentifier("id")], ReferentialAction.Cascade, ReferentialAction.SetNull)]))
+        => WriteOneTable(new Table(new SqlIdentifier("orders"), columns: [new Column(new SqlIdentifier("user_id"), SqlType.Int)],
+            foreignKeys: [new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("user_id")], new SqlIdentifier("app"), new SqlIdentifier("users"), [new SqlIdentifier("id")], ReferentialAction.Cascade, ReferentialAction.SetNull)]))
             .ShouldContain("CONSTRAINT fk FOREIGN KEY (user_id) REFERENCES app.users (id) ON DELETE CASCADE ON UPDATE SET NULL");
 
     [Fact]
     public void Write_ForeignKeyWithoutActions_OmitsOnClauses()
-        => WriteOneTable(new Table(new SqlIdentifier("orders"), Columns: [new Column(new SqlIdentifier("user_id"), SqlType.Int)],
-            ForeignKeys: [new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("user_id")], new SqlIdentifier("app"), new SqlIdentifier("users"), [new SqlIdentifier("id")])]))
+        => WriteOneTable(new Table(new SqlIdentifier("orders"), columns: [new Column(new SqlIdentifier("user_id"), SqlType.Int)],
+            foreignKeys: [new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("user_id")], new SqlIdentifier("app"), new SqlIdentifier("users"), [new SqlIdentifier("id")])]))
             .ShouldNotContain("ON DELETE");
 
     [Fact]
     public void Write_Check_WrapsExpressionInParens()
-        => WriteOneTable(new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("age"), SqlType.Int)],
-            CheckConstraints: [new CheckConstraint(new SqlIdentifier("chk"), new SqlText("age >= 0"))]))
+        => WriteOneTable(new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("age"), SqlType.Int)],
+            checkConstraints: [new CheckConstraint(new SqlIdentifier("chk"), new SqlText("age >= 0"))]))
             .ShouldContain("CONSTRAINT chk CHECK (age >= 0)");
 
     [Fact]
     public void Write_PartialUniqueIndex_IsEmitted()
-        => WriteOneTable(new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("email"), SqlType.Text)],
-            Indexes: [new TableIndex(new SqlIdentifier("ux"), ["email"], IsUnique: true, Predicate: new SqlText("deleted_at IS NULL"))]))
+        => WriteOneTable(new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("email"), SqlType.Text)],
+            indexes: [new TableIndex(new SqlIdentifier("ux"), ["email"], isUnique: true, predicate: new SqlText("deleted_at IS NULL"))]))
             .ShouldContain("UNIQUE INDEX ux (email) WHERE (deleted_at IS NULL)");
 
     // -------------------------------------------------------------------------
@@ -134,42 +134,40 @@ public sealed class NsqlWriterTests
 
     [Fact]
     public void Write_ColumnComment_EmitsDocComment()
-        => WriteOneTable(new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("email"), SqlType.Text, Comment: "Primary contact.")]))
+        => WriteOneTable(new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("email"), SqlType.Text) { Comment = "Primary contact." }]))
             .ShouldContain("--- Primary contact.\n");
 
     [Fact]
     public void Write_MultiLineComment_EmitsOneDocLinePerLine()
-        => WriteOneTable(new Table(new SqlIdentifier("t"), Comment: "Line one.\nLine two.", Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]))
+        => WriteOneTable(new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]) { Comment = "Line one.\nLine two." })
             .ShouldContain("--- Line one.\n--- Line two.\n");
 
     [Fact]
-    public void Write_PartialAndSchemaRenameDirectives_AreEmitted()
+    public void Write_SchemaRenameDirective_IsEmitted()
     {
-        var ddl = WriteDirectives(new ProjectDirectives(new SchemaDirectives(
-                Renames: [new SchemaRenameDirective(new SqlIdentifier("legacy"), new SqlIdentifier("app"))],
-                Partials: [new SchemaPartialDirective(new SqlIdentifier("app"))])),
+        var ddl = WriteDirectives(new ProjectDirectives(
+                SchemaRenames: [new SchemaRenameDirective(new SqlIdentifier("legacy"), new SqlIdentifier("app"))]),
             new Schema(new SqlIdentifier("app")));
         ddl.ShouldContain("CREATE SCHEMA app;");
-        ddl.ShouldContain("PARTIAL SCHEMA app;");
         ddl.ShouldContain("RENAME SCHEMA legacy TO app;");
     }
 
     [Fact]
     public void Write_TableGrant_IsEmitted()
-        => WriteOneTable(new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)],
-            Grants: [new TableGrant(new SqlIdentifier("readers"), TablePrivilege.Select | TablePrivilege.Insert)]))
+        => WriteOneTable(new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)],
+            grants: [new TableGrant(new SqlIdentifier("readers"), TablePrivilege.Select | TablePrivilege.Insert)]))
             .ShouldContain("GRANT SELECT, INSERT ON app.t TO readers;");
 
     [Fact]
     public void Write_SchemaGrant_IsEmitted()
-        => NsqlWriter.Write(new Database([new Schema(new SqlIdentifier("app"), Grants: [new SchemaGrant(new SqlIdentifier("app_role"))])]))
+        => NsqlWriter.Write(new Database([new Schema(new SqlIdentifier("app"), grants: [new SchemaGrant(new SqlIdentifier("app_role"))])]))
             .ShouldContain("GRANT USAGE ON SCHEMA app TO app_role;");
 
     [Fact]
     public void Write_WithoutSchemaDeclarations_EmitsOnlyMemberObjects()
     {
         var schema = new Database([new Schema(new SqlIdentifier("app"),
-            Tables: [new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
+            tables: [new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
 
         var ddl = NsqlWriter.Write(SyntaxBuilder.Build(schema, declareSchemas: false));
 
@@ -183,25 +181,14 @@ public sealed class NsqlWriterTests
         // The reader vivifies the schema from the objects' qualified names, so a declaration-free file
         // reads back to the same members.
         var schema = new Database([new Schema(new SqlIdentifier("app"),
-            Tables: [new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])],
-            Views: [new View(new SqlIdentifier("active"), new SqlText("SELECT 1"))])]);
+            tables: [new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])],
+            views: [new View(new SqlIdentifier("active"), new SqlText("SELECT 1"))])]);
 
         var reparsed = new TestNsqlParser(NsqlWriter.Write(SyntaxBuilder.Build(schema, declareSchemas: false))).Parse().Database;
 
         var app = reparsed.Schemas.ShouldHaveSingleItem();
         app.Tables.ShouldHaveSingleItem().Name.ShouldBe("t");
         app.Views.ShouldHaveSingleItem().Name.ShouldBe("active");
-    }
-
-    [Fact]
-    public void Write_DropDirectives_AreEmitted()
-    {
-        var ddl = WriteDirectives(new ProjectDirectives(
-                new SchemaDirectives(Drops: [new SchemaDropDirective(new SqlIdentifier("scratch"))]),
-                Drops: [new ObjectDropDirective(ObjectKind.Table, InApp("old_table"))]),
-            new Schema(new SqlIdentifier("app")));
-        ddl.ShouldContain("DROP TABLE app.old_table;");
-        ddl.ShouldContain("DROP SCHEMA scratch;");
     }
 
     // -------------------------------------------------------------------------
@@ -233,7 +220,7 @@ public sealed class NsqlWriterTests
 
     private static string WriteTriggerOn(Trigger trigger)
         => NsqlWriter.Write(new Database([new Schema(new SqlIdentifier("app"),
-            Tables: [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], Triggers: [trigger])])]));
+            tables: [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], triggers: [trigger])])]));
 
     [Fact]
     public void Write_Trigger_EmitsStandaloneCreateTriggerAfterTable()
@@ -247,7 +234,8 @@ public sealed class NsqlWriterTests
     public void Write_TriggerWithUpdateOfWhenAndComment_IsEmitted()
     {
         var ddl = WriteTriggerOn(new Trigger(new SqlIdentifier("audit"), TriggerTiming.After, TriggerEvent.Update, new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("log")),
-            TriggerLevel.Row, UpdateOfColumns: [new SqlIdentifier("email")], When: new SqlText("new.email IS NOT NULL"), Comment: "audit"));
+            TriggerLevel.Row, updateOfColumns: [new SqlIdentifier("email")], when: new SqlText("new.email IS NOT NULL"))
+        { Comment = "audit" });
         ddl.ShouldContain("--- audit\nCREATE TRIGGER audit AFTER UPDATE OF (email) ON app.users FOR EACH ROW WHEN (new.email IS NOT NULL) EXECUTE FUNCTION app.log();");
     }
 
@@ -260,9 +248,10 @@ public sealed class NsqlWriterTests
     public void Write_Trigger_RoundTripsThroughParse()
     {
         var trigger = new Trigger(new SqlIdentifier("audit"), TriggerTiming.After, TriggerEvent.Insert | TriggerEvent.Delete, new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("log")),
-            TriggerLevel.Row, When: new SqlText("true"), FunctionArguments: new SqlText("'x'"), Comment: "note");
+            TriggerLevel.Row, when: new SqlText("true"), functionArguments: new SqlText("'x'"))
+        { Comment = "note" };
         var schema = new Database([new Schema(new SqlIdentifier("app"),
-            Tables: [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], Triggers: [trigger])])]);
+            tables: [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], triggers: [trigger])])]);
 
         var reparsed = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Database;
         var roundTripped = reparsed.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Triggers.ShouldHaveSingleItem();
@@ -273,7 +262,7 @@ public sealed class NsqlWriterTests
     [Fact]
     public void Write_InlineBodyTrigger_EmitsDollarQuotedBody()
         => WriteTriggerOn(new Trigger(new SqlIdentifier("audit"), TriggerTiming.After, TriggerEvent.Insert,
-                Body: new SqlText("BEGIN INSERT INTO app.log VALUES (1); END")))
+                body: new SqlText("BEGIN INSERT INTO app.log VALUES (1); END")))
             .ShouldContain("CREATE TRIGGER audit AFTER INSERT ON app.users AS $$\nBEGIN INSERT INTO app.log VALUES (1); END\n$$;");
 
     [Fact]
@@ -281,9 +270,10 @@ public sealed class NsqlWriterTests
     {
         // A body with its own semicolons survives because it is emitted (and lexed) as one dollar-quoted block.
         var trigger = new Trigger(new SqlIdentifier("audit"), TriggerTiming.InsteadOf, TriggerEvent.Insert | TriggerEvent.Update,
-            Body: new SqlText("BEGIN\n  UPDATE app.users SET id = id;\n  INSERT INTO app.log VALUES (1);\nEND"), Comment: "note");
+            body: new SqlText("BEGIN\n  UPDATE app.users SET id = id;\n  INSERT INTO app.log VALUES (1);\nEND"))
+        { Comment = "note" };
         var schema = new Database([new Schema(new SqlIdentifier("app"),
-            Tables: [new Table(new SqlIdentifier("users"), Columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], Triggers: [trigger])])]);
+            tables: [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], triggers: [trigger])])]);
 
         var reparsed = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Database;
         var roundTripped = reparsed.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Triggers.ShouldHaveSingleItem();
@@ -297,35 +287,30 @@ public sealed class NsqlWriterTests
 
     [Fact]
     public void Write_Extension_EmitsCreateExtension()
-        => NsqlWriter.Write(new Database(Extensions: [new Extension(new SqlIdentifier("citext"))]))
+        => NsqlWriter.Write(new Database(extensions: [new Extension(new SqlIdentifier("citext"))]))
             .ShouldContain("CREATE EXTENSION citext;");
 
     [Fact]
     public void Write_ExtensionWithVersion_EmitsVersionClause()
-        => NsqlWriter.Write(new Database(Extensions: [new Extension(new SqlIdentifier("postgis"), Version: "3.4")]))
+        => NsqlWriter.Write(new Database(extensions: [new Extension(new SqlIdentifier("postgis"), version: "3.4")]))
             .ShouldContain("CREATE EXTENSION postgis VERSION '3.4';");
 
     [Fact]
     public void Write_ExtensionWithNonIdentifierName_QuotesIt()
         // A hyphenated name (e.g. uuid-ossp) must be quoted so it round-trips through the parser.
-        => NsqlWriter.Write(new Database(Extensions: [new Extension(new SqlIdentifier("uuid-ossp"))]))
+        => NsqlWriter.Write(new Database(extensions: [new Extension(new SqlIdentifier("uuid-ossp"))]))
             .ShouldContain("CREATE EXTENSION 'uuid-ossp';");
 
     [Fact]
     public void Write_ExtensionComment_EmitsDocComment()
-        => NsqlWriter.Write(new Database(Extensions: [new Extension(new SqlIdentifier("postgis"), Comment: "spatial types")]))
+        => NsqlWriter.Write(new Database(extensions: [new Extension(new SqlIdentifier("postgis")) { Comment = "spatial types" }]))
             .ShouldContain("--- spatial types\nCREATE EXTENSION postgis;");
-
-    [Fact]
-    public void Write_DroppedExtension_IsEmitted()
-        => WriteDirectives(new ProjectDirectives(ExtensionDrops: [new ExtensionDropDirective(new SqlIdentifier("stale_ext"))]))
-            .ShouldContain("DROP EXTENSION stale_ext;");
 
     [Fact]
     public void Write_Extension_RoundTripsThroughParse()
     {
-        var schema = new Database(Extensions:
-            [new Extension(new SqlIdentifier("citext")), new Extension(new SqlIdentifier("uuid-ossp"), Comment: "ids"), new Extension(new SqlIdentifier("postgis"), Version: "3.4")]);
+        var schema = new Database(extensions:
+            [new Extension(new SqlIdentifier("citext")), new Extension(new SqlIdentifier("uuid-ossp")) { Comment = "ids" }, new Extension(new SqlIdentifier("postgis"), version: "3.4")]);
         var reparsed = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Database;
         reparsed.Extensions.ShouldBe(schema.Extensions);
     }
@@ -338,7 +323,7 @@ public sealed class NsqlWriterTests
     public void Write_View_EmitsCreateViewWithBody()
     {
         var schema = new Database([
-            new Schema(new SqlIdentifier("app"), Views: [new View(new SqlIdentifier("active"), new SqlText("SELECT id FROM app.users WHERE active"))]),
+            new Schema(new SqlIdentifier("app"), views: [new View(new SqlIdentifier("active"), new SqlText("SELECT id FROM app.users WHERE active"))]),
         ]);
         NsqlWriter.Write(schema).ShouldContain("CREATE VIEW app.active AS SELECT id FROM app.users WHERE active;");
     }
@@ -363,28 +348,23 @@ public sealed class NsqlWriterTests
     [Fact]
     public void Write_SimpleDomain_EmitsCreateDomain()
         => NsqlWriter.Write(new Database([new Schema(new SqlIdentifier("app"),
-            Domains: [new DomainType(new SqlIdentifier("typeid"), SqlType.Text)])]))
+            domains: [new DomainType(new SqlIdentifier("typeid"), SqlType.Text)])]))
             .ShouldContain("CREATE DOMAIN app.typeid AS text;");
 
     [Fact]
     public void Write_DomainWithEveryClause_EmitsInCanonicalOrder()
         => NsqlWriter.Write(new Database([new Schema(new SqlIdentifier("app"),
-            Domains: [new DomainType(new SqlIdentifier("email"), SqlType.Text, Default: new SqlText("'x@y'"), NotNull: true,
-                Checks: [new CheckConstraint(new SqlIdentifier("email_fmt"), new SqlText("VALUE ~ '@'"))])])]))
+            domains: [new DomainType(new SqlIdentifier("email"), SqlType.Text, @default: new SqlText("'x@y'"), notNull: true,
+                checks: [new CheckConstraint(new SqlIdentifier("email_fmt"), new SqlText("VALUE ~ '@'"))])])]))
             // NOT NULL, then checks, then DEFAULT (last, so its opaque expr reads back to the ';').
             .ShouldContain("CREATE DOMAIN app.email AS text NOT NULL CONSTRAINT email_fmt CHECK (VALUE ~ '@') DEFAULT 'x@y';");
-
-    [Fact]
-    public void Write_DroppedDomain_IsEmitted()
-        => WriteDirectives(new ProjectDirectives(Drops: [new ObjectDropDirective(ObjectKind.Domain, InApp("stale"))]), new Schema(new SqlIdentifier("app")))
-            .ShouldContain("DROP DOMAIN app.stale;");
 
     [Fact]
     public void Write_Domain_RoundTripsThroughParse()
     {
         var schema = new Database([new Schema(new SqlIdentifier("app"),
-            Domains: [new DomainType(new SqlIdentifier("email"), SqlType.Text, Default: new SqlText("'x@y'"), NotNull: true,
-                Checks: [new CheckConstraint(new SqlIdentifier("email_fmt"), new SqlText("VALUE ~ '@'"))], Comment: "an email")])]);
+            domains: [new DomainType(new SqlIdentifier("email"), SqlType.Text, @default: new SqlText("'x@y'"), notNull: true,
+                checks: [new CheckConstraint(new SqlIdentifier("email_fmt"), new SqlText("VALUE ~ '@'"))]) { Comment = "an email" }])]);
 
         var domain = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Database
             .Schemas.ShouldHaveSingleItem().Domains.ShouldHaveSingleItem();
@@ -401,20 +381,14 @@ public sealed class NsqlWriterTests
     [Fact]
     public void Write_SimpleCompositeType_EmitsCreateType()
         => NsqlWriter.Write(new Database([new Schema(new SqlIdentifier("app"),
-            CompositeTypes: [new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text), new CompositeField(new SqlIdentifier("zip"), SqlType.Int)])])]))
+            compositeTypes: [new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text), new CompositeField(new SqlIdentifier("zip"), SqlType.Int)])])]))
             .ShouldContain("CREATE TYPE app.address AS (street text, zip int);");
-
-    [Fact]
-    public void Write_DroppedCompositeType_IsEmitted()
-        => WriteDirectives(new ProjectDirectives(Drops: [new ObjectDropDirective(ObjectKind.CompositeType, InApp("stale"))]), new Schema(new SqlIdentifier("app")))
-            .ShouldContain("DROP TYPE app.stale;");
 
     [Fact]
     public void Write_CompositeType_RoundTripsThroughParse()
     {
         var schema = new Database([new Schema(new SqlIdentifier("app"),
-            CompositeTypes: [new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text), new CompositeField(new SqlIdentifier("zip"), SqlType.Int)],
-                Comment: "a postal address")])]);
+            compositeTypes: [new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text), new CompositeField(new SqlIdentifier("zip"), SqlType.Int)]) { Comment = "a postal address" }])]);
 
         var type = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Database
             .Schemas.ShouldHaveSingleItem().CompositeTypes.ShouldHaveSingleItem();
@@ -431,22 +405,22 @@ public sealed class NsqlWriterTests
     [Fact]
     public void Write_MaterializedView_EmitsMaterializedKeyword()
         => NsqlWriter.Write(new Database([new Schema(new SqlIdentifier("app"),
-            Views: [new View(new SqlIdentifier("daily"), new SqlText("SELECT 1"), IsMaterialized: true)])]))
+            views: [new View(new SqlIdentifier("daily"), new SqlText("SELECT 1"), isMaterialized: true)])]))
             .ShouldContain("CREATE MATERIALIZED VIEW app.daily AS SELECT 1;");
 
     [Fact]
     public void Write_MaterializedViewIndex_EmitsStandaloneCreateIndex()
         => NsqlWriter.Write(new Database([new Schema(new SqlIdentifier("app"),
-            Views: [new View(new SqlIdentifier("daily"), new SqlText("SELECT x FROM app.t"), IsMaterialized: true,
-                Indexes: [new TableIndex(new SqlIdentifier("daily_ix"), ["x"], IsUnique: true, Predicate: new SqlText("x IS NOT NULL"))])])]))
+            views: [new View(new SqlIdentifier("daily"), new SqlText("SELECT x FROM app.t"), isMaterialized: true,
+                indexes: [new TableIndex(new SqlIdentifier("daily_ix"), ["x"], isUnique: true, predicate: new SqlText("x IS NOT NULL"))])])]))
             .ShouldContain("CREATE UNIQUE INDEX daily_ix ON app.daily (x) WHERE (x IS NOT NULL);");
 
     [Fact]
     public void Write_MaterializedView_RoundTripsThroughParse()
     {
         var schema = new Database([new Schema(new SqlIdentifier("app"),
-            Views: [new View(new SqlIdentifier("daily"), new SqlText("SELECT x FROM app.t"), IsMaterialized: true,
-                Indexes: [new TableIndex(new SqlIdentifier("daily_ix"), ["x"])])])]);
+            views: [new View(new SqlIdentifier("daily"), new SqlText("SELECT x FROM app.t"), isMaterialized: true,
+                indexes: [new TableIndex(new SqlIdentifier("daily_ix"), ["x"])])])]);
 
         var view = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Database
             .Schemas.ShouldHaveSingleItem().Views.ShouldHaveSingleItem();
@@ -461,44 +435,30 @@ public sealed class NsqlWriterTests
     [Fact]
     public void Write_Enum_EmitsQuotedValueList()
         => NsqlWriter.Write(new Database([
-            new Schema(new SqlIdentifier("app"), Enums: [new EnumType(new SqlIdentifier("status"), ["pending", "shipped"])]),
+            new Schema(new SqlIdentifier("app"), enums: [new EnumType(new SqlIdentifier("status"), ["pending", "shipped"])]),
         ])).ShouldContain("CREATE ENUM app.status ('pending', 'shipped');");
 
     [Fact]
     public void Write_EnumValueWithQuote_EscapesIt()
         => NsqlWriter.Write(new Database([
-            new Schema(new SqlIdentifier("app"), Enums: [new EnumType(new SqlIdentifier("status"), ["it's"])]),
+            new Schema(new SqlIdentifier("app"), enums: [new EnumType(new SqlIdentifier("status"), ["it's"])]),
         ])).ShouldContain("CREATE ENUM app.status ('it''s');");
 
     [Fact]
     public void Write_Sequence_WithoutOptions_OmitsParens()
         => NsqlWriter.Write(new Database([
-            new Schema(new SqlIdentifier("app"), Sequences: [new Sequence(new SqlIdentifier("order_id"))]),
+            new Schema(new SqlIdentifier("app"), sequences: [new Sequence(new SqlIdentifier("order_id"))]),
         ])).ShouldContain("CREATE SEQUENCE app.order_id;");
 
     [Fact]
     public void Write_Sequence_EmitsOptionsInCanonicalOrder()
         => NsqlWriter.Write(new Database([
-            new Schema(new SqlIdentifier("app"), Sequences:
+            new Schema(new SqlIdentifier("app"), sequences:
             [
                 new Sequence(new SqlIdentifier("order_id"), new SequenceOptions(SqlType.BigInt, StartWith: 100, IncrementBy: 5,
                     MinValue: -10, MaxValue: 999999, Cache: 10, Cycle: true)),
             ]),
         ])).ShouldContain("CREATE SEQUENCE app.order_id (AS bigint, START 100, INCREMENT 5, MINVALUE -10, MAXVALUE 999999, CACHE 10, CYCLE);");
-
-    [Fact]
-    public void Write_EnumAndSequenceDropDirectives_AreEmitted()
-    {
-        var ddl = WriteDirectives(new ProjectDirectives(
-                Drops:
-                [
-                    new ObjectDropDirective(ObjectKind.Enum, InApp("stale_enum")),
-                    new ObjectDropDirective(ObjectKind.Sequence, InApp("stale_seq")),
-                ]),
-            new Schema(new SqlIdentifier("app")));
-        ddl.ShouldContain("DROP ENUM app.stale_enum;");
-        ddl.ShouldContain("DROP SEQUENCE app.stale_seq;");
-    }
 
     // -------------------------------------------------------------------------
     // Functions and procedures
@@ -507,14 +467,14 @@ public sealed class NsqlWriterTests
     [Fact]
     public void Write_Function_EmitsArgumentsAndDefinitionVerbatim()
         => NsqlWriter.Write(new Database([
-            new Schema(new SqlIdentifier("app"), Routines:
+            new Schema(new SqlIdentifier("app"), routines:
                 [new Routine(new SqlIdentifier("add_tax"), RoutineKind.Function, new SqlText("amount numeric"), new SqlText("RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$"))]),
         ])).ShouldContain("CREATE FUNCTION app.add_tax(amount numeric) RETURNS numeric LANGUAGE sql AS $$ SELECT amount $$;");
 
     [Fact]
     public void Write_Function_MultiLineDefinition_KeepsNewlines()
         => NsqlWriter.Write(new Database([
-            new Schema(new SqlIdentifier("app"), Routines:
+            new Schema(new SqlIdentifier("app"), routines:
                 [new Routine(new SqlIdentifier("f"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$"))]),
         ])).ShouldContain("CREATE FUNCTION app.f() RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$;");
 
@@ -522,22 +482,13 @@ public sealed class NsqlWriterTests
     public void Write_Function_TrailingWhitespaceInDefinition_IsTrimmed()
         // A code-built definition ending in whitespace must not push the ';' onto dangling whitespace.
         => NsqlWriter.Write(new Database([
-            new Schema(new SqlIdentifier("app"), Routines: [new Routine(new SqlIdentifier("f"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int AS $$ SELECT 1 $$  \n"))]),
+            new Schema(new SqlIdentifier("app"), routines: [new Routine(new SqlIdentifier("f"), RoutineKind.Function, new SqlText(""), new SqlText("RETURNS int AS $$ SELECT 1 $$  \n"))]),
         ])).ShouldContain("AS $$ SELECT 1 $$;");
 
     [Fact]
     public void Write_Procedure_IsEmitted()
         => NsqlWriter.Write(new Database([
-            new Schema(new SqlIdentifier("app"), Routines: [new Routine(new SqlIdentifier("archive"), RoutineKind.Procedure, new SqlText("before date"), new SqlText("LANGUAGE sql AS $$ DELETE $$"))]),
+            new Schema(new SqlIdentifier("app"), routines: [new Routine(new SqlIdentifier("archive"), RoutineKind.Procedure, new SqlText("before date"), new SqlText("LANGUAGE sql AS $$ DELETE $$"))]),
         ])).ShouldContain("CREATE PROCEDURE app.archive(before date) LANGUAGE sql AS $$ DELETE $$;");
 
-    [Fact]
-    public void Write_RoutineDrops_AreEmitted()
-    {
-        // Routines are recorded by name only (one name space), so they are emitted with kind-agnostic DROP ROUTINE.
-        var ddl = WriteDirectives(new ProjectDirectives(Drops: [new ObjectDropDirective(ObjectKind.Routine, InApp("stale_fn")), new ObjectDropDirective(ObjectKind.Routine, InApp("stale_proc"))]),
-            new Schema(new SqlIdentifier("app")));
-        ddl.ShouldContain("DROP ROUTINE app.stale_fn;");
-        ddl.ShouldContain("DROP ROUTINE app.stale_proc;");
-    }
 }

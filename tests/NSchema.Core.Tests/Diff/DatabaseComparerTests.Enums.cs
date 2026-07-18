@@ -15,7 +15,7 @@ public partial class DatabaseComparerTests
 
     /// <summary>Diffs two <c>app</c> schemas holding the given enums, returning the single enum diff (null when unchanged).</summary>
     private EnumDiff? DiffEnums(IReadOnlyList<EnumType> current, IReadOnlyList<EnumType> desired, ProjectDirectives? directives = null) =>
-        Compare(Db(new Schema(new SqlIdentifier("app"), Enums: current)), Db(new Schema(new SqlIdentifier("app"), Enums: desired)), directives)
+        Compare(Db(new Schema(new SqlIdentifier("app"), enums: current)), Db(new Schema(new SqlIdentifier("app"), enums: desired)), directives)
         .Schemas.SingleOrDefault()?.Enums.SingleOrDefault();
 
     [Fact]
@@ -47,7 +47,7 @@ public partial class DatabaseComparerTests
         var diff = DiffEnums(
             [new EnumType(new SqlIdentifier("state"), ["a"])],
             [new EnumType(new SqlIdentifier("status"), ["a"])],
-            new ProjectDirectives(Renames: [new ObjectRenameDirective(ObjectKind.Enum, App("state"), new SqlIdentifier("status"))]));
+            new ProjectDirectives(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Enum, App("state")), new SqlIdentifier("status"))]));
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.RenamedFrom.ShouldBe("state");
@@ -59,8 +59,8 @@ public partial class DatabaseComparerTests
     public void Compare_EnumCommentOnlyChange_IsModify()
     {
         var diff = DiffEnums(
-            [new EnumType(new SqlIdentifier("status"), ["a"], Comment: "old")],
-            [new EnumType(new SqlIdentifier("status"), ["a"], Comment: "new")]);
+            [new EnumType(new SqlIdentifier("status"), ["a"]) { Comment = "old" }],
+            [new EnumType(new SqlIdentifier("status"), ["a"]) { Comment = "new" }]);
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.Comment.ShouldBe(new ValueChange<string>("old", "new"));
@@ -161,25 +161,4 @@ public partial class DatabaseComparerTests
         => DiffEnums([new EnumType(new SqlIdentifier("status"), ["Active"])], [new EnumType(new SqlIdentifier("status"), ["active"])])!
             .RequiresRecreate.ShouldBeTrue();
 
-    [Fact]
-    public void Compare_PartialSchema_LeavesUnmanagedEnumAlone()
-    {
-        var diff = Compare(
-            Db(new Schema(new SqlIdentifier("app"), Enums: [new EnumType(new SqlIdentifier("status"), ["a"])])),
-            Db(new Schema(new SqlIdentifier("app"))),
-            PartialApp());
-
-        diff.Schemas.ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void Compare_PartialSchema_DropsExplicitlyDroppedEnum()
-    {
-        var diff = Compare(
-            Db(new Schema(new SqlIdentifier("app"), Enums: [new EnumType(new SqlIdentifier("status"), ["a"])])),
-            Db(new Schema(new SqlIdentifier("app"))),
-            PartialApp() with { Drops = [new ObjectDropDirective(ObjectKind.Enum, App("status"))] });
-
-        diff.Schemas.ShouldHaveSingleItem().Enums.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
-    }
 }

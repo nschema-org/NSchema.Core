@@ -47,12 +47,12 @@ public sealed class DiffReaderSnapshotTests
             Comment: new ValueChange<string>(null, "all users"),
             Columns:
             [
-                new ColumnDiff(new SqlIdentifier("id"), ChangeKind.Add, new Column(new SqlIdentifier("id"), SqlType.BigInt, IsIdentity: true,
-                    IdentityOptions: new IdentityOptions(1, 1, 1)), null, null, null, null, null, null),
-                new ColumnDiff(new SqlIdentifier("name"), ChangeKind.Add, new Column(new SqlIdentifier("name"), SqlType.VarChar(255), DefaultExpression: new SqlText("'anonymous'")), null, null, null, null, null, null),
+                new ColumnDiff(new SqlIdentifier("id"), ChangeKind.Add, new Column(new SqlIdentifier("id"), SqlType.BigInt, isIdentity: true,
+                    identityOptions: new IdentityOptions(1, 1, 1)), null, null, null, null, null, null),
+                new ColumnDiff(new SqlIdentifier("name"), ChangeKind.Add, new Column(new SqlIdentifier("name"), SqlType.VarChar(255), defaultExpression: new SqlText("'anonymous'")), null, null, null, null, null, null),
             ],
             Grants: [new GrantChange(ChangeKind.Add, new SqlIdentifier("readers"), TablePrivilege.Select)],
-            Indexes: [new IndexDiff(ChangeKind.Add, new SqlIdentifier("users_name_ix"), new TableIndex(new SqlIdentifier("users_name_ix"), ["name"], IsUnique: true), null)],
+            Indexes: [new IndexDiff(ChangeKind.Add, new SqlIdentifier("users_name_ix"), new TableIndex(new SqlIdentifier("users_name_ix"), ["name"], isUnique: true), null)],
             PrimaryKey: [new PrimaryKeyDiff(ChangeKind.Add, new SqlIdentifier("users_pkey"), null)],
             UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_email_uq"), null)],
             Checks: [new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_age_chk"), null)]);
@@ -66,7 +66,7 @@ public sealed class DiffReaderSnapshotTests
                     Type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
                     Nullability: new ValueChange<bool>(true, false), Default: null, Identity: null, Comment: null),
                 new ColumnDiff(new SqlIdentifier("total_label"), ChangeKind.Modify, Generated: new ValueChange<SqlText>(null, new SqlText("total::text"))),
-                new ColumnDiff(new SqlIdentifier("amount"), ChangeKind.Add, new Column(new SqlIdentifier("amount"), SqlType.Int, GeneratedExpression: new SqlText("total * 100")), null, null, null, null, null, null),
+                new ColumnDiff(new SqlIdentifier("amount"), ChangeKind.Add, new Column(new SqlIdentifier("amount"), SqlType.Int, generatedExpression: new SqlText("total * 100")), null, null, null, null, null, null),
                 new ColumnDiff(new SqlIdentifier("legacy_flag"), ChangeKind.Remove, new Column(new SqlIdentifier("legacy_flag"), SqlType.Boolean), null, null, null, null, null, null),
             ],
             Grants: [new GrantChange(ChangeKind.Remove, new SqlIdentifier("writers"), TablePrivilege.Insert)],
@@ -115,7 +115,7 @@ public sealed class DiffReaderSnapshotTests
                     new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("stale_view"), ChangeKind.Remove),
                     // Materialized views: an add (with index on the definition) and an in-place index change.
                     new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("mv_sales"), ChangeKind.Add,
-                        Definition: new View(new SqlIdentifier("mv_sales"), new SqlText("SELECT date, sum(amount) FROM app.sales GROUP BY date"), IsMaterialized: true),
+                        Definition: new View(new SqlIdentifier("mv_sales"), new SqlText("SELECT date, sum(amount) FROM app.sales GROUP BY date"), isMaterialized: true),
                         Comment: new ValueChange<string>(null, "sales rollup"), IsMaterialized: true),
                     new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("mv_active"), ChangeKind.Modify, IsMaterialized: true,
                         Indexes:
@@ -125,7 +125,7 @@ public sealed class DiffReaderSnapshotTests
                         ]),
                     // A plain → materialized conversion (a recreate carrying the materialization flip).
                     new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("hourly_totals"), ChangeKind.Modify,
-                        Definition: new View(new SqlIdentifier("hourly_totals"), new SqlText("SELECT date_trunc('hour', at), sum(amount) FROM app.sales GROUP BY 1"), IsMaterialized: true),
+                        Definition: new View(new SqlIdentifier("hourly_totals"), new SqlText("SELECT date_trunc('hour', at), sum(amount) FROM app.sales GROUP BY 1"), isMaterialized: true),
                         IsMaterialized: true, Materialized: new ValueChange<bool>(false, true), RequiresRecreate: true),
                 ]),
             ]);
@@ -282,7 +282,7 @@ public sealed class DiffReaderSnapshotTests
                 new SchemaDiff(new SqlIdentifier("app"), Domains:
                 [
                     new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("typeid"), ChangeKind.Add,
-                        Definition: new DomainType(new SqlIdentifier("typeid"), SqlType.Text, NotNull: true),
+                        Definition: new DomainType(new SqlIdentifier("typeid"), SqlType.Text, notNull: true),
                         Comment: new ValueChange<string>(null, "id as text")),
                     new DomainDiff(new SqlIdentifier("app"), new SqlIdentifier("code"), ChangeKind.Modify,
                         Definition: new DomainType(new SqlIdentifier("code"), SqlType.VarChar(8)),

@@ -45,13 +45,13 @@ public sealed class PlanLinearizerSnapshotTests
         var newTable = new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Add, null, null,
             Columns: [],
             Grants: [new GrantChange(ChangeKind.Add, new SqlIdentifier("readers"), TablePrivilege.Select)],
-            Indexes: [new IndexDiff(ChangeKind.Add, new SqlIdentifier("users_name_ix"), new TableIndex(new SqlIdentifier("users_name_ix"), ["name"], IsUnique: true), null)],
+            Indexes: [new IndexDiff(ChangeKind.Add, new SqlIdentifier("users_name_ix"), new TableIndex(new SqlIdentifier("users_name_ix"), ["name"], isUnique: true), null)],
             UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_email_uq"), new UniqueConstraint(new SqlIdentifier("users_email_uq"), [new SqlIdentifier("email")]))],
             Definition: new Table(new SqlIdentifier("users"),
-                PrimaryKey: new PrimaryKey(new SqlIdentifier("users_pkey"), [new SqlIdentifier("id")]),
-                Columns:
+                primaryKey: new PrimaryKey(new SqlIdentifier("users_pkey"), [new SqlIdentifier("id")]),
+                columns:
                 [
-                    new Column(new SqlIdentifier("id"), SqlType.BigInt, IsIdentity: true, IdentityOptions: new IdentityOptions(1, 1, 1)),
+                    new Column(new SqlIdentifier("id"), SqlType.BigInt, isIdentity: true, identityOptions: new IdentityOptions(1, 1, 1)),
                     new Column(new SqlIdentifier("name"), SqlType.VarChar(255)),
                 ]));
 
@@ -61,13 +61,13 @@ public sealed class PlanLinearizerSnapshotTests
                 new ColumnDiff(new SqlIdentifier("total"), ChangeKind.Modify, null, null,
                     Type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
                     Nullability: new ValueChange<bool>(true, false), Default: null, Identity: null, Comment: null),
-                new ColumnDiff(new SqlIdentifier("notes"), ChangeKind.Add, new Column(new SqlIdentifier("notes"), SqlType.Text, IsNullable: true), null, null, null, null, null, null),
+                new ColumnDiff(new SqlIdentifier("notes"), ChangeKind.Add, new Column(new SqlIdentifier("notes"), SqlType.Text, isNullable: true), null, null, null, null, null, null),
                 new ColumnDiff(new SqlIdentifier("total_label"), ChangeKind.Modify, Generated: new ValueChange<SqlText>(null, new SqlText("total::text"))),
                 new ColumnDiff(new SqlIdentifier("legacy_flag"), ChangeKind.Remove, new Column(new SqlIdentifier("legacy_flag"), SqlType.Boolean), null, null, null, null, null, null),
             ],
             Grants: [],
             Indexes: [new IndexDiff(ChangeKind.Add, new SqlIdentifier("orders_total_ix"),
-                new TableIndex(new SqlIdentifier("orders_total_ix"), [new IndexColumn(new SqlIdentifier("total"), Sort: IndexSort.Descending)], Method: "btree", Include: [new SqlIdentifier("code")]), null)],
+                new TableIndex(new SqlIdentifier("orders_total_ix"), [new IndexColumn(new SqlIdentifier("total"), Sort: IndexSort.Descending)], method: "btree", include: [new SqlIdentifier("code")]), null)],
             ForeignKeys: [new ForeignKeyDiff(ChangeKind.Remove, new SqlIdentifier("orders_user_fk"), null)],
             UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("orders_code_uq"), new UniqueConstraint(new SqlIdentifier("orders_code_uq"), [new SqlIdentifier("code")]))],
             Checks: [new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("orders_total_chk"), new CheckConstraint(new SqlIdentifier("orders_total_chk"), new SqlText("total >= 0")))],
@@ -79,10 +79,10 @@ public sealed class PlanLinearizerSnapshotTests
         var views = new ViewDiff[]
         {
             new(new SqlIdentifier("app"), new SqlIdentifier("user_summary"), ChangeKind.Add,
-                Definition: new View(new SqlIdentifier("user_summary"), new SqlText("SELECT * FROM app.active_users"), DependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("active_users"))]),
+                Definition: new View(new SqlIdentifier("user_summary"), new SqlText("SELECT * FROM app.active_users"), dependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("active_users"))]),
                 DependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("active_users"))]),
             new(new SqlIdentifier("app"), new SqlIdentifier("active_users"), ChangeKind.Add,
-                Definition: new View(new SqlIdentifier("active_users"), new SqlText("SELECT * FROM app.users"), DependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users"))]),
+                Definition: new View(new SqlIdentifier("active_users"), new SqlText("SELECT * FROM app.users"), dependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users"))]),
                 DependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users"))]),
             new(new SqlIdentifier("app"), new SqlIdentifier("report"), ChangeKind.Modify, RenamedFrom: new SqlIdentifier("legacy_report")),
             new(new SqlIdentifier("app"), new SqlIdentifier("stale_view"), ChangeKind.Remove),

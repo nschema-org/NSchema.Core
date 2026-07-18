@@ -18,7 +18,7 @@ internal static class DirectiveValidator
         // A current schema name maps to its declared name through the schema renames. First wins on a
         // duplicate source — the duplicate itself is reported below, and validation continues best-effort.
         var declaredNames = new Dictionary<SqlIdentifier, SqlIdentifier>();
-        foreach (var rename in directives.Schemas.Renames)
+        foreach (var rename in directives.SchemaRenames)
         {
             declaredNames.TryAdd(rename.From, rename.To);
         }
@@ -26,13 +26,13 @@ internal static class DirectiveValidator
 
         // ── Schema directives ─────────────────────────────────────────────────────────────
         foreach (var d in ValidateRenameShape("schema",
-            directives.Schemas.Renames.Select(r => (Container: 0, r.From, r.To)).ToList(),
+            directives.SchemaRenames.Select(r => (Container: 0, r.From, r.To)).ToList(),
             (_, name) => name.Value))
         {
             yield return d;
         }
 
-        foreach (var rename in directives.Schemas.Renames)
+        foreach (var rename in directives.SchemaRenames)
         {
             if (index.FindSchema(rename.To) is null)
             {
@@ -42,34 +42,13 @@ internal static class DirectiveValidator
             {
                 yield return ProjectDiagnostics.RenameSourceStillDeclared("schema", rename.From.Value, rename.To);
             }
-            if (directives.Schemas.Drops.Any(d => d.Name == rename.From))
-            {
-                yield return ProjectDiagnostics.RenameOfDropped("schema", rename.From.Value);
-            }
-        }
-
-        foreach (var drop in directives.Schemas.Drops)
-        {
-            if (index.FindSchema(drop.Name) is not null)
-            {
-                yield return ProjectDiagnostics.DropOfDeclared("schema", drop.Name.Value);
-            }
-        }
-
-        foreach (var partial in directives.Schemas.Partials)
-        {
-            if (index.FindSchema(partial.Schema) is null)
-            {
-                yield return ProjectDiagnostics.DirectiveSchemaNotDeclared($"PARTIAL SCHEMA {partial.Schema}", partial.Schema);
-            }
         }
 
         // ── Object directives, one uniform rule set per kind ─────────────────────────────
         foreach (var kind in Enum.GetValues<ObjectKind>())
         {
             var kindName = kind.Display();
-            var renames = directives.Renames.Where(r => r.Kind == kind).ToList();
-            var drops = directives.Drops.Where(d => d.Kind == kind).ToList();
+            var renames = directives.ObjectRenames.Where(r => r.From.Kind == kind).ToList();
 
             foreach (var d in ValidateRenameShape(kindName,
                 renames.Select(r => (Container: r.From.Schema, From: r.From.Name, r.To)).ToList(),
@@ -93,40 +72,23 @@ internal static class DirectiveValidator
                 {
                     yield return ProjectDiagnostics.RenameSourceStillDeclared(kindName, rename.From.ToString(), rename.To);
                 }
-                if (drops.Any(d => d.Address == rename.From))
-                {
-                    yield return ProjectDiagnostics.RenameOfDropped(kindName, rename.From.ToString());
-                }
-            }
-
-            foreach (var drop in drops)
-            {
-                var declaredSchema = DeclaredSchema(drop.Address.Schema);
-                if (index.FindSchema(declaredSchema) is null)
-                {
-                    yield return ProjectDiagnostics.DirectiveSchemaNotDeclared($"DROP of {kindName} '{drop.Address}'", drop.Address.Schema);
-                }
-                else if (index.Has(kind, new ObjectAddress(declaredSchema, drop.Address.Name)))
-                {
-                    yield return ProjectDiagnostics.DropOfDeclared(kindName, drop.Address.ToString());
-                }
             }
         }
 
         // ── Column renames ────────────────────────────────────────────────────────────────
         foreach (var d in ValidateRenameShape("column",
-            directives.ColumnRenames.Select(r => (Container: (r.From.Schema, r.From.Object), From: r.From.Member, r.To)).ToList(),
+            directives.MemberRenames.Select(r => (Container: (r.From.Schema, r.From.Object), From: r.From.Member, r.To)).ToList(),
             (table, name) => $"{table.Item1}.{table.Item2}.{name}"))
         {
             yield return d;
         }
 
         var tableRenames = new Dictionary<ObjectAddress, SqlIdentifier>();
-        foreach (var rename in directives.Renames.Where(r => r.Kind == ObjectKind.Table))
+        foreach (var rename in directives.ObjectRenames.Where(r => r.From.Kind == ObjectKind.Table))
         {
-            tableRenames.TryAdd(rename.From, rename.To);
+            tableRenames.TryAdd(rename.From.Address, rename.To);
         }
-        foreach (var rename in directives.ColumnRenames)
+        foreach (var rename in directives.MemberRenames)
         {
             // The path names current reality: resolve the schema and the table through their own renames to
             // find the declared table the column must be declared on.

@@ -42,16 +42,11 @@ public sealed class NsqlParserCompositeTypeTests
     [Fact]
     public void Parse_RenameType_BecomesADirective()
         => Directives("CREATE SCHEMA app; CREATE TYPE app.address AS (street text); RENAME TYPE app.legacy_address TO address;")
-            .Renames.ShouldHaveSingleItem().To.ShouldBe(new NSchema.Model.SqlIdentifier("address"));
+            .ObjectRenames.ShouldHaveSingleItem().To.ShouldBe(new NSchema.Model.SqlIdentifier("address"));
 
     [Fact]
     public void Parse_WithDocComment_AttachesComment()
         => ParseType("--- a postal address\nCREATE TYPE app.address AS (street text);").Comment.ShouldBe("a postal address");
-
-    [Fact]
-    public void Parse_DropType_BecomesADirective()
-        => Directives("CREATE SCHEMA app; DROP TYPE app.address;")
-            .Drops.ShouldHaveSingleItem().Address.Name.ShouldBe("address");
 
     [Fact]
     public void Parse_DuplicateType_FailsTheRead()
@@ -61,7 +56,7 @@ public sealed class NsqlParserCompositeTypeTests
     [Fact]
     public void Parse_PartialType_DoesNotParse()
         => Should.Throw<NsqlSyntaxException>(() => new TestNsqlParser("PARTIAL TYPE app.t;").Parse())
-            .Message.ShouldContain("Expected 'SCHEMA'");
+            .Message.ShouldContain("Unknown statement 'PARTIAL'");
 
     private static ProjectDirectives Directives(string source)
     {

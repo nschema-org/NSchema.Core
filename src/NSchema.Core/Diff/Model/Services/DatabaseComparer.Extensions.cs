@@ -1,5 +1,4 @@
 using NSchema.Diff.Model.Extensions;
-using NSchema.Model;
 using NSchema.Model.Extensions;
 
 namespace NSchema.Diff.Model.Services;
@@ -7,27 +6,23 @@ namespace NSchema.Diff.Model.Services;
 internal sealed partial class DatabaseComparer
 {
     /// <summary>
-    /// Compares the database-global extensions. Unlike the per-schema objects, an extension is removed
-    /// <em>only</em> when it is explicitly dropped (named in <paramref name="droppedNames"/>): an extension
-    /// present in the database but absent from the desired set is left alone. Extensions are shared
-    /// infrastructure — every database has some installed by default (e.g. <c>plpgsql</c> in Postgres) — so
-    /// absence must never imply a drop. Extensions never rename, so there is no <see cref="MatchEntities{T}"/>
-    /// pass; matching is by exact name.
+    /// Compares the database-global extensions. An extension in the current side but absent from the desired
+    /// set is removed like any other object — the current side only ever contains managed extensions, so
+    /// shared infrastructure installed by others (e.g. <c>plpgsql</c> in Postgres) never enters the compare.
+    /// Extensions never rename, so there is no <see cref="MatchEntities{T}"/> pass; matching is by exact name.
     /// </summary>
     private static List<ExtensionDiff> CompareExtensions(
         IReadOnlyList<Extension> current,
-        IReadOnlyList<Extension> desired,
-        IReadOnlyList<SqlIdentifier> droppedNames
+        IReadOnlyList<Extension> desired
     )
     {
         var result = new List<ExtensionDiff>();
 
-        foreach (var name in droppedNames)
+        foreach (var currentExtension in current)
         {
-            var existing = current.FirstOrDefault(e => e.Name == name);
-            if (existing is not null)
+            if (desired.All(e => e.Name != currentExtension.Name))
             {
-                result.Add(new ExtensionDiff(existing.Name, ChangeKind.Remove));
+                result.Add(new ExtensionDiff(currentExtension.Name, ChangeKind.Remove));
             }
         }
 

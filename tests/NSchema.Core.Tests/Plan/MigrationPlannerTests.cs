@@ -4,6 +4,7 @@ using NSchema.Diff.Model.Services;
 using NSchema.Model;
 using NSchema.Model.Schemas;
 using NSchema.Model.Scripts;
+using NSchema.Model.Tables;
 using NSchema.Plan.Model;
 using NSchema.Plan.Model.Schemas;
 using NSchema.Plan.Model.Scripts;
@@ -53,7 +54,7 @@ public sealed class MigrationPlannerTests
         _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(TwoSchemaDiff(), []));
 
         // Act
-        var result = Sut.Plan(_current, _desired, PlanningScope.Of(new SqlIdentifier("app")));
+        var result = Sut.Plan(_current, _desired, PlanningScope.To(new SqlIdentifier("app")));
 
         // Assert
         result.Value!.Diff.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
@@ -69,7 +70,7 @@ public sealed class MigrationPlannerTests
         _planPolicies.Add(policy);
 
         // Act
-        Sut.Plan(_current, _desired, PlanningScope.Of(new SqlIdentifier("app")));
+        Sut.Plan(_current, _desired, PlanningScope.To(new SqlIdentifier("app")));
 
         // Assert
         policy.Received(1).Validate(Arg.Is<MigrationPlan>(p => p!.Diff.Schemas.Count == 1
@@ -83,7 +84,7 @@ public sealed class MigrationPlannerTests
         _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(TwoSchemaDiff(), []));
 
         // Act
-        Sut.Plan(_current, _desired, PlanningScope.Of(new SqlIdentifier("app")));
+        Sut.Plan(_current, _desired, PlanningScope.To(new SqlIdentifier("app")));
 
         // Assert
         _linearizer.Received(1).Linearize(Arg.Is<DatabaseDiff>(d => d!.Schemas.Count == 1));
@@ -147,8 +148,87 @@ public sealed class MigrationPlannerTests
         // Act
         Sut.Plan(_current, _desired, PlanningScope.All);
 
+        // Assert — the current side the differ sees carries the same ledger and managed set.
+        _differ.Received(1).Compare(
+            Arg.Is<CurrentState>(c => c.ExecutedScripts == _current.ExecutedScripts && c.Managed == _current.Managed),
+            _desired);
+    }
+
+    [Fact]
+    public void Plan_FiltersUnmanagedCurrentObjectsOutOfTheCompare()
+    {
+        // Arrange — the observation holds a managed and an unmanaged table; only the managed one (and anything
+        // declared) is the plan's business.
+        var app = new SqlIdentifier("app");
+        var current = new CurrentState(new Database([new Schema(app, tables:
+            [new Table(new SqlIdentifier("mine")), new Table(new SqlIdentifier("theirs"))])]))
+        {
+            Managed = new IdentitySet(
+                Schemas: [app],
+                Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, new SqlIdentifier("mine")))]),
+        };
+
+        // Act
+        Sut.Plan(current, _desired, PlanningScope.All);
+
         // Assert
-        _differ.Received(1).Compare(_current, _desired);
+        _differ.Received(1).Compare(
+            Arg.Is<CurrentState>(c => c.Database.Schemas.Single().Tables.Single().Name == new SqlIdentifier("mine")),
+            Arg.Any<ProjectDefinition>());
+    }
+
+    [Fact]
+    public void Plan_ManagedAfterApply_IsTheDeclaredIdentities()
+    {
+        // Arrange
+        var app = new SqlIdentifier("app");
+        var desired = new ProjectDefinition(new Database([new Schema(app, tables: [new Table(new SqlIdentifier("users"))])]));
+
+        // Act
+        var plan = Sut.Plan(_current, desired, PlanningScope.All).Value!;
+
+        // Assert — within scope, management after an apply is exactly what the project declares.
+        plan.Managed.Schemas.ShouldBe([app]);
+        plan.Managed.Objects.ShouldBe([new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, new SqlIdentifier("users")))]);
+    }
+
+    [Fact]
+    public void Plan_ManagedAfterApply_RetainsOutOfScopeManagedIdentities()
+    {
+        // Arrange — billing is managed but out of scope, so this plan leaves its management untouched.
+        var app = new SqlIdentifier("app");
+        var billing = new SqlIdentifier("billing");
+        var current = new CurrentState(_emptySchema)
+        {
+            Managed = new IdentitySet(
+                Schemas: [billing],
+                Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress(billing, new SqlIdentifier("invoices")))]),
+        };
+        var desired = new ProjectDefinition(new Database([new Schema(app)]));
+
+        // Act
+        var plan = Sut.Plan(current, desired, PlanningScope.To(app)).Value!;
+
+        // Assert
+        plan.Managed.Schemas.ShouldBe([app, billing], ignoreOrder: true);
+        plan.Managed.Objects.ShouldHaveSingleItem().Address.Schema.ShouldBe(billing);
+    }
+
+    [Fact]
+    public void Plan_Teardown_EmptiesTheManagedSet()
+    {
+        // Arrange — a teardown converges towards nothing: everything in scope stops being managed.
+        var app = new SqlIdentifier("app");
+        var current = new CurrentState(_emptySchema)
+        {
+            Managed = new IdentitySet(Schemas: [app]),
+        };
+
+        // Act — an unrestricted teardown's scope covers every managed schema (derived by the workflow).
+        var plan = Sut.Plan(current, new ProjectDefinition(new Database()), PlanningScope.To(app)).Value!;
+
+        // Assert
+        plan.Managed.IsEmpty.ShouldBeTrue();
     }
 
     [Fact]

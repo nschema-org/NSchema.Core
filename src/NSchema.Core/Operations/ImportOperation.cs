@@ -41,7 +41,7 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
         foreach (var definition in schema.Schemas)
         {
             var headerPath = Path.Combine(arguments.OutputDirectory, definition.Name.Value, "schema.sql");
-            await Import(headerPath, new Database([definition with { Tables = [], Views = [], Routines = [] }]), declareSchemas: true);
+            await Import(headerPath, new Database([definition.With(tables: [], views: [], routines: [])]), declareSchemas: true);
 
             foreach (var (path, partition) in ObjectPartitions(definition, arguments.OutputDirectory))
             {
@@ -54,7 +54,7 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
         if (schema.Extensions.Count > 0)
         {
             var path = Path.Combine(arguments.OutputDirectory, "extensions.sql");
-            await Import(path, new Database(Extensions: schema.Extensions), declareSchemas: true);
+            await Import(path, new Database(extensions: schema.Extensions), declareSchemas: true);
         }
 
         return Result.From(new ImportResult(schema, written), diagnostics);
@@ -67,18 +67,18 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
         foreach (var table in s.Tables)
         {
             yield return (Path.Combine(directory, s.Name.Value, "tables", $"{table.Name}.sql"),
-                new Database([new Schema(s.Name, Tables: [table])]));
+                new Database([new Schema(s.Name, tables: [table.Clone()])]));
         }
         foreach (var view in s.Views)
         {
             yield return (Path.Combine(directory, s.Name.Value, "views", $"{view.Name}.sql"),
-                new Database([new Schema(s.Name, Views: [view])]));
+                new Database([new Schema(s.Name, views: [view.Clone()])]));
         }
         // Functions and procedures share one name space, so they share one directory.
         foreach (var routine in s.Routines)
         {
             yield return (Path.Combine(directory, s.Name.Value, "routines", $"{routine.Name}.sql"),
-                new Database([new Schema(s.Name, Routines: [routine])]));
+                new Database([new Schema(s.Name, routines: [routine.Clone()])]));
         }
     }
 
@@ -135,15 +135,13 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
 
         var prunedSchemas = existing.Schemas
             .Select(s => incomingBySchema.TryGetValue(s.Name, out var i)
-                ? s with
-                {
-                    Tables = PruneByName(s.Tables, i.Tables, t => t.Name),
-                    Views = PruneByName(s.Views, i.Views, v => v.Name),
-                    Enums = PruneByName(s.Enums, i.Enums, e => e.Name),
-                    Sequences = PruneByName(s.Sequences, i.Sequences, q => q.Name),
-                    Routines = PruneByName(s.Routines, i.Routines, r => r.Name),
-                    Domains = PruneByName(s.Domains, i.Domains, d => d.Name),
-                }
+                ? s.With(
+                    tables: PruneByName(s.Tables, i.Tables, t => t.Name),
+                    views: PruneByName(s.Views, i.Views, v => v.Name),
+                    enums: PruneByName(s.Enums, i.Enums, e => e.Name),
+                    sequences: PruneByName(s.Sequences, i.Sequences, q => q.Name),
+                    routines: PruneByName(s.Routines, i.Routines, r => r.Name),
+                    domains: PruneByName(s.Domains, i.Domains, d => d.Name))
                 : s)
             .ToList();
 

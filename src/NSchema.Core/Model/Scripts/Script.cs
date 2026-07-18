@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NSchema.Model.Services;
 namespace NSchema.Model.Scripts;
 
@@ -17,6 +18,7 @@ public abstract record Script(SqlIdentifier Name, SqlText Sql, SqlIdentifier? Sc
     /// <summary>
     /// The script's address: its scope schema and its name.
     /// </summary>
+    [JsonIgnore]
     public ScopedAddress Address => new(ScopeSchema, Name);
 
     /// <summary>

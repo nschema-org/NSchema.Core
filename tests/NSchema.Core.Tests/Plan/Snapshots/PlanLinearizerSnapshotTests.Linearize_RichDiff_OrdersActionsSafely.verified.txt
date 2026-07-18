@@ -47,11 +47,12 @@
     Action: {
       SchemaName: app,
       Enum: {
-        Name: order_status,
+        Kind: Enum,
         Values: [
           pending,
           shipped
-        ]
+        ],
+        Name: order_status
       },
       IsDestructive: false
     }
@@ -61,11 +62,12 @@
     Action: {
       SchemaName: app,
       Sequence: {
-        Name: order_id,
+        Kind: Sequence,
         Options: {
           StartWith: 100,
           Cycle: false
-        }
+        },
+        Name: order_id
       },
       IsDestructive: false
     }
@@ -110,9 +112,10 @@
     Action: {
       SchemaName: app,
       Routine: {
-        Name: add_tax,
+        Kind: Routine,
         Arguments: amount numeric,
-        Definition: RETURNS numeric AS $$ SELECT amount $$
+        Definition: RETURNS numeric AS $$ SELECT amount $$,
+        Name: add_tax
       },
       IsDestructive: false
     }
@@ -122,10 +125,11 @@
     Action: {
       SchemaName: app,
       Routine: {
-        Name: archive,
-        Kind: Procedure,
+        Kind: Routine,
+        RoutineKind: Procedure,
         Arguments: before date,
-        Definition: LANGUAGE sql AS $$ DELETE $$
+        Definition: LANGUAGE sql AS $$ DELETE $$,
+        Name: archive
       },
       IsDestructive: false
     }
@@ -135,9 +139,10 @@
     Action: {
       SchemaName: app,
       Routine: {
-        Name: score,
+        Kind: Routine,
         Arguments: user_id bigint, weight numeric,
-        Definition: RETURNS numeric AS $$ SELECT 1 $$
+        Definition: RETURNS numeric AS $$ SELECT 1 $$,
+        Name: score
       },
       IsDestructive: true
     }
@@ -166,16 +171,14 @@
     Action: {
       SchemaName: app,
       Table: {
-        Name: users,
         PrimaryKey: {
-          Name: users_pkey,
           ColumnNames: [
             id
-          ]
+          ],
+          Name: users_pkey
         },
         Columns: [
           {
-            Name: id,
             Type: bigint,
             IsNullable: false,
             IsIdentity: true,
@@ -183,15 +186,17 @@
               StartWith: 1,
               MinValue: 1,
               IncrementBy: 1
-            }
+            },
+            Name: id
           },
           {
-            Name: name,
             Type: varchar(255),
             IsNullable: false,
-            IsIdentity: false
+            IsIdentity: false,
+            Name: name
           }
-        ]
+        ],
+        Name: users
       },
       IsDestructive: false
     }
@@ -202,10 +207,10 @@
       SchemaName: app,
       TableName: orders,
       Column: {
-        Name: legacy_flag,
         Type: boolean,
         IsNullable: false,
-        IsIdentity: false
+        IsIdentity: false,
+        Name: legacy_flag
       },
       ColumnName: legacy_flag,
       IsDestructive: true
@@ -217,10 +222,10 @@
       SchemaName: app,
       TableName: orders,
       Column: {
-        Name: notes,
         Type: text,
         IsNullable: true,
-        IsIdentity: false
+        IsIdentity: false,
+        Name: notes
       },
       IsDestructive: false
     }
@@ -263,10 +268,10 @@
       SchemaName: app,
       TableName: users,
       UniqueConstraint: {
-        Name: users_email_uq,
         ColumnNames: [
           email
-        ]
+        ],
+        Name: users_email_uq
       },
       IsDestructive: false
     }
@@ -277,10 +282,10 @@
       SchemaName: app,
       TableName: orders,
       UniqueConstraint: {
-        Name: orders_code_uq,
         ColumnNames: [
           code
-        ]
+        ],
+        Name: orders_code_uq
       },
       IsDestructive: false
     }
@@ -291,8 +296,8 @@
       SchemaName: app,
       TableName: orders,
       CheckConstraint: {
-        Name: orders_total_chk,
-        Expression: total >= 0
+        Expression: total >= 0,
+        Name: orders_total_chk
       },
       IsDestructive: false
     }
@@ -303,14 +308,14 @@
       SchemaName: app,
       TableName: orders,
       ExclusionConstraint: {
-        Name: orders_slot_excl,
-        Method: gist,
         Elements: [
           {
             Operator: &&,
             Column: slot
           }
-        ]
+        ],
+        Method: gist,
+        Name: orders_slot_excl
       },
       IsDestructive: false
     }
@@ -321,13 +326,13 @@
       SchemaName: app,
       TableName: users,
       Index: {
-        Name: users_name_ix,
-        IsUnique: true,
         Columns: [
           {
             Column: name
           }
-        ]
+        ],
+        IsUnique: true,
+        Name: users_name_ix
       },
       IsDestructive: false
     }
@@ -338,18 +343,18 @@
       SchemaName: app,
       TableName: orders,
       Index: {
-        Name: orders_total_ix,
-        IsUnique: false,
-        Method: btree,
         Columns: [
           {
             Column: total,
             Sort: Descending
           }
         ],
+        IsUnique: false,
+        Method: btree,
         Include: [
           code
-        ]
+        ],
+        Name: orders_total_ix
       },
       IsDestructive: false
     }
@@ -359,15 +364,16 @@
     Action: {
       SchemaName: app,
       View: {
-        Name: active_users,
+        Kind: View,
         Body: SELECT * FROM app.users,
-        IsMaterialized: false,
         DependsOn: [
           {
             Schema: app,
             Name: users
           }
-        ]
+        ],
+        IsMaterialized: false,
+        Name: active_users
       },
       IsDestructive: false
     }
@@ -377,15 +383,16 @@
     Action: {
       SchemaName: app,
       View: {
-        Name: user_summary,
+        Kind: View,
         Body: SELECT * FROM app.active_users,
-        IsMaterialized: false,
         DependsOn: [
           {
             Schema: app,
             Name: active_users
           }
-        ]
+        ],
+        IsMaterialized: false,
+        Name: user_summary
       },
       IsDestructive: false
     }

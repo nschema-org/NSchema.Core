@@ -48,11 +48,6 @@ public sealed class NsqlParserExtensionTests
     }
 
     [Fact]
-    public void Parse_DropExtension_BecomesADirective()
-        => Directives("DROP EXTENSION citext;")
-            .ExtensionDrops.ShouldHaveSingleItem().Name.ShouldBe("citext");
-
-    [Fact]
     public void Parse_DuplicateExtension_FailsTheRead()
         => new TestNsqlParser("CREATE EXTENSION citext; CREATE EXTENSION citext;")
             .Project().Errors.ShouldHaveSingleItem().Message.ShouldContain("already declared");

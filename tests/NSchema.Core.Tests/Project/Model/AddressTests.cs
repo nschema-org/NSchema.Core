@@ -1,6 +1,5 @@
 using NSchema.Model;
 using NSchema.Model.Routines;
-using NSchema.Model.Scripts;
 
 namespace NSchema.Tests.Project.Model;
 

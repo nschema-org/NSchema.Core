@@ -1,5 +1,4 @@
 using NSchema.Model;
-using NSchema.Model.Scripts;
 using NSchema.State.Model;
 
 namespace NSchema.Tests.State;

@@ -39,6 +39,11 @@ public enum ObjectKind
     /// A composite type.
     /// </summary>
     CompositeType,
+
+    /// <summary>
+    /// An extension.
+    /// </summary>
+    Extension,
 }
 
 /// <summary>
@@ -58,6 +63,9 @@ internal static class ObjectKindExtensions
         ObjectKind.Routine => "routine",
         ObjectKind.Domain => "domain",
         ObjectKind.CompositeType => "composite type",
+        ObjectKind.Extension => "extension",
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };
 }
+
+

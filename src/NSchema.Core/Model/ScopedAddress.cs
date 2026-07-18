@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace NSchema.Model;
 
 /// <summary>
@@ -8,8 +10,10 @@ namespace NSchema.Model;
 public sealed record ScopedAddress(SqlIdentifier? Schema, SqlIdentifier Name) : Address
 {
     /// <inheritdoc />
+    [JsonIgnore]
     public override string Value => Schema == null ? Name.Value : $"{Schema}.{Name}";
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override SqlIdentifier? SchemaName => Schema;
 }

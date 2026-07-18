@@ -21,6 +21,11 @@ internal sealed class DatabaseLookup(Database schema)
         FindTable(new ObjectAddress(address.Schema, address.Object))?.Columns.FirstOrDefault(c => c.Name == address.Member);
 
     /// <summary>
+    /// Whether the identified object is declared.
+    /// </summary>
+    public bool Has(ObjectIdentity identity) => Has(identity.Kind, identity.Address);
+
+    /// <summary>
     /// Whether an object of <paramref name="kind"/> is declared at <paramref name="address"/>.
     /// </summary>
     public bool Has(ObjectKind kind, ObjectAddress address) => kind switch

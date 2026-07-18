@@ -30,7 +30,7 @@ internal sealed class ValueObjectJsonConverter : JsonConverterFactory
 
     private sealed class Converter<T, TValue> : JsonConverter<T> where T : ValueObject<TValue>
     {
-        private static readonly Func<TValue, T> Create = BuildFactory();
+        private static readonly Func<TValue, T> _create = BuildFactory();
 
         private static Func<TValue, T> BuildFactory()
         {
@@ -42,7 +42,7 @@ internal sealed class ValueObjectJsonConverter : JsonConverterFactory
         }
 
         public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
-            Create(JsonSerializer.Deserialize<TValue>(ref reader, options)
+            _create(JsonSerializer.Deserialize<TValue>(ref reader, options)
                 ?? throw new JsonException($"A {typeof(T).Name} must be a {typeof(TValue).Name}."));
 
         public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options) =>
@@ -50,7 +50,7 @@ internal sealed class ValueObjectJsonConverter : JsonConverterFactory
 
         public override T ReadAsPropertyName(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
             typeof(TValue) == typeof(string)
-                ? Create((TValue)(object)(reader.GetString() ?? throw new JsonException($"A {typeof(T).Name} must be a string.")))
+                ? _create((TValue)(object)(reader.GetString() ?? throw new JsonException($"A {typeof(T).Name} must be a string.")))
                 : throw new NotSupportedException($"{typeof(T).Name} is not string-backed, so it cannot key an object.");
 
         public override void WriteAsPropertyName(Utf8JsonWriter writer, T value, JsonSerializerOptions options) =>

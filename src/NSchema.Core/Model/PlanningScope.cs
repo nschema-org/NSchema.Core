@@ -22,7 +22,7 @@ public sealed record PlanningScope
     /// A scope restricted to the named schemas (case-insensitive). An empty set normalizes to <see cref="All"/>.
     /// </summary>
     /// <param name="schemaNames">The schema names under management.</param>
-    public static PlanningScope Of(params IEnumerable<SqlIdentifier> schemaNames)
+    public static PlanningScope To(params IEnumerable<SqlIdentifier> schemaNames)
     {
         var names = schemaNames.ToList();
         return names.Count == 0 ? All : new PlanningScope(names);
@@ -37,10 +37,15 @@ public sealed record PlanningScope
     /// Whether this scope includes every schema.
     /// </summary>
     [MemberNotNullWhen(false, nameof(SchemaNames))]
-    public bool IsAll => SchemaNames is null;
+    public bool IsUnscoped => SchemaNames is null;
 
     /// <summary>
-    /// Whether the named schema is inside this scope.
+    /// Whether the scope covers the named schema.
     /// </summary>
-    public bool Includes(SqlIdentifier schemaName) => IsAll || SchemaNames.Contains(schemaName);
+    public bool Contains(SqlIdentifier schemaName) => IsUnscoped || SchemaNames.Contains(schemaName);
+
+    /// <summary>
+    /// Whether the scope covers the identified object.
+    /// </summary>
+    public bool Contains(ObjectIdentity identity) => Contains(identity.Schema);
 }

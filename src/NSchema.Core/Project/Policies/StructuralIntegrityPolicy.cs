@@ -16,8 +16,7 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
     public IEnumerable<Diagnostic> Validate(ProjectDefinition project)
     {
         var database = project.Database;
-        var managedSchemas = database.Schemas.Select(s => s.Name).ToHashSet();
-        var partialSchemas = new HashSet<SqlIdentifier>(project.Directives.Schemas.Partials.Select(p => p.Schema));
+        var declaredSchemas = database.Schemas.Select(s => s.Name).ToHashSet();
         var tablesByKey = database.Schemas
             .SelectMany(s => s.Tables.Select(t => (Key: Key(s.Name, t.Name), Table: t)))
             .GroupBy(x => x.Key)
@@ -28,7 +27,7 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
         {
             foreach (var table in definition.Tables)
             {
-                ValidateTable(definition, table, managedSchemas, partialSchemas, tablesByKey, diagnostics);
+                ValidateTable(definition, table, declaredSchemas, tablesByKey, diagnostics);
             }
 
             ValidateObjectNames(definition, diagnostics);
@@ -102,8 +101,7 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
     private static void ValidateTable(
         Schema definition,
         Table table,
-        HashSet<SqlIdentifier> managedSchemas,
-        HashSet<SqlIdentifier> partialSchemas,
+        HashSet<SqlIdentifier> declaredSchemas,
         IReadOnlyDictionary<(SqlIdentifier Schema, SqlIdentifier Table), Table> tablesByKey,
         List<Diagnostic> diagnostics)
     {
@@ -148,7 +146,7 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
 
         foreach (var foreignKey in table.ForeignKeys)
         {
-            ValidateForeignKey(qualified, foreignKey, columns, managedSchemas, partialSchemas, tablesByKey, diagnostics);
+            ValidateForeignKey(qualified, foreignKey, columns, declaredSchemas, tablesByKey, diagnostics);
         }
     }
 
@@ -156,8 +154,7 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
         string qualified,
         ForeignKey foreignKey,
         HashSet<SqlIdentifier> localColumns,
-        HashSet<SqlIdentifier> managedSchemas,
-        HashSet<SqlIdentifier> partialSchemas,
+        HashSet<SqlIdentifier> declaredSchemas,
         IReadOnlyDictionary<(SqlIdentifier Schema, SqlIdentifier Table), Table> tablesByKey,
         List<Diagnostic> diagnostics)
     {
@@ -174,20 +171,19 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
             return;
         }
 
-        // Only resolve targets that this document is responsible for. An absent or partial schema is owned elsewhere.
-        if (!managedSchemas.Contains(foreignKey.ReferencedSchema))
+        // Only resolve targets in schemas this project declares.
+        if (!declaredSchemas.Contains(foreignKey.ReferencedSchema))
         {
             return;
         }
 
+        // An undeclared table is not necessarily missing, it may just be unmanaged.
         var target = $"{foreignKey.ReferencedSchema}.{foreignKey.ReferencedTable}";
         if (!tablesByKey.TryGetValue(Key(foreignKey.ReferencedSchema, foreignKey.ReferencedTable), out var referencedTable))
         {
-            if (!partialSchemas.Contains(foreignKey.ReferencedSchema))
-            {
-                diagnostics.Add(Error($"Foreign key '{foreignKey.Name}' on '{qualified}' references unknown table '{target}'."));
-            }
-
+            diagnostics.Add(Warning(
+                $"Foreign key '{foreignKey.Name}' on '{qualified}' references table '{target}', which this project " +
+                "does not declare; it must already exist in the database."));
             return;
         }
 
@@ -233,4 +229,6 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
     private static (SqlIdentifier Schema, SqlIdentifier Table) Key(SqlIdentifier schema, SqlIdentifier table) => (schema, table);
 
     private static Diagnostic Error(string message) => Diagnostic.Error(PolicyName, message);
+
+    private static Diagnostic Warning(string message) => Diagnostic.Warning(PolicyName, message);
 }

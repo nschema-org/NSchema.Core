@@ -2,7 +2,6 @@ using System.Text;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Schemas;
-using NSchema.Model.Scripts;
 using NSchema.Model.Tables;
 using NSchema.State;
 using NSchema.State.Model;
@@ -35,7 +34,7 @@ public sealed class DatabaseStateSerializerTests
     {
         // Arrange
         var schema = new Database(
-            [new Schema(new SqlIdentifier("app"), Tables: [new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("c"), type)])])]);
+            [new Schema(new SqlIdentifier("app"), tables: [new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("c"), type)])])]);
 
         // Act
         var roundTripped = _sut.Deserialize(_sut.Serialize(new DatabaseState(schema))).Database;
@@ -58,9 +57,9 @@ public sealed class DatabaseStateSerializerTests
         // Arrange
         var schema = new Database(
         [
-            new Schema(new SqlIdentifier("app"), Tables:
+            new Schema(new SqlIdentifier("app"), tables:
             [
-                new Table(new SqlIdentifier("users"), ForeignKeys:
+                new Table(new SqlIdentifier("users"), foreignKeys:
                 [
                     new ForeignKey(new SqlIdentifier("fk"), [new SqlIdentifier("org_id")], new SqlIdentifier("app"), new SqlIdentifier("orgs"), [new SqlIdentifier("id")], ReferentialAction.Cascade),
                 ]),
@@ -83,9 +82,9 @@ public sealed class DatabaseStateSerializerTests
         // of the user-facing serializer, which omits defaults. See DomainModelSerializationContractTests.
         var schema = new Database(
         [
-            new Schema(new SqlIdentifier("app"), Tables:
+            new Schema(new SqlIdentifier("app"), tables:
             [
-                new Table(new SqlIdentifier("t"), Columns: [new Column(new SqlIdentifier("c"), SqlType.Int)]),
+                new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("c"), SqlType.Int)]),
             ]),
         ]);
 
@@ -133,6 +132,32 @@ public sealed class DatabaseStateSerializerTests
             new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("api-login")), "abc123", DateTimeOffset.UnixEpoch),
             new ScriptExecution(new ScopedAddress(new SqlIdentifier("sales"), new SqlIdentifier("seed")), "def456", DateTimeOffset.UnixEpoch),
         ])).Span));
+
+    [Fact]
+    public Task Serialize_ManagedSet_MatchesSnapshot()
+        // Pins the managed set's wire shape: schema and extension names beside object identities, each an
+        // enum-named kind and a structural address.
+        => VerifyJson(Encoding.UTF8.GetString(_sut.Serialize(new DatabaseState(new Database([]))
+        {
+            Managed = new IdentitySet(
+                Schemas: [new SqlIdentifier("app")],
+                Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users")))],
+                Extensions: [new SqlIdentifier("citext")]),
+        }).Span));
+
+    [Fact]
+    public void Deserialize_PayloadWithoutManagedSet_ReadsAsNothingManaged()
+    {
+        // A state file written before the managed set existed must still load.
+        const string json =
+            """
+            { "version": 1, "database": { "schemas": [] }, "scripts": [] }
+            """;
+
+        var state = _sut.Deserialize(Encoding.UTF8.GetBytes(json));
+
+        state.Managed.IsEmpty.ShouldBeTrue();
+    }
 
     [Fact]
     public void Deserialize_PayloadWithoutScripts_ReadsAsAnEmptyLedger()

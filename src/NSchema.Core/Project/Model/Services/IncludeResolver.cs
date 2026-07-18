@@ -21,7 +21,7 @@ internal sealed class IncludeResolver(IReadOnlyDictionary<SqlIdentifier, Templat
     /// The schema name table-template members project against; foreign keys referencing it re-point at the
     /// including table's schema when the include merges.
     /// </summary>
-    private static readonly SqlIdentifier IncludePlaceholder = SchemaToken.TargetSchemaPlaceholder;
+    private static readonly SqlIdentifier _includePlaceholder = SchemaToken.TargetSchemaPlaceholder;
 
     /// <summary>
     /// The findings accumulated while resolving.
@@ -41,9 +41,8 @@ internal sealed class IncludeResolver(IReadOnlyDictionary<SqlIdentifier, Templat
 
         var consumed = new HashSet<(SqlIdentifier Schema, SqlIdentifier Table)>();
         var resolved = database.Schemas
-            .Select(definition => definition with
-            {
-                Tables = definition.Tables
+            .Select(definition => definition.With(
+                tables: definition.Tables
                     .Select(table =>
                     {
                         var key = (definition.Name, table.Name);
@@ -54,8 +53,7 @@ internal sealed class IncludeResolver(IReadOnlyDictionary<SqlIdentifier, Templat
                         consumed.Add(key);
                         return MergeIncludes(definition.Name, table, tableIncludes);
                     })
-                    .ToList(),
-            })
+                    .ToList()))
             .ToList();
 
         // Parsed includes always name the table whose body they were written in, so a dangling one can only come
@@ -66,7 +64,7 @@ internal sealed class IncludeResolver(IReadOnlyDictionary<SqlIdentifier, Templat
             _diagnostics.Add(TemplateDiagnostics.IncludeUnknownTable(include.TemplateName, include.SchemaName, include.TableName));
         }
 
-        return database with { Schemas = resolved };
+        return new Database(resolved, database.Extensions);
     }
 
     /// <summary>
@@ -102,7 +100,7 @@ internal sealed class IncludeResolver(IReadOnlyDictionary<SqlIdentifier, Templat
             {
                 // The members project once against the placeholder; placeholder references (an unqualified
                 // REFERENCES in the body) re-point per including table below.
-                (members, _) = DocumentProjector.ProjectTableMembers(IncludePlaceholder, null, tableTemplate.Members);
+                (members, _) = DocumentProjector.ProjectTableMembers(_includePlaceholder, null, tableTemplate.Members);
                 _memberCache[include.TemplateName] = members;
             }
 
@@ -134,8 +132,8 @@ internal sealed class IncludeResolver(IReadOnlyDictionary<SqlIdentifier, Templat
             }
 
             foreignKeys.AddRange(members.ForeignKeys.Select(fk =>
-                fk.ReferencedSchema == IncludePlaceholder
-                    ? fk with { ReferencedSchema = schemaName }
+                fk.ReferencedSchema == _includePlaceholder
+                    ? fk.WithReferencedSchema(schemaName)
                     : fk));
             uniqueConstraints.AddRange(members.UniqueConstraints);
             checkConstraints.AddRange(members.CheckConstraints);
@@ -143,15 +141,13 @@ internal sealed class IncludeResolver(IReadOnlyDictionary<SqlIdentifier, Templat
             indexes.AddRange(members.Indexes);
         }
 
-        return table with
-        {
-            Columns = columns,
-            PrimaryKey = primaryKey,
-            ForeignKeys = foreignKeys,
-            UniqueConstraints = uniqueConstraints,
-            CheckConstraints = checkConstraints,
-            ExclusionConstraints = exclusionConstraints,
-            Indexes = indexes,
-        };
+        return table.With(
+            columns: columns,
+            primaryKey: primaryKey,
+            foreignKeys: foreignKeys,
+            uniqueConstraints: uniqueConstraints,
+            checkConstraints: checkConstraints,
+            exclusionConstraints: exclusionConstraints,
+            indexes: indexes);
     }
 }

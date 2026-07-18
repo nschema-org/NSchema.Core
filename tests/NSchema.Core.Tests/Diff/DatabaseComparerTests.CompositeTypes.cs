@@ -16,7 +16,7 @@ public partial class DatabaseComparerTests
 
     /// <summary>Diffs two <c>app</c> schemas holding the given composite types, returning the single diff (null when unchanged).</summary>
     private CompositeTypeDiff? DiffCompositeTypes(IReadOnlyList<CompositeType> current, IReadOnlyList<CompositeType> desired, ProjectDirectives? directives = null) =>
-        Compare(Db(new Schema(new SqlIdentifier("app"), CompositeTypes: current)), Db(new Schema(new SqlIdentifier("app"), CompositeTypes: desired)), directives)
+        Compare(Db(new Schema(new SqlIdentifier("app"), compositeTypes: current)), Db(new Schema(new SqlIdentifier("app"), compositeTypes: desired)), directives)
         .Schemas.SingleOrDefault()?.CompositeTypes.SingleOrDefault();
 
     private static CompositeType Address(params CompositeField[] fields) => new(new SqlIdentifier("address"), fields);
@@ -84,7 +84,7 @@ public partial class DatabaseComparerTests
         var diff = DiffCompositeTypes(
             [new CompositeType(new SqlIdentifier("legacy_address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text)])],
             [new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text)])],
-            new ProjectDirectives(Renames: [new ObjectRenameDirective(ObjectKind.CompositeType, App("legacy_address"), new SqlIdentifier("address"))]));
+            new ProjectDirectives(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.CompositeType, App("legacy_address")), new SqlIdentifier("address"))]));
 
         diff!.RenamedFrom.ShouldBe("legacy_address");
     }
@@ -93,25 +93,10 @@ public partial class DatabaseComparerTests
     public void Compare_CompositeType_CommentOnlyChange_IsModify()
     {
         var diff = DiffCompositeTypes(
-            [new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text)], Comment: "old")],
-            [new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text)], Comment: "new")]);
+            [new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text)]) { Comment = "old" }],
+            [new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text)]) { Comment = "new" }]);
 
         diff!.Comment.ShouldBe(new ValueChange<string>("old", "new"));
         diff.Definition.ShouldBeNull();
     }
-
-    [Fact]
-    public void Compare_PartialSchema_LeavesUnmanagedCompositeTypeAlone()
-        => Compare(
-            Db(new Schema(new SqlIdentifier("app"), CompositeTypes: [Address(new CompositeField(new SqlIdentifier("street"), SqlType.Text))])),
-            Db(new Schema(new SqlIdentifier("app"))), PartialApp())
-            .Schemas.ShouldBeEmpty();
-
-    [Fact]
-    public void Compare_PartialSchema_DropsExplicitlyDroppedCompositeType()
-        => Compare(
-            Db(new Schema(new SqlIdentifier("app"), CompositeTypes: [Address(new CompositeField(new SqlIdentifier("street"), SqlType.Text))])),
-            Db(new Schema(new SqlIdentifier("app"))),
-            PartialApp() with { Drops = [new ObjectDropDirective(ObjectKind.CompositeType, App("address"))] })
-            .Schemas.ShouldHaveSingleItem().CompositeTypes.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
 }

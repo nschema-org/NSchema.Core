@@ -4,14 +4,15 @@ using NSchema.Model.Scripts;
 namespace NSchema.State.Model;
 
 /// <summary>
-/// Represents the recorded state of a deployed database: the captured schema snapshot plus the run-once script executions.
+/// Represents the recorded state of a deployed database: the captured schema snapshot, the run-once script executions, and the identities NSchema manages.
 /// </summary>
-/// <param name="Database">The captured database structure.</param>
+/// <param name="Database">The full captured database structure.</param>
 /// <param name="Scripts">The recorded script executions.</param>
-public sealed record DatabaseState(Database Database, IReadOnlyList<ScriptExecution> Scripts)
+/// <param name="Managed">The identities that we are responsible for managing.</param>
+public sealed record DatabaseState(Database Database, IReadOnlyList<ScriptExecution> Scripts, IdentitySet? Managed = null)
 {
     /// <summary>
-    /// Creates a state carrying only the database structure, with an empty execution ledger.
+    /// Creates a state carrying only the database structure, with an empty execution ledger and nothing managed.
     /// </summary>
     public DatabaseState(Database database) : this(database, []) { }
 
@@ -19,6 +20,11 @@ public sealed record DatabaseState(Database Database, IReadOnlyList<ScriptExecut
     /// The state before anything has been recorded.
     /// </summary>
     public static DatabaseState Empty { get; } = new(new Database());
+
+    /// <summary>
+    /// The identities we manage.
+    /// </summary>
+    public IdentitySet Managed { get; init; } = Managed ?? IdentitySet.Empty;
 
     /// <summary>
     /// Records the given executions into the ledger, replacing any earlier execution recorded for the same script.
@@ -45,7 +51,7 @@ public sealed record DatabaseState(Database Database, IReadOnlyList<ScriptExecut
     /// </summary>
     /// <param name="applied">The deployment scripts that ran.</param>
     /// <param name="executedAt">When they ran.</param>
-    public DatabaseState RecordRunOnce(IReadOnlyList<DeploymentScript> applied, DateTimeOffset executedAt) =>
+    public DatabaseState RecordExecution(IReadOnlyList<DeploymentScript> applied, DateTimeOffset executedAt) =>
         RecordExecution([.. applied
             .Where(s => s.RunCondition == RunCondition.Once)
             .Select(s => new ScriptExecution(s.Address, s.Hash, executedAt))]);

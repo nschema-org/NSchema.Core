@@ -136,18 +136,14 @@ internal static class TemplateExpander
             .ToHashSet();
         var declaredRoutines = instance.Routines.Select(r => r.Name).ToHashSet();
 
-        return instance with
-        {
-            Tables = instance.Tables.Select(table => table with
-            {
-                Columns = table.Columns.Select(c => c with { Type = Qualify(c.Type, declaredTypes, schemaName) }).ToList(),
-                Triggers = table.Triggers.Select(t => Qualify(t, declaredRoutines, schemaName)).ToList(),
-            }).ToList(),
-            Domains = instance.Domains.Select(d => d with { DataType = Qualify(d.DataType, declaredTypes, schemaName) }).ToList(),
-            CompositeTypes = instance.CompositeTypes
-                .Select(t => t with { Fields = t.Fields.Select(f => f with { DataType = Qualify(f.DataType, declaredTypes, schemaName) }).ToList() })
-                .ToList(),
-        };
+        return instance.With(
+            tables: instance.Tables.Select(table => table.With(
+                columns: table.Columns.Select(c => c.WithType(Qualify(c.Type, declaredTypes, schemaName))).ToList(),
+                triggers: table.Triggers.Select(t => Qualify(t, declaredRoutines, schemaName)).ToList())).ToList(),
+            domains: instance.Domains.Select(d => d.WithDataType(Qualify(d.DataType, declaredTypes, schemaName))).ToList(),
+            compositeTypes: instance.CompositeTypes
+                .Select(t => t.WithFields(t.Fields.Select(f => f with { DataType = Qualify(f.DataType, declaredTypes, schemaName) }).ToList()))
+                .ToList());
     }
 
     private static SqlType Qualify(SqlType type, HashSet<SqlIdentifier> declaredTypes, SqlIdentifier schemaName)
@@ -169,6 +165,6 @@ internal static class TemplateExpander
 
     private static Trigger Qualify(Trigger trigger, HashSet<SqlIdentifier> declaredRoutines, SqlIdentifier schemaName)
         => trigger.Function is { Schema: null } function && declaredRoutines.Contains(function.Name)
-            ? trigger with { Function = function with { Schema = schemaName } }
+            ? trigger.WithFunction(function with { Schema = schemaName })
             : trigger;
 }

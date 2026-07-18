@@ -42,7 +42,7 @@ internal sealed class ApplyOperation(
         // An empty plan executes nothing, but still records state.
         if (args.Plan.IsEmpty)
         {
-            var emptyCapture = await workflow.Refresh(null, force: true, cancellationToken);
+            var emptyCapture = await workflow.Refresh(args.Plan, force: true, cancellationToken);
             return Result.Success(new ApplyResult(args.Plan), findings.Concat(emptyCapture.Diagnostics));
         }
 

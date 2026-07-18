@@ -57,6 +57,10 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **Template migrations are decoupled from their tables.** Migrations can be declared in any template for any table.
 - **Scripts execute as woven statements.** The linearizer weaves the diff's scripts into the ordering so scripts are now first-class actions.
 - **Planning and applying now require a state store.** Use the new ephemeral store if you need to run without persistent state for CI or integration tests.
+- **State records what NSchema manages.** Alongside the full observation and the run-once ledger, state carries the managed identity set: what an apply has created or adopted. A plan only ever covers managed/declared objects, so an object missing from the project only triggers a drop when the state contains a *managed* object, and objects outside the managed state are never touched.
+- **Teardown destroys what NSchema manages.** `Plan(Empty)` converges the managed set — not everything ever observed — towards nothing.
+- **Managed extensions honor removal-by-absence.** A declared extension becomes managed on apply and is dropped when un-declared.
+- **A foreign key into an undeclared table is a warning, not an error.** The target may exist unmanaged (gradual adoption), so the structural policy advises instead of blocking.
 
 ### Added
 
@@ -65,6 +69,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 ### Removed
 
 - `PRE|POST DEPLOYMENT '<name>' AS $$…$$;` and `MIGRATION ['<name>'] FOR <event> <path> AS $$…$$;` no longer parse.
+- The `DROP` statements (`DROP SCHEMA|TABLE|VIEW|ENUM|DOMAIN|TYPE|SEQUENCE|FUNCTION|PROCEDURE|ROUTINE|EXTENSION`) and `PARTIAL SCHEMA` no longer parse. Remove the declaration instead.
 - `RENAMED FROM` clauses and `CREATE PARTIAL SCHEMA` no longer parse. Renames and partials are directive statements now (see Management directives above).
 - The `NSCHEMA` configuration block no longer parses.
 - `DataMigration` has been folded into `Script` and now requires a name for so they can maintain a stable identity.
