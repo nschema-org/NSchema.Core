@@ -16,22 +16,21 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
 {
     public async Task<Result<ImportResult>> Execute(ImportArguments arguments, CancellationToken cancellationToken = default)
     {
-        var read = await database.GetDatabase(arguments.Scope, cancellationToken);
-        if (read.Value is not { } schema)
+        var diagnostics = new DiagnosticCollector();
+        if (!diagnostics.TryTake(await database.GetDatabase(arguments.Scope, cancellationToken), out var schema))
         {
-            return Result.Failure<ImportResult>(read.Diagnostics);
+            return diagnostics.ToResult<ImportResult>(null);
         }
         progress.Report(OperationProgress.Detail($"Fetched {StatusHelpers.Describe(schema)} from the database."));
 
         // An existing file that cannot be read or parsed is skipped whole (never clobbered) and reported as an
         // error; the other files still import, and every broken file is reported at once.
-        var diagnostics = new List<Diagnostic>();
         var written = new List<string>();
 
         async Task Import(string path, Database partition, bool declareSchemas)
         {
             var wrote = await WritePartition(path, partition, declareSchemas, cancellationToken);
-            diagnostics.AddRange(wrote.Diagnostics);
+            diagnostics.Add(wrote);
             if (wrote.IsSuccess)
             {
                 written.Add(path);
@@ -61,7 +60,7 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
             await Import(path, new Database { Extensions = [.. schema.Extensions.Select(e => e.Clone())] }, declareSchemas: true);
         }
 
-        return Result.From(new ImportResult(schema, written), diagnostics);
+        return diagnostics.ToResult(new ImportResult(schema, written));
     }
 
     // Each major object (table, view, routine) gets its own file, grouped by type under the schema's directory;

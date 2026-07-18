@@ -22,10 +22,10 @@ internal sealed class MigrationWorkflow(
     public async Task<Result> Validate(CancellationToken cancellationToken = default)
     {
         progress.Report(OperationProgress.Step("Loading desired schema..."));
-        var projectResult = await projectProvider.GetProject(PlanningScope.All, cancellationToken);
-        if (projectResult.Value is not { } project)
+        var diagnostics = new DiagnosticCollector();
+        if (!diagnostics.TryTake(await projectProvider.GetProject(PlanningScope.All, cancellationToken), out var project))
         {
-            return Result.From(projectResult.Diagnostics);
+            return diagnostics.ToResult();
         }
         ReportDesiredDetail(project);
 
@@ -33,7 +33,8 @@ internal sealed class MigrationWorkflow(
 
         // The findings — including any non-error advisories and findings raised while reading the DDL — are
         // returned as data for the caller to render.
-        return Result.From(projectResult.Diagnostics.Concat(planner.Validate(project).Diagnostics));
+        diagnostics.Add(planner.Validate(project));
+        return diagnostics.ToResult();
     }
 
     public async Task<Result<MigrationPlan>> ComputePlan(PlanTarget target, PlanningScope scope, CancellationToken cancellationToken = default)
@@ -45,20 +46,19 @@ internal sealed class MigrationWorkflow(
             return Result.Failure<MigrationPlan>(WorkflowDiagnostics.StoreRequiredForPlanning);
         }
 
-        var desired = await ResolveDesired(target, scope, cancellationToken);
-        if (desired.Value is not { } project)
+        var diagnostics = new DiagnosticCollector();
+        if (!diagnostics.TryTake(await ResolveDesired(target, scope, cancellationToken), out var project))
         {
-            return Result.Failure<MigrationPlan>(desired.Diagnostics);
+            return diagnostics.ToResult<MigrationPlan>(null);
         }
 
         // Fetch the current state.
-        var read = await stateManager.Read(new StateReadArguments(), cancellationToken);
-        if (read.IsFailure)
+        if (!diagnostics.TryTake(await stateManager.Read(new StateReadArguments(), cancellationToken), out var read))
         {
-            return Result.Failure<MigrationPlan>(desired.Diagnostics.Concat(read.Diagnostics));
+            return diagnostics.ToResult<MigrationPlan>(null);
         }
         // Coalesce to empty if it's a first-time run.
-        var state = read.Value.State ?? DatabaseState.Empty;
+        var state = read.State ?? DatabaseState.Empty;
 
         // An unscoped run auto-scopes to a union of the project and the existing state.
         var scopeInEffect = scope.IsUnscoped
@@ -72,22 +72,13 @@ internal sealed class MigrationWorkflow(
         // TODO: Move progress reporting down into the planner where the scoping is done?
         progress.Report(OperationProgress.Detail($"Current schema: {StatusHelpers.Describe(state.Database.ScopedTo(scopeInEffect))}."));
 
-        var readDiagnostics = new List<Diagnostic>(desired.Diagnostics.Concat(read.Diagnostics));
-
         progress.Report(OperationProgress.Step("Computing migration plan..."));
 
         var current = new CurrentState(state.Database, state.Scripts, state.Managed);
         var plan = planner.Plan(current, project, scopeInEffect);
 
-        if (readDiagnostics.Count == 0)
-        {
-            return plan;
-        }
-
-        var diagnostics = readDiagnostics.Concat(plan.Diagnostics);
-        return plan.Value is { } value
-            ? Result.From(value, diagnostics)
-            : Result.Failure<MigrationPlan>(diagnostics);
+        diagnostics.Add(plan);
+        return diagnostics.ToResult(plan.Value);
     }
 
     public async Task<Result<StateCapture>> Refresh(MigrationPlan? applied = null, bool force = false, CancellationToken cancellationToken = default)
