@@ -1,13 +1,9 @@
-using NSchema.Diff.Model.Schemas;
-using NSchema.Diff.Model.Tables;
 using NSchema.Model;
 
 namespace NSchema.Diff.Model;
 
 /// <summary>
-/// The members every named-object diff shares — table members (columns, constraints, indexes) as well as
-/// schema-level objects. Backs kind-agnostic consumers; see <see cref="TableDiff.EnumerateMembers"/> and
-/// <see cref="SchemaDiff.EnumerateObjects"/>.
+/// The members every named-object diff shares.
 /// </summary>
 public interface INamedObjectDiff
 {

@@ -55,21 +55,21 @@ internal static class ChangeScriptDecorator
                 { Kind: ChangeKind.Modify, Type: not null } when Match(ChangeTrigger.AlterColumnType, column.Name) is { } m => column with { MigrationScript = m },
                 _ => column,
             }).ToList(),
-            PrimaryKey = table.PrimaryKey
-                .Select(pk => pk.Kind == ChangeKind.Add && Match(ChangeTrigger.AddConstraint, pk.Name) is { } m ? pk with { MigrationScript = m } : pk)
-                .ToList(),
-            UniqueConstraints = table.UniqueConstraints
-                .Select(uc => uc.Kind == ChangeKind.Add && Match(ChangeTrigger.AddConstraint, uc.Name) is { } m ? uc with { MigrationScript = m } : uc)
-                .ToList(),
-            ForeignKeys = table.ForeignKeys
-                .Select(fk => fk.Kind == ChangeKind.Add && Match(ChangeTrigger.AddConstraint, fk.Name) is { } m ? fk with { MigrationScript = m } : fk)
-                .ToList(),
-            Checks = table.Checks
-                .Select(check => check.Kind == ChangeKind.Add && Match(ChangeTrigger.AddConstraint, check.Name) is { } m ? check with { MigrationScript = m } : check)
-                .ToList(),
-            ExclusionConstraints = table.ExclusionConstraints
-                .Select(ex => ex.Kind == ChangeKind.Add && Match(ChangeTrigger.AddConstraint, ex.Name) is { } m ? ex with { MigrationScript = m } : ex)
-                .ToList(),
+            PrimaryKey = AttachConstraints(table.PrimaryKey, Match, (pk, m) => pk with { MigrationScript = m }),
+            UniqueConstraints = AttachConstraints(table.UniqueConstraints, Match, (uc, m) => uc with { MigrationScript = m }),
+            ForeignKeys = AttachConstraints(table.ForeignKeys, Match, (fk, m) => fk with { MigrationScript = m }),
+            Checks = AttachConstraints(table.Checks, Match, (check, m) => check with { MigrationScript = m }),
+            ExclusionConstraints = AttachConstraints(table.ExclusionConstraints, Match, (ex, m) => ex with { MigrationScript = m }),
         };
     }
+
+    /// <summary>
+    /// Attaches the matching add-constraint script to each added constraint.
+    /// </summary>
+    private static List<T> AttachConstraints<T>(
+        IReadOnlyList<T> constraints,
+        Func<ChangeTrigger, SqlIdentifier, ChangeScript?> match,
+        Func<T, ChangeScript, T> attach)
+        where T : IMigratableDiff =>
+        [.. constraints.Select(c => c.Kind == ChangeKind.Add && match(ChangeTrigger.AddConstraint, c.Name) is { } m ? attach(c, m) : c)];
 }

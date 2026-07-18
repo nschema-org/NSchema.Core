@@ -37,57 +37,12 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
     /// <summary>
     /// The change-event scripts attached to the diff's nodes, in walk order.
     /// </summary>
-    public IEnumerable<ChangeScript> ChangeScripts()
-    {
-        foreach (var schema in Schemas)
-        {
-            foreach (var table in schema.Tables)
-            {
-                foreach (var column in table.Columns)
-                {
-                    if (column.MigrationScript is { } s)
-                    {
-                        yield return s;
-                    }
-                }
-                foreach (var pk in table.PrimaryKey)
-                {
-                    if (pk.MigrationScript is { } s)
-                    {
-                        yield return s;
-                    }
-                }
-                foreach (var fk in table.ForeignKeys)
-                {
-                    if (fk.MigrationScript is { } s)
-                    {
-                        yield return s;
-                    }
-                }
-                foreach (var uq in table.UniqueConstraints)
-                {
-                    if (uq.MigrationScript is { } s)
-                    {
-                        yield return s;
-                    }
-                }
-                foreach (var ck in table.Checks)
-                {
-                    if (ck.MigrationScript is { } s)
-                    {
-                        yield return s;
-                    }
-                }
-                foreach (var ex in table.ExclusionConstraints)
-                {
-                    if (ex.MigrationScript is { } s)
-                    {
-                        yield return s;
-                    }
-                }
-            }
-        }
-    }
+    public IEnumerable<ChangeScript> ChangeScripts() => Schemas
+        .SelectMany(schema => schema.Tables)
+        .SelectMany(table => table.EnumerateMembers())
+        .OfType<IMigratableDiff>()
+        .Select(member => member.MigrationScript)
+        .OfType<ChangeScript>();
 
     /// <summary>
     /// Gets a value indicating whether the diff contains no changes at all.
