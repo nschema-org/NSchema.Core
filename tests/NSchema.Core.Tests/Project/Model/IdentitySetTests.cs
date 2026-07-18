@@ -95,13 +95,13 @@ public sealed class IdentitySetTests
     }
 
     [Fact]
-    public void Schema_With_CopiesTheObjectsItIncorporates()
+    public void Schema_Clone_CopiesTheObjectsItIncorporates()
     {
-        // Arrange — With is the explicit copy operation: the copy owns fresh nodes, the source keeps its own.
+        // Arrange — Clone is the explicit copy operation: the copy owns fresh nodes, the source keeps its own.
         var schema = new Schema(_app, tables: [new Table(new SqlIdentifier("users"))]);
 
         // Act
-        var copy = schema.With(tables: schema.Tables);
+        var copy = schema.Clone();
 
         // Assert
         copy.Tables.ShouldHaveSingleItem().ShouldNotBeSameAs(schema.Tables[0]);

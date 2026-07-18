@@ -37,7 +37,7 @@ public sealed class NsqlWriterTests
 
     /// <summary>Writes an empty-schema project carrying only <paramref name="directives"/>.</summary>
     private static string WriteDirectives(ProjectDirectives directives, params Schema[] schemas) =>
-        NsqlWriter.Write(new Database(schemas), directives);
+        NsqlWriter.Write(new Database([.. schemas]), directives);
 
     private static ObjectAddress InApp(string name) => new(new SqlIdentifier("app"), new SqlIdentifier(name));
 

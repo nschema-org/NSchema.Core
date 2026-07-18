@@ -20,7 +20,7 @@ public sealed class StructuralIntegrityPolicyTests
     private static Column Col(string name) => new Column(new SqlIdentifier(name), SqlType.BigInt);
 
     private static Database Db(params Table[] tables) =>
-        new Database([new Schema(new SqlIdentifier("public"), tables: tables)]);
+        new Database([new Schema(new SqlIdentifier("public"), tables: [.. tables])]);
 
     [Fact]
     public void NoDiagnostics_ForAConsistentSchema()

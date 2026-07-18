@@ -20,15 +20,16 @@ public sealed class View : DatabaseObject, IEquatable<View>
     public View(
         SqlIdentifier name,
         SqlText body,
-        IReadOnlyList<ViewDependency>? dependsOn = null,
+        List<ViewDependency>? dependsOn = null,
         bool isMaterialized = false,
-        IReadOnlyList<TableIndex>? indexes = null
+        DatabaseMemberCollection<TableIndex>? indexes = null
     ) : base(name)
     {
         Body = body;
         DependsOn = dependsOn ?? [];
         IsMaterialized = isMaterialized;
         Indexes = indexes ?? [];
+        Indexes.Attach(this);
     }
 
     /// <inheritdoc/>
@@ -37,29 +38,25 @@ public sealed class View : DatabaseObject, IEquatable<View>
     /// <summary>
     /// The view's defining query, stored verbatim (the text after <c>AS</c>).
     /// </summary>
-    public SqlText Body { get; init; }
+    public SqlText Body { get; set; }
 
     /// <summary>
     /// The objects the view reads, derived from <see cref="Body"/>.
     /// </summary>
-    public IReadOnlyList<ViewDependency> DependsOn { get; init; }
+    public List<ViewDependency> DependsOn { get; }
 
     /// <summary>
     /// Whether this is a materialized view (stores its result set).
     /// </summary>
-    public bool IsMaterialized { get; init; }
+    public bool IsMaterialized { get; set; }
 
     /// <summary>
     /// Indexes on the view (materialized views only; empty for a plain view).
     /// </summary>
-    public IReadOnlyList<TableIndex> Indexes { get; init => field = value.ForEach(f => f.Parent = this); }
+    public DatabaseMemberCollection<TableIndex> Indexes { get; }
 
-    /// <summary>
-    /// Returns a copy of the view with the given indexes, outside any tree.
-    /// </summary>
-    public View With(IReadOnlyList<TableIndex> indexes) => new(Name, Body, DependsOn, IsMaterialized, [.. indexes.Select(i => i.Clone())]) { Comment = Comment };
-
-    internal View Clone() => new(Name, Body, DependsOn, IsMaterialized, [.. Indexes.Select(i => i.Clone())]) { Comment = Comment };
+    /// <inheritdoc/>
+    public override View Clone() => new(Name, Body, [.. DependsOn], IsMaterialized, [.. Indexes.Select(i => i.Clone())]) { Comment = Comment };
 
     /// <summary>
     /// Structural equality over the declared definition; the schema and the comment are excluded.

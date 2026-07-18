@@ -15,10 +15,10 @@ namespace NSchema.Model.Tables;
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
 public sealed class ForeignKey(
     SqlIdentifier name,
-    IReadOnlyList<SqlIdentifier> columnNames,
+    List<SqlIdentifier> columnNames,
     SqlIdentifier referencedSchema,
     SqlIdentifier referencedTable,
-    IReadOnlyList<SqlIdentifier> referencedColumnNames,
+    List<SqlIdentifier> referencedColumnNames,
     ReferentialAction onDelete = ReferentialAction.NoAction,
     ReferentialAction onUpdate = ReferentialAction.NoAction
 ) : DatabaseMember(name), IEquatable<ForeignKey>
@@ -27,41 +27,36 @@ public sealed class ForeignKey(
     /// <summary>
     /// A list of column names in the current table that are part of the foreign key constraint.
     /// </summary>
-    public IReadOnlyList<SqlIdentifier> ColumnNames { get; init; } = columnNames ?? [];
+    public List<SqlIdentifier> ColumnNames { get; } = columnNames ?? [];
 
     /// <summary>
     /// The name of the schema that contains the referenced table.
     /// </summary>
-    public SqlIdentifier ReferencedSchema { get; init; } = referencedSchema;
+    public SqlIdentifier ReferencedSchema { get; set; } = referencedSchema;
 
     /// <summary>
     /// The name of the table that is referenced by the foreign key constraint.
     /// </summary>
-    public SqlIdentifier ReferencedTable { get; init; } = referencedTable;
+    public SqlIdentifier ReferencedTable { get; set; } = referencedTable;
 
     /// <summary>
     /// A list of column names in the referenced table that are part of the foreign key constraint.
     /// </summary>
-    public IReadOnlyList<SqlIdentifier> ReferencedColumnNames { get; init; } = referencedColumnNames ?? [];
+    public List<SqlIdentifier> ReferencedColumnNames { get; } = referencedColumnNames ?? [];
 
     /// <summary>
     /// The referential action to be taken when a referenced row is deleted.
     /// </summary>
-    public ReferentialAction OnDelete { get; init; } = onDelete;
+    public ReferentialAction OnDelete { get; set; } = onDelete;
 
     /// <summary>
     /// The referential action to be taken when a referenced row is updated.
     /// </summary>
-    public ReferentialAction OnUpdate { get; init; } = onUpdate;
+    public ReferentialAction OnUpdate { get; set; } = onUpdate;
 
-    /// <summary>
-    /// Returns a copy of the foreign key pointing at the given schema, outside any tree.
-    /// </summary>
-    public ForeignKey WithReferencedSchema(SqlIdentifier referencedSchema) =>
-        new(Name, ColumnNames, referencedSchema, ReferencedTable, ReferencedColumnNames, OnDelete, OnUpdate) { Comment = Comment };
-
-    internal ForeignKey Clone() =>
-        new(Name, ColumnNames, ReferencedSchema, ReferencedTable, ReferencedColumnNames, OnDelete, OnUpdate) { Comment = Comment };
+    /// <inheritdoc/>
+    public override ForeignKey Clone() =>
+        new(Name, [.. ColumnNames], ReferencedSchema, ReferencedTable, [.. ReferencedColumnNames], OnDelete, OnUpdate) { Comment = Comment };
 
     /// <summary>
     /// Structural equality over the declared definition; the parent and the comment are excluded.

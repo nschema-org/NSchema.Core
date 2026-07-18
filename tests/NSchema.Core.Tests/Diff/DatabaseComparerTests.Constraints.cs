@@ -117,7 +117,7 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_UniqueConstraintColumnsChanged_EmitsRemoveThenAdd()
     {
-        Column[] Columns() => [new Column(new SqlIdentifier("email"), SqlType.Text), new Column(new SqlIdentifier("tenant"), SqlType.Int)];
+        DatabaseMemberCollection<Column> Columns() => [new Column(new SqlIdentifier("email"), SqlType.Text), new Column(new SqlIdentifier("tenant"), SqlType.Int)];
         var table = DiffTable(
             new Table(new SqlIdentifier("users"), columns: Columns(),
                 uniqueConstraints: [new UniqueConstraint(new SqlIdentifier("users_email_uq"), [new SqlIdentifier("email")])]),
@@ -326,7 +326,7 @@ public partial class DatabaseComparerTests
         new(new SqlIdentifier("no_overlap"), [new ExclusionElement("=", new SqlIdentifier("room")), new ExclusionElement("&&", new SqlIdentifier("during"))], method) { Comment = comment };
 
     private static Table Bookings(params ExclusionConstraint[] exclusions) =>
-        new(new SqlIdentifier("bookings"), columns: [new Column(new SqlIdentifier("room"), SqlType.Int), new Column(new SqlIdentifier("during"), SqlType.Int)], exclusionConstraints: exclusions);
+        new(new SqlIdentifier("bookings"), columns: [new Column(new SqlIdentifier("room"), SqlType.Int), new Column(new SqlIdentifier("during"), SqlType.Int)], exclusionConstraints: [.. exclusions]);
 
     [Fact]
     public void Compare_ExclusionAdded_EmitsAdd()

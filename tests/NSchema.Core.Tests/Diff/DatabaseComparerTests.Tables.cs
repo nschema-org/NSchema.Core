@@ -43,10 +43,10 @@ public partial class DatabaseComparerTests
     }
 
     [Fact]
-    public void Compare_TableRenamedButOldNameStillDeclared_Throws()
+    public void Compare_AmbiguousRename_FallsBackToAddAndKeep()
     {
-        // 'people' is renamed to 'users' while 'people' is also still declared. This is indistinguishable from
-        // "keep people, add users" and cannot be ordered safely, so it must be rejected rather than guessed.
+        // 'people' is renamed to 'users' while 'people' is also still declared. The aligner skips the rename
+        // (raising an error diagnostic — see DatabaseAlignerTests), so the compare sees a plain add.
         var current = Db(new Schema(new SqlIdentifier("app"), tables:
         [
             new Table(new SqlIdentifier("people"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
@@ -57,43 +57,11 @@ public partial class DatabaseComparerTests
             new Table(new SqlIdentifier("people"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
         ]));
 
-        var ex = Should.Throw<InvalidOperationException>(() => Compare(current, desired, TableRename("people", "users")));
-        ex.Message.ShouldContain("app.users");
-        ex.Message.ShouldContain("people");
-    }
+        var table = Compare(current, desired, TableRename("people", "users")).Schemas.Single().Tables.ShouldHaveSingleItem();
 
-    [Fact]
-    public void Compare_TableRenamedOntoExistingName_Throws()
-    {
-        // Renaming 'a' to 'b' while a distinct 'b' already exists collides on the target name.
-        var current = Db(new Schema(new SqlIdentifier("app"), tables:
-        [
-            new Table(new SqlIdentifier("a"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
-            new Table(new SqlIdentifier("b"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
-        ]));
-        var desired = Db(new Schema(new SqlIdentifier("app"), tables:
-        [
-            new Table(new SqlIdentifier("b"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)]),
-        ]));
-
-        var ex = Should.Throw<InvalidOperationException>(() => Compare(current, desired, TableRename("a", "b")));
-        ex.Message.ShouldContain("app.b");
-    }
-
-    [Fact]
-    public void Compare_ColumnRenamedButOldNameStillDeclared_Throws()
-    {
-        var act = () => DiffTable(
-            new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("mail"), SqlType.Text)]),
-            new Table(new SqlIdentifier("t"), columns:
-            [
-                new Column(new SqlIdentifier("email"), SqlType.Text),
-                new Column(new SqlIdentifier("mail"), SqlType.Text),
-            ]),
-            ColumnRename("mail", "email"));
-
-        var ex = act.ShouldThrow<InvalidOperationException>();
-        ex.Message.ShouldContain("app.t.email");
+        table.Name.ShouldBe("users");
+        table.Kind.ShouldBe(ChangeKind.Add);
+        table.RenamedFrom.ShouldBeNull();
     }
 
     [Fact]

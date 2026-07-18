@@ -17,7 +17,7 @@ public partial class DatabaseComparerTests
 
     /// <summary>Diffs two <c>app</c> schemas holding the given domains, returning the single domain diff (null when unchanged).</summary>
     private DomainDiff? DiffDomains(IReadOnlyList<DomainType> current, IReadOnlyList<DomainType> desired, ProjectDirectives? directives = null) =>
-        Compare(Db(new Schema(new SqlIdentifier("app"), domains: current)), Db(new Schema(new SqlIdentifier("app"), domains: desired)), directives)
+        Compare(Db(new Schema(new SqlIdentifier("app"), domains: [.. current])), Db(new Schema(new SqlIdentifier("app"), domains: [.. desired])), directives)
         .Schemas.SingleOrDefault()?.Domains.SingleOrDefault();
 
     [Fact]

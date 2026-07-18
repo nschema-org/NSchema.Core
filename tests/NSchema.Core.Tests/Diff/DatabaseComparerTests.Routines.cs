@@ -24,7 +24,7 @@ public partial class DatabaseComparerTests
 
     /// <summary>Diffs two <c>app</c> schemas holding the given routines, returning the single routine diff (null when unchanged).</summary>
     private RoutineDiff? DiffRoutines(IReadOnlyList<Routine> current, IReadOnlyList<Routine> desired, ProjectDirectives? directives = null) =>
-        Compare(Db(new Schema(new SqlIdentifier("app"), routines: current)), Db(new Schema(new SqlIdentifier("app"), routines: desired)), directives)
+        Compare(Db(new Schema(new SqlIdentifier("app"), routines: [.. current])), Db(new Schema(new SqlIdentifier("app"), routines: [.. desired])), directives)
         .Schemas.SingleOrDefault()?.Routines.SingleOrDefault();
 
     [Fact]

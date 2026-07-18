@@ -28,14 +28,14 @@ public sealed class Table : DatabaseObject, IEquatable<Table>
     public Table(
         SqlIdentifier name,
         PrimaryKey? primaryKey = null,
-        IReadOnlyList<Column>? columns = null,
-        IReadOnlyList<ForeignKey>? foreignKeys = null,
-        IReadOnlyList<UniqueConstraint>? uniqueConstraints = null,
-        IReadOnlyList<CheckConstraint>? checkConstraints = null,
-        IReadOnlyList<ExclusionConstraint>? exclusionConstraints = null,
-        IReadOnlyList<TableIndex>? indexes = null,
-        IReadOnlyList<TableGrant>? grants = null,
-        IReadOnlyList<Trigger>? triggers = null
+        DatabaseMemberCollection<Column>? columns = null,
+        DatabaseMemberCollection<ForeignKey>? foreignKeys = null,
+        DatabaseMemberCollection<UniqueConstraint>? uniqueConstraints = null,
+        DatabaseMemberCollection<CheckConstraint>? checkConstraints = null,
+        DatabaseMemberCollection<ExclusionConstraint>? exclusionConstraints = null,
+        DatabaseMemberCollection<TableIndex>? indexes = null,
+        List<TableGrant>? grants = null,
+        DatabaseMemberCollection<Trigger>? triggers = null
     ) : base(name)
     {
         PrimaryKey = primaryKey;
@@ -47,6 +47,13 @@ public sealed class Table : DatabaseObject, IEquatable<Table>
         Indexes = indexes ?? [];
         Grants = grants ?? [];
         Triggers = triggers ?? [];
+        Columns.Attach(this);
+        ForeignKeys.Attach(this);
+        UniqueConstraints.Attach(this);
+        CheckConstraints.Attach(this);
+        ExclusionConstraints.Attach(this);
+        Indexes.Attach(this);
+        Triggers.Attach(this);
     }
 
     /// <inheritdoc/>
@@ -58,9 +65,14 @@ public sealed class Table : DatabaseObject, IEquatable<Table>
     public PrimaryKey? PrimaryKey
     {
         get;
-        init
+        set
         {
+            if (ReferenceEquals(field, value))
+            {
+                return;
+            }
             value?.Parent = this;
+            field?.Parent = null;
             field = value;
         }
     }
@@ -68,69 +80,55 @@ public sealed class Table : DatabaseObject, IEquatable<Table>
     /// <summary>
     /// A list of columns that are part of the table.
     /// </summary>
-    public IReadOnlyList<Column> Columns { get; init => field = value.ForEach(f => f.Parent = this); }
+    public DatabaseMemberCollection<Column> Columns { get; }
 
     /// <summary>
     /// A list of foreign keys that define the relationships between this table and other tables in the database schema.
     /// </summary>
-    public IReadOnlyList<ForeignKey> ForeignKeys { get; init => field = value.ForEach(f => f.Parent = this); }
+    public DatabaseMemberCollection<ForeignKey> ForeignKeys { get; }
 
     /// <summary>
     /// A list of unique constraints defined on the table.
     /// </summary>
-    public IReadOnlyList<UniqueConstraint> UniqueConstraints { get; init => field = value.ForEach(f => f.Parent = this); }
+    public DatabaseMemberCollection<UniqueConstraint> UniqueConstraints { get; }
 
     /// <summary>
     /// A list of check constraints defined on the table.
     /// </summary>
-    public IReadOnlyList<CheckConstraint> CheckConstraints { get; init => field = value.ForEach(f => f.Parent = this); }
+    public DatabaseMemberCollection<CheckConstraint> CheckConstraints { get; }
 
     /// <summary>
     /// A list of exclusion constraints defined on the table.
     /// </summary>
-    public IReadOnlyList<ExclusionConstraint> ExclusionConstraints { get; init => field = value.ForEach(f => f.Parent = this); }
+    public DatabaseMemberCollection<ExclusionConstraint> ExclusionConstraints { get; }
 
     /// <summary>
     /// A list of indexes that are defined on the table.
     /// </summary>
-    public IReadOnlyList<TableIndex> Indexes { get; init => field = value.ForEach(f => f.Parent = this); }
+    public DatabaseMemberCollection<TableIndex> Indexes { get; }
 
     /// <summary>
     /// A list of grants that define the permissions associated with the table.
     /// </summary>
-    public IReadOnlyList<TableGrant> Grants { get; init; }
+    public List<TableGrant> Grants { get; }
 
     /// <summary>
     /// A list of triggers defined on the table.
     /// </summary>
-    public IReadOnlyList<Trigger> Triggers { get; init => field = value.ForEach(f => f.Parent = this); }
+    public DatabaseMemberCollection<Trigger> Triggers { get; }
 
-    /// <summary>
-    /// Returns a copy of the table with the given members replaced, outside any tree. A <see langword="null"/>
-    /// argument keeps the current members.
-    /// </summary>
-    public Table With(
-        IReadOnlyList<Column>? columns = null,
-        PrimaryKey? primaryKey = null,
-        IReadOnlyList<ForeignKey>? foreignKeys = null,
-        IReadOnlyList<UniqueConstraint>? uniqueConstraints = null,
-        IReadOnlyList<CheckConstraint>? checkConstraints = null,
-        IReadOnlyList<ExclusionConstraint>? exclusionConstraints = null,
-        IReadOnlyList<TableIndex>? indexes = null,
-        IReadOnlyList<TableGrant>? grants = null,
-        IReadOnlyList<Trigger>? triggers = null) =>
-        new(Name, (primaryKey ?? PrimaryKey)?.Clone(),
-            [.. (columns ?? Columns).Select(c => c.Clone())],
-            [.. (foreignKeys ?? ForeignKeys).Select(k => k.Clone())],
-            [.. (uniqueConstraints ?? UniqueConstraints).Select(u => u.Clone())],
-            [.. (checkConstraints ?? CheckConstraints).Select(c => c.Clone())],
-            [.. (exclusionConstraints ?? ExclusionConstraints).Select(x => x.Clone())],
-            [.. (indexes ?? Indexes).Select(i => i.Clone())],
-            grants ?? Grants,
-            [.. (triggers ?? Triggers).Select(t => t.Clone())])
+    /// <inheritdoc/>
+    public override Table Clone() =>
+        new(Name, PrimaryKey?.Clone(),
+            [.. Columns.Select(c => c.Clone())],
+            [.. ForeignKeys.Select(k => k.Clone())],
+            [.. UniqueConstraints.Select(u => u.Clone())],
+            [.. CheckConstraints.Select(c => c.Clone())],
+            [.. ExclusionConstraints.Select(x => x.Clone())],
+            [.. Indexes.Select(i => i.Clone())],
+            [.. Grants],
+            [.. Triggers.Select(t => t.Clone())])
         { Comment = Comment };
-
-    internal Table Clone() => With();
 
     /// <summary>
     /// Structural equality over the declared definition; the schema and the comment are excluded.

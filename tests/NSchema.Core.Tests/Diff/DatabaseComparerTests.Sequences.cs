@@ -15,7 +15,7 @@ public partial class DatabaseComparerTests
 
     /// <summary>Diffs two <c>app</c> schemas holding the given sequences, returning the single sequence diff (null when unchanged).</summary>
     private SequenceDiff? DiffSequences(IReadOnlyList<Sequence> current, IReadOnlyList<Sequence> desired, ProjectDirectives? directives = null) =>
-        Compare(Db(new Schema(new SqlIdentifier("app"), sequences: current)), Db(new Schema(new SqlIdentifier("app"), sequences: desired)), directives)
+        Compare(Db(new Schema(new SqlIdentifier("app"), sequences: [.. current])), Db(new Schema(new SqlIdentifier("app"), sequences: [.. desired])), directives)
         .Schemas.SingleOrDefault()?.Sequences.SingleOrDefault();
 
     [Fact]

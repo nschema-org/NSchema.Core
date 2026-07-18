@@ -19,9 +19,9 @@ public sealed class DirectiveValidatorTests
     private static ObjectAddress App(string name) => new(_app, new SqlIdentifier(name));
 
     private static ProjectDefinition Project(ProjectDirectives directives, params Schema[] schemas) =>
-        new(new Database(schemas), directives);
+        new(new Database([.. schemas]), directives);
 
-    private static Schema AppSchema(params Table[] tables) => new(_app, tables: tables);
+    private static Schema AppSchema(params Table[] tables) => new(_app, tables: [.. tables]);
 
     private static Table Table(string name, params string[] columns) =>
         new(new SqlIdentifier(name), columns: [.. columns.Select(c => new Column(new SqlIdentifier(c), SqlType.Int))]);

@@ -24,11 +24,11 @@ public abstract class DatabaseObject(SqlIdentifier name) : DatabaseElement(name)
         get;
         internal set
         {
-            if (Schema is { } schema && !ReferenceEquals(schema, value))
+            if (Schema is { } schema && value is not null && !ReferenceEquals(schema, value))
             {
                 throw new InvalidOperationException(
                     $"{Kind} '{Name}' already belongs to schema '{schema.Name}' and cannot be attached " +
-                    $"to '{value?.Name}'; attach a copy instead.");
+                    $"to '{value.Name}'; remove it first, or attach a copy instead.");
             }
             field = value;
         }

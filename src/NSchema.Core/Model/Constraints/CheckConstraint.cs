@@ -13,9 +13,10 @@ public sealed class CheckConstraint(SqlIdentifier name, SqlText expression) : Da
     /// <summary>
     /// The SQL boolean expression the constraint enforces.
     /// </summary>
-    public SqlText Expression { get; init; } = expression;
+    public SqlText Expression { get; set; } = expression;
 
-    internal CheckConstraint Clone() => new(Name, Expression) { Comment = Comment };
+    /// <inheritdoc/>
+    public override CheckConstraint Clone() => new(Name, Expression) { Comment = Comment };
 
     /// <summary>
     /// Structural equality over the declared definition.

@@ -25,10 +25,8 @@ public class DependencyGraphTests
         new(new MemberAddress(Id(schema), Id(table), Id(name)), DependencyKind.ForeignKey);
 
     private static Table WithForeignKey(string name, string constraint, string toSchema, string toTable) =>
-        new(Id(name), columns: [new Column(Id("id"), SqlType.Int)])
-        {
-            ForeignKeys = [new ForeignKey(Id(constraint), [Id("id")], Id(toSchema), Id(toTable), [Id("id")])],
-        };
+        new(Id(name), columns: [new Column(Id("id"), SqlType.Int)],
+            foreignKeys: [new ForeignKey(Id(constraint), [Id("id")], Id(toSchema), Id(toTable), [Id("id")])]);
 
     /// <summary>app.users, and billing.orders pointing an FK at it.</summary>
     private static Database CrossSchemaForeignKey() => new(

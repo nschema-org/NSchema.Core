@@ -16,8 +16,8 @@ public partial class DatabaseComparerTests
 
     private IReadOnlyList<TriggerDiff> DiffTriggers(IReadOnlyList<Trigger> current, IReadOnlyList<Trigger> desired) =>
         DiffTable(
-            new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], triggers: current),
-            new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], triggers: desired))?.Triggers ?? [];
+            new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], triggers: [.. current]),
+            new Table(new SqlIdentifier("t"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], triggers: [.. desired]))?.Triggers ?? [];
 
     private static Trigger AfterInsert(string name, string function = "log", string? comment = null) =>
         new(new SqlIdentifier(name), TriggerTiming.After, TriggerEvent.Insert,

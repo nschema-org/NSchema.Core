@@ -45,4 +45,18 @@ internal static class DiffDiagnostics
     public static Diagnostic AppliedRename(string kind, string address, SqlIdentifier to) => Diagnostic.Info("directives",
         $"Rename of {kind} '{address}' matches nothing in the current state and '{to}' already exists — the " +
         "rename has been applied. Once it has been applied everywhere, the directive is safe to delete.");
+
+    /// <summary>
+    /// A rename whose previous name is still declared, which is indistinguishable from a retain-plus-create.
+    /// </summary>
+    public static Diagnostic AmbiguousRenameSourceStillDeclared(string kind, string address, SqlIdentifier from) => Diagnostic.Error("directives",
+        $"Ambiguous rename of {kind} '{address}' from '{from}': its previous name '{from}' is still declared. " +
+        "Perform the rename and the conflicting change in separate migrations.");
+
+    /// <summary>
+    /// A rename whose new name is already taken by another current entity.
+    /// </summary>
+    public static Diagnostic AmbiguousRenameTargetTaken(string kind, string address, SqlIdentifier from, SqlIdentifier to) => Diagnostic.Error("directives",
+        $"Ambiguous rename of {kind} '{address}' from '{from}': a {kind} named '{to}' already exists. " +
+        "Perform the rename and the conflicting change in separate migrations.");
 }

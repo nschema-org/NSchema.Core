@@ -13,18 +13,18 @@ namespace NSchema.Model;
 /// <param name="schemas">The schemas declared in the database.</param>
 /// <param name="extensions">Any extensions that are installed in the database.</param>
 [DebuggerDisplay("{Schemas.Count} schemas")]
-public sealed class Database(IReadOnlyList<Schema>? schemas = null, IReadOnlyList<Extension>? extensions = null) : IEquatable<Database>
+public sealed class Database(List<Schema>? schemas = null, List<Extension>? extensions = null) : IEquatable<Database>
 {
     /// <summary>
     /// A list of Schema objects, each representing a specific schema within the database.
     /// </summary>
-    public IReadOnlyList<Schema> Schemas { get; init; } = schemas ?? [];
+    public List<Schema> Schemas { get; } = schemas ?? [];
 
     /// <summary>
     /// A list of database-global extensions. Extensions are not schema-scoped, so they live at the root of the
     /// database schema rather than inside a <see cref="Schema"/>.
     /// </summary>
-    public IReadOnlyList<Extension> Extensions { get; init; } = extensions ?? [];
+    public List<Extension> Extensions { get; } = extensions ?? [];
 
     /// <summary>
     /// The identity of everything the database contains: its schemas, their objects, and its extensions.
@@ -35,11 +35,18 @@ public sealed class Database(IReadOnlyList<Schema>? schemas = null, IReadOnlyLis
         [.. Extensions.Select(e => e.Name)]);
 
     /// <summary>
-    /// Returns the database restricted to the schemas, objects, and extensions whose identity is in the set.
+    /// Returns a deep copy of the database.
+    /// </summary>
+    public Database Clone() => new(
+        [.. Schemas.Select(s => s.Clone())],
+        [.. Extensions.Select(e => e.Clone())]);
+
+    /// <summary>
+    /// Returns a copy of the database restricted to the schemas, objects, and extensions whose identity is in the set.
     /// </summary>
     public Database FilteredTo(IdentitySet identities) => new(
         [.. Schemas.Where(s => identities.ContainsSchema(s.Name)).Select(s => s.FilteredTo(identities))],
-        [.. Extensions.Where(identities.Contains)]
+        [.. Extensions.Where(identities.Contains).Select(e => e.Clone())]
     );
 
     /// <summary>

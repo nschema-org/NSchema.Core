@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using NSchema.Diff.Model;
 using NSchema.Diff.Model.Columns;
+using NSchema.Diff.Model.Services;
 using NSchema.Diff.Model.Tables;
 using NSchema.Diff.Model.Views;
 using NSchema.Model;
@@ -24,11 +25,19 @@ public partial class DatabaseComparerTests
 {
     private readonly DatabaseComparer _sut = new(NullLogger<DatabaseComparer>.Instance);
 
-    private static Database Db(params Schema[] schemas) => new Database(schemas);
+    private static Database Db(params Schema[] schemas) => new Database([.. schemas]);
 
-    /// <summary>Compares two observations, optionally steered by directives (none = drift-style compare).</summary>
-    private DatabaseDiff Compare(Database current, Database desired, ProjectDirectives? directives = null) =>
-        _sut.Compare(current, desired, directives ?? ProjectDirectives.Empty);
+    /// <summary>
+    /// Compares two observations, optionally steered by directives (none = drift-style compare), running the
+    /// full Align → Compare → Decorate pipeline the project comparer orchestrates.
+    /// </summary>
+    private DatabaseDiff Compare(Database current, Database desired, ProjectDirectives? directives = null)
+    {
+        var effective = directives ?? ProjectDirectives.Empty;
+        var aligned = DatabaseAligner.Align(current, desired, effective);
+        var diff = _sut.Compare(aligned.Require(), desired);
+        return ChangeScriptDecorator.Decorate(diff, effective.ChangeScripts);
+    }
 
     /// <summary>An address in the <c>app</c> schema.</summary>
     private static ObjectAddress App(string name) => new(new SqlIdentifier("app"), new SqlIdentifier(name));
@@ -44,7 +53,7 @@ public partial class DatabaseComparerTests
 
     /// <summary>Diffs two <c>app</c> schemas holding the given views, returning the single view diff (null when unchanged).</summary>
     private ViewDiff? DiffViews(IReadOnlyList<View> current, IReadOnlyList<View> desired, ProjectDirectives? directives = null) =>
-        Compare(Db(new Schema(new SqlIdentifier("app"), views: current)), Db(new Schema(new SqlIdentifier("app"), views: desired)), directives)
+        Compare(Db(new Schema(new SqlIdentifier("app"), views: [.. current])), Db(new Schema(new SqlIdentifier("app"), views: [.. desired])), directives)
         .Schemas.SingleOrDefault()?.Views.SingleOrDefault();
 
     /// <summary>Directives renaming table <c>app.&lt;from&gt;</c> to <paramref name="to"/>.</summary>
@@ -163,7 +172,7 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_GroupsIndexesConstraintsAndGrantsUnderTheirTable()
     {
-        Column[] Columns() => [new Column(new SqlIdentifier("id"), SqlType.Int), new Column(new SqlIdentifier("user_id"), SqlType.Int)];
+        DatabaseMemberCollection<Column> Columns() => [new Column(new SqlIdentifier("id"), SqlType.Int), new Column(new SqlIdentifier("user_id"), SqlType.Int)];
         var current = Db(new Schema(new SqlIdentifier("app"), tables: [new Table(new SqlIdentifier("orders"), columns: Columns())]));
         var desired = Db(new Schema(new SqlIdentifier("app"), tables:
         [

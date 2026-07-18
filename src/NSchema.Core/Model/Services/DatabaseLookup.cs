@@ -1,4 +1,3 @@
-using NSchema.Model.Columns;
 using NSchema.Model.Schemas;
 using NSchema.Model.Tables;
 
@@ -17,14 +16,6 @@ internal sealed class DatabaseLookup(Database schema)
     public Table? FindTable(ObjectAddress address) =>
         FindSchema(address.Schema)?.Tables.FirstOrDefault(t => t.Name == address.Name);
 
-    public Column? FindColumn(MemberAddress address) =>
-        FindTable(new ObjectAddress(address.Schema, address.Object))?.Columns.FirstOrDefault(c => c.Name == address.Member);
-
-    /// <summary>
-    /// Whether the identified object is declared.
-    /// </summary>
-    public bool Has(ObjectIdentity identity) => Has(identity.Kind, identity.Address);
-
     /// <summary>
     /// Whether an object of <paramref name="kind"/> is declared at <paramref name="address"/>.
     /// </summary>
@@ -39,6 +30,4 @@ internal sealed class DatabaseLookup(Database schema)
         ObjectKind.CompositeType => FindSchema(address.Schema)?.CompositeTypes.Any(t => t.Name == address.Name) == true,
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };
-
-    public bool HasColumn(MemberAddress address) => FindColumn(address) is not null;
 }

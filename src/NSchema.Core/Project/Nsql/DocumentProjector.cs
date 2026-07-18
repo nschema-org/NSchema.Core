@@ -58,13 +58,13 @@ internal static class DocumentProjector
             case Syn.Enums.CreateEnumStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
-                    schemas.AddEnum(schema, new EnumType(name, s.Values) { Comment = s.Doc }, s.Name.Position);
+                    schemas.AddEnum(schema, new EnumType(name, [.. s.Values]) { Comment = s.Doc }, s.Name.Position);
                     break;
                 }
             case Syn.Domains.CreateDomainStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
-                    var checks = s.Checks.Select(c => new CheckConstraint(Name(c.Name), c.Expression)).ToList();
+                    DatabaseMemberCollection<CheckConstraint> checks = [.. s.Checks.Select(c => new CheckConstraint(Name(c.Name), c.Expression))];
                     schemas.AddDomain(schema, new DomainType(name, ParseType(s.Type), s.Default, s.NotNull, checks) { Comment = s.Doc }, s.Name.Position);
                     break;
                 }
@@ -108,12 +108,12 @@ internal static class DocumentProjector
         SqlIdentifier name, string? doc, IReadOnlyList<Syn.Tables.TableMember> members, SqlIdentifier? context = null)
     {
         PrimaryKey? primaryKey = null;
-        var columns = new List<Column>();
-        var foreignKeys = new List<ForeignKey>();
-        var uniqueConstraints = new List<UniqueConstraint>();
-        var checkConstraints = new List<CheckConstraint>();
-        var exclusionConstraints = new List<ExclusionConstraint>();
-        var indexes = new List<TableIndex>();
+        var columns = new DatabaseMemberCollection<Column>();
+        var foreignKeys = new DatabaseMemberCollection<ForeignKey>();
+        var uniqueConstraints = new DatabaseMemberCollection<UniqueConstraint>();
+        var checkConstraints = new DatabaseMemberCollection<CheckConstraint>();
+        var exclusionConstraints = new DatabaseMemberCollection<ExclusionConstraint>();
+        var indexes = new DatabaseMemberCollection<TableIndex>();
         var includes = new List<(SqlIdentifier TemplateName, int ColumnPosition)>();
 
         foreach (var member in members)

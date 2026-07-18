@@ -67,10 +67,8 @@ public sealed class DatabaseDiffTests
         new Schema(new SqlIdentifier("billing"),
             tables:
             [
-                new Table(new SqlIdentifier("orders"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])
-                {
-                    ForeignKeys = [new ForeignKey(new SqlIdentifier("fk_orders_user"), [new SqlIdentifier("id")], new SqlIdentifier("app"), new SqlIdentifier("users"), [new SqlIdentifier("id")])],
-                },
+                new Table(new SqlIdentifier("orders"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)],
+                    foreignKeys: [new ForeignKey(new SqlIdentifier("fk_orders_user"), [new SqlIdentifier("id")], new SqlIdentifier("app"), new SqlIdentifier("users"), [new SqlIdentifier("id")])]),
             ],
             views: [new View(new SqlIdentifier("summary"), new SqlText("select * from app.users"), dependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users"))])]),
     ]);

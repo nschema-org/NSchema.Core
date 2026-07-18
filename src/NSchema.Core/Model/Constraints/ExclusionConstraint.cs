@@ -14,7 +14,7 @@ namespace NSchema.Model.Constraints;
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
 public sealed class ExclusionConstraint(
     SqlIdentifier name,
-    IReadOnlyList<ExclusionElement> elements,
+    List<ExclusionElement> elements,
     string? method = null,
     SqlText? predicate = null
 ) : DatabaseMember(name), IEquatable<ExclusionConstraint>
@@ -22,19 +22,20 @@ public sealed class ExclusionConstraint(
     /// <summary>
     /// The constrained elements, each a column or expression paired with an operator.
     /// </summary>
-    public IReadOnlyList<ExclusionElement> Elements { get; init; } = elements ?? [];
+    public List<ExclusionElement> Elements { get; } = elements ?? [];
 
     /// <summary>
     /// The access method backing the constraint (e.g. <c>gist</c>); <see langword="null"/> means the database default.
     /// </summary>
-    public string? Method { get; init; } = method;
+    public string? Method { get; set; } = method;
 
     /// <summary>
     /// An optional predicate restricting the constraint to a subset of rows (a partial constraint).
     /// </summary>
-    public SqlText? Predicate { get; init; } = predicate;
+    public SqlText? Predicate { get; set; } = predicate;
 
-    internal ExclusionConstraint Clone() => new(Name, Elements, Method, Predicate) { Comment = Comment };
+    /// <inheritdoc/>
+    public override ExclusionConstraint Clone() => new(Name, [.. Elements], Method, Predicate) { Comment = Comment };
 
     /// <summary>
     /// Structural equality over the declared definition.

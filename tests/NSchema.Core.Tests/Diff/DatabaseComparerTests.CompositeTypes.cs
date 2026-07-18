@@ -16,10 +16,10 @@ public partial class DatabaseComparerTests
 
     /// <summary>Diffs two <c>app</c> schemas holding the given composite types, returning the single diff (null when unchanged).</summary>
     private CompositeTypeDiff? DiffCompositeTypes(IReadOnlyList<CompositeType> current, IReadOnlyList<CompositeType> desired, ProjectDirectives? directives = null) =>
-        Compare(Db(new Schema(new SqlIdentifier("app"), compositeTypes: current)), Db(new Schema(new SqlIdentifier("app"), compositeTypes: desired)), directives)
+        Compare(Db(new Schema(new SqlIdentifier("app"), compositeTypes: [.. current])), Db(new Schema(new SqlIdentifier("app"), compositeTypes: [.. desired])), directives)
         .Schemas.SingleOrDefault()?.CompositeTypes.SingleOrDefault();
 
-    private static CompositeType Address(params CompositeField[] fields) => new(new SqlIdentifier("address"), fields);
+    private static CompositeType Address(params CompositeField[] fields) => new(new SqlIdentifier("address"), [.. fields]);
 
     [Fact]
     public void Compare_NewCompositeType_IsAddCarryingDefinition()

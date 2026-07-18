@@ -26,49 +26,36 @@ public sealed class Column(
     /// <summary>
     /// The SQL data type of the column.
     /// </summary>
-    public SqlType Type { get; init; } = type;
+    public SqlType Type { get; set; } = type;
 
     /// <summary>
     /// A boolean value indicating whether the column allows NULL values.
     /// </summary>
-    public bool IsNullable { get; init; } = isNullable;
+    public bool IsNullable { get; set; } = isNullable;
 
     /// <summary>
     /// A boolean value indicating whether the column is an identity column.
     /// </summary>
-    public bool IsIdentity { get; init; } = isIdentity;
+    public bool IsIdentity { get; set; } = isIdentity;
 
     /// <summary>
     /// An optional default expression for the column.
     /// </summary>
-    public SqlText? DefaultExpression { get; init; } = defaultExpression;
+    public SqlText? DefaultExpression { get; set; } = defaultExpression;
 
     /// <summary>
     /// An optional set of options for identity columns, such as seed and increment values.
     /// </summary>
-    public IdentityOptions? IdentityOptions { get; init; } = identityOptions;
+    public IdentityOptions? IdentityOptions { get; set; } = identityOptions;
 
     /// <summary>
     /// An optional expression for a stored generated column; mutually exclusive with a default.
     /// </summary>
-    public SqlText? GeneratedExpression { get; init; } = generatedExpression;
+    public SqlText? GeneratedExpression { get; set; } = generatedExpression;
 
-    /// <summary>
-    /// Returns a copy of the column with the given type, outside any tree.
-    /// </summary>
-    public Column WithType(SqlType type) => Clone(type);
-
-    /// <summary>
-    /// Returns a nullable copy of the column, outside any tree — the shape a backfilled column add starts in.
-    /// </summary>
-    public Column AsNullable() =>
-        new(Name, Type, isNullable: true, IsIdentity, DefaultExpression, IdentityOptions, GeneratedExpression)
-        {
-            Comment = Comment
-        };
-
-    internal Column Clone(SqlType? type = null) =>
-        new(Name, type ?? Type, IsNullable, IsIdentity, DefaultExpression, IdentityOptions, GeneratedExpression)
+    /// <inheritdoc/>
+    public override Column Clone() =>
+        new(Name, Type, IsNullable, IsIdentity, DefaultExpression, IdentityOptions, GeneratedExpression)
         {
             Comment = Comment
         };

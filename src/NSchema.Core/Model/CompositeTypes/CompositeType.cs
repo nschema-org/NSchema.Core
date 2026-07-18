@@ -8,7 +8,7 @@ namespace NSchema.Model.CompositeTypes;
 /// <param name="name">The name of the composite type.</param>
 /// <param name="fields">The ordered fields (attributes) of the type; may be empty.</param>
 [DebuggerDisplay("{Name,nq} (composite type, {Fields.Count} fields)")]
-public sealed class CompositeType(SqlIdentifier name, IReadOnlyList<CompositeField>? fields = null) : DatabaseObject(name), IEquatable<CompositeType>
+public sealed class CompositeType(SqlIdentifier name, List<CompositeField>? fields = null) : DatabaseObject(name), IEquatable<CompositeType>
 {
     /// <inheritdoc/>
     public override ObjectKind Kind => ObjectKind.CompositeType;
@@ -16,14 +16,10 @@ public sealed class CompositeType(SqlIdentifier name, IReadOnlyList<CompositeFie
     /// <summary>
     /// The fields (attributes) of the type, matched by name; may be empty.
     /// </summary>
-    public IReadOnlyList<CompositeField> Fields { get; init; } = fields ?? [];
+    public List<CompositeField> Fields { get; } = fields ?? [];
 
-    /// <summary>
-    /// Returns a copy of the composite type with the given fields, outside any tree.
-    /// </summary>
-    public CompositeType WithFields(IReadOnlyList<CompositeField> fields) => new(Name, fields) { Comment = Comment };
-
-    internal CompositeType Clone() => new(Name, Fields) { Comment = Comment };
+    /// <inheritdoc/>
+    public override CompositeType Clone() => new(Name, [.. Fields]) { Comment = Comment };
 
     /// <summary>
     /// Structural equality over the declared definition.

@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using NSchema.Project.Model.Directives;
+using NSchema.Diff.Model.Services;
 using NSchema.Project.Nsql;
 using DatabaseComparer = NSchema.Diff.Model.Services.DatabaseComparer;
 
@@ -24,7 +24,7 @@ public sealed class RoundTripDriftTests
         var original = TestData.RichSchema();
         var reparsed = new TestNsqlParser(NsqlWriter.Write(original)).Parse().Database;
 
-        _comparer.Compare(original, reparsed, ProjectDirectives.Empty).IsEmpty.ShouldBeTrue();
+        _comparer.Compare(AlignedDatabase.Unaligned(original), reparsed).IsEmpty.ShouldBeTrue();
     }
 
     [Fact]

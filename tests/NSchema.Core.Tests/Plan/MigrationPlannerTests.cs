@@ -150,7 +150,7 @@ public sealed class MigrationPlannerTests
 
         // Assert — the current side the differ sees carries the same ledger and managed set.
         _differ.Received(1).Compare(
-            Arg.Is<CurrentState>(c => c.ExecutedScripts == _current.ExecutedScripts && c.Managed == _current.Managed),
+            Arg.Is<CurrentState>(c => c!.ExecutedScripts == _current.ExecutedScripts && c.Managed == _current.Managed),
             _desired);
     }
 
@@ -173,7 +173,7 @@ public sealed class MigrationPlannerTests
 
         // Assert
         _differ.Received(1).Compare(
-            Arg.Is<CurrentState>(c => c.Database.Schemas.Single().Tables.Single().Name == new SqlIdentifier("mine")),
+            Arg.Is<CurrentState>(c => c!.Database.Schemas.Single().Tables.Single().Name == new SqlIdentifier("mine")),
             Arg.Any<ProjectDefinition>());
     }
 

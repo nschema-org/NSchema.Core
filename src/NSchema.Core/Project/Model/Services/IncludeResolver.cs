@@ -39,22 +39,21 @@ internal sealed class IncludeResolver(IReadOnlyDictionary<SqlIdentifier, Templat
             .GroupBy(i => (i.SchemaName, i.TableName))
             .ToDictionary(g => g.Key, g => g.ToList());
 
+        // The database is the assembly's own aggregate, so includes merge into it in place.
         var consumed = new HashSet<(SqlIdentifier Schema, SqlIdentifier Table)>();
-        var resolved = database.Schemas
-            .Select(definition => definition.With(
-                tables: definition.Tables
-                    .Select(table =>
-                    {
-                        var key = (definition.Name, table.Name);
-                        if (!byTable.TryGetValue(key, out var tableIncludes))
-                        {
-                            return table;
-                        }
-                        consumed.Add(key);
-                        return MergeIncludes(definition.Name, table, tableIncludes);
-                    })
-                    .ToList()))
-            .ToList();
+        foreach (var definition in database.Schemas)
+        {
+            foreach (var table in definition.Tables)
+            {
+                var key = (definition.Name, table.Name);
+                if (!byTable.TryGetValue(key, out var tableIncludes))
+                {
+                    continue;
+                }
+                consumed.Add(key);
+                MergeIncludes(definition.Name, table, tableIncludes);
+            }
+        }
 
         // Parsed includes always name the table whose body they were written in, so a dangling one can only come
         // from a hand-built document; fail rather than drop it silently.
@@ -64,7 +63,7 @@ internal sealed class IncludeResolver(IReadOnlyDictionary<SqlIdentifier, Templat
             _diagnostics.Add(TemplateDiagnostics.IncludeUnknownTable(include.TemplateName, include.SchemaName, include.TableName));
         }
 
-        return new Database(resolved, database.Extensions);
+        return database;
     }
 
     /// <summary>
@@ -72,16 +71,8 @@ internal sealed class IncludeResolver(IReadOnlyDictionary<SqlIdentifier, Templat
     /// the include was written, foreign keys referencing the include placeholder re-point at the including table's
     /// schema, and everything else appends. A member the table already declares is rejected.
     /// </summary>
-    private Table MergeIncludes(SqlIdentifier schemaName, Table table, List<TemplateInclude> includes)
+    private void MergeIncludes(SqlIdentifier schemaName, Table table, List<TemplateInclude> includes)
     {
-        var columns = table.Columns.ToList();
-        var foreignKeys = table.ForeignKeys.ToList();
-        var uniqueConstraints = table.UniqueConstraints.ToList();
-        var checkConstraints = table.CheckConstraints.ToList();
-        var exclusionConstraints = table.ExclusionConstraints.ToList();
-        var indexes = table.Indexes.ToList();
-        var primaryKey = table.PrimaryKey;
-
         var offset = 0;
         foreach (var include in includes)
         {
@@ -108,12 +99,12 @@ internal sealed class IncludeResolver(IReadOnlyDictionary<SqlIdentifier, Templat
             var conflicts = new List<Diagnostic>();
             foreach (var column in members.Columns)
             {
-                if (columns.Any(c => c.Name == column.Name))
+                if (table.Columns.Any(c => c.Name == column.Name))
                 {
                     conflicts.Add(TemplateDiagnostics.IncludeColumnConflict(include.TemplateName, column.Name, schemaName, table.Name));
                 }
             }
-            if (members.PrimaryKey is not null && primaryKey is not null)
+            if (members.PrimaryKey is not null && table.PrimaryKey is not null)
             {
                 conflicts.Add(TemplateDiagnostics.IncludePrimaryKeyConflict(include.TemplateName, schemaName, table.Name));
             }
@@ -123,31 +114,44 @@ internal sealed class IncludeResolver(IReadOnlyDictionary<SqlIdentifier, Templat
                 continue;
             }
 
-            columns.InsertRange(include.ColumnPosition + offset, members.Columns);
+            // The cached members belong to the cached projection; what merges in is a copy per include site.
+            var position = include.ColumnPosition + offset;
+            foreach (var column in members.Columns)
+            {
+                table.Columns.Insert(position++, column.Clone());
+            }
             offset += members.Columns.Count;
 
             if (members.PrimaryKey is not null)
             {
-                primaryKey = members.PrimaryKey;
+                table.PrimaryKey = members.PrimaryKey.Clone();
             }
 
-            foreignKeys.AddRange(members.ForeignKeys.Select(fk =>
-                fk.ReferencedSchema == _includePlaceholder
-                    ? fk.WithReferencedSchema(schemaName)
-                    : fk));
-            uniqueConstraints.AddRange(members.UniqueConstraints);
-            checkConstraints.AddRange(members.CheckConstraints);
-            exclusionConstraints.AddRange(members.ExclusionConstraints);
-            indexes.AddRange(members.Indexes);
+            foreach (var fk in members.ForeignKeys)
+            {
+                var copy = fk.Clone();
+                if (copy.ReferencedSchema == _includePlaceholder)
+                {
+                    copy.ReferencedSchema = schemaName;
+                }
+                table.ForeignKeys.Add(copy);
+            }
+            foreach (var uq in members.UniqueConstraints)
+            {
+                table.UniqueConstraints.Add(uq.Clone());
+            }
+            foreach (var ck in members.CheckConstraints)
+            {
+                table.CheckConstraints.Add(ck.Clone());
+            }
+            foreach (var ex in members.ExclusionConstraints)
+            {
+                table.ExclusionConstraints.Add(ex.Clone());
+            }
+            foreach (var ix in members.Indexes)
+            {
+                table.Indexes.Add(ix.Clone());
+            }
         }
-
-        return table.With(
-            columns: columns,
-            primaryKey: primaryKey,
-            foreignKeys: foreignKeys,
-            uniqueConstraints: uniqueConstraints,
-            checkConstraints: checkConstraints,
-            exclusionConstraints: exclusionConstraints,
-            indexes: indexes);
     }
 }

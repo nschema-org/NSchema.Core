@@ -1,6 +1,4 @@
 using NSchema.Model;
-using NSchema.Plan.Model.Services;
-using NSchema.Project.Model.Directives;
 
 namespace NSchema.Diff.Model.Services;
 
@@ -11,13 +9,10 @@ namespace NSchema.Diff.Model.Services;
 internal interface IDatabaseComparer
 {
     /// <summary>
-    /// Compares the current database schema with the desired database schema and produces the structured diff
-    /// describing the changes needed to transform the current schema into the desired schema. The diff is then
-    /// linearized into an executable plan by <see cref="IPlanLinearizer"/>.
+    /// Compares the current database schema with the desired database schema and produces the structured diff.
     /// </summary>
-    /// <param name="current">The current database schema representing the existing state of the database.</param>
+    /// <param name="current">The current database schema, aligned into the declared name-space.</param>
     /// <param name="desired">The desired database schema representing the target state of the database after migration.</param>
-    /// <param name="directives">The project's management directives.</param>
     /// <returns>The structured diff describing the changes between the two schemas.</returns>
-    DatabaseDiff Compare(Database current, Database desired, ProjectDirectives directives);
+    DatabaseDiff Compare(AlignedDatabase current, Database desired);
 }

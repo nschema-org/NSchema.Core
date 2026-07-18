@@ -16,9 +16,10 @@ public sealed class Sequence(SqlIdentifier name, SequenceOptions? options = null
     /// <summary>
     /// The sequence's options; unset options use the provider's defaults.
     /// </summary>
-    public SequenceOptions Options { get; init; } = options ?? new SequenceOptions();
+    public SequenceOptions Options { get; set; } = options ?? new SequenceOptions();
 
-    internal Sequence Clone() => new(Name, Options) { Comment = Comment };
+    /// <inheritdoc/>
+    public override Sequence Clone() => new(Name, Options) { Comment = Comment };
 
     /// <summary>
     /// Structural equality over the declared definition.

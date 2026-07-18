@@ -18,19 +18,20 @@ public sealed class Routine(SqlIdentifier name, RoutineKind routineKind, SqlText
     /// <summary>
     /// Whether the routine is a function or a procedure.
     /// </summary>
-    public RoutineKind RoutineKind { get; init; } = routineKind;
+    public RoutineKind RoutineKind { get; set; } = routineKind;
 
     /// <summary>
     /// The argument list, stored verbatim (the text inside the parentheses; may be empty).
     /// </summary>
-    public SqlText Arguments { get; init; } = arguments;
+    public SqlText Arguments { get; set; } = arguments;
 
     /// <summary>
     /// Everything after the argument list, stored verbatim.
     /// </summary>
-    public SqlText Definition { get; init; } = definition;
+    public SqlText Definition { get; set; } = definition;
 
-    internal Routine Clone() => new(Name, RoutineKind, Arguments, Definition) { Comment = Comment };
+    /// <inheritdoc/>
+    public override Routine Clone() => new(Name, RoutineKind, Arguments, Definition) { Comment = Comment };
 
     /// <summary>
     /// Structural equality over the declared definition; the schema and the comment are excluded.

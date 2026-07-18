@@ -184,6 +184,6 @@ public static class TestData
         new(new SqlIdentifier(name), new SqlText(body), ViewDependencyExtractor.Extract(body, new SqlIdentifier("app"))) { Comment = comment };
 
     /// <summary>Builds a materialized view (optionally with indexes), dependencies derived from its body.</summary>
-    private static View MaterializedView(string name, string body, string? comment = null, IReadOnlyList<TableIndex>? indexes = null) =>
+    private static View MaterializedView(string name, string body, string? comment = null, DatabaseMemberCollection<TableIndex>? indexes = null) =>
         new(new SqlIdentifier(name), new SqlText(body), ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")), isMaterialized: true, indexes: indexes) { Comment = comment };
 }

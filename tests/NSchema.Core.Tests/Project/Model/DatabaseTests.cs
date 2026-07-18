@@ -10,9 +10,9 @@ namespace NSchema.Tests.Project.Model;
 
 public sealed class DatabaseTests
 {
-    private static Database Db(params Schema[] schemas) => new Database(schemas);
+    private static Database Db(params Schema[] schemas) => new Database([.. schemas]);
 
-    private static Schema Schema(string name, params Table[] tables) => new Schema(new SqlIdentifier(name), tables: tables);
+    private static Schema Schema(string name, params Table[] tables) => new Schema(new SqlIdentifier(name), tables: [.. tables]);
 
     private static Table Table(string name) => new(new SqlIdentifier(name));
 

@@ -25,7 +25,7 @@ public sealed class Trigger(
     TriggerEvent events,
     RoutineReference? function = null,
     TriggerLevel level = TriggerLevel.Statement,
-    IReadOnlyList<SqlIdentifier>? updateOfColumns = null,
+    List<SqlIdentifier>? updateOfColumns = null,
     SqlText? when = null,
     SqlText? functionArguments = null,
     SqlText? body = null
@@ -34,51 +34,47 @@ public sealed class Trigger(
     /// <summary>
     /// When the trigger fires relative to the operation.
     /// </summary>
-    public TriggerTiming Timing { get; init; } = timing;
+    public TriggerTiming Timing { get; set; } = timing;
 
     /// <summary>
     /// The operation(s) that fire the trigger.
     /// </summary>
-    public TriggerEvent Events { get; init; } = events;
+    public TriggerEvent Events { get; set; } = events;
 
     /// <summary>
     /// The function the trigger executes (optionally schema-qualified); null for an inline-body trigger.
     /// </summary>
-    public RoutineReference? Function { get; init; } = function;
+    public RoutineReference? Function { get; set; } = function;
 
     /// <summary>
     /// Whether the trigger fires per row or per statement.
     /// </summary>
-    public TriggerLevel Level { get; init; } = level;
+    public TriggerLevel Level { get; set; } = level;
 
     /// <summary>
     /// The columns an <c>UPDATE</c> trigger is narrowed to (<c>UPDATE OF (…)</c>), if any.
     /// </summary>
-    public IReadOnlyList<SqlIdentifier> UpdateOfColumns { get; init; } = updateOfColumns ?? [];
+    public List<SqlIdentifier> UpdateOfColumns { get; } = updateOfColumns ?? [];
 
     /// <summary>
     /// An optional <c>WHEN</c> condition, stored verbatim (opaque SQL).
     /// </summary>
-    public SqlText? When { get; init; } = when;
+    public SqlText? When { get; set; } = when;
 
     /// <summary>
     /// Optional literal arguments passed to the function, stored verbatim; <see langword="null"/> when none.
     /// </summary>
-    public SqlText? FunctionArguments { get; init; } = functionArguments;
+    public SqlText? FunctionArguments { get; set; } = functionArguments;
 
     /// <summary>
     /// The trigger's inline statement body, stored verbatim (opaque SQL); <see langword="null"/> for a
     /// function-style trigger.
     /// </summary>
-    public SqlText? Body { get; init; } = body;
+    public SqlText? Body { get; set; } = body;
 
-    /// <summary>
-    /// Returns a copy of the trigger executing the given function, outside any tree.
-    /// </summary>
-    public Trigger WithFunction(RoutineReference function) => Clone(function);
-
-    internal Trigger Clone(RoutineReference? function = null) =>
-        new(Name, Timing, Events, function ?? Function, Level, UpdateOfColumns, When, FunctionArguments, Body) { Comment = Comment };
+    /// <inheritdoc/>
+    public override Trigger Clone() =>
+        new(Name, Timing, Events, Function, Level, [.. UpdateOfColumns], When, FunctionArguments, Body) { Comment = Comment };
 
     /// <summary>
     /// Structural equality over the declared definition;.

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using NSchema.Diff.Model;
+using NSchema.Diff.Model.Services;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.CompositeTypes;
@@ -191,6 +192,10 @@ public sealed class DatabaseComparerSnapshotTests
     private static View View(string name, string body) =>
         new(new SqlIdentifier(name), new SqlText(body), ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")));
 
-    private DatabaseDiff Compare(Database current, Database desired, ProjectDirectives? directives = null) =>
-        _sut.Compare(current, desired, directives ?? ProjectDirectives.Empty);
+    private DatabaseDiff Compare(Database current, Database desired, ProjectDirectives? directives = null)
+    {
+        var effective = directives ?? ProjectDirectives.Empty;
+        var aligned = DatabaseAligner.Align(current, desired, effective);
+        return _sut.Compare(aligned.Require(), desired);
+    }
 }

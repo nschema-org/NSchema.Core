@@ -14,7 +14,7 @@ public sealed class SchemaLintPolicyTests
     private static Column Col(string name, bool nullable = false) => new Column(new SqlIdentifier(name), SqlType.BigInt, isNullable: nullable);
 
     private static Database Db(params Table[] tables) =>
-        new Database([new Schema(new SqlIdentifier("public"), tables: tables)]);
+        new Database([new Schema(new SqlIdentifier("public"), tables: [.. tables])]);
 
     [Fact]
     public void NoDiagnostics_ForATableWithANonNullablePrimaryKey()

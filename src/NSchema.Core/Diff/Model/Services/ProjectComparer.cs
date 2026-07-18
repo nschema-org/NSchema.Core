@@ -7,19 +7,18 @@ using NSchema.State.Model;
 namespace NSchema.Diff.Model.Services;
 
 /// <summary>
-/// Default <see cref="IProjectComparer"/>: composes the structural comparer with run-once resolution and
-/// change-event matching, so the diff it produces is the complete current→desired difference.
+/// Default <see cref="IProjectComparer"/>. Produces a diff of the current→desired states.
 /// </summary>
-/// <param name="comparer">Produces the structural schema diff.</param>
+/// <param name="comparer">For performing structural database diff.</param>
 internal sealed class ProjectComparer(IDatabaseComparer comparer) : IProjectComparer
 {
     public Result<DatabaseDiff> Compare(CurrentState current, ProjectDefinition desired)
     {
         var diagnostics = new List<Diagnostic>();
-        var allDirectives = desired.Directives;
+        var directives = desired.Directives;
 
-        // Look up new scripts to run, and strip old ones from our directives.
-        var deploymentScripts = GetNewScripts(allDirectives.DeploymentScripts, current.ExecutedScripts);
+        // Look up new scripts to run, excluding those already executed.
+        var deploymentScripts = GetNewScripts(directives.DeploymentScripts, current.ExecutedScripts);
         diagnostics.AddRange(deploymentScripts.Diagnostics);
         var pendingDirectives = allDirectives with { DeploymentScripts = deploymentScripts.Require() };
 

@@ -15,7 +15,7 @@ public partial class DatabaseComparerTests
 
     /// <summary>Diffs two <c>app</c> schemas holding the given enums, returning the single enum diff (null when unchanged).</summary>
     private EnumDiff? DiffEnums(IReadOnlyList<EnumType> current, IReadOnlyList<EnumType> desired, ProjectDirectives? directives = null) =>
-        Compare(Db(new Schema(new SqlIdentifier("app"), enums: current)), Db(new Schema(new SqlIdentifier("app"), enums: desired)), directives)
+        Compare(Db(new Schema(new SqlIdentifier("app"), enums: [.. current])), Db(new Schema(new SqlIdentifier("app"), enums: [.. desired])), directives)
         .Schemas.SingleOrDefault()?.Enums.SingleOrDefault();
 
     [Fact]

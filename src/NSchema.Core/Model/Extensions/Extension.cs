@@ -16,7 +16,10 @@ public sealed class Extension(SqlIdentifier name, string? version = null) : Data
     /// <summary>
     /// The requested version, or <see langword="null"/> to accept whatever the provider installs.
     /// </summary>
-    public string? Version { get; init; } = version;
+    public string? Version { get; set; } = version;
+
+    /// <inheritdoc/>
+    public override Extension Clone() => new(Name, Version) { Comment = Comment };
 
     /// <summary>
     /// Structural equality over the declared definition; the comment is excluded.

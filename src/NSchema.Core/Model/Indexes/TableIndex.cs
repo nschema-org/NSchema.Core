@@ -14,39 +14,40 @@ namespace NSchema.Model.Indexes;
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
 public sealed class TableIndex(
     SqlIdentifier name,
-    IReadOnlyList<IndexColumn> columns,
+    List<IndexColumn> columns,
     bool isUnique = false,
     SqlText? predicate = null,
     string? method = null,
-    IReadOnlyList<SqlIdentifier>? include = null
+    List<SqlIdentifier>? include = null
 ) : DatabaseMember(name), IEquatable<TableIndex>
 {
     /// <summary>
     /// The index keys (columns or expressions) in order.
     /// </summary>
-    public IReadOnlyList<IndexColumn> Columns { get; init; } = columns ?? [];
+    public List<IndexColumn> Columns { get; } = columns ?? [];
 
     /// <summary>
     /// A boolean value indicating whether the index enforces uniqueness on the indexed columns.
     /// </summary>
-    public bool IsUnique { get; init; } = isUnique;
+    public bool IsUnique { get; set; } = isUnique;
 
     /// <summary>
     /// An optional predicate that defines a partial index.
     /// </summary>
-    public SqlText? Predicate { get; init; } = predicate;
+    public SqlText? Predicate { get; set; } = predicate;
 
     /// <summary>
     /// The access method; <see langword="null"/> means the database default (B-tree).
     /// </summary>
-    public string? Method { get; init; } = method;
+    public string? Method { get; set; } = method;
 
     /// <summary>
     /// Non-key columns carried in the index leaf pages (a covering <c>INCLUDE</c> clause).
     /// </summary>
-    public IReadOnlyList<SqlIdentifier> Include { get; init; } = include ?? [];
+    public List<SqlIdentifier> Include { get; } = include ?? [];
 
-    internal TableIndex Clone() => new(Name, Columns, IsUnique, Predicate, Method, Include) { Comment = Comment };
+    /// <inheritdoc/>
+    public override TableIndex Clone() => new(Name, [.. Columns], IsUnique, Predicate, Method, [.. Include]) { Comment = Comment };
 
     /// <summary>
     /// Structural equality over the declared definition; the parent and the comment are excluded.

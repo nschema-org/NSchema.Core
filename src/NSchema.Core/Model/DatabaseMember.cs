@@ -21,11 +21,11 @@ public abstract class DatabaseMember(SqlIdentifier name) : DatabaseElement(name)
         get;
         internal set
         {
-            if (Parent is { } parent && !ReferenceEquals(parent, value))
+            if (Parent is { } parent && value is not null && !ReferenceEquals(parent, value))
             {
                 throw new InvalidOperationException(
                     $"{GetType().Name} '{Name}' already belongs to '{parent.Name}' and cannot be attached to " +
-                    $"'{value?.Name}'; attach a copy instead.");
+                    $"'{value.Name}'; remove it first, or attach a copy instead.");
             }
             field = value;
         }

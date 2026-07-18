@@ -12,11 +12,6 @@ namespace NSchema.Model.Schemas;
 /// <summary>
 /// Represents the definition of a database schema.
 /// </summary>
-/// <remarks>
-/// The schema adopts the objects it is given, whether through the constructor or an object initializer: an
-/// unparented object is wired to this schema, and an object that already belongs to another schema is cloned
-/// first.
-/// </remarks>
 [DebuggerDisplay("{Name,nq} ({Tables.Count} tables)")]
 public sealed class Schema : DatabaseElement, IEquatable<Schema>
 {
@@ -34,14 +29,14 @@ public sealed class Schema : DatabaseElement, IEquatable<Schema>
     /// <param name="compositeTypes">A list of composite types that are part of the schema.</param>
     public Schema(
         SqlIdentifier name,
-        IReadOnlyList<Table>? tables = null,
-        IReadOnlyList<SchemaGrant>? grants = null,
-        IReadOnlyList<View>? views = null,
-        IReadOnlyList<EnumType>? enums = null,
-        IReadOnlyList<Sequence>? sequences = null,
-        IReadOnlyList<Routine>? routines = null,
-        IReadOnlyList<DomainType>? domains = null,
-        IReadOnlyList<CompositeType>? compositeTypes = null
+        DatabaseObjectCollection<Table>? tables = null,
+        List<SchemaGrant>? grants = null,
+        DatabaseObjectCollection<View>? views = null,
+        DatabaseObjectCollection<EnumType>? enums = null,
+        DatabaseObjectCollection<Sequence>? sequences = null,
+        DatabaseObjectCollection<Routine>? routines = null,
+        DatabaseObjectCollection<DomainType>? domains = null,
+        DatabaseObjectCollection<CompositeType>? compositeTypes = null
     ) : base(name)
     {
         Tables = tables ?? [];
@@ -52,48 +47,55 @@ public sealed class Schema : DatabaseElement, IEquatable<Schema>
         Routines = routines ?? [];
         Domains = domains ?? [];
         CompositeTypes = compositeTypes ?? [];
+        Tables.Attach(this);
+        Views.Attach(this);
+        Enums.Attach(this);
+        Sequences.Attach(this);
+        Routines.Attach(this);
+        Domains.Attach(this);
+        CompositeTypes.Attach(this);
     }
 
     /// <summary>
     /// A list of tables that are part of the schema.
     /// </summary>
-    public IReadOnlyList<Table> Tables { get; init => field = value.ForEach(f => f.Schema = this); }
+    public DatabaseObjectCollection<Table> Tables { get; }
 
     /// <summary>
     /// A list of views that are part of the schema.
     /// </summary>
-    public IReadOnlyList<View> Views { get; init => field = value.ForEach(f => f.Schema = this); }
+    public DatabaseObjectCollection<View> Views { get; }
 
     /// <summary>
     /// A list of enum types that are part of the schema.
     /// </summary>
-    public IReadOnlyList<EnumType> Enums { get; init => field = value.ForEach(f => f.Schema = this); }
+    public DatabaseObjectCollection<EnumType> Enums { get; }
 
     /// <summary>
     /// A list of sequences that are part of the schema.
     /// </summary>
-    public IReadOnlyList<Sequence> Sequences { get; init => field = value.ForEach(f => f.Schema = this); }
+    public DatabaseObjectCollection<Sequence> Sequences { get; }
 
     /// <summary>
     /// A list of routines (functions and procedures) that are part of the schema. Functions and procedures share
     /// one name space, so they live in a single list.
     /// </summary>
-    public IReadOnlyList<Routine> Routines { get; init => field = value.ForEach(f => f.Schema = this); }
+    public DatabaseObjectCollection<Routine> Routines { get; }
 
     /// <summary>
     /// A list of domains that are part of the schema.
     /// </summary>
-    public IReadOnlyList<DomainType> Domains { get; init => field = value.ForEach(f => f.Schema = this); }
+    public DatabaseObjectCollection<DomainType> Domains { get; }
 
     /// <summary>
     /// A list of composite types that are part of the schema.
     /// </summary>
-    public IReadOnlyList<CompositeType> CompositeTypes { get; init => field = value.ForEach(f => f.Schema = this); }
+    public DatabaseObjectCollection<CompositeType> CompositeTypes { get; }
 
     /// <summary>
     /// A list of grants that define the permissions associated with the schema.
     /// </summary>
-    public IReadOnlyList<SchemaGrant> Grants { get; init; }
+    public List<SchemaGrant> Grants { get; }
 
     /// <summary>
     /// Every schema-level object the schema contains, in one sequence.
@@ -107,42 +109,34 @@ public sealed class Schema : DatabaseElement, IEquatable<Schema>
         .Concat(Domains)
         .Concat(CompositeTypes);
 
-    /// <summary>
-    /// Returns a copy of the schema with the given object lists replaced. A <see langword="null"/> argument
-    /// keeps the current objects.
-    /// </summary>
-    public Schema With(
-        IReadOnlyList<Table>? tables = null,
-        IReadOnlyList<View>? views = null,
-        IReadOnlyList<EnumType>? enums = null,
-        IReadOnlyList<Sequence>? sequences = null,
-        IReadOnlyList<Routine>? routines = null,
-        IReadOnlyList<DomainType>? domains = null,
-        IReadOnlyList<CompositeType>? compositeTypes = null
-    ) => new(Name,
-        [.. (tables ?? Tables).Select(t => t.Clone())],
-        Grants,
-        [.. (views ?? Views).Select(v => v.Clone())],
-        [.. (enums ?? Enums).Select(e => e.Clone())],
-        [.. (sequences ?? Sequences).Select(s => s.Clone())],
-        [.. (routines ?? Routines).Select(r => r.Clone())],
-        [.. (domains ?? Domains).Select(d => d.Clone())],
-        [.. (compositeTypes ?? CompositeTypes).Select(t => t.Clone())]
-    )
+    /// <inheritdoc/>
+    public override Schema Clone() => new(Name,
+        [.. Tables.Select(t => t.Clone())],
+        [.. Grants],
+        [.. Views.Select(v => v.Clone())],
+        [.. Enums.Select(e => e.Clone())],
+        [.. Sequences.Select(s => s.Clone())],
+        [.. Routines.Select(r => r.Clone())],
+        [.. Domains.Select(d => d.Clone())],
+        [.. CompositeTypes.Select(t => t.Clone())])
     { Comment = Comment };
 
     /// <summary>
-    /// Returns the schema restricted to the objects whose identity is in the set. Grants ride the schema and
-    /// table members ride their table.
+    /// Returns a copy of the schema restricted to the objects whose identity is in the set. Grants ride the
+    /// schema and table members ride their table.
     /// </summary>
-    public Schema FilteredTo(IdentitySet identities) => With(
-        tables: [.. Tables.Where(identities.Contains)],
-        views: [.. Views.Where(identities.Contains)],
-        enums: [.. Enums.Where(identities.Contains)],
-        sequences: [.. Sequences.Where(identities.Contains)],
-        routines: [.. Routines.Where(identities.Contains)],
-        domains: [.. Domains.Where(identities.Contains)],
-        compositeTypes: [.. CompositeTypes.Where(identities.Contains)]);
+    public Schema FilteredTo(IdentitySet identities)
+    {
+        var copy = Clone();
+        copy.Tables.RemoveWhere(t => !identities.Contains(t));
+        copy.Views.RemoveWhere(v => !identities.Contains(v));
+        copy.Enums.RemoveWhere(e => !identities.Contains(e));
+        copy.Sequences.RemoveWhere(s => !identities.Contains(s));
+        copy.Routines.RemoveWhere(r => !identities.Contains(r));
+        copy.Domains.RemoveWhere(d => !identities.Contains(d));
+        copy.CompositeTypes.RemoveWhere(t => !identities.Contains(t));
+        return copy;
+    }
 
     /// <summary>
     /// Structural equality over the declared contents; the comment is excluded.

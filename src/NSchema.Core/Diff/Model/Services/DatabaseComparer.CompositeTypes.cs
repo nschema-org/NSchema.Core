@@ -8,12 +8,12 @@ namespace NSchema.Diff.Model.Services;
 
 internal sealed partial class DatabaseComparer
 {
-    private static List<CompositeTypeDiff> CompareCompositeTypes(SqlIdentifier schemaName, SqlIdentifier currentSchemaName, IReadOnlyList<CompositeType> current, Schema desired, DirectiveLookup directives) =>
-        CompareObjects(schemaName, "composite type", current, desired.CompositeTypes,
-            directives.Renames(ObjectKind.CompositeType, currentSchemaName),
+    private static List<CompositeTypeDiff> CompareCompositeTypes(SqlIdentifier schemaName, IReadOnlyList<CompositeType> current, Schema desired, RenameLog renames) =>
+        CompareObjects(current, desired.CompositeTypes,
+            name => renames.RenamedFrom(new ObjectIdentity(ObjectKind.CompositeType, schemaName, name)),
             type => new CompositeTypeDiff(schemaName, type.Name, ChangeKind.Remove),
             type => BuildNewCompositeType(schemaName, type),
-            (currentType, desiredType) => BuildModifiedCompositeType(schemaName, currentType, desiredType));
+            (currentType, desiredType, renamedFrom) => BuildModifiedCompositeType(schemaName, currentType, desiredType, renamedFrom));
 
     private static CompositeTypeDiff BuildNewCompositeType(SqlIdentifier schema, CompositeType type) =>
         new(schema, type.Name, ChangeKind.Add, Definition: type, Comment: ValueChanges.Changed(null, type.Comment));
@@ -21,9 +21,8 @@ internal sealed partial class DatabaseComparer
     // A composite type's every change is applied in place (ALTER TYPE), so there is no recreate: a rename, the
     // comment, and each field add/drop/retype are tracked independently. Fields are matched by name; a type
     // change on a matched field is an in-place retype, not a drop + add.
-    private static CompositeTypeDiff? BuildModifiedCompositeType(SqlIdentifier schema, CompositeType current, CompositeType desired)
+    private static CompositeTypeDiff? BuildModifiedCompositeType(SqlIdentifier schema, CompositeType current, CompositeType desired, SqlIdentifier? renamedFrom)
     {
-        var renamedFrom = current.Name == desired.Name ? (SqlIdentifier?)null : current.Name;
         var comment = ValueChanges.Changed(current.Comment, desired.Comment);
         var fields = CompareCompositeFields(current.Fields, desired.Fields);
 

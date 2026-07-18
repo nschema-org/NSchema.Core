@@ -142,14 +142,12 @@ public sealed class PlanEndToEndTests : IDisposable
                 [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]),
             new Schema(new SqlIdentifier("billing"), tables:
             [
-                new Table(new SqlIdentifier("orders"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])
-                {
-                    ForeignKeys =
+                new Table(new SqlIdentifier("orders"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)],
+                    foreignKeys:
                     [
                         new ForeignKey(new SqlIdentifier("fk_orders_user"), [new SqlIdentifier("id")],
                             new SqlIdentifier("app"), new SqlIdentifier("users"), [new SqlIdentifier("id")]),
-                    ],
-                },
+                    ]),
             ]),
         ]);
         var desired = WriteNsql("schema.sql", "CREATE SCHEMA app;");

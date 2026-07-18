@@ -8,14 +8,15 @@ namespace NSchema.Model.Constraints;
 /// <param name="name">The name of the unique constraint.</param>
 /// <param name="columnNames">A list of column names that are part of the unique constraint.</param>
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public sealed class UniqueConstraint(SqlIdentifier name, IReadOnlyList<SqlIdentifier> columnNames) : DatabaseMember(name), IEquatable<UniqueConstraint>
+public sealed class UniqueConstraint(SqlIdentifier name, List<SqlIdentifier> columnNames) : DatabaseMember(name), IEquatable<UniqueConstraint>
 {
     /// <summary>
     /// A list of column names that are part of the unique constraint.
     /// </summary>
-    public IReadOnlyList<SqlIdentifier> ColumnNames { get; init; } = columnNames ?? [];
+    public List<SqlIdentifier> ColumnNames { get; } = columnNames ?? [];
 
-    internal UniqueConstraint Clone() => new(Name, ColumnNames) { Comment = Comment };
+    /// <inheritdoc/>
+    public override UniqueConstraint Clone() => new(Name, [.. ColumnNames]) { Comment = Comment };
 
     /// <summary>
     /// Structural equality over the declared definition.

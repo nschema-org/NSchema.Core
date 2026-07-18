@@ -23,13 +23,14 @@ public sealed class DomainType : DatabaseObject, IEquatable<DomainType>
         SqlType dataType,
         SqlText? @default = null,
         bool notNull = false,
-        IReadOnlyList<CheckConstraint>? checks = null
+        DatabaseMemberCollection<CheckConstraint>? checks = null
     ) : base(name)
     {
         DataType = dataType;
         Default = @default;
         NotNull = notNull;
         Checks = checks ?? [];
+        Checks.Attach(this);
     }
 
     /// <inheritdoc/>
@@ -38,29 +39,25 @@ public sealed class DomainType : DatabaseObject, IEquatable<DomainType>
     /// <summary>
     /// The underlying base type; a change to it is planned as a drop + recreate.
     /// </summary>
-    public SqlType DataType { get; init; }
+    public SqlType DataType { get; set; }
 
     /// <summary>
     /// An optional default expression, stored verbatim (opaque SQL); <see langword="null"/> when none.
     /// </summary>
-    public SqlText? Default { get; init; }
+    public SqlText? Default { get; set; }
 
     /// <summary>
     /// Whether the domain forbids <c>NULL</c>.
     /// </summary>
-    public bool NotNull { get; init; }
+    public bool NotNull { get; set; }
 
     /// <summary>
     /// The domain's <c>CHECK</c> constraints; empty when none.
     /// </summary>
-    public IReadOnlyList<CheckConstraint> Checks { get; init => field = [.. value.Select(c => { c.Parent = this; return c; })]; }
+    public DatabaseMemberCollection<CheckConstraint> Checks { get; }
 
-    /// <summary>
-    /// Returns a copy of the domain built on the given base type, outside any tree.
-    /// </summary>
-    public DomainType WithDataType(SqlType dataType) => new(Name, dataType, Default, NotNull, [.. Checks.Select(c => c.Clone())]) { Comment = Comment };
-
-    internal DomainType Clone() => new(Name, DataType, Default, NotNull, [.. Checks.Select(c => c.Clone())]) { Comment = Comment };
+    /// <inheritdoc/>
+    public override DomainType Clone() => new(Name, DataType, Default, NotNull, [.. Checks.Select(c => c.Clone())]) { Comment = Comment };
 
     /// <summary>
     /// Structural equality over the declared definition; the schema and the comment are excluded.

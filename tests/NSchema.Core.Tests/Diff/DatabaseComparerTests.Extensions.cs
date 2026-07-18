@@ -15,7 +15,7 @@ public partial class DatabaseComparerTests
     private ExtensionDiff? DiffExtensions(
         IReadOnlyList<Extension> current,
         IReadOnlyList<Extension> desired) =>
-        Compare(new Database(extensions: current), new Database(extensions: desired))
+        Compare(new Database(extensions: [.. current]), new Database(extensions: [.. desired]))
         .Extensions.SingleOrDefault();
 
     [Fact]

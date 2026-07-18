@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using NSchema.Diff.Model.Services;
 using NSchema.Diff.Model.Tables;
 using NSchema.Model;
 using NSchema.Model.Columns;
@@ -6,14 +7,13 @@ using NSchema.Model.Constraints;
 using NSchema.Model.Schemas;
 using NSchema.Model.Scripts;
 using NSchema.Model.Tables;
-using NSchema.Project.Model.Directives;
 using DatabaseComparer = NSchema.Diff.Model.Services.DatabaseComparer;
 
 namespace NSchema.Tests.Diff;
 
 /// <summary>
-/// The change-event script attachment folded into the structural compare: a change script rides the diff node
-/// it accompanies. Driven through the comparer, since attachment happens in the per-table pass.
+/// The change-event script attachment: a change script rides the diff node it accompanies, attached by the
+/// decorator pass over the computed diff.
 /// </summary>
 public class ChangeScriptAttachmentTests
 {
@@ -22,22 +22,21 @@ public class ChangeScriptAttachmentTests
     /// <summary>Diffs the given current/desired <c>app.users</c> tables, steered by the given change scripts.</summary>
     private TableDiff Diff(Table current, Table desired, params ChangeScript[] scripts)
     {
-        var directives = new ProjectDirectives(ChangeScripts: scripts);
         var currentDb = new Database([new Schema(new SqlIdentifier("app"), tables: [current])]);
         var desiredDb = new Database([new Schema(new SqlIdentifier("app"), tables: [desired])]);
-        return _sut.Compare(currentDb, desiredDb, directives).Schemas.Single().Tables.Single();
+        var diff = _sut.Compare(AlignedDatabase.Unaligned(currentDb), desiredDb);
+        return ChangeScriptDecorator.Decorate(diff, scripts).Schemas.Single().Tables.Single();
     }
 
     private static Table Users(params object[] members)
     {
-        var columns = members.OfType<Column>().ToList();
-        var pks = members.OfType<PrimaryKey>().ToList();
-        var fks = members.OfType<ForeignKey>().ToList();
-        var uqs = members.OfType<UniqueConstraint>().ToList();
-        var cks = members.OfType<CheckConstraint>().ToList();
-        var exs = members.OfType<ExclusionConstraint>().ToList();
-        return new Table(new SqlIdentifier("users"), columns: columns, primaryKey: pks.FirstOrDefault(),
-            foreignKeys: fks, uniqueConstraints: uqs, checkConstraints: cks, exclusionConstraints: exs);
+        return new Table(new SqlIdentifier("users"),
+            columns: [.. members.OfType<Column>()],
+            primaryKey: members.OfType<PrimaryKey>().FirstOrDefault(),
+            foreignKeys: [.. members.OfType<ForeignKey>()],
+            uniqueConstraints: [.. members.OfType<UniqueConstraint>()],
+            checkConstraints: [.. members.OfType<CheckConstraint>()],
+            exclusionConstraints: [.. members.OfType<ExclusionConstraint>()]);
     }
 
     private static Column Id => new(new SqlIdentifier("id"), SqlType.Int);
