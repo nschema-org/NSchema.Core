@@ -271,4 +271,87 @@ public sealed class DatabaseDiffTests
         result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
             DiffDiagnostics.SeveredOutOfScope([new ObjectAddress(new SqlIdentifier("billing"), new SqlIdentifier("tracked_status"))]));
     }
+
+    private static ObjectAddress Target(string schema, string name) => new(new SqlIdentifier(schema), new SqlIdentifier(name));
+
+    [Fact]
+    public void ScopedTo_ObjectTargeted_KeepsTheTargetsChanges_AndDropsItsSiblingsAndTheSchemasOwnFacets()
+    {
+        // Arrange — a schema-level facet (comment, grants, the schema's own removal) sits below the schema,
+        // not below any object, so targeting an object never drags it in.
+        var diff = new DatabaseDiff(
+        [
+            new SchemaDiff(new SqlIdentifier("app"),
+                Comment: new ValueChange<string>("old", "new"),
+                Tables: [
+                    new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify),
+                    new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("orders"), ChangeKind.Modify),
+                ]),
+        ]);
+
+        // Act
+        var result = diff.ScopedTo(PlanningScope.To([Target("app", "users")]), CurrentDatabase());
+
+        // Assert
+        var app = result.Value!.Schemas.ShouldHaveSingleItem();
+        app.Comment.ShouldBeNull();
+        app.Tables.ShouldHaveSingleItem().Name.ShouldBe("users");
+    }
+
+    [Fact]
+    public void ScopedTo_ObjectTargeted_TheContainersCreationRidesAlong()
+    {
+        // Arrange — a targeted object cannot exist without its schema, so the container's Add is a
+        // dependency of the target, not a schema-level facet to strip.
+        var diff = new DatabaseDiff(
+        [
+            new SchemaDiff(new SqlIdentifier("app"), ChangeKind.Add,
+                Tables: [
+                    new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Add),
+                    new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("orders"), ChangeKind.Add),
+                ]),
+        ]);
+
+        // Act
+        var result = diff.ScopedTo(PlanningScope.To([Target("app", "users")]), CurrentDatabase());
+
+        // Assert
+        var app = result.Value!.Schemas.ShouldHaveSingleItem();
+        app.Kind.ShouldBe(ChangeKind.Add);
+        app.Tables.ShouldHaveSingleItem().Name.ShouldBe("users");
+    }
+
+    [Fact]
+    public void ScopedTo_ObjectTargetedTeardown_DoesNotRemoveTheContainer_AndStillSeversBeyondTheTarget()
+    {
+        // Act — target one table of the teardown: the schema itself stays, and the out-of-scope closure
+        // works exactly as it does for a schema-granular scope.
+        var result = TeardownDiff().ScopedTo(PlanningScope.To([Target("app", "users")]), CurrentDatabase());
+
+        // Assert
+        var app = result.Value!.Schemas.Single(s => s.Name == new SqlIdentifier("app"));
+        app.Kind.ShouldBeNull(); // the container is not covered, so it is not removed
+        app.Tables.ShouldHaveSingleItem().Name.ShouldBe("users");
+
+        var billing = result.Value.Schemas.Single(s => s.Name == new SqlIdentifier("billing"));
+        billing.Tables.ShouldHaveSingleItem().ForeignKeys.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
+        billing.Views.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
+        result.Diagnostics.Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public void ScopedTo_ATargetedDependent_IsInScopeThroughItsOwner_AndNotSevered()
+    {
+        // Act — billing.orders is targeted too, so its removal is part of the plan and its constraint goes
+        // with the table; only the untargeted view is severed.
+        var result = TeardownDiff().ScopedTo(
+            PlanningScope.To([Target("app", "users"), Target("billing", "orders")]), CurrentDatabase());
+
+        // Assert
+        var billing = result.Value!.Schemas.Single(s => s.Name == new SqlIdentifier("billing"));
+        billing.Tables.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
+        billing.Views.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
+        result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
+            DiffDiagnostics.InferredSeveredOutOfScope([new ObjectAddress(new SqlIdentifier("billing"), new SqlIdentifier("summary"))]));
+    }
 }

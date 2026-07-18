@@ -65,6 +65,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 ### Added
 
 - **Ephemeral state.** `UseEphemeralState()` registers an in-memory state store and matching lock, intended for disposable databases.
+- **Object-granular targeting.** `PlanningScope` now takes object addresses alongside schema name.
 
 ### Removed
 

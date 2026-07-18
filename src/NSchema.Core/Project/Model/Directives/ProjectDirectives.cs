@@ -54,16 +54,22 @@ public sealed record ProjectDirectives(
 
         return new ProjectDirectives(
             [.. SchemaRenames.Where(r => scope.Contains(r.From) || scope.Contains(r.To))],
-            [.. ObjectRenames.Where(r => InScope(r.From.Schema))],
-            [.. MemberRenames.Where(r => InScope(r.From.Schema))],
-            [.. ChangeScripts.Where(ScriptInScope)],
-            [.. DeploymentScripts.Where(ScriptInScope)]);
+            [.. ObjectRenames.Where(r => InScope(r.From.Address) || InScope(new ObjectAddress(r.From.Schema, r.To)))],
+            [.. MemberRenames.Where(r => InScope(r.From.Owner))],
+            [.. ChangeScripts.Where(ChangeInScope)],
+            [.. DeploymentScripts.Where(DeploymentInScope)]);
 
-        bool ScriptInScope(Script script) =>
+        // A deployment script is a schema-level facet, below the schema and no object, so only a
+        // whole-schema scope covers it; a change script rides its table.
+        bool DeploymentInScope(DeploymentScript script) =>
             script.ScopeSchema is not { } schema || scope.Contains(schema);
 
-        bool InScope(SqlIdentifier currentSchema) =>
-            scope.Contains(currentSchema)
-            || (declaredNames.TryGetValue(currentSchema, out var declared) && scope.Contains(declared));
+        bool ChangeInScope(ChangeScript script) =>
+            script.ScopeSchema is not { } schema || InScope(new ObjectAddress(schema, script.TableName));
+
+        // A directive addresses current reality; the scope may name either side of a schema rename.
+        bool InScope(ObjectAddress current) =>
+            scope.Contains(current)
+            || (declaredNames.TryGetValue(current.Schema, out var declared) && scope.Contains(current with { Schema = declared }));
     }
 }

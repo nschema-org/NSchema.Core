@@ -65,7 +65,7 @@ internal sealed class MigrationWorkflow(
             ? PlanningScope.To(project.AddressedSchemaNames.Concat(state.Managed.Schemas).Distinct())
             : scope;
 
-        progress.Report(OperationProgress.Step($"Migration will be scoped to the following schemas: {Describe(scopeInEffect)}"));
+        progress.Report(OperationProgress.Step($"Migration will be scoped to: {Describe(scopeInEffect)}"));
 
         // The current side is not narrowed here: scope applies to the difference, once computed. Filtering it
         // away first would hide the out-of-scope objects a scoped run may still disturb.
@@ -165,7 +165,9 @@ internal sealed class MigrationWorkflow(
     }
 
     private static string Describe(PlanningScope scope) =>
-        scope.SchemaNames is { } names ? string.Join(", ", names) : "(all)";
+        scope.IsUnscoped
+            ? "(all)"
+            : string.Join(", ", scope.Schemas.Select(s => s.ToString()).Concat(scope.Objects.Select(o => o.ToString())));
 
     /// <summary>
     /// Emits the verbose census of what the loaded project declares.

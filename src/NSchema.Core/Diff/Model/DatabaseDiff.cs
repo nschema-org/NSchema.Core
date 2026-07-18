@@ -154,7 +154,7 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
             return this;
         }
 
-        var narrowed = this with { Schemas = [.. Schemas.Where(s => scope.Contains(s.Name))] };
+        var narrowed = this with { Schemas = [.. Schemas.Select(s => s.ScopedTo(scope)).OfType<SchemaDiff>()] };
 
         var graph = new DependencyGraph(current);
         var removals = Removals(narrowed).ToList();
@@ -195,7 +195,12 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
 
         return Result.From(Widen(narrowed, severable), diagnostics);
 
-        bool OutOfScope(DependencyNode node) => node.Address.SchemaName is { } schema && !scope.Contains(schema);
+        bool OutOfScope(DependencyNode node) => node.Address switch
+        {
+            ObjectAddress address => !scope.Contains(address),
+            MemberAddress member => !scope.Contains(member.Owner),
+            _ => false,
+        };
 
         static List<DependencyNode> Columns(IEnumerable<DependencyNode> nodes) =>
             [.. nodes.Where(n => n.Kind == DependencyKind.Column)];
@@ -243,14 +248,16 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
     /// </summary>
     /// <remarks>
     /// A severed schema is only ever touched, never dropped, so its <see cref="SchemaDiff.Kind"/> stays null:
-    /// the run is not about this schema, it just cannot avoid it.
+    /// the run is not about this schema, it just cannot avoid it. A partially-covered schema may already be
+    /// in the diff, in which case the severed changes join its entry.
     /// </remarks>
     private static DatabaseDiff Widen(DatabaseDiff diff, IReadOnlyList<DependencyNode> severed)
     {
-        var added = severed
-            .Where(n => n.Address.SchemaName is not null)
-            .GroupBy(n => n.Address.SchemaName!)
-            .Select(bySchema => new SchemaDiff(
+        var schemas = diff.Schemas.ToList();
+
+        foreach (var bySchema in severed.Where(n => n.Address.SchemaName is not null).GroupBy(n => n.Address.SchemaName!))
+        {
+            var addition = new SchemaDiff(
                 bySchema.Key,
                 Tables: [.. SeveredTables(bySchema)],
                 Views: [.. bySchema
@@ -264,9 +271,26 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
                 CompositeTypes: [.. bySchema
                     .Where(n => n.Kind == DependencyKind.CompositeType)
                     .Select(n => new CompositeTypeDiff(bySchema.Key, ((ObjectAddress)n.Address).Name, ChangeKind.Remove))
-                    .OrderBy(c => c.Name)]));
+                    .OrderBy(c => c.Name)]);
 
-        return diff with { Schemas = [.. diff.Schemas, .. added] };
+            var index = schemas.FindIndex(s => s.Name == bySchema.Key);
+            if (index < 0)
+            {
+                schemas.Add(addition);
+            }
+            else
+            {
+                schemas[index] = schemas[index] with
+                {
+                    Tables = [.. schemas[index].Tables, .. addition.Tables],
+                    Views = [.. schemas[index].Views, .. addition.Views],
+                    Domains = [.. schemas[index].Domains, .. addition.Domains],
+                    CompositeTypes = [.. schemas[index].CompositeTypes, .. addition.CompositeTypes],
+                };
+            }
+        }
+
+        return diff with { Schemas = schemas };
     }
 
     /// <summary>

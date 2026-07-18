@@ -50,7 +50,18 @@ public sealed class Database : IEquatable<Database>
     /// <summary>
     /// Returns a new database model restricted to the current scope.
     /// </summary>
-    public Database ScopedTo(PlanningScope scope) => scope.IsUnscoped ? this : FilteredTo(Identities().CoveredBy(scope));
+    public Database ScopedTo(PlanningScope scope)
+    {
+        if (scope.IsUnscoped)
+        {
+            return this;
+        }
+
+        // A targeted object still needs its container in the tree, even though the scope does not cover the
+        // schema itself.
+        var covered = Identities().CoveredBy(scope);
+        return FilteredTo(covered with { Schemas = [.. covered.Schemas.Union(covered.Objects.Select(o => o.Schema))] });
+    }
 
     /// <summary>
     /// Structural equality over the declared contents.

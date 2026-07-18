@@ -1,6 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Routines;
 using NSchema.Model.Schemas;
+using NSchema.Model.Scripts;
 using NSchema.Model.Tables;
 using NSchema.Model.Views;
 using NSchema.Project.Model.Directives;
@@ -50,6 +51,20 @@ public sealed class DatabaseTests
     }
 
     [Fact]
+    public void ScopedTo_ObjectTargeted_KeepsTheContainerAndTheTargetAlone()
+    {
+        // A targeted object cannot live outside its schema, so the container stays in the tree — filtered
+        // to the target, with every other schema gone.
+        var database = Db(Schema("app", Table("users"), Table("orders")), Schema("audit", Table("log")));
+
+        var result = database.ScopedTo(PlanningScope.To([new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users"))]));
+
+        var app = result.Schemas.ShouldHaveSingleItem();
+        app.Name.ShouldBe("app");
+        app.Tables.ShouldHaveSingleItem().Name.ShouldBe("users");
+    }
+
+    [Fact]
     public void ScopedTo_RestrictsDirectivesToInScopeSchemas()
     {
         // Directives address current reality, so a schema rename keeps its object directives in scope through
@@ -70,6 +85,35 @@ public sealed class DatabaseTests
 
         filtered.SchemaRenames.ShouldHaveSingleItem(); // kept — its To side is in scope
         filtered.ObjectRenames.ShouldHaveSingleItem().From.Schema.ShouldBe(sales); // resolves through the rename
+    }
+
+    [Fact]
+    public void ScopedTo_ObjectTargeted_DirectivesFollowTheContainmentRule()
+    {
+        // A change script rides the table it prepares; a deployment script is a schema-level facet, below
+        // the schema and no object, so only a whole-schema scope carries it. Renames stay through either side.
+        var app = new SqlIdentifier("app");
+        var users = new ObjectAddress(app, new SqlIdentifier("users"));
+        var directives = new ProjectDirectives(
+            ObjectRenames:
+            [
+                new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, new SqlIdentifier("customers"))), new SqlIdentifier("users")),
+                new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, new SqlIdentifier("stale"))), new SqlIdentifier("fresh")),
+            ],
+            MemberRenames: [new MemberRenameDirective(new MemberAddress(app, new SqlIdentifier("users"), new SqlIdentifier("mail")), new SqlIdentifier("email"))],
+            ChangeScripts:
+            [
+                new ChangeScript(new SqlIdentifier("backfill"), new SqlText("UPDATE 1;"), app, ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")),
+                new ChangeScript(new SqlIdentifier("other"), new SqlText("UPDATE 2;"), app, ChangeTrigger.AddColumn, new SqlIdentifier("orders"), new SqlIdentifier("total")),
+            ],
+            DeploymentScripts: [new DeploymentScript(new SqlIdentifier("seed"), new SqlText("SELECT 1;"), app, DeploymentPhase.Pre)]);
+
+        var filtered = directives.ScopedTo(PlanningScope.To([users]));
+
+        filtered.ObjectRenames.ShouldHaveSingleItem().To.ShouldBe("users"); // kept through its target side
+        filtered.MemberRenames.ShouldHaveSingleItem(); // its owner is the target
+        filtered.ChangeScripts.ShouldHaveSingleItem().Name.ShouldBe("backfill");
+        filtered.DeploymentScripts.ShouldBeEmpty();
     }
 
     [Fact]
