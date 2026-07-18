@@ -23,7 +23,7 @@ internal sealed class DoctorOperation(
 {
     public async Task<Result<DoctorResult>> Execute(DoctorArguments arguments, CancellationToken cancellationToken = default)
     {
-        var diagnostics = new List<Diagnostic>
+        var diagnostics = new DiagnosticCollection
         {
             await CheckDatabase(cancellationToken),
             await CheckStateStore(cancellationToken),

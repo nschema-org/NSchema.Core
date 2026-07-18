@@ -24,7 +24,7 @@ public sealed class DiagnosticCollectorTests
         _sut.Add([error]);
 
         // Assert
-        _sut.Diagnostics.ShouldBe([warning, error]);
+        _sut.ShouldBe([warning, error]);
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public sealed class DiagnosticCollectorTests
         _sut.Add(Result.Success("value", warning));
 
         // Assert
-        _sut.Diagnostics.ShouldBe([warning]);
+        _sut.ShouldBe([warning]);
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public sealed class DiagnosticCollectorTests
         // Assert
         taken.ShouldBeTrue();
         value.ShouldBe("payload");
-        _sut.Diagnostics.ShouldBe([warning]);
+        _sut.ShouldBe([warning]);
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public sealed class DiagnosticCollectorTests
 
         // Assert
         taken.ShouldBeFalse();
-        _sut.Diagnostics.ShouldBe([error]);
+        _sut.ShouldBe([error]);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class DiagnosticCollectorTests
         // Assert
         taken.ShouldBeTrue();
         value.ShouldBe("partial");
-        _sut.Diagnostics.ShouldBe([error]);
+        _sut.ShouldBe([error]);
     }
 
     // -------------------------------------------------------------------------
@@ -118,7 +118,7 @@ public sealed class DiagnosticCollectorTests
 
         // Assert
         value.ShouldBe("payload");
-        _sut.Diagnostics.ShouldBe([warning]);
+        _sut.ShouldBe([warning]);
     }
 
     [Fact]

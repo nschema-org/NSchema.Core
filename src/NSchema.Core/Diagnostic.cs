@@ -37,5 +37,5 @@ public record Diagnostic(string Source, string Message, DiagnosticSeverity Sever
     /// </summary>
     /// <param name="severity">The downgraded severity level.</param>
     /// <returns>A clone of the current diagnostic capped at the given security level.</returns>
-    public Diagnostic Downgrade(DiagnosticSeverity severity) => Severity > severity ? this with { Severity = severity } : this;
+    public Diagnostic Demote(DiagnosticSeverity severity) => Severity > severity ? this with { Severity = severity } : this;
 }

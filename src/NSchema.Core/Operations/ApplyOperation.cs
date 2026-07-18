@@ -28,15 +28,15 @@ internal sealed class ApplyOperation(
         }
 
         // Make sure policies are enforced at the point of execution.
-        var findings = planPolicies.SelectMany(p => p.Validate(args.Plan)).ToList();
-        if (findings.Any(f => f.Severity == DiagnosticSeverity.Error))
+        var findings = new DiagnosticCollection(planPolicies.SelectMany(p => p.Validate(args.Plan)));
+        if (findings.HasErrors)
         {
             // Demote errors to warnings if the apply is forced.
             if (!args.Force)
             {
                 return Result.Failure<ApplyResult>(findings.Append(ApplyDiagnostics.BlockedByPolicy));
             }
-            findings = [.. findings.Select(f => f.Downgrade(DiagnosticSeverity.Warning))];
+            findings.Demote(DiagnosticSeverity.Warning);
         }
 
         // An empty plan executes nothing, but still records state.
