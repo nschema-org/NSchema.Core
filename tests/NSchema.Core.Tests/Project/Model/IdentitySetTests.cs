@@ -138,6 +138,23 @@ public sealed class IdentitySetTests
     }
 
     [Fact]
+    public void CoveredBy_ObjectEntry_CoversTheObject_NotItsSchema()
+    {
+        // The managed-set math depends on this: targeting an object must not claim (or release) management
+        // of its schema container. Extensions stay database-global, covered by every scope.
+        var set = new IdentitySet(
+            Schemas: [_app],
+            Objects: [Table("users"), Table("orders")],
+            Extensions: [new SqlIdentifier("citext")]);
+
+        var covered = set.CoveredBy(PlanningScope.To([new ObjectAddress(_app, new SqlIdentifier("users"))]));
+
+        covered.Schemas.ShouldBeEmpty();
+        covered.Objects.ShouldBe([Table("users")]);
+        covered.Extensions.ShouldBe([new SqlIdentifier("citext")]);
+    }
+
+    [Fact]
     public void ScopedTo_IsFilteringByTheCover()
     {
         // One tree filter serves both surfaces: scoping a database is filtering it to the covered identities.

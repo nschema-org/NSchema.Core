@@ -214,6 +214,27 @@ public sealed class MigrationPlannerTests
     }
 
     [Fact]
+    public void Plan_ObjectTargetedTeardown_ReleasesTheTarget_AndKeepsItsSchemaManaged()
+    {
+        // Arrange — targeting one object converges only it towards nothing: the container and its siblings
+        // stay managed, because an object entry covers nothing above or beside itself.
+        var app = new SqlIdentifier("app");
+        var users = new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, new SqlIdentifier("users")));
+        var orders = new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, new SqlIdentifier("orders")));
+        var current = new CurrentState(_emptySchema)
+        {
+            Managed = new IdentitySet(Schemas: [app], Objects: [users, orders]),
+        };
+
+        // Act
+        var plan = Sut.Plan(current, new ProjectDefinition(new Database()), PlanningScope.To([users.Address])).Value!;
+
+        // Assert
+        plan.Managed.Schemas.ShouldBe([app]);
+        plan.Managed.Objects.ShouldBe([orders]);
+    }
+
+    [Fact]
     public void Plan_Teardown_EmptiesTheManagedSet()
     {
         // Arrange — a teardown converges towards nothing: everything in scope stops being managed.

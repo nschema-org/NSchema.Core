@@ -179,6 +179,30 @@ public sealed class PlanEndToEndTests : IDisposable
     }
 
     [Fact]
+    public async Task Plan_ObjectTargeted_ConvergesTheTargetAlone()
+    {
+        // Targeting one object out of a wider project: its sibling stays out of the diff, the container's
+        // creation rides along as a dependency, and management is claimed for exactly what the plan covers.
+        var desired = WriteNsql("schema.sql", "CREATE SCHEMA app; CREATE TABLE app.users (id int); CREATE TABLE app.orders (id int);");
+
+        using var app = NewBuilder(new Database()).AddProjectSource(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).UseSqlDialect<StubSqlDialect>().Build();
+
+        var users = new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users"));
+        var result = await app.Operations.Plan(
+            new PlanArguments { Scope = PlanningScope.To([users]) },
+            TestContext.Current.CancellationToken);
+
+        var plan = result.Value.ShouldNotBeNull().Plan.ShouldNotBeNull();
+
+        var schema = plan.Diff.Schemas.ShouldHaveSingleItem();
+        schema.Kind.ShouldBe(ChangeKind.Add);
+        schema.Tables.ShouldHaveSingleItem().Name.ShouldBe("users");
+
+        plan.Managed.Schemas.ShouldBe([new SqlIdentifier("app")]);
+        plan.Managed.Objects.ShouldHaveSingleItem().ShouldBe(new ObjectIdentity(ObjectKind.Table, users));
+    }
+
+    [Fact]
     public async Task Plan_Teardown_DiffsTheManagedSchemaDownToNothing()
     {
         // The managed schema is the recorded state, so the refresh records the live schema before tearing down.

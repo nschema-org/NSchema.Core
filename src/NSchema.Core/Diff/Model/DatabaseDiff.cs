@@ -1,4 +1,6 @@
+using NSchema.Diff.Model.CompositeTypes;
 using NSchema.Diff.Model.Constraints;
+using NSchema.Diff.Model.Domains;
 using NSchema.Diff.Model.Extensions;
 using NSchema.Diff.Model.Schemas;
 using NSchema.Diff.Model.Services;
@@ -140,7 +142,8 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
     }
 
     /// <summary>
-    /// Restricts the diff to <paramref name="scope"/>, adding back what its removals sever beyond it.
+    /// Restricts the diff to <paramref name="scope"/>, adding back what its removals sever beyond it. A removal
+    /// only a data-bearing column depends on cannot be widened over and fails the result instead.
     /// </summary>
     /// <param name="scope">The schemas in play.</param>
     /// <param name="current">The whole current database — the closure has to see past the scope to be right.</param>
@@ -151,7 +154,7 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
             return this;
         }
 
-        var narrowed = this with { Schemas = [.. Schemas.Where(s => scope.Contains(s.Name))] };
+        var narrowed = this with { Schemas = [.. Schemas.Select(s => s.ScopedTo(scope)).OfType<SchemaDiff>()] };
 
         var graph = new DependencyGraph(current);
         var removals = Removals(narrowed).ToList();
@@ -163,23 +166,47 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
         }
 
         // Everything reached without believing a guess is asserted; the remainder is hedged, because an edge
-        // scanned out of a view body can be wrong, and here a wrong edge removes something that need not go.
+        // scanned out of a view body or bound by a bare type name can be wrong, and here a wrong edge removes
+        // something that need not go.
         var stated = graph.StatedDependentsOf(removals).Where(OutOfScope).ToHashSet();
-        var inferred = severed.Where(n => !stated.Contains(n)).ToList();
+
+        // Closure severs definitions, never data: a constraint, view, domain, or composite type is re-creatable
+        // from its declaration, but a column stands for its table's rows — so a column dependent blocks the
+        // removal instead of widening the plan.
+        var (blocked, severable) = (Columns(severed), Others(severed));
 
         List<Diagnostic> diagnostics = [];
-        if (stated.Count > 0)
+        if (Others(stated) is { Count: > 0 } statedSeverable)
         {
-            diagnostics.Add(DiffDiagnostics.SeveredOutOfScope(stated.Select(n => n.Address)));
+            diagnostics.Add(DiffDiagnostics.SeveredOutOfScope(statedSeverable.Select(n => n.Address)));
         }
-        if (inferred.Count > 0)
+        if (severable.Where(n => !stated.Contains(n)).ToList() is { Count: > 0 } inferredSeverable)
         {
-            diagnostics.Add(DiffDiagnostics.InferredSeveredOutOfScope(inferred.Select(n => n.Address)));
+            diagnostics.Add(DiffDiagnostics.InferredSeveredOutOfScope(inferredSeverable.Select(n => n.Address)));
+        }
+        if (Columns(stated) is { Count: > 0 } statedBlocked)
+        {
+            diagnostics.Add(DiffDiagnostics.ColumnBlocksRemoval(statedBlocked.Select(n => n.Address)));
+        }
+        if (blocked.Where(n => !stated.Contains(n)).ToList() is { Count: > 0 } inferredBlocked)
+        {
+            diagnostics.Add(DiffDiagnostics.InferredColumnMayBlockRemoval(inferredBlocked.Select(n => n.Address)));
         }
 
-        return Result.From(Widen(narrowed, severed), diagnostics);
+        return Result.From(Widen(narrowed, severable), diagnostics);
 
-        bool OutOfScope(DependencyNode node) => node.Address.SchemaName is { } schema && !scope.Contains(schema);
+        bool OutOfScope(DependencyNode node) => node.Address switch
+        {
+            ObjectAddress address => !scope.Contains(address),
+            MemberAddress member => !scope.Contains(member.Owner),
+            _ => false,
+        };
+
+        static List<DependencyNode> Columns(IEnumerable<DependencyNode> nodes) =>
+            [.. nodes.Where(n => n.Kind == DependencyKind.Column)];
+
+        static List<DependencyNode> Others(IEnumerable<DependencyNode> nodes) =>
+            [.. nodes.Where(n => n.Kind != DependencyKind.Column)];
     }
 
     /// <summary>
@@ -198,6 +225,21 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
             {
                 yield return new DependencyNode(new ObjectAddress(schema.Name, view.Name), DependencyKind.View);
             }
+
+            foreach (var @enum in schema.Enums.Where(e => e.Kind == ChangeKind.Remove))
+            {
+                yield return new DependencyNode(new ObjectAddress(schema.Name, @enum.Name), DependencyKind.Enum);
+            }
+
+            foreach (var domain in schema.Domains.Where(d => d.Kind == ChangeKind.Remove))
+            {
+                yield return new DependencyNode(new ObjectAddress(schema.Name, domain.Name), DependencyKind.Domain);
+            }
+
+            foreach (var composite in schema.CompositeTypes.Where(c => c.Kind == ChangeKind.Remove))
+            {
+                yield return new DependencyNode(new ObjectAddress(schema.Name, composite.Name), DependencyKind.CompositeType);
+            }
         }
     }
 
@@ -206,22 +248,49 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
     /// </summary>
     /// <remarks>
     /// A severed schema is only ever touched, never dropped, so its <see cref="SchemaDiff.Kind"/> stays null:
-    /// the run is not about this schema, it just cannot avoid it.
+    /// the run is not about this schema, it just cannot avoid it. A partially-covered schema may already be
+    /// in the diff, in which case the severed changes join its entry.
     /// </remarks>
     private static DatabaseDiff Widen(DatabaseDiff diff, IReadOnlyList<DependencyNode> severed)
     {
-        var added = severed
-            .Where(n => n.Address.SchemaName is not null)
-            .GroupBy(n => n.Address.SchemaName!)
-            .Select(bySchema => new SchemaDiff(
+        var schemas = diff.Schemas.ToList();
+
+        foreach (var bySchema in severed.Where(n => n.Address.SchemaName is not null).GroupBy(n => n.Address.SchemaName!))
+        {
+            var addition = new SchemaDiff(
                 bySchema.Key,
                 Tables: [.. SeveredTables(bySchema)],
                 Views: [.. bySchema
                     .Where(n => n.Kind == DependencyKind.View)
                     .Select(n => new ViewDiff(bySchema.Key, ((ObjectAddress)n.Address).Name, ChangeKind.Remove))
-                    .OrderBy(v => v.Name)]));
+                    .OrderBy(v => v.Name)],
+                Domains: [.. bySchema
+                    .Where(n => n.Kind == DependencyKind.Domain)
+                    .Select(n => new DomainDiff(bySchema.Key, ((ObjectAddress)n.Address).Name, ChangeKind.Remove))
+                    .OrderBy(d => d.Name)],
+                CompositeTypes: [.. bySchema
+                    .Where(n => n.Kind == DependencyKind.CompositeType)
+                    .Select(n => new CompositeTypeDiff(bySchema.Key, ((ObjectAddress)n.Address).Name, ChangeKind.Remove))
+                    .OrderBy(c => c.Name)]);
 
-        return diff with { Schemas = [.. diff.Schemas, .. added] };
+            var index = schemas.FindIndex(s => s.Name == bySchema.Key);
+            if (index < 0)
+            {
+                schemas.Add(addition);
+            }
+            else
+            {
+                schemas[index] = schemas[index] with
+                {
+                    Tables = [.. schemas[index].Tables, .. addition.Tables],
+                    Views = [.. schemas[index].Views, .. addition.Views],
+                    Domains = [.. schemas[index].Domains, .. addition.Domains],
+                    CompositeTypes = [.. schemas[index].CompositeTypes, .. addition.CompositeTypes],
+                };
+            }
+        }
+
+        return diff with { Schemas = schemas };
     }
 
     /// <summary>

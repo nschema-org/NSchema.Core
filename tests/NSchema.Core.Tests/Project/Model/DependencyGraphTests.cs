@@ -1,5 +1,8 @@
 using NSchema.Model;
 using NSchema.Model.Columns;
+using NSchema.Model.CompositeTypes;
+using NSchema.Model.Domains;
+using NSchema.Model.Enums;
 using NSchema.Model.Schemas;
 using NSchema.Model.Services;
 using NSchema.Model.Tables;
@@ -241,5 +244,126 @@ public class DependencyGraphTests
         // Assert
         graph.At(new ObjectAddress(Id("app"), Id("users"))).ShouldHaveSingleItem().ShouldBe(Table("app", "users"));
         graph.At(new ObjectAddress(Id("app"), Id("nope"))).ShouldBeEmpty();
+    }
+
+    private static DependencyNode Enum(string schema, string name) =>
+        new(new ObjectAddress(Id(schema), Id(name)), DependencyKind.Enum);
+
+    private static DependencyNode Domain(string schema, string name) =>
+        new(new ObjectAddress(Id(schema), Id(name)), DependencyKind.Domain);
+
+    private static DependencyNode Composite(string schema, string name) =>
+        new(new ObjectAddress(Id(schema), Id(name)), DependencyKind.CompositeType);
+
+    private static DependencyNode ColumnNode(string schema, string table, string column) =>
+        new(new MemberAddress(Id(schema), Id(table), Id(column)), DependencyKind.Column);
+
+    private static Schema WithStatusEnum(string schema) => new()
+    {
+        Name = Id(schema),
+        Enums = [new EnumType { Name = Id("status"), Values = ["new", "done"] }],
+    };
+
+    private static Table WithTypedColumn(string table, string column, SqlType type) => new()
+    {
+        Name = Id(table),
+        Columns = [new Column { Name = Id(column), Type = type }],
+    };
+
+    [Fact]
+    public void DependentsOf_EnumUsedByAColumn_IsTheColumn_NotItsTable()
+    {
+        // Arrange — the column names its type qualified, so the edge is stated. What the drop costs is the
+        // column: its table is not required to go, but the column cannot outlive its type.
+        var schema = WithStatusEnum("app");
+        schema.Tables.Add(WithTypedColumn("orders", "state", SqlType.Custom(Id("app"), "status")));
+        var graph = new DependencyGraph(new Database { Schemas = [schema] });
+
+        // Act & Assert
+        graph.DependentsOf(Enum("app", "status")).ShouldHaveSingleItem().ShouldBe(ColumnNode("app", "orders", "state"));
+        graph.StatedDependentsOf([Enum("app", "status")]).ShouldHaveSingleItem().ShouldBe(ColumnNode("app", "orders", "state"));
+    }
+
+    [Fact]
+    public void DependentsOf_BareTypeName_BindsToTheOnlyMatch_AsAGuess()
+    {
+        // Arrange — a bare name would be resolved by the engine's search path, which NSchema does not know;
+        // a unique match is a good guess, so the edge exists but is hedged.
+        var schema = WithStatusEnum("app");
+        schema.Tables.Add(WithTypedColumn("orders", "state", SqlType.Custom("status")));
+        var graph = new DependencyGraph(new Database { Schemas = [schema] });
+
+        // Act & Assert
+        graph.DependentsOf(Enum("app", "status")).ShouldHaveSingleItem().ShouldBe(ColumnNode("app", "orders", "state"));
+        graph.StatedDependentsOf([Enum("app", "status")]).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void DependentsOf_BareTypeName_AmbiguousAcrossSchemas_BindsNothing()
+    {
+        // Arrange — two schemas declare a 'status'; guessing between them could sever the wrong thing.
+        var app = WithStatusEnum("app");
+        app.Tables.Add(WithTypedColumn("orders", "state", SqlType.Custom("status")));
+        var graph = new DependencyGraph(new Database { Schemas = [app, WithStatusEnum("sales")] });
+
+        // Act & Assert
+        graph.DependentsOf(Enum("app", "status")).ShouldBeEmpty();
+        graph.DependentsOf(Enum("sales", "status")).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void DependentsOf_BuiltInColumnTypes_ProduceNoEdges()
+    {
+        // Arrange — 'int' names no declared type, so nothing binds.
+        var schema = WithStatusEnum("app");
+        schema.Tables.Add(WithTypedColumn("orders", "id", SqlType.Int));
+        var graph = new DependencyGraph(new Database { Schemas = [schema] });
+
+        // Assert
+        graph.DependentsOf(Enum("app", "status")).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void DependentsOf_EnumUnderADomain_IsTheDomain()
+    {
+        // Arrange — the domain's base type is part of its declaration, so the edge is stated.
+        var schema = WithStatusEnum("app");
+        schema.Domains.Add(new DomainType { Name = Id("tracked_status"), DataType = SqlType.Custom(Id("app"), "status") });
+        var graph = new DependencyGraph(new Database { Schemas = [schema] });
+
+        // Assert
+        graph.DependentsOf(Enum("app", "status")).ShouldHaveSingleItem().ShouldBe(Domain("app", "tracked_status"));
+    }
+
+    [Fact]
+    public void DependentsOf_EnumInACompositeField_IsTheCompositeType()
+    {
+        // Arrange
+        var schema = WithStatusEnum("app");
+        schema.CompositeTypes.Add(new CompositeType
+        {
+            Name = Id("audit_entry"),
+            Fields = [new CompositeField(Id("state"), SqlType.Custom(Id("app"), "status")), new CompositeField(Id("at"), SqlType.DateTime)],
+        });
+        var graph = new DependencyGraph(new Database { Schemas = [schema] });
+
+        // Assert
+        graph.DependentsOf(Enum("app", "status")).ShouldHaveSingleItem().ShouldBe(Composite("app", "audit_entry"));
+    }
+
+    [Fact]
+    public void AllDependentsOf_Enum_WalksThroughTheDomainToTheColumnsOnIt()
+    {
+        // Arrange — app.status ← app.tracked_status (domain) ← billing.orders.state (column on the domain).
+        var app = WithStatusEnum("app");
+        app.Domains.Add(new DomainType { Name = Id("tracked_status"), DataType = SqlType.Custom(Id("app"), "status") });
+        var billing = new Schema { Name = Id("billing"), Tables = [WithTypedColumn("orders", "state", SqlType.Custom(Id("app"), "tracked_status"))] };
+        var graph = new DependencyGraph(new Database { Schemas = [app, billing] });
+
+        // Act — dropping the enum costs the domain, and the domain costs every column declared against it.
+        var closure = graph.AllDependentsOf([Enum("app", "status")]);
+
+        // Assert
+        closure.ShouldBe([Domain("app", "tracked_status"), ColumnNode("billing", "orders", "state")], ignoreOrder: true);
     }
 }

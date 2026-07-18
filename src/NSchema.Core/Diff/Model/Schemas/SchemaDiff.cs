@@ -80,6 +80,38 @@ public sealed record SchemaDiff(
     public IReadOnlyList<CompositeTypeDiff> CompositeTypes { get; init; } = CompositeTypes ?? [];
 
     /// <summary>
+    /// Narrows this schema's changes to what <paramref name="scope"/> covers, or <see langword="null"/> when nothing in it is covered.
+    /// </summary>
+    public SchemaDiff? ScopedTo(PlanningScope scope)
+    {
+        if (scope.Contains(Name))
+        {
+            return this;
+        }
+
+        var narrowed = this with
+        {
+            Kind = Kind == ChangeKind.Add ? ChangeKind.Add : null,
+            RenamedFrom = null,
+            Comment = null,
+            Grants = [],
+            Tables = [.. Tables.Where(Covered)],
+            Views = [.. Views.Where(Covered)],
+            Enums = [.. Enums.Where(Covered)],
+            Sequences = [.. Sequences.Where(Covered)],
+            Routines = [.. Routines.Where(Covered)],
+            Domains = [.. Domains.Where(Covered)],
+            CompositeTypes = [.. CompositeTypes.Where(Covered)],
+        };
+
+        // The container rides only as a dependency: with nothing covered inside it, the schema is not this
+        // run's business at all.
+        return narrowed.EnumerateObjects().Any() ? narrowed : null;
+
+        bool Covered(ISchemaObjectDiff diff) => scope.Contains(new ObjectAddress(Name, diff.Name));
+    }
+
+    /// <summary>
     /// Enumerates every changed object in this schema across all kinds, for kind-agnostic consumers (change
     /// summaries, destructive-change detection). A method rather than a property so serializers and snapshot
     /// tooling do not duplicate the per-kind collections.

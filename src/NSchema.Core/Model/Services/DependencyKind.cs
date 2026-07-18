@@ -18,5 +18,25 @@ internal enum DependencyKind
     /// <summary>
     /// A foreign key constraint on a table.
     /// </summary>
-    ForeignKey
+    ForeignKey,
+
+    /// <summary>
+    /// An enum type.
+    /// </summary>
+    Enum,
+
+    /// <summary>
+    /// A domain.
+    /// </summary>
+    Domain,
+
+    /// <summary>
+    /// A composite type.
+    /// </summary>
+    CompositeType,
+
+    /// <summary>
+    /// A column on a table.
+    /// </summary>
+    Column
 }

@@ -1,3 +1,4 @@
+using NSchema.Model.Columns;
 using NSchema.Model.Tables;
 
 namespace NSchema.Model.Services;
@@ -11,14 +12,10 @@ namespace NSchema.Model.Services;
 /// </remarks>
 internal sealed class DependencyGraph
 {
-    //
     private readonly Dictionary<Address, List<DependencyNode>> _byAddress = [];
-
-    //
     private readonly Dictionary<DependencyNode, List<Edge>> _requires = [];
-
-    //
     private readonly Dictionary<DependencyNode, List<Edge>> _requiredBy = [];
+    private readonly ILookup<SqlIdentifier, ObjectAddress> _typesByName;
 
     private readonly record struct Edge(DependencyNode Node, DependencyCertainty Certainty);
 
@@ -29,6 +26,12 @@ internal sealed class DependencyGraph
     {
         var allTables = database.Schemas.SelectMany(s => s.Tables.Select(t => (Schema: s.Name, Table: t))).ToList();
         var allViews = database.Schemas.SelectMany(s => s.Views.Select(v => (Schema: s.Name, View: v))).ToList();
+        var allTypes = database.Schemas.SelectMany(s =>
+            s.Enums.Select(e => (Schema: s.Name, e.Name, Kind: DependencyKind.Enum))
+                .Concat(s.Domains.Select(d => (Schema: s.Name, d.Name, Kind: DependencyKind.Domain)))
+                .Concat(s.CompositeTypes.Select(c => (Schema: s.Name, c.Name, Kind: DependencyKind.CompositeType)))).ToList();
+
+        _typesByName = allTypes.ToLookup(t => t.Name, t => new ObjectAddress(t.Schema, t.Name));
 
         // Nodes first: an edge can point at anything, including something declared later.
         foreach (var (schema, table) in allTables)
@@ -43,6 +46,11 @@ internal sealed class DependencyGraph
         foreach (var (schema, view) in allViews)
         {
             Add(new DependencyNode(new ObjectAddress(schema, view.Name), DependencyKind.View));
+        }
+
+        foreach (var (schema, name, kind) in allTypes)
+        {
+            Add(new DependencyNode(new ObjectAddress(schema, name), kind));
         }
 
         foreach (var (schema, table) in allTables)
@@ -67,6 +75,31 @@ internal sealed class DependencyGraph
                 // What it reads was scanned out of SQL nobody parsed, so the edge is a guess — a good one for
                 // ordering two things already in a plan, not good enough to drag a third into it unannounced.
                 Connect(node, new ObjectAddress(dependency.Schema, dependency.Name), DependencyCertainty.Inferred);
+            }
+        }
+
+        // A declared data type may name a user type: from a column, from a domain's base, or from a composite's
+        // field. The dependent of a column edge is the column itself — its table is not required to go, but the
+        // column cannot outlive its type.
+        foreach (var (schema, table) in allTables)
+        {
+            foreach (var column in table.Columns)
+            {
+                ConnectToType(new DependencyNode(new MemberAddress(schema, table.Name, column.Name), DependencyKind.Column), column.Type);
+            }
+        }
+
+        foreach (var (schema, domain) in database.Schemas.SelectMany(s => s.Domains.Select(d => (Schema: s.Name, Domain: d))))
+        {
+            ConnectToType(new DependencyNode(new ObjectAddress(schema, domain.Name), DependencyKind.Domain), domain.DataType);
+        }
+
+        foreach (var (schema, composite) in database.Schemas.SelectMany(s => s.CompositeTypes.Select(c => (Schema: s.Name, Composite: c))))
+        {
+            var node = new DependencyNode(new ObjectAddress(schema, composite.Name), DependencyKind.CompositeType);
+            foreach (var field in composite.Fields)
+            {
+                ConnectToType(node, field.DataType);
             }
         }
     }
@@ -135,6 +168,29 @@ internal sealed class DependencyGraph
 
     private static DependencyNode ConstraintNode(SqlIdentifier schema, SqlIdentifier table, ForeignKey foreignKey) =>
         new(new MemberAddress(schema, table, foreignKey.Name), DependencyKind.ForeignKey);
+
+    private void ConnectToType(DependencyNode dependent, SqlType type)
+    {
+        if (ResolveType(type) is not var (address, certainty) || address == dependent.Address)
+        {
+            return;
+        }
+
+        Add(dependent);
+        Connect(dependent, address, certainty);
+    }
+
+    private (ObjectAddress Address, DependencyCertainty Certainty)? ResolveType(SqlType type)
+    {
+        if (type.Schema is { } schema)
+        {
+            return (new ObjectAddress(schema, type.Name), DependencyCertainty.Stated);
+        }
+
+        return _typesByName[type.Name].Take(2).ToList() is [var only]
+            ? (only, DependencyCertainty.Inferred)
+            : null;
+    }
 
     private static IReadOnlyCollection<DependencyNode> Nodes(
         Dictionary<DependencyNode, List<Edge>> edges, DependencyNode node, DependencyCertainty? only = null) =>

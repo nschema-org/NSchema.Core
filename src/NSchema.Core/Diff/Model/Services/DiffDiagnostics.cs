@@ -23,6 +23,24 @@ internal static class DiffDiagnostics
         "not parse SQL, so it reads view bodies to find this — check these before applying: a body it misread " +
         "means removing something that did not need to go.");
 
+    /// <summary>
+    /// Columns outside the scope that store data typed by something this run removes, which blocks the removal:
+    /// a column cannot be severed without destroying its data.
+    /// </summary>
+    public static Diagnostic ColumnBlocksRemoval(IEnumerable<Address> addresses) => Diagnostic.Error("scope",
+        $"This plan removes types that {Render(addresses)} still depend on for stored data. A column cannot be " +
+        "severed the way a constraint or view can — dropping it would destroy rows this run is not about — so " +
+        "the removal is blocked. Migrate those columns off the type first, or keep it declared.");
+
+    /// <summary>
+    /// The same, for columns reached only through a bare type name NSchema matched rather than one the model
+    /// qualifies — hedged, because a wrong match would block a plan that need not be.
+    /// </summary>
+    public static Diagnostic InferredColumnMayBlockRemoval(IEnumerable<Address> addresses) => Diagnostic.Warning("scope",
+        $"{Render(addresses)} appear to be typed by something this plan removes. The type name is unqualified, " +
+        "so NSchema matched it by name alone — if the match is right, the database will reject the removal at " +
+        "apply. Check before applying: migrate those columns off the type first, or keep it declared.");
+
     private static string Render(IEnumerable<Address> addresses) =>
         string.Join(", ", addresses.Select(a => $"'{a}'"));
 
