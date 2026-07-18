@@ -242,7 +242,7 @@ public sealed class TemplateExpanderTests
                 TEMPLATE t BEGIN CREATE TABLE outbox (id uuid NOT NULL); END;
                 APPLY TEMPLATE t IN SCHEMA billing;
                 """)
-            .Errors.ShouldContain(d => d.Message.Contains("Duplicate table 'outbox'"));
+            .Errors.ShouldContain(d => d.Message.Contains("Table 'billing.outbox' is already declared"));
 
     [Fact]
     public void Expand_ApplyingTheSameTemplateTwiceToOneSchema_IsAnError()
@@ -253,7 +253,7 @@ public sealed class TemplateExpanderTests
                 APPLY TEMPLATE t IN SCHEMA billing;
                 APPLY TEMPLATE t IN SCHEMA billing;
                 """)
-            .Errors.ShouldContain(d => d.Message.Contains("Duplicate table 'outbox'"));
+            .Errors.ShouldContain(d => d.Message.Contains("Table 'billing.outbox' is already declared"));
 
     // --- table templates (INCLUDE) ---------------------------------------------
 

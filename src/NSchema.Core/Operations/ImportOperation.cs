@@ -2,7 +2,6 @@ using NSchema.Deployment;
 using NSchema.Model;
 using NSchema.Model.Schemas;
 using NSchema.Operations.Progress;
-using NSchema.Project.Model.Services;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Operations;
@@ -132,8 +131,8 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
 
     private static Database Merge(Database existing, Database incoming)
     {
-        // Strip any objects from existing that appear in the incoming import so the
-        // aggregator sees no duplicates, then aggregate. Incoming objects win on conflict.
+        // Strip any objects from existing that appear in the incoming import, then graft the incoming
+        // objects in — incoming wins on overlap, and everything else is left in place.
         var incomingBySchema = incoming.Schemas.ToDictionary(s => s.Name, s => s);
 
         // The existing tree was just parsed from the file, so it is ours to prune in place.
@@ -149,14 +148,54 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
             PruneByName(s.Sequences, i.Sequences, q => q.Name);
             PruneByName(s.Routines, i.Routines, r => r.Name);
             PruneByName(s.Domains, i.Domains, d => d.Name);
+            PruneByName(s.CompositeTypes, i.CompositeTypes, c => c.Name);
         }
 
-        // Root-level extensions are pruned by name too, so a re-imported extension merges in (incoming wins)
-        // rather than tripping the aggregator's duplicate detection.
+        // Root-level extensions are pruned by name too, so a re-imported extension merges in rather than
+        // duplicating.
         PruneByName(existing.Extensions, incoming.Extensions, e => e.Name);
 
-        // Pruning removed every overlapping object first, so this merge cannot collide.
-        return DatabaseAggregator.Combine(existing, incoming).Require();
+        // Pruning removed every overlap, so nothing can collide; incoming nodes are copied in, never
+        // re-parented.
+        foreach (var incomingSchema in incoming.Schemas)
+        {
+            var schema = existing.Schemas.FirstOrDefault(s => s.Name == incomingSchema.Name);
+            if (schema is null)
+            {
+                existing.Schemas.Add(incomingSchema.Clone());
+                continue;
+            }
+
+            Graft(incomingSchema.Tables, schema.Tables);
+            Graft(incomingSchema.Views, schema.Views);
+            Graft(incomingSchema.Enums, schema.Enums);
+            Graft(incomingSchema.Sequences, schema.Sequences);
+            Graft(incomingSchema.Routines, schema.Routines);
+            Graft(incomingSchema.Domains, schema.Domains);
+            Graft(incomingSchema.CompositeTypes, schema.CompositeTypes);
+            foreach (var grant in incomingSchema.Grants.Where(g => !schema.Grants.Contains(g)))
+            {
+                schema.Grants.Add(grant);
+            }
+            if (incomingSchema.Comment is not null)
+            {
+                schema.Comment = incomingSchema.Comment;
+            }
+        }
+        foreach (var extension in incoming.Extensions)
+        {
+            existing.Extensions.Add(extension.Clone());
+        }
+
+        return existing;
+    }
+
+    private static void Graft<T>(IReadOnlyList<T> incoming, DatabaseObjectCollection<T> target) where T : DatabaseObject
+    {
+        foreach (var item in incoming)
+        {
+            target.Add((T)item.Clone());
+        }
     }
 
     private static void PruneByName<T>(IList<T> existing, IReadOnlyList<T> incoming, Func<T, SqlIdentifier> name)

@@ -15,32 +15,32 @@ internal static class ProjectAssembler
     public static Result<ProjectDefinition> Assemble(IReadOnlyList<NsqlDocument> documents)
     {
         var diagnostics = new DiagnosticCollector();
-        var database = new Database();
+        var accumulator = new DatabaseAccumulator();
         var schemaTemplates = new List<SchemaTemplateStatement>();
         var tableTemplates = new List<TableTemplateStatement>();
-        var applications = new List<ApplyTemplateStatement>();
-        var includes = new List<TemplateInclude>();
+        var applications = new List<TemplateApplication>();
         var directives = new DirectiveCollector();
 
         foreach (var document in documents)
         {
-            var accumulator = new DatabaseAccumulator();
-            var documentDiagnostics = new List<NsqlDiagnostic>();
+            // Set the current file context so it can be attached to any reported diagnostics.
+            accumulator.CurrentFile = document.FilePath;
             foreach (var statement in document.Statements)
             {
                 switch (statement)
                 {
                     case SchemaTemplateStatement template:
                         // Validating the body (internal duplicates, stray-qualified declarations) at read
-                        // time, whether or not the template is ever applied.
-                        documentDiagnostics.AddRange(DocumentProjector.ValidateTemplateBody(template));
+                        // time, whether the template is ever applied.
+                        var validateResult = DocumentProjector.ValidateTemplateBody(template);
+                        diagnostics.Add(validateResult.Select(d => d with { File = document.FilePath }));
                         schemaTemplates.Add(template);
                         break;
                     case TableTemplateStatement template:
                         tableTemplates.Add(template);
                         break;
                     case ApplyTemplateStatement application:
-                        applications.Add(application);
+                        applications.Add(new TemplateApplication(application, document.FilePath));
                         break;
                     case Nsql.Syntax.Config.ConfigStatement:
                         // Configuration is not project content; the config read seam interprets it.
@@ -52,26 +52,28 @@ internal static class ProjectAssembler
                         break;
                 }
             }
-
-            // A same-file finding (a duplicate declaration, a broken template body) carries its position and
-            // file structurally, like a parse error — and the document's healthy statements still aggregate.
-            var fragment = accumulator.Build();
-            documentDiagnostics.AddRange(accumulator.Diagnostics);
-            diagnostics.Add(documentDiagnostics.Select(d => d with { File = document.FilePath }));
-
-            database = diagnostics.Require(DatabaseAggregator.Combine(database, fragment));
-            includes.AddRange(accumulator.Includes);
         }
+        accumulator.CurrentFile = null;
 
-        // Apply all templates: application failures accumulate the same way. A template instance's directives
-        // (its scripts, its object renames/drops) come back scoped to their applied schema and merge with the
-        // top-level ones, so the whole project's directives assemble in one collector.
-        var (expandedDatabase, instanceDirectives) =
-            diagnostics.Require(TemplateExpander.Expand(database, schemaTemplates, tableTemplates, applications, includes));
-        directives.Absorb(instanceDirectives);
+        // Expand the template applications.
+        var templatesResult = TemplateExpander.BuildRegistry(schemaTemplates, tableTemplates);
+        var templates = diagnostics.Require(templatesResult);
+
+        var expandResult = TemplateExpander.Expand(accumulator, templates, applications);
+        var projectDirectives = diagnostics.Require(expandResult);
+        directives.Absorb(projectDirectives);
+
+        // Build once, now everything is together.
+        var database = accumulator.Build();
+        diagnostics.Add(accumulator.Diagnostics);
+
+        // Includes resolve over the aggregate, after expansion, so a templated table can include a template.
+        var resolver = new IncludeResolver(templates);
+        database = resolver.Resolve(database, accumulator.Includes);
+        diagnostics.Add(resolver.Diagnostics);
 
         var built = directives.Build();
-        var project = new ProjectDefinition(expandedDatabase, built);
+        var project = new ProjectDefinition(database, built);
 
         // Collisions are project errors, so validate before scoping drops any instance — all of them at once.
         diagnostics.Add(ValidateChangeTargets(built.ChangeScripts));

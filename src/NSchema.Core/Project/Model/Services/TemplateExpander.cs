@@ -8,10 +8,7 @@ using NSchema.Project.Nsql.Syntax.Templates;
 namespace NSchema.Project.Model.Services;
 
 /// <summary>
-/// Expands template applications during project assembly: a template instantiates by projecting its
-/// statement nodes once per applied schema, with unqualified names binding to that schema at projection —
-/// no placeholder rewriting. Includes resolve over the aggregate afterwards, so an instantiated table can
-/// itself include a table template.
+/// Expands template applications during project assembly.
 /// </summary>
 internal static class TemplateExpander
 {
@@ -21,21 +18,16 @@ internal static class TemplateExpander
     /// </summary>
     private sealed record TemplateInstance(Schema Schema, IReadOnlyList<TemplateInclude> Includes, ProjectDirectives Directives);
 
-    public static Result<(Database Database, ProjectDirectives Directives)> Expand(
-        Database database,
+    /// <summary>
+    /// Builds the template registry — one name space across both kinds, as ever: a schema template and a
+    /// table template cannot share a name.
+    /// </summary>
+    public static Result<IReadOnlyDictionary<SqlIdentifier, TemplateStatement>> BuildRegistry(
         IReadOnlyList<SchemaTemplateStatement> schemaTemplates,
-        IReadOnlyList<TableTemplateStatement> tableTemplates,
-        IReadOnlyList<ApplyTemplateStatement> applications,
-        IReadOnlyList<TemplateInclude> includes
+        IReadOnlyList<TableTemplateStatement> tableTemplates
     )
     {
         var diagnostics = new DiagnosticCollector();
-
-        // Each successful instance's directives (its scripts, and object renames/drops) accumulate here,
-        // scoped to their applied schema, and ride back for the assembler to merge with the top-level ones.
-        var instanceDirectives = new DirectiveCollector();
-
-        // One name space across both kinds, as ever: a schema template and a table template cannot share a name.
         var byName = new Dictionary<SqlIdentifier, TemplateStatement>();
         foreach (var template in schemaTemplates.Cast<TemplateStatement>().Concat(tableTemplates))
         {
@@ -46,11 +38,28 @@ internal static class TemplateExpander
             }
         }
 
-        var pendingIncludes = includes.ToList();
-        foreach (var application in applications)
+        return diagnostics.ToResult<IReadOnlyDictionary<SqlIdentifier, TemplateStatement>>(byName);
+    }
+
+    /// <summary>
+    /// Expands every application of a template.
+    /// </summary>
+    public static Result<ProjectDirectives> Expand(
+        DatabaseAccumulator accumulator,
+        IReadOnlyDictionary<SqlIdentifier, TemplateStatement> templates,
+        IReadOnlyList<TemplateApplication> applications
+    )
+    {
+        var diagnostics = new DiagnosticCollector();
+
+        // Each successful instance's directives (its scripts, and object renames) accumulate here, scoped
+        // to their applied schema, and ride back for the assembler to merge with the top-level ones.
+        var instanceDirectives = new DirectiveCollector();
+
+        foreach (var (application, file) in applications)
         {
             var templateName = new SqlIdentifier(application.TemplateName.Value);
-            if (!byName.TryGetValue(templateName, out var template))
+            if (!templates.TryGetValue(templateName, out var template))
             {
                 diagnostics.Add(TemplateDiagnostics.UnknownTemplate(templateName));
                 continue;
@@ -64,43 +73,90 @@ internal static class TemplateExpander
             foreach (var schemaNameNode in application.Schemas)
             {
                 var schemaName = new SqlIdentifier(schemaNameNode.Value);
-                if (database.Schemas.All(s => s.Name != schemaName))
+                if (!accumulator.HasSchema(schemaName))
                 {
                     diagnostics.Add(TemplateDiagnostics.UnknownTargetSchema(templateName, schemaName));
                     continue;
                 }
 
                 var instance = Instantiate(schemaTemplate, schemaName);
+                Absorb(accumulator, instance.Schema, templateName, schemaName, schemaNameNode.Position, file);
 
-                // The merge rejects an object the target schema already declares, exactly as if the
-                // instantiated objects had been written in the target schema by hand.
-                var combined = DatabaseAggregator.Combine(database, new Database { Schemas = [instance.Schema] });
-                if (combined.IsFailure)
+                // The instance's own includes resolve with everything else, so an instantiated table can
+                // itself include a template.
+                foreach (var include in instance.Includes)
                 {
-                    diagnostics.Add(combined.Diagnostics.Select(d =>
-                        d with { Message = $"APPLY TEMPLATE '{templateName}' IN SCHEMA {schemaName}: {d.Message}" }));
-                    continue;
+                    accumulator.AddInclude(include);
                 }
-                database = combined.Require();
-
-                // The instance's own includes resolve with everything else below, so an instantiated table
-                // can itself include a template. Its directives only count once the instance itself lands.
-                pendingIncludes.AddRange(instance.Includes);
                 instanceDirectives.Absorb(instance.Directives);
             }
         }
 
-        var resolver = new IncludeResolver(byName);
-        database = resolver.Resolve(database, pendingIncludes);
-        diagnostics.Add(resolver.Diagnostics);
+        return diagnostics.ToResult(instanceDirectives.Build());
+    }
 
-        return diagnostics.ToResult<(Database, ProjectDirectives)>((database, instanceDirectives.Build()));
+    /// <summary>
+    /// Absorbs one instance's objects into the accumulator, exactly as if they had been written in the
+    /// target schema by hand: a name the schema already declares is rejected per object by the ordinary
+    /// per-add check, and the rest of the instance still lands.
+    /// </summary>
+    private static void Absorb(
+        DatabaseAccumulator accumulator,
+        Schema instance,
+        SqlIdentifier templateName,
+        SqlIdentifier schemaName,
+        SourcePosition position,
+        string? file
+    )
+    {
+        accumulator.CurrentFile = file;
+        accumulator.Context = $"APPLY TEMPLATE '{templateName}' IN SCHEMA {schemaName}";
+        try
+        {
+            foreach (var table in instance.Tables)
+            {
+                accumulator.AddTable(schemaName, table.Clone(), position);
+            }
+            foreach (var view in instance.Views)
+            {
+                accumulator.AddView(schemaName, view.Clone(), position);
+            }
+            foreach (var enumType in instance.Enums)
+            {
+                accumulator.AddEnum(schemaName, enumType.Clone(), position);
+            }
+            foreach (var sequence in instance.Sequences)
+            {
+                accumulator.AddSequence(schemaName, sequence.Clone(), position);
+            }
+            foreach (var routine in instance.Routines)
+            {
+                accumulator.AddRoutine(schemaName, routine.Clone(), position);
+            }
+            foreach (var domain in instance.Domains)
+            {
+                accumulator.AddDomain(schemaName, domain.Clone(), position);
+            }
+            foreach (var compositeType in instance.CompositeTypes)
+            {
+                accumulator.AddCompositeType(schemaName, compositeType.Clone(), position);
+            }
+            foreach (var grant in instance.Grants)
+            {
+                accumulator.AddSchemaGrant(schemaName, grant.Role);
+            }
+        }
+        finally
+        {
+            accumulator.Context = null;
+            accumulator.CurrentFile = null;
+        }
     }
 
     /// <summary>
     /// Instantiates a schema template for one target schema: the body's declarations project with the target as
     /// their binding context (then unqualified type and trigger-function references the template itself declares
-    /// are qualified to it), while its directives — scripts, and object renames/drops — bind to the applied
+    /// are qualified to it), while its directives — scripts, and object renames — bind to the applied
     /// schema through the collector, the <c>{schema}</c> token substituted in script bodies.
     /// </summary>
     private static TemplateInstance Instantiate(SchemaTemplateStatement template, SqlIdentifier schemaName)
@@ -180,5 +236,4 @@ internal static class TemplateExpander
 
         return type with { Schema = schemaName };
     }
-
 }
