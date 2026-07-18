@@ -173,7 +173,7 @@ internal static class TemplateExpander
 
         // Only a type the instance itself declares binds to the target schema; a built-in or a type from
         // elsewhere is left for the engine's search path to resolve.
-        if (!declaredTypes.Contains(new SqlIdentifier(type.Name)))
+        if (!declaredTypes.Contains(type.Name))
         {
             return type;
         }
