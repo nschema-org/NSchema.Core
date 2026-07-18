@@ -17,8 +17,4 @@ public sealed record AddEnumValue(
     string Value,
     string? Before = null,
     string? After = null
-) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+) : MigrationAction;

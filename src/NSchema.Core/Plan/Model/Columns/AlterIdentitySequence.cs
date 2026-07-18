@@ -17,8 +17,4 @@ public sealed record AlterIdentitySequence(
     SqlIdentifier ColumnName,
     IdentityOptions? OldOptions,
     IdentityOptions? NewOptions
-) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+) : MigrationAction;

@@ -13,8 +13,4 @@ public sealed record AddExclusionConstraint(
     SqlIdentifier SchemaName,
     SqlIdentifier TableName,
     ExclusionConstraint ExclusionConstraint
-) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+) : MigrationAction;

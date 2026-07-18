@@ -12,8 +12,4 @@ public sealed record DropIndex(
     SqlIdentifier SchemaName,
     SqlIdentifier TableName,
     SqlIdentifier IndexName
-) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+) : MigrationAction;

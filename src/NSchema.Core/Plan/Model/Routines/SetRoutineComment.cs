@@ -11,8 +11,4 @@ namespace NSchema.Plan.Model.Routines;
 /// <param name="OldComment">The previous comment, if any.</param>
 /// <param name="NewComment">The new comment, if any.</param>
 /// <param name="Kind">Whether the routine is a function or a procedure.</param>
-public sealed record SetRoutineComment(SqlIdentifier SchemaName, SqlIdentifier RoutineName, string? OldComment, string? NewComment, RoutineKind Kind) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+public sealed record SetRoutineComment(SqlIdentifier SchemaName, SqlIdentifier RoutineName, string? OldComment, string? NewComment, RoutineKind Kind) : MigrationAction;

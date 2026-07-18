@@ -8,9 +8,6 @@ namespace NSchema.Plan.Model.Scripts;
 /// <param name="Script">The script to run.</param>
 public sealed record ExecuteScript(Script Script) : MigrationAction
 {
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-
     /// <summary>
     /// The script rendered verbatim.
     /// </summary>

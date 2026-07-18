@@ -4,8 +4,7 @@
     Action: {
       SchemaName: scratch,
       ViewName: temp_view,
-      IsMaterialized: false,
-      IsDestructive: true
+      IsMaterialized: false
     }
   },
   {
@@ -13,8 +12,7 @@
     Action: {
       SchemaName: app,
       ViewName: stale_view,
-      IsMaterialized: false,
-      IsDestructive: true
+      IsMaterialized: false
     }
   },
   {
@@ -22,15 +20,13 @@
     Action: {
       SchemaName: app,
       TableName: purchases,
-      ForeignKeyName: orders_user_fk,
-      IsDestructive: false
+      ForeignKeyName: orders_user_fk
     }
   },
   {
     Type: CreateSchema,
     Action: {
-      SchemaName: reporting,
-      IsDestructive: false
+      SchemaName: reporting
     }
   },
   {
@@ -38,8 +34,7 @@
     Action: {
       SchemaName: app,
       OldName: importance,
-      NewName: priority,
-      IsDestructive: false
+      NewName: priority
     }
   },
   {
@@ -53,8 +48,7 @@
           shipped
         ],
         Name: order_status
-      },
-      IsDestructive: false
+      }
     }
   },
   {
@@ -68,8 +62,7 @@
           Cycle: false
         },
         Name: order_id
-      },
-      IsDestructive: false
+      }
     }
   },
   {
@@ -78,8 +71,7 @@
       SchemaName: app,
       EnumName: priority,
       Value: medium,
-      After: low,
-      IsDestructive: false
+      After: low
     }
   },
   {
@@ -94,8 +86,7 @@
       NewOptions: {
         StartWith: 1000,
         Cycle: false
-      },
-      IsDestructive: false
+      }
     }
   },
   {
@@ -103,8 +94,7 @@
     Action: {
       SchemaName: app,
       OldName: old_score,
-      NewName: score,
-      IsDestructive: false
+      NewName: score
     }
   },
   {
@@ -116,8 +106,7 @@
         Arguments: amount numeric,
         Definition: RETURNS numeric AS $$ SELECT amount $$,
         Name: add_tax
-      },
-      IsDestructive: false
+      }
     }
   },
   {
@@ -130,8 +119,7 @@
         Arguments: before date,
         Definition: LANGUAGE sql AS $$ DELETE $$,
         Name: archive
-      },
-      IsDestructive: false
+      }
     }
   },
   {
@@ -143,8 +131,7 @@
         Arguments: user_id bigint, weight numeric,
         Definition: RETURNS numeric AS $$ SELECT 1 $$,
         Name: score
-      },
-      IsDestructive: true
+      }
     }
   },
   {
@@ -152,8 +139,7 @@
     Action: {
       SchemaName: app,
       OldName: purchases,
-      NewName: orders,
-      IsDestructive: false
+      NewName: orders
     }
   },
   {
@@ -162,8 +148,7 @@
       SchemaName: app,
       OldName: legacy_report,
       NewName: report,
-      IsMaterialized: false,
-      IsDestructive: false
+      IsMaterialized: false
     }
   },
   {
@@ -197,8 +182,7 @@
           }
         ],
         Name: users
-      },
-      IsDestructive: false
+      }
     }
   },
   {
@@ -212,8 +196,7 @@
         IsIdentity: false,
         Name: legacy_flag
       },
-      ColumnName: legacy_flag,
-      IsDestructive: true
+      ColumnName: legacy_flag
     }
   },
   {
@@ -226,8 +209,7 @@
         IsNullable: true,
         IsIdentity: false,
         Name: notes
-      },
-      IsDestructive: false
+      }
     }
   },
   {
@@ -237,8 +219,7 @@
       TableName: orders,
       ColumnName: total,
       OldType: int,
-      NewType: bigint,
-      IsDestructive: true
+      NewType: bigint
     }
   },
   {
@@ -248,8 +229,7 @@
       TableName: orders,
       ColumnName: total,
       OldNullable: true,
-      NewNullable: false,
-      IsDestructive: true
+      NewNullable: false
     }
   },
   {
@@ -258,8 +238,7 @@
       SchemaName: app,
       TableName: orders,
       ColumnName: total_label,
-      NewExpression: total::text,
-      IsDestructive: false
+      NewExpression: total::text
     }
   },
   {
@@ -272,8 +251,7 @@
           email
         ],
         Name: users_email_uq
-      },
-      IsDestructive: false
+      }
     }
   },
   {
@@ -286,8 +264,7 @@
           code
         ],
         Name: orders_code_uq
-      },
-      IsDestructive: false
+      }
     }
   },
   {
@@ -298,8 +275,7 @@
       CheckConstraint: {
         Expression: total >= 0,
         Name: orders_total_chk
-      },
-      IsDestructive: false
+      }
     }
   },
   {
@@ -316,8 +292,7 @@
         ],
         Method: gist,
         Name: orders_slot_excl
-      },
-      IsDestructive: false
+      }
     }
   },
   {
@@ -333,8 +308,7 @@
         ],
         IsUnique: true,
         Name: users_name_ix
-      },
-      IsDestructive: false
+      }
     }
   },
   {
@@ -355,8 +329,7 @@
           code
         ],
         Name: orders_total_ix
-      },
-      IsDestructive: false
+      }
     }
   },
   {
@@ -374,8 +347,7 @@
         ],
         IsMaterialized: false,
         Name: active_users
-      },
-      IsDestructive: false
+      }
     }
   },
   {
@@ -393,8 +365,7 @@
         ],
         IsMaterialized: false,
         Name: user_summary
-      },
-      IsDestructive: false
+      }
     }
   },
   {
@@ -403,24 +374,21 @@
       SchemaName: app,
       TableName: users,
       Role: readers,
-      Privileges: ReadOnly,
-      IsDestructive: false
+      Privileges: ReadOnly
     }
   },
   {
     Type: DropTable,
     Action: {
       SchemaName: scratch,
-      TableName: temp_data,
-      IsDestructive: true
+      TableName: temp_data
     }
   },
   {
     Type: DropRoutine,
     Action: {
       SchemaName: app,
-      RoutineName: stale_fn,
-      IsDestructive: true
+      RoutineName: stale_fn
     }
   },
   {
@@ -428,47 +396,41 @@
     Action: {
       SchemaName: app,
       RoutineName: stale_proc,
-      Kind: Procedure,
-      IsDestructive: true
+      Kind: Procedure
     }
   },
   {
     Type: DropEnum,
     Action: {
       SchemaName: app,
-      EnumName: stale_enum,
-      IsDestructive: true
+      EnumName: stale_enum
     }
   },
   {
     Type: DropEnum,
     Action: {
       SchemaName: scratch,
-      EnumName: temp_status,
-      IsDestructive: true
+      EnumName: temp_status
     }
   },
   {
     Type: DropSequence,
     Action: {
       SchemaName: app,
-      SequenceName: stale_seq,
-      IsDestructive: true
+      SequenceName: stale_seq
     }
   },
   {
     Type: DropSequence,
     Action: {
       SchemaName: scratch,
-      SequenceName: temp_seq,
-      IsDestructive: true
+      SequenceName: temp_seq
     }
   },
   {
     Type: DropSchema,
     Action: {
-      SchemaName: scratch,
-      IsDestructive: true
+      SchemaName: scratch
     }
   }
 ]

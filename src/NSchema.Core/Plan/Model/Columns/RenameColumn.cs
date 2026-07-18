@@ -14,8 +14,4 @@ public sealed record RenameColumn(
     SqlIdentifier TableName,
     SqlIdentifier OldName,
     SqlIdentifier NewName
-) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+) : MigrationAction;

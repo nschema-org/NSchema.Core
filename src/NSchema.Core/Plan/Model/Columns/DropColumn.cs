@@ -13,7 +13,4 @@ public sealed record DropColumn(SqlIdentifier SchemaName, SqlIdentifier TableNam
 {
     /// <summary>The name of the column to be removed.</summary>
     public SqlIdentifier ColumnName => Column.Name;
-
-    /// <inheritdoc />
-    public override bool IsDestructive => true;
 }

@@ -13,8 +13,4 @@ public sealed record AddForeignKey(
     SqlIdentifier SchemaName,
     SqlIdentifier TableName,
     ForeignKey ForeignKey
-) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+) : MigrationAction;

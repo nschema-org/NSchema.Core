@@ -7,8 +7,4 @@ namespace NSchema.Plan.Model.Schemas;
 /// </summary>
 /// <param name="OldName">The current name of the schema to be renamed.</param>
 /// <param name="NewName">The new name for the schema to be renamed.</param>
-public sealed record RenameSchema(SqlIdentifier OldName, SqlIdentifier NewName) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+public sealed record RenameSchema(SqlIdentifier OldName, SqlIdentifier NewName) : MigrationAction;

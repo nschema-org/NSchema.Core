@@ -13,8 +13,4 @@ public sealed record AddCheckConstraint(
     SqlIdentifier SchemaName,
     SqlIdentifier TableName,
     CheckConstraint CheckConstraint
-) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+) : MigrationAction;

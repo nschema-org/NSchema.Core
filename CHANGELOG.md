@@ -77,6 +77,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **Narrowed public surface.** A variety of types that should never have been exposed have been made internal.
 - `PolicyDiagnostics`, `PluginConfigureResult`, and the `DestructiveActionPolicy` enum — all made redundant by first-class severity on `Result` and the shared `PolicyEnforcement`.
 - `DdlSyntaxException`, `PlanFileDeserializationException`, and `StateDeserializationException` are now internal; the read seams surface these failures as diagnostics.
+- `MigrationAction.IsDestructive` has been removed. Destructiveness is judged from the diff by `DestructiveActionPolicy`, not per action.
 
 ## [4.6.1] - 2026-07-10
 

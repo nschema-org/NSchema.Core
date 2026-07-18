@@ -9,8 +9,4 @@ namespace NSchema.Plan.Model.CompositeTypes;
 /// <param name="TypeName">The name of the composite type.</param>
 /// <param name="OldComment">The previous comment, if any.</param>
 /// <param name="NewComment">The new comment, if any.</param>
-public sealed record SetCompositeTypeComment(SqlIdentifier SchemaName, SqlIdentifier TypeName, string? OldComment, string? NewComment) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+public sealed record SetCompositeTypeComment(SqlIdentifier SchemaName, SqlIdentifier TypeName, string? OldComment, string? NewComment) : MigrationAction;

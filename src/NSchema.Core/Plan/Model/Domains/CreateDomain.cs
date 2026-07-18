@@ -8,8 +8,4 @@ namespace NSchema.Plan.Model.Domains;
 /// </summary>
 /// <param name="SchemaName">The name of the schema the domain belongs to.</param>
 /// <param name="DomainType">The definition of the domain to create.</param>
-public sealed record CreateDomain(SqlIdentifier SchemaName, DomainType DomainType) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+public sealed record CreateDomain(SqlIdentifier SchemaName, DomainType DomainType) : MigrationAction;

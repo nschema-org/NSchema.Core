@@ -8,8 +8,4 @@ namespace NSchema.Plan.Model.Domains;
 /// <param name="SchemaName">The name of the schema containing the domain.</param>
 /// <param name="DomainName">The name of the domain.</param>
 /// <param name="CheckName">The name of the check constraint to drop.</param>
-public sealed record DropDomainCheck(SqlIdentifier SchemaName, SqlIdentifier DomainName, SqlIdentifier CheckName) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+public sealed record DropDomainCheck(SqlIdentifier SchemaName, SqlIdentifier DomainName, SqlIdentifier CheckName) : MigrationAction;

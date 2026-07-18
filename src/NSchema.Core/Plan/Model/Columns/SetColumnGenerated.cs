@@ -17,8 +17,4 @@ public sealed record SetColumnGenerated(
     SqlIdentifier ColumnName,
     SqlText? OldExpression,
     SqlText? NewExpression
-) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+) : MigrationAction;

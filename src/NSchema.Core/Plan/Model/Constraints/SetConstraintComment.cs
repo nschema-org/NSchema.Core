@@ -10,8 +10,4 @@ namespace NSchema.Plan.Model.Constraints;
 /// <param name="ConstraintName">The name of the constraint whose comment will be modified.</param>
 /// <param name="OldComment">The current comment before modification, or null if there is none.</param>
 /// <param name="NewComment">The new comment to set, or null if the comment is being removed.</param>
-public sealed record SetConstraintComment(SqlIdentifier SchemaName, SqlIdentifier TableName, SqlIdentifier ConstraintName, string? OldComment, string? NewComment) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+public sealed record SetConstraintComment(SqlIdentifier SchemaName, SqlIdentifier TableName, SqlIdentifier ConstraintName, string? OldComment, string? NewComment) : MigrationAction;

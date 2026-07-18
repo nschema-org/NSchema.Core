@@ -16,8 +16,4 @@ public sealed record SetColumnDefault(
     SqlIdentifier ColumnName,
     SqlText? OldDefault,
     SqlText? NewDefault
-) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+) : MigrationAction;

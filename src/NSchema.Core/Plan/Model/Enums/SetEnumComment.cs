@@ -9,8 +9,4 @@ namespace NSchema.Plan.Model.Enums;
 /// <param name="EnumName">The name of the enum.</param>
 /// <param name="OldComment">The previous comment, if any.</param>
 /// <param name="NewComment">The new comment, if any.</param>
-public sealed record SetEnumComment(SqlIdentifier SchemaName, SqlIdentifier EnumName, string? OldComment, string? NewComment) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+public sealed record SetEnumComment(SqlIdentifier SchemaName, SqlIdentifier EnumName, string? OldComment, string? NewComment) : MigrationAction;
