@@ -5,18 +5,16 @@ namespace NSchema.Model.Tables;
 /// <summary>
 /// Represents a primary key constraint in a database schema.
 /// </summary>
-/// <param name="name">The name of the primary key constraint.</param>
-/// <param name="columnNames">A list of column names that are part of the primary key constraint.</param>
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public sealed class PrimaryKey(SqlIdentifier name, List<SqlIdentifier> columnNames) : DatabaseMember(name), IEquatable<PrimaryKey>
+public sealed class PrimaryKey : DatabaseMember, IEquatable<PrimaryKey>
 {
     /// <summary>
     /// A list of column names that are part of the primary key constraint.
     /// </summary>
-    public List<SqlIdentifier> ColumnNames { get; } = columnNames ?? [];
+    public required List<SqlIdentifier> ColumnNames { get; init; }
 
     /// <inheritdoc/>
-    public override PrimaryKey Clone() => new(Name, [.. ColumnNames]) { Comment = Comment };
+    public override PrimaryKey Clone() => new() { Name = Name, ColumnNames = [.. ColumnNames], Comment = Comment };
 
     /// <summary>
     /// Structural equality over the declared definition.

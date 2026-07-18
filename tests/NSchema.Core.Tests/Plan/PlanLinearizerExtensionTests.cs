@@ -24,7 +24,7 @@ public sealed class PlanLinearizerExtensionTests
     public void CreateExtension_IsEmittedBeforeSchemaCreation()
     {
         var actions = _linearizer.Linearize(Diff(
-            [new ExtensionDiff(new SqlIdentifier("citext"), ChangeKind.Add, Definition: new Extension(new SqlIdentifier("citext")))],
+            [new ExtensionDiff(new SqlIdentifier("citext"), ChangeKind.Add, Definition: new Extension { Name = new SqlIdentifier("citext") })],
             new SchemaDiff(new SqlIdentifier("app"), ChangeKind.Add)));
 
         var createExtension = actions.Select((a, i) => (a, i)).Single(x => x.a is CreateExtension).i;
@@ -48,7 +48,7 @@ public sealed class PlanLinearizerExtensionTests
     public void AddedExtension_WithComment_EmitsCreateThenSetComment()
     {
         var actions = _linearizer.Linearize(Diff(
-            [new ExtensionDiff(new SqlIdentifier("postgis"), ChangeKind.Add, Definition: new Extension(new SqlIdentifier("postgis")) { Comment = "gis" },
+            [new ExtensionDiff(new SqlIdentifier("postgis"), ChangeKind.Add, Definition: new Extension { Name = new SqlIdentifier("postgis"), Comment = "gis" },
                 Comment: new ValueChange<string>(null, "gis"))]));
 
         actions.OfType<CreateExtension>().ShouldHaveSingleItem().Extension.Name.ShouldBe("postgis");

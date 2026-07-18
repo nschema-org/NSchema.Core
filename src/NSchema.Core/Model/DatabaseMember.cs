@@ -10,7 +10,7 @@ namespace NSchema.Model;
 /// members is structural over the declared definition and deliberately excludes the parent and the comment —
 /// the differ compares members from two different trees, and location is identity, not structure.
 /// </remarks>
-public abstract class DatabaseMember(SqlIdentifier name) : DatabaseElement(name)
+public abstract class DatabaseMember : DatabaseElement
 {
     /// <summary>
     /// The object that owns the member, or <see langword="null"/> when it has not been placed in a tree.

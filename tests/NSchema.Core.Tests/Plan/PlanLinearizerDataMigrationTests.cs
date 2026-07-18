@@ -40,7 +40,7 @@ public sealed class PlanLinearizerDataMigrationTests
         // Arrange — a NOT NULL, no-default column with a matched backfill cannot land in one step against a
         // populated table: it is added nullable, backfilled, then tightened.
         var migration = Migration(ChangeTrigger.AddColumn, "email", name: "backfill_emails");
-        var column = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text)) { MigrationScript = migration };
+        var column = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text }) { MigrationScript = migration };
 
         // Act
         var plan = LinearizeColumn(column);
@@ -65,7 +65,7 @@ public sealed class PlanLinearizerDataMigrationTests
     {
         // Arrange — a nullable add needs no decomposition: the column lands as declared, then the migration runs.
         var migration = Migration(ChangeTrigger.AddColumn, "email");
-        var column = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text, isNullable: true)) { MigrationScript = migration };
+        var column = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text, IsNullable = true }) { MigrationScript = migration };
 
         // Act
         var plan = LinearizeColumn(column);
@@ -87,9 +87,9 @@ public sealed class PlanLinearizerDataMigrationTests
         // declared NOT NULL shape and only the migration is appended.
         var definition = shape switch
         {
-            "defaulted" => new Column(new SqlIdentifier("email"), SqlType.Text, defaultExpression: new SqlText("''")),
-            "identity" => new Column(new SqlIdentifier("email"), SqlType.BigInt, isIdentity: true),
-            _ => new Column(new SqlIdentifier("email"), SqlType.Text, generatedExpression: new SqlText("lower(name)")),
+            "defaulted" => new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text, DefaultExpression = new SqlText("''") },
+            "identity" => new Column { Name = new SqlIdentifier("email"), Type = SqlType.BigInt, IsIdentity = true },
+            _ => new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text, GeneratedExpression = new SqlText("lower(name)") },
         };
         var migration = Migration(ChangeTrigger.AddColumn, "email");
         var column = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, definition) { MigrationScript = migration };
@@ -131,7 +131,7 @@ public sealed class PlanLinearizerDataMigrationTests
         // Arrange — the migration de-duplicates the data the constraint depends on.
         var migration = Migration(ChangeTrigger.AddConstraint, "users_email_uq");
         var constraint = new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_email_uq"),
-            new UniqueConstraint(new SqlIdentifier("users_email_uq"), [new SqlIdentifier("email")]))
+            new UniqueConstraint { Name = new SqlIdentifier("users_email_uq"), ColumnNames = [new SqlIdentifier("email")] })
         { MigrationScript = migration };
 
         // Act
@@ -148,11 +148,11 @@ public sealed class PlanLinearizerDataMigrationTests
     {
         // Arrange — two annotated column adds; their migrations share a priority band, so the stable sort
         // preserves the diff's declaration order.
-        var first = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column(new SqlIdentifier("email"), SqlType.Text, isNullable: true))
+        var first = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text, IsNullable = true })
         {
             MigrationScript = Migration(ChangeTrigger.AddColumn, "email", name: "first"),
         };
-        var second = new ColumnDiff(new SqlIdentifier("phone"), ChangeKind.Add, new Column(new SqlIdentifier("phone"), SqlType.Text, isNullable: true))
+        var second = new ColumnDiff(new SqlIdentifier("phone"), ChangeKind.Add, new Column { Name = new SqlIdentifier("phone"), Type = SqlType.Text, IsNullable = true })
         {
             MigrationScript = Migration(ChangeTrigger.AddColumn, "phone", name: "second"),
         };
@@ -174,7 +174,7 @@ public sealed class PlanLinearizerDataMigrationTests
             RunOutsideTransaction = true,
         };
         var constraint = new PrimaryKeyDiff(ChangeKind.Add, new SqlIdentifier("users_pk"),
-            new PrimaryKey(new SqlIdentifier("users_pk"), [new SqlIdentifier("id")]))
+            new PrimaryKey { Name = new SqlIdentifier("users_pk"), ColumnNames = [new SqlIdentifier("id")] })
         { MigrationScript = migration };
 
         // Act

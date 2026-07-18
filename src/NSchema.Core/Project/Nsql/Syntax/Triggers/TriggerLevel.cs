@@ -13,5 +13,5 @@ public enum TriggerLevel
     /// <summary>
     /// <c>FOR EACH STATEMENT</c> (the default when unwritten).
     /// </summary>
-    Statement,
+    Statement
 }

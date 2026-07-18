@@ -13,7 +13,7 @@ namespace NSchema.Model;
 /// structural over the declared definition and deliberately excludes the parent and the comment — the differ
 /// compares objects from two different trees, and location is identity, not structure.
 /// </remarks>
-public abstract class DatabaseObject(SqlIdentifier name) : DatabaseElement(name)
+public abstract class DatabaseObject : DatabaseElement
 {
     /// <summary>
     /// The schema the object belongs to, or <see langword="null"/> when it is database-global or has not been placed in a tree.

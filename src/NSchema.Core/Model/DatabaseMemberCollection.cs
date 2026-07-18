@@ -5,4 +5,7 @@ namespace NSchema.Model;
 /// </summary>
 public sealed class DatabaseMemberCollection<T>()
     : ParentedCollection<DatabaseObject, T>((parent, child) => child.Parent = parent, child => child.Parent = null)
-    where T : DatabaseMember;
+    where T : DatabaseMember
+{
+    internal DatabaseMemberCollection(DatabaseObject owner) : this() => Attach(owner);
+}

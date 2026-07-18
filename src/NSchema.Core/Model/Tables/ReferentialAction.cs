@@ -23,5 +23,5 @@ public enum ReferentialAction
     /// <summary>
     /// Indicates that when the referenced row is updated or deleted, the corresponding foreign key values in the referencing table are set to their default values.
     /// </summary>
-    SetDefault,
+    SetDefault
 }

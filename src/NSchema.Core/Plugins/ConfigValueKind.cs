@@ -23,5 +23,5 @@ public enum ConfigValueKind
     /// <summary>
     /// A bare identifier used as a value, e.g. <c>single</c> in <c>transaction_mode = single</c>.
     /// </summary>
-    Identifier,
+    Identifier
 }

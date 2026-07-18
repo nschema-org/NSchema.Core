@@ -20,5 +20,5 @@ public enum TransactionMode
     /// <summary>
     /// Run each statement on its own connection with no transaction.
     /// </summary>
-    None,
+    None
 }

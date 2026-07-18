@@ -27,7 +27,7 @@ public sealed class PlanLinearizerCompositeTypeTests
     [Fact]
     public void AddedCompositeType_EmitsCreateCompositeType()
         => Linearize(new CompositeTypeDiff(new SqlIdentifier("app"), new SqlIdentifier("address"), ChangeKind.Add,
-                Definition: new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text)])))
+                Definition: new CompositeType { Name = new SqlIdentifier("address"), Fields = [new CompositeField(new SqlIdentifier("street"), SqlType.Text)] }))
             .ShouldHaveSingleItem().ShouldBeOfType<CreateCompositeType>().CompositeType.Name.ShouldBe("address");
 
     [Fact]
@@ -65,9 +65,9 @@ public sealed class PlanLinearizerCompositeTypeTests
     {
         // A column may use the composite type as its type, so the type must be created first.
         var plan = _linearizer.Linearize(new DatabaseDiff([new SchemaDiff(new SqlIdentifier("app"), ChangeKind.Add,
-            Tables: [new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("t"), ChangeKind.Add, Definition: new Table(new SqlIdentifier("t")))],
+            Tables: [new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("t"), ChangeKind.Add, Definition: new Table { Name = new SqlIdentifier("t") })],
             CompositeTypes: [new CompositeTypeDiff(new SqlIdentifier("app"), new SqlIdentifier("address"), ChangeKind.Add,
-                Definition: new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text)]))])]));
+                Definition: new CompositeType { Name = new SqlIdentifier("address"), Fields = [new CompositeField(new SqlIdentifier("street"), SqlType.Text)] })])]));
 
         var createType = plan.Select((a, i) => (a, i)).Single(x => x.a is CreateCompositeType).i;
         var createTable = plan.Select((a, i) => (a, i)).Single(x => x.a is CreateTable).i;

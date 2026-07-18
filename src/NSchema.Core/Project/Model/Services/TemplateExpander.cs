@@ -74,7 +74,7 @@ internal static class TemplateExpander
 
                 // The merge rejects an object the target schema already declares, exactly as if the
                 // instantiated objects had been written in the target schema by hand.
-                var combined = DatabaseAggregator.Combine(database, new Database([instance.Schema]));
+                var combined = DatabaseAggregator.Combine(database, new Database { Schemas = [instance.Schema] });
                 if (combined.IsFailure)
                 {
                     diagnostics.AddRange(combined.Diagnostics.Select(d =>
@@ -117,7 +117,7 @@ internal static class TemplateExpander
         }
 
         var fragment = body.Build();
-        var instance = Qualify(fragment.Schemas.SingleOrDefault() ?? new Schema(schemaName), schemaName);
+        var instance = Qualify(fragment.Schemas.SingleOrDefault() ?? new Schema { Name = schemaName }, schemaName);
 
         return new TemplateInstance(instance, body.Includes, directives.Build());
     }

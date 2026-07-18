@@ -6,75 +6,64 @@ namespace NSchema.Model.Triggers;
 /// <summary>
 /// Represents a trigger on a table fired on a table operation.
 /// </summary>
-/// <remarks>
-/// Creates a trigger.
-/// </remarks>
-/// <param name="name">The trigger name (unique within its table).</param>
-/// <param name="timing">When the trigger fires relative to the operation.</param>
-/// <param name="events">The operation(s) that fire the trigger.</param>
-/// <param name="function">The function the trigger executes (optionally schema-qualified); null for an inline-body trigger.</param>
-/// <param name="level">Whether the trigger fires per row or per statement.</param>
-/// <param name="updateOfColumns">The columns an <c>UPDATE</c> trigger is narrowed to, if any; empty otherwise.</param>
-/// <param name="when">An optional <c>WHEN</c> condition, stored verbatim (opaque SQL).</param>
-/// <param name="functionArguments">Optional literal arguments passed to the function, stored verbatim; <see langword="null"/> when none.</param>
-/// <param name="body">The trigger's inline statement body, stored verbatim (opaque SQL). Use <see langword="null"/> for a function-style trigger.</param>
 [DebuggerDisplay("{Name,nq} (trigger)")]
-public sealed class Trigger(
-    SqlIdentifier name,
-    TriggerTiming timing,
-    TriggerEvent events,
-    RoutineReference? function = null,
-    TriggerLevel level = TriggerLevel.Statement,
-    List<SqlIdentifier>? updateOfColumns = null,
-    SqlText? when = null,
-    SqlText? functionArguments = null,
-    SqlText? body = null
-) : DatabaseMember(name), IEquatable<Trigger>
+public sealed class Trigger : DatabaseMember, IEquatable<Trigger>
 {
     /// <summary>
     /// When the trigger fires relative to the operation.
     /// </summary>
-    public TriggerTiming Timing { get; set; } = timing;
+    public required TriggerTiming Timing { get; set; }
 
     /// <summary>
     /// The operation(s) that fire the trigger.
     /// </summary>
-    public TriggerEvent Events { get; set; } = events;
+    public required TriggerEvent Events { get; set; }
 
     /// <summary>
     /// The function the trigger executes (optionally schema-qualified); null for an inline-body trigger.
     /// </summary>
-    public RoutineReference? Function { get; set; } = function;
+    public RoutineReference? Function { get; set; }
 
     /// <summary>
     /// Whether the trigger fires per row or per statement.
     /// </summary>
-    public TriggerLevel Level { get; set; } = level;
+    public TriggerLevel Level { get; set; } = TriggerLevel.Statement;
 
     /// <summary>
     /// The columns an <c>UPDATE</c> trigger is narrowed to (<c>UPDATE OF (…)</c>), if any.
     /// </summary>
-    public List<SqlIdentifier> UpdateOfColumns { get; } = updateOfColumns ?? [];
+    public List<SqlIdentifier> UpdateOfColumns { get; init; } = [];
 
     /// <summary>
     /// An optional <c>WHEN</c> condition, stored verbatim (opaque SQL).
     /// </summary>
-    public SqlText? When { get; set; } = when;
+    public SqlText? When { get; set; }
 
     /// <summary>
     /// Optional literal arguments passed to the function, stored verbatim; <see langword="null"/> when none.
     /// </summary>
-    public SqlText? FunctionArguments { get; set; } = functionArguments;
+    public SqlText? FunctionArguments { get; set; }
 
     /// <summary>
     /// The trigger's inline statement body, stored verbatim (opaque SQL); <see langword="null"/> for a
     /// function-style trigger.
     /// </summary>
-    public SqlText? Body { get; set; } = body;
+    public SqlText? Body { get; set; }
 
     /// <inheritdoc/>
-    public override Trigger Clone() =>
-        new(Name, Timing, Events, Function, Level, [.. UpdateOfColumns], When, FunctionArguments, Body) { Comment = Comment };
+    public override Trigger Clone() => new()
+    {
+        Name = Name,
+        Timing = Timing,
+        Events = Events,
+        Function = Function,
+        Level = Level,
+        UpdateOfColumns = [.. UpdateOfColumns],
+        When = When,
+        FunctionArguments = FunctionArguments,
+        Body = Body,
+        Comment = Comment,
+    };
 
     /// <summary>
     /// Structural equality over the declared definition;.

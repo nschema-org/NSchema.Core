@@ -34,7 +34,7 @@ internal static class DatabaseAggregator
             extensions.Add(extension.Clone());
         }
 
-        return Result.From(new Database([.. mergedSchemas], [.. extensions]), diagnostics);
+        return Result.From(new Database { Schemas = [.. mergedSchemas], Extensions = [.. extensions] }, diagnostics);
     }
 
     private static Schema AggregateSchemaGroup(IReadOnlyList<Schema> schemas, List<Diagnostic> diagnostics)
@@ -68,7 +68,7 @@ internal static class DatabaseAggregator
             .Distinct()
             .ToList();
 
-        return new Schema(schemaName, tables, grants, views, enums, sequences, routines, domains, compositeTypes) { Comment = comment };
+        return new Schema { Name = schemaName, Tables = tables, Grants = grants, Views = views, Enums = enums, Sequences = sequences, Routines = routines, Domains = domains, CompositeTypes = compositeTypes, Comment = comment };
     }
 
     /// <summary>

@@ -27,7 +27,7 @@ public sealed class PlanLinearizerMaterializedViewTests
     [Fact]
     public void RecreatedMaterializedView_EmitsDropAndCreateBothMaterialized()
     {
-        var mv = new View(new SqlIdentifier("daily"), new SqlText("SELECT 2"), isMaterialized: true);
+        var mv = new View { Name = new SqlIdentifier("daily"), Body = new SqlText("SELECT 2"), IsMaterialized = true };
         var actions = Linearize(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("daily"), ChangeKind.Modify,
             Definition: mv, IsMaterialized: true, RequiresRecreate: true));
 
@@ -38,7 +38,7 @@ public sealed class PlanLinearizerMaterializedViewTests
     [Fact]
     public void RecreatedMaterializedView_DropsBeforeItCreates()
     {
-        var mv = new View(new SqlIdentifier("daily"), new SqlText("SELECT 2"), isMaterialized: true);
+        var mv = new View { Name = new SqlIdentifier("daily"), Body = new SqlText("SELECT 2"), IsMaterialized = true };
         var actions = Linearize(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("daily"), ChangeKind.Modify,
             Definition: mv, IsMaterialized: true, RequiresRecreate: true));
 
@@ -53,7 +53,7 @@ public sealed class PlanLinearizerMaterializedViewTests
         var actions = Linearize(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("daily"), ChangeKind.Modify, IsMaterialized: true,
             Indexes:
             [
-                new IndexDiff(ChangeKind.Add, new SqlIdentifier("daily_ix"), new TableIndex(new SqlIdentifier("daily_ix"), ["x"])),
+                new IndexDiff(ChangeKind.Add, new SqlIdentifier("daily_ix"), new TableIndex { Name = new SqlIdentifier("daily_ix"), Columns = ["x"] }),
                 new IndexDiff(ChangeKind.Remove, new SqlIdentifier("old_ix")),
             ]));
 
@@ -70,7 +70,7 @@ public sealed class PlanLinearizerMaterializedViewTests
         var actions = Linearize(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("daily"), ChangeKind.Modify, RenamedFrom: new SqlIdentifier("nightly"), IsMaterialized: true,
             Indexes:
             [
-                new IndexDiff(ChangeKind.Add, new SqlIdentifier("daily_ix"), new TableIndex(new SqlIdentifier("daily_ix"), ["x"])),
+                new IndexDiff(ChangeKind.Add, new SqlIdentifier("daily_ix"), new TableIndex { Name = new SqlIdentifier("daily_ix"), Columns = ["x"] }),
                 new IndexDiff(ChangeKind.Remove, new SqlIdentifier("old_ix")),
             ]));
 
@@ -86,7 +86,7 @@ public sealed class PlanLinearizerMaterializedViewTests
     {
         // A rename accompanying a recreate is subsumed by it: the old name is dropped and the definition
         // recreates the view under the new one.
-        var mv = new View(new SqlIdentifier("daily"), new SqlText("SELECT 2"), isMaterialized: true);
+        var mv = new View { Name = new SqlIdentifier("daily"), Body = new SqlText("SELECT 2"), IsMaterialized = true };
         var actions = Linearize(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("daily"), ChangeKind.Modify, RenamedFrom: new SqlIdentifier("nightly"),
             Definition: mv, IsMaterialized: true, RequiresRecreate: true));
 
@@ -99,7 +99,7 @@ public sealed class PlanLinearizerMaterializedViewTests
     public void ViewToMaterializedFlip_DropsAsPlainAndCreatesAsMaterialized()
     {
         // The view being dropped is still the current (plain) one; only the recreate is materialized.
-        var mv = new View(new SqlIdentifier("v"), new SqlText("SELECT 1"), isMaterialized: true);
+        var mv = new View { Name = new SqlIdentifier("v"), Body = new SqlText("SELECT 1"), IsMaterialized = true };
         var actions = Linearize(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("v"), ChangeKind.Modify,
             Definition: mv, IsMaterialized: true,
             Materialized: new ValueChange<bool>(false, true), RequiresRecreate: true));
@@ -112,7 +112,7 @@ public sealed class PlanLinearizerMaterializedViewTests
     public void MaterializedToViewFlip_DropsAsMaterialized()
     {
         var actions = Linearize(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("v"), ChangeKind.Modify,
-            Definition: new View(new SqlIdentifier("v"), new SqlText("SELECT 1")), IsMaterialized: false,
+            Definition: new View { Name = new SqlIdentifier("v"), Body = new SqlText("SELECT 1") }, IsMaterialized: false,
             Materialized: new ValueChange<bool>(true, false), RequiresRecreate: true));
 
         actions.OfType<DropView>().ShouldHaveSingleItem().IsMaterialized.ShouldBeTrue();
@@ -122,7 +122,7 @@ public sealed class PlanLinearizerMaterializedViewTests
     [Fact]
     public void PlainViewBodyChange_EmitsOnlyCreateNoDrop()
     {
-        var actions = Linearize(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("v"), ChangeKind.Modify, Definition: new View(new SqlIdentifier("v"), new SqlText("SELECT 2"))));
+        var actions = Linearize(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("v"), ChangeKind.Modify, Definition: new View { Name = new SqlIdentifier("v"), Body = new SqlText("SELECT 2") }));
 
         actions.OfType<CreateView>().ShouldHaveSingleItem();
         actions.OfType<DropView>().ShouldBeEmpty();

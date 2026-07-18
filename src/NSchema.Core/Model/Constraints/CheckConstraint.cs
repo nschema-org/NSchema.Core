@@ -5,18 +5,16 @@ namespace NSchema.Model.Constraints;
 /// <summary>
 /// Represents a check constraint in a database schema.
 /// </summary>
-/// <param name="name">The name of the check constraint.</param>
-/// <param name="expression">The SQL boolean expression the constraint enforces.</param>
 [DebuggerDisplay("{Name,nq}: {Expression,nq}")]
-public sealed class CheckConstraint(SqlIdentifier name, SqlText expression) : DatabaseMember(name), IEquatable<CheckConstraint>
+public sealed class CheckConstraint : DatabaseMember, IEquatable<CheckConstraint>
 {
     /// <summary>
     /// The SQL boolean expression the constraint enforces.
     /// </summary>
-    public SqlText Expression { get; set; } = expression;
+    public required SqlText Expression { get; set; }
 
     /// <inheritdoc/>
-    public override CheckConstraint Clone() => new(Name, Expression) { Comment = Comment };
+    public override CheckConstraint Clone() => new() { Name = Name, Expression = Expression, Comment = Comment };
 
     /// <summary>
     /// Structural equality over the declared definition.

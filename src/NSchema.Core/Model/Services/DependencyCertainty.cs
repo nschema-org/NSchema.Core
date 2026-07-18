@@ -17,5 +17,5 @@ internal enum DependencyCertainty
     /// <summary>
     /// NSchema inferred the edge by scanning SQL it does not parse, so it may be wrong in either direction.
     /// </summary>
-    Inferred,
+    Inferred
 }

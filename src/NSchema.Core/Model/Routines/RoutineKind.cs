@@ -13,5 +13,5 @@ public enum RoutineKind
     /// <summary>
     /// A procedure (invoked with <c>CALL</c>).
     /// </summary>
-    Procedure,
+    Procedure
 }

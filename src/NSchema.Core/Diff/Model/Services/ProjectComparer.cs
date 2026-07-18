@@ -1,6 +1,4 @@
-using NSchema.Model;
 using NSchema.Model.Scripts;
-using NSchema.Model.Services;
 using NSchema.Project.Model.Directives;
 using NSchema.State.Model;
 
@@ -20,48 +18,21 @@ internal sealed class ProjectComparer(IDatabaseComparer comparer) : IProjectComp
         // Look up new scripts to run, excluding those already executed.
         var deploymentScripts = GetNewScripts(directives.DeploymentScripts, current.ExecutedScripts);
         diagnostics.AddRange(deploymentScripts.Diagnostics);
-        var pendingDirectives = allDirectives with { DeploymentScripts = deploymentScripts.Require() };
 
-        // Validate any RENAME directives relative to the rename.
-        diagnostics.AddRange(ValidateRenameDirectives(current.Database, allDirectives));
+        // Align: rewrite the current schema into the declared name-space.
+        var aligned = DatabaseAligner.Align(current.Database, desired.Database, directives);
+        diagnostics.AddRange(aligned.Diagnostics);
 
-        // The structural compare attaches each change-event script to the change it accompanies.
-        // A change-event script whose change is not in the diff was not attached — a dead migration.
-        var diff = comparer.Compare(current.Database, desired.Database, pendingDirectives);
-        var attached = diff.ChangeScripts().ToHashSet();
-        diagnostics.AddRange(allDirectives.ChangeScripts.Where(s => !attached.Contains(s)).Select(DeadMigrationDiagnostic));
+        // Compare: the structural diff.
+        var diff = comparer.Compare(aligned.Require(), desired.Database);
+
+        // Decorate: attach each change-event script to the change it accompanies.
+        var decorate = ChangeScriptDecorator.Decorate(diff, directives.ChangeScripts);
+        diagnostics.AddRange(decorate.Diagnostics);
+        diff = decorate.Require();
 
         // Deployment scripts run at the bookends — they attach to no node, so they ride the diff root.
         return Result.From(diff with { DeploymentScripts = deploymentScripts.Require() }, diagnostics);
-    }
-
-    private static IEnumerable<Diagnostic> ValidateRenameDirectives(Database currentSchema, ProjectDirectives directives)
-    {
-        var current = new DatabaseLookup(currentSchema);
-
-        foreach (var rename in directives.SchemaRenames)
-        {
-            if (current.FindSchema(rename.From) is null && current.FindSchema(rename.To) is not null)
-            {
-                yield return DiffDiagnostics.AppliedRename("schema", rename.From.Value, rename.To);
-            }
-        }
-
-        foreach (var rename in directives.ObjectRenames)
-        {
-            if (!current.Has(rename.From) && current.Has(rename.From with { Name = rename.To }))
-            {
-                yield return DiffDiagnostics.AppliedRename(rename.From.Kind.Display(), rename.From.ToString(), rename.To);
-            }
-        }
-
-        foreach (var rename in directives.MemberRenames)
-        {
-            if (!current.HasColumn(rename.From) && current.HasColumn(rename.From with { Member = rename.To }))
-            {
-                yield return DiffDiagnostics.AppliedRename("column", rename.From.ToString(), rename.To);
-            }
-        }
     }
 
     private static Result<List<DeploymentScript>> GetNewScripts(IReadOnlyCollection<DeploymentScript> desired, IReadOnlyCollection<ScriptExecution> current)
@@ -86,6 +57,4 @@ internal sealed class ProjectComparer(IDatabaseComparer comparer) : IProjectComp
 
         return Result.From(newScripts, diagnostics);
     }
-
-    private static Diagnostic DeadMigrationDiagnostic(ChangeScript migration) => DiffDiagnostics.DeadMigration(migration);
 }

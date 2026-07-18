@@ -8,7 +8,7 @@ namespace NSchema.Tests.State;
 
 public sealed class DatabaseProviderTests
 {
-    private static readonly Database _liveSchema = new Database([new Schema(new SqlIdentifier("live"))]);
+    private static readonly Database _liveSchema = new Database { Schemas = [new Schema { Name = new SqlIdentifier("live") }] };
 
     private static DatabaseProvider Create(IDatabaseIntrospector? online = null) => new(online);
 

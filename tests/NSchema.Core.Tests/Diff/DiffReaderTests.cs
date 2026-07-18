@@ -164,8 +164,8 @@ public sealed class DiffReaderTests
     public void Read_AddedTable_SeparatesColumnBlockFromTrailingBlockWithSpacer()
     {
         var table = Table("users", ChangeKind.Add,
-            columns: [AddColumn(new Column(new SqlIdentifier("id"), SqlType.Int))],
-            indexes: [new IndexDiff(ChangeKind.Add, new SqlIdentifier("users_id_ix"), new TableIndex(new SqlIdentifier("users_id_ix"), ["id"]), null)]);
+            columns: [AddColumn(new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int })],
+            indexes: [new IndexDiff(ChangeKind.Add, new SqlIdentifier("users_id_ix"), new TableIndex { Name = new SqlIdentifier("users_id_ix"), Columns = ["id"] }, null)]);
 
         var lines = Read(WithTable(table)).Lines;
         var columnIndex = IndexOf(lines, line => line.Text.Contains("id int not null"));
@@ -185,18 +185,18 @@ public sealed class DiffReaderTests
     [Fact]
     public void Read_ColumnAdd_EmitsDefinitionAndCommentSuffix()
     {
-        var column = AddColumn(new Column(new SqlIdentifier("id"), SqlType.Int), comment: new ValueChange<string>(null, "identifier"));
+        var column = AddColumn(new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }, comment: new ValueChange<string>(null, "identifier"));
 
         ShouldHaveLine(WithTable(Table("users", ChangeKind.Add, columns: [column])), ChangeKind.Add, "id int not null (\"identifier\")");
     }
 
     [Fact]
     public void Read_ColumnAdd_NullableEmitsNull()
-        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Add, columns: [AddColumn(new Column(new SqlIdentifier("bio"), SqlType.Text, isNullable: true))])), ChangeKind.Add, "bio text null");
+        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Add, columns: [AddColumn(new Column { Name = new SqlIdentifier("bio"), Type = SqlType.Text, IsNullable = true })])), ChangeKind.Add, "bio text null");
 
     [Fact]
     public void Read_ColumnRemove_EmitsDefinition()
-        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, columns: [RemoveColumn(new Column(new SqlIdentifier("id"), SqlType.Int))])), ChangeKind.Remove, "id int not null");
+        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, columns: [RemoveColumn(new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int })])), ChangeKind.Remove, "id int not null");
 
     [Fact]
     public void Read_ColumnRename_EmitsArrow()
@@ -276,7 +276,7 @@ public sealed class DiffReaderTests
     [Fact]
     public void Read_IndexAdd_EmitsName()
     {
-        var index = new IndexDiff(ChangeKind.Add, new SqlIdentifier("users_email_ux"), new TableIndex(new SqlIdentifier("users_email_ux"), ["email"], isUnique: true), null);
+        var index = new IndexDiff(ChangeKind.Add, new SqlIdentifier("users_email_ux"), new TableIndex { Name = new SqlIdentifier("users_email_ux"), Columns = ["email"], IsUnique = true }, null);
 
         ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, indexes: [index])), ChangeKind.Add, "index users_email_ux");
     }
@@ -317,17 +317,17 @@ public sealed class DiffReaderTests
 
     [Fact]
     public void Read_ViewAdd_EmitsSchemaObjectAddress()
-        => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("active_users"), ChangeKind.Add, Definition: new View(new SqlIdentifier("active_users"), new SqlText("SELECT 1")))), ChangeKind.Add, "view app.active_users");
+        => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("active_users"), ChangeKind.Add, Definition: new View { Name = new SqlIdentifier("active_users"), Body = new SqlText("SELECT 1") })), ChangeKind.Add, "view app.active_users");
 
     [Fact]
     public void Read_ViewAdd_AppendsCommentSuffix()
         => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("active_users"), ChangeKind.Add,
-                Definition: new View(new SqlIdentifier("active_users"), new SqlText("SELECT 1")), Comment: new ValueChange<string>(null, "active"))), ChangeKind.Add, "view app.active_users (\"active\")");
+                Definition: new View { Name = new SqlIdentifier("active_users"), Body = new SqlText("SELECT 1") }, Comment: new ValueChange<string>(null, "active"))), ChangeKind.Add, "view app.active_users (\"active\")");
 
     [Fact]
     public void Read_ViewBodyReplace_EmitsModifyHeader()
         => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("daily_totals"), ChangeKind.Modify,
-                Definition: new View(new SqlIdentifier("daily_totals"), new SqlText("SELECT sum(x) FROM app.sales")))), ChangeKind.Modify, "view app.daily_totals");
+                Definition: new View { Name = new SqlIdentifier("daily_totals"), Body = new SqlText("SELECT sum(x) FROM app.sales") })), ChangeKind.Modify, "view app.daily_totals");
 
     [Fact]
     public void Read_ViewCommentOnlyChange_EmitsCommentDiff()
@@ -340,14 +340,14 @@ public sealed class DiffReaderTests
     [Fact]
     public void Read_ViewToMaterializedFlip_EmitsLabelTransition()
         => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("totals"), ChangeKind.Modify,
-                Definition: new View(new SqlIdentifier("totals"), new SqlText("SELECT 1"), isMaterialized: true), IsMaterialized: true,
+                Definition: new View { Name = new SqlIdentifier("totals"), Body = new SqlText("SELECT 1"), IsMaterialized = true }, IsMaterialized: true,
                 Materialized: new ValueChange<bool>(false, true), RequiresRecreate: true)),
             ChangeKind.Modify, "view → materialized view app.totals");
 
     [Fact]
     public void Read_MaterializedToViewFlip_EmitsLabelTransition()
         => ShouldHaveLine(WithView(new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("totals"), ChangeKind.Modify,
-                Definition: new View(new SqlIdentifier("totals"), new SqlText("SELECT 1")),
+                Definition: new View { Name = new SqlIdentifier("totals"), Body = new SqlText("SELECT 1") },
                 Materialized: new ValueChange<bool>(true, false), RequiresRecreate: true)),
             ChangeKind.Modify, "materialized view → view app.totals");
 
@@ -362,7 +362,7 @@ public sealed class DiffReaderTests
     [Fact]
     public void Read_CarriesChangeKindOnContentLines_WithoutMarkersInText()
     {
-        var diff = WithTable(Table("users", ChangeKind.Add, columns: [AddColumn(new Column(new SqlIdentifier("id"), SqlType.Int))]));
+        var diff = WithTable(Table("users", ChangeKind.Add, columns: [AddColumn(new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int })]));
 
         var document = Read(diff);
 

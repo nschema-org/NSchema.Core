@@ -29,5 +29,5 @@ public enum TriggerEvent
     /// <summary>
     /// <c>TRUNCATE</c>.
     /// </summary>
-    Truncate = 8,
+    Truncate = 8
 }

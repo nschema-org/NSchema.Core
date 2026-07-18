@@ -18,5 +18,5 @@ public enum ChangeTrigger
     /// <summary>
     /// A constraint is added to an existing table.
     /// </summary>
-    AddConstraint,
+    AddConstraint
 }

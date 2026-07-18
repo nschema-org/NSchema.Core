@@ -17,7 +17,7 @@ public sealed class RefreshOperationTests
     public async Task Execute_WhenStateCaptured_ReturnsTheSchemaAndSnapshotSize()
     {
         // Arrange
-        var schema = new Database([new Schema(new SqlIdentifier("app"))]);
+        var schema = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] };
         _workflow.Refresh(Arg.Any<MigrationPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(new StateCapture(schema, 2048));
 
         // Act
@@ -34,7 +34,7 @@ public sealed class RefreshOperationTests
     {
         // Arrange
         _workflow.Refresh(Arg.Any<MigrationPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-            .Returns(new StateCapture(new Database([]), 64));
+            .Returns(new StateCapture(new Database { Schemas = [] }, 64));
 
         // Act
         await _sut.Execute(new RefreshArguments { Force = true }, TestContext.Current.CancellationToken);
@@ -63,7 +63,7 @@ public sealed class RefreshOperationTests
     {
         // Arrange — the capture replaced state it couldn't read, resetting the run-once ledger.
         _workflow.Refresh(Arg.Any<MigrationPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new StateCapture(new Database([]), 64),
+            .Returns(Result.Success(new StateCapture(new Database { Schemas = [] }, 64),
                 Diagnostic.Warning("state", "the run-once script ledger was reset")));
 
         // Act

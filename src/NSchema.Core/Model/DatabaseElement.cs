@@ -3,12 +3,12 @@ namespace NSchema.Model;
 /// <summary>
 /// Attributes common to every database element.
 /// </summary>
-public abstract class DatabaseElement(SqlIdentifier name)
+public abstract class DatabaseElement
 {
     /// <summary>
     /// The element's name.
     /// </summary>
-    public SqlIdentifier Name { get; set; } = name;
+    public required SqlIdentifier Name { get; set; }
 
     /// <summary>
     /// An optional comment or description for the element.

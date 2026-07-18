@@ -13,5 +13,5 @@ public enum RunCondition
     /// <summary>
     /// The script runs at most once: after it has been recorded as executed, later occurrences of its event skip it.
     /// </summary>
-    Once,
+    Once
 }

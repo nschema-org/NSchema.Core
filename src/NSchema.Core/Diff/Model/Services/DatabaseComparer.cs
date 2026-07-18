@@ -240,7 +240,7 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger)
     // diffing the schema against an empty one — so the linearizer drops the objects before the schema itself.
     private SchemaDiff BuildRemovedSchema(Schema current)
     {
-        var empty = new Schema(current.Name);
+        var empty = new Schema { Name = current.Name };
         return new SchemaDiff(
             current.Name,
             ChangeKind.Remove,

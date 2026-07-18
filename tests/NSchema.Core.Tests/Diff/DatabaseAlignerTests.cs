@@ -16,10 +16,10 @@ public sealed class DatabaseAlignerTests
 {
     private static readonly SqlIdentifier _app = new("app");
 
-    private static Database Db(params Schema[] schemas) => new([.. schemas]);
+    private static Database Db(params Schema[] schemas) => new Database { Schemas = [.. schemas] };
 
     private static Table T(string name, params string[] columns) =>
-        new(new SqlIdentifier(name), columns: [.. columns.Select(c => new Column(new SqlIdentifier(c), SqlType.Int))]);
+        new Table { Name = new SqlIdentifier(name), Columns = [.. columns.Select(c => new Column { Name = new SqlIdentifier(c), Type = SqlType.Int })] };
 
     private static ProjectDirectives TableRename(string from, string to) =>
         new(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, _app, new SqlIdentifier(from)), new SqlIdentifier(to))]);
@@ -31,7 +31,7 @@ public sealed class DatabaseAlignerTests
     public void Align_NoDirectives_ReturnsTheCurrentTreeUntouched()
     {
         // Arrange
-        var current = Db(new Schema(_app, tables: [T("users", "id")]));
+        var current = Db(new Schema { Name = _app, Tables = [T("users", "id")] });
 
         // Act
         var result = DatabaseAligner.Align(current, Db(), ProjectDirectives.Empty);
@@ -46,8 +46,8 @@ public sealed class DatabaseAlignerTests
     public void Align_SchemaRename_RewritesTheSchemaAndLogsIt()
     {
         // Arrange
-        var current = Db(new Schema(new SqlIdentifier("old_app"), tables: [T("users", "id")]));
-        var desired = Db(new Schema(_app, tables: [T("users", "id")]));
+        var current = Db(new Schema { Name = new SqlIdentifier("old_app"), Tables = [T("users", "id")] });
+        var desired = Db(new Schema { Name = _app, Tables = [T("users", "id")] });
         var directives = new ProjectDirectives(SchemaRenames: [new SchemaRenameDirective(new SqlIdentifier("old_app"), _app)]);
 
         // Act
@@ -64,8 +64,8 @@ public sealed class DatabaseAlignerTests
     public void Align_TableRename_RewritesTheTableAndLogsIt()
     {
         // Arrange
-        var current = Db(new Schema(_app, tables: [T("people", "id")]));
-        var desired = Db(new Schema(_app, tables: [T("users", "id")]));
+        var current = Db(new Schema { Name = _app, Tables = [T("people", "id")] });
+        var desired = Db(new Schema { Name = _app, Tables = [T("users", "id")] });
 
         // Act
         var result = DatabaseAligner.Align(current, desired, TableRename("people", "users"));
@@ -81,8 +81,8 @@ public sealed class DatabaseAlignerTests
     public void Align_ColumnRename_RewritesTheColumnAndLogsIt()
     {
         // Arrange
-        var current = Db(new Schema(_app, tables: [T("t", "mail")]));
-        var desired = Db(new Schema(_app, tables: [T("t", "email")]));
+        var current = Db(new Schema { Name = _app, Tables = [T("t", "mail")] });
+        var desired = Db(new Schema { Name = _app, Tables = [T("t", "email")] });
 
         // Act
         var result = DatabaseAligner.Align(current, desired, ColumnRename("mail", "email"));
@@ -99,8 +99,8 @@ public sealed class DatabaseAlignerTests
     {
         // Arrange — 'people' is renamed to 'users' while 'people' is also still declared. This is
         // indistinguishable from "keep people, add users", so the rename is skipped with an error.
-        var current = Db(new Schema(_app, tables: [T("people", "id")]));
-        var desired = Db(new Schema(_app, tables: [T("users", "id"), T("people", "id")]));
+        var current = Db(new Schema { Name = _app, Tables = [T("people", "id")] });
+        var desired = Db(new Schema { Name = _app, Tables = [T("users", "id"), T("people", "id")] });
 
         // Act
         var result = DatabaseAligner.Align(current, desired, TableRename("people", "users"));
@@ -116,8 +116,8 @@ public sealed class DatabaseAlignerTests
     public void Align_TableRenamedOntoExistingName_ErrorsAndSkipsTheRename()
     {
         // Arrange — renaming 'a' to 'b' while a distinct 'b' already exists collides on the target name.
-        var current = Db(new Schema(_app, tables: [T("a", "id"), T("b", "id")]));
-        var desired = Db(new Schema(_app, tables: [T("b", "id")]));
+        var current = Db(new Schema { Name = _app, Tables = [T("a", "id"), T("b", "id")] });
+        var desired = Db(new Schema { Name = _app, Tables = [T("b", "id")] });
 
         // Act
         var result = DatabaseAligner.Align(current, desired, TableRename("a", "b"));
@@ -132,8 +132,8 @@ public sealed class DatabaseAlignerTests
     public void Align_ColumnRenamedButOldNameStillDeclared_ErrorsAndSkipsTheRename()
     {
         // Arrange
-        var current = Db(new Schema(_app, tables: [T("t", "mail")]));
-        var desired = Db(new Schema(_app, tables: [T("t", "email", "mail")]));
+        var current = Db(new Schema { Name = _app, Tables = [T("t", "mail")] });
+        var desired = Db(new Schema { Name = _app, Tables = [T("t", "email", "mail")] });
 
         // Act
         var result = DatabaseAligner.Align(current, desired, ColumnRename("mail", "email"));
@@ -149,8 +149,8 @@ public sealed class DatabaseAlignerTests
     {
         // Arrange — the object directive addresses current reality ('old_app.people'), but the log must key by
         // where the entity lands: the declared schema and name.
-        var current = Db(new Schema(new SqlIdentifier("old_app"), tables: [T("people", "id")]));
-        var desired = Db(new Schema(_app, tables: [T("users", "id")]));
+        var current = Db(new Schema { Name = new SqlIdentifier("old_app"), Tables = [T("people", "id")] });
+        var desired = Db(new Schema { Name = _app, Tables = [T("users", "id")] });
         var directives = new ProjectDirectives(
             SchemaRenames: [new SchemaRenameDirective(new SqlIdentifier("old_app"), _app)],
             ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new SqlIdentifier("old_app"), new SqlIdentifier("people")), new SqlIdentifier("users"))]);

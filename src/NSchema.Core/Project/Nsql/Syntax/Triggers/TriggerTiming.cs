@@ -18,5 +18,5 @@ public enum TriggerTiming
     /// <summary>
     /// <c>INSTEAD OF</c>.
     /// </summary>
-    InsteadOf,
+    InsteadOf
 }

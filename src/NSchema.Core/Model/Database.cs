@@ -7,24 +7,19 @@ namespace NSchema.Model;
 /// <summary>
 /// Represents the overall structure of a database.
 /// </summary>
-/// <remarks>
-/// Creates a database.
-/// </remarks>
-/// <param name="schemas">The schemas declared in the database.</param>
-/// <param name="extensions">Any extensions that are installed in the database.</param>
 [DebuggerDisplay("{Schemas.Count} schemas")]
-public sealed class Database(List<Schema>? schemas = null, List<Extension>? extensions = null) : IEquatable<Database>
+public sealed class Database : IEquatable<Database>
 {
     /// <summary>
     /// A list of Schema objects, each representing a specific schema within the database.
     /// </summary>
-    public List<Schema> Schemas { get; } = schemas ?? [];
+    public List<Schema> Schemas { get; init; } = [];
 
     /// <summary>
     /// A list of database-global extensions. Extensions are not schema-scoped, so they live at the root of the
     /// database schema rather than inside a <see cref="Schema"/>.
     /// </summary>
-    public List<Extension> Extensions { get; } = extensions ?? [];
+    public List<Extension> Extensions { get; init; } = [];
 
     /// <summary>
     /// The identity of everything the database contains: its schemas, their objects, and its extensions.
@@ -37,17 +32,20 @@ public sealed class Database(List<Schema>? schemas = null, List<Extension>? exte
     /// <summary>
     /// Returns a deep copy of the database.
     /// </summary>
-    public Database Clone() => new(
-        [.. Schemas.Select(s => s.Clone())],
-        [.. Extensions.Select(e => e.Clone())]);
+    public Database Clone() => new()
+    {
+        Schemas = [.. Schemas.Select(s => s.Clone())],
+        Extensions = [.. Extensions.Select(e => e.Clone())],
+    };
 
     /// <summary>
     /// Returns a copy of the database restricted to the schemas, objects, and extensions whose identity is in the set.
     /// </summary>
-    public Database FilteredTo(IdentitySet identities) => new(
-        [.. Schemas.Where(s => identities.ContainsSchema(s.Name)).Select(s => s.FilteredTo(identities))],
-        [.. Extensions.Where(identities.Contains).Select(e => e.Clone())]
-    );
+    public Database FilteredTo(IdentitySet identities) => new()
+    {
+        Schemas = [.. Schemas.Where(s => identities.ContainsSchema(s.Name)).Select(s => s.FilteredTo(identities))],
+        Extensions = [.. Extensions.Where(identities.Contains).Select(e => e.Clone())],
+    };
 
     /// <summary>
     /// Returns a new database model restricted to the current scope.

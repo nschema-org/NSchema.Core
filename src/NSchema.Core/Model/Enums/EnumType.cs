@@ -5,10 +5,8 @@ namespace NSchema.Model.Enums;
 /// <summary>
 /// Represents an enum type: a named, ordered set of string values.
 /// </summary>
-/// <param name="name">The name of the enum type.</param>
-/// <param name="values">The allowed values, in order.</param>
 [DebuggerDisplay("{Name,nq} ({Values.Count} values)")]
-public sealed class EnumType(SqlIdentifier name, List<string>? values = null) : DatabaseObject(name), IEquatable<EnumType>
+public sealed class EnumType : DatabaseObject, IEquatable<EnumType>
 {
     /// <inheritdoc/>
     public override ObjectKind Kind => ObjectKind.Enum;
@@ -16,10 +14,10 @@ public sealed class EnumType(SqlIdentifier name, List<string>? values = null) : 
     /// <summary>
     /// The allowed values, in order.
     /// </summary>
-    public List<string> Values { get; } = values ?? [];
+    public List<string> Values { get; init; } = [];
 
     /// <inheritdoc/>
-    public override EnumType Clone() => new(Name, [.. Values]) { Comment = Comment };
+    public override EnumType Clone() => new() { Name = Name, Values = [.. Values], Comment = Comment };
 
     /// <summary>
     /// Structural equality over the declared definition; the schema and the comment are excluded.

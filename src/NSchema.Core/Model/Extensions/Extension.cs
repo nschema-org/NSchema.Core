@@ -5,10 +5,8 @@ namespace NSchema.Model.Extensions;
 /// <summary>
 /// Represents a database extension.
 /// </summary>
-/// <param name="name">The extension name.</param>
-/// <param name="version">The requested version, or <see langword="null"/> to accept whatever the provider installs.</param>
 [DebuggerDisplay("{Name,nq} (extension)")]
-public sealed class Extension(SqlIdentifier name, string? version = null) : DatabaseObject(name), IEquatable<Extension>
+public sealed class Extension : DatabaseObject, IEquatable<Extension>
 {
     /// <inheritdoc/>
     public override ObjectKind Kind => ObjectKind.Extension;
@@ -16,10 +14,10 @@ public sealed class Extension(SqlIdentifier name, string? version = null) : Data
     /// <summary>
     /// The requested version, or <see langword="null"/> to accept whatever the provider installs.
     /// </summary>
-    public string? Version { get; set; } = version;
+    public string? Version { get; set; }
 
     /// <inheritdoc/>
-    public override Extension Clone() => new(Name, Version) { Comment = Comment };
+    public override Extension Clone() => new() { Name = Name, Version = Version, Comment = Comment };
 
     /// <summary>
     /// Structural equality over the declared definition; the comment is excluded.

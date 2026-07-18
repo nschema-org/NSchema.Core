@@ -45,7 +45,7 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
             header.Tables.Clear();
             header.Views.Clear();
             header.Routines.Clear();
-            await Import(headerPath, new Database([header]), declareSchemas: true);
+            await Import(headerPath, new Database { Schemas = [header] }, declareSchemas: true);
 
             foreach (var (path, partition) in ObjectPartitions(definition, arguments.OutputDirectory))
             {
@@ -58,7 +58,7 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
         if (schema.Extensions.Count > 0)
         {
             var path = Path.Combine(arguments.OutputDirectory, "extensions.sql");
-            await Import(path, new Database(extensions: [.. schema.Extensions.Select(e => e.Clone())]), declareSchemas: true);
+            await Import(path, new Database { Extensions = [.. schema.Extensions.Select(e => e.Clone())] }, declareSchemas: true);
         }
 
         return Result.From(new ImportResult(schema, written), diagnostics);
@@ -71,18 +71,18 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
         foreach (var table in s.Tables)
         {
             yield return (Path.Combine(directory, s.Name.Value, "tables", $"{table.Name}.sql"),
-                new Database([new Schema(s.Name, tables: [table.Clone()])]));
+                new Database { Schemas = [new Schema { Name = s.Name, Tables = [table.Clone()] }] });
         }
         foreach (var view in s.Views)
         {
             yield return (Path.Combine(directory, s.Name.Value, "views", $"{view.Name}.sql"),
-                new Database([new Schema(s.Name, views: [view.Clone()])]));
+                new Database { Schemas = [new Schema { Name = s.Name, Views = [view.Clone()] }] });
         }
         // Functions and procedures share one name space, so they share one directory.
         foreach (var routine in s.Routines)
         {
             yield return (Path.Combine(directory, s.Name.Value, "routines", $"{routine.Name}.sql"),
-                new Database([new Schema(s.Name, routines: [routine.Clone()])]));
+                new Database { Schemas = [new Schema { Name = s.Name, Routines = [routine.Clone()] }] });
         }
     }
 

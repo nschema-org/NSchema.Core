@@ -188,10 +188,20 @@ internal sealed class DatabaseAccumulator
         ApplyTriggers();
         ApplyIndexes();
         var schemas = _entries
-            .Select(e => new Schema(e.Name, e.Tables, e.Grants, e.Views,
-                e.Enums, e.Sequences, e.Routines, e.Domains, e.CompositeTypes)
-            { Comment = e.Comment });
-        return new Database([.. schemas], [.. _extensions]);
+            .Select(e => new Schema
+            {
+                Name = e.Name,
+                Tables = e.Tables,
+                Grants = e.Grants,
+                Views = e.Views,
+                Enums = e.Enums,
+                Sequences = e.Sequences,
+                Routines = e.Routines,
+                Domains = e.Domains,
+                CompositeTypes = e.CompositeTypes,
+                Comment = e.Comment,
+            });
+        return new Database { Schemas = [.. schemas], Extensions = [.. _extensions] };
     }
 
     private void ApplyTableGrants()

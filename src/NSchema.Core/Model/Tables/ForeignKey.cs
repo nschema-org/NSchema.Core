@@ -5,58 +5,51 @@ namespace NSchema.Model.Tables;
 /// <summary>
 /// Represents a foreign key constraint in a database schema.
 /// </summary>
-/// <param name="name">The name of the foreign key constraint.</param>
-/// <param name="columnNames">A list of column names in the current table that are part of the foreign key constraint.</param>
-/// <param name="referencedSchema">The name of the schema that contains the referenced table.</param>
-/// <param name="referencedTable">The name of the table that is referenced by the foreign key constraint.</param>
-/// <param name="referencedColumnNames">A list of column names in the referenced table that are part of the foreign key constraint.</param>
-/// <param name="onDelete">The referential action to be taken when a referenced row is deleted (e.g., CASCADE, SET NULL, NO ACTION).</param>
-/// <param name="onUpdate">The referential action to be taken when a referenced row is updated (e.g., CASCADE, SET NULL, NO ACTION).</param>
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public sealed class ForeignKey(
-    SqlIdentifier name,
-    List<SqlIdentifier> columnNames,
-    SqlIdentifier referencedSchema,
-    SqlIdentifier referencedTable,
-    List<SqlIdentifier> referencedColumnNames,
-    ReferentialAction onDelete = ReferentialAction.NoAction,
-    ReferentialAction onUpdate = ReferentialAction.NoAction
-) : DatabaseMember(name), IEquatable<ForeignKey>
+public sealed class ForeignKey : DatabaseMember, IEquatable<ForeignKey>
 {
-
     /// <summary>
     /// A list of column names in the current table that are part of the foreign key constraint.
     /// </summary>
-    public List<SqlIdentifier> ColumnNames { get; } = columnNames ?? [];
+    public required List<SqlIdentifier> ColumnNames { get; init; }
 
     /// <summary>
     /// The name of the schema that contains the referenced table.
     /// </summary>
-    public SqlIdentifier ReferencedSchema { get; set; } = referencedSchema;
+    public required SqlIdentifier ReferencedSchema { get; set; }
 
     /// <summary>
     /// The name of the table that is referenced by the foreign key constraint.
     /// </summary>
-    public SqlIdentifier ReferencedTable { get; set; } = referencedTable;
+    public required SqlIdentifier ReferencedTable { get; set; }
 
     /// <summary>
     /// A list of column names in the referenced table that are part of the foreign key constraint.
     /// </summary>
-    public List<SqlIdentifier> ReferencedColumnNames { get; } = referencedColumnNames ?? [];
+    public required List<SqlIdentifier> ReferencedColumnNames { get; init; }
 
     /// <summary>
     /// The referential action to be taken when a referenced row is deleted.
     /// </summary>
-    public ReferentialAction OnDelete { get; set; } = onDelete;
+    public ReferentialAction OnDelete { get; set; }
 
     /// <summary>
     /// The referential action to be taken when a referenced row is updated.
     /// </summary>
-    public ReferentialAction OnUpdate { get; set; } = onUpdate;
+    public ReferentialAction OnUpdate { get; set; }
 
     /// <inheritdoc/>
-    public override ForeignKey Clone() =>
-        new(Name, [.. ColumnNames], ReferencedSchema, ReferencedTable, [.. ReferencedColumnNames], OnDelete, OnUpdate) { Comment = Comment };
+    public override ForeignKey Clone() => new()
+    {
+        Name = Name,
+        ColumnNames = [.. ColumnNames],
+        ReferencedSchema = ReferencedSchema,
+        ReferencedTable = ReferencedTable,
+        ReferencedColumnNames = [.. ReferencedColumnNames],
+        OnDelete = OnDelete,
+        OnUpdate = OnUpdate,
+        Comment = Comment,
+    };
 
     /// <summary>
     /// Structural equality over the declared definition; the parent and the comment are excluded.

@@ -13,5 +13,5 @@ public enum DeploymentPhase
     /// <summary>
     /// The script runs after the migration actions.
     /// </summary>
-    Post,
+    Post
 }

@@ -43,7 +43,7 @@ public enum ObjectKind
     /// <summary>
     /// An extension.
     /// </summary>
-    Extension,
+    Extension
 }
 
 /// <summary>

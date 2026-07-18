@@ -55,8 +55,8 @@ public class SqlIdentifierTests
     public void RecordEquality_NestedIdentifierLists_AreCaseInsensitive()
     {
         // Arrange — the latent-spurious-diff class this type fixes: referenced column lists differing only in case.
-        var current = new PrimaryKey(new SqlIdentifier("pk"), [new SqlIdentifier("ID"), new SqlIdentifier("Email")]);
-        var desired = new PrimaryKey(new SqlIdentifier("PK"), [new SqlIdentifier("id"), new SqlIdentifier("email")]);
+        var current = new PrimaryKey { Name = new SqlIdentifier("pk"), ColumnNames = [new SqlIdentifier("ID"), new SqlIdentifier("Email")] };
+        var desired = new PrimaryKey { Name = new SqlIdentifier("PK"), ColumnNames = [new SqlIdentifier("id"), new SqlIdentifier("email")] };
 
         // Assert
         current.Equals(desired).ShouldBeTrue();

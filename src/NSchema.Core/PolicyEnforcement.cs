@@ -23,5 +23,5 @@ public enum PolicyEnforcement
     /// <summary>
     /// Findings are not reported at all.
     /// </summary>
-    Ignore,
+    Ignore
 }

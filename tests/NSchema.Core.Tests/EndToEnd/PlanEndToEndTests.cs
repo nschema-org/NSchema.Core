@@ -41,8 +41,7 @@ public sealed class PlanEndToEndTests : IDisposable
     public async Task Plan_ReportsStructuredDiffBetweenCurrentAndDesired()
     {
         // Current: app.users(id). Desired: app.users(id, email) + a new app.orders table.
-        var current = new Database([new Schema(new SqlIdentifier("app"), tables:
-            [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
+        var current = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] }] };
 
         var desired = WriteNsql("schema.sql",
             """
@@ -79,8 +78,7 @@ public sealed class PlanEndToEndTests : IDisposable
     [Fact]
     public async Task Plan_WithNoChanges_ReportsEmptyDiff()
     {
-        var schema = new Database([new Schema(new SqlIdentifier("app"), tables:
-            [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
+        var schema = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] }] };
 
         var desired = WriteNsql("schema.sql",
             """
@@ -102,7 +100,7 @@ public sealed class PlanEndToEndTests : IDisposable
     [Fact]
     public async Task Plan_WithDialectRegistered_ProducesSql()
     {
-        var current = new Database([]);
+        var current = new Database { Schemas = [] };
         var desired = WriteNsql("schema.sql", "CREATE SCHEMA app;");
 
         using var app = NewBuilder(current)
@@ -119,7 +117,7 @@ public sealed class PlanEndToEndTests : IDisposable
     [Fact]
     public async Task Plan_WithoutProvider_Fails()
     {
-        var current = new Database([]);
+        var current = new Database { Schemas = [] };
         var desired = WriteNsql("schema.sql", "CREATE SCHEMA app;");
 
         using var app = NewBuilder(current).AddProjectSource(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).Build();
@@ -136,20 +134,19 @@ public sealed class PlanEndToEndTests : IDisposable
     {
         // A scoped teardown is the one plan that can be asked to remove something another schema depends on.
         // billing.orders keeps its rows; only the constraint aimed into app goes.
-        var current = new Database(
-        [
-            new Schema(new SqlIdentifier("app"), tables:
-                [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]),
-            new Schema(new SqlIdentifier("billing"), tables:
-            [
-                new Table(new SqlIdentifier("orders"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)],
-                    foreignKeys:
-                    [
-                        new ForeignKey(new SqlIdentifier("fk_orders_user"), [new SqlIdentifier("id")],
-                            new SqlIdentifier("app"), new SqlIdentifier("users"), [new SqlIdentifier("id")]),
-                    ]),
-            ]),
-        ]);
+        var current = new Database
+        {
+            Schemas = [
+            new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] },
+            new Schema { Name = new SqlIdentifier("billing"), Tables = [
+                new Table { Name = new SqlIdentifier("orders"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }],
+                    ForeignKeys = [
+                        new ForeignKey { Name = new SqlIdentifier("fk_orders_user"), ColumnNames = [new SqlIdentifier("id")],
+                            ReferencedSchema = new SqlIdentifier("app"), ReferencedTable = new SqlIdentifier("users"), ReferencedColumnNames = [new SqlIdentifier("id")] },
+                    ] },
+            ] },
+        ],
+        };
         var desired = WriteNsql("schema.sql", "CREATE SCHEMA app;");
 
         using var app = NewBuilder(current).AddProjectSource(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).UseSqlDialect<StubSqlDialect>().Build();
@@ -185,8 +182,7 @@ public sealed class PlanEndToEndTests : IDisposable
     public async Task Plan_Teardown_DiffsTheManagedSchemaDownToNothing()
     {
         // The managed schema is the recorded state, so the refresh records the live schema before tearing down.
-        var current = new Database([new Schema(new SqlIdentifier("app"), tables:
-            [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]);
+        var current = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] }] };
         var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;

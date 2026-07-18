@@ -20,8 +20,8 @@ public sealed class DriftOperationTests
     private readonly IDatabaseComparer _comparer = Substitute.For<IDatabaseComparer>();
     private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
 
-    private readonly Database _recorded = new([new Schema(new SqlIdentifier("app"))]);
-    private readonly Database _live = new([new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("audit"))]);
+    private readonly Database _recorded = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] };
+    private readonly Database _live = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }, new Schema { Name = new SqlIdentifier("audit") }] };
     private readonly DatabaseDiff _diff = new([new SchemaDiff(new SqlIdentifier("audit"), ChangeKind.Add)]);
 
     private readonly DriftOperation _sut;
@@ -67,7 +67,7 @@ public sealed class DriftOperationTests
     {
         // Arrange — recorded state holds an out-of-scope schema; the scoped read must drop it before diffing.
         _store.Read(Arg.Any<CancellationToken>())
-            .Returns(_serializer.Serialize(new DatabaseState(new Database([new Schema(new SqlIdentifier("app")), new Schema(new SqlIdentifier("other"))]))));
+            .Returns(_serializer.Serialize(new DatabaseState(new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }, new Schema { Name = new SqlIdentifier("other") }] })));
 
         // Act
         await _sut.Execute(Args(PlanningScope.To(new SqlIdentifier("app"))), TestContext.Current.CancellationToken);

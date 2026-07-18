@@ -5,18 +5,16 @@ namespace NSchema.Model.Constraints;
 /// <summary>
 /// Represents a unique constraint in a database schema.
 /// </summary>
-/// <param name="name">The name of the unique constraint.</param>
-/// <param name="columnNames">A list of column names that are part of the unique constraint.</param>
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public sealed class UniqueConstraint(SqlIdentifier name, List<SqlIdentifier> columnNames) : DatabaseMember(name), IEquatable<UniqueConstraint>
+public sealed class UniqueConstraint : DatabaseMember, IEquatable<UniqueConstraint>
 {
     /// <summary>
     /// A list of column names that are part of the unique constraint.
     /// </summary>
-    public List<SqlIdentifier> ColumnNames { get; } = columnNames ?? [];
+    public required List<SqlIdentifier> ColumnNames { get; init; }
 
     /// <inheritdoc/>
-    public override UniqueConstraint Clone() => new(Name, [.. ColumnNames]) { Comment = Comment };
+    public override UniqueConstraint Clone() => new() { Name = Name, ColumnNames = [.. ColumnNames], Comment = Comment };
 
     /// <summary>
     /// Structural equality over the declared definition.

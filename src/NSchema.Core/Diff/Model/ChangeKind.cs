@@ -18,5 +18,5 @@ public enum ChangeKind
     /// <summary>
     /// The element is being removed.
     /// </summary>
-    Remove,
+    Remove
 }

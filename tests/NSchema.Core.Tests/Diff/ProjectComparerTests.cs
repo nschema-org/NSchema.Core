@@ -21,19 +21,24 @@ namespace NSchema.Tests.Diff;
 /// </summary>
 public sealed class ProjectComparerTests
 {
-    private static readonly Database _emptySchema = new([]);
+    private static readonly Database _emptySchema = new Database { Schemas = [] };
     private static readonly DatabaseDiff _emptyDiff = new([]);
 
     private ProjectComparer Sut => new(new DatabaseComparer(NullLogger<DatabaseComparer>.Instance));
 
     /// <summary>Current <c>app.users(id)</c> — the table a column-add migration targets.</summary>
-    private static CurrentState UsersWithId() => new(new Database([new Schema(new SqlIdentifier("app"),
-        tables: [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])]));
+    private static CurrentState UsersWithId() => new(new Database
+    {
+        Schemas = [new Schema { Name = new SqlIdentifier("app"),
+        Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] }],
+    });
 
     /// <summary>Desired <c>app.users(id, email)</c> — adds the column the migration accompanies.</summary>
-    private static Database UsersWithEmail(bool required = false) => new([new Schema(new SqlIdentifier("app"),
-        tables: [new Table(new SqlIdentifier("users"), columns:
-            [new Column(new SqlIdentifier("id"), SqlType.Int), new Column(new SqlIdentifier("email"), SqlType.Text, isNullable: !required)])])]);
+    private static Database UsersWithEmail(bool required = false) => new Database
+    {
+        Schemas = [new Schema { Name = new SqlIdentifier("app"),
+        Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text, IsNullable = !required }] }] }],
+    };
 
     private static DeploymentScript SeedScript() =>
         new DeploymentScript(new SqlIdentifier("seed"), new SqlText("INSERT INTO app.c VALUES (1);"), null, DeploymentPhase.Post) { RunCondition = RunCondition.Once };
@@ -49,8 +54,8 @@ public sealed class ProjectComparerTests
     public void Compare_DiffsBothSchemas()
     {
         // Arrange — a schema only in current is removed; one only in desired is added.
-        var current = new Database([new Schema(new SqlIdentifier("gone"))]);
-        var desired = new Database([new Schema(new SqlIdentifier("fresh"))]);
+        var current = new Database { Schemas = [new Schema { Name = new SqlIdentifier("gone") }] };
+        var desired = new Database { Schemas = [new Schema { Name = new SqlIdentifier("fresh") }] };
 
         // Act
         var diff = Sut.Compare(new CurrentState(current), new ProjectDefinition(desired)).Require();
@@ -199,7 +204,7 @@ public sealed class ProjectComparerTests
     public void Compare_AgainstAnEmptyProject_RemovesEverything_WithNoScripts()
     {
         // Arrange — a teardown is not a third kind of compare: it is the recorded schema against nothing.
-        var current = new CurrentState(new Database([new Schema(new SqlIdentifier("app"))]));
+        var current = new CurrentState(new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] });
 
         // Act
         var diff = Sut.Compare(current, new ProjectDefinition(new Database())).Require();
@@ -213,8 +218,11 @@ public sealed class ProjectComparerTests
     public void Compare_AppliedRename_ReportsTheSpentDirective()
     {
         // Arrange — current has 'people' and no 'users': the rename has demonstrably been applied here.
-        var current = new CurrentState(new Database([new Schema(new SqlIdentifier("app"),
-            tables: [new Table(new SqlIdentifier("people"))])]));
+        var current = new CurrentState(new Database
+        {
+            Schemas = [new Schema { Name = new SqlIdentifier("app"),
+            Tables = [new Table { Name = new SqlIdentifier("people") }] }],
+        });
         var directives = new ProjectDirectives(
             ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users"))), new SqlIdentifier("people"))]);
 

@@ -16,10 +16,10 @@ public partial class DatabaseComparerTests
 
     /// <summary>Diffs two <c>app</c> schemas holding the given composite types, returning the single diff (null when unchanged).</summary>
     private CompositeTypeDiff? DiffCompositeTypes(IReadOnlyList<CompositeType> current, IReadOnlyList<CompositeType> desired, ProjectDirectives? directives = null) =>
-        Compare(Db(new Schema(new SqlIdentifier("app"), compositeTypes: [.. current])), Db(new Schema(new SqlIdentifier("app"), compositeTypes: [.. desired])), directives)
+        Compare(Db(new Schema { Name = new SqlIdentifier("app"), CompositeTypes = [.. current] }), Db(new Schema { Name = new SqlIdentifier("app"), CompositeTypes = [.. desired] }), directives)
         .Schemas.SingleOrDefault()?.CompositeTypes.SingleOrDefault();
 
-    private static CompositeType Address(params CompositeField[] fields) => new(new SqlIdentifier("address"), [.. fields]);
+    private static CompositeType Address(params CompositeField[] fields) => new CompositeType { Name = new SqlIdentifier("address"), Fields = [.. fields] };
 
     [Fact]
     public void Compare_NewCompositeType_IsAddCarryingDefinition()
@@ -82,8 +82,8 @@ public partial class DatabaseComparerTests
     public void Compare_RenamedCompositeType_SetsRenamedFrom()
     {
         var diff = DiffCompositeTypes(
-            [new CompositeType(new SqlIdentifier("legacy_address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text)])],
-            [new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text)])],
+            [new CompositeType { Name = new SqlIdentifier("legacy_address"), Fields = [new CompositeField(new SqlIdentifier("street"), SqlType.Text)] }],
+            [new CompositeType { Name = new SqlIdentifier("address"), Fields = [new CompositeField(new SqlIdentifier("street"), SqlType.Text)] }],
             new ProjectDirectives(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.CompositeType, App("legacy_address")), new SqlIdentifier("address"))]));
 
         diff!.RenamedFrom.ShouldBe("legacy_address");
@@ -93,8 +93,8 @@ public partial class DatabaseComparerTests
     public void Compare_CompositeType_CommentOnlyChange_IsModify()
     {
         var diff = DiffCompositeTypes(
-            [new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text)]) { Comment = "old" }],
-            [new CompositeType(new SqlIdentifier("address"), [new CompositeField(new SqlIdentifier("street"), SqlType.Text)]) { Comment = "new" }]);
+            [new CompositeType { Name = new SqlIdentifier("address"), Fields = [new CompositeField(new SqlIdentifier("street"), SqlType.Text)], Comment = "old" }],
+            [new CompositeType { Name = new SqlIdentifier("address"), Fields = [new CompositeField(new SqlIdentifier("street"), SqlType.Text)], Comment = "new" }]);
 
         diff!.Comment.ShouldBe(new ValueChange<string>("old", "new"));
         diff.Definition.ShouldBeNull();

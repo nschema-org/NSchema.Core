@@ -13,5 +13,5 @@ public enum TriggerLevel
     /// <summary>
     /// Fires once per statement, regardless of the number of rows affected.
     /// </summary>
-    Statement,
+    Statement
 }

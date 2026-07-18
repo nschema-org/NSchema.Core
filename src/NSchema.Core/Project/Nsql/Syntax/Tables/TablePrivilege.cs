@@ -29,5 +29,5 @@ public enum TablePrivilege
     /// <summary>
     /// <c>DELETE</c>.
     /// </summary>
-    Delete = 1 << 3,
+    Delete = 1 << 3
 }

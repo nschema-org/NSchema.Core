@@ -13,5 +13,5 @@ public enum DeploymentPhase
     /// <summary>
     /// <c>POST DEPLOYMENT</c>.
     /// </summary>
-    Post,
+    Post
 }

@@ -45,15 +45,17 @@ public sealed class PlanLinearizerSnapshotTests
         var newTable = new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Add, null, null,
             Columns: [],
             Grants: [new GrantChange(ChangeKind.Add, new SqlIdentifier("readers"), TablePrivilege.Select)],
-            Indexes: [new IndexDiff(ChangeKind.Add, new SqlIdentifier("users_name_ix"), new TableIndex(new SqlIdentifier("users_name_ix"), ["name"], isUnique: true), null)],
-            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_email_uq"), new UniqueConstraint(new SqlIdentifier("users_email_uq"), [new SqlIdentifier("email")]))],
-            Definition: new Table(new SqlIdentifier("users"),
-                primaryKey: new PrimaryKey(new SqlIdentifier("users_pkey"), [new SqlIdentifier("id")]),
-                columns:
-                [
-                    new Column(new SqlIdentifier("id"), SqlType.BigInt, isIdentity: true, identityOptions: new IdentityOptions(1, 1, 1)),
-                    new Column(new SqlIdentifier("name"), SqlType.VarChar(255)),
-                ]));
+            Indexes: [new IndexDiff(ChangeKind.Add, new SqlIdentifier("users_name_ix"), new TableIndex { Name = new SqlIdentifier("users_name_ix"), Columns = ["name"], IsUnique = true }, null)],
+            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("users_email_uq"), new UniqueConstraint { Name = new SqlIdentifier("users_email_uq"), ColumnNames = [new SqlIdentifier("email")] })],
+            Definition: new Table
+            {
+                Name = new SqlIdentifier("users"),
+                PrimaryKey = new PrimaryKey { Name = new SqlIdentifier("users_pkey"), ColumnNames = [new SqlIdentifier("id")] },
+                Columns = [
+                    new Column { Name = new SqlIdentifier("id"), Type = SqlType.BigInt, IsIdentity = true, IdentityOptions = new IdentityOptions(1, 1, 1) },
+                    new Column { Name = new SqlIdentifier("name"), Type = SqlType.VarChar(255) },
+                ],
+            });
 
         var modifiedTable = new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("orders"), ChangeKind.Modify, new SqlIdentifier("purchases"), null,
             Columns:
@@ -61,28 +63,28 @@ public sealed class PlanLinearizerSnapshotTests
                 new ColumnDiff(new SqlIdentifier("total"), ChangeKind.Modify, null, null,
                     Type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
                     Nullability: new ValueChange<bool>(true, false), Default: null, Identity: null, Comment: null),
-                new ColumnDiff(new SqlIdentifier("notes"), ChangeKind.Add, new Column(new SqlIdentifier("notes"), SqlType.Text, isNullable: true), null, null, null, null, null, null),
+                new ColumnDiff(new SqlIdentifier("notes"), ChangeKind.Add, new Column { Name = new SqlIdentifier("notes"), Type = SqlType.Text, IsNullable = true }, null, null, null, null, null, null),
                 new ColumnDiff(new SqlIdentifier("total_label"), ChangeKind.Modify, Generated: new ValueChange<SqlText>(null, new SqlText("total::text"))),
-                new ColumnDiff(new SqlIdentifier("legacy_flag"), ChangeKind.Remove, new Column(new SqlIdentifier("legacy_flag"), SqlType.Boolean), null, null, null, null, null, null),
+                new ColumnDiff(new SqlIdentifier("legacy_flag"), ChangeKind.Remove, new Column { Name = new SqlIdentifier("legacy_flag"), Type = SqlType.Boolean }, null, null, null, null, null, null),
             ],
             Grants: [],
             Indexes: [new IndexDiff(ChangeKind.Add, new SqlIdentifier("orders_total_ix"),
-                new TableIndex(new SqlIdentifier("orders_total_ix"), [new IndexColumn(new SqlIdentifier("total"), Sort: IndexSort.Descending)], method: "btree", include: [new SqlIdentifier("code")]), null)],
+                new TableIndex { Name = new SqlIdentifier("orders_total_ix"), Columns = [new IndexColumn(new SqlIdentifier("total"), Sort: IndexSort.Descending)], Method = "btree", Include = [new SqlIdentifier("code")] }, null)],
             ForeignKeys: [new ForeignKeyDiff(ChangeKind.Remove, new SqlIdentifier("orders_user_fk"), null)],
-            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("orders_code_uq"), new UniqueConstraint(new SqlIdentifier("orders_code_uq"), [new SqlIdentifier("code")]))],
-            Checks: [new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("orders_total_chk"), new CheckConstraint(new SqlIdentifier("orders_total_chk"), new SqlText("total >= 0")))],
+            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("orders_code_uq"), new UniqueConstraint { Name = new SqlIdentifier("orders_code_uq"), ColumnNames = [new SqlIdentifier("code")] })],
+            Checks: [new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("orders_total_chk"), new CheckConstraint { Name = new SqlIdentifier("orders_total_chk"), Expression = new SqlText("total >= 0") })],
             ExclusionConstraints: [new ExclusionConstraintDiff(ChangeKind.Add, new SqlIdentifier("orders_slot_excl"),
-                new ExclusionConstraint(new SqlIdentifier("orders_slot_excl"), [new ExclusionElement("&&", new SqlIdentifier("slot"))], "gist"))]);
+                new ExclusionConstraint { Name = new SqlIdentifier("orders_slot_excl"), Elements = [new ExclusionElement("&&", new SqlIdentifier("slot"))], Method = "gist" })]);
 
         // Listed dependent-first on purpose: the dependency sort must reorder them so user_summary (which
         // reads active_users) is created after it.
         var views = new ViewDiff[]
         {
             new(new SqlIdentifier("app"), new SqlIdentifier("user_summary"), ChangeKind.Add,
-                Definition: new View(new SqlIdentifier("user_summary"), new SqlText("SELECT * FROM app.active_users"), dependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("active_users"))]),
+                Definition: new View { Name = new SqlIdentifier("user_summary"), Body = new SqlText("SELECT * FROM app.active_users"), DependsOn = [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("active_users"))] },
                 DependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("active_users"))]),
             new(new SqlIdentifier("app"), new SqlIdentifier("active_users"), ChangeKind.Add,
-                Definition: new View(new SqlIdentifier("active_users"), new SqlText("SELECT * FROM app.users"), dependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users"))]),
+                Definition: new View { Name = new SqlIdentifier("active_users"), Body = new SqlText("SELECT * FROM app.users"), DependsOn = [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users"))] },
                 DependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users"))]),
             new(new SqlIdentifier("app"), new SqlIdentifier("report"), ChangeKind.Modify, RenamedFrom: new SqlIdentifier("legacy_report")),
             new(new SqlIdentifier("app"), new SqlIdentifier("stale_view"), ChangeKind.Remove),
@@ -92,14 +94,14 @@ public sealed class PlanLinearizerSnapshotTests
         // an options change, and drops (after tables, before the schema drop).
         var enums = new EnumDiff[]
         {
-            new(new SqlIdentifier("app"), new SqlIdentifier("order_status"), ChangeKind.Add, Definition: new EnumType(new SqlIdentifier("order_status"), ["pending", "shipped"])),
+            new(new SqlIdentifier("app"), new SqlIdentifier("order_status"), ChangeKind.Add, Definition: new EnumType { Name = new SqlIdentifier("order_status"), Values = ["pending", "shipped"] }),
             new(new SqlIdentifier("app"), new SqlIdentifier("priority"), ChangeKind.Modify, RenamedFrom: new SqlIdentifier("importance"),
                 AddedValues: [new EnumValueAddition("medium", After: "low")]),
             new(new SqlIdentifier("app"), new SqlIdentifier("stale_enum"), ChangeKind.Remove),
         };
         var sequences = new SequenceDiff[]
         {
-            new(new SqlIdentifier("app"), new SqlIdentifier("order_id"), ChangeKind.Add, Definition: new Sequence(new SqlIdentifier("order_id"), new SequenceOptions(StartWith: 100))),
+            new(new SqlIdentifier("app"), new SqlIdentifier("order_id"), ChangeKind.Add, Definition: new Sequence { Name = new SqlIdentifier("order_id"), Options = new SequenceOptions(StartWith: 100) }),
             new(new SqlIdentifier("app"), new SqlIdentifier("ticket_id"), ChangeKind.Modify,
                 Options: new ValueChange<SequenceOptions>(new SequenceOptions(StartWith: 1), new SequenceOptions(StartWith: 1000))),
             new(new SqlIdentifier("app"), new SqlIdentifier("stale_seq"), ChangeKind.Remove),
@@ -109,13 +111,13 @@ public sealed class PlanLinearizerSnapshotTests
         var routines = new RoutineDiff[]
         {
             new(new SqlIdentifier("app"), new SqlIdentifier("add_tax"), ChangeKind.Add, RoutineKind.Function,
-                Definition: new Routine(new SqlIdentifier("add_tax"), RoutineKind.Function, new SqlText("amount numeric"), new SqlText("RETURNS numeric AS $$ SELECT amount $$"))),
+                Definition: new Routine { Name = new SqlIdentifier("add_tax"), RoutineKind = RoutineKind.Function, Arguments = new SqlText("amount numeric"), Definition = new SqlText("RETURNS numeric AS $$ SELECT amount $$") }),
             new(new SqlIdentifier("app"), new SqlIdentifier("score"), ChangeKind.Modify, RoutineKind.Function, RenamedFrom: new SqlIdentifier("old_score"),
-                Definition: new Routine(new SqlIdentifier("score"), RoutineKind.Function, new SqlText("user_id bigint, weight numeric"), new SqlText("RETURNS numeric AS $$ SELECT 1 $$")),
+                Definition: new Routine { Name = new SqlIdentifier("score"), RoutineKind = RoutineKind.Function, Arguments = new SqlText("user_id bigint, weight numeric"), Definition = new SqlText("RETURNS numeric AS $$ SELECT 1 $$") },
                 Arguments: new ValueChange<SqlText>(new SqlText("user_id bigint"), new SqlText("user_id bigint, weight numeric"))),
             new(new SqlIdentifier("app"), new SqlIdentifier("stale_fn"), ChangeKind.Remove, RoutineKind.Function),
             new(new SqlIdentifier("app"), new SqlIdentifier("archive"), ChangeKind.Add, RoutineKind.Procedure,
-                Definition: new Routine(new SqlIdentifier("archive"), RoutineKind.Procedure, new SqlText("before date"), new SqlText("LANGUAGE sql AS $$ DELETE $$"))),
+                Definition: new Routine { Name = new SqlIdentifier("archive"), RoutineKind = RoutineKind.Procedure, Arguments = new SqlText("before date"), Definition = new SqlText("LANGUAGE sql AS $$ DELETE $$") }),
             new(new SqlIdentifier("app"), new SqlIdentifier("stale_proc"), ChangeKind.Remove, RoutineKind.Procedure),
         };
 
