@@ -99,12 +99,6 @@ internal sealed partial class DatabaseComparer
     [LoggerMessage(EventId = 52, Level = LogLevel.Information, Message = "Adding primary key '{KeyName}' to '{Owner}'")]
     private partial void LogPrimaryKeyAdding(SqlIdentifier keyName, ObjectAddress owner);
 
-    [LoggerMessage(EventId = 63, Level = LogLevel.Information, Message = "Adding foreign key '{FkName}' to new table '{Owner}'")]
-    private partial void LogForeignKeyAddingToNewTable(SqlIdentifier fkName, ObjectAddress owner);
-
-    [LoggerMessage(EventId = 67, Level = LogLevel.Information, Message = "Adding unique constraint '{Name}' to new table '{Owner}'")]
-    private partial void LogUniqueConstraintAddingToNewTable(SqlIdentifier name, ObjectAddress owner);
-
     [LoggerMessage(EventId = 68, Level = LogLevel.Information, Message = "Primary key '{Name}' on '{Owner}' comment changed")]
     private partial void LogPrimaryKeyCommentChanged(SqlIdentifier name, ObjectAddress owner);
 
@@ -120,12 +114,6 @@ internal sealed partial class DatabaseComparer
 
     [LoggerMessage(EventId = 64, Level = LogLevel.Information, Message = "{MemberKind} '{Name}' on '{Owner}' comment changed")]
     private partial void LogTableMemberCommentChanged(string memberKind, SqlIdentifier name, ObjectAddress owner);
-
-    [LoggerMessage(EventId = 93, Level = LogLevel.Information, Message = "Adding check constraint '{Name}' to new table '{Owner}'")]
-    private partial void LogCheckConstraintAddingToNewTable(SqlIdentifier name, ObjectAddress owner);
-
-    [LoggerMessage(EventId = 74, Level = LogLevel.Information, Message = "Adding index '{IndexName}' to new table '{Owner}'")]
-    private partial void LogIndexAddingToNewTable(SqlIdentifier indexName, ObjectAddress owner);
 
     [LoggerMessage(EventId = 80, Level = LogLevel.Information, Message = "Revoking USAGE on schema '{Schema}' from '{Role}'")]
     private partial void LogSchemaUsageRevoking(SqlIdentifier schema, SqlIdentifier role);
