@@ -1,10 +1,14 @@
 using NSchema.Diff.Model;
 using NSchema.Diff.Model.Columns;
+using NSchema.Diff.Model.Enums;
 using NSchema.Diff.Model.Schemas;
+using NSchema.Diff.Model.Services;
 using NSchema.Diff.Model.Tables;
 using NSchema.Diff.Model.Views;
 using NSchema.Model;
 using NSchema.Model.Columns;
+using NSchema.Model.Domains;
+using NSchema.Model.Enums;
 using NSchema.Model.Schemas;
 using NSchema.Model.Scripts;
 using NSchema.Model.Tables;
@@ -185,5 +189,86 @@ public sealed class DatabaseDiffTests
         // Assert
         result.Value!.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
         result.Diagnostics.ShouldBeEmpty();
+    }
+
+    /// <summary>
+    /// The difference that removes app's status enum, and nothing else.
+    /// </summary>
+    private static DatabaseDiff EnumRemovalDiff() => new(
+    [
+        new SchemaDiff(new SqlIdentifier("app"), Enums: [new EnumDiff(new SqlIdentifier("app"), new SqlIdentifier("status"), ChangeKind.Remove)]),
+    ]);
+
+    /// <summary>
+    /// app.status (an enum), with billing.orders.state declared against it — qualified or bare.
+    /// </summary>
+    private static Database DatabaseWithEnumTypedColumn(SqlType columnType) => new()
+    {
+        Schemas = [
+        new Schema { Name = new SqlIdentifier("app"), Enums = [new EnumType { Name = new SqlIdentifier("status"), Values = ["new", "done"] }] },
+        new Schema { Name = new SqlIdentifier("billing"),
+            Tables = [new Table { Name = new SqlIdentifier("orders"), Columns = [new Column { Name = new SqlIdentifier("state"), Type = columnType }] }] },
+    ],
+    };
+
+    [Fact]
+    public void ScopedTo_RemovalAnOutOfScopeColumnDependsOn_Blocks_InsteadOfWidening()
+    {
+        // Arrange — closure severs definitions, never data: a column stands for its table's rows, so there is
+        // no minimal sever. The plan is blocked, and still carried for review.
+        var current = DatabaseWithEnumTypedColumn(SqlType.Custom(new SqlIdentifier("app"), "status"));
+
+        // Act
+        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To(new SqlIdentifier("app")), current);
+
+        // Assert
+        result.IsFailure.ShouldBeTrue();
+        result.Value!.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app"); // nothing widened into billing
+        result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
+            DiffDiagnostics.ColumnBlocksRemoval([new MemberAddress(new SqlIdentifier("billing"), new SqlIdentifier("orders"), new SqlIdentifier("state"))]));
+    }
+
+    [Fact]
+    public void ScopedTo_RemovalABareTypedColumnAppearsToDependOn_Hedges_InsteadOfBlocking()
+    {
+        // Arrange — the edge was bound by name alone, and a wrong guess must not block a plan that need not
+        // be. The plan proceeds with a warning; if the guess was right, the database rejects it at apply.
+        var current = DatabaseWithEnumTypedColumn(SqlType.Custom("status"));
+
+        // Act
+        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To(new SqlIdentifier("app")), current);
+
+        // Assert
+        result.IsSuccess.ShouldBeTrue();
+        result.Value!.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
+        result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
+            DiffDiagnostics.InferredColumnMayBlockRemoval([new MemberAddress(new SqlIdentifier("billing"), new SqlIdentifier("orders"), new SqlIdentifier("state"))]));
+    }
+
+    [Fact]
+    public void ScopedTo_RemovalAnOutOfScopeDomainIsBuiltOn_DropsTheDomain()
+    {
+        // Arrange — a domain is a definition, so it severs the way a view does.
+        var current = new Database
+        {
+            Schemas = [
+            new Schema { Name = new SqlIdentifier("app"), Enums = [new EnumType { Name = new SqlIdentifier("status"), Values = ["new", "done"] }] },
+            new Schema { Name = new SqlIdentifier("billing"),
+                Domains = [new DomainType { Name = new SqlIdentifier("tracked_status"), DataType = SqlType.Custom(new SqlIdentifier("app"), "status") }] },
+        ],
+        };
+
+        // Act
+        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To(new SqlIdentifier("app")), current);
+
+        // Assert
+        result.IsSuccess.ShouldBeTrue();
+        var billing = result.Value!.Schemas.Single(s => s.Name == new SqlIdentifier("billing"));
+        billing.Kind.ShouldBeNull();
+        billing.Domains.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            d => d.Name.ShouldBe("tracked_status"),
+            d => d.Kind.ShouldBe(ChangeKind.Remove));
+        result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
+            DiffDiagnostics.SeveredOutOfScope([new ObjectAddress(new SqlIdentifier("billing"), new SqlIdentifier("tracked_status"))]));
     }
 }
