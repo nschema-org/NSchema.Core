@@ -19,7 +19,8 @@ public abstract class DatabaseObject(SqlIdentifier name) : DatabaseElement(name)
     /// The schema the object belongs to, or <see langword="null"/> when it is database-global or has not been placed in a tree.
     /// </summary>
     [JsonIgnore]
-    public Schema? Schema {
+    public Schema? Schema
+    {
         get;
         internal set
         {

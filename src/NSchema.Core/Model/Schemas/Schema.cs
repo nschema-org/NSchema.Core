@@ -128,7 +128,8 @@ public sealed class Schema : DatabaseElement, IEquatable<Schema>
         [.. (routines ?? Routines).Select(r => r.Clone())],
         [.. (domains ?? Domains).Select(d => d.Clone())],
         [.. (compositeTypes ?? CompositeTypes).Select(t => t.Clone())]
-    ) { Comment = Comment };
+    )
+    { Comment = Comment };
 
     /// <summary>
     /// Returns the schema restricted to the objects whose identity is in the set. Grants ride the schema and

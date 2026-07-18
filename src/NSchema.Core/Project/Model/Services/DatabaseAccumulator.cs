@@ -189,7 +189,8 @@ internal sealed class DatabaseAccumulator
         ApplyIndexes();
         var schemas = _entries
             .Select(e => new Schema(e.Name, e.Tables, e.Grants, e.Views,
-                e.Enums, e.Sequences, e.Routines, e.Domains, e.CompositeTypes) { Comment = e.Comment} )
+                e.Enums, e.Sequences, e.Routines, e.Domains, e.CompositeTypes)
+            { Comment = e.Comment })
             .ToList();
         return new Database(schemas, _extensions);
     }

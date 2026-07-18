@@ -21,7 +21,8 @@ public partial class DatabaseComparerTests
 
     private static Trigger AfterInsert(string name, string function = "log", string? comment = null) =>
         new(new SqlIdentifier(name), TriggerTiming.After, TriggerEvent.Insert,
-            new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier(function)), TriggerLevel.Row) { Comment = comment };
+            new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier(function)), TriggerLevel.Row)
+        { Comment = comment };
 
     [Fact]
     public void Compare_NewTrigger_IsAddCarryingDefinition()

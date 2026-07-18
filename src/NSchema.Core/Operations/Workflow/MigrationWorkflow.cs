@@ -120,7 +120,8 @@ internal sealed class MigrationWorkflow(
         {
             // Recording the run-once ledger is a state-domain job; the shell just supplies what ran and when.
             state = state.RecordExecution(applied.Diff.DeploymentScripts, DateTimeOffset.UtcNow)
-                with { Managed = applied.Managed };
+                with
+            { Managed = applied.Managed };
         }
 
         var written = await stateManager.Write(new StateWriteArguments(state), cancellationToken);

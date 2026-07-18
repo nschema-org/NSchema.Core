@@ -127,7 +127,8 @@ public sealed class Table : DatabaseObject, IEquatable<Table>
             [.. (exclusionConstraints ?? ExclusionConstraints).Select(x => x.Clone())],
             [.. (indexes ?? Indexes).Select(i => i.Clone())],
             grants ?? Grants,
-            [.. (triggers ?? Triggers).Select(t => t.Clone())]) { Comment = Comment };
+            [.. (triggers ?? Triggers).Select(t => t.Clone())])
+        { Comment = Comment };
 
     internal Table Clone() => With();
 

@@ -616,7 +616,8 @@ public sealed class MigrationWorkflowTests
             new Schema(new SqlIdentifier("admin")),
             new Schema(new SqlIdentifier("legacy")),
             new Schema(new SqlIdentifier("unmanaged")),
-        ])) with { Managed = new IdentitySet(Schemas: [new SqlIdentifier("legacy")]) });
+        ])) with
+        { Managed = new IdentitySet(Schemas: [new SqlIdentifier("legacy")]) });
 
         // Act
         await sut.ComputePlan(PlanTarget.Project, PlanningScope.All, TestContext.Current.CancellationToken);

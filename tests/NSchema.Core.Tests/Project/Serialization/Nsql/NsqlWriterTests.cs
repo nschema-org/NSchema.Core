@@ -234,7 +234,8 @@ public sealed class NsqlWriterTests
     public void Write_TriggerWithUpdateOfWhenAndComment_IsEmitted()
     {
         var ddl = WriteTriggerOn(new Trigger(new SqlIdentifier("audit"), TriggerTiming.After, TriggerEvent.Update, new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("log")),
-            TriggerLevel.Row, updateOfColumns: [new SqlIdentifier("email")], when: new SqlText("new.email IS NOT NULL")) { Comment = "audit" });
+            TriggerLevel.Row, updateOfColumns: [new SqlIdentifier("email")], when: new SqlText("new.email IS NOT NULL"))
+        { Comment = "audit" });
         ddl.ShouldContain("--- audit\nCREATE TRIGGER audit AFTER UPDATE OF (email) ON app.users FOR EACH ROW WHEN (new.email IS NOT NULL) EXECUTE FUNCTION app.log();");
     }
 
@@ -247,7 +248,8 @@ public sealed class NsqlWriterTests
     public void Write_Trigger_RoundTripsThroughParse()
     {
         var trigger = new Trigger(new SqlIdentifier("audit"), TriggerTiming.After, TriggerEvent.Insert | TriggerEvent.Delete, new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("log")),
-            TriggerLevel.Row, when: new SqlText("true"), functionArguments: new SqlText("'x'")) { Comment = "note" };
+            TriggerLevel.Row, when: new SqlText("true"), functionArguments: new SqlText("'x'"))
+        { Comment = "note" };
         var schema = new Database([new Schema(new SqlIdentifier("app"),
             tables: [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], triggers: [trigger])])]);
 
@@ -268,7 +270,8 @@ public sealed class NsqlWriterTests
     {
         // A body with its own semicolons survives because it is emitted (and lexed) as one dollar-quoted block.
         var trigger = new Trigger(new SqlIdentifier("audit"), TriggerTiming.InsteadOf, TriggerEvent.Insert | TriggerEvent.Update,
-            body: new SqlText("BEGIN\n  UPDATE app.users SET id = id;\n  INSERT INTO app.log VALUES (1);\nEND")) { Comment = "note" };
+            body: new SqlText("BEGIN\n  UPDATE app.users SET id = id;\n  INSERT INTO app.log VALUES (1);\nEND"))
+        { Comment = "note" };
         var schema = new Database([new Schema(new SqlIdentifier("app"),
             tables: [new Table(new SqlIdentifier("users"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)], triggers: [trigger])])]);
 

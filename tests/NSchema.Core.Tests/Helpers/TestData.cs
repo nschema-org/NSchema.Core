@@ -50,13 +50,13 @@ public static class TestData
         [
             new Schema(
                 name: new SqlIdentifier("app"),
-                
+
                 tables:
                 [
                     new Table(
                         name: new SqlIdentifier("users"),
                         primaryKey: new PrimaryKey(new SqlIdentifier("users_pkey"), [new SqlIdentifier("id")]) { Comment = "surrogate key" },
-                        
+
                         columns:
                         [
                             new Column(new SqlIdentifier("id"), SqlType.BigInt, isIdentity: true,

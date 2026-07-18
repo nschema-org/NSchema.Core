@@ -253,9 +253,10 @@ public partial class DatabaseComparerTests
     {
         var current = Db();
         var desired = Db(new Schema(new SqlIdentifier("reporting"),
-            
+
             grants: [new SchemaGrant(new SqlIdentifier("reader"))],
-            tables: [new Table(new SqlIdentifier("metrics"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])]) { Comment = "analytics" });
+            tables: [new Table(new SqlIdentifier("metrics"), columns: [new Column(new SqlIdentifier("id"), SqlType.Int)])])
+        { Comment = "analytics" });
 
         var schema = Compare(current, desired).Schemas.ShouldHaveSingleItem();
 

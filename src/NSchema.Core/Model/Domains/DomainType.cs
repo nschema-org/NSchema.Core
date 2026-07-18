@@ -53,12 +53,12 @@ public sealed class DomainType : DatabaseObject, IEquatable<DomainType>
     /// <summary>
     /// The domain's <c>CHECK</c> constraints; empty when none.
     /// </summary>
-    public IReadOnlyList<CheckConstraint> Checks { get; init => field = [..value.Select(c => { c.Parent = this; return c; })]; }
+    public IReadOnlyList<CheckConstraint> Checks { get; init => field = [.. value.Select(c => { c.Parent = this; return c; })]; }
 
     /// <summary>
     /// Returns a copy of the domain built on the given base type, outside any tree.
     /// </summary>
-    public DomainType WithDataType(SqlType dataType) => new(Name, dataType, Default, NotNull, [.. Checks.Select(c => c.Clone())]) {Comment = Comment};
+    public DomainType WithDataType(SqlType dataType) => new(Name, dataType, Default, NotNull, [.. Checks.Select(c => c.Clone())]) { Comment = Comment };
 
     internal DomainType Clone() => new(Name, DataType, Default, NotNull, [.. Checks.Select(c => c.Clone())]) { Comment = Comment };
 

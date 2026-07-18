@@ -21,7 +21,7 @@ public sealed class DatabaseSnapshotTests
         // Two providers contribute to "app" (tables and views merged); a third owns "reporting" on its own.
         var core = new Database(
         [
-            new Schema(new SqlIdentifier("app"), 
+            new Schema(new SqlIdentifier("app"),
                 tables:
                 [
                     new Table(new SqlIdentifier("users"),
@@ -30,7 +30,7 @@ public sealed class DatabaseSnapshotTests
                 ],
                 views:
                 [
-                    new View(new SqlIdentifier("active_users"), new SqlText("SELECT id, name FROM app.users"), 
+                    new View(new SqlIdentifier("active_users"), new SqlText("SELECT id, name FROM app.users"),
                         dependsOn: [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users"))]) { Comment = "currently active users" },
                 ]) { Comment = "application schema" },
         ]);
@@ -52,7 +52,7 @@ public sealed class DatabaseSnapshotTests
 
         var reporting = new Database(
         [
-            new Schema(new SqlIdentifier("reporting"), 
+            new Schema(new SqlIdentifier("reporting"),
                 tables: [new Table(new SqlIdentifier("daily_totals"), columns: [new Column(new SqlIdentifier("day"), SqlType.Date)])],
                 views:
                 [

@@ -122,7 +122,8 @@ internal static class DocumentProjector
             {
                 case Syn.Tables.ColumnDefinition m:
                     columns.Add(new Column(Name(m.Name), ParseType(m.Type), m.IsNullable, m.IsIdentity, m.Default,
-                        ProjectIdentityOptions(m.IdentityOptions), m.Generated) { Comment = m.Doc });
+                        ProjectIdentityOptions(m.IdentityOptions), m.Generated)
+                    { Comment = m.Doc });
                     break;
                 case Syn.Constraints.PrimaryKeyDefinition m:
                     primaryKey = new PrimaryKey(Name(m.Name), Names(m.Columns)) { Comment = m.Doc };
@@ -135,7 +136,8 @@ internal static class DocumentProjector
                             ? new SqlIdentifier(qualifier.Value)
                             : context ?? SchemaToken.TargetSchemaPlaceholder;
                         foreignKeys.Add(new ForeignKey(Name(m.Name), Names(m.Columns), refSchema, Name(m.References.Name),
-                            Names(m.ReferencedColumns), Map(m.OnDelete), Map(m.OnUpdate)) { Comment = m.Doc });
+                            Names(m.ReferencedColumns), Map(m.OnDelete), Map(m.OnUpdate))
+                        { Comment = m.Doc });
                         break;
                     }
                 case Syn.Constraints.UniqueDefinition m:
@@ -147,7 +149,8 @@ internal static class DocumentProjector
                 case Syn.Constraints.ExclusionDefinition m:
                     exclusionConstraints.Add(new ExclusionConstraint(Name(m.Name),
                         m.Elements.Select(e => new ExclusionElement(e.Operator, OptionalName(e.Column), e.Expression)).ToList(),
-                        m.Method?.Value, m.Predicate) { Comment = m.Doc });
+                        m.Method?.Value, m.Predicate)
+                    { Comment = m.Doc });
                     break;
                 case Syn.Indexes.IndexDefinition m:
                     indexes.Add(ProjectIndex(m.Name, m.IsUnique, m.Columns, m.Method, m.Include, m.Predicate, m.Doc));
@@ -161,7 +164,8 @@ internal static class DocumentProjector
         }
 
         var table = new Table(name, primaryKey,
-            columns, foreignKeys, uniqueConstraints, checkConstraints, exclusionConstraints, indexes) { Comment = doc };
+            columns, foreignKeys, uniqueConstraints, checkConstraints, exclusionConstraints, indexes)
+        { Comment = doc };
         return (table, includes);
     }
 
@@ -267,7 +271,8 @@ internal static class DocumentProjector
 
         return new Trigger(Name(statement.Name), Map(statement.Timing), Map(statement.Events), function,
             Map(statement.Level), statement.UpdateOfColumns is { } updateOf ? Names(updateOf) : null,
-            statement.When, functionArguments, body) { Comment = statement.Doc };
+            statement.When, functionArguments, body)
+        { Comment = statement.Doc };
     }
 
     // --- name binding and small mappers ----------------------------------------------
