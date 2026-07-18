@@ -130,34 +130,8 @@ public sealed class ResultTests
     }
 
     // -------------------------------------------------------------------------
-    // Match / Map
+    // Map
     // -------------------------------------------------------------------------
-
-    [Fact]
-    public void Match_InvokesSuccessBranch_WithValue()
-    {
-        // Arrange
-        var result = Result.Success(7);
-
-        // Act
-        var matched = result.Match(value => $"ok:{value}", _ => "fail");
-
-        // Assert
-        matched.ShouldBe("ok:7");
-    }
-
-    [Fact]
-    public void Match_InvokesFailureBranch_WithDiagnostics()
-    {
-        // Arrange
-        var result = Result.Failure<int>(Error("nope"));
-
-        // Act
-        var matched = result.Match(value => $"ok:{value}", diagnostics => $"fail:{diagnostics.Count}");
-
-        // Assert
-        matched.ShouldBe("fail:1");
-    }
 
     [Fact]
     public void Map_ProjectsSuccessValue_AndPropagatesDiagnostics()
@@ -176,15 +150,31 @@ public sealed class ResultTests
     }
 
     [Fact]
-    public void Map_OnFailure_PassesDiagnosticsThrough_WithoutInvokingProjection()
+    public void Map_OnFailureWithValue_ProjectsTheCarriedValue()
     {
         // Arrange
         var error = Error();
-        var result = Result.Failure<int>(error);
+        var result = Result.From<int?>(3, [error]);
+
+        // Act
+        var mapped = result.Map(value => value * 2);
+
+        // Assert
+        mapped.IsFailure.ShouldBeTrue();
+        mapped.Value.ShouldBe(6);
+        mapped.Errors.ShouldBe([error]);
+    }
+
+    [Fact]
+    public void Map_OnValuelessFailure_PassesDiagnosticsThrough_WithoutInvokingProjection()
+    {
+        // Arrange
+        var error = Error();
+        var result = Result.Failure<string>(error);
         var invoked = false;
 
         // Act
-        var mapped = result.Map(value => { invoked = true; return value * 2; });
+        var mapped = result.Map(value => { invoked = true; return value.Length; });
 
         // Assert
         invoked.ShouldBeFalse();

@@ -14,25 +14,25 @@ internal sealed class DriftOperation(IDatabaseProvider provider, IDatabaseStateM
 {
     public async Task<Result<DriftResult>> Execute(DriftArguments args, CancellationToken cancellationToken = default)
     {
+        var diagnostics = new DiagnosticCollector();
+
         progress.Report(OperationProgress.Step("Reading recorded state..."));
-        var recorded = await stateManager.Read(new StateReadArguments(), cancellationToken);
-        if (recorded.Value is not { } recordedState)
+        if (!diagnostics.TryTake(await stateManager.Read(new StateReadArguments(), cancellationToken), out var recorded))
         {
-            return Result.Failure<DriftResult>(recorded.Diagnostics);
+            return diagnostics.ToResult<DriftResult>(null);
         }
         // Before anything is recorded, drift measures against nothing.
-        var recordedSchema = (recordedState.State ?? DatabaseState.Empty).Database.ScopedTo(args.Scope);
+        var recordedSchema = (recorded.State ?? DatabaseState.Empty).Database.ScopedTo(args.Scope);
 
         progress.Report(OperationProgress.Step("Reading live database..."));
-        var live = await provider.GetDatabase(args.Scope, cancellationToken);
-        if (live.Value is not { } liveSchema)
+        if (!diagnostics.TryTake(await provider.GetDatabase(args.Scope, cancellationToken), out var liveSchema))
         {
-            return Result.Failure<DriftResult>(live.Diagnostics);
+            return diagnostics.ToResult<DriftResult>(null);
         }
 
         // Diff direction: recorded -> live, so the changes describe how the live database has drifted from what we
         // recorded (an added object appears as Add, an out-of-band drop as Remove).
         var diff = comparer.Compare(AlignedDatabase.Unaligned(recordedSchema), liveSchema);
-        return Result.From(new DriftResult(diff), recorded.Diagnostics.Concat(live.Diagnostics));
+        return diagnostics.ToResult(new DriftResult(diff));
     }
 }

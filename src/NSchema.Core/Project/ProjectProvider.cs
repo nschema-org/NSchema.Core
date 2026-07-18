@@ -32,22 +32,22 @@ internal sealed class ProjectProvider(IEnumerable<ProjectSource> sources) : IPro
 
         // Unreadable or unparseable files and cross-file duplicates are authoring mistakes — error diagnostics
         // on the result, all of them at once, with the best-effort merge of the readable files still carried.
-        var diagnostics = new List<Diagnostic>();
+        var diagnostics = new DiagnosticCollector();
         var documents = new List<NsqlDocument>();
         foreach (var file in files)
         {
-            diagnostics.AddRange(file.Diagnostics);
+            diagnostics.Add(file);
             if (file.IsSuccess)
             {
                 documents.Add(file.Value);
             }
         }
 
-        var project = ProjectAssembler.Assemble(documents);
-        diagnostics.AddRange(project.Diagnostics);
+        var assembleResult = ProjectAssembler.Assemble(documents);
+        var project = diagnostics.Require(assembleResult);
 
-        var scopedProject = project.Require().ScopedTo(scope);
-        return Result.From(scopedProject, diagnostics);
+        var scopedProject = project.ScopedTo(scope);
+        return diagnostics.ToResult(scopedProject);
     }
 
     private static IEnumerable<string> ResolveFiles(ProjectSource source) => source.Matcher

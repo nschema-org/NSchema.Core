@@ -12,27 +12,23 @@ internal sealed class ProjectComparer(IDatabaseComparer comparer) : IProjectComp
 {
     public Result<DatabaseDiff> Compare(CurrentState current, ProjectDefinition desired)
     {
-        var diagnostics = new List<Diagnostic>();
+        var diagnostics = new DiagnosticCollector();
         var directives = desired.Directives;
 
         // Look up new scripts to run, excluding those already executed.
-        var deploymentScripts = GetNewScripts(directives.DeploymentScripts, current.ExecutedScripts);
-        diagnostics.AddRange(deploymentScripts.Diagnostics);
+        var deploymentScripts = diagnostics.Require(GetNewScripts(directives.DeploymentScripts, current.ExecutedScripts));
 
         // Align: rewrite the current schema into the declared name-space.
-        var aligned = DatabaseAligner.Align(current.Database, desired.Database, directives);
-        diagnostics.AddRange(aligned.Diagnostics);
+        var aligned = diagnostics.Require(DatabaseAligner.Align(current.Database, desired.Database, directives));
 
         // Compare: the structural diff.
-        var diff = comparer.Compare(aligned.Require(), desired.Database);
+        var diff = comparer.Compare(aligned, desired.Database);
 
         // Decorate: attach each change-event script to the change it accompanies.
-        var decorate = ChangeScriptDecorator.Decorate(diff, directives.ChangeScripts);
-        diagnostics.AddRange(decorate.Diagnostics);
-        diff = decorate.Require();
+        diff = diagnostics.Require(ChangeScriptDecorator.Decorate(diff, directives.ChangeScripts));
 
         // Deployment scripts run at the bookends — they attach to no node, so they ride the diff root.
-        return Result.From(diff with { DeploymentScripts = deploymentScripts.Require() }, diagnostics);
+        return diagnostics.ToResult(diff with { DeploymentScripts = deploymentScripts });
     }
 
     private static Result<List<DeploymentScript>> GetNewScripts(IReadOnlyCollection<DeploymentScript> desired, IReadOnlyCollection<ScriptExecution> current)

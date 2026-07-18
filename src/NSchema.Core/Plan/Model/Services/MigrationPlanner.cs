@@ -34,31 +34,28 @@ internal sealed class MigrationPlanner(
             return Result.Failure<MigrationPlan>(PlanDiagnostics.MissingDialect);
         }
 
-        var diagnostics = new List<Diagnostic>();
+        var diagnostics = new DiagnosticCollector();
 
         // Validate the declared project.
-        diagnostics.AddRange(Validate(desired).Diagnostics);
+        diagnostics.Add(Validate(desired));
 
         // The plan converges what NSchema manages: the current side is the observation restricted to the
         // managed identities plus everything the project declares or addresses.
         var visible = current.FilteredTo(ManagementFilter(current, desired));
 
         // Compare it with the current state.
-        var compared = comparer.Compare(visible, desired);
-        diagnostics.AddRange(compared.Diagnostics);
+        var compared = diagnostics.Require(comparer.Compare(visible, desired));
 
         // Compute and scope the resulting diff. Widening consults the full observation:
         // an unmanaged dependency would still physically block a drop, so we need to warn on it.
-        var scopeResult = compared.Require().ScopedTo(scope, current.Database);
-        diagnostics.AddRange(scopeResult.Diagnostics);
-        var diff = scopeResult.Require();
+        var diff = diagnostics.Require(compared.ScopedTo(scope, current.Database));
 
         var plan = Realize(diff, dialect, ManagedAfterApply(current, desired, scope));
 
         // Validate the complete plan — post-render, so policies see exactly what an apply would execute.
-        diagnostics.AddRange(planPolicies.SelectMany(p => p.Validate(plan)));
+        diagnostics.Add(planPolicies.SelectMany(p => p.Validate(plan)));
 
-        return Result.From(plan, diagnostics);
+        return diagnostics.ToResult(plan);
     }
 
     /// <summary>

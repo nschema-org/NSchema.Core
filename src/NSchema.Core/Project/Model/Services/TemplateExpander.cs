@@ -29,7 +29,7 @@ internal static class TemplateExpander
         IReadOnlyList<TemplateInclude> includes
     )
     {
-        var diagnostics = new List<Diagnostic>();
+        var diagnostics = new DiagnosticCollector();
 
         // Each successful instance's directives (its scripts, and object renames/drops) accumulate here,
         // scoped to their applied schema, and ride back for the assembler to merge with the top-level ones.
@@ -77,7 +77,7 @@ internal static class TemplateExpander
                 var combined = DatabaseAggregator.Combine(database, new Database { Schemas = [instance.Schema] });
                 if (combined.IsFailure)
                 {
-                    diagnostics.AddRange(combined.Diagnostics.Select(d =>
+                    diagnostics.Add(combined.Diagnostics.Select(d =>
                         d with { Message = $"APPLY TEMPLATE '{templateName}' IN SCHEMA {schemaName}: {d.Message}" }));
                     continue;
                 }
@@ -92,9 +92,9 @@ internal static class TemplateExpander
 
         var resolver = new IncludeResolver(byName);
         database = resolver.Resolve(database, pendingIncludes);
-        diagnostics.AddRange(resolver.Diagnostics);
+        diagnostics.Add(resolver.Diagnostics);
 
-        return Result.From<(Database, ProjectDirectives)>((database, instanceDirectives.Build()), diagnostics);
+        return diagnostics.ToResult<(Database, ProjectDirectives)>((database, instanceDirectives.Build()));
     }
 
     /// <summary>

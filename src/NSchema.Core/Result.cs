@@ -64,8 +64,8 @@ public class Result
     /// </summary>
     /// <typeparam name="T">The value produced.</typeparam>
     /// <param name="value">The produced value.</param>
-    /// <param name="diagnostics">Every finding produced.</param>
-    public static Result<T> From<T>(T value, IEnumerable<Diagnostic> diagnostics) => new(value, [.. diagnostics]);
+    /// <param name="diagnostics">Every finding produced, if any.</param>
+    public static Result<T> From<T>(T? value, IEnumerable<Diagnostic> diagnostics) => new(value, [.. diagnostics]);
 }
 
 /// <summary>
@@ -99,26 +99,12 @@ public class Result<T> : Result
     public T Require() => Value ?? throw new InvalidOperationException($"The result was required to carry a value but did not. Diagnostics: {string.Join("; ", Diagnostics.Select(d => d.Message))}");
 
     /// <summary>
-    /// Collapses the result to a single value by invoking the matching branch.
-    /// </summary>
-    /// <typeparam name="TResult">The type both branches produce.</typeparam>
-    /// <param name="onSuccess">Invoked with <see cref="Value"/> when the result is successful.</param>
-    /// <param name="onFailure">Invoked with <see cref="Result.Diagnostics"/> when the result is a failure.</param>
-    /// <returns>The value produced by the invoked branch.</returns>
-    public TResult Match<TResult>(Func<T, TResult> onSuccess, Func<IReadOnlyList<Diagnostic>, TResult> onFailure) =>
-        IsSuccess ? onSuccess(Value) : onFailure(Diagnostics);
-
-    /// <summary>
-    /// Projects a successful value through <paramref name="map"/>, propagating the diagnostics; a failure passes
-    /// through unchanged.
+    /// Projects the carried value through <paramref name="map"/>, propagating the diagnostics.
     /// </summary>
     /// <typeparam name="TOut">The mapped value type.</typeparam>
-    /// <param name="map">The projection applied to <see cref="Value"/> on success.</param>
+    /// <param name="map">The projection applied to <see cref="Value"/> when present.</param>
     /// <returns>The mapped result.</returns>
-    public Result<TOut> Map<TOut>(Func<T, TOut> map) =>
-        IsSuccess
-            ? Success(map(Value), Diagnostics.ToArray())
-            : Failure<TOut>(Diagnostics);
+    public Result<TOut> Map<TOut>(Func<T, TOut> map) => new(Value != null ? map(Value) : default, Diagnostics);
 
     /// <summary>
     /// Lifts a value into a successful result, so a method can <c>return value;</c> directly.

@@ -14,7 +14,7 @@ internal static class ProjectAssembler
 {
     public static Result<ProjectDefinition> Assemble(IReadOnlyList<NsqlDocument> documents)
     {
-        var diagnostics = new List<Diagnostic>();
+        var diagnostics = new DiagnosticCollector();
         var database = new Database();
         var schemaTemplates = new List<SchemaTemplateStatement>();
         var tableTemplates = new List<TableTemplateStatement>();
@@ -57,31 +57,28 @@ internal static class ProjectAssembler
             // file structurally, like a parse error — and the document's healthy statements still aggregate.
             var fragment = accumulator.Build();
             documentDiagnostics.AddRange(accumulator.Diagnostics);
-            diagnostics.AddRange(documentDiagnostics.Select(d => d with { File = document.FilePath }));
+            diagnostics.Add(documentDiagnostics.Select(d => d with { File = document.FilePath }));
 
-            var merged = DatabaseAggregator.Combine(database, fragment);
-            diagnostics.AddRange(merged.Diagnostics);
-            database = merged.Require();
+            database = diagnostics.Require(DatabaseAggregator.Combine(database, fragment));
             includes.AddRange(accumulator.Includes);
         }
 
         // Apply all templates: application failures accumulate the same way. A template instance's directives
         // (its scripts, its object renames/drops) come back scoped to their applied schema and merge with the
         // top-level ones, so the whole project's directives assemble in one collector.
-        var expanded = TemplateExpander.Expand(database, schemaTemplates, tableTemplates, applications, includes);
-        diagnostics.AddRange(expanded.Diagnostics);
-        var (expandedDatabase, instanceDirectives) = expanded.Require();
+        var (expandedDatabase, instanceDirectives) =
+            diagnostics.Require(TemplateExpander.Expand(database, schemaTemplates, tableTemplates, applications, includes));
         directives.Absorb(instanceDirectives);
 
         var built = directives.Build();
         var project = new ProjectDefinition(expandedDatabase, built);
 
         // Collisions are project errors, so validate before scoping drops any instance — all of them at once.
-        diagnostics.AddRange(ValidateChangeTargets(built.ChangeScripts));
-        diagnostics.AddRange(ValidateScriptNames(built));
-        diagnostics.AddRange(DirectiveValidator.Validate(project));
+        diagnostics.Add(ValidateChangeTargets(built.ChangeScripts));
+        diagnostics.Add(ValidateScriptNames(built));
+        diagnostics.Add(DirectiveValidator.Validate(project));
 
-        return Result.From(project, diagnostics);
+        return diagnostics.ToResult(project);
     }
 
     /// <summary>
