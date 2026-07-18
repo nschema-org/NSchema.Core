@@ -1,6 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
 using NSchema.Model.Services;
 
 namespace NSchema.Plan.PlanFile;
@@ -10,19 +8,6 @@ namespace NSchema.Plan.PlanFile;
 /// </summary>
 internal class PlanFileManager : IPlanFileManager
 {
-    private static readonly JsonSerializerOptions _options = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-        Converters = { new JsonStringEnumConverter(), new ValueObjectJsonConverter() },
-        TypeInfoResolver = new DefaultJsonTypeInfoResolver
-        {
-            Modifiers = { JsonHelpers.IgnoreComputedProperties },
-        },
-    };
-
     public async Task<Result<PlanFileEnvelope>> Read(string path, CancellationToken cancellationToken)
     {
         byte[] bytes;
@@ -56,7 +41,7 @@ internal class PlanFileManager : IPlanFileManager
     /// </summary>
     public ReadOnlyMemory<byte> Serialize(PlanFileEnvelope envelope)
     {
-        return JsonSerializer.SerializeToUtf8Bytes(envelope, _options);
+        return JsonSerializer.SerializeToUtf8Bytes(envelope, ModelSerialization.Options);
     }
 
     /// <summary>
@@ -69,7 +54,7 @@ internal class PlanFileManager : IPlanFileManager
         PlanFileEnvelope? envelope;
         try
         {
-            envelope = JsonSerializer.Deserialize<PlanFileEnvelope>(value.Span, _options);
+            envelope = JsonSerializer.Deserialize<PlanFileEnvelope>(value.Span, ModelSerialization.Options);
         }
         catch (Exception ex)
         {

@@ -151,7 +151,7 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
             return this;
         }
 
-        var narrowed = this with { Schemas = [.. Schemas.Where(s => scope.Includes(s.Name))] };
+        var narrowed = this with { Schemas = [.. Schemas.Where(s => scope.Contains(s.Name))] };
 
         var graph = new DependencyGraph(current);
         var removals = Removals(narrowed).ToList();
@@ -179,7 +179,7 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
 
         return Result.From(Widen(narrowed, severed), diagnostics);
 
-        bool OutOfScope(DependencyNode node) => node.Address.SchemaName is { } schema && !scope.Includes(schema);
+        bool OutOfScope(DependencyNode node) => node.Address.SchemaName is { } schema && !scope.Contains(schema);
     }
 
     /// <summary>

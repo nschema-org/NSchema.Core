@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NSchema.Model.Schemas;
 
 namespace NSchema.Model;
@@ -17,6 +18,7 @@ public abstract class DatabaseObject(SqlIdentifier name) : DatabaseElement(name)
     /// <summary>
     /// The schema the object belongs to, or <see langword="null"/> when it is database-global or has not been placed in a tree.
     /// </summary>
+    [JsonIgnore]
     public Schema? Schema {
         get;
         internal set
@@ -34,11 +36,13 @@ public abstract class DatabaseObject(SqlIdentifier name) : DatabaseElement(name)
     /// <summary>
     /// The kind of object this is.
     /// </summary>
+    [JsonIgnore]
     public abstract ObjectKind Kind { get; }
 
     /// <summary>
     /// The object's full identity, or <see langword="null"/> when it is database-global or not yet part of a
     /// schema (global objects are identified by bare name).
     /// </summary>
+    [JsonIgnore]
     public ObjectIdentity? Identity => Schema is null ? null : new ObjectIdentity(Kind, Schema.Name, Name);
 }

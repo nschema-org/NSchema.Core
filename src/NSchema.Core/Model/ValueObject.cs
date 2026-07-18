@@ -3,9 +3,6 @@ namespace NSchema.Model;
 /// <summary>
 /// A single-value domain primitive: equality is by value, and the value renders as itself.
 /// </summary>
-/// <remarks>
-/// Derived types own their equality semantics.
-/// </remarks>
 public abstract record ValueObject<T>
 {
     /// <summary>

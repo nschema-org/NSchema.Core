@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace NSchema.Model;
 
 /// <summary>
@@ -13,6 +15,7 @@ public abstract class DatabaseMember(SqlIdentifier name) : DatabaseElement(name)
     /// <summary>
     /// The object that owns the member, or <see langword="null"/> when it has not been placed in a tree.
     /// </summary>
+    [JsonIgnore]
     public DatabaseObject? Parent
     {
         get;

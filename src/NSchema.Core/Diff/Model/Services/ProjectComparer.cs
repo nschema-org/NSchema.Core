@@ -50,9 +50,9 @@ internal sealed class ProjectComparer(IDatabaseComparer comparer) : IProjectComp
 
         foreach (var rename in directives.ObjectRenames)
         {
-            if (!current.Has(rename.Kind, rename.From) && current.Has(rename.Kind, rename.From with { Name = rename.To }))
+            if (!current.Has(rename.From) && current.Has(rename.From with { Name = rename.To }))
             {
-                yield return DiffDiagnostics.AppliedRename(rename.Kind.Display(), rename.From.ToString(), rename.To);
+                yield return DiffDiagnostics.AppliedRename(rename.From.Kind.Display(), rename.From.ToString(), rename.To);
             }
         }
 

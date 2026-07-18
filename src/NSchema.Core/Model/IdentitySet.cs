@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace NSchema.Model;
 
 /// <summary>
@@ -33,6 +35,7 @@ public sealed record IdentitySet(
     /// <summary>
     /// Whether the set contains no identities.
     /// </summary>
+    [JsonIgnore]
     public bool IsEmpty => Schemas.Count == 0 && Objects.Count == 0 && Extensions.Count == 0;
 
     /// <summary>

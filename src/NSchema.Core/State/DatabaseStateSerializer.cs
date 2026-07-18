@@ -1,6 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
 using NSchema.Model.Services;
 using NSchema.State.Model;
 
@@ -11,24 +9,15 @@ namespace NSchema.State;
 /// </summary>
 internal sealed class DatabaseStateSerializer : IDatabaseStateSerializer
 {
-    private static readonly JsonSerializerOptions _options = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-        Converters = { new JsonStringEnumConverter(), new ValueObjectJsonConverter() },
-        TypeInfoResolver = new DefaultJsonTypeInfoResolver { Modifiers = { JsonHelpers.IgnoreComputedProperties } },
-    };
-
     /// <inheritdoc />
     public ReadOnlyMemory<byte> Serialize(DatabaseState state)
     {
         var envelope = new DatabaseStateEnvelope(DatabaseStateEnvelope.CurrentVersion, state.Database)
         {
             Scripts = state.Scripts,
+            Managed = state.Managed,
         };
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(envelope, _options);
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(envelope, ModelSerialization.Options);
         return bytes;
     }
 
@@ -38,7 +27,7 @@ internal sealed class DatabaseStateSerializer : IDatabaseStateSerializer
         DatabaseStateEnvelope? envelope;
         try
         {
-            envelope = JsonSerializer.Deserialize<DatabaseStateEnvelope>(state.Span, _options);
+            envelope = JsonSerializer.Deserialize<DatabaseStateEnvelope>(state.Span, ModelSerialization.Options);
         }
         catch (Exception ex)
         {
@@ -60,6 +49,6 @@ internal sealed class DatabaseStateSerializer : IDatabaseStateSerializer
                 $"{DatabaseStateEnvelope.CurrentVersion}. Upgrade NSchema to read this state.");
         }
 
-        return new DatabaseState(envelope.Database, envelope.Scripts);
+        return new DatabaseState(envelope.Database, envelope.Scripts, envelope.Managed);
     }
 }

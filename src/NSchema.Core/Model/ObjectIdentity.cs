@@ -21,6 +21,7 @@ public sealed record ObjectIdentity(ObjectKind Kind, SqlIdentifier Schema, SqlId
     /// <summary>
     /// The identity's location.
     /// </summary>
+    [JsonIgnore]
     public ObjectAddress Address => new(Schema, Name);
 
     /// <inheritdoc />
