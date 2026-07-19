@@ -16,7 +16,5 @@ internal sealed class EnumValueRemovalPolicy : IPlanPolicy
             .SelectMany(schema => schema.Enums)
             .Where(enumDiff => enumDiff.RequiresRecreate)
             .Select(enumDiff => Diagnostic.Error(PolicyName,
-                $"Enum '{enumDiff.Schema}.{enumDiff.Name}' removes or reorders values " +
-                $"([{string.Join(", ", enumDiff.Values!.Old ?? [])}] -> [{string.Join(", ", enumDiff.Values!.New ?? [])}]); " +
-                "enum values can only be added. Recreate the type manually if a removal or reorder is required."));
+                $"Enum '{enumDiff.Schema}.{enumDiff.Name}' removes or reorders values ([{string.Join(", ", enumDiff.Values!.Old ?? [])}] -> [{string.Join(", ", enumDiff.Values!.New ?? [])}]); enum values can only be added. Recreate the type manually if a removal or reorder is required."));
 }

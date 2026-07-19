@@ -48,7 +48,7 @@ internal sealed class DatabaseAccumulator
     private void Report(NsqlDiagnostic diagnostic, string? file) =>
         _diagnostics.Add(diagnostic with
         {
-            Message = Context is null ? diagnostic.Message : $"{Context}: {diagnostic.Message}",
+            Text = Context is null ? diagnostic.Text : (FormattedText)$"{Context:text}: {diagnostic.Text}",
             File = file,
         });
 

@@ -295,7 +295,7 @@ public static class NsqlWriter
         {
             sb.Append($" {NsqlKeywords.When} (").Append(when.Value).Append(')');
         }
-        sb.Append($" {NsqlKeywords.Execute} {NsqlKeywords.Function} ").Append(Reference(action.Function))
+        sb.Append($" {NsqlKeywords.Execute} {NsqlKeywords.Function} ").Append(Qualified(action.Function))
             .Append('(').Append(action.Arguments.Value).Append(')').AppendLine(";");
     }
 
@@ -512,8 +512,6 @@ public static class NsqlWriter
 
     private static string Qualified(QualifiedName name) =>
         name.Schema is { } schema ? $"{EscapedIdentifier(schema)}.{EscapedIdentifier(name.Name)}" : EscapedIdentifier(name.Name);
-
-    private static string Reference(QualifiedName name) => Qualified(name);
 
     private static string TypeText(TypeName type)
     {

@@ -56,7 +56,7 @@ internal sealed class DoctorOperation(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return Diagnostic.Error(source, $"Database: unreachable — {ex.Message}");
+            return Diagnostic.Error(source, $"Database: unreachable — {ex.Message:text}");
         }
     }
 
@@ -76,7 +76,7 @@ internal sealed class DoctorOperation(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return Diagnostic.Error(source, $"State store: unreachable — {ex.Message}");
+            return Diagnostic.Error(source, $"State store: unreachable — {ex.Message:text}");
         }
 
         // A missing or empty payload is a bootstrap store — reachable, with nothing recorded yet — not a corruption.
@@ -94,7 +94,7 @@ internal sealed class DoctorOperation(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return Diagnostic.Error(source, $"State store: reachable but the recorded state is unreadable — {ex.Message}");
+            return Diagnostic.Error(source, $"State store: reachable but the recorded state is unreadable — {ex.Message:text}");
         }
     }
 
@@ -113,7 +113,7 @@ internal sealed class DoctorOperation(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return Diagnostic.Error(source, $"State lock: could not be checked — {ex.Message}");
+            return Diagnostic.Error(source, $"State lock: could not be checked — {ex.Message:text}");
         }
     }
 }

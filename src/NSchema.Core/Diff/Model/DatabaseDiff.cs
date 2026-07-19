@@ -167,36 +167,17 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
     /// <summary>
     /// The nodes <paramref name="diff"/> removes — the seeds of what its removals cost.
     /// </summary>
-    private static IEnumerable<DependencyNode> Removals(DatabaseDiff diff)
-    {
-        foreach (var schema in diff.Schemas)
-        {
-            foreach (var table in schema.Tables.Where(t => t.Kind == ChangeKind.Remove))
-            {
-                yield return new DependencyNode(new ObjectAddress(schema.Name, table.Name), DependencyKind.Table);
-            }
+    private static IEnumerable<DependencyNode> Removals(DatabaseDiff diff) =>
+        diff.Schemas.SelectMany(schema =>
+            Removed(schema.Tables, schema.Name, DependencyKind.Table)
+                .Concat(Removed(schema.Views, schema.Name, DependencyKind.View))
+                .Concat(Removed(schema.Enums, schema.Name, DependencyKind.Enum))
+                .Concat(Removed(schema.Domains, schema.Name, DependencyKind.Domain))
+                .Concat(Removed(schema.CompositeTypes, schema.Name, DependencyKind.CompositeType)));
 
-            foreach (var view in schema.Views.Where(v => v.Kind == ChangeKind.Remove))
-            {
-                yield return new DependencyNode(new ObjectAddress(schema.Name, view.Name), DependencyKind.View);
-            }
-
-            foreach (var @enum in schema.Enums.Where(e => e.Kind == ChangeKind.Remove))
-            {
-                yield return new DependencyNode(new ObjectAddress(schema.Name, @enum.Name), DependencyKind.Enum);
-            }
-
-            foreach (var domain in schema.Domains.Where(d => d.Kind == ChangeKind.Remove))
-            {
-                yield return new DependencyNode(new ObjectAddress(schema.Name, domain.Name), DependencyKind.Domain);
-            }
-
-            foreach (var composite in schema.CompositeTypes.Where(c => c.Kind == ChangeKind.Remove))
-            {
-                yield return new DependencyNode(new ObjectAddress(schema.Name, composite.Name), DependencyKind.CompositeType);
-            }
-        }
-    }
+    private static IEnumerable<DependencyNode> Removed(IEnumerable<ISchemaObjectDiff> objects, SqlIdentifier schema, DependencyKind kind) =>
+        objects.Where(o => o.Kind == ChangeKind.Remove)
+            .Select(o => new DependencyNode(new ObjectAddress(schema, o.Name), kind));
 
     /// <summary>
     /// Folds the severed nodes back in as changes to the schemas they live in.

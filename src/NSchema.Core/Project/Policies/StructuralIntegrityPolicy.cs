@@ -53,9 +53,7 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
         foreach (var collision in named.GroupBy(x => x.Name).Where(g => g.Count() > 1))
         {
             var sites = string.Join(", ", collision.Select(x => $"{x.Kind} on '{definition.Name}.{x.On}'"));
-            diagnostics.Add(Error(
-                $"Schema '{definition.Name}' declares the index name '{collision.Key}' more than once ({sites}); " +
-                "index and index-backed constraint names are schema-scoped."));
+            diagnostics.Add(Error($"Schema '{definition.Name}' declares the index name '{collision.Key}' more than once ({sites:text}); index and index-backed constraint names are schema-scoped."));
         }
     }
 
@@ -78,8 +76,8 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
             // A single kind appearing twice (e.g. two sequences) reads as a plain duplicate; a mix of kinds reads
             // as a name-space collision. Either way the database would reject it.
             diagnostics.Add(kinds.Distinct().Count() == 1
-                ? Error($"Schema '{definition.Name}' declares {kinds[0]} '{collision.Key}' more than once.")
-                : Error($"Schema '{definition.Name}' reuses the name '{collision.Key}' across object kinds that share a name space ({string.Join(", ", kinds.OrderBy(k => k, StringComparer.Ordinal))})."));
+                ? Error($"Schema '{definition.Name}' declares {kinds[0]:text} '{collision.Key}' more than once.")
+                : Error($"Schema '{definition.Name}' reuses the name '{collision.Key}' across object kinds that share a name space ({string.Join(", ", kinds.OrderBy(k => k, StringComparer.Ordinal)):text})."));
         }
     }
 
@@ -91,9 +89,7 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
     {
         foreach (var duplicate in Duplicates(definition.Routines.Select(r => r.Name)))
         {
-            diagnostics.Add(Error(
-                $"Schema '{definition.Name}' declares routine '{duplicate}' more than once " +
-                "(functions and procedures share a single name space)."));
+            diagnostics.Add(Error($"Schema '{definition.Name}' declares routine '{duplicate}' more than once (functions and procedures share a single name space)."));
         }
     }
 
@@ -164,9 +160,7 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
 
         if (foreignKey.ColumnNames.Count != foreignKey.ReferencedColumnNames.Count)
         {
-            diagnostics.Add(Error(
-                $"Foreign key '{foreignKey.Name}' on '{qualified}' has {foreignKey.ColumnNames.Count} local column(s) " +
-                $"but {foreignKey.ReferencedColumnNames.Count} referenced column(s); the counts must match."));
+            diagnostics.Add(Error($"Foreign key '{foreignKey.Name}' on '{qualified}' has {foreignKey.ColumnNames.Count} local column(s) but {foreignKey.ReferencedColumnNames.Count} referenced column(s); the counts must match."));
             return;
         }
 
@@ -180,9 +174,7 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
         var target = $"{foreignKey.ReferencedSchema}.{foreignKey.ReferencedTable}";
         if (!tablesByKey.TryGetValue(Key(foreignKey.ReferencedSchema, foreignKey.ReferencedTable), out var referencedTable))
         {
-            diagnostics.Add(Warning(
-                $"Foreign key '{foreignKey.Name}' on '{qualified}' references table '{target}', which this project " +
-                "does not declare; it must already exist in the database."));
+            diagnostics.Add(Warning($"Foreign key '{foreignKey.Name}' on '{qualified}' references table '{target}', which this project does not declare; it must already exist in the database."));
             return;
         }
 
@@ -196,9 +188,7 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
         // A foreign key must reference a uniquely-constrained set of columns; check only once the target columns resolve.
         if (missingReferenced.Count == 0 && !IsUniquelyConstrained(referencedTable, foreignKey.ReferencedColumnNames))
         {
-            diagnostics.Add(Error(
-                $"Foreign key '{foreignKey.Name}' on '{qualified}' references columns ({string.Join(", ", foreignKey.ReferencedColumnNames)}) " +
-                $"on '{target}' that are not the primary key or a unique index."));
+            diagnostics.Add(Error($"Foreign key '{foreignKey.Name}' on '{qualified}' references columns ({string.Join(", ", foreignKey.ReferencedColumnNames)}) on '{target}' that are not the primary key or a unique index."));
         }
     }
 
@@ -227,7 +217,7 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
     // The NUL character cannot appear in an identifier, so it is a safe composite-key separator even for quoted names.
     private static (SqlIdentifier Schema, SqlIdentifier Table) Key(SqlIdentifier schema, SqlIdentifier table) => (schema, table);
 
-    private static Diagnostic Error(string message) => Diagnostic.Error(PolicyName, message);
+    private static Diagnostic Error(FormattedText message) => Diagnostic.Error(PolicyName, message);
 
-    private static Diagnostic Warning(string message) => Diagnostic.Warning(PolicyName, message);
+    private static Diagnostic Warning(FormattedText message) => Diagnostic.Warning(PolicyName, message);
 }

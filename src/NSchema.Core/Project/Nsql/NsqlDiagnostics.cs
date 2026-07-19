@@ -20,7 +20,7 @@ internal static class NsqlDiagnostics
     /// </summary>
     public static NsqlDiagnostic UnreadableFile(string path, Exception exception) => new(
         Source,
-        $"Could not read '{path}': {exception.Message}",
+        $"Could not read '{path}': {exception.Message:text}",
         DiagnosticSeverity.Error,
         new SourcePosition(0, 1, 1)
     )
