@@ -55,7 +55,7 @@ internal sealed class NsqlLexer(string source, bool emitComments = false)
                 {
                     return ReadLineComment();
                 }
-                SkipLineComment();
+                _ = ReadLineComment();
                 continue;
             }
 
@@ -70,7 +70,7 @@ internal sealed class NsqlLexer(string source, bool emitComments = false)
                 {
                     return ReadBlockComment();
                 }
-                SkipBlockComment();
+                _ = ReadBlockComment();
                 continue;
             }
 
@@ -283,14 +283,6 @@ internal sealed class NsqlLexer(string source, bool emitComments = false)
         return new Token(TokenKind.Identifier, _source[start.._offset], pos);
     }
 
-    private void SkipLineComment()
-    {
-        while (!AtEnd && Current != '\n')
-        {
-            Advance();
-        }
-    }
-
     private Token ReadLineComment()
     {
         var pos = Position;
@@ -317,25 +309,6 @@ internal sealed class NsqlLexer(string source, bool emitComments = false)
             {
                 Advance(); Advance(); // consume '*/'
                 return new Token(TokenKind.BlockComment, _source[start.._offset], pos);
-            }
-            Advance();
-        }
-    }
-
-    private void SkipBlockComment()
-    {
-        var pos = Position;
-        Advance(); Advance(); // consume '/*'
-        while (true)
-        {
-            if (AtEnd)
-            {
-                throw new NsqlSyntaxException("Unterminated block comment", pos);
-            }
-            if (Current == '*' && Peek(1) == '/')
-            {
-                Advance(); Advance();
-                return;
             }
             Advance();
         }

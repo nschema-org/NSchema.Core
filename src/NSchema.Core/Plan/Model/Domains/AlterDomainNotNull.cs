@@ -8,8 +8,4 @@ namespace NSchema.Plan.Model.Domains;
 /// <param name="SchemaName">The name of the schema containing the domain.</param>
 /// <param name="DomainName">The name of the domain.</param>
 /// <param name="NotNull">Whether the domain should forbid <c>NULL</c> after the change.</param>
-public sealed record AlterDomainNotNull(SqlIdentifier SchemaName, SqlIdentifier DomainName, bool NotNull) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+public sealed record AlterDomainNotNull(SqlIdentifier SchemaName, SqlIdentifier DomainName, bool NotNull) : MigrationAction;

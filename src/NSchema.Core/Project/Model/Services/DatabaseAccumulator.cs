@@ -15,8 +15,7 @@ using NSchema.Project.Nsql;
 namespace NSchema.Project.Model.Services;
 
 /// <summary>
-/// Accumulates parsed statements into a <see cref="Database"/>. Schema entries are vivified on demand so
-/// a <c>DROP TABLE app.x</c> can record the drop even when <c>app</c> was never explicitly declared.
+/// Accumulates parsed statements into a <see cref="Database"/>.
 /// </summary>
 internal sealed class DatabaseAccumulator
 {
@@ -30,30 +29,49 @@ internal sealed class DatabaseAccumulator
     private readonly List<NsqlDiagnostic> _diagnostics = [];
 
     /// <summary>
+    /// The file whose statements are currently accumulating.
+    /// </summary>
+    public string? CurrentFile { get; set; }
+
+    /// <summary>
+    /// A prose prefix for findings recorded while it is set.
+    /// </summary>
+    public string? Context { get; set; }
+
+    /// <summary>
     /// The assembly findings recorded while accumulating — duplicate declarations, references to unknown
     /// tables. Positioned like syntax errors, but they are project semantics, not grammar: the accumulator
     /// records and carries on, so one pass reports every finding.
     /// </summary>
     public IReadOnlyList<NsqlDiagnostic> Diagnostics => _diagnostics;
 
-    private void AddError(string message, SourcePosition position) =>
-        _diagnostics.Add(new NsqlDiagnostic("project", $"{message} (at {position}).", DiagnosticSeverity.Error, position));
+    private void Report(NsqlDiagnostic diagnostic, string? file) =>
+        _diagnostics.Add(diagnostic with
+        {
+            Message = Context is null ? diagnostic.Message : $"{Context}: {diagnostic.Message}",
+            File = file,
+        });
 
     /// <summary>
     /// The <c>INCLUDE</c> members collected from table bodies. Unlike the other pending lists these are not
-    /// resolved at <see cref="Build"/> — they resolve against the aggregate at template expansion, so they are
-    /// exported alongside the built schema rather than folded into it.
+    /// resolved at <see cref="Build"/> — they resolve against the assembled aggregate in the include-resolution
+    /// phase, so they are exported alongside the built schema rather than folded into it.
     /// </summary>
     public IReadOnlyList<TemplateInclude> Includes => _includes;
 
     public void AddInclude(TemplateInclude include) => _includes.Add(include);
+
+    /// <summary>
+    /// Whether a schema entry exists — declared explicitly or vivified by a declaration into it.
+    /// </summary>
+    public bool HasSchema(SqlIdentifier name) => _byName.ContainsKey(name);
 
     public void DeclareSchema(SqlIdentifier name, string? comment, SourcePosition position)
     {
         var entry = GetOrAdd(name);
         if (entry.Declared)
         {
-            AddError($"Schema '{name}' is already declared.", position);
+            Report(ProjectDiagnostics.SchemaAlreadyDeclared(name, position), CurrentFile);
             return;
         }
 
@@ -66,7 +84,7 @@ internal sealed class DatabaseAccumulator
         var entry = GetOrAdd(schema);
         if (entry.Tables.Any(t => t.Name == table.Name))
         {
-            AddError($"Table '{schema}.{table.Name}' is already declared.", position);
+            Report(ProjectDiagnostics.ObjectAlreadyDeclared(ObjectKind.Table, schema, table.Name, position), CurrentFile);
             return;
         }
 
@@ -78,7 +96,7 @@ internal sealed class DatabaseAccumulator
         var entry = GetOrAdd(schema);
         if (entry.Views.Any(v => v.Name == view.Name))
         {
-            AddError($"View '{schema}.{view.Name}' is already declared.", position);
+            Report(ProjectDiagnostics.ObjectAlreadyDeclared(ObjectKind.View, schema, view.Name, position), CurrentFile);
             return;
         }
 
@@ -90,7 +108,7 @@ internal sealed class DatabaseAccumulator
         var entry = GetOrAdd(schema);
         if (entry.Enums.Any(e => e.Name == enumType.Name))
         {
-            AddError($"Enum '{schema}.{enumType.Name}' is already declared.", position);
+            Report(ProjectDiagnostics.ObjectAlreadyDeclared(ObjectKind.Enum, schema, enumType.Name, position), CurrentFile);
             return;
         }
 
@@ -102,7 +120,7 @@ internal sealed class DatabaseAccumulator
         var entry = GetOrAdd(schema);
         if (entry.Sequences.Any(s => s.Name == sequence.Name))
         {
-            AddError($"Sequence '{schema}.{sequence.Name}' is already declared.", position);
+            Report(ProjectDiagnostics.ObjectAlreadyDeclared(ObjectKind.Sequence, schema, sequence.Name, position), CurrentFile);
             return;
         }
 
@@ -114,7 +132,7 @@ internal sealed class DatabaseAccumulator
         var entry = GetOrAdd(schema);
         if (entry.Domains.Any(d => d.Name == domain.Name))
         {
-            AddError($"DomainType '{schema}.{domain.Name}' is already declared.", position);
+            Report(ProjectDiagnostics.ObjectAlreadyDeclared(ObjectKind.Domain, schema, domain.Name, position), CurrentFile);
             return;
         }
 
@@ -126,7 +144,7 @@ internal sealed class DatabaseAccumulator
         var entry = GetOrAdd(schema);
         if (entry.CompositeTypes.Any(t => t.Name == compositeType.Name))
         {
-            AddError($"Composite type '{schema}.{compositeType.Name}' is already declared.", position);
+            Report(ProjectDiagnostics.ObjectAlreadyDeclared(ObjectKind.CompositeType, schema, compositeType.Name, position), CurrentFile);
             return;
         }
 
@@ -140,7 +158,7 @@ internal sealed class DatabaseAccumulator
         var entry = GetOrAdd(schema);
         if (entry.Routines.Any(r => r.Name == routine.Name))
         {
-            AddError($"Routine '{schema}.{routine.Name}' is already declared (functions and procedures share one name space).", position);
+            Report(ProjectDiagnostics.ObjectAlreadyDeclared(ObjectKind.Routine, schema, routine.Name, position), CurrentFile);
             return;
         }
 
@@ -156,26 +174,27 @@ internal sealed class DatabaseAccumulator
         }
     }
 
-    // Table grants are resolved at Build, so a grant may appear before or after the table it targets.
+    // Table grants are resolved at Build, so a grant may appear before or after the table it targets — in
+    // any file. The pendings capture the current file, since they resolve after their document is done.
     public void AddTableGrant(SqlIdentifier schema, SqlIdentifier table, TableGrant grant, SourcePosition position)
-        => _tableGrants.Add(new PendingGrant(schema, table, grant, position));
+        => _tableGrants.Add(new PendingGrant(schema, table, grant, position, CurrentFile));
 
     // Triggers are standalone statements attached to their table at Build, so a trigger may appear before or
     // after the CREATE TABLE it targets.
     public void AddTrigger(SqlIdentifier schema, SqlIdentifier table, Trigger trigger, SourcePosition position)
-        => _triggers.Add(new PendingTrigger(schema, table, trigger, position));
+        => _triggers.Add(new PendingTrigger(schema, table, trigger, position, CurrentFile));
 
     // Standalone indexes attach to their relation (a table or a materialized view) at Build, so an index may
     // appear before or after the CREATE that declares its target.
     public void AddIndex(SqlIdentifier schema, SqlIdentifier relation, TableIndex index, SourcePosition position)
-        => _standaloneIndexes.Add(new PendingIndex(schema, relation, index, position));
+        => _standaloneIndexes.Add(new PendingIndex(schema, relation, index, position, CurrentFile));
 
     // Extensions are database-global, so they live on the accumulator itself rather than a per-schema entry.
     public void AddExtension(Extension extension, SourcePosition position)
     {
         if (_extensions.Any(e => e.Name == extension.Name))
         {
-            AddError($"Extension '{extension.Name}' is already declared.", position);
+            Report(ProjectDiagnostics.ExtensionAlreadyDeclared(extension.Name, position), CurrentFile);
             return;
         }
 
@@ -210,18 +229,22 @@ internal sealed class DatabaseAccumulator
         {
             if (!_byName.TryGetValue(pending.Schema, out var entry))
             {
-                AddError($"GRANT references unknown table '{pending.Schema}.{pending.Table}'.", pending.Position);
+                Report(ProjectDiagnostics.UnknownGrantTable(pending.Schema, pending.Table, pending.Position), pending.File);
                 continue;
             }
 
             var table = entry.Tables.FirstOrDefault(t => t.Name == pending.Table);
             if (table is null)
             {
-                AddError($"GRANT references unknown table '{pending.Schema}.{pending.Table}'.", pending.Position);
+                Report(ProjectDiagnostics.UnknownGrantTable(pending.Schema, pending.Table, pending.Position), pending.File);
                 continue;
             }
 
-            table.Grants.Add(pending.Grant);
+            // The same grant declared twice — possibly from two files — is one grant.
+            if (!table.Grants.Contains(pending.Grant))
+            {
+                table.Grants.Add(pending.Grant);
+            }
         }
     }
 
@@ -231,21 +254,21 @@ internal sealed class DatabaseAccumulator
         {
             if (!_byName.TryGetValue(pending.Schema, out var entry))
             {
-                AddError($"CREATE TRIGGER references unknown table '{pending.Schema}.{pending.Table}'.", pending.Position);
+                Report(ProjectDiagnostics.UnknownTriggerTable(pending.Schema, pending.Table, pending.Position), pending.File);
                 continue;
             }
 
             var table = entry.Tables.FirstOrDefault(t => t.Name == pending.Table);
             if (table is null)
             {
-                AddError($"CREATE TRIGGER references unknown table '{pending.Schema}.{pending.Table}'.", pending.Position);
+                Report(ProjectDiagnostics.UnknownTriggerTable(pending.Schema, pending.Table, pending.Position), pending.File);
                 continue;
             }
 
             if (table.Triggers.Any(t => t.Name == pending.Trigger.Name))
             {
-                AddError($"Trigger '{pending.Trigger.Name}' on '{pending.Schema}.{pending.Table}' is already declared.",
-                    pending.Position);
+                Report(ProjectDiagnostics.TriggerAlreadyDeclared(pending.Trigger.Name, pending.Schema, pending.Table, pending.Position), pending.File);
+                continue;
             }
 
             table.Triggers.Add(pending.Trigger);
@@ -256,10 +279,9 @@ internal sealed class DatabaseAccumulator
     {
         foreach (var pending in _standaloneIndexes)
         {
-            var qualified = $"{pending.Schema}.{pending.Relation}";
             if (!_byName.TryGetValue(pending.Schema, out var entry))
             {
-                AddError($"CREATE INDEX references unknown table or materialized view '{qualified}'.", pending.Position);
+                Report(ProjectDiagnostics.UnknownIndexRelation(pending.Schema, pending.Relation, pending.Position), pending.File);
                 continue;
             }
 
@@ -268,7 +290,7 @@ internal sealed class DatabaseAccumulator
             {
                 if (table.Indexes.Any(i => i.Name == pending.Index.Name))
                 {
-                    AddError($"Index '{pending.Index.Name}' on '{qualified}' is already declared.", pending.Position);
+                    Report(ProjectDiagnostics.IndexAlreadyDeclared(pending.Index.Name, pending.Schema, pending.Relation, pending.Position), pending.File);
                     continue;
                 }
 
@@ -279,18 +301,18 @@ internal sealed class DatabaseAccumulator
             var view = entry.Views.FirstOrDefault(v => v.Name == pending.Relation);
             if (view is null)
             {
-                AddError($"CREATE INDEX references unknown table or materialized view '{qualified}'.", pending.Position);
+                Report(ProjectDiagnostics.UnknownIndexRelation(pending.Schema, pending.Relation, pending.Position), pending.File);
                 continue;
             }
             if (!view.IsMaterialized)
             {
-                AddError($"CREATE INDEX targets '{qualified}', which is not a materialized view (a plain view cannot be indexed).", pending.Position);
+                Report(ProjectDiagnostics.IndexOnPlainView(pending.Schema, pending.Relation, pending.Position), pending.File);
                 continue;
             }
 
             if (view.Indexes.Any(i => i.Name == pending.Index.Name))
             {
-                AddError($"Index '{pending.Index.Name}' on '{qualified}' is already declared.", pending.Position);
+                Report(ProjectDiagnostics.IndexAlreadyDeclared(pending.Index.Name, pending.Schema, pending.Relation, pending.Position), pending.File);
                 continue;
             }
 
@@ -326,9 +348,9 @@ internal sealed class DatabaseAccumulator
         public DatabaseObjectCollection<CompositeType> CompositeTypes { get; } = [];
     }
 
-    private readonly record struct PendingGrant(SqlIdentifier Schema, SqlIdentifier Table, TableGrant Grant, SourcePosition Position);
+    private readonly record struct PendingGrant(SqlIdentifier Schema, SqlIdentifier Table, TableGrant Grant, SourcePosition Position, string? File);
 
-    private readonly record struct PendingTrigger(SqlIdentifier Schema, SqlIdentifier Table, Trigger Trigger, SourcePosition Position);
+    private readonly record struct PendingTrigger(SqlIdentifier Schema, SqlIdentifier Table, Trigger Trigger, SourcePosition Position, string? File);
 
-    private readonly record struct PendingIndex(SqlIdentifier Schema, SqlIdentifier Relation, TableIndex Index, SourcePosition Position);
+    private readonly record struct PendingIndex(SqlIdentifier Schema, SqlIdentifier Relation, TableIndex Index, SourcePosition Position, string? File);
 }

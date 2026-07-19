@@ -11,7 +11,6 @@ using NSchema.Model.Tables;
 using NSchema.Model.Views;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
-using NSchema.Project.Model.Services;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Operations;
@@ -60,15 +59,15 @@ public sealed class ImportOperationTests : IDisposable
     private string ObjectPath(string type, string name) => Path.Combine(_dir, "app", type, $"{name}.sql");
     private string HeaderPath => Path.Combine(_dir, "app", "schema.sql");
 
-    // Combines every .sql file written under the output directory, as the desired-schema providers would.
+    // Assembles every .sql file written under the output directory, as the project provider would.
     private async Task<Database> ReadAll()
     {
-        var combined = new Database { Schemas = [] };
+        var sources = new List<string>();
         foreach (var file in Directory.EnumerateFiles(_dir, "*.sql", SearchOption.AllDirectories))
         {
-            combined = DatabaseAggregator.Combine(combined, await ReadSchema(file)).Require();
+            sources.Add(await File.ReadAllTextAsync(file));
         }
-        return combined;
+        return TestNsqlParser.Assemble([.. sources]).Require().Database;
     }
 
     // ── Result payload ──────────────────────────────────────────────────────

@@ -27,4 +27,25 @@ internal sealed class TestNsqlParser(string source)
 
         return NSchema.Project.ProjectAssembler.Assemble([document]);
     }
+
+    /// <summary>
+    /// Assembles several sources as separate documents — the cross-file path. Each document is stamped with
+    /// a synthetic file name (<c>file1.sql</c>, <c>file2.sql</c>, …) so findings can assert attribution.
+    /// </summary>
+    public static Result<ProjectDefinition> Assemble(params string[] sources)
+    {
+        var documents = sources.Select((text, index) =>
+        {
+            var parser = new NsqlParser(text);
+            var document = parser.Parse();
+            if (parser.Errors.Count > 0)
+            {
+                throw parser.Errors[0];
+            }
+
+            return document with { FilePath = $"file{index + 1}.sql" };
+        }).ToList();
+
+        return NSchema.Project.ProjectAssembler.Assemble(documents);
+    }
 }

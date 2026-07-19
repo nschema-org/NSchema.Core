@@ -10,8 +10,4 @@ namespace NSchema.Plan.Model.Indexes;
 /// <param name="IndexName">The name of the index whose comment will be modified.</param>
 /// <param name="OldComment">The current comment on the index before modification. This can be null if there is no existing comment.</param>
 /// <param name="NewComment">The new comment to be set on the index after modification. This can be null if the comment is being removed.</param>
-public sealed record SetIndexComment(SqlIdentifier SchemaName, SqlIdentifier TableName, SqlIdentifier IndexName, string? OldComment, string? NewComment) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+public sealed record SetIndexComment(SqlIdentifier SchemaName, SqlIdentifier TableName, SqlIdentifier IndexName, string? OldComment, string? NewComment) : MigrationAction;

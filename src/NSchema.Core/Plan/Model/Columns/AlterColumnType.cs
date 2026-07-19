@@ -23,8 +23,4 @@ public sealed record AlterColumnType(
     SqlType OldType,
     SqlType NewType,
     bool? IsNullable = null
-) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => true;
-}
+) : MigrationAction;

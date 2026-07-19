@@ -13,8 +13,4 @@ public sealed record AddPrimaryKey(
     SqlIdentifier SchemaName,
     SqlIdentifier TableName,
     PrimaryKey PrimaryKey
-) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+) : MigrationAction;

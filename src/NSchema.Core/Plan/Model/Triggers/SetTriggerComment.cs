@@ -10,8 +10,4 @@ namespace NSchema.Plan.Model.Triggers;
 /// <param name="TriggerName">The name of the trigger.</param>
 /// <param name="OldComment">The previous comment, if any.</param>
 /// <param name="NewComment">The new comment, if any.</param>
-public sealed record SetTriggerComment(SqlIdentifier SchemaName, SqlIdentifier TableName, SqlIdentifier TriggerName, string? OldComment, string? NewComment) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+public sealed record SetTriggerComment(SqlIdentifier SchemaName, SqlIdentifier TableName, SqlIdentifier TriggerName, string? OldComment, string? NewComment) : MigrationAction;

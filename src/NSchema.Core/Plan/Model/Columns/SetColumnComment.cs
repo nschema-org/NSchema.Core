@@ -10,8 +10,4 @@ namespace NSchema.Plan.Model.Columns;
 /// <param name="ColumnName">The name of the column whose comment will be modified.</param>
 /// <param name="OldComment">The current comment on the column before modification. This can be null if there is no existing comment.</param>
 /// <param name="NewComment">The new comment to be set on the column after modification. This can be null if the comment is being removed.</param>
-public sealed record SetColumnComment(SqlIdentifier SchemaName, SqlIdentifier TableName, SqlIdentifier ColumnName, string? OldComment, string? NewComment) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+public sealed record SetColumnComment(SqlIdentifier SchemaName, SqlIdentifier TableName, SqlIdentifier ColumnName, string? OldComment, string? NewComment) : MigrationAction;

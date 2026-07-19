@@ -46,6 +46,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **`NsqlReader` replaces `DdlReader` and diagnostics are structural.** `NsqlReader.Read`/`ReadFile` return `Result<NsqlDocument, NsqlDiagnostic>`, the new diagnostic-typed result, with each finding carrying its source position.
 - **`DdlReader.Read` returns `Result<DdlDocument>`.** A syntax error is an error diagnostic instead of a thrown exception, and the parser now recovers at statement boundaries.
 - **`DatabaseSchema` is pure data now.** `Filter` joined `Combine` off the model, into the projection machinery.
+- **`DiffReader` is a static class now.** The `.Default` singleton is gone; call `DiffReader.Read(diff)` directly, matching `NsqlReader` and `NsqlWriter`.
 - **`SchemaScope` replaces bare schema-name arrays.** `GetProject`, `GetSchema`, and the plan/drift/import arguments take a scope record.
 - **`IStateLockManager.Acquire` takes `LockAcquireArguments`.** Operation, TTL, and skip-lock in one record; `StateLockRequest` stays the backend's.
 - **`IPlanFileManager.Read` returns `Result<PlanFileEnvelope>`.** An unreadable or corrupt plan file is a failure carrying diagnostics.
@@ -77,6 +78,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **Narrowed public surface.** A variety of types that should never have been exposed have been made internal.
 - `PolicyDiagnostics`, `PluginConfigureResult`, and the `DestructiveActionPolicy` enum — all made redundant by first-class severity on `Result` and the shared `PolicyEnforcement`.
 - `DdlSyntaxException`, `PlanFileDeserializationException`, and `StateDeserializationException` are now internal; the read seams surface these failures as diagnostics.
+- `MigrationAction.IsDestructive` has been removed. Destructiveness is judged from the diff by `DestructiveActionPolicy`, not per action.
 
 ## [4.6.1] - 2026-07-10
 

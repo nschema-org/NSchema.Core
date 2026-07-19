@@ -68,6 +68,22 @@ public sealed class ResultTests
         result.Errors.ShouldBe([error]);
     }
 
+    [Fact]
+    public void Result_ExposesSeverityViews_OnItselfAndItsDiagnostics()
+    {
+        // Arrange
+        var warning = Warning();
+        var error = Error();
+
+        // Act
+        var result = Result.From([warning, error]);
+
+        // Assert
+        result.Warnings.ShouldBe([warning]);
+        result.Diagnostics.HasErrors.ShouldBeTrue();
+        result.Diagnostics.Errors.ShouldBe([error]);
+    }
+
     // -------------------------------------------------------------------------
     // Result<T> — value presence tracks success
     // -------------------------------------------------------------------------

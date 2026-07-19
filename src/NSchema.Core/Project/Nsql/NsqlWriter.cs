@@ -150,7 +150,7 @@ public static class NsqlWriter
                 sb.Append($"{NsqlKeywords.Create} {NsqlKeywords.Extension} ").Append(ExtensionName(s.Name.Value));
                 if (s.Version is { } version)
                 {
-                    sb.Append(" VERSION '").Append(version.Replace("'", "''")).Append('\'');
+                    sb.Append($" {NsqlKeywords.Version} '").Append(version.Replace("'", "''")).Append('\'');
                 }
                 sb.AppendLine(";");
                 break;
@@ -251,7 +251,7 @@ public static class NsqlWriter
                     sb.Append(" (").Append(string.Join(", ", m.Elements.Select(ExclusionElementText))).Append(')');
                     if (m.Predicate is { } predicate)
                     {
-                        sb.Append(" WHERE (").Append(predicate.Value).Append(')');
+                        sb.Append($" {NsqlKeywords.Where} (").Append(predicate.Value).Append(')');
                     }
                     return sb.ToString();
                 }
@@ -293,7 +293,7 @@ public static class NsqlWriter
         sb.Append($" {NsqlKeywords.For} {NsqlKeywords.Each} ").Append(statement.Level == Syn.Triggers.TriggerLevel.Row ? NsqlKeywords.Row : NsqlKeywords.Statement);
         if (statement.When is { } when)
         {
-            sb.Append(" WHEN (").Append(when.Value).Append(')');
+            sb.Append($" {NsqlKeywords.When} (").Append(when.Value).Append(')');
         }
         sb.Append($" {NsqlKeywords.Execute} {NsqlKeywords.Function} ").Append(Reference(action.Function))
             .Append('(').Append(action.Arguments.Value).Append(')').AppendLine(";");
@@ -356,7 +356,7 @@ public static class NsqlWriter
         }
         if (predicate is { } p)
         {
-            sb.Append(" WHERE (").Append(p.Value).Append(')');
+            sb.Append($" {NsqlKeywords.Where} (").Append(p.Value).Append(')');
         }
     }
 
@@ -391,23 +391,23 @@ public static class NsqlWriter
         }
         if (options.Start is { } start)
         {
-            parts.Add($"START {start}");
+            parts.Add($"{NsqlKeywords.Start} {start}");
         }
         if (options.Increment is { } increment)
         {
-            parts.Add($"INCREMENT {increment}");
+            parts.Add($"{NsqlKeywords.Increment} {increment}");
         }
         if (options.MinValue is { } min)
         {
-            parts.Add($"MINVALUE {min}");
+            parts.Add($"{NsqlKeywords.MinValue} {min}");
         }
         if (options.MaxValue is { } max)
         {
-            parts.Add($"MAXVALUE {max}");
+            parts.Add($"{NsqlKeywords.MaxValue} {max}");
         }
         if (options.Cache is { } cache)
         {
-            parts.Add($"CACHE {cache}");
+            parts.Add($"{NsqlKeywords.Cache} {cache}");
         }
         if (options.Cycle)
         {
@@ -421,15 +421,15 @@ public static class NsqlWriter
         var parts = new List<string>();
         if (options.Start is { } start)
         {
-            parts.Add($"START {start}");
+            parts.Add($"{NsqlKeywords.Start} {start}");
         }
         if (options.Increment is { } increment)
         {
-            parts.Add($"INCREMENT {increment}");
+            parts.Add($"{NsqlKeywords.Increment} {increment}");
         }
         if (options.MinValue is { } min)
         {
-            parts.Add($"MINVALUE {min}");
+            parts.Add($"{NsqlKeywords.MinValue} {min}");
         }
         return parts.Count == 0 ? null : string.Join(", ", parts);
     }

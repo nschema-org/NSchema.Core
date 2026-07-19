@@ -8,8 +8,4 @@ namespace NSchema.Plan.Model.Domains;
 /// </summary>
 /// <param name="SchemaName">The name of the schema containing the domain.</param>
 /// <param name="DomainType">The desired domain to recreate.</param>
-public sealed record RecreateDomain(SqlIdentifier SchemaName, DomainType DomainType) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => true;
-}
+public sealed record RecreateDomain(SqlIdentifier SchemaName, DomainType DomainType) : MigrationAction;

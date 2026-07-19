@@ -7,7 +7,7 @@ namespace NSchema;
 /// </summary>
 public class Result
 {
-    internal Result(IReadOnlyList<Diagnostic> diagnostics)
+    internal Result(IDiagnosticCollection<Diagnostic> diagnostics)
     {
         Diagnostics = diagnostics;
     }
@@ -15,33 +15,38 @@ public class Result
     /// <summary>
     /// Whether the operation succeeded; true if there are no errors.
     /// </summary>
-    public virtual bool IsSuccess => !Errors.Any();
+    public virtual bool IsSuccess => !Diagnostics.HasErrors;
 
     /// <summary>
     /// Whether the operation failed; true if there are errors.
     /// </summary>
-    public virtual bool IsFailure => !IsSuccess;
+    public virtual bool IsFailure => Diagnostics.HasErrors;
 
     /// <summary>
-    /// Every finding produced, of any severity. Empty on a clean success.
+    /// Every finding produced, of any severity.
     /// </summary>
-    public IReadOnlyList<Diagnostic> Diagnostics { get; }
+    public IDiagnosticCollection<Diagnostic> Diagnostics { get; }
 
     /// <summary>
     /// The error-severity subset of <see cref="Diagnostics"/>.
     /// </summary>
-    public IEnumerable<Diagnostic> Errors => Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error);
+    public IEnumerable<Diagnostic> Errors => Diagnostics.Errors;
+
+    /// <summary>
+    /// The warning-severity subset of <see cref="Diagnostics"/>.
+    /// </summary>
+    public IEnumerable<Diagnostic> Warnings => Diagnostics.Warnings;
 
     /// <summary>
     /// A clean value-less success.
     /// </summary>
-    public static Result Success() => new([]);
+    public static Result Success() => new(new DiagnosticCollection());
 
     /// <summary>
     /// A value-less result built from an aggregated set of diagnostics; a failure when any is an error.
     /// </summary>
     /// <param name="diagnostics">Every finding produced.</param>
-    public static Result From(params IEnumerable<Diagnostic> diagnostics) => new([.. diagnostics]);
+    public static Result From(params IEnumerable<Diagnostic> diagnostics) => new(new DiagnosticCollection(diagnostics));
 
     /// <summary>
     /// A successful <see cref="Result{T}"/> carrying <paramref name="value"/>, optionally with advisory diagnostics.
@@ -49,14 +54,14 @@ public class Result
     /// <typeparam name="T">The value produced on success.</typeparam>
     /// <param name="value">The produced value.</param>
     /// <param name="diagnostics">Advisory diagnostics to surface alongside the success.</param>
-    public static Result<T> Success<T>(T value, params IEnumerable<Diagnostic> diagnostics) => new(value, [.. diagnostics]);
+    public static Result<T> Success<T>(T value, params IEnumerable<Diagnostic> diagnostics) => new(value, new DiagnosticCollection(diagnostics));
 
     /// <summary>
     /// A failed <see cref="Result{T}"/> — no value — carrying the error diagnostics that explain it.
     /// </summary>
     /// <typeparam name="T">The value the result would have produced on success.</typeparam>
     /// <param name="diagnostics">The diagnostics describing why the operation failed.</param>
-    public static Result<T> Failure<T>(params IEnumerable<Diagnostic> diagnostics) => new(default, [.. diagnostics]);
+    public static Result<T> Failure<T>(params IEnumerable<Diagnostic> diagnostics) => new(default, new DiagnosticCollection(diagnostics));
 
     /// <summary>
     /// A <see cref="Result{T}"/> built from <paramref name="value"/> plus an aggregated set of diagnostics, carrying the
@@ -65,7 +70,7 @@ public class Result
     /// <typeparam name="T">The value produced.</typeparam>
     /// <param name="value">The produced value.</param>
     /// <param name="diagnostics">Every finding produced, if any.</param>
-    public static Result<T> From<T>(T? value, IEnumerable<Diagnostic> diagnostics) => new(value, [.. diagnostics]);
+    public static Result<T> From<T>(T? value, IEnumerable<Diagnostic> diagnostics) => new(value, new DiagnosticCollection(diagnostics));
 }
 
 /// <summary>
@@ -74,7 +79,7 @@ public class Result
 /// <typeparam name="T">The value produced on success.</typeparam>
 public class Result<T> : Result
 {
-    internal Result(T? value, IReadOnlyList<Diagnostic> diagnostics) : base(diagnostics)
+    internal Result(T? value, IDiagnosticCollection<Diagnostic> diagnostics) : base(diagnostics)
     {
         Value = value;
     }
@@ -129,32 +134,37 @@ public class Result<T> : Result
 /// <typeparam name="TDiagnostic">The diagnostic type the producer mints.</typeparam>
 public sealed class Result<TValue, TDiagnostic> : Result<TValue> where TDiagnostic : Diagnostic
 {
-    internal Result(TValue? value, IReadOnlyList<TDiagnostic> diagnostics) : base(value, diagnostics)
+    internal Result(TValue? value, IDiagnosticCollection<TDiagnostic> diagnostics) : base(value, diagnostics)
     {
     }
 
     /// <summary>
     /// Every finding produced, of any severity, in the producer's own diagnostic type.
     /// </summary>
-    public new IReadOnlyList<TDiagnostic> Diagnostics => (IReadOnlyList<TDiagnostic>)base.Diagnostics;
+    public new IDiagnosticCollection<TDiagnostic> Diagnostics => (IDiagnosticCollection<TDiagnostic>)base.Diagnostics;
 
     /// <summary>
     /// The error-severity subset of <see cref="Diagnostics"/>.
     /// </summary>
-    public new IEnumerable<TDiagnostic> Errors => Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error);
+    public new IEnumerable<TDiagnostic> Errors => Diagnostics.Errors;
+
+    /// <summary>
+    /// The warning-severity subset of <see cref="Diagnostics"/>.
+    /// </summary>
+    public new IEnumerable<TDiagnostic> Warnings => Diagnostics.Warnings;
 
     /// <summary>
     /// A successful result carrying <paramref name="value"/>, optionally with advisory diagnostics.
     /// </summary>
     /// <param name="value">The produced value.</param>
     /// <param name="diagnostics">Advisory diagnostics to surface alongside the success.</param>
-    public static Result<TValue, TDiagnostic> Success(TValue value, params IEnumerable<TDiagnostic> diagnostics) => new(value, [.. diagnostics]);
+    public static Result<TValue, TDiagnostic> Success(TValue value, params IEnumerable<TDiagnostic> diagnostics) => new(value, new DiagnosticCollection<TDiagnostic>(diagnostics));
 
     /// <summary>
     /// A failed result — no value — carrying the diagnostics that explain it.
     /// </summary>
     /// <param name="diagnostics">The diagnostics describing why the operation failed.</param>
-    public static Result<TValue, TDiagnostic> Failure(params IEnumerable<TDiagnostic> diagnostics) => new(default, [.. diagnostics]);
+    public static Result<TValue, TDiagnostic> Failure(params IEnumerable<TDiagnostic> diagnostics) => new(default, new DiagnosticCollection<TDiagnostic>(diagnostics));
 
     /// <summary>
     /// A result built from <paramref name="value"/> plus an aggregated set of diagnostics, carrying the value
@@ -162,5 +172,5 @@ public sealed class Result<TValue, TDiagnostic> : Result<TValue> where TDiagnost
     /// </summary>
     /// <param name="value">The produced value.</param>
     /// <param name="diagnostics">Every finding produced.</param>
-    public static Result<TValue, TDiagnostic> From(TValue? value, IEnumerable<TDiagnostic> diagnostics) => new(value, [.. diagnostics]);
+    public static Result<TValue, TDiagnostic> From(TValue? value, IEnumerable<TDiagnostic> diagnostics) => new(value, new DiagnosticCollection<TDiagnostic>(diagnostics));
 }

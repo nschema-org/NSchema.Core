@@ -15,8 +15,4 @@ public sealed record AlterSequence(
     SqlIdentifier SequenceName,
     SequenceOptions OldOptions,
     SequenceOptions NewOptions
-) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+) : MigrationAction;

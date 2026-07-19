@@ -12,8 +12,4 @@ public sealed record DropUniqueConstraint(
     SqlIdentifier SchemaName,
     SqlIdentifier TableName,
     SqlIdentifier ConstraintName
-) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+) : MigrationAction;

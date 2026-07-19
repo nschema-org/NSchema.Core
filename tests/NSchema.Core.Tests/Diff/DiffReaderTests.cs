@@ -19,7 +19,7 @@ public sealed class DiffReaderTests
     // -------------------------------------------------------------------------
     // Helpers — read a diff and assert over the structured document it produces.
     // -------------------------------------------------------------------------
-    private static DiffDocument Read(DatabaseDiff diff) => DiffReader.Default.Read(diff);
+    private static DiffDocument Read(DatabaseDiff diff) => DiffReader.Read(diff);
 
     /// <summary>Asserts a content line exists with the given kind whose text contains the snippet.</summary>
     private static void ShouldHaveLine(DatabaseDiff diff, ChangeKind kind, string textContains)

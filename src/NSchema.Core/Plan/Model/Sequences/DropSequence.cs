@@ -7,8 +7,4 @@ namespace NSchema.Plan.Model.Sequences;
 /// </summary>
 /// <param name="SchemaName">The name of the schema containing the sequence to be removed.</param>
 /// <param name="SequenceName">The name of the sequence to be removed.</param>
-public sealed record DropSequence(SqlIdentifier SchemaName, SqlIdentifier SequenceName) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => true;
-}
+public sealed record DropSequence(SqlIdentifier SchemaName, SqlIdentifier SequenceName) : MigrationAction;

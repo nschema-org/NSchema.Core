@@ -7,8 +7,4 @@ namespace NSchema.Plan.Model.Schemas;
 /// </summary>
 /// <param name="SchemaName">The name of the schema for which usage permissions are being revoked.</param>
 /// <param name="Role">The name of the role from which usage permissions are being revoked.</param>
-public sealed record RevokeSchemaUsage(SqlIdentifier SchemaName, SqlIdentifier Role) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => true;
-}
+public sealed record RevokeSchemaUsage(SqlIdentifier SchemaName, SqlIdentifier Role) : MigrationAction;

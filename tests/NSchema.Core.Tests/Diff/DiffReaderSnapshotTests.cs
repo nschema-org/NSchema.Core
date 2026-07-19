@@ -35,7 +35,7 @@ namespace NSchema.Tests.Diff;
 /// </summary>
 public sealed class DiffReaderSnapshotTests
 {
-    private static DiffDocument Read(DatabaseDiff diff) => DiffReader.Default.Read(diff);
+    private static DiffDocument Read(DatabaseDiff diff) => DiffReader.Read(diff);
 
     /// <summary>
     /// A diff exercising add/modify/remove across schemas, tables, columns, indexes, constraints, and grants.

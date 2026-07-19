@@ -11,7 +11,7 @@ namespace NSchema.Diff.Model.Constraints;
 /// <param name="Name">The foreign key constraint name.</param>
 /// <param name="Definition">The foreign key definition for an added foreign key; otherwise <see langword="null"/>.</param>
 /// <param name="Comment">The change to the constraint's comment, if any (carried on a comment-only <see cref="ChangeKind.Modify"/>).</param>
-public sealed record ForeignKeyDiff(ChangeKind Kind, SqlIdentifier Name, ForeignKey? Definition = null, ValueChange<string>? Comment = null) : INamedObjectDiff
+public sealed record ForeignKeyDiff(ChangeKind Kind, SqlIdentifier Name, ForeignKey? Definition = null, ValueChange<string>? Comment = null) : IMigratableDiff
 {
     /// <summary>
     /// The change-event script matched to this change, run at this point in the plan (<see langword="null"/> when none).

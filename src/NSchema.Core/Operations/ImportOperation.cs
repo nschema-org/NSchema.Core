@@ -2,7 +2,6 @@ using NSchema.Deployment;
 using NSchema.Model;
 using NSchema.Model.Schemas;
 using NSchema.Operations.Progress;
-using NSchema.Project.Model.Services;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Operations;
@@ -132,36 +131,59 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
 
     private static Database Merge(Database existing, Database incoming)
     {
-        // Strip any objects from existing that appear in the incoming import so the
-        // aggregator sees no duplicates, then aggregate. Incoming objects win on conflict.
-        var incomingBySchema = incoming.Schemas.ToDictionary(s => s.Name, s => s);
-
-        // The existing tree was just parsed from the file, so it is ours to prune in place.
-        foreach (var s in existing.Schemas)
+        // Merge is prune-then-graft per kind: strip the existing objects the incoming import re-declares, then
+        // copy the incoming ones in — incoming wins on overlap, and everything else is left in place. The
+        // existing tree was just parsed from the file, so it is ours to prune; incoming nodes are copied in,
+        // never re-parented.
+        foreach (var incomingSchema in incoming.Schemas)
         {
-            if (!incomingBySchema.TryGetValue(s.Name, out var i))
+            var schema = existing.Schemas.FirstOrDefault(s => s.Name == incomingSchema.Name);
+            if (schema is null)
             {
+                existing.Schemas.Add(incomingSchema.Clone());
                 continue;
             }
-            PruneByName(s.Tables, i.Tables, t => t.Name);
-            PruneByName(s.Views, i.Views, v => v.Name);
-            PruneByName(s.Enums, i.Enums, e => e.Name);
-            PruneByName(s.Sequences, i.Sequences, q => q.Name);
-            PruneByName(s.Routines, i.Routines, r => r.Name);
-            PruneByName(s.Domains, i.Domains, d => d.Name);
+
+            MergeObjects(schema.Tables, incomingSchema.Tables);
+            MergeObjects(schema.Views, incomingSchema.Views);
+            MergeObjects(schema.Enums, incomingSchema.Enums);
+            MergeObjects(schema.Sequences, incomingSchema.Sequences);
+            MergeObjects(schema.Routines, incomingSchema.Routines);
+            MergeObjects(schema.Domains, incomingSchema.Domains);
+            MergeObjects(schema.CompositeTypes, incomingSchema.CompositeTypes);
+            foreach (var grant in incomingSchema.Grants.Where(g => !schema.Grants.Contains(g)))
+            {
+                schema.Grants.Add(grant);
+            }
+            if (incomingSchema.Comment is not null)
+            {
+                schema.Comment = incomingSchema.Comment;
+            }
         }
 
-        // Root-level extensions are pruned by name too, so a re-imported extension merges in (incoming wins)
-        // rather than tripping the aggregator's duplicate detection.
-        PruneByName(existing.Extensions, incoming.Extensions, e => e.Name);
+        // Root-level extensions merge the same way, so a re-imported extension replaces rather than duplicating.
+        PruneByName(existing.Extensions, incoming.Extensions);
+        foreach (var extension in incoming.Extensions)
+        {
+            existing.Extensions.Add(extension.Clone());
+        }
 
-        // Pruning removed every overlapping object first, so this merge cannot collide.
-        return DatabaseAggregator.Combine(existing, incoming).Require();
+        return existing;
     }
 
-    private static void PruneByName<T>(IList<T> existing, IReadOnlyList<T> incoming, Func<T, SqlIdentifier> name)
+    /// <summary>Replaces the target's same-named objects with clones of the incoming ones.</summary>
+    private static void MergeObjects<T>(DatabaseObjectCollection<T> target, IReadOnlyList<T> incoming) where T : DatabaseObject
     {
-        var incomingNames = incoming.Select(name).ToHashSet();
-        existing.RemoveWhere(item => incomingNames.Contains(name(item)));
+        PruneByName(target, incoming);
+        foreach (var item in incoming)
+        {
+            target.Add((T)item.Clone());
+        }
+    }
+
+    private static void PruneByName<T>(IList<T> existing, IReadOnlyList<T> incoming) where T : DatabaseElement
+    {
+        var incomingNames = incoming.Select(item => item.Name).ToHashSet();
+        existing.RemoveWhere(item => incomingNames.Contains(item.Name));
     }
 }

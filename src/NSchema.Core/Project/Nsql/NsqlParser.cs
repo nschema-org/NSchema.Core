@@ -38,24 +38,27 @@ internal sealed partial class NsqlParser
     /// <summary>
     /// Parses the whole document under the project grammar.
     /// </summary>
-    public NsqlDocument Parse()
+    public NsqlDocument Parse() => new(ParseDocumentBody(ParseStatement));
+
+    /// <summary>
+    /// The document-level parse loop shared by the project and configuration grammars: statements to end of
+    /// file, each taking the doc-comments before it (last one wins; one dangling at EOF attaches to nothing).
+    /// </summary>
+    private List<T> ParseDocumentBody<T>(Func<string?, T> parseStatement)
     {
-        var statements = new List<NsqlStatement>();
-        string? pendingDoc = null;
+        var statements = new List<T>();
 
         while (_current.Kind != TokenKind.EndOfFile)
         {
-            if (_current.Kind == TokenKind.DocComment)
+            var doc = TakePendingDoc();
+            if (_current.Kind == TokenKind.EndOfFile)
             {
-                // A doc-comment attaches to the declaration that follows it (last one wins).
-                pendingDoc = _current.Text;
-                Advance();
-                continue;
+                break;
             }
 
             try
             {
-                statements.Add(ParseStatement(pendingDoc));
+                statements.Add(parseStatement(doc));
             }
             catch (NsqlSyntaxException error)
             {
@@ -63,10 +66,9 @@ internal sealed partial class NsqlParser
                 _errors.Add(error);
                 Resync();
             }
-            pendingDoc = null;
         }
 
-        return new NsqlDocument(statements);
+        return statements;
     }
 
     /// <summary>

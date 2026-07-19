@@ -8,8 +8,4 @@ namespace NSchema.Plan.Model.CompositeTypes;
 /// <param name="SchemaName">The name of the schema containing the composite type.</param>
 /// <param name="OldName">The current name of the composite type.</param>
 /// <param name="NewName">The new name of the composite type.</param>
-public sealed record RenameCompositeType(SqlIdentifier SchemaName, SqlIdentifier OldName, SqlIdentifier NewName) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+public sealed record RenameCompositeType(SqlIdentifier SchemaName, SqlIdentifier OldName, SqlIdentifier NewName) : MigrationAction;

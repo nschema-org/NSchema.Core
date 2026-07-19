@@ -12,8 +12,4 @@ public sealed record DropForeignKey(
     SqlIdentifier SchemaName,
     SqlIdentifier TableName,
     SqlIdentifier ForeignKeyName
-) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+) : MigrationAction;

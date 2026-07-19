@@ -1,10 +1,11 @@
 using NSchema.Model;
 using NSchema.Model.Scripts;
+using NSchema.Project.Nsql;
 
 namespace NSchema.Project.Model.Services;
 
 /// <summary>
-/// The diagnostics minted while reading and aggregating the project.
+/// The diagnostics minted while reading and assembling the project.
 /// </summary>
 internal static class ProjectDiagnostics
 {
@@ -28,23 +29,69 @@ internal static class ProjectDiagnostics
     public static Diagnostic DuplicateChangeTarget(ChangeScript change) => Diagnostic.Error(Source,
         $"Duplicate migration for {ChangeScript.TriggerText(change.Trigger)} '{change.Path}' declared.");
 
-    /// <summary>
-    /// A database-global extension declared more than once.
-    /// </summary>
-    public static Diagnostic DuplicateExtension(SqlIdentifier name) => Diagnostic.Error(Source,
-        $"Duplicate extension '{name}' declared.");
+    // ── Accumulation findings — project semantics, not grammar, but positioned like syntax errors. ──
 
     /// <summary>
-    /// Two declarations of the same schema carry different comments.
+    /// A schema declared more than once. Only the declaration is unique; objects land in a schema from any
+    /// file without redeclaring it.
     /// </summary>
-    public static Diagnostic ConflictingComments(SqlIdentifier schemaName) => Diagnostic.Error(Source,
-        $"Conflicting comments specified for schema '{schemaName}'.");
+    public static NsqlDiagnostic SchemaAlreadyDeclared(SqlIdentifier name, SourcePosition position) =>
+        Positioned($"Schema '{name}' is already declared.", position);
 
     /// <summary>
     /// The same named object declared more than once within a schema.
     /// </summary>
-    public static Diagnostic DuplicateObject(string kind, SqlIdentifier name, SqlIdentifier schemaName, string suffix) => Diagnostic.Error(Source,
-        $"Duplicate {kind} '{name}' found in schema '{schemaName}'{suffix}.");
+    public static NsqlDiagnostic ObjectAlreadyDeclared(ObjectKind kind, SqlIdentifier schema, SqlIdentifier name, SourcePosition position) =>
+        Positioned(kind is ObjectKind.Routine
+            ? $"Routine '{schema}.{name}' is already declared (functions and procedures share one name space)."
+            : $"{Capitalized(kind.Display())} '{schema}.{name}' is already declared.", position);
+
+    /// <summary>
+    /// A database-global extension declared more than once.
+    /// </summary>
+    public static NsqlDiagnostic ExtensionAlreadyDeclared(SqlIdentifier name, SourcePosition position) =>
+        Positioned($"Extension '{name}' is already declared.", position);
+
+    /// <summary>
+    /// The same named trigger declared more than once on a table.
+    /// </summary>
+    public static NsqlDiagnostic TriggerAlreadyDeclared(SqlIdentifier name, SqlIdentifier schema, SqlIdentifier table, SourcePosition position) =>
+        Positioned($"Trigger '{name}' on '{schema}.{table}' is already declared.", position);
+
+    /// <summary>
+    /// The same named index declared more than once on a relation.
+    /// </summary>
+    public static NsqlDiagnostic IndexAlreadyDeclared(SqlIdentifier name, SqlIdentifier schema, SqlIdentifier relation, SourcePosition position) =>
+        Positioned($"Index '{name}' on '{schema}.{relation}' is already declared.", position);
+
+    /// <summary>
+    /// A table grant whose table the project does not declare.
+    /// </summary>
+    public static NsqlDiagnostic UnknownGrantTable(SqlIdentifier schema, SqlIdentifier table, SourcePosition position) =>
+        Positioned($"GRANT references unknown table '{schema}.{table}'.", position);
+
+    /// <summary>
+    /// A standalone trigger whose table the project does not declare.
+    /// </summary>
+    public static NsqlDiagnostic UnknownTriggerTable(SqlIdentifier schema, SqlIdentifier table, SourcePosition position) =>
+        Positioned($"CREATE TRIGGER references unknown table '{schema}.{table}'.", position);
+
+    /// <summary>
+    /// A standalone index whose relation the project does not declare.
+    /// </summary>
+    public static NsqlDiagnostic UnknownIndexRelation(SqlIdentifier schema, SqlIdentifier relation, SourcePosition position) =>
+        Positioned($"CREATE INDEX references unknown table or materialized view '{schema}.{relation}'.", position);
+
+    /// <summary>
+    /// A standalone index targeting a plain (non-materialized) view.
+    /// </summary>
+    public static NsqlDiagnostic IndexOnPlainView(SqlIdentifier schema, SqlIdentifier view, SourcePosition position) =>
+        Positioned($"CREATE INDEX targets '{schema}.{view}', which is not a materialized view (a plain view cannot be indexed).", position);
+
+    private static NsqlDiagnostic Positioned(string message, SourcePosition position) =>
+        new(Source, $"{message} (at {position}).", DiagnosticSeverity.Error, position);
+
+    private static string Capitalized(string prose) => char.ToUpperInvariant(prose[0]) + prose[1..];
 
     // ── Directive rules — addresses arrive rendered because their shapes differ per kind. ──
 

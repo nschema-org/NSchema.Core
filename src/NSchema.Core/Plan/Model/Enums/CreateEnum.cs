@@ -8,8 +8,4 @@ namespace NSchema.Plan.Model.Enums;
 /// </summary>
 /// <param name="SchemaName">The name of the schema the enum belongs to.</param>
 /// <param name="Enum">The definition of the enum type to create.</param>
-public sealed record CreateEnum(SqlIdentifier SchemaName, EnumType Enum) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+public sealed record CreateEnum(SqlIdentifier SchemaName, EnumType Enum) : MigrationAction;

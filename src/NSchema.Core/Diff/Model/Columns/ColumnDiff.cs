@@ -28,7 +28,7 @@ public sealed record ColumnDiff(
     ValueChange<IdentityOptions>? Identity = null,
     ValueChange<string>? Comment = null,
     ValueChange<SqlText>? Generated = null
-) : INamedObjectDiff
+) : IMigratableDiff
 {
     /// <summary>
     /// The change-event script matched to this change, run at this point in the plan (<see langword="null"/> when none).

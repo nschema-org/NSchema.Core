@@ -9,8 +9,4 @@ namespace NSchema.Plan.Model.Sequences;
 /// <param name="SequenceName">The name of the sequence.</param>
 /// <param name="OldComment">The previous comment, if any.</param>
 /// <param name="NewComment">The new comment, if any.</param>
-public sealed record SetSequenceComment(SqlIdentifier SchemaName, SqlIdentifier SequenceName, string? OldComment, string? NewComment) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+public sealed record SetSequenceComment(SqlIdentifier SchemaName, SqlIdentifier SequenceName, string? OldComment, string? NewComment) : MigrationAction;

@@ -13,8 +13,4 @@ public sealed record AddUniqueConstraint(
     SqlIdentifier SchemaName,
     SqlIdentifier TableName,
     UniqueConstraint UniqueConstraint
-) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+) : MigrationAction;

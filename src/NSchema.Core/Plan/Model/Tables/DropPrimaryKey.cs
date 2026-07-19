@@ -12,8 +12,4 @@ public sealed record DropPrimaryKey(
     SqlIdentifier SchemaName,
     SqlIdentifier TableName,
     SqlIdentifier PrimaryKeyName
-) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+) : MigrationAction;

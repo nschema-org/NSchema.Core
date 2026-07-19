@@ -1,8 +1,6 @@
 using NSchema.Diff.Model.Columns;
 using NSchema.Diff.Model.Constraints;
-using NSchema.Diff.Model.Indexes;
 using NSchema.Diff.Model.Tables;
-using NSchema.Diff.Model.Triggers;
 using NSchema.Model;
 using NSchema.Model.Schemas;
 using NSchema.Model.Tables;
@@ -48,7 +46,7 @@ internal sealed partial class DatabaseComparer
             }
         }
 
-        return result;
+        return result.OrderBy(t => t.Name).ToList();
     }
 
     private static TableDiff RemovedTable(SqlIdentifier schema, SqlIdentifier name) =>
@@ -66,50 +64,14 @@ internal sealed partial class DatabaseComparer
                 Comment: column.Comment is not null ? new ValueChange<string>(null, column.Comment) : null))
             .ToList();
 
-        // A constraint comment is never set inline by CREATE TABLE / ADD CONSTRAINT; it folds in as a separate
-        // comment change, mirroring how a new index carries its comment as a trailing Modify.
-        var foreignKeys = new List<ForeignKeyDiff>();
-        foreach (var fk in table.ForeignKeys)
-        {
-            LogForeignKeyAddingToNewTable(fk.Name, owner);
-            foreignKeys.Add(new ForeignKeyDiff(ChangeKind.Add, fk.Name, fk));
-            if (fk.Comment is not null)
-            {
-                foreignKeys.Add(new ForeignKeyDiff(ChangeKind.Modify, fk.Name, null, new ValueChange<string>(null, fk.Comment)));
-            }
-        }
-
-        var uniqueConstraints = new List<UniqueConstraintDiff>();
-        foreach (var uq in table.UniqueConstraints)
-        {
-            LogUniqueConstraintAddingToNewTable(uq.Name, owner);
-            uniqueConstraints.Add(new UniqueConstraintDiff(ChangeKind.Add, uq.Name, uq));
-            if (uq.Comment is not null)
-            {
-                uniqueConstraints.Add(new UniqueConstraintDiff(ChangeKind.Modify, uq.Name, null, new ValueChange<string>(null, uq.Comment)));
-            }
-        }
-
-        var checks = new List<CheckConstraintDiff>();
-        foreach (var ck in table.CheckConstraints)
-        {
-            LogCheckConstraintAddingToNewTable(ck.Name, owner);
-            checks.Add(new CheckConstraintDiff(ChangeKind.Add, ck.Name, ck));
-            if (ck.Comment is not null)
-            {
-                checks.Add(new CheckConstraintDiff(ChangeKind.Modify, ck.Name, null, new ValueChange<string>(null, ck.Comment)));
-            }
-        }
-
-        var exclusions = new List<ExclusionConstraintDiff>();
-        foreach (var ex in table.ExclusionConstraints)
-        {
-            exclusions.Add(new ExclusionConstraintDiff(ChangeKind.Add, ex.Name, ex));
-            if (ex.Comment is not null)
-            {
-                exclusions.Add(new ExclusionConstraintDiff(ChangeKind.Modify, ex.Name, null, new ValueChange<string>(null, ex.Comment)));
-            }
-        }
+        // Every list member arrives by diffing against an empty current side — the same path a modified table
+        // takes, so a member's comment folds in as a trailing Modify either way.
+        var foreignKeys = CompareForeignKeys(owner, [], table.ForeignKeys);
+        var uniqueConstraints = CompareUniqueConstraints(owner, [], table.UniqueConstraints);
+        var checks = CompareChecks(owner, [], table.CheckConstraints);
+        var exclusions = CompareExclusionConstraints(owner, [], table.ExclusionConstraints);
+        var indexes = CompareIndexes(owner, [], table.Indexes);
+        var triggers = CompareTriggers(owner, [], table.Triggers);
 
         // The primary key is created inline by CREATE TABLE, but its comment still needs a separate set.
         var primaryKey = new List<PrimaryKeyDiff>();
@@ -118,32 +80,11 @@ internal sealed partial class DatabaseComparer
             primaryKey.Add(new PrimaryKeyDiff(ChangeKind.Modify, pk.Name, null, new ValueChange<string>(null, pk.Comment)));
         }
 
-        var indexes = new List<IndexDiff>();
-        foreach (var idx in table.Indexes)
-        {
-            LogIndexAddingToNewTable(idx.Name, owner);
-            indexes.Add(new IndexDiff(ChangeKind.Add, idx.Name, idx, null));
-            if (idx.Comment is not null)
-            {
-                indexes.Add(new IndexDiff(ChangeKind.Modify, idx.Name, null, new ValueChange<string>(null, idx.Comment)));
-            }
-        }
-
         var grants = new List<GrantChange>();
         foreach (var grant in table.Grants)
         {
             LogTablePrivilegesGrantingToNewTable(owner, grant.Role);
             grants.Add(new GrantChange(ChangeKind.Add, grant.Role, grant.Privileges));
-        }
-
-        var triggers = new List<TriggerDiff>();
-        foreach (var trg in table.Triggers)
-        {
-            triggers.Add(new TriggerDiff(ChangeKind.Add, trg.Name, trg, null));
-            if (trg.Comment is not null)
-            {
-                triggers.Add(new TriggerDiff(ChangeKind.Modify, trg.Name, null, new ValueChange<string>(null, trg.Comment)));
-            }
         }
 
         var comment = table.Comment is not null ? new ValueChange<string>(null, table.Comment) : null;

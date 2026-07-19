@@ -11,7 +11,7 @@ namespace NSchema.Diff.Model.Constraints;
 /// <param name="Name">The unique constraint name.</param>
 /// <param name="Definition">The unique constraint definition for an added constraint; otherwise <see langword="null"/>.</param>
 /// <param name="Comment">The change to the constraint's comment, if any (carried on a comment-only <see cref="ChangeKind.Modify"/>).</param>
-public sealed record UniqueConstraintDiff(ChangeKind Kind, SqlIdentifier Name, UniqueConstraint? Definition = null, ValueChange<string>? Comment = null) : INamedObjectDiff
+public sealed record UniqueConstraintDiff(ChangeKind Kind, SqlIdentifier Name, UniqueConstraint? Definition = null, ValueChange<string>? Comment = null) : IMigratableDiff
 {
     /// <summary>
     /// The change-event script matched to this change, run at this point in the plan (<see langword="null"/> when none).

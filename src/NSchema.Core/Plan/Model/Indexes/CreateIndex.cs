@@ -13,8 +13,4 @@ public sealed record CreateIndex(
     SqlIdentifier SchemaName,
     SqlIdentifier TableName,
     TableIndex Index
-) : MigrationAction
-{
-    /// <inheritdoc />
-    public override bool IsDestructive => false;
-}
+) : MigrationAction;

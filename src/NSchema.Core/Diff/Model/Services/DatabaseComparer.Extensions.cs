@@ -9,39 +9,17 @@ internal sealed partial class DatabaseComparer
     /// Compares the database-global extensions. An extension in the current side but absent from the desired
     /// set is removed like any other object — the current side only ever contains managed extensions, so
     /// shared infrastructure installed by others (e.g. <c>plpgsql</c> in Postgres) never enters the compare.
-    /// Extensions never rename, so there is no <see cref="MatchEntities{T}"/> pass; matching is by exact name.
+    /// Extensions never rename, so the rename lookup is constantly null.
     /// </summary>
     private static List<ExtensionDiff> CompareExtensions(
         IReadOnlyList<Extension> current,
         IReadOnlyList<Extension> desired
-    )
-    {
-        var result = new List<ExtensionDiff>();
-
-        foreach (var currentExtension in current)
-        {
-            if (desired.All(e => e.Name != currentExtension.Name))
-            {
-                result.Add(new ExtensionDiff(currentExtension.Name, ChangeKind.Remove));
-            }
-        }
-
-        foreach (var desiredExtension in desired)
-        {
-            var match = current.FirstOrDefault(e => e.Name == desiredExtension.Name);
-            if (match is null)
-            {
-                result.Add(BuildNewExtension(desiredExtension));
-            }
-            else if (BuildModifiedExtension(match, desiredExtension) is { } diff)
-            {
-                result.Add(diff);
-            }
-        }
-
-        result.Sort((a, b) => a.Name.CompareTo(b.Name));
-        return result;
-    }
+    ) =>
+        CompareObjects(current, desired,
+            _ => null,
+            extension => new ExtensionDiff(extension.Name, ChangeKind.Remove),
+            BuildNewExtension,
+            (currentExtension, desiredExtension, _) => BuildModifiedExtension(currentExtension, desiredExtension));
 
     private static ExtensionDiff BuildNewExtension(Extension extension) =>
         new(extension.Name, ChangeKind.Add, Definition: extension,

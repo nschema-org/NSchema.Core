@@ -12,13 +12,13 @@
           Columns: [
             {
               Type: bigint,
-              IsNullable: false,
+              IsNullable: true,
               IsIdentity: false,
               Name: id
             },
             {
               Type: varchar(255),
-              IsNullable: false,
+              IsNullable: true,
               IsIdentity: false,
               Name: name
             }
@@ -29,13 +29,13 @@
           Columns: [
             {
               Type: bigint,
-              IsNullable: false,
+              IsNullable: true,
               IsIdentity: false,
               Name: id
             },
             {
               Type: decimal(18,2),
-              IsNullable: false,
+              IsNullable: true,
               IsIdentity: false,
               Name: amount
             }
@@ -79,7 +79,7 @@
           Columns: [
             {
               Type: date,
-              IsNullable: false,
+              IsNullable: true,
               IsIdentity: false,
               Name: day
             }
