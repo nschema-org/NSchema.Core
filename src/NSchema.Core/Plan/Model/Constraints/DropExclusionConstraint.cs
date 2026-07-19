@@ -5,11 +5,7 @@ namespace NSchema.Plan.Model.Constraints;
 /// <summary>
 /// Represents the removal of an existing exclusion constraint from a table in the database schema.
 /// </summary>
-/// <param name="SchemaName">The name of the schema containing the table from which the exclusion constraint will be removed.</param>
-/// <param name="TableName">The name of the table from which the exclusion constraint will be removed.</param>
-/// <param name="ConstraintName">The name of the exclusion constraint to be removed.</param>
+/// <param name="Constraint">The address of the constraint.</param>
 public sealed record DropExclusionConstraint(
-    SqlIdentifier SchemaName,
-    SqlIdentifier TableName,
-    SqlIdentifier ConstraintName
+    MemberAddress Constraint
 ) : MigrationAction;

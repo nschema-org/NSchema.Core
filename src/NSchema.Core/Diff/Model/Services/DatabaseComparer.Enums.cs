@@ -25,11 +25,11 @@ internal sealed partial class DatabaseComparer
     {
         var comment = ValueChange.Between(current.Comment, desired.Comment);
 
-        ValueChange<IReadOnlyList<string>>? values = null;
+        ValueChange<IReadOnlyList<EnumLabel>>? values = null;
         List<EnumValueAddition>? additions = null;
-        if (!current.Values.SequenceEqual(desired.Values, StringComparer.Ordinal))
+        if (!current.Values.SequenceEqual(desired.Values))
         {
-            values = new ValueChange<IReadOnlyList<string>>(current.Values, desired.Values);
+            values = new ValueChange<IReadOnlyList<EnumLabel>>(current.Values, desired.Values);
             additions = ComputeValueAdditions(current.Values, desired.Values);
         }
 
@@ -46,13 +46,13 @@ internal sealed partial class DatabaseComparer
     /// additions, or returns <see langword="null"/> when it cannot be (a value was removed or reordered).
     /// Greedy two-pointer subsequence matching is exact here because values are unique within an enum.
     /// </summary>
-    private static List<EnumValueAddition>? ComputeValueAdditions(IReadOnlyList<string> current, IReadOnlyList<string> desired)
+    private static List<EnumValueAddition>? ComputeValueAdditions(IReadOnlyList<EnumLabel> current, IReadOnlyList<EnumLabel> desired)
     {
         var isNew = new bool[desired.Count];
         var c = 0;
         for (var d = 0; d < desired.Count; d++)
         {
-            if (c < current.Count && string.Equals(desired[d], current[c], StringComparison.Ordinal))
+            if (c < current.Count && desired[d] == current[c])
             {
                 c++;
             }

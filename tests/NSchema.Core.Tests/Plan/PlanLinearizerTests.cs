@@ -100,13 +100,13 @@ public sealed class PlanLinearizerTests
 
     private static ViewDiff AddView(string name, string schema = "app", params (string Schema, string Name)[] dependsOn)
     {
-        var deps = dependsOn.Select(d => new ViewDependency(d.Schema, d.Name)).ToList();
+        var deps = dependsOn.Select(d => new ObjectAddress(d.Schema, d.Name)).ToList();
         var view = new View { Name = name, Body = $"SELECT * FROM source_of_{name}", DependsOn = deps };
         return new ViewDiff(schema, name, ChangeKind.Add, Definition: view, DependsOn: deps);
     }
 
     private static ViewDiff RemoveView(string name, string schema = "app", params (string Schema, string Name)[] dependsOn)
-        => new(schema, name, ChangeKind.Remove, DependsOn: dependsOn.Select(d => new ViewDependency(d.Schema, d.Name)).ToList());
+        => new(schema, name, ChangeKind.Remove, DependsOn: dependsOn.Select(d => new ObjectAddress(d.Schema, d.Name)).ToList());
 
     private static TableDiff AddTable(string name, string schema = "app")
         => new(schema, name, ChangeKind.Add, Definition: new Table { Name = name });
@@ -115,7 +115,7 @@ public sealed class PlanLinearizerTests
         => plan.ToList().FindIndex(a => a is CreateView v && v.View.Name.Value.Equals(name));
 
     private static int IndexOfDropView(IReadOnlyList<MigrationAction> plan, string name)
-        => plan.ToList().FindIndex(a => a is DropView v && v.ViewName.Value.Equals(name));
+        => plan.ToList().FindIndex(a => a is DropView v && v.View.Name.Value.Equals(name));
 
     /// <summary>Wraps a single table under a null-kind <c>app</c> schema (the common "only tables changed" case).</summary>
     private IReadOnlyList<MigrationAction> LinearizeTable(TableDiff table) => Linearize(SchemaNode("app", tables: [table]));
@@ -166,7 +166,7 @@ public sealed class PlanLinearizerTests
         var plan = Linearize(schema);
 
         plan.Count.ShouldBe(2);
-        plan[0].ShouldBeOfType<DropTable>().TableName.ShouldBe("users");
+        plan[0].ShouldBeOfType<DropTable>().Table.Name.ShouldBe("users");
         plan[1].ShouldBeOfType<DropSchema>().SchemaName.ShouldBe("app");
     }
 
@@ -187,7 +187,7 @@ public sealed class PlanLinearizerTests
         var plan = LinearizeTable(TableNode("users", ChangeKind.Remove));
 
         plan.Any(a => a is CreateSchema or DropSchema or RenameSchema).ShouldBeFalse();
-        plan.ShouldHaveSingleItem().ShouldBeOfType<DropTable>().TableName.ShouldBe("users");
+        plan.ShouldHaveSingleItem().ShouldBeOfType<DropTable>().Table.Name.ShouldBe("users");
     }
 
     // -------------------------------------------------------------------------
@@ -238,7 +238,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_RemoveTable_EmitsDropTable()
         => LinearizeTable(TableNode("users", ChangeKind.Remove))
-            .ShouldHaveSingleItem().ShouldBeOfType<DropTable>().TableName.ShouldBe("users");
+            .ShouldHaveSingleItem().ShouldBeOfType<DropTable>().Table.Name.ShouldBe("users");
 
     [Fact]
     public void Linearize_RenamedTable_EmitsRenameTable_NotCreateOrDrop()
@@ -247,7 +247,7 @@ public sealed class PlanLinearizerTests
 
         plan.Any(a => a is CreateTable or DropTable).ShouldBeFalse();
         plan.ShouldHaveSingleItem().ShouldBeOfType<RenameTable>()
-            .ShouldSatisfyAllConditions(r => r.OldName.ShouldBe("users"), r => r.NewName.ShouldBe("accounts"));
+            .ShouldSatisfyAllConditions(r => r.Table.Name.ShouldBe("users"), r => r.NewName.ShouldBe("accounts"));
     }
 
     [Fact]
@@ -266,14 +266,14 @@ public sealed class PlanLinearizerTests
 
         var plan = LinearizeTable(table);
 
-        plan.OfType<DropPrimaryKey>().ShouldHaveSingleItem().TableName.ShouldBe("users");
-        plan.OfType<DropForeignKey>().ShouldHaveSingleItem().TableName.ShouldBe("users");
-        plan.OfType<DropUniqueConstraint>().ShouldHaveSingleItem().TableName.ShouldBe("users");
-        plan.OfType<DropCheckConstraint>().ShouldHaveSingleItem().TableName.ShouldBe("users");
-        plan.OfType<DropExclusionConstraint>().ShouldHaveSingleItem().TableName.ShouldBe("users");
-        plan.OfType<DropIndex>().ShouldHaveSingleItem().TableName.ShouldBe("users");
-        plan.OfType<DropTrigger>().ShouldHaveSingleItem().TableName.ShouldBe("users");
-        plan.OfType<RevokeTablePrivileges>().ShouldHaveSingleItem().TableName.ShouldBe("users");
+        plan.OfType<DropPrimaryKey>().ShouldHaveSingleItem().PrimaryKey.Object.ShouldBe("users");
+        plan.OfType<DropForeignKey>().ShouldHaveSingleItem().ForeignKey.Object.ShouldBe("users");
+        plan.OfType<DropUniqueConstraint>().ShouldHaveSingleItem().Constraint.Object.ShouldBe("users");
+        plan.OfType<DropCheckConstraint>().ShouldHaveSingleItem().Constraint.Object.ShouldBe("users");
+        plan.OfType<DropExclusionConstraint>().ShouldHaveSingleItem().Constraint.Object.ShouldBe("users");
+        plan.OfType<DropIndex>().ShouldHaveSingleItem().Index.Object.ShouldBe("users");
+        plan.OfType<DropTrigger>().ShouldHaveSingleItem().Trigger.Object.ShouldBe("users");
+        plan.OfType<RevokeTablePrivileges>().ShouldHaveSingleItem().Table.Name.ShouldBe("users");
         plan[^1].ShouldBeOfType<RenameTable>();
     }
 
@@ -290,8 +290,8 @@ public sealed class PlanLinearizerTests
             tables: [table]));
 
         IndexOf<RenameSchema>(plan).ShouldBe(0);
-        plan.OfType<DropForeignKey>().ShouldHaveSingleItem().SchemaName.ShouldBe("sales");
-        plan.OfType<DropTrigger>().ShouldHaveSingleItem().SchemaName.ShouldBe("sales");
+        plan.OfType<DropForeignKey>().ShouldHaveSingleItem().ForeignKey.Schema.ShouldBe("sales");
+        plan.OfType<DropTrigger>().ShouldHaveSingleItem().Trigger.Schema.ShouldBe("sales");
         plan.OfType<RevokeSchemaUsage>().ShouldHaveSingleItem().SchemaName.ShouldBe("sales");
     }
 
@@ -304,8 +304,8 @@ public sealed class PlanLinearizerTests
 
         var plan = LinearizeTable(table);
 
-        plan.OfType<AddUniqueConstraint>().ShouldHaveSingleItem().TableName.ShouldBe("accounts");
-        plan.OfType<CreateIndex>().ShouldHaveSingleItem().TableName.ShouldBe("accounts");
+        plan.OfType<AddUniqueConstraint>().ShouldHaveSingleItem().Table.Name.ShouldBe("accounts");
+        plan.OfType<CreateIndex>().ShouldHaveSingleItem().Table.Name.ShouldBe("accounts");
     }
 
     [Fact]
@@ -353,7 +353,7 @@ public sealed class PlanLinearizerTests
     public void Linearize_RenameColumn_EmitsRenameColumn()
         => LinearizeColumn(ModifiedColumn("email_address", renamedFrom: "email"))
             .OfType<RenameColumn>().ShouldHaveSingleItem()
-            .ShouldSatisfyAllConditions(r => r.OldName.ShouldBe("email"), r => r.NewName.ShouldBe("email_address"));
+            .ShouldSatisfyAllConditions(r => r.Column.Member.ShouldBe("email"), r => r.NewName.ShouldBe("email_address"));
 
     [Fact]
     public void Linearize_ColumnTypeChange_EmitsAlterColumnType()
@@ -452,13 +452,13 @@ public sealed class PlanLinearizerTests
         var constraint = new PrimaryKeyDiff(ChangeKind.Remove, "users_pkey", null);
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, primaryKey: [constraint]))
-            .OfType<DropPrimaryKey>().ShouldHaveSingleItem().PrimaryKeyName.ShouldBe("users_pkey");
+            .OfType<DropPrimaryKey>().ShouldHaveSingleItem().PrimaryKey.Member.ShouldBe("users_pkey");
     }
 
     [Fact]
     public void Linearize_AddForeignKey_EmitsAddForeignKey()
     {
-        var fk = new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], ReferencedSchema = "app", ReferencedTable = "users", ReferencedColumnNames = ["id"] };
+        var fk = new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] };
         var constraint = new ForeignKeyDiff(ChangeKind.Add, "orders_user_fk", fk);
 
         LinearizeTable(TableNode("orders", ChangeKind.Modify, foreignKeys: [constraint]))
@@ -471,7 +471,7 @@ public sealed class PlanLinearizerTests
         var constraint = new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null);
 
         LinearizeTable(TableNode("orders", ChangeKind.Modify, foreignKeys: [constraint]))
-            .OfType<DropForeignKey>().ShouldHaveSingleItem().ForeignKeyName.ShouldBe("orders_user_fk");
+            .OfType<DropForeignKey>().ShouldHaveSingleItem().ForeignKey.Member.ShouldBe("orders_user_fk");
     }
 
     [Fact]
@@ -490,7 +490,7 @@ public sealed class PlanLinearizerTests
         var constraint = new ExclusionConstraintDiff(ChangeKind.Remove, "no_overlap", null);
 
         LinearizeTable(TableNode("bookings", ChangeKind.Modify, exclusionConstraints: [constraint]))
-            .OfType<DropExclusionConstraint>().ShouldHaveSingleItem().ConstraintName.ShouldBe("no_overlap");
+            .OfType<DropExclusionConstraint>().ShouldHaveSingleItem().Constraint.Member.ShouldBe("no_overlap");
     }
 
     [Fact]
@@ -509,7 +509,7 @@ public sealed class PlanLinearizerTests
         var constraint = new UniqueConstraintDiff(ChangeKind.Remove, "users_email_uq", null);
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, uniqueConstraints: [constraint]))
-            .OfType<DropUniqueConstraint>().ShouldHaveSingleItem().ConstraintName.ShouldBe("users_email_uq");
+            .OfType<DropUniqueConstraint>().ShouldHaveSingleItem().Constraint.Member.ShouldBe("users_email_uq");
     }
 
     [Fact]
@@ -528,7 +528,7 @@ public sealed class PlanLinearizerTests
         var constraint = new CheckConstraintDiff(ChangeKind.Remove, "users_age_chk", null);
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, checks: [constraint]))
-            .OfType<DropCheckConstraint>().ShouldHaveSingleItem().ConstraintName.ShouldBe("users_age_chk");
+            .OfType<DropCheckConstraint>().ShouldHaveSingleItem().Constraint.Member.ShouldBe("users_age_chk");
     }
 
     [Fact]
@@ -538,7 +538,7 @@ public sealed class PlanLinearizerTests
 
         var action = LinearizeTable(TableNode("users", ChangeKind.Modify, uniqueConstraints: [constraint]))
             .OfType<SetConstraintComment>().ShouldHaveSingleItem();
-        action.ConstraintName.ShouldBe("users_email_uq");
+        action.Constraint.Member.ShouldBe("users_email_uq");
         action.OldComment.ShouldBe("old");
         action.NewComment.ShouldBe("new");
     }
@@ -567,7 +567,7 @@ public sealed class PlanLinearizerTests
         var index = new IndexDiff(ChangeKind.Remove, "users_email_ix", null, null);
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, indexes: [index]))
-            .OfType<DropIndex>().ShouldHaveSingleItem().IndexName.ShouldBe("users_email_ix");
+            .OfType<DropIndex>().ShouldHaveSingleItem().Index.Member.ShouldBe("users_email_ix");
     }
 
     [Fact]
@@ -675,7 +675,7 @@ public sealed class PlanLinearizerTests
         // A foreign key may target a unique constraint, so the constraint must be created first.
         var plan = LinearizeTable(TableNode("orders", ChangeKind.Modify,
             uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "orders_code_uq", new UniqueConstraint { Name = "orders_code_uq", ColumnNames = ["code"] })],
-            foreignKeys: [new ForeignKeyDiff(ChangeKind.Add, "orders_user_fk", new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], ReferencedSchema = "app", ReferencedTable = "users", ReferencedColumnNames = ["id"] })]));
+            foreignKeys: [new ForeignKeyDiff(ChangeKind.Add, "orders_user_fk", new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] })]));
 
         IndexOf<AddUniqueConstraint>(plan).ShouldBeLessThan(IndexOf<AddForeignKey>(plan));
     }
@@ -759,7 +759,7 @@ public sealed class PlanLinearizerTests
         var plan = Linearize(SchemaNode("app", views: [new ViewDiff("app", "active", ChangeKind.Modify, RenamedFrom: "legacy")]));
 
         var rename = plan.OfType<RenameView>().ShouldHaveSingleItem();
-        rename.OldName.ShouldBe("legacy");
+        rename.View.Name.ShouldBe("legacy");
         rename.NewName.ShouldBe("active");
         plan.OfType<CreateView>().ShouldBeEmpty(); // a rename-only change is not a replace
     }
@@ -771,7 +771,7 @@ public sealed class PlanLinearizerTests
             [new ViewDiff("app", "active", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new"))]));
 
         var comment = plan.OfType<SetViewComment>().ShouldHaveSingleItem();
-        comment.ViewName.ShouldBe("active");
+        comment.View.Name.ShouldBe("active");
         comment.OldComment.ShouldBe("old");
         comment.NewComment.ShouldBe("new");
     }
@@ -801,7 +801,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_RemoveEnum_EmitsDropEnum()
         => Linearize(SchemaNode("app", enums: [new EnumDiff("app", "status", ChangeKind.Remove)]))
-            .ShouldHaveSingleItem().ShouldBeOfType<DropEnum>().EnumName.ShouldBe("status");
+            .ShouldHaveSingleItem().ShouldBeOfType<DropEnum>().Enum.Name.ShouldBe("status");
 
     [Fact]
     public void Linearize_RenamedEnum_EmitsRenameEnum_NotCreateOrDrop()
@@ -810,7 +810,7 @@ public sealed class PlanLinearizerTests
             [new EnumDiff("app", "status", ChangeKind.Modify, RenamedFrom: "state")]));
 
         plan.ShouldHaveSingleItem().ShouldBeOfType<RenameEnum>()
-            .ShouldSatisfyAllConditions(r => r.OldName.ShouldBe("state"), r => r.NewName.ShouldBe("status"));
+            .ShouldSatisfyAllConditions(r => r.Enum.Name.ShouldBe("state"), r => r.NewName.ShouldBe("status"));
     }
 
     [Fact]
@@ -845,7 +845,7 @@ public sealed class PlanLinearizerTests
         var plan = Linearize(SchemaNode("app", enums:
         [
             new EnumDiff("app", "status", ChangeKind.Modify,
-                Values: new ValueChange<IReadOnlyList<string>>(["a", "b"], ["a"])),
+                Values: new ValueChange<IReadOnlyList<EnumLabel>>(["a", "b"], ["a"])),
         ]));
 
         plan.ShouldBeEmpty();
@@ -867,14 +867,14 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_RemoveSequence_EmitsDropSequence()
         => Linearize(SchemaNode("app", sequences: [new SequenceDiff("app", "order_id", ChangeKind.Remove)]))
-            .ShouldHaveSingleItem().ShouldBeOfType<DropSequence>().SequenceName.ShouldBe("order_id");
+            .ShouldHaveSingleItem().ShouldBeOfType<DropSequence>().Sequence.Name.ShouldBe("order_id");
 
     [Fact]
     public void Linearize_RenamedSequence_EmitsRenameSequence()
         => Linearize(SchemaNode("app", sequences:
             [new SequenceDiff("app", "invoice_id", ChangeKind.Modify, RenamedFrom: "bill_id")]))
             .ShouldHaveSingleItem().ShouldBeOfType<RenameSequence>()
-            .ShouldSatisfyAllConditions(r => r.OldName.ShouldBe("bill_id"), r => r.NewName.ShouldBe("invoice_id"));
+            .ShouldSatisfyAllConditions(r => r.Sequence.Name.ShouldBe("bill_id"), r => r.NewName.ShouldBe("invoice_id"));
 
     [Fact]
     public void Linearize_SequenceOptionsChange_EmitsAlterSequence()
@@ -975,7 +975,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_RemoveRoutine_EmitsDropRoutine()
         => Linearize(SchemaNode("app", routines: [new RoutineDiff("app", "f", ChangeKind.Remove, RoutineKind.Function)]))
-            .ShouldHaveSingleItem().ShouldBeOfType<DropRoutine>().RoutineName.ShouldBe("f");
+            .ShouldHaveSingleItem().ShouldBeOfType<DropRoutine>().Routine.Name.ShouldBe("f");
 
     [Fact]
     public void Linearize_RoutineBodyChange_EmitsCreateRoutine_NotRecreate()
@@ -1000,7 +1000,7 @@ public sealed class PlanLinearizerTests
         => Linearize(SchemaNode("app", routines:
             [new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function, RenamedFrom: "old_f")]))
             .ShouldHaveSingleItem().ShouldBeOfType<RenameRoutine>()
-            .ShouldSatisfyAllConditions(r => r.OldName.ShouldBe("old_f"), r => r.NewName.ShouldBe("f"));
+            .ShouldSatisfyAllConditions(r => r.Routine.Name.ShouldBe("old_f"), r => r.NewName.ShouldBe("f"));
 
     [Fact]
     public void Linearize_RenameWithSignatureChange_RenamesBeforeRecreating()
@@ -1034,7 +1034,7 @@ public sealed class PlanLinearizerTests
         plan.OfType<CreateRoutine>().ShouldHaveSingleItem();
         plan.OfType<RenameRoutine>().ShouldHaveSingleItem();
         plan.OfType<RecreateRoutine>().ShouldHaveSingleItem();
-        plan.OfType<DropRoutine>().ShouldHaveSingleItem().RoutineName.ShouldBe("stale");
+        plan.OfType<DropRoutine>().ShouldHaveSingleItem().Routine.Name.ShouldBe("stale");
     }
 
     [Fact]

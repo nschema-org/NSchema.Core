@@ -119,8 +119,10 @@
                 columnNames: [
                   org_id
                 ],
-                referencedSchema: app,
-                referencedTable: orgs,
+                references: {
+                  schema: app,
+                  name: orgs
+                },
                 referencedColumnNames: [
                   id
                 ],

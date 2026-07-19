@@ -6,9 +6,7 @@ namespace NSchema.Plan.Model.Columns;
 /// <summary>
 /// Represents changing the data type of an existing column in the database schema.
 /// </summary>
-/// <param name="SchemaName">The name of the schema containing the table with the column to be altered.</param>
-/// <param name="TableName">The name of the table containing the column to be altered.</param>
-/// <param name="ColumnName">The name of the column whose data type is to be altered.</param>
+/// <param name="Column">The address of the column.</param>
 /// <param name="OldType">The current data type of the column before alteration.</param>
 /// <param name="NewType">The new data type of the column after alteration.</param>
 /// <param name="IsNullable">The column's nullability in its final (desired) state.</param>
@@ -17,9 +15,7 @@ namespace NSchema.Plan.Model.Columns;
 /// Therefore, it is considered a destructive migration action.
 /// </remarks>
 public sealed record AlterColumnType(
-    SqlIdentifier SchemaName,
-    SqlIdentifier TableName,
-    SqlIdentifier ColumnName,
+    MemberAddress Column,
     SqlType OldType,
     SqlType NewType,
     bool? IsNullable = null

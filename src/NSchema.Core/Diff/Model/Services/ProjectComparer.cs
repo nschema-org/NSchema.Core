@@ -45,7 +45,7 @@ internal sealed class ProjectComparer(IDatabaseComparer comparer) : IProjectComp
                 continue;
             }
 
-            if (!string.Equals(recordedHash, script.Hash, StringComparison.OrdinalIgnoreCase))
+            if (recordedHash != script.Hash)
             {
                 diagnostics.Add(DiffDiagnostics.ChangedRunOnceScript(script));
             }

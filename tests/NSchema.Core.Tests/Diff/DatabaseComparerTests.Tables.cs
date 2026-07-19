@@ -101,7 +101,7 @@ public partial class DatabaseComparerTests
         {
             Name = "orders",
             Columns = [new Column { Name = "id", Type = SqlType.Int }, new Column { Name = "user_id", Type = SqlType.Int }],
-            ForeignKeys = [new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], ReferencedSchema = "app", ReferencedTable = "users", ReferencedColumnNames = ["id"] }],
+            ForeignKeys = [new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] }],
             Indexes = [new TableIndex { Name = "orders_user_ix", Columns = ["user_id"], Comment = "lookup" }],
             Grants = [new TableGrant("reader", TablePrivilege.Select)],
         };
@@ -110,7 +110,7 @@ public partial class DatabaseComparerTests
             Db(new Schema { Name = "app", Tables = [desired] })).Schemas.Single().Tables.Single();
 
         table.ForeignKeys.ShouldHaveSingleItem().ShouldBe(new ForeignKeyDiff(ChangeKind.Add, "orders_user_fk",
-            new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], ReferencedSchema = "app", ReferencedTable = "users", ReferencedColumnNames = ["id"] }));
+            new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] }));
         table.Grants.ShouldHaveSingleItem().Privileges.ShouldBe(TablePrivilege.Select);
         // A new index carries both its definition and a folded comment change.
         table.Indexes.Select(i => i.Kind).ShouldBe([ChangeKind.Add, ChangeKind.Modify]);

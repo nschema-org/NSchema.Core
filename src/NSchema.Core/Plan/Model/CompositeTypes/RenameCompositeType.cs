@@ -5,7 +5,6 @@ namespace NSchema.Plan.Model.CompositeTypes;
 /// <summary>
 /// Represents renaming an existing composite type.
 /// </summary>
-/// <param name="SchemaName">The name of the schema containing the composite type.</param>
-/// <param name="OldName">The current name of the composite type.</param>
+/// <param name="Type">The address of the composite type.</param>
 /// <param name="NewName">The new name of the composite type.</param>
-public sealed record RenameCompositeType(SqlIdentifier SchemaName, SqlIdentifier OldName, SqlIdentifier NewName) : MigrationAction;
+public sealed record RenameCompositeType(ObjectAddress Type, SqlIdentifier NewName) : MigrationAction;

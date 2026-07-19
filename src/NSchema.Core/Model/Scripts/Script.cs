@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json.Serialization;
 namespace NSchema.Model.Scripts;
 
@@ -12,9 +10,9 @@ namespace NSchema.Model.Scripts;
 public abstract record Script(SqlIdentifier Name, SqlText Sql, SqlIdentifier? ScopeSchema)
 {
     /// <summary>
-    /// The canonical hash of the script body (SHA-256 of the UTF-8 text, lowercase hex).
+    /// The canonical hash of the script body.
     /// </summary>
-    public string Hash => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(Sql.Value)));
+    public ScriptHash Hash => ScriptHash.Compute(Sql);
 
     /// <summary>
     /// The script's address: its scope schema and its name.

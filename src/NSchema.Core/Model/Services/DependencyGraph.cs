@@ -65,7 +65,7 @@ internal sealed class DependencyGraph
                 // containment. So dropping the referenced table costs the constraint, and nothing more.
                 // The model names that table outright, so the edge is exact.
                 Connect(ConstraintNode(schema, table.Name, foreignKey),
-                    new ObjectAddress(foreignKey.ReferencedSchema, foreignKey.ReferencedTable),
+                    foreignKey.References,
                     DependencyCertainty.Stated);
             }
         }
@@ -78,7 +78,7 @@ internal sealed class DependencyGraph
                 // A view's dependency is embedded in its body: there is nothing to sever but the view itself.
                 // What it reads was scanned out of SQL nobody parsed, so the edge is a guess — a good one for
                 // ordering two things already in a plan, not good enough to drag a third into it unannounced.
-                Connect(node, new ObjectAddress(dependency.Schema, dependency.Name), DependencyCertainty.Inferred);
+                Connect(node, dependency, DependencyCertainty.Inferred);
             }
         }
 

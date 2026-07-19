@@ -142,7 +142,7 @@ public sealed class PlanEndToEndTests : IDisposable
                 new Table { Name = "orders", Columns = [new Column { Name = "id", Type = SqlType.Int }],
                     ForeignKeys = [
                         new ForeignKey { Name = "fk_orders_user", ColumnNames = ["id"],
-                            ReferencedSchema = "app", ReferencedTable = "users", ReferencedColumnNames = ["id"] },
+                            References = new("app", "users"), ReferencedColumnNames = ["id"] },
                     ] },
             ] },
         ],

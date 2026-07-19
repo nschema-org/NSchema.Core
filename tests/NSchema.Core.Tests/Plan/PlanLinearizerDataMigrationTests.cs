@@ -54,7 +54,7 @@ public sealed class PlanLinearizerDataMigrationTests
         backfill.Script.Name.ShouldBe("backfill_emails");
         backfill.Script.Sql.ShouldBe(migration.Sql);
         var tighten = plan[2].ShouldBeOfType<AlterColumnNullability>();
-        tighten.ColumnName.ShouldBe("email");
+        tighten.Column.Member.ShouldBe("email");
         tighten.OldNullable.ShouldBeTrue();
         tighten.NewNullable.ShouldBeFalse();
         tighten.ColumnType.ShouldBe(SqlType.Text);

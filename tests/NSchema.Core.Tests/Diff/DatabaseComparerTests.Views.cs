@@ -18,7 +18,7 @@ public partial class DatabaseComparerTests
 
         diff!.Kind.ShouldBe(ChangeKind.Add);
         diff.Definition.ShouldNotBeNull();
-        diff.DependsOn.ShouldHaveSingleItem().ShouldBe(new ViewDependency("app", "users"));
+        diff.DependsOn.ShouldHaveSingleItem().ShouldBe(new ObjectAddress("app", "users"));
     }
 
     [Fact]
@@ -29,7 +29,7 @@ public partial class DatabaseComparerTests
 
         diff!.Kind.ShouldBe(ChangeKind.Remove);
         diff.Definition.ShouldBeNull();
-        diff.DependsOn.ShouldHaveSingleItem().ShouldBe(new ViewDependency("app", "users"));
+        diff.DependsOn.ShouldHaveSingleItem().ShouldBe(new ObjectAddress("app", "users"));
     }
 
     [Fact]

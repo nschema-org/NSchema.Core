@@ -81,11 +81,11 @@ public sealed class PlanLinearizerSnapshotTests
         var views = new ViewDiff[]
         {
             new("app", "user_summary", ChangeKind.Add,
-                Definition: new View { Name = "user_summary", Body = "SELECT * FROM app.active_users", DependsOn = [new ViewDependency("app", "active_users")] },
-                DependsOn: [new ViewDependency("app", "active_users")]),
+                Definition: new View { Name = "user_summary", Body = "SELECT * FROM app.active_users", DependsOn = [new ObjectAddress("app", "active_users")] },
+                DependsOn: [new ObjectAddress("app", "active_users")]),
             new("app", "active_users", ChangeKind.Add,
-                Definition: new View { Name = "active_users", Body = "SELECT * FROM app.users", DependsOn = [new ViewDependency("app", "users")] },
-                DependsOn: [new ViewDependency("app", "users")]),
+                Definition: new View { Name = "active_users", Body = "SELECT * FROM app.users", DependsOn = [new ObjectAddress("app", "users")] },
+                DependsOn: [new ObjectAddress("app", "users")]),
             new("app", "report", ChangeKind.Modify, RenamedFrom: "legacy_report"),
             new("app", "stale_view", ChangeKind.Remove),
         };

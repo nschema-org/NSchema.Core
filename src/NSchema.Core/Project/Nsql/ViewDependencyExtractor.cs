@@ -32,7 +32,7 @@ internal static class ViewDependencyExtractor
     /// </summary>
     /// <param name="body">The view's defining query (the text after <c>AS</c>).</param>
     /// <param name="defaultSchema">The schema an unqualified reference is resolved against (the view's own schema).</param>
-    public static List<ViewDependency> Extract(SqlText body, SqlIdentifier defaultSchema)
+    public static List<ObjectAddress> Extract(SqlText body, SqlIdentifier defaultSchema)
     {
         var tokens = Tokenize(body.Value);
         return new Scanner(tokens, defaultSchema, CollectCteNames(tokens)).Scan();
@@ -44,10 +44,10 @@ internal static class ViewDependencyExtractor
     /// </summary>
     private sealed class Scanner(IReadOnlyList<Token> tokens, SqlIdentifier defaultSchema, HashSet<string> ctes)
     {
-        private readonly List<ViewDependency> _result = [];
-        private readonly HashSet<(SqlIdentifier, SqlIdentifier)> _seen = [];
+        private readonly List<ObjectAddress> _result = [];
+        private readonly HashSet<ObjectAddress> _seen = [];
 
-        public List<ViewDependency> Scan()
+        public List<ObjectAddress> Scan()
         {
             // This outer scan visits every token, so FROM/JOIN clauses are found at any nesting depth (in
             // sub-queries, WHERE/SELECT-list scalar sub-queries, CTE bodies). The per-clause readers below use a
@@ -127,14 +127,14 @@ internal static class ViewDependencyExtractor
                 var schema = first;
                 var name = tokens[j + 1].Text;
                 j += 2;
-                Add(new ViewDependency(schema, name));
+                Add(new ObjectAddress(schema, name));
                 return true;
             }
 
             // Unqualified: a CTE name is local and must not be treated as a real object.
             if (!ctes.Contains(first))
             {
-                Add(new ViewDependency(defaultSchema, first));
+                Add(new ObjectAddress(defaultSchema, first));
             }
             return true;
         }
@@ -165,9 +165,9 @@ internal static class ViewDependencyExtractor
             }
         }
 
-        private void Add(ViewDependency dependency)
+        private void Add(ObjectAddress dependency)
         {
-            if (_seen.Add((dependency.Schema, dependency.Name)))
+            if (_seen.Add(dependency))
             {
                 _result.Add(dependency);
             }

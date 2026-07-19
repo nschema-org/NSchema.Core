@@ -87,7 +87,7 @@ public sealed class NsqlParserTemplateTests
             """);
 
         app.Tables.Single(t => t.Name == "child").ForeignKeys.ShouldHaveSingleItem()
-            .ReferencedSchema.ShouldBe("app");
+            .References.Schema.ShouldBe("app");
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public sealed class NsqlParserTemplateTests
             """);
 
         app.Tables.ShouldHaveSingleItem().ForeignKeys.ShouldHaveSingleItem()
-            .ReferencedSchema.ShouldBe("public");
+            .References.Schema.ShouldBe("public");
     }
 
     [Fact]
@@ -327,7 +327,7 @@ public sealed class NsqlParserTemplateTests
 
         var orders = assembled.Value.Database.Schemas.ShouldHaveSingleItem()
             .Tables.Single(t => t.Name == "orders");
-        orders.ForeignKeys.ShouldHaveSingleItem().ReferencedSchema.ShouldBe("app");
+        orders.ForeignKeys.ShouldHaveSingleItem().References.Schema.ShouldBe("app");
     }
 
     [Fact]

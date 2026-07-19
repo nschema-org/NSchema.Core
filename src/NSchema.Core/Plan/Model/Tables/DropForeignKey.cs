@@ -5,11 +5,7 @@ namespace NSchema.Plan.Model.Tables;
 /// <summary>
 /// Represents the removal of an existing foreign key constraint from a table in the database schema.
 /// </summary>
-/// <param name="SchemaName">The name of the schema containing the table from which the foreign key will be removed.</param>
-/// <param name="TableName">The name of the table from which the foreign key will be removed.</param>
-/// <param name="ForeignKeyName">The name of the foreign key constraint to be removed.</param>
+/// <param name="ForeignKey">The address of the foreign key.</param>
 public sealed record DropForeignKey(
-    SqlIdentifier SchemaName,
-    SqlIdentifier TableName,
-    SqlIdentifier ForeignKeyName
+    MemberAddress ForeignKey
 ) : MigrationAction;

@@ -25,7 +25,7 @@ public sealed record ViewDiff(
     SqlIdentifier? RenamedFrom = null,
     View? Definition = null,
     ValueChange<string>? Comment = null,
-    IReadOnlyList<ViewDependency>? DependsOn = null,
+    IReadOnlyList<ObjectAddress>? DependsOn = null,
     bool IsMaterialized = false,
     ValueChange<bool>? Materialized = null,
     bool RequiresRecreate = false,
@@ -35,7 +35,7 @@ public sealed record ViewDiff(
     /// <summary>
     /// The objects the view reads, used to order it relative to other views in the plan.
     /// </summary>
-    public IReadOnlyList<ViewDependency> DependsOn { get; init; } = DependsOn ?? [];
+    public IReadOnlyList<ObjectAddress> DependsOn { get; init; } = DependsOn ?? [];
 
     /// <summary>
     /// In-place index changes on a materialized view whose body is unchanged.

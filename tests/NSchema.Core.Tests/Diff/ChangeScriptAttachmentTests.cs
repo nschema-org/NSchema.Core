@@ -101,7 +101,7 @@ public class ChangeScriptAttachmentTests
         Column OrgId() => new Column { Name = "org_id", Type = SqlType.Int };
         var diff = Diff(
             Users(Id, OrgId()),
-            Users(Id, OrgId(), new ForeignKey { Name = "users_org_fk", ColumnNames = ["org_id"], ReferencedSchema = "app", ReferencedTable = "orgs", ReferencedColumnNames = ["id"] }),
+            Users(Id, OrgId(), new ForeignKey { Name = "users_org_fk", ColumnNames = ["org_id"], References = new("app", "orgs"), ReferencedColumnNames = ["id"] }),
             script);
 
         diff.ForeignKeys.Single().MigrationScript.ShouldBe(script);

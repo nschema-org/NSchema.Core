@@ -13,7 +13,7 @@ public static class ConfigAssembler
     private const string VersionAttribute = "version";
 
     // The labels Core itself serves (the built-in file state store), which no PLUGIN statement declares.
-    private static readonly HashSet<string> _builtInLabels = new(StringComparer.OrdinalIgnoreCase) { "file" };
+    private static readonly HashSet<PluginLabel> _builtInLabels = [new("file")];
 
     /// <summary>
     /// Validates and resolves <paramref name="documents"/> into the configuration they declare.
@@ -37,11 +37,11 @@ public static class ConfigAssembler
                         break;
                     }
                     var declaration = new PluginDeclaration(plugin.Label!.Value, RequiredString(plugin, SourceAttribute), ParsedVersion(plugin));
-                    if (plugins.Any(p => string.Equals(p.Label, declaration.Label, StringComparison.OrdinalIgnoreCase)))
+                    if (plugins.Any(p => p.Label == declaration.Label))
                     {
                         diagnostics.Add(ConfigDiagnostics.DuplicatePluginLabel(declaration.Label, statement.Position) with { File = document.FilePath });
                     }
-                    else if (plugins.Any(p => string.Equals(p.Source, declaration.Source, StringComparison.OrdinalIgnoreCase)))
+                    else if (plugins.Any(p => p.Source == declaration.Source))
                     {
                         diagnostics.Add(ConfigDiagnostics.DuplicatePluginSource(declaration.Source, statement.Position) with { File = document.FilePath });
                     }
@@ -78,7 +78,8 @@ public static class ConfigAssembler
                 diagnostics.Add(ConfigDiagnostics.UnlabelledReference(keyword, statement.Position) with { File = document.FilePath });
                 continue;
             }
-            if (!plugins.Any(p => string.Equals(p.Label, label.Value, StringComparison.OrdinalIgnoreCase)) && !_builtInLabels.Contains(label.Value))
+            PluginLabel reference = label.Value;
+            if (!plugins.Any(p => p.Label == reference) && !_builtInLabels.Contains(reference))
             {
                 diagnostics.Add(ConfigDiagnostics.UnknownPluginLabel(keyword, label.Value, label.Position) with { File = document.FilePath });
                 continue;
@@ -120,7 +121,7 @@ public static class ConfigAssembler
             yield return diagnostic;
         }
         if (Attribute(plugin, SourceAttribute) is { Value: StringValue source } attribute
-            && !IsValidPackageId(source.Value))
+            && !PackageId.IsValid(source.Value))
         {
             yield return ConfigDiagnostics.InvalidPackageId(source.Value, attribute.Position);
         }
@@ -189,27 +190,4 @@ public static class ConfigAssembler
     private static ConfigAttribute? Attribute(ConfigStatement statement, string name) =>
         statement.Attributes.FirstOrDefault(a => string.Equals(a.Key, name, StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>
-    /// The package-id shape: word characters in segments joined by <c>.</c> or <c>-</c>.
-    /// </summary>
-    private static bool IsValidPackageId(string id)
-    {
-        var separated = true;
-        foreach (var character in id)
-        {
-            if (char.IsAsciiLetterOrDigit(character) || character == '_')
-            {
-                separated = false;
-            }
-            else if (character is '.' or '-' && !separated)
-            {
-                separated = true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        return id.Length > 0 && !separated;
-    }
 }

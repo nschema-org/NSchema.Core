@@ -2,25 +2,21 @@
   {
     Type: DropView,
     Action: {
-      SchemaName: scratch,
-      ViewName: temp_view,
+      View: scratch.temp_view,
       IsMaterialized: false
     }
   },
   {
     Type: DropView,
     Action: {
-      SchemaName: app,
-      ViewName: stale_view,
+      View: app.stale_view,
       IsMaterialized: false
     }
   },
   {
     Type: DropForeignKey,
     Action: {
-      SchemaName: app,
-      TableName: purchases,
-      ForeignKeyName: orders_user_fk
+      ForeignKey: app.purchases.orders_user_fk
     }
   },
   {
@@ -32,8 +28,7 @@
   {
     Type: RenameEnum,
     Action: {
-      SchemaName: app,
-      OldName: importance,
+      Enum: app.importance,
       NewName: priority
     }
   },
@@ -68,8 +63,7 @@
   {
     Type: AddEnumValue,
     Action: {
-      SchemaName: app,
-      EnumName: priority,
+      Enum: app.priority,
       Value: medium,
       After: low
     }
@@ -77,8 +71,7 @@
   {
     Type: AlterSequence,
     Action: {
-      SchemaName: app,
-      SequenceName: ticket_id,
+      Sequence: app.ticket_id,
       OldOptions: {
         StartWith: 1,
         Cycle: false
@@ -92,8 +85,7 @@
   {
     Type: RenameRoutine,
     Action: {
-      SchemaName: app,
-      OldName: old_score,
+      Routine: app.old_score,
       NewName: score
     }
   },
@@ -137,16 +129,14 @@
   {
     Type: RenameTable,
     Action: {
-      SchemaName: app,
-      OldName: purchases,
+      Table: app.purchases,
       NewName: orders
     }
   },
   {
     Type: RenameView,
     Action: {
-      SchemaName: app,
-      OldName: legacy_report,
+      View: app.legacy_report,
       NewName: report,
       IsMaterialized: false
     }
@@ -188,8 +178,7 @@
   {
     Type: DropColumn,
     Action: {
-      SchemaName: app,
-      TableName: orders,
+      Table: app.orders,
       Column: {
         Type: boolean,
         IsNullable: false,
@@ -202,8 +191,7 @@
   {
     Type: AddColumn,
     Action: {
-      SchemaName: app,
-      TableName: orders,
+      Table: app.orders,
       Column: {
         Type: text,
         IsNullable: true,
@@ -215,9 +203,7 @@
   {
     Type: AlterColumnType,
     Action: {
-      SchemaName: app,
-      TableName: orders,
-      ColumnName: total,
+      Column: app.orders.total,
       OldType: int,
       NewType: bigint
     }
@@ -225,9 +211,7 @@
   {
     Type: AlterColumnNullability,
     Action: {
-      SchemaName: app,
-      TableName: orders,
-      ColumnName: total,
+      Column: app.orders.total,
       OldNullable: true,
       NewNullable: false
     }
@@ -235,17 +219,14 @@
   {
     Type: SetColumnGenerated,
     Action: {
-      SchemaName: app,
-      TableName: orders,
-      ColumnName: total_label,
+      Column: app.orders.total_label,
       NewExpression: total::text
     }
   },
   {
     Type: AddUniqueConstraint,
     Action: {
-      SchemaName: app,
-      TableName: users,
+      Table: app.users,
       UniqueConstraint: {
         ColumnNames: [
           email
@@ -257,8 +238,7 @@
   {
     Type: AddUniqueConstraint,
     Action: {
-      SchemaName: app,
-      TableName: orders,
+      Table: app.orders,
       UniqueConstraint: {
         ColumnNames: [
           code
@@ -270,8 +250,7 @@
   {
     Type: AddCheckConstraint,
     Action: {
-      SchemaName: app,
-      TableName: orders,
+      Table: app.orders,
       CheckConstraint: {
         Expression: total >= 0,
         Name: orders_total_chk
@@ -281,8 +260,7 @@
   {
     Type: AddExclusionConstraint,
     Action: {
-      SchemaName: app,
-      TableName: orders,
+      Table: app.orders,
       ExclusionConstraint: {
         Elements: [
           {
@@ -298,8 +276,7 @@
   {
     Type: CreateIndex,
     Action: {
-      SchemaName: app,
-      TableName: users,
+      Table: app.users,
       Index: {
         Columns: [
           {
@@ -314,8 +291,7 @@
   {
     Type: CreateIndex,
     Action: {
-      SchemaName: app,
-      TableName: orders,
+      Table: app.orders,
       Index: {
         Columns: [
           {
@@ -340,10 +316,7 @@
         Kind: View,
         Body: SELECT * FROM app.users,
         DependsOn: [
-          {
-            Schema: app,
-            Name: users
-          }
+          app.users
         ],
         IsMaterialized: false,
         Name: active_users
@@ -358,10 +331,7 @@
         Kind: View,
         Body: SELECT * FROM app.active_users,
         DependsOn: [
-          {
-            Schema: app,
-            Name: active_users
-          }
+          app.active_users
         ],
         IsMaterialized: false,
         Name: user_summary
@@ -371,8 +341,7 @@
   {
     Type: GrantTablePrivileges,
     Action: {
-      SchemaName: app,
-      TableName: users,
+      Table: app.users,
       Role: readers,
       Privileges: ReadOnly
     }
@@ -380,51 +349,44 @@
   {
     Type: DropTable,
     Action: {
-      SchemaName: scratch,
-      TableName: temp_data
+      Table: scratch.temp_data
     }
   },
   {
     Type: DropRoutine,
     Action: {
-      SchemaName: app,
-      RoutineName: stale_fn
+      Routine: app.stale_fn
     }
   },
   {
     Type: DropRoutine,
     Action: {
-      SchemaName: app,
-      RoutineName: stale_proc,
+      Routine: app.stale_proc,
       Kind: Procedure
     }
   },
   {
     Type: DropEnum,
     Action: {
-      SchemaName: app,
-      EnumName: stale_enum
+      Enum: app.stale_enum
     }
   },
   {
     Type: DropEnum,
     Action: {
-      SchemaName: scratch,
-      EnumName: temp_status
+      Enum: scratch.temp_status
     }
   },
   {
     Type: DropSequence,
     Action: {
-      SchemaName: app,
-      SequenceName: stale_seq
+      Sequence: app.stale_seq
     }
   },
   {
     Type: DropSequence,
     Action: {
-      SchemaName: scratch,
-      SequenceName: temp_seq
+      Sequence: scratch.temp_seq
     }
   },
   {

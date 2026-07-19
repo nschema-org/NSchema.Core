@@ -14,7 +14,7 @@ public sealed class EnumType : DatabaseObject, IEquatable<EnumType>
     /// <summary>
     /// The allowed values, in order.
     /// </summary>
-    public List<string> Values { get; init; } = [];
+    public List<EnumLabel> Values { get; init; } = [];
 
     /// <inheritdoc/>
     public override EnumType Clone() => new() { Name = Name, Values = [.. Values], Comment = Comment };
@@ -25,7 +25,7 @@ public sealed class EnumType : DatabaseObject, IEquatable<EnumType>
     public bool Equals(EnumType? other) =>
         other is not null
         && Name == other.Name
-        && Values.SequenceEqual(other.Values, StringComparer.Ordinal);
+        && Values.SequenceEqual(other.Values);
 
     /// <inheritdoc/>
     public override bool Equals(object? obj) => obj is EnumType other && Equals(other);

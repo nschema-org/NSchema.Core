@@ -72,9 +72,9 @@ public sealed class DatabaseDiffTests
         new Schema { Name = "billing",
             Tables = [
                 new Table { Name = "orders", Columns = [new Column { Name = "id", Type = SqlType.Int }],
-                    ForeignKeys = [new ForeignKey { Name = "fk_orders_user", ColumnNames = ["id"], ReferencedSchema = "app", ReferencedTable = "users", ReferencedColumnNames = ["id"] }] },
+                    ForeignKeys = [new ForeignKey { Name = "fk_orders_user", ColumnNames = ["id"], References = new("app", "users"), ReferencedColumnNames = ["id"] }] },
             ],
-            Views = [new View { Name = "summary", Body = "select * from app.users", DependsOn = [new ViewDependency("app", "users")] }] },
+            Views = [new View { Name = "summary", Body = "select * from app.users", DependsOn = [new ObjectAddress("app", "users")] }] },
     ],
     };
 

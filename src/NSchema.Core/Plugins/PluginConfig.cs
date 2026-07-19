@@ -5,7 +5,7 @@ namespace NSchema.Plugins;
 /// </summary>
 /// <param name="Label">The optional bare-identifier label following the keyword (e.g. <c>"postgres"</c> in <c>DATABASE postgres</c>).</param>
 /// <param name="Attributes">The statement's attributes.</param>
-public sealed record PluginConfig(string? Label, IReadOnlyDictionary<AttributeKey, ConfigValue> Attributes)
+public sealed record PluginConfig(PluginLabel? Label, IReadOnlyDictionary<AttributeKey, ConfigValue> Attributes)
 {
     /// <summary>
     /// Returns the named attribute, or <see langword="null"/> if the settings do not declare it.

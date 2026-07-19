@@ -33,7 +33,7 @@ public sealed class PlanLinearizerCompositeTypeTests
     [Fact]
     public void RemovedCompositeType_EmitsDropCompositeType()
         => Linearize(new CompositeTypeDiff("app", "address", ChangeKind.Remove))
-            .ShouldHaveSingleItem().ShouldBeOfType<DropCompositeType>().TypeName.ShouldBe("address");
+            .ShouldHaveSingleItem().ShouldBeOfType<DropCompositeType>().Type.Name.ShouldBe("address");
 
     [Fact]
     public void FieldChanges_EmitInPlaceFieldActions()
@@ -46,7 +46,7 @@ public sealed class PlanLinearizerCompositeTypeTests
         ]));
 
         plan.OfType<AddCompositeField>().ShouldHaveSingleItem().Field.Name.ShouldBe("zip");
-        plan.OfType<DropCompositeField>().ShouldHaveSingleItem().FieldName.ShouldBe("old");
+        plan.OfType<DropCompositeField>().ShouldHaveSingleItem().Field.Member.ShouldBe("old");
         plan.OfType<AlterCompositeFieldType>().ShouldHaveSingleItem().NewType.ShouldBe(SqlType.VarChar(255));
     }
 

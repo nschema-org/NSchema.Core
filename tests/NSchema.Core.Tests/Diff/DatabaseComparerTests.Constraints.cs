@@ -65,7 +65,7 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_ForeignKeyRemoved_EmitsRemoveConstraint()
     {
-        var fk = new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], ReferencedSchema = "app", ReferencedTable = "users", ReferencedColumnNames = ["id"] };
+        var fk = new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] };
         var table = DiffTable(
             new Table { Name = "orders", Columns = [new Column { Name = "user_id", Type = SqlType.Int }], ForeignKeys = [fk] },
             new Table { Name = "orders", Columns = [new Column { Name = "user_id", Type = SqlType.Int }] });
@@ -81,13 +81,13 @@ public partial class DatabaseComparerTests
             {
                 Name = "orders",
                 Columns = [new Column { Name = "user_id", Type = SqlType.Int }],
-                ForeignKeys = [new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], ReferencedSchema = "app", ReferencedTable = "users", ReferencedColumnNames = ["id"] }],
+                ForeignKeys = [new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] }],
             },
             new Table
             {
                 Name = "orders",
                 Columns = [new Column { Name = "user_id", Type = SqlType.Int }],
-                ForeignKeys = [new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], ReferencedSchema = "app", ReferencedTable = "users", ReferencedColumnNames = ["id"], OnDelete = ReferentialAction.Cascade }],
+                ForeignKeys = [new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"], OnDelete = ReferentialAction.Cascade }],
             });
 
         table!.ForeignKeys.Select(c => c.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);

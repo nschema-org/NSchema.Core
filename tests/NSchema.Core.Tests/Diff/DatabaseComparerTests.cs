@@ -192,7 +192,7 @@ public partial class DatabaseComparerTests
             new Table { Name = "orders",
                 Columns = Columns(),
                 PrimaryKey = new PrimaryKey { Name = "orders_pkey", ColumnNames = ["id"] },
-                ForeignKeys = [new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], ReferencedSchema = "app", ReferencedTable = "users", ReferencedColumnNames = ["id"] }],
+                ForeignKeys = [new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] }],
                 UniqueConstraints = [new UniqueConstraint { Name = "orders_user_uq", ColumnNames = ["user_id"] }],
                 CheckConstraints = [new CheckConstraint { Name = "orders_id_chk", Expression = "id > 0" }],
                 Indexes = [new TableIndex { Name = "orders_user_ix", Columns = ["user_id"] }],

@@ -18,7 +18,7 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
         var database = project.Database;
         var declaredSchemas = database.Schemas.Select(s => s.Name).ToHashSet();
         var tablesByKey = database.Objects<Table>()
-            .GroupBy(x => Key(x.Schema, x.Object.Name))
+            .GroupBy(x => new ObjectAddress(x.Schema, x.Object.Name))
             .ToDictionary(g => g.Key, g => g.First().Object);
 
         var diagnostics = new List<Diagnostic>();
@@ -97,7 +97,7 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
         Schema definition,
         Table table,
         HashSet<SqlIdentifier> declaredSchemas,
-        IReadOnlyDictionary<(SqlIdentifier Schema, SqlIdentifier Table), Table> tablesByKey,
+        IReadOnlyDictionary<ObjectAddress, Table> tablesByKey,
         List<Diagnostic> diagnostics)
     {
         var qualified = $"{definition.Name}.{table.Name}";
@@ -150,7 +150,7 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
         ForeignKey foreignKey,
         HashSet<SqlIdentifier> localColumns,
         HashSet<SqlIdentifier> declaredSchemas,
-        IReadOnlyDictionary<(SqlIdentifier Schema, SqlIdentifier Table), Table> tablesByKey,
+        IReadOnlyDictionary<ObjectAddress, Table> tablesByKey,
         List<Diagnostic> diagnostics)
     {
         foreach (var missing in foreignKey.ColumnNames.Where(c => !localColumns.Contains(c)))
@@ -165,14 +165,14 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
         }
 
         // Only resolve targets in schemas this project declares.
-        if (!declaredSchemas.Contains(foreignKey.ReferencedSchema))
+        if (!declaredSchemas.Contains(foreignKey.References.Schema))
         {
             return;
         }
 
         // An undeclared table is not necessarily missing, it may just be unmanaged.
-        var target = $"{foreignKey.ReferencedSchema}.{foreignKey.ReferencedTable}";
-        if (!tablesByKey.TryGetValue(Key(foreignKey.ReferencedSchema, foreignKey.ReferencedTable), out var referencedTable))
+        var target = foreignKey.References;
+        if (!tablesByKey.TryGetValue(foreignKey.References, out var referencedTable))
         {
             diagnostics.Add(Warning($"Foreign key '{foreignKey.Name}' on '{qualified}' references table '{target}', which this project does not declare; it must already exist in the database."));
             return;
@@ -213,9 +213,6 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
         .GroupBy(n => n)
         .Where(g => g.Count() > 1)
         .Select(g => g.Key);
-
-    // The NUL character cannot appear in an identifier, so it is a safe composite-key separator even for quoted names.
-    private static (SqlIdentifier Schema, SqlIdentifier Table) Key(SqlIdentifier schema, SqlIdentifier table) => (schema, table);
 
     private static Diagnostic Error(FormattedText message) => Diagnostic.Error(PolicyName, message);
 

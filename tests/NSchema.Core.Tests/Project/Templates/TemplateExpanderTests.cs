@@ -75,8 +75,8 @@ public sealed class TemplateExpanderTests
 
         var child = Schema(schema, "billing").Tables.First(t => t.Name.Value.Equals("child"));
         var fk = child.ForeignKeys.ShouldHaveSingleItem();
-        fk.ReferencedSchema.ShouldBe("billing");
-        fk.ReferencedTable.ShouldBe("parent");
+        fk.References.Schema.ShouldBe("billing");
+        fk.References.Name.ShouldBe("parent");
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public sealed class TemplateExpanderTests
             """);
 
         Schema(schema, "billing").Tables.ShouldHaveSingleItem().ForeignKeys.ShouldHaveSingleItem()
-            .ReferencedSchema.ShouldBe("public");
+            .References.Schema.ShouldBe("public");
     }
 
     [Fact]
@@ -317,8 +317,8 @@ public sealed class TemplateExpanderTests
 
         var invoices = Schema(schema, "billing").Tables.First(t => t.Name.Value.Equals("invoices"));
         var fk = invoices.ForeignKeys.ShouldHaveSingleItem();
-        fk.ReferencedSchema.ShouldBe("billing");
-        fk.ReferencedTable.ShouldBe("tenants");
+        fk.References.Schema.ShouldBe("billing");
+        fk.References.Name.ShouldBe("tenants");
     }
 
     [Fact]

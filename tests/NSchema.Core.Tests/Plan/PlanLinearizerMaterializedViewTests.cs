@@ -57,8 +57,8 @@ public sealed class PlanLinearizerMaterializedViewTests
                 new IndexDiff(ChangeKind.Remove, "old_ix"),
             ]));
 
-        actions.OfType<CreateIndex>().ShouldHaveSingleItem().TableName.ShouldBe("daily");
-        actions.OfType<DropIndex>().ShouldHaveSingleItem().IndexName.ShouldBe("old_ix");
+        actions.OfType<CreateIndex>().ShouldHaveSingleItem().Table.Name.ShouldBe("daily");
+        actions.OfType<DropIndex>().ShouldHaveSingleItem().Index.Member.ShouldBe("old_ix");
         actions.OfType<CreateView>().ShouldBeEmpty(); // body unchanged, no recreate
     }
 
@@ -74,8 +74,8 @@ public sealed class PlanLinearizerMaterializedViewTests
                 new IndexDiff(ChangeKind.Remove, "old_ix"),
             ]));
 
-        actions.OfType<DropIndex>().ShouldHaveSingleItem().TableName.ShouldBe("nightly");
-        actions.OfType<CreateIndex>().ShouldHaveSingleItem().TableName.ShouldBe("daily");
+        actions.OfType<DropIndex>().ShouldHaveSingleItem().Index.Object.ShouldBe("nightly");
+        actions.OfType<CreateIndex>().ShouldHaveSingleItem().Table.Name.ShouldBe("daily");
         var dropIndex = actions.Select((a, i) => (a, i)).Single(x => x.a is DropIndex).i;
         var rename = actions.Select((a, i) => (a, i)).Single(x => x.a is RenameView).i;
         dropIndex.ShouldBeLessThan(rename);
@@ -91,7 +91,7 @@ public sealed class PlanLinearizerMaterializedViewTests
             Definition: mv, IsMaterialized: true, RequiresRecreate: true));
 
         actions.OfType<RenameView>().ShouldBeEmpty();
-        actions.OfType<DropView>().ShouldHaveSingleItem().ViewName.ShouldBe("nightly");
+        actions.OfType<DropView>().ShouldHaveSingleItem().View.Name.ShouldBe("nightly");
         actions.OfType<CreateView>().ShouldHaveSingleItem().View.Name.ShouldBe("daily");
     }
 

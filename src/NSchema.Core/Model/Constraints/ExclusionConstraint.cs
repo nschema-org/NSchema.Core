@@ -18,7 +18,7 @@ public sealed class ExclusionConstraint : DatabaseMember, IEquatable<ExclusionCo
     /// <summary>
     /// The access method backing the constraint (e.g. <c>gist</c>); <see langword="null"/> means the database default.
     /// </summary>
-    public string? Method { get; set; }
+    public SqlIdentifier? Method { get; set; }
 
     /// <summary>
     /// An optional predicate restricting the constraint to a subset of rows (a partial constraint).

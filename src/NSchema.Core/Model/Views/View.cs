@@ -20,7 +20,7 @@ public sealed class View : DatabaseObject, IEquatable<View>
     /// <summary>
     /// The objects the view reads, derived from <see cref="Body"/>.
     /// </summary>
-    public List<ViewDependency> DependsOn { get; init; } = [];
+    public List<ObjectAddress> DependsOn { get; init; } = [];
 
     /// <summary>
     /// Whether this is a materialized view (stores its result set).

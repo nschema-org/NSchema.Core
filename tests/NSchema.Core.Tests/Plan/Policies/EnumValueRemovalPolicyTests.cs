@@ -2,6 +2,7 @@ using NSchema.Diff.Model;
 using NSchema.Diff.Model.Enums;
 using NSchema.Diff.Model.Schemas;
 using NSchema.Model;
+using NSchema.Model.Enums;
 using NSchema.Plan.Policies;
 
 namespace NSchema.Tests.Plan.Policies;
@@ -14,7 +15,7 @@ public sealed class EnumValueRemovalPolicyTests
         new([new SchemaDiff("app", Enums: [enumDiff])]);
 
     private static EnumDiff ValueRemoval() => new("app", "status", ChangeKind.Modify,
-        Values: new ValueChange<IReadOnlyList<string>>(["a", "b"], ["a"]));
+        Values: new ValueChange<IReadOnlyList<EnumLabel>>(["a", "b"], ["a"]));
 
     [Fact]
     public void Validate_ValueRemoval_IsAnError()
@@ -33,7 +34,7 @@ public sealed class EnumValueRemovalPolicyTests
     {
         var addition = new EnumDiff("app", "status", ChangeKind.Modify,
             AddedValues: [new EnumValueAddition("b", After: "a")],
-            Values: new ValueChange<IReadOnlyList<string>>(["a"], ["a", "b"]));
+            Values: new ValueChange<IReadOnlyList<EnumLabel>>(["a"], ["a", "b"]));
 
         _sut.Validate(DiffWithEnum(addition)).ShouldBeEmpty();
     }

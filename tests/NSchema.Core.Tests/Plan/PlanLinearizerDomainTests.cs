@@ -59,7 +59,7 @@ public sealed class PlanLinearizerDomainTests
         ]));
 
         plan.OfType<AddDomainCheck>().ShouldHaveSingleItem().Check.Name.ShouldBe("new_chk");
-        plan.OfType<DropDomainCheck>().ShouldHaveSingleItem().CheckName.ShouldBe("old_chk");
+        plan.OfType<DropDomainCheck>().ShouldHaveSingleItem().Check.Member.ShouldBe("old_chk");
     }
 
     [Fact]

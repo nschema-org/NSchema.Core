@@ -25,7 +25,7 @@ namespace NSchema.Tests.Helpers;
 
 public static class TestData
 {
-    public static readonly MigrationAction DestructiveAction = new DropTable("identity", "users");
+    public static readonly MigrationAction DestructiveAction = new DropTable(new("identity", "users"));
     public static readonly MigrationAction NonDestructiveAction = new CreateSchema("identity");
 
     /// <summary>A diff dropping the <c>identity.users</c> table.</summary>
@@ -66,7 +66,7 @@ public static class TestData
                             new Column { Name = "name_upper", Type = SqlType.Text, IsNullable = true, GeneratedExpression = "upper(name)" },
                         ],
                         ForeignKeys = [
-                            new ForeignKey { Name = "users_org_fk", ColumnNames = ["org_id"], ReferencedSchema = "app", ReferencedTable = "orgs", ReferencedColumnNames = ["id"],
+                            new ForeignKey { Name = "users_org_fk", ColumnNames = ["org_id"], References = new("app", "orgs"), ReferencedColumnNames = ["id"],
                                 OnDelete = ReferentialAction.Cascade, OnUpdate = ReferentialAction.SetNull, Comment = "owning org" },
                         ],
                         UniqueConstraints = [

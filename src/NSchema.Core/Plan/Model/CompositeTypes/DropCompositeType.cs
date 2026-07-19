@@ -5,6 +5,5 @@ namespace NSchema.Plan.Model.CompositeTypes;
 /// <summary>
 /// Represents the removal of an existing composite type.
 /// </summary>
-/// <param name="SchemaName">The name of the schema containing the composite type to be removed.</param>
-/// <param name="TypeName">The name of the composite type to be removed.</param>
-public sealed record DropCompositeType(SqlIdentifier SchemaName, SqlIdentifier TypeName) : MigrationAction;
+/// <param name="Type">The address of the composite type.</param>
+public sealed record DropCompositeType(ObjectAddress Type) : MigrationAction;

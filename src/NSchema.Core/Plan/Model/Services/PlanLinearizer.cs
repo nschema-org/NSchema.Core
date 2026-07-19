@@ -178,7 +178,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 // definition recreates the view under the new one, so no RenameView is emitted.
                 if (view.RenamedFrom is not null && !view.RequiresRecreate)
                 {
-                    actions.Add(new RenameView(view.Schema, view.RenamedFrom, view.Name, view.IsMaterialized));
+                    actions.Add(new RenameView(new(view.Schema, view.RenamedFrom), view.Name, view.IsMaterialized));
                 }
 
                 if (view.Kind == ChangeKind.Remove)
@@ -200,7 +200,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
                 if (view.Kind != ChangeKind.Remove && view.Comment is not null)
                 {
-                    actions.Add(new SetViewComment(view.Schema, view.Name, view.Comment.Old, view.Comment.New, view.IsMaterialized));
+                    actions.Add(new SetViewComment(new(view.Schema, view.Name), view.Comment.Old, view.Comment.New, view.IsMaterialized));
                 }
 
                 // In-place index changes on a materialized view whose body is unchanged; on a create/recreate the
@@ -210,9 +210,9 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 {
                     actions.Add(index.Kind switch
                     {
-                        ChangeKind.Add => new CreateIndex(view.Schema, view.Name, index.Definition!),
-                        ChangeKind.Remove => new DropIndex(view.Schema, view.RenamedFrom ?? view.Name, index.Name),
-                        _ => new SetIndexComment(view.Schema, view.Name, index.Name, index.Comment!.Old, index.Comment.New),
+                        ChangeKind.Add => new CreateIndex(new(view.Schema, view.Name), index.Definition!),
+                        ChangeKind.Remove => new DropIndex(new(view.Schema, view.RenamedFrom ?? view.Name, index.Name)),
+                        _ => new SetIndexComment(new(view.Schema, view.Name, index.Name), index.Comment!.Old, index.Comment.New),
                     });
                 }
             }
@@ -228,7 +228,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         // currently is — IsMaterialized reflects the desired side, so a flip drops with the old materialization.
         foreach (var view in OrderByDependency(drops).Reverse())
         {
-            actions.Add(new DropView(view.Schema, view.RenamedFrom ?? view.Name, view.Materialized?.Old ?? view.IsMaterialized));
+            actions.Add(new DropView(new(view.Schema, view.RenamedFrom ?? view.Name), view.Materialized?.Old ?? view.IsMaterialized));
         }
     }
 
@@ -377,9 +377,9 @@ internal sealed class PlanLinearizer : IPlanLinearizer
     private static void EmitRoutines(SchemaDiff schema, List<MigrationAction> actions) =>
         EmitObjects(schema.Routines, actions,
             r => new CreateRoutine(r.Schema, r.Definition!),
-            r => new DropRoutine(r.Schema, r.Name, r.RoutineKind),
-            r => new RenameRoutine(r.Schema, r.RenamedFrom!, r.Name, r.RoutineKind),
-            r => new SetRoutineComment(r.Schema, r.Name, r.Comment!.Old, r.Comment.New, r.RoutineKind),
+            r => new DropRoutine(new(r.Schema, r.Name), r.RoutineKind),
+            r => new RenameRoutine(new(r.Schema, r.RenamedFrom!), r.Name, r.RoutineKind),
+            r => new SetRoutineComment(new(r.Schema, r.Name), r.Comment!.Old, r.Comment.New, r.RoutineKind),
             r =>
             {
                 // A signature (or kind) change recreates (a replace under different arguments would create a
@@ -397,9 +397,9 @@ internal sealed class PlanLinearizer : IPlanLinearizer
     private static void EmitDomains(SchemaDiff schema, List<MigrationAction> actions) =>
         EmitObjects(schema.Domains, actions,
             d => new CreateDomain(d.Schema, d.Definition!),
-            d => new DropDomain(d.Schema, d.Name),
-            d => new RenameDomain(d.Schema, d.RenamedFrom!, d.Name),
-            d => new SetDomainComment(d.Schema, d.Name, d.Comment!.Old, d.Comment.New),
+            d => new DropDomain(new(d.Schema, d.Name)),
+            d => new RenameDomain(new(d.Schema, d.RenamedFrom!), d.Name),
+            d => new SetDomainComment(new(d.Schema, d.Name), d.Comment!.Old, d.Comment.New),
             d =>
             {
                 // A base-type change can't be altered in place, so it recreates (default/not-null/checks rebuild
@@ -412,26 +412,26 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
                 if (d.Default is not null)
                 {
-                    actions.Add(new AlterDomainDefault(d.Schema, d.Name, d.Default.Old, d.Default.New));
+                    actions.Add(new AlterDomainDefault(new(d.Schema, d.Name), d.Default.Old, d.Default.New));
                 }
                 if (d.NotNull is not null)
                 {
-                    actions.Add(new AlterDomainNotNull(d.Schema, d.Name, d.NotNull.New));
+                    actions.Add(new AlterDomainNotNull(new(d.Schema, d.Name), d.NotNull.New));
                 }
                 foreach (var check in d.Checks)
                 {
                     actions.Add(check.Kind == ChangeKind.Remove
-                        ? new DropDomainCheck(d.Schema, d.Name, check.Name)
-                        : new AddDomainCheck(d.Schema, d.Name, check.Definition!));
+                        ? new DropDomainCheck(new(d.Schema, d.Name, check.Name))
+                        : new AddDomainCheck(new(d.Schema, d.Name), check.Definition!));
                 }
             });
 
     private static void EmitCompositeTypes(SchemaDiff schema, List<MigrationAction> actions) =>
         EmitObjects(schema.CompositeTypes, actions,
             t => new CreateCompositeType(t.Schema, t.Definition!),
-            t => new DropCompositeType(t.Schema, t.Name),
-            t => new RenameCompositeType(t.Schema, t.RenamedFrom!, t.Name),
-            t => new SetCompositeTypeComment(t.Schema, t.Name, t.Comment!.Old, t.Comment.New),
+            t => new DropCompositeType(new(t.Schema, t.Name)),
+            t => new RenameCompositeType(new(t.Schema, t.RenamedFrom!), t.Name),
+            t => new SetCompositeTypeComment(new(t.Schema, t.Name), t.Comment!.Old, t.Comment.New),
             t =>
             {
                 // Every field change applies in place: a matched field whose type differs is retyped, a missing
@@ -440,9 +440,9 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 {
                     actions.Add(field.Kind switch
                     {
-                        ChangeKind.Remove => new DropCompositeField(t.Schema, t.Name, field.Name),
-                        ChangeKind.Modify => new AlterCompositeFieldType(t.Schema, t.Name, field.Name, field.Type!.Old!, field.Type.New!),
-                        _ => new AddCompositeField(t.Schema, t.Name, field.Definition!),
+                        ChangeKind.Remove => new DropCompositeField(new(t.Schema, t.Name, field.Name)),
+                        ChangeKind.Modify => new AlterCompositeFieldType(new(t.Schema, t.Name, field.Name), field.Type!.Old!, field.Type.New!),
+                        _ => new AddCompositeField(new(t.Schema, t.Name), field.Definition!),
                     });
                 }
             });
@@ -450,9 +450,9 @@ internal sealed class PlanLinearizer : IPlanLinearizer
     private static void EmitEnums(SchemaDiff schema, List<MigrationAction> actions) =>
         EmitObjects(schema.Enums, actions,
             e => new CreateEnum(e.Schema, e.Definition!),
-            e => new DropEnum(e.Schema, e.Name),
-            e => new RenameEnum(e.Schema, e.RenamedFrom!, e.Name),
-            e => new SetEnumComment(e.Schema, e.Name, e.Comment!.Old, e.Comment.New),
+            e => new DropEnum(new(e.Schema, e.Name)),
+            e => new RenameEnum(new(e.Schema, e.RenamedFrom!), e.Name),
+            e => new SetEnumComment(new(e.Schema, e.Name), e.Comment!.Old, e.Comment.New),
             e =>
             {
                 // Additions are emitted in list order so each anchor exists when its addition runs (the
@@ -460,21 +460,21 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 // planned, and the always-on EnumValueRemovalPolicy fails the run before execution.
                 foreach (var addition in e.AddedValues)
                 {
-                    actions.Add(new AddEnumValue(e.Schema, e.Name, addition.Value, addition.Before, addition.After));
+                    actions.Add(new AddEnumValue(new(e.Schema, e.Name), addition.Value, addition.Before, addition.After));
                 }
             });
 
     private static void EmitSequences(SchemaDiff schema, List<MigrationAction> actions) =>
         EmitObjects(schema.Sequences, actions,
             s => new CreateSequence(s.Schema, s.Definition!),
-            s => new DropSequence(s.Schema, s.Name),
-            s => new RenameSequence(s.Schema, s.RenamedFrom!, s.Name),
-            s => new SetSequenceComment(s.Schema, s.Name, s.Comment!.Old, s.Comment.New),
+            s => new DropSequence(new(s.Schema, s.Name)),
+            s => new RenameSequence(new(s.Schema, s.RenamedFrom!), s.Name),
+            s => new SetSequenceComment(new(s.Schema, s.Name), s.Comment!.Old, s.Comment.New),
             s =>
             {
                 if (s.Options is not null)
                 {
-                    actions.Add(new AlterSequence(s.Schema, s.Name, s.Options.Old!, s.Options.New!));
+                    actions.Add(new AlterSequence(new(s.Schema, s.Name), s.Options.Old!, s.Options.New!));
                 }
             });
 
@@ -503,11 +503,11 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 actions.Add(new CreateTable(table.Schema, table.Definition!));
                 if (table.Comment is not null)
                 {
-                    actions.Add(new SetTableComment(table.Schema, table.Name, table.Comment.Old, table.Comment.New));
+                    actions.Add(new SetTableComment(new(table.Schema, table.Name), table.Comment.Old, table.Comment.New));
                 }
                 foreach (var column in table.Columns.Where(c => c.Comment is not null))
                 {
-                    actions.Add(new SetColumnComment(table.Schema, table.Name, column.Name, column.Comment!.Old, column.Comment.New));
+                    actions.Add(new SetColumnComment(new(table.Schema, table.Name, column.Name), column.Comment!.Old, column.Comment.New));
                 }
                 EmitConstraints(table, actions);
                 EmitIndexes(table, actions);
@@ -516,17 +516,17 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 break;
 
             case ChangeKind.Remove:
-                actions.Add(new DropTable(table.Schema, table.Name));
+                actions.Add(new DropTable(new(table.Schema, table.Name)));
                 break;
 
             default: // Modify
                 if (table.RenamedFrom is not null)
                 {
-                    actions.Add(new RenameTable(table.Schema, table.RenamedFrom, table.Name));
+                    actions.Add(new RenameTable(new(table.Schema, table.RenamedFrom), table.Name));
                 }
                 if (table.Comment is not null)
                 {
-                    actions.Add(new SetTableComment(table.Schema, table.Name, table.Comment.Old, table.Comment.New));
+                    actions.Add(new SetTableComment(new(table.Schema, table.Name), table.Comment.Old, table.Comment.New));
                 }
                 foreach (var column in table.Columns)
                 {
@@ -553,13 +553,13 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                     // The declared column belongs to the project tree, so the nullable variant is a copy.
                     var nullable = column.Definition.Clone();
                     nullable.IsNullable = true;
-                    actions.Add(new AddColumn(table.Schema, table.Name, nullable));
+                    actions.Add(new AddColumn(new(table.Schema, table.Name), nullable));
                     actions.Add(new ExecuteScript(backfill));
-                    actions.Add(new AlterColumnNullability(table.Schema, table.Name, column.Name, OldNullable: true, NewNullable: false, column.Definition.Type));
+                    actions.Add(new AlterColumnNullability(new(table.Schema, table.Name, column.Name), OldNullable: true, NewNullable: false, column.Definition.Type));
                 }
                 else
                 {
-                    actions.Add(new AddColumn(table.Schema, table.Name, column.Definition!));
+                    actions.Add(new AddColumn(new(table.Schema, table.Name), column.Definition!));
                     if (column.MigrationScript is { } migration)
                     {
                         actions.Add(new ExecuteScript(migration));
@@ -567,18 +567,18 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 }
                 if (column.Comment is not null)
                 {
-                    actions.Add(new SetColumnComment(table.Schema, table.Name, column.Name, column.Comment.Old, column.Comment.New));
+                    actions.Add(new SetColumnComment(new(table.Schema, table.Name, column.Name), column.Comment.Old, column.Comment.New));
                 }
                 break;
 
             case ChangeKind.Remove:
-                actions.Add(new DropColumn(table.Schema, table.Name, column.Definition!));
+                actions.Add(new DropColumn(new(table.Schema, table.Name), column.Definition!));
                 break;
 
             case ChangeKind.Modify:
                 if (column.RenamedFrom is not null)
                 {
-                    actions.Add(new RenameColumn(table.Schema, table.Name, column.RenamedFrom, column.Name));
+                    actions.Add(new RenameColumn(new(table.Schema, table.Name, column.RenamedFrom), column.Name));
                 }
                 if (column.Type is not null)
                 {
@@ -587,27 +587,27 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                     {
                         actions.Add(new ExecuteScript(prep));
                     }
-                    actions.Add(new AlterColumnType(table.Schema, table.Name, column.Name, column.Type.Old!, column.Type.New!, column.Definition?.IsNullable));
+                    actions.Add(new AlterColumnType(new(table.Schema, table.Name, column.Name), column.Type.Old!, column.Type.New!, column.Definition?.IsNullable));
                 }
                 if (column.Nullability is not null)
                 {
-                    actions.Add(new AlterColumnNullability(table.Schema, table.Name, column.Name, column.Nullability.Old, column.Nullability.New, column.Definition?.Type));
+                    actions.Add(new AlterColumnNullability(new(table.Schema, table.Name, column.Name), column.Nullability.Old, column.Nullability.New, column.Definition?.Type));
                 }
                 if (column.Default is not null)
                 {
-                    actions.Add(new SetColumnDefault(table.Schema, table.Name, column.Name, column.Default.Old, column.Default.New));
+                    actions.Add(new SetColumnDefault(new(table.Schema, table.Name, column.Name), column.Default.Old, column.Default.New));
                 }
                 if (column.Generated is not null)
                 {
-                    actions.Add(new SetColumnGenerated(table.Schema, table.Name, column.Name, column.Generated.Old, column.Generated.New));
+                    actions.Add(new SetColumnGenerated(new(table.Schema, table.Name, column.Name), column.Generated.Old, column.Generated.New));
                 }
                 if (column.Identity is not null)
                 {
-                    actions.Add(new AlterIdentitySequence(table.Schema, table.Name, column.Name, column.Identity.Old, column.Identity.New));
+                    actions.Add(new AlterIdentitySequence(new(table.Schema, table.Name, column.Name), column.Identity.Old, column.Identity.New));
                 }
                 if (column.Comment is not null)
                 {
-                    actions.Add(new SetColumnComment(table.Schema, table.Name, column.Name, column.Comment.Old, column.Comment.New));
+                    actions.Add(new SetColumnComment(new(table.Schema, table.Name, column.Name), column.Comment.Old, column.Comment.New));
                 }
                 break;
             default: throw new NotSupportedException($"Cannot linearize column change {column.Kind}.");
@@ -621,29 +621,29 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         var preRenameName = table.RenamedFrom ?? table.Name;
 
         EmitConstraintKind(table.PrimaryKey, actions,
-            pk => new AddPrimaryKey(table.Schema, table.Name, pk.Definition!),
-            pk => new DropPrimaryKey(table.Schema, preRenameName, pk.Name),
-            pk => new SetConstraintComment(table.Schema, table.Name, pk.Name, pk.Comment!.Old, pk.Comment.New));
+            pk => new AddPrimaryKey(new(table.Schema, table.Name), pk.Definition!),
+            pk => new DropPrimaryKey(new(table.Schema, preRenameName, pk.Name)),
+            pk => new SetConstraintComment(new(table.Schema, table.Name, pk.Name), pk.Comment!.Old, pk.Comment.New));
 
         EmitConstraintKind(table.ForeignKeys, actions,
-            fk => new AddForeignKey(table.Schema, table.Name, fk.Definition!),
-            fk => new DropForeignKey(table.Schema, preRenameName, fk.Name),
-            fk => new SetConstraintComment(table.Schema, table.Name, fk.Name, fk.Comment!.Old, fk.Comment.New));
+            fk => new AddForeignKey(new(table.Schema, table.Name), fk.Definition!),
+            fk => new DropForeignKey(new(table.Schema, preRenameName, fk.Name)),
+            fk => new SetConstraintComment(new(table.Schema, table.Name, fk.Name), fk.Comment!.Old, fk.Comment.New));
 
         EmitConstraintKind(table.UniqueConstraints, actions,
-            uq => new AddUniqueConstraint(table.Schema, table.Name, uq.Definition!),
-            uq => new DropUniqueConstraint(table.Schema, preRenameName, uq.Name),
-            uq => new SetConstraintComment(table.Schema, table.Name, uq.Name, uq.Comment!.Old, uq.Comment.New));
+            uq => new AddUniqueConstraint(new(table.Schema, table.Name), uq.Definition!),
+            uq => new DropUniqueConstraint(new(table.Schema, preRenameName, uq.Name)),
+            uq => new SetConstraintComment(new(table.Schema, table.Name, uq.Name), uq.Comment!.Old, uq.Comment.New));
 
         EmitConstraintKind(table.Checks, actions,
-            ck => new AddCheckConstraint(table.Schema, table.Name, ck.Definition!),
-            ck => new DropCheckConstraint(table.Schema, preRenameName, ck.Name),
-            ck => new SetConstraintComment(table.Schema, table.Name, ck.Name, ck.Comment!.Old, ck.Comment.New));
+            ck => new AddCheckConstraint(new(table.Schema, table.Name), ck.Definition!),
+            ck => new DropCheckConstraint(new(table.Schema, preRenameName, ck.Name)),
+            ck => new SetConstraintComment(new(table.Schema, table.Name, ck.Name), ck.Comment!.Old, ck.Comment.New));
 
         EmitConstraintKind(table.ExclusionConstraints, actions,
-            ex => new AddExclusionConstraint(table.Schema, table.Name, ex.Definition!),
-            ex => new DropExclusionConstraint(table.Schema, preRenameName, ex.Name),
-            ex => new SetConstraintComment(table.Schema, table.Name, ex.Name, ex.Comment!.Old, ex.Comment.New));
+            ex => new AddExclusionConstraint(new(table.Schema, table.Name), ex.Definition!),
+            ex => new DropExclusionConstraint(new(table.Schema, preRenameName, ex.Name)),
+            ex => new SetConstraintComment(new(table.Schema, table.Name, ex.Name), ex.Comment!.Old, ex.Comment.New));
     }
 
     /// <summary>
@@ -685,9 +685,9 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         {
             actions.Add(index.Kind switch
             {
-                ChangeKind.Add => new CreateIndex(table.Schema, table.Name, index.Definition!),
-                ChangeKind.Remove => new DropIndex(table.Schema, table.RenamedFrom ?? table.Name, index.Name),
-                _ => new SetIndexComment(table.Schema, table.Name, index.Name, index.Comment!.Old, index.Comment.New),
+                ChangeKind.Add => new CreateIndex(new(table.Schema, table.Name), index.Definition!),
+                ChangeKind.Remove => new DropIndex(new(table.Schema, table.RenamedFrom ?? table.Name, index.Name)),
+                _ => new SetIndexComment(new(table.Schema, table.Name, index.Name), index.Comment!.Old, index.Comment.New),
             });
         }
     }
@@ -698,9 +698,9 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         {
             actions.Add(trigger.Kind switch
             {
-                ChangeKind.Add => new CreateTrigger(table.Schema, table.Name, trigger.Definition!),
-                ChangeKind.Remove => new DropTrigger(table.Schema, table.RenamedFrom ?? table.Name, trigger.Name),
-                _ => new SetTriggerComment(table.Schema, table.Name, trigger.Name, trigger.Comment!.Old, trigger.Comment.New),
+                ChangeKind.Add => new CreateTrigger(new(table.Schema, table.Name), trigger.Definition!),
+                ChangeKind.Remove => new DropTrigger(new(table.Schema, table.RenamedFrom ?? table.Name, trigger.Name)),
+                _ => new SetTriggerComment(new(table.Schema, table.Name, trigger.Name), trigger.Comment!.Old, trigger.Comment.New),
             });
         }
     }
@@ -710,8 +710,8 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         foreach (var grant in table.Grants)
         {
             actions.Add(grant.Kind == ChangeKind.Add
-                ? new GrantTablePrivileges(table.Schema, table.Name, grant.Role, grant.Privileges!.Value)
-                : new RevokeTablePrivileges(table.Schema, table.RenamedFrom ?? table.Name, grant.Role, grant.Privileges!.Value));
+                ? new GrantTablePrivileges(new(table.Schema, table.Name), grant.Role, grant.Privileges!.Value)
+                : new RevokeTablePrivileges(new(table.Schema, table.RenamedFrom ?? table.Name), grant.Role, grant.Privileges!.Value));
         }
     }
 }

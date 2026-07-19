@@ -32,7 +32,7 @@ public sealed class StructuralIntegrityPolicyTests
             Name = "orders",
             PrimaryKey = new PrimaryKey { Name = "orders_pk", ColumnNames = ["id"] },
             Columns = [Col("id"), Col("user_id")],
-            ForeignKeys = [new ForeignKey { Name = "orders_users_fk", ColumnNames = ["user_id"], ReferencedSchema = "public", ReferencedTable = "users", ReferencedColumnNames = ["id"] }],
+            ForeignKeys = [new ForeignKey { Name = "orders_users_fk", ColumnNames = ["user_id"], References = new("public", "users"), ReferencedColumnNames = ["id"] }],
         };
 
         // Act
@@ -177,7 +177,7 @@ public sealed class StructuralIntegrityPolicyTests
         {
             Name = "t",
             Columns = [Col("id")],
-            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["ghost"], ReferencedSchema = "public", ReferencedTable = "t", ReferencedColumnNames = ["id"] }],
+            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["ghost"], References = new("public", "t"), ReferencedColumnNames = ["id"] }],
         };
 
         // Act
@@ -196,7 +196,7 @@ public sealed class StructuralIntegrityPolicyTests
             Name = "t",
             PrimaryKey = new PrimaryKey { Name = "pk", ColumnNames = ["id"] },
             Columns = [Col("id"), Col("a"), Col("b")],
-            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["a", "b"], ReferencedSchema = "public", ReferencedTable = "t", ReferencedColumnNames = ["id"] }],
+            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["a", "b"], References = new("public", "t"), ReferencedColumnNames = ["id"] }],
         };
 
         // Act
@@ -214,7 +214,7 @@ public sealed class StructuralIntegrityPolicyTests
         {
             Name = "t",
             Columns = [Col("id"), Col("ref")],
-            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["ref"], ReferencedSchema = "public", ReferencedTable = "absent", ReferencedColumnNames = ["id"] }],
+            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["ref"], References = new("public", "absent"), ReferencedColumnNames = ["id"] }],
         };
 
         // Act
@@ -234,7 +234,7 @@ public sealed class StructuralIntegrityPolicyTests
         {
             Name = "t",
             Columns = [Col("id"), Col("ref")],
-            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["ref"], ReferencedSchema = "external", ReferencedTable = "other", ReferencedColumnNames = ["id"] }],
+            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["ref"], References = new("external", "other"), ReferencedColumnNames = ["id"] }],
         };
 
         // Act
@@ -253,7 +253,7 @@ public sealed class StructuralIntegrityPolicyTests
         {
             Name = "source",
             Columns = [Col("id"), Col("code")],
-            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["code"], ReferencedSchema = "public", ReferencedTable = "target", ReferencedColumnNames = ["code"] }],
+            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["code"], References = new("public", "target"), ReferencedColumnNames = ["code"] }],
         };
 
         // Act
@@ -278,7 +278,7 @@ public sealed class StructuralIntegrityPolicyTests
         {
             Name = "source",
             Columns = [Col("id"), Col("code")],
-            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["code"], ReferencedSchema = "public", ReferencedTable = "target", ReferencedColumnNames = ["code"] }],
+            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["code"], References = new("public", "target"), ReferencedColumnNames = ["code"] }],
         };
 
         // Act
@@ -303,7 +303,7 @@ public sealed class StructuralIntegrityPolicyTests
         {
             Name = "source",
             Columns = [Col("id"), Col("code")],
-            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["code"], ReferencedSchema = "public", ReferencedTable = "target", ReferencedColumnNames = ["code"] }],
+            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["code"], References = new("public", "target"), ReferencedColumnNames = ["code"] }],
         };
 
         // Act

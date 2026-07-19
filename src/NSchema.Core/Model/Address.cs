@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace NSchema.Model;
 
 /// <summary>
@@ -8,11 +10,13 @@ public abstract record Address
     /// <summary>
     /// The address as written.
     /// </summary>
+    [JsonIgnore]
     public abstract string Value { get; }
 
     /// <summary>
     /// The schema this address sits in, or <see langword="null"/> when it names something database-global.
     /// </summary>
+    [JsonIgnore]
     public abstract SqlIdentifier? SchemaName { get; }
 
     /// <inheritdoc />

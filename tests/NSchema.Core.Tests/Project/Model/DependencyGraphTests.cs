@@ -32,7 +32,7 @@ public class DependencyGraphTests
         {
             Name = Id(name),
             Columns = [new Column { Name = Id("id"), Type = SqlType.Int }],
-            ForeignKeys = [new ForeignKey { Name = Id(constraint), ColumnNames = [Id("id")], ReferencedSchema = Id(toSchema), ReferencedTable = Id(toTable), ReferencedColumnNames = [Id("id")] }],
+            ForeignKeys = [new ForeignKey { Name = Id(constraint), ColumnNames = [Id("id")], References = new(Id(toSchema), Id(toTable)), ReferencedColumnNames = [Id("id")] }],
         };
 
     /// <summary>app.users, and billing.orders pointing an FK at it.</summary>
@@ -68,7 +68,7 @@ public class DependencyGraphTests
             new Schema { Name = Id("app"),
                 Tables = [new Table { Name = Id("users"), Columns = [new Column { Name = Id("id"), Type = SqlType.Int }] }],
                 Views = [new View { Name = Id("active_users"), Body = "select * from app.users",
-                    DependsOn = [new ViewDependency(Id("app"), Id("users"))] }] },
+                    DependsOn = [new ObjectAddress(Id("app"), Id("users"))] }] },
         ],
         };
         var graph = new DependencyGraph(database);
@@ -139,9 +139,9 @@ public class DependencyGraphTests
                 Tables = [new Table { Name = Id("users"), Columns = [new Column { Name = Id("id"), Type = SqlType.Int }] }],
                 Views = [
                     new View { Name = Id("active_users"), Body = "select * from app.users",
-                        DependsOn = [new ViewDependency(Id("app"), Id("users"))] },
+                        DependsOn = [new ObjectAddress(Id("app"), Id("users"))] },
                     new View { Name = Id("recent_users"), Body = "select * from app.active_users",
-                        DependsOn = [new ViewDependency(Id("app"), Id("active_users"))] },
+                        DependsOn = [new ObjectAddress(Id("app"), Id("active_users"))] },
                 ] },
         ],
         };
@@ -185,10 +185,10 @@ public class DependencyGraphTests
             new Schema { Name = Id("app"),
                 Tables = [new Table { Name = Id("users"), Columns = [new Column { Name = Id("id"), Type = SqlType.Int }] }],
                 Views = [
-                    new View { Name = Id("active"), Body = "select * from app.users", DependsOn = [new ViewDependency(Id("app"), Id("users"))] },
-                    new View { Name = Id("recent"), Body = "select * from app.users", DependsOn = [new ViewDependency(Id("app"), Id("users"))] },
+                    new View { Name = Id("active"), Body = "select * from app.users", DependsOn = [new ObjectAddress(Id("app"), Id("users"))] },
+                    new View { Name = Id("recent"), Body = "select * from app.users", DependsOn = [new ObjectAddress(Id("app"), Id("users"))] },
                     new View { Name = Id("summary"), Body = "select * from app.active, app.recent",
-                        DependsOn = [new ViewDependency(Id("app"), Id("active")), new ViewDependency(Id("app"), Id("recent"))] },
+                        DependsOn = [new ObjectAddress(Id("app"), Id("active")), new ObjectAddress(Id("app"), Id("recent"))] },
                 ] },
         ],
         };
@@ -223,7 +223,7 @@ public class DependencyGraphTests
         {
             Schemas = [
             new Schema { Name = Id("app"), Tables = [new Table { Name = Id("users"), Columns = [new Column { Name = Id("id"), Type = SqlType.Int }] }],
-                Views = [new View { Name = Id("summary"), Body = "select * from app.users", DependsOn = [new ViewDependency(Id("app"), Id("users"))] }] },
+                Views = [new View { Name = Id("summary"), Body = "select * from app.users", DependsOn = [new ObjectAddress(Id("app"), Id("users"))] }] },
             new Schema { Name = Id("billing"), Tables = [WithForeignKey("orders", "fk_orders_user", "app", "users")] },
         ],
         };

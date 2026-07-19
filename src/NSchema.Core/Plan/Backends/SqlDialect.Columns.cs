@@ -14,13 +14,13 @@ public abstract partial class SqlDialect
     /// Renders dropping a column from a table.
     /// </summary>
     protected virtual Result<IReadOnlyList<SqlStatement>> DropColumn(DropColumn action) =>
-        Statement($"ALTER TABLE {Qualify(action.SchemaName, action.TableName)} DROP COLUMN {Quote(action.ColumnName)}");
+        Statement($"ALTER TABLE {Qualify(action.Table)} DROP COLUMN {Quote(action.ColumnName)}");
 
     /// <summary>
     /// Renders the renaming of a column.
     /// </summary>
     protected virtual Result<IReadOnlyList<SqlStatement>> RenameColumn(RenameColumn action) =>
-        Statement($"ALTER TABLE {Qualify(action.SchemaName, action.TableName)} RENAME COLUMN {Quote(action.OldName)} TO {Quote(action.NewName)}");
+        Statement($"ALTER TABLE {Qualify(action.Column.Owner)} RENAME COLUMN {Quote(action.Column.Member)} TO {Quote(action.NewName)}");
 
     /// <summary>
     /// Renders changing a column's data type.
@@ -42,8 +42,8 @@ public abstract partial class SqlDialect
     /// </summary>
     protected virtual Result<IReadOnlyList<SqlStatement>> SetColumnDefault(SetColumnDefault action) =>
         Statement(action.NewDefault is null
-            ? $"ALTER TABLE {Qualify(action.SchemaName, action.TableName)} ALTER COLUMN {Quote(action.ColumnName)} DROP DEFAULT"
-            : $"ALTER TABLE {Qualify(action.SchemaName, action.TableName)} ALTER COLUMN {Quote(action.ColumnName)} SET DEFAULT {action.NewDefault}");
+            ? $"ALTER TABLE {Qualify(action.Column.Owner)} ALTER COLUMN {Quote(action.Column.Member)} DROP DEFAULT"
+            : $"ALTER TABLE {Qualify(action.Column.Owner)} ALTER COLUMN {Quote(action.Column.Member)} SET DEFAULT {action.NewDefault}");
 
     /// <summary>
     /// Renders changing a column's stored generation expression.

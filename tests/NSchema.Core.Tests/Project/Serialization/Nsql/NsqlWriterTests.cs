@@ -114,7 +114,7 @@ public sealed class NsqlWriterTests
         {
             Name = "orders",
             Columns = [new Column { Name = "user_id", Type = SqlType.Int }],
-            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["user_id"], ReferencedSchema = "app", ReferencedTable = "users", ReferencedColumnNames = ["id"], OnDelete = ReferentialAction.Cascade, OnUpdate = ReferentialAction.SetNull }],
+            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"], OnDelete = ReferentialAction.Cascade, OnUpdate = ReferentialAction.SetNull }],
         })
             .ShouldContain("CONSTRAINT fk FOREIGN KEY (user_id) REFERENCES app.users (id) ON DELETE CASCADE ON UPDATE SET NULL");
 
@@ -124,7 +124,7 @@ public sealed class NsqlWriterTests
         {
             Name = "orders",
             Columns = [new Column { Name = "user_id", Type = SqlType.Int }],
-            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["user_id"], ReferencedSchema = "app", ReferencedTable = "users", ReferencedColumnNames = ["id"] }],
+            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] }],
         })
             .ShouldNotContain("ON DELETE");
 
@@ -411,7 +411,7 @@ public sealed class NsqlWriterTests
         var view = reparsed.Schemas.ShouldHaveSingleItem().Views.ShouldHaveSingleItem();
         view.Name.ShouldBe("active");
         view.Body.ShouldBe("SELECT id, name FROM app.users WHERE active");
-        view.DependsOn.ShouldHaveSingleItem().ShouldBe(new ViewDependency("app", "users"));
+        view.DependsOn.ShouldHaveSingleItem().ShouldBe(new ObjectAddress("app", "users"));
     }
 
     // -------------------------------------------------------------------------

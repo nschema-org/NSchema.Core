@@ -42,7 +42,7 @@ public sealed class MigrationWorkflowTests
         [new SqlStatement(sql)]);
 
     /// <summary>The hash the capture is expected to record for a script body of <paramref name="sql"/>.</summary>
-    private static string HashOf(string sql) =>
+    private static ScriptHash HashOf(string sql) =>
         new DeploymentScript("seed", sql, null, DeploymentPhase.Post).Hash;
 
     private readonly MigrationWorkflow _sut;

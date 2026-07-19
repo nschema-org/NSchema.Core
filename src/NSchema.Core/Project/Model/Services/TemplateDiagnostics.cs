@@ -36,8 +36,8 @@ internal static class TemplateDiagnostics
     /// <summary>
     /// An INCLUDE inside a template body targeting a table that does not exist.
     /// </summary>
-    public static Diagnostic IncludeUnknownTable(SqlIdentifier templateName, SqlIdentifier schemaName, SqlIdentifier tableName) => Diagnostic.Error(Source,
-        $"INCLUDE '{templateName}' targets unknown table '{schemaName}.{tableName}'.");
+    public static Diagnostic IncludeUnknownTable(SqlIdentifier templateName, ObjectAddress table) => Diagnostic.Error(Source,
+        $"INCLUDE '{templateName}' targets unknown table '{table}'.");
 
     /// <summary>
     /// A table INCLUDE naming a template that does not exist.

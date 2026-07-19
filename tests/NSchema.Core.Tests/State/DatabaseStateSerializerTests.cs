@@ -62,7 +62,7 @@ public sealed class DatabaseStateSerializerTests
             Schemas = [
             new Schema { Name = "app", Tables = [
                 new Table { Name = "users", ForeignKeys = [
-                    new ForeignKey { Name = "fk", ColumnNames = ["org_id"], ReferencedSchema = "app", ReferencedTable = "orgs", ReferencedColumnNames = ["id"], OnDelete = ReferentialAction.Cascade },
+                    new ForeignKey { Name = "fk", ColumnNames = ["org_id"], References = new("app", "orgs"), ReferencedColumnNames = ["id"], OnDelete = ReferentialAction.Cascade },
                 ] },
             ] },
         ],
