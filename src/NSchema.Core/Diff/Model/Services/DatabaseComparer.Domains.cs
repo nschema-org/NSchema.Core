@@ -18,7 +18,7 @@ internal sealed partial class DatabaseComparer
 
     private static DomainDiff BuildNewDomain(SqlIdentifier schema, DomainType domain) =>
         new(schema, domain.Name, ChangeKind.Add, Definition: domain,
-            Comment: ValueChanges.Changed(null, domain.Comment));
+            Comment: ValueChange.Between(null, domain.Comment));
 
     // The base type cannot be altered in place (no ALTER DOMAIN … TYPE), so a change to it is a drop + recreate;
     // the default, not-null and checks then ride along on the definition. Every other change (default, not-null,
@@ -27,11 +27,11 @@ internal sealed partial class DatabaseComparer
     private DomainDiff? BuildModifiedDomain(SqlIdentifier schema, DomainType current, DomainType desired, SqlIdentifier? renamedFrom)
     {
         var dataType = current.DataType == desired.DataType ? null : new ValueChange<SqlType>(current.DataType, desired.DataType);
-        var comment = ValueChanges.Changed(current.Comment, desired.Comment);
+        var comment = ValueChange.Between(current.Comment, desired.Comment);
         var requiresRecreate = dataType is not null;
 
         // On a recreate the default/not-null/checks are rebuilt from the definition, so they are not diffed in place.
-        var @default = requiresRecreate ? null : ValueChanges.Changed(current.Default, desired.Default);
+        var @default = requiresRecreate ? null : ValueChange.Between(current.Default, desired.Default);
         var notNull = requiresRecreate || current.NotNull == desired.NotNull
             ? null
             : new ValueChange<bool>(current.NotNull, desired.NotNull);

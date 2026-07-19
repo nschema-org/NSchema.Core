@@ -23,14 +23,14 @@ internal sealed partial class DatabaseComparer
 
     private static ExtensionDiff BuildNewExtension(Extension extension) =>
         new(extension.Name, ChangeKind.Add, Definition: extension,
-            Comment: ValueChanges.Changed(null, extension.Comment));
+            Comment: ValueChange.Between(null, extension.Comment));
 
     private static ExtensionDiff? BuildModifiedExtension(Extension current, Extension desired)
     {
         // A null desired version means "accept whatever is installed", so it is never compared — an omitted
         // version cannot show as drift.
-        var version = desired.Version is null ? null : ValueChanges.Changed(current.Version, desired.Version);
-        var comment = ValueChanges.Changed(current.Comment, desired.Comment);
+        var version = desired.Version is null ? null : ValueChange.Between(current.Version, desired.Version);
+        var comment = ValueChange.Between(current.Comment, desired.Comment);
 
         if (version is null && comment is null)
         {

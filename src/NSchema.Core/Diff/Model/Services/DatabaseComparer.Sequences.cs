@@ -16,12 +16,12 @@ internal sealed partial class DatabaseComparer
 
     private static SequenceDiff BuildNewSequence(SqlIdentifier schema, Sequence sequence) =>
         new(schema, sequence.Name, ChangeKind.Add, Definition: sequence,
-            Comment: ValueChanges.Changed(null, sequence.Comment));
+            Comment: ValueChange.Between(null, sequence.Comment));
 
     private static SequenceDiff? BuildModifiedSequence(SqlIdentifier schema, Sequence current, Sequence desired, SqlIdentifier? renamedFrom)
     {
-        var comment = ValueChanges.Changed(current.Comment, desired.Comment);
-        var options = ValueChanges.Changed(current.Options, desired.Options);
+        var comment = ValueChange.Between(current.Comment, desired.Comment);
+        var options = ValueChange.Between(current.Options, desired.Options);
 
         if (renamedFrom is null && options is null && comment is null)
         {

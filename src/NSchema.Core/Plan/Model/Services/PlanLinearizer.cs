@@ -232,9 +232,12 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         }
     }
 
+    /// <summary>
+    /// The instance-level ordering layered on top of the fixed action-type order: where two views are created
+    /// together and one reads the other, the type order can't separate them — a dependency sort must.
+    /// </summary>
     private static IReadOnlyList<ViewDiff> OrderByDependency(IReadOnlyList<ViewDiff> views) =>
-        TopologicalSort.Order(
-            views,
+        views.OrderedByDependencies(
             ViewKey,
             view => view.DependsOn.Select(d => (d.Schema, d.Name)),
             view => $"view {view.Schema}.{view.Name}");

@@ -6,7 +6,6 @@ using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Schemas;
 using NSchema.Model.Scripts;
-using NSchema.Model.Services;
 using NSchema.Model.Tables;
 using NSchema.Plan.Policies;
 using NSchema.Project.Model.Directives;
@@ -48,7 +47,7 @@ public sealed class ProjectComparerTests
 
     /// <summary>A current state recording <paramref name="sql"/> as <paramref name="script"/>'s executed body.</summary>
     private static CurrentState Executed(Script script, string sql) =>
-        new(_emptySchema, [new ScriptExecution(script.Address, ScriptHashing.Hash(new SqlText(sql)), DateTimeOffset.UnixEpoch)]);
+        new(_emptySchema, [new ScriptExecution(script.Address, (script with { Sql = new SqlText(sql) }).Hash, DateTimeOffset.UnixEpoch)]);
 
     [Fact]
     public void Compare_DiffsBothSchemas()

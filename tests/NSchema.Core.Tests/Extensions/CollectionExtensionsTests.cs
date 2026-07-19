@@ -1,37 +1,37 @@
-using NSchema.Plan.Model.Services;
+using NSchema.Extensions;
 
-namespace NSchema.Tests.Plan;
+namespace NSchema.Tests.Extensions;
 
-public sealed class TopologicalSortTests
+public sealed class CollectionExtensionsTests
 {
     private sealed record Node(string Name, params string[] Deps);
 
     private static List<string> Order(params Node[] nodes) =>
-        TopologicalSort.Order(nodes, n => n.Name, n => n.Deps, n => n.Name)
+        nodes.OrderedByDependencies(n => n.Name, n => n.Deps, n => n.Name)
             .Select(n => n.Name).ToList();
 
     [Fact]
-    public void Order_PutsDependenciesFirst()
+    public void OrderedByDependencies_PutsDependenciesFirst()
     {
         // b depends on a, c depends on b -> a, b, c regardless of input order.
         Order(new Node("c", "b"), new Node("b", "a"), new Node("a")).ShouldBe(["a", "b", "c"]);
     }
 
     [Fact]
-    public void Order_IgnoresDependenciesOutsideTheSet()
+    public void OrderedByDependencies_IgnoresDependenciesOutsideTheSet()
     {
         // a depends on "external" which isn't in the set -> no edge, original order kept.
         Order(new Node("a", "external"), new Node("b")).ShouldBe(["a", "b"]);
     }
 
     [Fact]
-    public void Order_IsStableForIndependentItems()
+    public void OrderedByDependencies_IsStableForIndependentItems()
     {
         Order(new Node("x"), new Node("y"), new Node("z")).ShouldBe(["x", "y", "z"]);
     }
 
     [Fact]
-    public void Order_DiamondDependency()
+    public void OrderedByDependencies_DiamondDependency()
     {
         // d depends on b and c; b and c depend on a -> a before b,c before d.
         var ordered = Order(new Node("d", "b", "c"), new Node("b", "a"), new Node("c", "a"), new Node("a"));
@@ -43,7 +43,7 @@ public sealed class TopologicalSortTests
     }
 
     [Fact]
-    public void Order_DetectsCycle()
+    public void OrderedByDependencies_DetectsCycle()
     {
         var ex = Should.Throw<InvalidOperationException>(() => Order(new Node("a", "b"), new Node("b", "a")));
         ex.Message.ShouldContain("cycle", Case.Insensitive);
