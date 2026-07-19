@@ -10,34 +10,7 @@ internal sealed partial class NsqlParser
     /// Parses the whole document under the configuration grammar: only configuration statements are legal.
     /// Configuration and project statements never share a file — a file parses as one grammar or the other.
     /// </summary>
-    public NsqlConfigDocument ParseConfig()
-    {
-        var statements = new List<ConfigStatement>();
-        string? pendingDoc = null;
-
-        while (_current.Kind != TokenKind.EndOfFile)
-        {
-            if (_current.Kind == TokenKind.DocComment)
-            {
-                pendingDoc = _current.Text;
-                Advance();
-                continue;
-            }
-
-            try
-            {
-                statements.Add(ParseConfigGrammarStatement(pendingDoc));
-            }
-            catch (NsqlSyntaxException error)
-            {
-                _errors.Add(error);
-                Resync();
-            }
-            pendingDoc = null;
-        }
-
-        return new NsqlConfigDocument(statements);
-    }
+    public NsqlConfigDocument ParseConfig() => new(ParseDocumentBody(ParseConfigGrammarStatement));
 
     private ConfigStatement ParseConfigGrammarStatement(string? doc)
     {
