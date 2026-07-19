@@ -38,10 +38,6 @@ Minor consistency cleanup, making sure that after all the refactoring we've done
 - **Row-level security for Postgres.** Pure fidelity. No dependency on roles. Pilot kind for the per-kind handler decomposition.
 - **Roles slice + grant fidelity** — model carries only schema and table grants today. Missing: routine `EXECUTE`, sequence `USAGE`, and
   `ALTER DEFAULT PRIVILEGES` (the big one — its absence forces the `RUN ALWAYS` workaround this roadmap calls a smell).
-- **Quoted identifiers** — `"x"` / `[x]`, so NSchema reads familiar from any engine.
-  - Key question: cosmetic quoting (equality stays case-insensitive) vs semantic (PG-style quoted = case-sensitive identity, model-wide).
-  - Must-fix at this pass: `SyntaxBuilder.Type`'s first-dot `SqlType`→`TypeName` split — the last dot-split in Core. Dot-splitting is never safe:
-    identifiers may legally contain dots.
 - **Partitioning** — pairs with change scripts; attach/detach is substantially data movement.
 - **Editor support** — second file extension so editors can key a grammar without hijacking plain `.sql`. TextMate first.
   - Time-sensitive: custom constructs keep growing, and the opt-in extension gets costlier as projects accumulate `.sql` globs.
