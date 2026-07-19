@@ -16,9 +16,9 @@ internal static class DatabaseAligner
         // same renames keyed by declared names (what the tree carries after).
         var schemaRenames = new Dictionary<SqlIdentifier, SqlIdentifier>();
         var schemaLog = new Dictionary<SqlIdentifier, SqlIdentifier>();
-        var objectRenames = new Dictionary<(SqlIdentifier Schema, ObjectKind Kind, SqlIdentifier Name), SqlIdentifier>();
+        var objectRenames = new Dictionary<ObjectIdentity, SqlIdentifier>();
         var objectLog = new Dictionary<ObjectIdentity, SqlIdentifier>();
-        var columnRenames = new Dictionary<(SqlIdentifier Schema, SqlIdentifier Table, SqlIdentifier Column), SqlIdentifier>();
+        var columnRenames = new Dictionary<MemberAddress, SqlIdentifier>();
         var columnLog = new Dictionary<MemberAddress, SqlIdentifier>();
 
         // Schema renames resolve first: object and column directives address current reality, but their
@@ -76,7 +76,7 @@ internal static class DatabaseAligner
                 continue;
             }
 
-            objectRenames[(rename.From.Schema, kind, rename.From.Name)] = rename.To;
+            objectRenames[rename.From] = rename.To;
             objectLog[new ObjectIdentity(kind, declaredSchema, rename.To)] = rename.From.Name;
         }
 
@@ -94,7 +94,7 @@ internal static class DatabaseAligner
             }
 
             var declaredSchema = schemaRenames.GetValueOrDefault(rename.From.Schema, rename.From.Schema);
-            var declaredTable = objectRenames.GetValueOrDefault((rename.From.Schema, ObjectKind.Table, rename.From.Object), rename.From.Object);
+            var declaredTable = objectRenames.GetValueOrDefault(new ObjectIdentity(ObjectKind.Table, rename.From.Schema, rename.From.Object), rename.From.Object);
             var address = new MemberAddress(declaredSchema, declaredTable, rename.To);
             if (desired.Schemas.FirstOrDefault(s => s.Name == declaredSchema)
                     ?.Tables.FirstOrDefault(t => t.Name == declaredTable)
@@ -109,7 +109,7 @@ internal static class DatabaseAligner
                 continue;
             }
 
-            columnRenames[(rename.From.Schema, rename.From.Object, rename.From.Member)] = rename.To;
+            columnRenames[rename.From] = rename.To;
             columnLog[address] = rename.From.Member;
         }
 
@@ -129,7 +129,7 @@ internal static class DatabaseAligner
             {
                 foreach (var column in table.Columns)
                 {
-                    if (columnRenames.TryGetValue((currentSchemaName, table.Name, column.Name), out var columnName))
+                    if (columnRenames.TryGetValue(new MemberAddress(currentSchemaName, table.Name, column.Name), out var columnName))
                     {
                         column.Name = columnName;
                     }
@@ -137,7 +137,7 @@ internal static class DatabaseAligner
             }
             foreach (var obj in schema.Objects())
             {
-                if (objectRenames.TryGetValue((currentSchemaName, obj.Kind, obj.Name), out var objectName))
+                if (objectRenames.TryGetValue(new ObjectIdentity(obj.Kind, currentSchemaName, obj.Name), out var objectName))
                 {
                     obj.Name = objectName;
                 }

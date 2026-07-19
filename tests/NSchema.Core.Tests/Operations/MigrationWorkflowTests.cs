@@ -4,7 +4,6 @@ using NSchema.Diff.Model.Services;
 using NSchema.Model;
 using NSchema.Model.Schemas;
 using NSchema.Model.Scripts;
-using NSchema.Model.Services;
 using NSchema.Model.Tables;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
@@ -41,6 +40,10 @@ public sealed class MigrationWorkflowTests
     private static MigrationPlan AppliedPlan(string name, string sql) => new(
         new DatabaseDiff([]) { DeploymentScripts = [new DeploymentScript(new SqlIdentifier(name), new SqlText(sql), null, DeploymentPhase.Post) { RunCondition = RunCondition.Once }] },
         [new SqlStatement(new SqlText(sql))]);
+
+    /// <summary>The hash the capture is expected to record for a script body of <paramref name="sql"/>.</summary>
+    private static string HashOf(string sql) =>
+        new DeploymentScript(new SqlIdentifier("seed"), new SqlText(sql), null, DeploymentPhase.Post).Hash;
 
     private readonly MigrationWorkflow _sut;
 
@@ -418,7 +421,7 @@ public sealed class MigrationWorkflowTests
         // Assert
         var execution = _stateSerializer.Deserialize(written!.Value).Scripts.ShouldHaveSingleItem();
         execution.Script.Name.ShouldBe("seed");
-        execution.Hash.ShouldBe(ScriptHashing.Hash(new SqlText("SELECT 1")));
+        execution.Hash.ShouldBe(HashOf("SELECT 1"));
     }
 
     [Fact]
@@ -493,7 +496,7 @@ public sealed class MigrationWorkflowTests
         await sut.Refresh(AppliedPlan("seed", "SELECT 2"), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        _stateSerializer.Deserialize(written!.Value).Scripts.ShouldHaveSingleItem().Hash.ShouldBe(ScriptHashing.Hash(new SqlText("SELECT 2")));
+        _stateSerializer.Deserialize(written!.Value).Scripts.ShouldHaveSingleItem().Hash.ShouldBe(HashOf("SELECT 2"));
     }
 
     [Fact]

@@ -16,14 +16,14 @@ internal sealed partial class DatabaseComparer
 
     private static EnumDiff BuildNewEnum(SqlIdentifier schema, EnumType enumType) =>
         new(schema, enumType.Name, ChangeKind.Add, Definition: enumType,
-            Comment: ValueChanges.Changed(null, enumType.Comment));
+            Comment: ValueChange.Between(null, enumType.Comment));
 
     // Enum values are additions-only: a value-compatible change carries the anchored additions, while a removal
     // or reorder carries only the old/new value lists (AddedValues stays empty, so RequiresRecreate is true).
     // The diff still records the latter so drift can display it; planning it is rejected by policy.
     private static EnumDiff? BuildModifiedEnum(SqlIdentifier schema, EnumType current, EnumType desired, SqlIdentifier? renamedFrom)
     {
-        var comment = ValueChanges.Changed(current.Comment, desired.Comment);
+        var comment = ValueChange.Between(current.Comment, desired.Comment);
 
         ValueChange<IReadOnlyList<string>>? values = null;
         List<EnumValueAddition>? additions = null;

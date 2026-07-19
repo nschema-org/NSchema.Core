@@ -8,12 +8,12 @@ internal sealed class RefreshOperation(IMigrationWorkflow workflow) : IOperation
 {
     public async Task<Result<RefreshResult>> Execute(RefreshArguments args, CancellationToken cancellationToken = default)
     {
-        var captured = await workflow.Refresh(null, args.Force, cancellationToken);
-        if (captured.Value is not { } capture)
+        var diagnostics = new DiagnosticCollector();
+        if (!diagnostics.TryTake(await workflow.Refresh(null, args.Force, cancellationToken), out var capture))
         {
-            return Result.Failure<RefreshResult>(captured.Diagnostics);
+            return diagnostics.ToResult<RefreshResult>(null);
         }
 
-        return Result.Success(new RefreshResult(capture.Schema, capture.SnapshotBytes), captured.Diagnostics);
+        return diagnostics.ToResult(new RefreshResult(capture.Schema, capture.SnapshotBytes));
     }
 }

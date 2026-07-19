@@ -7,7 +7,7 @@ namespace NSchema.Model.Services;
 
 internal static class ModelSerialization
 {
-    public static JsonSerializerOptions Options => new()
+    public static JsonSerializerOptions Options { get; } = new()
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,

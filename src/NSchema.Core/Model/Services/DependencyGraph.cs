@@ -1,5 +1,9 @@
 using NSchema.Model.Columns;
+using NSchema.Model.CompositeTypes;
+using NSchema.Model.Domains;
+using NSchema.Model.Enums;
 using NSchema.Model.Tables;
+using NSchema.Model.Views;
 
 namespace NSchema.Model.Services;
 
@@ -24,12 +28,12 @@ internal sealed class DependencyGraph
     /// </summary>
     public DependencyGraph(Database database)
     {
-        var allTables = database.Schemas.SelectMany(s => s.Tables.Select(t => (Schema: s.Name, Table: t))).ToList();
-        var allViews = database.Schemas.SelectMany(s => s.Views.Select(v => (Schema: s.Name, View: v))).ToList();
-        var allTypes = database.Schemas.SelectMany(s =>
-            s.Enums.Select(e => (Schema: s.Name, e.Name, Kind: DependencyKind.Enum))
-                .Concat(s.Domains.Select(d => (Schema: s.Name, d.Name, Kind: DependencyKind.Domain)))
-                .Concat(s.CompositeTypes.Select(c => (Schema: s.Name, c.Name, Kind: DependencyKind.CompositeType)))).ToList();
+        var allTables = database.Objects<Table>().ToList();
+        var allViews = database.Objects<View>().ToList();
+        var allTypes = database.Objects<EnumType>().Select(x => (x.Schema, x.Object.Name, Kind: DependencyKind.Enum))
+            .Concat(database.Objects<DomainType>().Select(x => (x.Schema, x.Object.Name, Kind: DependencyKind.Domain)))
+            .Concat(database.Objects<CompositeType>().Select(x => (x.Schema, x.Object.Name, Kind: DependencyKind.CompositeType)))
+            .ToList();
 
         _typesByName = allTypes.ToLookup(t => t.Name, t => new ObjectAddress(t.Schema, t.Name));
 
@@ -66,7 +70,7 @@ internal sealed class DependencyGraph
             }
         }
 
-        foreach (var (schema, view) in database.Schemas.SelectMany(s => s.Views.Select(v => (Schema: s.Name, View: v))))
+        foreach (var (schema, view) in allViews)
         {
             var node = new DependencyNode(new ObjectAddress(schema, view.Name), DependencyKind.View);
             foreach (var dependency in view.DependsOn)
@@ -89,12 +93,12 @@ internal sealed class DependencyGraph
             }
         }
 
-        foreach (var (schema, domain) in database.Schemas.SelectMany(s => s.Domains.Select(d => (Schema: s.Name, Domain: d))))
+        foreach (var (schema, domain) in database.Objects<DomainType>())
         {
             ConnectToType(new DependencyNode(new ObjectAddress(schema, domain.Name), DependencyKind.Domain), domain.DataType);
         }
 
-        foreach (var (schema, composite) in database.Schemas.SelectMany(s => s.CompositeTypes.Select(c => (Schema: s.Name, Composite: c))))
+        foreach (var (schema, composite) in database.Objects<CompositeType>())
         {
             var node = new DependencyNode(new ObjectAddress(schema, composite.Name), DependencyKind.CompositeType);
             foreach (var field in composite.Fields)

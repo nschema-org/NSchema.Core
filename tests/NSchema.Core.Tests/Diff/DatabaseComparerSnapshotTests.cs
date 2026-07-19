@@ -175,7 +175,7 @@ public sealed class DatabaseComparerSnapshotTests
 
     // Builds a view with its dependencies derived from the body, exactly as the DDL parser would.
     private static View View(string name, string body) =>
-        new View { Name = new SqlIdentifier(name), Body = new SqlText(body), DependsOn = ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")) };
+        new View { Name = new SqlIdentifier(name), Body = new SqlText(body), DependsOn = ViewDependencyExtractor.Extract(new SqlText(body), new SqlIdentifier("app")) };
 
     private DatabaseDiff Compare(Database current, Database desired, ProjectDirectives? directives = null)
     {

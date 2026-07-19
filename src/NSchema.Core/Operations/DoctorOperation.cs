@@ -52,11 +52,11 @@ internal sealed class DoctorOperation(
         {
             // A full introspection is the honest end-to-end probe: it exercises the same path plan/apply rely on.
             var schema = await online.GetDatabase(PlanningScope.All, cancellationToken);
-            return Diagnostic.Info(source, $"Database: connected ({schema.Schemas.Count} schema{(schema.Schemas.Count == 1 ? "" : "s")} visible).");
+            return Diagnostic.Info(source, $"Database: connected ({StatusHelpers.Count(schema.Schemas.Count, "schema")} visible).");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return Diagnostic.Error(source, $"Database: unreachable — {ex.Message}");
+            return Diagnostic.Error(source, $"Database: unreachable — {ex.Message:text}");
         }
     }
 
@@ -76,7 +76,7 @@ internal sealed class DoctorOperation(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return Diagnostic.Error(source, $"State store: unreachable — {ex.Message}");
+            return Diagnostic.Error(source, $"State store: unreachable — {ex.Message:text}");
         }
 
         // A missing or empty payload is a bootstrap store — reachable, with nothing recorded yet — not a corruption.
@@ -94,7 +94,7 @@ internal sealed class DoctorOperation(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return Diagnostic.Error(source, $"State store: reachable but the recorded state is unreadable — {ex.Message}");
+            return Diagnostic.Error(source, $"State store: reachable but the recorded state is unreadable — {ex.Message:text}");
         }
     }
 
@@ -113,7 +113,7 @@ internal sealed class DoctorOperation(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return Diagnostic.Error(source, $"State lock: could not be checked — {ex.Message}");
+            return Diagnostic.Error(source, $"State lock: could not be checked — {ex.Message:text}");
         }
     }
 }

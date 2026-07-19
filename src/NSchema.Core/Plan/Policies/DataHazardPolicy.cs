@@ -37,7 +37,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
         return Hazards(diff).Select(message => new Diagnostic(PolicyName, message, severity));
     }
 
-    private static IEnumerable<string> Hazards(DatabaseDiff diff)
+    private static IEnumerable<FormattedText> Hazards(DatabaseDiff diff)
     {
         // Only a modified table can hold data at apply time: an added table is empty and a removed one is gone,
         // so hazards exist nowhere else.
@@ -53,7 +53,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
         }
     }
 
-    private static IEnumerable<string> TableHazards(SqlIdentifier schemaName, TableDiff table)
+    private static IEnumerable<FormattedText> TableHazards(SqlIdentifier schemaName, TableDiff table)
     {
         var qualified = $"{schemaName}.{table.Name}";
 
@@ -65,9 +65,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
             // A matched backfill migration handles the transition (the planner decomposes the add around it), so it silences this hazard.
             if (column is { Kind: ChangeKind.Add, Definition: { IsNullable: false, DefaultExpression: null, IsIdentity: false, GeneratedExpression: null }, MigrationScript: null })
             {
-                yield return $"Column '{path}' is added NOT NULL without a default; the migration will fail if the " +
-                             "table holds rows. Declaring a DEFAULT is usually the whole fix — PostgreSQL 11+ fills " +
-                             "existing rows from it without rewriting the table.";
+                yield return $"Column '{path}' is added NOT NULL without a default; the migration will fail if the table holds rows. Declaring a DEFAULT is usually the whole fix — PostgreSQL 11+ fills existing rows from it without rewriting the table.";
             }
 
             if (column.Kind != ChangeKind.Modify)
@@ -77,14 +75,12 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
 
             if (column.Nullability is { New: false })
             {
-                yield return $"Column '{path}' becomes NOT NULL; the migration will fail if existing rows hold " +
-                             "NULLs. Backfill them first.";
+                yield return $"Column '{path}' becomes NOT NULL; the migration will fail if existing rows hold NULLs. Backfill them first.";
             }
 
             if (column.Type is { Old: { } oldType, New: { } newType } && CanCastFail(oldType, newType) && column.MigrationScript is null)
             {
-                yield return $"Column '{path}' changes type from {oldType} to {newType}; the cast will fail for " +
-                             "existing values that do not fit the new type.";
+                yield return $"Column '{path}' changes type from {oldType} to {newType}; the cast will fail for existing values that do not fit the new type.";
             }
         }
 
@@ -101,8 +97,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
             var existing = ExistingColumns(primaryKey.Definition?.ColumnNames, addedColumns);
             if (existing.Count > 0)
             {
-                yield return $"Primary key '{primaryKey.Name}' on '{qualified}' is added over existing " +
-                             $"{Columns(existing)}; the migration will fail if existing rows hold duplicates or NULLs.";
+                yield return $"Primary key '{primaryKey.Name}' on '{qualified}' is added over existing {Columns(existing)}; the migration will fail if existing rows hold duplicates or NULLs.";
             }
         }
 
@@ -111,8 +106,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
             var existing = ExistingColumns(constraint.Definition?.ColumnNames, addedColumns);
             if (existing.Count > 0)
             {
-                yield return $"Unique constraint '{constraint.Name}' on '{qualified}' is added over existing " +
-                             $"{Columns(existing)}; the migration will fail if existing rows hold duplicates.";
+                yield return $"Unique constraint '{constraint.Name}' on '{qualified}' is added over existing {Columns(existing)}; the migration will fail if existing rows hold duplicates.";
             }
         }
 
@@ -121,8 +115,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
             // An expression key is opaque, so it is assumed to read pre-existing data.
             if (index.Definition!.Columns.Any(k => k.Column is not { } column || !addedColumns.Contains(column)))
             {
-                yield return $"Unique index '{index.Name}' on '{qualified}' is added over existing data; the " +
-                             "migration will fail if existing rows hold duplicates.";
+                yield return $"Unique index '{index.Name}' on '{qualified}' is added over existing data; the migration will fail if existing rows hold duplicates.";
             }
         }
     }
@@ -130,8 +123,8 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
     private static List<SqlIdentifier> ExistingColumns(IReadOnlyList<SqlIdentifier>? columnNames, IReadOnlySet<SqlIdentifier> addedColumns) =>
         columnNames?.Where(c => !addedColumns.Contains(c)).ToList() ?? [];
 
-    private static string Columns(List<SqlIdentifier> names) =>
-        (names.Count == 1 ? "column " : "columns ") + string.Join(", ", names.Select(n => $"'{n}'"));
+    private static FormattedText Columns(List<SqlIdentifier> names) =>
+        $"{(names.Count == 1 ? "column" : "columns"):text} {string.Join(", ", names.Select(n => $"'{n}'"))}";
 
     /// <summary>
     /// Whether altering a column from <paramref name="old"/> to <paramref name="new"/> can fail on values already

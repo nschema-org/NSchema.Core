@@ -16,15 +16,21 @@ internal static class DirectiveValidator
         var index = new DatabaseLookup(project.Database);
 
         // A current schema name maps to its declared name through the schema renames. First wins on a
-        // duplicate source — the duplicate itself is reported below, and validation continues best-effort.
+        // duplicate source — the duplicate itself is reported by the shape checks, and validation continues
+        // best-effort.
         var declaredNames = new Dictionary<SqlIdentifier, SqlIdentifier>();
         foreach (var rename in directives.SchemaRenames)
         {
             declaredNames.TryAdd(rename.From, rename.To);
         }
-        SqlIdentifier DeclaredSchema(SqlIdentifier currentSchema) => declaredNames.GetValueOrDefault(currentSchema, currentSchema);
 
-        // ── Schema directives ─────────────────────────────────────────────────────────────
+        return ValidateSchemaRenames(directives, index)
+            .Concat(ValidateObjectRenames(directives, index, declaredNames))
+            .Concat(ValidateColumnRenames(directives, index, declaredNames));
+    }
+
+    private static IEnumerable<Diagnostic> ValidateSchemaRenames(ProjectDirectives directives, DatabaseLookup index)
+    {
         foreach (var d in ValidateRenameShape("schema",
             directives.SchemaRenames.Select(r => (Container: 0, r.From, r.To)).ToList(),
             (_, name) => name.Value))
@@ -43,8 +49,14 @@ internal static class DirectiveValidator
                 yield return ProjectDiagnostics.RenameSourceStillDeclared("schema", rename.From.Value, rename.To);
             }
         }
+    }
 
-        // ── Object directives, one uniform rule set per kind ─────────────────────────────
+    /// <summary>
+    /// Validates the object-level renames, one uniform rule set per kind.
+    /// </summary>
+    private static IEnumerable<Diagnostic> ValidateObjectRenames(
+        ProjectDirectives directives, DatabaseLookup index, Dictionary<SqlIdentifier, SqlIdentifier> declaredNames)
+    {
         foreach (var kind in Enum.GetValues<ObjectKind>())
         {
             var kindName = kind.Display();
@@ -59,10 +71,10 @@ internal static class DirectiveValidator
 
             foreach (var rename in renames)
             {
-                var declaredSchema = DeclaredSchema(rename.From.Schema);
+                var declaredSchema = declaredNames.GetValueOrDefault(rename.From.Schema, rename.From.Schema);
                 if (index.FindSchema(declaredSchema) is null)
                 {
-                    yield return ProjectDiagnostics.DirectiveSchemaNotDeclared($"RENAME of {kindName} '{rename.From}'", rename.From.Schema);
+                    yield return ProjectDiagnostics.DirectiveSchemaNotDeclared($"RENAME of {kindName:text} '{rename.From}'", rename.From.Schema);
                 }
                 else if (!index.Has(kind, new ObjectAddress(declaredSchema, rename.To)))
                 {
@@ -74,8 +86,11 @@ internal static class DirectiveValidator
                 }
             }
         }
+    }
 
-        // ── Column renames ────────────────────────────────────────────────────────────────
+    private static IEnumerable<Diagnostic> ValidateColumnRenames(
+        ProjectDirectives directives, DatabaseLookup index, Dictionary<SqlIdentifier, SqlIdentifier> declaredNames)
+    {
         foreach (var d in ValidateRenameShape("column",
             directives.MemberRenames.Select(r => (Container: (r.From.Schema, r.From.Object), From: r.From.Member, r.To)).ToList(),
             (table, name) => $"{table.Item1}.{table.Item2}.{name}"))
@@ -92,7 +107,7 @@ internal static class DirectiveValidator
         {
             // The path names current reality: resolve the schema and the table through their own renames to
             // find the declared table the column must be declared on.
-            var declaredSchema = DeclaredSchema(rename.From.Schema);
+            var declaredSchema = declaredNames.GetValueOrDefault(rename.From.Schema, rename.From.Schema);
             var declaredTable = tableRenames.GetValueOrDefault(new ObjectAddress(rename.From.Schema, rename.From.Object), rename.From.Object);
             if (index.FindTable(new ObjectAddress(declaredSchema, declaredTable)) is not { } table)
             {

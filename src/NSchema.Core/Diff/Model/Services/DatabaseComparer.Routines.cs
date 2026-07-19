@@ -16,7 +16,7 @@ internal sealed partial class DatabaseComparer
 
     private static RoutineDiff BuildNewRoutine(SqlIdentifier schema, Routine routine) =>
         new(schema, routine.Name, ChangeKind.Add, routine.RoutineKind, Definition: routine,
-            Comment: ValueChanges.Changed(null, routine.Comment));
+            Comment: ValueChange.Between(null, routine.Comment));
 
     // The arguments and definition are opaque, compared for cosmetic equivalence. A definition-only change is
     // a replace (the provider emits CREATE OR REPLACE); an argument change forces a drop + recreate, because a
@@ -24,9 +24,9 @@ internal sealed partial class DatabaseComparer
     // carries the argument transition and the full desired definition rides along for the recreate.
     private static RoutineDiff? BuildModifiedRoutine(SqlIdentifier schema, Routine current, Routine desired, SqlIdentifier? renamedFrom)
     {
-        var argumentsChanged = !SqlTextNormalizer.AreEquivalent(current.Arguments, desired.Arguments);
-        var definitionChanged = !SqlTextNormalizer.AreEquivalent(current.Definition, desired.Definition);
-        var comment = ValueChanges.Changed(current.Comment, desired.Comment);
+        var argumentsChanged = !current.Arguments.EquivalentTo(desired.Arguments);
+        var definitionChanged = !current.Definition.EquivalentTo(desired.Definition);
+        var comment = ValueChange.Between(current.Comment, desired.Comment);
 
         // A kind change (function ⇄ procedure under the same name) also forces a recreate; it surfaces as an
         // argument change so the diff carries the transition and recreates.

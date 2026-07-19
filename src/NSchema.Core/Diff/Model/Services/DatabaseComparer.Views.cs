@@ -20,7 +20,7 @@ internal sealed partial class DatabaseComparer
 
     private static ViewDiff BuildNewView(SqlIdentifier schema, View view) =>
         new(schema, view.Name, ChangeKind.Add, Definition: view,
-            Comment: ValueChanges.Changed(null, view.Comment),
+            Comment: ValueChange.Between(null, view.Comment),
             DependsOn: view.DependsOn, IsMaterialized: view.IsMaterialized);
 
     // A view's body is opaque, so any textual change is a replace. For a plain view that replace is in place
@@ -30,9 +30,9 @@ internal sealed partial class DatabaseComparer
     private ViewDiff? BuildModifiedView(SqlIdentifier schema, View current, View desired, SqlIdentifier? renamedFrom)
     {
         // Compare bodies for *equivalence*, not byte-equality, so a database's cosmetic re-emission
-        // (whitespace, trailing terminator) does not read as a change. See SqlTextNormalizer.
-        var bodyChanged = !SqlTextNormalizer.AreEquivalent(current.Body, desired.Body);
-        var comment = ValueChanges.Changed(current.Comment, desired.Comment);
+        // (whitespace, trailing terminator) does not read as a change.
+        var bodyChanged = !current.Body.EquivalentTo(desired.Body);
+        var comment = ValueChange.Between(current.Comment, desired.Comment);
         var materializationFlipped = current.IsMaterialized != desired.IsMaterialized;
 
         var requiresRecreate = materializationFlipped || (bodyChanged && desired.IsMaterialized);

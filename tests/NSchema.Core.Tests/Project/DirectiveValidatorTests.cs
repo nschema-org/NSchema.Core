@@ -63,11 +63,11 @@ public sealed class DirectiveValidatorTests
     [Fact]
     public void Validate_DirectiveIntoUndeclaredSchema_IsAnError()
     {
-        var project = Project(new ProjectDirectives(
-            ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("ghost"), new SqlIdentifier("t"))), new SqlIdentifier("t2"))]));
+        var rename = new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("ghost"), new SqlIdentifier("t"))), new SqlIdentifier("t2"));
+        var project = Project(new ProjectDirectives(ObjectRenames: [rename]));
 
         Validate(project).ShouldHaveSingleItem()
-            .ShouldBe(ProjectDiagnostics.DirectiveSchemaNotDeclared("RENAME of table 'ghost.t'", new SqlIdentifier("ghost")));
+            .ShouldBe(ProjectDiagnostics.DirectiveSchemaNotDeclared($"RENAME of table '{rename.From}'", new SqlIdentifier("ghost")));
     }
 
     [Fact]

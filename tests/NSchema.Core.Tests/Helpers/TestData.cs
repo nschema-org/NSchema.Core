@@ -167,9 +167,9 @@ public static class TestData
 
     /// <summary>Builds a view with dependencies derived from its body, exactly as the DDL parser would.</summary>
     private static View View(string name, string body, string? comment = null) =>
-        new View { Name = new SqlIdentifier(name), Body = new SqlText(body), DependsOn = ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")), Comment = comment };
+        new View { Name = new SqlIdentifier(name), Body = new SqlText(body), DependsOn = ViewDependencyExtractor.Extract(new SqlText(body), new SqlIdentifier("app")), Comment = comment };
 
     /// <summary>Builds a materialized view (optionally with indexes), dependencies derived from its body.</summary>
     private static View MaterializedView(string name, string body, string? comment = null, DatabaseMemberCollection<TableIndex>? indexes = null) =>
-        new View { Name = new SqlIdentifier(name), Body = new SqlText(body), DependsOn = ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")), IsMaterialized = true, Indexes = indexes ?? [], Comment = comment };
+        new View { Name = new SqlIdentifier(name), Body = new SqlText(body), DependsOn = ViewDependencyExtractor.Extract(new SqlText(body), new SqlIdentifier("app")), IsMaterialized = true, Indexes = indexes ?? [], Comment = comment };
 }

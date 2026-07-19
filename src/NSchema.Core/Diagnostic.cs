@@ -4,17 +4,22 @@ namespace NSchema;
 /// A single structured finding, <see cref="Result{T}"/>, and the policy diagnostics.
 /// </summary>
 /// <param name="Source">What produced this finding.</param>
-/// <param name="Message">A descriptive message about the finding.</param>
+/// <param name="Text">A descriptive message about the finding, with its merged values marked.</param>
 /// <param name="Severity">The severity of the finding.</param>
-public record Diagnostic(string Source, string Message, DiagnosticSeverity Severity)
+public record Diagnostic(string Source, FormattedText Text, DiagnosticSeverity Severity)
 {
+    /// <summary>
+    /// The message as plain text.
+    /// </summary>
+    public string Message => Text.ToString();
+
     /// <summary>
     /// Creates an informational diagnostic.
     /// </summary>
     /// <param name="source">What produced this finding.</param>
     /// <param name="message">A descriptive message about the finding.</param>
     /// <returns>The created <see cref="Diagnostic"/>.</returns>
-    public static Diagnostic Info(string source, string message) => new(source, message, DiagnosticSeverity.Info);
+    public static Diagnostic Info(string source, FormattedText message) => new(source, message, DiagnosticSeverity.Info);
 
     /// <summary>
     /// Creates a warning diagnostic.
@@ -22,7 +27,7 @@ public record Diagnostic(string Source, string Message, DiagnosticSeverity Sever
     /// <param name="source">What produced this finding.</param>
     /// <param name="message">A descriptive message about the finding.</param>
     /// <returns>The created <see cref="Diagnostic"/>.</returns>
-    public static Diagnostic Warning(string source, string message) => new(source, message, DiagnosticSeverity.Warning);
+    public static Diagnostic Warning(string source, FormattedText message) => new(source, message, DiagnosticSeverity.Warning);
 
     /// <summary>
     /// Creates an error diagnostic.
@@ -30,7 +35,7 @@ public record Diagnostic(string Source, string Message, DiagnosticSeverity Sever
     /// <param name="source">What produced this finding.</param>
     /// <param name="message">A descriptive message about the finding.</param>
     /// <returns>The created <see cref="Diagnostic"/>.</returns>
-    public static Diagnostic Error(string source, string message) => new(source, message, DiagnosticSeverity.Error);
+    public static Diagnostic Error(string source, FormattedText message) => new(source, message, DiagnosticSeverity.Error);
 
     /// <summary>
     /// Downgrades a diagnostic to a given severity level if it exceeds it.

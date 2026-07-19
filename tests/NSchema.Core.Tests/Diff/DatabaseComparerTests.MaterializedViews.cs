@@ -13,7 +13,7 @@ public partial class DatabaseComparerTests
     // -------------------------------------------------------------------------
 
     private static View Matview(string name, string body, DatabaseMemberCollection<TableIndex>? indexes = null, string? comment = null) =>
-        new View { Name = new SqlIdentifier(name), Body = new SqlText(body), DependsOn = ViewDependencyExtractor.Extract(body, new SqlIdentifier("app")), IsMaterialized = true, Indexes = indexes ?? [], Comment = comment };
+        new View { Name = new SqlIdentifier(name), Body = new SqlText(body), DependsOn = ViewDependencyExtractor.Extract(new SqlText(body), new SqlIdentifier("app")), IsMaterialized = true, Indexes = indexes ?? [], Comment = comment };
 
     [Fact]
     public void Compare_NewMaterializedView_IsAddWithMaterializedFlag()

@@ -22,5 +22,5 @@ internal static class StateDiagnostics
     /// A raw push whose payload does not deserialize; nothing was written.
     /// </summary>
     public static Diagnostic InvalidRawPayload(Exception exception) =>
-        Diagnostic.Error(Source, $"The payload is not a valid state snapshot and was not written. {exception.Message}");
+        Diagnostic.Error(Source, $"The payload is not a valid state snapshot and was not written. {exception.Message:text}");
 }

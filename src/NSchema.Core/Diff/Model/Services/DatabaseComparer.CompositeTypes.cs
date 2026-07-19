@@ -16,14 +16,14 @@ internal sealed partial class DatabaseComparer
             (currentType, desiredType, renamedFrom) => BuildModifiedCompositeType(schemaName, currentType, desiredType, renamedFrom));
 
     private static CompositeTypeDiff BuildNewCompositeType(SqlIdentifier schema, CompositeType type) =>
-        new(schema, type.Name, ChangeKind.Add, Definition: type, Comment: ValueChanges.Changed(null, type.Comment));
+        new(schema, type.Name, ChangeKind.Add, Definition: type, Comment: ValueChange.Between(null, type.Comment));
 
     // A composite type's every change is applied in place (ALTER TYPE), so there is no recreate: a rename, the
     // comment, and each field add/drop/retype are tracked independently. Fields are matched by name; a type
     // change on a matched field is an in-place retype, not a drop + add.
     private static CompositeTypeDiff? BuildModifiedCompositeType(SqlIdentifier schema, CompositeType current, CompositeType desired, SqlIdentifier? renamedFrom)
     {
-        var comment = ValueChanges.Changed(current.Comment, desired.Comment);
+        var comment = ValueChange.Between(current.Comment, desired.Comment);
         var fields = CompareCompositeFields(current.Fields, desired.Fields);
 
         if (renamedFrom is null && comment is null && fields.Count == 0)
