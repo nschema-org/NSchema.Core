@@ -34,20 +34,6 @@ I'm currently torn between going through `.editorconfig` and a plugin-based appr
 At the moment, there's no guarantee that the plugins you install are compatible with the version of NSchema you're using. We're also missing a lot of
 utility features like updating plugins, listing outdated plugins, supporting version ranges, lockfiles, etc.
 
-### [Project assembly pipeline](roadmap/internal-refactors.md)
-
-The code that assembles the project at the moment doesn't read like a staged pipeline. We should refactor this, so it's actually maintainable.
-
-### [Per-kind decomposition](roadmap/internal-refactors.md)
-
-Some classes like the `DatabaseComparer` are huge and scale linearly with database fidelity because they operate over an entire database schema. In
-cases where it makes sense, we should look at refactoring into smaller, self-contained classes with a narrower responsibility.
-
-### [Static classes](roadmap/internal-refactors.md)
-
-Some classes like `DiffReader` are implemented as singletons without any good reason. We should just promote them to static classes, or inject them as
-interfaces that can be overridden for unit testing where valuable.
-
 ### [Edges pass](roadmap/edges-pass.md)
 
 Minor consistency cleanup, making sure that after all the refactoring we've done, none of the documentation has fallen out of line.
