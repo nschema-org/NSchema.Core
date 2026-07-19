@@ -144,7 +144,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         EmitExtensions(diff, actions);
         foreach (var schema in diff.Schemas)
         {
-            EmitSchema(schema, diff, actions);
+            EmitSchema(schema, actions);
         }
 
         // Views are emitted in one cross-schema pass: their create/drop order is governed by a dependency sort
@@ -198,7 +198,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                     creates.Add(view);
                 }
 
-                if (view.Comment is not null)
+                if (view.Kind != ChangeKind.Remove && view.Comment is not null)
                 {
                     actions.Add(new SetViewComment(view.Schema, view.Name, view.Comment.Old, view.Comment.New, view.IsMaterialized));
                 }
@@ -276,7 +276,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         }
     }
 
-    private static void EmitSchema(SchemaDiff schema, DatabaseDiff diff, List<MigrationAction> actions)
+    private static void EmitSchema(SchemaDiff schema, List<MigrationAction> actions)
     {
         switch (schema.Kind)
         {
@@ -290,7 +290,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitCompositeTypes(schema, actions);
                 foreach (var table in schema.Tables)
                 {
-                    EmitTable(table, diff, actions);
+                    EmitTable(table, actions);
                 }
                 break;
 
@@ -305,7 +305,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitCompositeTypes(schema, actions);
                 foreach (var table in schema.Tables)
                 {
-                    EmitTable(table, diff, actions);
+                    EmitTable(table, actions);
                 }
                 actions.Add(new DropSchema(schema.Name));
                 break;
@@ -323,7 +323,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitCompositeTypes(schema, actions);
                 foreach (var table in schema.Tables)
                 {
-                    EmitTable(table, diff, actions);
+                    EmitTable(table, actions);
                 }
                 break;
         }
@@ -544,7 +544,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         }
     }
 
-    private static void EmitTable(TableDiff table, DatabaseDiff diff, List<MigrationAction> actions)
+    private static void EmitTable(TableDiff table, List<MigrationAction> actions)
     {
         switch (table.Kind)
         {
@@ -560,7 +560,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 {
                     actions.Add(new SetColumnComment(table.Schema, table.Name, column.Name, column.Comment!.Old, column.Comment.New));
                 }
-                EmitConstraints(table, diff, actions);
+                EmitConstraints(table, actions);
                 EmitIndexes(table, actions);
                 EmitTriggers(table, actions);
                 EmitGrants(table, actions);
@@ -581,9 +581,9 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 }
                 foreach (var column in table.Columns)
                 {
-                    EmitColumn(table, column, diff, actions);
+                    EmitColumn(table, column, actions);
                 }
-                EmitConstraints(table, diff, actions);
+                EmitConstraints(table, actions);
                 EmitIndexes(table, actions);
                 EmitTriggers(table, actions);
                 EmitGrants(table, actions);
@@ -591,7 +591,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         }
     }
 
-    private static void EmitColumn(TableDiff table, ColumnDiff column, DatabaseDiff diff, List<MigrationAction> actions)
+    private static void EmitColumn(TableDiff table, ColumnDiff column, List<MigrationAction> actions)
     {
         switch (column.Kind)
         {
@@ -667,64 +667,57 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
     // Drops and revokes are sorted before RenameTable, so on a renamed table they run while it still carries
     // its old name; every action from the rename onward targets the new name.
-    private static void EmitConstraints(TableDiff table, DatabaseDiff diff, List<MigrationAction> actions)
+    private static void EmitConstraints(TableDiff table, List<MigrationAction> actions)
     {
         var preRenameName = table.RenamedFrom ?? table.Name;
 
-        // A constraint add's matched migration prepares the data the constraint depends on (de-duplication,
-        // backfill); the priority table runs every data migration before the constraint adds.
-        foreach (var pk in table.PrimaryKey)
-        {
-            EmitConstraintMigration(pk.Kind, pk.MigrationScript, actions);
-            actions.Add(pk.Kind switch
-            {
-                ChangeKind.Add => new AddPrimaryKey(table.Schema, table.Name, pk.Definition!),
-                ChangeKind.Remove => new DropPrimaryKey(table.Schema, preRenameName, pk.Name),
-                _ => new SetConstraintComment(table.Schema, table.Name, pk.Name, pk.Comment!.Old, pk.Comment.New),
-            });
-        }
+        EmitConstraintKind(table.PrimaryKey, actions,
+            pk => new AddPrimaryKey(table.Schema, table.Name, pk.Definition!),
+            pk => new DropPrimaryKey(table.Schema, preRenameName, pk.Name),
+            pk => new SetConstraintComment(table.Schema, table.Name, pk.Name, pk.Comment!.Old, pk.Comment.New));
 
-        foreach (var fk in table.ForeignKeys)
-        {
-            EmitConstraintMigration(fk.Kind, fk.MigrationScript, actions);
-            actions.Add(fk.Kind switch
-            {
-                ChangeKind.Add => new AddForeignKey(table.Schema, table.Name, fk.Definition!),
-                ChangeKind.Remove => new DropForeignKey(table.Schema, preRenameName, fk.Name),
-                _ => new SetConstraintComment(table.Schema, table.Name, fk.Name, fk.Comment!.Old, fk.Comment.New),
-            });
-        }
+        EmitConstraintKind(table.ForeignKeys, actions,
+            fk => new AddForeignKey(table.Schema, table.Name, fk.Definition!),
+            fk => new DropForeignKey(table.Schema, preRenameName, fk.Name),
+            fk => new SetConstraintComment(table.Schema, table.Name, fk.Name, fk.Comment!.Old, fk.Comment.New));
 
-        foreach (var uq in table.UniqueConstraints)
-        {
-            EmitConstraintMigration(uq.Kind, uq.MigrationScript, actions);
-            actions.Add(uq.Kind switch
-            {
-                ChangeKind.Add => new AddUniqueConstraint(table.Schema, table.Name, uq.Definition!),
-                ChangeKind.Remove => new DropUniqueConstraint(table.Schema, preRenameName, uq.Name),
-                _ => new SetConstraintComment(table.Schema, table.Name, uq.Name, uq.Comment!.Old, uq.Comment.New),
-            });
-        }
+        EmitConstraintKind(table.UniqueConstraints, actions,
+            uq => new AddUniqueConstraint(table.Schema, table.Name, uq.Definition!),
+            uq => new DropUniqueConstraint(table.Schema, preRenameName, uq.Name),
+            uq => new SetConstraintComment(table.Schema, table.Name, uq.Name, uq.Comment!.Old, uq.Comment.New));
 
-        foreach (var ck in table.Checks)
-        {
-            EmitConstraintMigration(ck.Kind, ck.MigrationScript, actions);
-            actions.Add(ck.Kind switch
-            {
-                ChangeKind.Add => new AddCheckConstraint(table.Schema, table.Name, ck.Definition!),
-                ChangeKind.Remove => new DropCheckConstraint(table.Schema, preRenameName, ck.Name),
-                _ => new SetConstraintComment(table.Schema, table.Name, ck.Name, ck.Comment!.Old, ck.Comment.New),
-            });
-        }
+        EmitConstraintKind(table.Checks, actions,
+            ck => new AddCheckConstraint(table.Schema, table.Name, ck.Definition!),
+            ck => new DropCheckConstraint(table.Schema, preRenameName, ck.Name),
+            ck => new SetConstraintComment(table.Schema, table.Name, ck.Name, ck.Comment!.Old, ck.Comment.New));
 
-        foreach (var ex in table.ExclusionConstraints)
+        EmitConstraintKind(table.ExclusionConstraints, actions,
+            ex => new AddExclusionConstraint(table.Schema, table.Name, ex.Definition!),
+            ex => new DropExclusionConstraint(table.Schema, preRenameName, ex.Name),
+            ex => new SetConstraintComment(table.Schema, table.Name, ex.Name, ex.Comment!.Old, ex.Comment.New));
+    }
+
+    /// <summary>
+    /// Emits one constraint kind: an add's matched migration first (it prepares the data the constraint depends
+    /// on — de-duplication, backfill — and the priority table runs every data migration before the constraint
+    /// adds), then the change itself. A constraint Modify is always a comment-only change.
+    /// </summary>
+    private static void EmitConstraintKind<T>(
+        IReadOnlyList<T> constraints,
+        List<MigrationAction> actions,
+        Func<T, MigrationAction> add,
+        Func<T, MigrationAction> drop,
+        Func<T, MigrationAction> comment
+    ) where T : IMigratableDiff
+    {
+        foreach (var constraint in constraints)
         {
-            EmitConstraintMigration(ex.Kind, ex.MigrationScript, actions);
-            actions.Add(ex.Kind switch
+            EmitConstraintMigration(constraint.Kind, constraint.MigrationScript, actions);
+            actions.Add(constraint.Kind switch
             {
-                ChangeKind.Add => new AddExclusionConstraint(table.Schema, table.Name, ex.Definition!),
-                ChangeKind.Remove => new DropExclusionConstraint(table.Schema, preRenameName, ex.Name),
-                _ => new SetConstraintComment(table.Schema, table.Name, ex.Name, ex.Comment!.Old, ex.Comment.New),
+                ChangeKind.Add => add(constraint),
+                ChangeKind.Remove => drop(constraint),
+                _ => comment(constraint),
             });
         }
     }
