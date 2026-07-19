@@ -44,7 +44,7 @@ internal static class ProjectDiagnostics
     public static NsqlDiagnostic ObjectAlreadyDeclared(ObjectKind kind, SqlIdentifier schema, SqlIdentifier name, SourcePosition position) =>
         Positioned(kind is ObjectKind.Routine
             ? $"Routine '{schema}.{name}' is already declared (functions and procedures share one name space)."
-            : $"{Display(kind)} '{schema}.{name}' is already declared.", position);
+            : $"{Capitalized(kind.Display())} '{schema}.{name}' is already declared.", position);
 
     /// <summary>
     /// A database-global extension declared more than once.
@@ -91,16 +91,7 @@ internal static class ProjectDiagnostics
     private static NsqlDiagnostic Positioned(string message, SourcePosition position) =>
         new(Source, $"{message} (at {position}).", DiagnosticSeverity.Error, position);
 
-    private static string Display(ObjectKind kind) => kind switch
-    {
-        ObjectKind.Table => "Table",
-        ObjectKind.View => "View",
-        ObjectKind.Enum => "Enum",
-        ObjectKind.Sequence => "Sequence",
-        ObjectKind.Domain => "Domain",
-        ObjectKind.CompositeType => "Composite type",
-        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
-    };
+    private static string Capitalized(string prose) => char.ToUpperInvariant(prose[0]) + prose[1..];
 
     // ── Directive rules — addresses arrive rendered because their shapes differ per kind. ──
 

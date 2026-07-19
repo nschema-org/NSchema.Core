@@ -127,10 +127,7 @@ public sealed class DiffReader
 
     private void RenderTable(List<DiffLine> lines, TableDiff table)
     {
-        var name = table.RenamedFrom is null
-            ? $"{table.Schema}.{table.Name}"
-            : $"{table.Schema}.{table.RenamedFrom} → {table.Name}";
-        AppendHeader(lines, table.Kind, $"table {name}{CommentSuffix(table.Comment)}");
+        AppendHeader(lines, table.Kind, $"table {QualifiedName(table)}{CommentSuffix(table.Comment)}");
 
         foreach (var column in table.Columns)
         {
@@ -149,43 +146,37 @@ public sealed class DiffReader
 
         foreach (var pk in table.PrimaryKey)
         {
-            AppendDetail(lines, pk.Kind, ConstraintText("primary key", pk.Name, pk.Kind, pk.Comment) + MigrationSuffix(pk.MigrationScript));
+            AppendDetail(lines, pk.Kind, MemberText("primary key", pk.Name, pk.Kind, pk.Comment) + MigrationSuffix(pk.MigrationScript));
         }
 
         foreach (var fk in table.ForeignKeys)
         {
-            AppendDetail(lines, fk.Kind, ConstraintText("foreign key", fk.Name, fk.Kind, fk.Comment) + MigrationSuffix(fk.MigrationScript));
+            AppendDetail(lines, fk.Kind, MemberText("foreign key", fk.Name, fk.Kind, fk.Comment) + MigrationSuffix(fk.MigrationScript));
         }
 
         foreach (var unique in table.UniqueConstraints)
         {
-            AppendDetail(lines, unique.Kind, ConstraintText("unique constraint", unique.Name, unique.Kind, unique.Comment) + MigrationSuffix(unique.MigrationScript));
+            AppendDetail(lines, unique.Kind, MemberText("unique constraint", unique.Name, unique.Kind, unique.Comment) + MigrationSuffix(unique.MigrationScript));
         }
 
         foreach (var check in table.Checks)
         {
-            AppendDetail(lines, check.Kind, ConstraintText("check constraint", check.Name, check.Kind, check.Comment) + MigrationSuffix(check.MigrationScript));
+            AppendDetail(lines, check.Kind, MemberText("check constraint", check.Name, check.Kind, check.Comment) + MigrationSuffix(check.MigrationScript));
         }
 
         foreach (var exclusion in table.ExclusionConstraints)
         {
-            AppendDetail(lines, exclusion.Kind, ConstraintText("exclusion constraint", exclusion.Name, exclusion.Kind, exclusion.Comment) + MigrationSuffix(exclusion.MigrationScript));
+            AppendDetail(lines, exclusion.Kind, MemberText("exclusion constraint", exclusion.Name, exclusion.Kind, exclusion.Comment) + MigrationSuffix(exclusion.MigrationScript));
         }
 
         foreach (var index in table.Indexes)
         {
-            var text = index.Kind == ChangeKind.Modify
-                ? $"index {index.Name} comment: {FormatComment(index.Comment?.Old)} → {FormatComment(index.Comment?.New)}"
-                : $"index {index.Name}";
-            AppendDetail(lines, index.Kind, text);
+            AppendDetail(lines, index.Kind, MemberText("index", index.Name, index.Kind, index.Comment));
         }
 
         foreach (var trigger in table.Triggers)
         {
-            var text = trigger.Kind == ChangeKind.Modify
-                ? $"trigger {trigger.Name} comment: {FormatComment(trigger.Comment?.Old)} → {FormatComment(trigger.Comment?.New)}"
-                : $"trigger {trigger.Name}";
-            AppendDetail(lines, trigger.Kind, text);
+            AppendDetail(lines, trigger.Kind, MemberText("trigger", trigger.Name, trigger.Kind, trigger.Comment));
         }
 
         foreach (var grant in table.Grants)
@@ -204,14 +195,12 @@ public sealed class DiffReader
         var label = view.Materialized is { } materialized
             ? $"{ViewLabel(materialized.Old)} → {ViewLabel(materialized.New)}"
             : ViewLabel(view.IsMaterialized);
-        var name = view.RenamedFrom is null
-            ? $"{view.Schema}.{view.Name}"
-            : $"{view.Schema}.{view.RenamedFrom} → {view.Name}";
+        var name = QualifiedName(view);
 
         // A comment-only modify (no body or index change) reports the comment transition rather than a bare header.
         if (view is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only, Indexes.Count: 0 })
         {
-            AppendHeader(lines, ChangeKind.Modify, $"{label} {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            AppendHeader(lines, ChangeKind.Modify, $"{label} {name} {CommentTransition(only)}");
             return;
         }
 
@@ -220,10 +209,7 @@ public sealed class DiffReader
         // In-place index changes on a materialized view.
         foreach (var index in view.Indexes)
         {
-            var text = index.Kind == ChangeKind.Modify
-                ? $"index {index.Name} comment: {FormatComment(index.Comment?.Old)} → {FormatComment(index.Comment?.New)}"
-                : $"index {index.Name}";
-            AppendDetail(lines, index.Kind, text);
+            AppendDetail(lines, index.Kind, MemberText("index", index.Name, index.Kind, index.Comment));
         }
     }
 
@@ -231,14 +217,12 @@ public sealed class DiffReader
 
     private void RenderEnum(List<DiffLine> lines, EnumDiff enumDiff)
     {
-        var name = enumDiff.RenamedFrom is null
-            ? $"{enumDiff.Schema}.{enumDiff.Name}"
-            : $"{enumDiff.Schema}.{enumDiff.RenamedFrom} → {enumDiff.Name}";
+        var name = QualifiedName(enumDiff);
 
         // A comment-only modify reports the comment transition rather than a bare header.
         if (enumDiff is { Kind: ChangeKind.Modify, Values: null, RenamedFrom: null, Comment: { } only })
         {
-            AppendHeader(lines, ChangeKind.Modify, $"enum {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            AppendHeader(lines, ChangeKind.Modify, $"enum {name} {CommentTransition(only)}");
             return;
         }
 
@@ -268,14 +252,12 @@ public sealed class DiffReader
 
     private void RenderSequence(List<DiffLine> lines, SequenceDiff sequence)
     {
-        var name = sequence.RenamedFrom is null
-            ? $"{sequence.Schema}.{sequence.Name}"
-            : $"{sequence.Schema}.{sequence.RenamedFrom} → {sequence.Name}";
+        var name = QualifiedName(sequence);
 
         // A comment-only modify reports the comment transition rather than a bare header.
         if (sequence is { Kind: ChangeKind.Modify, Options: null, RenamedFrom: null, Comment: { } only })
         {
-            AppendHeader(lines, ChangeKind.Modify, $"sequence {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            AppendHeader(lines, ChangeKind.Modify, $"sequence {name} {CommentTransition(only)}");
             return;
         }
 
@@ -294,14 +276,12 @@ public sealed class DiffReader
     private void RenderRoutine(List<DiffLine> lines, RoutineDiff routine)
     {
         var label = routine.RoutineKind == RoutineKind.Procedure ? "procedure" : "function";
-        var name = routine.RenamedFrom is null
-            ? $"{routine.Schema}.{routine.Name}"
-            : $"{routine.Schema}.{routine.RenamedFrom} → {routine.Name}";
+        var name = QualifiedName(routine);
 
         // A comment-only modify reports the comment transition rather than a bare header.
         if (routine is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only })
         {
-            AppendHeader(lines, ChangeKind.Modify, $"{label} {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            AppendHeader(lines, ChangeKind.Modify, $"{label} {name} {CommentTransition(only)}");
             return;
         }
 
@@ -319,7 +299,7 @@ public sealed class DiffReader
         // A comment-only modify reports the comment transition rather than a bare header.
         if (extension is { Kind: ChangeKind.Modify, Version: null, Comment: { } only })
         {
-            AppendHeader(lines, ChangeKind.Modify, $"extension {extension.Name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            AppendHeader(lines, ChangeKind.Modify, $"extension {extension.Name} {CommentTransition(only)}");
             return;
         }
 
@@ -334,14 +314,12 @@ public sealed class DiffReader
 
     private void RenderDomain(List<DiffLine> lines, DomainDiff domain)
     {
-        var name = domain.RenamedFrom is null
-            ? $"{domain.Schema}.{domain.Name}"
-            : $"{domain.Schema}.{domain.RenamedFrom} → {domain.Name}";
+        var name = QualifiedName(domain);
 
         // A comment-only modify reports the comment transition rather than a bare header.
         if (domain is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, DataType: null, Default: null, NotNull: null, Comment: { } only, Checks.Count: 0 })
         {
-            AppendHeader(lines, ChangeKind.Modify, $"domain {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            AppendHeader(lines, ChangeKind.Modify, $"domain {name} {CommentTransition(only)}");
             return;
         }
 
@@ -368,14 +346,12 @@ public sealed class DiffReader
 
     private void RenderCompositeType(List<DiffLine> lines, CompositeTypeDiff type)
     {
-        var name = type.RenamedFrom is null
-            ? $"{type.Schema}.{type.Name}"
-            : $"{type.Schema}.{type.RenamedFrom} → {type.Name}";
+        var name = QualifiedName(type);
 
         // A comment-only modify reports the comment transition rather than a bare header.
         if (type is { Kind: ChangeKind.Modify, Definition: null, RenamedFrom: null, Comment: { } only, Fields.Count: 0 })
         {
-            AppendHeader(lines, ChangeKind.Modify, $"type {name} comment: {FormatComment(only.Old)} → {FormatComment(only.New)}");
+            AppendHeader(lines, ChangeKind.Modify, $"type {name} {CommentTransition(only)}");
             return;
         }
 
@@ -442,7 +418,7 @@ public sealed class DiffReader
 
         if (column.Comment is { } comment)
         {
-            AppendDetail(lines, ChangeKind.Modify, $"{column.Name} comment: {FormatComment(comment.Old)} → {FormatComment(comment.New)}");
+            AppendDetail(lines, ChangeKind.Modify, $"{column.Name} {CommentTransition(comment)}");
         }
     }
 
@@ -518,11 +494,19 @@ public sealed class DiffReader
 
     private static string FormatVersion(string? version) => version ?? "<default>";
 
-    // A constraint Modify is always a comment-only change (structural changes are Remove + Add).
-    private string ConstraintText(string label, SqlIdentifier name, ChangeKind kind, ValueChange<string>? comment) =>
+    // A table-member Modify is always a comment-only change (structural changes are Remove + Add).
+    private string MemberText(string label, SqlIdentifier name, ChangeKind kind, ValueChange<string>? comment) =>
         kind == ChangeKind.Modify
-            ? $"{label} {name} comment: {FormatComment(comment?.Old)} → {FormatComment(comment?.New)}"
+            ? $"{label} {name} {CommentTransition(comment)}"
             : $"{label} {name}";
+
+    private string CommentTransition(ValueChange<string>? comment) =>
+        $"comment: {FormatComment(comment?.Old)} → {FormatComment(comment?.New)}";
+
+    // The schema-qualified object name, rendering a rename as its transition.
+    private static string QualifiedName(ISchemaObjectDiff diff) => diff.RenamedFrom is null
+        ? $"{diff.Schema}.{diff.Name}"
+        : $"{diff.Schema}.{diff.RenamedFrom} → {diff.Name}";
 
     private string FormatDefault(SqlText? value) => value?.Value ?? "<none>";
 
