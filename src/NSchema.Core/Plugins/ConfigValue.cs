@@ -1,7 +1,7 @@
 namespace NSchema.Plugins;
 
 /// <summary>
-/// A scalar value of a configuration attribute (see <see cref="PluginSettings"/>).
+/// A scalar value of a configuration attribute (see <see cref="PluginConfig"/>).
 /// </summary>
 public sealed record ConfigValue
 {

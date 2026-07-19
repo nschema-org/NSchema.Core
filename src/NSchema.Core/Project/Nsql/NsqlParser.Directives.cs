@@ -54,7 +54,7 @@ internal sealed partial class NsqlParser
             Advance();
             return ObjectKind.Table;
         }
-        if (_current.IsKeyword(NsqlKeywords.View) || _current.IsKeyword(NsqlKeywords.Materialized))
+        if (_current.IsAnyKeyword(NsqlKeywords.View, NsqlKeywords.Materialized))
         {
             if (Advance().IsKeyword(NsqlKeywords.Materialized))
             {
@@ -82,7 +82,7 @@ internal sealed partial class NsqlParser
             Advance();
             return ObjectKind.Sequence;
         }
-        if (_current.IsKeyword(NsqlKeywords.Function) || _current.IsKeyword(NsqlKeywords.Procedure) || _current.IsKeyword(NsqlKeywords.Routine))
+        if (_current.IsAnyKeyword(NsqlKeywords.Function, NsqlKeywords.Procedure, NsqlKeywords.Routine))
         {
             Advance();
             return ObjectKind.Routine;

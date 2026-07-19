@@ -320,38 +320,38 @@ internal sealed partial class NsqlParser
                 }
             }
 
-            if (string.Equals(option.Value, NsqlKeywords.As, StringComparison.OrdinalIgnoreCase))
+            if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.As))
             {
                 RejectDuplicate(dataType is not null);
                 var typeName = ExpectIdentifierNode("a type name");
                 dataType = new TypeName(null, typeName) { Position = typeName.Position };
             }
-            else if (string.Equals(option.Value, NsqlKeywords.Start, StringComparison.OrdinalIgnoreCase))
+            else if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.Start))
             {
                 RejectDuplicate(start is not null);
                 start = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, NsqlKeywords.Increment, StringComparison.OrdinalIgnoreCase))
+            else if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.Increment))
             {
                 RejectDuplicate(increment is not null);
                 increment = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, NsqlKeywords.MinValue, StringComparison.OrdinalIgnoreCase))
+            else if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.MinValue))
             {
                 RejectDuplicate(min is not null);
                 min = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, NsqlKeywords.MaxValue, StringComparison.OrdinalIgnoreCase))
+            else if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.MaxValue))
             {
                 RejectDuplicate(max is not null);
                 max = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, NsqlKeywords.Cache, StringComparison.OrdinalIgnoreCase))
+            else if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.Cache))
             {
                 RejectDuplicate(cache is not null);
                 cache = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, NsqlKeywords.Cycle, StringComparison.OrdinalIgnoreCase))
+            else if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.Cycle))
             {
                 RejectDuplicate(cycle);
                 cycle = true;
@@ -435,7 +435,7 @@ internal sealed partial class NsqlParser
         if (_current.IsKeyword(NsqlKeywords.Execute))
         {
             Advance();
-            if (_current.IsKeyword(NsqlKeywords.Function) || _current.IsKeyword(NsqlKeywords.Procedure))
+            if (_current.IsAnyKeyword(NsqlKeywords.Function, NsqlKeywords.Procedure))
             {
                 Advance();
             }
@@ -686,15 +686,15 @@ internal sealed partial class NsqlParser
         {
             var option = ExpectIdentifierNode($"{NsqlKeywords.Start}, {NsqlKeywords.Increment} or {NsqlKeywords.MinValue}");
             var value = ExpectIntegerValue();
-            if (string.Equals(option.Value, NsqlKeywords.Start, StringComparison.OrdinalIgnoreCase))
+            if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.Start))
             {
                 start = value;
             }
-            else if (string.Equals(option.Value, NsqlKeywords.Increment, StringComparison.OrdinalIgnoreCase))
+            else if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.Increment))
             {
                 increment = value;
             }
-            else if (string.Equals(option.Value, NsqlKeywords.MinValue, StringComparison.OrdinalIgnoreCase))
+            else if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.MinValue))
             {
                 min = value;
             }

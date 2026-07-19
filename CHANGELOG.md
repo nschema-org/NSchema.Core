@@ -45,7 +45,9 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **The state ledger field is `scripts` now.** Pre-5.0 `executedScripts` payloads read as an empty ledger. Refresh (or untaint) existing state under the state-format compatibility policy's major-version rules.
 - **Configuration lives in configuration files.** DATABASE and STATE statements now parse under their own grammar. A configuration file holds only configuration statements, and vice versa.
 - **`DATABASE` and `STATE` replace `PROVIDER` and `BACKEND`.** Each names the thing it configures rather than the role that supplies it.
-- **Plugins receive `PluginSettings`.** `INSchemaProviderPlugin`/`INSchemaBackendPlugin.Configure` take a typed `PluginSettings` (label + attributes, translated from the parsed statement via `PluginSettings.From`).
+- **Plugins receive `PluginConfig`.** `Configure` takes a typed `PluginConfig` (label + attributes), translated from the parsed statement by the configuration assembly.
+- **`INSchemaDatabasePlugin` and `INSchemaStatePlugin` replace `INSchemaProviderPlugin` and `INSchemaBackendPlugin`.** Each is named for the statement that configures it.
+- **Plugins are resolved by capability, not by name.** `INSchemaPlugin.Label` is gone — the statement kind selects the capability interface, and the label in configuration is the user's local name for a declared `PLUGIN`, never the plugin's own. `ScaffoldContext.Version` is gone with it: the host authors the `PLUGIN` statement (it knows the package and the resolved version), so a plugin's scaffold template contributes only its own configuration block.
 - **`NsqlReader` replaces `DdlReader` and diagnostics are structural.** `NsqlReader.Read`/`ReadFile` return `Result<NsqlDocument, NsqlDiagnostic>`, the new diagnostic-typed result, with each finding carrying its source position.
 - **`DdlReader.Read` returns `Result<DdlDocument>`.** A syntax error is an error diagnostic instead of a thrown exception, and the parser now recovers at statement boundaries.
 - **`DatabaseSchema` is pure data now.** `Filter` joined `Combine` off the model, into the projection machinery.
@@ -70,6 +72,10 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 
 - **Ephemeral state.** `UseEphemeralState()` registers an in-memory state store and matching lock, intended for disposable databases.
 - **Object-granular targeting.** `PlanningScope` now takes object addresses alongside schema name.
+- **`PLUGIN` declares plugin dependencies.** `PLUGIN <label> ( source = '…', version = '…' );` separates dependency declaration from configuration.
+- **`ENGINE` asserts the engine version.** `ENGINE ( version = '…' );` states the engine version range a project requires..
+- **The engine handshake.** `PluginHandshake.Validate` checks a loaded plugin assembly against the hosting engine before any of its types are instantiated.
+- **`ConfigProvider.GetConfig` loads a configuration.** One call from file paths to a `ConfigDefinition`: reads every file, and assembles the best-effort result.
 
 ### Removed
 

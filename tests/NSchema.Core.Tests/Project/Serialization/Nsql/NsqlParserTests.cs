@@ -90,6 +90,11 @@ public sealed class NsqlParserTests
         => Should.Throw<NsqlSyntaxException>(() => Parse("DATABASE postgres ( dialect = 'postgres' );"))
             .Message.ShouldContain("configuration statement");
 
+    [Fact]
+    public void Parse_PluginStatement_InProjectSource_Throws()
+        => Should.Throw<NsqlSyntaxException>(() => Parse("PLUGIN pg ( source = 'NSchema.Postgres', version = '5.0.1' );"))
+            .Message.ShouldContain("configuration statement");
+
     // -------------------------------------------------------------------------
     // Multiple statements
     // -------------------------------------------------------------------------
