@@ -46,7 +46,7 @@ internal sealed partial class DatabaseComparer
             }
         }
 
-        return result;
+        return result.OrderBy(t => t.Name).ToList();
     }
 
     private static TableDiff RemovedTable(SqlIdentifier schema, SqlIdentifier name) =>

@@ -98,7 +98,7 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger)
     /// <see cref="MatchEntities{T}"/>, treats an unmatched current object as removed, and builds an add for
     /// each unmatched desired object or delegates to <paramref name="buildModified"/> for a pair (passing the
     /// name the entity was renamed from, when the alignment moved it). Only the per-kind build logic varies;
-    /// the matching lives here, once.
+    /// the matching — and the name ordering the diff presents every kind in — lives here, once.
     /// </summary>
     private static List<TDiff> CompareObjects<TModel, TDiff>(
         IReadOnlyList<TModel> current,
@@ -107,7 +107,7 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger)
         Func<TModel, TDiff> buildRemoved,
         Func<TModel, TDiff> buildNew,
         Func<TModel, TModel, SqlIdentifier?, TDiff?> buildModified
-    ) where TModel : DatabaseElement where TDiff : class
+    ) where TModel : DatabaseElement where TDiff : class, INamedObjectDiff
     {
         var result = new List<TDiff>();
         var (forDesired, currentMatched) = MatchEntities(current, desired);
@@ -132,7 +132,7 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger)
             }
         }
 
-        return result;
+        return result.OrderBy(d => d.Name).ToList();
     }
 
     /// <summary>
@@ -244,13 +244,13 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger)
         return new SchemaDiff(
             current.Name,
             ChangeKind.Remove,
-            Tables: CompareTables(current.Name, current.Tables, empty, RenameLog.Empty).OrderBy(t => t.Name).ToList(),
-            Views: CompareViews(current.Name, current.Views, empty, RenameLog.Empty).OrderBy(v => v.Name).ToList(),
-            Enums: CompareEnums(current.Name, current.Enums, empty, RenameLog.Empty).OrderBy(e => e.Name).ToList(),
-            Sequences: CompareSequences(current.Name, current.Sequences, empty, RenameLog.Empty).OrderBy(s => s.Name).ToList(),
-            Routines: CompareRoutines(current.Name, current.Routines, empty, RenameLog.Empty).OrderBy(r => r.Name).ToList(),
-            Domains: CompareDomains(current.Name, current.Domains, empty, RenameLog.Empty).OrderBy(d => d.Name).ToList(),
-            CompositeTypes: CompareCompositeTypes(current.Name, current.CompositeTypes, empty, RenameLog.Empty).OrderBy(c => c.Name).ToList());
+            Tables: CompareTables(current.Name, current.Tables, empty, RenameLog.Empty),
+            Views: CompareViews(current.Name, current.Views, empty, RenameLog.Empty),
+            Enums: CompareEnums(current.Name, current.Enums, empty, RenameLog.Empty),
+            Sequences: CompareSequences(current.Name, current.Sequences, empty, RenameLog.Empty),
+            Routines: CompareRoutines(current.Name, current.Routines, empty, RenameLog.Empty),
+            Domains: CompareDomains(current.Name, current.Domains, empty, RenameLog.Empty),
+            CompositeTypes: CompareCompositeTypes(current.Name, current.CompositeTypes, empty, RenameLog.Empty));
     }
 
     private SchemaDiff? BuildModifiedSchema(Schema current, Schema desired, RenameLog renames)
@@ -273,27 +273,13 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger)
         }
 
         var grants = CompareSchemaGrants(desired.Name, current.Grants, desired.Grants);
-        var tables = CompareTables(desired.Name, current.Tables, desired, renames)
-            .OrderBy(table => table.Name)
-            .ToList();
-        var views = CompareViews(desired.Name, current.Views, desired, renames)
-            .OrderBy(view => view.Name)
-            .ToList();
-        var enums = CompareEnums(desired.Name, current.Enums, desired, renames)
-            .OrderBy(enumType => enumType.Name)
-            .ToList();
-        var sequences = CompareSequences(desired.Name, current.Sequences, desired, renames)
-            .OrderBy(sequence => sequence.Name)
-            .ToList();
-        var routines = CompareRoutines(desired.Name, current.Routines, desired, renames)
-            .OrderBy(routine => routine.Name)
-            .ToList();
-        var domains = CompareDomains(desired.Name, current.Domains, desired, renames)
-            .OrderBy(domain => domain.Name)
-            .ToList();
-        var compositeTypes = CompareCompositeTypes(desired.Name, current.CompositeTypes, desired, renames)
-            .OrderBy(type => type.Name)
-            .ToList();
+        var tables = CompareTables(desired.Name, current.Tables, desired, renames);
+        var views = CompareViews(desired.Name, current.Views, desired, renames);
+        var enums = CompareEnums(desired.Name, current.Enums, desired, renames);
+        var sequences = CompareSequences(desired.Name, current.Sequences, desired, renames);
+        var routines = CompareRoutines(desired.Name, current.Routines, desired, renames);
+        var domains = CompareDomains(desired.Name, current.Domains, desired, renames);
+        var compositeTypes = CompareCompositeTypes(desired.Name, current.CompositeTypes, desired, renames);
 
         // The schema entity itself only changes when it is renamed or its comment/grants change; a schema that
         // merely contains changed tables or views has a null Kind.
