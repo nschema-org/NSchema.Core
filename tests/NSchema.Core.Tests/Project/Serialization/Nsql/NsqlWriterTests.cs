@@ -370,7 +370,7 @@ public sealed class NsqlWriterTests
     public void Write_ExtensionWithNonIdentifierName_QuotesIt()
         // A hyphenated name (e.g. uuid-ossp) must be quoted so it round-trips through the parser.
         => NsqlWriter.Write(new Database { Extensions = [new Extension { Name = new SqlIdentifier("uuid-ossp") }] })
-            .ShouldContain("CREATE EXTENSION 'uuid-ossp';");
+            .ShouldContain("CREATE EXTENSION \"uuid-ossp\";");
 
     [Fact]
     public void Write_ExtensionComment_EmitsDocComment()

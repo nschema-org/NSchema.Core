@@ -151,8 +151,10 @@ public sealed class ProjectProviderTests : IDisposable
     }
 
     [Fact]
-    public async Task GetProject_DuplicateMigrationDetection_IsCaseInsensitive()
+    public async Task GetProject_CaseVariantMigrationTargets_AreDistinct()
     {
+        // Identifiers are case-sensitive, so scripts addressing case-variant paths target different members
+        // and are not duplicates of one another.
         Write("a.sql",
             """
             CREATE SCHEMA app;
@@ -163,8 +165,8 @@ public sealed class ProjectProviderTests : IDisposable
 
         var result = await sut.GetProject(PlanningScope.All, TestContext.Current.CancellationToken);
 
-        result.IsFailure.ShouldBeTrue();
-        result.Errors.ShouldContain(d => d.Message.Contains("Duplicate migration"));
+        result.Errors.ShouldNotContain(d => d.Message.Contains("Duplicate migration"));
+        result.Value!.Directives.ChangeScripts.Count.ShouldBe(2);
     }
 
     [Fact]

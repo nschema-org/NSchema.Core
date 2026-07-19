@@ -63,10 +63,10 @@ public static class NsqlWriter
         {
             case Syn.Schemas.CreateSchemaStatement s:
                 WriteDocComment(sb, s.Doc, indent: "");
-                sb.Append($"{NsqlKeywords.Create} {NsqlKeywords.Schema} ").Append(s.Name.Value).AppendLine(";");
+                sb.Append($"{NsqlKeywords.Create} {NsqlKeywords.Schema} ").Append(EscapedIdentifier(s.Name)).AppendLine(";");
                 break;
             case Syn.Schemas.GrantSchemaUsageStatement s:
-                sb.Append($"{NsqlKeywords.Grant} {NsqlKeywords.Usage} {NsqlKeywords.On} {NsqlKeywords.Schema} ").Append(s.Schema.Value).Append($" {NsqlKeywords.To} ").Append(s.Role.Value).AppendLine(";");
+                sb.Append($"{NsqlKeywords.Grant} {NsqlKeywords.Usage} {NsqlKeywords.On} {NsqlKeywords.Schema} ").Append(EscapedIdentifier(s.Schema)).Append($" {NsqlKeywords.To} ").Append(EscapedIdentifier(s.Role)).AppendLine(";");
                 break;
             case Syn.Enums.CreateEnumStatement s:
                 WriteDocComment(sb, s.Doc, indent: "");
@@ -119,7 +119,7 @@ public static class NsqlWriter
             case Syn.Tables.GrantTableStatement s:
                 sb.Append($"{NsqlKeywords.Grant} ").Append(PrivilegesText(s.Privileges))
                     .Append($" {NsqlKeywords.On} ").Append(Qualified(s.On))
-                    .Append($" {NsqlKeywords.To} ").Append(s.Role.Value).AppendLine(";");
+                    .Append($" {NsqlKeywords.To} ").Append(EscapedIdentifier(s.Role)).AppendLine(";");
                 break;
             case Syn.Triggers.CreateTriggerStatement s:
                 WriteTrigger(sb, s);
@@ -141,13 +141,13 @@ public static class NsqlWriter
                 {
                     sb.Append($"{NsqlKeywords.Unique} ");
                 }
-                sb.Append($"{NsqlKeywords.Index} ").Append(s.Name.Value).Append($" {NsqlKeywords.On} ").Append(Qualified(s.On));
+                sb.Append($"{NsqlKeywords.Index} ").Append(EscapedIdentifier(s.Name)).Append($" {NsqlKeywords.On} ").Append(Qualified(s.On));
                 AppendIndexTail(sb, s.Method, s.Columns, s.Include, s.Predicate);
                 sb.AppendLine(";");
                 break;
             case Syn.Extensions.CreateExtensionStatement s:
                 WriteDocComment(sb, s.Doc, indent: "");
-                sb.Append($"{NsqlKeywords.Create} {NsqlKeywords.Extension} ").Append(ExtensionName(s.Name.Value));
+                sb.Append($"{NsqlKeywords.Create} {NsqlKeywords.Extension} ").Append(EscapedIdentifier(s.Name));
                 if (s.Version is { } version)
                 {
                     sb.Append($" {NsqlKeywords.Version} '").Append(version.Replace("'", "''")).Append('\'');
@@ -158,14 +158,14 @@ public static class NsqlWriter
                 WriteScript(sb, s);
                 break;
             case Syn.Schemas.RenameSchemaStatement s:
-                sb.Append($"{NsqlKeywords.Rename} {NsqlKeywords.Schema} ").Append(s.From.Value).Append($" {NsqlKeywords.To} ").Append(s.To.Value).AppendLine(";");
+                sb.Append($"{NsqlKeywords.Rename} {NsqlKeywords.Schema} ").Append(EscapedIdentifier(s.From)).Append($" {NsqlKeywords.To} ").Append(EscapedIdentifier(s.To)).AppendLine(";");
                 break;
             case RenameObjectStatement s:
-                sb.Append($"{NsqlKeywords.Rename} {KindKeyword(s.Kind)} ").Append(Qualified(s.From)).Append($" {NsqlKeywords.To} ").Append(s.To.Value).AppendLine(";");
+                sb.Append($"{NsqlKeywords.Rename} {KindKeyword(s.Kind)} ").Append(Qualified(s.From)).Append($" {NsqlKeywords.To} ").Append(EscapedIdentifier(s.To)).AppendLine(";");
                 break;
             case Syn.Tables.RenameColumnStatement s:
-                sb.Append($"{NsqlKeywords.Rename} {NsqlKeywords.Column} ").Append(s.From.Schema!.Value).Append('.').Append(s.From.Table.Value).Append('.').Append(s.From.Member.Value)
-                    .Append($" {NsqlKeywords.To} ").Append(s.To.Value).AppendLine(";");
+                sb.Append($"{NsqlKeywords.Rename} {NsqlKeywords.Column} ").Append(EscapedIdentifier(s.From.Schema!)).Append('.').Append(EscapedIdentifier(s.From.Table)).Append('.').Append(EscapedIdentifier(s.From.Member))
+                    .Append($" {NsqlKeywords.To} ").Append(EscapedIdentifier(s.To)).AppendLine(";");
                 break;
             default:
                 throw new NotSupportedException($"Statement '{statement.GetType().Name}' is not rendered.");
@@ -194,7 +194,7 @@ public static class NsqlWriter
             case Syn.Tables.ColumnDefinition m:
                 {
                     var sb = new StringBuilder();
-                    sb.Append(m.Name.Value).Append(' ').Append(TypeText(m.Type));
+                    sb.Append(EscapedIdentifier(m.Name)).Append(' ').Append(TypeText(m.Type));
                     if (!m.IsNullable)
                     {
                         sb.Append($" {NsqlKeywords.Not} {NsqlKeywords.Null}");
@@ -218,11 +218,11 @@ public static class NsqlWriter
                     return sb.ToString();
                 }
             case Syn.Constraints.PrimaryKeyDefinition m:
-                return $"{NsqlKeywords.Constraint} {m.Name.Value} {NsqlKeywords.Primary} {NsqlKeywords.Key} ({ColumnsText(m.Columns)})";
+                return $"{NsqlKeywords.Constraint} {EscapedIdentifier(m.Name)} {NsqlKeywords.Primary} {NsqlKeywords.Key} ({ColumnsText(m.Columns)})";
             case Syn.Constraints.ForeignKeyDefinition m:
                 {
                     var sb = new StringBuilder();
-                    sb.Append($"{NsqlKeywords.Constraint} ").Append(m.Name.Value)
+                    sb.Append($"{NsqlKeywords.Constraint} ").Append(EscapedIdentifier(m.Name))
                         .Append($" {NsqlKeywords.Foreign} {NsqlKeywords.Key} (").Append(ColumnsText(m.Columns)).Append(')')
                         .Append($" {NsqlKeywords.References} ").Append(Qualified(m.References))
                         .Append(" (").Append(ColumnsText(m.ReferencedColumns)).Append(')');
@@ -237,16 +237,16 @@ public static class NsqlWriter
                     return sb.ToString();
                 }
             case Syn.Constraints.UniqueDefinition m:
-                return $"{NsqlKeywords.Constraint} {m.Name.Value} {NsqlKeywords.Unique} ({ColumnsText(m.Columns)})";
+                return $"{NsqlKeywords.Constraint} {EscapedIdentifier(m.Name)} {NsqlKeywords.Unique} ({ColumnsText(m.Columns)})";
             case Syn.Constraints.CheckDefinition m:
-                return $"{NsqlKeywords.Constraint} {m.Name.Value} {NsqlKeywords.Check} ({m.Expression.Value})";
+                return $"{NsqlKeywords.Constraint} {EscapedIdentifier(m.Name)} {NsqlKeywords.Check} ({m.Expression.Value})";
             case Syn.Constraints.ExclusionDefinition m:
                 {
                     var sb = new StringBuilder();
-                    sb.Append($"{NsqlKeywords.Constraint} ").Append(m.Name.Value).Append($" {NsqlKeywords.Exclude}");
+                    sb.Append($"{NsqlKeywords.Constraint} ").Append(EscapedIdentifier(m.Name)).Append($" {NsqlKeywords.Exclude}");
                     if (m.Method is { } method)
                     {
-                        sb.Append($" {NsqlKeywords.Using} ").Append(method.Value);
+                        sb.Append($" {NsqlKeywords.Using} ").Append(EscapedIdentifier(method));
                     }
                     sb.Append(" (").Append(string.Join(", ", m.Elements.Select(ExclusionElementText))).Append(')');
                     if (m.Predicate is { } predicate)
@@ -262,7 +262,7 @@ public static class NsqlWriter
                     {
                         sb.Append($"{NsqlKeywords.Unique} ");
                     }
-                    sb.Append($"{NsqlKeywords.Index} ").Append(m.Name.Value);
+                    sb.Append($"{NsqlKeywords.Index} ").Append(EscapedIdentifier(m.Name));
                     AppendIndexTail(sb, m.Method, m.Columns, m.Include, m.Predicate);
                     return sb.ToString();
                 }
@@ -274,7 +274,7 @@ public static class NsqlWriter
     private static void WriteTrigger(StringBuilder sb, Syn.Triggers.CreateTriggerStatement statement)
     {
         WriteDocComment(sb, statement.Doc, indent: "");
-        sb.Append($"{NsqlKeywords.Create} {NsqlKeywords.Trigger} ").Append(statement.Name.Value).Append(' ').Append(TimingText(statement.Timing))
+        sb.Append($"{NsqlKeywords.Create} {NsqlKeywords.Trigger} ").Append(EscapedIdentifier(statement.Name)).Append(' ').Append(TimingText(statement.Timing))
             .Append(' ').Append(EventsText(statement))
             .Append($" {NsqlKeywords.On} ").Append(Qualified(statement.On));
 
@@ -301,7 +301,7 @@ public static class NsqlWriter
 
     private static void WriteScript(StringBuilder sb, Syn.Scripts.ScriptStatement statement)
     {
-        sb.Append($"{NsqlKeywords.Script} ").Append(statement.Name).Append($" {NsqlKeywords.Run}");
+        sb.Append($"{NsqlKeywords.Script} ").Append(EscapedIdentifier(statement.Name)).Append($" {NsqlKeywords.Run}");
         if (statement.RunCondition == Syn.Scripts.RunCondition.Once)
         {
             sb.Append($" {NsqlKeywords.Once}");
@@ -337,7 +337,7 @@ public static class NsqlWriter
     };
 
     private static string PathText(MemberPath path) =>
-        path.Schema is { } schema ? $"{schema.Value}.{path.Table.Value}.{path.Member.Value}" : $"{path.Table.Value}.{path.Member.Value}";
+        path.Schema is { } schema ? $"{EscapedIdentifier(schema)}.{EscapedIdentifier(path.Table)}.{EscapedIdentifier(path.Member)}" : $"{EscapedIdentifier(path.Table)}.{EscapedIdentifier(path.Member)}";
 
     // --- clause helpers ----------------------------------------------------------------
 
@@ -347,7 +347,7 @@ public static class NsqlWriter
     {
         if (method is not null)
         {
-            sb.Append($" {NsqlKeywords.Using} ").Append(method.Value);
+            sb.Append($" {NsqlKeywords.Using} ").Append(EscapedIdentifier(method));
         }
         sb.Append(" (").Append(string.Join(", ", columns.Select(IndexKeyText))).Append(')');
         if (include is { Count: > 0 })
@@ -363,7 +363,7 @@ public static class NsqlWriter
     private static string IndexKeyText(Syn.Indexes.IndexElement element)
     {
         var sb = new StringBuilder();
-        sb.Append(element.Column is { } name ? name.Value : $"({element.Expression!.Value})");
+        sb.Append(element.Column is { } name ? EscapedIdentifier(name) : $"({element.Expression!.Value})");
         sb.Append(element.Sort switch
         {
             Syn.Indexes.IndexSort.Ascending => $" {NsqlKeywords.Asc}",
@@ -380,7 +380,7 @@ public static class NsqlWriter
     }
 
     private static string ExclusionElementText(Syn.Constraints.ExclusionElement element) =>
-        $"{(element.Column is { } column ? column.Value : $"({element.Expression!.Value})")} {NsqlKeywords.With} {element.Operator}";
+        $"{(element.Column is { } column ? EscapedIdentifier(column) : $"({element.Expression!.Value})")} {NsqlKeywords.With} {element.Operator}";
 
     private static string? SequenceOptionsText(Syn.Sequences.SequenceOptionsClause options)
     {
@@ -506,33 +506,22 @@ public static class NsqlWriter
         ObjectKind.Routine => NsqlKeywords.Routine,
         ObjectKind.Domain => NsqlKeywords.Domain,
         ObjectKind.CompositeType => NsqlKeywords.Type,
+        ObjectKind.Extension => NsqlKeywords.Extension,
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };
 
     private static string Qualified(QualifiedName name) =>
-        name.Schema is { } schema ? $"{schema.Value}.{name.Name.Value}" : name.Name.Value;
+        name.Schema is { } schema ? $"{EscapedIdentifier(schema)}.{EscapedIdentifier(name.Name)}" : EscapedIdentifier(name.Name);
 
     private static string Reference(QualifiedName name) => Qualified(name);
 
     private static string TypeText(TypeName type)
     {
-        var text = type.Schema is { } schema ? $"{schema.Value}.{type.Name.Value}" : type.Name.Value;
+        var text = type.Schema is { } schema ? $"{EscapedIdentifier(schema)}.{EscapedIdentifier(type.Name)}" : EscapedIdentifier(type.Name);
         return type.Arguments is { } arguments ? $"{text}({arguments})" : text;
     }
 
-    private static string ColumnsText(IReadOnlyList<Identifier> columns) => string.Join(", ", columns.Select(c => c.Value));
-
-    /// <summary>
-    /// Renders an extension name: bare when it is a valid identifier, otherwise single-quoted (e.g.
-    /// <c>'uuid-ossp'</c>) so it round-trips through the parser.
-    /// </summary>
-    private static string ExtensionName(string name) =>
-        IsBareIdentifier(name) ? name : $"'{name.Replace("'", "''")}'";
-
-    private static bool IsBareIdentifier(string name) =>
-        name.Length > 0
-        && (char.IsAsciiLetter(name[0]) || name[0] == '_')
-        && name.All(c => char.IsAsciiLetterOrDigit(c) || c == '_');
+    private static string ColumnsText(IReadOnlyList<Identifier> columns) => string.Join(", ", columns.Select(EscapedIdentifier));
 
     private static string DollarDelimiter(SqlText body)
     {
@@ -560,5 +549,19 @@ public static class NsqlWriter
         {
             sb.Append(indent).Append("--- ").AppendLine(line);
         }
+    }
+
+    private static string EscapedIdentifier(Identifier identifier) => NeedsQuoting(identifier)
+        ? $"\"{identifier.Value.Replace("\"", "\"\"")}\""
+        : identifier.Value;
+
+    private static bool NeedsQuoting(Identifier identifier)
+    {
+        if (identifier.Value.Length == 0 || !NsqlLexer.IsIdentifierStart(identifier.Value[0]) || NsqlKeywords.MemberOpeners.Contains(identifier.Value))
+        {
+            return true;
+        }
+
+        return !identifier.Value.All(NsqlLexer.IsIdentifierPart);
     }
 }

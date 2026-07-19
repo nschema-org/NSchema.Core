@@ -20,4 +20,9 @@ internal readonly record struct Token(TokenKind Kind, string Text, SourcePositio
     /// <param name="keyword">The keyword to test against.</param>
     public bool IsKeyword(string keyword) =>
         Kind == TokenKind.Identifier && string.Equals(Text, keyword, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Whether this token can serve as an object name: a bare or quoted identifier.
+    /// </summary>
+    public bool IsName => Kind is TokenKind.Identifier or TokenKind.QuotedIdentifier;
 }

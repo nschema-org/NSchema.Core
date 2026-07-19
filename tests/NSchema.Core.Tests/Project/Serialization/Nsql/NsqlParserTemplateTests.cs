@@ -202,8 +202,12 @@ public sealed class NsqlParserTemplateTests
 
     [Fact]
     public void Parse_ApplyTemplate_DuplicateSchema_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => new TestNsqlParser("APPLY TEMPLATE t IN SCHEMA a, A;").Parse())
+        => Should.Throw<NsqlSyntaxException>(() => new TestNsqlParser("APPLY TEMPLATE t IN SCHEMA a, b, a;").Parse())
             .Message.ShouldContain("more than once");
+
+    [Fact]
+    public void Parse_ApplyTemplate_CaseVariantSchemas_AreDistinct()
+        => Should.NotThrow(() => new TestNsqlParser("APPLY TEMPLATE t IN SCHEMA a, A;").Parse());
 
     [Fact]
     public void Parse_Template_QualifiedDeclaration_FailsTheRead()

@@ -330,4 +330,47 @@ public sealed class MigrationPlannerTests
         result.Errors.ShouldHaveSingleItem().ShouldBe(PlanDiagnostics.MissingDialect);
     }
 
+    [Fact]
+    public void Plan_DeclaredObjectMatchingObservedOnlyUpToCase_Warns()
+    {
+        // Arrange — identifiers are case-sensitive, so "Users" beside a live "users" is a new object;
+        // the near-miss is almost always a misspelled adoption, so the plan warns.
+        var observed = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users") }] }] };
+        var declared = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("Users") }] }] };
+
+        // Act
+        var result = Sut.Plan(new CurrentState(observed), new ProjectDefinition(declared), PlanningScope.All);
+
+        // Assert
+        result.Warnings.ShouldContain(PlanDiagnostics.CaseOnlyMismatch(
+            new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("Users"))),
+            new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users")))));
+    }
+
+    [Fact]
+    public void Plan_DeclaredSchemaMatchingObservedOnlyUpToCase_Warns()
+    {
+        // Arrange
+        var observed = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] };
+        var declared = new Database { Schemas = [new Schema { Name = new SqlIdentifier("App") }] };
+
+        // Act
+        var result = Sut.Plan(new CurrentState(observed), new ProjectDefinition(declared), PlanningScope.All);
+
+        // Assert
+        result.Warnings.ShouldContain(PlanDiagnostics.CaseOnlySchemaMismatch(new SqlIdentifier("App"), new SqlIdentifier("app")));
+    }
+
+    [Fact]
+    public void Plan_ExactlyMatchingNames_ProduceNoCaseWarnings()
+    {
+        // Arrange
+        var database = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users") }] }] };
+
+        // Act
+        var result = Sut.Plan(new CurrentState(database), new ProjectDefinition(database), PlanningScope.All);
+
+        // Assert
+        result.Warnings.ShouldNotContain(d => d.Message.Contains("only in case"));
+    }
 }

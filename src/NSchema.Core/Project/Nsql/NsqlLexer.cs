@@ -99,6 +99,7 @@ internal sealed class NsqlLexer(string source, bool emitComments = false)
             case '=': Advance(); return new Token(TokenKind.Equals, "=", pos);
             case '-': Advance(); return new Token(TokenKind.Minus, "-", pos);
             case '\'': return ReadString(pos);
+            case '"': return ReadQuotedIdentifier(pos);
         }
 
         if (char.IsAsciiDigit(ch))
@@ -233,6 +234,40 @@ internal sealed class NsqlLexer(string source, bool emitComments = false)
         }
     }
 
+    private Token ReadQuotedIdentifier(SourcePosition pos)
+    {
+        Advance(); // consume opening quote
+        var builder = new StringBuilder();
+        while (true)
+        {
+            if (AtEnd)
+            {
+                throw new NsqlSyntaxException("Unterminated quoted identifier", pos);
+            }
+
+            var c = Current;
+            if (c == '"')
+            {
+                if (Peek(1) == '"')
+                {
+                    builder.Append('"');
+                    Advance(); Advance();
+                    continue;
+                }
+
+                Advance(); // consume closing quote
+                if (builder.Length == 0)
+                {
+                    throw new NsqlSyntaxException("A quoted identifier cannot be empty", pos);
+                }
+                return new Token(TokenKind.QuotedIdentifier, builder.ToString(), pos);
+            }
+
+            builder.Append(c);
+            Advance();
+        }
+    }
+
     private Token ReadString(SourcePosition pos)
     {
         Advance(); // consume opening quote
@@ -336,6 +371,6 @@ internal sealed class NsqlLexer(string source, bool emitComments = false)
         }
     }
 
-    private static bool IsIdentifierStart(char c) => char.IsAsciiLetter(c) || c == '_';
-    private static bool IsIdentifierPart(char c) => char.IsAsciiLetterOrDigit(c) || c == '_';
+    internal static bool IsIdentifierStart(char c) => char.IsAsciiLetter(c) || c == '_';
+    internal static bool IsIdentifierPart(char c) => char.IsAsciiLetterOrDigit(c) || c == '_';
 }

@@ -128,10 +128,19 @@ public sealed class StructuralIntegrityPolicyTests
     public void Error_WhenColumnDeclaredTwice()
     {
         // Act
-        var diagnostics = _sut.Validate(Db(new Table { Name = new SqlIdentifier("t"), Columns = [Col("id"), Col("ID")] })).ToList();
+        var diagnostics = _sut.Validate(Db(new Table { Name = new SqlIdentifier("t"), Columns = [Col("id"), Col("id")] })).ToList();
 
         // Assert
         diagnostics.ShouldContain(d => d.Message.Contains("more than once"));
+    }
+
+    [Fact]
+    public void NoError_WhenColumnsDifferOnlyInCase()
+    {
+        // Identifiers are case-sensitive: "id" and "ID" are two different columns, not a duplicate.
+        var diagnostics = _sut.Validate(Db(new Table { Name = new SqlIdentifier("t"), Columns = [Col("id"), Col("ID")] })).ToList();
+
+        diagnostics.ShouldNotContain(d => d.Message.Contains("more than once"));
     }
 
     [Fact]

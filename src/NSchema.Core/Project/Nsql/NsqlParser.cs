@@ -129,7 +129,7 @@ internal sealed partial class NsqlParser
 
     private Identifier ExpectIdentifierNode(string what)
     {
-        if (_current.Kind != TokenKind.Identifier)
+        if (!_current.IsName)
         {
             throw Error($"Expected {what}.");
         }

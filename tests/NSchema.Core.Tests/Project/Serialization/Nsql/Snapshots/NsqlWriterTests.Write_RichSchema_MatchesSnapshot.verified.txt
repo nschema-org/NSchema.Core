@@ -4,7 +4,7 @@
 CREATE EXTENSION postgis VERSION '3.4';
 
 --- uuid generation
-CREATE EXTENSION 'uuid-ossp';
+CREATE EXTENSION "uuid-ossp";
 
 --- application schema
 CREATE SCHEMA app;

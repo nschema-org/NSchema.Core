@@ -4,22 +4,29 @@ using NSchema.Model.Tables;
 namespace NSchema.Tests.Project.Model;
 
 /// <summary>
-/// The identifier contract: case-insensitive identity, written-casing preservation, and the collection
-/// behaviors (hashing, ordering) that follow from it.
+/// The identifier contract: identity is the exact written text — case-sensitive equality, written-casing
+/// preservation, and the collection behaviors (hashing, ordering) that follow from it.
 /// </summary>
 public class SqlIdentifierTests
 {
     [Fact]
-    public void Equals_CaseVariants_AreTheSameIdentifier()
+    public void Equals_CaseVariants_AreDifferentIdentifiers()
     {
         // Arrange
         var lower = new SqlIdentifier("users");
         var mixed = new SqlIdentifier("Users");
 
         // Assert
-        lower.Equals(mixed).ShouldBeTrue();
-        (lower == mixed).ShouldBeTrue();
-        (lower != mixed).ShouldBeFalse();
+        lower.Equals(mixed).ShouldBeFalse();
+        (lower == mixed).ShouldBeFalse();
+        (lower != mixed).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Equals_SameText_AreEqual()
+    {
+        // Assert
+        (new SqlIdentifier("users") == new SqlIdentifier("users")).ShouldBeTrue();
     }
 
     [Fact]
@@ -34,13 +41,6 @@ public class SqlIdentifierTests
     }
 
     [Fact]
-    public void GetHashCode_CaseVariants_Collide()
-    {
-        // Assert
-        new SqlIdentifier("users").GetHashCode().ShouldBe(new SqlIdentifier("USERS").GetHashCode());
-    }
-
-    [Fact]
     public void Value_PreservesWrittenCasing()
     {
         // Arrange
@@ -52,36 +52,37 @@ public class SqlIdentifierTests
     }
 
     [Fact]
-    public void RecordEquality_NestedIdentifierLists_AreCaseInsensitive()
+    public void RecordEquality_NestedIdentifierLists_AreCaseSensitive()
     {
-        // Arrange — the latent-spurious-diff class this type fixes: referenced column lists differing only in case.
+        // Arrange — column lists differing only in case name different columns.
         var current = new PrimaryKey { Name = new SqlIdentifier("pk"), ColumnNames = [new SqlIdentifier("ID"), new SqlIdentifier("Email")] };
-        var desired = new PrimaryKey { Name = new SqlIdentifier("PK"), ColumnNames = [new SqlIdentifier("id"), new SqlIdentifier("email")] };
+        var desired = new PrimaryKey { Name = new SqlIdentifier("pk"), ColumnNames = [new SqlIdentifier("id"), new SqlIdentifier("email")] };
 
         // Assert
-        current.Equals(desired).ShouldBeTrue();
+        current.Equals(desired).ShouldBeFalse();
+        current.Equals(new PrimaryKey { Name = new SqlIdentifier("pk"), ColumnNames = [new SqlIdentifier("ID"), new SqlIdentifier("Email")] }).ShouldBeTrue();
     }
 
     [Fact]
-    public void HashSet_CaseVariants_AreOneEntry()
+    public void HashSet_CaseVariants_AreSeparateEntries()
     {
         // Act
         var set = new HashSet<SqlIdentifier> { new SqlIdentifier("users"), new SqlIdentifier("Users"), new SqlIdentifier("USERS") };
 
         // Assert
-        set.Count.ShouldBe(1);
+        set.Count.ShouldBe(3);
     }
 
     [Fact]
-    public void CompareTo_OrdersCaseInsensitively()
+    public void CompareTo_OrdersOrdinally()
     {
         // Arrange
-        var names = new List<SqlIdentifier> { new SqlIdentifier("Zebra"), new SqlIdentifier("apple"), new SqlIdentifier("Mango") };
+        var names = new List<SqlIdentifier> { new SqlIdentifier("zebra"), new SqlIdentifier("Mango"), new SqlIdentifier("apple") };
 
         // Act
         names.Sort();
 
-        // Assert
-        names.Select(n => n.Value).ShouldBe(["apple", "Mango", "Zebra"]);
+        // Assert — ordinal order: uppercase sorts before lowercase.
+        names.Select(n => n.Value).ShouldBe(["Mango", "apple", "zebra"]);
     }
 }

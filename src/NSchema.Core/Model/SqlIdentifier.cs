@@ -13,14 +13,14 @@ public sealed record SqlIdentifier : ValueObject<string>, IComparable<SqlIdentif
     }
 
     /// <summary>
-    /// Case-insensitive equality.
+    /// Case-sensitive (ordinal) equality.
     /// </summary>
     public bool Equals(SqlIdentifier? other) =>
-        other is not null && string.Equals(Value, other.Value, StringComparison.OrdinalIgnoreCase);
+        other is not null && string.Equals(Value, other.Value, StringComparison.Ordinal);
 
     /// <inheritdoc />
-    public override int GetHashCode() => StringComparer.OrdinalIgnoreCase.GetHashCode(Value);
+    public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(Value);
 
     /// <inheritdoc />
-    public int CompareTo(SqlIdentifier? other) => StringComparer.OrdinalIgnoreCase.Compare(Value, other?.Value);
+    public int CompareTo(SqlIdentifier? other) => StringComparer.Ordinal.Compare(Value, other?.Value);
 }

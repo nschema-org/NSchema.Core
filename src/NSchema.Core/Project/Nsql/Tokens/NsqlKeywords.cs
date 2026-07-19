@@ -103,4 +103,11 @@ internal static class NsqlKeywords
         Create, Grant, Template, Apply, Script, Rename,
     };
 
+    /// <summary>
+    /// The keywords that open a table member.
+    /// </summary>
+    public static readonly IReadOnlySet<string> MemberOpeners = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        Constraint, Unique, Index, Include,
+    };
 }
