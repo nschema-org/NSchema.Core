@@ -14,6 +14,8 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 
 - **Better domain mode naming.** `Database` and `Schema` are now the main entry points into the domain model.
 - **The SQL dialect seam is the abstract `SqlDialect` class.** A dialect overrides one method per migration action. Standard SQL is rendered by the base through an overridable identifier-quoting kernel.
+- **Identifiers are case-sensitive.** An identifier's identity is its exact written text: `users` and `Users` are no-longer considered equivalent.
+- **Identifiers can be quoted.** `CREATE TABLE app."Order Details" ("weird ""col""" int)` all work, and lets a name collide with a keyword. Quotes are syntax, not identity: casing is significant with or without them. The writer (and import) quotes only names that need it, and extension names now render as quoted identifiers rather than string literals.
 - **Management directives.** The language now separates *declarations* (what the schema is) from *directives* (how the difference is managed). This includes RENAME, DROP and SCRIPT.
 - **Every namespace has moved.** Namespaces are vertically sliced of the form `NSchema.<Feature>.<Capability>`.
 - **The schema model is `NSchema.Model` now.** It owns the top-level domain model for databases.

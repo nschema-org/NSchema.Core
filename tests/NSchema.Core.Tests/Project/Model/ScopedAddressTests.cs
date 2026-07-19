@@ -9,15 +9,15 @@ namespace NSchema.Tests.Project.Model.Scripts;
 public class ScopedAddressTests
 {
     [Fact]
-    public void Equals_CaseVariantComponents_AreTheSameAddress()
+    public void Equals_CaseVariantComponents_AreDifferentAddresses()
     {
         // Arrange
         var lower = new ScopedAddress(new SqlIdentifier("sales"), new SqlIdentifier("seed"));
         var mixed = new ScopedAddress(new SqlIdentifier("Sales"), new SqlIdentifier("SEED"));
 
         // Assert
-        lower.ShouldBe(mixed);
-        lower.GetHashCode().ShouldBe(mixed.GetHashCode());
+        lower.ShouldNotBe(mixed);
+        lower.ShouldBe(new ScopedAddress(new SqlIdentifier("sales"), new SqlIdentifier("seed")));
     }
 
     [Fact]

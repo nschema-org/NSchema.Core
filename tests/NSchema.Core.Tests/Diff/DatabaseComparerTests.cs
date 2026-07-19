@@ -303,23 +303,24 @@ public partial class DatabaseComparerTests
     }
 
     [Fact]
-    public void Compare_CaseVariantNames_MatchAsTheSameObject()
+    public void Compare_CaseVariantNames_AreDifferentObjects()
     {
-        // Identifiers are case-insensitive: an introspected "Users" and a declared "users" are the same
-        // table, not a drop-and-recreate pair.
+        // Identifiers are case-sensitive: an introspected "Users" and a declared "users" are different
+        // tables (the planner warns about the near-miss before the diff turns it into a create).
         var current = Db(new Schema { Name = new SqlIdentifier("App"), Tables = [new Table { Name = new SqlIdentifier("Users"), Columns = [new Column { Name = new SqlIdentifier("ID"), Type = SqlType.Int }] }] });
         var desired = Db(new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] });
 
         var diff = Compare(current, desired);
 
-        diff.IsEmpty.ShouldBeTrue();
+        diff.IsEmpty.ShouldBeFalse();
+        diff.Schemas.Select(s => s.Name.Value).ShouldBe(["App", "app"], ignoreOrder: true);
     }
 
     [Fact]
-    public void Compare_CaseVariantColumnReferences_ProduceNoDiff()
+    public void Compare_CaseVariantColumnReferences_AreAChange()
     {
         // References inside definitions (primary-key and index column lists) are identifiers too, so a
-        // casing difference between the introspected and declared spelling is not a change.
+        // casing difference between the introspected and declared spelling is a change.
         Table Build(string id, string email) => new Table
         {
             Name = new SqlIdentifier("users"),
@@ -330,7 +331,7 @@ public partial class DatabaseComparerTests
 
         var diff = DiffTable(Build("ID", "Email"), Build("id", "email"));
 
-        diff.ShouldBeNull();
+        diff.ShouldNotBeNull();
     }
 
     [Fact]

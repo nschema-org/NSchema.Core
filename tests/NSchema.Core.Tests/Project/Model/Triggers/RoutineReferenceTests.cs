@@ -10,15 +10,15 @@ namespace NSchema.Tests.Project.Model.Triggers;
 public class RoutineReferenceTests
 {
     [Fact]
-    public void Equals_CaseVariantComponents_AreTheSameReference()
+    public void Equals_CaseVariantComponents_AreDifferentReferences()
     {
         // Arrange
         var lower = new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("log_change"));
         var mixed = new RoutineReference(new SqlIdentifier("App"), new SqlIdentifier("LOG_CHANGE"));
 
         // Assert
-        lower.ShouldBe(mixed);
-        lower.GetHashCode().ShouldBe(mixed.GetHashCode());
+        lower.ShouldNotBe(mixed);
+        lower.ShouldBe(new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("log_change")));
     }
 
     [Fact]

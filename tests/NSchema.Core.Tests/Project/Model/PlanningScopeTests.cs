@@ -73,11 +73,13 @@ public sealed class PlanningScopeTests
     }
 
     [Fact]
-    public void Contains_IsCaseInsensitive_AtBothGranularities()
+    public void Contains_IsCaseSensitive_AtBothGranularities()
     {
         var scope = PlanningScope.To([App], [Address("billing", "orders")]);
 
-        scope.Contains(new SqlIdentifier("APP")).ShouldBeTrue();
-        scope.Contains(Address("Billing", "Orders")).ShouldBeTrue();
+        scope.Contains(new SqlIdentifier("APP")).ShouldBeFalse();
+        scope.Contains(Address("Billing", "Orders")).ShouldBeFalse();
+        scope.Contains(App).ShouldBeTrue();
+        scope.Contains(Address("billing", "orders")).ShouldBeTrue();
     }
 }

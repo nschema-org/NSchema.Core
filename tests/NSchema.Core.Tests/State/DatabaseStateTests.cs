@@ -21,10 +21,10 @@ public sealed class DatabaseStateTests
     }
 
     [Fact]
-    public void RecordScripts_ReplacesAnEarlierExecutionByName_CaseInsensitively()
+    public void RecordScripts_ReplacesAnEarlierExecutionByName()
     {
         // Arrange
-        var state = new DatabaseState(new Database(), [new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("Seed")), "old", DateTimeOffset.UnixEpoch)]);
+        var state = new DatabaseState(new Database(), [new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("seed")), "old", DateTimeOffset.UnixEpoch)]);
 
         // Act
         var recorded = state.RecordExecution([new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("seed")), "new", _now)]);
@@ -52,17 +52,15 @@ public sealed class DatabaseStateTests
         => DatabaseState.Empty.RecordExecution([]).ShouldBeSameAs(DatabaseState.Empty);
 
     [Fact]
-    public void FindScript_MatchesByName_CaseInsensitively()
+    public void FindScript_MatchesByExactName()
     {
         // Arrange
         var existing = new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("Seed")), "abc", _now);
         var state = new DatabaseState(new Database(), [existing]);
 
-        // Act
-        var found = state.FindExecution(new ScopedAddress(null, new SqlIdentifier("seed")));
-
-        // Assert
-        found.ShouldBe(existing);
+        // Assert — identifiers are case-sensitive, so only the exact name finds the entry.
+        state.FindExecution(new ScopedAddress(null, new SqlIdentifier("Seed"))).ShouldBe(existing);
+        state.FindExecution(new ScopedAddress(null, new SqlIdentifier("seed"))).ShouldBeNull();
     }
 
     [Fact]
@@ -98,11 +96,11 @@ public sealed class DatabaseStateTests
     }
 
     [Fact]
-    public void RemoveScript_RemovesTheEntryByName_CaseInsensitively()
+    public void RemoveScript_RemovesTheEntryByExactName()
     {
         // Arrange
         var other = new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("api-login")), "hash", _now);
-        var state = new DatabaseState(new Database(), [new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("Seed")), "abc", _now), other]);
+        var state = new DatabaseState(new Database(), [new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("seed")), "abc", _now), other]);
 
         // Act
         var removed = state.RemoveExecution(new ScopedAddress(null, new SqlIdentifier("seed")));

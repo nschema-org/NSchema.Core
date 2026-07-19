@@ -564,7 +564,7 @@ internal sealed partial class NsqlParser
         {
             return ParseIncludeOrColumn(doc);
         }
-        if (_current.Kind == TokenKind.Identifier)
+        if (_current.IsName)
         {
             return ParseColumn(doc);
         }
@@ -580,7 +580,7 @@ internal sealed partial class NsqlParser
     {
         var include = Advance(); // INCLUDE (or a column named 'include')
 
-        if (_current.Kind == TokenKind.Identifier
+        if (_current.IsName
             && _lexer.Peek().Kind is TokenKind.Comma or TokenKind.RightParen)
         {
             if (_inTableTemplateBody)

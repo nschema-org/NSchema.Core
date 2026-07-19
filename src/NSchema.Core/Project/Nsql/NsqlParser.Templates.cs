@@ -194,7 +194,7 @@ internal sealed partial class NsqlParser
         {
             var schemaPosition = _current.Position;
             var schemaName = ExpectIdentifierNode("a schema name");
-            if (schemaNames.Any(s => string.Equals(s.Value, schemaName.Value, StringComparison.OrdinalIgnoreCase)))
+            if (schemaNames.Any(s => string.Equals(s.Value, schemaName.Value, StringComparison.Ordinal)))
             {
                 throw new NsqlSyntaxException($"Schema '{schemaName.Value}' is listed more than once.", schemaPosition);
             }

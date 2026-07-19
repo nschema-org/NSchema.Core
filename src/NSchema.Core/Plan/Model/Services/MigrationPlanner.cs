@@ -39,6 +39,11 @@ internal sealed class MigrationPlanner(
         // Validate the declared project.
         diagnostics.Add(Validate(desired));
 
+        // Identifiers are case-sensitive, so a declared name matching reality only up to case is a different
+        // object — almost always a misspelled adoption. Warn before the diff turns it into a create beside
+        // the existing object.
+        diagnostics.Add(Result.From(CaseMismatches(current.Database.Identities(), desired.Database.Identities())));
+
         // The plan converges what NSchema manages: the current side is the observation restricted to the
         // managed identities plus everything the project declares or addresses.
         var visible = current.FilteredTo(ManagementFilter(current, desired));
@@ -80,6 +85,44 @@ internal sealed class MigrationPlanner(
 
         return current.Managed.Union(declared).Union(renameSources);
     }
+
+    /// <summary>
+    /// The warnings for declared identities that match an observed identity only up to case.
+    /// </summary>
+    private static IEnumerable<Diagnostic> CaseMismatches(IdentitySet observed, IdentitySet declared)
+    {
+        foreach (var schema in declared.Schemas)
+        {
+            if (!observed.Schemas.Contains(schema)
+                && observed.Schemas.FirstOrDefault(o => EqualsIgnoringCase(o, schema)) is { } match)
+            {
+                yield return PlanDiagnostics.CaseOnlySchemaMismatch(schema, match);
+            }
+        }
+
+        foreach (var identity in declared.Objects)
+        {
+            if (!observed.Objects.Contains(identity)
+                && observed.Objects.FirstOrDefault(o => o.Kind == identity.Kind
+                    && EqualsIgnoringCase(o.Schema, identity.Schema)
+                    && EqualsIgnoringCase(o.Name, identity.Name)) is { } match)
+            {
+                yield return PlanDiagnostics.CaseOnlyMismatch(identity, match);
+            }
+        }
+
+        foreach (var extension in declared.Extensions)
+        {
+            if (!observed.Extensions.Contains(extension)
+                && observed.Extensions.FirstOrDefault(o => EqualsIgnoringCase(o, extension)) is { } match)
+            {
+                yield return PlanDiagnostics.CaseOnlyExtensionMismatch(extension, match);
+            }
+        }
+    }
+
+    private static bool EqualsIgnoringCase(SqlIdentifier a, SqlIdentifier b) =>
+        string.Equals(a.Value, b.Value, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// The managed identities an apply of this plan establishes. Within the plan's scope, management after an

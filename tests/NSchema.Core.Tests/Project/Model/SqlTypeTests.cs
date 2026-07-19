@@ -7,18 +7,19 @@ public sealed class SqlTypeTests
 {
     [Theory]
     [InlineData("citext", "citext")]
-    [InlineData("CITEXT", "citext")]
-    [InlineData("  CiText  ", "citext")]
+    [InlineData("CITEXT", "CITEXT")]
+    [InlineData("  CiText  ", "CiText")]
     public void Name_IsTrimmed_AndComparesAsAnIdentifier(string input, string expected)
     {
-        // Written casing is preserved; equality is the identifier's, so any casing matches the canonical name.
+        // Written casing is preserved; equality is the identifier's, so the exact written name is the identity.
         SqlType.Custom(input).Name.ShouldBe(new SqlIdentifier(expected));
     }
 
     [Fact]
-    public void Equality_IgnoresCaseAndWhitespaceInName()
+    public void Equality_IgnoresWhitespace_ButNotCase()
     {
-        SqlType.Custom(" CITEXT ").ShouldBe(SqlType.Custom("citext"));
+        SqlType.Custom(" citext ").ShouldBe(SqlType.Custom("citext"));
+        SqlType.Custom("CITEXT").ShouldNotBe(SqlType.Custom("citext"));
     }
 
     [Fact]

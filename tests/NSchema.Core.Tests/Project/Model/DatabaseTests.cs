@@ -28,13 +28,13 @@ public sealed class DatabaseTests
     }
 
     [Fact]
-    public void ScopedTo_IsCaseInsensitive()
+    public void ScopedTo_IsCaseSensitive()
     {
         var schema = new Database { Schemas = [new Schema { Name = new SqlIdentifier("App") }] };
 
         var result = schema.ScopedTo(PlanningScope.To(new SqlIdentifier("app")));
 
-        result.Schemas.Select(s => s.Name).ShouldBe(["App"]);
+        result.Schemas.ShouldBeEmpty();
     }
 
     [Fact]

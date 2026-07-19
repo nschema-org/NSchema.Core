@@ -23,7 +23,8 @@ public sealed class IdentitySetTests
             Extensions: [new SqlIdentifier("citext")]);
 
         // Assert
-        set.ContainsSchema(new SqlIdentifier("APP")).ShouldBeTrue(); // identifiers compare case-insensitively
+        set.ContainsSchema(new SqlIdentifier("app")).ShouldBeTrue();
+        set.ContainsSchema(new SqlIdentifier("APP")).ShouldBeFalse(); // identifiers are case-sensitive
         set.ContainsObject(Table("users")).ShouldBeTrue();
         set.ContainsObject(new ObjectIdentity(ObjectKind.View, new ObjectAddress(_app, new SqlIdentifier("users")))).ShouldBeFalse(); // same address, different kind
         set.ContainsExtension(new SqlIdentifier("citext")).ShouldBeTrue();

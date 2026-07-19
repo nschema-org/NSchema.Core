@@ -193,12 +193,14 @@ public class ChangeScriptAttachmentTests
     }
 
     [Fact]
-    public void Attachment_MatchesSchemaTableAndMemberCaseInsensitively()
+    public void Attachment_MatchesSchemaTableAndMemberByExactName()
     {
+        // Identifiers are case-sensitive: a script addressing a case-variant path targets a different member,
+        // so it does not attach.
         var script = new ChangeScript(new SqlIdentifier("backfill"), new SqlText("UPDATE 1"), new SqlIdentifier("APP"),
             ChangeTrigger.AddColumn, new SqlIdentifier("Users"), new SqlIdentifier("EMAIL"));
         var diff = Diff(Users(Id), Users(Id, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text }), script);
 
-        diff.Columns.Single(c => c.Name.Value == "email").MigrationScript.ShouldBe(script);
+        diff.Columns.Single(c => c.Name.Value == "email").MigrationScript.ShouldBeNull();
     }
 }

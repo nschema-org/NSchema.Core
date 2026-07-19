@@ -12,6 +12,11 @@ internal enum TokenKind
     Identifier,
 
     /// <summary>
+    /// A double-quoted identifier (<c>"Order Details"</c>; <c>""</c> escapes a quote).
+    /// </summary>
+    QuotedIdentifier,
+
+    /// <summary>
     /// A single-quoted string literal. The token text is the unescaped value (without the quotes).
     /// </summary>
     String,
