@@ -32,140 +32,145 @@ internal static class ViewDependencyExtractor
     /// </summary>
     /// <param name="body">The view's defining query (the text after <c>AS</c>).</param>
     /// <param name="defaultSchema">The schema an unqualified reference is resolved against (the view's own schema).</param>
-    public static List<ViewDependency> Extract(string body, SqlIdentifier defaultSchema)
+    public static List<ViewDependency> Extract(SqlText body, SqlIdentifier defaultSchema)
     {
-        var tokens = Tokenize(body);
-        var ctes = CollectCteNames(tokens);
-
-        var result = new List<ViewDependency>();
-        var seen = new HashSet<(SqlIdentifier, SqlIdentifier)>();
-
-        // The outer scan visits every token, so FROM/JOIN clauses are found at any nesting depth (in sub-queries,
-        // WHERE/SELECT-list scalar sub-queries, CTE bodies). The per-clause readers below use a *local* cursor and
-        // never advance this loop, so descending into a sub-query to handle a comma list can't hide the inner
-        // clauses from this scan.
-        for (var i = 0; i < tokens.Count; i++)
-        {
-            var token = tokens[i];
-            if (token.Kind != TokenType.Word)
-            {
-                continue;
-            }
-
-            if (Is(token, "FROM"))
-            {
-                ReadFromList(tokens, i + 1, defaultSchema, ctes, seen, result);
-            }
-            else if (Is(token, "JOIN"))
-            {
-                var cursor = i + 1;
-                TryReadReference(tokens, ref cursor, defaultSchema, ctes, seen, result);
-            }
-        }
-
-        return result;
+        var tokens = Tokenize(body.Value);
+        return new Scanner(tokens, defaultSchema, CollectCteNames(tokens)).Scan();
     }
 
-    /// <summary>Reads the comma-separated table references of a FROM clause, starting at <paramref name="j"/>.</summary>
-    private static void ReadFromList(
-        IReadOnlyList<Token> tokens,
-        int j,
-        SqlIdentifier defaultSchema,
-        HashSet<string> ctes,
-        HashSet<(SqlIdentifier, SqlIdentifier)> seen,
-        List<ViewDependency> result)
+    /// <summary>
+    /// One pass over a tokenized body, carrying the resolution context (default schema, CTE names) and the
+    /// accumulating result so the per-clause readers don't thread them through every signature.
+    /// </summary>
+    private sealed class Scanner(IReadOnlyList<Token> tokens, SqlIdentifier defaultSchema, HashSet<string> ctes)
     {
-        while (j < tokens.Count)
+        private readonly List<ViewDependency> _result = [];
+        private readonly HashSet<(SqlIdentifier, SqlIdentifier)> _seen = [];
+
+        public List<ViewDependency> Scan()
         {
-            if (!TryReadReference(tokens, ref j, defaultSchema, ctes, seen, result))
+            // This outer scan visits every token, so FROM/JOIN clauses are found at any nesting depth (in
+            // sub-queries, WHERE/SELECT-list scalar sub-queries, CTE bodies). The per-clause readers below use a
+            // *local* cursor and never advance this loop, so descending into a sub-query to handle a comma list
+            // can't hide the inner clauses from this scan.
+            for (var i = 0; i < tokens.Count; i++)
             {
+                var token = tokens[i];
+                if (token.Kind != TokenType.Word)
+                {
+                    continue;
+                }
+
+                if (Is(token, "FROM"))
+                {
+                    ReadFromList(i + 1);
+                }
+                else if (Is(token, "JOIN"))
+                {
+                    var cursor = i + 1;
+                    TryReadReference(ref cursor);
+                }
+            }
+
+            return _result;
+        }
+
+        /// <summary>Reads the comma-separated table references of a FROM clause, starting at <paramref name="j"/>.</summary>
+        private void ReadFromList(int j)
+        {
+            while (j < tokens.Count)
+            {
+                if (!TryReadReference(ref j))
+                {
+                    break;
+                }
+
+                SkipAlias(ref j);
+                if (j < tokens.Count && tokens[j].Kind == TokenType.Comma)
+                {
+                    j++;
+                    continue;
+                }
                 break;
             }
+        }
 
-            SkipAlias(tokens, ref j);
-            if (j < tokens.Count && tokens[j].Kind == TokenType.Comma)
+        /// <summary>
+        /// Reads a single table reference at <paramref name="j"/>: a (optionally schema-qualified) name, or a
+        /// parenthesised sub-query which is stepped over (its own FROM/JOIN clauses are found by the outer scan).
+        /// Advances <paramref name="j"/> past what it read. Returns <see langword="false"/> when there is nothing
+        /// to read (end of clause).
+        /// </summary>
+        private bool TryReadReference(ref int j)
+        {
+            if (j >= tokens.Count)
             {
-                j++;
-                continue;
+                return false;
             }
-            break;
-        }
-    }
 
-    /// <summary>
-    /// Reads a single table reference at <paramref name="j"/>: a (optionally schema-qualified) name, or a
-    /// parenthesised sub-query which is stepped over (its own FROM/JOIN clauses are found by the outer scan).
-    /// Advances <paramref name="j"/> past what it read. Returns <see langword="false"/> when there is nothing to
-    /// read (end of clause).
-    /// </summary>
-    private static bool TryReadReference(
-        IReadOnlyList<Token> tokens,
-        ref int j,
-        SqlIdentifier defaultSchema,
-        HashSet<string> ctes,
-        HashSet<(SqlIdentifier, SqlIdentifier)> seen,
-        List<ViewDependency> result
-    )
-    {
-        if (j >= tokens.Count)
-        {
-            return false;
-        }
+            if (tokens[j].Kind == TokenType.LeftParen)
+            {
+                SkipBalancedParens(tokens, ref j);
+                return true;
+            }
 
-        if (tokens[j].Kind == TokenType.LeftParen)
-        {
-            SkipBalancedParens(tokens, ref j);
-            return true;
-        }
+            if (tokens[j].Kind != TokenType.Word || _stops.Contains(tokens[j].Text))
+            {
+                return false;
+            }
 
-        if (tokens[j].Kind != TokenType.Word || _stops.Contains(tokens[j].Text))
-        {
-            return false;
-        }
-
-        var first = tokens[j].Text;
-        j++;
-
-        if (j + 1 < tokens.Count && tokens[j].Kind == TokenType.Dot && tokens[j + 1].Kind == TokenType.Word)
-        {
-            var schema = first;
-            var name = tokens[j + 1].Text;
-            j += 2;
-            Add(seen, result, new ViewDependency(new SqlIdentifier(schema), new SqlIdentifier(name)));
-            return true;
-        }
-
-        // Unqualified: a CTE name is local and must not be treated as a real object.
-        if (!ctes.Contains(first))
-        {
-            Add(seen, result, new ViewDependency(defaultSchema, new SqlIdentifier(first)));
-        }
-        return true;
-    }
-
-    /// <summary>
-    /// Skips an optional table alias (<c>AS x</c> or a bare identifier) following a reference.
-    /// </summary>
-    private static void SkipAlias(IReadOnlyList<Token> tokens, ref int j)
-    {
-        if (j >= tokens.Count || tokens[j].Kind != TokenType.Word)
-        {
-            return;
-        }
-
-        if (Is(tokens[j], "AS"))
-        {
+            var first = tokens[j].Text;
             j++;
-            if (j < tokens.Count && tokens[j].Kind == TokenType.Word)
+
+            if (j + 1 < tokens.Count && tokens[j].Kind == TokenType.Dot && tokens[j + 1].Kind == TokenType.Word)
             {
-                j++;
+                var schema = first;
+                var name = tokens[j + 1].Text;
+                j += 2;
+                Add(new ViewDependency(new SqlIdentifier(schema), new SqlIdentifier(name)));
+                return true;
             }
-            return;
+
+            // Unqualified: a CTE name is local and must not be treated as a real object.
+            if (!ctes.Contains(first))
+            {
+                Add(new ViewDependency(defaultSchema, new SqlIdentifier(first)));
+            }
+            return true;
         }
 
-        if (!_stops.Contains(tokens[j].Text))
+        /// <summary>
+        /// Skips an optional table alias (<c>AS x</c> or a bare identifier) following a reference.
+        /// </summary>
+        private void SkipAlias(ref int j)
         {
-            j++; // a bare alias, e.g. "users u"
+            if (j >= tokens.Count || tokens[j].Kind != TokenType.Word)
+            {
+                return;
+            }
+
+            if (Is(tokens[j], "AS"))
+            {
+                j++;
+                if (j < tokens.Count && tokens[j].Kind == TokenType.Word)
+                {
+                    j++;
+                }
+                return;
+            }
+
+            if (!_stops.Contains(tokens[j].Text))
+            {
+                j++; // a bare alias, e.g. "users u"
+            }
+        }
+
+        private void Add(ViewDependency dependency)
+        {
+            if (_seen.Add((dependency.Schema, dependency.Name)))
+            {
+                _result.Add(dependency);
+            }
         }
     }
 
@@ -206,14 +211,6 @@ internal static class ViewDependencyExtractor
                     return;
                 }
             }
-        }
-    }
-
-    private static void Add(HashSet<(SqlIdentifier, SqlIdentifier)> seen, List<ViewDependency> result, ViewDependency dependency)
-    {
-        if (seen.Add((dependency.Schema, dependency.Name)))
-        {
-            result.Add(dependency);
         }
     }
 

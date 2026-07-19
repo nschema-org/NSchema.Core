@@ -39,7 +39,7 @@ internal static class DocumentProjector
             case Syn.Views.CreateViewStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
-                    var dependsOn = ViewDependencyExtractor.Extract(s.Body.Value, schema);
+                    var dependsOn = ViewDependencyExtractor.Extract(s.Body, schema);
                     schemas.AddView(schema, new View { Name = name, Body = s.Body, DependsOn = dependsOn, IsMaterialized = s.IsMaterialized, Comment = s.Doc }, s.Name.Position);
                     break;
                 }
@@ -140,9 +140,7 @@ internal static class DocumentProjector
                     {
                         // A foreign key's referenced table binds like any other name (the context inside a template
                         // body; the include placeholder when projecting a table template's members).
-                        var refSchema = m.References.Schema is { } qualifier
-                            ? new SqlIdentifier(qualifier.Value)
-                            : context ?? SchemaToken.TargetSchemaPlaceholder;
+                        var refSchema = OptionalName(m.References.Schema) ?? context ?? SchemaToken.TargetSchemaPlaceholder;
                         foreignKeys.Add(new ForeignKey
                         {
                             Name = Name(m.Name),
@@ -221,7 +219,7 @@ internal static class DocumentProjector
             case Syn.Scripts.ChangeEventClause change:
                 // A change-event script has no run condition; the node's constructor guarantees none was written.
                 scripts.Add(new ChangeScript(Name(statement.Name), sql,
-                    change.Path.Schema is { } schema ? new SqlIdentifier(schema.Value) : context,
+                    OptionalName(change.Path.Schema) ?? context,
                     Map(change.Trigger), Name(change.Path.Table), Name(change.Path.Member))
                 {
                     RunOutsideTransaction = statement.RunOutsideTransaction,
@@ -328,14 +326,13 @@ internal static class DocumentProjector
     /// template placeholder (the parser rejects unqualified names outside template bodies).
     /// </summary>
     private static (SqlIdentifier Schema, SqlIdentifier Name) Bind(Syn.QualifiedName name, SqlIdentifier? context) =>
-        (name.Schema is { } schema ? new SqlIdentifier(schema.Value) : context ?? SchemaToken.TargetSchemaPlaceholder,
-         new SqlIdentifier(name.Name.Value));
+        (OptionalName(name.Schema) ?? context ?? SchemaToken.TargetSchemaPlaceholder, Name(name.Name));
 
     private static SqlType ParseType(Syn.TypeName type)
     {
         if (type.Schema is { } schema)
         {
-            return SqlType.Custom(new SqlIdentifier(schema.Value), type.Name.Value);
+            return SqlType.Custom(Name(schema), type.Name.Value);
         }
 
         var text = type.Arguments is { } arguments ? $"{type.Name.Value}({arguments})" : type.Name.Value;

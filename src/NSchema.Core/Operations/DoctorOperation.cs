@@ -52,7 +52,7 @@ internal sealed class DoctorOperation(
         {
             // A full introspection is the honest end-to-end probe: it exercises the same path plan/apply rely on.
             var schema = await online.GetDatabase(PlanningScope.All, cancellationToken);
-            return Diagnostic.Info(source, $"Database: connected ({schema.Schemas.Count} schema{(schema.Schemas.Count == 1 ? "" : "s")} visible).");
+            return Diagnostic.Info(source, $"Database: connected ({StatusHelpers.Count(schema.Schemas.Count, "schema")} visible).");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

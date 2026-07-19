@@ -22,6 +22,13 @@ public sealed class Database : IEquatable<Database>
     public List<Extension> Extensions { get; init; } = [];
 
     /// <summary>
+    /// Every schema-level object of type <typeparamref name="T"/> across the database's schemas, each paired
+    /// with the name of the schema that holds it.
+    /// </summary>
+    public IEnumerable<(SqlIdentifier Schema, T Object)> Objects<T>() where T : DatabaseObject =>
+        Schemas.SelectMany(s => s.Objects().OfType<T>().Select(o => (Schema: s.Name, Object: o)));
+
+    /// <summary>
     /// The identity of everything the database contains: its schemas, their objects, and its extensions.
     /// </summary>
     public IdentitySet Identities() => new(

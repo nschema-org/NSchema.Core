@@ -17,10 +17,9 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
     {
         var database = project.Database;
         var declaredSchemas = database.Schemas.Select(s => s.Name).ToHashSet();
-        var tablesByKey = database.Schemas
-            .SelectMany(s => s.Tables.Select(t => (Key: Key(s.Name, t.Name), Table: t)))
-            .GroupBy(x => x.Key)
-            .ToDictionary(g => g.Key, g => g.First().Table);
+        var tablesByKey = database.Objects<Table>()
+            .GroupBy(x => Key(x.Schema, x.Object.Name))
+            .ToDictionary(g => g.Key, g => g.First().Object);
 
         var diagnostics = new List<Diagnostic>();
         foreach (var definition in database.Schemas)
