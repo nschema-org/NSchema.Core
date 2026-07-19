@@ -1,21 +1,17 @@
 using Microsoft.Extensions.DependencyInjection;
 using NSchema.Plan.Backends;
-using NSchema.Plan.Model;
 
 namespace NSchema.Tests.Hosting;
 
 public sealed class SqlDialectRegistrationTests
 {
-    private sealed class MyStubDialect : ISqlDialect
-    {
-        public IReadOnlyList<SqlStatement> Generate(MigrationAction action) => [];
-    }
+    private sealed class MyStubDialect : StubSqlDialect;
 
-    private static ISqlDialect? Resolve(Action<NSchemaApplicationBuilder> configure)
+    private static SqlDialect? Resolve(Action<NSchemaApplicationBuilder> configure)
     {
         var builder = NSchemaApplication.CreateBuilder();
         configure(builder);
-        return builder.Build().Services.GetService<ISqlDialect>();
+        return builder.Build().Services.GetService<SqlDialect>();
     }
 
     [Fact]

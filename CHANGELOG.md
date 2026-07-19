@@ -13,6 +13,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 ### Changed
 
 - **Better domain mode naming.** `Database` and `Schema` are now the main entry points into the domain model.
+- **The SQL dialect seam is the abstract `SqlDialect` class.** A dialect overrides one method per migration action. Standard SQL is rendered by the base through an overridable identifier-quoting kernel.
 - **Management directives.** The language now separates *declarations* (what the schema is) from *directives* (how the difference is managed). This includes RENAME, DROP and SCRIPT.
 - **Every namespace has moved.** Namespaces are vertically sliced of the form `NSchema.<Feature>.<Capability>`.
 - **The schema model is `NSchema.Model` now.** It owns the top-level domain model for databases.
@@ -31,7 +32,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **Teardown plans run the policies.** A teardown is fully destructive, so the default destructive-action policy blocks it; the blocked result still carries the complete plan. Set the destructive-action enforcement to `Allow` to apply one.
 - **Policies are enforced at apply.** `Apply` now re-runs all policies against the plan diff before executing.
 - **Policies now cover project and plan.** `IProjectPolicy` replaces `ISchemaPolicy` and `IPlanPolicy` replaces `IDiffPolicy`.
-- **`ISqlDialect` replaces `ISqlGenerator`.** (registered with `UseSqlDialect<T>()`).
+- **`SqlDialect` replaces `ISqlGenerator`.** (registered with `UseSqlDialect<T>()`).
 - **`IStateLockManager` replaces `IStateLockCoordinator`.** Lines up with with `ISchemaStateManager`.
 - **`IPlanFileManager` replaces `IPlanFileWriter`.** It reads saved plans too, so "writer" undersold it.
 - **`IDatabaseIntrospector` replaces `ISchemaProvider`.** More honest about what it does now that the interface doesn't serve both the current and desired sides, and named for what it returns.
