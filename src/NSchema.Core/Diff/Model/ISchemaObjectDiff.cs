@@ -19,4 +19,9 @@ public interface ISchemaObjectDiff : INamedObjectDiff
     /// The previous object name when the object is being renamed; otherwise <see langword="null"/>.
     /// </summary>
     SqlIdentifier? RenamedFrom { get; }
+
+    /// <summary>
+    /// The change to the object's comment, if any.
+    /// </summary>
+    ValueChange<string>? Comment { get; }
 }

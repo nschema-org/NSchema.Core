@@ -332,205 +332,151 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         }
     }
 
-    private static void EmitRoutines(SchemaDiff schema, List<MigrationAction> actions)
+    /// <summary>
+    /// Emits one schema-object kind: create on add, drop on remove, and on modify a rename (when one is
+    /// recorded) followed by the kind's own modify actions; a comment change trails every non-remove.
+    /// </summary>
+    private static void EmitObjects<T>(
+        IReadOnlyList<T> objects,
+        List<MigrationAction> actions,
+        Func<T, MigrationAction> create,
+        Func<T, MigrationAction> drop,
+        Func<T, MigrationAction> rename,
+        Func<T, MigrationAction> comment,
+        Action<T> modify
+    ) where T : ISchemaObjectDiff
     {
-        foreach (var routine in schema.Routines)
+        foreach (var diff in objects)
         {
-            switch (routine.Kind)
+            switch (diff.Kind)
             {
                 case ChangeKind.Add:
-                    actions.Add(new CreateRoutine(routine.Schema, routine.Definition!));
+                    actions.Add(create(diff));
                     break;
 
                 case ChangeKind.Remove:
-                    actions.Add(new DropRoutine(routine.Schema, routine.Name, routine.RoutineKind));
+                    actions.Add(drop(diff));
                     break;
 
                 default: // Modify
-                    if (routine.RenamedFrom is not null)
+                    if (diff.RenamedFrom is not null)
                     {
-                        actions.Add(new RenameRoutine(routine.Schema, routine.RenamedFrom, routine.Name, routine.RoutineKind));
+                        actions.Add(rename(diff));
                     }
-                    // A signature (or kind) change recreates (a replace under different arguments would create a
-                    // separate overload); a definition-only change replaces in place.
-                    if (routine.RequiresRecreate)
-                    {
-                        actions.Add(new RecreateRoutine(routine.Schema, routine.Definition!));
-                    }
-                    else if (routine.Definition is not null)
-                    {
-                        actions.Add(new CreateRoutine(routine.Schema, routine.Definition));
-                    }
+                    modify(diff);
                     break;
             }
 
-            if (routine.Kind != ChangeKind.Remove && routine.Comment is not null)
+            if (diff.Kind != ChangeKind.Remove && diff.Comment is not null)
             {
-                actions.Add(new SetRoutineComment(routine.Schema, routine.Name, routine.Comment.Old, routine.Comment.New, routine.RoutineKind));
+                actions.Add(comment(diff));
             }
         }
     }
 
-    private static void EmitDomains(SchemaDiff schema, List<MigrationAction> actions)
-    {
-        foreach (var domain in schema.Domains)
-        {
-            switch (domain.Kind)
+    private static void EmitRoutines(SchemaDiff schema, List<MigrationAction> actions) =>
+        EmitObjects(schema.Routines, actions,
+            r => new CreateRoutine(r.Schema, r.Definition!),
+            r => new DropRoutine(r.Schema, r.Name, r.RoutineKind),
+            r => new RenameRoutine(r.Schema, r.RenamedFrom!, r.Name, r.RoutineKind),
+            r => new SetRoutineComment(r.Schema, r.Name, r.Comment!.Old, r.Comment.New, r.RoutineKind),
+            r =>
             {
-                case ChangeKind.Add:
-                    actions.Add(new CreateDomain(domain.Schema, domain.Definition!));
-                    break;
+                // A signature (or kind) change recreates (a replace under different arguments would create a
+                // separate overload); a definition-only change replaces in place.
+                if (r.RequiresRecreate)
+                {
+                    actions.Add(new RecreateRoutine(r.Schema, r.Definition!));
+                }
+                else if (r.Definition is not null)
+                {
+                    actions.Add(new CreateRoutine(r.Schema, r.Definition));
+                }
+            });
 
-                case ChangeKind.Remove:
-                    actions.Add(new DropDomain(domain.Schema, domain.Name));
-                    break;
-
-                default: // Modify
-                    if (domain.RenamedFrom is not null)
-                    {
-                        actions.Add(new RenameDomain(domain.Schema, domain.RenamedFrom, domain.Name));
-                    }
-                    // A base-type change can't be altered in place, so it recreates (default/not-null/checks rebuild
-                    // with the definition); otherwise each facet is altered in place.
-                    if (domain.RequiresRecreate)
-                    {
-                        actions.Add(new RecreateDomain(domain.Schema, domain.Definition!));
-                    }
-                    else
-                    {
-                        if (domain.Default is not null)
-                        {
-                            actions.Add(new AlterDomainDefault(domain.Schema, domain.Name, domain.Default.Old, domain.Default.New));
-                        }
-                        if (domain.NotNull is not null)
-                        {
-                            actions.Add(new AlterDomainNotNull(domain.Schema, domain.Name, domain.NotNull.New));
-                        }
-                        foreach (var check in domain.Checks)
-                        {
-                            actions.Add(check.Kind == ChangeKind.Remove
-                                ? new DropDomainCheck(domain.Schema, domain.Name, check.Name)
-                                : new AddDomainCheck(domain.Schema, domain.Name, check.Definition!));
-                        }
-                    }
-                    break;
-            }
-
-            if (domain.Kind != ChangeKind.Remove && domain.Comment is not null)
+    private static void EmitDomains(SchemaDiff schema, List<MigrationAction> actions) =>
+        EmitObjects(schema.Domains, actions,
+            d => new CreateDomain(d.Schema, d.Definition!),
+            d => new DropDomain(d.Schema, d.Name),
+            d => new RenameDomain(d.Schema, d.RenamedFrom!, d.Name),
+            d => new SetDomainComment(d.Schema, d.Name, d.Comment!.Old, d.Comment.New),
+            d =>
             {
-                actions.Add(new SetDomainComment(domain.Schema, domain.Name, domain.Comment.Old, domain.Comment.New));
-            }
-        }
-    }
+                // A base-type change can't be altered in place, so it recreates (default/not-null/checks rebuild
+                // with the definition); otherwise each facet is altered in place.
+                if (d.RequiresRecreate)
+                {
+                    actions.Add(new RecreateDomain(d.Schema, d.Definition!));
+                    return;
+                }
 
-    private static void EmitCompositeTypes(SchemaDiff schema, List<MigrationAction> actions)
-    {
-        foreach (var type in schema.CompositeTypes)
-        {
-            switch (type.Kind)
+                if (d.Default is not null)
+                {
+                    actions.Add(new AlterDomainDefault(d.Schema, d.Name, d.Default.Old, d.Default.New));
+                }
+                if (d.NotNull is not null)
+                {
+                    actions.Add(new AlterDomainNotNull(d.Schema, d.Name, d.NotNull.New));
+                }
+                foreach (var check in d.Checks)
+                {
+                    actions.Add(check.Kind == ChangeKind.Remove
+                        ? new DropDomainCheck(d.Schema, d.Name, check.Name)
+                        : new AddDomainCheck(d.Schema, d.Name, check.Definition!));
+                }
+            });
+
+    private static void EmitCompositeTypes(SchemaDiff schema, List<MigrationAction> actions) =>
+        EmitObjects(schema.CompositeTypes, actions,
+            t => new CreateCompositeType(t.Schema, t.Definition!),
+            t => new DropCompositeType(t.Schema, t.Name),
+            t => new RenameCompositeType(t.Schema, t.RenamedFrom!, t.Name),
+            t => new SetCompositeTypeComment(t.Schema, t.Name, t.Comment!.Old, t.Comment.New),
+            t =>
             {
-                case ChangeKind.Add:
-                    actions.Add(new CreateCompositeType(type.Schema, type.Definition!));
-                    break;
-
-                case ChangeKind.Remove:
-                    actions.Add(new DropCompositeType(type.Schema, type.Name));
-                    break;
-
-                default: // Modify
-                    if (type.RenamedFrom is not null)
+                // Every field change applies in place: a matched field whose type differs is retyped, a missing
+                // field is dropped, a new field is added. There is no recreate.
+                foreach (var field in t.Fields)
+                {
+                    actions.Add(field.Kind switch
                     {
-                        actions.Add(new RenameCompositeType(type.Schema, type.RenamedFrom, type.Name));
-                    }
-                    // Every field change applies in place: a matched field whose type differs is retyped, a missing
-                    // field is dropped, a new field is added. There is no recreate.
-                    foreach (var field in type.Fields)
-                    {
-                        actions.Add(field.Kind switch
-                        {
-                            ChangeKind.Remove => new DropCompositeField(type.Schema, type.Name, field.Name),
-                            ChangeKind.Modify => new AlterCompositeFieldType(type.Schema, type.Name, field.Name, field.Type!.Old!, field.Type.New!),
-                            _ => new AddCompositeField(type.Schema, type.Name, field.Definition!),
-                        });
-                    }
-                    break;
-            }
+                        ChangeKind.Remove => new DropCompositeField(t.Schema, t.Name, field.Name),
+                        ChangeKind.Modify => new AlterCompositeFieldType(t.Schema, t.Name, field.Name, field.Type!.Old!, field.Type.New!),
+                        _ => new AddCompositeField(t.Schema, t.Name, field.Definition!),
+                    });
+                }
+            });
 
-            if (type.Kind != ChangeKind.Remove && type.Comment is not null)
+    private static void EmitEnums(SchemaDiff schema, List<MigrationAction> actions) =>
+        EmitObjects(schema.Enums, actions,
+            e => new CreateEnum(e.Schema, e.Definition!),
+            e => new DropEnum(e.Schema, e.Name),
+            e => new RenameEnum(e.Schema, e.RenamedFrom!, e.Name),
+            e => new SetEnumComment(e.Schema, e.Name, e.Comment!.Old, e.Comment.New),
+            e =>
             {
-                actions.Add(new SetCompositeTypeComment(type.Schema, type.Name, type.Comment.Old, type.Comment.New));
-            }
-        }
-    }
+                // Additions are emitted in list order so each anchor exists when its addition runs (the
+                // stable priority sort preserves this). A removal/reorder has no AddedValues — it cannot be
+                // planned, and the always-on EnumValueRemovalPolicy fails the run before execution.
+                foreach (var addition in e.AddedValues)
+                {
+                    actions.Add(new AddEnumValue(e.Schema, e.Name, addition.Value, addition.Before, addition.After));
+                }
+            });
 
-    private static void EmitEnums(SchemaDiff schema, List<MigrationAction> actions)
-    {
-        foreach (var enumDiff in schema.Enums)
-        {
-            switch (enumDiff.Kind)
+    private static void EmitSequences(SchemaDiff schema, List<MigrationAction> actions) =>
+        EmitObjects(schema.Sequences, actions,
+            s => new CreateSequence(s.Schema, s.Definition!),
+            s => new DropSequence(s.Schema, s.Name),
+            s => new RenameSequence(s.Schema, s.RenamedFrom!, s.Name),
+            s => new SetSequenceComment(s.Schema, s.Name, s.Comment!.Old, s.Comment.New),
+            s =>
             {
-                case ChangeKind.Add:
-                    actions.Add(new CreateEnum(enumDiff.Schema, enumDiff.Definition!));
-                    break;
-
-                case ChangeKind.Remove:
-                    actions.Add(new DropEnum(enumDiff.Schema, enumDiff.Name));
-                    break;
-
-                default: // Modify
-                    if (enumDiff.RenamedFrom is not null)
-                    {
-                        actions.Add(new RenameEnum(enumDiff.Schema, enumDiff.RenamedFrom, enumDiff.Name));
-                    }
-                    // Additions are emitted in list order so each anchor exists when its addition runs (the
-                    // stable priority sort preserves this). A removal/reorder has no AddedValues — it cannot be
-                    // planned, and the always-on EnumValueRemovalPolicy fails the run before execution.
-                    foreach (var addition in enumDiff.AddedValues)
-                    {
-                        actions.Add(new AddEnumValue(enumDiff.Schema, enumDiff.Name, addition.Value, addition.Before, addition.After));
-                    }
-                    break;
-            }
-
-            if (enumDiff.Kind != ChangeKind.Remove && enumDiff.Comment is not null)
-            {
-                actions.Add(new SetEnumComment(enumDiff.Schema, enumDiff.Name, enumDiff.Comment.Old, enumDiff.Comment.New));
-            }
-        }
-    }
-
-    private static void EmitSequences(SchemaDiff schema, List<MigrationAction> actions)
-    {
-        foreach (var sequence in schema.Sequences)
-        {
-            switch (sequence.Kind)
-            {
-                case ChangeKind.Add:
-                    actions.Add(new CreateSequence(sequence.Schema, sequence.Definition!));
-                    break;
-
-                case ChangeKind.Remove:
-                    actions.Add(new DropSequence(sequence.Schema, sequence.Name));
-                    break;
-
-                default: // Modify
-                    if (sequence.RenamedFrom is not null)
-                    {
-                        actions.Add(new RenameSequence(sequence.Schema, sequence.RenamedFrom, sequence.Name));
-                    }
-                    if (sequence.Options is not null)
-                    {
-                        actions.Add(new AlterSequence(sequence.Schema, sequence.Name, sequence.Options.Old!, sequence.Options.New!));
-                    }
-                    break;
-            }
-
-            if (sequence.Kind != ChangeKind.Remove && sequence.Comment is not null)
-            {
-                actions.Add(new SetSequenceComment(sequence.Schema, sequence.Name, sequence.Comment.Old, sequence.Comment.New));
-            }
-        }
-    }
+                if (s.Options is not null)
+                {
+                    actions.Add(new AlterSequence(s.Schema, s.Name, s.Options.Old!, s.Options.New!));
+                }
+            });
 
     private static void EmitSchemaAttributes(SchemaDiff schema, List<MigrationAction> actions)
     {

@@ -452,38 +452,10 @@ public static class DiffReader
     private static string MigrationSuffix(ChangeScript? script) =>
         script is null ? string.Empty : $" (with migration {script.Name})";
 
-    // Decompose the privilege flags into the underlying SQL privileges rather than rendering the enum name,
-    // which would surface aliases (e.g. ReadOnly for Select) and composites (All) instead of the real grants.
-    private static string FormatPrivileges(TablePrivilege? privileges)
-    {
-        if (privileges is not { } granted || granted == TablePrivilege.None)
-        {
-            return "no privileges";
-        }
-
-        var parts = new List<string>(4);
-        if (granted.HasFlag(TablePrivilege.Select))
-        {
-            parts.Add("SELECT");
-        }
-
-        if (granted.HasFlag(TablePrivilege.Insert))
-        {
-            parts.Add("INSERT");
-        }
-
-        if (granted.HasFlag(TablePrivilege.Update))
-        {
-            parts.Add("UPDATE");
-        }
-
-        if (granted.HasFlag(TablePrivilege.Delete))
-        {
-            parts.Add("DELETE");
-        }
-
-        return string.Join(", ", parts);
-    }
+    private static string FormatPrivileges(TablePrivilege? privileges) =>
+        privileges is not { } granted || granted == TablePrivilege.None
+            ? "no privileges"
+            : string.Join(", ", granted.SqlNames());
 
     private static string FormatComment(string? comment) => comment is null ? "<none>" : $"\"{comment}\"";
 

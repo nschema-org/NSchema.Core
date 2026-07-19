@@ -79,90 +79,40 @@ internal sealed class DatabaseAccumulator
         entry.Comment = comment;
     }
 
-    public void AddTable(SqlIdentifier schema, Table table, SourcePosition position)
-    {
-        var entry = GetOrAdd(schema);
-        if (entry.Tables.Any(t => t.Name == table.Name))
-        {
-            Report(ProjectDiagnostics.ObjectAlreadyDeclared(ObjectKind.Table, schema, table.Name, position), CurrentFile);
-            return;
-        }
+    public void AddTable(SqlIdentifier schema, Table table, SourcePosition position) =>
+        Add(schema, table, e => e.Tables, position);
 
-        entry.Tables.Add(table);
-    }
+    public void AddView(SqlIdentifier schema, View view, SourcePosition position) =>
+        Add(schema, view, e => e.Views, position);
 
-    public void AddView(SqlIdentifier schema, View view, SourcePosition position)
-    {
-        var entry = GetOrAdd(schema);
-        if (entry.Views.Any(v => v.Name == view.Name))
-        {
-            Report(ProjectDiagnostics.ObjectAlreadyDeclared(ObjectKind.View, schema, view.Name, position), CurrentFile);
-            return;
-        }
+    public void AddEnum(SqlIdentifier schema, EnumType enumType, SourcePosition position) =>
+        Add(schema, enumType, e => e.Enums, position);
 
-        entry.Views.Add(view);
-    }
+    public void AddSequence(SqlIdentifier schema, Sequence sequence, SourcePosition position) =>
+        Add(schema, sequence, e => e.Sequences, position);
 
-    public void AddEnum(SqlIdentifier schema, EnumType enumType, SourcePosition position)
-    {
-        var entry = GetOrAdd(schema);
-        if (entry.Enums.Any(e => e.Name == enumType.Name))
-        {
-            Report(ProjectDiagnostics.ObjectAlreadyDeclared(ObjectKind.Enum, schema, enumType.Name, position), CurrentFile);
-            return;
-        }
+    public void AddDomain(SqlIdentifier schema, DomainType domain, SourcePosition position) =>
+        Add(schema, domain, e => e.Domains, position);
 
-        entry.Enums.Add(enumType);
-    }
-
-    public void AddSequence(SqlIdentifier schema, Sequence sequence, SourcePosition position)
-    {
-        var entry = GetOrAdd(schema);
-        if (entry.Sequences.Any(s => s.Name == sequence.Name))
-        {
-            Report(ProjectDiagnostics.ObjectAlreadyDeclared(ObjectKind.Sequence, schema, sequence.Name, position), CurrentFile);
-            return;
-        }
-
-        entry.Sequences.Add(sequence);
-    }
-
-    public void AddDomain(SqlIdentifier schema, DomainType domain, SourcePosition position)
-    {
-        var entry = GetOrAdd(schema);
-        if (entry.Domains.Any(d => d.Name == domain.Name))
-        {
-            Report(ProjectDiagnostics.ObjectAlreadyDeclared(ObjectKind.Domain, schema, domain.Name, position), CurrentFile);
-            return;
-        }
-
-        entry.Domains.Add(domain);
-    }
-
-    public void AddCompositeType(SqlIdentifier schema, CompositeType compositeType, SourcePosition position)
-    {
-        var entry = GetOrAdd(schema);
-        if (entry.CompositeTypes.Any(t => t.Name == compositeType.Name))
-        {
-            Report(ProjectDiagnostics.ObjectAlreadyDeclared(ObjectKind.CompositeType, schema, compositeType.Name, position), CurrentFile);
-            return;
-        }
-
-        entry.CompositeTypes.Add(compositeType);
-    }
+    public void AddCompositeType(SqlIdentifier schema, CompositeType compositeType, SourcePosition position) =>
+        Add(schema, compositeType, e => e.CompositeTypes, position);
 
     // Functions and procedures are one routine pool sharing a single name space, as they do in the database:
     // a function and a procedure with the same name cannot coexist in a schema, which a single list enforces.
-    public void AddRoutine(SqlIdentifier schema, Routine routine, SourcePosition position)
+    public void AddRoutine(SqlIdentifier schema, Routine routine, SourcePosition position) =>
+        Add(schema, routine, e => e.Routines, position);
+
+    private void Add<T>(SqlIdentifier schema, T item, Func<Entry, DatabaseObjectCollection<T>> collection, SourcePosition position)
+        where T : DatabaseObject
     {
-        var entry = GetOrAdd(schema);
-        if (entry.Routines.Any(r => r.Name == routine.Name))
+        var target = collection(GetOrAdd(schema));
+        if (target.Any(x => x.Name == item.Name))
         {
-            Report(ProjectDiagnostics.ObjectAlreadyDeclared(ObjectKind.Routine, schema, routine.Name, position), CurrentFile);
+            Report(ProjectDiagnostics.ObjectAlreadyDeclared(item.Kind, schema, item.Name, position), CurrentFile);
             return;
         }
 
-        entry.Routines.Add(routine);
+        target.Add(item);
     }
 
     public void AddSchemaGrant(SqlIdentifier schema, SqlIdentifier role)

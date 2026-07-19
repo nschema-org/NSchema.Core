@@ -96,30 +96,5 @@ public abstract partial class SqlDialect
         _ => "NO ACTION",
     };
 
-    private static string PrivilegeList(TablePrivilege privileges)
-    {
-        var parts = new List<string>(4);
-
-        if (privileges.HasFlag(TablePrivilege.Select))
-        {
-            parts.Add("SELECT");
-        }
-
-        if (privileges.HasFlag(TablePrivilege.Insert))
-        {
-            parts.Add("INSERT");
-        }
-
-        if (privileges.HasFlag(TablePrivilege.Update))
-        {
-            parts.Add("UPDATE");
-        }
-
-        if (privileges.HasFlag(TablePrivilege.Delete))
-        {
-            parts.Add("DELETE");
-        }
-
-        return string.Join(", ", parts);
-    }
+    private static string PrivilegeList(TablePrivilege privileges) => string.Join(", ", privileges.SqlNames());
 }
