@@ -315,8 +315,7 @@ internal static class DocumentProjector
 
     private static SqlIdentifier Name(Syn.Identifier identifier) => new(identifier.Value);
 
-    private static SqlIdentifier? OptionalName(Syn.Identifier? identifier) =>
-        identifier is null ? null : new SqlIdentifier(identifier.Value);
+    private static SqlIdentifier? OptionalName(Syn.Identifier? identifier) => identifier?.Value;
 
     private static List<SqlIdentifier> Names(IReadOnlyList<Syn.Identifier> identifiers) =>
         identifiers.Select(Name).ToList();

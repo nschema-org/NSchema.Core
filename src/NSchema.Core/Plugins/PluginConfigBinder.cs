@@ -29,18 +29,18 @@ internal static class PluginConfigBinder
         {
             if (property.GetCustomAttribute<RequiredMemberAttribute>() is not null && !bound.Contains(property.Name))
             {
-                diagnostics.Add(PluginDiagnostics.MissingRequiredOption(AttributeName(property), typeof(T)));
+                diagnostics.Add(PluginDiagnostics.MissingRequiredOption(AttributeKey.ForProperty(property.Name), typeof(T)));
             }
         }
 
         return Result.From(instance, diagnostics);
     }
 
-    private static void BindAttribute(object root, string key, ConfigValue value, List<Diagnostic> diagnostics, HashSet<string> bound)
+    private static void BindAttribute(object root, AttributeKey key, ConfigValue value, List<Diagnostic> diagnostics, HashSet<string> bound)
     {
-        var segments = key.Split('.');
+        var segments = key.Segments;
         var target = root;
-        for (var i = 0; i < segments.Length; i++)
+        for (var i = 0; i < segments.Count; i++)
         {
             var property = FindProperty(target.GetType(), segments[i]);
             if (property is null)
@@ -53,7 +53,7 @@ internal static class PluginConfigBinder
                 bound.Add(property.Name);
             }
 
-            if (i == segments.Length - 1)
+            if (i == segments.Count - 1)
             {
                 if (TryConvert(value, property.PropertyType, out var converted))
                 {
@@ -81,12 +81,9 @@ internal static class PluginConfigBinder
         }
     }
 
-    private static PropertyInfo? FindProperty(Type type, string segment)
-    {
-        var normalized = segment.Replace("_", "");
-        return type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .FirstOrDefault(p => p.CanWrite && string.Equals(p.Name, normalized, StringComparison.OrdinalIgnoreCase));
-    }
+    private static PropertyInfo? FindProperty(Type type, AttributeKey segment) =>
+        type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .FirstOrDefault(p => p.CanWrite && segment.Matches(p.Name));
 
     private static bool TryConvert(ConfigValue value, Type targetType, out object? converted)
     {
@@ -119,8 +116,14 @@ internal static class PluginConfigBinder
                     }
                     if (type.IsEnum)
                     {
-                        // read_committed matches ReadCommitted: same convention as attribute names.
-                        return Enum.TryParse(type, text.Replace("_", ""), ignoreCase: true, out converted);
+                        // read_committed names ReadCommitted: the attribute-key convention binds enum members too.
+                        AttributeKey written = text;
+                        if (Enum.GetNames(type).FirstOrDefault(written.Matches) is not { } name)
+                        {
+                            return false;
+                        }
+                        converted = Enum.Parse(type, name);
+                        return true;
                     }
                     var converter = TypeDescriptor.GetConverter(type);
                     if (!converter.CanConvertFrom(typeof(string)))
@@ -137,10 +140,4 @@ internal static class PluginConfigBinder
             return false;
         }
     }
-
-    /// <summary>
-    /// The attribute name a property binds from, for messages: <c>ConnectionString</c> → <c>connection_string</c>.
-    /// </summary>
-    private static string AttributeName(PropertyInfo property) =>
-        string.Concat(property.Name.Select((c, i) => char.IsUpper(c) && i > 0 ? $"_{char.ToLowerInvariant(c)}" : $"{char.ToLowerInvariant(c)}"));
 }

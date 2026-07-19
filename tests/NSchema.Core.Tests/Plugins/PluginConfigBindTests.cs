@@ -27,7 +27,7 @@ public sealed class PluginConfigBindTests
     }
 
     private static PluginConfig Config(params (string Key, ConfigValue Value)[] attributes) =>
-        new(null, attributes.ToDictionary(a => a.Key, a => a.Value, StringComparer.OrdinalIgnoreCase));
+        new(null, attributes.ToDictionary(a => new AttributeKey(a.Key), a => a.Value));
 
     [Fact]
     public void Bind_MapsSnakeCaseAttributesToProperties()

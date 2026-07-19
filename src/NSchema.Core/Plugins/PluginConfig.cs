@@ -4,13 +4,13 @@ namespace NSchema.Plugins;
 /// The configuration a plugin is handed.
 /// </summary>
 /// <param name="Label">The optional bare-identifier label following the keyword (e.g. <c>"postgres"</c> in <c>DATABASE postgres</c>).</param>
-/// <param name="Attributes">The statement's attributes, keyed case-insensitively.</param>
-public sealed record PluginConfig(string? Label, IReadOnlyDictionary<string, ConfigValue> Attributes)
+/// <param name="Attributes">The statement's attributes.</param>
+public sealed record PluginConfig(string? Label, IReadOnlyDictionary<AttributeKey, ConfigValue> Attributes)
 {
     /// <summary>
     /// Returns the named attribute, or <see langword="null"/> if the settings do not declare it.
     /// </summary>
-    public ConfigValue? Attribute(string name) => Attributes.GetValueOrDefault(name);
+    public ConfigValue? Attribute(AttributeKey name) => Attributes.GetValueOrDefault(name);
 
     /// <summary>
     /// Binds the attributes onto a new <typeparamref name="T"/>.

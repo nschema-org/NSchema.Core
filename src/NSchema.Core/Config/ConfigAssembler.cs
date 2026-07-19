@@ -157,7 +157,7 @@ public static class ConfigAssembler
     /// </summary>
     private static PluginConfig Translate(ConfigStatement statement)
     {
-        var attributes = new Dictionary<string, ConfigValue>(StringComparer.OrdinalIgnoreCase);
+        var attributes = new Dictionary<AttributeKey, ConfigValue>();
         foreach (var attribute in statement.Attributes)
         {
             attributes.Add(attribute.Key, attribute.Value switch

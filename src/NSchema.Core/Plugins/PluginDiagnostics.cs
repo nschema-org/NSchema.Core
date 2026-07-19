@@ -28,18 +28,18 @@ internal static class PluginDiagnostics
     /// <summary>
     /// A configuration attribute that matches no property on the options type it binds onto.
     /// </summary>
-    public static Diagnostic UnknownOption(string attribute, Type options) => Diagnostic.Error(Source,
+    public static Diagnostic UnknownOption(AttributeKey attribute, Type options) => Diagnostic.Error(Source,
         $"The configuration sets '{attribute}', which {options.Name} does not define.");
 
     /// <summary>
     /// A configuration value that cannot convert to the property it binds onto.
     /// </summary>
-    public static Diagnostic UnbindableOption(string attribute, ConfigValueKind kind, Type target) => Diagnostic.Error(Source,
+    public static Diagnostic UnbindableOption(AttributeKey attribute, ConfigValueKind kind, Type target) => Diagnostic.Error(Source,
         $"The '{attribute}' attribute carries a {kind} value that does not fit '{target.Name}'.");
 
     /// <summary>
     /// A required options member with no matching configuration attribute.
     /// </summary>
-    public static Diagnostic MissingRequiredOption(string attribute, Type options) => Diagnostic.Error(Source,
+    public static Diagnostic MissingRequiredOption(AttributeKey attribute, Type options) => Diagnostic.Error(Source,
         $"{options.Name} requires the '{attribute}' attribute, which the configuration does not set.");
 }

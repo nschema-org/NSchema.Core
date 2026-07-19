@@ -15,15 +15,6 @@ internal static class ShouldlyIdentifierExtensions
         public void ShouldBe(T? expected) => (actual is null ? default : actual.Value).ShouldBe(expected);
     }
 
-    extension<T>(IEnumerable<ValueObject<T>>? actual)
-    {
-        public void ShouldBe(IEnumerable<T>? expected, bool ignoreOrder = false)
-        {
-            var actualValue = actual?.Select(i => i.Value) ?? [];
-            actualValue.ShouldBe(expected, ignoreOrder);
-        }
-    }
-
     extension(RoutineReference? actual)
     {
         public void ShouldBe(string? expected) => (actual?.ToString()).ShouldBe(expected);

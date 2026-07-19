@@ -171,7 +171,7 @@ public abstract partial class SqlDialect
     /// A successful single-statement rendering.
     /// </summary>
     protected static Result<IReadOnlyList<SqlStatement>> Statement(string sql, bool runOutsideTransaction = false) =>
-        Result.Success<IReadOnlyList<SqlStatement>>([new SqlStatement(new SqlText(sql), runOutsideTransaction)]);
+        Result.Success<IReadOnlyList<SqlStatement>>([new SqlStatement(sql, runOutsideTransaction)]);
 
     /// <summary>
     /// A successful rendering of the given statements.

@@ -127,14 +127,14 @@ internal static class ViewDependencyExtractor
                 var schema = first;
                 var name = tokens[j + 1].Text;
                 j += 2;
-                Add(new ViewDependency(new SqlIdentifier(schema), new SqlIdentifier(name)));
+                Add(new ViewDependency(schema, name));
                 return true;
             }
 
             // Unqualified: a CTE name is local and must not be treated as a real object.
             if (!ctes.Contains(first))
             {
-                Add(new ViewDependency(defaultSchema, new SqlIdentifier(first)));
+                Add(new ViewDependency(defaultSchema, first));
             }
             return true;
         }
