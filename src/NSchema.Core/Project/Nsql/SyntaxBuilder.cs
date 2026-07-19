@@ -263,7 +263,7 @@ internal static class SyntaxBuilder
         Syn.Triggers.TriggerAction action = trigger.Body is { } body
             ? new Syn.Triggers.InlineBodyAction(body) { Position = _none }
             : new Syn.Triggers.ExecuteFunctionAction(
-                new QualifiedName(OptionalIdentifier(trigger.Function!.Schema), Ident(trigger.Function.Name)) { Position = _none },
+                new QualifiedName(OptionalName(trigger.Function!.Schema), Name(trigger.Function.Name)) { Position = _none },
                 trigger.FunctionArguments ?? new SqlText(string.Empty))
             {
                 Position = _none,
@@ -288,7 +288,7 @@ internal static class SyntaxBuilder
             {
                 Position = _none,
             },
-            ChangeScript change => new Syn.Scripts.ChangeEventClause(Trigger(change.Trigger), new MemberPath(OptionalIdentifier(change.ScopeSchema), Ident(change.TableName), Ident(change.MemberName)) { Position = _none })
+            ChangeScript change => new Syn.Scripts.ChangeEventClause(Trigger(change.Trigger), new MemberPath(OptionalName(change.ScopeSchema), Name(change.TableName), Name(change.MemberName)) { Position = _none })
             {
                 Position = _none,
             },
@@ -300,7 +300,7 @@ internal static class SyntaxBuilder
             ? d.RunCondition == RunCondition.Once ? Syn.Scripts.RunCondition.Once : Syn.Scripts.RunCondition.Always
             : null;
 
-        return new Syn.Scripts.ScriptStatement(Ident(script.Name), condition, clause, script.Sql, script.RunOutsideTransaction)
+        return new Syn.Scripts.ScriptStatement(Name(script.Name), condition, clause, script.Sql, script.RunOutsideTransaction)
         {
             Position = _none,
         };
@@ -315,18 +315,14 @@ internal static class SyntaxBuilder
 
     // --- leaf conversions -------------------------------------------------------------
 
-    private static Identifier Ident(SqlIdentifier name) => new(name.Value) { Position = _none };
+    private static Identifier Name(SqlIdentifier name) => new(name.Value) { Position = _none };
 
-    private static Identifier Name(SqlIdentifier name) => Ident(name);
+    private static Identifier? OptionalName(SqlIdentifier? name) => name is null ? null : Name(name);
 
-    private static Identifier? OptionalName(SqlIdentifier? name) => name is null ? null : Ident(name);
-
-    private static Identifier? OptionalIdentifier(SqlIdentifier? name) => name is null ? null : Ident(name);
-
-    private static List<Identifier> Names(IReadOnlyList<SqlIdentifier> names) => names.Select(Ident).ToList();
+    private static List<Identifier> Names(IReadOnlyList<SqlIdentifier> names) => names.Select(Name).ToList();
 
     private static QualifiedName Qualified(SqlIdentifier schema, SqlIdentifier name) =>
-        new(Ident(schema), Ident(name)) { Position = _none };
+        new(Name(schema), Name(name)) { Position = _none };
 
     /// <summary>
     /// Decomposes a type's canonical text (<c>varchar(100)</c>, <c>app.status</c>) into the written form;

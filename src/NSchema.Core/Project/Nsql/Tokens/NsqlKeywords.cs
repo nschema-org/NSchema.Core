@@ -103,11 +103,4 @@ internal static class NsqlKeywords
         Create, Grant, Template, Apply, Script, Rename,
     };
 
-    /// <summary>
-    /// The keywords that open a configuration-grammar statement.
-    /// </summary>
-    public static readonly IReadOnlySet<string> ConfigStatementOpeners = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-    {
-        Database, State,
-    };
 }

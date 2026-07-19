@@ -54,8 +54,8 @@ internal sealed class DatabaseAccumulator
 
     /// <summary>
     /// The <c>INCLUDE</c> members collected from table bodies. Unlike the other pending lists these are not
-    /// resolved at <see cref="Build"/> — they resolve against the aggregate at template expansion, so they are
-    /// exported alongside the built schema rather than folded into it.
+    /// resolved at <see cref="Build"/> — they resolve against the assembled aggregate in the include-resolution
+    /// phase, so they are exported alongside the built schema rather than folded into it.
     /// </summary>
     public IReadOnlyList<TemplateInclude> Includes => _includes;
 

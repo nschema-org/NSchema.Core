@@ -131,32 +131,10 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
 
     private static Database Merge(Database existing, Database incoming)
     {
-        // Strip any objects from existing that appear in the incoming import, then graft the incoming
-        // objects in — incoming wins on overlap, and everything else is left in place.
-        var incomingBySchema = incoming.Schemas.ToDictionary(s => s.Name, s => s);
-
-        // The existing tree was just parsed from the file, so it is ours to prune in place.
-        foreach (var s in existing.Schemas)
-        {
-            if (!incomingBySchema.TryGetValue(s.Name, out var i))
-            {
-                continue;
-            }
-            PruneByName(s.Tables, i.Tables, t => t.Name);
-            PruneByName(s.Views, i.Views, v => v.Name);
-            PruneByName(s.Enums, i.Enums, e => e.Name);
-            PruneByName(s.Sequences, i.Sequences, q => q.Name);
-            PruneByName(s.Routines, i.Routines, r => r.Name);
-            PruneByName(s.Domains, i.Domains, d => d.Name);
-            PruneByName(s.CompositeTypes, i.CompositeTypes, c => c.Name);
-        }
-
-        // Root-level extensions are pruned by name too, so a re-imported extension merges in rather than
-        // duplicating.
-        PruneByName(existing.Extensions, incoming.Extensions, e => e.Name);
-
-        // Pruning removed every overlap, so nothing can collide; incoming nodes are copied in, never
-        // re-parented.
+        // Merge is prune-then-graft per kind: strip the existing objects the incoming import re-declares, then
+        // copy the incoming ones in — incoming wins on overlap, and everything else is left in place. The
+        // existing tree was just parsed from the file, so it is ours to prune; incoming nodes are copied in,
+        // never re-parented.
         foreach (var incomingSchema in incoming.Schemas)
         {
             var schema = existing.Schemas.FirstOrDefault(s => s.Name == incomingSchema.Name);
@@ -166,13 +144,13 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
                 continue;
             }
 
-            Graft(incomingSchema.Tables, schema.Tables);
-            Graft(incomingSchema.Views, schema.Views);
-            Graft(incomingSchema.Enums, schema.Enums);
-            Graft(incomingSchema.Sequences, schema.Sequences);
-            Graft(incomingSchema.Routines, schema.Routines);
-            Graft(incomingSchema.Domains, schema.Domains);
-            Graft(incomingSchema.CompositeTypes, schema.CompositeTypes);
+            MergeObjects(schema.Tables, incomingSchema.Tables);
+            MergeObjects(schema.Views, incomingSchema.Views);
+            MergeObjects(schema.Enums, incomingSchema.Enums);
+            MergeObjects(schema.Sequences, incomingSchema.Sequences);
+            MergeObjects(schema.Routines, incomingSchema.Routines);
+            MergeObjects(schema.Domains, incomingSchema.Domains);
+            MergeObjects(schema.CompositeTypes, incomingSchema.CompositeTypes);
             foreach (var grant in incomingSchema.Grants.Where(g => !schema.Grants.Contains(g)))
             {
                 schema.Grants.Add(grant);
@@ -182,6 +160,9 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
                 schema.Comment = incomingSchema.Comment;
             }
         }
+
+        // Root-level extensions merge the same way, so a re-imported extension replaces rather than duplicating.
+        PruneByName(existing.Extensions, incoming.Extensions);
         foreach (var extension in incoming.Extensions)
         {
             existing.Extensions.Add(extension.Clone());
@@ -190,17 +171,19 @@ internal sealed class ImportOperation(IDatabaseProvider database, IProgress<Oper
         return existing;
     }
 
-    private static void Graft<T>(IReadOnlyList<T> incoming, DatabaseObjectCollection<T> target) where T : DatabaseObject
+    /// <summary>Replaces the target's same-named objects with clones of the incoming ones.</summary>
+    private static void MergeObjects<T>(DatabaseObjectCollection<T> target, IReadOnlyList<T> incoming) where T : DatabaseObject
     {
+        PruneByName(target, incoming);
         foreach (var item in incoming)
         {
             target.Add((T)item.Clone());
         }
     }
 
-    private static void PruneByName<T>(IList<T> existing, IReadOnlyList<T> incoming, Func<T, SqlIdentifier> name)
+    private static void PruneByName<T>(IList<T> existing, IReadOnlyList<T> incoming) where T : DatabaseElement
     {
-        var incomingNames = incoming.Select(name).ToHashSet();
-        existing.RemoveWhere(item => incomingNames.Contains(name(item)));
+        var incomingNames = incoming.Select(item => item.Name).ToHashSet();
+        existing.RemoveWhere(item => incomingNames.Contains(item.Name));
     }
 }

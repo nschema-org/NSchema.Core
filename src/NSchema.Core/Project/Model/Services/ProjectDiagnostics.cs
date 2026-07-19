@@ -5,7 +5,7 @@ using NSchema.Project.Nsql;
 namespace NSchema.Project.Model.Services;
 
 /// <summary>
-/// The diagnostics minted while reading and aggregating the project.
+/// The diagnostics minted while reading and assembling the project.
 /// </summary>
 internal static class ProjectDiagnostics
 {
