@@ -313,7 +313,7 @@ internal static class DocumentProjector
 
     // --- name binding and small mappers ----------------------------------------------
 
-    private static SqlIdentifier Name(Syn.Identifier identifier) => new(identifier.Value);
+    private static SqlIdentifier Name(Syn.Identifier identifier) => identifier.Value;
 
     private static SqlIdentifier? OptionalName(Syn.Identifier? identifier) => identifier?.Value;
 

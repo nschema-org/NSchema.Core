@@ -159,7 +159,7 @@ public sealed class ProjectedDocumentWriterTests
     [Fact]
     public void Write_DatabaseOverload_EmitsNoScripts()
     {
-        var ddl = NsqlWriter.Write(new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] });
+        var ddl = NsqlWriter.Write(new Database { Schemas = [new Schema { Name = "app" }] });
 
         ddl.ShouldNotContain("DEPLOYMENT");
         ddl.ShouldBe("CREATE SCHEMA app;\n");

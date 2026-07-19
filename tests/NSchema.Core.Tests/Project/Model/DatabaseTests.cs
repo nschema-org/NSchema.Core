@@ -10,19 +10,19 @@ public sealed class DatabaseTests
 {
     private static Database Db(params Schema[] schemas) => new Database { Schemas = [.. schemas] };
 
-    private static Schema Schema(string name, params Table[] tables) => new Schema { Name = new SqlIdentifier(name), Tables = [.. tables] };
+    private static Schema Schema(string name, params Table[] tables) => new Schema { Name = name, Tables = [.. tables] };
 
-    private static Table Table(string name) => new Table { Name = new SqlIdentifier(name) };
+    private static Table Table(string name) => new Table { Name = name };
 
     private static Database Sample() => new Database
     {
-        Schemas = [new Schema { Name = new SqlIdentifier("app") }, new Schema { Name = new SqlIdentifier("audit") }, new Schema { Name = new SqlIdentifier("legacy") }],
+        Schemas = [new Schema { Name = "app" }, new Schema { Name = "audit" }, new Schema { Name = "legacy" }],
     };
 
     [Fact]
     public void ScopedTo_RestrictsSchemas()
     {
-        var result = Sample().ScopedTo(PlanningScope.To(new SqlIdentifier("app")));
+        var result = Sample().ScopedTo(PlanningScope.To("app"));
 
         result.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
@@ -30,9 +30,9 @@ public sealed class DatabaseTests
     [Fact]
     public void ScopedTo_IsCaseSensitive()
     {
-        var schema = new Database { Schemas = [new Schema { Name = new SqlIdentifier("App") }] };
+        var schema = new Database { Schemas = [new Schema { Name = "App" }] };
 
-        var result = schema.ScopedTo(PlanningScope.To(new SqlIdentifier("app")));
+        var result = schema.ScopedTo(PlanningScope.To("app"));
 
         result.Schemas.ShouldBeEmpty();
     }
@@ -40,7 +40,7 @@ public sealed class DatabaseTests
     [Fact]
     public void ScopedTo_NamesNotPresent_AreIgnored()
     {
-        var result = Sample().ScopedTo(PlanningScope.To(new SqlIdentifier("app"), new SqlIdentifier("does-not-exist")));
+        var result = Sample().ScopedTo(PlanningScope.To("app", "does-not-exist"));
 
         result.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
@@ -52,7 +52,7 @@ public sealed class DatabaseTests
         // to the target, with every other schema gone.
         var database = Db(Schema("app", Table("users"), Table("orders")), Schema("audit", Table("log")));
 
-        var result = database.ScopedTo(PlanningScope.To([new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users"))]));
+        var result = database.ScopedTo(PlanningScope.To([new ObjectAddress("app", "users")]));
 
         var app = result.Schemas.ShouldHaveSingleItem();
         app.Name.ShouldBe("app");
@@ -64,16 +64,16 @@ public sealed class DatabaseTests
     {
         // Directives address current reality, so a schema rename keeps its object directives in scope through
         // either side; unrelated schemas' directives drop out.
-        var sales = new SqlIdentifier("sales");
-        var core = new SqlIdentifier("core");
+        SqlIdentifier sales = "sales";
+        SqlIdentifier core = "core";
         var project = new ProjectDefinition(
-            new Database { Schemas = [new Schema { Name = core }, new Schema { Name = new SqlIdentifier("audit") }] },
+            new Database { Schemas = [new Schema { Name = core }, new Schema { Name = "audit" }] },
             new ProjectDirectives(
                 SchemaRenames: [new SchemaRenameDirective(sales, core)],
                 ObjectRenames:
                 [
-                    new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(sales, new SqlIdentifier("old"))), new SqlIdentifier("current")),
-                    new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("audit"), new SqlIdentifier("stale"))), new SqlIdentifier("fresh")),
+                    new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(sales, "old")), "current"),
+                    new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress("audit", "stale")), "fresh"),
                 ]));
 
         var filtered = project.ScopedTo(PlanningScope.To(core)).Directives;
@@ -87,21 +87,21 @@ public sealed class DatabaseTests
     {
         // A change script rides the table it prepares; a deployment script is a schema-level facet, below
         // the schema and no object, so only a whole-schema scope carries it. Renames stay through either side.
-        var app = new SqlIdentifier("app");
-        var users = new ObjectAddress(app, new SqlIdentifier("users"));
+        SqlIdentifier app = "app";
+        var users = new ObjectAddress(app, "users");
         var directives = new ProjectDirectives(
             ObjectRenames:
             [
-                new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, new SqlIdentifier("customers"))), new SqlIdentifier("users")),
-                new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, new SqlIdentifier("stale"))), new SqlIdentifier("fresh")),
+                new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, "customers")), "users"),
+                new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, "stale")), "fresh"),
             ],
-            MemberRenames: [new MemberRenameDirective(new MemberAddress(app, new SqlIdentifier("users"), new SqlIdentifier("mail")), new SqlIdentifier("email"))],
+            MemberRenames: [new MemberRenameDirective(new MemberAddress(app, "users", "mail"), "email")],
             ChangeScripts:
             [
-                new ChangeScript(new SqlIdentifier("backfill"), new SqlText("UPDATE 1;"), app, ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email")),
-                new ChangeScript(new SqlIdentifier("other"), new SqlText("UPDATE 2;"), app, ChangeTrigger.AddColumn, new SqlIdentifier("orders"), new SqlIdentifier("total")),
+                new ChangeScript("backfill", "UPDATE 1;", app, ChangeTrigger.AddColumn, "users", "email"),
+                new ChangeScript("other", "UPDATE 2;", app, ChangeTrigger.AddColumn, "orders", "total"),
             ],
-            DeploymentScripts: [new DeploymentScript(new SqlIdentifier("seed"), new SqlText("SELECT 1;"), app, DeploymentPhase.Pre)]);
+            DeploymentScripts: [new DeploymentScript("seed", "SELECT 1;", app, DeploymentPhase.Pre)]);
 
         var filtered = directives.ScopedTo(PlanningScope.To([users]));
 

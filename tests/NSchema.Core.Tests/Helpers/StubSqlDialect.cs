@@ -26,7 +26,7 @@ namespace NSchema.Tests.Helpers;
 internal class StubSqlDialect : SqlDialect
 {
     private static Result<IReadOnlyList<SqlStatement>> Comment(MigrationAction action) =>
-        Statements(new SqlStatement(new SqlText($"-- {action.GetType().Name}")));
+        Statements(new SqlStatement($"-- {action.GetType().Name}"));
 
     protected override Result<IReadOnlyList<SqlStatement>> CreateSchema(CreateSchema action) => Comment(action);
     protected override Result<IReadOnlyList<SqlStatement>> DropSchema(DropSchema action) => Comment(action);

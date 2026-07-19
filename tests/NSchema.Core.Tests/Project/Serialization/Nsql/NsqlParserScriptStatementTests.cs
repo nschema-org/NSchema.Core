@@ -149,8 +149,8 @@ public sealed class NsqlParserScriptStatementTests
 
         var changes = assembled.Value.AllScripts().OfType<ChangeScript>().ToList();
         changes.Select(c => c.ScopeSchema!.Value).ShouldBe(["billing", "ordering"]);
-        changes.ShouldAllBe(c => c.TableName == new SqlIdentifier("outbox_events"));
-        changes.ShouldAllBe(c => c.MemberName == new SqlIdentifier("trace_id"));
+        changes.ShouldAllBe(c => c.TableName == "outbox_events");
+        changes.ShouldAllBe(c => c.MemberName == "trace_id");
     }
 
     [Fact]
@@ -175,7 +175,7 @@ public sealed class NsqlParserScriptStatementTests
         script.Sql.Value.ShouldContain("INSERT INTO app.outbox_events");
         var deployment = script.ShouldBeOfType<DeploymentScript>();
         deployment.Phase.ShouldBe(DeploymentPhase.Post);
-        deployment.ScopeSchema.ShouldBe(new SqlIdentifier("app"));
+        deployment.ScopeSchema.ShouldBe("app");
         deployment.RunCondition.ShouldBe(RunCondition.Once);
     }
 

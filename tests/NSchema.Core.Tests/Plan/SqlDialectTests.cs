@@ -103,13 +103,13 @@ public sealed class SqlDialectTests
         new AlterColumnType(N("app"), N("users"), N("age"), SqlType.SmallInt, SqlType.Int),
         new AlterColumnNullability(N("app"), N("users"), N("email"), true, false),
         new AlterIdentitySequence(N("app"), N("users"), N("id"), null, new IdentityOptions(1, 1, 1)),
-        new SetColumnDefault(N("app"), N("users"), N("age"), null, new SqlText("0")),
-        new SetColumnDefault(N("app"), N("users"), N("age"), new SqlText("0"), null),
-        new SetColumnGenerated(N("app"), N("orders"), N("total"), null, new SqlText("price * quantity")),
+        new SetColumnDefault(N("app"), N("users"), N("age"), null, "0"),
+        new SetColumnDefault(N("app"), N("users"), N("age"), "0", null),
+        new SetColumnGenerated(N("app"), N("orders"), N("total"), null, "price * quantity"),
         new SetColumnComment(N("app"), N("users"), N("email"), null, "Primary contact"),
 
         // Constraints
-        new AddCheckConstraint(N("app"), N("users"), new CheckConstraint { Name = N("ck_age"), Expression = new SqlText("age >= 0") }),
+        new AddCheckConstraint(N("app"), N("users"), new CheckConstraint { Name = N("ck_age"), Expression = "age >= 0" }),
         new DropCheckConstraint(N("app"), N("users"), N("ck_age")),
         new AddUniqueConstraint(N("app"), N("users"), new UniqueConstraint { Name = N("uq_email"), ColumnNames = [N("email")] }),
         new DropUniqueConstraint(N("app"), N("users"), N("uq_email")),
@@ -132,13 +132,13 @@ public sealed class SqlDialectTests
             Name = N("trg_audit"),
             Timing = TriggerTiming.After,
             Events = TriggerEvent.Insert,
-            Body = new SqlText("INSERT INTO app.audit VALUES (1)"),
+            Body = "INSERT INTO app.audit VALUES (1)",
         }),
         new DropTrigger(N("app"), N("users"), N("trg_audit")),
         new SetTriggerComment(N("app"), N("users"), N("trg_audit"), null, "Audit trail"),
 
         // Views
-        new CreateView(N("app"), new View { Name = N("active_users"), Body = new SqlText("SELECT * FROM app.users") }),
+        new CreateView(N("app"), new View { Name = N("active_users"), Body = "SELECT * FROM app.users" }),
         new DropView(N("app"), N("active_users")),
         new DropView(N("app"), N("user_stats"), IsMaterialized: true),
         new RenameView(N("app"), N("active_users"), N("current_users")),
@@ -157,9 +157,9 @@ public sealed class SqlDialectTests
         new DropDomain(N("app"), N("email_address")),
         new RenameDomain(N("app"), N("email_address"), N("contact_address")),
         new RecreateDomain(N("app"), new DomainType { Name = N("email_address"), DataType = SqlType.VarChar(320) }),
-        new AlterDomainDefault(N("app"), N("email_address"), null, new SqlText("''")),
+        new AlterDomainDefault(N("app"), N("email_address"), null, "''"),
         new AlterDomainNotNull(N("app"), N("email_address"), true),
-        new AddDomainCheck(N("app"), N("email_address"), new CheckConstraint { Name = N("ck_at_sign"), Expression = new SqlText("VALUE LIKE '%@%'") }),
+        new AddDomainCheck(N("app"), N("email_address"), new CheckConstraint { Name = N("ck_at_sign"), Expression = "VALUE LIKE '%@%'" }),
         new DropDomainCheck(N("app"), N("email_address"), N("ck_at_sign")),
         new SetDomainComment(N("app"), N("email_address"), null, "An email address"),
 
@@ -184,8 +184,8 @@ public sealed class SqlDialectTests
         {
             Name = N("add_tax"),
             RoutineKind = RoutineKind.Function,
-            Arguments = new SqlText("amount numeric"),
-            Definition = new SqlText("RETURN amount * 1.2;"),
+            Arguments = "amount numeric",
+            Definition = "RETURN amount * 1.2;",
         }),
         new DropRoutine(N("app"), N("add_tax"), RoutineKind.Function),
         new RenameRoutine(N("app"), N("add_tax"), N("apply_tax"), RoutineKind.Function),
@@ -193,8 +193,8 @@ public sealed class SqlDialectTests
         {
             Name = N("add_tax"),
             RoutineKind = RoutineKind.Function,
-            Arguments = new SqlText("amount numeric, rate numeric"),
-            Definition = new SqlText("RETURN amount * rate;"),
+            Arguments = "amount numeric, rate numeric",
+            Definition = "RETURN amount * rate;",
         }),
         new SetRoutineComment(N("app"), N("add_tax"), null, "VAT", RoutineKind.Function),
 
@@ -205,7 +205,7 @@ public sealed class SqlDialectTests
         new SetExtensionComment(N("uuid-ossp"), null, "UUID generation"),
 
         // Scripts
-        new ExecuteScript(new DeploymentScript(N("seed"), new SqlText("INSERT INTO app.users VALUES (1)"), null, DeploymentPhase.Post)),
+        new ExecuteScript(new DeploymentScript(N("seed"), "INSERT INTO app.users VALUES (1)", null, DeploymentPhase.Post)),
     ];
 
     [Fact]
@@ -263,7 +263,7 @@ public sealed class SqlDialectTests
     public void Generate_QuotesEmbeddedQuotes()
     {
         // Act
-        var result = _sut.Generate(new DropTable(new SqlIdentifier("app"), new SqlIdentifier("we\"ird")));
+        var result = _sut.Generate(new DropTable("app", "we\"ird"));
 
         // Assert
         result.Require().ShouldHaveSingleItem().Sql.Value.ShouldBe("DROP TABLE \"app\".\"we\"\"ird\"");
@@ -313,14 +313,14 @@ public sealed class SqlDialectTests
         var dialect = new AnsiSequenceDialect();
         var sequence = new Sequence
         {
-            Name = new SqlIdentifier("order_seq"),
+            Name = "order_seq",
             Options = new SequenceOptions(StartWith: 10, IncrementBy: 5, MaxValue: 1000, Cycle: true),
         };
 
         // Act
-        var create = dialect.Generate(new CreateSequence(new SqlIdentifier("app"), sequence));
-        var alter = dialect.Generate(new AlterSequence(new SqlIdentifier("app"), new SqlIdentifier("order_seq"), new SequenceOptions(), new SequenceOptions(IncrementBy: 2)));
-        var drop = dialect.Generate(new DropSequence(new SqlIdentifier("app"), new SqlIdentifier("order_seq")));
+        var create = dialect.Generate(new CreateSequence("app", sequence));
+        var alter = dialect.Generate(new AlterSequence("app", "order_seq", new SequenceOptions(), new SequenceOptions(IncrementBy: 2)));
+        var drop = dialect.Generate(new DropSequence("app", "order_seq"));
 
         // Assert
         create.Require().ShouldHaveSingleItem().Sql.Value.ShouldBe("CREATE SEQUENCE \"app\".\"order_seq\" START WITH 10 INCREMENT BY 5 MAXVALUE 1000 CYCLE");

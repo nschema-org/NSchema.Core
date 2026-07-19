@@ -22,8 +22,8 @@ public class ChangeScriptAttachmentTests
     /// <summary>Diffs the given current/desired <c>app.users</c> tables, steered by the given change scripts.</summary>
     private TableDiff Diff(Table current, Table desired, params ChangeScript[] scripts)
     {
-        var currentDb = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [current] }] };
-        var desiredDb = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [desired] }] };
+        var currentDb = new Database { Schemas = [new Schema { Name = "app", Tables = [current] }] };
+        var desiredDb = new Database { Schemas = [new Schema { Name = "app", Tables = [desired] }] };
         var diff = _sut.Compare(AlignedDatabase.Unaligned(currentDb), desiredDb);
         return ChangeScriptDecorator.Decorate(diff, scripts).Require().Schemas.Single().Tables.Single();
     }
@@ -32,7 +32,7 @@ public class ChangeScriptAttachmentTests
     {
         return new Table
         {
-            Name = new SqlIdentifier("users"),
+            Name = "users",
             Columns = [.. members.OfType<Column>()],
             PrimaryKey = members.OfType<PrimaryKey>().FirstOrDefault(),
             ForeignKeys = [.. members.OfType<ForeignKey>()],
@@ -42,17 +42,17 @@ public class ChangeScriptAttachmentTests
         };
     }
 
-    private static Column Id => new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int };
+    private static Column Id => new Column { Name = "id", Type = SqlType.Int };
 
     private static ChangeScript Change(ChangeTrigger trigger, string member, string? name = null) =>
-        new(new SqlIdentifier(name ?? member), new SqlText($"UPDATE app.users -- {member}"), new SqlIdentifier("app"),
-            trigger, new SqlIdentifier("users"), new SqlIdentifier(member));
+        new(name ?? member, $"UPDATE app.users -- {member}", "app",
+            trigger, "users", member);
 
     [Fact]
     public void AddColumn_AttachesToTheAddedColumn()
     {
         var script = Change(ChangeTrigger.AddColumn, "email");
-        var diff = Diff(Users(Id), Users(Id, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text }), script);
+        var diff = Diff(Users(Id), Users(Id, new Column { Name = "email", Type = SqlType.Text }), script);
 
         diff.Columns.Single(c => c.Name.Value == "email").MigrationScript.ShouldBe(script);
     }
@@ -62,8 +62,8 @@ public class ChangeScriptAttachmentTests
     {
         var script = Change(ChangeTrigger.AlterColumnType, "total");
         var diff = Diff(
-            Users(Id, new Column { Name = new SqlIdentifier("total"), Type = SqlType.Text }),
-            Users(Id, new Column { Name = new SqlIdentifier("total"), Type = SqlType.Int }),
+            Users(Id, new Column { Name = "total", Type = SqlType.Text }),
+            Users(Id, new Column { Name = "total", Type = SqlType.Int }),
             script);
 
         diff.Columns.Single(c => c.Name.Value == "total").MigrationScript.ShouldBe(script);
@@ -75,7 +75,7 @@ public class ChangeScriptAttachmentTests
         var script = Change(ChangeTrigger.AddConstraint, "users_pk");
         var diff = Diff(
             Users(Id),
-            Users(Id, new PrimaryKey { Name = new SqlIdentifier("users_pk"), ColumnNames = [new SqlIdentifier("id")] }),
+            Users(Id, new PrimaryKey { Name = "users_pk", ColumnNames = ["id"] }),
             script);
 
         diff.PrimaryKey.Single().MigrationScript.ShouldBe(script);
@@ -85,10 +85,10 @@ public class ChangeScriptAttachmentTests
     public void AddConstraint_AttachesToTheAddedUniqueConstraint()
     {
         var script = Change(ChangeTrigger.AddConstraint, "users_email_uq");
-        Column Email() => new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text };
+        Column Email() => new Column { Name = "email", Type = SqlType.Text };
         var diff = Diff(
             Users(Id, Email()),
-            Users(Id, Email(), new UniqueConstraint { Name = new SqlIdentifier("users_email_uq"), ColumnNames = [new SqlIdentifier("email")] }),
+            Users(Id, Email(), new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] }),
             script);
 
         diff.UniqueConstraints.Single().MigrationScript.ShouldBe(script);
@@ -98,10 +98,10 @@ public class ChangeScriptAttachmentTests
     public void AddConstraint_AttachesToTheAddedForeignKey()
     {
         var script = Change(ChangeTrigger.AddConstraint, "users_org_fk");
-        Column OrgId() => new Column { Name = new SqlIdentifier("org_id"), Type = SqlType.Int };
+        Column OrgId() => new Column { Name = "org_id", Type = SqlType.Int };
         var diff = Diff(
             Users(Id, OrgId()),
-            Users(Id, OrgId(), new ForeignKey { Name = new SqlIdentifier("users_org_fk"), ColumnNames = [new SqlIdentifier("org_id")], ReferencedSchema = new SqlIdentifier("app"), ReferencedTable = new SqlIdentifier("orgs"), ReferencedColumnNames = [new SqlIdentifier("id")] }),
+            Users(Id, OrgId(), new ForeignKey { Name = "users_org_fk", ColumnNames = ["org_id"], ReferencedSchema = "app", ReferencedTable = "orgs", ReferencedColumnNames = ["id"] }),
             script);
 
         diff.ForeignKeys.Single().MigrationScript.ShouldBe(script);
@@ -111,10 +111,10 @@ public class ChangeScriptAttachmentTests
     public void AddConstraint_AttachesToTheAddedCheckConstraint()
     {
         var script = Change(ChangeTrigger.AddConstraint, "users_age_chk");
-        Column Age() => new Column { Name = new SqlIdentifier("age"), Type = SqlType.Int };
+        Column Age() => new Column { Name = "age", Type = SqlType.Int };
         var diff = Diff(
             Users(Id, Age()),
-            Users(Id, Age(), new CheckConstraint { Name = new SqlIdentifier("users_age_chk"), Expression = new SqlText("age >= 0") }),
+            Users(Id, Age(), new CheckConstraint { Name = "users_age_chk", Expression = "age >= 0" }),
             script);
 
         diff.Checks.Single().MigrationScript.ShouldBe(script);
@@ -124,10 +124,10 @@ public class ChangeScriptAttachmentTests
     public void AddConstraint_AttachesToTheAddedExclusionConstraint()
     {
         var script = Change(ChangeTrigger.AddConstraint, "no_overlap");
-        Column During() => new Column { Name = new SqlIdentifier("during"), Type = SqlType.Text };
+        Column During() => new Column { Name = "during", Type = SqlType.Text };
         var diff = Diff(
             Users(Id, During()),
-            Users(Id, During(), new ExclusionConstraint { Name = new SqlIdentifier("no_overlap"), Elements = [new ExclusionElement("&&", new SqlIdentifier("during"))], Method = "gist" }),
+            Users(Id, During(), new ExclusionConstraint { Name = "no_overlap", Elements = [new ExclusionElement("&&", "during")], Method = "gist" }),
             script);
 
         diff.ExclusionConstraints.Single().MigrationScript.ShouldBe(script);
@@ -137,7 +137,7 @@ public class ChangeScriptAttachmentTests
     public void WrongMemberName_DoesNotAttach()
     {
         var script = Change(ChangeTrigger.AddColumn, "phone");
-        var diff = Diff(Users(Id), Users(Id, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text }), script);
+        var diff = Diff(Users(Id), Users(Id, new Column { Name = "email", Type = SqlType.Text }), script);
 
         diff.Columns.Single(c => c.Name.Value == "email").MigrationScript.ShouldBeNull();
     }
@@ -147,7 +147,7 @@ public class ChangeScriptAttachmentTests
     {
         // An AlterColumnType script targeting a column that is being added, not retyped.
         var script = Change(ChangeTrigger.AlterColumnType, "email");
-        var diff = Diff(Users(Id), Users(Id, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text }), script);
+        var diff = Diff(Users(Id), Users(Id, new Column { Name = "email", Type = SqlType.Text }), script);
 
         diff.Columns.Single(c => c.Name.Value == "email").MigrationScript.ShouldBeNull();
     }
@@ -157,8 +157,8 @@ public class ChangeScriptAttachmentTests
     {
         // Nothing in the diff matches the script, so decoration leaves it behind and says so.
         var script = Change(ChangeTrigger.AddColumn, "phone");
-        var currentDb = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [Users(Id)] }] };
-        var desiredDb = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [Users(Id, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text })] }] };
+        var currentDb = new Database { Schemas = [new Schema { Name = "app", Tables = [Users(Id)] }] };
+        var desiredDb = new Database { Schemas = [new Schema { Name = "app", Tables = [Users(Id, new Column { Name = "email", Type = SqlType.Text })] }] };
         var diff = _sut.Compare(AlignedDatabase.Unaligned(currentDb), desiredDb);
 
         var result = ChangeScriptDecorator.Decorate(diff, [script]);
@@ -170,8 +170,8 @@ public class ChangeScriptAttachmentTests
     public void AttachedScript_ReportsNoDiagnostics()
     {
         var script = Change(ChangeTrigger.AddColumn, "email");
-        var currentDb = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [Users(Id)] }] };
-        var desiredDb = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [Users(Id, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text })] }] };
+        var currentDb = new Database { Schemas = [new Schema { Name = "app", Tables = [Users(Id)] }] };
+        var desiredDb = new Database { Schemas = [new Schema { Name = "app", Tables = [Users(Id, new Column { Name = "email", Type = SqlType.Text })] }] };
         var diff = _sut.Compare(AlignedDatabase.Unaligned(currentDb), desiredDb);
 
         var result = ChangeScriptDecorator.Decorate(diff, [script]);
@@ -185,8 +185,8 @@ public class ChangeScriptAttachmentTests
         // The column changes, but not its type, so a type-change script has nothing to prepare.
         var script = Change(ChangeTrigger.AlterColumnType, "email");
         var diff = Diff(
-            Users(Id, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text, IsNullable = true }),
-            Users(Id, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text, IsNullable = false }),
+            Users(Id, new Column { Name = "email", Type = SqlType.Text, IsNullable = true }),
+            Users(Id, new Column { Name = "email", Type = SqlType.Text, IsNullable = false }),
             script);
 
         diff.Columns.Single(c => c.Name.Value == "email").MigrationScript.ShouldBeNull();
@@ -197,9 +197,9 @@ public class ChangeScriptAttachmentTests
     {
         // Identifiers are case-sensitive: a script addressing a case-variant path targets a different member,
         // so it does not attach.
-        var script = new ChangeScript(new SqlIdentifier("backfill"), new SqlText("UPDATE 1"), new SqlIdentifier("APP"),
-            ChangeTrigger.AddColumn, new SqlIdentifier("Users"), new SqlIdentifier("EMAIL"));
-        var diff = Diff(Users(Id), Users(Id, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text }), script);
+        var script = new ChangeScript("backfill", "UPDATE 1", "APP",
+            ChangeTrigger.AddColumn, "Users", "EMAIL");
+        var diff = Diff(Users(Id), Users(Id, new Column { Name = "email", Type = SqlType.Text }), script);
 
         diff.Columns.Single(c => c.Name.Value == "email").MigrationScript.ShouldBeNull();
     }

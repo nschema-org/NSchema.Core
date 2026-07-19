@@ -198,7 +198,7 @@ internal static class SyntaxBuilder
         {
             members.Add(new Syn.Constraints.ExclusionDefinition(Name(exclusion.Name),
                 exclusion.Elements.Select(e => new Syn.Constraints.ExclusionElement(e.Operator, OptionalName(e.Column), e.Expression) { Position = _none }).ToList(),
-                OptionalName(exclusion.Method is { } m ? new SqlIdentifier(m) : null), exclusion.Predicate)
+                OptionalName(exclusion.Method), exclusion.Predicate)
             {
                 Position = _none,
                 Doc = exclusion.Comment,
@@ -264,7 +264,7 @@ internal static class SyntaxBuilder
             ? new Syn.Triggers.InlineBodyAction(body) { Position = _none }
             : new Syn.Triggers.ExecuteFunctionAction(
                 new QualifiedName(OptionalName(trigger.Function!.Schema), Name(trigger.Function.Name)) { Position = _none },
-                trigger.FunctionArguments ?? new SqlText(string.Empty))
+                trigger.FunctionArguments ?? "")
             {
                 Position = _none,
             };

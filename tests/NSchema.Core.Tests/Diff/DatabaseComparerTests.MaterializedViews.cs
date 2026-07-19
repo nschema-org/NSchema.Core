@@ -13,7 +13,7 @@ public partial class DatabaseComparerTests
     // -------------------------------------------------------------------------
 
     private static View Matview(string name, string body, DatabaseMemberCollection<TableIndex>? indexes = null, string? comment = null) =>
-        new View { Name = new SqlIdentifier(name), Body = new SqlText(body), DependsOn = ViewDependencyExtractor.Extract(new SqlText(body), new SqlIdentifier("app")), IsMaterialized = true, Indexes = indexes ?? [], Comment = comment };
+        new View { Name = name, Body = body, DependsOn = ViewDependencyExtractor.Extract(body, "app"), IsMaterialized = true, Indexes = indexes ?? [], Comment = comment };
 
     [Fact]
     public void Compare_NewMaterializedView_IsAddWithMaterializedFlag()
@@ -70,7 +70,7 @@ public partial class DatabaseComparerTests
     {
         var diff = DiffViews(
             [Matview("daily", "SELECT 1")],
-            [Matview("daily", "SELECT 1", indexes: [new TableIndex { Name = new SqlIdentifier("daily_ix"), Columns = ["x"] }])]);
+            [Matview("daily", "SELECT 1", indexes: [new TableIndex { Name = "daily_ix", Columns = ["x"] }])]);
 
         diff!.RequiresRecreate.ShouldBeFalse();
         diff.Definition.ShouldBeNull(); // body unchanged
@@ -81,8 +81,8 @@ public partial class DatabaseComparerTests
     public void Compare_MaterializedViewBodyAndIndexChange_RecreatesWithIndexesOnDefinition()
     {
         var diff = DiffViews(
-            [Matview("daily", "SELECT 1", indexes: [new TableIndex { Name = new SqlIdentifier("a"), Columns = ["x"] }])],
-            [Matview("daily", "SELECT 2", indexes: [new TableIndex { Name = new SqlIdentifier("b"), Columns = ["y"] }])]);
+            [Matview("daily", "SELECT 1", indexes: [new TableIndex { Name = "a", Columns = ["x"] }])],
+            [Matview("daily", "SELECT 2", indexes: [new TableIndex { Name = "b", Columns = ["y"] }])]);
 
         diff!.RequiresRecreate.ShouldBeTrue();
         diff.Indexes.ShouldBeEmpty(); // not diffed in place during a recreate

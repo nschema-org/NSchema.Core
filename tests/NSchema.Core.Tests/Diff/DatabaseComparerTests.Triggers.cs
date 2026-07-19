@@ -16,16 +16,16 @@ public partial class DatabaseComparerTests
 
     private IReadOnlyList<TriggerDiff> DiffTriggers(IReadOnlyList<Trigger> current, IReadOnlyList<Trigger> desired) =>
         DiffTable(
-            new Table { Name = new SqlIdentifier("t"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }], Triggers = [.. current] },
-            new Table { Name = new SqlIdentifier("t"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }], Triggers = [.. desired] })?.Triggers ?? [];
+            new Table { Name = "t", Columns = [new Column { Name = "id", Type = SqlType.Int }], Triggers = [.. current] },
+            new Table { Name = "t", Columns = [new Column { Name = "id", Type = SqlType.Int }], Triggers = [.. desired] })?.Triggers ?? [];
 
     private static Trigger AfterInsert(string name, string function = "log", string? comment = null) =>
         new Trigger
         {
-            Name = new SqlIdentifier(name),
+            Name = name,
             Timing = TriggerTiming.After,
             Events = TriggerEvent.Insert,
-            Function = new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier(function)),
+            Function = new RoutineReference("app", function),
             Level = TriggerLevel.Row,
             Comment = comment,
         };
@@ -68,8 +68,8 @@ public partial class DatabaseComparerTests
     public void Compare_TriggerStructuralChange_IsRemoveThenAdd()
     {
         // Triggers don't rename or alter; a timing change is a drop + recreate, like an index.
-        var current = new Trigger { Name = new SqlIdentifier("audit"), Timing = TriggerTiming.Before, Events = TriggerEvent.Insert, Function = new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("log")) };
-        var desired = new Trigger { Name = new SqlIdentifier("audit"), Timing = TriggerTiming.After, Events = TriggerEvent.Insert, Function = new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("log")) };
+        var current = new Trigger { Name = "audit", Timing = TriggerTiming.Before, Events = TriggerEvent.Insert, Function = new RoutineReference("app", "log") };
+        var desired = new Trigger { Name = "audit", Timing = TriggerTiming.After, Events = TriggerEvent.Insert, Function = new RoutineReference("app", "log") };
 
         var diffs = DiffTriggers([current], [desired]);
 
@@ -79,8 +79,8 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_UpdateOfColumnsChange_IsStructural()
     {
-        var current = new Trigger { Name = new SqlIdentifier("audit"), Timing = TriggerTiming.After, Events = TriggerEvent.Update, Function = new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("log")), UpdateOfColumns = [new SqlIdentifier("a")] };
-        var desired = new Trigger { Name = new SqlIdentifier("audit"), Timing = TriggerTiming.After, Events = TriggerEvent.Update, Function = new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("log")), UpdateOfColumns = [new SqlIdentifier("a"), new SqlIdentifier("b")] };
+        var current = new Trigger { Name = "audit", Timing = TriggerTiming.After, Events = TriggerEvent.Update, Function = new RoutineReference("app", "log"), UpdateOfColumns = ["a"] };
+        var desired = new Trigger { Name = "audit", Timing = TriggerTiming.After, Events = TriggerEvent.Update, Function = new RoutineReference("app", "log"), UpdateOfColumns = ["a", "b"] };
 
         DiffTriggers([current], [desired]).Select(d => d.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add], ignoreOrder: true);
     }
@@ -89,8 +89,8 @@ public partial class DatabaseComparerTests
     public void Compare_TriggerBodyChange_IsStructural()
     {
         // An inline-body change is part of structural equality, so it is a drop + recreate (not a comment-only modify).
-        var current = new Trigger { Name = new SqlIdentifier("audit"), Timing = TriggerTiming.After, Events = TriggerEvent.Insert, Body = new SqlText("BEGIN SELECT 1 END") };
-        var desired = new Trigger { Name = new SqlIdentifier("audit"), Timing = TriggerTiming.After, Events = TriggerEvent.Insert, Body = new SqlText("BEGIN SELECT 2 END") };
+        var current = new Trigger { Name = "audit", Timing = TriggerTiming.After, Events = TriggerEvent.Insert, Body = "BEGIN SELECT 1 END" };
+        var desired = new Trigger { Name = "audit", Timing = TriggerTiming.After, Events = TriggerEvent.Insert, Body = "BEGIN SELECT 2 END" };
 
         DiffTriggers([current], [desired]).Select(d => d.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add], ignoreOrder: true);
     }

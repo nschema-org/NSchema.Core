@@ -7,7 +7,7 @@ public sealed class FormattedTextTests
     [Fact]
     public void Interpolation_MarksHolesAsValues()
     {
-        FormattedText text = $"Table {new SqlIdentifier("users")} is already declared.";
+        FormattedText text = $"Table {"users"} is already declared.";
 
         text.Spans.ShouldBe([
             new FormattedText.Span("Table ", false),
@@ -19,7 +19,7 @@ public sealed class FormattedTextTests
     [Fact]
     public void Interpolation_TextFormat_MarksTheHoleAsProse()
     {
-        FormattedText text = $"the {"composite type":text} '{new SqlIdentifier("point")}'";
+        FormattedText text = $"the {"composite type":text} '{"point"}'";
 
         // The prose hole merges into the surrounding literals; only the identifier is a value.
         text.Spans.ShouldBe([
@@ -32,7 +32,7 @@ public sealed class FormattedTextTests
     [Fact]
     public void Interpolation_SplicesNestedFormattedText()
     {
-        FormattedText inner = $"table '{new SqlIdentifier("users")}'";
+        FormattedText inner = $"table '{"users"}'";
         FormattedText outer = $"context: {inner} (at 3:14).";
 
         outer.ToString().ShouldBe("context: table 'users' (at 3:14).");
@@ -51,8 +51,8 @@ public sealed class FormattedTextTests
     [Fact]
     public void Equality_IsByContentIncludingSpanKinds()
     {
-        FormattedText fromValues = $"drop of {new SqlIdentifier("users")}";
-        FormattedText sameValues = $"drop of {new SqlIdentifier("users")}";
+        FormattedText fromValues = $"drop of {"users"}";
+        FormattedText sameValues = $"drop of {"users"}";
         FormattedText flattened = "drop of users";
 
         fromValues.ShouldBe(sameValues);
@@ -63,7 +63,7 @@ public sealed class FormattedTextTests
     [Fact]
     public void ToString_IsThePlainText()
     {
-        FormattedText text = $"Schema '{new SqlIdentifier("app")}' is already declared.";
+        FormattedText text = $"Schema '{"app"}' is already declared.";
 
         text.ToString().ShouldBe("Schema 'app' is already declared.");
     }

@@ -42,8 +42,8 @@ public sealed class MigrationPlannerTests
     /// <summary>A difference touching two schemas, so a scope has something to narrow away.</summary>
     private static DatabaseDiff TwoSchemaDiff() => new(
     [
-        new SchemaDiff(new SqlIdentifier("app"), ChangeKind.Remove),
-        new SchemaDiff(new SqlIdentifier("billing"), ChangeKind.Remove),
+        new SchemaDiff("app", ChangeKind.Remove),
+        new SchemaDiff("billing", ChangeKind.Remove),
     ]);
 
     [Fact]
@@ -54,7 +54,7 @@ public sealed class MigrationPlannerTests
         _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(TwoSchemaDiff(), []));
 
         // Act
-        var result = Sut.Plan(_current, _desired, PlanningScope.To(new SqlIdentifier("app")));
+        var result = Sut.Plan(_current, _desired, PlanningScope.To("app"));
 
         // Assert
         result.Value!.Diff.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
@@ -70,11 +70,11 @@ public sealed class MigrationPlannerTests
         _planPolicies.Add(policy);
 
         // Act
-        Sut.Plan(_current, _desired, PlanningScope.To(new SqlIdentifier("app")));
+        Sut.Plan(_current, _desired, PlanningScope.To("app"));
 
         // Assert
         policy.Received(1).Validate(Arg.Is<MigrationPlan>(p => p!.Diff.Schemas.Count == 1
-            && p.Diff.Schemas[0].Name == new SqlIdentifier("app")));
+            && p.Diff.Schemas[0].Name == "app"));
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public sealed class MigrationPlannerTests
         _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(TwoSchemaDiff(), []));
 
         // Act
-        Sut.Plan(_current, _desired, PlanningScope.To(new SqlIdentifier("app")));
+        Sut.Plan(_current, _desired, PlanningScope.To("app"));
 
         // Assert
         _linearizer.Received(1).Linearize(Arg.Is<DatabaseDiff>(d => d!.Schemas.Count == 1));
@@ -94,7 +94,7 @@ public sealed class MigrationPlannerTests
     public void Validate_RunsProjectPoliciesAgainstTheProject()
     {
         // Arrange
-        var desired = new ProjectDefinition(new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] });
+        var desired = new ProjectDefinition(new Database { Schemas = [new Schema { Name = "app" }] });
         var policy = Substitute.For<IProjectPolicy>();
         policy.Validate(desired).Returns([Diagnostic.Error("Test", "bad schema")]);
         _projectPolicies.Add(policy);
@@ -159,12 +159,12 @@ public sealed class MigrationPlannerTests
     {
         // Arrange — the observation holds a managed and an unmanaged table; only the managed one (and anything
         // declared) is the plan's business.
-        var app = new SqlIdentifier("app");
-        var current = new CurrentState(new Database { Schemas = [new Schema { Name = app, Tables = [new Table { Name = new SqlIdentifier("mine") }, new Table { Name = new SqlIdentifier("theirs") }] }] })
+        SqlIdentifier app = "app";
+        var current = new CurrentState(new Database { Schemas = [new Schema { Name = app, Tables = [new Table { Name = "mine" }, new Table { Name = "theirs" }] }] })
         {
             Managed = new IdentitySet(
                 Schemas: [app],
-                Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, new SqlIdentifier("mine")))]),
+                Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, "mine"))]),
         };
 
         // Act
@@ -172,7 +172,7 @@ public sealed class MigrationPlannerTests
 
         // Assert
         _differ.Received(1).Compare(
-            Arg.Is<CurrentState>(c => c!.Database.Schemas.Single().Tables.Single().Name == new SqlIdentifier("mine")),
+            Arg.Is<CurrentState>(c => c!.Database.Schemas.Single().Tables.Single().Name == "mine"),
             Arg.Any<ProjectDefinition>());
     }
 
@@ -180,28 +180,28 @@ public sealed class MigrationPlannerTests
     public void Plan_ManagedAfterApply_IsTheDeclaredIdentities()
     {
         // Arrange
-        var app = new SqlIdentifier("app");
-        var desired = new ProjectDefinition(new Database { Schemas = [new Schema { Name = app, Tables = [new Table { Name = new SqlIdentifier("users") }] }] });
+        SqlIdentifier app = "app";
+        var desired = new ProjectDefinition(new Database { Schemas = [new Schema { Name = app, Tables = [new Table { Name = "users" }] }] });
 
         // Act
         var plan = Sut.Plan(_current, desired, PlanningScope.All).Value!;
 
         // Assert — within scope, management after an apply is exactly what the project declares.
         plan.Managed.Schemas.ShouldBe([app]);
-        plan.Managed.Objects.ShouldBe([new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, new SqlIdentifier("users")))]);
+        plan.Managed.Objects.ShouldBe([new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, "users"))]);
     }
 
     [Fact]
     public void Plan_ManagedAfterApply_RetainsOutOfScopeManagedIdentities()
     {
         // Arrange — billing is managed but out of scope, so this plan leaves its management untouched.
-        var app = new SqlIdentifier("app");
-        var billing = new SqlIdentifier("billing");
+        SqlIdentifier app = "app";
+        SqlIdentifier billing = "billing";
         var current = new CurrentState(_emptySchema)
         {
             Managed = new IdentitySet(
                 Schemas: [billing],
-                Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress(billing, new SqlIdentifier("invoices")))]),
+                Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress(billing, "invoices"))]),
         };
         var desired = new ProjectDefinition(new Database { Schemas = [new Schema { Name = app }] });
 
@@ -218,9 +218,9 @@ public sealed class MigrationPlannerTests
     {
         // Arrange — targeting one object converges only it towards nothing: the container and its siblings
         // stay managed, because an object entry covers nothing above or beside itself.
-        var app = new SqlIdentifier("app");
-        var users = new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, new SqlIdentifier("users")));
-        var orders = new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, new SqlIdentifier("orders")));
+        SqlIdentifier app = "app";
+        var users = new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, "users"));
+        var orders = new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, "orders"));
         var current = new CurrentState(_emptySchema)
         {
             Managed = new IdentitySet(Schemas: [app], Objects: [users, orders]),
@@ -238,7 +238,7 @@ public sealed class MigrationPlannerTests
     public void Plan_Teardown_EmptiesTheManagedSet()
     {
         // Arrange — a teardown converges towards nothing: everything in scope stops being managed.
-        var app = new SqlIdentifier("app");
+        SqlIdentifier app = "app";
         var current = new CurrentState(_emptySchema)
         {
             Managed = new IdentitySet(Schemas: [app]),
@@ -270,7 +270,7 @@ public sealed class MigrationPlannerTests
     public void Plan_RunsPlanPoliciesAgainstTheCompletePlan()
     {
         // Arrange
-        var diff = _emptyDiff with { DeploymentScripts = [new DeploymentScript(new SqlIdentifier("seed"), new SqlText("SELECT 1"), null, DeploymentPhase.Post)] };
+        var diff = _emptyDiff with { DeploymentScripts = [new DeploymentScript("seed", "SELECT 1", null, DeploymentPhase.Post)] };
         _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(diff, []));
         var policy = Substitute.For<IPlanPolicy>();
         policy.Validate(Arg.Is<MigrationPlan>(p => p!.Diff == diff)).Returns([Diagnostic.Error("Test", "destructive")]);
@@ -289,9 +289,9 @@ public sealed class MigrationPlannerTests
     {
         // Arrange — the linearizer's ordered actions render one by one through the dialect; the stub renders
         // an ExecuteScript as its verbatim Statement, carrying the transaction placement.
-        var script = new DeploymentScript(new SqlIdentifier("seed"), new SqlText("INSERT INTO app.c VALUES (1);"), null, DeploymentPhase.Post) { RunOutsideTransaction = true };
+        var script = new DeploymentScript("seed", "INSERT INTO app.c VALUES (1);", null, DeploymentPhase.Post) { RunOutsideTransaction = true };
         _linearizer.Linearize(Arg.Any<DatabaseDiff>())
-            .Returns(_ => [new CreateSchema(new SqlIdentifier("app")), new ExecuteScript(script)]);
+            .Returns(_ => [new CreateSchema("app"), new ExecuteScript(script)]);
 
         // Act
         var result = Sut.Plan(_current, _desired, PlanningScope.All);
@@ -305,7 +305,7 @@ public sealed class MigrationPlannerTests
     public void Plan_CarriesTheDifferDiffOnTheArtifact()
     {
         // Arrange
-        var diff = _emptyDiff with { DeploymentScripts = [new DeploymentScript(new SqlIdentifier("seed"), new SqlText("SELECT 1"), null, DeploymentPhase.Post)] };
+        var diff = _emptyDiff with { DeploymentScripts = [new DeploymentScript("seed", "SELECT 1", null, DeploymentPhase.Post)] };
         _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(diff, []));
 
         // Act
@@ -335,37 +335,37 @@ public sealed class MigrationPlannerTests
     {
         // Arrange — identifiers are case-sensitive, so "Users" beside a live "users" is a new object;
         // the near-miss is almost always a misspelled adoption, so the plan warns.
-        var observed = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users") }] }] };
-        var declared = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("Users") }] }] };
+        var observed = new Database { Schemas = [new Schema { Name = "app", Tables = [new Table { Name = "users" }] }] };
+        var declared = new Database { Schemas = [new Schema { Name = "app", Tables = [new Table { Name = "Users" }] }] };
 
         // Act
         var result = Sut.Plan(new CurrentState(observed), new ProjectDefinition(declared), PlanningScope.All);
 
         // Assert
         result.Warnings.ShouldContain(PlanDiagnostics.CaseOnlyMismatch(
-            new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("Users"))),
-            new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users")))));
+            new ObjectIdentity(ObjectKind.Table, new ObjectAddress("app", "Users")),
+            new ObjectIdentity(ObjectKind.Table, new ObjectAddress("app", "users"))));
     }
 
     [Fact]
     public void Plan_DeclaredSchemaMatchingObservedOnlyUpToCase_Warns()
     {
         // Arrange
-        var observed = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] };
-        var declared = new Database { Schemas = [new Schema { Name = new SqlIdentifier("App") }] };
+        var observed = new Database { Schemas = [new Schema { Name = "app" }] };
+        var declared = new Database { Schemas = [new Schema { Name = "App" }] };
 
         // Act
         var result = Sut.Plan(new CurrentState(observed), new ProjectDefinition(declared), PlanningScope.All);
 
         // Assert
-        result.Warnings.ShouldContain(PlanDiagnostics.CaseOnlySchemaMismatch(new SqlIdentifier("App"), new SqlIdentifier("app")));
+        result.Warnings.ShouldContain(PlanDiagnostics.CaseOnlySchemaMismatch("App", "app"));
     }
 
     [Fact]
     public void Plan_ExactlyMatchingNames_ProduceNoCaseWarnings()
     {
         // Arrange
-        var database = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users") }] }] };
+        var database = new Database { Schemas = [new Schema { Name = "app", Tables = [new Table { Name = "users" }] }] };
 
         // Act
         var result = Sut.Plan(new CurrentState(database), new ProjectDefinition(database), PlanningScope.All);

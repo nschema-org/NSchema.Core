@@ -19,17 +19,17 @@ namespace NSchema.Tests.Diff.Model;
 public sealed class DatabaseDiffTests
 {
     private static DeploymentScript Deployment(string name) =>
-        new(new SqlIdentifier(name), new SqlText("SELECT 1;"), null, DeploymentPhase.Pre);
+        new(name, "SELECT 1;", null, DeploymentPhase.Pre);
 
     private static ChangeScript Change(string name) =>
-        new(new SqlIdentifier(name), new SqlText("UPDATE 1;"), new SqlIdentifier("app"),
-            ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email"));
+        new(name, "UPDATE 1;", "app",
+            ChangeTrigger.AddColumn, "users", "email");
 
     private static DatabaseDiff WithChangeScript(ChangeScript change)
     {
-        var column = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text }) { MigrationScript = change };
-        var table = new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify, Columns: [column]);
-        return new DatabaseDiff([new SchemaDiff(new SqlIdentifier("app"), Tables: [table])]);
+        var column = new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text }) { MigrationScript = change };
+        var table = new TableDiff("app", "users", ChangeKind.Modify, Columns: [column]);
+        return new DatabaseDiff([new SchemaDiff("app", Tables: [table])]);
     }
 
     [Fact]
@@ -68,13 +68,13 @@ public sealed class DatabaseDiffTests
     private static Database CurrentDatabase() => new Database
     {
         Schemas = [
-        new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] },
-        new Schema { Name = new SqlIdentifier("billing"),
+        new Schema { Name = "app", Tables = [new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] }] },
+        new Schema { Name = "billing",
             Tables = [
-                new Table { Name = new SqlIdentifier("orders"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }],
-                    ForeignKeys = [new ForeignKey { Name = new SqlIdentifier("fk_orders_user"), ColumnNames = [new SqlIdentifier("id")], ReferencedSchema = new SqlIdentifier("app"), ReferencedTable = new SqlIdentifier("users"), ReferencedColumnNames = [new SqlIdentifier("id")] }] },
+                new Table { Name = "orders", Columns = [new Column { Name = "id", Type = SqlType.Int }],
+                    ForeignKeys = [new ForeignKey { Name = "fk_orders_user", ColumnNames = ["id"], ReferencedSchema = "app", ReferencedTable = "users", ReferencedColumnNames = ["id"] }] },
             ],
-            Views = [new View { Name = new SqlIdentifier("summary"), Body = new SqlText("select * from app.users"), DependsOn = [new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users"))] }] },
+            Views = [new View { Name = "summary", Body = "select * from app.users", DependsOn = [new ViewDependency("app", "users")] }] },
     ],
     };
 
@@ -83,10 +83,10 @@ public sealed class DatabaseDiffTests
     /// </summary>
     private static DatabaseDiff TeardownDiff() => new(
     [
-        new SchemaDiff(new SqlIdentifier("app"), ChangeKind.Remove, Tables: [new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Remove)]),
-        new SchemaDiff(new SqlIdentifier("billing"), ChangeKind.Remove,
-            Tables: [new TableDiff(new SqlIdentifier("billing"), new SqlIdentifier("orders"), ChangeKind.Remove)],
-            Views: [new ViewDiff(new SqlIdentifier("billing"), new SqlIdentifier("summary"), ChangeKind.Remove)]),
+        new SchemaDiff("app", ChangeKind.Remove, Tables: [new TableDiff("app", "users", ChangeKind.Remove)]),
+        new SchemaDiff("billing", ChangeKind.Remove,
+            Tables: [new TableDiff("billing", "orders", ChangeKind.Remove)],
+            Views: [new ViewDiff("billing", "summary", ChangeKind.Remove)]),
     ]);
 
     [Fact]
@@ -104,10 +104,10 @@ public sealed class DatabaseDiffTests
     public void ScopedTo_ScopedTeardown_SeversTheOutOfScopeForeignKey_WithoutDroppingItsTable()
     {
         // Act — tear down app only. billing.orders keeps its rows; only the constraint aimed at app.users goes.
-        var result = TeardownDiff().ScopedTo(PlanningScope.To(new SqlIdentifier("app")), CurrentDatabase());
+        var result = TeardownDiff().ScopedTo(PlanningScope.To("app"), CurrentDatabase());
 
         // Assert
-        var billing = result.Value!.Schemas.Single(s => s.Name == new SqlIdentifier("billing"));
+        var billing = result.Value!.Schemas.Single(s => s.Name == "billing");
         billing.Kind.ShouldBeNull(); // the run is not about billing; it just cannot avoid it
         var orders = billing.Tables.ShouldHaveSingleItem();
         orders.Kind.ShouldBe(ChangeKind.Modify);
@@ -120,10 +120,10 @@ public sealed class DatabaseDiffTests
     public void ScopedTo_ScopedTeardown_DropsTheOutOfScopeViewThatReadsIt()
     {
         // Act — a view's dependency is embedded in its body, so there is nothing to sever but the view.
-        var result = TeardownDiff().ScopedTo(PlanningScope.To(new SqlIdentifier("app")), CurrentDatabase());
+        var result = TeardownDiff().ScopedTo(PlanningScope.To("app"), CurrentDatabase());
 
         // Assert
-        var billing = result.Value!.Schemas.Single(s => s.Name == new SqlIdentifier("billing"));
+        var billing = result.Value!.Schemas.Single(s => s.Name == "billing");
         billing.Views.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
             v => v.Name.ShouldBe("summary"),
             v => v.Kind.ShouldBe(ChangeKind.Remove));
@@ -133,10 +133,10 @@ public sealed class DatabaseDiffTests
     public void ScopedTo_ScopedTeardown_StillTearsDownTheScopedSchema()
     {
         // Act
-        var result = TeardownDiff().ScopedTo(PlanningScope.To(new SqlIdentifier("app")), CurrentDatabase());
+        var result = TeardownDiff().ScopedTo(PlanningScope.To("app"), CurrentDatabase());
 
         // Assert
-        var app = result.Value!.Schemas.Single(s => s.Name == new SqlIdentifier("app"));
+        var app = result.Value!.Schemas.Single(s => s.Name == "app");
         app.Kind.ShouldBe(ChangeKind.Remove);
         app.Tables.ShouldHaveSingleItem().Name.ShouldBe("users");
     }
@@ -147,7 +147,7 @@ public sealed class DatabaseDiffTests
         // Act — a plan that touches what it was not asked to touch must announce it, not do it quietly. And
         // the two edge kinds are not equally trustworthy: the foreign key names its table outright, while the
         // view was scanned out of SQL nobody parsed.
-        var result = TeardownDiff().ScopedTo(PlanningScope.To(new SqlIdentifier("app")), CurrentDatabase());
+        var result = TeardownDiff().ScopedTo(PlanningScope.To("app"), CurrentDatabase());
 
         // Assert
         result.Diagnostics.Count.ShouldBe(2);
@@ -165,7 +165,7 @@ public sealed class DatabaseDiffTests
     public void ScopedTo_ScopeThatDisturbsNothing_WidensNothing_AndIsQuiet()
     {
         // Arrange — tearing billing down costs app nothing: the dependencies point the other way.
-        var result = TeardownDiff().ScopedTo(PlanningScope.To(new SqlIdentifier("billing")), CurrentDatabase());
+        var result = TeardownDiff().ScopedTo(PlanningScope.To("billing"), CurrentDatabase());
 
         // Assert
         result.Value!.Schemas.ShouldHaveSingleItem().Name.ShouldBe("billing");
@@ -179,12 +179,12 @@ public sealed class DatabaseDiffTests
         // comparing whole states manufactures a removal for everything else. Narrowing must discard those.
         var diff = new DatabaseDiff(
         [
-            new SchemaDiff(new SqlIdentifier("app"), Tables: [new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Add)]),
-            new SchemaDiff(new SqlIdentifier("unmanaged"), ChangeKind.Remove),
+            new SchemaDiff("app", Tables: [new TableDiff("app", "users", ChangeKind.Add)]),
+            new SchemaDiff("unmanaged", ChangeKind.Remove),
         ]);
 
         // Act
-        var result = diff.ScopedTo(PlanningScope.To(new SqlIdentifier("app")), CurrentDatabase());
+        var result = diff.ScopedTo(PlanningScope.To("app"), CurrentDatabase());
 
         // Assert
         result.Value!.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
@@ -196,7 +196,7 @@ public sealed class DatabaseDiffTests
     /// </summary>
     private static DatabaseDiff EnumRemovalDiff() => new(
     [
-        new SchemaDiff(new SqlIdentifier("app"), Enums: [new EnumDiff(new SqlIdentifier("app"), new SqlIdentifier("status"), ChangeKind.Remove)]),
+        new SchemaDiff("app", Enums: [new EnumDiff("app", "status", ChangeKind.Remove)]),
     ]);
 
     /// <summary>
@@ -205,9 +205,9 @@ public sealed class DatabaseDiffTests
     private static Database DatabaseWithEnumTypedColumn(SqlType columnType) => new()
     {
         Schemas = [
-        new Schema { Name = new SqlIdentifier("app"), Enums = [new EnumType { Name = new SqlIdentifier("status"), Values = ["new", "done"] }] },
-        new Schema { Name = new SqlIdentifier("billing"),
-            Tables = [new Table { Name = new SqlIdentifier("orders"), Columns = [new Column { Name = new SqlIdentifier("state"), Type = columnType }] }] },
+        new Schema { Name = "app", Enums = [new EnumType { Name = "status", Values = ["new", "done"] }] },
+        new Schema { Name = "billing",
+            Tables = [new Table { Name = "orders", Columns = [new Column { Name = "state", Type = columnType }] }] },
     ],
     };
 
@@ -216,16 +216,16 @@ public sealed class DatabaseDiffTests
     {
         // Arrange — closure severs definitions, never data: a column stands for its table's rows, so there is
         // no minimal sever. The plan is blocked, and still carried for review.
-        var current = DatabaseWithEnumTypedColumn(SqlType.Custom(new SqlIdentifier("app"), "status"));
+        var current = DatabaseWithEnumTypedColumn(SqlType.Custom("app", "status"));
 
         // Act
-        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To(new SqlIdentifier("app")), current);
+        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To("app"), current);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
         result.Value!.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app"); // nothing widened into billing
         result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
-            DiffDiagnostics.ColumnBlocksRemoval([new MemberAddress(new SqlIdentifier("billing"), new SqlIdentifier("orders"), new SqlIdentifier("state"))]));
+            DiffDiagnostics.ColumnBlocksRemoval([new MemberAddress("billing", "orders", "state")]));
     }
 
     [Fact]
@@ -236,13 +236,13 @@ public sealed class DatabaseDiffTests
         var current = DatabaseWithEnumTypedColumn(SqlType.Custom("status"));
 
         // Act
-        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To(new SqlIdentifier("app")), current);
+        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To("app"), current);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
         result.Value!.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
         result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
-            DiffDiagnostics.InferredColumnMayBlockRemoval([new MemberAddress(new SqlIdentifier("billing"), new SqlIdentifier("orders"), new SqlIdentifier("state"))]));
+            DiffDiagnostics.InferredColumnMayBlockRemoval([new MemberAddress("billing", "orders", "state")]));
     }
 
     [Fact]
@@ -252,27 +252,27 @@ public sealed class DatabaseDiffTests
         var current = new Database
         {
             Schemas = [
-            new Schema { Name = new SqlIdentifier("app"), Enums = [new EnumType { Name = new SqlIdentifier("status"), Values = ["new", "done"] }] },
-            new Schema { Name = new SqlIdentifier("billing"),
-                Domains = [new DomainType { Name = new SqlIdentifier("tracked_status"), DataType = SqlType.Custom(new SqlIdentifier("app"), "status") }] },
+            new Schema { Name = "app", Enums = [new EnumType { Name = "status", Values = ["new", "done"] }] },
+            new Schema { Name = "billing",
+                Domains = [new DomainType { Name = "tracked_status", DataType = SqlType.Custom("app", "status") }] },
         ],
         };
 
         // Act
-        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To(new SqlIdentifier("app")), current);
+        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To("app"), current);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
-        var billing = result.Value!.Schemas.Single(s => s.Name == new SqlIdentifier("billing"));
+        var billing = result.Value!.Schemas.Single(s => s.Name == "billing");
         billing.Kind.ShouldBeNull();
         billing.Domains.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
             d => d.Name.ShouldBe("tracked_status"),
             d => d.Kind.ShouldBe(ChangeKind.Remove));
         result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
-            DiffDiagnostics.SeveredOutOfScope([new ObjectAddress(new SqlIdentifier("billing"), new SqlIdentifier("tracked_status"))]));
+            DiffDiagnostics.SeveredOutOfScope([new ObjectAddress("billing", "tracked_status")]));
     }
 
-    private static ObjectAddress Target(string schema, string name) => new(new SqlIdentifier(schema), new SqlIdentifier(name));
+    private static ObjectAddress Target(string schema, string name) => new(schema, name);
 
     [Fact]
     public void ScopedTo_ObjectTargeted_KeepsTheTargetsChanges_AndDropsItsSiblingsAndTheSchemasOwnFacets()
@@ -281,11 +281,11 @@ public sealed class DatabaseDiffTests
         // not below any object, so targeting an object never drags it in.
         var diff = new DatabaseDiff(
         [
-            new SchemaDiff(new SqlIdentifier("app"),
+            new SchemaDiff("app",
                 Comment: new ValueChange<string>("old", "new"),
                 Tables: [
-                    new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify),
-                    new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("orders"), ChangeKind.Modify),
+                    new TableDiff("app", "users", ChangeKind.Modify),
+                    new TableDiff("app", "orders", ChangeKind.Modify),
                 ]),
         ]);
 
@@ -305,10 +305,10 @@ public sealed class DatabaseDiffTests
         // dependency of the target, not a schema-level facet to strip.
         var diff = new DatabaseDiff(
         [
-            new SchemaDiff(new SqlIdentifier("app"), ChangeKind.Add,
+            new SchemaDiff("app", ChangeKind.Add,
                 Tables: [
-                    new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Add),
-                    new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("orders"), ChangeKind.Add),
+                    new TableDiff("app", "users", ChangeKind.Add),
+                    new TableDiff("app", "orders", ChangeKind.Add),
                 ]),
         ]);
 
@@ -329,11 +329,11 @@ public sealed class DatabaseDiffTests
         var result = TeardownDiff().ScopedTo(PlanningScope.To([Target("app", "users")]), CurrentDatabase());
 
         // Assert
-        var app = result.Value!.Schemas.Single(s => s.Name == new SqlIdentifier("app"));
+        var app = result.Value!.Schemas.Single(s => s.Name == "app");
         app.Kind.ShouldBeNull(); // the container is not covered, so it is not removed
         app.Tables.ShouldHaveSingleItem().Name.ShouldBe("users");
 
-        var billing = result.Value.Schemas.Single(s => s.Name == new SqlIdentifier("billing"));
+        var billing = result.Value.Schemas.Single(s => s.Name == "billing");
         billing.Tables.ShouldHaveSingleItem().ForeignKeys.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
         billing.Views.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
         result.Diagnostics.Count.ShouldBe(2);
@@ -348,10 +348,10 @@ public sealed class DatabaseDiffTests
             PlanningScope.To([Target("app", "users"), Target("billing", "orders")]), CurrentDatabase());
 
         // Assert
-        var billing = result.Value!.Schemas.Single(s => s.Name == new SqlIdentifier("billing"));
+        var billing = result.Value!.Schemas.Single(s => s.Name == "billing");
         billing.Tables.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
         billing.Views.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
         result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
-            DiffDiagnostics.InferredSeveredOutOfScope([new ObjectAddress(new SqlIdentifier("billing"), new SqlIdentifier("summary"))]));
+            DiffDiagnostics.InferredSeveredOutOfScope([new ObjectAddress("billing", "summary")]));
     }
 }

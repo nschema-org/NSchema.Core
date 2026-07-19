@@ -11,7 +11,7 @@ public sealed class IdentitySetTests
 {
     private static readonly SqlIdentifier _app = new("app");
 
-    private static ObjectIdentity Table(string name) => new(ObjectKind.Table, new ObjectAddress(_app, new SqlIdentifier(name)));
+    private static ObjectIdentity Table(string name) => new(ObjectKind.Table, new ObjectAddress(_app, name));
 
     [Fact]
     public void Contains_MatchesByValue_PerLevel()
@@ -20,14 +20,14 @@ public sealed class IdentitySetTests
         var set = new IdentitySet(
             Schemas: [_app],
             Objects: [Table("users")],
-            Extensions: [new SqlIdentifier("citext")]);
+            Extensions: ["citext"]);
 
         // Assert
-        set.ContainsSchema(new SqlIdentifier("app")).ShouldBeTrue();
-        set.ContainsSchema(new SqlIdentifier("APP")).ShouldBeFalse(); // identifiers are case-sensitive
+        set.ContainsSchema("app").ShouldBeTrue();
+        set.ContainsSchema("APP").ShouldBeFalse(); // identifiers are case-sensitive
         set.ContainsObject(Table("users")).ShouldBeTrue();
-        set.ContainsObject(new ObjectIdentity(ObjectKind.View, new ObjectAddress(_app, new SqlIdentifier("users")))).ShouldBeFalse(); // same address, different kind
-        set.ContainsExtension(new SqlIdentifier("citext")).ShouldBeTrue();
+        set.ContainsObject(new ObjectIdentity(ObjectKind.View, new ObjectAddress(_app, "users"))).ShouldBeFalse(); // same address, different kind
+        set.ContainsExtension("citext").ShouldBeTrue();
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public sealed class IdentitySetTests
     public void Schema_Construction_StampsItselfOntoContainedObjects()
     {
         // Arrange & Act — the object arrives bare; the containing schema completes its identity.
-        var schema = new Schema { Name = _app, Tables = [new Table { Name = new SqlIdentifier("users") }] };
+        var schema = new Schema { Name = _app, Tables = [new Table { Name = "users" }] };
 
         // Assert
         var table = schema.Tables.ShouldHaveSingleItem();
@@ -75,11 +75,11 @@ public sealed class IdentitySetTests
     public void Schema_AttachingAnObjectThatBelongsElsewhere_Throws()
     {
         // Arrange — a node has exactly one parent; moving it is refused, never silently copied.
-        var table = new Table { Name = new SqlIdentifier("users") };
+        var table = new Table { Name = "users" };
         _ = new Schema { Name = _app, Tables = [table] };
 
         // Act & Assert
-        var attach = () => new Schema { Name = new SqlIdentifier("other"), Tables = [table] };
+        var attach = () => new Schema { Name = "other", Tables = [table] };
         attach.ShouldThrow<InvalidOperationException>().Message.ShouldContain("already belongs to schema 'app'");
     }
 
@@ -87,11 +87,11 @@ public sealed class IdentitySetTests
     public void Table_AttachingAMemberThatBelongsElsewhere_Throws()
     {
         // Arrange
-        var column = new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int };
-        _ = new Table { Name = new SqlIdentifier("users"), Columns = [column] };
+        var column = new Column { Name = "id", Type = SqlType.Int };
+        _ = new Table { Name = "users", Columns = [column] };
 
         // Act & Assert
-        var attach = () => new Table { Name = new SqlIdentifier("orders"), Columns = [column] };
+        var attach = () => new Table { Name = "orders", Columns = [column] };
         attach.ShouldThrow<InvalidOperationException>().Message.ShouldContain("already belongs to 'users'");
     }
 
@@ -99,7 +99,7 @@ public sealed class IdentitySetTests
     public void Schema_Clone_CopiesTheObjectsItIncorporates()
     {
         // Arrange — Clone is the explicit copy operation: the copy owns fresh nodes, the source keeps its own.
-        var schema = new Schema { Name = _app, Tables = [new Table { Name = new SqlIdentifier("users") }] };
+        var schema = new Schema { Name = _app, Tables = [new Table { Name = "users" }] };
 
         // Act
         var copy = schema.Clone();
@@ -118,7 +118,7 @@ public sealed class IdentitySetTests
 
         scope.Contains(_app).ShouldBeTrue();
         scope.Contains(Table("users")).ShouldBeTrue();
-        scope.Contains(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("other"), new SqlIdentifier("users")))).ShouldBeFalse();
+        scope.Contains(new ObjectIdentity(ObjectKind.Table, new ObjectAddress("other", "users"))).ShouldBeFalse();
     }
 
     [Fact]
@@ -127,15 +127,15 @@ public sealed class IdentitySetTests
         // The bridge between the two surfaces: the extensional record filtered by the intensional cover.
         // Extensions are database-global, so every scope covers them.
         var set = new IdentitySet(
-            Schemas: [_app, new SqlIdentifier("other")],
-            Objects: [Table("users"), new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("other"), new SqlIdentifier("t")))],
-            Extensions: [new SqlIdentifier("citext")]);
+            Schemas: [_app, "other"],
+            Objects: [Table("users"), new ObjectIdentity(ObjectKind.Table, new ObjectAddress("other", "t"))],
+            Extensions: ["citext"]);
 
         var covered = set.CoveredBy(PlanningScope.To(_app));
 
         covered.Schemas.ShouldBe([_app]);
         covered.Objects.ShouldBe([Table("users")]);
-        covered.Extensions.ShouldBe([new SqlIdentifier("citext")]);
+        covered.Extensions.ShouldBe(["citext"]);
     }
 
     [Fact]
@@ -146,13 +146,13 @@ public sealed class IdentitySetTests
         var set = new IdentitySet(
             Schemas: [_app],
             Objects: [Table("users"), Table("orders")],
-            Extensions: [new SqlIdentifier("citext")]);
+            Extensions: ["citext"]);
 
-        var covered = set.CoveredBy(PlanningScope.To([new ObjectAddress(_app, new SqlIdentifier("users"))]));
+        var covered = set.CoveredBy(PlanningScope.To([new ObjectAddress(_app, "users")]));
 
         covered.Schemas.ShouldBeEmpty();
         covered.Objects.ShouldBe([Table("users")]);
-        covered.Extensions.ShouldBe([new SqlIdentifier("citext")]);
+        covered.Extensions.ShouldBe(["citext"]);
     }
 
     [Fact]
@@ -161,8 +161,8 @@ public sealed class IdentitySetTests
         // One tree filter serves both surfaces: scoping a database is filtering it to the covered identities.
         var database = new Database
         {
-            Schemas = [new Schema { Name = _app, Tables = [new Table { Name = new SqlIdentifier("users") }] }, new Schema { Name = new SqlIdentifier("other") }],
-            Extensions = [new Extension { Name = new SqlIdentifier("citext") }],
+            Schemas = [new Schema { Name = _app, Tables = [new Table { Name = "users" }] }, new Schema { Name = "other" }],
+            Extensions = [new Extension { Name = "citext" }],
         };
 
         var scoped = database.ScopedTo(PlanningScope.To(_app));
@@ -178,8 +178,8 @@ public sealed class IdentitySetTests
         // Arrange
         var database = new Database
         {
-            Schemas = [new Schema { Name = _app, Tables = [new Table { Name = new SqlIdentifier("users") }], Views = [new View { Name = new SqlIdentifier("v"), Body = new SqlText("SELECT 1") }] }],
-            Extensions = [new Extension { Name = new SqlIdentifier("citext") }],
+            Schemas = [new Schema { Name = _app, Tables = [new Table { Name = "users" }], Views = [new View { Name = "v", Body = "SELECT 1" }] }],
+            Extensions = [new Extension { Name = "citext" }],
         };
 
         // Act
@@ -187,8 +187,8 @@ public sealed class IdentitySetTests
 
         // Assert
         identities.Schemas.ShouldBe([_app]);
-        identities.Objects.ShouldBe([Table("users"), new ObjectIdentity(ObjectKind.View, new ObjectAddress(_app, new SqlIdentifier("v")))], ignoreOrder: true);
-        identities.Extensions.ShouldBe([new SqlIdentifier("citext")]);
+        identities.Objects.ShouldBe([Table("users"), new ObjectIdentity(ObjectKind.View, new ObjectAddress(_app, "v"))], ignoreOrder: true);
+        identities.Extensions.ShouldBe(["citext"]);
     }
 
     [Fact]
@@ -198,17 +198,17 @@ public sealed class IdentitySetTests
         var database = new Database
         {
             Schemas = [
-            new Schema { Name = _app, Tables = [new Table { Name = new SqlIdentifier("mine") }, new Table { Name = new SqlIdentifier("theirs") }] },
-            new Schema { Name = new SqlIdentifier("other") },
+            new Schema { Name = _app, Tables = [new Table { Name = "mine" }, new Table { Name = "theirs" }] },
+            new Schema { Name = "other" },
         ],
-            Extensions = [new Extension { Name = new SqlIdentifier("citext") }, new Extension { Name = new SqlIdentifier("plpgsql") }],
+            Extensions = [new Extension { Name = "citext" }, new Extension { Name = "plpgsql" }],
         };
 
         // Act
         var filtered = database.FilteredTo(new IdentitySet(
             Schemas: [_app],
             Objects: [Table("mine")],
-            Extensions: [new SqlIdentifier("citext")]));
+            Extensions: ["citext"]));
 
         // Assert — the unmatched schema, table, and extension are all gone.
         var schema = filtered.Schemas.ShouldHaveSingleItem();

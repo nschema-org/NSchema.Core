@@ -20,9 +20,9 @@ public sealed class DriftOperationTests
     private readonly IDatabaseComparer _comparer = Substitute.For<IDatabaseComparer>();
     private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
 
-    private readonly Database _recorded = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] };
-    private readonly Database _live = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }, new Schema { Name = new SqlIdentifier("audit") }] };
-    private readonly DatabaseDiff _diff = new([new SchemaDiff(new SqlIdentifier("audit"), ChangeKind.Add)]);
+    private readonly Database _recorded = new Database { Schemas = [new Schema { Name = "app" }] };
+    private readonly Database _live = new Database { Schemas = [new Schema { Name = "app" }, new Schema { Name = "audit" }] };
+    private readonly DatabaseDiff _diff = new([new SchemaDiff("audit", ChangeKind.Add)]);
 
     private readonly DriftOperation _sut;
 
@@ -67,13 +67,13 @@ public sealed class DriftOperationTests
     {
         // Arrange — recorded state holds an out-of-scope schema; the scoped read must drop it before diffing.
         _store.Read(Arg.Any<CancellationToken>())
-            .Returns(_serializer.Serialize(new DatabaseState(new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }, new Schema { Name = new SqlIdentifier("other") }] })));
+            .Returns(_serializer.Serialize(new DatabaseState(new Database { Schemas = [new Schema { Name = "app" }, new Schema { Name = "other" }] })));
 
         // Act
-        await _sut.Execute(Args(PlanningScope.To(new SqlIdentifier("app"))), TestContext.Current.CancellationToken);
+        await _sut.Execute(Args(PlanningScope.To("app")), TestContext.Current.CancellationToken);
 
         // Assert — live gets the scope directly; recorded is filtered to it before the comparer sees it.
-        await _provider.Received(1).GetDatabase(Arg.Is<PlanningScope>(s => s!.Contains(new SqlIdentifier("app")) && !s.IsUnscoped), Arg.Any<CancellationToken>());
+        await _provider.Received(1).GetDatabase(Arg.Is<PlanningScope>(s => s!.Contains("app") && !s.IsUnscoped), Arg.Any<CancellationToken>());
         _comparer.Received(1).Compare(Arg.Is<AlignedDatabase>(a => a!.Database.Schemas.Select(s => s.Name.Value).SequenceEqual(new[] { "app" })), _live);
     }
 

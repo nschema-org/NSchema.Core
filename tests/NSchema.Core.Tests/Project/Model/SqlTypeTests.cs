@@ -12,7 +12,7 @@ public sealed class SqlTypeTests
     public void Name_IsTrimmed_AndComparesAsAnIdentifier(string input, string expected)
     {
         // Written casing is preserved; equality is the identifier's, so the exact written name is the identity.
-        SqlType.Custom(input).Name.ShouldBe(new SqlIdentifier(expected));
+        SqlType.Custom(input).Name.ShouldBe(expected);
     }
 
     [Fact]

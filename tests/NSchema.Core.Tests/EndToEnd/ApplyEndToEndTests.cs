@@ -47,7 +47,7 @@ public sealed class ApplyEndToEndTests : IDisposable
     public async Task Apply_GeneratesSql_Executes_AndRefreshesState()
     {
         // Current live DB: an empty app schema. Desired: app.users(id) — i.e. create the table.
-        var current = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] };
+        var current = new Database { Schemas = [new Schema { Name = "app" }] };
         var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
@@ -78,7 +78,7 @@ public sealed class ApplyEndToEndTests : IDisposable
     {
         // Current live DB: a populated-shaped app.users(id). Desired: the same table gaining a NOT NULL,
         // defaultless email column, with a SCRIPT block declaring the backfill.
-        var current = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] }] };
+        var current = new Database { Schemas = [new Schema { Name = "app", Tables = [new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] }] }] };
         var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
@@ -117,8 +117,8 @@ public sealed class ApplyEndToEndTests : IDisposable
         var current = new Database
         {
             Schemas = [
-            new Schema { Name = new SqlIdentifier("sales"), Tables = [new Table { Name = new SqlIdentifier("events"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] },
-            new Schema { Name = new SqlIdentifier("billing") },
+            new Schema { Name = "sales", Tables = [new Table { Name = "events", Columns = [new Column { Name = "id", Type = SqlType.Int }] }] },
+            new Schema { Name = "billing" },
         ],
         };
         var desired = WriteNsql("schema.sql",
@@ -166,7 +166,7 @@ public sealed class ApplyEndToEndTests : IDisposable
     public async Task Apply_RunOnceScript_RunsOnce_ThenLaterPlansSkipIt()
     {
         // A run-once seed script: the first plan includes and records it, the next plan skips it.
-        var current = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] };
+        var current = new Database { Schemas = [new Schema { Name = "app" }] };
         var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
@@ -182,7 +182,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         (await app.Locks.Acquire(new AcquireLockArguments("apply"), cancellationToken: TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         (await app.Operations.Refresh(new RefreshArguments(), TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         var first = (await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Project }, TestContext.Current.CancellationToken)).Value.ShouldNotBeNull();
-        first.Plan!.Statements.Select(s => s.Sql).ShouldContain(new SqlText("INSERT INTO app.currencies VALUES ('GBP');"));
+        first.Plan!.Statements.Select(s => s.Sql).ShouldContain("INSERT INTO app.currencies VALUES ('GBP');");
         first.Plan!.Diff.AllScripts().ShouldHaveSingleItem().Name.ShouldBe("seed_currencies");
         await app.Operations.Apply(new ApplyArguments { Plan = first.Plan! }, TestContext.Current.CancellationToken);
 
@@ -190,7 +190,7 @@ public sealed class ApplyEndToEndTests : IDisposable
 
         // Second run: the script is skipped, and no longer up for recording.
         var second = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Project }, TestContext.Current.CancellationToken);
-        second.Value!.Plan!.Statements.Select(s => s.Sql).ShouldNotContain(new SqlText("INSERT INTO app.currencies VALUES ('GBP');"));
+        second.Value!.Plan!.Statements.Select(s => s.Sql).ShouldNotContain("INSERT INTO app.currencies VALUES ('GBP');");
         second.Value!.Plan!.Diff.AllScripts().ShouldBeEmpty();
         second.Diagnostics.ShouldBeEmpty();
     }
@@ -198,7 +198,7 @@ public sealed class ApplyEndToEndTests : IDisposable
     [Fact]
     public async Task Apply_WithNoChanges_ShortCircuitsWithoutExecutingButStillCapturesState()
     {
-        var schema = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] }] };
+        var schema = new Database { Schemas = [new Schema { Name = "app", Tables = [new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] }] }] };
         var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;

@@ -11,7 +11,7 @@ namespace NSchema.Tests.Project.Serialization.Nsql;
 public sealed class ViewDependencyExtractorTests
 {
     private static (string Schema, string Name)[] Extract(string body, string defaultSchema = "app")
-        => ViewDependencyExtractor.Extract(new SqlText(body), new SqlIdentifier(defaultSchema)).Select(d => (d.Schema.Value, d.Name.Value)).ToArray();
+        => ViewDependencyExtractor.Extract(body, defaultSchema).Select(d => (d.Schema.Value, d.Name.Value)).ToArray();
 
     [Fact]
     public void Extract_SimpleFrom_FindsQualifiedTable()

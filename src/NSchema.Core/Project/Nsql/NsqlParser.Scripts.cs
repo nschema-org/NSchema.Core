@@ -56,7 +56,7 @@ internal sealed partial class NsqlParser
         }
 
         var (runOutsideTransaction, body) = ParseScriptTail("script");
-        return new ScriptStatement(name, condition, scriptEvent, new SqlText(body), runOutsideTransaction) { Position = position, Doc = doc };
+        return new ScriptStatement(name, condition, scriptEvent, body, runOutsideTransaction) { Position = position, Doc = doc };
     }
 
     private ChangeTrigger ParseChangeTrigger()

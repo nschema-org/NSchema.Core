@@ -142,7 +142,7 @@ internal sealed partial class NsqlParser
         var body = CaptureRawSpan("a view body", [TokenKind.Semicolon]);
         Expect(TokenKind.Semicolon, "';' to end the view definition");
 
-        return new CreateViewStatement(name, new SqlText(body), materialized) { Position = position, Doc = doc };
+        return new CreateViewStatement(name, body, materialized) { Position = position, Doc = doc };
     }
 
     /// <summary>
@@ -173,7 +173,7 @@ internal sealed partial class NsqlParser
         var definition = CaptureRawSpan(what, [TokenKind.Semicolon]);
         Expect(TokenKind.Semicolon, $"';' to end {what}");
 
-        return new CreateRoutineStatement(name, kind, new SqlText(arguments), new SqlText(definition)) { Position = position, Doc = doc };
+        return new CreateRoutineStatement(name, kind, arguments, definition) { Position = position, Doc = doc };
     }
 
     private CreateEnumStatement ParseCreateEnum(SourcePosition position, string? doc)
@@ -244,7 +244,7 @@ internal sealed partial class NsqlParser
             {
                 Advance();
                 // The default is opaque and read to the terminating ';', so it must be the final clause.
-                @default = new SqlText(CaptureRawSpan("a domain default", [TokenKind.Semicolon]));
+                @default = CaptureRawSpan("a domain default", [TokenKind.Semicolon]);
             }
             else
             {
@@ -451,14 +451,14 @@ internal sealed partial class NsqlParser
 
             // The argument list is captured verbatim (opaque), like a routine's; usually empty for a trigger function.
             var arguments = CaptureParenthesized();
-            action = new ExecuteFunctionAction(function, new SqlText(arguments)) { Position = actionPosition };
+            action = new ExecuteFunctionAction(function, arguments) { Position = actionPosition };
         }
         else if (_current.IsKeyword(NsqlKeywords.As))
         {
             // An inline body is a dollar-quoted block (so it may contain its own ';'), like a deployment script.
             Advance();
             var dollar = Expect(TokenKind.DollarString, "a trigger body as a dollar-quoted block ($$ … $$)");
-            action = new InlineBodyAction(new SqlText(StripDollarQuote(dollar.Text).Trim())) { Position = actionPosition };
+            action = new InlineBodyAction(StripDollarQuote(dollar.Text).Trim()) { Position = actionPosition };
         }
         else
         {

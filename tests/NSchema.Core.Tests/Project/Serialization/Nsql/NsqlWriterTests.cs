@@ -39,7 +39,7 @@ public sealed class NsqlWriterTests
     private static string WriteDirectives(ProjectDirectives directives, params Schema[] schemas) =>
         NsqlWriter.Write(new Database { Schemas = [.. schemas] }, directives);
 
-    private static ObjectAddress InApp(string name) => new("app", new SqlIdentifier(name));
+    private static ObjectAddress InApp(string name) => new("app", name);
 
     [Fact]
     public void Write_NotNullColumn_EmitsNotNull()
@@ -337,7 +337,7 @@ public sealed class NsqlWriterTests
             Name = "audit",
             Timing = TriggerTiming.InsteadOf,
             Events = TriggerEvent.Insert | TriggerEvent.Update,
-            Body = new SqlText("BEGIN\n  UPDATE app.users SET id = id;\n  INSERT INTO app.log VALUES (1);\nEND"),
+            Body = "BEGIN\n  UPDATE app.users SET id = id;\n  INSERT INTO app.log VALUES (1);\nEND",
             Comment = "note",
         };
         var schema = new Database
@@ -586,7 +586,7 @@ public sealed class NsqlWriterTests
         => NsqlWriter.Write(new Database
         {
             Schemas = [
-            new Schema { Name = "app", Routines = [new Routine { Name = "f", RoutineKind = RoutineKind.Function, Arguments = "", Definition = new SqlText("RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$") }] },
+            new Schema { Name = "app", Routines = [new Routine { Name = "f", RoutineKind = RoutineKind.Function, Arguments = "", Definition = "RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$" }] },
         ],
         }).ShouldContain("CREATE FUNCTION app.f() RETURNS int LANGUAGE sql AS $$\n  SELECT 1;\n$$;");
 
@@ -596,7 +596,7 @@ public sealed class NsqlWriterTests
         => NsqlWriter.Write(new Database
         {
             Schemas = [
-            new Schema { Name = "app", Routines = [new Routine { Name = "f", RoutineKind = RoutineKind.Function, Arguments = "", Definition = new SqlText("RETURNS int AS $$ SELECT 1 $$  \n") }] },
+            new Schema { Name = "app", Routines = [new Routine { Name = "f", RoutineKind = RoutineKind.Function, Arguments = "", Definition = "RETURNS int AS $$ SELECT 1 $$  \n" }] },
         ],
         }).ShouldContain("AS $$ SELECT 1 $$;");
 

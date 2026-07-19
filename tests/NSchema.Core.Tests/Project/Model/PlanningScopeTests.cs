@@ -10,7 +10,7 @@ public sealed class PlanningScopeTests
 {
     private static readonly SqlIdentifier App = new("app");
 
-    private static ObjectAddress Address(string schema, string name) => new(new SqlIdentifier(schema), new SqlIdentifier(name));
+    private static ObjectAddress Address(string schema, string name) => new(schema, name);
 
     [Fact]
     public void To_EmptyOfBoth_NormalizesToAll()
@@ -67,7 +67,7 @@ public sealed class PlanningScopeTests
         // The read seams take schema names; an object entry still means its schema must be read.
         var scope = PlanningScope.To([App], [Address("billing", "orders")]);
 
-        scope.SchemaNames.ShouldBe([App, new SqlIdentifier("billing")]);
+        scope.SchemaNames.ShouldBe([App, "billing"]);
         scope.Schemas.ShouldBe([App]);
         scope.IsUnscoped.ShouldBeFalse();
     }
@@ -77,7 +77,7 @@ public sealed class PlanningScopeTests
     {
         var scope = PlanningScope.To([App], [Address("billing", "orders")]);
 
-        scope.Contains(new SqlIdentifier("APP")).ShouldBeFalse();
+        scope.Contains("APP").ShouldBeFalse();
         scope.Contains(Address("Billing", "Orders")).ShouldBeFalse();
         scope.Contains(App).ShouldBeTrue();
         scope.Contains(Address("billing", "orders")).ShouldBeTrue();

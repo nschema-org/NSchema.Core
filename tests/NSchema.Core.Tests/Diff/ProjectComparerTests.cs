@@ -28,33 +28,33 @@ public sealed class ProjectComparerTests
     /// <summary>Current <c>app.users(id)</c> — the table a column-add migration targets.</summary>
     private static CurrentState UsersWithId() => new(new Database
     {
-        Schemas = [new Schema { Name = new SqlIdentifier("app"),
-        Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] }],
+        Schemas = [new Schema { Name = "app",
+        Tables = [new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] }] }],
     });
 
     /// <summary>Desired <c>app.users(id, email)</c> — adds the column the migration accompanies.</summary>
     private static Database UsersWithEmail(bool required = false) => new Database
     {
-        Schemas = [new Schema { Name = new SqlIdentifier("app"),
-        Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text, IsNullable = !required }] }] }],
+        Schemas = [new Schema { Name = "app",
+        Tables = [new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }, new Column { Name = "email", Type = SqlType.Text, IsNullable = !required }] }] }],
     };
 
     private static DeploymentScript SeedScript() =>
-        new DeploymentScript(new SqlIdentifier("seed"), new SqlText("INSERT INTO app.c VALUES (1);"), null, DeploymentPhase.Post) { RunCondition = RunCondition.Once };
+        new DeploymentScript("seed", "INSERT INTO app.c VALUES (1);", null, DeploymentPhase.Post) { RunCondition = RunCondition.Once };
 
     private static ChangeScript EmailBackfillMigration() =>
-        new ChangeScript(new SqlIdentifier("backfill_emails"), new SqlText("UPDATE app.users SET email = ''"), new SqlIdentifier("app"), ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email"));
+        new ChangeScript("backfill_emails", "UPDATE app.users SET email = ''", "app", ChangeTrigger.AddColumn, "users", "email");
 
     /// <summary>A current state recording <paramref name="sql"/> as <paramref name="script"/>'s executed body.</summary>
     private static CurrentState Executed(Script script, string sql) =>
-        new(_emptySchema, [new ScriptExecution(script.Address, (script with { Sql = new SqlText(sql) }).Hash, DateTimeOffset.UnixEpoch)]);
+        new(_emptySchema, [new ScriptExecution(script.Address, (script with { Sql = sql }).Hash, DateTimeOffset.UnixEpoch)]);
 
     [Fact]
     public void Compare_DiffsBothSchemas()
     {
         // Arrange — a schema only in current is removed; one only in desired is added.
-        var current = new Database { Schemas = [new Schema { Name = new SqlIdentifier("gone") }] };
-        var desired = new Database { Schemas = [new Schema { Name = new SqlIdentifier("fresh") }] };
+        var current = new Database { Schemas = [new Schema { Name = "gone" }] };
+        var desired = new Database { Schemas = [new Schema { Name = "fresh" }] };
 
         // Act
         var diff = Sut.Compare(new CurrentState(current), new ProjectDefinition(desired)).Require();
@@ -108,7 +108,7 @@ public sealed class ProjectComparerTests
         // satisfy a global (or differently scoped) script sharing the name.
         var script = SeedScript();
         var scoped = new CurrentState(_emptySchema,
-            [new ScriptExecution(new ScopedAddress(new SqlIdentifier("sales"), script.Name), script.Hash, DateTimeOffset.UnixEpoch)]);
+            [new ScriptExecution(new ScopedAddress("sales", script.Name), script.Hash, DateTimeOffset.UnixEpoch)]);
 
         // Act
         var comparison = Sut.Compare(scoped, TestProjects.Project(_emptySchema, [script]));
@@ -203,7 +203,7 @@ public sealed class ProjectComparerTests
     public void Compare_AgainstAnEmptyProject_RemovesEverything_WithNoScripts()
     {
         // Arrange — a teardown is not a third kind of compare: it is the recorded schema against nothing.
-        var current = new CurrentState(new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] });
+        var current = new CurrentState(new Database { Schemas = [new Schema { Name = "app" }] });
 
         // Act
         var diff = Sut.Compare(current, new ProjectDefinition(new Database())).Require();
@@ -219,11 +219,11 @@ public sealed class ProjectComparerTests
         // Arrange — current has 'people' and no 'users': the rename has demonstrably been applied here.
         var current = new CurrentState(new Database
         {
-            Schemas = [new Schema { Name = new SqlIdentifier("app"),
-            Tables = [new Table { Name = new SqlIdentifier("people") }] }],
+            Schemas = [new Schema { Name = "app",
+            Tables = [new Table { Name = "people" }] }],
         });
         var directives = new ProjectDirectives(
-            ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users"))), new SqlIdentifier("people"))]);
+            ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress("app", "users")), "people")]);
 
         // Act
         var comparison = Sut.Compare(current, new ProjectDefinition(_emptySchema, directives));
@@ -242,7 +242,7 @@ public sealed class ProjectComparerTests
         // Arrange — neither side of the rename exists (a fresh environment): the directive is pending, not
         // spent, so no expiry info fires.
         var directives = new ProjectDirectives(
-            ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users"))), new SqlIdentifier("people"))]);
+            ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress("app", "users")), "people")]);
 
         // Act
         var comparison = Sut.Compare(new CurrentState(_emptySchema), new ProjectDefinition(_emptySchema, directives));

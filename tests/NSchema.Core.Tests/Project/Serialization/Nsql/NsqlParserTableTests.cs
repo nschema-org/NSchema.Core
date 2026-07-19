@@ -60,13 +60,13 @@ public sealed class NsqlParserTableTests
 
     [Fact]
     public void Column_SchemaQualifiedType_CapturesTheQualifierStructurally()
-        => Column("state app.status").Type.ShouldBe(SqlType.Custom(new SqlIdentifier("app"), "status"));
+        => Column("state app.status").Type.ShouldBe(SqlType.Custom("app", "status"));
 
     [Fact]
     public void Column_SchemaQualifiedType_WithConstraint_Parses()
     {
         var column = Column("state app.status NOT NULL");
-        column.Type.ShouldBe(SqlType.Custom(new SqlIdentifier("app"), "status"));
+        column.Type.ShouldBe(SqlType.Custom("app", "status"));
         column.IsNullable.ShouldBeFalse();
     }
 

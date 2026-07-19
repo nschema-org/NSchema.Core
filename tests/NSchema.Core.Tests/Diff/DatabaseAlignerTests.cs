@@ -19,13 +19,13 @@ public sealed class DatabaseAlignerTests
     private static Database Db(params Schema[] schemas) => new Database { Schemas = [.. schemas] };
 
     private static Table T(string name, params string[] columns) =>
-        new Table { Name = new SqlIdentifier(name), Columns = [.. columns.Select(c => new Column { Name = new SqlIdentifier(c), Type = SqlType.Int })] };
+        new Table { Name = name, Columns = [.. columns.Select(c => new Column { Name = c, Type = SqlType.Int })] };
 
     private static ProjectDirectives TableRename(string from, string to) =>
-        new(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, _app, new SqlIdentifier(from)), new SqlIdentifier(to))]);
+        new(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, _app, from), to)]);
 
     private static ProjectDirectives ColumnRename(string from, string to, string table = "t") =>
-        new(MemberRenames: [new MemberRenameDirective(new MemberAddress(_app, new SqlIdentifier(table), new SqlIdentifier(from)), new SqlIdentifier(to))]);
+        new(MemberRenames: [new MemberRenameDirective(new MemberAddress(_app, table, from), to)]);
 
     [Fact]
     public void Align_NoDirectives_ReturnsTheCurrentTreeUntouched()
@@ -39,16 +39,16 @@ public sealed class DatabaseAlignerTests
         // Assert — nothing to apply: the same tree comes back, with an empty log.
         result.IsSuccess.ShouldBeTrue();
         result.Require().Database.ShouldBeSameAs(current);
-        result.Require().Renames.RenamedFrom(new ObjectIdentity(ObjectKind.Table, _app, new SqlIdentifier("users"))).ShouldBeNull();
+        result.Require().Renames.RenamedFrom(new ObjectIdentity(ObjectKind.Table, _app, "users")).ShouldBeNull();
     }
 
     [Fact]
     public void Align_SchemaRename_RewritesTheSchemaAndLogsIt()
     {
         // Arrange
-        var current = Db(new Schema { Name = new SqlIdentifier("old_app"), Tables = [T("users", "id")] });
+        var current = Db(new Schema { Name = "old_app", Tables = [T("users", "id")] });
         var desired = Db(new Schema { Name = _app, Tables = [T("users", "id")] });
-        var directives = new ProjectDirectives(SchemaRenames: [new SchemaRenameDirective(new SqlIdentifier("old_app"), _app)]);
+        var directives = new ProjectDirectives(SchemaRenames: [new SchemaRenameDirective("old_app", _app)]);
 
         // Act
         var result = DatabaseAligner.Align(current, desired, directives);
@@ -57,7 +57,7 @@ public sealed class DatabaseAlignerTests
         result.IsSuccess.ShouldBeTrue();
         var aligned = result.Require();
         aligned.Database.Schemas.ShouldHaveSingleItem().Name.ShouldBe(_app);
-        aligned.Renames.RenamedFrom(_app).ShouldBe(new SqlIdentifier("old_app"));
+        aligned.Renames.RenamedFrom(_app).ShouldBe("old_app");
     }
 
     [Fact]
@@ -73,8 +73,8 @@ public sealed class DatabaseAlignerTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         var aligned = result.Require();
-        aligned.Database.Schemas.Single().Tables.ShouldHaveSingleItem().Name.ShouldBe(new SqlIdentifier("users"));
-        aligned.Renames.RenamedFrom(new ObjectIdentity(ObjectKind.Table, _app, new SqlIdentifier("users"))).ShouldBe(new SqlIdentifier("people"));
+        aligned.Database.Schemas.Single().Tables.ShouldHaveSingleItem().Name.ShouldBe("users");
+        aligned.Renames.RenamedFrom(new ObjectIdentity(ObjectKind.Table, _app, "users")).ShouldBe("people");
     }
 
     [Fact]
@@ -90,8 +90,8 @@ public sealed class DatabaseAlignerTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         var aligned = result.Require();
-        aligned.Database.Schemas.Single().Tables.Single().Columns.ShouldHaveSingleItem().Name.ShouldBe(new SqlIdentifier("email"));
-        aligned.Renames.RenamedFrom(new MemberAddress(_app, new SqlIdentifier("t"), new SqlIdentifier("email"))).ShouldBe(new SqlIdentifier("mail"));
+        aligned.Database.Schemas.Single().Tables.Single().Columns.ShouldHaveSingleItem().Name.ShouldBe("email");
+        aligned.Renames.RenamedFrom(new MemberAddress(_app, "t", "email")).ShouldBe("mail");
     }
 
     [Fact]
@@ -108,8 +108,8 @@ public sealed class DatabaseAlignerTests
         // Assert — the error blocks application; the tree comes back unaligned.
         result.IsFailure.ShouldBeTrue();
         result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
-            DiffDiagnostics.AmbiguousRenameSourceStillDeclared("table", "app.users", new SqlIdentifier("people")));
-        result.Require().Database.Schemas.Single().Tables.ShouldHaveSingleItem().Name.ShouldBe(new SqlIdentifier("people"));
+            DiffDiagnostics.AmbiguousRenameSourceStillDeclared("table", "app.users", "people"));
+        result.Require().Database.Schemas.Single().Tables.ShouldHaveSingleItem().Name.ShouldBe("people");
     }
 
     [Fact]
@@ -125,7 +125,7 @@ public sealed class DatabaseAlignerTests
         // Assert
         result.IsFailure.ShouldBeTrue();
         result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
-            DiffDiagnostics.AmbiguousRenameTargetTaken("table", "app.b", new SqlIdentifier("a"), new SqlIdentifier("b")));
+            DiffDiagnostics.AmbiguousRenameTargetTaken("table", "app.b", "a", "b"));
     }
 
     [Fact]
@@ -141,7 +141,7 @@ public sealed class DatabaseAlignerTests
         // Assert
         result.IsFailure.ShouldBeTrue();
         result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
-            DiffDiagnostics.AmbiguousRenameSourceStillDeclared("column", "app.t.email", new SqlIdentifier("mail")));
+            DiffDiagnostics.AmbiguousRenameSourceStillDeclared("column", "app.t.email", "mail"));
     }
 
     [Fact]
@@ -149,11 +149,11 @@ public sealed class DatabaseAlignerTests
     {
         // Arrange — the object directive addresses current reality ('old_app.people'), but the log must key by
         // where the entity lands: the declared schema and name.
-        var current = Db(new Schema { Name = new SqlIdentifier("old_app"), Tables = [T("people", "id")] });
+        var current = Db(new Schema { Name = "old_app", Tables = [T("people", "id")] });
         var desired = Db(new Schema { Name = _app, Tables = [T("users", "id")] });
         var directives = new ProjectDirectives(
-            SchemaRenames: [new SchemaRenameDirective(new SqlIdentifier("old_app"), _app)],
-            ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new SqlIdentifier("old_app"), new SqlIdentifier("people")), new SqlIdentifier("users"))]);
+            SchemaRenames: [new SchemaRenameDirective("old_app", _app)],
+            ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, "old_app", "people"), "users")]);
 
         // Act
         var result = DatabaseAligner.Align(current, desired, directives);
@@ -163,7 +163,7 @@ public sealed class DatabaseAlignerTests
         var aligned = result.Require();
         var schema = aligned.Database.Schemas.ShouldHaveSingleItem();
         schema.Name.ShouldBe(_app);
-        schema.Tables.ShouldHaveSingleItem().Name.ShouldBe(new SqlIdentifier("users"));
-        aligned.Renames.RenamedFrom(new ObjectIdentity(ObjectKind.Table, _app, new SqlIdentifier("users"))).ShouldBe(new SqlIdentifier("people"));
+        schema.Tables.ShouldHaveSingleItem().Name.ShouldBe("users");
+        aligned.Renames.RenamedFrom(new ObjectIdentity(ObjectKind.Table, _app, "users")).ShouldBe("people");
     }
 }

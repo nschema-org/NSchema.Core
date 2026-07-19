@@ -126,8 +126,8 @@ public class DestructiveActionPolicyTests
     {
         // Arrange — dropping a unique constraint removes a structural guarantee (and a possible FK target).
         _options.Value.Policy = PolicyEnforcement.Error;
-        var diff = TableChange(new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify, null, null, [], [], [],
-            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Remove, new SqlIdentifier("users_email_uq"), null)]));
+        var diff = TableChange(new TableDiff("app", "users", ChangeKind.Modify, null, null, [], [], [],
+            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Remove, "users_email_uq", null)]));
 
         // Act
         var errors = _sut.Validate(diff).ToList();
@@ -142,8 +142,8 @@ public class DestructiveActionPolicyTests
     {
         // Arrange — dropping an exclusion constraint removes a structural guarantee, like a unique constraint.
         _options.Value.Policy = PolicyEnforcement.Error;
-        var diff = TableChange(new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("bookings"), ChangeKind.Modify, null, null, [], [], [],
-            ExclusionConstraints: [new ExclusionConstraintDiff(ChangeKind.Remove, new SqlIdentifier("no_overlap"), null)]));
+        var diff = TableChange(new TableDiff("app", "bookings", ChangeKind.Modify, null, null, [], [], [],
+            ExclusionConstraints: [new ExclusionConstraintDiff(ChangeKind.Remove, "no_overlap", null)]));
 
         // Act
         var errors = _sut.Validate(diff).ToList();
@@ -158,8 +158,8 @@ public class DestructiveActionPolicyTests
     {
         // Arrange — dropping a check only loosens validation; no data is lost, so it is not destructive.
         _options.Value.Policy = PolicyEnforcement.Error;
-        var diff = TableChange(new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify, null, null, [], [], [],
-            Checks: [new CheckConstraintDiff(ChangeKind.Remove, new SqlIdentifier("users_age_chk"), null)]));
+        var diff = TableChange(new TableDiff("app", "users", ChangeKind.Modify, null, null, [], [], [],
+            Checks: [new CheckConstraintDiff(ChangeKind.Remove, "users_age_chk", null)]));
 
         // Act / Assert
         _sut.Validate(diff).ShouldBeEmpty();
@@ -171,7 +171,7 @@ public class DestructiveActionPolicyTests
         // Arrange — dropping a view is destructive (its definition is lost from managed state).
         _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff([
-            new SchemaDiff(new SqlIdentifier("app"), null, null, null, [], [], [new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("active_users"), ChangeKind.Remove)]),
+            new SchemaDiff("app", null, null, null, [], [], [new ViewDiff("app", "active_users", ChangeKind.Remove)]),
         ]);
 
         // Act
@@ -187,9 +187,9 @@ public class DestructiveActionPolicyTests
     {
         // Arrange — creating a view loses nothing.
         _options.Value.Policy = PolicyEnforcement.Error;
-        var view = new View { Name = new SqlIdentifier("active_users"), Body = new SqlText("SELECT * FROM app.users") };
+        var view = new View { Name = "active_users", Body = "SELECT * FROM app.users" };
         var diff = new DatabaseDiff([
-            new SchemaDiff(new SqlIdentifier("app"), null, null, null, [], [], [new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("active_users"), ChangeKind.Add, Definition: view)]),
+            new SchemaDiff("app", null, null, null, [], [], [new ViewDiff("app", "active_users", ChangeKind.Add, Definition: view)]),
         ]);
 
         // Act / Assert
@@ -202,7 +202,7 @@ public class DestructiveActionPolicyTests
         // Arrange — dropping an enum is destructive (columns using it would lose their type definition).
         _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff([
-            new SchemaDiff(new SqlIdentifier("app"), Enums: [new EnumDiff(new SqlIdentifier("app"), new SqlIdentifier("status"), ChangeKind.Remove)]),
+            new SchemaDiff("app", Enums: [new EnumDiff("app", "status", ChangeKind.Remove)]),
         ]);
 
         // Act
@@ -219,7 +219,7 @@ public class DestructiveActionPolicyTests
         // Arrange — dropping a sequence loses its current position.
         _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff([
-            new SchemaDiff(new SqlIdentifier("app"), Sequences: [new SequenceDiff(new SqlIdentifier("app"), new SqlIdentifier("order_id"), ChangeKind.Remove)]),
+            new SchemaDiff("app", Sequences: [new SequenceDiff("app", "order_id", ChangeKind.Remove)]),
         ]);
 
         // Act
@@ -236,9 +236,9 @@ public class DestructiveActionPolicyTests
         // Arrange — creating an enum or sequence loses nothing.
         _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff([
-            new SchemaDiff(new SqlIdentifier("app"),
-                Enums: [new EnumDiff(new SqlIdentifier("app"), new SqlIdentifier("status"), ChangeKind.Add, Definition: new EnumType { Name = new SqlIdentifier("status"), Values = ["a"] })],
-                Sequences: [new SequenceDiff(new SqlIdentifier("app"), new SqlIdentifier("order_id"), ChangeKind.Add, Definition: new Sequence { Name = new SqlIdentifier("order_id") })]),
+            new SchemaDiff("app",
+                Enums: [new EnumDiff("app", "status", ChangeKind.Add, Definition: new EnumType { Name = "status", Values = ["a"] })],
+                Sequences: [new SequenceDiff("app", "order_id", ChangeKind.Add, Definition: new Sequence { Name = "order_id" })]),
         ]);
 
         // Act / Assert
@@ -251,10 +251,10 @@ public class DestructiveActionPolicyTests
         // Arrange — dropping a routine loses its definition from managed state.
         _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff([
-            new SchemaDiff(new SqlIdentifier("app"), Routines:
+            new SchemaDiff("app", Routines:
             [
-                new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Remove, RoutineKind.Function),
-                new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("p"), ChangeKind.Remove, RoutineKind.Procedure),
+                new RoutineDiff("app", "f", ChangeKind.Remove, RoutineKind.Function),
+                new RoutineDiff("app", "p", ChangeKind.Remove, RoutineKind.Procedure),
             ]),
         ]);
 
@@ -272,12 +272,12 @@ public class DestructiveActionPolicyTests
         // Arrange — a signature change is a declared edit; the database blocks the underlying drop loudly if
         // dependents exist, so the policy does not gate it.
         _options.Value.Policy = PolicyEnforcement.Error;
-        var fn = new Routine { Name = new SqlIdentifier("f"), RoutineKind = RoutineKind.Function, Arguments = new SqlText("a int, b text"), Definition = new SqlText("RETURNS int AS $$ SELECT 1 $$") };
+        var fn = new Routine { Name = "f", RoutineKind = RoutineKind.Function, Arguments = "a int, b text", Definition = "RETURNS int AS $$ SELECT 1 $$" };
         var diff = new DatabaseDiff([
-            new SchemaDiff(new SqlIdentifier("app"), Routines:
+            new SchemaDiff("app", Routines:
             [
-                new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Modify, RoutineKind.Function, Definition: fn,
-                    Arguments: new ValueChange<SqlText>(new SqlText("a int"), new SqlText("a int, b text"))),
+                new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function, Definition: fn,
+                    Arguments: new ValueChange<SqlText>("a int", "a int, b text")),
             ]),
         ]);
 
@@ -290,7 +290,7 @@ public class DestructiveActionPolicyTests
     {
         // Arrange — dropping a database-global extension removes shared infrastructure (and its dependents).
         _options.Value.Policy = PolicyEnforcement.Error;
-        var diff = new DatabaseDiff(Extensions: [new ExtensionDiff(new SqlIdentifier("citext"), ChangeKind.Remove)]);
+        var diff = new DatabaseDiff(Extensions: [new ExtensionDiff("citext", ChangeKind.Remove)]);
 
         // Act
         var errors = _sut.Validate(diff).ToList();
@@ -306,12 +306,12 @@ public class DestructiveActionPolicyTests
         // Arrange — installing an extension loses nothing.
         _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff(Extensions:
-            [new ExtensionDiff(new SqlIdentifier("citext"), ChangeKind.Add, Definition: new Extension { Name = new SqlIdentifier("citext") })]);
+            [new ExtensionDiff("citext", ChangeKind.Add, Definition: new Extension { Name = "citext" })]);
 
         // Act / Assert
         _sut.Validate(diff).ShouldBeEmpty();
     }
 
     private static DatabaseDiff TableChange(TableDiff table) =>
-        new([new SchemaDiff(new SqlIdentifier("app"), null, null, null, [], [table])]);
+        new([new SchemaDiff("app", null, null, null, [], [table])]);
 }

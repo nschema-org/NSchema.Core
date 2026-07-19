@@ -17,8 +17,8 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_FullSchema_DropsCurrentTableNotInDesired()
     {
-        var current = Db(new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("stale"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] });
-        var desired = Db(new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("fresh"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] });
+        var current = Db(new Schema { Name = "app", Tables = [new Table { Name = "stale", Columns = [new Column { Name = "id", Type = SqlType.Int }] }] });
+        var desired = Db(new Schema { Name = "app", Tables = [new Table { Name = "fresh", Columns = [new Column { Name = "id", Type = SqlType.Int }] }] });
 
         var tables = Compare(current, desired).Schemas.Single().Tables;
 
@@ -33,8 +33,8 @@ public partial class DatabaseComparerTests
     public void Compare_TableRename_SetsRenamedFrom()
     {
         var table = DiffTable(
-            new Table { Name = new SqlIdentifier("people"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] },
-            new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] },
+            new Table { Name = "people", Columns = [new Column { Name = "id", Type = SqlType.Int }] },
+            new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] },
             TableRename("people", "users"));
 
         table.ShouldNotBeNull();
@@ -49,17 +49,17 @@ public partial class DatabaseComparerTests
         // (raising an error diagnostic — see DatabaseAlignerTests), so the compare sees a plain add.
         var current = Db(new Schema
         {
-            Name = new SqlIdentifier("app"),
+            Name = "app",
             Tables = [
-            new Table { Name = new SqlIdentifier("people"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] },
+            new Table { Name = "people", Columns = [new Column { Name = "id", Type = SqlType.Int }] },
         ],
         });
         var desired = Db(new Schema
         {
-            Name = new SqlIdentifier("app"),
+            Name = "app",
             Tables = [
-            new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] },
-            new Table { Name = new SqlIdentifier("people"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] },
+            new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] },
+            new Table { Name = "people", Columns = [new Column { Name = "id", Type = SqlType.Int }] },
         ],
         });
 
@@ -75,8 +75,8 @@ public partial class DatabaseComparerTests
     {
         // A rename whose old name is gone and whose new name is free is unambiguous and must still work.
         var table = DiffTable(
-            new Table { Name = new SqlIdentifier("people"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] },
-            new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] },
+            new Table { Name = "people", Columns = [new Column { Name = "id", Type = SqlType.Int }] },
+            new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] },
             TableRename("people", "users"));
 
         table.ShouldNotBeNull();
@@ -88,8 +88,8 @@ public partial class DatabaseComparerTests
     public void Compare_TableCommentChange_FoldsCommentValueChange()
     {
         var table = DiffTable(
-            new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }], Comment = "old" },
-            new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }], Comment = "new" });
+            new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }], Comment = "old" },
+            new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }], Comment = "new" });
 
         table!.Comment.ShouldBe(new ValueChange<string>("old", "new"));
     }
@@ -99,18 +99,18 @@ public partial class DatabaseComparerTests
     {
         var desired = new Table
         {
-            Name = new SqlIdentifier("orders"),
-            Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }, new Column { Name = new SqlIdentifier("user_id"), Type = SqlType.Int }],
-            ForeignKeys = [new ForeignKey { Name = new SqlIdentifier("orders_user_fk"), ColumnNames = [new SqlIdentifier("user_id")], ReferencedSchema = new SqlIdentifier("app"), ReferencedTable = new SqlIdentifier("users"), ReferencedColumnNames = [new SqlIdentifier("id")] }],
-            Indexes = [new TableIndex { Name = new SqlIdentifier("orders_user_ix"), Columns = ["user_id"], Comment = "lookup" }],
-            Grants = [new TableGrant(new SqlIdentifier("reader"), TablePrivilege.Select)],
+            Name = "orders",
+            Columns = [new Column { Name = "id", Type = SqlType.Int }, new Column { Name = "user_id", Type = SqlType.Int }],
+            ForeignKeys = [new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], ReferencedSchema = "app", ReferencedTable = "users", ReferencedColumnNames = ["id"] }],
+            Indexes = [new TableIndex { Name = "orders_user_ix", Columns = ["user_id"], Comment = "lookup" }],
+            Grants = [new TableGrant("reader", TablePrivilege.Select)],
         };
 
-        var table = Compare(Db(new Schema { Name = new SqlIdentifier("app") }),
-            Db(new Schema { Name = new SqlIdentifier("app"), Tables = [desired] })).Schemas.Single().Tables.Single();
+        var table = Compare(Db(new Schema { Name = "app" }),
+            Db(new Schema { Name = "app", Tables = [desired] })).Schemas.Single().Tables.Single();
 
-        table.ForeignKeys.ShouldHaveSingleItem().ShouldBe(new ForeignKeyDiff(ChangeKind.Add, new SqlIdentifier("orders_user_fk"),
-            new ForeignKey { Name = new SqlIdentifier("orders_user_fk"), ColumnNames = [new SqlIdentifier("user_id")], ReferencedSchema = new SqlIdentifier("app"), ReferencedTable = new SqlIdentifier("users"), ReferencedColumnNames = [new SqlIdentifier("id")] }));
+        table.ForeignKeys.ShouldHaveSingleItem().ShouldBe(new ForeignKeyDiff(ChangeKind.Add, "orders_user_fk",
+            new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], ReferencedSchema = "app", ReferencedTable = "users", ReferencedColumnNames = ["id"] }));
         table.Grants.ShouldHaveSingleItem().Privileges.ShouldBe(TablePrivilege.Select);
         // A new index carries both its definition and a folded comment change.
         table.Indexes.Select(i => i.Kind).ShouldBe([ChangeKind.Add, ChangeKind.Modify]);

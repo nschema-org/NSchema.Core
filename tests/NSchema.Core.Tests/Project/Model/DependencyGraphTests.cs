@@ -67,7 +67,7 @@ public class DependencyGraphTests
             Schemas = [
             new Schema { Name = Id("app"),
                 Tables = [new Table { Name = Id("users"), Columns = [new Column { Name = Id("id"), Type = SqlType.Int }] }],
-                Views = [new View { Name = Id("active_users"), Body = new SqlText("select * from app.users"),
+                Views = [new View { Name = Id("active_users"), Body = "select * from app.users",
                     DependsOn = [new ViewDependency(Id("app"), Id("users"))] }] },
         ],
         };
@@ -138,9 +138,9 @@ public class DependencyGraphTests
             new Schema { Name = Id("app"),
                 Tables = [new Table { Name = Id("users"), Columns = [new Column { Name = Id("id"), Type = SqlType.Int }] }],
                 Views = [
-                    new View { Name = Id("active_users"), Body = new SqlText("select * from app.users"),
+                    new View { Name = Id("active_users"), Body = "select * from app.users",
                         DependsOn = [new ViewDependency(Id("app"), Id("users"))] },
-                    new View { Name = Id("recent_users"), Body = new SqlText("select * from app.active_users"),
+                    new View { Name = Id("recent_users"), Body = "select * from app.active_users",
                         DependsOn = [new ViewDependency(Id("app"), Id("active_users"))] },
                 ] },
         ],
@@ -185,9 +185,9 @@ public class DependencyGraphTests
             new Schema { Name = Id("app"),
                 Tables = [new Table { Name = Id("users"), Columns = [new Column { Name = Id("id"), Type = SqlType.Int }] }],
                 Views = [
-                    new View { Name = Id("active"), Body = new SqlText("select * from app.users"), DependsOn = [new ViewDependency(Id("app"), Id("users"))] },
-                    new View { Name = Id("recent"), Body = new SqlText("select * from app.users"), DependsOn = [new ViewDependency(Id("app"), Id("users"))] },
-                    new View { Name = Id("summary"), Body = new SqlText("select * from app.active, app.recent"),
+                    new View { Name = Id("active"), Body = "select * from app.users", DependsOn = [new ViewDependency(Id("app"), Id("users"))] },
+                    new View { Name = Id("recent"), Body = "select * from app.users", DependsOn = [new ViewDependency(Id("app"), Id("users"))] },
+                    new View { Name = Id("summary"), Body = "select * from app.active, app.recent",
                         DependsOn = [new ViewDependency(Id("app"), Id("active")), new ViewDependency(Id("app"), Id("recent"))] },
                 ] },
         ],
@@ -223,7 +223,7 @@ public class DependencyGraphTests
         {
             Schemas = [
             new Schema { Name = Id("app"), Tables = [new Table { Name = Id("users"), Columns = [new Column { Name = Id("id"), Type = SqlType.Int }] }],
-                Views = [new View { Name = Id("summary"), Body = new SqlText("select * from app.users"), DependsOn = [new ViewDependency(Id("app"), Id("users"))] }] },
+                Views = [new View { Name = Id("summary"), Body = "select * from app.users", DependsOn = [new ViewDependency(Id("app"), Id("users"))] }] },
             new Schema { Name = Id("billing"), Tables = [WithForeignKey("orders", "fk_orders_user", "app", "users")] },
         ],
         };

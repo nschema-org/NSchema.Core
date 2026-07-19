@@ -14,8 +14,8 @@ public sealed class PlanOperationTests
     private readonly IPlanFileManager _planFile = Substitute.For<IPlanFileManager>();
 
     private readonly MigrationPlan _plan = new(
-        new DatabaseDiff([new SchemaDiff(new SqlIdentifier("app"), ChangeKind.Add)]),
-        [new SqlStatement(new SqlText("CREATE SCHEMA app"))]);
+        new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add)]),
+        [new SqlStatement("CREATE SCHEMA app")]);
 
     private readonly PlanOperation _sut;
 
@@ -46,24 +46,24 @@ public sealed class PlanOperationTests
     public async Task Execute_ForwardsScopeToComputePlan()
     {
         // Act
-        await _sut.Execute(Args(scope: PlanningScope.To(new SqlIdentifier("app"), new SqlIdentifier("legacy"))), TestContext.Current.CancellationToken);
+        await _sut.Execute(Args(scope: PlanningScope.To("app", "legacy")), TestContext.Current.CancellationToken);
 
         // Assert
         await _workflow.Received(1).ComputePlan(
             Arg.Any<PlanTarget>(),
-            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.Contains(new SqlIdentifier("app")) && s.Contains(new SqlIdentifier("legacy"))), Arg.Any<CancellationToken>());
+            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.Contains("app") && s.Contains("legacy")), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Execute_Teardown_ForwardsScopeToComputePlan()
     {
         // Act — scoping is no longer special-cased: a teardown narrows like any other plan.
-        await _sut.Execute(Args(PlanTarget.Empty, scope: PlanningScope.To(new SqlIdentifier("app"))), TestContext.Current.CancellationToken);
+        await _sut.Execute(Args(PlanTarget.Empty, scope: PlanningScope.To("app")), TestContext.Current.CancellationToken);
 
         // Assert
         await _workflow.Received(1).ComputePlan(
             PlanTarget.Empty,
-            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.Contains(new SqlIdentifier("app"))), Arg.Any<CancellationToken>());
+            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.Contains("app")), Arg.Any<CancellationToken>());
     }
 
     [Fact]
