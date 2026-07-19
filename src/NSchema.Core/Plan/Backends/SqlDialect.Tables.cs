@@ -1,0 +1,125 @@
+using System.Text;
+using NSchema.Model.Tables;
+using NSchema.Plan.Model;
+using NSchema.Plan.Model.Tables;
+
+namespace NSchema.Plan.Backends;
+
+public abstract partial class SqlDialect
+{
+    /// <summary>
+    /// Renders the creation of a table.
+    /// </summary>
+    protected abstract Result<IReadOnlyList<SqlStatement>> CreateTable(CreateTable action);
+
+    /// <summary>
+    /// Renders the removal of a table.
+    /// </summary>
+    protected virtual Result<IReadOnlyList<SqlStatement>> DropTable(DropTable action) =>
+        Statement($"DROP TABLE {Qualify(action.SchemaName, action.TableName)}");
+
+    /// <summary>
+    /// Renders the renaming of a table.
+    /// </summary>
+    protected virtual Result<IReadOnlyList<SqlStatement>> RenameTable(RenameTable action) =>
+        Statement($"ALTER TABLE {Qualify(action.SchemaName, action.OldName)} RENAME TO {Quote(action.NewName)}");
+
+    /// <summary>
+    /// Renders adding a primary key constraint.
+    /// </summary>
+    protected virtual Result<IReadOnlyList<SqlStatement>> AddPrimaryKey(AddPrimaryKey action) =>
+        Statement($"ALTER TABLE {Qualify(action.SchemaName, action.TableName)} ADD CONSTRAINT {Quote(action.PrimaryKey.Name)} PRIMARY KEY ({ColumnList(action.PrimaryKey.ColumnNames)})");
+
+    /// <summary>
+    /// Renders dropping a primary key constraint.
+    /// </summary>
+    protected virtual Result<IReadOnlyList<SqlStatement>> DropPrimaryKey(DropPrimaryKey action) =>
+        Statement($"ALTER TABLE {Qualify(action.SchemaName, action.TableName)} DROP CONSTRAINT {Quote(action.PrimaryKeyName)}");
+
+    /// <summary>
+    /// Renders adding a foreign key constraint.
+    /// </summary>
+    protected virtual Result<IReadOnlyList<SqlStatement>> AddForeignKey(AddForeignKey action)
+    {
+        var key = action.ForeignKey;
+        var sql = new StringBuilder(
+            $"ALTER TABLE {Qualify(action.SchemaName, action.TableName)} ADD CONSTRAINT {Quote(key.Name)} " +
+            $"FOREIGN KEY ({ColumnList(key.ColumnNames)}) " +
+            $"REFERENCES {Qualify(key.ReferencedSchema, key.ReferencedTable)} ({ColumnList(key.ReferencedColumnNames)})");
+
+        if (key.OnDelete != ReferentialAction.NoAction)
+        {
+            sql.Append($" ON DELETE {ReferentialActionSql(key.OnDelete)}");
+        }
+
+        if (key.OnUpdate != ReferentialAction.NoAction)
+        {
+            sql.Append($" ON UPDATE {ReferentialActionSql(key.OnUpdate)}");
+        }
+
+        return Statement(sql.ToString());
+    }
+
+    /// <summary>
+    /// Renders dropping a foreign key constraint.
+    /// </summary>
+    protected virtual Result<IReadOnlyList<SqlStatement>> DropForeignKey(DropForeignKey action) =>
+        Statement($"ALTER TABLE {Qualify(action.SchemaName, action.TableName)} DROP CONSTRAINT {Quote(action.ForeignKeyName)}");
+
+    /// <summary>
+    /// Renders granting table privileges to a role.
+    /// </summary>
+    protected virtual Result<IReadOnlyList<SqlStatement>> GrantTablePrivileges(GrantTablePrivileges action) =>
+        action.Privileges == TablePrivilege.None
+            ? Statements()
+            : Statement($"GRANT {PrivilegeList(action.Privileges)} ON {Qualify(action.SchemaName, action.TableName)} TO {Quote(action.Role)}");
+
+    /// <summary>
+    /// Renders revoking table privileges from a role.
+    /// </summary>
+    protected virtual Result<IReadOnlyList<SqlStatement>> RevokeTablePrivileges(RevokeTablePrivileges action) =>
+        action.Privileges == TablePrivilege.None
+            ? Statements()
+            : Statement($"REVOKE {PrivilegeList(action.Privileges)} ON {Qualify(action.SchemaName, action.TableName)} FROM {Quote(action.Role)}");
+
+    /// <summary>
+    /// Renders setting or clearing a table's comment.
+    /// </summary>
+    protected virtual Result<IReadOnlyList<SqlStatement>> SetTableComment(SetTableComment action) =>
+        Unsupported(action);
+
+    private static string ReferentialActionSql(ReferentialAction action) => action switch
+    {
+        ReferentialAction.Cascade => "CASCADE",
+        ReferentialAction.SetNull => "SET NULL",
+        ReferentialAction.SetDefault => "SET DEFAULT",
+        _ => "NO ACTION",
+    };
+
+    private static string PrivilegeList(TablePrivilege privileges)
+    {
+        var parts = new List<string>(4);
+
+        if (privileges.HasFlag(TablePrivilege.Select))
+        {
+            parts.Add("SELECT");
+        }
+
+        if (privileges.HasFlag(TablePrivilege.Insert))
+        {
+            parts.Add("INSERT");
+        }
+
+        if (privileges.HasFlag(TablePrivilege.Update))
+        {
+            parts.Add("UPDATE");
+        }
+
+        if (privileges.HasFlag(TablePrivilege.Delete))
+        {
+            parts.Add("DELETE");
+        }
+
+        return string.Join(", ", parts);
+    }
+}

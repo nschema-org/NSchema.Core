@@ -19,11 +19,6 @@ here that you have thoughts on, let me know!
 
 ## Future plans
 
-### Improved SQL generation
-
-At the moment, our `ISqlDialect` interface just has one method to generate SQL for a given migration action. This makes it very easy for database
-providers to miss
-
 ### [Custom policies](roadmap/custom-policies.md)
 
 I'd really like to support extra validation rules like "all tables must have a primary key called `id`" or "all tables must be pluralized".

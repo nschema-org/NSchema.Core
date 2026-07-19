@@ -37,12 +37,12 @@ public partial class NSchemaApplicationBuilder
     }
 
     /// <summary>
-    /// Sets the <see cref="ISqlDialect"/> the application renders SQL with, replacing any previously set one.
+    /// Sets the <see cref="SqlDialect"/> the application renders SQL with, replacing any previously set one.
     /// Typically called by a database-provider extension.
     /// </summary>
-    public NSchemaApplicationBuilder UseSqlDialect<T>() where T : class, ISqlDialect
+    public NSchemaApplicationBuilder UseSqlDialect<T>() where T : SqlDialect
     {
-        Services.Replace(ServiceDescriptor.Singleton<ISqlDialect, T>());
+        Services.Replace(ServiceDescriptor.Singleton<SqlDialect, T>());
         return this;
     }
 
