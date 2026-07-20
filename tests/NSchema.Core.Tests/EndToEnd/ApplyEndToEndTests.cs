@@ -104,7 +104,7 @@ public sealed class ApplyEndToEndTests : IDisposable
         statements.ShouldBe([
             "-- AddColumn",
             "UPDATE app.users SET email = 'unknown@example.com';",
-            "-- AlterColumnNullability",
+            "-- AlterColumn",
         ]);
     }
 
@@ -153,7 +153,7 @@ public sealed class ApplyEndToEndTests : IDisposable
             "-- CreateTable",
             "-- AddColumn",
             "UPDATE sales.events SET actor = 'system';",
-            "-- AlterColumnNullability",
+            "-- AlterColumn",
         ]);
 
         // Billing's instance is inert this run and says so; sales' matched instance reports nothing.

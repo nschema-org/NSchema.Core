@@ -23,14 +23,9 @@ public abstract partial class SqlDialect
         Statement($"ALTER TABLE {Qualify(action.Column.Owner)} RENAME COLUMN {Quote(action.Column.Member)} TO {Quote(action.NewName)}");
 
     /// <summary>
-    /// Renders changing a column's data type.
+    /// Renders changing a column's type or nullability.
     /// </summary>
-    protected abstract Result<IReadOnlyList<SqlStatement>> AlterColumnType(AlterColumnType action);
-
-    /// <summary>
-    /// Renders changing a column's nullability.
-    /// </summary>
-    protected abstract Result<IReadOnlyList<SqlStatement>> AlterColumnNullability(AlterColumnNullability action);
+    protected abstract Result<IReadOnlyList<SqlStatement>> AlterColumn(AlterColumn action);
 
     /// <summary>
     /// Renders changing a column's identity sequence options.

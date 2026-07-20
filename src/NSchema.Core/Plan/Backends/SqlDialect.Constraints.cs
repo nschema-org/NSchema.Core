@@ -1,3 +1,4 @@
+using NSchema.Model.Constraints;
 using NSchema.Plan.Model;
 using NSchema.Plan.Model.Constraints;
 
@@ -9,7 +10,7 @@ public abstract partial class SqlDialect
     /// Renders adding a check constraint.
     /// </summary>
     protected virtual Result<IReadOnlyList<SqlStatement>> AddCheckConstraint(AddCheckConstraint action) =>
-        Statement($"ALTER TABLE {Qualify(action.Table)} ADD CONSTRAINT {Quote(action.CheckConstraint.Name)} CHECK ({action.CheckConstraint.Expression})");
+        Statement($"ALTER TABLE {Qualify(action.Table)} ADD {CheckConstraintClause(action.CheckConstraint)}");
 
     /// <summary>
     /// Renders dropping a check constraint.
@@ -21,7 +22,15 @@ public abstract partial class SqlDialect
     /// Renders adding a unique constraint.
     /// </summary>
     protected virtual Result<IReadOnlyList<SqlStatement>> AddUniqueConstraint(AddUniqueConstraint action) =>
-        Statement($"ALTER TABLE {Qualify(action.Table)} ADD CONSTRAINT {Quote(action.UniqueConstraint.Name)} UNIQUE ({ColumnList(action.UniqueConstraint.ColumnNames)})");
+        Statement($"ALTER TABLE {Qualify(action.Table)} ADD {UniqueConstraintClause(action.UniqueConstraint)}");
+
+    /// <summary>The <c>CONSTRAINT … UNIQUE (…)</c> clause, used inline in a CREATE TABLE and by the ALTER add.</summary>
+    protected string UniqueConstraintClause(UniqueConstraint unique) =>
+        $"CONSTRAINT {Quote(unique.Name)} UNIQUE ({ColumnList(unique.ColumnNames)})";
+
+    /// <summary>The <c>CONSTRAINT … CHECK (…)</c> clause, used inline in a CREATE TABLE and by the ALTER add.</summary>
+    protected string CheckConstraintClause(CheckConstraint check) =>
+        $"CONSTRAINT {Quote(check.Name)} CHECK ({check.Expression})";
 
     /// <summary>
     /// Renders dropping a unique constraint.

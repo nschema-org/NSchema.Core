@@ -53,11 +53,10 @@ public sealed class PlanLinearizerDataMigrationTests
         var backfill = plan[1].ShouldBeOfType<ExecuteScript>();
         backfill.Script.Name.ShouldBe("backfill_emails");
         backfill.Script.Sql.ShouldBe(migration.Sql);
-        var tighten = plan[2].ShouldBeOfType<AlterColumnNullability>();
-        tighten.Column.Member.ShouldBe("email");
-        tighten.OldNullable.ShouldBeTrue();
-        tighten.NewNullable.ShouldBeFalse();
-        tighten.ColumnType.ShouldBe(SqlType.Text);
+        var tighten = plan[2].ShouldBeOfType<AlterColumn>();
+        tighten.Column.Name.ShouldBe("email");
+        tighten.Nullability.ShouldBe(new ValueChange<bool>(true, false));
+        tighten.Column.Type.ShouldBe(SqlType.Text);
     }
 
     [Fact]
@@ -74,7 +73,7 @@ public sealed class PlanLinearizerDataMigrationTests
         plan.Count.ShouldBe(2);
         plan[0].ShouldBeOfType<AddColumn>().Column.IsNullable.ShouldBeTrue();
         plan[1].ShouldBeOfType<ExecuteScript>();
-        plan.OfType<AlterColumnNullability>().ShouldBeEmpty();
+        plan.OfType<AlterColumn>().ShouldBeEmpty();
     }
 
     [Theory]
@@ -101,15 +100,16 @@ public sealed class PlanLinearizerDataMigrationTests
         plan.Count.ShouldBe(2);
         plan[0].ShouldBeOfType<AddColumn>().Column.ShouldBe(definition);
         plan[1].ShouldBeOfType<ExecuteScript>();
-        plan.OfType<AlterColumnNullability>().ShouldBeEmpty();
+        plan.OfType<AlterColumn>().ShouldBeEmpty();
     }
 
     [Fact]
-    public void Linearize_AnnotatedTypeChange_RunsMigrationBeforeAlterColumnType()
+    public void Linearize_AnnotatedTypeChange_RunsMigrationBeforeAlterColumn()
     {
         // Arrange — the migration's SQL prepares the data for the cast, so it must run first.
         var migration = Migration(ChangeTrigger.AlterColumnType, "total");
         var column = new ColumnDiff("total", ChangeKind.Modify,
+            new Column { Name = "total", Type = SqlType.Int },
             Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int))
         { MigrationScript = migration };
 
@@ -120,9 +120,8 @@ public sealed class PlanLinearizerDataMigrationTests
         plan.Count.ShouldBe(2);
         var prep = plan[0].ShouldBeOfType<ExecuteScript>();
         prep.Script.ShouldBe(migration);
-        var alter = plan[1].ShouldBeOfType<AlterColumnType>();
-        alter.OldType.ShouldBe(SqlType.Text);
-        alter.NewType.ShouldBe(SqlType.Int);
+        var alter = plan[1].ShouldBeOfType<AlterColumn>();
+        alter.Type.ShouldBe(new ValueChange<SqlType>(SqlType.Text, SqlType.Int));
     }
 
     [Fact]
