@@ -49,8 +49,7 @@ internal class StubSqlDialect : SqlDialect
     protected override Result<IReadOnlyList<SqlStatement>> AddColumn(AddColumn action) => Comment(action);
     protected override Result<IReadOnlyList<SqlStatement>> DropColumn(DropColumn action) => Comment(action);
     protected override Result<IReadOnlyList<SqlStatement>> RenameColumn(RenameColumn action) => Comment(action);
-    protected override Result<IReadOnlyList<SqlStatement>> AlterColumnType(AlterColumnType action) => Comment(action);
-    protected override Result<IReadOnlyList<SqlStatement>> AlterColumnNullability(AlterColumnNullability action) => Comment(action);
+    protected override Result<IReadOnlyList<SqlStatement>> AlterColumn(AlterColumn action) => Comment(action);
     protected override Result<IReadOnlyList<SqlStatement>> AlterIdentitySequence(AlterIdentitySequence action) => Comment(action);
     protected override Result<IReadOnlyList<SqlStatement>> SetColumnDefault(SetColumnDefault action) => Comment(action);
     protected override Result<IReadOnlyList<SqlStatement>> SetColumnGenerated(SetColumnGenerated action) => Comment(action);

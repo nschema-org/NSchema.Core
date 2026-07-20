@@ -121,14 +121,9 @@ internal sealed class DestructiveActionPolicy(IOptions<DestructiveActionOptions>
                         yield return nameof(DropColumn);
                     }
 
-                    if (column.Type is not null)
+                    if (column.Type is not null || column.Nullability is not null)
                     {
-                        yield return nameof(AlterColumnType);
-                    }
-
-                    if (column.Nullability is not null)
-                    {
-                        yield return nameof(AlterColumnNullability);
+                        yield return nameof(AlterColumn);
                     }
                 }
 

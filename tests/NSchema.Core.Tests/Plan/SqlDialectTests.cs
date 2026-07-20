@@ -52,8 +52,7 @@ public sealed class SqlDialectTests
 
         protected override Result<IReadOnlyList<SqlStatement>> CreateTable(CreateTable action) => Engine(action);
         protected override Result<IReadOnlyList<SqlStatement>> AddColumn(AddColumn action) => Engine(action);
-        protected override Result<IReadOnlyList<SqlStatement>> AlterColumnType(AlterColumnType action) => Engine(action);
-        protected override Result<IReadOnlyList<SqlStatement>> AlterColumnNullability(AlterColumnNullability action) => Engine(action);
+        protected override Result<IReadOnlyList<SqlStatement>> AlterColumn(AlterColumn action) => Engine(action);
         protected override Result<IReadOnlyList<SqlStatement>> AlterIdentitySequence(AlterIdentitySequence action) => Engine(action);
         protected override Result<IReadOnlyList<SqlStatement>> SetColumnGenerated(SetColumnGenerated action) => Engine(action);
         protected override Result<IReadOnlyList<SqlStatement>> CreateIndex(CreateIndex action) => Engine(action);
@@ -99,8 +98,8 @@ public sealed class SqlDialectTests
         new AddColumn(new(N("app"), N("users")), new Column { Name = N("email"), Type = SqlType.VarChar(200) }),
         new DropColumn(new(N("app"), N("users")), new Column { Name = N("email"), Type = SqlType.VarChar(200) }),
         new RenameColumn(new(N("app"), N("users"), N("email")), N("email_address")),
-        new AlterColumnType(new(N("app"), N("users"), N("age")), SqlType.SmallInt, SqlType.Int),
-        new AlterColumnNullability(new(N("app"), N("users"), N("email")), true, false),
+        new AlterColumn(new(N("app"), N("users")), new Column { Name = N("age"), Type = SqlType.Int }, Type: new(SqlType.SmallInt, SqlType.Int)),
+        new AlterColumn(new(N("app"), N("users")), new Column { Name = N("email"), Type = SqlType.Text }, Nullability: new(true, false)),
         new AlterIdentitySequence(new(N("app"), N("users"), N("id")), null, new IdentityOptions(1, 1, 1)),
         new SetColumnDefault(new(N("app"), N("users"), N("age")), null, "0"),
         new SetColumnDefault(new(N("app"), N("users"), N("age")), "0", null),

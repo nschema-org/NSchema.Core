@@ -61,7 +61,7 @@ public sealed class PlanLinearizerSnapshotTests
         var modifiedTable = new TableDiff("app", "orders", ChangeKind.Modify, "purchases", null,
             Columns:
             [
-                new ColumnDiff("total", ChangeKind.Modify, null, null,
+                new ColumnDiff("total", ChangeKind.Modify, new Column { Name = "total", Type = SqlType.BigInt }, null,
                     Type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
                     Nullability: new ValueChange<bool>(true, false), Default: null, Identity: null, Comment: null),
                 new ColumnDiff("notes", ChangeKind.Add, new Column { Name = "notes", Type = SqlType.Text, IsNullable = true }, null, null, null, null, null, null),

@@ -96,7 +96,12 @@ public sealed class PlanLinearizerTests
         ValueChange<string>? comment = null,
         ValueChange<SqlText>? generated = null,
         Column? definition = null)
-        => new(name, ChangeKind.Modify, definition, renamedFrom, type, nullability, @default, identity, comment, generated);
+        => new(name, ChangeKind.Modify, definition ?? new Column
+        {
+            Name = name,
+            Type = type?.New ?? SqlType.Text,
+            IsNullable = nullability?.New ?? false,
+        }, renamedFrom, type, nullability, @default, identity, comment, generated);
 
     private static ViewDiff AddView(string name, string schema = "app", params (string Schema, string Name)[] dependsOn)
     {
@@ -381,32 +386,30 @@ public sealed class PlanLinearizerTests
             .ShouldSatisfyAllConditions(r => r.Column.Member.ShouldBe("email"), r => r.NewName.ShouldBe("email_address"));
 
     [Fact]
-    public void Linearize_ColumnTypeChange_EmitsAlterColumnType()
+    public void Linearize_ColumnTypeChange_EmitsAlterColumn()
         => LinearizeColumn(ModifiedColumn("id", type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt)))
-            .OfType<AlterColumnType>().ShouldHaveSingleItem()
-            .ShouldSatisfyAllConditions(a => a.OldType.ShouldBe(SqlType.Int), a => a.NewType.ShouldBe(SqlType.BigInt));
+            .OfType<AlterColumn>().ShouldHaveSingleItem()
+            .Type.ShouldBe(new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt));
 
     [Fact]
-    public void Linearize_ColumnNullabilityChange_EmitsAlterColumnNullability()
+    public void Linearize_ColumnNullabilityChange_EmitsAlterColumn()
         => LinearizeColumn(ModifiedColumn("email", nullability: new ValueChange<bool>(true, false)))
-            .OfType<AlterColumnNullability>().ShouldHaveSingleItem()
-            .ShouldSatisfyAllConditions(a => a.OldNullable.ShouldBe(true), a => a.NewNullable.ShouldBe(false));
+            .OfType<AlterColumn>().ShouldHaveSingleItem()
+            .Nullability.ShouldBe(new ValueChange<bool>(true, false));
 
     [Fact]
-    public void Linearize_ColumnTypeChange_CarriesFinalNullabilityFromDefinition()
-        // A dialect whose ALTER COLUMN restates the whole column (SQL Server) needs the unchanged nullability; it
-        // rides along on the action from the desired column's Definition.
+    public void Linearize_ColumnTypeChange_CarriesFinalDefinition()
         => LinearizeColumn(ModifiedColumn("id", type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
                 definition: new Column { Name = "id", Type = SqlType.BigInt, IsNullable = false }))
-            .OfType<AlterColumnType>().ShouldHaveSingleItem()
-            .IsNullable.ShouldBe(false);
+            .OfType<AlterColumn>().ShouldHaveSingleItem()
+            .Column.IsNullable.ShouldBe(false);
 
     [Fact]
-    public void Linearize_ColumnNullabilityChange_CarriesFinalTypeFromDefinition()
+    public void Linearize_ColumnNullabilityChange_CarriesFinalDefinition()
         => LinearizeColumn(ModifiedColumn("email", nullability: new ValueChange<bool>(true, false),
                 definition: new Column { Name = "email", Type = SqlType.VarChar(255), IsNullable = false }))
-            .OfType<AlterColumnNullability>().ShouldHaveSingleItem()
-            .ColumnType.ShouldBe(SqlType.VarChar(255));
+            .OfType<AlterColumn>().ShouldHaveSingleItem()
+            .Column.Type.ShouldBe(SqlType.VarChar(255));
 
     [Fact]
     public void Linearize_ColumnDefaultChange_EmitsSetColumnDefault()
@@ -450,8 +453,8 @@ public sealed class PlanLinearizerTests
         var actions = LinearizeColumn(column);
 
         actions.OfType<RenameColumn>().ShouldHaveSingleItem();
-        actions.OfType<AlterColumnType>().ShouldHaveSingleItem();
-        actions.OfType<AlterColumnNullability>().ShouldHaveSingleItem();
+        actions.OfType<AlterColumn>().ShouldHaveSingleItem()
+            .ShouldSatisfyAllConditions(a => a.Type.ShouldNotBeNull(), a => a.Nullability.ShouldNotBeNull());
         actions.OfType<SetColumnDefault>().ShouldHaveSingleItem();
         actions.OfType<AlterIdentitySequence>().ShouldHaveSingleItem();
         actions.OfType<SetColumnComment>().ShouldHaveSingleItem();
@@ -954,7 +957,7 @@ public sealed class PlanLinearizerTests
             ],
             enums: [new EnumDiff("app", "status", ChangeKind.Modify, AddedValues: [new EnumValueAddition("a")])]));
 
-        IndexOf<AddEnumValue>(plan).ShouldBeLessThan(IndexOf<AlterColumnType>(plan));
+        IndexOf<AddEnumValue>(plan).ShouldBeLessThan(IndexOf<AlterColumn>(plan));
         IndexOf<AddEnumValue>(plan).ShouldBeLessThan(IndexOf<SetColumnDefault>(plan));
     }
 

@@ -209,19 +209,23 @@
     }
   },
   {
-    Type: AlterColumnType,
+    Type: AlterColumn,
     Action: {
-      Column: app.orders.total,
-      OldType: int,
-      NewType: bigint
-    }
-  },
-  {
-    Type: AlterColumnNullability,
-    Action: {
-      Column: app.orders.total,
-      OldNullable: true,
-      NewNullable: false
+      Table: app.orders,
+      Column: {
+        Type: bigint,
+        IsNullable: false,
+        IsIdentity: false,
+        Name: total
+      },
+      Type: {
+        Old: int,
+        New: bigint
+      },
+      Nullability: {
+        Old: true,
+        New: false
+      }
     }
   },
   {

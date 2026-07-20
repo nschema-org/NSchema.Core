@@ -114,15 +114,15 @@
     ]
   },
   {
-    Action: AlterColumnType,
+    Action: AlterColumn,
     Statements: [
-      -- engine-specific AlterColumnType
+      -- engine-specific AlterColumn
     ]
   },
   {
-    Action: AlterColumnNullability,
+    Action: AlterColumn,
     Statements: [
-      -- engine-specific AlterColumnNullability
+      -- engine-specific AlterColumn
     ]
   },
   {

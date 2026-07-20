@@ -88,11 +88,10 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         typeof(DropColumn),
         typeof(RenameColumn),
         typeof(AddColumn),
-        // Data migrations run after column adds (a backfill needs its column) and before type alters,
-        // nullability alters, and constraint adds (their SQL prepares the data those changes depend on).
+        // Data migrations run after column adds (a backfill needs its column) and before column alters and
+        // constraint adds (their SQL prepares the data those changes depend on).
         typeof(ExecuteScript),
-        typeof(AlterColumnType),
-        typeof(AlterColumnNullability),
+        typeof(AlterColumn),
         typeof(AlterIdentitySequence),
         typeof(SetColumnDefault),
         typeof(SetColumnGenerated),
@@ -555,7 +554,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                     nullable.IsNullable = true;
                     actions.Add(new AddColumn(new(table.Schema, table.Name), nullable));
                     actions.Add(new ExecuteScript(backfill));
-                    actions.Add(new AlterColumnNullability(new(table.Schema, table.Name, column.Name), OldNullable: true, NewNullable: false, column.Definition.Type));
+                    actions.Add(new AlterColumn(new(table.Schema, table.Name), column.Definition, Nullability: new(true, false)));
                 }
                 else
                 {
@@ -587,11 +586,10 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                     {
                         actions.Add(new ExecuteScript(prep));
                     }
-                    actions.Add(new AlterColumnType(new(table.Schema, table.Name, column.Name), column.Type.Old!, column.Type.New!, column.Definition?.IsNullable));
                 }
-                if (column.Nullability is not null)
+                if (column.Type is not null || column.Nullability is not null)
                 {
-                    actions.Add(new AlterColumnNullability(new(table.Schema, table.Name, column.Name), column.Nullability.Old, column.Nullability.New, column.Definition?.Type));
+                    actions.Add(new AlterColumn(new(table.Schema, table.Name), column.Definition!, column.Type, column.Nullability));
                 }
                 if (column.Default is not null)
                 {

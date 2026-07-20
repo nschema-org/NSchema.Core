@@ -12,6 +12,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 
 ### Changed
 
+- **Column alterations are unified.** Dialects now receive a single `AlterColumn` action for a column's type and nullability changes, which they can render as one or more statements.
 - **Better domain mode naming.** `Database` and `Schema` are now the main entry points into the domain model.
 - **The SQL dialect seam is the abstract `SqlDialect` class.** A dialect overrides one method per migration action. Standard SQL is rendered by the base through an overridable identifier-quoting kernel.
 - **Identifiers are case-sensitive.** An identifier's identity is its exact written text: `users` and `Users` are no-longer considered equivalent.
