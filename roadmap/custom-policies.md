@@ -1,86 +1,69 @@
 # Custom policies
 
-Naming-convention enforcement out of the box, plus a Roslyn-analyzer-style seam for user-written rules.
+Project and plan policies: correctness checks and guardrails, and the plugin seam for user-written rules.
+**The lint half split out to [[nsql-linting]] on 2026-07-20** — this doc keeps what runs against the model
+and the plan.
 
-- **Gate:** the *decisions* are pre-release. Most of the code can land later without breaking.
-- **Repo:** Core (rule identity, seam, severity map), CLI (config surface, `policy` noun).
-- **Mental model (Tom, 2026-07-09): `.editorconfig`, not analyzer packages.** The primary feature is a declarative, checked-in, per-rule severity
-  and parameter surface. ALC policy plugins are the escape hatch, not the headline.
+## The split (2026-07-20)
 
-## Why it needs decisions now
+"Custom policies" was never one feature. **What a rule is about determines the layer it runs at, and the
+layer determines its config surface:**
 
-Nearly all of this is retrofittable. Only a few things re-cut a public shape:
+| Layer               | About              | Examples                              | Config surface        |
+|---------------------|--------------------|---------------------------------------|-----------------------|
+| Lint (syntax)       | the text           | naming, preferred syntax, directives  | `.editorconfig`       |
+| Project policy      | the declared state | no-PK, nullable-PK, duplicate columns | TBD (see exceptions)  |
+| Plan policy         | the change         | destructive, data hazard, enum removal| flag/env (unchanged)  |
 
-- Retrofittable: `Diagnostic` is a positional record, so an optional rule id added later is purely additive. `IProjectPolicy` can grow a member as
-  a default interface member (precedent: `Acquire`).
-- **Not retrofittable:** the enforcement overlap. `DestructiveActionPolicy` self-enforces via `IOptions`, and `WithDestructiveActionPolicy` is
-  public builder API. When a central severity map lands, that builder is either redundant (removing it breaks) or becomes sugar over the map.
-  Deciding which costs nothing now.
-- **Not retrofittable:** `Source`'s meaning. If rule ids arrive and `Source` re-cuts from policy-name to category, anything keyed on it breaks silently.
+- Lint is designed and moving ([[nsql-linting]]). Project/plan come later — **that's where plugin support
+  lands**, because those checks run inside the plan/apply pipeline where the ALC rails already operate.
+  Lint has no plugin story; its rules register compile-time via the builder.
+- One package shipping many rule sets remains the plausible driver for the qualified plugin form
+  ([[plugin-maturation]]).
 
-## The finding that motivates it
+## The motivating finding, corrected
 
-- `SchemaLintPolicy` emits **four distinct rules** — no-primary-key, nullable-PK-column, duplicate key columns, duplicate index columns.
-- All four carry one `Source`: `"schema-lint"`.
-- So **`Source` is policy identity, not rule identity**, and a per-rule severity map has nothing to key on.
-- You cannot currently say "no-primary-key is a suggestion, but nullable-PK is an error".
-- Same shape in `DataHazardPolicy` / `DestructiveActionPolicy` / `EnumValueRemovalPolicy`: a `PolicyName` const used as `Source`.
+- The old finding stands mechanically: `SchemaLintPolicy` emits four distinct rules under one `Source`,
+  so `Source` is policy identity, not rule identity.
+- But the classification was wrong: **all four checks are correctness, not lint.** No-PK is only
+  answerable at the model — a PK can be declared in a different file than its table. Nullable-PK and
+  duplicate-column checks are contradictions. The class is misnamed, not misplaced: it stays an
+  `IProjectPolicy` and wants a rename.
+- Consequence: the policy that motivated per-rule editorconfig severity contains zero rules that
+  editorconfig governs. The first real lint rules are the naming conventions, which don't exist yet.
 
-## Proposed spine (all open)
+## What survives from the old spine
 
-### 1. Rule identity — where does the id live? RULED 2026-07-15
+- **Rule identity (RULED 2026-07-15, survives):** `PolicyDiagnostic : Diagnostic` carrying the rule id and
+  the offending address. Not on base `Diagnostic` — not every diagnostic is a rule.
+- **Rule id spelling (ruled 2026-07-20 in [[nsql-linting]]):** dot-separated slugs, underscore words —
+  shared across lint and policy so ids read the same everywhere.
+- **Severity vocabulary (ruled 2026-07-20):** adopt `error`/`warning`/`suggestion`/`silent`/`none`;
+  `PolicyEnforcement` maps onto it.
+- **Central map over self-enforcement (RULED 2026-07-15, survives narrowed):** policies emit at natural
+  severity; enforcement overrides after collection. But the map's checked-in surface was the lint half —
+  for guardrails the layering is defaults < flag/env, and `destructive_action` stays out of checked-in
+  config. The old recorded tension evaporated: lint and guardrails never shared a surface.
+  `WithDestructiveActionPolicy(PolicyEnforcement)` survives as sugar.
+- **Rule discovery (survives, load-bearing):** the seam declares its rules. Powers `policy list` and
+  makes a typo'd id a diagnostic instead of silence.
 
-- **`PolicyDiagnostic : Diagnostic`**, carrying the rule id (and likely the offending address/node). Not on base `Diagnostic`.
-- Rationale:
-  - The root grammar is priced by public visibility and is meant to hurt to grow. Not every diagnostic is a rule — "file not found" has no id.
-  - `Result<T, TDiagnostic>` already exists for exactly this; `NsqlDiagnostic` (position-bearing) is the precedent.
-  - `IEnumerable<PolicyDiagnostic>` is covariant to `IEnumerable<Diagnostic>`, so policy findings fold into `Result<T>` with no translation.
-  - `Downgrade` already returns `this with { Severity }`, and `with` preserves the derived type — so a central map can rewrite severity safely.
-- Cost: changing the seam return type is breaking for implementers — which is why it is a pre-release decision.
+## Open: the exception story
 
-### 2. Rule id spelling
+The unsolved piece, and the reason project-policy config is TBD.
 
-- Options: opaque code (`NS0001`) vs hierarchical slug (`schema-lint/no-primary-key`).
-- **Lean: slug.** It composes with the existing kebab `Source` values, is self-documenting, and reads correctly in a checked-in config —
-  which is the `.editorconfig` feel Tom asked for.
-- Counter, worth weighing: analyzers use opaque codes for a reason — they survive renames, grep cleanly, and never need i18n. A slug bakes naming
-  into the contract, so renaming a rule becomes a breaking change.
+- The deliberate no-PK append-only table has no file to scope an editorconfig section to — the finding is
+  about the model, not the text. Whatever the escape is (policy parameters, config-in-SQL, something on
+  the declaration itself), it isn't editorconfig, and it's undesigned.
+- Not every rule needs one: nullable-PK and duplicate-columns are contradictions with no legitimate
+  exception. Design the escape only for rules that have legitimate exceptions.
 
-### 3. Self-enforcement → central map. RULED 2026-07-15
+## Open questions
 
-- Today: each policy decides its own severity (`DestructiveActionPolicy` reads `IOptions<DestructiveActionOptions>`).
-- Proposed: policies emit at a *natural* severity; a central map keyed by rule id overrides after collection.
-- `PolicyEnforcement { Error, Warn, Allow, Ignore }` is already the enforcement vocabulary, so the map is `rule id → PolicyEnforcement`.
-  - Maps cleanly onto `.editorconfig` severities. `Allow` = report as Info; `Ignore` = silent.
-- **This resolves the recorded tension.** `destructive_action` was deliberately kept *out* of config-in-SQL (flag/env only), which collides with a
-  checked-in per-rule map. A layered map dissolves it: defaults < config-in-SQL < flag/env. Same shape as `.editorconfig` plus CLI overrides.
-- `WithDestructiveActionPolicy(PolicyEnforcement)` survives as sugar that writes one map entry. Non-breaking.
+1. The exception mechanism for project policies.
+2. The plugin seam shape for project/plan rules (and whether it drives the qualified `PLUGIN` form).
+3. Rename for `SchemaLintPolicy`.
+4. Do plan policies ever need per-rule config beyond the existing enforcement options?
 
-### 4. Rule discovery
-
-- Does `IProjectPolicy` / `IPlanPolicy` declare its supported rules (Roslyn's `SupportedDiagnostics`)?
-- **Lean: yes.** Config validation needs it — without discovery, a typo'd rule id in config is silently ignored, which is the single most common
-  `.editorconfig` complaint. Also powers a `policy list` command.
-- Can arrive as a DIM defaulting to empty, so this one is *not* strictly pre-release — but a default-empty rule set is a fudge worth avoiding.
-
-### 5. Parameters
-
-- Naming conventions need parameters (patterns, case style, which object kinds).
-- Config-in-SQL is a closed statement set per grammar, so a `POLICY` statement is additive to the config grammar.
-- Sketch, not designed: `POLICY naming_convention (tables = '^[a-z_]+$', severity = error);`
-
-### 6. Custom policies via plugins
-
-- The escape hatch, not the headline. ALC rails are nearly kind-agnostic already.
-- The two-kind hardcoding is a bounded list: config-reader switch, `PluginReference` maps, builder `Configure*` pairs, doctor array,
-  `PluginInventory`, init restore list.
-
-## Open questions for the next session
-
-1. Slug or opaque code?
-2. Rule declaration on the seam: required member, or DIM with an empty default?
-3. Does a `POLICY` statement in the config grammar carry both severity and parameters, or only parameters?
-4. Which object kinds does the first naming-convention rule set cover, and what does it take as parameters?
-
-ErrorOr's wider lessons — factories, implicit conversions, `Match`/`Switch` — moved to [result ergonomics](result-ergonomics.md). Only the rule-id
-half landed here.
+ErrorOr's wider lessons — factories, implicit conversions, `Match`/`Switch` — remain in
+[result ergonomics](result-ergonomics.md). Only the rule-id half landed here.
