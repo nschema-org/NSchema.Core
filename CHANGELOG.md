@@ -54,7 +54,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **`DatabaseSchema` is pure data now.** `Filter` joined `Combine` off the model, into the projection machinery.
 - **`DiffReader` is a static class now.** The `.Default` singleton is gone; call `DiffReader.Read(diff)` directly, matching `NsqlReader` and `NsqlWriter`.
 - **`SchemaScope` replaces bare schema-name arrays.** `GetProject`, `GetSchema`, and the plan/drift/import arguments take a scope record.
-- **`IStateLockManager.Acquire` takes `LockAcquireArguments`.** Operation, TTL, and skip-lock in one record; `StateLockRequest` stays the backend's.
+- **State locks receive complete metadata.** `IStateLockManager.Acquire` takes `AcquireLockArguments` with the operation, TTL, and skip-lock; it creates the `StateLockInfo` atomically recorded by `IStateLock.Acquire`.
 - **`IPlanFileManager.Read` returns `Result<PlanFileEnvelope>`.** An unreadable or corrupt plan file is a failure carrying diagnostics.
 - **Project reads report every broken file at once.** An unreadable or unparseable file (and no-files-matched) is an error diagnostic on the project.
 - **Index keys and exclusion elements are column-or-expression now.** `IndexColumn` and `ExclusionElement` carry mutually exclusive `Column` (an identifier) and `Expression` (verbatim SQL) properties.

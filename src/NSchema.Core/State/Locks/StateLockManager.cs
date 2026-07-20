@@ -31,7 +31,14 @@ internal sealed class StateLockManager(IStateLock? stateLock = null) : IStateLoc
 
         try
         {
-            return Result.Success<IStateLockHandle>(await stateLock.Acquire(new StateLockRequest(arguments.Operation, arguments.TimeToLive), cancellationToken));
+            var createdUtc = DateTimeOffset.UtcNow;
+            var lockInfo = new StateLockInfo(
+                Id: LockId.New(),
+                Operation: arguments.Operation,
+                Who: LockHolder.Current(),
+                CreatedUtc: createdUtc,
+                ExpiresUtc: arguments.TimeToLive is { } ttl ? createdUtc + ttl : null);
+            return Result.Success<IStateLockHandle>(await stateLock.Acquire(lockInfo, cancellationToken));
         }
         catch (StateLockedException ex)
         {

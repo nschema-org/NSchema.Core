@@ -93,16 +93,20 @@ public sealed class StateLockManagerTests
     }
 
     [Fact]
-    public async Task Acquire_PassesTheRequestThroughToTheLock()
+    public async Task Acquire_CreatesLockInfoFromArguments()
     {
-        // The request (operation + TTL) reaches the backend lock unchanged — this is how `lock acquire --ttl` works.
+        // Arrange
         var request = new AcquireLockArguments("manual") { TimeToLive = TimeSpan.FromMinutes(30) };
 
+        // Act
         await new StateLockManager(_stateLock).Acquire(request, TestContext.Current.CancellationToken);
 
+        // Assert
         var acquired = _stateLock.Acquisitions.ShouldHaveSingleItem();
         acquired.Operation.ShouldBe("manual");
-        acquired.TimeToLive.ShouldBe(TimeSpan.FromMinutes(30));
+        acquired.Id.Value.ShouldNotBeNullOrEmpty();
+        acquired.Who.ShouldBe(LockHolder.Current());
+        (acquired.ExpiresUtc!.Value - acquired.CreatedUtc).ShouldBe(TimeSpan.FromMinutes(30));
     }
 
     [Fact]

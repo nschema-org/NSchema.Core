@@ -9,11 +9,11 @@ namespace NSchema.Tests.Helpers;
 /// </summary>
 internal sealed class RecordingStateLock : IStateLock
 {
-    public List<StateLockRequest> Acquisitions { get; } = [];
+    public List<StateLockInfo> Acquisitions { get; } = [];
     public int Released { get; private set; }
     public int ForceReleases { get; private set; }
     public int Peeks { get; private set; }
-    public Func<StateLockRequest, Task>? OnAcquire { get; set; }
+    public Func<StateLockInfo, Task>? OnAcquire { get; set; }
 
     /// <summary>The value returned from <see cref="Peek"/> (defaults to nothing held).</summary>
     public StateLockInfo? PeekResult { get; set; }
@@ -24,24 +24,15 @@ internal sealed class RecordingStateLock : IStateLock
         return Task.FromResult(PeekResult);
     }
 
-    public async Task<IStateLockHandle> Acquire(StateLockRequest request, CancellationToken cancellationToken = default)
+    public async Task<IStateLockHandle> Acquire(StateLockInfo lockInfo, CancellationToken cancellationToken = default)
     {
         if (OnAcquire is not null)
         {
-            await OnAcquire(request);
+            await OnAcquire(lockInfo);
         }
 
-        Acquisitions.Add(request);
-
-        // Deterministic clock so tests can assert on the recorded expiry when a time-to-live is requested.
-        var createdUtc = DateTimeOffset.UnixEpoch;
-        var info = new StateLockInfo(
-            Id: "test",
-            Operation: request.Operation,
-            Who: "tester@host",
-            CreatedUtc: createdUtc,
-            ExpiresUtc: request.TimeToLive is { } ttl ? createdUtc + ttl : null);
-        return new Handle(this, info);
+        Acquisitions.Add(lockInfo);
+        return new Handle(this, lockInfo);
     }
 
     public ValueTask Release(CancellationToken cancellationToken = default)

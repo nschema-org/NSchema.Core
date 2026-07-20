@@ -88,15 +88,14 @@ public sealed class StateLockRegistrationTests
     {
         public Task<ReadOnlyMemory<byte>?> Read(CancellationToken cancellationToken = default) => Task.FromResult<ReadOnlyMemory<byte>?>(null);
         public Task Write(ReadOnlyMemory<byte> state, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<IStateLockHandle> Acquire(StateLockRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IStateLockHandle> Acquire(StateLockInfo lockInfo, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public ValueTask Release(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
     }
 
-    // Implements IStateLock *without* Peek, exercising that Peek's default implementation keeps existing implementers
-    // source-compatible.
+    // Implements IStateLock without Peek, exercising the default implementation.
     private sealed class CustomLock : IStateLock
     {
-        public Task<IStateLockHandle> Acquire(StateLockRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IStateLockHandle> Acquire(StateLockInfo lockInfo, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public ValueTask Release(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
     }
 }
