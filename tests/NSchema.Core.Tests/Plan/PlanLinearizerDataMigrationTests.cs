@@ -32,7 +32,7 @@ public sealed class PlanLinearizerDataMigrationTests
         => LinearizeTable(new TableDiff("app", "users", ChangeKind.Modify, Columns: [column]));
 
     private static ChangeScript Migration(ChangeTrigger trigger, string member, string? name = null, string? sql = null) =>
-        new(name ?? member, sql ?? $"UPDATE app.users -- {member}", "app", trigger, "users", member);
+        new(name ?? member, sql ?? $"UPDATE app.users -- {member}", new ChangeTarget("app", "users", member, trigger));
 
     [Fact]
     public void Linearize_AnnotatedRequiredColumnAdd_DecomposesIntoNullableAddBackfillAndTighten()
@@ -168,7 +168,7 @@ public sealed class PlanLinearizerDataMigrationTests
     {
         // Arrange
         var migration = new ChangeScript("dedupe", "DELETE FROM app.users",
-            "app", ChangeTrigger.AddConstraint, "users", "users_pk")
+            new ChangeTarget("app", "users", "users_pk", ChangeTrigger.AddConstraint))
         {
             RunOutsideTransaction = true,
         };

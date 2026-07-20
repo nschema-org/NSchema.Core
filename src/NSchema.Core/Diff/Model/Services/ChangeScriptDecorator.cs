@@ -17,17 +17,19 @@ internal static class ChangeScriptDecorator
         }
 
         var byTable = scripts
-            .Where(script => script.ScopeSchema is not null)
-            .GroupBy(script => (Schema: script.ScopeSchema!, Table: script.TableName))
-            .ToDictionary(g => g.Key, g => (IReadOnlyList<ChangeScript>)[.. g]);
+            .Where(script => script.Target.TableAddress is not null)
+            .GroupBy(script => script.Target.TableAddress!)
+            .ToDictionary(group => group.Key, IReadOnlyDictionary<ChangeTarget, ChangeScript> (group) => group
+                .GroupBy(script => script.Target)
+                .ToDictionary(target => target.Key, target => target.First()));
 
         diff = diff with
         {
             Schemas = [.. diff.Schemas.Select(schema => schema with
             {
                 Tables = [.. schema.Tables.Select(table =>
-                    table.Kind == ChangeKind.Modify && byTable.TryGetValue((schema.Name, table.Name), out var tableScripts)
-                        ? Attach(table, tableScripts)
+                    table.Kind == ChangeKind.Modify && byTable.TryGetValue(new ObjectAddress(schema.Name, table.Name), out var tableScripts)
+                        ? Attach(schema.Name, table, tableScripts)
                         : table)],
             })],
         };
@@ -42,11 +44,8 @@ internal static class ChangeScriptDecorator
     /// Attaches each script to the member diff it accompanies, matching by trigger and member name. The script
     /// rides the node directly, so the linearizer runs it without a lookup.
     /// </summary>
-    private static TableDiff Attach(TableDiff table, IReadOnlyList<ChangeScript> scripts)
+    private static TableDiff Attach(SqlIdentifier schema, TableDiff table, IReadOnlyDictionary<ChangeTarget, ChangeScript> scripts)
     {
-        ChangeScript? Match(ChangeTrigger trigger, SqlIdentifier member) => scripts.FirstOrDefault(s =>
-            s.Trigger == trigger && s.MemberName == member);
-
         return table with
         {
             Columns = table.Columns.Select(column => column switch
@@ -61,6 +60,9 @@ internal static class ChangeScriptDecorator
             Checks = AttachConstraints(table.Checks, Match, (check, m) => check with { MigrationScript = m }),
             ExclusionConstraints = AttachConstraints(table.ExclusionConstraints, Match, (ex, m) => ex with { MigrationScript = m }),
         };
+
+        ChangeScript? Match(ChangeTrigger trigger, SqlIdentifier member) =>
+            scripts.GetValueOrDefault(new ChangeTarget(schema, table.Name, member, trigger));
     }
 
     /// <summary>

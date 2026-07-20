@@ -72,6 +72,9 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 
 ### Added
 
+- **Change-script targets are value objects.** `ChangeScript` now takes a `ChangeTarget` instead of separate trigger and path values.
+- **Atomic table-fragment merge.** `Table.TryMergeMembers` applies a complete table-member fragment or reports its conflicts.
+- **SQL type conversion risk.** `SqlType.ConversionRiskTo` assesses whether converting stored values can fail.
 - **Ephemeral state.** `UseEphemeralState()` registers an in-memory state store and matching lock, intended for disposable databases.
 - **Object-granular targeting.** `PlanningScope` now takes object addresses alongside schema name.
 - **`PLUGIN` declares plugin dependencies.** `PLUGIN <label> ( source = '…', version = '…' );` separates dependency declaration from configuration.

@@ -288,7 +288,7 @@ internal static class SyntaxBuilder
             {
                 Position = _none,
             },
-            ChangeScript change => new Syn.Scripts.ChangeEventClause(Trigger(change.Trigger), new MemberPath(OptionalName(change.ScopeSchema), Name(change.TableName), Name(change.MemberName)) { Position = _none })
+            ChangeScript change => new Syn.Scripts.ChangeEventClause(Trigger(change.Target.Trigger), new MemberPath(OptionalName(change.Target.Schema), Name(change.Target.Table), Name(change.Target.Member)) { Position = _none })
             {
                 Position = _none,
             },

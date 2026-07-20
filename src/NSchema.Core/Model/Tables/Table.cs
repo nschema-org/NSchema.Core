@@ -101,6 +101,83 @@ public sealed class Table : DatabaseObject, IEquatable<Table>
         init { value.Attach(this); field = value; }
     }
 
+    /// <summary>
+    /// Merges a table fragment when none of its members conflict with this table.
+    /// </summary>
+    public Result<int> TryMergeMembers(
+        Table members,
+        int columnPosition,
+        SqlIdentifier? replaceReferenceSchema = null,
+        SqlIdentifier? replacementReferenceSchema = null
+    )
+    {
+        var conflicts = MemberConflicts(members);
+        if (conflicts.Count > 0)
+        {
+            return Result.Failure<int>(conflicts);
+        }
+
+        foreach (var column in members.Columns)
+        {
+            Columns.Insert(columnPosition++, column.Clone());
+        }
+
+        if (members.PrimaryKey is not null)
+        {
+            PrimaryKey = members.PrimaryKey.Clone();
+        }
+
+        foreach (var foreignKey in members.ForeignKeys)
+        {
+            var copy = foreignKey.Clone();
+            if (copy.References.Schema == replaceReferenceSchema && replacementReferenceSchema is not null)
+            {
+                copy.References = copy.References with { Schema = replacementReferenceSchema };
+            }
+            ForeignKeys.Add(copy);
+        }
+
+        AddClones(members.UniqueConstraints, UniqueConstraints);
+        AddClones(members.CheckConstraints, CheckConstraints);
+        AddClones(members.ExclusionConstraints, ExclusionConstraints);
+        AddClones(members.Indexes, Indexes);
+        AddClones(members.Triggers, Triggers);
+
+        return Result.Success(members.Columns.Count);
+    }
+
+    private List<Diagnostic> MemberConflicts(Table members)
+    {
+        var conflicts = new List<Diagnostic>();
+        conflicts.AddRange(Conflicts(Columns, members.Columns, "column"));
+        if (PrimaryKey is not null && members.PrimaryKey is not null)
+        {
+            conflicts.Add(Diagnostic.Error("table", $"Table '{Name}' already declares a primary key."));
+        }
+        conflicts.AddRange(Conflicts(ForeignKeys, members.ForeignKeys, "foreign key"));
+        conflicts.AddRange(Conflicts(UniqueConstraints, members.UniqueConstraints, "unique constraint"));
+        conflicts.AddRange(Conflicts(CheckConstraints, members.CheckConstraints, "check constraint"));
+        conflicts.AddRange(Conflicts(ExclusionConstraints, members.ExclusionConstraints, "exclusion constraint"));
+        conflicts.AddRange(Conflicts(Indexes, members.Indexes, "index"));
+        conflicts.AddRange(Conflicts(Triggers, members.Triggers, "trigger"));
+        return conflicts;
+    }
+
+    private IEnumerable<Diagnostic> Conflicts<T>(
+        IEnumerable<T> existing,
+        IEnumerable<T> incoming,
+        string kind) where T : DatabaseMember =>
+        incoming.Where(candidate => existing.Any(member => member.Name == candidate.Name))
+            .Select(candidate => Diagnostic.Error("table", $"Table '{Name}' already declares {kind} '{candidate.Name}'."));
+
+    private static void AddClones<T>(IEnumerable<T> source, ICollection<T> destination) where T : DatabaseMember
+    {
+        foreach (var member in source)
+        {
+            destination.Add((T)member.Clone());
+        }
+    }
+
     /// <inheritdoc/>
     public override Table Clone() => new()
     {

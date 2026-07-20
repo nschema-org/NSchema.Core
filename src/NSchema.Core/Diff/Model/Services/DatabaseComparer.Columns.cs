@@ -9,11 +9,11 @@ internal sealed partial class DatabaseComparer
     private List<ColumnDiff> CompareColumns(ObjectAddress owner, IReadOnlyList<Column> current, IReadOnlyList<Column> desired, RenameLog renames)
     {
         var result = new List<ColumnDiff>();
-        var (forDesired, currentMatched) = MatchEntities(current, desired);
+        var (forDesired, forCurrent) = NamedEntityMatcher.Match(current, desired);
 
         for (var j = 0; j < current.Count; j++)
         {
-            if (currentMatched[j])
+            if (forCurrent[j] is not null)
             {
                 LogColumnExists(owner, current[j].Name);
             }

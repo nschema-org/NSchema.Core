@@ -350,7 +350,7 @@ public sealed class TemplateExpanderTests
                   CONSTRAINT pk_id PRIMARY KEY (surrogate_id)
                 END;
                 """)
-            .Errors.ShouldContain(d => d.Message.Contains("already declares one"));
+            .Errors.ShouldContain(d => d.Message.Contains("already declares a primary key"));
 
     [Fact]
     public void Expand_IncludeInsideSchemaTemplateTable_ResolvesPerInstance()
@@ -384,7 +384,35 @@ public sealed class TemplateExpanderTests
                 CREATE TABLE billing.invoices (created_at datetimeoffset NOT NULL, INCLUDE audit_columns);
                 {AuditColumns}
                 """)
-            .Errors.ShouldContain(d => d.Message.Contains("already declares it"));
+            .Errors.ShouldContain(d => d.Message.Contains("already declares column 'created_at'"));
+
+    [Fact]
+    public void Expand_DuplicateForeignKeyFromInclude_IsRejectedWithoutApplyingTheFragment()
+    {
+        // Arrange
+        var result = Apply(
+            """
+            CREATE SCHEMA billing;
+            CREATE TABLE billing.invoices (
+              tenant_id uuid NOT NULL,
+              CONSTRAINT fk_tenant FOREIGN KEY (tenant_id) REFERENCES billing.tenants (id),
+              INCLUDE tenant_audit
+            );
+            TEMPLATE tenant_audit FOR TABLE
+            BEGIN
+              audit_id uuid NOT NULL,
+              CONSTRAINT fk_tenant FOREIGN KEY (audit_id) REFERENCES billing.audits (id)
+            END;
+            """);
+
+        // Act
+        var table = Schema(result.Require().Database, "billing").Tables.ShouldHaveSingleItem();
+
+        // Assert
+        result.Errors.ShouldContain(d => d.Message.Contains("foreign key 'fk_tenant'"));
+        table.Columns.Select(c => c.Name).ShouldBe(["tenant_id"]);
+        table.ForeignKeys.ShouldHaveSingleItem();
+    }
 
     [Fact]
     public void Expand_UnknownInclude_IsAnError()

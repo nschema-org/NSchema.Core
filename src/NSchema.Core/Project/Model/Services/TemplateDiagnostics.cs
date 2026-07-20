@@ -51,15 +51,4 @@ internal static class TemplateDiagnostics
     public static Diagnostic IncludedSchemaTemplate(SqlIdentifier schemaName, SqlIdentifier tableName, SqlIdentifier templateName) => Diagnostic.Error(Source,
         $"Table '{schemaName}.{tableName}' includes '{templateName}', which is a schema template; only a FOR TABLE template can be included.");
 
-    /// <summary>
-    /// An included template adding a column the table already declares.
-    /// </summary>
-    public static Diagnostic IncludeColumnConflict(SqlIdentifier templateName, SqlIdentifier columnName, SqlIdentifier schemaName, SqlIdentifier tableName) => Diagnostic.Error(Source,
-        $"Template '{templateName}' adds column '{columnName}' to '{schemaName}.{tableName}', which already declares it.");
-
-    /// <summary>
-    /// An included template adding a primary key to a table that already declares one.
-    /// </summary>
-    public static Diagnostic IncludePrimaryKeyConflict(SqlIdentifier templateName, SqlIdentifier schemaName, SqlIdentifier tableName) => Diagnostic.Error(Source,
-        $"Template '{templateName}' adds a primary key to '{schemaName}.{tableName}', which already declares one.");
 }

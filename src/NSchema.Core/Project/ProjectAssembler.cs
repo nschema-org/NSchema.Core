@@ -104,10 +104,10 @@ internal static class ProjectAssembler
     /// </summary>
     private static IEnumerable<Diagnostic> ValidateChangeTargets(IReadOnlyList<ChangeScript> scripts)
     {
-        var targets = new HashSet<(ChangeTrigger Trigger, SqlIdentifier? Schema, SqlIdentifier Table, SqlIdentifier Member)>();
+        var targets = new HashSet<ChangeTarget>();
         foreach (var change in scripts)
         {
-            if (!targets.Add((change.Trigger, change.ScopeSchema, change.TableName, change.MemberName)))
+            if (!targets.Add(change.Target))
             {
                 yield return ProjectDiagnostics.DuplicateChangeTarget(change);
             }

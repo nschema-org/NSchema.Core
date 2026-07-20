@@ -12,12 +12,12 @@ internal sealed partial class DatabaseComparer
     private List<TableDiff> CompareTables(SqlIdentifier schemaName, IReadOnlyList<Table> current, Schema desired, RenameLog renames)
     {
         var result = new List<TableDiff>();
-        var (forDesired, currentMatched) = MatchEntities(current, desired.Tables);
+        var (forDesired, forCurrent) = NamedEntityMatcher.Match(current, desired.Tables);
 
         for (var j = 0; j < current.Count; j++)
         {
             var currentTable = current[j];
-            if (currentMatched[j])
+            if (forCurrent[j] is not null)
             {
                 LogTableExists(schemaName, currentTable.Name);
             }

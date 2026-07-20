@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace NSchema.Model.Scripts;
 
 /// <summary>
@@ -5,26 +7,21 @@ namespace NSchema.Model.Scripts;
 /// </summary>
 /// <param name="Name">The name that identifies the script.</param>
 /// <param name="Sql">The raw SQL to run.</param>
-/// <param name="ScopeSchema">The schema the change lands in, or <see langword="null"/> when unscoped.</param>
-/// <param name="Trigger">The structural change the script attaches to.</param>
-/// <param name="TableName">The table the change applies to.</param>
-/// <param name="MemberName">The column or constraint name the change targets.</param>
+/// <param name="Target">The structural change the script targets.</param>
+[method: JsonConstructor]
 public sealed record ChangeScript(
     SqlIdentifier Name,
     SqlText Sql,
-    SqlIdentifier? ScopeSchema,
-    ChangeTrigger Trigger,
-    SqlIdentifier TableName,
-    SqlIdentifier MemberName
-) : Script(Name, Sql, ScopeSchema)
+    ChangeTarget Target
+) : Script(Name, Sql, Target.Schema)
 {
     /// <summary>
     /// The fully qualified path of the change target (<c>schema.table.member</c>).
     /// </summary>
-    public string Path => $"{ScopeSchema}.{TableName}.{MemberName}";
+    public string Path => Target.Path;
 
     /// <inheritdoc />
-    public override string Description => $"{TriggerText(Trigger)} {Path}";
+    public override string Description => $"{TriggerText(Target.Trigger)} {Target.Path}";
 
     /// <summary>
     /// The DDL keyword form of a trigger (e.g. <c>ADD COLUMN</c>), as written in the source.

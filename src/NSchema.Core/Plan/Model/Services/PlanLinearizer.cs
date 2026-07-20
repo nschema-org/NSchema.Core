@@ -1,4 +1,3 @@
-using System.Collections.Frozen;
 using NSchema.Diff.Model;
 using NSchema.Diff.Model.Columns;
 using NSchema.Diff.Model.Extensions;
@@ -29,114 +28,6 @@ namespace NSchema.Plan.Model.Services;
 /// </summary>
 internal sealed class PlanLinearizer : IPlanLinearizer
 {
-    private static readonly IReadOnlyDictionary<Type, int> _actionPriorities = new List<Type> {
-        // The schema rename runs before everything else: every child diff node carries the new schema name, so
-        // once the schema is renamed every later action.
-        typeof(RenameSchema),
-        // Views are dropped before anything they read (columns, tables) is dropped.
-        typeof(DropView),
-        // Triggers are dropped before their table and before the function they call (functions drop last).
-        typeof(DropTrigger),
-        typeof(DropForeignKey),
-        typeof(DropCheckConstraint),
-        typeof(DropExclusionConstraint),
-        typeof(DropUniqueConstraint),
-        typeof(DropIndex),
-        typeof(DropPrimaryKey),
-        typeof(RevokeSchemaUsage),
-        typeof(RevokeTablePrivileges),
-        // Extensions are database-global infrastructure: they are created (and version-updated) before any schema
-        // or object that might depend on a type, function or operator the extension provides.
-        typeof(CreateExtension),
-        typeof(AlterExtension),
-        typeof(CreateSchema),
-        // Enums and sequences are created (and renamed, and gain values) before any table change can reference
-        // them: a column may use the enum type, and a default may call the sequence.
-        typeof(RenameEnum),
-        typeof(RenameSequence),
-        typeof(CreateEnum),
-        typeof(CreateSequence),
-        typeof(AddEnumValue),
-        typeof(AlterSequence),
-        // Domains are types used by columns, so they are created (and renamed/altered) before any table change.
-        // A base-type change recreates; default/not-null/check changes apply in place. Renames precede so a
-        // recreate targets the final name.
-        typeof(RenameDomain),
-        typeof(CreateDomain),
-        typeof(RecreateDomain),
-        typeof(AlterDomainDefault),
-        typeof(AlterDomainNotNull),
-        typeof(AddDomainCheck),
-        typeof(DropDomainCheck),
-        // Composite types are types used by columns too, so they are created (and renamed/altered) before any
-        // table change. Every change applies in place (ALTER TYPE) — there is no recreate — and renames precede
-        // field changes so an add/retype targets the final name.
-        typeof(RenameCompositeType),
-        typeof(CreateCompositeType),
-        typeof(AddCompositeField),
-        typeof(AlterCompositeFieldType),
-        typeof(DropCompositeField),
-        // Routines are created/recreated/renamed before any table change because column DEFAULTs and CHECK
-        // constraints may call them, and after enums/sequences because their args and bodies may use those.
-        // Renames precede creates/recreates so a recreate targets the final name.
-        typeof(RenameRoutine),
-        typeof(CreateRoutine),
-        typeof(RecreateRoutine),
-        typeof(RenameTable),
-        typeof(RenameView),
-        typeof(CreateTable),
-        typeof(DropColumn),
-        typeof(RenameColumn),
-        typeof(AddColumn),
-        // Data migrations run after column adds (a backfill needs its column) and before column alters and
-        // constraint adds (their SQL prepares the data those changes depend on).
-        typeof(ExecuteScript),
-        typeof(AlterColumn),
-        typeof(AlterIdentitySequence),
-        typeof(SetColumnDefault),
-        typeof(SetColumnGenerated),
-        typeof(AddPrimaryKey),
-        typeof(AddUniqueConstraint),
-        typeof(AddForeignKey),
-        typeof(AddCheckConstraint),
-        typeof(AddExclusionConstraint),
-        typeof(CreateIndex),
-        // Triggers are created once their table exists; the function they call was already created before any
-        // table (functions precede tables above).
-        typeof(CreateTrigger),
-        // Views are created after every table, constraint and index they might read exists.
-        typeof(CreateView),
-        typeof(GrantSchemaUsage),
-        typeof(GrantTablePrivileges),
-        typeof(SetSchemaComment),
-        typeof(SetTableComment),
-        typeof(SetColumnComment),
-        typeof(SetIndexComment),
-        typeof(SetTriggerComment),
-        typeof(SetConstraintComment),
-        typeof(SetViewComment),
-        typeof(SetEnumComment),
-        typeof(SetSequenceComment),
-        typeof(SetRoutineComment),
-        typeof(SetDomainComment),
-        typeof(SetCompositeTypeComment),
-        typeof(SetExtensionComment),
-        typeof(DropTable),
-        // Routines are dropped after the tables whose defaults/checks called them, and before the enums their
-        // signatures may use; enums and sequences then drop after everything that referenced them.
-        typeof(DropRoutine),
-        // Domains are dropped after the tables whose columns used them, alongside enums and sequences.
-        typeof(DropDomain),
-        // Composite types drop after the tables whose columns used them, alongside domains/enums/sequences.
-        typeof(DropCompositeType),
-        typeof(DropEnum),
-        typeof(DropSequence),
-        typeof(DropSchema),
-        // Extensions drop last — after every schema object that might depend on them is gone, so the drop can't
-        // fail on a lingering dependency.
-        typeof(DropExtension),
-    }.Index().ToFrozenDictionary(x => x.Item, x => x.Index);
-
     public IReadOnlyList<MigrationAction> Linearize(DatabaseDiff diff)
     {
         var actions = new List<MigrationAction>();
@@ -150,7 +41,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         // (a view after what it reads, dropped before), which the per-schema walk above cannot express.
         EmitViews(diff, actions);
 
-        actions = actions.OrderBy(action => _actionPriorities[action.GetType()]).ToList();
+        actions = [.. MigrationActionOrdering.Order(actions)];
 
         // Deployment scripts bookend the plan: pre scripts run before everything, post scripts after.
         return [.. ScriptActions(diff, DeploymentPhase.Pre), .. actions, .. ScriptActions(diff, DeploymentPhase.Post)];

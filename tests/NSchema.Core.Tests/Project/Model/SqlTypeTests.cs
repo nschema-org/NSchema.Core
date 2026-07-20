@@ -74,4 +74,14 @@ public sealed class SqlTypeTests
     {
         SqlType.Parse(input).ToString().ShouldBe(canonical);
     }
+
+    [Theory]
+    [InlineData("varchar(20)", "varchar(10)", TypeConversionRisk.MayFail)]
+    [InlineData("bigint", "smallint", TypeConversionRisk.MayFail)]
+    [InlineData("int", "bigint", TypeConversionRisk.Safe)]
+    [InlineData("citext", "varchar(10)", TypeConversionRisk.Unknown)]
+    public void ConversionRiskTo_AssessesKnownTypeConversions(string from, string to, TypeConversionRisk expected)
+    {
+        SqlType.Parse(from).ConversionRiskTo(SqlType.Parse(to)).ShouldBe(expected);
+    }
 }

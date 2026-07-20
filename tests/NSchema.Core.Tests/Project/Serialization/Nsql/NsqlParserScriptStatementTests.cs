@@ -64,7 +64,7 @@ public sealed class NsqlParserScriptStatementTests
             .ShouldHaveSingleItem();
 
         migration.Name.ShouldBe("backfill_emails");
-        migration.Trigger.ShouldBe(ChangeTrigger.AddColumn);
+        migration.Target.Trigger.ShouldBe(ChangeTrigger.AddColumn);
         migration.Path.ShouldBe("app.users.email");
     }
 
@@ -73,7 +73,7 @@ public sealed class NsqlParserScriptStatementTests
     [InlineData("ADD CONSTRAINT app.orders.total_positive", ChangeTrigger.AddConstraint)]
     public void Parse_OtherChangeEvents_CarryTheTrigger(string eventText, ChangeTrigger trigger)
         => Migrations(Read($"SCRIPT x RUN ON {eventText} AS $$ SELECT 1; $$;"))
-            .ShouldHaveSingleItem().Trigger.ShouldBe(trigger);
+            .ShouldHaveSingleItem().Target.Trigger.ShouldBe(trigger);
 
     [Fact]
     public void Parse_RunConditionOnChangeEvent_IsRejected()
@@ -149,8 +149,8 @@ public sealed class NsqlParserScriptStatementTests
 
         var changes = assembled.Value.AllScripts().OfType<ChangeScript>().ToList();
         changes.Select(c => c.ScopeSchema!.Value).ShouldBe(["billing", "ordering"]);
-        changes.ShouldAllBe(c => c.TableName == "outbox_events");
-        changes.ShouldAllBe(c => c.MemberName == "trace_id");
+        changes.ShouldAllBe(c => c.Target.Table == "outbox_events");
+        changes.ShouldAllBe(c => c.Target.Member == "trace_id");
     }
 
     [Fact]

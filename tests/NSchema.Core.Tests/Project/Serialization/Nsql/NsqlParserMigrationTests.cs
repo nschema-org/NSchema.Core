@@ -18,10 +18,10 @@ public sealed class NsqlParserMigrationTests
         var migration = ReadMigrations("SCRIPT backfill RUN ON ADD COLUMN app.users.email AS $$ UPDATE app.users SET email = ''; $$;")
             .ShouldHaveSingleItem();
 
-        migration.Trigger.ShouldBe(ChangeTrigger.AddColumn);
+        migration.Target.Trigger.ShouldBe(ChangeTrigger.AddColumn);
         migration.ScopeSchema.ShouldBe("app");
-        migration.TableName.ShouldBe("users");
-        migration.MemberName.ShouldBe("email");
+        migration.Target.Table.ShouldBe("users");
+        migration.Target.Member.ShouldBe("email");
         migration.Path.ShouldBe("app.users.email");
     }
 
@@ -31,7 +31,7 @@ public sealed class NsqlParserMigrationTests
         var migration = ReadMigrations("SCRIPT retype RUN ON ALTER COLUMN TYPE app.orders.total AS $$ SELECT 1; $$;")
             .ShouldHaveSingleItem();
 
-        migration.Trigger.ShouldBe(ChangeTrigger.AlterColumnType);
+        migration.Target.Trigger.ShouldBe(ChangeTrigger.AlterColumnType);
         migration.Path.ShouldBe("app.orders.total");
     }
 
@@ -41,7 +41,7 @@ public sealed class NsqlParserMigrationTests
         var migration = ReadMigrations("SCRIPT dedupe RUN ON ADD CONSTRAINT app.orders.total_positive AS $$ DELETE FROM app.orders WHERE total <= 0; $$;")
             .ShouldHaveSingleItem();
 
-        migration.Trigger.ShouldBe(ChangeTrigger.AddConstraint);
+        migration.Target.Trigger.ShouldBe(ChangeTrigger.AddConstraint);
         migration.Path.ShouldBe("app.orders.total_positive");
     }
 
@@ -131,8 +131,8 @@ public sealed class NsqlParserMigrationTests
         migration.Name.ShouldBe("backfill");
         var change = migration.ShouldBeOfType<ChangeScript>();
         change.ScopeSchema.ShouldBe("app");
-        change.TableName.ShouldBe("users");
-        change.MemberName.ShouldBe("email");
+        change.Target.Table.ShouldBe("users");
+        change.Target.Member.ShouldBe("email");
         migration.RunOutsideTransaction.ShouldBeTrue();
         migration.Sql.Value.ShouldBe("UPDATE app.users SET email = '';");
     }

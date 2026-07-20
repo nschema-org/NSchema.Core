@@ -98,8 +98,8 @@ public sealed class DatabaseTests
             MemberRenames: [new MemberRenameDirective(new MemberAddress(app, "users", "mail"), "email")],
             ChangeScripts:
             [
-                new ChangeScript("backfill", "UPDATE 1;", app, ChangeTrigger.AddColumn, "users", "email"),
-                new ChangeScript("other", "UPDATE 2;", app, ChangeTrigger.AddColumn, "orders", "total"),
+                new ChangeScript("backfill", "UPDATE 1;", new ChangeTarget(app, "users", "email", ChangeTrigger.AddColumn)),
+                new ChangeScript("other", "UPDATE 2;", new ChangeTarget(app, "orders", "total", ChangeTrigger.AddColumn)),
             ],
             DeploymentScripts: [new DeploymentScript("seed", "SELECT 1;", app, DeploymentPhase.Pre)]);
 
