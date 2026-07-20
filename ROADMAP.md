@@ -19,10 +19,21 @@ here that you have thoughts on, let me know!
 
 ## Future plans
 
+### [NSQL linting](roadmap/nsql-linting.md)
+
+Lint and formatting for NSQL, configured through literal `.editorconfig` support — the style half of what was "custom policies".
+Ruled 2026-07-20: lint runs at the syntax layer, suppression is path-scoped sections, and linting gets no NSQL grammar of its own.
+
 ### [Custom policies](roadmap/custom-policies.md)
 
-I'd really like to support extra validation rules like "all tables must have a primary key called `id`" or "all tables must be pluralized".
-I'm currently torn between going through `.editorconfig` and a plugin-based approach similar to `PROVIDER` and `BACKEND` blocks.
+Project and plan policies: correctness checks (like "all tables must have a primary key") and guardrails, plus the plugin seam for
+user-written rules. The `.editorconfig`-vs-plugins tension resolved by splitting: style went to linting, and plugins land here,
+where checks run inside the plan/apply pipeline.
+
+### [Language package](roadmap/language-package.md)
+
+A lossless syntax tree for NSQL, and `NSchema.Language` as the eventual home of the language layer. Unlocks structural
+reformatting, typed scaffolding for plugins (no more raw strings), and the guided interactive bootstrap.
 
 ### [Plugin safety](roadmap/plugin-maturation.md)
 
@@ -41,6 +52,8 @@ Minor consistency cleanup, making sure that after all the refactoring we've done
 - **Partitioning** — pairs with change scripts; attach/detach is substantially data movement.
 - **Editor support** — second file extension so editors can key a grammar without hijacking plain `.sql`. TextMate first.
   - Time-sensitive: custom constructs keep growing, and the opt-in extension gets costlier as projects accumulate `.sql` globs.
+  - Also helps [linting](roadmap/nsql-linting.md) (editorconfig sections key on globs) and is the on-ramp to the LSP consumer
+    of the [language package](roadmap/language-package.md).
 - **Template arguments** — `TEMPLATE x(arg)` / `APPLY TEMPLATE x('val')`. The `{schema}` brace syntax was chosen so this could generalize.
 - **Script drift in the drift report** — surface "run-once body changed since it executed".
   - Caveat: that pair is recorded-vs-*project*, so the project becomes a third input to drift, which today needs only the store and live provider.
