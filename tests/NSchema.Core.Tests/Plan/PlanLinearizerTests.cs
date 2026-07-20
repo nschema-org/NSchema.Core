@@ -328,6 +328,31 @@ public sealed class PlanLinearizerTests
         plan.OfType<SetColumnComment>().ShouldHaveSingleItem().NewComment.ShouldBe("pk");
     }
 
+    [Fact]
+    public void Linearize_AddTable_FoldsConstraintsIntoCreateTable_ButKeepsComments()
+    {
+        // Every constraint of a new table is created inline by CREATE TABLE (carried on Definition), so the
+        // linearizer emits no separate Add* action for it; a constraint comment still arrives on its own.
+        var table = TableNode("orders", ChangeKind.Add,
+            definition: new Table { Name = "orders" },
+            foreignKeys: [new ForeignKeyDiff(ChangeKind.Add, "orders_user_fk", new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] })],
+            uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "orders_code_uq", new UniqueConstraint { Name = "orders_code_uq", ColumnNames = ["code"] })],
+            checks: [new CheckConstraintDiff(ChangeKind.Add, "orders_total_chk", new CheckConstraint { Name = "orders_total_chk", Expression = "total >= 0" })],
+            exclusionConstraints: [new ExclusionConstraintDiff(ChangeKind.Add, "no_overlap", new ExclusionConstraint { Name = "no_overlap", Elements = [new ExclusionElement("&&", "slot")], Method = "gist" })],
+            primaryKey: [new PrimaryKeyDiff(ChangeKind.Modify, "orders_pkey", null, new ValueChange<string>(null, "the key"))]);
+
+        var plan = LinearizeTable(table);
+
+        plan.OfType<CreateTable>().ShouldHaveSingleItem();
+        plan.OfType<AddForeignKey>().ShouldBeEmpty();
+        plan.OfType<AddUniqueConstraint>().ShouldBeEmpty();
+        plan.OfType<AddCheckConstraint>().ShouldBeEmpty();
+        plan.OfType<AddExclusionConstraint>().ShouldBeEmpty();
+        plan.OfType<AddPrimaryKey>().ShouldBeEmpty();
+        // The primary-key comment is not folded away.
+        plan.OfType<SetConstraintComment>().ShouldHaveSingleItem().NewComment.ShouldBe("the key");
+    }
+
     // -------------------------------------------------------------------------
     // Column changes (within a modified table)
     // -------------------------------------------------------------------------

@@ -37,8 +37,8 @@ public sealed class PlanLinearizerSnapshotTests
     [Fact]
     public Task Linearize_RichDiff_OrdersActionsSafely()
     {
-        // A new schema; a newly-added table (columns + PK carried inline on Definition, with a separate
-        // index and grant); a modified table (add/drop/retype columns, new index, dropped FK); two added
+        // A new schema; a newly-added table (columns, PK and constraints carried inline on Definition, with a
+        // separate index and grant); a modified table (add/drop/retype columns, new index, dropped FK); two added
         // views (one reading the other), a renamed view, and a dropped view; a dropped schema carrying its own
         // table, view, enum and sequence (all dropped before the schema). Enough cross-kind work to exercise the
         // priority ordering and the view dependency sort.
@@ -55,6 +55,7 @@ public sealed class PlanLinearizerSnapshotTests
                     new Column { Name = "id", Type = SqlType.BigInt, IsIdentity = true, IdentityOptions = new IdentityOptions(1, 1, 1) },
                     new Column { Name = "name", Type = SqlType.VarChar(255) },
                 ],
+                UniqueConstraints = [new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] }],
             });
 
         var modifiedTable = new TableDiff("app", "orders", ChangeKind.Modify, "purchases", null,

@@ -171,6 +171,14 @@
             Name: name
           }
         ],
+        UniqueConstraints: [
+          {
+            ColumnNames: [
+              email
+            ],
+            Name: users_email_uq
+          }
+        ],
         Name: users
       }
     }
@@ -221,18 +229,6 @@
     Action: {
       Column: app.orders.total_label,
       NewExpression: total::text
-    }
-  },
-  {
-    Type: AddUniqueConstraint,
-    Action: {
-      Table: app.users,
-      UniqueConstraint: {
-        ColumnNames: [
-          email
-        ],
-        Name: users_email_uq
-      }
     }
   },
   {

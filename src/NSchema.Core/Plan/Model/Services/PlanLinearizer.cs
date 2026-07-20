@@ -498,8 +498,8 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         switch (table.Kind)
         {
             case ChangeKind.Add:
-                // The primary key and columns are created inline by CREATE TABLE (carried on Definition); only
-                // the foreign keys, indexes, comments and grants arrive as separate actions.
+                // The columns and every table constraint are created inline by CREATE TABLE (carried on
+                // Definition); only indexes, triggers, comments and grants arrive as separate actions.
                 actions.Add(new CreateTable(table.Schema, table.Definition!));
                 if (table.Comment is not null)
                 {
@@ -620,27 +620,31 @@ internal sealed class PlanLinearizer : IPlanLinearizer
     {
         var preRenameName = table.RenamedFrom ?? table.Name;
 
-        EmitConstraintKind(table.PrimaryKey, actions,
+        // A newly-created table carries its constraints inline on CreateTable's definition, so their adds fold
+        // into the CREATE TABLE and only comment changes still arrive as separate actions.
+        var foldAdds = table.Kind == ChangeKind.Add;
+
+        EmitConstraintKind(table.PrimaryKey, actions, foldAdds,
             pk => new AddPrimaryKey(new(table.Schema, table.Name), pk.Definition!),
             pk => new DropPrimaryKey(new(table.Schema, preRenameName, pk.Name)),
             pk => new SetConstraintComment(new(table.Schema, table.Name, pk.Name), pk.Comment!.Old, pk.Comment.New));
 
-        EmitConstraintKind(table.ForeignKeys, actions,
+        EmitConstraintKind(table.ForeignKeys, actions, foldAdds,
             fk => new AddForeignKey(new(table.Schema, table.Name), fk.Definition!),
             fk => new DropForeignKey(new(table.Schema, preRenameName, fk.Name)),
             fk => new SetConstraintComment(new(table.Schema, table.Name, fk.Name), fk.Comment!.Old, fk.Comment.New));
 
-        EmitConstraintKind(table.UniqueConstraints, actions,
+        EmitConstraintKind(table.UniqueConstraints, actions, foldAdds,
             uq => new AddUniqueConstraint(new(table.Schema, table.Name), uq.Definition!),
             uq => new DropUniqueConstraint(new(table.Schema, preRenameName, uq.Name)),
             uq => new SetConstraintComment(new(table.Schema, table.Name, uq.Name), uq.Comment!.Old, uq.Comment.New));
 
-        EmitConstraintKind(table.Checks, actions,
+        EmitConstraintKind(table.Checks, actions, foldAdds,
             ck => new AddCheckConstraint(new(table.Schema, table.Name), ck.Definition!),
             ck => new DropCheckConstraint(new(table.Schema, preRenameName, ck.Name)),
             ck => new SetConstraintComment(new(table.Schema, table.Name, ck.Name), ck.Comment!.Old, ck.Comment.New));
 
-        EmitConstraintKind(table.ExclusionConstraints, actions,
+        EmitConstraintKind(table.ExclusionConstraints, actions, foldAdds,
             ex => new AddExclusionConstraint(new(table.Schema, table.Name), ex.Definition!),
             ex => new DropExclusionConstraint(new(table.Schema, preRenameName, ex.Name)),
             ex => new SetConstraintComment(new(table.Schema, table.Name, ex.Name), ex.Comment!.Old, ex.Comment.New));
@@ -649,11 +653,13 @@ internal sealed class PlanLinearizer : IPlanLinearizer
     /// <summary>
     /// Emits one constraint kind: an add's matched migration first (it prepares the data the constraint depends
     /// on — de-duplication, backfill — and the priority table runs every data migration before the constraint
-    /// adds), then the change itself. A constraint Modify is always a comment-only change.
+    /// adds), then the change itself. A constraint Modify is always a comment-only change. When <paramref
+    /// name="foldAdds"/> is set the table is being created, so an add is inlined into the CREATE TABLE and skipped.
     /// </summary>
     private static void EmitConstraintKind<T>(
         IReadOnlyList<T> constraints,
         List<MigrationAction> actions,
+        bool foldAdds,
         Func<T, MigrationAction> add,
         Func<T, MigrationAction> drop,
         Func<T, MigrationAction> comment
@@ -661,6 +667,11 @@ internal sealed class PlanLinearizer : IPlanLinearizer
     {
         foreach (var constraint in constraints)
         {
+            if (foldAdds && constraint.Kind == ChangeKind.Add)
+            {
+                continue;
+            }
+
             EmitConstraintMigration(constraint.Kind, constraint.MigrationScript, actions);
             actions.Add(constraint.Kind switch
             {

@@ -64,6 +64,10 @@ The unsolved piece, and the reason project-policy config is TBD.
 2. The plugin seam shape for project/plan rules (and whether it drives the qualified `PLUGIN` form).
 3. Rename for `SchemaLintPolicy`.
 4. Do plan policies ever need per-rule config beyond the existing enforcement options?
+5. **`Source` vs rule-id prefix** (carried from the old doc, still non-retrofittable): `Source` stays policy
+   identity, but dot ids make the prefix look like a category — and the spellings collide (`schema-lint`
+   kebab vs `schema_lint` underscore). Decide whether `Source` respells to match, or the id prefix and
+   `Source` are simply never the same thing.
 
 ErrorOr's wider lessons — factories, implicit conversions, `Match`/`Switch` — remain in
 [result ergonomics](result-ergonomics.md). Only the rule-id half landed here.
