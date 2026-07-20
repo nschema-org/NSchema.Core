@@ -16,27 +16,80 @@ internal sealed partial class NsqlParser
     {
         if (_current.IsKeyword(NsqlKeywords.State))
         {
-            return ParseConfigStatement(doc, state: true);
+            return ParseStateConfigStatement(doc);
         }
         if (_current.IsKeyword(NsqlKeywords.Database))
         {
-            return ParseConfigStatement(doc, state: false);
+            return ParseDatabaseConfigStatement(doc);
+        }
+        if (_current.IsKeyword(NsqlKeywords.Plugin))
+        {
+            return ParsePluginConfigStatement(doc);
+        }
+        if (_current.IsKeyword(NsqlKeywords.Engine))
+        {
+            return ParseEngineConfigStatement(doc);
         }
         if (_current.Kind == TokenKind.Identifier)
         {
-            throw Error($"Unknown configuration statement '{_current.Text}'; a configuration file holds only DATABASE and STATE statements.");
+            throw Error($"Unknown configuration statement '{_current.Text}'; a configuration file holds only PLUGIN, ENGINE, DATABASE, and STATE statements.");
         }
         throw Error($"Unexpected '{_current.Text}'; expected a configuration statement.");
     }
 
     /// <summary>
-    /// Parses a configuration statement: <c>DATABASE|STATE [label] ( key = value , … ) ;</c>.
-    /// The optional label is a bare identifier; attributes are a flat, comma-separated list.
+    /// Parses <c>DATABASE [label] ( … ) ;</c> — the optional label names the plugin that serves it.
     /// </summary>
-    private ConfigStatement ParseConfigStatement(string? doc, bool state)
+    private DatabaseStatement ParseDatabaseConfigStatement(string? doc)
+    {
+        var (position, label, attributes) = ParseConfigStatementBody();
+        return new DatabaseStatement(label, attributes) { Position = position, Doc = doc };
+    }
+
+    /// <summary>
+    /// Parses <c>STATE [label] ( … ) ;</c> — the optional label names the plugin that serves it.
+    /// </summary>
+    private StateStatement ParseStateConfigStatement(string? doc)
+    {
+        var (position, label, attributes) = ParseConfigStatementBody();
+        return new StateStatement(label, attributes) { Position = position, Doc = doc };
+    }
+
+    /// <summary>
+    /// Parses <c>PLUGIN &lt;label&gt; ( … ) ;</c> — the label is required: it is the name the plugin is referenced by.
+    /// </summary>
+    private PluginStatement ParsePluginConfigStatement(string? doc)
+    {
+        var (position, label, attributes) = ParseConfigStatementBody();
+        if (label is null)
+        {
+            throw new NsqlSyntaxException("A PLUGIN statement requires a label naming the plugin, e.g. PLUGIN pg ( … ).", position);
+        }
+        return new PluginStatement(label, attributes) { Position = position, Doc = doc };
+    }
+
+    /// <summary>
+    /// Parses <c>ENGINE ( … ) ;</c> — no label: there is only one engine.
+    /// </summary>
+    private EngineStatement ParseEngineConfigStatement(string? doc)
+    {
+        var (position, label, attributes) = ParseConfigStatementBody();
+        if (label is not null)
+        {
+            throw new NsqlSyntaxException("An ENGINE statement takes no label; there is only one engine.", label.Position);
+        }
+        return new EngineStatement(attributes) { Position = position, Doc = doc };
+    }
+
+    /// <summary>
+    /// Parses the shape every configuration statement shares: <c>KEYWORD [label] ( key = value , … ) ;</c>.
+    /// Each statement's own rules (whether the label is required, forbidden, or optional) belong to its
+    /// <c>Parse*ConfigStatement</c> method, not here.
+    /// </summary>
+    private (SourcePosition Position, Identifier? Label, List<ConfigAttribute> Attributes) ParseConfigStatementBody()
     {
         var position = _current.Position;
-        Advance(); // DATABASE | STATE
+        Advance(); // the statement keyword
 
         // An optional bare-identifier label, e.g. the 'postgres' in `DATABASE postgres ( … )`.
         Identifier? label = null;
@@ -67,9 +120,7 @@ internal sealed partial class NsqlParser
         Expect(TokenKind.RightParen, "')' or ',' after a configuration attribute");
         Expect(TokenKind.Semicolon, "';'");
 
-        return state
-            ? new StateStatement(label, attributes) { Position = position, Doc = doc }
-            : new DatabaseStatement(label, attributes) { Position = position, Doc = doc };
+        return (position, label, attributes);
     }
 
     /// <summary>
@@ -98,8 +149,8 @@ internal sealed partial class NsqlParser
                 return new IntegerValue(ExpectSignedIntegerValue()) { Position = position };
             case TokenKind.Identifier:
                 var text = Advance().Text;
-                if (string.Equals(text, "true", StringComparison.OrdinalIgnoreCase)) { return new BooleanValue(true) { Position = position }; }
-                if (string.Equals(text, "false", StringComparison.OrdinalIgnoreCase)) { return new BooleanValue(false) { Position = position }; }
+                if (NsqlKeywords.Comparer.Equals(text, "true")) { return new BooleanValue(true) { Position = position }; }
+                if (NsqlKeywords.Comparer.Equals(text, "false")) { return new BooleanValue(false) { Position = position }; }
                 return new IdentifierValue(text) { Position = position };
             default:
                 throw Error("Expected a configuration value (a string, integer, true, false, or identifier).");

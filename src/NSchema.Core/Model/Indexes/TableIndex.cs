@@ -26,7 +26,7 @@ public sealed class TableIndex : DatabaseMember, IEquatable<TableIndex>
     /// <summary>
     /// The access method; <see langword="null"/> means the database default (B-tree).
     /// </summary>
-    public string? Method { get; set; }
+    public SqlIdentifier? Method { get; set; }
 
     /// <summary>
     /// Non-key columns carried in the index leaf pages (a covering <c>INCLUDE</c> clause).

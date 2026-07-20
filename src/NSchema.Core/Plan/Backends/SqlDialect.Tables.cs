@@ -16,25 +16,25 @@ public abstract partial class SqlDialect
     /// Renders the removal of a table.
     /// </summary>
     protected virtual Result<IReadOnlyList<SqlStatement>> DropTable(DropTable action) =>
-        Statement($"DROP TABLE {Qualify(action.SchemaName, action.TableName)}");
+        Statement($"DROP TABLE {Qualify(action.Table)}");
 
     /// <summary>
     /// Renders the renaming of a table.
     /// </summary>
     protected virtual Result<IReadOnlyList<SqlStatement>> RenameTable(RenameTable action) =>
-        Statement($"ALTER TABLE {Qualify(action.SchemaName, action.OldName)} RENAME TO {Quote(action.NewName)}");
+        Statement($"ALTER TABLE {Qualify(action.Table)} RENAME TO {Quote(action.NewName)}");
 
     /// <summary>
     /// Renders adding a primary key constraint.
     /// </summary>
     protected virtual Result<IReadOnlyList<SqlStatement>> AddPrimaryKey(AddPrimaryKey action) =>
-        Statement($"ALTER TABLE {Qualify(action.SchemaName, action.TableName)} ADD CONSTRAINT {Quote(action.PrimaryKey.Name)} PRIMARY KEY ({ColumnList(action.PrimaryKey.ColumnNames)})");
+        Statement($"ALTER TABLE {Qualify(action.Table)} ADD CONSTRAINT {Quote(action.PrimaryKey.Name)} PRIMARY KEY ({ColumnList(action.PrimaryKey.ColumnNames)})");
 
     /// <summary>
     /// Renders dropping a primary key constraint.
     /// </summary>
     protected virtual Result<IReadOnlyList<SqlStatement>> DropPrimaryKey(DropPrimaryKey action) =>
-        Statement($"ALTER TABLE {Qualify(action.SchemaName, action.TableName)} DROP CONSTRAINT {Quote(action.PrimaryKeyName)}");
+        Statement($"ALTER TABLE {Qualify(action.PrimaryKey.Owner)} DROP CONSTRAINT {Quote(action.PrimaryKey.Member)}");
 
     /// <summary>
     /// Renders adding a foreign key constraint.
@@ -43,9 +43,9 @@ public abstract partial class SqlDialect
     {
         var key = action.ForeignKey;
         var sql = new StringBuilder(
-            $"ALTER TABLE {Qualify(action.SchemaName, action.TableName)} ADD CONSTRAINT {Quote(key.Name)} " +
+            $"ALTER TABLE {Qualify(action.Table)} ADD CONSTRAINT {Quote(key.Name)} " +
             $"FOREIGN KEY ({ColumnList(key.ColumnNames)}) " +
-            $"REFERENCES {Qualify(key.ReferencedSchema, key.ReferencedTable)} ({ColumnList(key.ReferencedColumnNames)})");
+            $"REFERENCES {Qualify(key.References)} ({ColumnList(key.ReferencedColumnNames)})");
 
         if (key.OnDelete != ReferentialAction.NoAction)
         {
@@ -64,7 +64,7 @@ public abstract partial class SqlDialect
     /// Renders dropping a foreign key constraint.
     /// </summary>
     protected virtual Result<IReadOnlyList<SqlStatement>> DropForeignKey(DropForeignKey action) =>
-        Statement($"ALTER TABLE {Qualify(action.SchemaName, action.TableName)} DROP CONSTRAINT {Quote(action.ForeignKeyName)}");
+        Statement($"ALTER TABLE {Qualify(action.ForeignKey.Owner)} DROP CONSTRAINT {Quote(action.ForeignKey.Member)}");
 
     /// <summary>
     /// Renders granting table privileges to a role.
@@ -72,7 +72,7 @@ public abstract partial class SqlDialect
     protected virtual Result<IReadOnlyList<SqlStatement>> GrantTablePrivileges(GrantTablePrivileges action) =>
         action.Privileges == TablePrivilege.None
             ? Statements()
-            : Statement($"GRANT {PrivilegeList(action.Privileges)} ON {Qualify(action.SchemaName, action.TableName)} TO {Quote(action.Role)}");
+            : Statement($"GRANT {PrivilegeList(action.Privileges)} ON {Qualify(action.Table)} TO {Quote(action.Role)}");
 
     /// <summary>
     /// Renders revoking table privileges from a role.
@@ -80,7 +80,7 @@ public abstract partial class SqlDialect
     protected virtual Result<IReadOnlyList<SqlStatement>> RevokeTablePrivileges(RevokeTablePrivileges action) =>
         action.Privileges == TablePrivilege.None
             ? Statements()
-            : Statement($"REVOKE {PrivilegeList(action.Privileges)} ON {Qualify(action.SchemaName, action.TableName)} FROM {Quote(action.Role)}");
+            : Statement($"REVOKE {PrivilegeList(action.Privileges)} ON {Qualify(action.Table)} FROM {Quote(action.Role)}");
 
     /// <summary>
     /// Renders setting or clearing a table's comment.

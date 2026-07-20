@@ -30,6 +30,7 @@ internal static class NsqlKeywords
     public const string Domain = "DOMAIN";
     public const string Each = "EACH";
     public const string End = "END";
+    public const string Engine = "ENGINE";
     public const string Enum = "ENUM";
     public const string Exclude = "EXCLUDE";
     public const string Execute = "EXECUTE";
@@ -60,6 +61,7 @@ internal static class NsqlKeywords
     public const string On = "ON";
     public const string Once = "ONCE";
     public const string Or = "OR";
+    public const string Plugin = "PLUGIN";
     public const string Post = "POST";
     public const string Pre = "PRE";
     public const string Primary = "PRIMARY";
@@ -96,18 +98,24 @@ internal static class NsqlKeywords
     public const string With = "WITH";
 
     /// <summary>
+    /// How keywords compare: bare words are case-insensitive.
+    /// </summary>
+    public static readonly StringComparer Comparer = StringComparer.OrdinalIgnoreCase;
+
+    /// <summary>
     /// The keywords that open a project-grammar statement.
     /// </summary>
-    public static readonly IReadOnlySet<string> StatementOpeners = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-    {
-        Create, Grant, Template, Apply, Script, Rename,
-    };
+    public static readonly IReadOnlySet<string> StatementOpeners = Group(Create, Grant, Template, Apply, Script, Rename);
+
+    /// <summary>
+    /// The keywords that open a configuration-grammar statement.
+    /// </summary>
+    public static readonly IReadOnlySet<string> ConfigStatementOpeners = Group(Plugin, Engine, Database, State);
 
     /// <summary>
     /// The keywords that open a table member.
     /// </summary>
-    public static readonly IReadOnlySet<string> MemberOpeners = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-    {
-        Constraint, Unique, Index, Include,
-    };
+    public static readonly IReadOnlySet<string> MemberOpeners = Group(Constraint, Unique, Index, Include);
+
+    private static HashSet<string> Group(params string[] keywords) => new(keywords, Comparer);
 }

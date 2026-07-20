@@ -10,9 +10,9 @@ namespace NSchema.State.Locks;
 /// <param name="CreatedUtc">When the lock was acquired.</param>
 /// <param name="ExpiresUtc">When the lock is considered stale, or <see langword="null"/> when it has no expiry.</param>
 public sealed record StateLockInfo(
-    string Id,
+    LockId Id,
     string Operation,
-    string Who,
+    LockHolder Who,
     DateTimeOffset CreatedUtc,
     DateTimeOffset? ExpiresUtc = null
 );

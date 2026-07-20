@@ -142,7 +142,7 @@ internal sealed partial class NsqlParser
         var body = CaptureRawSpan("a view body", [TokenKind.Semicolon]);
         Expect(TokenKind.Semicolon, "';' to end the view definition");
 
-        return new CreateViewStatement(name, new SqlText(body), materialized) { Position = position, Doc = doc };
+        return new CreateViewStatement(name, body, materialized) { Position = position, Doc = doc };
     }
 
     /// <summary>
@@ -173,7 +173,7 @@ internal sealed partial class NsqlParser
         var definition = CaptureRawSpan(what, [TokenKind.Semicolon]);
         Expect(TokenKind.Semicolon, $"';' to end {what}");
 
-        return new CreateRoutineStatement(name, kind, new SqlText(arguments), new SqlText(definition)) { Position = position, Doc = doc };
+        return new CreateRoutineStatement(name, kind, arguments, definition) { Position = position, Doc = doc };
     }
 
     private CreateEnumStatement ParseCreateEnum(SourcePosition position, string? doc)
@@ -244,7 +244,7 @@ internal sealed partial class NsqlParser
             {
                 Advance();
                 // The default is opaque and read to the terminating ';', so it must be the final clause.
-                @default = new SqlText(CaptureRawSpan("a domain default", [TokenKind.Semicolon]));
+                @default = CaptureRawSpan("a domain default", [TokenKind.Semicolon]);
             }
             else
             {
@@ -320,38 +320,38 @@ internal sealed partial class NsqlParser
                 }
             }
 
-            if (string.Equals(option.Value, NsqlKeywords.As, StringComparison.OrdinalIgnoreCase))
+            if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.As))
             {
                 RejectDuplicate(dataType is not null);
                 var typeName = ExpectIdentifierNode("a type name");
                 dataType = new TypeName(null, typeName) { Position = typeName.Position };
             }
-            else if (string.Equals(option.Value, NsqlKeywords.Start, StringComparison.OrdinalIgnoreCase))
+            else if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.Start))
             {
                 RejectDuplicate(start is not null);
                 start = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, NsqlKeywords.Increment, StringComparison.OrdinalIgnoreCase))
+            else if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.Increment))
             {
                 RejectDuplicate(increment is not null);
                 increment = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, NsqlKeywords.MinValue, StringComparison.OrdinalIgnoreCase))
+            else if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.MinValue))
             {
                 RejectDuplicate(min is not null);
                 min = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, NsqlKeywords.MaxValue, StringComparison.OrdinalIgnoreCase))
+            else if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.MaxValue))
             {
                 RejectDuplicate(max is not null);
                 max = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, NsqlKeywords.Cache, StringComparison.OrdinalIgnoreCase))
+            else if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.Cache))
             {
                 RejectDuplicate(cache is not null);
                 cache = ExpectSignedIntegerValue();
             }
-            else if (string.Equals(option.Value, NsqlKeywords.Cycle, StringComparison.OrdinalIgnoreCase))
+            else if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.Cycle))
             {
                 RejectDuplicate(cycle);
                 cycle = true;
@@ -435,7 +435,7 @@ internal sealed partial class NsqlParser
         if (_current.IsKeyword(NsqlKeywords.Execute))
         {
             Advance();
-            if (_current.IsKeyword(NsqlKeywords.Function) || _current.IsKeyword(NsqlKeywords.Procedure))
+            if (_current.IsAnyKeyword(NsqlKeywords.Function, NsqlKeywords.Procedure))
             {
                 Advance();
             }
@@ -451,14 +451,14 @@ internal sealed partial class NsqlParser
 
             // The argument list is captured verbatim (opaque), like a routine's; usually empty for a trigger function.
             var arguments = CaptureParenthesized();
-            action = new ExecuteFunctionAction(function, new SqlText(arguments)) { Position = actionPosition };
+            action = new ExecuteFunctionAction(function, arguments) { Position = actionPosition };
         }
         else if (_current.IsKeyword(NsqlKeywords.As))
         {
             // An inline body is a dollar-quoted block (so it may contain its own ';'), like a deployment script.
             Advance();
             var dollar = Expect(TokenKind.DollarString, "a trigger body as a dollar-quoted block ($$ … $$)");
-            action = new InlineBodyAction(new SqlText(StripDollarQuote(dollar.Text).Trim())) { Position = actionPosition };
+            action = new InlineBodyAction(StripDollarQuote(dollar.Text).Trim()) { Position = actionPosition };
         }
         else
         {
@@ -686,15 +686,15 @@ internal sealed partial class NsqlParser
         {
             var option = ExpectIdentifierNode($"{NsqlKeywords.Start}, {NsqlKeywords.Increment} or {NsqlKeywords.MinValue}");
             var value = ExpectIntegerValue();
-            if (string.Equals(option.Value, NsqlKeywords.Start, StringComparison.OrdinalIgnoreCase))
+            if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.Start))
             {
                 start = value;
             }
-            else if (string.Equals(option.Value, NsqlKeywords.Increment, StringComparison.OrdinalIgnoreCase))
+            else if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.Increment))
             {
                 increment = value;
             }
-            else if (string.Equals(option.Value, NsqlKeywords.MinValue, StringComparison.OrdinalIgnoreCase))
+            else if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.MinValue))
             {
                 min = value;
             }

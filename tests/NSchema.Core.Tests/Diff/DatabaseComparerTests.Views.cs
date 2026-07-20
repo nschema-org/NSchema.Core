@@ -18,7 +18,7 @@ public partial class DatabaseComparerTests
 
         diff!.Kind.ShouldBe(ChangeKind.Add);
         diff.Definition.ShouldNotBeNull();
-        diff.DependsOn.ShouldHaveSingleItem().ShouldBe(new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users")));
+        diff.DependsOn.ShouldHaveSingleItem().ShouldBe(new ObjectAddress("app", "users"));
     }
 
     [Fact]
@@ -29,7 +29,7 @@ public partial class DatabaseComparerTests
 
         diff!.Kind.ShouldBe(ChangeKind.Remove);
         diff.Definition.ShouldBeNull();
-        diff.DependsOn.ShouldHaveSingleItem().ShouldBe(new ViewDependency(new SqlIdentifier("app"), new SqlIdentifier("users")));
+        diff.DependsOn.ShouldHaveSingleItem().ShouldBe(new ObjectAddress("app", "users"));
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public partial class DatabaseComparerTests
         var diff = DiffViews(
             [View("legacy", "SELECT * FROM app.users")],
             [View("active", "SELECT * FROM app.users")],
-            new ProjectDirectives(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.View, App("legacy")), new SqlIdentifier("active"))]));
+            new ProjectDirectives(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.View, App("legacy")), "active")]));
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.RenamedFrom.ShouldBe("legacy");

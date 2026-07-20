@@ -70,7 +70,7 @@ public sealed class ProjectAssemblerTests
 
         var error = SingleError(result);
         error.ShouldBe(ProjectDiagnostics.ObjectAlreadyDeclared(
-            ObjectKind.Table, new SqlIdentifier("app"), new SqlIdentifier("users"), error.Position) with
+            ObjectKind.Table, "app", "users", error.Position) with
         { File = "file2.sql" });
         error.Position.Line.ShouldBe(1);
     }
@@ -84,7 +84,7 @@ public sealed class ProjectAssemblerTests
 
         var error = SingleError(result);
         error.ShouldBe(ProjectDiagnostics.ObjectAlreadyDeclared(
-            ObjectKind.View, new SqlIdentifier("app"), new SqlIdentifier("v"), error.Position) with
+            ObjectKind.View, "app", "v", error.Position) with
         { File = "file2.sql" });
     }
 
@@ -118,7 +118,7 @@ public sealed class ProjectAssemblerTests
             "CREATE SCHEMA app;");
 
         var error = SingleError(result);
-        error.ShouldBe(ProjectDiagnostics.SchemaAlreadyDeclared(new SqlIdentifier("app"), error.Position) with
+        error.ShouldBe(ProjectDiagnostics.SchemaAlreadyDeclared("app", error.Position) with
         { File = "file2.sql" });
     }
 
@@ -130,7 +130,7 @@ public sealed class ProjectAssemblerTests
             "CREATE EXTENSION citext;");
 
         var error = SingleError(result);
-        error.ShouldBe(ProjectDiagnostics.ExtensionAlreadyDeclared(new SqlIdentifier("citext"), error.Position) with
+        error.ShouldBe(ProjectDiagnostics.ExtensionAlreadyDeclared("citext", error.Position) with
         { File = "file2.sql" });
     }
 
@@ -188,7 +188,7 @@ public sealed class ProjectAssemblerTests
 
         var error = SingleError(result);
         error.ShouldBe(ProjectDiagnostics.UnknownGrantTable(
-            new SqlIdentifier("app"), new SqlIdentifier("ghost"), error.Position) with
+            "app", "ghost", error.Position) with
         { File = "file2.sql" });
     }
 }

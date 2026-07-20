@@ -31,7 +31,7 @@ internal static class TemplateExpander
         var byName = new Dictionary<SqlIdentifier, TemplateStatement>();
         foreach (var template in schemaTemplates.Cast<TemplateStatement>().Concat(tableTemplates))
         {
-            var name = new SqlIdentifier(template.Name.Value);
+            SqlIdentifier name = template.Name.Value;
             if (!byName.TryAdd(name, template))
             {
                 diagnostics.Add(TemplateDiagnostics.DuplicateTemplate(name));
@@ -58,7 +58,7 @@ internal static class TemplateExpander
 
         foreach (var (application, file) in applications)
         {
-            var templateName = new SqlIdentifier(application.TemplateName.Value);
+            SqlIdentifier templateName = application.TemplateName.Value;
             if (!templates.TryGetValue(templateName, out var template))
             {
                 diagnostics.Add(TemplateDiagnostics.UnknownTemplate(templateName));
@@ -72,7 +72,7 @@ internal static class TemplateExpander
 
             foreach (var schemaNameNode in application.Schemas)
             {
-                var schemaName = new SqlIdentifier(schemaNameNode.Value);
+                SqlIdentifier schemaName = schemaNameNode.Value;
                 if (!accumulator.HasSchema(schemaName))
                 {
                     diagnostics.Add(TemplateDiagnostics.UnknownTargetSchema(templateName, schemaName));

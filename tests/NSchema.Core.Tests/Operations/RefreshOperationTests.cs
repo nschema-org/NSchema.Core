@@ -17,7 +17,7 @@ public sealed class RefreshOperationTests
     public async Task Execute_WhenStateCaptured_ReturnsTheSchemaAndSnapshotSize()
     {
         // Arrange
-        var schema = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] };
+        var schema = new Database { Schemas = [new Schema { Name = "app" }] };
         _workflow.Refresh(Arg.Any<MigrationPlan?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(new StateCapture(schema, 2048));
 
         // Act

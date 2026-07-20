@@ -41,7 +41,7 @@ public sealed class PlanEndToEndTests : IDisposable
     public async Task Plan_ReportsStructuredDiffBetweenCurrentAndDesired()
     {
         // Current: app.users(id). Desired: app.users(id, email) + a new app.orders table.
-        var current = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] }] };
+        var current = new Database { Schemas = [new Schema { Name = "app", Tables = [new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] }] }] };
 
         var desired = WriteNsql("schema.sql",
             """
@@ -78,7 +78,7 @@ public sealed class PlanEndToEndTests : IDisposable
     [Fact]
     public async Task Plan_WithNoChanges_ReportsEmptyDiff()
     {
-        var schema = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] }] };
+        var schema = new Database { Schemas = [new Schema { Name = "app", Tables = [new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] }] }] };
 
         var desired = WriteNsql("schema.sql",
             """
@@ -137,12 +137,12 @@ public sealed class PlanEndToEndTests : IDisposable
         var current = new Database
         {
             Schemas = [
-            new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] },
-            new Schema { Name = new SqlIdentifier("billing"), Tables = [
-                new Table { Name = new SqlIdentifier("orders"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }],
+            new Schema { Name = "app", Tables = [new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] }] },
+            new Schema { Name = "billing", Tables = [
+                new Table { Name = "orders", Columns = [new Column { Name = "id", Type = SqlType.Int }],
                     ForeignKeys = [
-                        new ForeignKey { Name = new SqlIdentifier("fk_orders_user"), ColumnNames = [new SqlIdentifier("id")],
-                            ReferencedSchema = new SqlIdentifier("app"), ReferencedTable = new SqlIdentifier("users"), ReferencedColumnNames = [new SqlIdentifier("id")] },
+                        new ForeignKey { Name = "fk_orders_user", ColumnNames = ["id"],
+                            References = new("app", "users"), ReferencedColumnNames = ["id"] },
                     ] },
             ] },
         ],
@@ -155,11 +155,11 @@ public sealed class PlanEndToEndTests : IDisposable
         // A teardown destroys what NSchema manages; management is normally established by an apply, adopted
         // here through state surgery. billing stays unmanaged — the plan may only sever, never tear it down.
         await Manage(app, new IdentitySet(
-            Schemas: [new SqlIdentifier("app")],
-            Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users")))]));
+            Schemas: ["app"],
+            Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress("app", "users"))]));
 
         var result = await app.Operations.Plan(
-            new PlanArguments { Target = PlanTarget.Empty, Scope = PlanningScope.To(new SqlIdentifier("app")) },
+            new PlanArguments { Target = PlanTarget.Empty, Scope = PlanningScope.To("app") },
             TestContext.Current.CancellationToken);
 
         var diff = result.Value.ShouldNotBeNull().Plan.ShouldNotBeNull().Diff;
@@ -187,7 +187,7 @@ public sealed class PlanEndToEndTests : IDisposable
 
         using var app = NewBuilder(new Database()).AddProjectSource(Path.GetDirectoryName(desired)!, Path.GetFileName(desired)).UseSqlDialect<StubSqlDialect>().Build();
 
-        var users = new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users"));
+        var users = new ObjectAddress("app", "users");
         var result = await app.Operations.Plan(
             new PlanArguments { Scope = PlanningScope.To([users]) },
             TestContext.Current.CancellationToken);
@@ -198,7 +198,7 @@ public sealed class PlanEndToEndTests : IDisposable
         schema.Kind.ShouldBe(ChangeKind.Add);
         schema.Tables.ShouldHaveSingleItem().Name.ShouldBe("users");
 
-        plan.Managed.Schemas.ShouldBe([new SqlIdentifier("app")]);
+        plan.Managed.Schemas.ShouldBe(["app"]);
         plan.Managed.Objects.ShouldHaveSingleItem().ShouldBe(new ObjectIdentity(ObjectKind.Table, users));
     }
 
@@ -206,7 +206,7 @@ public sealed class PlanEndToEndTests : IDisposable
     public async Task Plan_Teardown_DiffsTheManagedSchemaDownToNothing()
     {
         // The managed schema is the recorded state, so the refresh records the live schema before tearing down.
-        var current = new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] }] }] };
+        var current = new Database { Schemas = [new Schema { Name = "app", Tables = [new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] }] }] };
         var desired = WriteNsql("schema.sql",
             """
             CREATE SCHEMA app;
@@ -222,8 +222,8 @@ public sealed class PlanEndToEndTests : IDisposable
         // A teardown destroys what NSchema manages; management is normally established by an apply, adopted
         // here through state surgery.
         await Manage(app, new IdentitySet(
-            Schemas: [new SqlIdentifier("app")],
-            Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users")))]));
+            Schemas: ["app"],
+            Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress("app", "users"))]));
 
         var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Empty }, TestContext.Current.CancellationToken);
 

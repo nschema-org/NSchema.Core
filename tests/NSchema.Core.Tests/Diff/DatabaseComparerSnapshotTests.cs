@@ -38,14 +38,14 @@ public sealed class DatabaseComparerSnapshotTests
         var current = new Database
         {
             Schemas = [
-            new Schema { Name = new SqlIdentifier("app"),
+            new Schema { Name = "app",
                 Tables = [
-                    new Table { Name = new SqlIdentifier("users"),
-                        PrimaryKey = new PrimaryKey { Name = new SqlIdentifier("users_pkey"), ColumnNames = [new SqlIdentifier("id")] },
+                    new Table { Name = "users",
+                        PrimaryKey = new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] },
                         Columns = [
-                            new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int },
-                            new Column { Name = new SqlIdentifier("email"), Type = SqlType.VarChar(100) },
-                            new Column { Name = new SqlIdentifier("legacy_flag"), Type = SqlType.Boolean },
+                            new Column { Name = "id", Type = SqlType.Int },
+                            new Column { Name = "email", Type = SqlType.VarChar(100) },
+                            new Column { Name = "legacy_flag", Type = SqlType.Boolean },
                         ] },
                 ],
                 Views = [
@@ -54,41 +54,41 @@ public sealed class DatabaseComparerSnapshotTests
                     View("old_summary", "SELECT count(*) FROM app.users"),
                 ],
                 Enums = [
-                    new EnumType { Name = new SqlIdentifier("order_status"), Values = ["pending", "shipped"] },
-                    new EnumType { Name = new SqlIdentifier("importance"), Values = ["low", "high"] },
-                    new EnumType { Name = new SqlIdentifier("stale_enum"), Values = ["x"] },
+                    new EnumType { Name = "order_status", Values = ["pending", "shipped"] },
+                    new EnumType { Name = "importance", Values = ["low", "high"] },
+                    new EnumType { Name = "stale_enum", Values = ["x"] },
                 ],
                 Sequences = [
-                    new Sequence { Name = new SqlIdentifier("order_id"), Options = new SequenceOptions(StartWith: 1, IncrementBy: 1) },
-                    new Sequence { Name = new SqlIdentifier("stale_seq") },
+                    new Sequence { Name = "order_id", Options = new SequenceOptions(StartWith: 1, IncrementBy: 1) },
+                    new Sequence { Name = "stale_seq" },
                 ],
                 Routines = [
-                    new Routine { Name = new SqlIdentifier("add_tax"), RoutineKind = RoutineKind.Function, Arguments = new SqlText("amount numeric"), Definition = new SqlText("RETURNS numeric AS $$ SELECT amount * 1.1 $$") },
-                    new Routine { Name = new SqlIdentifier("score"), RoutineKind = RoutineKind.Function, Arguments = new SqlText("user_id bigint"), Definition = new SqlText("RETURNS numeric AS $$ SELECT 1 $$") },
-                    new Routine { Name = new SqlIdentifier("stale_fn"), RoutineKind = RoutineKind.Function, Arguments = new SqlText(""), Definition = new SqlText("RETURNS int AS $$ SELECT 0 $$") },
+                    new Routine { Name = "add_tax", RoutineKind = RoutineKind.Function, Arguments = "amount numeric", Definition = "RETURNS numeric AS $$ SELECT amount * 1.1 $$" },
+                    new Routine { Name = "score", RoutineKind = RoutineKind.Function, Arguments = "user_id bigint", Definition = "RETURNS numeric AS $$ SELECT 1 $$" },
+                    new Routine { Name = "stale_fn", RoutineKind = RoutineKind.Function, Arguments = "", Definition = "RETURNS int AS $$ SELECT 0 $$" },
                 ],
                 Domains = [
-                    new DomainType { Name = new SqlIdentifier("code"), DataType = SqlType.Text },
-                    new DomainType { Name = new SqlIdentifier("stale_domain"), DataType = SqlType.Int },
+                    new DomainType { Name = "code", DataType = SqlType.Text },
+                    new DomainType { Name = "stale_domain", DataType = SqlType.Int },
                 ],
                 CompositeTypes = [
-                    new CompositeType { Name = new SqlIdentifier("address"), Fields = [new CompositeField(new SqlIdentifier("street"), SqlType.Text), new CompositeField(new SqlIdentifier("zip"), SqlType.Int), new CompositeField(new SqlIdentifier("old_field"), SqlType.Text)] },
-                    new CompositeType { Name = new SqlIdentifier("stale_type"), Fields = [new CompositeField(new SqlIdentifier("a"), SqlType.Int)] },
+                    new CompositeType { Name = "address", Fields = [new CompositeField("street", SqlType.Text), new CompositeField("zip", SqlType.Int), new CompositeField("old_field", SqlType.Text)] },
+                    new CompositeType { Name = "stale_type", Fields = [new CompositeField("a", SqlType.Int)] },
                 ] },
-            new Schema { Name = new SqlIdentifier("scratch"),
+            new Schema { Name = "scratch",
                 Tables = [
-                    new Table { Name = new SqlIdentifier("temp_data"),
-                        PrimaryKey = new PrimaryKey { Name = new SqlIdentifier("temp_data_pkey"), ColumnNames = [new SqlIdentifier("id")] },
-                        Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }, new Column { Name = new SqlIdentifier("payload"), Type = SqlType.Text }] },
+                    new Table { Name = "temp_data",
+                        PrimaryKey = new PrimaryKey { Name = "temp_data_pkey", ColumnNames = ["id"] },
+                        Columns = [new Column { Name = "id", Type = SqlType.Int }, new Column { Name = "payload", Type = SqlType.Text }] },
                 ],
                 Views = [View("temp_summary", "SELECT count(*) FROM scratch.temp_data")],
-                Enums = [new EnumType { Name = new SqlIdentifier("temp_status"), Values = ["draft"] }],
-                Sequences = [new Sequence { Name = new SqlIdentifier("temp_seq") }] },
+                Enums = [new EnumType { Name = "temp_status", Values = ["draft"] }],
+                Sequences = [new Sequence { Name = "temp_seq" }] },
         ],
             Extensions = [
-            new Extension { Name = new SqlIdentifier("citext") },
-            new Extension { Name = new SqlIdentifier("postgis"), Version = "3.3" },
-            new Extension { Name = new SqlIdentifier("legacy_ext") },
+            new Extension { Name = "citext" },
+            new Extension { Name = "postgis", Version = "3.3" },
+            new Extension { Name = "legacy_ext" },
         ],
         };
 
@@ -99,23 +99,23 @@ public sealed class DatabaseComparerSnapshotTests
         var desired = new Database
         {
             Schemas = [
-            new Schema { Name = new SqlIdentifier("app"),
+            new Schema { Name = "app",
                 Tables = [
-                    new Table { Name = new SqlIdentifier("users"),
-                        PrimaryKey = new PrimaryKey { Name = new SqlIdentifier("users_pkey"), ColumnNames = [new SqlIdentifier("id")] },
+                    new Table { Name = "users",
+                        PrimaryKey = new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] },
                         Columns = [
-                            new Column { Name = new SqlIdentifier("id"), Type = SqlType.BigInt },
-                            new Column { Name = new SqlIdentifier("email_address"), Type = SqlType.Text },
-                            new Column { Name = new SqlIdentifier("email_upper"), Type = SqlType.Text, IsNullable = true, GeneratedExpression = new SqlText("upper(email_address)") },
+                            new Column { Name = "id", Type = SqlType.BigInt },
+                            new Column { Name = "email_address", Type = SqlType.Text },
+                            new Column { Name = "email_upper", Type = SqlType.Text, IsNullable = true, GeneratedExpression = "upper(email_address)" },
                         ],
-                        UniqueConstraints = [new UniqueConstraint { Name = new SqlIdentifier("users_email_uq"), ColumnNames = [new SqlIdentifier("email_address")] }],
-                        CheckConstraints = [new CheckConstraint { Name = new SqlIdentifier("users_id_chk"), Expression = new SqlText("id > 0") }],
-                        ExclusionConstraints = [new ExclusionConstraint { Name = new SqlIdentifier("users_span_excl"),
-                            Elements = [new ExclusionElement("&&", Expression: new SqlText("int4range(0, id)"))], Method = "gist" }],
+                        UniqueConstraints = [new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email_address"] }],
+                        CheckConstraints = [new CheckConstraint { Name = "users_id_chk", Expression = "id > 0" }],
+                        ExclusionConstraints = [new ExclusionConstraint { Name = "users_span_excl",
+                            Elements = [new ExclusionElement("&&", Expression: "int4range(0, id)")], Method = "gist" }],
                         // A covering, expression, descending index exercising the richer index grammar.
-                        Indexes = [new TableIndex { Name = new SqlIdentifier("users_email_ix"),
-                            Columns = [new IndexColumn(new SqlIdentifier("email_address"), Sort: IndexSort.Descending, Nulls: IndexNulls.Last), new IndexColumn(Expression: new SqlText("lower(email_address)"))],
-                            IsUnique = true, Method = "btree", Include = [new SqlIdentifier("id")] }] },
+                        Indexes = [new TableIndex { Name = "users_email_ix",
+                            Columns = [new IndexColumn("email_address", Sort: IndexSort.Descending, Nulls: IndexNulls.Last), new IndexColumn(Expression: "lower(email_address)")],
+                            IsUnique = true, Method = "btree", Include = ["id"] }] },
                 ],
                 Views = [
                     View("active_users", "SELECT id, email_address FROM app.users WHERE active"),
@@ -124,50 +124,50 @@ public sealed class DatabaseComparerSnapshotTests
                 ],
                 // Enums: a value appended, a rename, a drop, and an addition.
                 Enums = [
-                    new EnumType { Name = new SqlIdentifier("order_status"), Values = ["pending", "shipped", "delivered"] },
-                    new EnumType { Name = new SqlIdentifier("priority"), Values = ["low", "high"] },
-                    new EnumType { Name = new SqlIdentifier("severity"), Values = ["info", "error"] },
+                    new EnumType { Name = "order_status", Values = ["pending", "shipped", "delivered"] },
+                    new EnumType { Name = "priority", Values = ["low", "high"] },
+                    new EnumType { Name = "severity", Values = ["info", "error"] },
                 ],
                 // Sequences: an options change, a drop, and an addition.
                 Sequences = [
-                    new Sequence { Name = new SqlIdentifier("order_id"), Options = new SequenceOptions(StartWith: 1000, IncrementBy: 10, Cycle: true) },
-                    new Sequence { Name = new SqlIdentifier("batch_id") },
+                    new Sequence { Name = "order_id", Options = new SequenceOptions(StartWith: 1000, IncrementBy: 10, Cycle: true) },
+                    new Sequence { Name = "batch_id" },
                 ],
                 // Routines: a body replace, a signature change (recreate), an addition, and a procedure.
                 Routines = [
-                    new Routine { Name = new SqlIdentifier("add_tax"), RoutineKind = RoutineKind.Function, Arguments = new SqlText("amount numeric"), Definition = new SqlText("RETURNS numeric AS $$ SELECT amount * 1.2 $$") },
-                    new Routine { Name = new SqlIdentifier("score"), RoutineKind = RoutineKind.Function, Arguments = new SqlText("user_id bigint, weight numeric"), Definition = new SqlText("RETURNS numeric AS $$ SELECT 1 $$") },
-                    new Routine { Name = new SqlIdentifier("brand_new"), RoutineKind = RoutineKind.Function, Arguments = new SqlText(""), Definition = new SqlText("RETURNS int AS $$ SELECT 42 $$") },
-                    new Routine { Name = new SqlIdentifier("archive"), RoutineKind = RoutineKind.Procedure, Arguments = new SqlText("before date"), Definition = new SqlText("LANGUAGE sql AS $$ DELETE $$") },
+                    new Routine { Name = "add_tax", RoutineKind = RoutineKind.Function, Arguments = "amount numeric", Definition = "RETURNS numeric AS $$ SELECT amount * 1.2 $$" },
+                    new Routine { Name = "score", RoutineKind = RoutineKind.Function, Arguments = "user_id bigint, weight numeric", Definition = "RETURNS numeric AS $$ SELECT 1 $$" },
+                    new Routine { Name = "brand_new", RoutineKind = RoutineKind.Function, Arguments = "", Definition = "RETURNS int AS $$ SELECT 42 $$" },
+                    new Routine { Name = "archive", RoutineKind = RoutineKind.Procedure, Arguments = "before date", Definition = "LANGUAGE sql AS $$ DELETE $$" },
                 ],
                 // Domains: code's base type changes (recreate), stale_domain is dropped, postal_code is added.
                 Domains = [
-                    new DomainType { Name = new SqlIdentifier("code"), DataType = SqlType.VarChar(8) },
-                    new DomainType { Name = new SqlIdentifier("postal_code"), DataType = SqlType.Text, NotNull = true },
+                    new DomainType { Name = "code", DataType = SqlType.VarChar(8) },
+                    new DomainType { Name = "postal_code", DataType = SqlType.Text, NotNull = true },
                 ],
                 // Composite types: address retypes a field + adds one + drops one (all in place), stale_type
                 // is dropped, and coords is added.
                 CompositeTypes = [
-                    new CompositeType { Name = new SqlIdentifier("address"), Fields = [new CompositeField(new SqlIdentifier("street"), SqlType.VarChar(120)), new CompositeField(new SqlIdentifier("zip"), SqlType.Int), new CompositeField(new SqlIdentifier("country"), SqlType.Text)] },
-                    new CompositeType { Name = new SqlIdentifier("coords"), Fields = [new CompositeField(new SqlIdentifier("lat"), SqlType.Decimal(9, 6)), new CompositeField(new SqlIdentifier("lng"), SqlType.Decimal(9, 6))] },
+                    new CompositeType { Name = "address", Fields = [new CompositeField("street", SqlType.VarChar(120)), new CompositeField("zip", SqlType.Int), new CompositeField("country", SqlType.Text)] },
+                    new CompositeType { Name = "coords", Fields = [new CompositeField("lat", SqlType.Decimal(9, 6)), new CompositeField("lng", SqlType.Decimal(9, 6))] },
                 ] },
-            new Schema { Name = new SqlIdentifier("reporting"), Comment = "analytics" },
+            new Schema { Name = "reporting", Comment = "analytics" },
         ],
             // Extensions: citext unchanged, postgis version bump, legacy_ext dropped, vector added.
             Extensions = [
-            new Extension { Name = new SqlIdentifier("citext") },
-            new Extension { Name = new SqlIdentifier("postgis"), Version = "3.4" },
-            new Extension { Name = new SqlIdentifier("vector"), Comment = "embeddings" },
+            new Extension { Name = "citext" },
+            new Extension { Name = "postgis", Version = "3.4" },
+            new Extension { Name = "vector", Comment = "embeddings" },
         ],
         };
 
         // The renames and drops the comment narrates arrive as directives, addressing current reality.
         var directives = new ProjectDirectives(
-            MemberRenames: [new MemberRenameDirective(new MemberAddress(new SqlIdentifier("app"), new SqlIdentifier("users"), new SqlIdentifier("email")), new SqlIdentifier("email_address"))],
+            MemberRenames: [new MemberRenameDirective(new MemberAddress("app", "users", "email"), "email_address")],
             ObjectRenames:
             [
-                new ObjectRenameDirective(new ObjectIdentity(ObjectKind.View, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("legacy_report"))), new SqlIdentifier("report")),
-                new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Enum, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("importance"))), new SqlIdentifier("priority")),
+                new ObjectRenameDirective(new ObjectIdentity(ObjectKind.View, new ObjectAddress("app", "legacy_report")), "report"),
+                new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Enum, new ObjectAddress("app", "importance")), "priority"),
             ]);
 
         return Verify(Compare(current, desired, directives));
@@ -175,7 +175,7 @@ public sealed class DatabaseComparerSnapshotTests
 
     // Builds a view with its dependencies derived from the body, exactly as the DDL parser would.
     private static View View(string name, string body) =>
-        new View { Name = new SqlIdentifier(name), Body = new SqlText(body), DependsOn = ViewDependencyExtractor.Extract(new SqlText(body), new SqlIdentifier("app")) };
+        new View { Name = name, Body = body, DependsOn = ViewDependencyExtractor.Extract(body, "app") };
 
     private DatabaseDiff Compare(Database current, Database desired, ProjectDirectives? directives = null)
     {

@@ -60,13 +60,13 @@ public sealed class NsqlParserTableTests
 
     [Fact]
     public void Column_SchemaQualifiedType_CapturesTheQualifierStructurally()
-        => Column("state app.status").Type.ShouldBe(SqlType.Custom(new SqlIdentifier("app"), "status"));
+        => Column("state app.status").Type.ShouldBe(SqlType.Custom("app", "status"));
 
     [Fact]
     public void Column_SchemaQualifiedType_WithConstraint_Parses()
     {
         var column = Column("state app.status NOT NULL");
-        column.Type.ShouldBe(SqlType.Custom(new SqlIdentifier("app"), "status"));
+        column.Type.ShouldBe(SqlType.Custom("app", "status"));
         column.IsNullable.ShouldBeFalse();
     }
 
@@ -133,8 +133,8 @@ public sealed class NsqlParserTableTests
             .ForeignKeys.Single();
         fk.Name.ShouldBe("fk_user");
         fk.ColumnNames.ShouldBe(["user_id"]);
-        fk.ReferencedSchema.ShouldBe("app");
-        fk.ReferencedTable.ShouldBe("users");
+        fk.References.Schema.ShouldBe("app");
+        fk.References.Name.ShouldBe("users");
         fk.ReferencedColumnNames.ShouldBe(["id"]);
         fk.OnDelete.ShouldBe(ReferentialAction.Cascade);
         fk.OnUpdate.ShouldBe(ReferentialAction.SetNull);
@@ -272,7 +272,7 @@ public sealed class NsqlParserTableTests
         table.Columns.Select(c => c.Name).ShouldBe(["order_id", "product_id", "quantity", "note"]);
         table.Columns.Single(c => c.Name.Value.Equals("quantity")).DefaultExpression.ShouldBe("1");
         table.PrimaryKey!.ColumnNames.ShouldBe(["order_id", "product_id"]);
-        table.ForeignKeys.Single().ReferencedTable.ShouldBe("orders");
+        table.ForeignKeys.Single().References.Name.ShouldBe("orders");
         table.CheckConstraints.Single().Expression.ShouldBe("quantity > 0");
         table.Indexes.Select(i => (i.Name.Value, i.IsUnique)).ShouldBe([("ix_product", false), ("ux_note", true)]);
         table.Indexes.Single(i => i.Name.Value.Equals("ux_note")).Predicate.ShouldBe("note IS NOT NULL");

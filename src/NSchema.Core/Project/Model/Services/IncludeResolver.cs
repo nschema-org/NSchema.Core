@@ -36,16 +36,16 @@ internal sealed class IncludeResolver(IReadOnlyDictionary<SqlIdentifier, Templat
         }
 
         var byTable = includes
-            .GroupBy(i => (i.SchemaName, i.TableName))
+            .GroupBy(i => i.Table)
             .ToDictionary(g => g.Key, g => g.ToList());
 
         // The database is the assembly's own aggregate, so includes merge into it in place.
-        var consumed = new HashSet<(SqlIdentifier Schema, SqlIdentifier Table)>();
+        var consumed = new HashSet<ObjectAddress>();
         foreach (var definition in database.Schemas)
         {
             foreach (var table in definition.Tables)
             {
-                var key = (definition.Name, table.Name);
+                var key = new ObjectAddress(definition.Name, table.Name);
                 if (!byTable.TryGetValue(key, out var tableIncludes))
                 {
                     continue;
@@ -60,7 +60,7 @@ internal sealed class IncludeResolver(IReadOnlyDictionary<SqlIdentifier, Templat
         foreach (var dangling in byTable.Keys.Where(key => !consumed.Contains(key)))
         {
             var include = byTable[dangling][0];
-            _diagnostics.Add(TemplateDiagnostics.IncludeUnknownTable(include.TemplateName, include.SchemaName, include.TableName));
+            _diagnostics.Add(TemplateDiagnostics.IncludeUnknownTable(include.TemplateName, include.Table));
         }
 
         return database;
@@ -130,9 +130,9 @@ internal sealed class IncludeResolver(IReadOnlyDictionary<SqlIdentifier, Templat
             foreach (var fk in members.ForeignKeys)
             {
                 var copy = fk.Clone();
-                if (copy.ReferencedSchema == _includePlaceholder)
+                if (copy.References.Schema == _includePlaceholder)
                 {
-                    copy.ReferencedSchema = schemaName;
+                    copy.References = copy.References with { Schema = schemaName };
                 }
                 table.ForeignKeys.Add(copy);
             }

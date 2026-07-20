@@ -22,11 +22,11 @@ public sealed class ImportOperationTests : IDisposable
     private readonly IProgress<OperationProgress> _progress = Substitute.For<IProgress<OperationProgress>>();
 
     // Tables carry a column because the DDL grammar has no empty-table form.
-    private static Table MakeTable(string name) => new Table { Name = new SqlIdentifier(name), Columns = [new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int }] };
+    private static Table MakeTable(string name) => new Table { Name = name, Columns = [new Column { Name = "id", Type = SqlType.Int }] };
 
     private readonly Database _schema = new Database
     {
-        Schemas = [new Schema { Name = new SqlIdentifier("app"),
+        Schemas = [new Schema { Name = "app",
         Tables = [MakeTable("users"), MakeTable("orders")] }],
     };
 
@@ -97,7 +97,7 @@ public sealed class ImportOperationTests : IDisposable
     [Fact]
     public async Task Execute_PassesScopeFilterToSource()
     {
-        var arguments = new ImportArguments { OutputDirectory = _dir, Scope = PlanningScope.To(new SqlIdentifier("app"), new SqlIdentifier("audit")) };
+        var arguments = new ImportArguments { OutputDirectory = _dir, Scope = PlanningScope.To("app", "audit") };
 
         await Execute(arguments);
 
@@ -213,8 +213,8 @@ public sealed class ImportOperationTests : IDisposable
         Source(new Database
         {
             Schemas = [
-            new Schema { Name = new SqlIdentifier("app"), Tables = [MakeTable("users")] },
-            new Schema { Name = new SqlIdentifier("audit"), Tables = [MakeTable("logs")] },
+            new Schema { Name = "app", Tables = [MakeTable("users")] },
+            new Schema { Name = "audit", Tables = [MakeTable("logs")] },
         ],
         });
 
@@ -250,10 +250,10 @@ public sealed class ImportOperationTests : IDisposable
     public async Task Execute_ReimportPreservesObjectsNotInIncoming()
     {
         // Each object is its own file, so an object absent from a later import is simply not rewritten.
-        Source(new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [MakeTable("audit_log")] }] });
+        Source(new Database { Schemas = [new Schema { Name = "app", Tables = [MakeTable("audit_log")] }] });
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
-        Source(new Database { Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [MakeTable("users")] }] });
+        Source(new Database { Schemas = [new Schema { Name = "app", Tables = [MakeTable("users")] }] });
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
         (await ReadAll()).Schemas.Single().Tables.Select(t => t.Name).ShouldBe(["audit_log", "users"], ignoreOrder: true);
@@ -264,15 +264,15 @@ public sealed class ImportOperationTests : IDisposable
     {
         Source(new Database
         {
-            Schemas = [new Schema { Name = new SqlIdentifier("app"),
-            Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("old_col"), Type = SqlType.Text }] }] }],
+            Schemas = [new Schema { Name = "app",
+            Tables = [new Table { Name = "users", Columns = [new Column { Name = "old_col", Type = SqlType.Text }] }] }],
         });
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
         Source(new Database
         {
-            Schemas = [new Schema { Name = new SqlIdentifier("app"),
-            Tables = [new Table { Name = new SqlIdentifier("users"), Columns = [new Column { Name = new SqlIdentifier("new_col"), Type = SqlType.Text }] }] }],
+            Schemas = [new Schema { Name = "app",
+            Tables = [new Table { Name = "users", Columns = [new Column { Name = "new_col", Type = SqlType.Text }] }] }],
         });
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
@@ -287,10 +287,10 @@ public sealed class ImportOperationTests : IDisposable
         // duplicate) them.
         var schema = new Database
         {
-            Schemas = [new Schema { Name = new SqlIdentifier("app"),
-            Enums = [new EnumType { Name = new SqlIdentifier("status"), Values = ["a"] }],
-            Sequences = [new Sequence { Name = new SqlIdentifier("order_id"), Options = new SequenceOptions(StartWith: 1) }],
-            Domains = [new DomainType { Name = new SqlIdentifier("typeid"), DataType = SqlType.Text }] }],
+            Schemas = [new Schema { Name = "app",
+            Enums = [new EnumType { Name = "status", Values = ["a"] }],
+            Sequences = [new Sequence { Name = "order_id", Options = new SequenceOptions(StartWith: 1) }],
+            Domains = [new DomainType { Name = "typeid", DataType = SqlType.Text }] }],
         };
 
         Source(schema);
@@ -298,10 +298,10 @@ public sealed class ImportOperationTests : IDisposable
 
         Source(new Database
         {
-            Schemas = [new Schema { Name = new SqlIdentifier("app"),
-            Enums = [new EnumType { Name = new SqlIdentifier("status"), Values = ["a", "b"] }],
-            Sequences = [new Sequence { Name = new SqlIdentifier("order_id"), Options = new SequenceOptions(StartWith: 100) }],
-            Domains = [new DomainType { Name = new SqlIdentifier("typeid"), DataType = SqlType.VarChar(64) }] }],
+            Schemas = [new Schema { Name = "app",
+            Enums = [new EnumType { Name = "status", Values = ["a", "b"] }],
+            Sequences = [new Sequence { Name = "order_id", Options = new SequenceOptions(StartWith: 100) }],
+            Domains = [new DomainType { Name = "typeid", DataType = SqlType.VarChar(64) }] }],
         });
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
@@ -318,8 +318,8 @@ public sealed class ImportOperationTests : IDisposable
     {
         Source(new Database
         {
-            Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [MakeTable("users")] }],
-            Extensions = [new Extension { Name = new SqlIdentifier("citext") }, new Extension { Name = new SqlIdentifier("postgis"), Version = "3.4" }],
+            Schemas = [new Schema { Name = "app", Tables = [MakeTable("users")] }],
+            Extensions = [new Extension { Name = "citext" }, new Extension { Name = "postgis", Version = "3.4" }],
         });
 
         await Execute(new ImportArguments { OutputDirectory = _dir });
@@ -342,15 +342,15 @@ public sealed class ImportOperationTests : IDisposable
     {
         Source(new Database
         {
-            Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [MakeTable("users")] }],
-            Extensions = [new Extension { Name = new SqlIdentifier("citext") }],
+            Schemas = [new Schema { Name = "app", Tables = [MakeTable("users")] }],
+            Extensions = [new Extension { Name = "citext" }],
         });
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
         Source(new Database
         {
-            Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [MakeTable("users")] }],
-            Extensions = [new Extension { Name = new SqlIdentifier("postgis"), Version = "3.4" }],
+            Schemas = [new Schema { Name = "app", Tables = [MakeTable("users")] }],
+            Extensions = [new Extension { Name = "postgis", Version = "3.4" }],
         });
         await Execute(new ImportArguments { OutputDirectory = _dir });
 
@@ -378,14 +378,14 @@ public sealed class ImportOperationTests : IDisposable
 
     private static Database RichSchema() => new Database
     {
-        Schemas = [new Schema { Name = new SqlIdentifier("app"),
+        Schemas = [new Schema { Name = "app",
         Tables = [MakeTable("users"), MakeTable("orders")],
-        Views = [new View { Name = new SqlIdentifier("active"), Body = new SqlText("SELECT 1") }],
+        Views = [new View { Name = "active", Body = "SELECT 1" }],
         Routines = [
-            new Routine { Name = new SqlIdentifier("calc"), RoutineKind = RoutineKind.Function, Arguments = new SqlText(""), Definition = new SqlText("RETURNS int LANGUAGE sql AS $$ SELECT 1 $$") },
-            new Routine { Name = new SqlIdentifier("sync"), RoutineKind = RoutineKind.Procedure, Arguments = new SqlText(""), Definition = new SqlText("LANGUAGE sql AS $$ SELECT 1 $$") },
+            new Routine { Name = "calc", RoutineKind = RoutineKind.Function, Arguments = "", Definition = "RETURNS int LANGUAGE sql AS $$ SELECT 1 $$" },
+            new Routine { Name = "sync", RoutineKind = RoutineKind.Procedure, Arguments = "", Definition = "LANGUAGE sql AS $$ SELECT 1 $$" },
         ],
-        Enums = [new EnumType { Name = new SqlIdentifier("status"), Values = ["a"] }],
-        Sequences = [new Sequence { Name = new SqlIdentifier("order_id"), Options = new SequenceOptions(StartWith: 1) }] }],
+        Enums = [new EnumType { Name = "status", Values = ["a"] }],
+        Sequences = [new Sequence { Name = "order_id", Options = new SequenceOptions(StartWith: 1) }] }],
     };
 }

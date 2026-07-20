@@ -11,18 +11,18 @@ public class ObjectAddressTests
     public void Equals_CaseVariantComponents_AreDifferentAddresses()
     {
         // Arrange
-        var lower = new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users"));
-        var mixed = new ObjectAddress(new SqlIdentifier("App"), new SqlIdentifier("USERS"));
+        var lower = new ObjectAddress("app", "users");
+        var mixed = new ObjectAddress("App", "USERS");
 
         // Assert
         lower.ShouldNotBe(mixed);
-        lower.ShouldBe(new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users")));
+        lower.ShouldBe(new ObjectAddress("app", "users"));
     }
 
     [Fact]
     public void ToString_RendersAsWritten()
     {
         // Assert
-        new ObjectAddress(new SqlIdentifier("App"), new SqlIdentifier("Users")).ToString().ShouldBe("App.Users");
+        new ObjectAddress("App", "Users").ToString().ShouldBe("App.Users");
     }
 }

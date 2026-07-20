@@ -48,10 +48,7 @@
           Kind: View,
           Body: SELECT id, name FROM app.users,
           DependsOn: [
-            {
-              Schema: app,
-              Name: users
-            }
+            app.users
           ],
           IsMaterialized: false,
           Name: active_users,
@@ -61,10 +58,7 @@
           Kind: View,
           Body: SELECT id, amount FROM app.invoices,
           DependsOn: [
-            {
-              Schema: app,
-              Name: invoices
-            }
+            app.invoices
           ],
           IsMaterialized: false,
           Name: invoice_totals
@@ -92,10 +86,7 @@
           Kind: View,
           Body: SELECT day FROM reporting.daily_totals,
           DependsOn: [
-            {
-              Schema: reporting,
-              Name: daily_totals
-            }
+            reporting.daily_totals
           ],
           IsMaterialized: false,
           Name: weekly_rollup

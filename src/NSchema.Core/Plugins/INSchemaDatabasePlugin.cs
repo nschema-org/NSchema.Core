@@ -1,16 +1,16 @@
 namespace NSchema.Plugins;
 
 /// <summary>
-/// A plugin that supplies a database provider for one engine.
+/// A plugin that supplies a database provider for one engine, configured by a <c>DATABASE</c> statement.
 /// </summary>
-public interface INSchemaProviderPlugin : INSchemaPlugin
+public interface INSchemaDatabasePlugin : INSchemaPlugin
 {
     /// <summary>
     /// Registers this provider onto the application being built, interpreting the project's <c>DATABASE</c> statement.
     /// </summary>
     /// <param name="builder">The application builder to register the provider's services on.</param>
-    /// <param name="settings">The statement's translated settings.</param>
-    Result Configure(NSchemaApplicationBuilder builder, PluginSettings settings);
+    /// <param name="config">The statement's translated settings.</param>
+    Result Configure(NSchemaApplicationBuilder builder, PluginConfig config);
 
     /// <summary>
     /// Builds the starter desired-schema DDL this provider contributes when a new project is scaffolded.

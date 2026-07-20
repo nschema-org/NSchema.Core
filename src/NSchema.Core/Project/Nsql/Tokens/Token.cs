@@ -19,7 +19,29 @@ internal readonly record struct Token(TokenKind Kind, string Text, SourcePositio
     /// </summary>
     /// <param name="keyword">The keyword to test against.</param>
     public bool IsKeyword(string keyword) =>
-        Kind == TokenKind.Identifier && string.Equals(Text, keyword, StringComparison.OrdinalIgnoreCase);
+        Kind == TokenKind.Identifier && NsqlKeywords.Comparer.Equals(Text, keyword);
+
+    /// <summary>
+    /// Whether this token matches any keyword in <paramref name="keywords"/> (a group from <see cref="NsqlKeywords"/>).
+    /// </summary>
+    /// <param name="keywords">The keyword group to test against.</param>
+    public bool IsAnyKeyword(IReadOnlySet<string> keywords) => Kind == TokenKind.Identifier && keywords.Contains(Text);
+
+    /// <summary>
+    /// Whether this token matches any of <paramref name="keywords"/>.
+    /// </summary>
+    /// <param name="keywords">The keywords to test against.</param>
+    public bool IsAnyKeyword(params ReadOnlySpan<string> keywords)
+    {
+        foreach (var keyword in keywords)
+        {
+            if (IsKeyword(keyword))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /// <summary>
     /// Whether this token can serve as an object name: a bare or quoted identifier.

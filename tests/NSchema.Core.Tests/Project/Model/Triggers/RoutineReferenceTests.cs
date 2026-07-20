@@ -13,20 +13,20 @@ public class RoutineReferenceTests
     public void Equals_CaseVariantComponents_AreDifferentReferences()
     {
         // Arrange
-        var lower = new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("log_change"));
-        var mixed = new RoutineReference(new SqlIdentifier("App"), new SqlIdentifier("LOG_CHANGE"));
+        var lower = new RoutineReference("app", "log_change");
+        var mixed = new RoutineReference("App", "LOG_CHANGE");
 
         // Assert
         lower.ShouldNotBe(mixed);
-        lower.ShouldBe(new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("log_change")));
+        lower.ShouldBe(new RoutineReference("app", "log_change"));
     }
 
     [Fact]
     public void Equals_QualifiedAndUnqualified_AreDistinct()
     {
         // An unqualified reference resolves by search path; it is not the same reference as a qualified one.
-        var qualified = new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("log"));
-        var unqualified = new RoutineReference(null, new SqlIdentifier("log"));
+        var qualified = new RoutineReference("app", "log");
+        var unqualified = new RoutineReference(null, "log");
 
         // Assert
         qualified.ShouldNotBe(unqualified);
@@ -36,8 +36,8 @@ public class RoutineReferenceTests
     public void ToString_RendersAsWritten()
     {
         // Assert
-        new RoutineReference(new SqlIdentifier("App"), new SqlIdentifier("Log")).ToString().ShouldBe("App.Log");
-        new RoutineReference(null, new SqlIdentifier("log")).ToString().ShouldBe("log");
+        new RoutineReference("App", "Log").ToString().ShouldBe("App.Log");
+        new RoutineReference(null, "log").ToString().ShouldBe("log");
     }
 
     [Fact]
@@ -45,12 +45,12 @@ public class RoutineReferenceTests
     {
         // The template applicator resolves a template routine into the applied schema by setting the
         // schema part — never by string concatenation.
-        var unqualified = new RoutineReference(null, new SqlIdentifier("log"));
+        var unqualified = new RoutineReference(null, "log");
 
         // Act
-        var qualified = unqualified with { Schema = new SqlIdentifier("app") };
+        var qualified = unqualified with { Schema = "app" };
 
         // Assert
-        qualified.ShouldBe(new RoutineReference(new SqlIdentifier("app"), new SqlIdentifier("log")));
+        qualified.ShouldBe(new RoutineReference("app", "log"));
     }
 }

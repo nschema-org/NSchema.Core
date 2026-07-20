@@ -9,9 +9,4 @@ public sealed record ScaffoldContext
     /// The environment the fragment is being scaffolded for, or <see langword="null"/> for the base configuration.
     /// </summary>
     public string? EnvironmentName { get; init; }
-
-    /// <summary>
-    /// The plugin package version to pin in the rendered block, or <see langword="null"/> when the host has not resolved one.
-    /// </summary>
-    public string? Version { get; init; }
 }

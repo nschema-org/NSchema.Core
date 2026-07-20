@@ -161,6 +161,11 @@ public abstract partial class SqlDialect
     protected virtual string Qualify(SqlIdentifier schema, SqlIdentifier name) => $"{Quote(schema)}.{Quote(name)}";
 
     /// <summary>
+    /// Renders an object address as its quoted, qualified name.
+    /// </summary>
+    protected string Qualify(ObjectAddress address) => Qualify(address.Schema, address.Name);
+
+    /// <summary>
     /// Renders a comma-separated list of quoted identifiers.
     /// </summary>
     protected string ColumnList(IEnumerable<SqlIdentifier> columns) => string.Join(", ", columns.Select(Quote));
@@ -171,7 +176,7 @@ public abstract partial class SqlDialect
     /// A successful single-statement rendering.
     /// </summary>
     protected static Result<IReadOnlyList<SqlStatement>> Statement(string sql, bool runOutsideTransaction = false) =>
-        Result.Success<IReadOnlyList<SqlStatement>>([new SqlStatement(new SqlText(sql), runOutsideTransaction)]);
+        Result.Success<IReadOnlyList<SqlStatement>>([new SqlStatement(sql, runOutsideTransaction)]);
 
     /// <summary>
     /// A successful rendering of the given statements.

@@ -21,7 +21,7 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_NewExtension_IsAddCarryingDefinition()
     {
-        var diff = DiffExtensions([], [new Extension { Name = new SqlIdentifier("postgis"), Version = "3.4" }]);
+        var diff = DiffExtensions([], [new Extension { Name = "postgis", Version = "3.4" }]);
 
         diff!.Kind.ShouldBe(ChangeKind.Add);
         diff.Definition!.Name.ShouldBe("postgis");
@@ -33,7 +33,7 @@ public partial class DatabaseComparerTests
     {
         // The current side only ever contains managed extensions, so absence from the desired set is a
         // removal like any other object; unmanaged shared infrastructure never enters the compare.
-        var diff = DiffExtensions([new Extension { Name = new SqlIdentifier("citext") }], []);
+        var diff = DiffExtensions([new Extension { Name = "citext" }], []);
 
         diff!.Kind.ShouldBe(ChangeKind.Remove);
         diff.Name.ShouldBe("citext");
@@ -41,17 +41,17 @@ public partial class DatabaseComparerTests
 
     [Fact]
     public void Compare_UnchangedExtension_ProducesNoDiff()
-        => DiffExtensions([new Extension { Name = new SqlIdentifier("citext") }], [new Extension { Name = new SqlIdentifier("citext") }]).ShouldBeNull();
+        => DiffExtensions([new Extension { Name = "citext" }], [new Extension { Name = "citext" }]).ShouldBeNull();
 
     [Fact]
     public void Compare_OmittedDesiredVersion_IsNotComparedAgainstInstalledVersion()
         // A null desired version means "accept whatever is installed", so an omitted version can never drift.
-        => DiffExtensions([new Extension { Name = new SqlIdentifier("postgis"), Version = "3.4" }], [new Extension { Name = new SqlIdentifier("postgis") }]).ShouldBeNull();
+        => DiffExtensions([new Extension { Name = "postgis", Version = "3.4" }], [new Extension { Name = "postgis" }]).ShouldBeNull();
 
     [Fact]
     public void Compare_ExtensionVersionChange_CarriesOldAndNewVersion()
     {
-        var diff = DiffExtensions([new Extension { Name = new SqlIdentifier("postgis"), Version = "3.3" }], [new Extension { Name = new SqlIdentifier("postgis"), Version = "3.4" }]);
+        var diff = DiffExtensions([new Extension { Name = "postgis", Version = "3.3" }], [new Extension { Name = "postgis", Version = "3.4" }]);
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.Version.ShouldBe(new ValueChange<string>("3.3", "3.4"));
@@ -60,7 +60,7 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_ExtensionCommentOnlyChange_IsModify()
     {
-        var diff = DiffExtensions([new Extension { Name = new SqlIdentifier("citext"), Comment = "old" }], [new Extension { Name = new SqlIdentifier("citext"), Comment = "new" }]);
+        var diff = DiffExtensions([new Extension { Name = "citext", Comment = "old" }], [new Extension { Name = "citext", Comment = "new" }]);
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.Comment.ShouldBe(new ValueChange<string>("old", "new"));

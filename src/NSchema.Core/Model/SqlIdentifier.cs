@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace NSchema.Model;
 
 /// <summary>
@@ -23,4 +25,10 @@ public sealed record SqlIdentifier : ValueObject<string>, IComparable<SqlIdentif
 
     /// <inheritdoc />
     public int CompareTo(SqlIdentifier? other) => StringComparer.Ordinal.Compare(Value, other?.Value);
+
+    /// <summary>
+    /// Wraps the name as written. One-way: a name never converts silently back to a bare string.
+    /// </summary>
+    [return: NotNullIfNotNull(nameof(value))]
+    public static implicit operator SqlIdentifier?(string? value) => value is null ? null : new(value);
 }

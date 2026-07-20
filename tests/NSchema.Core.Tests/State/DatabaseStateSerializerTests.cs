@@ -35,7 +35,7 @@ public sealed class DatabaseStateSerializerTests
         // Arrange
         var schema = new Database
         {
-            Schemas = [new Schema { Name = new SqlIdentifier("app"), Tables = [new Table { Name = new SqlIdentifier("t"), Columns = [new Column { Name = new SqlIdentifier("c"), Type = type }] }] }],
+            Schemas = [new Schema { Name = "app", Tables = [new Table { Name = "t", Columns = [new Column { Name = "c", Type = type }] }] }],
         };
 
         // Act
@@ -60,9 +60,9 @@ public sealed class DatabaseStateSerializerTests
         var schema = new Database
         {
             Schemas = [
-            new Schema { Name = new SqlIdentifier("app"), Tables = [
-                new Table { Name = new SqlIdentifier("users"), ForeignKeys = [
-                    new ForeignKey { Name = new SqlIdentifier("fk"), ColumnNames = [new SqlIdentifier("org_id")], ReferencedSchema = new SqlIdentifier("app"), ReferencedTable = new SqlIdentifier("orgs"), ReferencedColumnNames = [new SqlIdentifier("id")], OnDelete = ReferentialAction.Cascade },
+            new Schema { Name = "app", Tables = [
+                new Table { Name = "users", ForeignKeys = [
+                    new ForeignKey { Name = "fk", ColumnNames = ["org_id"], References = new("app", "orgs"), ReferencedColumnNames = ["id"], OnDelete = ReferentialAction.Cascade },
                 ] },
             ] },
         ],
@@ -85,8 +85,8 @@ public sealed class DatabaseStateSerializerTests
         var schema = new Database
         {
             Schemas = [
-            new Schema { Name = new SqlIdentifier("app"), Tables = [
-                new Table { Name = new SqlIdentifier("t"), Columns = [new Column { Name = new SqlIdentifier("c"), Type = SqlType.Int }] },
+            new Schema { Name = "app", Tables = [
+                new Table { Name = "t", Columns = [new Column { Name = "c", Type = SqlType.Int }] },
             ] },
         ],
         };
@@ -104,8 +104,8 @@ public sealed class DatabaseStateSerializerTests
     public void RoundTrip_PreservesExecutedScripts()
     {
         // Arrange
-        var executed = new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("api-login")), "abc123", new DateTimeOffset(2026, 7, 10, 12, 0, 0, TimeSpan.Zero));
-        var state = new DatabaseState(new Database { Schemas = [new Schema { Name = new SqlIdentifier("app") }] }, [executed]);
+        var executed = new ScriptExecution(new ScopedAddress(null, "api-login"), "abc123", new DateTimeOffset(2026, 7, 10, 12, 0, 0, TimeSpan.Zero));
+        var state = new DatabaseState(new Database { Schemas = [new Schema { Name = "app" }] }, [executed]);
 
         // Act
         var roundTripped = _sut.Deserialize(_sut.Serialize(state));
@@ -120,7 +120,7 @@ public sealed class DatabaseStateSerializerTests
         // Pins the wire field name — renaming it silently empties every existing ledger.
         var state = new DatabaseState(
             new Database { Schemas = [] },
-            [new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("api-login")), "abc123", DateTimeOffset.UnixEpoch)]);
+            [new ScriptExecution(new ScopedAddress(null, "api-login"), "abc123", DateTimeOffset.UnixEpoch)]);
 
         var json = Encoding.UTF8.GetString(_sut.Serialize(state).Span);
 
@@ -132,8 +132,8 @@ public sealed class DatabaseStateSerializerTests
         // Pins the ledger entry's wire shape: the script address is structural ({schema, name}, schema null
         // when the script is global), beside the hash and timestamp.
         => VerifyJson(Encoding.UTF8.GetString(_sut.Serialize(new DatabaseState(new Database { Schemas = [] }, [
-            new ScriptExecution(new ScopedAddress(null, new SqlIdentifier("api-login")), "abc123", DateTimeOffset.UnixEpoch),
-            new ScriptExecution(new ScopedAddress(new SqlIdentifier("sales"), new SqlIdentifier("seed")), "def456", DateTimeOffset.UnixEpoch),
+            new ScriptExecution(new ScopedAddress(null, "api-login"), "abc123", DateTimeOffset.UnixEpoch),
+            new ScriptExecution(new ScopedAddress("sales", "seed"), "def456", DateTimeOffset.UnixEpoch),
         ])).Span));
 
     [Fact]
@@ -143,9 +143,9 @@ public sealed class DatabaseStateSerializerTests
         => VerifyJson(Encoding.UTF8.GetString(_sut.Serialize(new DatabaseState(new Database { Schemas = [] })
         {
             Managed = new IdentitySet(
-                Schemas: [new SqlIdentifier("app")],
-                Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress(new SqlIdentifier("app"), new SqlIdentifier("users")))],
-                Extensions: [new SqlIdentifier("citext")]),
+                Schemas: ["app"],
+                Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress("app", "users"))],
+                Extensions: ["citext"]),
         }).Span));
 
     [Fact]

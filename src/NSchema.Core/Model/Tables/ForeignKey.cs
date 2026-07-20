@@ -14,14 +14,9 @@ public sealed class ForeignKey : DatabaseMember, IEquatable<ForeignKey>
     public required List<SqlIdentifier> ColumnNames { get; init; }
 
     /// <summary>
-    /// The name of the schema that contains the referenced table.
+    /// The address of the table the foreign key references.
     /// </summary>
-    public required SqlIdentifier ReferencedSchema { get; set; }
-
-    /// <summary>
-    /// The name of the table that is referenced by the foreign key constraint.
-    /// </summary>
-    public required SqlIdentifier ReferencedTable { get; set; }
+    public required ObjectAddress References { get; set; }
 
     /// <summary>
     /// A list of column names in the referenced table that are part of the foreign key constraint.
@@ -43,8 +38,7 @@ public sealed class ForeignKey : DatabaseMember, IEquatable<ForeignKey>
     {
         Name = Name,
         ColumnNames = [.. ColumnNames],
-        ReferencedSchema = ReferencedSchema,
-        ReferencedTable = ReferencedTable,
+        References = References,
         ReferencedColumnNames = [.. ReferencedColumnNames],
         OnDelete = OnDelete,
         OnUpdate = OnUpdate,
@@ -58,8 +52,7 @@ public sealed class ForeignKey : DatabaseMember, IEquatable<ForeignKey>
         other is not null
         && Name == other.Name
         && ColumnNames.SequenceEqual(other.ColumnNames)
-        && ReferencedSchema == other.ReferencedSchema
-        && ReferencedTable == other.ReferencedTable
+        && References == other.References
         && ReferencedColumnNames.SequenceEqual(other.ReferencedColumnNames)
         && OnDelete == other.OnDelete
         && OnUpdate == other.OnUpdate;
@@ -69,8 +62,8 @@ public sealed class ForeignKey : DatabaseMember, IEquatable<ForeignKey>
 
     /// <inheritdoc/>
     public override int GetHashCode() =>
-        HashCode.Combine(Name, ColumnNames.Count, ReferencedSchema, ReferencedTable, ReferencedColumnNames.Count, OnDelete, OnUpdate);
+        HashCode.Combine(Name, ColumnNames.Count, References, ReferencedColumnNames.Count, OnDelete, OnUpdate);
 
     private string DebuggerDisplay =>
-        $"{Name}: ({string.Join(", ", ColumnNames)}) -> {ReferencedSchema}.{ReferencedTable} ({string.Join(", ", ReferencedColumnNames)})";
+        $"{Name}: ({string.Join(", ", ColumnNames)}) -> {References} ({string.Join(", ", ReferencedColumnNames)})";
 }

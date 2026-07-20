@@ -37,14 +37,14 @@ internal sealed partial class NsqlParser
 
         ScriptEventClause scriptEvent;
         var eventPosition = _current.Position;
-        if (_current.IsKeyword(NsqlKeywords.Pre) || _current.IsKeyword(NsqlKeywords.Post))
+        if (_current.IsAnyKeyword(NsqlKeywords.Pre, NsqlKeywords.Post))
         {
             var phase = _current.IsKeyword(NsqlKeywords.Pre) ? DeploymentPhase.Pre : DeploymentPhase.Post;
             Advance(); // PRE | POST
             ExpectKeyword(NsqlKeywords.Deployment);
             scriptEvent = new DeploymentEventClause(phase) { Position = eventPosition };
         }
-        else if (_current.IsKeyword(NsqlKeywords.Add) || _current.IsKeyword(NsqlKeywords.Alter))
+        else if (_current.IsAnyKeyword(NsqlKeywords.Add, NsqlKeywords.Alter))
         {
             var trigger = ParseChangeTrigger();
             var path = ParseMemberPathNode();
@@ -56,7 +56,7 @@ internal sealed partial class NsqlParser
         }
 
         var (runOutsideTransaction, body) = ParseScriptTail("script");
-        return new ScriptStatement(name, condition, scriptEvent, new SqlText(body), runOutsideTransaction) { Position = position, Doc = doc };
+        return new ScriptStatement(name, condition, scriptEvent, body, runOutsideTransaction) { Position = position, Doc = doc };
     }
 
     private ChangeTrigger ParseChangeTrigger()

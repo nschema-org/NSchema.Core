@@ -45,5 +45,7 @@ public sealed record IndexColumn
     /// A bare column name converts to a plain ascending index key with default null ordering, so the common case
     /// — a list of column names — can be written directly (e.g. <c>["id", "email"]</c>).
     /// </summary>
+    // The explicit SqlIdentifier is load-bearing: a bare string binds the record's synthesized copy
+    // constructor through this very conversion (it fills no optional parameters, so it wins), recursing forever.
     public static implicit operator IndexColumn(string column) => new(new SqlIdentifier(column));
 }

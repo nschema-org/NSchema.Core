@@ -78,125 +78,124 @@ public sealed class SqlDialectTests
 
         // Tables
         new CreateTable(N("app"), new Table { Name = N("users"), Columns = { new Column { Name = N("id"), Type = SqlType.Int } } }),
-        new DropTable(N("app"), N("users")),
-        new RenameTable(N("app"), N("users"), N("accounts")),
-        new AddPrimaryKey(N("app"), N("users"), new PrimaryKey { Name = N("pk_users"), ColumnNames = [N("id")] }),
-        new DropPrimaryKey(N("app"), N("users"), N("pk_users")),
-        new AddForeignKey(N("app"), N("orders"), new ForeignKey
+        new DropTable(new(N("app"), N("users"))),
+        new RenameTable(new(N("app"), N("users")), N("accounts")),
+        new AddPrimaryKey(new(N("app"), N("users")), new PrimaryKey { Name = N("pk_users"), ColumnNames = [N("id")] }),
+        new DropPrimaryKey(new(N("app"), N("users"), N("pk_users"))),
+        new AddForeignKey(new(N("app"), N("orders")), new ForeignKey
         {
             Name = N("fk_orders_users"),
             ColumnNames = [N("user_id")],
-            ReferencedSchema = N("app"),
-            ReferencedTable = N("users"),
+            References = new(N("app"), N("users")),
             ReferencedColumnNames = [N("id")],
             OnDelete = ReferentialAction.Cascade,
         }),
-        new DropForeignKey(N("app"), N("orders"), N("fk_orders_users")),
-        new GrantTablePrivileges(N("app"), N("users"), N("readers"), TablePrivilege.AppendOnly),
-        new RevokeTablePrivileges(N("app"), N("users"), N("readers"), TablePrivilege.All),
-        new SetTableComment(N("app"), N("users"), null, "User accounts"),
+        new DropForeignKey(new(N("app"), N("orders"), N("fk_orders_users"))),
+        new GrantTablePrivileges(new(N("app"), N("users")), N("readers"), TablePrivilege.AppendOnly),
+        new RevokeTablePrivileges(new(N("app"), N("users")), N("readers"), TablePrivilege.All),
+        new SetTableComment(new(N("app"), N("users")), null, "User accounts"),
 
         // Columns
-        new AddColumn(N("app"), N("users"), new Column { Name = N("email"), Type = SqlType.VarChar(200) }),
-        new DropColumn(N("app"), N("users"), new Column { Name = N("email"), Type = SqlType.VarChar(200) }),
-        new RenameColumn(N("app"), N("users"), N("email"), N("email_address")),
-        new AlterColumnType(N("app"), N("users"), N("age"), SqlType.SmallInt, SqlType.Int),
-        new AlterColumnNullability(N("app"), N("users"), N("email"), true, false),
-        new AlterIdentitySequence(N("app"), N("users"), N("id"), null, new IdentityOptions(1, 1, 1)),
-        new SetColumnDefault(N("app"), N("users"), N("age"), null, new SqlText("0")),
-        new SetColumnDefault(N("app"), N("users"), N("age"), new SqlText("0"), null),
-        new SetColumnGenerated(N("app"), N("orders"), N("total"), null, new SqlText("price * quantity")),
-        new SetColumnComment(N("app"), N("users"), N("email"), null, "Primary contact"),
+        new AddColumn(new(N("app"), N("users")), new Column { Name = N("email"), Type = SqlType.VarChar(200) }),
+        new DropColumn(new(N("app"), N("users")), new Column { Name = N("email"), Type = SqlType.VarChar(200) }),
+        new RenameColumn(new(N("app"), N("users"), N("email")), N("email_address")),
+        new AlterColumnType(new(N("app"), N("users"), N("age")), SqlType.SmallInt, SqlType.Int),
+        new AlterColumnNullability(new(N("app"), N("users"), N("email")), true, false),
+        new AlterIdentitySequence(new(N("app"), N("users"), N("id")), null, new IdentityOptions(1, 1, 1)),
+        new SetColumnDefault(new(N("app"), N("users"), N("age")), null, "0"),
+        new SetColumnDefault(new(N("app"), N("users"), N("age")), "0", null),
+        new SetColumnGenerated(new(N("app"), N("orders"), N("total")), null, "price * quantity"),
+        new SetColumnComment(new(N("app"), N("users"), N("email")), null, "Primary contact"),
 
         // Constraints
-        new AddCheckConstraint(N("app"), N("users"), new CheckConstraint { Name = N("ck_age"), Expression = new SqlText("age >= 0") }),
-        new DropCheckConstraint(N("app"), N("users"), N("ck_age")),
-        new AddUniqueConstraint(N("app"), N("users"), new UniqueConstraint { Name = N("uq_email"), ColumnNames = [N("email")] }),
-        new DropUniqueConstraint(N("app"), N("users"), N("uq_email")),
-        new AddExclusionConstraint(N("app"), N("bookings"), new ExclusionConstraint
+        new AddCheckConstraint(new(N("app"), N("users")), new CheckConstraint { Name = N("ck_age"), Expression = "age >= 0" }),
+        new DropCheckConstraint(new(N("app"), N("users"), N("ck_age"))),
+        new AddUniqueConstraint(new(N("app"), N("users")), new UniqueConstraint { Name = N("uq_email"), ColumnNames = [N("email")] }),
+        new DropUniqueConstraint(new(N("app"), N("users"), N("uq_email"))),
+        new AddExclusionConstraint(new(N("app"), N("bookings")), new ExclusionConstraint
         {
             Name = N("ex_overlap"),
             Elements = [new ExclusionElement("&&", N("period"))],
         }),
-        new DropExclusionConstraint(N("app"), N("bookings"), N("ex_overlap")),
-        new SetConstraintComment(N("app"), N("users"), N("ck_age"), null, "Sanity check"),
+        new DropExclusionConstraint(new(N("app"), N("bookings"), N("ex_overlap"))),
+        new SetConstraintComment(new(N("app"), N("users"), N("ck_age")), null, "Sanity check"),
 
         // Indexes
-        new CreateIndex(N("app"), N("users"), new TableIndex { Name = N("ix_users_email"), Columns = [new IndexColumn(N("email"))] }),
-        new DropIndex(N("app"), N("users"), N("ix_users_email")),
-        new SetIndexComment(N("app"), N("users"), N("ix_users_email"), null, "Lookup index"),
+        new CreateIndex(new(N("app"), N("users")), new TableIndex { Name = N("ix_users_email"), Columns = [new IndexColumn(N("email"))] }),
+        new DropIndex(new(N("app"), N("users"), N("ix_users_email"))),
+        new SetIndexComment(new(N("app"), N("users"), N("ix_users_email")), null, "Lookup index"),
 
         // Triggers
-        new CreateTrigger(N("app"), N("users"), new Trigger
+        new CreateTrigger(new(N("app"), N("users")), new Trigger
         {
             Name = N("trg_audit"),
             Timing = TriggerTiming.After,
             Events = TriggerEvent.Insert,
-            Body = new SqlText("INSERT INTO app.audit VALUES (1)"),
+            Body = "INSERT INTO app.audit VALUES (1)",
         }),
-        new DropTrigger(N("app"), N("users"), N("trg_audit")),
-        new SetTriggerComment(N("app"), N("users"), N("trg_audit"), null, "Audit trail"),
+        new DropTrigger(new(N("app"), N("users"), N("trg_audit"))),
+        new SetTriggerComment(new(N("app"), N("users"), N("trg_audit")), null, "Audit trail"),
 
         // Views
-        new CreateView(N("app"), new View { Name = N("active_users"), Body = new SqlText("SELECT * FROM app.users") }),
-        new DropView(N("app"), N("active_users")),
-        new DropView(N("app"), N("user_stats"), IsMaterialized: true),
-        new RenameView(N("app"), N("active_users"), N("current_users")),
-        new RenameView(N("app"), N("user_stats"), N("account_stats"), IsMaterialized: true),
-        new SetViewComment(N("app"), N("active_users"), null, "Active only"),
+        new CreateView(N("app"), new View { Name = N("active_users"), Body = "SELECT * FROM app.users" }),
+        new DropView(new(N("app"), N("active_users"))),
+        new DropView(new(N("app"), N("user_stats")), IsMaterialized: true),
+        new RenameView(new(N("app"), N("active_users")), N("current_users")),
+        new RenameView(new(N("app"), N("user_stats")), N("account_stats"), IsMaterialized: true),
+        new SetViewComment(new(N("app"), N("active_users")), null, "Active only"),
 
         // Enums
         new CreateEnum(N("app"), new EnumType { Name = N("mood"), Values = { "happy", "sad" } }),
-        new DropEnum(N("app"), N("mood")),
-        new RenameEnum(N("app"), N("mood"), N("feeling")),
-        new AddEnumValue(N("app"), N("mood"), "meh", After: "happy"),
-        new SetEnumComment(N("app"), N("mood"), null, "How it's going"),
+        new DropEnum(new(N("app"), N("mood"))),
+        new RenameEnum(new(N("app"), N("mood")), N("feeling")),
+        new AddEnumValue(new(N("app"), N("mood")), "meh", After: "happy"),
+        new SetEnumComment(new(N("app"), N("mood")), null, "How it's going"),
 
         // Domains
         new CreateDomain(N("app"), new DomainType { Name = N("email_address"), DataType = SqlType.Text }),
-        new DropDomain(N("app"), N("email_address")),
-        new RenameDomain(N("app"), N("email_address"), N("contact_address")),
+        new DropDomain(new(N("app"), N("email_address"))),
+        new RenameDomain(new(N("app"), N("email_address")), N("contact_address")),
         new RecreateDomain(N("app"), new DomainType { Name = N("email_address"), DataType = SqlType.VarChar(320) }),
-        new AlterDomainDefault(N("app"), N("email_address"), null, new SqlText("''")),
-        new AlterDomainNotNull(N("app"), N("email_address"), true),
-        new AddDomainCheck(N("app"), N("email_address"), new CheckConstraint { Name = N("ck_at_sign"), Expression = new SqlText("VALUE LIKE '%@%'") }),
-        new DropDomainCheck(N("app"), N("email_address"), N("ck_at_sign")),
-        new SetDomainComment(N("app"), N("email_address"), null, "An email address"),
+        new AlterDomainDefault(new(N("app"), N("email_address")), null, "''"),
+        new AlterDomainNotNull(new(N("app"), N("email_address")), true),
+        new AddDomainCheck(new(N("app"), N("email_address")), new CheckConstraint { Name = N("ck_at_sign"), Expression = "VALUE LIKE '%@%'" }),
+        new DropDomainCheck(new(N("app"), N("email_address"), N("ck_at_sign"))),
+        new SetDomainComment(new(N("app"), N("email_address")), null, "An email address"),
 
         // Composite types
         new CreateCompositeType(N("app"), new CompositeType { Name = N("address"), Fields = { new CompositeField(N("street"), SqlType.Text) } }),
-        new DropCompositeType(N("app"), N("address")),
-        new RenameCompositeType(N("app"), N("address"), N("postal_address")),
-        new AddCompositeField(N("app"), N("address"), new CompositeField(N("country"), SqlType.Text)),
-        new DropCompositeField(N("app"), N("address"), N("country")),
-        new AlterCompositeFieldType(N("app"), N("address"), N("street"), SqlType.Text, SqlType.VarChar(200)),
-        new SetCompositeTypeComment(N("app"), N("address"), null, "A postal address"),
+        new DropCompositeType(new(N("app"), N("address"))),
+        new RenameCompositeType(new(N("app"), N("address")), N("postal_address")),
+        new AddCompositeField(new(N("app"), N("address")), new CompositeField(N("country"), SqlType.Text)),
+        new DropCompositeField(new(N("app"), N("address"), N("country"))),
+        new AlterCompositeFieldType(new(N("app"), N("address"), N("street")), SqlType.Text, SqlType.VarChar(200)),
+        new SetCompositeTypeComment(new(N("app"), N("address")), null, "A postal address"),
 
         // Sequences
         new CreateSequence(N("app"), new Sequence { Name = N("order_seq"), Options = new SequenceOptions(StartWith: 1, IncrementBy: 1) }),
-        new DropSequence(N("app"), N("order_seq")),
-        new RenameSequence(N("app"), N("order_seq"), N("order_numbers")),
-        new AlterSequence(N("app"), N("order_seq"), new SequenceOptions(), new SequenceOptions(IncrementBy: 2)),
-        new SetSequenceComment(N("app"), N("order_seq"), null, "Order numbering"),
+        new DropSequence(new(N("app"), N("order_seq"))),
+        new RenameSequence(new(N("app"), N("order_seq")), N("order_numbers")),
+        new AlterSequence(new(N("app"), N("order_seq")), new SequenceOptions(), new SequenceOptions(IncrementBy: 2)),
+        new SetSequenceComment(new(N("app"), N("order_seq")), null, "Order numbering"),
 
         // Routines
         new CreateRoutine(N("app"), new Routine
         {
             Name = N("add_tax"),
             RoutineKind = RoutineKind.Function,
-            Arguments = new SqlText("amount numeric"),
-            Definition = new SqlText("RETURN amount * 1.2;"),
+            Arguments = "amount numeric",
+            Definition = "RETURN amount * 1.2;",
         }),
-        new DropRoutine(N("app"), N("add_tax"), RoutineKind.Function),
-        new RenameRoutine(N("app"), N("add_tax"), N("apply_tax"), RoutineKind.Function),
+        new DropRoutine(new(N("app"), N("add_tax")), RoutineKind.Function),
+        new RenameRoutine(new(N("app"), N("add_tax")), N("apply_tax"), RoutineKind.Function),
         new RecreateRoutine(N("app"), new Routine
         {
             Name = N("add_tax"),
             RoutineKind = RoutineKind.Function,
-            Arguments = new SqlText("amount numeric, rate numeric"),
-            Definition = new SqlText("RETURN amount * rate;"),
+            Arguments = "amount numeric, rate numeric",
+            Definition = "RETURN amount * rate;",
         }),
-        new SetRoutineComment(N("app"), N("add_tax"), null, "VAT", RoutineKind.Function),
+        new SetRoutineComment(new(N("app"), N("add_tax")), null, "VAT", RoutineKind.Function),
 
         // Extensions
         new CreateExtension(new Extension { Name = N("uuid-ossp") }),
@@ -205,7 +204,7 @@ public sealed class SqlDialectTests
         new SetExtensionComment(N("uuid-ossp"), null, "UUID generation"),
 
         // Scripts
-        new ExecuteScript(new DeploymentScript(N("seed"), new SqlText("INSERT INTO app.users VALUES (1)"), null, DeploymentPhase.Post)),
+        new ExecuteScript(new DeploymentScript(N("seed"), "INSERT INTO app.users VALUES (1)", null, DeploymentPhase.Post)),
     ];
 
     [Fact]
@@ -263,7 +262,7 @@ public sealed class SqlDialectTests
     public void Generate_QuotesEmbeddedQuotes()
     {
         // Act
-        var result = _sut.Generate(new DropTable(new SqlIdentifier("app"), new SqlIdentifier("we\"ird")));
+        var result = _sut.Generate(new DropTable(new("app", "we\"ird")));
 
         // Assert
         result.Require().ShouldHaveSingleItem().Sql.Value.ShouldBe("DROP TABLE \"app\".\"we\"\"ird\"");
@@ -289,7 +288,7 @@ public sealed class SqlDialectTests
     public void Skipped_IsAWarningAndAnEmptyRendering()
     {
         // Arrange — a dialect deciding a comment is ignorable rather than an error.
-        var action = new SetTableComment(N("app"), N("users"), null, "User accounts");
+        var action = new SetTableComment(new(N("app"), N("users")), null, "User accounts");
         var dialect = new SkippingDialect();
 
         // Act
@@ -313,14 +312,14 @@ public sealed class SqlDialectTests
         var dialect = new AnsiSequenceDialect();
         var sequence = new Sequence
         {
-            Name = new SqlIdentifier("order_seq"),
+            Name = "order_seq",
             Options = new SequenceOptions(StartWith: 10, IncrementBy: 5, MaxValue: 1000, Cycle: true),
         };
 
         // Act
-        var create = dialect.Generate(new CreateSequence(new SqlIdentifier("app"), sequence));
-        var alter = dialect.Generate(new AlterSequence(new SqlIdentifier("app"), new SqlIdentifier("order_seq"), new SequenceOptions(), new SequenceOptions(IncrementBy: 2)));
-        var drop = dialect.Generate(new DropSequence(new SqlIdentifier("app"), new SqlIdentifier("order_seq")));
+        var create = dialect.Generate(new CreateSequence("app", sequence));
+        var alter = dialect.Generate(new AlterSequence(new("app", "order_seq"), new SequenceOptions(), new SequenceOptions(IncrementBy: 2)));
+        var drop = dialect.Generate(new DropSequence(new("app", "order_seq")));
 
         // Assert
         create.Require().ShouldHaveSingleItem().Sql.Value.ShouldBe("CREATE SEQUENCE \"app\".\"order_seq\" START WITH 10 INCREMENT BY 5 MAXVALUE 1000 CYCLE");

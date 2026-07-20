@@ -59,7 +59,7 @@ public abstract partial class SqlDialect
     /// </summary>
     protected Result<IReadOnlyList<SqlStatement>> AnsiAlterSequence(AlterSequence action)
     {
-        var sql = new StringBuilder($"ALTER SEQUENCE {Qualify(action.SchemaName, action.SequenceName)}");
+        var sql = new StringBuilder($"ALTER SEQUENCE {Qualify(action.Sequence)}");
         AppendSequenceOptions(sql, action.NewOptions);
         return Statement(sql.ToString());
     }
@@ -68,7 +68,7 @@ public abstract partial class SqlDialect
     /// The standard <c>DROP SEQUENCE</c> form of <paramref name="action"/>.
     /// </summary>
     protected Result<IReadOnlyList<SqlStatement>> AnsiDropSequence(DropSequence action) =>
-        Statement($"DROP SEQUENCE {Qualify(action.SchemaName, action.SequenceName)}");
+        Statement($"DROP SEQUENCE {Qualify(action.Sequence)}");
 
     private static void AppendSequenceOptions(StringBuilder sql, SequenceOptions options)
     {

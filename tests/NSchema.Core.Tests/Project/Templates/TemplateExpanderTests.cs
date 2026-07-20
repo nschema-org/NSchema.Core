@@ -75,8 +75,8 @@ public sealed class TemplateExpanderTests
 
         var child = Schema(schema, "billing").Tables.First(t => t.Name.Value.Equals("child"));
         var fk = child.ForeignKeys.ShouldHaveSingleItem();
-        fk.ReferencedSchema.ShouldBe("billing");
-        fk.ReferencedTable.ShouldBe("parent");
+        fk.References.Schema.ShouldBe("billing");
+        fk.References.Name.ShouldBe("parent");
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public sealed class TemplateExpanderTests
             """);
 
         Schema(schema, "billing").Tables.ShouldHaveSingleItem().ForeignKeys.ShouldHaveSingleItem()
-            .ReferencedSchema.ShouldBe("public");
+            .References.Schema.ShouldBe("public");
     }
 
     [Fact]
@@ -115,7 +115,7 @@ public sealed class TemplateExpanderTests
 
         var columns = Schema(schema, "billing").Tables.ShouldHaveSingleItem().Columns;
         // The template-declared enum binds to the instance's schema as a component; the built-in does not.
-        columns.First(c => c.Name.Value.Equals("status")).Type.ShouldBe(SqlType.Custom(new SqlIdentifier("billing"), "outbox_status"));
+        columns.First(c => c.Name.Value.Equals("status")).Type.ShouldBe(SqlType.Custom("billing", "outbox_status"));
         columns.First(c => c.Name.Value.Equals("payload")).Type.ShouldBe(SqlType.Text);
     }
 
@@ -134,7 +134,7 @@ public sealed class TemplateExpanderTests
 
         var columns = Schema(schema, "billing").Tables.ShouldHaveSingleItem().Columns;
         // A qualified type keeps its schema as a component; an unqualified one leaves resolution to the engine.
-        columns.First(c => c.Name.Value.Equals("kind")).Type.ShouldBe(SqlType.Custom(new SqlIdentifier("public"), "kind_enum"));
+        columns.First(c => c.Name.Value.Equals("kind")).Type.ShouldBe(SqlType.Custom("public", "kind_enum"));
         columns.First(c => c.Name.Value.Equals("tag")).Type.ShouldBe(SqlType.Custom("citext"));
     }
 
@@ -153,7 +153,7 @@ public sealed class TemplateExpanderTests
             """);
 
         var fields = Schema(schema, "billing").CompositeTypes.ShouldHaveSingleItem().Fields;
-        fields.First(f => f.Name.Value.Equals("state")).DataType.ShouldBe(SqlType.Custom(new SqlIdentifier("billing"), "status"));
+        fields.First(f => f.Name.Value.Equals("state")).DataType.ShouldBe(SqlType.Custom("billing", "status"));
         fields.First(f => f.Name.Value.Equals("note")).DataType.ShouldBe(SqlType.Text);
     }
 
@@ -317,8 +317,8 @@ public sealed class TemplateExpanderTests
 
         var invoices = Schema(schema, "billing").Tables.First(t => t.Name.Value.Equals("invoices"));
         var fk = invoices.ForeignKeys.ShouldHaveSingleItem();
-        fk.ReferencedSchema.ShouldBe("billing");
-        fk.ReferencedTable.ShouldBe("tenants");
+        fk.References.Schema.ShouldBe("billing");
+        fk.References.Name.ShouldBe("tenants");
     }
 
     [Fact]
@@ -498,10 +498,10 @@ public sealed class TemplateExpanderTests
         // distinct scripts), token substituted in the body, run condition carried.
         scripts.Count.ShouldBe(2);
         scripts[0].ShouldBeOfType<DeploymentScript>().ScopeSchema.ShouldBe("sales");
-        scripts[0].Address.ShouldBe(new ScopedAddress(new SqlIdentifier("sales"), new SqlIdentifier("seed")));
+        scripts[0].Address.ShouldBe(new ScopedAddress("sales", "seed"));
         scripts[0].Sql.ShouldBe("INSERT INTO sales.outbox_events VALUES (1);");
         scripts[0].ShouldBeOfType<DeploymentScript>().RunCondition.ShouldBe(RunCondition.Once);
         scripts[1].ShouldBeOfType<DeploymentScript>().ScopeSchema.ShouldBe("billing");
-        scripts[1].Address.ShouldBe(new ScopedAddress(new SqlIdentifier("billing"), new SqlIdentifier("seed")));
+        scripts[1].Address.ShouldBe(new ScopedAddress("billing", "seed"));
     }
 }

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace NSchema.Model;
@@ -111,4 +112,10 @@ public sealed record SqlText : ValueObject<string>
 
         return body.Length - 1; // unterminated literal: copied to the end
     }
+
+    /// <summary>
+    /// Wraps the verbatim SQL text. One-way: text never converts silently back to a bare string.
+    /// </summary>
+    [return: NotNullIfNotNull(nameof(value))]
+    public static implicit operator SqlText?(string? value) => value is null ? null : new SqlText(value);
 }

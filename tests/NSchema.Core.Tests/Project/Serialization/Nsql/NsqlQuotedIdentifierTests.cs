@@ -24,10 +24,10 @@ public sealed class NsqlQuotedIdentifierTests
 
         // Assert
         var schema = project.Database.Schemas.ShouldHaveSingleItem();
-        schema.Name.ShouldBe(new SqlIdentifier("My Schema"));
+        schema.Name.ShouldBe("My Schema");
         var table = schema.Tables.ShouldHaveSingleItem();
-        table.Name.ShouldBe(new SqlIdentifier("Order Details"));
-        table.Columns.ShouldHaveSingleItem().Name.ShouldBe(new SqlIdentifier("weird \"col\""));
+        table.Name.ShouldBe("Order Details");
+        table.Columns.ShouldHaveSingleItem().Name.ShouldBe("weird \"col\"");
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public sealed class NsqlQuotedIdentifierTests
             """).Parse();
 
         // Assert
-        project.Database.Schemas.Single().Tables.Single().Name.ShouldBe(new SqlIdentifier("users"));
+        project.Database.Schemas.Single().Tables.Single().Name.ShouldBe("users");
     }
 
     [Fact]
@@ -79,16 +79,16 @@ public sealed class NsqlQuotedIdentifierTests
             [
                 new Schema
                 {
-                    Name = new SqlIdentifier("app"),
+                    Name = "app",
                     Tables =
                     [
                         new Table
                         {
-                            Name = new SqlIdentifier("Order Details"),
+                            Name = "Order Details",
                             Columns =
                             [
-                                new Column { Name = new SqlIdentifier("id"), Type = SqlType.Int },
-                                new Column { Name = new SqlIdentifier("constraint"), Type = SqlType.Int },
+                                new Column { Name = "id", Type = SqlType.Int },
+                                new Column { Name = "constraint", Type = SqlType.Int },
                             ],
                         },
                     ],
@@ -115,13 +115,13 @@ public sealed class NsqlQuotedIdentifierTests
             [
                 new Schema
                 {
-                    Name = new SqlIdentifier("My Schema"),
+                    Name = "My Schema",
                     Tables =
                     [
                         new Table
                         {
-                            Name = new SqlIdentifier("weird \"table\""),
-                            Columns = [new Column { Name = new SqlIdentifier("include"), Type = SqlType.Int }],
+                            Name = "weird \"table\"",
+                            Columns = [new Column { Name = "include", Type = SqlType.Int }],
                         },
                     ],
                 },
@@ -133,10 +133,10 @@ public sealed class NsqlQuotedIdentifierTests
 
         // Assert
         var schema = reparsed.Schemas.ShouldHaveSingleItem();
-        schema.Name.ShouldBe(new SqlIdentifier("My Schema"));
+        schema.Name.ShouldBe("My Schema");
         var table = schema.Tables.ShouldHaveSingleItem();
-        table.Name.ShouldBe(new SqlIdentifier("weird \"table\""));
-        table.Columns.ShouldHaveSingleItem().Name.ShouldBe(new SqlIdentifier("include"));
+        table.Name.ShouldBe("weird \"table\"");
+        table.Columns.ShouldHaveSingleItem().Name.ShouldBe("include");
     }
 
     [Fact]

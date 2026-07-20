@@ -145,8 +145,7 @@ internal static class DocumentProjector
                         {
                             Name = Name(m.Name),
                             ColumnNames = Names(m.Columns),
-                            ReferencedSchema = refSchema,
-                            ReferencedTable = Name(m.References.Name),
+                            References = new ObjectAddress(refSchema, Name(m.References.Name)),
                             ReferencedColumnNames = Names(m.ReferencedColumns),
                             OnDelete = Map(m.OnDelete),
                             OnUpdate = Map(m.OnUpdate),
@@ -269,7 +268,7 @@ internal static class DocumentProjector
         schemas.AddTable(schema, table, statement.Name.Position);
         foreach (var (templateName, columnPosition) in includes)
         {
-            schemas.AddInclude(new TemplateInclude(schema, name, templateName, columnPosition));
+            schemas.AddInclude(new TemplateInclude(new ObjectAddress(schema, name), templateName, columnPosition));
         }
     }
 
@@ -313,10 +312,9 @@ internal static class DocumentProjector
 
     // --- name binding and small mappers ----------------------------------------------
 
-    private static SqlIdentifier Name(Syn.Identifier identifier) => new(identifier.Value);
+    private static SqlIdentifier Name(Syn.Identifier identifier) => identifier.Value;
 
-    private static SqlIdentifier? OptionalName(Syn.Identifier? identifier) =>
-        identifier is null ? null : new SqlIdentifier(identifier.Value);
+    private static SqlIdentifier? OptionalName(Syn.Identifier? identifier) => identifier?.Value;
 
     private static List<SqlIdentifier> Names(IReadOnlyList<Syn.Identifier> identifiers) =>
         identifiers.Select(Name).ToList();

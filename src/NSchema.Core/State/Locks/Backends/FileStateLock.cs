@@ -19,9 +19,9 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
 
         var now = DateTimeOffset.UtcNow;
         var info = new StateLockInfo(
-            Id: Guid.NewGuid().ToString("N"),
+            Id: LockId.New(),
             Operation: request.Operation,
-            Who: $"{Environment.UserName}@{Environment.MachineName}",
+            Who: LockHolder.Current(),
             CreatedUtc: now,
             ExpiresUtc: request.TimeToLive is { } ttl ? now + ttl : null
         );

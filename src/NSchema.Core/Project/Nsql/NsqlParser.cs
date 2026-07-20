@@ -114,7 +114,7 @@ internal sealed partial class NsqlParser
         {
             return ParseRename(doc);
         }
-        if (_current.IsKeyword(NsqlKeywords.Database) || _current.IsKeyword(NsqlKeywords.State))
+        if (_current.IsAnyKeyword(NsqlKeywords.ConfigStatementOpeners))
         {
             throw Error($"'{_current.Text.ToUpperInvariant()}' is a configuration statement; configuration lives in the project's configuration files, not among schema statements.");
         }

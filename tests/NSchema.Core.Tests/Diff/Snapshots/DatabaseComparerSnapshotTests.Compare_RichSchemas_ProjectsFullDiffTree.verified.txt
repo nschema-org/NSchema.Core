@@ -127,10 +127,7 @@
             Kind: View,
             Body: SELECT id, email_address FROM app.users WHERE active,
             DependsOn: [
-              {
-                Schema: app,
-                Name: users
-              }
+              app.users
             ],
             IsMaterialized: false,
             Name: active_users
@@ -138,10 +135,7 @@
           IsMaterialized: false,
           RequiresRecreate: false,
           DependsOn: [
-            {
-              Schema: app,
-              Name: users
-            }
+            app.users
           ]
         },
         {
@@ -151,10 +145,7 @@
           IsMaterialized: false,
           RequiresRecreate: false,
           DependsOn: [
-            {
-              Schema: app,
-              Name: users
-            }
+            app.users
           ]
         },
         {
@@ -165,10 +156,7 @@
           IsMaterialized: false,
           RequiresRecreate: false,
           DependsOn: [
-            {
-              Schema: app,
-              Name: users
-            }
+            app.users
           ]
         },
         {
@@ -178,10 +166,7 @@
             Kind: View,
             Body: SELECT email_address FROM app.active_users,
             DependsOn: [
-              {
-                Schema: app,
-                Name: active_users
-              }
+              app.active_users
             ],
             IsMaterialized: false,
             Name: user_emails
@@ -189,10 +174,7 @@
           IsMaterialized: false,
           RequiresRecreate: false,
           DependsOn: [
-            {
-              Schema: app,
-              Name: active_users
-            }
+            app.active_users
           ]
         }
       ],
@@ -454,10 +436,7 @@
           IsMaterialized: false,
           RequiresRecreate: false,
           DependsOn: [
-            {
-              Schema: scratch,
-              Name: temp_data
-            }
+            scratch.temp_data
           ]
         }
       ],

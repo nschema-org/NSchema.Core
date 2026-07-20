@@ -15,13 +15,13 @@ public partial class DatabaseComparerTests
 
     /// <summary>Diffs two <c>app</c> schemas holding the given sequences, returning the single sequence diff (null when unchanged).</summary>
     private SequenceDiff? DiffSequences(IReadOnlyList<Sequence> current, IReadOnlyList<Sequence> desired, ProjectDirectives? directives = null) =>
-        Compare(Db(new Schema { Name = new SqlIdentifier("app"), Sequences = [.. current] }), Db(new Schema { Name = new SqlIdentifier("app"), Sequences = [.. desired] }), directives)
+        Compare(Db(new Schema { Name = "app", Sequences = [.. current] }), Db(new Schema { Name = "app", Sequences = [.. desired] }), directives)
         .Schemas.SingleOrDefault()?.Sequences.SingleOrDefault();
 
     [Fact]
     public void Compare_NewSequence_IsAddCarryingDefinition()
     {
-        var diff = DiffSequences([], [new Sequence { Name = new SqlIdentifier("order_id"), Options = new SequenceOptions(StartWith: 100) }]);
+        var diff = DiffSequences([], [new Sequence { Name = "order_id", Options = new SequenceOptions(StartWith: 100) }]);
 
         diff!.Kind.ShouldBe(ChangeKind.Add);
         diff.Definition!.Options.StartWith.ShouldBe(100);
@@ -30,7 +30,7 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_RemovedSequence_IsRemove()
     {
-        var diff = DiffSequences([new Sequence { Name = new SqlIdentifier("order_id") }], []);
+        var diff = DiffSequences([new Sequence { Name = "order_id" }], []);
 
         diff!.Kind.ShouldBe(ChangeKind.Remove);
         diff.Definition.ShouldBeNull();
@@ -39,21 +39,21 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_UnchangedSequence_ProducesNoDiff()
         => DiffSequences(
-            [new Sequence { Name = new SqlIdentifier("order_id"), Options = new SequenceOptions(StartWith: 1, IncrementBy: 5) }],
-            [new Sequence { Name = new SqlIdentifier("order_id"), Options = new SequenceOptions(StartWith: 1, IncrementBy: 5) }]).ShouldBeNull();
+            [new Sequence { Name = "order_id", Options = new SequenceOptions(StartWith: 1, IncrementBy: 5) }],
+            [new Sequence { Name = "order_id", Options = new SequenceOptions(StartWith: 1, IncrementBy: 5) }]).ShouldBeNull();
 
     [Fact]
     public void Compare_SequenceWithNullAndEmptyOptions_ProducesNoDiff()
         // The model normalizes null options to an empty set, so the two spellings never read as a change.
-        => DiffSequences([new Sequence { Name = new SqlIdentifier("order_id") }], [new Sequence { Name = new SqlIdentifier("order_id"), Options = new SequenceOptions() }]).ShouldBeNull();
+        => DiffSequences([new Sequence { Name = "order_id" }], [new Sequence { Name = "order_id", Options = new SequenceOptions() }]).ShouldBeNull();
 
     [Fact]
     public void Compare_RenamedSequence_SetsRenamedFrom()
     {
         var diff = DiffSequences(
-            [new Sequence { Name = new SqlIdentifier("bill_id") }],
-            [new Sequence { Name = new SqlIdentifier("invoice_id") }],
-            new ProjectDirectives(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Sequence, App("bill_id")), new SqlIdentifier("invoice_id"))]));
+            [new Sequence { Name = "bill_id" }],
+            [new Sequence { Name = "invoice_id" }],
+            new ProjectDirectives(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Sequence, App("bill_id")), "invoice_id")]));
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.RenamedFrom.ShouldBe("bill_id");
@@ -65,8 +65,8 @@ public partial class DatabaseComparerTests
     public void Compare_SequenceCommentOnlyChange_IsModify()
     {
         var diff = DiffSequences(
-            [new Sequence { Name = new SqlIdentifier("order_id"), Comment = "old" }],
-            [new Sequence { Name = new SqlIdentifier("order_id"), Comment = "new" }]);
+            [new Sequence { Name = "order_id", Comment = "old" }],
+            [new Sequence { Name = "order_id", Comment = "new" }]);
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.Comment.ShouldBe(new ValueChange<string>("old", "new"));
@@ -77,8 +77,8 @@ public partial class DatabaseComparerTests
     public void Compare_SequenceOptionsChange_CarriesOldAndNewOptions()
     {
         var diff = DiffSequences(
-            [new Sequence { Name = new SqlIdentifier("order_id"), Options = new SequenceOptions(StartWith: 1, IncrementBy: 1) }],
-            [new Sequence { Name = new SqlIdentifier("order_id"), Options = new SequenceOptions(StartWith: 1, IncrementBy: 5, Cycle: true) }]);
+            [new Sequence { Name = "order_id", Options = new SequenceOptions(StartWith: 1, IncrementBy: 1) }],
+            [new Sequence { Name = "order_id", Options = new SequenceOptions(StartWith: 1, IncrementBy: 5, Cycle: true) }]);
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.Options.ShouldBe(new ValueChange<SequenceOptions>(

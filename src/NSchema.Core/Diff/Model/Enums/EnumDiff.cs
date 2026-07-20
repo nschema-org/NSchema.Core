@@ -22,7 +22,7 @@ public sealed record EnumDiff(
     SqlIdentifier? RenamedFrom = null,
     EnumType? Definition = null,
     IReadOnlyList<EnumValueAddition>? AddedValues = null,
-    ValueChange<IReadOnlyList<string>>? Values = null,
+    ValueChange<IReadOnlyList<EnumLabel>>? Values = null,
     ValueChange<string>? Comment = null
 ) : ISchemaObjectDiff
 {

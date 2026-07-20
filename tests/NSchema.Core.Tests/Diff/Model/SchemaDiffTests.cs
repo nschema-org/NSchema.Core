@@ -20,15 +20,15 @@ public sealed class SchemaDiffTests
     {
         // Kind-agnostic consumers (GetSummary, the destructive policy) rely on this covering every per-kind
         // collection — a new object kind must be added here, which this test makes loud.
-        var diff = new SchemaDiff(new SqlIdentifier("app"),
-            Tables: [new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Add)],
-            Views: [new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("v"), ChangeKind.Add)],
-            Enums: [new EnumDiff(new SqlIdentifier("app"), new SqlIdentifier("e"), ChangeKind.Add)],
-            Sequences: [new SequenceDiff(new SqlIdentifier("app"), new SqlIdentifier("q"), ChangeKind.Add)],
+        var diff = new SchemaDiff("app",
+            Tables: [new TableDiff("app", "users", ChangeKind.Add)],
+            Views: [new ViewDiff("app", "v", ChangeKind.Add)],
+            Enums: [new EnumDiff("app", "e", ChangeKind.Add)],
+            Sequences: [new SequenceDiff("app", "q", ChangeKind.Add)],
             Routines:
             [
-                new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Add, RoutineKind.Function),
-                new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("p"), ChangeKind.Add, RoutineKind.Procedure),
+                new RoutineDiff("app", "f", ChangeKind.Add, RoutineKind.Function),
+                new RoutineDiff("app", "p", ChangeKind.Add, RoutineKind.Procedure),
             ]);
 
         diff.EnumerateObjects().Select(o => o.Name).ShouldBe(["users", "v", "e", "q", "f", "p"]);
@@ -39,13 +39,13 @@ public sealed class SchemaDiffTests
     {
         // Kind-agnostic consumers (GetSummary, the destructive policy) rely on this covering every member
         // collection — a new member kind must be added here, which this test makes loud.
-        var table = new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify,
-            Columns: [new ColumnDiff(new SqlIdentifier("id"), ChangeKind.Add, null, null, null, null, null, null, null)],
-            Indexes: [new IndexDiff(ChangeKind.Add, new SqlIdentifier("ix"), null, null)],
-            PrimaryKey: [new PrimaryKeyDiff(ChangeKind.Add, new SqlIdentifier("pk"), null)],
-            ForeignKeys: [new ForeignKeyDiff(ChangeKind.Add, new SqlIdentifier("fk"), null)],
-            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, new SqlIdentifier("uq"), null)],
-            Checks: [new CheckConstraintDiff(ChangeKind.Add, new SqlIdentifier("ck"), null)]);
+        var table = new TableDiff("app", "users", ChangeKind.Modify,
+            Columns: [new ColumnDiff("id", ChangeKind.Add, null, null, null, null, null, null, null)],
+            Indexes: [new IndexDiff(ChangeKind.Add, "ix", null, null)],
+            PrimaryKey: [new PrimaryKeyDiff(ChangeKind.Add, "pk", null)],
+            ForeignKeys: [new ForeignKeyDiff(ChangeKind.Add, "fk", null)],
+            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "uq", null)],
+            Checks: [new CheckConstraintDiff(ChangeKind.Add, "ck", null)]);
 
         table.EnumerateMembers().Select(m => m.Name).ShouldBe(["id", "ix", "pk", "fk", "uq", "ck"]);
     }
@@ -54,15 +54,15 @@ public sealed class SchemaDiffTests
     public void GetSummary_CountsEveryObjectKind()
     {
         var diff = new DatabaseDiff([
-            new SchemaDiff(new SqlIdentifier("app"),
-                Tables: [new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Add)],
-                Views: [new ViewDiff(new SqlIdentifier("app"), new SqlIdentifier("v"), ChangeKind.Modify)],
-                Enums: [new EnumDiff(new SqlIdentifier("app"), new SqlIdentifier("e"), ChangeKind.Remove)],
-                Sequences: [new SequenceDiff(new SqlIdentifier("app"), new SqlIdentifier("q"), ChangeKind.Add)],
+            new SchemaDiff("app",
+                Tables: [new TableDiff("app", "users", ChangeKind.Add)],
+                Views: [new ViewDiff("app", "v", ChangeKind.Modify)],
+                Enums: [new EnumDiff("app", "e", ChangeKind.Remove)],
+                Sequences: [new SequenceDiff("app", "q", ChangeKind.Add)],
                 Routines:
                 [
-                    new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("f"), ChangeKind.Modify, RoutineKind.Function),
-                    new RoutineDiff(new SqlIdentifier("app"), new SqlIdentifier("p"), ChangeKind.Remove, RoutineKind.Procedure),
+                    new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function),
+                    new RoutineDiff("app", "p", ChangeKind.Remove, RoutineKind.Procedure),
                 ]),
         ]);
 

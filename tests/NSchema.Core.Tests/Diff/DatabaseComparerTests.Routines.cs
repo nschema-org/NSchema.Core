@@ -17,14 +17,14 @@ public partial class DatabaseComparerTests
     private const string ProcDef = "LANGUAGE sql AS $$ DELETE FROM app.t; $$";
 
     private static Routine Fn(string name, string args, string def, string? comment = null) =>
-        new Routine { Name = new SqlIdentifier(name), RoutineKind = RoutineKind.Function, Arguments = new SqlText(args), Definition = new SqlText(def), Comment = comment };
+        new Routine { Name = name, RoutineKind = RoutineKind.Function, Arguments = args, Definition = def, Comment = comment };
 
     private static Routine Proc(string name, string args, string def, string? comment = null) =>
-        new Routine { Name = new SqlIdentifier(name), RoutineKind = RoutineKind.Procedure, Arguments = new SqlText(args), Definition = new SqlText(def), Comment = comment };
+        new Routine { Name = name, RoutineKind = RoutineKind.Procedure, Arguments = args, Definition = def, Comment = comment };
 
     /// <summary>Diffs two <c>app</c> schemas holding the given routines, returning the single routine diff (null when unchanged).</summary>
     private RoutineDiff? DiffRoutines(IReadOnlyList<Routine> current, IReadOnlyList<Routine> desired, ProjectDirectives? directives = null) =>
-        Compare(Db(new Schema { Name = new SqlIdentifier("app"), Routines = [.. current] }), Db(new Schema { Name = new SqlIdentifier("app"), Routines = [.. desired] }), directives)
+        Compare(Db(new Schema { Name = "app", Routines = [.. current] }), Db(new Schema { Name = "app", Routines = [.. desired] }), directives)
         .Schemas.SingleOrDefault()?.Routines.SingleOrDefault();
 
     [Fact]
@@ -72,7 +72,7 @@ public partial class DatabaseComparerTests
     {
         var diff = DiffRoutines([Fn("f", "a int", Def)], [Fn("f", "a int, b text", Def)]);
 
-        diff!.Arguments.ShouldBe(new ValueChange<SqlText>(new SqlText("a int"), new SqlText("a int, b text")));
+        diff!.Arguments.ShouldBe(new ValueChange<SqlText>("a int", "a int, b text"));
         diff.Definition.ShouldNotBeNull(); // the desired definition rides along for the recreate
         diff.RequiresRecreate.ShouldBeTrue();
     }
@@ -88,7 +88,7 @@ public partial class DatabaseComparerTests
     public void Compare_Renamed_SetsRenamedFrom()
     {
         var diff = DiffRoutines([Fn("old_f", "", Def)], [Fn("f", "", Def)],
-            new ProjectDirectives(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Routine, App("old_f")), new SqlIdentifier("f"))]));
+            new ProjectDirectives(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Routine, App("old_f")), "f")]));
 
         diff!.RenamedFrom.ShouldBe("old_f");
         diff.Definition.ShouldBeNull(); // nothing else changed, so it is a rename only

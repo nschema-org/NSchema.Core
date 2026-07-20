@@ -97,7 +97,7 @@ internal static class SyntaxBuilder
 
         foreach (var enumType in schema.Enums)
         {
-            statements.Add(new Syn.Enums.CreateEnumStatement(Qualified(schema.Name, enumType.Name), enumType.Values)
+            statements.Add(new Syn.Enums.CreateEnumStatement(Qualified(schema.Name, enumType.Name), enumType.Values.Select(v => v.Value).ToList())
             {
                 Position = _none,
                 Doc = enumType.Comment,
@@ -179,7 +179,7 @@ internal static class SyntaxBuilder
         foreach (var fk in table.ForeignKeys)
         {
             members.Add(new Syn.Constraints.ForeignKeyDefinition(Name(fk.Name), Names(fk.ColumnNames),
-                Qualified(fk.ReferencedSchema, fk.ReferencedTable), Names(fk.ReferencedColumnNames),
+                Qualified(fk.References.Schema, fk.References.Name), Names(fk.ReferencedColumnNames),
                 Action(fk.OnDelete), Action(fk.OnUpdate))
             {
                 Position = _none,
@@ -198,7 +198,7 @@ internal static class SyntaxBuilder
         {
             members.Add(new Syn.Constraints.ExclusionDefinition(Name(exclusion.Name),
                 exclusion.Elements.Select(e => new Syn.Constraints.ExclusionElement(e.Operator, OptionalName(e.Column), e.Expression) { Position = _none }).ToList(),
-                OptionalName(exclusion.Method is { } m ? new SqlIdentifier(m) : null), exclusion.Predicate)
+                OptionalName(exclusion.Method), exclusion.Predicate)
             {
                 Position = _none,
                 Doc = exclusion.Comment,
@@ -207,7 +207,7 @@ internal static class SyntaxBuilder
         foreach (var index in table.Indexes)
         {
             members.Add(new Syn.Indexes.IndexDefinition(Name(index.Name), index.IsUnique, Keys(index.Columns),
-                index.Method is { } method ? new Identifier(method) { Position = _none } : null,
+                OptionalName(index.Method),
                 Names(index.Include), index.Predicate)
             {
                 Position = _none,
@@ -249,7 +249,7 @@ internal static class SyntaxBuilder
         foreach (var index in view.Indexes)
         {
             statements.Add(new Syn.Indexes.CreateIndexStatement(Name(index.Name), index.IsUnique, Qualified(schemaName, view.Name),
-                Keys(index.Columns), index.Method is { } method ? new Identifier(method) { Position = _none } : null,
+                Keys(index.Columns), OptionalName(index.Method),
                 Names(index.Include), index.Predicate)
             {
                 Position = _none,
@@ -264,7 +264,7 @@ internal static class SyntaxBuilder
             ? new Syn.Triggers.InlineBodyAction(body) { Position = _none }
             : new Syn.Triggers.ExecuteFunctionAction(
                 new QualifiedName(OptionalName(trigger.Function!.Schema), Name(trigger.Function.Name)) { Position = _none },
-                trigger.FunctionArguments ?? new SqlText(string.Empty))
+                trigger.FunctionArguments ?? "")
             {
                 Position = _none,
             };

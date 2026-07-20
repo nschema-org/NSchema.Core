@@ -1,3 +1,5 @@
+using NSchema.Model.Enums;
+
 namespace NSchema.Diff.Model.Enums;
 
 /// <summary>
@@ -8,4 +10,4 @@ namespace NSchema.Diff.Model.Enums;
 /// <param name="Before">Add the value before this existing value, when set.</param>
 /// <param name="After">Add the value after this value, when set. Additions execute in list order, so the anchor
 /// is either pre-existing or was added by an earlier addition in the same diff.</param>
-public sealed record EnumValueAddition(string Value, string? Before = null, string? After = null);
+public sealed record EnumValueAddition(EnumLabel Value, EnumLabel? Before = null, EnumLabel? After = null);

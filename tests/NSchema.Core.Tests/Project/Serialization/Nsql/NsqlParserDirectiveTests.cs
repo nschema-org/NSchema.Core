@@ -19,27 +19,27 @@ public sealed class NsqlParserDirectiveTests
         return NSchema.Project.ProjectAssembler.Assemble([read.Value]).Value!.Directives;
     }
 
-    private static ObjectAddress App(string name) => new(new SqlIdentifier("app"), new SqlIdentifier(name));
+    private static ObjectAddress App(string name) => new("app", name);
 
     [Fact]
     public void Parse_RenameSchema_TakesBareNames()
         => Directives("CREATE SCHEMA core; RENAME SCHEMA sales TO core;")
             .SchemaRenames.ShouldHaveSingleItem()
-            .ShouldBe(new SchemaRenameDirective(new SqlIdentifier("sales"), new SqlIdentifier("core")));
+            .ShouldBe(new SchemaRenameDirective("sales", "core"));
 
     [Fact]
     public void Parse_RenameTable_TakesQualifiedFromAndBareTo()
         => Directives("CREATE SCHEMA app; CREATE TABLE app.people ( id int NOT NULL ); RENAME TABLE app.users TO people;")
             .ObjectRenames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, App("users")), new SqlIdentifier("people")));
+            .ShouldBe(new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, App("users")), "people"));
 
     [Fact]
     public void Parse_RenameColumn_TakesAThreePartPath()
         => Directives("CREATE SCHEMA app; CREATE TABLE app.users ( full_name text NOT NULL ); RENAME COLUMN app.users.name TO full_name;")
             .MemberRenames.ShouldHaveSingleItem()
             .ShouldBe(new MemberRenameDirective(
-                new MemberAddress(new SqlIdentifier("app"), new SqlIdentifier("users"), new SqlIdentifier("name")),
-                new SqlIdentifier("full_name")));
+                new MemberAddress("app", "users", "name"),
+                "full_name"));
 
     [Fact]
     public void Parse_RenameMaterializedView_IsAViewRename()

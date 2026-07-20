@@ -8,7 +8,7 @@ namespace NSchema.Tests.State;
 
 public sealed class DatabaseProviderTests
 {
-    private static readonly Database _liveSchema = new Database { Schemas = [new Schema { Name = new SqlIdentifier("live") }] };
+    private static readonly Database _liveSchema = new Database { Schemas = [new Schema { Name = "live" }] };
 
     private static DatabaseProvider Create(IDatabaseIntrospector? online = null) => new(online);
 
@@ -34,7 +34,7 @@ public sealed class DatabaseProviderTests
         // The fake ignores its scope entirely — the provider's re-filter is what keeps scoping honest.
         var sut = Create(online: new FakeIntrospector());
 
-        var result = await sut.GetDatabase(PlanningScope.To(new SqlIdentifier("other")), TestContext.Current.CancellationToken);
+        var result = await sut.GetDatabase(PlanningScope.To("other"), TestContext.Current.CancellationToken);
 
         result.Require().Schemas.ShouldBeEmpty();
     }

@@ -30,7 +30,7 @@ public sealed class FileStateLockTests : IDisposable
         var handle = await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
 
         File.Exists(_path).ShouldBeTrue();
-        handle.Info.Id.ShouldNotBeNullOrEmpty();
+        handle.Info.Id.Value.ShouldNotBeNullOrEmpty();
     }
 
     [Fact]

@@ -17,7 +17,7 @@ public abstract partial class SqlDialect
     protected virtual Result<IReadOnlyList<SqlStatement>> DropView(DropView action) =>
         action.IsMaterialized
             ? Unsupported(action)
-            : Statement($"DROP VIEW {Qualify(action.SchemaName, action.ViewName)}");
+            : Statement($"DROP VIEW {Qualify(action.View)}");
 
     /// <summary>
     /// Renders the renaming of a view. Materialized views are not universal, so their renaming is unsupported
@@ -26,7 +26,7 @@ public abstract partial class SqlDialect
     protected virtual Result<IReadOnlyList<SqlStatement>> RenameView(RenameView action) =>
         action.IsMaterialized
             ? Unsupported(action)
-            : Statement($"ALTER VIEW {Qualify(action.SchemaName, action.OldName)} RENAME TO {Quote(action.NewName)}");
+            : Statement($"ALTER VIEW {Qualify(action.View)} RENAME TO {Quote(action.NewName)}");
 
     /// <summary>
     /// Renders setting or clearing a view's comment.

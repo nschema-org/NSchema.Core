@@ -21,24 +21,24 @@ public sealed class PlanFileManagerTests
     {
         // A plan carrying a rich diff (including a full Table definition), both script event kinds, and
         // statements with execution metadata, so the round-trip exercises the whole artifact.
-        var backfill = new ChangeScript(new SqlIdentifier("backfill"), new SqlText("UPDATE app.users SET email = ''"),
-            new SqlIdentifier("app"), ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email"));
-        var email = new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text }) { MigrationScript = backfill };
-        var users = new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify, Columns: [email]);
+        var backfill = new ChangeScript("backfill", "UPDATE app.users SET email = ''",
+            "app", ChangeTrigger.AddColumn, "users", "email");
+        var email = new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text }) { MigrationScript = backfill };
+        var users = new TableDiff("app", "users", ChangeKind.Modify, Columns: [email]);
         var plan = new MigrationPlan(
-            new DatabaseDiff([new SchemaDiff(new SqlIdentifier("app"), Tables: [users])])
+            new DatabaseDiff([new SchemaDiff("app", Tables: [users])])
             {
                 // Both deployment bookends at the root; the change script rides its column above.
                 DeploymentScripts =
                 [
-                    new DeploymentScript(new SqlIdentifier("seed"), new SqlText("INSERT INTO app.config VALUES (1)"), null, DeploymentPhase.Pre) { RunCondition = RunCondition.Once },
-                    new DeploymentScript(new SqlIdentifier("reindex"), new SqlText("REINDEX TABLE app.users"), null, DeploymentPhase.Post) { RunOutsideTransaction = true },
+                    new DeploymentScript("seed", "INSERT INTO app.config VALUES (1)", null, DeploymentPhase.Pre) { RunCondition = RunCondition.Once },
+                    new DeploymentScript("reindex", "REINDEX TABLE app.users", null, DeploymentPhase.Post) { RunOutsideTransaction = true },
                 ],
             },
             [
-                new SqlStatement(new SqlText("INSERT INTO app.config VALUES (1)")),
-                new SqlStatement(new SqlText("CREATE INDEX CONCURRENTLY ..."), RunOutsideTransaction: true),
-                new SqlStatement(new SqlText("REINDEX TABLE app.users"), RunOutsideTransaction: true),
+                new SqlStatement("INSERT INTO app.config VALUES (1)"),
+                new SqlStatement("CREATE INDEX CONCURRENTLY ...", RunOutsideTransaction: true),
+                new SqlStatement("REINDEX TABLE app.users", RunOutsideTransaction: true),
             ]);
 
         return new PlanFileEnvelope(plan, DateTimeOffset.UnixEpoch);
@@ -108,23 +108,23 @@ public sealed class PlanFileManagerTests
     {
         // Arrange — a diff whose column add is annotated with its matched script, so diff-node persistence and
         // the script-event discriminator inside the diff are both exercised.
-        var migration = new ChangeScript(new SqlIdentifier("backfill_emails"), new SqlText("UPDATE app.users SET email = ''"),
-            new SqlIdentifier("app"), ChangeTrigger.AddColumn, new SqlIdentifier("users"), new SqlIdentifier("email"))
+        var migration = new ChangeScript("backfill_emails", "UPDATE app.users SET email = ''",
+            "app", ChangeTrigger.AddColumn, "users", "email")
         {
             RunOutsideTransaction = true,
         };
         var diff = new DatabaseDiff(
         [
-            new SchemaDiff(new SqlIdentifier("app"), Tables:
+            new SchemaDiff("app", Tables:
             [
-                new TableDiff(new SqlIdentifier("app"), new SqlIdentifier("users"), ChangeKind.Modify, Columns:
+                new TableDiff("app", "users", ChangeKind.Modify, Columns:
                 [
-                    new ColumnDiff(new SqlIdentifier("email"), ChangeKind.Add, new Column { Name = new SqlIdentifier("email"), Type = SqlType.Text }) { MigrationScript = migration },
+                    new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text }) { MigrationScript = migration },
                 ]),
             ]),
         ]);
         var envelope = new PlanFileEnvelope(
-            new MigrationPlan(diff, [new SqlStatement(new SqlText("UPDATE app.users SET email = ''"), RunOutsideTransaction: true)]),
+            new MigrationPlan(diff, [new SqlStatement("UPDATE app.users SET email = ''", RunOutsideTransaction: true)]),
             DateTimeOffset.UnixEpoch);
 
         // Act
