@@ -42,11 +42,11 @@ public sealed class EphemeralStateStoreTests
     public async Task Acquire_WhenAlreadyHeld_ThrowsWithTheHoldersInfo()
     {
         // Arrange
-        var handle = await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
+        var handle = await _sut.Acquire(Lock("apply"), TestContext.Current.CancellationToken);
 
         // Act & Assert
         var locked = await Should.ThrowAsync<StateLockedException>(
-            () => _sut.Acquire(new StateLockRequest("refresh"), TestContext.Current.CancellationToken));
+            () => _sut.Acquire(Lock("refresh"), TestContext.Current.CancellationToken));
         locked.ExistingLock.ShouldBe(handle.Info);
     }
 
@@ -54,23 +54,23 @@ public sealed class EphemeralStateStoreTests
     public async Task Release_OnTheHandle_AllowsReacquisition()
     {
         // Arrange
-        var handle = await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
+        var handle = await _sut.Acquire(Lock("apply"), TestContext.Current.CancellationToken);
 
         // Act
         await handle.Release(TestContext.Current.CancellationToken);
 
         // Assert — and releasing again is a no-op.
         await handle.Release(TestContext.Current.CancellationToken);
-        (await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken)).ShouldNotBeNull();
+        (await _sut.Acquire(Lock("apply"), TestContext.Current.CancellationToken)).ShouldNotBeNull();
     }
 
     [Fact]
     public async Task Release_OnAStaleHandle_DoesNotDropSomeoneElsesLock()
     {
         // Arrange — the first hold is force-released and the lock re-acquired by another operation.
-        var stale = await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
+        var stale = await _sut.Acquire(Lock("apply"), TestContext.Current.CancellationToken);
         await _sut.Release(TestContext.Current.CancellationToken);
-        var current = await _sut.Acquire(new StateLockRequest("refresh"), TestContext.Current.CancellationToken);
+        var current = await _sut.Acquire(Lock("refresh"), TestContext.Current.CancellationToken);
 
         // Act
         await stale.Release(TestContext.Current.CancellationToken);
@@ -84,9 +84,12 @@ public sealed class EphemeralStateStoreTests
     {
         // Arrange
         (await _sut.Peek(TestContext.Current.CancellationToken)).ShouldBeNull();
-        var handle = await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
+        var handle = await _sut.Acquire(Lock("apply"), TestContext.Current.CancellationToken);
 
         // Act & Assert
         (await _sut.Peek(TestContext.Current.CancellationToken)).ShouldBe(handle.Info);
     }
+
+    private static StateLockInfo Lock(string operation)
+        => new(LockId.New(), operation, LockHolder.Current(), DateTimeOffset.UtcNow);
 }

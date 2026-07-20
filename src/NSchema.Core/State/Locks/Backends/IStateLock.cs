@@ -6,13 +6,13 @@ namespace NSchema.State.Locks.Backends;
 public interface IStateLock
 {
     /// <summary>
-    /// Acquires the lock, blocking other operations until the returned handle is disposed.
+    /// Acquires the lock with the supplied metadata, blocking other operations until the returned handle is disposed.
     /// </summary>
-    /// <param name="request">Describes the operation acquiring the lock.</param>
+    /// <param name="lockInfo">The metadata to record for the acquired lock.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A handle that releases the lock when disposed.</returns>
     /// <exception cref="StateLockedException">The lock is already held by another operation.</exception>
-    Task<IStateLockHandle> Acquire(StateLockRequest request, CancellationToken cancellationToken = default);
+    Task<IStateLockHandle> Acquire(StateLockInfo lockInfo, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Reads the currently-held lock without acquiring or modifying it.

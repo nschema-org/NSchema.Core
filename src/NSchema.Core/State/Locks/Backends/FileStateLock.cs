@@ -8,7 +8,7 @@ namespace NSchema.State.Locks.Backends;
 /// </summary>
 internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IStateLock
 {
-    public async Task<IStateLockHandle> Acquire(StateLockRequest request, CancellationToken cancellationToken = default)
+    public async Task<IStateLockHandle> Acquire(StateLockInfo lockInfo, CancellationToken cancellationToken = default)
     {
         var path = options.Value.Path;
         var directory = Path.GetDirectoryName(Path.GetFullPath(path));
@@ -17,21 +17,12 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
             Directory.CreateDirectory(directory);
         }
 
-        var now = DateTimeOffset.UtcNow;
-        var info = new StateLockInfo(
-            Id: LockId.New(),
-            Operation: request.Operation,
-            Who: LockHolder.Current(),
-            CreatedUtc: now,
-            ExpiresUtc: request.TimeToLive is { } ttl ? now + ttl : null
-        );
-
         try
         {
             // FileMode.CreateNew is the atomic "create only if it doesn't already exist" primitive — this is what
             // makes acquisition mutually exclusive across processes on the local machine.
             await using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-            await JsonSerializer.SerializeAsync(stream, info, cancellationToken: cancellationToken);
+            await JsonSerializer.SerializeAsync(stream, lockInfo, cancellationToken: cancellationToken);
         }
         catch (IOException) when (File.Exists(path))
         {
@@ -44,7 +35,7 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
                 existing);
         }
 
-        return new Handle(path, info);
+        return new Handle(path, lockInfo);
     }
 
     public async Task<StateLockInfo?> Peek(CancellationToken cancellationToken = default)

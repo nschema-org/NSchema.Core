@@ -30,7 +30,7 @@ internal sealed class EphemeralStateStore : IDatabaseStateStore, IStateLock
         return Task.CompletedTask;
     }
 
-    public Task<IStateLockHandle> Acquire(StateLockRequest request, CancellationToken cancellationToken = default)
+    public Task<IStateLockHandle> Acquire(StateLockInfo lockInfo, CancellationToken cancellationToken = default)
     {
         lock (_gate)
         {
@@ -41,14 +41,7 @@ internal sealed class EphemeralStateStore : IDatabaseStateStore, IStateLock
                     holder);
             }
 
-            var now = DateTimeOffset.UtcNow;
-            _held = new StateLockInfo(
-                Id: LockId.New(),
-                Operation: request.Operation,
-                Who: LockHolder.Current(),
-                CreatedUtc: now,
-                ExpiresUtc: request.TimeToLive is { } ttl ? now + ttl : null
-            );
+            _held = lockInfo;
             return Task.FromResult<IStateLockHandle>(new Handle(this, _held));
         }
     }

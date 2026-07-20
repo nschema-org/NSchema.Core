@@ -27,16 +27,18 @@ public sealed class FileStateLockTests : IDisposable
     [Fact]
     public async Task Acquire_CreatesLockFileAndMissingDirectories()
     {
-        var handle = await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
+        var lockInfo = Lock("apply");
+        var handle = await _sut.Acquire(lockInfo, TestContext.Current.CancellationToken);
 
         File.Exists(_path).ShouldBeTrue();
-        handle.Info.Id.Value.ShouldNotBeNullOrEmpty();
+        handle.Info.ShouldBe(lockInfo);
+        (await _sut.Peek(TestContext.Current.CancellationToken)).ShouldBe(lockInfo);
     }
 
     [Fact]
     public async Task Acquire_WithoutTimeToLive_RecordsNoExpiry()
     {
-        var handle = await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
+        var handle = await _sut.Acquire(Lock("apply"), TestContext.Current.CancellationToken);
 
         handle.Info.ExpiresUtc.ShouldBeNull();
     }
@@ -46,7 +48,7 @@ public sealed class FileStateLockTests : IDisposable
     {
         var ttl = TimeSpan.FromMinutes(30);
 
-        var handle = await _sut.Acquire(new StateLockRequest("manual", ttl), TestContext.Current.CancellationToken);
+        var handle = await _sut.Acquire(Lock("manual", ttl), TestContext.Current.CancellationToken);
 
         handle.Info.ExpiresUtc.ShouldNotBeNull();
         // The expiry is the creation time plus the requested lifetime.
@@ -56,7 +58,7 @@ public sealed class FileStateLockTests : IDisposable
     [Fact]
     public async Task Acquire_WithTimeToLive_PersistsExpiryForLaterReaders()
     {
-        await _sut.Acquire(new StateLockRequest("manual", TimeSpan.FromMinutes(30)), TestContext.Current.CancellationToken);
+        await _sut.Acquire(Lock("manual", TimeSpan.FromMinutes(30)), TestContext.Current.CancellationToken);
 
         // A separate reader (e.g. lock status in another process) sees the recorded expiry.
         var peeked = await _sut.Peek(TestContext.Current.CancellationToken);
@@ -68,7 +70,7 @@ public sealed class FileStateLockTests : IDisposable
     [Fact]
     public async Task Release_ReleasesLockFile()
     {
-        var handle = await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
+        var handle = await _sut.Acquire(Lock("apply"), TestContext.Current.CancellationToken);
         await handle.Release(TestContext.Current.CancellationToken);
 
         File.Exists(_path).ShouldBeFalse();
@@ -77,10 +79,10 @@ public sealed class FileStateLockTests : IDisposable
     [Fact]
     public async Task Acquire_WhenAlreadyHeld_ThrowsWithHolderInfo()
     {
-        await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
+        await _sut.Acquire(Lock("apply"), TestContext.Current.CancellationToken);
 
         var ex = await Should.ThrowAsync<StateLockedException>(
-            () => _sut.Acquire(new StateLockRequest("destroy")));
+            () => _sut.Acquire(Lock("destroy")));
 
         ex.ExistingLock.ShouldNotBeNull();
         ex.ExistingLock.Operation.ShouldBe("apply");
@@ -90,18 +92,18 @@ public sealed class FileStateLockTests : IDisposable
     [Fact]
     public async Task Acquire_AfterRelease_Succeeds()
     {
-        var first = await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
+        var first = await _sut.Acquire(Lock("apply"), TestContext.Current.CancellationToken);
         await first.Release(TestContext.Current.CancellationToken);
 
         // Should not throw now that the first lock is released.
-        await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
+        await _sut.Acquire(Lock("apply"), TestContext.Current.CancellationToken);
         File.Exists(_path).ShouldBeTrue();
     }
 
     [Fact]
     public async Task Release_IsIdempotent()
     {
-        var handle = await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
+        var handle = await _sut.Acquire(Lock("apply"), TestContext.Current.CancellationToken);
 
         await handle.Release(TestContext.Current.CancellationToken);
         await Should.NotThrowAsync(async () => await handle.Release(TestContext.Current.CancellationToken));
@@ -111,7 +113,7 @@ public sealed class FileStateLockTests : IDisposable
     public async Task NeverReleasing_LeavesTheLockHeld()
     {
         // A manual hold acquires and intentionally never releases, so the lock outlives the handle.
-        await _sut.Acquire(new StateLockRequest("manual"), TestContext.Current.CancellationToken);
+        await _sut.Acquire(Lock("manual"), TestContext.Current.CancellationToken);
 
         File.Exists(_path).ShouldBeTrue();
         var stillHeld = await _sut.Peek(TestContext.Current.CancellationToken);
@@ -122,7 +124,7 @@ public sealed class FileStateLockTests : IDisposable
     public async Task Release_RemovesAHeldLock()
     {
         // A handle is held but we forcibly release it (as if from another process recovering a stale lock).
-        await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
+        await _sut.Acquire(Lock("apply"), TestContext.Current.CancellationToken);
 
         await _sut.Release(TestContext.Current.CancellationToken);
 
@@ -137,10 +139,10 @@ public sealed class FileStateLockTests : IDisposable
     [Fact]
     public async Task Release_ThenAcquire_Succeeds()
     {
-        await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
+        await _sut.Acquire(Lock("apply"), TestContext.Current.CancellationToken);
         await _sut.Release(TestContext.Current.CancellationToken);
 
-        await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
+        await _sut.Acquire(Lock("apply"), TestContext.Current.CancellationToken);
         File.Exists(_path).ShouldBeTrue();
     }
 
@@ -150,13 +152,24 @@ public sealed class FileStateLockTests : IDisposable
         // Acquire, then simulate a force-unlock (the file is removed by hand) and a fresh acquire by another
         // holder. Releasing the first handle must leave the second holder's lock alone — the file now records a
         // different lock id.
-        var first = await _sut.Acquire(new StateLockRequest("apply"), TestContext.Current.CancellationToken);
+        var first = await _sut.Acquire(Lock("apply"), TestContext.Current.CancellationToken);
         File.Delete(_path);
-        var second = await _sut.Acquire(new StateLockRequest("destroy"), TestContext.Current.CancellationToken);
+        var second = await _sut.Acquire(Lock("destroy"), TestContext.Current.CancellationToken);
 
         await first.Release(TestContext.Current.CancellationToken);
 
         File.Exists(_path).ShouldBeTrue();
         await second.Release(TestContext.Current.CancellationToken);
+    }
+
+    private static StateLockInfo Lock(string operation, TimeSpan? timeToLive = null)
+    {
+        var createdUtc = DateTimeOffset.UtcNow;
+        return new StateLockInfo(
+            LockId.New(),
+            operation,
+            LockHolder.Current(),
+            createdUtc,
+            timeToLive is { } ttl ? createdUtc + ttl : null);
     }
 }
