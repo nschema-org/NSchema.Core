@@ -67,7 +67,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **Teardown destroys what NSchema manages.** `Plan(Empty)` converges the managed set — not everything ever observed — towards nothing.
 - **Managed extensions honor removal-by-absence.** A declared extension becomes managed on apply and is dropped when un-declared.
 - **A foreign key into an undeclared table is a warning, not an error.** The target may exist unmanaged (gradual adoption), so the structural policy advises instead of blocking.
-- **Indexes fold into table creates.** When creating a table and an index for it at the same time, the index will be rolled into the table's create statement.
+- **Constraints fold into table creates.** A newly-created table's foreign keys, unique and check constraints are now rendered inline in its `CREATE TABLE` rather than as trailing `ALTER TABLE ADD CONSTRAINT` statements.
 
 ### Added
 

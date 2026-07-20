@@ -28,7 +28,7 @@ public abstract partial class SqlDialect
     /// Renders adding a primary key constraint.
     /// </summary>
     protected virtual Result<IReadOnlyList<SqlStatement>> AddPrimaryKey(AddPrimaryKey action) =>
-        Statement($"ALTER TABLE {Qualify(action.Table)} ADD CONSTRAINT {Quote(action.PrimaryKey.Name)} PRIMARY KEY ({ColumnList(action.PrimaryKey.ColumnNames)})");
+        Statement($"ALTER TABLE {Qualify(action.Table)} ADD {PrimaryKeyClause(action.PrimaryKey)}");
 
     /// <summary>
     /// Renders dropping a primary key constraint.
@@ -39,13 +39,53 @@ public abstract partial class SqlDialect
     /// <summary>
     /// Renders adding a foreign key constraint.
     /// </summary>
-    protected virtual Result<IReadOnlyList<SqlStatement>> AddForeignKey(AddForeignKey action)
+    protected virtual Result<IReadOnlyList<SqlStatement>> AddForeignKey(AddForeignKey action) =>
+        Statement($"ALTER TABLE {Qualify(action.Table)} ADD {ForeignKeyClause(action.ForeignKey)}");
+
+    /// <summary>
+    /// Renders dropping a foreign key constraint.
+    /// </summary>
+    protected virtual Result<IReadOnlyList<SqlStatement>> DropForeignKey(DropForeignKey action) =>
+        Statement($"ALTER TABLE {Qualify(action.ForeignKey.Owner)} DROP CONSTRAINT {Quote(action.ForeignKey.Member)}");
+
+    /// <summary>
+    /// The inline table-constraint clauses for a CREATE TABLE body, in a safe order: primary key, unique
+    /// constraints, check constraints, then foreign keys. A dialect appends these to its column definitions.
+    /// Exclusion constraints are dialect-specific and left to the dialect that supports them.
+    /// </summary>
+    protected IEnumerable<string> InlineConstraintClauses(Table table)
     {
-        var key = action.ForeignKey;
+        if (table.PrimaryKey is { } pk)
+        {
+            yield return PrimaryKeyClause(pk);
+        }
+
+        foreach (var unique in table.UniqueConstraints)
+        {
+            yield return UniqueConstraintClause(unique);
+        }
+
+        foreach (var check in table.CheckConstraints)
+        {
+            yield return CheckConstraintClause(check);
+        }
+
+        foreach (var foreignKey in table.ForeignKeys)
+        {
+            yield return ForeignKeyClause(foreignKey);
+        }
+    }
+
+    /// <summary>The <c>CONSTRAINT … PRIMARY KEY (…)</c> clause, used inline in a CREATE TABLE and by the ALTER add.</summary>
+    protected string PrimaryKeyClause(PrimaryKey primaryKey) =>
+        $"CONSTRAINT {Quote(primaryKey.Name)} PRIMARY KEY ({ColumnList(primaryKey.ColumnNames)})";
+
+    /// <summary>The <c>CONSTRAINT … FOREIGN KEY (…) REFERENCES …</c> clause, used inline in a CREATE TABLE and by the ALTER add.</summary>
+    protected string ForeignKeyClause(ForeignKey key)
+    {
         var sql = new StringBuilder(
-            $"ALTER TABLE {Qualify(action.Table)} ADD CONSTRAINT {Quote(key.Name)} " +
-            $"FOREIGN KEY ({ColumnList(key.ColumnNames)}) " +
-            $"REFERENCES {Qualify(key.References)} ({ColumnList(key.ReferencedColumnNames)})");
+            $"CONSTRAINT {Quote(key.Name)} FOREIGN KEY ({ColumnList(key.ColumnNames)}) " +
+            $"REFERENCES {ForeignKeyTarget(key)} ({ColumnList(key.ReferencedColumnNames)})");
 
         if (key.OnDelete != ReferentialAction.NoAction)
         {
@@ -57,14 +97,14 @@ public abstract partial class SqlDialect
             sql.Append($" ON UPDATE {ReferentialActionSql(key.OnUpdate)}");
         }
 
-        return Statement(sql.ToString());
+        return sql.ToString();
     }
 
     /// <summary>
-    /// Renders dropping a foreign key constraint.
+    /// The referenced-table text in a foreign key's REFERENCES clause. Schema-qualified by default; a dialect
+    /// whose foreign keys stay within one database (e.g. Sqlite) overrides this to emit the bare name.
     /// </summary>
-    protected virtual Result<IReadOnlyList<SqlStatement>> DropForeignKey(DropForeignKey action) =>
-        Statement($"ALTER TABLE {Qualify(action.ForeignKey.Owner)} DROP CONSTRAINT {Quote(action.ForeignKey.Member)}");
+    protected virtual string ForeignKeyTarget(ForeignKey key) => Qualify(key.References);
 
     /// <summary>
     /// Renders granting table privileges to a role.
