@@ -78,7 +78,9 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
                 yield return $"Column '{path}' becomes NOT NULL; the migration will fail if existing rows hold NULLs. Backfill them first.";
             }
 
-            if (column.Type is { Old: { } oldType, New: { } newType } && CanCastFail(oldType, newType) && column.MigrationScript is null)
+            if (column.Type is { Old: { } oldType, New: { } newType }
+                && oldType.ConversionRiskTo(newType) == TypeConversionRisk.MayFail
+                && column.MigrationScript is null)
             {
                 yield return $"Column '{path}' changes type from {oldType} to {newType}; the cast will fail for existing values that do not fit the new type.";
             }
@@ -126,72 +128,4 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
     private static FormattedText Columns(List<SqlIdentifier> names) =>
         $"{(names.Count == 1 ? "column" : "columns"):text} {string.Join(", ", names.Select(n => $"'{n}'"))}";
 
-    /// <summary>
-    /// Whether altering a column from <paramref name="old"/> to <paramref name="new"/> can fail on values already
-    /// stored. Only combinations the model has knowledge of are flagged; anything involving a custom type stays
-    /// silent rather than guessing. Lossy-but-succeeding casts (rounding, truncation to a coarser date/time type)
-    /// are not hazards — they are already surfaced as destructive type changes.
-    /// </summary>
-    private static bool CanCastFail(SqlType old, SqlType @new)
-    {
-        var from = FamilyOf(old);
-        var to = FamilyOf(@new);
-        if (from == TypeFamily.Unknown || to == TypeFamily.Unknown)
-        {
-            return false;
-        }
-
-        return (from, to) switch
-        {
-            (TypeFamily.String, TypeFamily.String) => Capacity(old) > Capacity(@new),
-            (TypeFamily.Binary, TypeFamily.Binary) => Capacity(old) > Capacity(@new),
-            (TypeFamily.String, _) => true, // parsing text into a structured type can fail on any malformed value
-            (TypeFamily.Integer, TypeFamily.Integer) => IntegerRank(@new) < IntegerRank(old),
-            (TypeFamily.Integer, TypeFamily.Decimal) => IntegerDigits(old) > WholeDigits(@new),
-            (TypeFamily.Decimal, TypeFamily.Decimal) => WholeDigits(@new) < WholeDigits(old),
-            (TypeFamily.Decimal, TypeFamily.Integer) => true,
-            (TypeFamily.Float, TypeFamily.Integer) => true,
-            (TypeFamily.Float, TypeFamily.Decimal) => true,
-            (TypeFamily.Float, TypeFamily.Float) => NameOf(old) == "double" && NameOf(@new) == "float",
-            _ => false,
-        };
-    }
-
-    private enum TypeFamily { String, Binary, Integer, Decimal, Float, Other, Unknown }
-
-    private static string NameOf(SqlType type) => type.Name.Value.ToLowerInvariant();
-
-    private static TypeFamily FamilyOf(SqlType type) => NameOf(type) switch
-    {
-        "char" or "nchar" or "varchar" or "nvarchar" or "text" => TypeFamily.String,
-        "binary" or "varbinary" => TypeFamily.Binary,
-        "tinyint" or "smallint" or "int" or "bigint" => TypeFamily.Integer,
-        "decimal" => TypeFamily.Decimal,
-        "float" or "double" => TypeFamily.Float,
-        "boolean" or "date" or "time" or "datetime" or "datetimeoffset" or "guid" => TypeFamily.Other,
-        _ => TypeFamily.Unknown,
-    };
-
-    private static int Capacity(SqlType type) => type.Length ?? int.MaxValue;
-
-    private static int IntegerRank(SqlType type) => NameOf(type) switch
-    {
-        "tinyint" => 0,
-        "smallint" => 1,
-        "int" => 2,
-        _ => 3,
-    };
-
-    /// <summary>The number of decimal digits needed to hold the integer type's full range.</summary>
-    private static int IntegerDigits(SqlType type) => NameOf(type) switch
-    {
-        "tinyint" => 3,
-        "smallint" => 5,
-        "int" => 10,
-        _ => 19,
-    };
-
-    /// <summary>Digits available to the left of the decimal point; an unbounded decimal has no limit.</summary>
-    private static int WholeDigits(SqlType type) =>
-        type.Precision is { } precision ? precision - (type.Scale ?? 0) : int.MaxValue;
 }

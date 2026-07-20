@@ -27,7 +27,7 @@ internal static class ProjectDiagnostics
     /// Two change-event scripts declared for the same trigger and path.
     /// </summary>
     public static Diagnostic DuplicateChangeTarget(ChangeScript change) => Diagnostic.Error(Source,
-        $"Duplicate migration for {ChangeScript.TriggerText(change.Trigger)} '{change.Path}' declared.");
+        $"Duplicate migration for {ChangeScript.TriggerText(change.Target.Trigger)} '{change.Target.Path}' declared.");
 
     // ── Accumulation findings — project semantics, not grammar, but positioned like syntax errors. ──
 

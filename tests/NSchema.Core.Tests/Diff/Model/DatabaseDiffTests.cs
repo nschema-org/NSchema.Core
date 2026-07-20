@@ -22,8 +22,7 @@ public sealed class DatabaseDiffTests
         new(name, "SELECT 1;", null, DeploymentPhase.Pre);
 
     private static ChangeScript Change(string name) =>
-        new(name, "UPDATE 1;", "app",
-            ChangeTrigger.AddColumn, "users", "email");
+        new(name, "UPDATE 1;", new ChangeTarget("app", "users", "email", ChangeTrigger.AddColumn));
 
     private static DatabaseDiff WithChangeScript(ChangeScript change)
     {

@@ -95,63 +95,19 @@ internal sealed class IncludeResolver(IReadOnlyDictionary<SqlIdentifier, Templat
                 _memberCache[include.TemplateName] = members;
             }
 
-            // Validate before merging anything, so a conflicted include is skipped whole rather than half-applied.
-            var conflicts = new List<Diagnostic>();
-            foreach (var column in members.Columns)
+            // The table owns the all-or-nothing merge, including its collision checks and copies.
+            var merged = table.TryMergeMembers(
+                members,
+                include.ColumnPosition + offset,
+                _includePlaceholder,
+                schemaName);
+            _diagnostics.AddRange(merged.Diagnostics);
+            if (!merged.IsSuccess)
             {
-                if (table.Columns.Any(c => c.Name == column.Name))
-                {
-                    conflicts.Add(TemplateDiagnostics.IncludeColumnConflict(include.TemplateName, column.Name, schemaName, table.Name));
-                }
-            }
-            if (members.PrimaryKey is not null && table.PrimaryKey is not null)
-            {
-                conflicts.Add(TemplateDiagnostics.IncludePrimaryKeyConflict(include.TemplateName, schemaName, table.Name));
-            }
-            if (conflicts.Count > 0)
-            {
-                _diagnostics.AddRange(conflicts);
                 continue;
             }
 
-            // The cached members belong to the cached projection; what merges in is a copy per include site.
-            var position = include.ColumnPosition + offset;
-            foreach (var column in members.Columns)
-            {
-                table.Columns.Insert(position++, column.Clone());
-            }
-            offset += members.Columns.Count;
-
-            if (members.PrimaryKey is not null)
-            {
-                table.PrimaryKey = members.PrimaryKey.Clone();
-            }
-
-            foreach (var fk in members.ForeignKeys)
-            {
-                var copy = fk.Clone();
-                if (copy.References.Schema == _includePlaceholder)
-                {
-                    copy.References = copy.References with { Schema = schemaName };
-                }
-                table.ForeignKeys.Add(copy);
-            }
-            foreach (var uq in members.UniqueConstraints)
-            {
-                table.UniqueConstraints.Add(uq.Clone());
-            }
-            foreach (var ck in members.CheckConstraints)
-            {
-                table.CheckConstraints.Add(ck.Clone());
-            }
-            foreach (var ex in members.ExclusionConstraints)
-            {
-                table.ExclusionConstraints.Add(ex.Clone());
-            }
-            foreach (var ix in members.Indexes)
-            {
-                table.Indexes.Add(ix.Clone());
-            }
+            offset += merged.Value;
         }
     }
 }

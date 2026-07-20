@@ -43,7 +43,7 @@ public sealed class ProjectComparerTests
         new DeploymentScript("seed", "INSERT INTO app.c VALUES (1);", null, DeploymentPhase.Post) { RunCondition = RunCondition.Once };
 
     private static ChangeScript EmailBackfillMigration() =>
-        new ChangeScript("backfill_emails", "UPDATE app.users SET email = ''", "app", ChangeTrigger.AddColumn, "users", "email");
+        new ChangeScript("backfill_emails", "UPDATE app.users SET email = ''", new ChangeTarget("app", "users", "email", ChangeTrigger.AddColumn));
 
     /// <summary>A current state recording <paramref name="sql"/> as <paramref name="script"/>'s executed body.</summary>
     private static CurrentState Executed(Script script, string sql) =>

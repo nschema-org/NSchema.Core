@@ -155,6 +155,34 @@ public sealed record SqlType(SqlIdentifier Name)
     public static SqlType Custom(SqlIdentifier schema, string typeName) => new(typeName.Trim()) { Schema = schema };
 
     /// <summary>
+    /// Assesses whether stored values can fail when converted to <paramref name="target"/>.
+    /// </summary>
+    public TypeConversionRisk ConversionRiskTo(SqlType target)
+    {
+        var from = Family;
+        var to = target.Family;
+        if (from == TypeFamily.Unknown || to == TypeFamily.Unknown)
+        {
+            return TypeConversionRisk.Unknown;
+        }
+
+        return (from, to) switch
+        {
+            (TypeFamily.String, TypeFamily.String) => Capacity > target.Capacity ? TypeConversionRisk.MayFail : TypeConversionRisk.Safe,
+            (TypeFamily.Binary, TypeFamily.Binary) => Capacity > target.Capacity ? TypeConversionRisk.MayFail : TypeConversionRisk.Safe,
+            (TypeFamily.String, _) => TypeConversionRisk.MayFail,
+            (TypeFamily.Integer, TypeFamily.Integer) => target.IntegerRank < IntegerRank ? TypeConversionRisk.MayFail : TypeConversionRisk.Safe,
+            (TypeFamily.Integer, TypeFamily.Decimal) => IntegerDigits > target.WholeDigits ? TypeConversionRisk.MayFail : TypeConversionRisk.Safe,
+            (TypeFamily.Decimal, TypeFamily.Decimal) => target.WholeDigits < WholeDigits ? TypeConversionRisk.MayFail : TypeConversionRisk.Safe,
+            (TypeFamily.Decimal, TypeFamily.Integer) => TypeConversionRisk.MayFail,
+            (TypeFamily.Float, TypeFamily.Integer) => TypeConversionRisk.MayFail,
+            (TypeFamily.Float, TypeFamily.Decimal) => TypeConversionRisk.MayFail,
+            (TypeFamily.Float, TypeFamily.Float) when NameOf(this) == "double" && NameOf(target) == "float" => TypeConversionRisk.MayFail,
+            _ => TypeConversionRisk.Safe,
+        };
+    }
+
+    /// <summary>
     /// Renders the canonical string form, e.g. <c>"bigint"</c>, <c>"varchar(255)"</c>, <c>"app.order_status"</c>.
     /// </summary>
     public override string ToString()
@@ -238,4 +266,39 @@ public sealed record SqlType(SqlIdentifier Name)
         var args = value[(parenStart + 1)..parenEnd].Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         return (name, args);
     }
+
+    private TypeFamily Family => NameOf(this) switch
+    {
+        "char" or "nchar" or "varchar" or "nvarchar" or "text" => TypeFamily.String,
+        "binary" or "varbinary" => TypeFamily.Binary,
+        "tinyint" or "smallint" or "int" or "bigint" => TypeFamily.Integer,
+        "decimal" => TypeFamily.Decimal,
+        "float" or "double" => TypeFamily.Float,
+        "boolean" or "date" or "time" or "datetime" or "datetimeoffset" or "guid" => TypeFamily.Other,
+        _ => TypeFamily.Unknown,
+    };
+
+    private int Capacity => Length ?? int.MaxValue;
+
+    private int IntegerRank => NameOf(this) switch
+    {
+        "tinyint" => 0,
+        "smallint" => 1,
+        "int" => 2,
+        _ => 3,
+    };
+
+    private int IntegerDigits => NameOf(this) switch
+    {
+        "tinyint" => 3,
+        "smallint" => 5,
+        "int" => 10,
+        _ => 19,
+    };
+
+    private int WholeDigits => Precision is { } precision ? precision - (Scale ?? 0) : int.MaxValue;
+
+    private static string NameOf(SqlType type) => type.Name.Value.ToLowerInvariant();
+
+    private enum TypeFamily { String, Binary, Integer, Decimal, Float, Other, Unknown }
 }

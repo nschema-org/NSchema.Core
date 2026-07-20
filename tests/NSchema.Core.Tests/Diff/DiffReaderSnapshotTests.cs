@@ -361,8 +361,7 @@ public sealed class DiffReaderSnapshotTests
     }
 
     private static ChangeScript ChangeScript(string name, ChangeTrigger trigger, string member) =>
-        new(name, $"-- {name}", "app",
-            trigger, "users", member);
+        new(name, $"-- {name}", new ChangeTarget("app", "users", member, trigger));
 
     [Fact]
     public Task Read_DataMigrationAnnotations() => Verify(Read(DataMigrationAnnotationsDiff()));
@@ -373,7 +372,7 @@ public sealed class DiffReaderSnapshotTests
     private static DatabaseDiff ScriptsDiff()
     {
         var backfill = new ChangeScript("backfill_emails", "UPDATE app.users SET email = '';",
-            "app", ChangeTrigger.AddColumn, "users", "email");
+            new ChangeTarget("app", "users", "email", ChangeTrigger.AddColumn));
         var email = new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text }) { MigrationScript = backfill };
         var table = new TableDiff("app", "users", ChangeKind.Modify, Columns: [email]);
         return new DatabaseDiff([new SchemaDiff("app", Tables: [table])])

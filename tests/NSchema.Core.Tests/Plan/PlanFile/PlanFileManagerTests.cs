@@ -22,7 +22,7 @@ public sealed class PlanFileManagerTests
         // A plan carrying a rich diff (including a full Table definition), both script event kinds, and
         // statements with execution metadata, so the round-trip exercises the whole artifact.
         var backfill = new ChangeScript("backfill", "UPDATE app.users SET email = ''",
-            "app", ChangeTrigger.AddColumn, "users", "email");
+            new ChangeTarget("app", "users", "email", ChangeTrigger.AddColumn));
         var email = new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text }) { MigrationScript = backfill };
         var users = new TableDiff("app", "users", ChangeKind.Modify, Columns: [email]);
         var plan = new MigrationPlan(
@@ -54,6 +54,18 @@ public sealed class PlanFileManagerTests
 
         // A read + write cycle reproduces the exact same document, including the polymorphic script events and the diff.
         Json(roundTripped).ShouldBe(json);
+    }
+
+    [Fact]
+    public void Serialize_StoresAChangeScriptTargetAsOneObject()
+    {
+        // Act
+        var json = Json(SampleEnvelope());
+
+        // Assert
+        json.ShouldContain("\"target\": {");
+        json.ShouldNotContain("\"tableName\":");
+        json.ShouldNotContain("\"memberName\":");
     }
 
     [Fact]
@@ -109,7 +121,7 @@ public sealed class PlanFileManagerTests
         // Arrange — a diff whose column add is annotated with its matched script, so diff-node persistence and
         // the script-event discriminator inside the diff are both exercised.
         var migration = new ChangeScript("backfill_emails", "UPDATE app.users SET email = ''",
-            "app", ChangeTrigger.AddColumn, "users", "email")
+            new ChangeTarget("app", "users", "email", ChangeTrigger.AddColumn))
         {
             RunOutsideTransaction = true,
         };

@@ -26,11 +26,11 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger)
     private List<SchemaDiff> CompareSchemas(IReadOnlyList<Schema> current, IReadOnlyList<Schema> desired, RenameLog renames)
     {
         var result = new List<SchemaDiff>();
-        var (forDesired, currentMatched) = MatchEntities(current, desired);
+        var (forDesired, forCurrent) = NamedEntityMatcher.Match(current, desired);
 
         for (var j = 0; j < current.Count; j++)
         {
-            if (currentMatched[j])
+            if (forCurrent[j] is not null)
             {
                 LogSchemaExists(current[j].Name);
             }
@@ -60,42 +60,8 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger)
     }
 
     /// <summary>
-    /// Pairs each current entity with at most one desired entity by exact name. Renames were already rewritten
-    /// by the alignment, so an unmatched current entity is simply removed and an unmatched desired one is new.
-    /// </summary>
-    /// <param name="current">The current-state entities.</param>
-    /// <param name="desired">The desired-state entities.</param>
-    /// <returns>
-    /// <c>ForDesired[i]</c> is the current entity matched to <c>desired[i]</c>, or <c>null</c> if it is new;
-    /// <c>CurrentMatched[j]</c> is whether <c>current[j]</c> was claimed (otherwise it has been removed).
-    /// </returns>
-    private static (T?[] ForDesired, bool[] CurrentMatched) MatchEntities<T>(
-        IReadOnlyList<T> current,
-        IReadOnlyList<T> desired
-    ) where T : DatabaseElement
-    {
-        var forDesired = new T?[desired.Count];
-        var currentMatched = new bool[current.Count];
-
-        for (var i = 0; i < desired.Count; i++)
-        {
-            for (var j = 0; j < current.Count; j++)
-            {
-                if (!currentMatched[j] && current[j].Name == desired[i].Name)
-                {
-                    forDesired[i] = current[j];
-                    currentMatched[j] = true;
-                    break;
-                }
-            }
-        }
-
-        return (forDesired, currentMatched);
-    }
-
-    /// <summary>
     /// The shared per-kind diffing skeleton: pairs current and desired objects via
-    /// <see cref="MatchEntities{T}"/>, treats an unmatched current object as removed, and builds an add for
+    /// <see cref="NamedEntityMatcher.Match{T}"/>, treats an unmatched current object as removed, and builds an add for
     /// each unmatched desired object or delegates to <paramref name="buildModified"/> for a pair (passing the
     /// name the entity was renamed from, when the alignment moved it). Only the per-kind build logic varies;
     /// the matching — and the name ordering the diff presents every kind in — lives here, once.
@@ -110,11 +76,11 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger)
     ) where TModel : DatabaseElement where TDiff : class, INamedObjectDiff
     {
         var result = new List<TDiff>();
-        var (forDesired, currentMatched) = MatchEntities(current, desired);
+        var (forDesired, forCurrent) = NamedEntityMatcher.Match(current, desired);
 
         for (var j = 0; j < current.Count; j++)
         {
-            if (!currentMatched[j])
+            if (forCurrent[j] is null)
             {
                 result.Add(buildRemoved(current[j]));
             }
@@ -151,11 +117,13 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger)
     ) where TModel : DatabaseElement
     {
         var result = new List<TDiff>();
+        var currentByName = NamedEntityMatcher.FirstByName(current);
+        var desiredByName = NamedEntityMatcher.FirstByName(desired);
 
         foreach (var currentMember in current)
         {
-            var matchingDesired = desired.FirstOrDefault(d => d.Name == currentMember.Name);
-            if (matchingDesired is null || !currentMember.Equals(matchingDesired))
+            if (!desiredByName.TryGetValue(currentMember.Name, out var matchingDesired)
+                || !currentMember.Equals(matchingDesired))
             {
                 LogTableMemberMissingOrChanged(memberKind, currentMember.Name, owner);
                 result.Add(diff(ChangeKind.Remove, currentMember.Name, null, null));
@@ -173,8 +141,8 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger)
 
         foreach (var desiredMember in desired)
         {
-            var matchingCurrent = current.FirstOrDefault(c => c.Name == desiredMember.Name);
-            if (matchingCurrent is null || !matchingCurrent.Equals(desiredMember))
+            if (!currentByName.TryGetValue(desiredMember.Name, out var matchingCurrent)
+                || !matchingCurrent.Equals(desiredMember))
             {
                 LogTableMemberNewOrChanged(memberKind, desiredMember.Name, owner);
                 result.Add(diff(ChangeKind.Add, desiredMember.Name, desiredMember, null));

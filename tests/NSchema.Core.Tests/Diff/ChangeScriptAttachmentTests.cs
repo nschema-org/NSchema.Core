@@ -45,8 +45,8 @@ public class ChangeScriptAttachmentTests
     private static Column Id => new Column { Name = "id", Type = SqlType.Int };
 
     private static ChangeScript Change(ChangeTrigger trigger, string member, string? name = null) =>
-        new(name ?? member, $"UPDATE app.users -- {member}", "app",
-            trigger, "users", member);
+        new(name ?? member, $"UPDATE app.users -- {member}",
+            new ChangeTarget("app", "users", member, trigger));
 
     [Fact]
     public void AddColumn_AttachesToTheAddedColumn()
@@ -197,8 +197,8 @@ public class ChangeScriptAttachmentTests
     {
         // Identifiers are case-sensitive: a script addressing a case-variant path targets a different member,
         // so it does not attach.
-        var script = new ChangeScript("backfill", "UPDATE 1", "APP",
-            ChangeTrigger.AddColumn, "Users", "EMAIL");
+        var script = new ChangeScript("backfill", "UPDATE 1",
+            new ChangeTarget("APP", "Users", "EMAIL", ChangeTrigger.AddColumn));
         var diff = Diff(Users(Id), Users(Id, new Column { Name = "email", Type = SqlType.Text }), script);
 
         diff.Columns.Single(c => c.Name.Value == "email").MigrationScript.ShouldBeNull();

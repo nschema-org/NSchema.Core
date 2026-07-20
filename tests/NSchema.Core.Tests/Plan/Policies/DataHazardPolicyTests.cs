@@ -467,7 +467,7 @@ public class DataHazardPolicyTests
     }
 
     private static ChangeScript Migration(ChangeTrigger trigger, string member) =>
-        new(member, "UPDATE app.users SET email = ''", "app", trigger, "users", member);
+        new(member, "UPDATE app.users SET email = ''", new ChangeTarget("app", "users", member, trigger));
 
     private static DatabaseDiff ModifiedTable(
         IReadOnlyList<ColumnDiff>? columns = null,

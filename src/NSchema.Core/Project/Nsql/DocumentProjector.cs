@@ -218,8 +218,7 @@ internal static class DocumentProjector
             case Syn.Scripts.ChangeEventClause change:
                 // A change-event script has no run condition; the node's constructor guarantees none was written.
                 scripts.Add(new ChangeScript(Name(statement.Name), sql,
-                    OptionalName(change.Path.Schema) ?? context,
-                    Map(change.Trigger), Name(change.Path.Table), Name(change.Path.Member))
+                    new ChangeTarget(OptionalName(change.Path.Schema) ?? context, Name(change.Path.Table), Name(change.Path.Member), Map(change.Trigger)))
                 {
                     RunOutsideTransaction = statement.RunOutsideTransaction,
                 });

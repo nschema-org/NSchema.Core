@@ -65,7 +65,7 @@ public sealed record ProjectDirectives(
             script.ScopeSchema is not { } schema || scope.Contains(schema);
 
         bool ChangeInScope(ChangeScript script) =>
-            script.ScopeSchema is not { } schema || InScope(new ObjectAddress(schema, script.TableName));
+            script.Target.TableAddress is not { } table || InScope(table);
 
         // A directive addresses current reality; the scope may name either side of a schema rename.
         bool InScope(ObjectAddress current) =>
