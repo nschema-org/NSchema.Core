@@ -40,10 +40,6 @@ reformatting, typed scaffolding for plugins (no more raw strings), and the guide
 At the moment, there's no guarantee that the plugins you install are compatible with the version of NSchema you're using. We're also missing a lot of
 utility features like updating plugins, listing outdated plugins, supporting version ranges, lockfiles, etc.
 
-### [Edges pass](roadmap/edges-pass.md)
-
-Minor consistency cleanup, making sure that after all the refactoring we've done, none of the documentation has fallen out of line.
-
 ### Other, more vague, plans
 
 - **Row-level security for Postgres.** Pure fidelity. No dependency on roles. Pilot kind for the per-kind handler decomposition.

@@ -79,4 +79,41 @@ public static class NsqlReader
             [.. result.Diagnostics.Select(d => d with { File = path })]
         );
     }
+
+    /// <summary>
+    /// Reads raw <paramref name="source"/> under the lockfile grammar: a typed list of <c>LOCK</c> statements,
+    /// with anything else rejected as a syntax error.
+    /// </summary>
+    /// <param name="source">The lockfile source text.</param>
+    public static Result<NsqlLockDocument, NsqlDiagnostic> ReadLock(string source)
+    {
+        var parser = new NsqlParser(source);
+        var document = parser.ParseLock();
+        return Result<NsqlLockDocument, NsqlDiagnostic>.From(document, [.. parser.Errors.Select(NsqlDiagnostics.Syntax)]);
+    }
+
+    /// <summary>
+    /// Reads the lockfile at <paramref name="path"/>, stamping the path onto the document and every diagnostic.
+    /// An unreadable file is an error diagnostic, not an exception.
+    /// </summary>
+    /// <param name="path">The file to read.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    public static async Task<Result<NsqlLockDocument, NsqlDiagnostic>> ReadLockFile(string path, CancellationToken cancellationToken = default)
+    {
+        string source;
+        try
+        {
+            source = await File.ReadAllTextAsync(path, cancellationToken);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return Result<NsqlLockDocument, NsqlDiagnostic>.Failure(NsqlDiagnostics.UnreadableFile(path, exception));
+        }
+
+        var result = ReadLock(source);
+        return Result<NsqlLockDocument, NsqlDiagnostic>.From(
+            result.Value is { } document ? document with { FilePath = path } : null,
+            [.. result.Diagnostics.Select(d => d with { File = path })]
+        );
+    }
 }

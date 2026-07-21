@@ -50,6 +50,7 @@ internal static class NsqlKeywords
     public const string Instead = "INSTEAD";
     public const string Key = "KEY";
     public const string Last = "LAST";
+    public const string Lock = "LOCK";
     public const string Materialized = "MATERIALIZED";
     public const string MaxValue = "MAXVALUE";
     public const string MinValue = "MINVALUE";
