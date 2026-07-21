@@ -1,16 +1,15 @@
 using NSchema.Project.Nsql;
 using NSchema.Project.Nsql.Syntax.Config;
-using NSchema.Project.Nsql.Syntax.Lock;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;
 
 /// <summary>
-/// The lockfile grammar: <c>nschema.lock</c> parses to typed <see cref="LockStatement"/>s, and neither the
+/// The lockfile grammar: <c>nschema.lock</c> parses to typed <see cref="ConfigStatement"/>s, and neither the
 /// configuration nor the project grammar mixes into it. Translation into the plugin domain is the CLI's.
 /// </summary>
 public sealed class NsqlLockTests
 {
-    private static IReadOnlyList<LockStatement> Read(string source)
+    private static IReadOnlyList<ConfigStatement> Read(string source)
     {
         var result = NsqlReader.ReadLock(source);
         result.IsSuccess.ShouldBeTrue();
@@ -24,8 +23,8 @@ public sealed class NsqlLockTests
             .ShouldHaveSingleItem();
 
         statement.Attributes.Select(a => a.Key).ShouldBe(["source", "version"]);
-        statement.Attributes[0].Value.ShouldBeOfType<StringValue>().Value.ShouldBe("NSchema.Postgres");
-        statement.Attributes[1].Value.ShouldBeOfType<StringValue>().Value.ShouldBe("5.0.0-alpha.2");
+        statement.Attributes[0].Value.ShouldBe("NSchema.Postgres");
+        statement.Attributes[1].Value.ShouldBe("5.0.0-alpha.2");
     }
 
     [Fact]
@@ -37,7 +36,7 @@ public sealed class NsqlLockTests
             LOCK ( source = 'NSchema.Aws',      version = '5.0.0-alpha.2' );
             """);
 
-        statements.Select(s => s.Attributes[0].Value).OfType<StringValue>().Select(v => v.Value)
+        statements.Select(s => s.Attributes[0].Value)
             .ShouldBe(["NSchema.Postgres", "NSchema.Aws"]);
     }
 

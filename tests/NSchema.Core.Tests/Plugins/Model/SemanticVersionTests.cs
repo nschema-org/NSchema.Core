@@ -1,4 +1,4 @@
-using NSchema.Plugins.Model;
+using NSchema.Configuration.Model;
 
 namespace NSchema.Tests.Plugins.Model;
 

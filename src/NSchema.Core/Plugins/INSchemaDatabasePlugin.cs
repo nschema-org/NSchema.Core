@@ -1,4 +1,4 @@
-using NSchema.Plugins.Model.Config;
+using NSchema.Configuration.Plugins;
 
 namespace NSchema.Plugins;
 

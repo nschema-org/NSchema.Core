@@ -27,7 +27,7 @@ public static class PluginHandshake
 
         if (referencedCore is null)
         {
-            return Result.From(PluginDiagnostics.DoesNotReferenceCore(plugin));
+            return Result.From(HandshakeDiagnostics.DoesNotReferenceCore(plugin));
         }
 
         return referencedCore.Version is { } referenced ? Validate(plugin, referenced, _hostVersion) : Result.Success();
@@ -37,11 +37,11 @@ public static class PluginHandshake
     {
         if (referenced.Major != host.Major)
         {
-            return Result.From(PluginDiagnostics.MajorMismatch(plugin, referenced, host));
+            return Result.From(HandshakeDiagnostics.MajorMismatch(plugin, referenced, host));
         }
         if (referenced.Minor > host.Minor)
         {
-            return Result.From(PluginDiagnostics.EngineOlderThanPlugin(plugin, referenced, host));
+            return Result.From(HandshakeDiagnostics.EngineOlderThanPlugin(plugin, referenced, host));
         }
         return Result.Success();
     }

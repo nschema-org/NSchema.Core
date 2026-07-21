@@ -1,3 +1,4 @@
+using System.Globalization;
 using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Syntax.Config;
 using NSchema.Project.Nsql.Tokens;
@@ -14,71 +15,41 @@ internal sealed partial class NsqlParser
 
     private ConfigStatement ParseConfigGrammarStatement(string? doc)
     {
-        if (_current.IsKeyword(NsqlKeywords.State))
+        if (CurrentConfigKeyword() is not { } keyword || keyword == ConfigKeyword.Lock)
         {
-            return ParseStateConfigStatement(doc);
+            throw _current.Kind == TokenKind.Identifier
+                ? Error($"Unknown configuration statement '{_current.Text}'; a configuration file holds only PLUGIN, ENGINE, DATABASE, and STATE statements.")
+                : Error($"Unexpected '{_current.Text}'; expected a configuration statement.");
         }
-        if (_current.IsKeyword(NsqlKeywords.Database))
-        {
-            return ParseDatabaseConfigStatement(doc);
-        }
-        if (_current.IsKeyword(NsqlKeywords.Plugin))
-        {
-            return ParsePluginConfigStatement(doc);
-        }
-        if (_current.IsKeyword(NsqlKeywords.Engine))
-        {
-            return ParseEngineConfigStatement(doc);
-        }
-        if (_current.Kind == TokenKind.Identifier)
-        {
-            throw Error($"Unknown configuration statement '{_current.Text}'; a configuration file holds only PLUGIN, ENGINE, DATABASE, and STATE statements.");
-        }
-        throw Error($"Unexpected '{_current.Text}'; expected a configuration statement.");
+        return ParseKeywordStatement(keyword, doc);
     }
 
-    /// <summary>
-    /// Parses <c>DATABASE [label] ( … ) ;</c> — the optional label names the plugin that serves it.
-    /// </summary>
-    private DatabaseStatement ParseDatabaseConfigStatement(string? doc)
-    {
-        var (position, label, attributes) = ParseConfigStatementBody();
-        return new DatabaseStatement(label, attributes) { Position = position, Doc = doc };
-    }
+    /// <summary>The configuration keyword the current token leads with, or <see langword="null"/> when it is none.</summary>
+    private ConfigKeyword? CurrentConfigKeyword() =>
+        _current.IsKeyword(NsqlKeywords.Plugin) ? ConfigKeyword.Plugin
+        : _current.IsKeyword(NsqlKeywords.Engine) ? ConfigKeyword.Engine
+        : _current.IsKeyword(NsqlKeywords.Database) ? ConfigKeyword.Database
+        : _current.IsKeyword(NsqlKeywords.State) ? ConfigKeyword.State
+        : _current.IsKeyword(NsqlKeywords.Lock) ? ConfigKeyword.Lock
+        : null;
 
     /// <summary>
-    /// Parses <c>STATE [label] ( … ) ;</c> — the optional label names the plugin that serves it.
+    /// Parses the body shared by every keyword — <c>[label] ( key = value , … ) ;</c> — and enforces the
+    /// keyword's label rule (PLUGIN requires one; ENGINE and LOCK forbid one; DATABASE and STATE are optional).
     /// </summary>
-    private StateStatement ParseStateConfigStatement(string? doc)
+    private ConfigStatement ParseKeywordStatement(ConfigKeyword keyword, string? doc)
     {
         var (position, label, attributes) = ParseConfigStatementBody();
-        return new StateStatement(label, attributes) { Position = position, Doc = doc };
-    }
-
-    /// <summary>
-    /// Parses <c>PLUGIN &lt;label&gt; ( … ) ;</c> — the label is required: it is the name the plugin is referenced by.
-    /// </summary>
-    private PluginStatement ParsePluginConfigStatement(string? doc)
-    {
-        var (position, label, attributes) = ParseConfigStatementBody();
-        if (label is null)
+        switch (keyword)
         {
-            throw new NsqlSyntaxException("A PLUGIN statement requires a label naming the plugin, e.g. PLUGIN pg ( … ).", position);
+            case ConfigKeyword.Plugin when label is null:
+                throw new NsqlSyntaxException("A PLUGIN statement requires a label naming the plugin, e.g. PLUGIN pg ( … ).", position);
+            case ConfigKeyword.Engine when label is not null:
+                throw new NsqlSyntaxException("An ENGINE statement takes no label; there is only one engine.", label.Position);
+            case ConfigKeyword.Lock when label is not null:
+                throw new NsqlSyntaxException("A LOCK statement takes no label; it identifies its package by the 'source' attribute.", label.Position);
         }
-        return new PluginStatement(label, attributes) { Position = position, Doc = doc };
-    }
-
-    /// <summary>
-    /// Parses <c>ENGINE ( … ) ;</c> — no label: there is only one engine.
-    /// </summary>
-    private EngineStatement ParseEngineConfigStatement(string? doc)
-    {
-        var (position, label, attributes) = ParseConfigStatementBody();
-        if (label is not null)
-        {
-            throw new NsqlSyntaxException("An ENGINE statement takes no label; there is only one engine.", label.Position);
-        }
-        return new EngineStatement(attributes) { Position = position, Doc = doc };
+        return new ConfigStatement(keyword, label, attributes) { Position = position, Doc = doc };
     }
 
     /// <summary>
@@ -112,7 +83,7 @@ internal sealed partial class NsqlParser
                     throw new NsqlSyntaxException($"Configuration attribute '{key}' is specified more than once.", keyPosition);
                 }
                 Expect(TokenKind.Equals, "'=' after a configuration attribute name");
-                var value = ParseConfigValueNode();
+                var value = ParseConfigValue();
                 attributes.Add(new ConfigAttribute(key, value) { Position = keyPosition });
             }
             while (Match(TokenKind.Comma));
@@ -136,39 +107,28 @@ internal sealed partial class NsqlParser
         return key;
     }
 
-    /// <summary>Parses a configuration scalar: string, (signed) integer, <c>true</c>/<c>false</c>, or bare identifier.</summary>
-    private ConfigValueNode ParseConfigValueNode()
+    /// <summary>
+    /// Parses a configuration scalar — a string, (signed) integer, <c>true</c>/<c>false</c>, or bare identifier —
+    /// as the text it was written as. The configuration binder converts it to the attribute's target type.
+    /// </summary>
+    private string ParseConfigValue()
     {
-        var position = _current.Position;
         switch (_current.Kind)
         {
             case TokenKind.String:
-                return new StringValue(Advance().Text) { Position = position };
+            case TokenKind.Identifier:
+                return Advance().Text;
             case TokenKind.Integer:
             case TokenKind.Minus:
-                return new IntegerValue(ExpectSignedIntegerValue()) { Position = position };
-            case TokenKind.Identifier:
-                var text = Advance().Text;
-                if (NsqlKeywords.Comparer.Equals(text, "true")) { return new BooleanValue(true) { Position = position }; }
-                if (NsqlKeywords.Comparer.Equals(text, "false")) { return new BooleanValue(false) { Position = position }; }
-                return new IdentifierValue(text) { Position = position };
+                return ExpectSignedIntegerValue().ToString(CultureInfo.InvariantCulture);
             default:
                 throw Error("Expected a configuration value (a string, integer, true, false, or identifier).");
         }
     }
 
-    /// <summary>
-    /// Reads a boolean value, mirroring the config model's kind check.
-    /// </summary>
-    private static bool AsBoolean(ConfigValueNode value) => value is BooleanValue b
-        ? b.Value
-        : throw new InvalidOperationException($"Configuration value of kind {KindName(value)} is not a boolean.");
-
-    private static string KindName(ConfigValueNode value) => value switch
-    {
-        StringValue => "String",
-        IntegerValue => "Integer",
-        BooleanValue => "Boolean",
-        _ => "Identifier",
-    };
+    // Reads a value written as true/false; a parse-time check for the few options (e.g. run_outside_transaction)
+    // the parser resolves directly rather than through the configuration binder.
+    private static bool AsBoolean(string value, SourcePosition position) => bool.TryParse(value, out var result)
+        ? result
+        : throw new NsqlSyntaxException($"Expected 'true' or 'false', but got '{value}'.", position);
 }
