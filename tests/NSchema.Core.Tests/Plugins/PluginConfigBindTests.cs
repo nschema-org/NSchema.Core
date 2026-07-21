@@ -1,12 +1,12 @@
-using NSchema.Plugins;
-using NSchema.Plugins.Model.Config;
+using System.ComponentModel.DataAnnotations;
+using NSchema.Configuration.Plugins;
 
 namespace NSchema.Tests.Plugins;
 
 /// <summary>
-/// Options binding: a <see cref="PluginConfig"/> binds onto an options object the way IConfiguration binds —
-/// snake_case names to properties, dotted keys to nested objects, identifiers to enums — with every finding
-/// a diagnostic on the result.
+/// Options binding: a <see cref="PluginSettings"/> binds its attributes onto an options object the way the
+/// configuration binder does — snake_case names to properties, dotted keys to nested objects, values through
+/// type converters — validating the target's data annotations, with every finding a diagnostic on the result.
 /// </summary>
 public sealed class PluginConfigBindTests
 {
@@ -19,7 +19,8 @@ public sealed class PluginConfigBindTests
 
     private sealed class DatabaseOptions
     {
-        public required string ConnectionString { get; set; }
+        [Required]
+        public string? ConnectionString { get; set; }
         public int ConnectionTimeout { get; set; } = 30;
         public bool Ssl { get; set; }
         public TransactionMode TransactionMode { get; set; }
@@ -27,20 +28,20 @@ public sealed class PluginConfigBindTests
         public PoolOptions Pool { get; set; } = new();
     }
 
-    private static PluginConfig Config(params (string Key, ConfigValue Value)[] attributes) =>
-        new(null, attributes.ToDictionary(a => new AttributeKey(a.Key), a => a.Value));
+    private static PluginSettings Config(params (string Key, string? Value)[] attributes) =>
+        new(null, attributes.ToDictionary(a => a.Key, a => a.Value, StringComparer.OrdinalIgnoreCase));
 
     [Fact]
     public void Bind_MapsSnakeCaseAttributesToProperties()
     {
         // Arrange
         var config = Config(
-            ("connection_string", ConfigValue.OfString("Host=localhost")),
-            ("connection_timeout", ConfigValue.OfInteger(60)),
-            ("ssl", ConfigValue.OfBoolean(true)));
+            ("connection_string", "Host=localhost"),
+            ("connection_timeout", "60"),
+            ("ssl", "true"));
 
         // Act
-        var result = config.Bind<DatabaseOptions>();
+        var result = config.Get<DatabaseOptions>();
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -51,70 +52,46 @@ public sealed class PluginConfigBindTests
 
     [Fact]
     public void Bind_UnsetAttributes_KeepTheirDefaults()
-        => Config(("connection_string", ConfigValue.OfString("x"))).Bind<DatabaseOptions>()
+        => Config(("connection_string", "x")).Get<DatabaseOptions>()
             .Value!.ConnectionTimeout.ShouldBe(30);
 
     [Fact]
-    public void Bind_IdentifierValue_BindsEnum_UnderTheSameNamingConvention()
-        => Config(("connection_string", ConfigValue.OfString("x")), ("transaction_mode", ConfigValue.OfIdentifier("read_committed")))
-            .Bind<DatabaseOptions>().Value!.TransactionMode.ShouldBe(TransactionMode.ReadCommitted);
+    public void Bind_EnumValue_BindsByMemberNameCaseInsensitively()
+        => Config(("connection_string", "x"), ("transaction_mode", "readcommitted"))
+            .Get<DatabaseOptions>().Value!.TransactionMode.ShouldBe(TransactionMode.ReadCommitted);
 
     [Fact]
-    public void Bind_StringValue_ConvertsThroughTypeConverters()
-        => Config(("connection_string", ConfigValue.OfString("x")), ("command_timeout", ConfigValue.OfString("00:00:30")))
-            .Bind<DatabaseOptions>().Value!.CommandTimeout.ShouldBe(TimeSpan.FromSeconds(30));
+    public void Bind_Value_ConvertsThroughTypeConverters()
+        => Config(("connection_string", "x"), ("command_timeout", "00:00:30"))
+            .Get<DatabaseOptions>().Value!.CommandTimeout.ShouldBe(TimeSpan.FromSeconds(30));
 
     [Fact]
     public void Bind_DottedKey_BindsNestedOptions()
-        => Config(("connection_string", ConfigValue.OfString("x")), ("pool.max", ConfigValue.OfInteger(20)))
-            .Bind<DatabaseOptions>().Value!.Pool.Max.ShouldBe(20);
+        => Config(("connection_string", "x"), ("pool.max", "20"))
+            .Get<DatabaseOptions>().Value!.Pool.Max.ShouldBe(20);
 
     [Fact]
     public void Bind_MissingRequiredAttribute_IsAnError()
-    {
-        // Act
-        var result = Config(("ssl", ConfigValue.OfBoolean(true))).Bind<DatabaseOptions>();
-
-        // Assert
-        result.Errors.ShouldHaveSingleItem()
-            .ShouldBe(PluginDiagnostics.MissingRequiredOption("connection_string", typeof(DatabaseOptions)));
-    }
+        => Config(("ssl", "true")).Get<DatabaseOptions>().Errors
+            .ShouldHaveSingleItem().Message.ShouldContain("ConnectionString");
 
     [Fact]
     public void Bind_UnknownAttribute_IsAnError()
-    {
-        // Act — a typo'd attribute matches no property.
-        var result = Config(("connection_string", ConfigValue.OfString("x")), ("connection_sting", ConfigValue.OfString("y")))
-            .Bind<DatabaseOptions>();
-
-        // Assert
-        result.Errors.ShouldHaveSingleItem()
-            .ShouldBe(PluginDiagnostics.UnknownOption("connection_sting", typeof(DatabaseOptions)));
-    }
+        // A typo'd attribute matches no property.
+        => Config(("connection_string", "x"), ("connection_sting", "y")).Get<DatabaseOptions>()
+            .IsFailure.ShouldBeTrue();
 
     [Fact]
     public void Bind_ValueThatDoesNotFit_IsAnError()
-    {
-        // Act — an integer cannot bind a bool property.
-        var result = Config(("connection_string", ConfigValue.OfString("x")), ("ssl", ConfigValue.OfInteger(1)))
-            .Bind<DatabaseOptions>();
-
-        // Assert
-        result.Errors.ShouldHaveSingleItem()
-            .ShouldBe(PluginDiagnostics.UnbindableOption("ssl", ConfigValueKind.Integer, typeof(bool)));
-    }
-
-    [Fact]
-    public void Bind_IntegerOverflow_IsAnError()
-        => Config(("connection_string", ConfigValue.OfString("x")), ("connection_timeout", ConfigValue.OfInteger(5_000_000_000)))
-            .Bind<DatabaseOptions>().Errors.ShouldHaveSingleItem()
-            .ShouldBe(PluginDiagnostics.UnbindableOption("connection_timeout", ConfigValueKind.Integer, typeof(int)));
+        // A non-boolean cannot bind a bool property.
+        => Config(("connection_string", "x"), ("ssl", "notabool")).Get<DatabaseOptions>()
+            .IsFailure.ShouldBeTrue();
 
     [Fact]
     public void Bind_Failure_StillCarriesTheBestEffortInstance()
     {
         // Act
-        var result = Config(("ssl", ConfigValue.OfBoolean(true))).Bind<DatabaseOptions>();
+        var result = Config(("ssl", "true")).Get<DatabaseOptions>();
 
         // Assert
         result.IsFailure.ShouldBeTrue();

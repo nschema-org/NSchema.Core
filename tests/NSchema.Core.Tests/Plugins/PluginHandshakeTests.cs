@@ -32,7 +32,7 @@ public sealed class PluginHandshakeTests
         var result = PluginHandshake.Validate("pg", referenced, Host);
 
         // Assert
-        result.Errors.ShouldHaveSingleItem().ShouldBe(PluginDiagnostics.EngineOlderThanPlugin("pg", referenced, Host));
+        result.Errors.ShouldHaveSingleItem().ShouldBe(HandshakeDiagnostics.EngineOlderThanPlugin("pg", referenced, Host));
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public sealed class PluginHandshakeTests
         var result = PluginHandshake.Validate("pg", referenced, Host);
 
         // Assert
-        result.Errors.ShouldHaveSingleItem().ShouldBe(PluginDiagnostics.MajorMismatch("pg", referenced, Host));
+        result.Errors.ShouldHaveSingleItem().ShouldBe(HandshakeDiagnostics.MajorMismatch("pg", referenced, Host));
     }
 
     [Fact]
@@ -62,6 +62,6 @@ public sealed class PluginHandshakeTests
         var result = PluginHandshake.Validate(assembly);
 
         // Assert
-        result.Errors.ShouldHaveSingleItem().ShouldBe(PluginDiagnostics.DoesNotReferenceCore(assembly.GetName().Name!));
+        result.Errors.ShouldHaveSingleItem().ShouldBe(HandshakeDiagnostics.DoesNotReferenceCore(assembly.GetName().Name!));
     }
 }

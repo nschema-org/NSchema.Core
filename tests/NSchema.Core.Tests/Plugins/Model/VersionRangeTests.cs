@@ -1,4 +1,4 @@
-using NSchema.Plugins.Model;
+using NSchema.Configuration.Model;
 
 namespace NSchema.Tests.Plugins.Model;
 
@@ -101,6 +101,7 @@ public sealed class VersionRangeTests
 
     [Theory]
     [InlineData("[5.0,6.0)", "5.0.0-alpha.1", false)] // a prerelease precedes its release
+    [InlineData("[5.0,6.0)", "5.1.0-beta", false)] // inside the interval, but a stable range admits no prereleases
     [InlineData("[5.0.0-alpha,6.0)", "5.0.0-alpha.1", true)]
     [InlineData("[5.0.0-beta,6.0)", "5.0.0-alpha.1", false)]
     [InlineData("[5.0.0-alpha.2,6.0)", "5.0.0-alpha.10", true)] // numeric identifiers compare numerically
@@ -109,4 +110,25 @@ public sealed class VersionRangeTests
     public void Satisfies_OrdersPrereleasesBySemVerPrecedence(string range, string version, bool expected)
         => VersionRange.Parse(range).Satisfies(SemanticVersion.Parse(version)).ShouldBe(expected);
 
+    [Fact]
+    public void Highest_PicksTheHighestSatisfyingVersion()
+        => VersionRange.Parse("[5.0,6.0)").Highest(
+            [SemanticVersion.Parse("5.1.0"), SemanticVersion.Parse("6.1.0"), SemanticVersion.Parse("5.3.2"), SemanticVersion.Parse("5.2.0")])
+            .ShouldBe(SemanticVersion.Parse("5.3.2"));
+
+    [Fact]
+    public void Highest_NoneSatisfy_ReturnsNull()
+        => VersionRange.Parse("[5.0,6.0)").Highest([SemanticVersion.Parse("4.9.0"), SemanticVersion.Parse("6.0.0")]).ShouldBeNull();
+
+    [Fact]
+    public void Highest_ExcludesPrereleases_FromAStableRange()
+        => VersionRange.Parse("[5.0,6.0)").Highest(
+            [SemanticVersion.Parse("5.1.0"), SemanticVersion.Parse("5.2.0-beta"), SemanticVersion.Parse("5.1.5")])
+            .ShouldBe(SemanticVersion.Parse("5.1.5"));
+
+    [Fact]
+    public void Highest_AdmitsPrereleases_WhenABoundIsPrerelease()
+        => VersionRange.Parse("[5.0.0-alpha,6.0)").Highest(
+            [SemanticVersion.Parse("5.1.0"), SemanticVersion.Parse("5.2.0-beta")])
+            .ShouldBe(SemanticVersion.Parse("5.2.0-beta"));
 }

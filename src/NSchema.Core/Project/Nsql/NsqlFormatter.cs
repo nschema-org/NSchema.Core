@@ -192,8 +192,8 @@ public static class NsqlFormatter
 
             var second = FirstSignificant(tokens, first + 1, end);
             var isCreateTable = tokens[first].IsKeyword(NsqlKeywords.Create) && second >= 0 && tokens[second].IsKeyword(NsqlKeywords.Table);
-            var isConfigBlock = tokens[first].Kind == TokenKind.Identifier && !IsStatementKeyword(tokens[first].Text);
-            if (isCreateTable || isConfigBlock)
+            var isBlock = tokens[first].Kind == TokenKind.Identifier && !IsStatementKeyword(tokens[first].Text);
+            if (isCreateTable || isBlock)
             {
                 var open = FindTopLevelOpenParen(tokens, start, end);
                 if (open >= 0)

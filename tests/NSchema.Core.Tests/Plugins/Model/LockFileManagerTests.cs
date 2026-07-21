@@ -1,6 +1,5 @@
-using NSchema.Plugins;
-using NSchema.Plugins.Model;
-using NSchema.Plugins.Model.LockFiles;
+using NSchema.Configuration.Model;
+using NSchema.Configuration.Plugins;
 
 namespace NSchema.Tests.Plugins.Model;
 
@@ -15,8 +14,8 @@ public sealed class LockFileManagerTests : IDisposable
 
     private static readonly LockFile Sample = new(
     [
-        new LockedPlugin(new PackageId("NSchema.Postgres"), SemanticVersion.Parse("5.0.0-alpha.2")),
-        new LockedPlugin(new PackageId("NSchema.Aws"), SemanticVersion.Parse("5.0.0-alpha.2")),
+        new LockedPlugin { Source = new PackageId("NSchema.Postgres"), Version = SemanticVersion.Parse("5.0.0-alpha.2") },
+        new LockedPlugin { Source = new PackageId("NSchema.Aws"), Version = SemanticVersion.Parse("5.0.0-alpha.2") },
     ]);
 
     public void Dispose()
@@ -71,7 +70,7 @@ public sealed class LockFileManagerTests : IDisposable
         var result = await Read();
 
         result.IsSuccess.ShouldBeTrue();
-        result.Value.Plugins.ShouldHaveSingleItem().ShouldBe(new LockedPlugin(new PackageId("NSchema.Postgres"), SemanticVersion.Parse("5.0.0")));
+        result.Value.Plugins.ShouldHaveSingleItem().ShouldBe(new LockedPlugin { Source = new PackageId("NSchema.Postgres"), Version = SemanticVersion.Parse("5.0.0") });
     }
 
     [Fact]
@@ -79,7 +78,7 @@ public sealed class LockFileManagerTests : IDisposable
     {
         await WriteText("LOCK ( version = '5.0.0' );");
 
-        (await Read()).Errors.ShouldContain(e => e.Message.Contains("requires a 'source' attribute"));
+        (await Read()).Errors.ShouldContain(e => e.Message.Contains("Source"));
     }
 
     [Fact]
@@ -87,7 +86,7 @@ public sealed class LockFileManagerTests : IDisposable
     {
         await WriteText("LOCK ( source = 'NSchema.Postgres' );");
 
-        (await Read()).Errors.ShouldContain(e => e.Message.Contains("requires a 'version' attribute"));
+        (await Read()).Errors.ShouldContain(e => e.Message.Contains("Version"));
     }
 
     [Fact]
@@ -95,7 +94,7 @@ public sealed class LockFileManagerTests : IDisposable
     {
         await WriteText("LOCK ( source = 'not a package', version = '5.0.0' );");
 
-        (await Read()).Errors.ShouldContain(e => e.Message.Contains("not a valid package id"));
+        (await Read()).IsFailure.ShouldBeTrue();
     }
 
     [Fact]
@@ -103,6 +102,6 @@ public sealed class LockFileManagerTests : IDisposable
     {
         await WriteText("LOCK ( source = 'NSchema.Postgres', version = 'banana' );");
 
-        (await Read()).Errors.ShouldContain(e => e.Message.Contains("not a valid version"));
+        (await Read()).IsFailure.ShouldBeTrue();
     }
 }

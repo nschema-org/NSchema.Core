@@ -166,11 +166,12 @@ internal sealed partial class NsqlParser
                 var keyPosition = _current.Position;
                 var key = ExpectIdentifierNode($"a {what} option name").Value;
                 Expect(TokenKind.Equals, "'=' after an option name");
-                var value = ParseConfigValueNode();
+                var valuePosition = _current.Position;
+                var value = ParseBlockValue();
                 switch (key.ToLowerInvariant())
                 {
                     case "run_outside_transaction":
-                        runOutsideTransaction = AsBoolean(value);
+                        runOutsideTransaction = AsBoolean(value, valuePosition);
                         break;
                     default:
                         throw new NsqlSyntaxException($"Unknown {what} option '{key}'. Expected 'run_outside_transaction'.", keyPosition);

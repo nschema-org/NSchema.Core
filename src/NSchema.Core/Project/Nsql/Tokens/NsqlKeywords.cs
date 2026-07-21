@@ -109,9 +109,9 @@ internal static class NsqlKeywords
     public static readonly IReadOnlySet<string> StatementOpeners = Group(Create, Grant, Template, Apply, Script, Rename);
 
     /// <summary>
-    /// The keywords that open a configuration-grammar statement.
+    /// The keywords that open a block in a configuration file.
     /// </summary>
-    public static readonly IReadOnlySet<string> ConfigStatementOpeners = Group(Plugin, Engine, Database, State);
+    public static readonly IReadOnlySet<string> ConfigurationBlockOpeners = Group(Plugin, Engine, Database, State);
 
     /// <summary>
     /// The keywords that open a table member.

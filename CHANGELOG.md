@@ -78,11 +78,12 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **Ephemeral state.** `UseEphemeralState()` registers an in-memory state store and matching lock, intended for disposable databases.
 - **Object-granular targeting.** `PlanningScope` now takes object addresses alongside schema name.
 - **`PLUGIN` declares plugin dependencies.** `PLUGIN <label> ( source = '…', version = '…' );` separates dependency declaration from configuration.
-- **`ENGINE` asserts the engine version.** `ENGINE ( version = '…' );` states the engine version range a project requires..
+- **`ENGINE` asserts the engine and/or host version.** `ENGINE ( version = '…', host_version = '…' );` — `version` is checked against the engine (Core), `host_version` against the host tool.
 - **The engine handshake.** `PluginHandshake.Validate` checks a loaded plugin assembly against the hosting engine before any of its types are instantiated.
-- **`ConfigProvider.GetConfig` loads a configuration.** One call from file paths to a `ConfigDefinition`: reads every file, and assembles the best-effort result.
-- **The plugin lockfile.** `LockFileManager` reads and writes `nschema.lock` (a `LOCK ( source = '…', version = '…' );` grammar) as a `LockFile` of `LockedPlugin` pins, so a declared version range can be resolved to a concrete version and reproduced.
-- **`VersionRange.IsExact` / `ExactVersion`.** Report whether a range pins a single version, and the version it pins.
+- **`ConfigurationProvider.Load` loads a configuration.** One call from ordered configuration *layers* (a later layer overrides an earlier one) to a validated `ConfigurationDefinition`.
+- **The plugin lockfile.** `LockFileManager` reads and writes `nschema.lock` (a `LOCK ( source = '…', version = '…' );` grammar) as a `LockFile` of `LockedPlugin` pins. `LockFile.Resolve(declaration)` resolves a declaration against the lock.
+- **`VersionRange.IsExact` / `ExactVersion` / `Highest`.** Report whether a range pins a single version and the version it pins, and select the highest of a supplied set of versions that the range admits.
+- **Plugins split from configuration.** The provider interfaces stay in `NSchema.Plugins` (`INSchemaPlugin` and friends, the handshake, `ScaffoldContext`); everything a project *declares*, now lives under `NSchema.Configuration`. `PluginConfig` is in `NSchema.Configuration.Settings`.
 
 ### Removed
 

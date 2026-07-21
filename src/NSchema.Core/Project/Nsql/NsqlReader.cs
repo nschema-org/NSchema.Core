@@ -44,15 +44,15 @@ public static class NsqlReader
     }
 
     /// <summary>
-    /// Reads raw <paramref name="source"/> under the configuration grammar: a typed list of configuration
-    /// statements, with a project statement rejected as a syntax error (a file is one grammar or the other).
+    /// Reads raw <paramref name="source"/> as a configuration file: its blocks as written, with a project
+    /// statement rejected as a syntax error (a file is one grammar or the other).
     /// </summary>
     /// <param name="source">The configuration source text.</param>
-    public static Result<NsqlConfigDocument, NsqlDiagnostic> ReadConfig(string source)
+    public static Result<NsqlBlockDocument, NsqlDiagnostic> ReadConfiguration(string source)
     {
         var parser = new NsqlParser(source);
-        var document = parser.ParseConfig();
-        return Result<NsqlConfigDocument, NsqlDiagnostic>.From(document, [.. parser.Errors.Select(NsqlDiagnostics.Syntax)]);
+        var document = parser.ParseConfiguration();
+        return Result<NsqlBlockDocument, NsqlDiagnostic>.From(document, [.. parser.Errors.Select(NsqlDiagnostics.Syntax)]);
     }
 
     /// <summary>
@@ -61,7 +61,7 @@ public static class NsqlReader
     /// </summary>
     /// <param name="path">The file to read.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public static async Task<Result<NsqlConfigDocument, NsqlDiagnostic>> ReadConfigFile(string path, CancellationToken cancellationToken = default)
+    public static async Task<Result<NsqlBlockDocument, NsqlDiagnostic>> ReadConfigurationFile(string path, CancellationToken cancellationToken = default)
     {
         string source;
         try
@@ -70,11 +70,11 @@ public static class NsqlReader
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return Result<NsqlConfigDocument, NsqlDiagnostic>.Failure(NsqlDiagnostics.UnreadableFile(path, exception));
+            return Result<NsqlBlockDocument, NsqlDiagnostic>.Failure(NsqlDiagnostics.UnreadableFile(path, exception));
         }
 
-        var result = ReadConfig(source);
-        return Result<NsqlConfigDocument, NsqlDiagnostic>.From(
+        var result = ReadConfiguration(source);
+        return Result<NsqlBlockDocument, NsqlDiagnostic>.From(
             result.Value is { } document ? document with { FilePath = path } : null,
             [.. result.Diagnostics.Select(d => d with { File = path })]
         );
@@ -85,11 +85,11 @@ public static class NsqlReader
     /// with anything else rejected as a syntax error.
     /// </summary>
     /// <param name="source">The lockfile source text.</param>
-    public static Result<NsqlLockDocument, NsqlDiagnostic> ReadLock(string source)
+    public static Result<NsqlBlockDocument, NsqlDiagnostic> ReadLock(string source)
     {
         var parser = new NsqlParser(source);
         var document = parser.ParseLock();
-        return Result<NsqlLockDocument, NsqlDiagnostic>.From(document, [.. parser.Errors.Select(NsqlDiagnostics.Syntax)]);
+        return Result<NsqlBlockDocument, NsqlDiagnostic>.From(document, [.. parser.Errors.Select(NsqlDiagnostics.Syntax)]);
     }
 
     /// <summary>
@@ -98,7 +98,7 @@ public static class NsqlReader
     /// </summary>
     /// <param name="path">The file to read.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public static async Task<Result<NsqlLockDocument, NsqlDiagnostic>> ReadLockFile(string path, CancellationToken cancellationToken = default)
+    public static async Task<Result<NsqlBlockDocument, NsqlDiagnostic>> ReadLockFile(string path, CancellationToken cancellationToken = default)
     {
         string source;
         try
@@ -107,11 +107,11 @@ public static class NsqlReader
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return Result<NsqlLockDocument, NsqlDiagnostic>.Failure(NsqlDiagnostics.UnreadableFile(path, exception));
+            return Result<NsqlBlockDocument, NsqlDiagnostic>.Failure(NsqlDiagnostics.UnreadableFile(path, exception));
         }
 
         var result = ReadLock(source);
-        return Result<NsqlLockDocument, NsqlDiagnostic>.From(
+        return Result<NsqlBlockDocument, NsqlDiagnostic>.From(
             result.Value is { } document ? document with { FilePath = path } : null,
             [.. result.Diagnostics.Select(d => d with { File = path })]
         );
