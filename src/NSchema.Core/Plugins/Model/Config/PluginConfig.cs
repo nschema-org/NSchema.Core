@@ -1,4 +1,4 @@
-namespace NSchema.Plugins;
+namespace NSchema.Plugins.Model.Config;
 
 /// <summary>
 /// The configuration a plugin is handed.

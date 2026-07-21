@@ -1,4 +1,3 @@
-using NSchema.Model;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;

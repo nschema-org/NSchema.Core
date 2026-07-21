@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using NSchema.Model;
 
-namespace NSchema.Plugins;
+namespace NSchema.Plugins.Model;
 
 /// <summary>
 /// The local name a configuration refers to a plugin by: the label on a <c>PLUGIN</c> statement, referenced

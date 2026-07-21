@@ -1,4 +1,3 @@
-using NSchema.Model;
 using NSchema.Model.Columns;
 
 namespace NSchema.Tests.Project.Model;

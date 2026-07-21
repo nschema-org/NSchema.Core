@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using NSchema.Plugins.Model.Config;
 
 namespace NSchema.Plugins;
 

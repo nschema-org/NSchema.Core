@@ -1,5 +1,3 @@
-using NSchema.Plugins;
-
 namespace NSchema.Plugins.Model;
 
 /// <summary>

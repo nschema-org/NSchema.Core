@@ -1,4 +1,4 @@
-namespace NSchema.Plugins;
+namespace NSchema.Plugins.Model.Config;
 
 /// <summary>
 /// A scalar value of a configuration attribute (see <see cref="PluginConfig"/>).

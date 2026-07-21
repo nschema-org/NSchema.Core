@@ -3,7 +3,6 @@ using NSchema.Diff.Model.Columns;
 using NSchema.Diff.Model.Constraints;
 using NSchema.Diff.Model.Schemas;
 using NSchema.Diff.Model.Tables;
-using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Constraints;
 using NSchema.Model.Scripts;

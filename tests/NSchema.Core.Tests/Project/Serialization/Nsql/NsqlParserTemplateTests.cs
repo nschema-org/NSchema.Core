@@ -1,4 +1,3 @@
-using NSchema.Model;
 using NSchema.Model.Schemas;
 using NSchema.Project;
 using NSchema.Project.Nsql;

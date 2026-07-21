@@ -8,7 +8,6 @@ using NSchema.Diff.Model.Schemas;
 using NSchema.Diff.Model.Sequences;
 using NSchema.Diff.Model.Tables;
 using NSchema.Diff.Model.Views;
-using NSchema.Model;
 using NSchema.Model.Routines;
 
 namespace NSchema.Tests.Diff.Model;

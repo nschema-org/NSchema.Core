@@ -2,7 +2,6 @@ using NSchema.Diff.Model;
 using NSchema.Diff.Model.CompositeTypes;
 using NSchema.Diff.Model.Schemas;
 using NSchema.Diff.Model.Tables;
-using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.CompositeTypes;
 using NSchema.Model.Tables;

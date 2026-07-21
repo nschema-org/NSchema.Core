@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Options;
 using Npgsql;
 using NSchema.Apply;
-using NSchema.Model;
 using NSchema.Plan.Model;
 using NSchema.Tests.Fixtures;
 

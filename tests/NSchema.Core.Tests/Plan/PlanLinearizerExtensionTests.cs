@@ -1,7 +1,6 @@
 using NSchema.Diff.Model;
 using NSchema.Diff.Model.Extensions;
 using NSchema.Diff.Model.Schemas;
-using NSchema.Model;
 using NSchema.Model.Extensions;
 using NSchema.Plan.Model.Extensions;
 using NSchema.Plan.Model.Schemas;
