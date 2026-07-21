@@ -12,6 +12,6 @@ namespace NSchema.Configuration;
 public sealed record ConfigurationDefinition(
     IReadOnlyList<PluginDeclaration> Plugins,
     EngineConfiguration? Engine,
-    PluginConfig? Database,
-    PluginConfig? State
+    PluginSettings? Database,
+    PluginSettings? State
 );

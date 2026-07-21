@@ -1,9 +1,9 @@
-namespace NSchema.Project.Nsql.Syntax.Config;
+namespace NSchema.Project.Nsql.Syntax.Blocks;
 
 /// <summary>
-/// The keyword a configuration/lockfile statement leads with, identifying what it declares.
+/// The keyword a block leads with, identifying what it declares.
 /// </summary>
-public enum ConfigKeyword
+public enum BlockKeyword
 {
     /// <summary>
     /// <c>PLUGIN</c> — declares a plugin dependency.

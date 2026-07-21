@@ -1,24 +1,24 @@
 using NSchema.Project.Nsql;
-using NSchema.Project.Nsql.Syntax.Config;
+using NSchema.Project.Nsql.Syntax.Blocks;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;
 
 /// <summary>
-/// The configuration grammar: config files parse to typed statements carrying their labels and attribute
-/// value nodes, and the two grammars never mix in one file. Translation into the configuration domain is
-/// the assembler's, covered by its own tests.
+/// Reading a configuration file: it parses to blocks carrying their labels and attributes, and the
+/// configuration and project grammars never mix in one file. Binding into the configuration domain is the
+/// assembler's job, covered by its own tests.
 /// </summary>
-public sealed class NsqlConfigTests
+public sealed class NsqlConfigurationTests
 {
-    private static IReadOnlyList<ConfigStatement> Read(string source)
+    private static IReadOnlyList<BlockStatement> Read(string source)
     {
-        var result = NsqlReader.ReadConfig(source);
+        var result = NsqlReader.ReadConfiguration(source);
         result.IsSuccess.ShouldBeTrue();
         return result.Value.Statements;
     }
 
     [Fact]
-    public void ReadConfig_UnlabelledStatement_ParsesTypeAndAttributes()
+    public void ReadConfiguration_UnlabelledStatement_ParsesTypeAndAttributes()
     {
         var statement = Read(
             """
@@ -28,27 +28,27 @@ public sealed class NsqlConfigTests
             );
             """).ShouldHaveSingleItem();
 
-        statement.Keyword.ShouldBe(ConfigKeyword.State);
+        statement.Keyword.ShouldBe(BlockKeyword.State);
         statement.Label.ShouldBeNull();
         statement.Attributes.Select(a => a.Key).ShouldBe(["dialect", "transaction_mode"]);
         statement.Attributes[0].Value.ShouldBe("postgres");
     }
 
     [Fact]
-    public void ReadConfig_LabelledStatement_ParsesLabel()
+    public void ReadConfiguration_LabelledStatement_ParsesLabel()
     {
         var statement = Read("STATE file ( path = 'state/app.nsstate' );").ShouldHaveSingleItem();
 
-        statement.Keyword.ShouldBe(ConfigKeyword.State);
+        statement.Keyword.ShouldBe(BlockKeyword.State);
         statement.Label!.Value.ShouldBe("file");
     }
 
     [Fact]
-    public void ReadConfig_KeywordIsCaseInsensitive()
-        => Read("Database postgres ( x = 1 );").ShouldHaveSingleItem().Keyword.ShouldBe(ConfigKeyword.Database);
+    public void ReadConfiguration_KeywordIsCaseInsensitive()
+        => Read("Database postgres ( x = 1 );").ShouldHaveSingleItem().Keyword.ShouldBe(BlockKeyword.Database);
 
     [Fact]
-    public void ReadConfig_ParsesAllValueKinds()
+    public void ReadConfiguration_ParsesAllValueKinds()
     {
         var attributes = Read(
             """
@@ -71,15 +71,15 @@ public sealed class NsqlConfigTests
     }
 
     [Fact]
-    public void ReadConfig_DottedKey_IsPreservedVerbatim()
+    public void ReadConfiguration_DottedKey_IsPreservedVerbatim()
         => Read("DATABASE postgres ( pool.max = 10 );").Single().Attributes.ShouldHaveSingleItem().Key.ShouldBe("pool.max");
 
     [Fact]
-    public void ReadConfig_EmptyAttributeList_IsAllowed()
+    public void ReadConfiguration_EmptyAttributeList_IsAllowed()
         => Read("STATE ();").ShouldHaveSingleItem().Attributes.ShouldBeEmpty();
 
     [Fact]
-    public void ReadConfig_MultipleStatements_KeepDeclarationOrder()
+    public void ReadConfiguration_MultipleStatements_KeepDeclarationOrder()
     {
         var statements = Read(
             """
@@ -88,22 +88,22 @@ public sealed class NsqlConfigTests
             STATE s3 ( bucket = 'state' );
             """);
 
-        statements.Select(s => s.Keyword).ShouldBe([ConfigKeyword.State, ConfigKeyword.Database, ConfigKeyword.State]);
+        statements.Select(s => s.Keyword).ShouldBe([BlockKeyword.State, BlockKeyword.Database, BlockKeyword.State]);
     }
 
     [Fact]
-    public void ReadConfig_DuplicateAttribute_IsAnError()
-        => NsqlReader.ReadConfig("STATE file ( path = 'a', PATH = 'b' );")
+    public void ReadConfiguration_DuplicateAttribute_IsAnError()
+        => NsqlReader.ReadConfiguration("STATE file ( path = 'a', PATH = 'b' );")
             .Errors.ShouldHaveSingleItem().Message.ShouldContain("more than once");
 
     [Fact]
-    public void ReadConfig_UnknownStatement_IsAnError()
-        => NsqlReader.ReadConfig("WORKSPACE staging ( region = 'eu' );")
+    public void ReadConfiguration_UnknownStatement_IsAnError()
+        => NsqlReader.ReadConfiguration("WORKSPACE staging ( region = 'eu' );")
             .Errors.ShouldHaveSingleItem().Message.ShouldContain("Unknown configuration statement 'WORKSPACE'");
 
     [Fact]
-    public void ReadConfig_ProjectStatement_IsAnError()
-        => NsqlReader.ReadConfig("CREATE SCHEMA app;")
+    public void ReadConfiguration_ProjectStatement_IsAnError()
+        => NsqlReader.ReadConfiguration("CREATE SCHEMA app;")
             .Errors.ShouldHaveSingleItem().Message.ShouldContain("Unknown configuration statement 'CREATE'");
 
     // -------------------------------------------------------------------------
@@ -111,19 +111,19 @@ public sealed class NsqlConfigTests
     // -------------------------------------------------------------------------
 
     [Fact]
-    public void ReadConfig_PluginStatement_Parses()
+    public void ReadConfiguration_PluginStatement_Parses()
     {
         var statement = Read("PLUGIN pg ( source = 'NSchema.Postgres', version = '5.0.1' );")
             .ShouldHaveSingleItem();
 
-        statement.Keyword.ShouldBe(ConfigKeyword.Plugin);
+        statement.Keyword.ShouldBe(BlockKeyword.Plugin);
         statement.Label!.Value.ShouldBe("pg");
         statement.Attributes.Select(a => a.Key).ShouldBe(["source", "version"]);
     }
 
     [Fact]
-    public void ReadConfig_PluginStatement_WithoutLabel_IsAnError()
-        => NsqlReader.ReadConfig("PLUGIN ( source = 'NSchema.Postgres', version = '5.0.1' );")
+    public void ReadConfiguration_PluginStatement_WithoutLabel_IsAnError()
+        => NsqlReader.ReadConfiguration("PLUGIN ( source = 'NSchema.Postgres', version = '5.0.1' );")
             .Errors.ShouldHaveSingleItem().Message.ShouldContain("requires a label");
 
     // -------------------------------------------------------------------------
@@ -131,17 +131,17 @@ public sealed class NsqlConfigTests
     // -------------------------------------------------------------------------
 
     [Fact]
-    public void ReadConfig_EngineStatement_Parses()
+    public void ReadConfiguration_EngineStatement_Parses()
     {
         var statement = Read("ENGINE ( version = '[5.0,6.0)' );").ShouldHaveSingleItem();
 
-        statement.Keyword.ShouldBe(ConfigKeyword.Engine);
+        statement.Keyword.ShouldBe(BlockKeyword.Engine);
         statement.Label.ShouldBeNull();
         statement.Attributes.ShouldHaveSingleItem().Key.ShouldBe("version");
     }
 
     [Fact]
-    public void ReadConfig_EngineStatement_WithLabel_IsAnError()
-        => NsqlReader.ReadConfig("ENGINE prod ( version = '5.0.1' );")
+    public void ReadConfiguration_EngineStatement_WithLabel_IsAnError()
+        => NsqlReader.ReadConfiguration("ENGINE prod ( version = '5.0.1' );")
             .Errors.ShouldHaveSingleItem().Message.ShouldContain("takes no label");
 }

@@ -15,9 +15,9 @@ public sealed class ConfigurationAssemblerTests
 {
     private const string Plugin = "PLUGIN pg ( source = 'NSchema.Postgres', version = '5.0.1' );";
 
-    private static NsqlConfigDocument Doc(string source, string? path = null)
+    private static NsqlBlockDocument Doc(string source, string? path = null)
     {
-        var result = NsqlReader.ReadConfig(source);
+        var result = NsqlReader.ReadConfiguration(source);
         result.IsSuccess.ShouldBeTrue();
         return path is null ? result.Value : result.Value with { FilePath = path };
     }

@@ -1,7 +1,7 @@
 using NSchema.Configuration.Engine;
 using NSchema.Configuration.Model;
 using NSchema.Project.Nsql;
-using NSchema.Project.Nsql.Syntax.Config;
+using NSchema.Project.Nsql.Syntax.Blocks;
 namespace NSchema.Configuration;
 
 /// <summary>
@@ -25,13 +25,13 @@ public static class ConfigurationProvider
     {
         var diagnostics = new List<NsqlDiagnostic>();
 
-        List<NsqlConfigDocument> merged = [];
+        List<NsqlBlockDocument> merged = [];
         foreach (var layer in layers)
         {
-            var documents = new List<NsqlConfigDocument>();
+            var documents = new List<NsqlBlockDocument>();
             foreach (var path in layer.Paths)
             {
-                var read = await NsqlReader.ReadConfigFile(path, cancellationToken);
+                var read = await NsqlReader.ReadConfigurationFile(path, cancellationToken);
                 diagnostics.AddRange(read.Diagnostics);
                 if (read.Value is { } document)
                 {
@@ -79,11 +79,11 @@ public static class ConfigurationProvider
 
     // A higher layer replaces a lower layer's DATABASE/STATE/ENGINE wholesale (so an overlay can swap the state
     // store cleanly); every other statement from both layers carries through.
-    private static List<NsqlConfigDocument> Merge(IReadOnlyList<NsqlConfigDocument> lower, IReadOnlyList<NsqlConfigDocument> higher)
+    private static List<NsqlBlockDocument> Merge(IReadOnlyList<NsqlBlockDocument> lower, IReadOnlyList<NsqlBlockDocument> higher)
     {
-        var replaceDatabase = higher.Any(d => d.Statements.Any(s => s.Keyword == ConfigKeyword.Database));
-        var replaceState = higher.Any(d => d.Statements.Any(s => s.Keyword == ConfigKeyword.State));
-        var replaceEngine = higher.Any(d => d.Statements.Any(s => s.Keyword == ConfigKeyword.Engine));
+        var replaceDatabase = higher.Any(d => d.Statements.Any(s => s.Keyword == BlockKeyword.Database));
+        var replaceState = higher.Any(d => d.Statements.Any(s => s.Keyword == BlockKeyword.State));
+        var replaceEngine = higher.Any(d => d.Statements.Any(s => s.Keyword == BlockKeyword.Engine));
 
         var kept = lower
             .Select(document => document with { Statements = [.. document.Statements.Where(Keep)] })
@@ -91,11 +91,11 @@ public static class ConfigurationProvider
 
         return [.. kept, .. higher];
 
-        bool Keep(ConfigStatement statement) => statement.Keyword switch
+        bool Keep(BlockStatement statement) => statement.Keyword switch
         {
-            ConfigKeyword.Database => !replaceDatabase,
-            ConfigKeyword.State => !replaceState,
-            ConfigKeyword.Engine => !replaceEngine,
+            BlockKeyword.Database => !replaceDatabase,
+            BlockKeyword.State => !replaceState,
+            BlockKeyword.Engine => !replaceEngine,
             _ => true,
         };
     }

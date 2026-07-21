@@ -4,13 +4,13 @@ using Microsoft.Extensions.Configuration;
 namespace NSchema.Configuration.Plugins;
 
 /// <summary>
-/// The configuration a plugin is handed: the statement's attributes as a flat key/value map (dotted keys nest).
+/// The settings a plugin is handed: a block's attributes as a flat key/value map (dotted keys nest), with its label.
 /// </summary>
 /// <param name="Label">The optional bare-identifier label following the keyword (e.g. <c>"postgres"</c> in <c>DATABASE postgres</c>).</param>
-/// <param name="Attributes">The statement's attributes, keyed as written (case-insensitive).</param>
-public sealed record PluginConfig(PluginLabel? Label, IReadOnlyDictionary<string, string?> Attributes)
+/// <param name="Attributes">The block's attributes, keyed as written (case-insensitive).</param>
+public sealed record PluginSettings(PluginLabel? Label, IReadOnlyDictionary<string, string?> Attributes)
 {
-    private const string Source = "config";
+    private const string Source = "settings";
 
     /// <summary>
     /// The value of the named attribute as written, or <see langword="null"/> if the settings do not declare it.

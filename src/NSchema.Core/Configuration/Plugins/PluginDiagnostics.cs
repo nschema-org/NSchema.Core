@@ -5,7 +5,7 @@ namespace NSchema.Configuration.Plugins;
 
 /// <summary>
 /// The diagnostics minted for the plugin configuration: declaring plugins, resolving the lockfile, and binding a
-/// <see cref="PluginConfig"/> onto an options object.
+/// <see cref="PluginSettings"/> onto an options object.
 /// </summary>
 internal static class PluginDiagnostics
 {

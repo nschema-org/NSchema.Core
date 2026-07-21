@@ -4,7 +4,7 @@ using NSchema.Configuration.Plugins;
 namespace NSchema.Tests.Plugins;
 
 /// <summary>
-/// Options binding: a <see cref="PluginConfig"/> binds its attributes onto an options object the way the
+/// Options binding: a <see cref="PluginSettings"/> binds its attributes onto an options object the way the
 /// configuration binder does — snake_case names to properties, dotted keys to nested objects, values through
 /// type converters — validating the target's data annotations, with every finding a diagnostic on the result.
 /// </summary>
@@ -28,7 +28,7 @@ public sealed class PluginConfigBindTests
         public PoolOptions Pool { get; set; } = new();
     }
 
-    private static PluginConfig Config(params (string Key, string? Value)[] attributes) =>
+    private static PluginSettings Config(params (string Key, string? Value)[] attributes) =>
         new(null, attributes.ToDictionary(a => a.Key, a => a.Value, StringComparer.OrdinalIgnoreCase));
 
     [Fact]

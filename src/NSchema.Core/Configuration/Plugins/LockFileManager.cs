@@ -35,7 +35,7 @@ public static class LockFileManager
         {
             foreach (var statement in value.Statements)
             {
-                var result = statement.ToConfig().Get<LockedPlugin>(ignoreUnknown: true);
+                var result = statement.ToSettings().Get<LockedPlugin>(ignoreUnknown: true);
                 diagnostics.AddRange(result.Diagnostics);
 
                 if (result.IsSuccess)

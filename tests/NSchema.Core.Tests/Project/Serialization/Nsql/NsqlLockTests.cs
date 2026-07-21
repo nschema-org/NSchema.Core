@@ -1,15 +1,15 @@
 using NSchema.Project.Nsql;
-using NSchema.Project.Nsql.Syntax.Config;
+using NSchema.Project.Nsql.Syntax.Blocks;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;
 
 /// <summary>
-/// The lockfile grammar: <c>nschema.lock</c> parses to typed <see cref="ConfigStatement"/>s, and neither the
+/// The lockfile grammar: <c>nschema.lock</c> parses to typed <see cref="BlockStatement"/>s, and neither the
 /// configuration nor the project grammar mixes into it. Translation into the plugin domain is the CLI's.
 /// </summary>
 public sealed class NsqlLockTests
 {
-    private static IReadOnlyList<ConfigStatement> Read(string source)
+    private static IReadOnlyList<BlockStatement> Read(string source)
     {
         var result = NsqlReader.ReadLock(source);
         result.IsSuccess.ShouldBeTrue();

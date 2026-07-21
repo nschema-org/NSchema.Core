@@ -1,7 +1,7 @@
 using NSchema.Configuration.Engine;
 using NSchema.Configuration.Plugins;
 using NSchema.Project.Nsql;
-using NSchema.Project.Nsql.Syntax.Config;
+using NSchema.Project.Nsql.Syntax.Blocks;
 using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Configuration;
@@ -17,8 +17,8 @@ internal static class ConfigurationAssembler
     /// <summary>
     /// Validates and resolves <paramref name="documents"/> into the configuration they declare.
     /// </summary>
-    /// <param name="documents">The configuration documents resolved together, as read by <see cref="NsqlReader.ReadConfig"/>.</param>
-    public static Result<ConfigurationDefinition, NsqlDiagnostic> Assemble(IReadOnlyList<NsqlConfigDocument> documents)
+    /// <param name="documents">The configuration documents resolved together, as read by <see cref="NsqlReader.ReadConfiguration"/>.</param>
+    public static Result<ConfigurationDefinition, NsqlDiagnostic> Assemble(IReadOnlyList<NsqlBlockDocument> documents)
     {
         var diagnostics = new List<NsqlDiagnostic>();
 
@@ -28,12 +28,12 @@ internal static class ConfigurationAssembler
             .SelectMany(document => document.Statements.Select(statement => new Located(statement, document.FilePath)))
             .ToLookup(located => located.Statement.Keyword);
 
-        var plugins = Plugins(byKeyword[ConfigKeyword.Plugin], diagnostics);
+        var plugins = Plugins(byKeyword[BlockKeyword.Plugin], diagnostics);
         var definition = new ConfigurationDefinition(
             plugins,
-            Sole(byKeyword[ConfigKeyword.Engine], NsqlKeywords.Engine, diagnostics)?.Bind<EngineConfiguration>(diagnostics),
-            Reference(byKeyword[ConfigKeyword.Database], NsqlKeywords.Database, plugins, diagnostics),
-            Reference(byKeyword[ConfigKeyword.State], NsqlKeywords.State, plugins, diagnostics));
+            Sole(byKeyword[BlockKeyword.Engine], NsqlKeywords.Engine, diagnostics)?.Bind<EngineConfiguration>(diagnostics),
+            Reference(byKeyword[BlockKeyword.Database], NsqlKeywords.Database, plugins, diagnostics),
+            Reference(byKeyword[BlockKeyword.State], NsqlKeywords.State, plugins, diagnostics));
 
         return Result<ConfigurationDefinition, NsqlDiagnostic>.From(definition, diagnostics);
     }
@@ -69,7 +69,7 @@ internal static class ConfigurationAssembler
     }
 
     // A provider reference (DATABASE/STATE): at most one, labelled, and resolving to a declared or built-in plugin.
-    private static PluginConfig? Reference(IEnumerable<Located> statements, string keyword, IReadOnlyList<PluginDeclaration> plugins, List<NsqlDiagnostic> diagnostics)
+    private static PluginSettings? Reference(IEnumerable<Located> statements, string keyword, IReadOnlyList<PluginDeclaration> plugins, List<NsqlDiagnostic> diagnostics)
     {
         if (Sole(statements, keyword, diagnostics) is not { } located)
         {
@@ -89,7 +89,7 @@ internal static class ConfigurationAssembler
             return null;
         }
 
-        return located.Statement.ToConfig();
+        return located.Statement.ToSettings();
     }
 
     // Enforces at-most-one for a keyword, returning the first and reporting each one beyond it as a duplicate.
@@ -112,12 +112,12 @@ internal static class ConfigurationAssembler
     }
 
     // A parsed statement paired with the file it came from, so the diagnostics it raises can be attributed to it.
-    private sealed record Located(ConfigStatement Statement, string? File)
+    private sealed record Located(BlockStatement Statement, string? File)
     {
         // Binds the statement's attributes to a new T, attributing any binding diagnostics; null when binding fails.
         public T? Bind<T>(List<NsqlDiagnostic> diagnostics) where T : notnull
         {
-            var result = Statement.ToConfig().Get<T>();
+            var result = Statement.ToSettings().Get<T>();
             diagnostics.AddRange(result.Diagnostics.Select(d => Stamp(new NsqlDiagnostic(d.Source, d.Text, d.Severity, Statement.Position))));
             return result.IsSuccess ? result.Require() : default;
         }
