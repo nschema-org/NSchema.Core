@@ -1,5 +1,6 @@
 using NSchema.Config;
-using NSchema.Plugins;
+using NSchema.Plugins.Model;
+using NSchema.Plugins.Model.Config;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Config;

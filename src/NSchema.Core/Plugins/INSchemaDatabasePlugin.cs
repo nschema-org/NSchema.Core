@@ -1,3 +1,5 @@
+using NSchema.Plugins.Model.Config;
+
 namespace NSchema.Plugins;
 
 /// <summary>

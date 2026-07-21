@@ -2,7 +2,6 @@ using NSchema.Diff.Model;
 using NSchema.Diff.Model.Schemas;
 using NSchema.Diff.Model.Tables;
 using NSchema.Diff.Model.Triggers;
-using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Routines;
 using NSchema.Model.Tables;

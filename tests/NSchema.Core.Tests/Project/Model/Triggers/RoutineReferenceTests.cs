@@ -1,4 +1,3 @@
-using NSchema.Model;
 using NSchema.Model.Routines;
 
 namespace NSchema.Tests.Project.Model.Triggers;

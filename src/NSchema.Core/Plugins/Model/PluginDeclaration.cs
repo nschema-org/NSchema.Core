@@ -1,6 +1,4 @@
-using NSchema.Plugins;
-
-namespace NSchema.Config;
+namespace NSchema.Plugins.Model;
 
 /// <summary>
 /// A declared plugin dependency: the package that supplies it and the version range to resolve within.

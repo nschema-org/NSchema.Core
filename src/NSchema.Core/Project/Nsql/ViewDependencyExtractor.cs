@@ -1,5 +1,4 @@
 using NSchema.Model;
-using NSchema.Model.Views;
 
 namespace NSchema.Project.Nsql;
 

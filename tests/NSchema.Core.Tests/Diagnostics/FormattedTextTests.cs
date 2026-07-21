@@ -1,5 +1,3 @@
-using NSchema.Model;
-
 namespace NSchema.Tests.Diagnostics;
 
 public sealed class FormattedTextTests

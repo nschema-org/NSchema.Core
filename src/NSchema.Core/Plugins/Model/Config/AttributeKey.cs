@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using NSchema.Model;
 
-namespace NSchema.Plugins;
+namespace NSchema.Plugins.Model.Config;
 
 /// <summary>
 /// A configuration attribute key as written (<c>connection_string</c>, dotted <c>pool.max</c>).

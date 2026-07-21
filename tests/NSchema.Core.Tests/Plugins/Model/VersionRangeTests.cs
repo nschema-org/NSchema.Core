@@ -1,6 +1,6 @@
-using NSchema.Config;
+using NSchema.Plugins.Model;
 
-namespace NSchema.Tests.Config;
+namespace NSchema.Tests.Plugins.Model;
 
 /// <summary>
 /// The version-range value object: semantic versions, interval notation, bare-version-means-exact,

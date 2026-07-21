@@ -1,6 +1,5 @@
 using NSchema.Diff.Model;
 using NSchema.Diff.Model.Triggers;
-using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Routines;
 using NSchema.Model.Tables;

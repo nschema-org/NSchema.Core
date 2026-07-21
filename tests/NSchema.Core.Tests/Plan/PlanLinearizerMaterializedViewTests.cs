@@ -2,7 +2,6 @@ using NSchema.Diff.Model;
 using NSchema.Diff.Model.Indexes;
 using NSchema.Diff.Model.Schemas;
 using NSchema.Diff.Model.Views;
-using NSchema.Model;
 using NSchema.Model.Indexes;
 using NSchema.Model.Views;
 using NSchema.Plan.Model;

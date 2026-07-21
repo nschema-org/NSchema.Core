@@ -1,4 +1,5 @@
-using NSchema.Plugins;
+using NSchema.Plugins.Model;
+using NSchema.Plugins.Model.Config;
 using NSchema.Project.Nsql;
 using NSchema.Project.Nsql.Syntax.Config;
 
@@ -79,7 +80,7 @@ public static class ConfigAssembler
                 continue;
             }
             PluginLabel reference = label.Value;
-            if (!plugins.Any(p => p.Label == reference) && !_builtInLabels.Contains(reference))
+            if (plugins.All(p => p.Label != reference) && !_builtInLabels.Contains(reference))
             {
                 diagnostics.Add(ConfigDiagnostics.UnknownPluginLabel(keyword, label.Value, label.Position) with { File = document.FilePath });
                 continue;

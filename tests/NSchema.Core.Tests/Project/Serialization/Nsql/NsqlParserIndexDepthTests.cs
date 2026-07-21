@@ -1,4 +1,3 @@
-using NSchema.Model;
 using NSchema.Model.Indexes;
 using NSchema.Project.Nsql;
 

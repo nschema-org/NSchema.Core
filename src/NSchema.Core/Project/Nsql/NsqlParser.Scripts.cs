@@ -1,4 +1,3 @@
-using NSchema.Model;
 using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Syntax.Scripts;
 using NSchema.Project.Nsql.Tokens;

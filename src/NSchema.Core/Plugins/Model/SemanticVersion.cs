@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
-namespace NSchema.Config;
+namespace NSchema.Plugins.Model;
 
 /// <summary>
 /// A semantic version: up to four numeric parts, an optional prerelease, and build metadata
