@@ -81,6 +81,8 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **`ENGINE` asserts the engine version.** `ENGINE ( version = '…' );` states the engine version range a project requires..
 - **The engine handshake.** `PluginHandshake.Validate` checks a loaded plugin assembly against the hosting engine before any of its types are instantiated.
 - **`ConfigProvider.GetConfig` loads a configuration.** One call from file paths to a `ConfigDefinition`: reads every file, and assembles the best-effort result.
+- **The plugin lockfile.** `LockFileManager` reads and writes `nschema.lock` (a `LOCK ( source = '…', version = '…' );` grammar) as a `LockFile` of `LockedPlugin` pins, so a declared version range can be resolved to a concrete version and reproduced.
+- **`VersionRange.IsExact` / `ExactVersion`.** Report whether a range pins a single version, and the version it pins.
 
 ### Removed
 

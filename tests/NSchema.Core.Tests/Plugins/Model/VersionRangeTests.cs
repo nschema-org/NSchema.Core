@@ -31,6 +31,23 @@ public sealed class VersionRangeTests
     public void Parse_Interval_RendersCanonically(string text, string canonical)
         => VersionRange.Parse(text).ToString().ShouldBe(canonical);
 
+    [Theory]
+    [InlineData("5.0.1", true)]
+    [InlineData("[5.0.1]", true)]
+    [InlineData("[5.0,6.0)", false)]
+    [InlineData("[5.0,)", false)]
+    [InlineData("(,6.0)", false)]
+    public void IsExact_TrueOnlyForASingleVersion(string text, bool expected)
+        => VersionRange.Parse(text).IsExact.ShouldBe(expected);
+
+    [Fact]
+    public void ExactVersion_ReturnsThePinnedVersion()
+        => VersionRange.Parse("5.0.1").ExactVersion.ShouldBe(SemanticVersion.Parse("5.0.1"));
+
+    [Fact]
+    public void ExactVersion_IsNullForARange()
+        => VersionRange.Parse("[5.0,6.0)").ExactVersion.ShouldBeNull();
+
     [Fact]
     public void Equality_IsStructural()
     {

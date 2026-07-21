@@ -28,6 +28,16 @@ public sealed record VersionRange
     private bool MaximumInclusive { get; }
 
     /// <summary>
+    /// Whether the range admits exactly one version — an exact pin (<c>[5.0.1]</c>), which is its own resolution.
+    /// </summary>
+    public bool IsExact => Minimum is not null && Minimum == Maximum && MinimumInclusive && MaximumInclusive;
+
+    /// <summary>
+    /// The single version an exact pin admits, or <see langword="null"/> when the range admits more than one.
+    /// </summary>
+    public SemanticVersion? ExactVersion => IsExact ? Minimum : null;
+
+    /// <summary>
     /// Parses <paramref name="text"/> under the range grammar, throwing when it is neither a version nor a
     /// version range.
     /// </summary>
@@ -123,7 +133,7 @@ public sealed record VersionRange
     }
 
     /// <inheritdoc />
-    public override string ToString() => Minimum is not null && Minimum == Maximum && MinimumInclusive && MaximumInclusive
+    public override string ToString() => IsExact
         ? $"[{Minimum}]"
         : $"{(MinimumInclusive ? '[' : '(')}{Minimum},{Maximum}{(MaximumInclusive ? ']' : ')')}";
 }
