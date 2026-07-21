@@ -1,6 +1,6 @@
-using NSchema.Config;
+using NSchema.Plugins.Model;
 
-namespace NSchema.Tests.Config;
+namespace NSchema.Tests.Plugins.Model;
 
 /// <summary>
 /// The semantic-version value object: SemVer 2.0 precedence with NuGet's case-insensitive prerelease

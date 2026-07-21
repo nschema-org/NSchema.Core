@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using NSchema.Model;
 
-namespace NSchema.Config;
+namespace NSchema.Plugins.Model;
 
 /// <summary>
 /// A package id: word-character segments joined by <c>.</c> or <c>-</c>. Equality is case-insensitive, as

@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace NSchema.Config;
+namespace NSchema.Plugins.Model;
 
 /// <summary>
 /// A version range in interval notation as NuGet writes it (<c>[5.0,6.0)</c>, <c>(,6.0)</c>, <c>[5.0.1]</c>),
