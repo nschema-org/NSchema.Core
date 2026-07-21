@@ -20,6 +20,11 @@ namespace NSchema.Configuration.Model;
 public sealed record SemanticVersion(int Major, int Minor, int Patch, int Revision, string? Prerelease) : IComparable<SemanticVersion>
 {
     /// <summary>
+    /// Whether this is a prerelease version (it carries a prerelease label).
+    /// </summary>
+    public bool IsPrerelease => Prerelease is not null;
+
+    /// <summary>
     /// Parses <paramref name="text"/> as a semantic version, throwing when it is not one.
     /// </summary>
     public static SemanticVersion Parse(string text) => TryParse(text, out var version)

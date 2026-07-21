@@ -9,6 +9,8 @@ namespace NSchema.Configuration.Model;
 /// <remarks>
 /// Floating versions (<c>5.0.*</c>) are not part of the grammar: a float is a resolution instruction, not a
 /// constraint, and resolution already picks the highest version a range admits.
+/// A range admits only release versions unless one of its bounds is a prerelease — you opt into prereleases
+/// by naming one (an exact pin, or a prerelease bound).
 /// Equality is structural (<c>[5.0,6.0)</c> equals <c>[5.0.0, 6.0.0)</c>), and <see cref="ToString"/> renders the canonical text,
 /// which feeds package resolution.
 /// </remarks>
@@ -110,10 +112,16 @@ public sealed record VersionRange
     }
 
     /// <summary>
-    /// Whether <paramref name="version"/> falls inside the range.
+    /// Whether <paramref name="version"/> falls inside the range. A range admits a prerelease only when one of
+    /// its bounds is itself a prerelease — otherwise prereleases are opted into explicitly, by naming one.
     /// </summary>
     public bool Satisfies(SemanticVersion version)
     {
+        if (version.IsPrerelease && Minimum?.IsPrerelease is not true && Maximum?.IsPrerelease is not true)
+        {
+            return false;
+        }
+
         if (Minimum is not null)
         {
             var comparison = version.CompareTo(Minimum);
