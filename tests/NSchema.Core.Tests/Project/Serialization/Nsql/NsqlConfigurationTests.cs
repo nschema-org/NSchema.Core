@@ -14,7 +14,7 @@ public sealed class NsqlConfigurationTests
     {
         var result = NsqlReader.ReadConfiguration(source);
         result.IsSuccess.ShouldBeTrue();
-        return result.Value.Statements;
+        return [.. result.Value.Statements.OfType<BlockStatement>()];
     }
 
     [Fact]
@@ -99,12 +99,12 @@ public sealed class NsqlConfigurationTests
     [Fact]
     public void ReadConfiguration_UnknownStatement_IsAnError()
         => NsqlReader.ReadConfiguration("WORKSPACE staging ( region = 'eu' );")
-            .Errors.ShouldHaveSingleItem().Message.ShouldContain("Unknown configuration statement 'WORKSPACE'");
+            .Errors.ShouldHaveSingleItem().Message.ShouldContain("Unknown statement 'WORKSPACE'");
 
     [Fact]
     public void ReadConfiguration_ProjectStatement_IsAnError()
         => NsqlReader.ReadConfiguration("CREATE SCHEMA app;")
-            .Errors.ShouldHaveSingleItem().Message.ShouldContain("Unknown configuration statement 'CREATE'");
+            .Errors.ShouldHaveSingleItem().Message.ShouldContain("A configuration file holds only PLUGIN, ENGINE, DATABASE, and STATE statements.");
 
     // -------------------------------------------------------------------------
     // PLUGIN

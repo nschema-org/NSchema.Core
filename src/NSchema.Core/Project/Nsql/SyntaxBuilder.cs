@@ -62,18 +62,18 @@ internal static class SyntaxBuilder
     {
         foreach (var rename in directives.SchemaRenames)
         {
-            statements.Add(new Syn.Schemas.RenameSchemaStatement(Name(rename.From), Name(rename.To)) { Position = _none });
+            statements.Add(new Syn.Schemas.RenameSchemaStatement(Name(rename.From), Name(rename.To)));
         }
         foreach (var rename in directives.ObjectRenames)
         {
-            statements.Add(new RenameObjectStatement(rename.From.Kind, Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)) { Position = _none });
+            statements.Add(new RenameObjectStatement(rename.From.Kind, Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)));
         }
         foreach (var rename in directives.MemberRenames)
         {
             statements.Add(new Syn.Tables.RenameColumnStatement(
-                new MemberPath(Name(rename.From.Schema), Name(rename.From.Object), Name(rename.From.Member)) { Position = _none },
+                new MemberPath(Name(rename.From.Schema), Name(rename.From.Object), Name(rename.From.Member)),
                 Name(rename.To))
-            { Position = _none });
+           );
         }
 
 
@@ -85,13 +85,12 @@ internal static class SyntaxBuilder
         {
             statements.Add(new Syn.Schemas.CreateSchemaStatement(Name(schema.Name))
             {
-                Position = _none,
                 Doc = schema.Comment,
             });
 
             foreach (var grant in schema.Grants)
             {
-                statements.Add(new Syn.Schemas.GrantSchemaUsageStatement(Name(schema.Name), Name(grant.Role)) { Position = _none });
+                statements.Add(new Syn.Schemas.GrantSchemaUsageStatement(Name(schema.Name), Name(grant.Role)));
             }
         }
 
@@ -100,7 +99,6 @@ internal static class SyntaxBuilder
             statements.Add(new Syn.Enums.CreateEnumStatement(Qualified(schema.Name, enumType.Name),
                 new Syn.SeparatedSyntaxList<Syn.Enums.EnumValue>(enumType.Values.Select(v => Syn.Enums.EnumValue.Synthetic(v.Value)).ToList()))
             {
-                Position = _none,
                 Doc = enumType.Comment,
             });
         }
@@ -108,10 +106,9 @@ internal static class SyntaxBuilder
         foreach (var domain in schema.Domains)
         {
             statements.Add(new Syn.Domains.CreateDomainStatement(Qualified(schema.Name, domain.Name), Type(domain.DataType), domain.NotNull,
-                domain.Checks.Select(c => new Syn.Constraints.CheckDefinition(Name(c.Name), c.Expression) { Position = _none }).ToList(),
+                domain.Checks.Select(c => new Syn.Constraints.CheckDefinition(Name(c.Name), c.Expression)).ToList(),
                 domain.Default)
             {
-                Position = _none,
                 Doc = domain.Comment,
             });
         }
@@ -120,9 +117,8 @@ internal static class SyntaxBuilder
         {
             statements.Add(new Syn.CompositeTypes.CreateCompositeTypeStatement(Qualified(schema.Name, compositeType.Name),
                 new Syn.SeparatedSyntaxList<Syn.CompositeTypes.CompositeFieldDefinition>(
-                    compositeType.Fields.Select(f => new Syn.CompositeTypes.CompositeFieldDefinition(Name(f.Name), Type(f.DataType)) { Position = _none }).ToList()))
+                    compositeType.Fields.Select(f => new Syn.CompositeTypes.CompositeFieldDefinition(Name(f.Name), Type(f.DataType))).ToList()))
             {
-                Position = _none,
                 Doc = compositeType.Comment,
             });
         }
@@ -132,7 +128,6 @@ internal static class SyntaxBuilder
             statements.Add(new Syn.Sequences.CreateSequenceStatement(Qualified(schema.Name, sequence.Name),
                 Options(sequence.Options))
             {
-                Position = _none,
                 Doc = sequence.Comment,
             });
         }
@@ -143,7 +138,6 @@ internal static class SyntaxBuilder
                 routine.RoutineKind == RoutineKind.Procedure ? Syn.Routines.RoutineKind.Procedure : Syn.Routines.RoutineKind.Function,
                 routine.Arguments, routine.Definition)
             {
-                Position = _none,
                 Doc = routine.Comment,
             });
         }
@@ -170,13 +164,12 @@ internal static class SyntaxBuilder
             members.Add(new Syn.Tables.ColumnDefinition(Name(column.Name), Type(column.Type), column.IsNullable, column.IsIdentity,
                 Options(column.IdentityOptions), column.DefaultExpression, column.GeneratedExpression)
             {
-                Position = _none,
                 Doc = column.Comment,
             });
         }
         if (table.PrimaryKey is { } pk)
         {
-            members.Add(new Syn.Constraints.PrimaryKeyDefinition(Name(pk.Name), ColumnList(pk.ColumnNames)) { Position = _none, Doc = pk.Comment });
+            members.Add(new Syn.Constraints.PrimaryKeyDefinition(Name(pk.Name), ColumnList(pk.ColumnNames)) { Doc = pk.Comment });
         }
         foreach (var fk in table.ForeignKeys)
         {
@@ -184,26 +177,24 @@ internal static class SyntaxBuilder
                 Qualified(fk.References.Schema, fk.References.Name), ColumnList(fk.ReferencedColumnNames),
                 Action(fk.OnDelete), Action(fk.OnUpdate))
             {
-                Position = _none,
                 Doc = fk.Comment,
             });
         }
         foreach (var unique in table.UniqueConstraints)
         {
-            members.Add(new Syn.Constraints.UniqueDefinition(Name(unique.Name), ColumnList(unique.ColumnNames)) { Position = _none, Doc = unique.Comment });
+            members.Add(new Syn.Constraints.UniqueDefinition(Name(unique.Name), ColumnList(unique.ColumnNames)) { Doc = unique.Comment });
         }
         foreach (var check in table.CheckConstraints)
         {
-            members.Add(new Syn.Constraints.CheckDefinition(Name(check.Name), check.Expression) { Position = _none, Doc = check.Comment });
+            members.Add(new Syn.Constraints.CheckDefinition(Name(check.Name), check.Expression) { Doc = check.Comment });
         }
         foreach (var exclusion in table.ExclusionConstraints)
         {
             members.Add(new Syn.Constraints.ExclusionDefinition(Name(exclusion.Name),
                 new Syn.SeparatedSyntaxList<Syn.Constraints.ExclusionElement>(
-                    exclusion.Elements.Select(e => new Syn.Constraints.ExclusionElement(e.Operator, OptionalName(e.Column), e.Expression) { Position = _none }).ToList()),
+                    exclusion.Elements.Select(e => new Syn.Constraints.ExclusionElement(e.Operator, OptionalName(e.Column), e.Expression)).ToList()),
                 OptionalName(exclusion.Method), exclusion.Predicate)
             {
-                Position = _none,
                 Doc = exclusion.Comment,
             });
         }
@@ -213,14 +204,12 @@ internal static class SyntaxBuilder
                 OptionalName(index.Method),
                 IncludeList(index.Include), index.Predicate)
             {
-                Position = _none,
                 Doc = index.Comment,
             });
         }
 
         statements.Add(new Syn.Tables.CreateTableStatement(Qualified(schemaName, table.Name), new Syn.SeparatedSyntaxList<Syn.Tables.TableMember>(members))
         {
-            Position = _none,
             Doc = table.Comment,
         });
 
@@ -228,7 +217,6 @@ internal static class SyntaxBuilder
         {
             statements.Add(new Syn.Tables.GrantTableStatement(Privileges(grant.Privileges), Qualified(schemaName, table.Name), Name(grant.Role))
             {
-                Position = _none,
             });
         }
 
@@ -244,7 +232,6 @@ internal static class SyntaxBuilder
     {
         statements.Add(new Syn.Views.CreateViewStatement(Qualified(schemaName, view.Name), view.Body, view.IsMaterialized)
         {
-            Position = _none,
             Doc = view.Comment,
         });
 
@@ -255,7 +242,6 @@ internal static class SyntaxBuilder
                 Keys(index.Columns), OptionalName(index.Method),
                 IncludeList(index.Include), index.Predicate)
             {
-                Position = _none,
                 Doc = index.Comment,
             });
         }
@@ -264,12 +250,11 @@ internal static class SyntaxBuilder
     private static Syn.Triggers.CreateTriggerStatement Build(SqlIdentifier schemaName, SqlIdentifier tableName, Trigger trigger)
     {
         Syn.Triggers.TriggerAction action = trigger.Body is { } body
-            ? new Syn.Triggers.InlineBodyAction(body) { Position = _none }
+            ? new Syn.Triggers.InlineBodyAction(body)
             : new Syn.Triggers.ExecuteFunctionAction(
-                new QualifiedName(OptionalName(trigger.Function!.Schema), Name(trigger.Function.Name)) { Position = _none },
+                new QualifiedName(OptionalName(trigger.Function!.Schema), Name(trigger.Function.Name)),
                 trigger.FunctionArguments ?? "")
             {
-                Position = _none,
             };
 
         return new Syn.Triggers.CreateTriggerStatement(Name(trigger.Name), Timing(trigger.Timing), Events(trigger.Events),
@@ -278,7 +263,6 @@ internal static class SyntaxBuilder
             trigger.Level == TriggerLevel.Row ? Syn.Triggers.TriggerLevel.Row : Syn.Triggers.TriggerLevel.Statement,
             trigger.When)
         {
-            Position = _none,
             Doc = trigger.Comment,
         };
     }
@@ -289,11 +273,9 @@ internal static class SyntaxBuilder
         {
             DeploymentScript deployment => new Syn.Scripts.DeploymentEventClause(deployment.Phase == DeploymentPhase.Pre ? Syn.Scripts.DeploymentPhase.Pre : Syn.Scripts.DeploymentPhase.Post)
             {
-                Position = _none,
             },
-            ChangeScript change => new Syn.Scripts.ChangeEventClause(Trigger(change.Target.Trigger), new MemberPath(OptionalName(change.Target.Schema), Name(change.Target.Table), Name(change.Target.Member)) { Position = _none })
+            ChangeScript change => new Syn.Scripts.ChangeEventClause(Trigger(change.Target.Trigger), new MemberPath(OptionalName(change.Target.Schema), Name(change.Target.Table), Name(change.Target.Member)))
             {
-                Position = _none,
             },
             _ => throw new InvalidOperationException($"Unbuildable script '{script.GetType().Name}'."),
         };
@@ -305,14 +287,12 @@ internal static class SyntaxBuilder
 
         return new Syn.Scripts.ScriptStatement(Name(script.Name), condition, clause, script.Sql, script.RunOutsideTransaction)
         {
-            Position = _none,
         };
     }
 
     private static Syn.Extensions.CreateExtensionStatement Build(Extension extension) =>
         new(Name(extension.Name), extension.Version)
         {
-            Position = _none,
             Doc = extension.Comment,
         };
 
@@ -327,7 +307,7 @@ internal static class SyntaxBuilder
     private static Syn.ColumnList ColumnList(IReadOnlyList<SqlIdentifier> names) => Syn.ColumnList.Synthetic(Names(names));
 
     private static QualifiedName Qualified(SqlIdentifier schema, SqlIdentifier name) =>
-        new(Name(schema), Name(name)) { Position = _none };
+        new(Name(schema), Name(name));
 
     /// <summary>
     /// Decomposes a type's canonical text (<c>varchar(100)</c>, <c>app.status</c>) into the written form;
@@ -339,7 +319,7 @@ internal static class SyntaxBuilder
         // rendering to a string and splitting it back apart.
         var schema = type.Schema is { } qualifier ? Identifier.Synthetic(qualifier.Value) : null;
         var arguments = Arguments(type);
-        return new TypeName(schema, Identifier.Synthetic(type.Name.Value), arguments) { Position = _none };
+        return new TypeName(schema, Identifier.Synthetic(type.Name.Value), arguments);
     }
 
     private static string? Arguments(SqlType type)
@@ -353,7 +333,7 @@ internal static class SyntaxBuilder
     }
 
     private static Syn.Tables.IdentityOptionsClause? Options(IdentityOptions? options) =>
-        options is null ? null : new Syn.Tables.IdentityOptionsClause(options.StartWith, options.IncrementBy, options.MinValue) { Position = _none };
+        options is null ? null : new Syn.Tables.IdentityOptionsClause(options.StartWith, options.IncrementBy, options.MinValue);
 
     private static Syn.Sequences.SequenceOptionsClause? Options(SequenceOptions options) =>
         options.DataType is null && options.StartWith is null && options.IncrementBy is null
@@ -362,11 +342,10 @@ internal static class SyntaxBuilder
             : new Syn.Sequences.SequenceOptionsClause(options.DataType is { } type ? Type(type) : null,
                 options.StartWith, options.IncrementBy, options.MinValue, options.MaxValue, options.Cache, options.Cycle)
             {
-                Position = _none,
             };
 
     private static Syn.SeparatedSyntaxList<Syn.Indexes.IndexElement> Keys(IReadOnlyList<IndexColumn> columns) =>
-        new(columns.Select(c => new Syn.Indexes.IndexElement(OptionalName(c.Column), c.Expression, Sort(c.Sort), Nulls(c.Nulls)) { Position = _none }).ToList());
+        new(columns.Select(c => new Syn.Indexes.IndexElement(OptionalName(c.Column), c.Expression, Sort(c.Sort), Nulls(c.Nulls))).ToList());
 
     private static Syn.ColumnList? IncludeList(IReadOnlyList<SqlIdentifier> names) => names.Count == 0 ? null : ColumnList(names);
 

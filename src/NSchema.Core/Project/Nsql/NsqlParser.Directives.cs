@@ -25,7 +25,6 @@ internal sealed partial class NsqlParser
             var (to, target, semicolon) = ParseRenameTarget("a schema name");
             return new RenameSchemaStatement(from, target)
             {
-                Position = position,
                 Doc = doc?.Text,
                 DocComment = doc,
                 RenameKeyword = rename,
@@ -41,7 +40,6 @@ internal sealed partial class NsqlParser
             var (to, target, semicolon) = ParseRenameTarget("a column name");
             return new RenameColumnStatement(from, target)
             {
-                Position = position,
                 Doc = doc?.Text,
                 DocComment = doc,
                 RenameKeyword = rename,
@@ -56,7 +54,6 @@ internal sealed partial class NsqlParser
             var (to, target, semicolon) = ParseRenameTarget(RenameTargetNoun(parsed.Kind));
             return new RenameObjectStatement(parsed.Kind, from, target)
             {
-                Position = position,
                 Doc = doc?.Text,
                 DocComment = doc,
                 RenameKeyword = rename,
@@ -147,13 +144,12 @@ internal sealed partial class NsqlParser
         if (_inTemplateBody && _current.Kind != TokenKind.Dot)
         {
             // table.column. The schema is decided when the template is applied; the one dot is the member dot.
-            return new MemberPath(null, first, second) { Position = first.Position, MemberDotToken = firstDot };
+            return new MemberPath(null, first, second) { MemberDotToken = firstDot };
         }
         var secondDot = Expect(TokenKind.Dot, "'.' in the column path (schema.table.column)");
         var column = ExpectIdentifierNode("a column name");
         return new MemberPath(first, second, column)
         {
-            Position = first.Position,
             SchemaDotToken = firstDot,
             MemberDotToken = secondDot,
         };

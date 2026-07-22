@@ -13,7 +13,7 @@ public sealed class NsqlLockTests
     {
         var result = NsqlReader.ReadLock(source);
         result.IsSuccess.ShouldBeTrue();
-        return result.Value.Statements;
+        return [.. result.Value.Statements.OfType<BlockStatement>()];
     }
 
     [Fact]

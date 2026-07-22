@@ -18,14 +18,14 @@ internal static class ConfigurationAssembler
     /// Validates and resolves <paramref name="documents"/> into the configuration they declare.
     /// </summary>
     /// <param name="documents">The configuration documents resolved together, as read by <see cref="NsqlReader.ReadConfiguration"/>.</param>
-    public static Result<ConfigurationDefinition, NsqlDiagnostic> Assemble(IReadOnlyList<NsqlBlockDocument> documents)
+    public static Result<ConfigurationDefinition, NsqlDiagnostic> Assemble(IReadOnlyList<NsqlDocument> documents)
     {
         var diagnostics = new List<NsqlDiagnostic>();
 
         // Roll the statements up by keyword, then resolve each keyword's group against its own rule. Plugins
         // resolve first so a reference declared before its PLUGIN still finds it.
         var byKeyword = documents
-            .SelectMany(document => document.Statements.Select(statement => new Located(statement, document.FilePath)))
+            .SelectMany(document => document.Statements.OfType<BlockStatement>().Select(statement => new Located(statement, document.FilePath)))
             .ToLookup(located => located.Statement.Keyword);
 
         var plugins = Plugins(byKeyword[BlockKeyword.Plugin], diagnostics);

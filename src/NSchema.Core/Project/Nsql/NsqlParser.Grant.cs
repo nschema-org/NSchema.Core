@@ -27,7 +27,6 @@ internal sealed partial class NsqlParser
             var semicolon = Expect(TokenKind.Semicolon, "';'");
             return new GrantSchemaUsageStatement(schema, role)
             {
-                Position = position,
                 Doc = doc?.Text,
                 DocComment = doc,
                 GrantKeyword = grant,
@@ -47,7 +46,6 @@ internal sealed partial class NsqlParser
         var grantSemicolon = Expect(TokenKind.Semicolon, "';'");
         return new GrantTableStatement(privileges, on, grantee)
         {
-            Position = position,
             Doc = doc?.Text,
             DocComment = doc,
             GrantKeyword = grant,
@@ -75,6 +73,6 @@ internal sealed partial class NsqlParser
             throw Error($"Expected a privilege (SELECT, INSERT, UPDATE, DELETE), found '{_current.Text}'.");
         }
         var token = Advance();
-        return new Privilege(token) { Position = token.Position };
+        return new Privilege(token);
     }
 }

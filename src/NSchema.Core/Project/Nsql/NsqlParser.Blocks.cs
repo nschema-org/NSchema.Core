@@ -18,8 +18,7 @@ internal sealed partial class NsqlParser
 
     /// <summary>
     /// Parses a block — <c>KEYWORD [label] ( key = value , … ) ;</c> — and enforces the keyword's label rule
-    /// (PLUGIN requires one; ENGINE and LOCK forbid one; DATABASE and STATE are optional). Which keywords a
-    /// given file admits is the caller's rule (see <see cref="ParseConfigurationBlock"/>, <see cref="ParseLockBlock"/>).
+    /// (PLUGIN requires one; ENGINE and LOCK forbid one; DATABASE and STATE are optional).
     /// </summary>
     private BlockStatement ParseBlock(BlockKeyword keyword, Token? doc)
     {
@@ -35,7 +34,6 @@ internal sealed partial class NsqlParser
         }
         return new BlockStatement(keyword, body.Label, body.Attributes)
         {
-            Position = body.Keyword.Position,
             Doc = doc?.Text,
             DocComment = doc,
             KeywordToken = body.Keyword,
@@ -57,7 +55,7 @@ internal sealed partial class NsqlParser
         if (_current.Kind == TokenKind.Identifier)
         {
             var token = Advance();
-            label = new Identifier(token) { Position = token.Position };
+            label = new Identifier(token);
         }
 
         var open = Expect(TokenKind.LeftParen, "'(' to begin the block's attributes");
@@ -80,7 +78,6 @@ internal sealed partial class NsqlParser
                 var valueSpan = RawSpanFrom(valueStart, _current);
                 attributes.Add(new BlockAttribute(key, value)
                 {
-                    Position = keyStart.Position,
                     KeyToken = keySpan,
                     EqualsToken = equals,
                     ValueToken = valueSpan,

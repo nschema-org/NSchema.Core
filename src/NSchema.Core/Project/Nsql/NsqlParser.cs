@@ -153,9 +153,11 @@ internal sealed partial class NsqlParser
         {
             return ParseRename(doc);
         }
-        if (_current.IsAnyKeyword(NsqlKeywords.ConfigurationBlockOpeners))
+        // One grammar: configuration and lock blocks parse alongside declarations and directives. Which kinds a
+        // given file admits is a file-type rule the reader enforces after parsing, not a property of the grammar.
+        if (CurrentBlockKeyword() is { } blockKeyword)
         {
-            throw Error($"'{_current.Text.ToUpperInvariant()}' is a configuration statement; configuration lives in the project's configuration files, not among schema statements.");
+            return ParseBlock(blockKeyword, doc);
         }
         if (_current.Kind == TokenKind.Identifier)
         {
@@ -173,7 +175,7 @@ internal sealed partial class NsqlParser
             throw Error($"Expected {what}.");
         }
         var token = Advance();
-        return new Identifier(token) { Position = token.Position };
+        return new Identifier(token);
     }
 
     private QualifiedName ParseQualifiedNameNode()
@@ -184,13 +186,13 @@ internal sealed partial class NsqlParser
             // Inside a template body an unqualified name is stored as written; projection binds it.
             if (_inTemplateBody)
             {
-                return new QualifiedName(null, first) { Position = first.Position };
+                return new QualifiedName(null, first);
             }
             throw Error("Expected '.'.");
         }
         var dot = Advance();
         var name = ExpectIdentifierNode("a table name");
-        return new QualifiedName(first, name) { Position = first.Position, DotToken = dot };
+        return new QualifiedName(first, name) { DotToken = dot };
     }
 
     // --- token cursor helpers -----------------------------------------------------

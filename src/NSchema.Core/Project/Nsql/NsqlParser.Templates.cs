@@ -88,7 +88,6 @@ internal sealed partial class NsqlParser
 
         return new SchemaTemplateStatement(name, statements)
         {
-            Position = header.Template.Position,
             Doc = header.Doc?.Text,
             DocComment = header.Doc,
             TemplateKeyword = header.Template,
@@ -132,7 +131,6 @@ internal sealed partial class NsqlParser
 
         return new TableTemplateStatement(name, new SeparatedSyntaxList<TableMember>(members, separators))
         {
-            Position = header.Template.Position,
             Doc = header.Doc?.Text,
             DocComment = header.Doc,
             TemplateKeyword = header.Template,
@@ -227,7 +225,6 @@ internal sealed partial class NsqlParser
 
         return new ApplyTemplateStatement(name, new SeparatedSyntaxList<Identifier>(schemaNames, separators))
         {
-            Position = apply.Position,
             Doc = doc?.Text,
             DocComment = doc,
             ApplyKeyword = apply,

@@ -110,7 +110,6 @@ internal sealed partial class NsqlParser
         var semicolon = Expect(TokenKind.Semicolon, "';'");
         return new CreateSchemaStatement(name)
         {
-            Position = create.Position,
             Doc = doc?.Text,
             DocComment = doc,
             CreateKeyword = create,
@@ -139,7 +138,6 @@ internal sealed partial class NsqlParser
 
         return new CreateTableStatement(name, new SeparatedSyntaxList<TableMember>(members, separators))
         {
-            Position = create.Position,
             Doc = doc?.Text,
             DocComment = doc,
             CreateKeyword = create,
@@ -163,7 +161,6 @@ internal sealed partial class NsqlParser
 
         return new CreateViewStatement(name, body, materializedKeyword is not null)
         {
-            Position = create.Position,
             Doc = doc?.Text,
             DocComment = doc,
             CreateKeyword = create,
@@ -193,7 +190,6 @@ internal sealed partial class NsqlParser
 
         return new CreateIndexStatement(name, uniqueKeyword is not null, on, keys, method?.Method, include?.Columns, where?.Predicate)
         {
-            Position = create.Position,
             Doc = doc?.Text,
             DocComment = doc,
             CreateKeyword = create,
@@ -223,7 +219,6 @@ internal sealed partial class NsqlParser
 
         return new CreateRoutineStatement(name, kind, arguments, definition)
         {
-            Position = create.Position,
             Doc = doc?.Text,
             DocComment = doc,
             CreateKeyword = create,
@@ -254,7 +249,7 @@ internal sealed partial class NsqlParser
                 {
                     throw new NsqlSyntaxException($"Enum value '{valueToken.Text}' is declared more than once.", valueToken.Position);
                 }
-                values.Add(new EnumValue(valueToken) { Position = valueToken.Position });
+                values.Add(new EnumValue(valueToken));
             }
             while (TryConsumeSeparator(TokenKind.Comma, separators));
         }
@@ -263,7 +258,6 @@ internal sealed partial class NsqlParser
 
         return new CreateEnumStatement(name, new SeparatedSyntaxList<EnumValue>(values, separators))
         {
-            Position = create.Position,
             Doc = doc?.Text,
             DocComment = doc,
             CreateKeyword = create,
@@ -310,7 +304,7 @@ internal sealed partial class NsqlParser
                 Advance();
                 var checkName = ExpectIdentifierNode("a constraint name");
                 ExpectKeyword(NsqlKeywords.Check);
-                checks.Add(new CheckDefinition(checkName, ReadRawExpression(parenthesised: true)) { Position = checkPosition });
+                checks.Add(new CheckDefinition(checkName, ReadRawExpression(parenthesised: true)));
             }
             else if (_current.IsKeyword(NsqlKeywords.Default))
             {
@@ -329,7 +323,6 @@ internal sealed partial class NsqlParser
 
         return new CreateDomainStatement(name, dataType, notNull, checks, @default)
         {
-            Position = create.Position,
             Doc = doc?.Text,
             DocComment = doc,
             CreateKeyword = create,
@@ -358,7 +351,7 @@ internal sealed partial class NsqlParser
             {
                 var fieldName = ExpectIdentifierNode("a field name");
                 var fieldType = ParseTypeNode();
-                fields.Add(new CompositeFieldDefinition(fieldName, fieldType) { Position = fieldName.Position });
+                fields.Add(new CompositeFieldDefinition(fieldName, fieldType));
             }
             while (TryConsumeSeparator(TokenKind.Comma, separators));
         }
@@ -368,7 +361,6 @@ internal sealed partial class NsqlParser
 
         return new CreateCompositeTypeStatement(name, new SeparatedSyntaxList<CompositeFieldDefinition>(fields, separators))
         {
-            Position = create.Position,
             Doc = doc?.Text,
             DocComment = doc,
             CreateKeyword = create,
@@ -389,7 +381,6 @@ internal sealed partial class NsqlParser
 
         return new CreateSequenceStatement(name, options)
         {
-            Position = create.Position,
             Doc = doc?.Text,
             DocComment = doc,
             CreateKeyword = create,
@@ -427,7 +418,7 @@ internal sealed partial class NsqlParser
             {
                 RejectDuplicate(dataType is not null);
                 var typeName = ExpectIdentifierNode("a type name");
-                dataType = new TypeName(null, typeName) { Position = typeName.Position };
+                dataType = new TypeName(null, typeName);
             }
             else if (NsqlKeywords.Comparer.Equals(option.Value, NsqlKeywords.Start))
             {
@@ -470,7 +461,6 @@ internal sealed partial class NsqlParser
 
         return new SequenceOptionsClause(dataType, start, increment, min, max, cache, cycle)
         {
-            Position = clausePosition,
             OpenParenToken = open,
             InteriorToken = RawSpanBetween(open, close),
             CloseParenToken = close,
@@ -495,7 +485,6 @@ internal sealed partial class NsqlParser
 
         return new CreateExtensionStatement(name, version)
         {
-            Position = create.Position,
             Doc = doc?.Text,
             DocComment = doc,
             CreateKeyword = create,
@@ -516,7 +505,7 @@ internal sealed partial class NsqlParser
         if (_current.Kind == TokenKind.String)
         {
             var token = Advance();
-            return new Identifier(token) { Position = token.Position };
+            return new Identifier(token);
         }
         return ExpectIdentifierNode("an extension name");
     }
@@ -575,14 +564,13 @@ internal sealed partial class NsqlParser
 
             var first = ExpectIdentifierNode("a function name");
             var function = Match(TokenKind.Dot)
-                ? new QualifiedName(first, ExpectIdentifierNode("a function name")) { Position = first.Position }
-                : new QualifiedName(null, first) { Position = first.Position };
+                ? new QualifiedName(first, ExpectIdentifierNode("a function name"))
+                : new QualifiedName(null, first);
 
             // The argument list is captured verbatim (opaque), like a routine's; usually empty for a trigger function.
             var arguments = CaptureParenthesized();
             action = new ExecuteFunctionAction(function, arguments)
             {
-                Position = actionPosition,
                 ActionToken = RawSpanFrom(actionStart, _current),
             };
         }
@@ -593,7 +581,6 @@ internal sealed partial class NsqlParser
             var dollar = Expect(TokenKind.DollarString, "a trigger body as a dollar-quoted block ($$ … $$)");
             action = new InlineBodyAction(StripDollarQuote(dollar.Text).Trim())
             {
-                Position = actionPosition,
                 AsKeyword = asKeyword,
                 BodyToken = dollar,
             };
@@ -607,7 +594,6 @@ internal sealed partial class NsqlParser
 
         return new CreateTriggerStatement(name, timing, events, on, action, updateOfColumns, level, when)
         {
-            Position = create.Position,
             Doc = doc?.Text,
             DocComment = doc,
             CreateKeyword = create,
@@ -737,14 +723,13 @@ internal sealed partial class NsqlParser
             var templateName = ExpectIdentifierNode("a template name");
             return new IncludeMember(templateName)
             {
-                Position = include.Position,
                 Doc = doc?.Text,
                 DocComment = doc,
                 IncludeKeyword = include,
             };
         }
 
-        return ParseColumn(new Identifier(include) { Position = include.Position }, doc);
+        return ParseColumn(new Identifier(include), doc);
     }
 
     private TableMember ParseColumn(Token? doc)
@@ -799,7 +784,6 @@ internal sealed partial class NsqlParser
 
         return new ColumnDefinition(name, type, isNullable, isIdentity, identity, defaultExpression, generatedExpression)
         {
-            Position = name.Position,
             Doc = doc?.Text,
             DocComment = doc,
             ModifiersToken = modifiers,
@@ -836,7 +820,6 @@ internal sealed partial class NsqlParser
         }
         return new TypeName(schema, name, arguments)
         {
-            Position = first.Position,
             SchemaDotToken = schemaDot,
             OpenParenToken = open,
             PrecisionToken = precision,
@@ -880,7 +863,7 @@ internal sealed partial class NsqlParser
         while (Match(TokenKind.Comma));
         Expect(TokenKind.RightParen, "')'");
 
-        return new IdentityOptionsClause(start, increment, min) { Position = clausePosition };
+        return new IdentityOptionsClause(start, increment, min);
     }
 
     private TableMember ParseConstraint(Token? doc)
@@ -896,7 +879,7 @@ internal sealed partial class NsqlParser
             var columns = ParseColumnList();
             return new PrimaryKeyDefinition(name, columns)
             {
-                Position = position, Doc = doc?.Text, DocComment = doc,
+                Doc = doc?.Text, DocComment = doc,
                 ConstraintKeyword = constraint, PrimaryKeyword = primary, KeyKeyword = key,
             };
         }
@@ -913,7 +896,7 @@ internal sealed partial class NsqlParser
             var actions = actionsStart.Position.Offset < _current.Position.Offset ? RawSpanFrom(actionsStart, _current) : (Token?)null;
             return new ForeignKeyDefinition(name, columns, referencedTable, refColumns, onDelete, onUpdate)
             {
-                Position = position, Doc = doc?.Text, DocComment = doc,
+                Doc = doc?.Text, DocComment = doc,
                 ConstraintKeyword = constraint, ForeignKeyword = foreign, KeyKeyword = key,
                 ReferencesKeyword = references, ActionsToken = actions,
             };
@@ -924,7 +907,7 @@ internal sealed partial class NsqlParser
             var columns = ParseColumnList();
             return new UniqueDefinition(name, columns)
             {
-                Position = position, Doc = doc?.Text, DocComment = doc,
+                Doc = doc?.Text, DocComment = doc,
                 ConstraintKeyword = constraint, UniqueKeyword = unique,
             };
         }
@@ -934,7 +917,7 @@ internal sealed partial class NsqlParser
             var (open, expression, span, close) = CaptureParenthesizedToken();
             return new CheckDefinition(name, expression)
             {
-                Position = position, Doc = doc?.Text, DocComment = doc,
+                Doc = doc?.Text, DocComment = doc,
                 ConstraintKeyword = constraint, CheckKeyword = check,
                 OpenParenToken = open, ExpressionToken = span, CloseParenToken = close,
             };
@@ -1023,7 +1006,6 @@ internal sealed partial class NsqlParser
 
         return new ExclusionDefinition(name, new SeparatedSyntaxList<ExclusionElement>(elements, separators), method?.Method, where?.Predicate)
         {
-            Position = constraint.Position,
             Doc = doc?.Text,
             DocComment = doc,
             ConstraintKeyword = constraint,
@@ -1070,7 +1052,6 @@ internal sealed partial class NsqlParser
 
         return new ExclusionElement(@operator, column, expression)
         {
-            Position = position,
             OpenParenToken = exprOpen,
             ExpressionToken = exprSpan,
             CloseParenToken = exprClose,
@@ -1095,7 +1076,6 @@ internal sealed partial class NsqlParser
 
         return new IndexDefinition(name, isUnique, keys, method?.Method, include?.Columns, where?.Predicate)
         {
-            Position = position,
             Doc = doc?.Text,
             DocComment = doc,
             UniqueKeyword = uniqueKeyword,
@@ -1218,7 +1198,6 @@ internal sealed partial class NsqlParser
 
         return new IndexElement(column, expression, sort, nulls)
         {
-            Position = position,
             OpenParenToken = exprOpen,
             ExpressionToken = exprSpan,
             CloseParenToken = exprClose,
@@ -1240,7 +1219,6 @@ internal sealed partial class NsqlParser
         var close = Expect(TokenKind.RightParen, "')'");
         return new ColumnList(new SeparatedSyntaxList<Identifier>(columns, separators))
         {
-            Position = open.Position,
             OpenParenToken = open,
             CloseParenToken = close,
         };

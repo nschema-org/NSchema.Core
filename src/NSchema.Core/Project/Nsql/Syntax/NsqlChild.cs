@@ -27,6 +27,11 @@ internal readonly struct NsqlChild
     public static implicit operator NsqlChild(NsqlNode node) => new(node);
     public static implicit operator NsqlChild(Token token) => new(token);
 
+    /// <summary>
+    /// Where this child begins in the source (the node's computed position, or the token's).
+    /// </summary>
+    public SourcePosition Position => _node?.Position ?? _token.Position;
+
     public void WriteTo(StringBuilder sb)
     {
         if (_node is { } node)

@@ -9,8 +9,23 @@ public abstract record NsqlNode
 {
     /// <summary>
     /// The position in the source where the node begins.
+    /// Computed from its first token (or first child node),
+    /// and <see cref="SourcePosition.None"/> for a synthetic node with no source-backed tokens.
     /// </summary>
-    public required SourcePosition Position { get; init; }
+    public SourcePosition Position
+    {
+        get
+        {
+            foreach (var child in Children)
+            {
+                if (child.Position is { Line: > 0 } position)
+                {
+                    return position;
+                }
+            }
+            return SourcePosition.None;
+        }
+    }
 
     /// <summary>
     /// The node's tokens and child nodes in source order.

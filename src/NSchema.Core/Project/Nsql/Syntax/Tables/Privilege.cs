@@ -24,5 +24,5 @@ public sealed record Privilege(Token Keyword) : NsqlNode
     /// Builds a synthetic privilege (no source) for <paramref name="privilege"/>.
     /// </summary>
     public static Privilege Synthetic(TablePrivilege privilege) =>
-        new(new Token(TokenKind.Identifier, privilege.ToString().ToUpperInvariant(), SourcePosition.None)) { Position = SourcePosition.None };
+        new(new Token(TokenKind.Identifier, privilege.ToString().ToUpperInvariant(), SourcePosition.None));
 }

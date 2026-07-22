@@ -54,5 +54,5 @@ public sealed record ColumnList(SeparatedSyntaxList<Identifier> Columns) : NsqlN
     /// Builds a synthetic column list (no source) from <paramref name="columns"/>.
     /// </summary>
     public static ColumnList Synthetic(IReadOnlyList<Identifier> columns) =>
-        new(new SeparatedSyntaxList<Identifier>(columns)) { Position = SourcePosition.None };
+        new(new SeparatedSyntaxList<Identifier>(columns));
 }

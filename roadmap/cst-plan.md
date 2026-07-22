@@ -65,7 +65,13 @@ Goal: the lexer emits every character; behaviour-neutral for everything downstre
 
 ## Phase 2 — node layer (token-bearing tree)
 
-Status: **in progress**. The big mechanical phase; the public-API break.
+Status: **done** (arch guard test deferred — see below). Every statement, member, clause, and leaf across
+all four families + the config/lock grammars is token-bearing; `Print(Parse(s)) == s` holds over the whole
+corpus incl. error-recovery fixtures. `Position` is computed from the first token; `Tokens/` are public;
+`NsqlSourceDocument` shares `ToSource`/`FilePath`/`EndOfFile`. Two ceilings to remember for Phase 4:
+sequence/identity options, domain tail clauses, FK actions, column modifiers, and the trigger header print
+as **verbatim raw spans** (structure them if the formatter needs to reflow inside) — everything list-shaped
+is a typed `SeparatedSyntaxList`.
 
 - **Foundation (done):** base printer — `NsqlNode.Children` (tokens + child nodes, source order) +
   `ToSource()`; `NsqlChild` union; `Token.WriteTo`. Leaf nodes are token-truth (`Identifier` holds
@@ -99,16 +105,19 @@ Status: **in progress**. The big mechanical phase; the public-API break.
   added alongside (the string goes computed in Phase 4).
 - Parser (`NsqlParser` + 8 partials): construction sites updated to thread tokens into nodes.
   `Expect`/`Match` return the consumed token rather than discarding it.
-- Error recovery: `Resync()` currently throws tokens away. Add a skipped-tokens node so documents
-  with syntax errors still round-trip — this is what makes lint/format viable on broken files.
+- Error recovery (done): `Resync()` no longer throws tokens away — following Roslyn's
+  `SkippedTokensTrivia`, the discarded run becomes a `TriviaKind.Skipped` trivia on the next token
+  (or EOF), so a document with errors round-trips, `Statements` stays "parsed statements only", and
+  the config/lock grammars get recovery for free. Also fixes the dangling-doc-at-EOF round-trip gap.
 - `SyntaxBuilder` builds synthetic tokens (empty trivia, `None` position). `NsqlWriter` output must
   be snapshot-neutral this phase.
 - API surface: `Tokens/` types go public (nodes hold them; the linter seam in [[nsql-linting]]
   wants token access anyway). This is a **breaking Core change** — coordinated consumer bump, same
   dance as v5.
-- New arch guard test: the language layer (`NSchema.Project.Nsql.*`) references nothing in
-  Plan/Diff/State — keeps the [[language-package]] split a `git mv`. (No slice tests exist today;
-  this is the first.)
+- **Arch guard test — DEFERRED (revisit later).** Skipped for now: a previous attempt at slice/arch
+  tests "ended up a mess" (Tom, 2026-07-22). The [[language-package]] split still wants the guarantee
+  that `NSchema.Project.Nsql.*` references nothing in Plan/Diff/State — revisit with a cleaner
+  approach before that split is cut, not as part of this phase.
 - Tests:
   - **The round-trip property**: `Print(Parse(s)) == s` over the full corpus + new error-recovery
     fixtures. Lands here and never leaves.

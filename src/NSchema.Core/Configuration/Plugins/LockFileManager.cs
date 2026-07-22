@@ -1,5 +1,6 @@
 using System.Text;
 using NSchema.Project.Nsql;
+using NSchema.Project.Nsql.Syntax.Blocks;
 
 namespace NSchema.Configuration.Plugins;
 
@@ -33,7 +34,7 @@ public static class LockFileManager
 
         if (document.Value is { } value)
         {
-            foreach (var statement in value.Statements)
+            foreach (var statement in value.Statements.OfType<BlockStatement>())
             {
                 var result = statement.ToSettings().Get<LockedPlugin>(ignoreUnknown: true);
                 diagnostics.AddRange(result.Diagnostics);

@@ -54,7 +54,6 @@ internal sealed partial class NsqlParser
 
         return new ScriptStatement(name, condition, scriptEvent, body, runOutsideTransaction)
         {
-            Position = script.Position,
             Doc = doc?.Text,
             DocComment = doc,
             ScriptKeyword = script,
@@ -80,7 +79,6 @@ internal sealed partial class NsqlParser
             var deploymentKeyword = ExpectKeyword(NsqlKeywords.Deployment);
             return new DeploymentEventClause(phase)
             {
-                Position = eventPosition,
                 PhaseKeyword = phaseKeyword,
                 DeploymentKeyword = deploymentKeyword,
             };
@@ -89,7 +87,7 @@ internal sealed partial class NsqlParser
         {
             var (trigger, keywords) = ParseChangeTrigger();
             var path = ParseMemberPathNode();
-            return new ChangeEventClause(trigger, path) { Position = eventPosition, TriggerKeywords = keywords };
+            return new ChangeEventClause(trigger, path) { TriggerKeywords = keywords };
         }
         throw Error("Expected a script event: 'PRE DEPLOYMENT', 'POST DEPLOYMENT', 'ADD COLUMN', 'ALTER COLUMN TYPE' or 'ADD CONSTRAINT'.");
     }
@@ -134,7 +132,7 @@ internal sealed partial class NsqlParser
         {
             if (_inTemplateBody)
             {
-                return new MemberPath(null, first, second) { Position = first.Position, MemberDotToken = firstDot };
+                return new MemberPath(null, first, second) { MemberDotToken = firstDot };
             }
             throw Error("Expected '.' in the migration target path (schema.table.member).");
         }
@@ -148,7 +146,6 @@ internal sealed partial class NsqlParser
         var member = ExpectIdentifierNode("a column or constraint name");
         return new MemberPath(first, second, member)
         {
-            Position = first.Position,
             SchemaDotToken = firstDot,
             MemberDotToken = secondDot,
         };

@@ -19,5 +19,5 @@ public sealed record EnumValue(Token Token) : NsqlNode
     /// Builds a synthetic enum value (no source, no trivia) carrying <paramref name="value"/>.
     /// </summary>
     public static EnumValue Synthetic(string value) =>
-        new(new Token(TokenKind.String, value, SourcePosition.None)) { Position = SourcePosition.None };
+        new(new Token(TokenKind.String, value, SourcePosition.None));
 }

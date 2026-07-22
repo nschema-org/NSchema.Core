@@ -19,7 +19,7 @@ public sealed record Identifier(Token Token) : NsqlNode
     /// Builds a synthetic identifier (no source, no trivia) carrying <paramref name="value"/>.
     /// </summary>
     public static Identifier Synthetic(string value) =>
-        new(new Token(TokenKind.Identifier, value, SourcePosition.None)) { Position = SourcePosition.None };
+        new(new Token(TokenKind.Identifier, value, SourcePosition.None));
 
     /// <inheritdoc/>
     public override string ToString() => Value;
