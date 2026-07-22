@@ -9,32 +9,32 @@ namespace NSchema.Project.Nsql.Syntax.Templates;
 public abstract record TemplateStatement(Identifier Name) : NsqlStatement
 {
     /// <summary>
-    /// The <c>TEMPLATE</c> keyword token, when parsed.
+    /// The <c>TEMPLATE</c> keyword token.
     /// </summary>
-    public Token? TemplateKeyword { get; init; }
+    public Token TemplateKeyword { get; init; } = Token.Keyword(NsqlKeywords.Template);
 
     /// <summary>
-    /// The <c>FOR</c> keyword token, when parsed with an explicit kind.
+    /// The <c>FOR</c> keyword token, when written with an explicit kind.
     /// </summary>
     public Token? ForKeyword { get; init; }
 
     /// <summary>
-    /// The <c>SCHEMA</c>/<c>TABLE</c> kind keyword token, when parsed with an explicit kind.
+    /// The <c>SCHEMA</c>/<c>TABLE</c> kind keyword token, when written with an explicit kind.
     /// </summary>
     public Token? KindKeyword { get; init; }
 
     /// <summary>
-    /// The <c>BEGIN</c> keyword token, when parsed.
+    /// The <c>BEGIN</c> keyword token.
     /// </summary>
-    public Token? BeginKeyword { get; init; }
+    public Token BeginKeyword { get; init; } = Token.Keyword(NsqlKeywords.Begin);
 
     /// <summary>
-    /// The <c>END</c> keyword token, when parsed.
+    /// The <c>END</c> keyword token.
     /// </summary>
-    public Token? EndKeyword { get; init; }
+    public Token EndKeyword { get; init; } = Token.Keyword(NsqlKeywords.End);
 
     /// <summary>
-    /// The terminating <c>;</c> token, when parsed.
+    /// The terminating <c>;</c> token.
     /// </summary>
-    public Token? SemicolonToken { get; init; }
+    public Token SemicolonToken { get; init; } = Token.Punctuation(TokenKind.Semicolon, NsqlSymbols.Semicolon);
 }

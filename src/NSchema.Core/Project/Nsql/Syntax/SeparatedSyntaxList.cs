@@ -56,9 +56,10 @@ public readonly struct SeparatedSyntaxList<T> : IReadOnlyList<T> where T : NsqlN
             for (var i = 0; i < elements.Count; i++)
             {
                 yield return elements[i];
-                if (i < separators.Count)
+                if (i < elements.Count - 1)
                 {
-                    yield return separators[i];
+                    // A synthetic list has no separator tokens; supply a comma so the printer keeps the list valid.
+                    yield return i < separators.Count ? separators[i] : Token.Punctuation(TokenKind.Comma, NsqlSymbols.Comma);
                 }
             }
         }

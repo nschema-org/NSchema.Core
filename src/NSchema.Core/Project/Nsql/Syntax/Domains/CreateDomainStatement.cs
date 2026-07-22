@@ -26,29 +26,29 @@ public sealed record CreateDomainStatement(
     public IReadOnlyList<CheckDefinition> Checks { get; init; } = Checks ?? [];
 
     /// <summary>
-    /// The <c>CREATE</c> keyword token, when parsed.
+    /// The <c>CREATE</c> keyword token.
     /// </summary>
-    public Token? CreateKeyword { get; init; }
+    public Token CreateKeyword { get; init; } = Token.Keyword(NsqlKeywords.Create);
 
     /// <summary>
-    /// The <c>DOMAIN</c> keyword token, when parsed.
+    /// The <c>DOMAIN</c> keyword token.
     /// </summary>
-    public Token? DomainKeyword { get; init; }
+    public Token DomainKeyword { get; init; } = Token.Keyword(NsqlKeywords.Domain);
 
     /// <summary>
-    /// The <c>AS</c> keyword token, when parsed.
+    /// The <c>AS</c> keyword token.
     /// </summary>
-    public Token? AsKeyword { get; init; }
+    public Token AsKeyword { get; init; } = Token.Keyword(NsqlKeywords.As);
 
     /// <summary>
-    /// The verbatim span of the clauses after the type (<c>NOT NULL</c>, checks, <c>DEFAULT</c>), when parsed with any.
+    /// The verbatim span of the clauses after the type (<c>NOT NULL</c>, checks, <c>DEFAULT</c>), when present.
     /// </summary>
     public Token? TailToken { get; init; }
 
     /// <summary>
-    /// The terminating <c>;</c> token, when parsed.
+    /// The terminating <c>;</c> token.
     /// </summary>
-    public Token? SemicolonToken { get; init; }
+    public Token SemicolonToken { get; init; } = Token.Punctuation(TokenKind.Semicolon, NsqlSymbols.Semicolon);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -58,28 +58,16 @@ public sealed record CreateDomainStatement(
             {
                 yield return doc;
             }
-            if (CreateKeyword is { } create)
-            {
-                yield return create;
-            }
-            if (DomainKeyword is { } domain)
-            {
-                yield return domain;
-            }
+            yield return CreateKeyword;
+            yield return DomainKeyword;
             yield return Name;
-            if (AsKeyword is { } asKeyword)
-            {
-                yield return asKeyword;
-            }
+            yield return AsKeyword;
             yield return Type;
             if (TailToken is { } tail)
             {
                 yield return tail;
             }
-            if (SemicolonToken is { } semicolon)
-            {
-                yield return semicolon;
-            }
+            yield return SemicolonToken;
         }
     }
 }

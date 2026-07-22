@@ -27,14 +27,14 @@ public sealed record CreateTriggerStatement(
 ) : NsqlStatement
 {
     /// <summary>
-    /// The <c>CREATE</c> keyword token, when parsed.
+    /// The <c>CREATE</c> keyword token.
     /// </summary>
-    public Token? CreateKeyword { get; init; }
+    public Token CreateKeyword { get; init; } = Token.Keyword(NsqlKeywords.Create);
 
     /// <summary>
-    /// The <c>TRIGGER</c> keyword token, when parsed.
+    /// The <c>TRIGGER</c> keyword token.
     /// </summary>
-    public Token? TriggerKeyword { get; init; }
+    public Token TriggerKeyword { get; init; } = Token.Keyword(NsqlKeywords.Trigger);
 
     /// <summary>
     /// The verbatim span of the header (timing, events, <c>ON</c> table, <c>FOR EACH</c>, <c>WHEN</c>), when parsed.
@@ -42,9 +42,9 @@ public sealed record CreateTriggerStatement(
     public Token? HeaderToken { get; init; }
 
     /// <summary>
-    /// The terminating <c>;</c> token, when parsed.
+    /// The terminating <c>;</c> token.
     /// </summary>
-    public Token? SemicolonToken { get; init; }
+    public Token SemicolonToken { get; init; } = Token.Punctuation(TokenKind.Semicolon, NsqlSymbols.Semicolon);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -54,24 +54,15 @@ public sealed record CreateTriggerStatement(
             {
                 yield return doc;
             }
-            if (CreateKeyword is { } create)
-            {
-                yield return create;
-            }
-            if (TriggerKeyword is { } trigger)
-            {
-                yield return trigger;
-            }
+            yield return CreateKeyword;
+            yield return TriggerKeyword;
             yield return Name;
             if (HeaderToken is { } header)
             {
                 yield return header;
             }
             yield return Action;
-            if (SemicolonToken is { } semicolon)
-            {
-                yield return semicolon;
-            }
+            yield return SemicolonToken;
         }
     }
 }

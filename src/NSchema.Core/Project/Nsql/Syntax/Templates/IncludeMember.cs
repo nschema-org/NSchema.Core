@@ -10,9 +10,9 @@ namespace NSchema.Project.Nsql.Syntax.Templates;
 public sealed record IncludeMember(Identifier TemplateName) : TableMember
 {
     /// <summary>
-    /// The <c>INCLUDE</c> keyword token, when parsed.
+    /// The <c>INCLUDE</c> keyword token.
     /// </summary>
-    public Token? IncludeKeyword { get; init; }
+    public Token IncludeKeyword { get; init; } = Token.Keyword(NsqlKeywords.Include);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -22,10 +22,7 @@ public sealed record IncludeMember(Identifier TemplateName) : TableMember
             {
                 yield return doc;
             }
-            if (IncludeKeyword is { } include)
-            {
-                yield return include;
-            }
+            yield return IncludeKeyword;
             yield return TemplateName;
         }
     }

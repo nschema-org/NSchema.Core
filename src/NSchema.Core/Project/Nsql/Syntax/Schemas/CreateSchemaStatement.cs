@@ -9,19 +9,19 @@ namespace NSchema.Project.Nsql.Syntax.Schemas;
 public sealed record CreateSchemaStatement(Identifier Name) : NsqlStatement
 {
     /// <summary>
-    /// The <c>CREATE</c> keyword token, when parsed.
+    /// The <c>CREATE</c> keyword token.
     /// </summary>
-    public Token? CreateKeyword { get; init; }
+    public Token CreateKeyword { get; init; } = Token.Keyword(NsqlKeywords.Create);
 
     /// <summary>
-    /// The <c>SCHEMA</c> keyword token, when parsed.
+    /// The <c>SCHEMA</c> keyword token.
     /// </summary>
-    public Token? SchemaKeyword { get; init; }
+    public Token SchemaKeyword { get; init; } = Token.Keyword(NsqlKeywords.Schema);
 
     /// <summary>
-    /// The terminating <c>;</c> token, when parsed.
+    /// The terminating <c>;</c> token.
     /// </summary>
-    public Token? SemicolonToken { get; init; }
+    public Token SemicolonToken { get; init; } = Token.Punctuation(TokenKind.Semicolon, NsqlSymbols.Semicolon);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -31,19 +31,10 @@ public sealed record CreateSchemaStatement(Identifier Name) : NsqlStatement
             {
                 yield return doc;
             }
-            if (CreateKeyword is { } create)
-            {
-                yield return create;
-            }
-            if (SchemaKeyword is { } schema)
-            {
-                yield return schema;
-            }
+            yield return CreateKeyword;
+            yield return SchemaKeyword;
             yield return Name;
-            if (SemicolonToken is { } semicolon)
-            {
-                yield return semicolon;
-            }
+            yield return SemicolonToken;
         }
     }
 }

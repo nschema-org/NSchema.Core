@@ -10,9 +10,9 @@ namespace NSchema.Project.Nsql.Syntax.Triggers;
 public sealed record InlineBodyAction(SqlText Body) : TriggerAction
 {
     /// <summary>
-    /// The <c>AS</c> keyword token, when parsed.
+    /// The <c>AS</c> keyword token.
     /// </summary>
-    public Token? AsKeyword { get; init; }
+    public Token AsKeyword { get; init; } = Token.Keyword(NsqlKeywords.As);
 
     /// <summary>
     /// The dollar-quoted body token, when parsed.
@@ -23,10 +23,7 @@ public sealed record InlineBodyAction(SqlText Body) : TriggerAction
     {
         get
         {
-            if (AsKeyword is { } asKeyword)
-            {
-                yield return asKeyword;
-            }
+            yield return AsKeyword;
             if (BodyToken is { } body)
             {
                 yield return body;

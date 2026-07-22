@@ -13,19 +13,19 @@ public sealed record CreateSequenceStatement(
 ) : NsqlStatement
 {
     /// <summary>
-    /// The <c>CREATE</c> keyword token, when parsed.
+    /// The <c>CREATE</c> keyword token.
     /// </summary>
-    public Token? CreateKeyword { get; init; }
+    public Token CreateKeyword { get; init; } = Token.Keyword(NsqlKeywords.Create);
 
     /// <summary>
-    /// The <c>SEQUENCE</c> keyword token, when parsed.
+    /// The <c>SEQUENCE</c> keyword token.
     /// </summary>
-    public Token? SequenceKeyword { get; init; }
+    public Token SequenceKeyword { get; init; } = Token.Keyword(NsqlKeywords.Sequence);
 
     /// <summary>
-    /// The terminating <c>;</c> token, when parsed.
+    /// The terminating <c>;</c> token.
     /// </summary>
-    public Token? SemicolonToken { get; init; }
+    public Token SemicolonToken { get; init; } = Token.Punctuation(TokenKind.Semicolon, NsqlSymbols.Semicolon);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -35,23 +35,14 @@ public sealed record CreateSequenceStatement(
             {
                 yield return doc;
             }
-            if (CreateKeyword is { } create)
-            {
-                yield return create;
-            }
-            if (SequenceKeyword is { } sequence)
-            {
-                yield return sequence;
-            }
+            yield return CreateKeyword;
+            yield return SequenceKeyword;
             yield return Name;
             if (Options is { } options)
             {
                 yield return options;
             }
-            if (SemicolonToken is { } semicolon)
-            {
-                yield return semicolon;
-            }
+            yield return SemicolonToken;
         }
     }
 }

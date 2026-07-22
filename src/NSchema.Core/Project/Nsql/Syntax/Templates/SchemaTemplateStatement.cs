@@ -16,10 +16,7 @@ public sealed record SchemaTemplateStatement(Identifier Name, IReadOnlyList<Nsql
             {
                 yield return doc;
             }
-            if (TemplateKeyword is { } template)
-            {
-                yield return template;
-            }
+            yield return TemplateKeyword;
             yield return Name;
             if (ForKeyword is { } forKeyword)
             {
@@ -29,22 +26,13 @@ public sealed record SchemaTemplateStatement(Identifier Name, IReadOnlyList<Nsql
             {
                 yield return kind;
             }
-            if (BeginKeyword is { } begin)
-            {
-                yield return begin;
-            }
+            yield return BeginKeyword;
             foreach (var statement in Statements)
             {
                 yield return statement;
             }
-            if (EndKeyword is { } end)
-            {
-                yield return end;
-            }
-            if (SemicolonToken is { } semicolon)
-            {
-                yield return semicolon;
-            }
+            yield return EndKeyword;
+            yield return SemicolonToken;
         }
     }
 }

@@ -10,34 +10,34 @@ namespace NSchema.Project.Nsql.Syntax.Schemas;
 public sealed record GrantSchemaUsageStatement(Identifier Schema, Identifier Role) : NsqlStatement
 {
     /// <summary>
-    /// The <c>GRANT</c> keyword token, when parsed.
+    /// The <c>GRANT</c> keyword token.
     /// </summary>
-    public Token? GrantKeyword { get; init; }
+    public Token GrantKeyword { get; init; } = Token.Keyword(NsqlKeywords.Grant);
 
     /// <summary>
-    /// The <c>USAGE</c> keyword token, when parsed.
+    /// The <c>USAGE</c> keyword token.
     /// </summary>
-    public Token? UsageKeyword { get; init; }
+    public Token UsageKeyword { get; init; } = Token.Keyword(NsqlKeywords.Usage);
 
     /// <summary>
-    /// The <c>ON</c> keyword token, when parsed.
+    /// The <c>ON</c> keyword token.
     /// </summary>
-    public Token? OnKeyword { get; init; }
+    public Token OnKeyword { get; init; } = Token.Keyword(NsqlKeywords.On);
 
     /// <summary>
-    /// The <c>SCHEMA</c> keyword token, when parsed.
+    /// The <c>SCHEMA</c> keyword token.
     /// </summary>
-    public Token? SchemaKeyword { get; init; }
+    public Token SchemaKeyword { get; init; } = Token.Keyword(NsqlKeywords.Schema);
 
     /// <summary>
-    /// The <c>TO</c> keyword token, when parsed.
+    /// The <c>TO</c> keyword token.
     /// </summary>
-    public Token? ToKeyword { get; init; }
+    public Token ToKeyword { get; init; } = Token.Keyword(NsqlKeywords.To);
 
     /// <summary>
-    /// The terminating <c>;</c> token, when parsed.
+    /// The terminating <c>;</c> token.
     /// </summary>
-    public Token? SemicolonToken { get; init; }
+    public Token SemicolonToken { get; init; } = Token.Punctuation(TokenKind.Semicolon, NsqlSymbols.Semicolon);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -47,32 +47,14 @@ public sealed record GrantSchemaUsageStatement(Identifier Schema, Identifier Rol
             {
                 yield return doc;
             }
-            if (GrantKeyword is { } grant)
-            {
-                yield return grant;
-            }
-            if (UsageKeyword is { } usage)
-            {
-                yield return usage;
-            }
-            if (OnKeyword is { } on)
-            {
-                yield return on;
-            }
-            if (SchemaKeyword is { } schemaKeyword)
-            {
-                yield return schemaKeyword;
-            }
+            yield return GrantKeyword;
+            yield return UsageKeyword;
+            yield return OnKeyword;
+            yield return SchemaKeyword;
             yield return Schema;
-            if (ToKeyword is { } to)
-            {
-                yield return to;
-            }
+            yield return ToKeyword;
             yield return Role;
-            if (SemicolonToken is { } semicolon)
-            {
-                yield return semicolon;
-            }
+            yield return SemicolonToken;
         }
     }
 }

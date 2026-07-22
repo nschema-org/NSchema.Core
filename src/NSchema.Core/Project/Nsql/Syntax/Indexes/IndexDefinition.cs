@@ -1,5 +1,4 @@
 using NSchema.Model;
-using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Syntax.Tables;
 using NSchema.Project.Nsql.Tokens;
 
@@ -24,42 +23,42 @@ public sealed record IndexDefinition(
 ) : TableMember
 {
     /// <summary>
-    /// The <c>UNIQUE</c> keyword token, when parsed unique.
+    /// The <c>UNIQUE</c> keyword token, when written unique.
     /// </summary>
     public Token? UniqueKeyword { get; init; }
 
     /// <summary>
-    /// The <c>INDEX</c> keyword token, when parsed.
+    /// The <c>INDEX</c> keyword token.
     /// </summary>
-    public Token? IndexKeyword { get; init; }
+    public Token IndexKeyword { get; init; } = Token.Keyword(NsqlKeywords.Index);
 
     /// <summary>
-    /// The <c>USING</c> keyword token, when parsed with a method.
+    /// The <c>USING</c> keyword token, when written with a method.
     /// </summary>
     public Token? UsingKeyword { get; init; }
 
     /// <summary>
-    /// The <c>(</c> token opening the keys, when parsed.
+    /// The <c>(</c> token opening the keys.
     /// </summary>
-    public Token? OpenParenToken { get; init; }
+    public Token OpenParenToken { get; init; } = Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
 
     /// <summary>
-    /// The <c>)</c> token closing the keys, when parsed.
+    /// The <c>)</c> token closing the keys.
     /// </summary>
-    public Token? CloseParenToken { get; init; }
+    public Token CloseParenToken { get; init; } = Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
 
     /// <summary>
-    /// The <c>INCLUDE</c> keyword token, when parsed with included columns.
+    /// The <c>INCLUDE</c> keyword token, when written with included columns.
     /// </summary>
     public Token? IncludeKeyword { get; init; }
 
     /// <summary>
-    /// The <c>WHERE</c> keyword token, when parsed with a predicate.
+    /// The <c>WHERE</c> keyword token, when written with a predicate.
     /// </summary>
     public Token? WhereKeyword { get; init; }
 
     /// <summary>
-    /// The <c>(</c> token opening the predicate, when parsed with a predicate.
+    /// The <c>(</c> token opening the predicate, when written with a predicate.
     /// </summary>
     public Token? WhereOpenParenToken { get; init; }
 
@@ -69,7 +68,7 @@ public sealed record IndexDefinition(
     public Token? PredicateToken { get; init; }
 
     /// <summary>
-    /// The <c>)</c> token closing the predicate, when parsed with a predicate.
+    /// The <c>)</c> token closing the predicate, when written with a predicate.
     /// </summary>
     public Token? WhereCloseParenToken { get; init; }
 
@@ -81,58 +80,34 @@ public sealed record IndexDefinition(
             {
                 yield return doc;
             }
-            if (UniqueKeyword is { } unique)
+            if (IsUnique)
             {
-                yield return unique;
+                yield return UniqueKeyword ?? Token.Keyword(NsqlKeywords.Unique);
             }
-            if (IndexKeyword is { } index)
-            {
-                yield return index;
-            }
+            yield return IndexKeyword;
             yield return Name;
-            if (UsingKeyword is { } usingKeyword)
-            {
-                yield return usingKeyword;
-            }
             if (Method is { } method)
             {
+                yield return UsingKeyword ?? Token.Keyword(NsqlKeywords.Using);
                 yield return method;
             }
-            if (OpenParenToken is { } open)
-            {
-                yield return open;
-            }
+            yield return OpenParenToken;
             foreach (var child in Columns.Children)
             {
                 yield return child;
             }
-            if (CloseParenToken is { } close)
-            {
-                yield return close;
-            }
-            if (IncludeKeyword is { } includeKeyword)
-            {
-                yield return includeKeyword;
-            }
+            yield return CloseParenToken;
             if (Include is { } include)
             {
+                yield return IncludeKeyword ?? Token.Keyword(NsqlKeywords.Include);
                 yield return include;
             }
-            if (WhereKeyword is { } where)
+            if (Predicate is { } predicate)
             {
-                yield return where;
-            }
-            if (WhereOpenParenToken is { } whereOpen)
-            {
-                yield return whereOpen;
-            }
-            if (PredicateToken is { } predicate)
-            {
-                yield return predicate;
-            }
-            if (WhereCloseParenToken is { } whereClose)
-            {
-                yield return whereClose;
+                yield return WhereKeyword ?? Token.Keyword(NsqlKeywords.Where);
+                yield return WhereOpenParenToken ?? Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
+                yield return PredicateToken ?? Token.Span(predicate.Value);
+                yield return WhereCloseParenToken ?? Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
             }
         }
     }

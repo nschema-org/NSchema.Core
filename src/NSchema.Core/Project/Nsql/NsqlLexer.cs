@@ -74,15 +74,15 @@ internal sealed class NsqlLexer(string source)
 
         switch (ch)
         {
-            case '(': Advance(); return new Token(TokenKind.LeftParen, "(", pos);
-            case ')': Advance(); return new Token(TokenKind.RightParen, ")", pos);
-            case '{': Advance(); return new Token(TokenKind.LeftBrace, "{", pos);
-            case '}': Advance(); return new Token(TokenKind.RightBrace, "}", pos);
-            case ',': Advance(); return new Token(TokenKind.Comma, ",", pos);
-            case ';': Advance(); return new Token(TokenKind.Semicolon, ";", pos);
-            case '.': Advance(); return new Token(TokenKind.Dot, ".", pos);
-            case '=': Advance(); return new Token(TokenKind.Equals, "=", pos);
-            case '-': Advance(); return new Token(TokenKind.Minus, "-", pos);
+            case '(': Advance(); return new Token(TokenKind.LeftParen, NsqlSymbols.LeftParen, pos);
+            case ')': Advance(); return new Token(TokenKind.RightParen, NsqlSymbols.RightParen, pos);
+            case '{': Advance(); return new Token(TokenKind.LeftBrace, NsqlSymbols.LeftBrace, pos);
+            case '}': Advance(); return new Token(TokenKind.RightBrace, NsqlSymbols.RightBrace, pos);
+            case ',': Advance(); return new Token(TokenKind.Comma, NsqlSymbols.Comma, pos);
+            case ';': Advance(); return new Token(TokenKind.Semicolon, NsqlSymbols.Semicolon, pos);
+            case '.': Advance(); return new Token(TokenKind.Dot, NsqlSymbols.Dot, pos);
+            case '=': Advance(); return new Token(TokenKind.Equals, NsqlSymbols.Equal, pos);
+            case '-': Advance(); return new Token(TokenKind.Minus, NsqlSymbols.Minus, pos);
             case '\'': return ReadString(pos);
             case '"': return ReadQuotedIdentifier(pos);
         }

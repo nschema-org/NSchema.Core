@@ -16,24 +16,24 @@ public sealed record CreateViewStatement(
 ) : NsqlStatement
 {
     /// <summary>
-    /// The <c>CREATE</c> keyword token, when parsed.
+    /// The <c>CREATE</c> keyword token.
     /// </summary>
-    public Token? CreateKeyword { get; init; }
+    public Token CreateKeyword { get; init; } = Token.Keyword(NsqlKeywords.Create);
 
     /// <summary>
-    /// The <c>MATERIALIZED</c> keyword token, when parsed materialized.
+    /// The <c>MATERIALIZED</c> keyword token, when written materialized.
     /// </summary>
     public Token? MaterializedKeyword { get; init; }
 
     /// <summary>
-    /// The <c>VIEW</c> keyword token, when parsed.
+    /// The <c>VIEW</c> keyword token.
     /// </summary>
-    public Token? ViewKeyword { get; init; }
+    public Token ViewKeyword { get; init; } = Token.Keyword(NsqlKeywords.View);
 
     /// <summary>
-    /// The <c>AS</c> keyword token, when parsed.
+    /// The <c>AS</c> keyword token.
     /// </summary>
-    public Token? AsKeyword { get; init; }
+    public Token AsKeyword { get; init; } = Token.Keyword(NsqlKeywords.As);
 
     /// <summary>
     /// The verbatim view-body span token, when parsed.
@@ -41,9 +41,9 @@ public sealed record CreateViewStatement(
     public Token? BodyToken { get; init; }
 
     /// <summary>
-    /// The terminating <c>;</c> token, when parsed.
+    /// The terminating <c>;</c> token.
     /// </summary>
-    public Token? SemicolonToken { get; init; }
+    public Token SemicolonToken { get; init; } = Token.Punctuation(TokenKind.Semicolon, NsqlSymbols.Semicolon);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -53,31 +53,16 @@ public sealed record CreateViewStatement(
             {
                 yield return doc;
             }
-            if (CreateKeyword is { } create)
+            yield return CreateKeyword;
+            if (IsMaterialized)
             {
-                yield return create;
+                yield return MaterializedKeyword ?? Token.Keyword(NsqlKeywords.Materialized);
             }
-            if (MaterializedKeyword is { } materialized)
-            {
-                yield return materialized;
-            }
-            if (ViewKeyword is { } view)
-            {
-                yield return view;
-            }
+            yield return ViewKeyword;
             yield return Name;
-            if (AsKeyword is { } asKeyword)
-            {
-                yield return asKeyword;
-            }
-            if (BodyToken is { } body)
-            {
-                yield return body;
-            }
-            if (SemicolonToken is { } semicolon)
-            {
-                yield return semicolon;
-            }
+            yield return AsKeyword;
+            yield return BodyToken ?? Token.Span(Body.Value);
+            yield return SemicolonToken;
         }
     }
 }

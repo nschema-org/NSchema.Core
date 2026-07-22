@@ -14,22 +14,16 @@ public sealed record DeploymentEventClause(DeploymentPhase Phase) : ScriptEventC
     public Token? PhaseKeyword { get; init; }
 
     /// <summary>
-    /// The <c>DEPLOYMENT</c> keyword token, when parsed.
+    /// The <c>DEPLOYMENT</c> keyword token.
     /// </summary>
-    public Token? DeploymentKeyword { get; init; }
+    public Token DeploymentKeyword { get; init; } = Token.Keyword(NsqlKeywords.Deployment);
 
     internal override IEnumerable<NsqlChild> Children
     {
         get
         {
-            if (PhaseKeyword is { } phase)
-            {
-                yield return phase;
-            }
-            if (DeploymentKeyword is { } deployment)
-            {
-                yield return deployment;
-            }
+            yield return PhaseKeyword ?? Token.Keyword(Phase == DeploymentPhase.Pre ? NsqlKeywords.Pre : NsqlKeywords.Post);
+            yield return DeploymentKeyword;
         }
     }
 }

@@ -11,14 +11,14 @@ namespace NSchema.Project.Nsql.Syntax;
 public sealed record ColumnList(SeparatedSyntaxList<Identifier> Columns) : NsqlNode, IReadOnlyList<Identifier>
 {
     /// <summary>
-    /// The <c>(</c> token, when parsed.
+    /// The <c>(</c> token.
     /// </summary>
-    public Token? OpenParenToken { get; init; }
+    public Token OpenParenToken { get; init; } = Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
 
     /// <summary>
-    /// The <c>)</c> token, when parsed.
+    /// The <c>)</c> token.
     /// </summary>
-    public Token? CloseParenToken { get; init; }
+    public Token CloseParenToken { get; init; } = Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
 
     /// <inheritdoc/>
     public int Count => Columns.Count;
@@ -35,18 +35,12 @@ public sealed record ColumnList(SeparatedSyntaxList<Identifier> Columns) : NsqlN
     {
         get
         {
-            if (OpenParenToken is { } open)
-            {
-                yield return open;
-            }
+            yield return OpenParenToken;
             foreach (var child in Columns.Children)
             {
                 yield return child;
             }
-            if (CloseParenToken is { } close)
-            {
-                yield return close;
-            }
+            yield return CloseParenToken;
         }
     }
 

@@ -13,34 +13,34 @@ public sealed record CreateCompositeTypeStatement(
 ) : NsqlStatement
 {
     /// <summary>
-    /// The <c>CREATE</c> keyword token, when parsed.
+    /// The <c>CREATE</c> keyword token.
     /// </summary>
-    public Token? CreateKeyword { get; init; }
+    public Token CreateKeyword { get; init; } = Token.Keyword(NsqlKeywords.Create);
 
     /// <summary>
-    /// The <c>TYPE</c> keyword token, when parsed.
+    /// The <c>TYPE</c> keyword token.
     /// </summary>
-    public Token? TypeKeyword { get; init; }
+    public Token TypeKeyword { get; init; } = Token.Keyword(NsqlKeywords.Type);
 
     /// <summary>
-    /// The <c>AS</c> keyword token, when parsed.
+    /// The <c>AS</c> keyword token.
     /// </summary>
-    public Token? AsKeyword { get; init; }
+    public Token AsKeyword { get; init; } = Token.Keyword(NsqlKeywords.As);
 
     /// <summary>
-    /// The <c>(</c> token opening the field list, when parsed.
+    /// The <c>(</c> token opening the field list.
     /// </summary>
-    public Token? OpenParenToken { get; init; }
+    public Token OpenParenToken { get; init; } = Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
 
     /// <summary>
-    /// The <c>)</c> token closing the field list, when parsed.
+    /// The <c>)</c> token closing the field list.
     /// </summary>
-    public Token? CloseParenToken { get; init; }
+    public Token CloseParenToken { get; init; } = Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
 
     /// <summary>
-    /// The terminating <c>;</c> token, when parsed.
+    /// The terminating <c>;</c> token.
     /// </summary>
-    public Token? SemicolonToken { get; init; }
+    public Token SemicolonToken { get; init; } = Token.Punctuation(TokenKind.Semicolon, NsqlSymbols.Semicolon);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -50,35 +50,17 @@ public sealed record CreateCompositeTypeStatement(
             {
                 yield return doc;
             }
-            if (CreateKeyword is { } create)
-            {
-                yield return create;
-            }
-            if (TypeKeyword is { } typeKeyword)
-            {
-                yield return typeKeyword;
-            }
+            yield return CreateKeyword;
+            yield return TypeKeyword;
             yield return Name;
-            if (AsKeyword is { } asKeyword)
-            {
-                yield return asKeyword;
-            }
-            if (OpenParenToken is { } open)
-            {
-                yield return open;
-            }
+            yield return AsKeyword;
+            yield return OpenParenToken;
             foreach (var child in Fields.Children)
             {
                 yield return child;
             }
-            if (CloseParenToken is { } close)
-            {
-                yield return close;
-            }
-            if (SemicolonToken is { } semicolon)
-            {
-                yield return semicolon;
-            }
+            yield return CloseParenToken;
+            yield return SemicolonToken;
         }
     }
 }

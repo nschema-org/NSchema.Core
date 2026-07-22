@@ -164,9 +164,37 @@ on phase 2.
 
 ## Phase 4 — generation convergence
 
-Status: **not started**. Depends on phases 2–3.
+Status: **in progress**. Depends on phases 2–3.
 
 Every NSQL-producing surface becomes: build nodes → print through the formatter.
+
+- **Token-factory foundation (done, 2026-07-22).** The formatter prints synthetic (trivia-less) trees
+  as valid NSQL — synthesized inter-token spacing keyed off `Position.None`, position-independent
+  header split, `Format(NsqlDocument)` tree entry. Every node across all families (incl. templates and
+  config/lock blocks) is token-complete: mandatory tokens default to their canonical synthetic form
+  (`Token.Keyword`/`Punctuation`, casing from `NsqlKeywords`, punctuation from new `NsqlSymbols`),
+  optional keywords synthesize at their gate (`Field ?? Token.Keyword(…)`), and variable payloads ride
+  as raw spans — self-rendered from the semantic field where derivable, else built by `SyntaxBuilder`
+  reusing `NsqlWriter`'s fragment renderers (extracted to `internal`, shared not duplicated;
+  identifier-escaping moved onto `Identifier`). Verified by a synthesis round-trip corpus (rich schema
+  through the drift comparer; directives; a block; a template). Ceiling holds: the raw spans must
+  re-parse to the same semantics — the round-trip enforces it.
+- **`NsqlWriter` collapsed onto the formatter (done, 2026-07-23).** Its statement `switch` and the
+  statement-level renderers are gone; `Write(document)` is now `NsqlFormatter.Format(document)`, so there
+  is one writing path. The shared fragment renderers stay `internal` on `NsqlWriter` (the token factory's
+  raw-span source — a follow-up could relocate them to `SyntaxBuilder`). Two small formatter rules landed
+  to keep output clean: token-kind spacing (tight closers/openers/dots, keyword-vs-name paren rule) and
+  the "attached" grouping (grants/triggers/indexes/renames hug their subject). **New canonical:** a clause
+  paren after a *name* now prints call-style (`enum('a')`, `orgs(id)`) — matching a clause paren exactly
+  needs per-node context (deferred structural rules). `NsqlWriter`/formatter/template snapshots regenerated.
+- **`NsqlWriter` deleted; one text surface (done, 2026-07-23).** The writer merged into `NsqlFormatter`:
+  `Format` now overloads on `string` → `Result` (parse+print+check), `NsqlDocument` → `string` (print), and
+  `Database`[`, ProjectDirectives`] → `string` (build+print). The pipeline reads cleanly — `SyntaxBuilder`
+  owns model→tree (and the raw-span fragment renderers, moved there from `NsqlWriter`), `NsqlFormatter` owns
+  →text. `ImportOperation`'s accidental double-format collapsed to a single `Format(document)`.
+- **Still to do:** rebuild `LockFileManager` on `BlockStatement` nodes, `GetScaffoldTemplate` → typed
+  nodes, the nullable-`Token?` → missing-sentinel split, and the deferred structural rules (which would let
+  clause parens after a name take their space back).
 
 - `SyntaxBuilder` graduates to the public syntax-factory surface (naming TBD when it lands).
 - `NsqlWriter`: already model→nodes→text; swap its printer for the formatter. Import output

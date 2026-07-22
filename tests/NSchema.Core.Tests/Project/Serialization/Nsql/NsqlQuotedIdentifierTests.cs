@@ -97,7 +97,7 @@ public sealed class NsqlQuotedIdentifierTests
         };
 
         // Act
-        var written = NsqlWriter.Write(database);
+        var written = NsqlFormatter.Format(database);
 
         // Assert
         written.ShouldContain("CREATE TABLE app.\"Order Details\"");
@@ -129,7 +129,7 @@ public sealed class NsqlQuotedIdentifierTests
         };
 
         // Act
-        var reparsed = new TestNsqlParser(NsqlWriter.Write(database)).Parse().Database;
+        var reparsed = new TestNsqlParser(NsqlFormatter.Format(database)).Parse().Database;
 
         // Assert
         var schema = reparsed.Schemas.ShouldHaveSingleItem();

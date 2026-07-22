@@ -18,9 +18,9 @@ public sealed record CreateRoutineStatement(
 ) : NsqlStatement
 {
     /// <summary>
-    /// The <c>CREATE</c> keyword token, when parsed.
+    /// The <c>CREATE</c> keyword token.
     /// </summary>
-    public Token? CreateKeyword { get; init; }
+    public Token CreateKeyword { get; init; } = Token.Keyword(NsqlKeywords.Create);
 
     /// <summary>
     /// The <c>FUNCTION</c>/<c>PROCEDURE</c> keyword token, when parsed.
@@ -28,9 +28,9 @@ public sealed record CreateRoutineStatement(
     public Token? KindKeyword { get; init; }
 
     /// <summary>
-    /// The <c>(</c> token opening the arguments, when parsed.
+    /// The <c>(</c> token opening the arguments.
     /// </summary>
-    public Token? OpenParenToken { get; init; }
+    public Token OpenParenToken { get; init; } = Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
 
     /// <summary>
     /// The verbatim argument-list span token, when parsed.
@@ -38,9 +38,9 @@ public sealed record CreateRoutineStatement(
     public Token? ArgumentsToken { get; init; }
 
     /// <summary>
-    /// The <c>)</c> token closing the arguments, when parsed.
+    /// The <c>)</c> token closing the arguments.
     /// </summary>
-    public Token? CloseParenToken { get; init; }
+    public Token CloseParenToken { get; init; } = Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
 
     /// <summary>
     /// The verbatim definition span token, when parsed.
@@ -48,9 +48,9 @@ public sealed record CreateRoutineStatement(
     public Token? DefinitionToken { get; init; }
 
     /// <summary>
-    /// The terminating <c>;</c> token, when parsed.
+    /// The terminating <c>;</c> token.
     /// </summary>
-    public Token? SemicolonToken { get; init; }
+    public Token SemicolonToken { get; init; } = Token.Punctuation(TokenKind.Semicolon, NsqlSymbols.Semicolon);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -60,35 +60,20 @@ public sealed record CreateRoutineStatement(
             {
                 yield return doc;
             }
-            if (CreateKeyword is { } create)
-            {
-                yield return create;
-            }
-            if (KindKeyword is { } kind)
-            {
-                yield return kind;
-            }
+            yield return CreateKeyword;
+            yield return KindKeyword ?? Token.Keyword(Kind == RoutineKind.Procedure ? NsqlKeywords.Procedure : NsqlKeywords.Function);
             yield return Name;
-            if (OpenParenToken is { } open)
-            {
-                yield return open;
-            }
+            yield return OpenParenToken;
             if (ArgumentsToken is { } arguments)
             {
                 yield return arguments;
             }
-            if (CloseParenToken is { } close)
-            {
-                yield return close;
-            }
+            yield return CloseParenToken;
             if (DefinitionToken is { } definition)
             {
                 yield return definition;
             }
-            if (SemicolonToken is { } semicolon)
-            {
-                yield return semicolon;
-            }
+            yield return SemicolonToken;
         }
     }
 }

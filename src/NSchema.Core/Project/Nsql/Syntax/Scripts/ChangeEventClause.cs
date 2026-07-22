@@ -19,11 +19,19 @@ public sealed record ChangeEventClause(ChangeTrigger Trigger, MemberPath Path) :
     {
         get
         {
-            foreach (var keyword in TriggerKeywords)
+            var keywords = TriggerKeywords.Count > 0 ? TriggerKeywords : SyntheticTriggerKeywords();
+            foreach (var keyword in keywords)
             {
                 yield return keyword;
             }
             yield return Path;
         }
     }
+
+    private IReadOnlyList<Token> SyntheticTriggerKeywords() => Trigger switch
+    {
+        ChangeTrigger.AddColumn => [Token.Keyword(NsqlKeywords.Add), Token.Keyword(NsqlKeywords.Column)],
+        ChangeTrigger.AlterColumnType => [Token.Keyword(NsqlKeywords.Alter), Token.Keyword(NsqlKeywords.Column), Token.Keyword(NsqlKeywords.Type)],
+        _ => [Token.Keyword(NsqlKeywords.Add), Token.Keyword(NsqlKeywords.Constraint)],
+    };
 }

@@ -11,19 +11,19 @@ namespace NSchema.Project.Nsql.Syntax.Constraints;
 public sealed record PrimaryKeyDefinition(Identifier Name, ColumnList Columns) : TableMember
 {
     /// <summary>
-    /// The <c>CONSTRAINT</c> keyword token, when parsed.
+    /// The <c>CONSTRAINT</c> keyword token.
     /// </summary>
-    public Token? ConstraintKeyword { get; init; }
+    public Token ConstraintKeyword { get; init; } = Token.Keyword(NsqlKeywords.Constraint);
 
     /// <summary>
-    /// The <c>PRIMARY</c> keyword token, when parsed.
+    /// The <c>PRIMARY</c> keyword token.
     /// </summary>
-    public Token? PrimaryKeyword { get; init; }
+    public Token PrimaryKeyword { get; init; } = Token.Keyword(NsqlKeywords.Primary);
 
     /// <summary>
-    /// The <c>KEY</c> keyword token, when parsed.
+    /// The <c>KEY</c> keyword token.
     /// </summary>
-    public Token? KeyKeyword { get; init; }
+    public Token KeyKeyword { get; init; } = Token.Keyword(NsqlKeywords.Key);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -33,19 +33,10 @@ public sealed record PrimaryKeyDefinition(Identifier Name, ColumnList Columns) :
             {
                 yield return doc;
             }
-            if (ConstraintKeyword is { } constraint)
-            {
-                yield return constraint;
-            }
+            yield return ConstraintKeyword;
             yield return Name;
-            if (PrimaryKeyword is { } primary)
-            {
-                yield return primary;
-            }
-            if (KeyKeyword is { } key)
-            {
-                yield return key;
-            }
+            yield return PrimaryKeyword;
+            yield return KeyKeyword;
             yield return Columns;
         }
     }

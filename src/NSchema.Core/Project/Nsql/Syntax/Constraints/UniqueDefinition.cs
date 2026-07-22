@@ -11,14 +11,14 @@ namespace NSchema.Project.Nsql.Syntax.Constraints;
 public sealed record UniqueDefinition(Identifier Name, ColumnList Columns) : TableMember
 {
     /// <summary>
-    /// The <c>CONSTRAINT</c> keyword token, when parsed.
+    /// The <c>CONSTRAINT</c> keyword token.
     /// </summary>
-    public Token? ConstraintKeyword { get; init; }
+    public Token ConstraintKeyword { get; init; } = Token.Keyword(NsqlKeywords.Constraint);
 
     /// <summary>
-    /// The <c>UNIQUE</c> keyword token, when parsed.
+    /// The <c>UNIQUE</c> keyword token.
     /// </summary>
-    public Token? UniqueKeyword { get; init; }
+    public Token UniqueKeyword { get; init; } = Token.Keyword(NsqlKeywords.Unique);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -28,15 +28,9 @@ public sealed record UniqueDefinition(Identifier Name, ColumnList Columns) : Tab
             {
                 yield return doc;
             }
-            if (ConstraintKeyword is { } constraint)
-            {
-                yield return constraint;
-            }
+            yield return ConstraintKeyword;
             yield return Name;
-            if (UniqueKeyword is { } unique)
-            {
-                yield return unique;
-            }
+            yield return UniqueKeyword;
             yield return Columns;
         }
     }

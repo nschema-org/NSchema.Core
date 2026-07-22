@@ -57,7 +57,7 @@ public sealed class NsqlParserExclusionConstraintTests
             "CREATE TABLE app.bookings (room int, during int, " +
             "CONSTRAINT no_overlap EXCLUDE USING gist (room WITH =, during WITH &&) WHERE (room > 0));").Parse().Database;
 
-        var exclusion = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Database
+        var exclusion = new TestNsqlParser(NsqlFormatter.Format(schema)).Parse().Database
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().ExclusionConstraints.ShouldHaveSingleItem();
         exclusion.Name.ShouldBe("no_overlap");
         exclusion.Method.ShouldBe("gist");

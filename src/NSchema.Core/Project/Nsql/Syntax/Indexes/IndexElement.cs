@@ -55,29 +55,20 @@ public sealed record IndexElement(
             {
                 yield return column;
             }
-            if (OpenParenToken is { } open)
+            else if (Expression is { } expression)
             {
-                yield return open;
+                yield return OpenParenToken ?? Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
+                yield return ExpressionToken ?? Token.Span(expression.Value);
+                yield return CloseParenToken ?? Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
             }
-            if (ExpressionToken is { } expression)
+            if (Sort != IndexSort.Default)
             {
-                yield return expression;
+                yield return SortToken ?? Token.Keyword(Sort == IndexSort.Descending ? NsqlKeywords.Desc : NsqlKeywords.Asc);
             }
-            if (CloseParenToken is { } close)
+            if (Nulls != IndexNulls.Default)
             {
-                yield return close;
-            }
-            if (SortToken is { } sort)
-            {
-                yield return sort;
-            }
-            if (NullsKeyword is { } nulls)
-            {
-                yield return nulls;
-            }
-            if (NullsPositionToken is { } position)
-            {
-                yield return position;
+                yield return NullsKeyword ?? Token.Keyword(NsqlKeywords.Nulls);
+                yield return NullsPositionToken ?? Token.Keyword(Nulls == IndexNulls.First ? NsqlKeywords.First : NsqlKeywords.Last);
             }
         }
     }

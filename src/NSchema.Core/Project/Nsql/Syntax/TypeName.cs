@@ -46,31 +46,30 @@ public sealed record TypeName(Identifier? Schema, Identifier Name, string? Argum
             if (Schema != null)
             {
                 yield return Schema;
-                if (SchemaDotToken is { } dot)
-                {
-                    yield return dot;
-                }
+                yield return SchemaDotToken ?? Token.Punctuation(TokenKind.Dot, NsqlSymbols.Dot);
             }
             yield return Name;
-            if (OpenParenToken is { } open)
+            if (Arguments is not null)
             {
-                yield return open;
-            }
-            if (PrecisionToken is { } precision)
-            {
-                yield return precision;
-            }
-            if (CommaToken is { } comma)
-            {
-                yield return comma;
-            }
-            if (ScaleToken is { } scale)
-            {
-                yield return scale;
-            }
-            if (CloseParenToken is { } close)
-            {
-                yield return close;
+                yield return OpenParenToken ?? Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
+                if (PrecisionToken is { } precision)
+                {
+                    yield return precision;
+                    if (CommaToken is { } comma)
+                    {
+                        yield return comma;
+                    }
+                    if (ScaleToken is { } scale)
+                    {
+                        yield return scale;
+                    }
+                }
+                else
+                {
+                    // A synthetic type carries its arguments as one verbatim span; the parser re-splits them.
+                    yield return Token.Span(Arguments);
+                }
+                yield return CloseParenToken ?? Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
             }
         }
     }

@@ -4,7 +4,7 @@ namespace NSchema.Tests.Project.Templates;
 
 /// <summary>
 /// Snapshot coverage for <see cref="TemplateApplicator"/>: the expanded schema is rendered back to DDL with
-/// <see cref="NSchema.Project.Nsql.NsqlWriter"/>, so the snapshot shows exactly what the rest of the pipeline sees per target schema —
+/// <see cref="NSchema.Project.Nsql.NsqlFormatter"/>, so the snapshot shows exactly what the rest of the pipeline sees per target schema —
 /// placeholder foreign keys re-pointed, and template-declared types and trigger functions qualified per instance.
 /// </summary>
 public sealed class TemplateExpansionSnapshotTests
@@ -51,6 +51,6 @@ public sealed class TemplateExpansionSnapshotTests
         read.IsSuccess.ShouldBeTrue();
         var expanded = NSchema.Project.ProjectAssembler.Assemble([read.Value]).Require().Database;
 
-        return Verify(NsqlWriter.Write(expanded));
+        return Verify(NsqlFormatter.Format(expanded));
     }
 }

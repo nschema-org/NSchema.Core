@@ -16,10 +16,21 @@ public sealed record Identifier(Token Token) : NsqlNode
     internal override IEnumerable<NsqlChild> Children => [Token];
 
     /// <summary>
-    /// Builds a synthetic identifier (no source, no trivia) carrying <paramref name="value"/>.
+    /// Builds a synthetic identifier (no source, no trivia) carrying <paramref name="value"/>, quoted if it must be.
     /// </summary>
     public static Identifier Synthetic(string value) =>
-        new(new Token(TokenKind.Identifier, value, SourcePosition.None));
+        new(NeedsQuoting(value)
+            ? new Token(TokenKind.QuotedIdentifier, value, SourcePosition.None) { Raw = $"\"{value.Replace("\"", "\"\"")}\"" }
+            : new Token(TokenKind.Identifier, value, SourcePosition.None));
+
+    /// <summary>
+    /// Whether <paramref name="value"/> cannot be written bare (empty, not an identifier, or a member opener).
+    /// </summary>
+    internal static bool NeedsQuoting(string value) =>
+        value.Length == 0
+        || !NsqlLexer.IsIdentifierStart(value[0])
+        || NsqlKeywords.MemberOpeners.Contains(value)
+        || !value.All(NsqlLexer.IsIdentifierPart);
 
     /// <inheritdoc/>
     public override string ToString() => Value;

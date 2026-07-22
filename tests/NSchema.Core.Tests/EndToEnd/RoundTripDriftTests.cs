@@ -22,7 +22,7 @@ public sealed class RoundTripDriftTests
     {
         // Serialize every domain feature to DDL and read it straight back: the comparer must see no change.
         var original = TestData.RichSchema();
-        var reparsed = new TestNsqlParser(NsqlWriter.Write(original)).Parse().Database;
+        var reparsed = new TestNsqlParser(NsqlFormatter.Format(original)).Parse().Database;
 
         _comparer.Compare(AlignedDatabase.Unaligned(original), reparsed).IsEmpty.ShouldBeTrue();
     }
@@ -32,7 +32,7 @@ public sealed class RoundTripDriftTests
     {
         // Write the whole project — schema, and a directive of every kind — read it back, and write it
         // again: the second rendering must be byte-identical, so nothing is lost or reshaped in flight.
-        var first = NsqlWriter.Write(TestData.RichSchema(), TestData.RichDirectives());
+        var first = NsqlFormatter.Format(TestData.RichSchema(), TestData.RichDirectives());
 
         var read = NsqlReader.Read(first);
         read.IsSuccess.ShouldBeTrue();
@@ -40,6 +40,6 @@ public sealed class RoundTripDriftTests
         assembled.IsSuccess.ShouldBeTrue(string.Join("; ", assembled.Diagnostics.Select(d => d.Message)));
 
         var project = assembled.Value!;
-        NsqlWriter.Write(project.Database, project.Directives).ShouldBe(first);
+        NsqlFormatter.Format(project.Database, project.Directives).ShouldBe(first);
     }
 }

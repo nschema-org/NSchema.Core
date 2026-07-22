@@ -24,17 +24,25 @@ public sealed record GrantTableStatement(SeparatedSyntaxList<Privilege> Privileg
         }
     }
 
-    /// <summary>The <c>GRANT</c> keyword token, when parsed.</summary>
-    public Token? GrantKeyword { get; init; }
+    /// <summary>
+    /// The <c>GRANT</c> keyword token.
+    /// </summary>
+    public Token GrantKeyword { get; init; } = Token.Keyword(NsqlKeywords.Grant);
 
-    /// <summary>The <c>ON</c> keyword token, when parsed.</summary>
-    public Token? OnKeyword { get; init; }
+    /// <summary>
+    /// The <c>ON</c> keyword token.
+    /// </summary>
+    public Token OnKeyword { get; init; } = Token.Keyword(NsqlKeywords.On);
 
-    /// <summary>The <c>TO</c> keyword token, when parsed.</summary>
-    public Token? ToKeyword { get; init; }
+    /// <summary>
+    /// The <c>TO</c> keyword token.
+    /// </summary>
+    public Token ToKeyword { get; init; } = Token.Keyword(NsqlKeywords.To);
 
-    /// <summary>The terminating <c>;</c> token, when parsed.</summary>
-    public Token? SemicolonToken { get; init; }
+    /// <summary>
+    /// The terminating <c>;</c> token.
+    /// </summary>
+    public Token SemicolonToken { get; init; } = Token.Punctuation(TokenKind.Semicolon, NsqlSymbols.Semicolon);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -44,28 +52,16 @@ public sealed record GrantTableStatement(SeparatedSyntaxList<Privilege> Privileg
             {
                 yield return doc;
             }
-            if (GrantKeyword is { } grant)
-            {
-                yield return grant;
-            }
+            yield return GrantKeyword;
             foreach (var child in Privileges.Children)
             {
                 yield return child;
             }
-            if (OnKeyword is { } on)
-            {
-                yield return on;
-            }
+            yield return OnKeyword;
             yield return On;
-            if (ToKeyword is { } to)
-            {
-                yield return to;
-            }
+            yield return ToKeyword;
             yield return Role;
-            if (SemicolonToken is { } semicolon)
-            {
-                yield return semicolon;
-            }
+            yield return SemicolonToken;
         }
     }
 }

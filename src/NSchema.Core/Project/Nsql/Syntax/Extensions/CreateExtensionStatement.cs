@@ -11,14 +11,14 @@ namespace NSchema.Project.Nsql.Syntax.Extensions;
 public sealed record CreateExtensionStatement(Identifier Name, string? Version = null) : NsqlStatement
 {
     /// <summary>
-    /// The <c>CREATE</c> keyword token, when parsed.
+    /// The <c>CREATE</c> keyword token.
     /// </summary>
-    public Token? CreateKeyword { get; init; }
+    public Token CreateKeyword { get; init; } = Token.Keyword(NsqlKeywords.Create);
 
     /// <summary>
-    /// The <c>EXTENSION</c> keyword token, when parsed.
+    /// The <c>EXTENSION</c> keyword token.
     /// </summary>
-    public Token? ExtensionKeyword { get; init; }
+    public Token ExtensionKeyword { get; init; } = Token.Keyword(NsqlKeywords.Extension);
 
     /// <summary>
     /// The <c>VERSION</c> keyword token, when parsed with a version clause.
@@ -31,9 +31,9 @@ public sealed record CreateExtensionStatement(Identifier Name, string? Version =
     public Token? VersionToken { get; init; }
 
     /// <summary>
-    /// The terminating <c>;</c> token, when parsed.
+    /// The terminating <c>;</c> token.
     /// </summary>
-    public Token? SemicolonToken { get; init; }
+    public Token SemicolonToken { get; init; } = Token.Punctuation(TokenKind.Semicolon, NsqlSymbols.Semicolon);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -43,27 +43,18 @@ public sealed record CreateExtensionStatement(Identifier Name, string? Version =
             {
                 yield return doc;
             }
-            if (CreateKeyword is { } create)
-            {
-                yield return create;
-            }
-            if (ExtensionKeyword is { } extension)
-            {
-                yield return extension;
-            }
+            yield return CreateKeyword;
+            yield return ExtensionKeyword;
             yield return Name;
-            if (VersionKeyword is { } versionKeyword)
+            if (Version is not null)
             {
-                yield return versionKeyword;
+                yield return VersionKeyword ?? Token.Keyword(NsqlKeywords.Version);
+                if (VersionToken is { } versionToken)
+                {
+                    yield return versionToken;
+                }
             }
-            if (VersionToken is { } versionToken)
-            {
-                yield return versionToken;
-            }
-            if (SemicolonToken is { } semicolon)
-            {
-                yield return semicolon;
-            }
+            yield return SemicolonToken;
         }
     }
 }

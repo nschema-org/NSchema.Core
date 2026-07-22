@@ -1,5 +1,4 @@
 using NSchema.Model;
-using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Syntax.Tables;
 using NSchema.Project.Nsql.Tokens;
 
@@ -20,37 +19,37 @@ public sealed record ExclusionDefinition(
 ) : TableMember
 {
     /// <summary>
-    /// The <c>CONSTRAINT</c> keyword token, when parsed.
+    /// The <c>CONSTRAINT</c> keyword token.
     /// </summary>
-    public Token? ConstraintKeyword { get; init; }
+    public Token ConstraintKeyword { get; init; } = Token.Keyword(NsqlKeywords.Constraint);
 
     /// <summary>
-    /// The <c>EXCLUDE</c> keyword token, when parsed.
+    /// The <c>EXCLUDE</c> keyword token.
     /// </summary>
-    public Token? ExcludeKeyword { get; init; }
+    public Token ExcludeKeyword { get; init; } = Token.Keyword(NsqlKeywords.Exclude);
 
     /// <summary>
-    /// The <c>USING</c> keyword token, when parsed with a method.
+    /// The <c>USING</c> keyword token, when written with a method.
     /// </summary>
     public Token? UsingKeyword { get; init; }
 
     /// <summary>
-    /// The <c>(</c> token opening the elements, when parsed.
+    /// The <c>(</c> token opening the elements.
     /// </summary>
-    public Token? OpenParenToken { get; init; }
+    public Token OpenParenToken { get; init; } = Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
 
     /// <summary>
-    /// The <c>)</c> token closing the elements, when parsed.
+    /// The <c>)</c> token closing the elements.
     /// </summary>
-    public Token? CloseParenToken { get; init; }
+    public Token CloseParenToken { get; init; } = Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
 
     /// <summary>
-    /// The <c>WHERE</c> keyword token, when parsed with a predicate.
+    /// The <c>WHERE</c> keyword token, when written with a predicate.
     /// </summary>
     public Token? WhereKeyword { get; init; }
 
     /// <summary>
-    /// The <c>(</c> token opening the predicate, when parsed with a predicate.
+    /// The <c>(</c> token opening the predicate, when written with a predicate.
     /// </summary>
     public Token? WhereOpenParenToken { get; init; }
 
@@ -60,7 +59,7 @@ public sealed record ExclusionDefinition(
     public Token? PredicateToken { get; init; }
 
     /// <summary>
-    /// The <c>)</c> token closing the predicate, when parsed with a predicate.
+    /// The <c>)</c> token closing the predicate, when written with a predicate.
     /// </summary>
     public Token? WhereCloseParenToken { get; init; }
 
@@ -72,50 +71,26 @@ public sealed record ExclusionDefinition(
             {
                 yield return doc;
             }
-            if (ConstraintKeyword is { } constraint)
-            {
-                yield return constraint;
-            }
+            yield return ConstraintKeyword;
             yield return Name;
-            if (ExcludeKeyword is { } exclude)
-            {
-                yield return exclude;
-            }
-            if (UsingKeyword is { } usingKeyword)
-            {
-                yield return usingKeyword;
-            }
+            yield return ExcludeKeyword;
             if (Method is { } method)
             {
+                yield return UsingKeyword ?? Token.Keyword(NsqlKeywords.Using);
                 yield return method;
             }
-            if (OpenParenToken is { } open)
-            {
-                yield return open;
-            }
+            yield return OpenParenToken;
             foreach (var child in Elements.Children)
             {
                 yield return child;
             }
-            if (CloseParenToken is { } close)
+            yield return CloseParenToken;
+            if (Predicate is { } predicate)
             {
-                yield return close;
-            }
-            if (WhereKeyword is { } where)
-            {
-                yield return where;
-            }
-            if (WhereOpenParenToken is { } whereOpen)
-            {
-                yield return whereOpen;
-            }
-            if (PredicateToken is { } predicate)
-            {
-                yield return predicate;
-            }
-            if (WhereCloseParenToken is { } whereClose)
-            {
-                yield return whereClose;
+                yield return WhereKeyword ?? Token.Keyword(NsqlKeywords.Where);
+                yield return WhereOpenParenToken ?? Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
+                yield return PredicateToken ?? Token.Span(predicate.Value);
+                yield return WhereCloseParenToken ?? Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
             }
         }
     }

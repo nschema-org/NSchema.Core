@@ -12,19 +12,19 @@ namespace NSchema.Project.Nsql.Syntax.Constraints;
 public sealed record CheckDefinition(Identifier Name, SqlText Expression) : TableMember
 {
     /// <summary>
-    /// The <c>CONSTRAINT</c> keyword token, when parsed as a table member.
+    /// The <c>CONSTRAINT</c> keyword token.
     /// </summary>
-    public Token? ConstraintKeyword { get; init; }
+    public Token ConstraintKeyword { get; init; } = Token.Keyword(NsqlKeywords.Constraint);
 
     /// <summary>
-    /// The <c>CHECK</c> keyword token, when parsed as a table member.
+    /// The <c>CHECK</c> keyword token.
     /// </summary>
-    public Token? CheckKeyword { get; init; }
+    public Token CheckKeyword { get; init; } = Token.Keyword(NsqlKeywords.Check);
 
     /// <summary>
-    /// The <c>(</c> token, when parsed as a table member.
+    /// The <c>(</c> token.
     /// </summary>
-    public Token? OpenParenToken { get; init; }
+    public Token OpenParenToken { get; init; } = Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
 
     /// <summary>
     /// The verbatim check-expression span token, when parsed as a table member.
@@ -32,9 +32,9 @@ public sealed record CheckDefinition(Identifier Name, SqlText Expression) : Tabl
     public Token? ExpressionToken { get; init; }
 
     /// <summary>
-    /// The <c>)</c> token, when parsed as a table member.
+    /// The <c>)</c> token.
     /// </summary>
-    public Token? CloseParenToken { get; init; }
+    public Token CloseParenToken { get; init; } = Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -44,27 +44,12 @@ public sealed record CheckDefinition(Identifier Name, SqlText Expression) : Tabl
             {
                 yield return doc;
             }
-            if (ConstraintKeyword is { } constraint)
-            {
-                yield return constraint;
-            }
+            yield return ConstraintKeyword;
             yield return Name;
-            if (CheckKeyword is { } check)
-            {
-                yield return check;
-            }
-            if (OpenParenToken is { } open)
-            {
-                yield return open;
-            }
-            if (ExpressionToken is { } expression)
-            {
-                yield return expression;
-            }
-            if (CloseParenToken is { } close)
-            {
-                yield return close;
-            }
+            yield return CheckKeyword;
+            yield return OpenParenToken;
+            yield return ExpressionToken ?? Token.Span(Expression.Value);
+            yield return CloseParenToken;
         }
     }
 }

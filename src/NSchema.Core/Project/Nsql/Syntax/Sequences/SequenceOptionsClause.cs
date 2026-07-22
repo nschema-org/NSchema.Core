@@ -23,9 +23,9 @@ public sealed record SequenceOptionsClause(
 ) : NsqlNode
 {
     /// <summary>
-    /// The <c>(</c> token, when parsed.
+    /// The <c>(</c> token.
     /// </summary>
-    public Token? OpenParenToken { get; init; }
+    public Token OpenParenToken { get; init; } = Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
 
     /// <summary>
     /// The verbatim options-interior span token, when parsed.
@@ -33,26 +33,20 @@ public sealed record SequenceOptionsClause(
     public Token? InteriorToken { get; init; }
 
     /// <summary>
-    /// The <c>)</c> token, when parsed.
+    /// The <c>)</c> token.
     /// </summary>
-    public Token? CloseParenToken { get; init; }
+    public Token CloseParenToken { get; init; } = Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
 
     internal override IEnumerable<NsqlChild> Children
     {
         get
         {
-            if (OpenParenToken is { } open)
-            {
-                yield return open;
-            }
+            yield return OpenParenToken;
             if (InteriorToken is { } interior)
             {
                 yield return interior;
             }
-            if (CloseParenToken is { } close)
-            {
-                yield return close;
-            }
+            yield return CloseParenToken;
         }
     }
 }

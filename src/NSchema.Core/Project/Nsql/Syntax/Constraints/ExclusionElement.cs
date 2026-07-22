@@ -39,22 +39,13 @@ public sealed record ExclusionElement(string Operator, Identifier? Column = null
             {
                 yield return column;
             }
-            if (OpenParenToken is { } open)
+            else if (Expression is { } expression)
             {
-                yield return open;
+                yield return OpenParenToken ?? Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
+                yield return ExpressionToken ?? Token.Span(expression.Value);
+                yield return CloseParenToken ?? Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
             }
-            if (ExpressionToken is { } expression)
-            {
-                yield return expression;
-            }
-            if (CloseParenToken is { } close)
-            {
-                yield return close;
-            }
-            if (WithOperatorToken is { } with)
-            {
-                yield return with;
-            }
+            yield return WithOperatorToken ?? Token.Span($"{NsqlKeywords.With} {Operator}");
         }
     }
 }

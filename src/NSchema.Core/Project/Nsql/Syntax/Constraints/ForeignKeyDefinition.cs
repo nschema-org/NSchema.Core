@@ -22,27 +22,27 @@ public sealed record ForeignKeyDefinition(
 ) : TableMember
 {
     /// <summary>
-    /// The <c>CONSTRAINT</c> keyword token, when parsed.
+    /// The <c>CONSTRAINT</c> keyword token.
     /// </summary>
-    public Token? ConstraintKeyword { get; init; }
+    public Token ConstraintKeyword { get; init; } = Token.Keyword(NsqlKeywords.Constraint);
 
     /// <summary>
-    /// The <c>FOREIGN</c> keyword token, when parsed.
+    /// The <c>FOREIGN</c> keyword token.
     /// </summary>
-    public Token? ForeignKeyword { get; init; }
+    public Token ForeignKeyword { get; init; } = Token.Keyword(NsqlKeywords.Foreign);
 
     /// <summary>
-    /// The <c>KEY</c> keyword token, when parsed.
+    /// The <c>KEY</c> keyword token.
     /// </summary>
-    public Token? KeyKeyword { get; init; }
+    public Token KeyKeyword { get; init; } = Token.Keyword(NsqlKeywords.Key);
 
     /// <summary>
-    /// The <c>REFERENCES</c> keyword token, when parsed.
+    /// The <c>REFERENCES</c> keyword token.
     /// </summary>
-    public Token? ReferencesKeyword { get; init; }
+    public Token ReferencesKeyword { get; init; } = Token.Keyword(NsqlKeywords.References);
 
     /// <summary>
-    /// The verbatim span of the <c>ON DELETE</c>/<c>ON UPDATE</c> actions, when parsed with any.
+    /// The verbatim span of the <c>ON DELETE</c>/<c>ON UPDATE</c> actions, when present.
     /// </summary>
     public Token? ActionsToken { get; init; }
 
@@ -54,24 +54,12 @@ public sealed record ForeignKeyDefinition(
             {
                 yield return doc;
             }
-            if (ConstraintKeyword is { } constraint)
-            {
-                yield return constraint;
-            }
+            yield return ConstraintKeyword;
             yield return Name;
-            if (ForeignKeyword is { } foreign)
-            {
-                yield return foreign;
-            }
-            if (KeyKeyword is { } key)
-            {
-                yield return key;
-            }
+            yield return ForeignKeyword;
+            yield return KeyKeyword;
             yield return Columns;
-            if (ReferencesKeyword is { } references)
-            {
-                yield return references;
-            }
+            yield return ReferencesKeyword;
             yield return References;
             yield return ReferencedColumns;
             if (ActionsToken is { } actions)

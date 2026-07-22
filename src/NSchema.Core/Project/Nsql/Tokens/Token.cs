@@ -45,6 +45,32 @@ public readonly record struct Token(TokenKind Kind, string Text, SourcePosition 
     }
 
     /// <summary>
+    /// A synthetic keyword token (an identifier carrying the keyword's canonical casing, no source backing).
+    /// </summary>
+    /// <param name="keyword">The keyword text.</param>
+    public static Token Keyword(string keyword) => new(TokenKind.Identifier, keyword, SourcePosition.None);
+
+    /// <summary>
+    /// A synthetic punctuation token with no source backing.
+    /// </summary>
+    /// <param name="kind">The punctuation kind.</param>
+    /// <param name="text">Its literal text.</param>
+    public static Token Punctuation(TokenKind kind, string text) => new(kind, text, SourcePosition.None);
+
+    /// <summary>
+    /// A synthetic single-quoted string-literal token (text decoded, raw quoted and escaped).
+    /// </summary>
+    /// <param name="value">The decoded string value.</param>
+    public static Token StringLiteral(string value) =>
+        new(TokenKind.String, value, SourcePosition.None) { Raw = $"'{value.Replace("'", "''")}'" };
+
+    /// <summary>
+    /// A synthetic verbatim-span token whose raw text reprints as-is.
+    /// </summary>
+    /// <param name="text">The verbatim text.</param>
+    public static Token Span(string text) => new(TokenKind.RawSpan, text, SourcePosition.None);
+
+    /// <summary>
     /// Whether this token is an identifier whose text matches <paramref name="keyword"/>, case-insensitively.
     /// </summary>
     /// <param name="keyword">The keyword to test against.</param>

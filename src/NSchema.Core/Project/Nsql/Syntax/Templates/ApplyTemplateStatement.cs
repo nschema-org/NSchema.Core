@@ -1,4 +1,3 @@
-using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql.Syntax.Templates;
@@ -11,29 +10,29 @@ namespace NSchema.Project.Nsql.Syntax.Templates;
 public sealed record ApplyTemplateStatement(Identifier TemplateName, SeparatedSyntaxList<Identifier> Schemas) : NsqlStatement
 {
     /// <summary>
-    /// The <c>APPLY</c> keyword token, when parsed.
+    /// The <c>APPLY</c> keyword token.
     /// </summary>
-    public Token? ApplyKeyword { get; init; }
+    public Token ApplyKeyword { get; init; } = Token.Keyword(NsqlKeywords.Apply);
 
     /// <summary>
-    /// The <c>TEMPLATE</c> keyword token, when parsed.
+    /// The <c>TEMPLATE</c> keyword token.
     /// </summary>
-    public Token? TemplateKeyword { get; init; }
+    public Token TemplateKeyword { get; init; } = Token.Keyword(NsqlKeywords.Template);
 
     /// <summary>
-    /// The <c>IN</c> keyword token, when parsed.
+    /// The <c>IN</c> keyword token.
     /// </summary>
-    public Token? InKeyword { get; init; }
+    public Token InKeyword { get; init; } = Token.Keyword(NsqlKeywords.In);
 
     /// <summary>
-    /// The <c>SCHEMA</c> keyword token, when parsed.
+    /// The <c>SCHEMA</c> keyword token.
     /// </summary>
-    public Token? SchemaKeyword { get; init; }
+    public Token SchemaKeyword { get; init; } = Token.Keyword(NsqlKeywords.Schema);
 
     /// <summary>
-    /// The terminating <c>;</c> token, when parsed.
+    /// The terminating <c>;</c> token.
     /// </summary>
-    public Token? SemicolonToken { get; init; }
+    public Token SemicolonToken { get; init; } = Token.Punctuation(TokenKind.Semicolon, NsqlSymbols.Semicolon);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -43,31 +42,16 @@ public sealed record ApplyTemplateStatement(Identifier TemplateName, SeparatedSy
             {
                 yield return doc;
             }
-            if (ApplyKeyword is { } apply)
-            {
-                yield return apply;
-            }
-            if (TemplateKeyword is { } template)
-            {
-                yield return template;
-            }
+            yield return ApplyKeyword;
+            yield return TemplateKeyword;
             yield return TemplateName;
-            if (InKeyword is { } inKeyword)
-            {
-                yield return inKeyword;
-            }
-            if (SchemaKeyword is { } schema)
-            {
-                yield return schema;
-            }
+            yield return InKeyword;
+            yield return SchemaKeyword;
             foreach (var child in Schemas.Children)
             {
                 yield return child;
             }
-            if (SemicolonToken is { } semicolon)
-            {
-                yield return semicolon;
-            }
+            yield return SemicolonToken;
         }
     }
 }

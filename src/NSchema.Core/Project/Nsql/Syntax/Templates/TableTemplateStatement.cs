@@ -1,4 +1,3 @@
-using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Syntax.Tables;
 
 namespace NSchema.Project.Nsql.Syntax.Templates;
@@ -19,10 +18,7 @@ public sealed record TableTemplateStatement(Identifier Name, SeparatedSyntaxList
             {
                 yield return doc;
             }
-            if (TemplateKeyword is { } template)
-            {
-                yield return template;
-            }
+            yield return TemplateKeyword;
             yield return Name;
             if (ForKeyword is { } forKeyword)
             {
@@ -32,22 +28,13 @@ public sealed record TableTemplateStatement(Identifier Name, SeparatedSyntaxList
             {
                 yield return kind;
             }
-            if (BeginKeyword is { } begin)
-            {
-                yield return begin;
-            }
+            yield return BeginKeyword;
             foreach (var child in Members.Children)
             {
                 yield return child;
             }
-            if (EndKeyword is { } end)
-            {
-                yield return end;
-            }
-            if (SemicolonToken is { } semicolon)
-            {
-                yield return semicolon;
-            }
+            yield return EndKeyword;
+            yield return SemicolonToken;
         }
     }
 }

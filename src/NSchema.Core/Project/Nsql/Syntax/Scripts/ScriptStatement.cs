@@ -25,27 +25,27 @@ public sealed record ScriptStatement(
     public bool HasMisplacedRunCondition => RunCondition is not null && Event is not DeploymentEventClause;
 
     /// <summary>
-    /// The <c>SCRIPT</c> keyword token, when parsed.
+    /// The <c>SCRIPT</c> keyword token.
     /// </summary>
-    public Token? ScriptKeyword { get; init; }
+    public Token ScriptKeyword { get; init; } = Token.Keyword(NsqlKeywords.Script);
 
     /// <summary>
-    /// The <c>RUN</c> keyword token, when parsed.
+    /// The <c>RUN</c> keyword token.
     /// </summary>
-    public Token? RunKeyword { get; init; }
+    public Token RunKeyword { get; init; } = Token.Keyword(NsqlKeywords.Run);
 
     /// <summary>
-    /// The <c>ALWAYS</c>/<c>ONCE</c> keyword token, when parsed with a condition.
+    /// The <c>ALWAYS</c>/<c>ONCE</c> keyword token, when written with a condition.
     /// </summary>
     public Token? ConditionKeyword { get; init; }
 
     /// <summary>
-    /// The <c>ON</c> keyword token, when parsed.
+    /// The <c>ON</c> keyword token.
     /// </summary>
-    public Token? OnKeyword { get; init; }
+    public Token OnKeyword { get; init; } = Token.Keyword(NsqlKeywords.On);
 
     /// <summary>
-    /// The <c>(</c> token opening the options, when parsed with options.
+    /// The <c>(</c> token opening the options, when written with options.
     /// </summary>
     public Token? OptionsOpenParenToken { get; init; }
 
@@ -55,14 +55,14 @@ public sealed record ScriptStatement(
     public Token? OptionsInteriorToken { get; init; }
 
     /// <summary>
-    /// The <c>)</c> token closing the options, when parsed with options.
+    /// The <c>)</c> token closing the options, when written with options.
     /// </summary>
     public Token? OptionsCloseParenToken { get; init; }
 
     /// <summary>
-    /// The <c>AS</c> keyword token, when parsed.
+    /// The <c>AS</c> keyword token.
     /// </summary>
-    public Token? AsKeyword { get; init; }
+    public Token AsKeyword { get; init; } = Token.Keyword(NsqlKeywords.As);
 
     /// <summary>
     /// The dollar-quoted body token, when parsed.
@@ -70,9 +70,9 @@ public sealed record ScriptStatement(
     public Token? BodyToken { get; init; }
 
     /// <summary>
-    /// The terminating <c>;</c> token, when parsed.
+    /// The terminating <c>;</c> token.
     /// </summary>
-    public Token? SemicolonToken { get; init; }
+    public Token SemicolonToken { get; init; } = Token.Punctuation(TokenKind.Semicolon, NsqlSymbols.Semicolon);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -82,48 +82,27 @@ public sealed record ScriptStatement(
             {
                 yield return doc;
             }
-            if (ScriptKeyword is { } script)
-            {
-                yield return script;
-            }
+            yield return ScriptKeyword;
             yield return Name;
-            if (RunKeyword is { } run)
+            yield return RunKeyword;
+            if (RunCondition is { } condition)
             {
-                yield return run;
+                yield return ConditionKeyword ?? Token.Keyword(condition == Scripts.RunCondition.Once ? NsqlKeywords.Once : NsqlKeywords.Always);
             }
-            if (ConditionKeyword is { } condition)
-            {
-                yield return condition;
-            }
-            if (OnKeyword is { } on)
-            {
-                yield return on;
-            }
+            yield return OnKeyword;
             yield return Event;
-            if (OptionsOpenParenToken is { } optionsOpen)
+            if (RunOutsideTransaction)
             {
-                yield return optionsOpen;
+                yield return OptionsOpenParenToken ?? Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
+                yield return OptionsInteriorToken ?? Token.Span("run_outside_transaction = true");
+                yield return OptionsCloseParenToken ?? Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
             }
-            if (OptionsInteriorToken is { } optionsInterior)
-            {
-                yield return optionsInterior;
-            }
-            if (OptionsCloseParenToken is { } optionsClose)
-            {
-                yield return optionsClose;
-            }
-            if (AsKeyword is { } asKeyword)
-            {
-                yield return asKeyword;
-            }
+            yield return AsKeyword;
             if (BodyToken is { } body)
             {
                 yield return body;
             }
-            if (SemicolonToken is { } semicolon)
-            {
-                yield return semicolon;
-            }
+            yield return SemicolonToken;
         }
     }
 }

@@ -814,7 +814,7 @@ internal sealed partial class NsqlParser
             {
                 comma = Advance();
                 scale = Expect(TokenKind.Integer, "an integer");
-                arguments += "," + scale.Value.Text;
+                arguments += NsqlSymbols.Comma + scale.Value.Text;
             }
             close = Expect(TokenKind.RightParen, "')'");
         }

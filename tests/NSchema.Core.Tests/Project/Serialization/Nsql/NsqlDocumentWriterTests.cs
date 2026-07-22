@@ -25,7 +25,7 @@ public sealed class ProjectedDocumentWriterTests
         actual.Directives.DeploymentScripts.ShouldBe(expected.Directives.DeploymentScripts);
     }
 
-    private static string Write(ProjectDefinition document) => NsqlWriter.Write(document.Database, document.Directives);
+    private static string Write(ProjectDefinition document) => NsqlFormatter.Format(document.Database, document.Directives);
 
     // Round-trip a source through Read -> Write -> Read, asserting the document survives and that a second
     // Write produces byte-identical output (formatting is idempotent — the property `fmt --check` relies on).
@@ -104,7 +104,7 @@ public sealed class ProjectedDocumentWriterTests
     public void Write_MigrationWithRunOutsideTransaction_RoundTrips()
         => AssertRoundTrips(
             "SCRIPT retype RUN ON ALTER COLUMN TYPE app.orders.total (run_outside_transaction = true) AS $$ SELECT 1; $$;")
-            .ShouldContain("SCRIPT retype RUN ON ALTER COLUMN TYPE app.orders.total (run_outside_transaction = true) AS $$");
+            .ShouldContain("SCRIPT retype RUN ON ALTER COLUMN TYPE app.orders.total(run_outside_transaction = true) AS $$");
 
     [Fact]
     public void Write_MigrationBodyContainingDoubleDollar_PicksASafeTag()
@@ -159,7 +159,7 @@ public sealed class ProjectedDocumentWriterTests
     [Fact]
     public void Write_DatabaseOverload_EmitsNoScripts()
     {
-        var ddl = NsqlWriter.Write(new Database { Schemas = [new Schema { Name = "app" }] });
+        var ddl = NsqlFormatter.Format(new Database { Schemas = [new Schema { Name = "app" }] });
 
         ddl.ShouldNotContain("DEPLOYMENT");
         ddl.ShouldBe("CREATE SCHEMA app;\n");

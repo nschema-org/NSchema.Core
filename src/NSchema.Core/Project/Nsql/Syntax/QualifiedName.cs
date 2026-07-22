@@ -11,9 +11,9 @@ namespace NSchema.Project.Nsql.Syntax;
 public sealed record QualifiedName(Identifier? Schema, Identifier Name) : NsqlNode
 {
     /// <summary>
-    /// The <c>.</c> token between qualifier and name, when parsed as qualified.
+    /// The <c>.</c> token between qualifier and name — present only when qualified.
     /// </summary>
-    public Token? DotToken { get; init; }
+    public Token DotToken { get; init; } = Token.Punctuation(TokenKind.Dot, NsqlSymbols.Dot);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -22,10 +22,7 @@ public sealed record QualifiedName(Identifier? Schema, Identifier Name) : NsqlNo
             if (Schema != null)
             {
                 yield return Schema;
-                if (DotToken is { } dot)
-                {
-                    yield return dot;
-                }
+                yield return DotToken;
             }
             yield return Name;
         }

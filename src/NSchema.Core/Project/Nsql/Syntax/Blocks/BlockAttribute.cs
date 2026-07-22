@@ -28,18 +28,9 @@ public sealed record BlockAttribute(string Key, string Value) : NsqlNode
     {
         get
         {
-            if (KeyToken is { } key)
-            {
-                yield return key;
-            }
-            if (EqualsToken is { } equals)
-            {
-                yield return equals;
-            }
-            if (ValueToken is { } value)
-            {
-                yield return value;
-            }
+            yield return KeyToken ?? Token.Span(Key);
+            yield return EqualsToken ?? Token.Punctuation(TokenKind.Equals, NsqlSymbols.Equal);
+            yield return ValueToken ?? Token.StringLiteral(Value);
         }
     }
 }

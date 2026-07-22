@@ -1,4 +1,3 @@
-using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql.Syntax.Blocks;
@@ -18,19 +17,19 @@ public sealed record BlockStatement(BlockKeyword Keyword, Identifier? Label, Sep
     public Token? KeywordToken { get; init; }
 
     /// <summary>
-    /// The <c>(</c> token opening the attributes, when parsed.
+    /// The <c>(</c> token opening the attributes.
     /// </summary>
-    public Token? OpenParenToken { get; init; }
+    public Token OpenParenToken { get; init; } = Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
 
     /// <summary>
-    /// The <c>)</c> token closing the attributes, when parsed.
+    /// The <c>)</c> token closing the attributes.
     /// </summary>
-    public Token? CloseParenToken { get; init; }
+    public Token CloseParenToken { get; init; } = Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
 
     /// <summary>
-    /// The terminating <c>;</c> token, when parsed.
+    /// The terminating <c>;</c> token.
     /// </summary>
-    public Token? SemicolonToken { get; init; }
+    public Token SemicolonToken { get; init; } = Token.Punctuation(TokenKind.Semicolon, NsqlSymbols.Semicolon);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -40,30 +39,27 @@ public sealed record BlockStatement(BlockKeyword Keyword, Identifier? Label, Sep
             {
                 yield return doc;
             }
-            if (KeywordToken is { } keyword)
-            {
-                yield return keyword;
-            }
+            yield return KeywordToken ?? Token.Keyword(KeywordText());
             if (Label is { } label)
             {
                 yield return label;
             }
-            if (OpenParenToken is { } open)
-            {
-                yield return open;
-            }
+            yield return OpenParenToken;
             foreach (var child in Attributes.Children)
             {
                 yield return child;
             }
-            if (CloseParenToken is { } close)
-            {
-                yield return close;
-            }
-            if (SemicolonToken is { } semicolon)
-            {
-                yield return semicolon;
-            }
+            yield return CloseParenToken;
+            yield return SemicolonToken;
         }
     }
+
+    private string KeywordText() => Keyword switch
+    {
+        BlockKeyword.Plugin => NsqlKeywords.Plugin,
+        BlockKeyword.Engine => NsqlKeywords.Engine,
+        BlockKeyword.Database => NsqlKeywords.Database,
+        BlockKeyword.State => NsqlKeywords.State,
+        _ => NsqlKeywords.Lock,
+    };
 }

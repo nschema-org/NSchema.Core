@@ -33,7 +33,7 @@ public sealed class NsqlParserGeneratedColumnTests
     public void Parse_Generated_RoundTripsThroughWriter()
     {
         var schema = new TestNsqlParser("CREATE TABLE app.t (w int, h int, area int GENERATED ALWAYS AS (w * h) STORED);").Parse().Database;
-        var column = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Database
+        var column = new TestNsqlParser(NsqlFormatter.Format(schema)).Parse().Database
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Columns.Last();
         column.Name.ShouldBe("area");
         column.GeneratedExpression.ShouldBe("w * h");

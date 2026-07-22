@@ -12,14 +12,14 @@ namespace NSchema.Project.Nsql.Syntax;
 public sealed record MemberPath(Identifier? Schema, Identifier Table, Identifier Member) : NsqlNode
 {
     /// <summary>
-    /// The <c>.</c> token after the schema segment, when parsed qualified.
+    /// The <c>.</c> token after the schema segment — present only when qualified.
     /// </summary>
-    public Token? SchemaDotToken { get; init; }
+    public Token SchemaDotToken { get; init; } = Token.Punctuation(TokenKind.Dot, NsqlSymbols.Dot);
 
     /// <summary>
-    /// The <c>.</c> token before the member segment, when parsed.
+    /// The <c>.</c> token before the member segment.
     /// </summary>
-    public Token? MemberDotToken { get; init; }
+    public Token MemberDotToken { get; init; } = Token.Punctuation(TokenKind.Dot, NsqlSymbols.Dot);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -28,16 +28,10 @@ public sealed record MemberPath(Identifier? Schema, Identifier Table, Identifier
             if (Schema != null)
             {
                 yield return Schema;
-                if (SchemaDotToken is { } schemaDot)
-                {
-                    yield return schemaDot;
-                }
+                yield return SchemaDotToken;
             }
             yield return Table;
-            if (MemberDotToken is { } memberDot)
-            {
-                yield return memberDot;
-            }
+            yield return MemberDotToken;
             yield return Member;
         }
     }

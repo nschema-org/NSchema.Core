@@ -99,7 +99,7 @@ internal sealed partial class NsqlParser
         var key = ExpectIdentifierNode("an attribute name").Value;
         while (Match(TokenKind.Dot))
         {
-            key += "." + ExpectIdentifierNode("an attribute name segment").Value;
+            key += NsqlSymbols.Dot + ExpectIdentifierNode("an attribute name segment").Value;
         }
         return key;
     }

@@ -12,9 +12,9 @@ namespace NSchema.Project.Nsql.Syntax;
 public sealed record RenameObjectStatement(ObjectKind Kind, QualifiedName From, Identifier To) : NsqlStatement
 {
     /// <summary>
-    /// The <c>RENAME</c> keyword token, when parsed.
+    /// The <c>RENAME</c> keyword token.
     /// </summary>
-    public Token? RenameKeyword { get; init; }
+    public Token RenameKeyword { get; init; } = Token.Keyword(NsqlKeywords.Rename);
 
     /// <summary>
     /// The keyword token(s) naming the kind (one, or <c>MATERIALIZED VIEW</c>), when parsed.
@@ -22,14 +22,14 @@ public sealed record RenameObjectStatement(ObjectKind Kind, QualifiedName From, 
     public IReadOnlyList<Token> KindKeywords { get; init; } = [];
 
     /// <summary>
-    /// The <c>TO</c> keyword token, when parsed.
+    /// The <c>TO</c> keyword token.
     /// </summary>
-    public Token? ToKeyword { get; init; }
+    public Token ToKeyword { get; init; } = Token.Keyword(NsqlKeywords.To);
 
     /// <summary>
-    /// The terminating <c>;</c> token, when parsed.
+    /// The terminating <c>;</c> token.
     /// </summary>
-    public Token? SemicolonToken { get; init; }
+    public Token SemicolonToken { get; init; } = Token.Punctuation(TokenKind.Semicolon, NsqlSymbols.Semicolon);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -39,24 +39,15 @@ public sealed record RenameObjectStatement(ObjectKind Kind, QualifiedName From, 
             {
                 yield return doc;
             }
-            if (RenameKeyword is { } rename)
-            {
-                yield return rename;
-            }
+            yield return RenameKeyword;
             foreach (var keyword in KindKeywords)
             {
                 yield return keyword;
             }
             yield return From;
-            if (ToKeyword is { } to)
-            {
-                yield return to;
-            }
+            yield return ToKeyword;
             yield return To;
-            if (SemicolonToken is { } semicolon)
-            {
-                yield return semicolon;
-            }
+            yield return SemicolonToken;
         }
     }
 }

@@ -13,29 +13,29 @@ public sealed record CreateEnumStatement(
 ) : NsqlStatement
 {
     /// <summary>
-    /// The <c>CREATE</c> keyword token, when parsed.
+    /// The <c>CREATE</c> keyword token.
     /// </summary>
-    public Token? CreateKeyword { get; init; }
+    public Token CreateKeyword { get; init; } = Token.Keyword(NsqlKeywords.Create);
 
     /// <summary>
-    /// The <c>ENUM</c> keyword token, when parsed.
+    /// The <c>ENUM</c> keyword token.
     /// </summary>
-    public Token? EnumKeyword { get; init; }
+    public Token EnumKeyword { get; init; } = Token.Keyword(NsqlKeywords.Enum);
 
     /// <summary>
-    /// The <c>(</c> token opening the value list, when parsed.
+    /// The <c>(</c> token opening the value list.
     /// </summary>
-    public Token? OpenParenToken { get; init; }
+    public Token OpenParenToken { get; init; } = Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
 
     /// <summary>
-    /// The <c>)</c> token closing the value list, when parsed.
+    /// The <c>)</c> token closing the value list.
     /// </summary>
-    public Token? CloseParenToken { get; init; }
+    public Token CloseParenToken { get; init; } = Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
 
     /// <summary>
-    /// The terminating <c>;</c> token, when parsed.
+    /// The terminating <c>;</c> token.
     /// </summary>
-    public Token? SemicolonToken { get; init; }
+    public Token SemicolonToken { get; init; } = Token.Punctuation(TokenKind.Semicolon, NsqlSymbols.Semicolon);
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -45,31 +45,16 @@ public sealed record CreateEnumStatement(
             {
                 yield return doc;
             }
-            if (CreateKeyword is { } create)
-            {
-                yield return create;
-            }
-            if (EnumKeyword is { } enumKeyword)
-            {
-                yield return enumKeyword;
-            }
+            yield return CreateKeyword;
+            yield return EnumKeyword;
             yield return Name;
-            if (OpenParenToken is { } open)
-            {
-                yield return open;
-            }
+            yield return OpenParenToken;
             foreach (var child in Values.Children)
             {
                 yield return child;
             }
-            if (CloseParenToken is { } close)
-            {
-                yield return close;
-            }
-            if (SemicolonToken is { } semicolon)
-            {
-                yield return semicolon;
-            }
+            yield return CloseParenToken;
+            yield return SemicolonToken;
         }
     }
 }
