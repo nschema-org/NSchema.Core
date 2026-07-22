@@ -1,5 +1,5 @@
-using System.Text;
 using NSchema.Project.Nsql;
+using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Syntax.Blocks;
 
 namespace NSchema.Configuration.Plugins;
@@ -58,15 +58,21 @@ public static class LockFileManager
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     public static async Task<Result> Write(string path, LockFile lockFile, CancellationToken cancellationToken = default)
     {
-        var builder = new StringBuilder().Append(Header).Append('\n');
-        foreach (var plugin in lockFile.Plugins)
-        {
-            builder.Append($"LOCK ( source = '{plugin.Source}', version = '{plugin.Version}' );").Append('\n');
-        }
+        // Build a LOCK block per pin and let the writer render them, so the lockfile takes the same one path to
+        // canonical source as everything else.
+        var document = new NsqlDocument(lockFile.Plugins
+            .Select(NsqlStatement (plugin) => new BlockStatement(BlockKeyword.Lock, Label: null,
+                new SeparatedSyntaxList<BlockAttribute>(
+                [
+                    new BlockAttribute("source", plugin.Source.ToString()),
+                    new BlockAttribute("version", plugin.Version.ToString()),
+                ])))
+            .ToList());
+        var text = Header + "\n" + NsqlWriter.Write(document);
 
         try
         {
-            await File.WriteAllTextAsync(path, builder.ToString(), cancellationToken);
+            await File.WriteAllTextAsync(path, text, cancellationToken);
             return Result.Success();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)

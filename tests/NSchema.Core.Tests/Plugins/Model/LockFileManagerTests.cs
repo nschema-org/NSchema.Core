@@ -48,8 +48,8 @@ public sealed class LockFileManagerTests : IDisposable
 
         var text = await File.ReadAllTextAsync(_path, TestContext.Current.CancellationToken);
         text.ShouldContain("-- nschema.lock");
-        text.ShouldContain("LOCK ( source = 'NSchema.Postgres', version = '5.0.0-alpha.2' );");
-        text.ShouldContain("LOCK ( source = 'NSchema.Aws', version = '5.0.0-alpha.2' );");
+        text.ShouldContain("LOCK (\n  source = 'NSchema.Postgres',\n  version = '5.0.0-alpha.2'\n);");
+        text.ShouldContain("LOCK (\n  source = 'NSchema.Aws',\n  version = '5.0.0-alpha.2'\n);");
     }
 
     [Fact]
