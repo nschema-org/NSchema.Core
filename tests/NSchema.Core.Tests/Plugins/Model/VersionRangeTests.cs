@@ -1,3 +1,4 @@
+using System.Text.Json;
 using NSchema.Configuration.Model;
 
 namespace NSchema.Tests.Plugins.Model;
@@ -131,4 +132,18 @@ public sealed class VersionRangeTests
         => VersionRange.Parse("[5.0.0-alpha,6.0)").Highest(
             [SemanticVersion.Parse("5.1.0"), SemanticVersion.Parse("5.2.0-beta")])
             .ShouldBe(SemanticVersion.Parse("5.2.0-beta"));
+
+    [Fact]
+    public void Json_RoundTripsAsCanonicalText()
+    {
+        // Arrange
+        var range = VersionRange.Parse("[5.0,6.0)");
+
+        // Act
+        var json = JsonSerializer.Serialize(range);
+
+        // Assert
+        json.ShouldBe("\"[5.0.0,6.0.0)\"");
+        JsonSerializer.Deserialize<VersionRange>(json).ShouldBe(range);
+    }
 }

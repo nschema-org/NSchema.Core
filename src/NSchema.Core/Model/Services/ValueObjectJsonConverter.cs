@@ -7,10 +7,12 @@ namespace NSchema.Model.Services;
 /// <summary>
 /// Serializes a <see cref="ValueObject{TValue}"/> as its bare value.
 /// </summary>
-internal sealed class ValueObjectJsonConverter : JsonConverterFactory
+public sealed class ValueObjectJsonConverter : JsonConverterFactory
 {
+    /// <inheritdoc />
     public override bool CanConvert(Type typeToConvert) => GetValueType(typeToConvert) is not null;
 
+    /// <inheritdoc />
     public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options) =>
         (JsonConverter)Activator.CreateInstance(
             typeof(Converter<,>).MakeGenericType(typeToConvert, GetValueType(typeToConvert)!))!;

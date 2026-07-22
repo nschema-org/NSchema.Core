@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Text.Json.Serialization;
 using NSchema.Model.Services;
 
 namespace NSchema.Configuration.Model;
@@ -19,6 +20,7 @@ namespace NSchema.Configuration.Model;
 /// <param name="Revision">The fourth numeric part, or zero when the version has only three.</param>
 /// <param name="Prerelease">The prerelease identifiers, or <see langword="null"/> for a release version.</param>
 [TypeConverter(typeof(ParsableTypeConverter<SemanticVersion>))]
+[JsonConverter(typeof(ParsableJsonConverter<SemanticVersion>))]
 public sealed record SemanticVersion(int Major, int Minor, int Patch, int Revision, string? Prerelease)
     : IComparable<SemanticVersion>, IParsable<SemanticVersion>
 {
