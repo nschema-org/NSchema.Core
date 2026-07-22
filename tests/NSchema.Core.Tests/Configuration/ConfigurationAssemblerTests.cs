@@ -18,7 +18,7 @@ public sealed class ConfigurationAssemblerTests
 
     private static NsqlDocument Doc(string source, string? path = null)
     {
-        var result = NsqlReader.ReadConfiguration(source);
+        var result = NsqlReader.Read(source);
         result.IsSuccess.ShouldBeTrue();
         return path is null ? result.Value : result.Value with { FilePath = path };
     }

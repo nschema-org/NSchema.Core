@@ -38,7 +38,7 @@ public sealed class NsqlFormatterSnapshotTests
                 apply template outbox in schema billing,   ordering;
             """;
 
-        return Verify(NsqlFormatter.Format(source));
+        return Verify(NsqlFormatter.Format(source).Value);
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public sealed class NsqlFormatterSnapshotTests
             $$;
             """;
 
-        return Verify(NsqlFormatter.Format(source));
+        return Verify(NsqlFormatter.Format(source).Value);
     }
 
     [Fact]
@@ -85,6 +85,6 @@ public sealed class NsqlFormatterSnapshotTests
             $$;
             """;
 
-        return Verify(NsqlFormatter.Format(source));
+        return Verify(NsqlFormatter.Format(source).Value);
     }
 }

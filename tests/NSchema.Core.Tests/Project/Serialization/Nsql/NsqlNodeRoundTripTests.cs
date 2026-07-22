@@ -169,7 +169,7 @@ public sealed class NsqlNodeRoundTripTests
     public void ConfigurationDocument_RoundTripsThroughToSource(string source)
     {
         // Act
-        var document = NsqlReader.ReadConfiguration(source).Value.ShouldNotBeNull();
+        var document = NsqlReader.Read(source).Value.ShouldNotBeNull();
 
         // Assert
         document.ToSource().ShouldBe(source);
@@ -201,7 +201,7 @@ public sealed class NsqlNodeRoundTripTests
         const string source = "LOCK (source = 'NSchema.Postgres', version = '1.2.3');\n";
 
         // Act
-        var document = NsqlReader.ReadLock(source).Value.ShouldNotBeNull();
+        var document = NsqlReader.Read(source).Value.ShouldNotBeNull();
 
         // Assert
         document.ToSource().ShouldBe(source);

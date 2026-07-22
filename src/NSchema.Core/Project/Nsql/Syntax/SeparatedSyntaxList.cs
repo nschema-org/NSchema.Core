@@ -27,7 +27,11 @@ public readonly struct SeparatedSyntaxList<T> : IReadOnlyList<T> where T : NsqlN
     }
 
     private IReadOnlyList<T> Elements => field ?? [];
-    private IReadOnlyList<Token> Separators => field ?? [];
+
+    /// <summary>
+    /// The separator tokens between the elements (the commas), for the formatter.
+    /// </summary>
+    public IReadOnlyList<Token> Separators => field ?? [];
 
     /// <inheritdoc/>
     public int Count => Elements.Count;

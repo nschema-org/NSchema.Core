@@ -17,7 +17,7 @@ internal static class ConfigurationAssembler
     /// <summary>
     /// Validates and resolves <paramref name="documents"/> into the configuration they declare.
     /// </summary>
-    /// <param name="documents">The configuration documents resolved together, as read by <see cref="NsqlReader.ReadConfiguration"/>.</param>
+    /// <param name="documents">The configuration documents resolved together; only their block statements are bound.</param>
     public static Result<ConfigurationDefinition, NsqlDiagnostic> Assemble(IReadOnlyList<NsqlDocument> documents)
     {
         var diagnostics = new List<NsqlDiagnostic>();

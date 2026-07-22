@@ -32,6 +32,16 @@ internal readonly struct NsqlChild
     /// </summary>
     public SourcePosition Position => _node?.Position ?? _token.Position;
 
+    /// <summary>
+    /// The token this child is, or <see langword="null"/> when it is a node.
+    /// </summary>
+    public Token? AsToken() => _node is null ? _token : null;
+
+    /// <summary>
+    /// The node this child is, or <see langword="null"/> when it is a token.
+    /// </summary>
+    public NsqlNode? AsNode() => _node;
+
     public void WriteTo(StringBuilder sb)
     {
         if (_node is { } node)

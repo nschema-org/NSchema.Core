@@ -12,7 +12,7 @@ public sealed class NsqlConfigurationTests
 {
     private static IReadOnlyList<BlockStatement> Read(string source)
     {
-        var result = NsqlReader.ReadConfiguration(source);
+        var result = NsqlReader.Read(source);
         result.IsSuccess.ShouldBeTrue();
         return [.. result.Value.Statements.OfType<BlockStatement>()];
     }
@@ -93,18 +93,13 @@ public sealed class NsqlConfigurationTests
 
     [Fact]
     public void ReadConfiguration_DuplicateAttribute_IsAnError()
-        => NsqlReader.ReadConfiguration("STATE file ( path = 'a', PATH = 'b' );")
+        => NsqlReader.Read("STATE file ( path = 'a', PATH = 'b' );")
             .Errors.ShouldHaveSingleItem().Message.ShouldContain("more than once");
 
     [Fact]
-    public void ReadConfiguration_UnknownStatement_IsAnError()
-        => NsqlReader.ReadConfiguration("WORKSPACE staging ( region = 'eu' );")
+    public void Read_UnknownStatement_IsASyntaxError()
+        => NsqlReader.Read("WORKSPACE staging ( region = 'eu' );")
             .Errors.ShouldHaveSingleItem().Message.ShouldContain("Unknown statement 'WORKSPACE'");
-
-    [Fact]
-    public void ReadConfiguration_ProjectStatement_IsAnError()
-        => NsqlReader.ReadConfiguration("CREATE SCHEMA app;")
-            .Errors.ShouldHaveSingleItem().Message.ShouldContain("A configuration file holds only PLUGIN, ENGINE, DATABASE, and STATE statements.");
 
     // -------------------------------------------------------------------------
     // PLUGIN
@@ -123,7 +118,7 @@ public sealed class NsqlConfigurationTests
 
     [Fact]
     public void ReadConfiguration_PluginStatement_WithoutLabel_IsAnError()
-        => NsqlReader.ReadConfiguration("PLUGIN ( source = 'NSchema.Postgres', version = '5.0.1' );")
+        => NsqlReader.Read("PLUGIN ( source = 'NSchema.Postgres', version = '5.0.1' );")
             .Errors.ShouldHaveSingleItem().Message.ShouldContain("requires a label");
 
     // -------------------------------------------------------------------------
@@ -142,6 +137,6 @@ public sealed class NsqlConfigurationTests
 
     [Fact]
     public void ReadConfiguration_EngineStatement_WithLabel_IsAnError()
-        => NsqlReader.ReadConfiguration("ENGINE prod ( version = '5.0.1' );")
+        => NsqlReader.Read("ENGINE prod ( version = '5.0.1' );")
             .Errors.ShouldHaveSingleItem().Message.ShouldContain("takes no label");
 }

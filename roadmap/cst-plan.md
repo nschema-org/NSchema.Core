@@ -125,7 +125,31 @@ is a typed `SeparatedSyntaxList`.
 
 ## Phase 3 — tree formatter
 
-Status: **not started**. Depends on phase 2.
+Status: **step 1 done** (2026-07-22). Step 2 (structural + editorconfig rules) **deferred to its own
+design session** — migrate all existing behaviour onto the CST first, then build rules on top. Depends
+on phase 2.
+
+- Formatter rewritten as a generic tree walk over one parse; existing snapshots + idempotence hold.
+- `Format` now returns `Result<string, NsqlDiagnostic>` (was `string`): the value is always the
+  formatted text (formatting is total over the lossless tree), syntax errors ride as `Error`
+  diagnostics, and each statement a rewrite would change rides as a `Warning` — the seam `fmt --check`
+  consumes (files/places that aren't canonical). Statement-level granularity for now; becomes
+  rule-based in step 2.
+- Made `ScriptStatement` permissive: a run condition on a change event no longer throws from the
+  constructor (that dropped the node and broke lossless formatting) — the parser reports it as an
+  error diagnostic and keeps the node.
+- The fake `NSCHEMA` keyword is gone from the formatter tests.
+
+- **Parsing collapsed to one reader (done, 2026-07-22).** One grammar, one reader: `NsqlReader.Read`/
+  `ReadFile` parse declarations, directives, **and** config/lock blocks into one `NsqlDocument` (blocks
+  are `NsqlStatement`s). Deleted: `NsqlBlockDocument`, the `ParseConfiguration`/`ParseLock` grammars,
+  `ReadConfiguration`/`ReadLock`, and all file-type validation (no `Misplaced` diagnostic). "Which
+  statements belong in this file" is a **consumer** decision — each subsystem picks out the statements
+  it understands and ignores the rest (`ProjectAssembler` already ignored blocks; `ConfigurationAssembler`/
+  `LockFileManager` now `.OfType<BlockStatement>()`). Rationale (Tom): the file split is a CLI
+  file-organization choice, not a language property — Terraform-style "any file, routed by type" is the
+  north star. The formatter is now a single generic tree walk over one parse (rules in one place).
+  **Still TODO:** strip the fake `NSCHEMA` keyword from the formatter tests (bundled with the rewrite).
 
 - Rewrite `NsqlFormatter` as a trivia-rewriting walk over the tree; formatting is a pure trivia
   transformation. Public `Format(string)` signature unchanged.

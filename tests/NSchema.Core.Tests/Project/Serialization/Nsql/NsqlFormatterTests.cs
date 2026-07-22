@@ -4,7 +4,7 @@ namespace NSchema.Tests.Project.Serialization.Nsql;
 
 public sealed class NsqlFormatterTests
 {
-    private static string Format(string source) => NsqlFormatter.Format(source);
+    private static string Format(string source) => NsqlFormatter.Format(source).Value!;
 
     // -------------------------------------------------------------------------
     // Layout normalisation
@@ -277,8 +277,8 @@ public sealed class NsqlFormatterTests
 
     [Fact]
     public void Format_ConfigBlock_BreaksAttributesOnePerLine()
-        => Format("NSCHEMA ( dialect = postgres, colour = false );")
-            .ShouldBe("NSCHEMA (\n  dialect = postgres,\n  colour = false\n);\n");
+        => Format("DATABASE ( dialect = postgres, colour = false );")
+            .ShouldBe("DATABASE (\n  dialect = postgres,\n  colour = false\n);\n");
 
     // -------------------------------------------------------------------------
     // Comments
@@ -402,7 +402,7 @@ public sealed class NsqlFormatterTests
     {
         const string input =
             """
-            NSCHEMA (   dialect = postgres   );
+            DATABASE (   dialect = postgres   );
 
             create schema app;
             grant usage on schema app to readonly;
@@ -440,7 +440,7 @@ public sealed class NsqlFormatterTests
     {
         const string input =
             """
-            NSCHEMA (   dialect = postgres   );
+            DATABASE (   dialect = postgres   );
 
             create schema app;
             grant usage on schema app to readonly;
@@ -472,5 +472,67 @@ public sealed class NsqlFormatterTests
 
         var once = Format(input);
         Format(once).ShouldBe(once);
+    }
+
+    // -------------------------------------------------------------------------
+    // Diagnostics (fmt --check)
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void Format_AlreadyCanonical_ReportsNoViolations()
+    {
+        // Arrange
+        const string source =
+            """
+            create schema app;
+
+            create table app.users (
+              id bigint not null
+            );
+            """;
+
+        // Act
+        var result = NsqlFormatter.Format(source + "\n");
+
+        // Assert
+        result.IsSuccess.ShouldBeTrue();
+        result.Warnings.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Format_NonCanonicalStatements_ReportsOneViolationEach()
+    {
+        // Arrange — a canonical schema, then a table needing reflow, then one preceded by too many blank lines.
+        const string source =
+            """
+            create schema app;
+            create table app.users(id bigint not null);
+
+
+
+            create schema audit;
+            """;
+
+        // Act
+        var result = NsqlFormatter.Format(source);
+
+        // Assert — the messy table (blank-line gap and reflow) and the over-spaced schema; the first is clean.
+        result.Warnings.Select(w => w.Position.Line).ShouldBe([2, 6]);
+        result.Warnings.ShouldAllBe(w => w.Source == "format" && w.Severity == DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Format_SyntaxError_RidesAsAnErrorButStillFormats()
+    {
+        // Arrange — a run condition on a change event is a syntax error, but the node still round-trips.
+        const string source = "SCRIPT x RUN ONCE ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;";
+
+        // Act
+        var result = NsqlFormatter.Format(source);
+
+        // Assert
+        result.IsSuccess.ShouldBeFalse();
+        result.Errors.ShouldContain(d => d.Source == "syntax");
+        result.Value.ShouldNotBeNull();
     }
 }

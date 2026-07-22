@@ -20,10 +20,9 @@ public sealed record ScriptStatement(
 ) : NsqlStatement
 {
     /// <summary>
-    /// The <c>RUN</c> condition — only valid on a deployment event, since a change-event script runs whenever
-    /// its change is planned rather than on a schedule.
+    /// The <c>RUN</c> condition.
     /// </summary>
-    public RunCondition? RunCondition { get; } = Validate(RunCondition, Event);
+    public bool HasMisplacedRunCondition => RunCondition is not null && Event is not DeploymentEventClause;
 
     /// <summary>
     /// The <c>SCRIPT</c> keyword token, when parsed.
@@ -127,11 +126,4 @@ public sealed record ScriptStatement(
             }
         }
     }
-
-    private static RunCondition? Validate(RunCondition? condition, ScriptEventClause @event) =>
-        condition is null || @event is DeploymentEventClause
-            ? condition
-            : throw new NsqlSyntaxException(
-                "A run condition (ALWAYS or ONCE) is only valid on a deployment event; a change-event script runs whenever its change is planned.",
-                @event.Position);
 }

@@ -1,4 +1,8 @@
 using System.Text;
+using NSchema.Project.Nsql.Syntax;
+using NSchema.Project.Nsql.Syntax.Blocks;
+using NSchema.Project.Nsql.Syntax.Tables;
+using NSchema.Project.Nsql.Syntax.Templates;
 using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql;
@@ -12,179 +16,54 @@ public static class NsqlFormatter
     private const string Indent = "  ";
 
     /// <summary>
-    /// Reformats <paramref name="source"/> as canonical-layout NSchema DDL.
+    /// Reformats <paramref name="source"/> as canonical-layout NSchema DDL. The formatted text is always the value
+    /// (formatting cannot fail); syntax errors ride as error diagnostics and each statement a rewrite would change
+    /// rides as a warning — so a caller can rewrite (<see cref="Result{T}.Value"/>) or check (the diagnostics).
     /// </summary>
     /// <param name="source">The DDL source text to format.</param>
-    /// <returns>The formatted DDL, ending in a single newline (empty input yields an empty string).</returns>
-    public static string Format(string source)
+    public static Result<string, NsqlDiagnostic> Format(string source)
     {
         ArgumentNullException.ThrowIfNull(source);
 
-        var tokens = Lex(source);
-        var items = SplitTopLevel(tokens, source);
-        return Render(items);
-    }
-
-    // The formatter's layout algorithm walks comments as tokens in source order. The lexer now attaches them as
-    // trivia, so flatten each token's comment trivia back into standalone comment tokens around it: leading trivia
-    // before, trailing after, in source order. Whitespace trivia is dropped — the formatter re-derives layout.
-    private static List<Token> Lex(string source)
-    {
-        var lexer = new NsqlLexer(source);
-        var tokens = new List<Token>();
-        while (true)
+        var read = NsqlReader.Read(source);
+        if (read.Value is not { } document)
         {
-            var token = lexer.Next();
-            foreach (var trivia in token.Leading)
-            {
-                if (CommentToken(trivia) is { } comment)
-                {
-                    tokens.Add(comment);
-                }
-            }
-            tokens.Add(token);
-            foreach (var trivia in token.Trailing)
-            {
-                if (CommentToken(trivia) is { } comment)
-                {
-                    tokens.Add(comment);
-                }
-            }
-            if (token.Kind == TokenKind.EndOfFile)
-            {
-                return tokens;
-            }
+            return Result<string, NsqlDiagnostic>.From(string.Empty, read.Diagnostics);
         }
-    }
 
-    /// <summary>Reconstructs the comment token this trivia stood for (matching the old lexer's text), or null for whitespace.</summary>
-    private static Token? CommentToken(Trivia trivia) => trivia.Kind switch
-    {
-        TriviaKind.LineComment => new Token(TokenKind.LineComment, trivia.Text.TrimEnd(), trivia.Position),
-        TriviaKind.BlockComment => new Token(TokenKind.BlockComment, trivia.Text, trivia.Position),
-        _ => null,
-    };
-
-    // --- top level: statements separated by a blank line ----------------------
-
-    private static List<Item> SplitTopLevel(List<Token> tokens, string source)
-    {
-        var items = new List<Item>();
-        var leading = new List<Lead>();
-        var lastLeadingEndLine = -1;
-        var previousSemicolonLine = -1;
-        var i = 0;
-        while (tokens[i].Kind != TokenKind.EndOfFile)
+        List<NsqlDiagnostic> diagnostics = [.. read.Diagnostics];
+        for (var i = 0; i < document.Statements.Count; i++)
         {
-            var token = tokens[i];
-            if (IsComment(token.Kind))
+            var statement = document.Statements[i];
+            if (!IsFormatted(statement, first: i == 0))
             {
-                // A comment on the same line as the previous statement's ';' trails it; otherwise it leads the next.
-                if (items.Count > 0 && items[^1] is { Body: not null, Trailing: null } previous
-                    && token.Position.Line == previousSemicolonLine)
-                {
-                    previous.Trailing = FormatComment(token);
-                }
-                else
-                {
-                    // Record how many blank lines the author put before this comment; Render caps it per the options.
-                    var blanksBefore = leading.Count > 0 ? BlankLinesBetween(lastLeadingEndLine, token.Position.Line) : 0;
-                    leading.Add(new Lead(FormatComment(token), blanksBefore));
-                    lastLeadingEndLine = EndLine(token);
-                }
-                i++;
-                continue;
-            }
-
-            // A statement runs to the first depth-zero ';' (parens balanced; strings/dollar-quotes are single tokens).
-            // A TEMPLATE statement contains whole inner statements, so it runs past their ';'s to the ';' after the
-            // depth-zero END that closes its block.
-            var start = i;
-            var depth = 0;
-            var end = i;
-            var awaitingEnd = token.IsKeyword(NsqlKeywords.Template);
-            while (end < tokens.Count)
-            {
-                var kind = tokens[end].Kind;
-                if (kind == TokenKind.EndOfFile)
-                {
-                    break;
-                }
-                if (kind == TokenKind.LeftParen)
-                {
-                    depth++;
-                }
-                else if (kind == TokenKind.RightParen)
-                {
-                    if (depth > 0)
-                    {
-                        depth--;
-                    }
-                }
-                else if (depth == 0 && awaitingEnd && tokens[end].IsKeyword(NsqlKeywords.End))
-                {
-                    awaitingEnd = false;
-                }
-                else if (kind == TokenKind.Semicolon && depth == 0 && !awaitingEnd)
-                {
-                    break;
-                }
-                end++;
-            }
-
-            var hasSemicolon = end < tokens.Count && tokens[end].Kind == TokenKind.Semicolon;
-            var blanksBeforeBody = leading.Count > 0 ? BlankLinesBetween(lastLeadingEndLine, tokens[start].Position.Line) : 0;
-            items.Add(new Item
-            {
-                Leading = leading,
-                Body = FormatStatement(tokens, source, start, end, hasSemicolon),
-                BlanksBeforeBody = blanksBeforeBody,
-            });
-            leading = [];
-            lastLeadingEndLine = -1;
-            if (hasSemicolon)
-            {
-                previousSemicolonLine = tokens[end].Position.Line;
-                i = end + 1;
-            }
-            else
-            {
-                i = end;
+                diagnostics.Add(NsqlDiagnostics.Formatting(statement.Position));
             }
         }
 
-        if (leading.Count > 0)
-        {
-            items.Add(new Item { Leading = leading, Body = null });
-        }
-        return items;
+        return Result<string, NsqlDiagnostic>.From(Render(document), diagnostics);
     }
 
-    private static string Render(List<Item> items)
+    /// <summary>Renders the whole document to canonical text, ending in a single newline (empty input yields "").</summary>
+    private static string Render(NsqlDocument document)
     {
+        var items = document.Statements.Select(Render).ToList();
+
+        // A run of trailing comments with no statement after them (on the end-of-file token) is a final item.
+        var trailing = document.EndOfFile is { } eof ? CommentLines(eof.Leading) : [];
+        if (trailing.Count > 0)
+        {
+            items.Add(new Item { Leading = trailing, Body = null });
+        }
+
         var sb = new StringBuilder();
-        for (var k = 0; k < items.Count; k++)
+        for (var i = 0; i < items.Count; i++)
         {
-            var item = items[k];
-            if (k > 0)
+            if (i > 0)
             {
                 sb.Append("\n\n");
             }
-            foreach (var lead in item.Leading)
-            {
-                AppendBlankLines(sb, lead.BlanksBefore);
-                AppendIndentedLines(sb, lead.Text, indent: "");
-                sb.Append('\n');
-            }
-            if (item.Body is { } body)
-            {
-                AppendBlankLines(sb, item.BlanksBeforeBody);
-                sb.Append(body);
-                if (item.Trailing is { } trailing)
-                {
-                    sb.Append(Indent).Append(trailing);
-                }
-            }
+            AppendItem(sb, items[i]);
         }
 
         var text = sb.ToString().TrimEnd('\n');
@@ -192,143 +71,394 @@ public static class NsqlFormatter
     }
 
     /// <summary>
-    /// Emits up to <see cref="MaxBlankLines"/> blank lines, given the source had <paramref name="sourceBlankLines"/>.
+    /// Whether a statement's layout is already canonical: the right number of blank lines before it (none for the
+    /// first statement, one otherwise) and a body that renders to exactly its own source.
     /// </summary>
-    private static void AppendBlankLines(StringBuilder sb, int sourceBlankLines)
+    private static bool IsFormatted(NsqlStatement statement, bool first) =>
+        LeadingBlankLines(statement) == (first ? 0 : 1)
+        && RenderStatement(statement) == statement.ToSource().Trim();
+
+    /// <summary>The canonical rendering of one statement (leading comments, body, trailing comment), no outer blanks.</summary>
+    private static string RenderStatement(NsqlStatement statement)
     {
-        var count = Math.Min(sourceBlankLines, MaxBlankLines);
-        for (var b = 0; b < count; b++)
+        var sb = new StringBuilder();
+        AppendItem(sb, Render(statement));
+        return sb.ToString().Trim();
+    }
+
+    /// <summary>The blank lines separating a statement (or its leading comment) from what precedes it.</summary>
+    private static int LeadingBlankLines(NsqlStatement statement)
+    {
+        var leading = statement.DocComment is { } doc ? doc.Leading : FirstToken(statement).Leading;
+        var count = 0;
+        foreach (var item in leading)
         {
-            sb.Append('\n');
+            if (item.Kind == TriviaKind.EndOfLine)
+            {
+                count++;
+            }
+            else if (item.IsComment)
+            {
+                break;
+            }
+        }
+        return count;
+    }
+
+    // --- one statement --------------------------------------------------------
+
+    private static Item Render(NsqlStatement statement)
+    {
+        var (leading, blanksBeforeBody) = LeadingRegion(statement);
+        return new Item
+        {
+            Leading = leading,
+            BlanksBeforeBody = blanksBeforeBody,
+            Body = Body(statement),
+            Trailing = TrailingComment(LastToken(statement)),
+        };
+    }
+
+    private static void AppendItem(StringBuilder sb, Item item)
+    {
+        foreach (var lead in item.Leading)
+        {
+            AppendBlankLines(sb, lead.BlanksBefore);
+            sb.Append(lead.Text).Append('\n');
+        }
+        if (item.Body is { } body)
+        {
+            AppendBlankLines(sb, item.BlanksBeforeBody);
+            sb.Append(body);
+            if (item.Trailing is { } trailing)
+            {
+                sb.Append(Indent).Append(trailing);
+            }
         }
     }
 
-    // --- statements -----------------------------------------------------------
-
-    private static string FormatStatement(List<Token> tokens, string source, int start, int end, bool hasSemicolon)
+    private static string Body(NsqlStatement statement) => statement switch
     {
-        var first = FirstSignificant(tokens, start, end);
-        if (first >= 0)
-        {
-            if (tokens[first].IsKeyword(NsqlKeywords.Template) && RenderTemplate(tokens, source, start, end, hasSemicolon) is { } template)
-            {
-                return template;
-            }
+        CreateTableStatement table => Broken(Header(statement, table.OpenParenToken), RenderMembers(table.Members, table.CloseParenToken)) + ";",
+        BlockStatement { OpenParenToken: not null } block => Broken(Header(statement, block.OpenParenToken), RenderMembers(block.Attributes, block.CloseParenToken)) + ";",
+        SchemaTemplateStatement template => Template(template),
+        TableTemplateStatement template => Template(template),
+        _ => Verbatim(statement),
+    };
 
-            var second = FirstSignificant(tokens, first + 1, end);
-            var isCreateTable = tokens[first].IsKeyword(NsqlKeywords.Create) && second >= 0 && tokens[second].IsKeyword(NsqlKeywords.Table);
-            var isBlock = tokens[first].Kind == TokenKind.Identifier && !IsStatementKeyword(tokens[first].Text);
-            if (isCreateTable || isBlock)
+    /// <summary>The statement's significant tokens (doc-comment, leading, and trailing comments excluded), verbatim.</summary>
+    private static string Verbatim(NsqlStatement statement) => EmitTokens(FlattenTokens(statement));
+
+    /// <summary>The header of a broken statement — everything up to (not including) the open paren — verbatim.</summary>
+    private static string Header(NsqlNode statement, Token? open)
+    {
+        var tokens = FlattenTokens(statement);
+        if (open is { } paren)
+        {
+            tokens = [.. tokens.TakeWhile(t => t.Position.Offset < paren.Position.Offset)];
+        }
+        return EmitTokens(tokens);
+    }
+
+    /// <summary>Renders each element of a separated list to a <see cref="Member"/>, taking the trailing comment from
+    /// the element or the comma that follows it (a same-line comment after either trails the member).</summary>
+    private static List<Member> RenderMembers<T>(SeparatedSyntaxList<T> list, Token? close) where T : NsqlNode
+    {
+        var members = new List<Member>();
+        for (var i = 0; i < list.Count; i++)
+        {
+            var separator = i < list.Separators.Count ? list.Separators[i] : (Token?)null;
+            members.Add(new Member
             {
-                var open = FindTopLevelOpenParen(tokens, start, end);
-                if (open >= 0)
+                Leading = CommentLines(FirstToken(list[i]).Leading, (list[i] as TableMember)?.DocComment),
+                Content = NodeText(list[i]),
+                Trailing = TrailingComment(LastToken(list[i])) ?? (separator is { } comma ? TrailingComment(comma) : null),
+            });
+        }
+
+        // Comments between the last member and the closing paren are dangling own-line comments; each keeps its line.
+        if (close is { } paren)
+        {
+            foreach (var lead in CommentLines(paren.Leading))
+            {
+                members.Add(new Member { Leading = [lead], Content = null });
+            }
+        }
+        return members;
+    }
+
+    /// <summary>Emits a broken <c>header (\n  member,\n  …\n)</c> body.</summary>
+    private static string Broken(string header, List<Member> members)
+    {
+        var list = members;
+        var lastContent = list.FindLastIndex(m => m.Content is not null);
+
+        var sb = new StringBuilder(header).Append(" (");
+        for (var i = 0; i < list.Count; i++)
+        {
+            var member = list[i];
+            foreach (var comment in member.Leading)
+            {
+                sb.Append('\n').Append(Indent).Append(comment.Text);
+            }
+            if (member.Content is { } content)
+            {
+                sb.Append('\n').Append(Indent).Append(content);
+                if (i < lastContent)
                 {
-                    var close = MatchParen(tokens, open, end);
-                    if (close >= 0)
-                    {
-                        var members = SplitMembers(tokens, source, open, close);
-                        if (members.Count > 0)
-                        {
-                            return RenderBroken(tokens, source, start, open, members, hasSemicolon);
-                        }
-                    }
+                    sb.Append(',');
+                }
+                if (member.Trailing is { } trailing)
+                {
+                    sb.Append(Indent).Append(trailing);
                 }
             }
         }
-
-        return Verbatim(tokens, source, start, end, hasSemicolon);
+        return sb.Append("\n)").ToString();
     }
 
-    /// <summary>
-    /// Emits a <c>TEMPLATE … BEGIN … END;</c> block: the header verbatim, <c>BEGIN</c>/<c>END</c> on their own
-    /// lines, and the inner statements formatted recursively (so a table body still breaks per member) and
-    /// indented one level. Returns <see langword="null"/> when the statement has no well-formed BEGIN/END frame,
-    /// or a comment sits between END and the ';' — the caller falls back to verbatim so no content is lost.
-    /// </summary>
-    private static string? RenderTemplate(List<Token> tokens, string source, int start, int end, bool hasSemicolon)
+    /// <summary>Emits a <c>TEMPLATE … BEGIN … END;</c>: header verbatim, BEGIN/END on their own lines, body indented.</summary>
+    private static string Template(TemplateStatement template)
     {
-        var begin = -1;
-        for (var i = start; i < end; i++)
+        var header = Header(template, template.BeginKeyword);
+        var sb = new StringBuilder(header).Append("\nBEGIN");
+
+        if (template is TableTemplateStatement table)
         {
-            if (tokens[i].IsKeyword(NsqlKeywords.Begin))
+            var body = Broken("", RenderMembers(table.Members, close: null));
+            // Drop the synthetic " (" head and trailing "\n)" the member renderer adds — a template body has neither.
+            sb.Append(body[" (".Length..^"\n)".Length]);
+        }
+        else if (template is SchemaTemplateStatement schema)
+        {
+            // The body is a mini-document: inner statements separated by a blank line, then indented one level.
+            var items = schema.Statements.Select(Render).ToList();
+            if (items.Count > 0)
             {
-                begin = i;
-                break;
-            }
-        }
-
-        var last = LastSignificant(tokens, start, end);
-        if (begin < 0 || last <= begin || !tokens[last].IsKeyword(NsqlKeywords.End))
-        {
-            return null;
-        }
-        for (var i = last + 1; i < end; i++)
-        {
-            if (IsComment(tokens[i].Kind))
-            {
-                return null;
-            }
-        }
-
-        var header = source[tokens[start].Position.Offset..tokens[begin].Position.Offset].Trim();
-
-        // A FOR TABLE template's body is a member list (like a table body), not statements; each renders on its
-        // own line. Kind is read from the header tokens: a TABLE keyword before BEGIN.
-        var isTableTemplate = false;
-        for (var i = start; i < begin; i++)
-        {
-            if (tokens[i].IsKeyword(NsqlKeywords.Table))
-            {
-                isTableTemplate = true;
-                break;
-            }
-        }
-
-        var sb = new StringBuilder();
-        sb.Append(header).Append("\nBEGIN");
-        if (isTableTemplate)
-        {
-            AppendMembers(sb, SplitMembers(tokens, source, begin, last));
-            sb.Append('\n');
-        }
-        else
-        {
-            var inner = tokens.GetRange(begin + 1, last - begin - 1);
-            inner.Add(new Token(TokenKind.EndOfFile, string.Empty, tokens[last].Position));
-            var body = Render(SplitTopLevel(inner, source)).TrimEnd('\n');
-
-            sb.Append('\n');
-            if (body.Length > 0)
-            {
-                string? openDollarTag = null;
-                foreach (var line in body.Split('\n'))
+                var inner = new StringBuilder();
+                for (var i = 0; i < items.Count; i++)
                 {
+                    if (i > 0)
+                    {
+                        inner.Append("\n\n");
+                    }
+                    AppendItem(inner, items[i]);
+                }
+                // Indent each body line one level — but never inside a dollar-quoted block, so a script body stays
+                // put (and re-formatting is idempotent).
+                string? openTag = null;
+                foreach (var line in inner.ToString().Split('\n'))
+                {
+                    sb.Append('\n');
                     if (line.Length > 0)
                     {
-                        if (openDollarTag is null)
+                        if (openTag is null)
                         {
                             sb.Append(Indent);
                         }
                         sb.Append(line);
                     }
-                    openDollarTag = AdvanceDollarQuoteState(line, openDollarTag);
-                    sb.Append('\n');
+                    openTag = AdvanceDollarQuoteState(line, openTag);
                 }
             }
         }
-        sb.Append(NsqlKeywords.End);
-        if (hasSemicolon)
+
+        return sb.Append("\nEND;").ToString();
+    }
+
+    // --- token emission -------------------------------------------------------
+
+    /// <summary>All the node's tokens in source order, doc-comments excluded (they lead the statement, placed separately).</summary>
+    private static List<Token> FlattenTokens(NsqlNode node)
+    {
+        var tokens = new List<Token>();
+        Collect(node);
+        return tokens;
+
+        void Collect(NsqlNode current)
         {
-            sb.Append(';');
+            foreach (var child in current.Children)
+            {
+                if (child.AsToken() is { } token)
+                {
+                    if (token.Kind != TokenKind.DocComment)
+                    {
+                        tokens.Add(token);
+                    }
+                }
+                else
+                {
+                    Collect(child.AsNode()!);
+                }
+            }
         }
-        return sb.ToString();
     }
 
     /// <summary>
-    /// Advances the dollar-quote state across one line of rendered text: <paramref name="openTag"/> is the
-    /// delimiter of the body the line starts inside (or <see langword="null"/> outside one), and the return value
-    /// is the state the line ends in. A body only closes on its own tag, so <c>$$</c> inside a <c>$body$</c>
-    /// block stays interior text.
+    /// Emits a token run verbatim — raw text and interior trivia (whitespace and comments) — dropping only the
+    /// leading trivia of the first token and the trailing trivia of the last (the statement's edges, placed
+    /// separately as leading/trailing comments), then trimming.
+    /// </summary>
+    private static string EmitTokens(IReadOnlyList<Token> tokens)
+    {
+        var sb = new StringBuilder();
+        for (var i = 0; i < tokens.Count; i++)
+        {
+            if (i > 0)
+            {
+                AppendTrivia(sb, tokens[i].Leading);
+            }
+            sb.Append(tokens[i].Raw);
+            if (i < tokens.Count - 1)
+            {
+                AppendTrivia(sb, tokens[i].Trailing);
+            }
+        }
+        return sb.ToString().Trim();
+    }
+
+    private static string NodeText(NsqlNode node) => EmitTokens(FlattenTokens(node));
+
+    private static void AppendTrivia(StringBuilder sb, IReadOnlyList<Trivia> trivia)
+    {
+        foreach (var item in trivia)
+        {
+            sb.Append(item.Text);
+        }
+    }
+
+    // --- comments -------------------------------------------------------------
+
+    /// <summary>
+    /// The comment lines that lead a statement or member — the source comments in its leading trivia, then its
+    /// doc-comment (if any) — each with the (capped) blank lines the source had before it.
+    /// </summary>
+    private static List<Lead> CommentLines(IReadOnlyList<Trivia> trivia, Token? doc = null)
+    {
+        var leads = new List<Lead>();
+        var newlines = 0;
+        var seen = false;
+        foreach (var item in trivia)
+        {
+            if (item.Kind == TriviaKind.EndOfLine)
+            {
+                newlines++;
+            }
+            else if (item.IsComment)
+            {
+                leads.Add(new Lead(FormatComment(item.Text), seen ? Math.Max(0, newlines - 1) : 0));
+                newlines = 0;
+                seen = true;
+            }
+        }
+        if (doc is { } comment)
+        {
+            leads.Add(new Lead(FormatDoc(comment.Text), seen ? Math.Max(0, newlines - 1) : 0));
+        }
+        return leads;
+    }
+
+    /// <summary>A doc-comment re-emitted in canonical <c>--- line</c> form, one line per merged line.</summary>
+    private static string FormatDoc(string text) => string.Join('\n', text.Split('\n').Select(line => "--- " + line));
+
+    /// <summary>
+    /// The leading comment lines of a statement (source comments then its doc-comment), and the blank lines to keep
+    /// between them and the statement body.
+    /// </summary>
+    private static (List<Lead> Leads, int BlanksBeforeBody) LeadingRegion(NsqlStatement statement)
+    {
+        var leads = new List<Lead>();
+        var newlines = 0;
+        var seen = false;
+
+        void Scan(IReadOnlyList<Trivia> trivia)
+        {
+            foreach (var item in trivia)
+            {
+                if (item.Kind == TriviaKind.EndOfLine)
+                {
+                    newlines++;
+                }
+                else if (item.IsComment)
+                {
+                    leads.Add(new Lead(FormatComment(item.Text), seen ? Math.Max(0, newlines - 1) : 0));
+                    newlines = 0;
+                    seen = true;
+                }
+            }
+        }
+
+        if (statement.DocComment is { } doc)
+        {
+            Scan(doc.Leading);
+            leads.Add(new Lead(FormatDoc(doc.Text), seen ? Math.Max(0, newlines - 1) : 0));
+            newlines = 0;
+            seen = true;
+            Scan(FirstSignificantToken(statement).Leading);
+        }
+        else
+        {
+            Scan(FirstToken(statement).Leading);
+        }
+
+        return (leads, seen ? Math.Max(0, newlines - 1) : 0);
+    }
+
+    /// <summary>The trailing line comment on <paramref name="token"/> (on the same line as it, before any newline), or null.</summary>
+    private static string? TrailingComment(Token token)
+    {
+        Trivia? found = null;
+        foreach (var item in token.Trailing)
+        {
+            if (item.Kind == TriviaKind.EndOfLine)
+            {
+                break;
+            }
+            if (item.IsComment)
+            {
+                found = item;
+            }
+        }
+        return found is { } comment ? FormatComment(comment.Text) : null;
+    }
+
+    private static string FormatComment(string text) => text.TrimEnd();
+
+    // --- blank lines / tree helpers -------------------------------------------
+
+    private static void AppendBlankLines(StringBuilder sb, int count)
+    {
+        for (var i = 0; i < Math.Min(count, MaxBlankLines); i++)
+        {
+            sb.Append('\n');
+        }
+    }
+
+    private static Token FirstToken(NsqlNode node)
+    {
+        foreach (var child in node.Children)
+        {
+            return child.AsToken() ?? FirstToken(child.AsNode()!);
+        }
+        return default;
+    }
+
+    /// <summary>The first token that is not a doc-comment (the statement's leading keyword).</summary>
+    private static Token FirstSignificantToken(NsqlNode node) => FlattenTokens(node) is [var first, ..] ? first : default;
+
+    private static Token LastToken(NsqlNode node)
+    {
+        Token last = default;
+        foreach (var child in node.Children)
+        {
+            last = child.AsToken() ?? LastToken(child.AsNode()!);
+        }
+        return last;
+    }
+
+    /// <summary>
+    /// Tracks whether a line ends inside a dollar-quoted block. A body only closes on its own tag, so <c>$$</c>
+    /// inside a <c>$body$</c> block stays interior text.
     /// </summary>
     private static string? AdvanceDollarQuoteState(string line, string? openTag)
     {
@@ -377,267 +507,20 @@ public static class NsqlFormatter
         return null;
     }
 
-    /// <summary>Emits a statement as its original text (leading whitespace trimmed), keeping the ';' where it sat.</summary>
-    private static string Verbatim(List<Token> tokens, string source, int start, int end, bool hasSemicolon)
-    {
-        var from = tokens[start].Position.Offset;
-        var to = hasSemicolon ? tokens[end].Position.Offset + 1 : tokens[end].Position.Offset;
-        return source[from..to].Trim();
-    }
-
-    /// <summary>Emits a <c>CREATE TABLE</c> / config block with one member per line, two-space indented.</summary>
-    private static string RenderBroken(List<Token> tokens, string source, int start, int open, List<Member> members, bool hasSemicolon)
-    {
-        var header = source[tokens[start].Position.Offset..tokens[open].Position.Offset].Trim();
-        var sb = new StringBuilder();
-        sb.Append(header).Append(" (");
-        AppendMembers(sb, members);
-        sb.Append('\n').Append(')');
-        if (hasSemicolon)
-        {
-            sb.Append(';');
-        }
-        return sb.ToString();
-    }
-
-    /// <summary>Emits a member list one per line, two-space indented, comma-separating the content members.</summary>
-    private static void AppendMembers(StringBuilder sb, List<Member> members)
-    {
-        var lastContent = -1;
-        for (var k = 0; k < members.Count; k++)
-        {
-            if (members[k].Content is not null)
-            {
-                lastContent = k;
-            }
-        }
-
-        for (var k = 0; k < members.Count; k++)
-        {
-            var member = members[k];
-            foreach (var comment in member.Leading)
-            {
-                sb.Append('\n');
-                AppendIndentedLines(sb, comment, Indent);
-            }
-            if (member.Content is { } content)
-            {
-                sb.Append('\n').Append(Indent).Append(content);
-                if (k < lastContent)
-                {
-                    sb.Append(',');
-                }
-                if (member.Trailing is { } trailing)
-                {
-                    sb.Append(Indent).Append(trailing);
-                }
-            }
-        }
-    }
-
-    // --- members of a broken list ---------------------------------------------
-
-    private static List<Member> SplitMembers(List<Token> tokens, string source, int open, int close)
-    {
-        var members = new List<Member>();
-        var previousSeparatorLine = tokens[open].Position.Line;
-        var i = open + 1;
-        while (i < close)
-        {
-            var leading = new List<string>();
-            while (i < close && IsComment(tokens[i].Kind))
-            {
-                // A comment on the line of the previous member's ',' trails that member; otherwise it leads this one.
-                if (members.Count > 0 && members[^1].Trailing is null && tokens[i].Position.Line == previousSeparatorLine)
-                {
-                    members[^1].Trailing = FormatComment(tokens[i]);
-                }
-                else
-                {
-                    leading.Add(FormatComment(tokens[i]));
-                }
-                i++;
-            }
-            if (i >= close)
-            {
-                if (leading.Count > 0)
-                {
-                    members.Add(new Member { Leading = leading });
-                }
-                break;
-            }
-
-            var contentStart = i;
-            var contentEnd = contentStart; // exclusive index past the last token belonging to this member's value
-            var depth = 0;
-            var separator = -1;
-            string? trailing = null;
-            while (i < close)
-            {
-                var kind = tokens[i].Kind;
-
-                if (depth == 0 && kind == TokenKind.Comma)
-                {
-                    separator = i;
-                    break;
-                }
-
-                if (depth == 0 && IsComment(kind))
-                {
-                    // A line comment on the same line as the value so far trails this member and stays inline (a ','
-                    // still lands before it). Any other comment is on its own line: stop here and leave it for the next
-                    // iteration to collect as a leading comment, so a run of dangling comments each keep their own line
-                    // instead of being flattened onto one.
-                    if (trailing is null
-                        && kind == TokenKind.LineComment
-                        && contentEnd > contentStart
-                        && tokens[i].Position.Line == tokens[contentEnd - 1].Position.Line)
-                    {
-                        trailing = FormatComment(tokens[i]);
-                        i++;
-                        continue;
-                    }
-                    break;
-                }
-
-                if (kind == TokenKind.LeftParen)
-                {
-                    depth++;
-                }
-                else if (kind == TokenKind.RightParen)
-                {
-                    depth--;
-                }
-
-                contentEnd = i + 1;
-                i++;
-            }
-
-            members.Add(new Member
-            {
-                Leading = leading,
-                Content = source[tokens[contentStart].Position.Offset..tokens[contentEnd].Position.Offset].Trim(),
-                Trailing = trailing,
-            });
-
-            if (separator >= 0)
-            {
-                previousSeparatorLine = tokens[separator].Position.Line;
-                i = separator + 1;
-            }
-
-            // With no separator, i already sits on the own-line comment or the close paren; leaving it there lets the
-            // outer loop pick those trailing comments up (as a comment-only member) rather than discarding them.
-        }
-
-        return members;
-    }
-
-    // --- helpers --------------------------------------------------------------
-
-    private static bool IsComment(TokenKind kind) =>
-        kind is TokenKind.LineComment or TokenKind.BlockComment or TokenKind.DocComment;
-
-    /// <summary>
-    /// The 1-based line a comment token ends on: its start line plus the newlines its text spans. A line comment spans
-    /// none; a merged doc-comment or block comment keeps its internal newlines, so counting them is exact.
-    /// </summary>
-    private static int EndLine(Token token) => token.Position.Line + token.Text.Count(c => c == '\n');
-
-    /// <summary>The number of wholly-blank lines between a line that ends at <paramref name="endLine"/> and one that starts at <paramref name="startLine"/>.</summary>
-    private static int BlankLinesBetween(int endLine, int startLine) => Math.Max(0, startLine - endLine - 1);
-
-    private static bool IsStatementKeyword(string text) => NsqlKeywords.StatementOpeners.Contains(text);
-
-    private static string FormatComment(Token token) => token.Kind switch
-    {
-        // A doc-comment is re-emitted in the canonical '--- line' form (matching DdlWriter), one line per merged line.
-        TokenKind.DocComment => string.Join('\n', token.Text.Split('\n').Select(line => "--- " + line)),
-        // Source comments are kept verbatim (their '--' / delimiters intact).
-        _ => token.Text,
-    };
-
-    private static int FirstSignificant(List<Token> tokens, int from, int end)
-    {
-        for (var i = from; i < end; i++)
-        {
-            if (!IsComment(tokens[i].Kind))
-            {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private static int LastSignificant(List<Token> tokens, int from, int end)
-    {
-        for (var i = end - 1; i >= from; i--)
-        {
-            if (!IsComment(tokens[i].Kind))
-            {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private static int FindTopLevelOpenParen(List<Token> tokens, int start, int end)
-    {
-        for (var i = start; i < end; i++)
-        {
-            if (tokens[i].Kind == TokenKind.LeftParen)
-            {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private static int MatchParen(List<Token> tokens, int open, int end)
-    {
-        var depth = 0;
-        for (var i = open; i < end; i++)
-        {
-            if (tokens[i].Kind == TokenKind.LeftParen)
-            {
-                depth++;
-            }
-            else if (tokens[i].Kind == TokenKind.RightParen && --depth == 0)
-            {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private static void AppendIndentedLines(StringBuilder sb, string text, string indent)
-    {
-        var lines = text.Split('\n');
-        for (var j = 0; j < lines.Length; j++)
-        {
-            if (j > 0)
-            {
-                sb.Append('\n');
-            }
-            sb.Append(indent).Append(lines[j]);
-        }
-    }
-
     private sealed class Item
     {
         public required List<Lead> Leading { get; init; }
         public required string? Body { get; init; }
         public int BlanksBeforeBody { get; init; }
-        public string? Trailing { get; set; }
+        public string? Trailing { get; init; }
     }
 
-    /// <summary>A leading comment line, with the number of blank lines the source had before it.</summary>
     private readonly record struct Lead(string Text, int BlanksBefore);
 
     private sealed class Member
     {
-        public required List<string> Leading { get; init; }
+        public required List<Lead> Leading { get; init; }
         public string? Content { get; init; }
-        public string? Trailing { get; set; }
+        public string? Trailing { get; init; }
     }
 }

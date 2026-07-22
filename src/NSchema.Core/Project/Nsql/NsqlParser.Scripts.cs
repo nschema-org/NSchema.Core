@@ -52,7 +52,7 @@ internal sealed partial class NsqlParser
         var body = StripDollarQuote(dollar.Text).Trim();
         var semicolon = Expect(TokenKind.Semicolon, "';' to end the script");
 
-        return new ScriptStatement(name, condition, scriptEvent, body, runOutsideTransaction)
+        var statement = new ScriptStatement(name, condition, scriptEvent, body, runOutsideTransaction)
         {
             Doc = doc?.Text,
             DocComment = doc,
@@ -67,6 +67,16 @@ internal sealed partial class NsqlParser
             BodyToken = dollar,
             SemicolonToken = semicolon,
         };
+
+        // A written run condition on a change event is an error, but the node stays intact so it still round-trips.
+        if (statement.HasMisplacedRunCondition)
+        {
+            _errors.Add(new NsqlSyntaxException(
+                "A run condition (ALWAYS or ONCE) is only valid on a deployment event; a change-event script runs whenever its change is planned.",
+                scriptEvent.Position));
+        }
+
+        return statement;
     }
 
     private ScriptEventClause ParseScriptEvent()

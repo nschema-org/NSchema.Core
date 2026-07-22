@@ -28,7 +28,7 @@ public static class LockFileManager
             return Result.Success(LockFile.Empty);
         }
 
-        var document = await NsqlReader.ReadLockFile(path, cancellationToken);
+        var document = await NsqlReader.ReadFile(path, cancellationToken);
         var diagnostics = new List<Diagnostic>(document.Diagnostics);
         var plugins = new List<LockedPlugin>();
 

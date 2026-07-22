@@ -32,7 +32,7 @@ public static class ConfigurationProvider
             var documents = new List<NsqlDocument>();
             foreach (var path in layer.Paths)
             {
-                var read = await NsqlReader.ReadConfigurationFile(path, cancellationToken);
+                var read = await NsqlReader.ReadFile(path, cancellationToken);
                 diagnostics.AddRange(read.Diagnostics);
                 if (read.Value is { } document)
                 {

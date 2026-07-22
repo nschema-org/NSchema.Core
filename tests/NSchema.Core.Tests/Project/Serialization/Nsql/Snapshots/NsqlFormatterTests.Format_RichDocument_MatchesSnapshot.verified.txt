@@ -1,4 +1,4 @@
-﻿NSCHEMA (
+﻿DATABASE (
   dialect = postgres
 );
 
