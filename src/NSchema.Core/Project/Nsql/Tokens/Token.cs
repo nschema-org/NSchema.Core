@@ -14,6 +14,35 @@ namespace NSchema.Project.Nsql.Tokens;
 /// <param name="Position">Where the token begins in the source.</param>
 internal readonly record struct Token(TokenKind Kind, string Text, SourcePosition Position)
 {
+    private static readonly Trivia[] _noTrivia = [];
+
+    /// <summary>
+    /// The verbatim source text of the token. Defaults to <see cref="Text"/> for a synthetic token.
+    /// </summary>
+    public string Raw
+    {
+        get => field ?? Text;
+        init;
+    }
+
+    /// <summary>
+    /// The trivia before the token, up to the previous token's trailing trivia.
+    /// </summary>
+    public IReadOnlyList<Trivia> Leading
+    {
+        get => field ?? _noTrivia;
+        init;
+    }
+
+    /// <summary>
+    /// The trivia after the token, up to and including the first line break.
+    /// </summary>
+    public IReadOnlyList<Trivia> Trailing
+    {
+        get => field ?? _noTrivia;
+        init;
+    }
+
     /// <summary>
     /// Whether this token is an identifier whose text matches <paramref name="keyword"/>, case-insensitively.
     /// </summary>

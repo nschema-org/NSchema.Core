@@ -39,11 +39,17 @@ internal enum TokenKind
     /// <summary>
     /// A source line comment (<c>-- …</c>, not a <c>---</c> doc-comment), end-trimmed and keeping its <c>--</c>.
     /// </summary>
+    /// <remarks>
+    /// The lexer emits these as <see cref="Trivia"/>; the formatter reconstitutes them as tokens for its layout pass.
+    /// </remarks>
     LineComment,
 
     /// <summary>
     /// A source block comment (<c>/* … */</c>, not a <c>/** … */</c> doc-comment), kept verbatim with its delimiters.
     /// </summary>
+    /// <remarks>
+    /// The lexer emits these as <see cref="Trivia"/>; the formatter reconstitutes them as tokens for its layout pass.
+    /// </remarks>
     BlockComment,
 
     /// <summary>

@@ -25,20 +25,45 @@ public static class NsqlFormatter
         return Render(items);
     }
 
+    // The formatter's layout algorithm walks comments as tokens in source order. The lexer now attaches them as
+    // trivia, so flatten each token's comment trivia back into standalone comment tokens around it: leading trivia
+    // before, trailing after, in source order. Whitespace trivia is dropped — the formatter re-derives layout.
     private static List<Token> Lex(string source)
     {
-        var lexer = new NsqlLexer(source, emitComments: true);
+        var lexer = new NsqlLexer(source);
         var tokens = new List<Token>();
         while (true)
         {
             var token = lexer.Next();
+            foreach (var trivia in token.Leading)
+            {
+                if (CommentToken(trivia) is { } comment)
+                {
+                    tokens.Add(comment);
+                }
+            }
             tokens.Add(token);
+            foreach (var trivia in token.Trailing)
+            {
+                if (CommentToken(trivia) is { } comment)
+                {
+                    tokens.Add(comment);
+                }
+            }
             if (token.Kind == TokenKind.EndOfFile)
             {
                 return tokens;
             }
         }
     }
+
+    /// <summary>Reconstructs the comment token this trivia stood for (matching the old lexer's text), or null for whitespace.</summary>
+    private static Token? CommentToken(Trivia trivia) => trivia.Kind switch
+    {
+        TriviaKind.LineComment => new Token(TokenKind.LineComment, trivia.Text.TrimEnd(), trivia.Position),
+        TriviaKind.BlockComment => new Token(TokenKind.BlockComment, trivia.Text, trivia.Position),
+        _ => null,
+    };
 
     // --- top level: statements separated by a blank line ----------------------
 
