@@ -1,3 +1,4 @@
+using System.Text.Json;
 using NSchema.Configuration.Model;
 
 namespace NSchema.Tests.Plugins.Model;
@@ -39,5 +40,19 @@ public sealed class SemanticVersionTests
         SemanticVersion.Parse("5.0.0-ALPHA.01").GetHashCode().ShouldBe(SemanticVersion.Parse("5.0.0-alpha.1").GetHashCode());
         SemanticVersion.Parse("5.0.0+build.7").ShouldBe(SemanticVersion.Parse("5.0.0")); // metadata never affects precedence
         SemanticVersion.Parse("5.0.0-alpha").ShouldNotBe(SemanticVersion.Parse("5.0.0"));
+    }
+
+    [Fact]
+    public void Json_RoundTripsAsCanonicalText()
+    {
+        // Arrange
+        var version = SemanticVersion.Parse("5.0.0-alpha.1");
+
+        // Act
+        var json = JsonSerializer.Serialize(version);
+
+        // Assert
+        json.ShouldBe("\"5.0.0-alpha.1\"");
+        JsonSerializer.Deserialize<SemanticVersion>(json).ShouldBe(version);
     }
 }

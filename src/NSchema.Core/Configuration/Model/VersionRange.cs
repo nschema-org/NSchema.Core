@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 using NSchema.Model.Services;
 
 namespace NSchema.Configuration.Model;
@@ -17,6 +18,7 @@ namespace NSchema.Configuration.Model;
 /// which feeds package resolution.
 /// </remarks>
 [TypeConverter(typeof(ParsableTypeConverter<VersionRange>))]
+[JsonConverter(typeof(ParsableJsonConverter<VersionRange>))]
 public sealed record VersionRange : IParsable<VersionRange>
 {
     private VersionRange(SemanticVersion? minimum, bool minimumInclusive, SemanticVersion? maximum, bool maximumInclusive)
