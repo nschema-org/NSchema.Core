@@ -3,6 +3,7 @@ using NSchema.Configuration.Engine;
 using NSchema.Configuration.Model;
 using NSchema.Configuration.Plugins;
 using NSchema.Project.Nsql;
+using NSchema.Project.Nsql.Syntax.Blocks;
 
 namespace NSchema.Tests.Configuration;
 
@@ -15,9 +16,9 @@ public sealed class ConfigurationAssemblerTests
 {
     private const string Plugin = "PLUGIN pg ( source = 'NSchema.Postgres', version = '5.0.1' );";
 
-    private static NsqlBlockDocument Doc(string source, string? path = null)
+    private static NsqlDocument Doc(string source, string? path = null)
     {
-        var result = NsqlReader.ReadConfiguration(source);
+        var result = NsqlReader.Read(source);
         result.IsSuccess.ShouldBeTrue();
         return path is null ? result.Value : result.Value with { FilePath = path };
     }
@@ -128,7 +129,7 @@ public sealed class ConfigurationAssemblerTests
     {
         var document = Doc("DATABASE pg ( host = 'localhost' );");
 
-        var label = document.Statements.Single().Label!;
+        var label = document.Statements.OfType<BlockStatement>().Single().Label!;
         ConfigurationAssembler.Assemble([document]).Errors.ShouldHaveSingleItem()
             .ShouldBe(PluginDiagnostics.UnknownPluginLabel("DATABASE", "pg", label.Position));
     }

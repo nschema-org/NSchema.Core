@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Extensions;
@@ -11,6 +13,7 @@ using NSchema.Model.Triggers;
 using NSchema.Model.Views;
 using NSchema.Project.Model.Directives;
 using NSchema.Project.Nsql.Syntax;
+using NSchema.Project.Nsql.Tokens;
 using Syn = NSchema.Project.Nsql.Syntax;
 
 namespace NSchema.Project.Nsql;
@@ -62,18 +65,21 @@ internal static class SyntaxBuilder
     {
         foreach (var rename in directives.SchemaRenames)
         {
-            statements.Add(new Syn.Schemas.RenameSchemaStatement(Name(rename.From), Name(rename.To)) { Position = _none });
+            statements.Add(new Syn.Schemas.RenameSchemaStatement(Name(rename.From), Name(rename.To)));
         }
         foreach (var rename in directives.ObjectRenames)
         {
-            statements.Add(new RenameObjectStatement(rename.From.Kind, Qualified(rename.From.Schema, rename.From.Name), Name(rename.To)) { Position = _none });
+            statements.Add(new RenameObjectStatement(rename.From.Kind, Qualified(rename.From.Schema, rename.From.Name), Name(rename.To))
+            {
+                KindKeywords = [Token.Keyword(KindKeyword(rename.From.Kind))],
+            });
         }
         foreach (var rename in directives.MemberRenames)
         {
             statements.Add(new Syn.Tables.RenameColumnStatement(
-                new MemberPath(Name(rename.From.Schema), Name(rename.From.Object), Name(rename.From.Member)) { Position = _none },
+                new MemberPath(Name(rename.From.Schema), Name(rename.From.Object), Name(rename.From.Member)),
                 Name(rename.To))
-            { Position = _none });
+           );
         }
 
 
@@ -85,43 +91,46 @@ internal static class SyntaxBuilder
         {
             statements.Add(new Syn.Schemas.CreateSchemaStatement(Name(schema.Name))
             {
-                Position = _none,
                 Doc = schema.Comment,
+                DocComment = DocToken(schema.Comment),
             });
 
             foreach (var grant in schema.Grants)
             {
-                statements.Add(new Syn.Schemas.GrantSchemaUsageStatement(Name(schema.Name), Name(grant.Role)) { Position = _none });
+                statements.Add(new Syn.Schemas.GrantSchemaUsageStatement(Name(schema.Name), Name(grant.Role)));
             }
         }
 
         foreach (var enumType in schema.Enums)
         {
-            statements.Add(new Syn.Enums.CreateEnumStatement(Qualified(schema.Name, enumType.Name), enumType.Values.Select(v => v.Value).ToList())
+            statements.Add(new Syn.Enums.CreateEnumStatement(Qualified(schema.Name, enumType.Name),
+                new Syn.SeparatedSyntaxList<Syn.Enums.EnumValue>(enumType.Values.Select(v => Syn.Enums.EnumValue.Synthetic(v.Value)).ToList()))
             {
-                Position = _none,
                 Doc = enumType.Comment,
+                DocComment = DocToken(enumType.Comment),
             });
         }
 
         foreach (var domain in schema.Domains)
         {
-            statements.Add(new Syn.Domains.CreateDomainStatement(Qualified(schema.Name, domain.Name), Type(domain.DataType), domain.NotNull,
-                domain.Checks.Select(c => new Syn.Constraints.CheckDefinition(Name(c.Name), c.Expression) { Position = _none }).ToList(),
+            var node = new Syn.Domains.CreateDomainStatement(Qualified(schema.Name, domain.Name), Type(domain.DataType), domain.NotNull,
+                domain.Checks.Select(c => new Syn.Constraints.CheckDefinition(Name(c.Name), c.Expression)).ToList(),
                 domain.Default)
             {
-                Position = _none,
                 Doc = domain.Comment,
-            });
+                DocComment = DocToken(domain.Comment),
+            };
+            statements.Add(node with { TailToken = DomainTail(node) is { Length: > 0 } tail ? Token.Span(tail) : null });
         }
 
         foreach (var compositeType in schema.CompositeTypes)
         {
             statements.Add(new Syn.CompositeTypes.CreateCompositeTypeStatement(Qualified(schema.Name, compositeType.Name),
-                compositeType.Fields.Select(f => new Syn.CompositeTypes.CompositeFieldDefinition(Name(f.Name), Type(f.DataType)) { Position = _none }).ToList())
+                new Syn.SeparatedSyntaxList<Syn.CompositeTypes.CompositeFieldDefinition>(
+                    compositeType.Fields.Select(f => new Syn.CompositeTypes.CompositeFieldDefinition(Name(f.Name), Type(f.DataType))).ToList()))
             {
-                Position = _none,
                 Doc = compositeType.Comment,
+                DocComment = DocToken(compositeType.Comment),
             });
         }
 
@@ -130,8 +139,8 @@ internal static class SyntaxBuilder
             statements.Add(new Syn.Sequences.CreateSequenceStatement(Qualified(schema.Name, sequence.Name),
                 Options(sequence.Options))
             {
-                Position = _none,
                 Doc = sequence.Comment,
+                DocComment = DocToken(sequence.Comment),
             });
         }
 
@@ -141,8 +150,10 @@ internal static class SyntaxBuilder
                 routine.RoutineKind == RoutineKind.Procedure ? Syn.Routines.RoutineKind.Procedure : Syn.Routines.RoutineKind.Function,
                 routine.Arguments, routine.Definition)
             {
-                Position = _none,
                 Doc = routine.Comment,
+                DocComment = DocToken(routine.Comment),
+                ArgumentsToken = Token.Span(routine.Arguments.Value),
+                DefinitionToken = Token.Span(routine.Definition.Value.TrimEnd()),
             });
         }
 
@@ -165,67 +176,69 @@ internal static class SyntaxBuilder
 
         foreach (var column in table.Columns)
         {
-            members.Add(new Syn.Tables.ColumnDefinition(Name(column.Name), Type(column.Type), column.IsNullable, column.IsIdentity,
+            var node = new Syn.Tables.ColumnDefinition(Name(column.Name), Type(column.Type), column.IsNullable, column.IsIdentity,
                 Options(column.IdentityOptions), column.DefaultExpression, column.GeneratedExpression)
             {
-                Position = _none,
                 Doc = column.Comment,
-            });
+                DocComment = DocToken(column.Comment),
+            };
+            members.Add(node with { ModifiersToken = ColumnModifiers(node) is { Length: > 0 } modifiers ? Token.Span(modifiers) : null });
         }
         if (table.PrimaryKey is { } pk)
         {
-            members.Add(new Syn.Constraints.PrimaryKeyDefinition(Name(pk.Name), Names(pk.ColumnNames)) { Position = _none, Doc = pk.Comment });
+            members.Add(new Syn.Constraints.PrimaryKeyDefinition(Name(pk.Name), ColumnList(pk.ColumnNames)) { Doc = pk.Comment, DocComment = DocToken(pk.Comment) });
         }
         foreach (var fk in table.ForeignKeys)
         {
-            members.Add(new Syn.Constraints.ForeignKeyDefinition(Name(fk.Name), Names(fk.ColumnNames),
-                Qualified(fk.References.Schema, fk.References.Name), Names(fk.ReferencedColumnNames),
+            var node = new Syn.Constraints.ForeignKeyDefinition(Name(fk.Name), ColumnList(fk.ColumnNames),
+                Qualified(fk.References.Schema, fk.References.Name), ColumnList(fk.ReferencedColumnNames),
                 Action(fk.OnDelete), Action(fk.OnUpdate))
             {
-                Position = _none,
                 Doc = fk.Comment,
-            });
+                DocComment = DocToken(fk.Comment),
+            };
+            members.Add(node with { ActionsToken = ForeignKeyActions(node) is { Length: > 0 } actions ? Token.Span(actions) : null });
         }
         foreach (var unique in table.UniqueConstraints)
         {
-            members.Add(new Syn.Constraints.UniqueDefinition(Name(unique.Name), Names(unique.ColumnNames)) { Position = _none, Doc = unique.Comment });
+            members.Add(new Syn.Constraints.UniqueDefinition(Name(unique.Name), ColumnList(unique.ColumnNames)) { Doc = unique.Comment, DocComment = DocToken(unique.Comment) });
         }
         foreach (var check in table.CheckConstraints)
         {
-            members.Add(new Syn.Constraints.CheckDefinition(Name(check.Name), check.Expression) { Position = _none, Doc = check.Comment });
+            members.Add(new Syn.Constraints.CheckDefinition(Name(check.Name), check.Expression) { Doc = check.Comment, DocComment = DocToken(check.Comment) });
         }
         foreach (var exclusion in table.ExclusionConstraints)
         {
             members.Add(new Syn.Constraints.ExclusionDefinition(Name(exclusion.Name),
-                exclusion.Elements.Select(e => new Syn.Constraints.ExclusionElement(e.Operator, OptionalName(e.Column), e.Expression) { Position = _none }).ToList(),
+                new Syn.SeparatedSyntaxList<Syn.Constraints.ExclusionElement>(
+                    exclusion.Elements.Select(e => new Syn.Constraints.ExclusionElement(e.Operator, OptionalName(e.Column), e.Expression)).ToList()),
                 OptionalName(exclusion.Method), exclusion.Predicate)
             {
-                Position = _none,
                 Doc = exclusion.Comment,
+                DocComment = DocToken(exclusion.Comment),
             });
         }
         foreach (var index in table.Indexes)
         {
             members.Add(new Syn.Indexes.IndexDefinition(Name(index.Name), index.IsUnique, Keys(index.Columns),
                 OptionalName(index.Method),
-                Names(index.Include), index.Predicate)
+                IncludeList(index.Include), index.Predicate)
             {
-                Position = _none,
                 Doc = index.Comment,
+                DocComment = DocToken(index.Comment),
             });
         }
 
-        statements.Add(new Syn.Tables.CreateTableStatement(Qualified(schemaName, table.Name), members)
+        statements.Add(new Syn.Tables.CreateTableStatement(Qualified(schemaName, table.Name), new Syn.SeparatedSyntaxList<Syn.Tables.TableMember>(members))
         {
-            Position = _none,
             Doc = table.Comment,
+            DocComment = DocToken(table.Comment),
         });
 
         foreach (var grant in table.Grants)
         {
             statements.Add(new Syn.Tables.GrantTableStatement(Privileges(grant.Privileges), Qualified(schemaName, table.Name), Name(grant.Role))
             {
-                Position = _none,
             });
         }
 
@@ -241,8 +254,8 @@ internal static class SyntaxBuilder
     {
         statements.Add(new Syn.Views.CreateViewStatement(Qualified(schemaName, view.Name), view.Body, view.IsMaterialized)
         {
-            Position = _none,
             Doc = view.Comment,
+            DocComment = DocToken(view.Comment),
         });
 
         // A materialized view's indexes are standalone statements emitted after it (a plain view has none).
@@ -250,34 +263,39 @@ internal static class SyntaxBuilder
         {
             statements.Add(new Syn.Indexes.CreateIndexStatement(Name(index.Name), index.IsUnique, Qualified(schemaName, view.Name),
                 Keys(index.Columns), OptionalName(index.Method),
-                Names(index.Include), index.Predicate)
+                IncludeList(index.Include), index.Predicate)
             {
-                Position = _none,
                 Doc = index.Comment,
+                DocComment = DocToken(index.Comment),
             });
         }
     }
 
     private static Syn.Triggers.CreateTriggerStatement Build(SqlIdentifier schemaName, SqlIdentifier tableName, Trigger trigger)
     {
-        Syn.Triggers.TriggerAction action = trigger.Body is { } body
-            ? new Syn.Triggers.InlineBodyAction(body) { Position = _none }
-            : new Syn.Triggers.ExecuteFunctionAction(
-                new QualifiedName(OptionalName(trigger.Function!.Schema), Name(trigger.Function.Name)) { Position = _none },
-                trigger.FunctionArguments ?? "")
-            {
-                Position = _none,
-            };
+        Syn.Triggers.TriggerAction action;
+        if (trigger.Body is { } body)
+        {
+            action = new Syn.Triggers.InlineBodyAction(body) { BodyToken = DollarString(body) };
+        }
+        else
+        {
+            var fn = new Syn.Triggers.ExecuteFunctionAction(
+                new QualifiedName(OptionalName(trigger.Function!.Schema), Name(trigger.Function.Name)),
+                trigger.FunctionArguments ?? "");
+            action = fn with { ActionToken = Token.Span(ExecuteFunctionText(fn)) };
+        }
 
-        return new Syn.Triggers.CreateTriggerStatement(Name(trigger.Name), Timing(trigger.Timing), Events(trigger.Events),
+        var node = new Syn.Triggers.CreateTriggerStatement(Name(trigger.Name), Timing(trigger.Timing), Events(trigger.Events),
             Qualified(schemaName, tableName), action,
             trigger.UpdateOfColumns is { Count: > 0 } updateOf ? Names(updateOf) : null,
             trigger.Level == TriggerLevel.Row ? Syn.Triggers.TriggerLevel.Row : Syn.Triggers.TriggerLevel.Statement,
             trigger.When)
         {
-            Position = _none,
             Doc = trigger.Comment,
+            DocComment = DocToken(trigger.Comment),
         };
+        return node with { HeaderToken = Token.Span(TriggerHeader(node)) };
     }
 
     private static Syn.Scripts.ScriptStatement Build(Script script)
@@ -286,43 +304,52 @@ internal static class SyntaxBuilder
         {
             DeploymentScript deployment => new Syn.Scripts.DeploymentEventClause(deployment.Phase == DeploymentPhase.Pre ? Syn.Scripts.DeploymentPhase.Pre : Syn.Scripts.DeploymentPhase.Post)
             {
-                Position = _none,
             },
-            ChangeScript change => new Syn.Scripts.ChangeEventClause(Trigger(change.Target.Trigger), new MemberPath(OptionalName(change.Target.Schema), Name(change.Target.Table), Name(change.Target.Member)) { Position = _none })
+            ChangeScript change => new Syn.Scripts.ChangeEventClause(Trigger(change.Target.Trigger), new MemberPath(OptionalName(change.Target.Schema), Name(change.Target.Table), Name(change.Target.Member)))
             {
-                Position = _none,
             },
             _ => throw new InvalidOperationException($"Unbuildable script '{script.GetType().Name}'."),
         };
 
-        // Only a deployment script carries a run condition; a change-event script renders a bare RUN (null).
-        Syn.Scripts.RunCondition? condition = script is DeploymentScript d
-            ? d.RunCondition == RunCondition.Once ? Syn.Scripts.RunCondition.Once : Syn.Scripts.RunCondition.Always
+        // A bare RUN is the default (ALWAYS); only ONCE is written. A change-event script always runs bare.
+        Syn.Scripts.RunCondition? condition = script is DeploymentScript { RunCondition: RunCondition.Once }
+            ? Syn.Scripts.RunCondition.Once
             : null;
 
         return new Syn.Scripts.ScriptStatement(Name(script.Name), condition, clause, script.Sql, script.RunOutsideTransaction)
         {
-            Position = _none,
+            BodyToken = DollarString(script.Sql),
         };
     }
 
     private static Syn.Extensions.CreateExtensionStatement Build(Extension extension) =>
         new(Name(extension.Name), extension.Version)
         {
-            Position = _none,
             Doc = extension.Comment,
+            DocComment = DocToken(extension.Comment),
+            VersionToken = extension.Version is { } version ? Token.StringLiteral(version) : null,
         };
+
+    // --- synthetic tokens -------------------------------------------------------------
+
+    /// <summary>A synthetic doc-comment token for a comment body, or null when there is none.</summary>
+    private static Token? DocToken(string? comment) => comment is null ? null : new Token(TokenKind.DocComment, comment, _none);
+
+    /// <summary>A synthetic dollar-quoted string token wrapping <paramref name="body"/>.</summary>
+    private static Token DollarString(SqlText body) => new(TokenKind.DollarString, body.Value, _none) { Raw = DollarBlock(body) };
 
     // --- leaf conversions -------------------------------------------------------------
 
-    private static Identifier Name(SqlIdentifier name) => new(name.Value) { Position = _none };
+    private static Identifier Name(SqlIdentifier name) => Identifier.Synthetic(name.Value);
 
     private static Identifier? OptionalName(SqlIdentifier? name) => name is null ? null : Name(name);
 
     private static List<Identifier> Names(IReadOnlyList<SqlIdentifier> names) => names.Select(Name).ToList();
 
+    private static Syn.ColumnList ColumnList(IReadOnlyList<SqlIdentifier> names) => Syn.ColumnList.Synthetic(Names(names));
+
     private static QualifiedName Qualified(SqlIdentifier schema, SqlIdentifier name) =>
-        new(Name(schema), Name(name)) { Position = _none };
+        new(Name(schema), Name(name));
 
     /// <summary>
     /// Decomposes a type's canonical text (<c>varchar(100)</c>, <c>app.status</c>) into the written form;
@@ -332,9 +359,9 @@ internal static class SyntaxBuilder
     {
         // The type carries its qualifier and arguments as components, so read them straight across — no
         // rendering to a string and splitting it back apart.
-        var schema = type.Schema is { } qualifier ? new Identifier(qualifier.Value) { Position = _none } : null;
+        var schema = type.Schema is { } qualifier ? Identifier.Synthetic(qualifier.Value) : null;
         var arguments = Arguments(type);
-        return new TypeName(schema, new Identifier(type.Name.Value) { Position = _none }, arguments) { Position = _none };
+        return new TypeName(schema, Identifier.Synthetic(type.Name.Value), arguments);
     }
 
     private static string? Arguments(SqlType type)
@@ -348,20 +375,24 @@ internal static class SyntaxBuilder
     }
 
     private static Syn.Tables.IdentityOptionsClause? Options(IdentityOptions? options) =>
-        options is null ? null : new Syn.Tables.IdentityOptionsClause(options.StartWith, options.IncrementBy, options.MinValue) { Position = _none };
+        options is null ? null : new Syn.Tables.IdentityOptionsClause(options.StartWith, options.IncrementBy, options.MinValue);
 
-    private static Syn.Sequences.SequenceOptionsClause? Options(SequenceOptions options) =>
-        options.DataType is null && options.StartWith is null && options.IncrementBy is null
-            && options.MinValue is null && options.MaxValue is null && options.Cache is null && !options.Cycle
-            ? null
-            : new Syn.Sequences.SequenceOptionsClause(options.DataType is { } type ? Type(type) : null,
-                options.StartWith, options.IncrementBy, options.MinValue, options.MaxValue, options.Cache, options.Cycle)
-            {
-                Position = _none,
-            };
+    private static Syn.Sequences.SequenceOptionsClause? Options(SequenceOptions options)
+    {
+        if (options.DataType is null && options.StartWith is null && options.IncrementBy is null
+            && options.MinValue is null && options.MaxValue is null && options.Cache is null && !options.Cycle)
+        {
+            return null;
+        }
+        var clause = new Syn.Sequences.SequenceOptionsClause(options.DataType is { } type ? Type(type) : null,
+            options.StartWith, options.IncrementBy, options.MinValue, options.MaxValue, options.Cache, options.Cycle);
+        return clause with { InteriorToken = SequenceOptionsText(clause) is { } text ? Token.Span(text) : null };
+    }
 
-    private static List<Syn.Indexes.IndexElement> Keys(IReadOnlyList<IndexColumn> columns) =>
-        columns.Select(c => new Syn.Indexes.IndexElement(OptionalName(c.Column), c.Expression, Sort(c.Sort), Nulls(c.Nulls)) { Position = _none }).ToList();
+    private static Syn.SeparatedSyntaxList<Syn.Indexes.IndexElement> Keys(IReadOnlyList<IndexColumn> columns) =>
+        new(columns.Select(c => new Syn.Indexes.IndexElement(OptionalName(c.Column), c.Expression, Sort(c.Sort), Nulls(c.Nulls))).ToList());
+
+    private static Syn.ColumnList? IncludeList(IReadOnlyList<SqlIdentifier> names) => names.Count == 0 ? null : ColumnList(names);
 
     private static Syn.Constraints.ReferentialAction Action(ReferentialAction action) => action switch
     {
@@ -402,14 +433,14 @@ internal static class SyntaxBuilder
         return mapped;
     }
 
-    private static Syn.Tables.TablePrivilege Privileges(TablePrivilege privileges)
+    private static Syn.SeparatedSyntaxList<Syn.Tables.Privilege> Privileges(TablePrivilege privileges)
     {
-        var mapped = Syn.Tables.TablePrivilege.None;
-        if (privileges.HasFlag(TablePrivilege.Select)) { mapped |= Syn.Tables.TablePrivilege.Select; }
-        if (privileges.HasFlag(TablePrivilege.Insert)) { mapped |= Syn.Tables.TablePrivilege.Insert; }
-        if (privileges.HasFlag(TablePrivilege.Update)) { mapped |= Syn.Tables.TablePrivilege.Update; }
-        if (privileges.HasFlag(TablePrivilege.Delete)) { mapped |= Syn.Tables.TablePrivilege.Delete; }
-        return mapped;
+        var mapped = new List<Syn.Tables.Privilege>();
+        if (privileges.HasFlag(TablePrivilege.Select)) { mapped.Add(Syn.Tables.Privilege.Synthetic(Syn.Tables.TablePrivilege.Select)); }
+        if (privileges.HasFlag(TablePrivilege.Insert)) { mapped.Add(Syn.Tables.Privilege.Synthetic(Syn.Tables.TablePrivilege.Insert)); }
+        if (privileges.HasFlag(TablePrivilege.Update)) { mapped.Add(Syn.Tables.Privilege.Synthetic(Syn.Tables.TablePrivilege.Update)); }
+        if (privileges.HasFlag(TablePrivilege.Delete)) { mapped.Add(Syn.Tables.Privilege.Synthetic(Syn.Tables.TablePrivilege.Delete)); }
+        return new Syn.SeparatedSyntaxList<Syn.Tables.Privilege>(mapped);
     }
 
     private static Syn.Scripts.ChangeTrigger Trigger(ChangeTrigger trigger) => trigger switch
@@ -418,4 +449,229 @@ internal static class SyntaxBuilder
         ChangeTrigger.AlterColumnType => Syn.Scripts.ChangeTrigger.AlterColumnType,
         _ => Syn.Scripts.ChangeTrigger.AddConstraint,
     };
+
+    // --- raw-span fragment rendering (the verbatim text baked into raw-span tokens) -----------
+
+    /// <summary>The trigger header between the name and the action: timing, events, <c>ON</c> table, and (for a function trigger) <c>FOR EACH</c>/<c>WHEN</c>.</summary>
+    private static string TriggerHeader(Syn.Triggers.CreateTriggerStatement statement)
+    {
+        var sb = new StringBuilder();
+        sb.Append(TimingText(statement.Timing)).Append(' ').Append(EventsText(statement)).Append($" {NsqlKeywords.On} ").Append(Qualified(statement.On));
+        if (statement.Action is Syn.Triggers.ExecuteFunctionAction)
+        {
+            sb.Append($" {NsqlKeywords.For} {NsqlKeywords.Each} ").Append(statement.Level == Syn.Triggers.TriggerLevel.Row ? NsqlKeywords.Row : NsqlKeywords.Statement);
+            if (statement.When is { } when)
+            {
+                sb.Append($" {NsqlKeywords.When} (").Append(when.Value).Append(')');
+            }
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>The <c>EXECUTE FUNCTION function(args)</c> action of a function trigger.</summary>
+    private static string ExecuteFunctionText(Syn.Triggers.ExecuteFunctionAction action) =>
+        $"{NsqlKeywords.Execute} {NsqlKeywords.Function} {Qualified(action.Function)}({action.Arguments.Value})";
+
+    /// <summary>A dollar-quoted block for <paramref name="body"/>, tag chosen so the body is taken verbatim.</summary>
+    private static string DollarBlock(SqlText body)
+    {
+        var delimiter = DollarDelimiter(body);
+        return $"{delimiter}\n{body.Value}\n{delimiter}";
+    }
+
+    /// <summary>The column modifiers after the type (<c>NOT NULL IDENTITY DEFAULT GENERATED</c>), or "" when none.</summary>
+    private static string ColumnModifiers(Syn.Tables.ColumnDefinition column)
+    {
+        var parts = new List<string>();
+        if (!column.IsNullable)
+        {
+            parts.Add($"{NsqlKeywords.Not} {NsqlKeywords.Null}");
+        }
+        if (column.IsIdentity)
+        {
+            parts.Add(column.IdentityOptions is { } options && IdentityOptionsText(options) is { } text
+                ? $"{NsqlKeywords.Identity} ({text})"
+                : NsqlKeywords.Identity);
+        }
+        if (column.Default is { } @default)
+        {
+            parts.Add($"{NsqlKeywords.Default} {@default.Value}");
+        }
+        if (column.Generated is { } generated)
+        {
+            parts.Add($"{NsqlKeywords.Generated} {NsqlKeywords.Always} {NsqlKeywords.As} ({generated.Value}) {NsqlKeywords.Stored}");
+        }
+        return string.Join(" ", parts);
+    }
+
+    /// <summary>The foreign-key <c>ON DELETE</c>/<c>ON UPDATE</c> actions, or "" when both are the default.</summary>
+    private static string ForeignKeyActions(Syn.Constraints.ForeignKeyDefinition fk)
+    {
+        var parts = new List<string>();
+        if (fk.OnDelete != Syn.Constraints.ReferentialAction.NoAction)
+        {
+            parts.Add($"{NsqlKeywords.On} {NsqlKeywords.Delete} {ActionText(fk.OnDelete)}");
+        }
+        if (fk.OnUpdate != Syn.Constraints.ReferentialAction.NoAction)
+        {
+            parts.Add($"{NsqlKeywords.On} {NsqlKeywords.Update} {ActionText(fk.OnUpdate)}");
+        }
+        return string.Join(" ", parts);
+    }
+
+    /// <summary>The domain clauses after the type (<c>NOT NULL</c>, checks, <c>DEFAULT</c>), or "" when none.</summary>
+    private static string DomainTail(Syn.Domains.CreateDomainStatement domain)
+    {
+        var parts = new List<string>();
+        if (domain.NotNull)
+        {
+            parts.Add($"{NsqlKeywords.Not} {NsqlKeywords.Null}");
+        }
+        foreach (var check in domain.Checks)
+        {
+            parts.Add($"{NsqlKeywords.Constraint} {check.Name.Value} {NsqlKeywords.Check} ({check.Expression.Value})");
+        }
+        if (domain.Default is { } @default)
+        {
+            parts.Add($"{NsqlKeywords.Default} {@default.Value}");
+        }
+        return string.Join(" ", parts);
+    }
+
+    private static string? SequenceOptionsText(Syn.Sequences.SequenceOptionsClause options)
+    {
+        var parts = new List<string>();
+        if (options.As is { } type)
+        {
+            parts.Add($"{NsqlKeywords.As} {TypeText(type)}");
+        }
+        if (options.Start is { } start)
+        {
+            parts.Add($"{NsqlKeywords.Start} {start}");
+        }
+        if (options.Increment is { } increment)
+        {
+            parts.Add($"{NsqlKeywords.Increment} {increment}");
+        }
+        if (options.MinValue is { } min)
+        {
+            parts.Add($"{NsqlKeywords.MinValue} {min}");
+        }
+        if (options.MaxValue is { } max)
+        {
+            parts.Add($"{NsqlKeywords.MaxValue} {max}");
+        }
+        if (options.Cache is { } cache)
+        {
+            parts.Add($"{NsqlKeywords.Cache} {cache}");
+        }
+        if (options.Cycle)
+        {
+            parts.Add(NsqlKeywords.Cycle);
+        }
+        return parts.Count == 0 ? null : string.Join(", ", parts);
+    }
+
+    private static string? IdentityOptionsText(Syn.Tables.IdentityOptionsClause options)
+    {
+        var parts = new List<string>();
+        if (options.Start is { } start)
+        {
+            parts.Add($"{NsqlKeywords.Start} {start}");
+        }
+        if (options.Increment is { } increment)
+        {
+            parts.Add($"{NsqlKeywords.Increment} {increment}");
+        }
+        if (options.MinValue is { } min)
+        {
+            parts.Add($"{NsqlKeywords.MinValue} {min}");
+        }
+        return parts.Count == 0 ? null : string.Join(", ", parts);
+    }
+
+    private static string TimingText(Syn.Triggers.TriggerTiming timing) => timing switch
+    {
+        Syn.Triggers.TriggerTiming.Before => NsqlKeywords.Before,
+        Syn.Triggers.TriggerTiming.After => NsqlKeywords.After,
+        _ => $"{NsqlKeywords.Instead} {NsqlKeywords.Of}",
+    };
+
+    private static string EventsText(Syn.Triggers.CreateTriggerStatement statement)
+    {
+        var parts = new List<string>(4);
+        if (statement.Events.HasFlag(Syn.Triggers.TriggerEvent.Insert))
+        {
+            parts.Add(NsqlKeywords.Insert);
+        }
+        if (statement.Events.HasFlag(Syn.Triggers.TriggerEvent.Update))
+        {
+            parts.Add(statement.UpdateOfColumns is { Count: > 0 } columns ? $"{NsqlKeywords.Update} {NsqlKeywords.Of} ({ColumnsText(columns)})" : NsqlKeywords.Update);
+        }
+        if (statement.Events.HasFlag(Syn.Triggers.TriggerEvent.Delete))
+        {
+            parts.Add(NsqlKeywords.Delete);
+        }
+        if (statement.Events.HasFlag(Syn.Triggers.TriggerEvent.Truncate))
+        {
+            parts.Add(NsqlKeywords.Truncate);
+        }
+        return string.Join($" {NsqlKeywords.Or} ", parts);
+    }
+
+    private static string ActionText(Syn.Constraints.ReferentialAction action) => action switch
+    {
+        Syn.Constraints.ReferentialAction.Cascade => NsqlKeywords.Cascade,
+        Syn.Constraints.ReferentialAction.SetNull => $"{NsqlKeywords.Set} {NsqlKeywords.Null}",
+        Syn.Constraints.ReferentialAction.SetDefault => $"{NsqlKeywords.Set} {NsqlKeywords.Default}",
+        _ => $"{NsqlKeywords.No} {NsqlKeywords.Action}",
+    };
+
+    /// <summary>
+    /// The canonical keyword for an object kind; the spelling variants (MATERIALIZED VIEW, FUNCTION,
+    /// PROCEDURE) normalize to it.
+    /// </summary>
+    private static string KindKeyword(ObjectKind kind) => kind switch
+    {
+        ObjectKind.Table => NsqlKeywords.Table,
+        ObjectKind.View => NsqlKeywords.View,
+        ObjectKind.Enum => NsqlKeywords.Enum,
+        ObjectKind.Sequence => NsqlKeywords.Sequence,
+        ObjectKind.Routine => NsqlKeywords.Routine,
+        ObjectKind.Domain => NsqlKeywords.Domain,
+        ObjectKind.CompositeType => NsqlKeywords.Type,
+        ObjectKind.Extension => NsqlKeywords.Extension,
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+    };
+
+    private static string Qualified(QualifiedName name) =>
+        name.Schema is { } schema ? $"{EscapedIdentifier(schema)}.{EscapedIdentifier(name.Name)}" : EscapedIdentifier(name.Name);
+
+    private static string TypeText(TypeName type)
+    {
+        var text = type.Schema is { } schema ? $"{EscapedIdentifier(schema)}.{EscapedIdentifier(type.Name)}" : EscapedIdentifier(type.Name);
+        return type.Arguments is { } arguments ? $"{text}({arguments})" : text;
+    }
+
+    private static string ColumnsText(IReadOnlyList<Identifier> columns) => string.Join(", ", columns.Select(EscapedIdentifier));
+
+    private static string DollarDelimiter(SqlText body)
+    {
+        if (!body.Value.Contains("$$", StringComparison.Ordinal))
+        {
+            return "$$";
+        }
+        for (var i = 1; ; i++)
+        {
+            var tag = $"$body{i.ToString(CultureInfo.InvariantCulture)}$";
+            if (!body.Value.Contains(tag, StringComparison.Ordinal))
+            {
+                return tag;
+            }
+        }
+    }
+
+    private static string EscapedIdentifier(Identifier identifier) => Identifier.NeedsQuoting(identifier.Value)
+        ? $"\"{identifier.Value.Replace("\"", "\"\"")}\""
+        : identifier.Value;
 }

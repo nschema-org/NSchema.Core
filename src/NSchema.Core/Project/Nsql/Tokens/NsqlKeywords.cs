@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace NSchema.Project.Nsql.Tokens;
 
 /// <summary>
@@ -117,6 +119,15 @@ internal static class NsqlKeywords
     /// The keywords that open a table member.
     /// </summary>
     public static readonly IReadOnlySet<string> MemberOpeners = Group(Constraint, Unique, Index, Include);
+
+    /// <summary>
+    /// Every keyword in the vocabulary — the string constants of this class.
+    /// </summary>
+    public static readonly IReadOnlySet<string> All = new HashSet<string>(
+        typeof(NsqlKeywords).GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(f => f.IsLiteral && f.FieldType == typeof(string))
+            .Select(f => (string)f.GetValue(null)!),
+        Comparer);
 
     private static HashSet<string> Group(params string[] keywords) => new(keywords, Comparer);
 }

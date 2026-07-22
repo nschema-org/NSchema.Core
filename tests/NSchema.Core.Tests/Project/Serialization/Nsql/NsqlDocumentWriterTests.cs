@@ -104,7 +104,7 @@ public sealed class ProjectedDocumentWriterTests
     public void Write_MigrationWithRunOutsideTransaction_RoundTrips()
         => AssertRoundTrips(
             "SCRIPT retype RUN ON ALTER COLUMN TYPE app.orders.total (run_outside_transaction = true) AS $$ SELECT 1; $$;")
-            .ShouldContain("SCRIPT retype RUN ON ALTER COLUMN TYPE app.orders.total (run_outside_transaction = true) AS $$");
+            .ShouldContain("SCRIPT retype RUN ON ALTER COLUMN TYPE app.orders.total(run_outside_transaction = true) AS $$");
 
     [Fact]
     public void Write_MigrationBodyContainingDoubleDollar_PicksASafeTag()

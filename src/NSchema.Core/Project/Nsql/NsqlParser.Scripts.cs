@@ -9,77 +9,119 @@ internal sealed partial class NsqlParser
     /// <summary>
     /// Parses a SCRIPT statement.
     /// </summary>
-    private ScriptStatement ParseScript(string? doc)
+    private ScriptStatement ParseScript(Token? doc)
     {
-        var position = _current.Position;
-        Advance(); // SCRIPT
+        var script = Advance(); // SCRIPT
         var name = ExpectIdentifierNode("a script name");
-        ExpectKeyword(NsqlKeywords.Run);
+        var run = ExpectKeyword(NsqlKeywords.Run);
 
         RunCondition? condition = null;
+        Token? conditionKeyword = null;
         if (_current.IsKeyword(NsqlKeywords.Always))
         {
             condition = RunCondition.Always;
-            Advance();
+            conditionKeyword = Advance();
         }
         else if (_current.IsKeyword(NsqlKeywords.Once))
         {
             condition = RunCondition.Once;
-            Advance();
+            conditionKeyword = Advance();
         }
         else if (_current.IsKeyword(NsqlKeywords.Unless))
         {
             throw Error("'UNLESS EXISTS' is reserved for a future release; a script runs ALWAYS (the default) or ONCE.");
         }
 
-        ExpectKeyword(NsqlKeywords.On);
+        var on = ExpectKeyword(NsqlKeywords.On);
+        var scriptEvent = ParseScriptEvent();
 
-        ScriptEventClause scriptEvent;
+        // Optional ( run_outside_transaction = true ), captured as a verbatim interior span.
+        var runOutsideTransaction = false;
+        Token? optionsOpen = null, optionsInterior = null, optionsClose = null;
+        if (_current.Kind == TokenKind.LeftParen)
+        {
+            (runOutsideTransaction, optionsOpen, optionsInterior, optionsClose) = ParseScriptOptions("script");
+        }
+
+        if (!_current.IsKeyword(NsqlKeywords.As))
+        {
+            throw Error("Expected 'AS' before the script body.");
+        }
+        var asKeyword = Advance(); // AS
+        var dollar = Expect(TokenKind.DollarString, "a script body as a dollar-quoted block ($$ … $$)");
+        var body = StripDollarQuote(dollar.Text).Trim();
+        var semicolon = Expect(TokenKind.Semicolon, "';' to end the script");
+
+        var statement = new ScriptStatement(name, condition, scriptEvent, body, runOutsideTransaction)
+        {
+            Doc = doc?.Text,
+            DocComment = doc,
+            ScriptKeyword = script,
+            RunKeyword = run,
+            ConditionKeyword = conditionKeyword,
+            OnKeyword = on,
+            OptionsOpenParenToken = optionsOpen,
+            OptionsInteriorToken = optionsInterior,
+            OptionsCloseParenToken = optionsClose,
+            AsKeyword = asKeyword,
+            BodyToken = dollar,
+            SemicolonToken = semicolon,
+        };
+
+        // A written run condition on a change event is an error, but the node stays intact so it still round-trips.
+        if (statement.HasMisplacedRunCondition)
+        {
+            _errors.Add(new NsqlSyntaxException(
+                "A run condition (ALWAYS or ONCE) is only valid on a deployment event; a change-event script runs whenever its change is planned.",
+                scriptEvent.Position));
+        }
+
+        return statement;
+    }
+
+    private ScriptEventClause ParseScriptEvent()
+    {
         var eventPosition = _current.Position;
         if (_current.IsAnyKeyword(NsqlKeywords.Pre, NsqlKeywords.Post))
         {
-            var phase = _current.IsKeyword(NsqlKeywords.Pre) ? DeploymentPhase.Pre : DeploymentPhase.Post;
-            Advance(); // PRE | POST
-            ExpectKeyword(NsqlKeywords.Deployment);
-            scriptEvent = new DeploymentEventClause(phase) { Position = eventPosition };
+            var phaseKeyword = Advance(); // PRE | POST
+            var phase = phaseKeyword.IsKeyword(NsqlKeywords.Pre) ? DeploymentPhase.Pre : DeploymentPhase.Post;
+            var deploymentKeyword = ExpectKeyword(NsqlKeywords.Deployment);
+            return new DeploymentEventClause(phase)
+            {
+                PhaseKeyword = phaseKeyword,
+                DeploymentKeyword = deploymentKeyword,
+            };
         }
-        else if (_current.IsAnyKeyword(NsqlKeywords.Add, NsqlKeywords.Alter))
+        if (_current.IsAnyKeyword(NsqlKeywords.Add, NsqlKeywords.Alter))
         {
-            var trigger = ParseChangeTrigger();
+            var (trigger, keywords) = ParseChangeTrigger();
             var path = ParseMemberPathNode();
-            scriptEvent = new ChangeEventClause(trigger, path) { Position = eventPosition };
+            return new ChangeEventClause(trigger, path) { TriggerKeywords = keywords };
         }
-        else
-        {
-            throw Error("Expected a script event: 'PRE DEPLOYMENT', 'POST DEPLOYMENT', 'ADD COLUMN', 'ALTER COLUMN TYPE' or 'ADD CONSTRAINT'.");
-        }
-
-        var (runOutsideTransaction, body) = ParseScriptTail("script");
-        return new ScriptStatement(name, condition, scriptEvent, body, runOutsideTransaction) { Position = position, Doc = doc };
+        throw Error("Expected a script event: 'PRE DEPLOYMENT', 'POST DEPLOYMENT', 'ADD COLUMN', 'ALTER COLUMN TYPE' or 'ADD CONSTRAINT'.");
     }
 
-    private ChangeTrigger ParseChangeTrigger()
+    private (ChangeTrigger Trigger, IReadOnlyList<Token> Keywords) ParseChangeTrigger()
     {
         if (_current.IsKeyword(NsqlKeywords.Add))
         {
-            Advance(); // ADD
+            var add = Advance(); // ADD
             if (_current.IsKeyword(NsqlKeywords.Column))
             {
-                Advance();
-                return ChangeTrigger.AddColumn;
+                return (ChangeTrigger.AddColumn, [add, Advance()]);
             }
             if (_current.IsKeyword(NsqlKeywords.Constraint))
             {
-                Advance();
-                return ChangeTrigger.AddConstraint;
+                return (ChangeTrigger.AddConstraint, [add, Advance()]);
             }
         }
         else if (_current.IsKeyword(NsqlKeywords.Alter))
         {
-            Advance(); // ALTER
-            ExpectKeyword(NsqlKeywords.Column);
-            ExpectKeyword(NsqlKeywords.Type);
-            return ChangeTrigger.AlterColumnType;
+            var alter = Advance(); // ALTER
+            var column = ExpectKeyword(NsqlKeywords.Column);
+            var type = ExpectKeyword(NsqlKeywords.Type);
+            return (ChangeTrigger.AlterColumnType, [alter, column, type]);
         }
 
         throw Error("Expected 'ADD COLUMN', 'ALTER COLUMN TYPE' or 'ADD CONSTRAINT'.");
@@ -93,14 +135,14 @@ internal sealed partial class NsqlParser
     private MemberPath ParseMemberPathNode()
     {
         var first = ExpectIdentifierNode(_inTemplateBody ? "a table name" : "a schema name");
-        Expect(TokenKind.Dot, "'.' in the migration target path");
+        var firstDot = Expect(TokenKind.Dot, "'.' in the migration target path");
         var second = ExpectIdentifierNode(_inTemplateBody ? "a column or constraint name" : "a table name");
 
-        if (!Match(TokenKind.Dot))
+        if (_current.Kind != TokenKind.Dot)
         {
             if (_inTemplateBody)
             {
-                return new MemberPath(null, first, second) { Position = first.Position };
+                return new MemberPath(null, first, second) { MemberDotToken = firstDot };
             }
             throw Error("Expected '.' in the migration target path (schema.table.member).");
         }
@@ -110,30 +152,13 @@ internal sealed partial class NsqlParser
             throw Error("A migration inside a template must use an unqualified 'table.member' path; " +
                         "the schema binds to each schema the template is applied to.");
         }
+        var secondDot = Advance();
         var member = ExpectIdentifierNode("a column or constraint name");
-        return new MemberPath(first, second, member) { Position = first.Position };
-    }
-
-    /// <summary>
-    /// Parses the tail shared by every script form — the optional options clause, then <c>AS $$ … $$;</c>.
-    /// The body is opaque SQL lexed as a single DollarString token (so its own <c>;</c> is not a terminator);
-    /// the <c>AS</c> keyword is the anchor, and the body's delimiters are then stripped.
-    /// <paramref name="what"/> names the statement in errors.
-    /// </summary>
-    private (bool RunOutsideTransaction, string Sql) ParseScriptTail(string what)
-    {
-        var runOutsideTransaction = ParseRunOutsideTransactionOptions(what);
-
-        if (!_current.IsKeyword(NsqlKeywords.As))
+        return new MemberPath(first, second, member)
         {
-            throw Error($"Expected 'AS' before the {what} body.");
-        }
-        Advance(); // AS
-        var dollar = Expect(TokenKind.DollarString, $"a {what} body as a dollar-quoted block ($$ … $$)");
-        var body = StripDollarQuote(dollar.Text).Trim();
-        Expect(TokenKind.Semicolon, $"';' to end the {what}");
-
-        return (runOutsideTransaction, body);
+            SchemaDotToken = firstDot,
+            MemberDotToken = secondDot,
+        };
     }
 
     /// <summary>
@@ -147,17 +172,12 @@ internal sealed partial class NsqlParser
     }
 
     /// <summary>
-    /// Parses the optional <c>( run_outside_transaction = true )</c> clause shared by every script form,
-    /// returning the flag (default false). <paramref name="what"/> names the statement in errors.
+    /// Parses the optional <c>( run_outside_transaction = true )</c> clause (the cursor is on the <c>(</c>),
+    /// returning the flag and the parenthesis/interior tokens. <paramref name="what"/> names the statement in errors.
     /// </summary>
-    private bool ParseRunOutsideTransactionOptions(string what)
+    private (bool RunOutsideTransaction, Token Open, Token Interior, Token Close) ParseScriptOptions(string what)
     {
-        if (_current.Kind != TokenKind.LeftParen)
-        {
-            return false;
-        }
-
-        Advance(); // (
+        var open = Advance(); // (
         var runOutsideTransaction = false;
         if (_current.Kind != TokenKind.RightParen)
         {
@@ -179,7 +199,7 @@ internal sealed partial class NsqlParser
             }
             while (Match(TokenKind.Comma));
         }
-        Expect(TokenKind.RightParen, $"')' or ',' after a {what} option");
-        return runOutsideTransaction;
+        var close = Expect(TokenKind.RightParen, $"')' or ',' after a {what} option");
+        return (runOutsideTransaction, open, RawSpanBetween(open, close), close);
     }
 }

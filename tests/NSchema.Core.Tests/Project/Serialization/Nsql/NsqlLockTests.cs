@@ -11,9 +11,9 @@ public sealed class NsqlLockTests
 {
     private static IReadOnlyList<BlockStatement> Read(string source)
     {
-        var result = NsqlReader.ReadLock(source);
+        var result = NsqlReader.Read(source);
         result.IsSuccess.ShouldBeTrue();
-        return result.Value.Statements;
+        return [.. result.Value.Statements.OfType<BlockStatement>()];
     }
 
     [Fact]
@@ -46,21 +46,11 @@ public sealed class NsqlLockTests
 
     [Fact]
     public void ReadLock_WithLabel_IsAnError()
-        => NsqlReader.ReadLock("LOCK pg ( source = 'NSchema.Postgres', version = '5.0.0-alpha.2' );")
+        => NsqlReader.Read("LOCK pg ( source = 'NSchema.Postgres', version = '5.0.0-alpha.2' );")
             .Errors.ShouldHaveSingleItem().Message.ShouldContain("takes no label");
 
     [Fact]
-    public void ReadLock_ConfigStatement_IsAnError()
-        => NsqlReader.ReadLock("PLUGIN pg ( source = 'NSchema.Postgres', version = '5.0.0' );")
-            .Errors.ShouldHaveSingleItem().Message.ShouldContain("holds only LOCK statements");
-
-    [Fact]
-    public void ReadLock_ProjectStatement_IsAnError()
-        => NsqlReader.ReadLock("CREATE SCHEMA app;")
-            .Errors.ShouldHaveSingleItem().Message.ShouldContain("holds only LOCK statements");
-
-    [Fact]
     public void ReadLock_DuplicateAttribute_IsAnError()
-        => NsqlReader.ReadLock("LOCK ( source = 'a', SOURCE = 'b' );")
+        => NsqlReader.Read("LOCK ( source = 'a', SOURCE = 'b' );")
             .Errors.ShouldHaveSingleItem().Message.ShouldContain("more than once");
 }

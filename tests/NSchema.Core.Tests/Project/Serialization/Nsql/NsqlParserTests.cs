@@ -82,18 +82,17 @@ public sealed class NsqlParserTests
             .Message.ShouldContain("Unknown statement 'PARTIAL'");
 
     // -------------------------------------------------------------------------
-    // Configuration statements (a separate grammar — rejected here, covered by NsqlConfigTests)
+    // Configuration statements — one grammar: a config block parses anywhere, and is ignored as project content
+    // (the file-type restriction is the reader's, covered by NsqlConfigurationTests).
     // -------------------------------------------------------------------------
 
     [Fact]
-    public void Parse_ConfigStatement_InProjectSource_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => Parse("DATABASE postgres ( dialect = 'postgres' );"))
-            .Message.ShouldContain("configuration statement");
+    public void Parse_ConfigBlock_InProjectSource_ParsesAndIsIgnored()
+        => Parse("DATABASE postgres ( dialect = 'postgres' );").Schemas.ShouldBeEmpty();
 
     [Fact]
-    public void Parse_PluginStatement_InProjectSource_Throws()
-        => Should.Throw<NsqlSyntaxException>(() => Parse("PLUGIN pg ( source = 'NSchema.Postgres', version = '5.0.1' );"))
-            .Message.ShouldContain("configuration statement");
+    public void Parse_PluginBlock_InProjectSource_ParsesAndIsIgnored()
+        => Parse("PLUGIN pg ( source = 'NSchema.Postgres', version = '5.0.1' );").Schemas.ShouldBeEmpty();
 
     // -------------------------------------------------------------------------
     // Multiple statements

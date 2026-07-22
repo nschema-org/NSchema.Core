@@ -81,7 +81,7 @@ public sealed class ConfigurationProviderTests : IDisposable
 
         // Assert — both stages report, each finding stamped with its file.
         result.Errors.Count().ShouldBe(2);
-        result.Errors.ShouldContain(d => d.File!.EndsWith("broken.sql") && d.Message.Contains("Unknown configuration statement"));
+        result.Errors.ShouldContain(d => d.File!.EndsWith("broken.sql") && d.Message.Contains("Unknown statement"));
         result.Errors.ShouldContain(d => d.File!.EndsWith("config.sql") && d.Message.Contains("no PLUGIN statement declares it"));
     }
 

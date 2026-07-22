@@ -1,6 +1,6 @@
 ﻿CREATE SCHEMA billing;
 
-CREATE ENUM billing.outbox_status ('pending', 'sent');
+CREATE ENUM billing.outbox_status('pending', 'sent');
 
 CREATE FUNCTION billing.outbox_notify() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;
 
@@ -18,13 +18,13 @@ CREATE TRIGGER trg_notify AFTER INSERT ON billing.events FOR EACH ROW EXECUTE FU
 
 CREATE TABLE billing.event_locks (
   event_id guid NOT NULL,
-  CONSTRAINT fk_event FOREIGN KEY (event_id) REFERENCES billing.events (id),
-  CONSTRAINT fk_owner FOREIGN KEY (event_id) REFERENCES public.owners (id)
+  CONSTRAINT fk_event FOREIGN KEY (event_id) REFERENCES billing.events(id),
+  CONSTRAINT fk_owner FOREIGN KEY (event_id) REFERENCES public.owners(id)
 );
 
 CREATE SCHEMA ordering;
 
-CREATE ENUM ordering.outbox_status ('pending', 'sent');
+CREATE ENUM ordering.outbox_status('pending', 'sent');
 
 CREATE FUNCTION ordering.outbox_notify() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;
 
@@ -42,6 +42,6 @@ CREATE TRIGGER trg_notify AFTER INSERT ON ordering.events FOR EACH ROW EXECUTE F
 
 CREATE TABLE ordering.event_locks (
   event_id guid NOT NULL,
-  CONSTRAINT fk_event FOREIGN KEY (event_id) REFERENCES ordering.events (id),
-  CONSTRAINT fk_owner FOREIGN KEY (event_id) REFERENCES public.owners (id)
+  CONSTRAINT fk_event FOREIGN KEY (event_id) REFERENCES ordering.events(id),
+  CONSTRAINT fk_owner FOREIGN KEY (event_id) REFERENCES public.owners(id)
 );

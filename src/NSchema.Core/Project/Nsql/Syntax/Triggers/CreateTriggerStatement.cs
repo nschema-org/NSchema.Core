@@ -1,4 +1,5 @@
 using NSchema.Model;
+using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql.Syntax.Triggers;
 
@@ -23,4 +24,45 @@ public sealed record CreateTriggerStatement(
     IReadOnlyList<Identifier>? UpdateOfColumns = null,
     TriggerLevel Level = TriggerLevel.Statement,
     SqlText? When = null
-) : NsqlStatement;
+) : NsqlStatement
+{
+    /// <summary>
+    /// The <c>CREATE</c> keyword token.
+    /// </summary>
+    public Token CreateKeyword { get; init; } = Token.Keyword(NsqlKeywords.Create);
+
+    /// <summary>
+    /// The <c>TRIGGER</c> keyword token.
+    /// </summary>
+    public Token TriggerKeyword { get; init; } = Token.Keyword(NsqlKeywords.Trigger);
+
+    /// <summary>
+    /// The verbatim span of the header (timing, events, <c>ON</c> table, <c>FOR EACH</c>, <c>WHEN</c>), when parsed.
+    /// </summary>
+    public Token? HeaderToken { get; init; }
+
+    /// <summary>
+    /// The terminating <c>;</c> token.
+    /// </summary>
+    public Token SemicolonToken { get; init; } = Token.Punctuation(TokenKind.Semicolon, NsqlSymbols.Semicolon);
+
+    internal override IEnumerable<NsqlChild> Children
+    {
+        get
+        {
+            if (DocComment is { } doc)
+            {
+                yield return doc;
+            }
+            yield return CreateKeyword;
+            yield return TriggerKeyword;
+            yield return Name;
+            if (HeaderToken is { } header)
+            {
+                yield return header;
+            }
+            yield return Action;
+            yield return SemicolonToken;
+        }
+    }
+}

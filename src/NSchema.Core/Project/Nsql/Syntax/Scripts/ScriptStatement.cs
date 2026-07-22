@@ -1,4 +1,5 @@
 using NSchema.Model;
+using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql.Syntax.Scripts;
 
@@ -19,15 +20,89 @@ public sealed record ScriptStatement(
 ) : NsqlStatement
 {
     /// <summary>
-    /// The <c>RUN</c> condition — only valid on a deployment event, since a change-event script runs whenever
-    /// its change is planned rather than on a schedule.
+    /// The <c>RUN</c> condition.
     /// </summary>
-    public RunCondition? RunCondition { get; } = Validate(RunCondition, Event);
+    public bool HasMisplacedRunCondition => RunCondition is not null && Event is not DeploymentEventClause;
 
-    private static RunCondition? Validate(RunCondition? condition, ScriptEventClause @event) =>
-        condition is null || @event is DeploymentEventClause
-            ? condition
-            : throw new NsqlSyntaxException(
-                "A run condition (ALWAYS or ONCE) is only valid on a deployment event; a change-event script runs whenever its change is planned.",
-                @event.Position);
+    /// <summary>
+    /// The <c>SCRIPT</c> keyword token.
+    /// </summary>
+    public Token ScriptKeyword { get; init; } = Token.Keyword(NsqlKeywords.Script);
+
+    /// <summary>
+    /// The <c>RUN</c> keyword token.
+    /// </summary>
+    public Token RunKeyword { get; init; } = Token.Keyword(NsqlKeywords.Run);
+
+    /// <summary>
+    /// The <c>ALWAYS</c>/<c>ONCE</c> keyword token, when written with a condition.
+    /// </summary>
+    public Token? ConditionKeyword { get; init; }
+
+    /// <summary>
+    /// The <c>ON</c> keyword token.
+    /// </summary>
+    public Token OnKeyword { get; init; } = Token.Keyword(NsqlKeywords.On);
+
+    /// <summary>
+    /// The <c>(</c> token opening the options, when written with options.
+    /// </summary>
+    public Token? OptionsOpenParenToken { get; init; }
+
+    /// <summary>
+    /// The verbatim options-interior span token, when parsed with options.
+    /// </summary>
+    public Token? OptionsInteriorToken { get; init; }
+
+    /// <summary>
+    /// The <c>)</c> token closing the options, when written with options.
+    /// </summary>
+    public Token? OptionsCloseParenToken { get; init; }
+
+    /// <summary>
+    /// The <c>AS</c> keyword token.
+    /// </summary>
+    public Token AsKeyword { get; init; } = Token.Keyword(NsqlKeywords.As);
+
+    /// <summary>
+    /// The dollar-quoted body token, when parsed.
+    /// </summary>
+    public Token? BodyToken { get; init; }
+
+    /// <summary>
+    /// The terminating <c>;</c> token.
+    /// </summary>
+    public Token SemicolonToken { get; init; } = Token.Punctuation(TokenKind.Semicolon, NsqlSymbols.Semicolon);
+
+    internal override IEnumerable<NsqlChild> Children
+    {
+        get
+        {
+            if (DocComment is { } doc)
+            {
+                yield return doc;
+            }
+            yield return ScriptKeyword;
+            yield return Name;
+            yield return RunKeyword;
+            if (RunCondition is { } condition)
+            {
+                yield return ConditionKeyword ?? Token.Keyword(condition == Scripts.RunCondition.Once ? NsqlKeywords.Once : NsqlKeywords.Always);
+            }
+            yield return OnKeyword;
+            yield return Event;
+            if (RunOutsideTransaction)
+            {
+                yield return OptionsOpenParenToken ?? Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
+                yield return OptionsInteriorToken ?? Token.Span("run_outside_transaction = true");
+                yield return OptionsCloseParenToken ?? Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
+            }
+            yield return AsKeyword;
+            if (BodyToken is { } body)
+            {
+                yield return body;
+            }
+            yield return SemicolonToken;
+        }
+    }
 }

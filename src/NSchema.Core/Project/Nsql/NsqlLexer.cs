@@ -4,14 +4,13 @@ using NSchema.Project.Nsql.Tokens;
 namespace NSchema.Project.Nsql;
 
 /// <summary>
-/// Scanner for NSchema DDL.
+/// Full-fidelity scanner for NSchema SQL.
+/// Every character of the source is emitted, either as a token's raw text or as attached trivia.
 /// </summary>
-internal sealed class NsqlLexer(string source, bool emitComments = false)
+internal sealed class NsqlLexer(string source)
 {
     private readonly string _source = source ?? throw new ArgumentNullException(nameof(source));
 
-    // When true (the formatter), source comments are returned as LineComment/BlockComment tokens instead of skipped.
-    // The parser leaves this false, so its token stream is unchanged.
     private int _offset;
     private int _line = 1;
     private int _column = 1;
@@ -27,58 +26,44 @@ internal sealed class NsqlLexer(string source, bool emitComments = false)
     public string Slice(int start, int end) => _source[start..end];
 
     /// <summary>
-    /// Reads the next structural token, skipping whitespace and source comments.
+    /// Reads the next token, with its leading and trailing trivia attached.
     /// </summary>
     public Token Next()
     {
-        while (true)
-        {
-            if (AtEnd)
-            {
-                return new Token(TokenKind.EndOfFile, string.Empty, Position);
-            }
-
-            var c = Current;
-            if (c is ' ' or '\t' or '\r' or '\n')
-            {
-                Advance();
-                continue;
-            }
-
-            if (c == '-' && Peek(1) == '-')
-            {
-                if (Peek(2) == '-')
-                {
-                    return ReadDocLine();
-                }
-                if (emitComments)
-                {
-                    return ReadLineComment();
-                }
-                _ = ReadLineComment();
-                continue;
-            }
-
-            if (c == '/' && Peek(1) == '*')
-            {
-                // /** … */ is a doc-block, but /**/ is just an empty source block.
-                if (Peek(2) == '*' && Peek(3) != '/')
-                {
-                    return ReadDocBlock();
-                }
-                if (emitComments)
-                {
-                    return ReadBlockComment();
-                }
-                _ = ReadBlockComment();
-                continue;
-            }
-
-            break;
-        }
+        var leading = ReadTrivia(trailing: false);
 
         var pos = Position;
+        var start = _offset;
+        var core = ScanCore(pos);
+        var raw = _source[start.._offset];
+
+        var trailing = ReadTrivia(trailing: true);
+
+        return core with { Raw = raw, Leading = leading, Trailing = trailing };
+    }
+
+    /// <summary>
+    /// Scans a single core token at the cursor (past any leading trivia). Doc-comments are core tokens; whitespace
+    /// and non-doc comments have already been consumed as trivia by the caller.
+    /// </summary>
+    private Token ScanCore(SourcePosition pos)
+    {
+        if (AtEnd)
+        {
+            return new Token(TokenKind.EndOfFile, string.Empty, pos);
+        }
+
         var ch = Current;
+
+        // --- doc-comments (semantic, so tokens not trivia) ---
+        if (ch == '-' && Peek(1) == '-' && Peek(2) == '-')
+        {
+            return ReadDocLine();
+        }
+        if (ch == '/' && Peek(1) == '*' && Peek(2) == '*' && Peek(3) != '/')
+        {
+            return ReadDocBlock();
+        }
 
         // A dollar-quote ($$ … $$ or $tag$ … $tag$) is lexed whole; a bare '$' that opens no valid tag (e.g. $1)
         // falls through to the Symbol catch-all below.
@@ -89,15 +74,15 @@ internal sealed class NsqlLexer(string source, bool emitComments = false)
 
         switch (ch)
         {
-            case '(': Advance(); return new Token(TokenKind.LeftParen, "(", pos);
-            case ')': Advance(); return new Token(TokenKind.RightParen, ")", pos);
-            case '{': Advance(); return new Token(TokenKind.LeftBrace, "{", pos);
-            case '}': Advance(); return new Token(TokenKind.RightBrace, "}", pos);
-            case ',': Advance(); return new Token(TokenKind.Comma, ",", pos);
-            case ';': Advance(); return new Token(TokenKind.Semicolon, ";", pos);
-            case '.': Advance(); return new Token(TokenKind.Dot, ".", pos);
-            case '=': Advance(); return new Token(TokenKind.Equals, "=", pos);
-            case '-': Advance(); return new Token(TokenKind.Minus, "-", pos);
+            case '(': Advance(); return new Token(TokenKind.LeftParen, NsqlSymbols.LeftParen, pos);
+            case ')': Advance(); return new Token(TokenKind.RightParen, NsqlSymbols.RightParen, pos);
+            case '{': Advance(); return new Token(TokenKind.LeftBrace, NsqlSymbols.LeftBrace, pos);
+            case '}': Advance(); return new Token(TokenKind.RightBrace, NsqlSymbols.RightBrace, pos);
+            case ',': Advance(); return new Token(TokenKind.Comma, NsqlSymbols.Comma, pos);
+            case ';': Advance(); return new Token(TokenKind.Semicolon, NsqlSymbols.Semicolon, pos);
+            case '.': Advance(); return new Token(TokenKind.Dot, NsqlSymbols.Dot, pos);
+            case '=': Advance(); return new Token(TokenKind.Equals, NsqlSymbols.Equal, pos);
+            case '-': Advance(); return new Token(TokenKind.Minus, NsqlSymbols.Minus, pos);
             case '\'': return ReadString(pos);
             case '"': return ReadQuotedIdentifier(pos);
         }
@@ -116,6 +101,81 @@ internal sealed class NsqlLexer(string source, bool emitComments = false)
         // rejects it — the parser slices such expressions from the source rather than interpreting their tokens.
         Advance();
         return new Token(TokenKind.Symbol, ch.ToString(), pos);
+    }
+
+    /// <summary>
+    /// Reads a run of trivia (whitespace, line breaks, and non-doc comments) at the cursor. Leading trivia runs
+    /// to the next token; trailing trivia stops after the first line break (Roslyn's attachment rule), leaving the
+    /// rest to the next token's leading.
+    /// </summary>
+    private List<Trivia> ReadTrivia(bool trailing)
+    {
+        List<Trivia>? list = null;
+        while (ReadOneTrivia() is { } trivia)
+        {
+            (list ??= []).Add(trivia);
+            if (trailing && trivia.Kind == TriviaKind.EndOfLine)
+            {
+                break;
+            }
+        }
+        return list ?? [];
+    }
+
+    /// <summary>
+    /// Reads a single trivia at the cursor, or returns <see langword="null"/> at a token start or end of input.
+    /// </summary>
+    private Trivia? ReadOneTrivia()
+    {
+        if (AtEnd)
+        {
+            return null;
+        }
+
+        var pos = Position;
+        var c = Current;
+
+        if (c is '\n' or '\r')
+        {
+            var start = _offset;
+            Advance();
+            if (c == '\r' && Current == '\n')
+            {
+                Advance();
+            }
+            return new Trivia(TriviaKind.EndOfLine, _source[start.._offset], pos);
+        }
+
+        if (c is ' ' or '\t')
+        {
+            var start = _offset;
+            while (Current is ' ' or '\t')
+            {
+                Advance();
+            }
+            return new Trivia(TriviaKind.Whitespace, _source[start.._offset], pos);
+        }
+
+        // '---' is a doc-comment (a token); '--' is a source line comment (trivia).
+        if (c == '-' && Peek(1) == '-' && Peek(2) != '-')
+        {
+            var start = _offset;
+            while (!AtEnd && Current != '\n' && Current != '\r')
+            {
+                Advance();
+            }
+            return new Trivia(TriviaKind.LineComment, _source[start.._offset], pos);
+        }
+
+        // '/**…' is a doc-block (a token); '/* … */' (and empty '/**/') is a source block comment (trivia).
+        if (c == '/' && Peek(1) == '*' && !(Peek(2) == '*' && Peek(3) != '/'))
+        {
+            var start = _offset;
+            ReadBlockComment();
+            return new Trivia(TriviaKind.BlockComment, _source[start.._offset], pos);
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -316,17 +376,6 @@ internal sealed class NsqlLexer(string source, bool emitComments = false)
             Advance();
         }
         return new Token(TokenKind.Identifier, _source[start.._offset], pos);
-    }
-
-    private Token ReadLineComment()
-    {
-        var pos = Position;
-        var start = _offset;
-        while (!AtEnd && Current != '\n')
-        {
-            Advance();
-        }
-        return new Token(TokenKind.LineComment, _source[start.._offset].TrimEnd(), pos);
     }
 
     private Token ReadBlockComment()

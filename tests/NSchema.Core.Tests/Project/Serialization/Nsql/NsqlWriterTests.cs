@@ -116,7 +116,7 @@ public sealed class NsqlWriterTests
             Columns = [new Column { Name = "user_id", Type = SqlType.Int }],
             ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"], OnDelete = ReferentialAction.Cascade, OnUpdate = ReferentialAction.SetNull }],
         })
-            .ShouldContain("CONSTRAINT fk FOREIGN KEY (user_id) REFERENCES app.users (id) ON DELETE CASCADE ON UPDATE SET NULL");
+            .ShouldContain("CONSTRAINT fk FOREIGN KEY (user_id) REFERENCES app.users(id) ON DELETE CASCADE ON UPDATE SET NULL");
 
     [Fact]
     public void Write_ForeignKeyWithoutActions_OmitsOnClauses()
@@ -146,7 +146,7 @@ public sealed class NsqlWriterTests
             Columns = [new Column { Name = "email", Type = SqlType.Text }],
             Indexes = [new TableIndex { Name = "ux", Columns = ["email"], IsUnique = true, Predicate = "deleted_at IS NULL" }],
         })
-            .ShouldContain("UNIQUE INDEX ux (email) WHERE (deleted_at IS NULL)");
+            .ShouldContain("UNIQUE INDEX ux(email) WHERE (deleted_at IS NULL)");
 
     // -------------------------------------------------------------------------
     // Comments, schemas, grants, drops
@@ -507,7 +507,7 @@ public sealed class NsqlWriterTests
             Views = [new View { Name = "daily", Body = "SELECT x FROM app.t", IsMaterialized = true,
                 Indexes = [new TableIndex { Name = "daily_ix", Columns = ["x"], IsUnique = true, Predicate = "x IS NOT NULL" }] }] }],
         })
-            .ShouldContain("CREATE UNIQUE INDEX daily_ix ON app.daily (x) WHERE (x IS NOT NULL);");
+            .ShouldContain("CREATE UNIQUE INDEX daily_ix ON app.daily(x) WHERE (x IS NOT NULL);");
 
     [Fact]
     public void Write_MaterializedView_RoundTripsThroughParse()
@@ -536,7 +536,7 @@ public sealed class NsqlWriterTests
             Schemas = [
             new Schema { Name = "app", Enums = [new EnumType { Name = "status", Values = ["pending", "shipped"] }] },
         ],
-        }).ShouldContain("CREATE ENUM app.status ('pending', 'shipped');");
+        }).ShouldContain("CREATE ENUM app.status('pending', 'shipped');");
 
     [Fact]
     public void Write_EnumValueWithQuote_EscapesIt()
@@ -545,7 +545,7 @@ public sealed class NsqlWriterTests
             Schemas = [
             new Schema { Name = "app", Enums = [new EnumType { Name = "status", Values = ["it's"] }] },
         ],
-        }).ShouldContain("CREATE ENUM app.status ('it''s');");
+        }).ShouldContain("CREATE ENUM app.status('it''s');");
 
     [Fact]
     public void Write_Sequence_WithoutOptions_OmitsParens()
@@ -566,7 +566,7 @@ public sealed class NsqlWriterTests
                     MinValue: -10, MaxValue: 999999, Cache: 10, Cycle: true) },
             ] },
         ],
-        }).ShouldContain("CREATE SEQUENCE app.order_id (AS bigint, START 100, INCREMENT 5, MINVALUE -10, MAXVALUE 999999, CACHE 10, CYCLE);");
+        }).ShouldContain("CREATE SEQUENCE app.order_id(AS bigint, START 100, INCREMENT 5, MINVALUE -10, MAXVALUE 999999, CACHE 10, CYCLE);");
 
     // -------------------------------------------------------------------------
     // Functions and procedures

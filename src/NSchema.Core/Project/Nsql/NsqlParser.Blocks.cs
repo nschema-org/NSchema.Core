@@ -18,62 +18,77 @@ internal sealed partial class NsqlParser
 
     /// <summary>
     /// Parses a block — <c>KEYWORD [label] ( key = value , … ) ;</c> — and enforces the keyword's label rule
-    /// (PLUGIN requires one; ENGINE and LOCK forbid one; DATABASE and STATE are optional). Which keywords a
-    /// given file admits is the caller's rule (see <see cref="ParseConfigurationBlock"/>, <see cref="ParseLockBlock"/>).
+    /// (PLUGIN requires one; ENGINE and LOCK forbid one; DATABASE and STATE are optional).
     /// </summary>
-    private BlockStatement ParseBlock(BlockKeyword keyword, string? doc)
+    private BlockStatement ParseBlock(BlockKeyword keyword, Token? doc)
     {
-        var (position, label, attributes) = ParseBlockBody();
+        var body = ParseBlockBody();
         switch (keyword)
         {
-            case BlockKeyword.Plugin when label is null:
-                throw new NsqlSyntaxException("A PLUGIN statement requires a label naming the plugin, e.g. PLUGIN pg ( … ).", position);
-            case BlockKeyword.Engine when label is not null:
-                throw new NsqlSyntaxException("An ENGINE statement takes no label; there is only one engine.", label.Position);
-            case BlockKeyword.Lock when label is not null:
-                throw new NsqlSyntaxException("A LOCK statement takes no label; it identifies its package by the 'source' attribute.", label.Position);
+            case BlockKeyword.Plugin when body.Label is null:
+                throw new NsqlSyntaxException("A PLUGIN statement requires a label naming the plugin, e.g. PLUGIN pg ( … ).", body.Keyword.Position);
+            case BlockKeyword.Engine when body.Label is not null:
+                throw new NsqlSyntaxException("An ENGINE statement takes no label; there is only one engine.", body.Label.Position);
+            case BlockKeyword.Lock when body.Label is not null:
+                throw new NsqlSyntaxException("A LOCK statement takes no label; it identifies its package by the 'source' attribute.", body.Label.Position);
         }
-        return new BlockStatement(keyword, label, attributes) { Position = position, Doc = doc };
+        return new BlockStatement(keyword, body.Label, body.Attributes)
+        {
+            Doc = doc?.Text,
+            DocComment = doc,
+            KeywordToken = body.Keyword,
+            OpenParenToken = body.Open,
+            CloseParenToken = body.Close,
+            SemicolonToken = body.Semicolon,
+        };
     }
 
     /// <summary>
     /// Parses the shape every block shares: <c>KEYWORD [label] ( key = value , … ) ;</c>.
     /// </summary>
-    private (SourcePosition Position, Identifier? Label, List<BlockAttribute> Attributes) ParseBlockBody()
+    private (Token Keyword, Identifier? Label, Token Open, SeparatedSyntaxList<BlockAttribute> Attributes, Token Close, Token Semicolon) ParseBlockBody()
     {
-        var position = _current.Position;
-        Advance(); // the block keyword
+        var keyword = Advance(); // the block keyword
 
         // An optional bare-identifier label, e.g. the 'postgres' in `DATABASE postgres ( … )`.
         Identifier? label = null;
         if (_current.Kind == TokenKind.Identifier)
         {
             var token = Advance();
-            label = new Identifier(token.Text) { Position = token.Position };
+            label = new Identifier(token);
         }
 
-        Expect(TokenKind.LeftParen, "'(' to begin the block's attributes");
+        var open = Expect(TokenKind.LeftParen, "'(' to begin the block's attributes");
         var attributes = new List<BlockAttribute>();
+        var separators = new List<Token>();
         if (_current.Kind != TokenKind.RightParen)
         {
             do
             {
-                var keyPosition = _current.Position;
+                var keyStart = _current;
                 var key = ParseBlockKey();
+                var keySpan = RawSpanFrom(keyStart, _current);
                 if (attributes.Any(a => string.Equals(a.Key, key, StringComparison.OrdinalIgnoreCase)))
                 {
-                    throw new NsqlSyntaxException($"Attribute '{key}' is specified more than once.", keyPosition);
+                    throw new NsqlSyntaxException($"Attribute '{key}' is specified more than once.", keyStart.Position);
                 }
-                Expect(TokenKind.Equals, "'=' after an attribute name");
+                var equals = Expect(TokenKind.Equals, "'=' after an attribute name");
+                var valueStart = _current;
                 var value = ParseBlockValue();
-                attributes.Add(new BlockAttribute(key, value) { Position = keyPosition });
+                var valueSpan = RawSpanFrom(valueStart, _current);
+                attributes.Add(new BlockAttribute(key, value)
+                {
+                    KeyToken = keySpan,
+                    EqualsToken = equals,
+                    ValueToken = valueSpan,
+                });
             }
-            while (Match(TokenKind.Comma));
+            while (TryConsumeSeparator(TokenKind.Comma, separators));
         }
-        Expect(TokenKind.RightParen, "')' or ',' after an attribute");
-        Expect(TokenKind.Semicolon, "';'");
+        var close = Expect(TokenKind.RightParen, "')' or ',' after an attribute");
+        var semicolon = Expect(TokenKind.Semicolon, "';'");
 
-        return (position, label, attributes);
+        return (keyword, label, open, new SeparatedSyntaxList<BlockAttribute>(attributes, separators), close, semicolon);
     }
 
     /// <summary>
@@ -84,7 +99,7 @@ internal sealed partial class NsqlParser
         var key = ExpectIdentifierNode("an attribute name").Value;
         while (Match(TokenKind.Dot))
         {
-            key += "." + ExpectIdentifierNode("an attribute name segment").Value;
+            key += NsqlSymbols.Dot + ExpectIdentifierNode("an attribute name segment").Value;
         }
         return key;
     }

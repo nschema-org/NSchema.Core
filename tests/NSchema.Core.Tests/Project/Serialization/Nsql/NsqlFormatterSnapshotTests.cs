@@ -3,7 +3,7 @@ using NSchema.Project.Nsql;
 namespace NSchema.Tests.Project.Serialization.Nsql;
 
 /// <summary>
-/// Snapshot coverage for <see cref="NsqlFormatter"/> over the template statement family.
+/// Snapshot coverage for <see cref="NsqlWriter"/> over the template statement family.
 /// </summary>
 public sealed class NsqlFormatterSnapshotTests
 {
@@ -38,7 +38,7 @@ public sealed class NsqlFormatterSnapshotTests
                 apply template outbox in schema billing,   ordering;
             """;
 
-        return Verify(NsqlFormatter.Format(source));
+        return Verify(NsqlWriter.Format(source).Value);
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public sealed class NsqlFormatterSnapshotTests
             $$;
             """;
 
-        return Verify(NsqlFormatter.Format(source));
+        return Verify(NsqlWriter.Format(source).Value);
     }
 
     [Fact]
@@ -85,6 +85,6 @@ public sealed class NsqlFormatterSnapshotTests
             $$;
             """;
 
-        return Verify(NsqlFormatter.Format(source));
+        return Verify(NsqlWriter.Format(source).Value);
     }
 }

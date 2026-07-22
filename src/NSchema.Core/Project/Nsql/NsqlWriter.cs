@@ -1,565 +1,601 @@
-using System.Globalization;
 using System.Text;
 using NSchema.Model;
 using NSchema.Project.Model.Directives;
 using NSchema.Project.Nsql.Syntax;
+using NSchema.Project.Nsql.Syntax.Blocks;
+using NSchema.Project.Nsql.Syntax.Tables;
+using NSchema.Project.Nsql.Syntax.Templates;
 using NSchema.Project.Nsql.Tokens;
-using Syn = NSchema.Project.Nsql.Syntax;
 
 namespace NSchema.Project.Nsql;
 
 /// <summary>
-/// Renders syntax documents as canonical NSchema source.
+/// Writes NSchema SQL. The counterpart to <see cref="NsqlReader"/>.
 /// </summary>
 public static class NsqlWriter
 {
-    /// <summary>
-    /// Writes <paramref name="database"/> as canonical NSchema source.
-    /// </summary>
-    /// <param name="database">The schema to write.</param>
-    public static string Write(Database database) => Write(SyntaxBuilder.Build(database));
+    private const int MaxBlankLines = 1;
+    private const string Indent = "  ";
 
     /// <summary>
-    /// Writes a whole project as canonical NSchema source.
+    /// Reformats <paramref name="source"/> as canonical-layout NSchema DDL. The formatted text is always the value
+    /// (formatting cannot fail); syntax errors ride as error diagnostics and each statement a rewrite would change
+    /// rides as a warning — so a caller can rewrite (<see cref="Result{T}.Value"/>) or check (the diagnostics).
     /// </summary>
-    /// <param name="database">The database to write.</param>
-    /// <param name="directives">The directives to write after the schema.</param>
-    public static string Write(Database database, ProjectDirectives directives) => Write(SyntaxBuilder.Build(database, directives));
+    /// <param name="source">The DDL source text to format.</param>
+    public static Result<string, NsqlDiagnostic> Format(string source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+
+        var read = NsqlReader.Read(source);
+        if (read.Value is not { } document)
+        {
+            return Result<string, NsqlDiagnostic>.From(string.Empty, read.Diagnostics);
+        }
+
+        List<NsqlDiagnostic> diagnostics = [.. read.Diagnostics];
+        for (var i = 0; i < document.Statements.Count; i++)
+        {
+            var statement = document.Statements[i];
+            if (!IsFormatted(statement, first: i == 0))
+            {
+                diagnostics.Add(NsqlDiagnostics.Formatting(statement.Position));
+            }
+        }
+
+        return Result<string, NsqlDiagnostic>.From(Render(document), diagnostics);
+    }
 
     /// <summary>
-    /// Renders a syntax document as canonical NSchema source.
+    /// Whether a statement hugs the statement above it with no blank line between — a grant, trigger, standalone
+    /// index, or rename renders directly under its subject.
     /// </summary>
-    /// <param name="document">The document to render.</param>
+    private static bool Attached(NsqlStatement statement) => statement
+        is Syntax.Schemas.GrantSchemaUsageStatement
+        or GrantTableStatement
+        or Syntax.Triggers.CreateTriggerStatement
+        or Syntax.Indexes.CreateIndexStatement
+        or Syntax.RenameObjectStatement
+        or Syntax.Schemas.RenameSchemaStatement
+        or RenameColumnStatement;
+
+    /// <summary>
+    /// Renders an already-built document tree to canonical text — no re-parse. A synthetic (factory-built) tree
+    /// carries no trivia, so the output is syntactically valid but unstyled beyond the structural rules; a parsed
+    /// tree formats exactly as <see cref="Format(string)"/>'s value.
+    /// </summary>
+    /// <param name="document">The document tree to print.</param>
     public static string Write(NsqlDocument document)
     {
-        var sb = new StringBuilder();
-        var first = true;
-        foreach (var statement in document.Statements)
+        ArgumentNullException.ThrowIfNull(document);
+        return Render(document);
+    }
+
+    /// <summary>Writes a domain model as canonical NSchema source.</summary>
+    /// <param name="database">The schema to write.</param>
+    public static string Write(Database database) => Render(SyntaxBuilder.Build(database));
+
+    /// <summary>Writes a whole project (schema plus directives) as canonical NSchema source.</summary>
+    /// <param name="database">The schema to write.</param>
+    /// <param name="directives">The directives to write after the schema.</param>
+    public static string Write(Database database, ProjectDirectives directives) => Render(SyntaxBuilder.Build(database, directives));
+
+    /// <summary>Renders the whole document to canonical text, ending in a single newline (empty input yields "").</summary>
+    private static string Render(NsqlDocument document)
+    {
+        var items = document.Statements.Select(Render).ToList();
+
+        // A run of trailing comments with no statement after them (on the end-of-file token) is a final item.
+        var trailing = document.EndOfFile is { } eof ? CommentLines(eof.Leading) : [];
+        if (trailing.Count > 0)
         {
-            // A statement attached to its subject (a grant, a trigger, a standalone index, a rename)
-            // renders directly under it; everything else is separated by a blank line.
-            if (!first && !Attached(statement))
+            items.Add(new Item { Leading = trailing, Body = null });
+        }
+
+        var sb = new StringBuilder();
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (i > 0)
             {
-                sb.AppendLine();
+                // An attached statement hugs the one above it (a single newline); everything else gets a blank line.
+                sb.Append(items[i].Source is { } source && Attached(source) ? "\n" : "\n\n");
             }
-            first = false;
-            WriteStatement(sb, statement);
-        }
-        return sb.ToString();
-    }
-
-    private static bool Attached(NsqlStatement statement) => statement
-        is Syn.Schemas.GrantSchemaUsageStatement
-        or Syn.Tables.GrantTableStatement
-        or Syn.Triggers.CreateTriggerStatement
-        or Syn.Indexes.CreateIndexStatement
-        or RenameObjectStatement
-        or Syn.Schemas.RenameSchemaStatement
-        or Syn.Tables.RenameColumnStatement;
-
-    private static void WriteStatement(StringBuilder sb, NsqlStatement statement)
-    {
-        switch (statement)
-        {
-            case Syn.Schemas.CreateSchemaStatement s:
-                WriteDocComment(sb, s.Doc, indent: "");
-                sb.Append($"{NsqlKeywords.Create} {NsqlKeywords.Schema} ").Append(EscapedIdentifier(s.Name)).AppendLine(";");
-                break;
-            case Syn.Schemas.GrantSchemaUsageStatement s:
-                sb.Append($"{NsqlKeywords.Grant} {NsqlKeywords.Usage} {NsqlKeywords.On} {NsqlKeywords.Schema} ").Append(EscapedIdentifier(s.Schema)).Append($" {NsqlKeywords.To} ").Append(EscapedIdentifier(s.Role)).AppendLine(";");
-                break;
-            case Syn.Enums.CreateEnumStatement s:
-                WriteDocComment(sb, s.Doc, indent: "");
-                sb.Append($"{NsqlKeywords.Create} {NsqlKeywords.Enum} ").Append(Qualified(s.Name));
-                sb.Append(" (").Append(string.Join(", ", s.Values.Select(v => $"'{v.Replace("'", "''")}'"))).AppendLine(");");
-                break;
-            case Syn.Domains.CreateDomainStatement s:
-                WriteDocComment(sb, s.Doc, indent: "");
-                sb.Append($"{NsqlKeywords.Create} {NsqlKeywords.Domain} ").Append(Qualified(s.Name));
-                sb.Append($" {NsqlKeywords.As} ").Append(TypeText(s.Type));
-                if (s.NotNull)
-                {
-                    sb.Append($" {NsqlKeywords.Not} {NsqlKeywords.Null}");
-                }
-                foreach (var check in s.Checks)
-                {
-                    sb.Append($" {NsqlKeywords.Constraint} ").Append(check.Name.Value).Append($" {NsqlKeywords.Check} (").Append(check.Expression.Value).Append(')');
-                }
-                // The default, if any, comes last: its opaque expression is read back up to the terminating ';'.
-                if (s.Default is { } @default)
-                {
-                    sb.Append($" {NsqlKeywords.Default} ").Append(@default.Value);
-                }
-                sb.AppendLine(";");
-                break;
-            case Syn.CompositeTypes.CreateCompositeTypeStatement s:
-                WriteDocComment(sb, s.Doc, indent: "");
-                sb.Append($"{NsqlKeywords.Create} {NsqlKeywords.Type} ").Append(Qualified(s.Name));
-                sb.Append($" {NsqlKeywords.As} (").Append(string.Join(", ", s.Fields.Select(f => $"{f.Name.Value} {TypeText(f.Type)}"))).AppendLine(");");
-                break;
-            case Syn.Sequences.CreateSequenceStatement s:
-                WriteDocComment(sb, s.Doc, indent: "");
-                sb.Append($"{NsqlKeywords.Create} {NsqlKeywords.Sequence} ").Append(Qualified(s.Name));
-                if (s.Options is { } options && SequenceOptionsText(options) is { } text)
-                {
-                    sb.Append(" (").Append(text).Append(')');
-                }
-                sb.AppendLine(";");
-                break;
-            case Syn.Routines.CreateRoutineStatement s:
-                WriteDocComment(sb, s.Doc, indent: "");
-                sb.Append(s.Kind == Syn.Routines.RoutineKind.Procedure ? $"{NsqlKeywords.Create} {NsqlKeywords.Procedure} " : $"{NsqlKeywords.Create} {NsqlKeywords.Function} ").Append(Qualified(s.Name));
-                // The definition is emitted verbatim (multi-line bodies keep their newlines); TrimEnd guards a
-                // code-built definition ending in whitespace so the ';' lands directly after the last character.
-                sb.Append('(').Append(s.Arguments.Value).Append(") ").Append(s.Definition.Value.TrimEnd()).AppendLine(";");
-                break;
-            case Syn.Tables.CreateTableStatement s:
-                WriteTable(sb, s);
-                break;
-            case Syn.Tables.GrantTableStatement s:
-                sb.Append($"{NsqlKeywords.Grant} ").Append(PrivilegesText(s.Privileges))
-                    .Append($" {NsqlKeywords.On} ").Append(Qualified(s.On))
-                    .Append($" {NsqlKeywords.To} ").Append(EscapedIdentifier(s.Role)).AppendLine(";");
-                break;
-            case Syn.Triggers.CreateTriggerStatement s:
-                WriteTrigger(sb, s);
-                break;
-            case Syn.Views.CreateViewStatement s:
-                WriteDocComment(sb, s.Doc, indent: "");
-                sb.Append($"{NsqlKeywords.Create} ");
-                if (s.IsMaterialized)
-                {
-                    sb.Append($"{NsqlKeywords.Materialized} ");
-                }
-                sb.Append($"{NsqlKeywords.View} ").Append(Qualified(s.Name));
-                sb.Append($" {NsqlKeywords.As} ").Append(s.Body.Value).AppendLine(";");
-                break;
-            case Syn.Indexes.CreateIndexStatement s:
-                WriteDocComment(sb, s.Doc, indent: "");
-                sb.Append($"{NsqlKeywords.Create} ");
-                if (s.IsUnique)
-                {
-                    sb.Append($"{NsqlKeywords.Unique} ");
-                }
-                sb.Append($"{NsqlKeywords.Index} ").Append(EscapedIdentifier(s.Name)).Append($" {NsqlKeywords.On} ").Append(Qualified(s.On));
-                AppendIndexTail(sb, s.Method, s.Columns, s.Include, s.Predicate);
-                sb.AppendLine(";");
-                break;
-            case Syn.Extensions.CreateExtensionStatement s:
-                WriteDocComment(sb, s.Doc, indent: "");
-                sb.Append($"{NsqlKeywords.Create} {NsqlKeywords.Extension} ").Append(EscapedIdentifier(s.Name));
-                if (s.Version is { } version)
-                {
-                    sb.Append($" {NsqlKeywords.Version} '").Append(version.Replace("'", "''")).Append('\'');
-                }
-                sb.AppendLine(";");
-                break;
-            case Syn.Scripts.ScriptStatement s:
-                WriteScript(sb, s);
-                break;
-            case Syn.Schemas.RenameSchemaStatement s:
-                sb.Append($"{NsqlKeywords.Rename} {NsqlKeywords.Schema} ").Append(EscapedIdentifier(s.From)).Append($" {NsqlKeywords.To} ").Append(EscapedIdentifier(s.To)).AppendLine(";");
-                break;
-            case RenameObjectStatement s:
-                sb.Append($"{NsqlKeywords.Rename} {KindKeyword(s.Kind)} ").Append(Qualified(s.From)).Append($" {NsqlKeywords.To} ").Append(EscapedIdentifier(s.To)).AppendLine(";");
-                break;
-            case Syn.Tables.RenameColumnStatement s:
-                sb.Append($"{NsqlKeywords.Rename} {NsqlKeywords.Column} ").Append(EscapedIdentifier(s.From.Schema!)).Append('.').Append(EscapedIdentifier(s.From.Table)).Append('.').Append(EscapedIdentifier(s.From.Member))
-                    .Append($" {NsqlKeywords.To} ").Append(EscapedIdentifier(s.To)).AppendLine(";");
-                break;
-            default:
-                throw new NotSupportedException($"Statement '{statement.GetType().Name}' is not rendered.");
-        }
-    }
-
-    private static void WriteTable(StringBuilder sb, Syn.Tables.CreateTableStatement statement)
-    {
-        WriteDocComment(sb, statement.Doc, indent: "");
-        sb.Append($"{NsqlKeywords.Create} {NsqlKeywords.Table} ").Append(Qualified(statement.Name));
-        sb.AppendLine(" (");
-
-        for (var i = 0; i < statement.Members.Count; i++)
-        {
-            var member = statement.Members[i];
-            WriteDocComment(sb, member.Doc, indent: "  ");
-            sb.Append("  ").Append(MemberText(member)).AppendLine(i < statement.Members.Count - 1 ? "," : string.Empty);
-        }
-        sb.AppendLine(");");
-    }
-
-    private static string MemberText(Syn.Tables.TableMember member)
-    {
-        switch (member)
-        {
-            case Syn.Tables.ColumnDefinition m:
-                {
-                    var sb = new StringBuilder();
-                    sb.Append(EscapedIdentifier(m.Name)).Append(' ').Append(TypeText(m.Type));
-                    if (!m.IsNullable)
-                    {
-                        sb.Append($" {NsqlKeywords.Not} {NsqlKeywords.Null}");
-                    }
-                    if (m.IsIdentity)
-                    {
-                        sb.Append($" {NsqlKeywords.Identity}");
-                        if (m.IdentityOptions is { } options && IdentityOptionsText(options) is { } text)
-                        {
-                            sb.Append(" (").Append(text).Append(')');
-                        }
-                    }
-                    if (m.Default is { } @default)
-                    {
-                        sb.Append($" {NsqlKeywords.Default} ").Append(@default.Value);
-                    }
-                    if (m.Generated is { } generated)
-                    {
-                        sb.Append($" {NsqlKeywords.Generated} {NsqlKeywords.Always} {NsqlKeywords.As} (").Append(generated.Value).Append($") {NsqlKeywords.Stored}");
-                    }
-                    return sb.ToString();
-                }
-            case Syn.Constraints.PrimaryKeyDefinition m:
-                return $"{NsqlKeywords.Constraint} {EscapedIdentifier(m.Name)} {NsqlKeywords.Primary} {NsqlKeywords.Key} ({ColumnsText(m.Columns)})";
-            case Syn.Constraints.ForeignKeyDefinition m:
-                {
-                    var sb = new StringBuilder();
-                    sb.Append($"{NsqlKeywords.Constraint} ").Append(EscapedIdentifier(m.Name))
-                        .Append($" {NsqlKeywords.Foreign} {NsqlKeywords.Key} (").Append(ColumnsText(m.Columns)).Append(')')
-                        .Append($" {NsqlKeywords.References} ").Append(Qualified(m.References))
-                        .Append(" (").Append(ColumnsText(m.ReferencedColumns)).Append(')');
-                    if (m.OnDelete != Syn.Constraints.ReferentialAction.NoAction)
-                    {
-                        sb.Append($" {NsqlKeywords.On} {NsqlKeywords.Delete} ").Append(ActionText(m.OnDelete));
-                    }
-                    if (m.OnUpdate != Syn.Constraints.ReferentialAction.NoAction)
-                    {
-                        sb.Append($" {NsqlKeywords.On} {NsqlKeywords.Update} ").Append(ActionText(m.OnUpdate));
-                    }
-                    return sb.ToString();
-                }
-            case Syn.Constraints.UniqueDefinition m:
-                return $"{NsqlKeywords.Constraint} {EscapedIdentifier(m.Name)} {NsqlKeywords.Unique} ({ColumnsText(m.Columns)})";
-            case Syn.Constraints.CheckDefinition m:
-                return $"{NsqlKeywords.Constraint} {EscapedIdentifier(m.Name)} {NsqlKeywords.Check} ({m.Expression.Value})";
-            case Syn.Constraints.ExclusionDefinition m:
-                {
-                    var sb = new StringBuilder();
-                    sb.Append($"{NsqlKeywords.Constraint} ").Append(EscapedIdentifier(m.Name)).Append($" {NsqlKeywords.Exclude}");
-                    if (m.Method is { } method)
-                    {
-                        sb.Append($" {NsqlKeywords.Using} ").Append(EscapedIdentifier(method));
-                    }
-                    sb.Append(" (").Append(string.Join(", ", m.Elements.Select(ExclusionElementText))).Append(')');
-                    if (m.Predicate is { } predicate)
-                    {
-                        sb.Append($" {NsqlKeywords.Where} (").Append(predicate.Value).Append(')');
-                    }
-                    return sb.ToString();
-                }
-            case Syn.Indexes.IndexDefinition m:
-                {
-                    var sb = new StringBuilder();
-                    if (m.IsUnique)
-                    {
-                        sb.Append($"{NsqlKeywords.Unique} ");
-                    }
-                    sb.Append($"{NsqlKeywords.Index} ").Append(EscapedIdentifier(m.Name));
-                    AppendIndexTail(sb, m.Method, m.Columns, m.Include, m.Predicate);
-                    return sb.ToString();
-                }
-            default:
-                throw new NotSupportedException($"Table member '{member.GetType().Name}' is not rendered.");
-        }
-    }
-
-    private static void WriteTrigger(StringBuilder sb, Syn.Triggers.CreateTriggerStatement statement)
-    {
-        WriteDocComment(sb, statement.Doc, indent: "");
-        sb.Append($"{NsqlKeywords.Create} {NsqlKeywords.Trigger} ").Append(EscapedIdentifier(statement.Name)).Append(' ').Append(TimingText(statement.Timing))
-            .Append(' ').Append(EventsText(statement))
-            .Append($" {NsqlKeywords.On} ").Append(Qualified(statement.On));
-
-        // An inline-body trigger (SQL Server) carries its action in a dollar-quoted block; it has no FOR EACH /
-        // WHEN / function clauses. A function trigger (PostgreSQL) keeps those.
-        if (statement.Action is Syn.Triggers.InlineBodyAction inline)
-        {
-            var delimiter = DollarDelimiter(inline.Body);
-            sb.Append($" {NsqlKeywords.As} ").AppendLine(delimiter);
-            sb.AppendLine(inline.Body.Value);
-            sb.Append(delimiter).AppendLine(";");
-            return;
+            AppendItem(sb, items[i]);
         }
 
-        var action = (Syn.Triggers.ExecuteFunctionAction)statement.Action;
-        sb.Append($" {NsqlKeywords.For} {NsqlKeywords.Each} ").Append(statement.Level == Syn.Triggers.TriggerLevel.Row ? NsqlKeywords.Row : NsqlKeywords.Statement);
-        if (statement.When is { } when)
-        {
-            sb.Append($" {NsqlKeywords.When} (").Append(when.Value).Append(')');
-        }
-        sb.Append($" {NsqlKeywords.Execute} {NsqlKeywords.Function} ").Append(Qualified(action.Function))
-            .Append('(').Append(action.Arguments.Value).Append(')').AppendLine(";");
-    }
-
-    private static void WriteScript(StringBuilder sb, Syn.Scripts.ScriptStatement statement)
-    {
-        sb.Append($"{NsqlKeywords.Script} ").Append(EscapedIdentifier(statement.Name)).Append($" {NsqlKeywords.Run}");
-        if (statement.RunCondition == Syn.Scripts.RunCondition.Once)
-        {
-            sb.Append($" {NsqlKeywords.Once}");
-        }
-        sb.Append($" {NsqlKeywords.On} ").Append(EventText(statement.Event));
-        if (statement.RunOutsideTransaction)
-        {
-            sb.Append(" (run_outside_transaction = true)");
-        }
-
-        // Emit the body in a dollar-quoted block, choosing a tag that doesn't occur in the body so it is
-        // taken verbatim. The reader strips the delimiters and trims surrounding whitespace, so a body
-        // stored without its delimiters round-trips back to the same text.
-        var delimiter = DollarDelimiter(statement.Body);
-        sb.Append($" {NsqlKeywords.As} ").AppendLine(delimiter);
-        sb.AppendLine(statement.Body.Value);
-        sb.Append(delimiter).AppendLine(";");
-    }
-
-    private static string EventText(Syn.Scripts.ScriptEventClause clause) => clause switch
-    {
-        Syn.Scripts.DeploymentEventClause deployment =>
-            deployment.Phase == Syn.Scripts.DeploymentPhase.Pre ? $"{NsqlKeywords.Pre} {NsqlKeywords.Deployment}" : $"{NsqlKeywords.Post} {NsqlKeywords.Deployment}",
-        Syn.Scripts.ChangeEventClause change => $"{TriggerText(change.Trigger)} {PathText(change.Path)}",
-        _ => throw new NotSupportedException($"Script event '{clause.GetType().Name}' is not rendered."),
-    };
-
-    private static string TriggerText(Syn.Scripts.ChangeTrigger trigger) => trigger switch
-    {
-        Syn.Scripts.ChangeTrigger.AddColumn => $"{NsqlKeywords.Add} {NsqlKeywords.Column}",
-        Syn.Scripts.ChangeTrigger.AlterColumnType => $"{NsqlKeywords.Alter} {NsqlKeywords.Column} {NsqlKeywords.Type}",
-        _ => $"{NsqlKeywords.Add} {NsqlKeywords.Constraint}",
-    };
-
-    private static string PathText(MemberPath path) =>
-        path.Schema is { } schema ? $"{EscapedIdentifier(schema)}.{EscapedIdentifier(path.Table)}.{EscapedIdentifier(path.Member)}" : $"{EscapedIdentifier(path.Table)}.{EscapedIdentifier(path.Member)}";
-
-    // --- clause helpers ----------------------------------------------------------------
-
-
-    private static void AppendIndexTail(StringBuilder sb, Identifier? method, IReadOnlyList<Syn.Indexes.IndexElement> columns,
-        IReadOnlyList<Identifier>? include, SqlText? predicate)
-    {
-        if (method is not null)
-        {
-            sb.Append($" {NsqlKeywords.Using} ").Append(EscapedIdentifier(method));
-        }
-        sb.Append(" (").Append(string.Join(", ", columns.Select(IndexKeyText))).Append(')');
-        if (include is { Count: > 0 })
-        {
-            sb.Append($" {NsqlKeywords.Include} (").Append(ColumnsText(include)).Append(')');
-        }
-        if (predicate is { } p)
-        {
-            sb.Append($" {NsqlKeywords.Where} (").Append(p.Value).Append(')');
-        }
-    }
-
-    private static string IndexKeyText(Syn.Indexes.IndexElement element)
-    {
-        var sb = new StringBuilder();
-        sb.Append(element.Column is { } name ? EscapedIdentifier(name) : $"({element.Expression!.Value})");
-        sb.Append(element.Sort switch
-        {
-            Syn.Indexes.IndexSort.Ascending => $" {NsqlKeywords.Asc}",
-            Syn.Indexes.IndexSort.Descending => $" {NsqlKeywords.Desc}",
-            _ => string.Empty,
-        });
-        sb.Append(element.Nulls switch
-        {
-            Syn.Indexes.IndexNulls.First => $" {NsqlKeywords.Nulls} {NsqlKeywords.First}",
-            Syn.Indexes.IndexNulls.Last => $" {NsqlKeywords.Nulls} {NsqlKeywords.Last}",
-            _ => string.Empty,
-        });
-        return sb.ToString();
-    }
-
-    private static string ExclusionElementText(Syn.Constraints.ExclusionElement element) =>
-        $"{(element.Column is { } column ? EscapedIdentifier(column) : $"({element.Expression!.Value})")} {NsqlKeywords.With} {element.Operator}";
-
-    private static string? SequenceOptionsText(Syn.Sequences.SequenceOptionsClause options)
-    {
-        var parts = new List<string>();
-        if (options.As is { } type)
-        {
-            parts.Add($"{NsqlKeywords.As} {TypeText(type)}");
-        }
-        if (options.Start is { } start)
-        {
-            parts.Add($"{NsqlKeywords.Start} {start}");
-        }
-        if (options.Increment is { } increment)
-        {
-            parts.Add($"{NsqlKeywords.Increment} {increment}");
-        }
-        if (options.MinValue is { } min)
-        {
-            parts.Add($"{NsqlKeywords.MinValue} {min}");
-        }
-        if (options.MaxValue is { } max)
-        {
-            parts.Add($"{NsqlKeywords.MaxValue} {max}");
-        }
-        if (options.Cache is { } cache)
-        {
-            parts.Add($"{NsqlKeywords.Cache} {cache}");
-        }
-        if (options.Cycle)
-        {
-            parts.Add(NsqlKeywords.Cycle);
-        }
-        return parts.Count == 0 ? null : string.Join(", ", parts);
-    }
-
-    private static string? IdentityOptionsText(Syn.Tables.IdentityOptionsClause options)
-    {
-        var parts = new List<string>();
-        if (options.Start is { } start)
-        {
-            parts.Add($"{NsqlKeywords.Start} {start}");
-        }
-        if (options.Increment is { } increment)
-        {
-            parts.Add($"{NsqlKeywords.Increment} {increment}");
-        }
-        if (options.MinValue is { } min)
-        {
-            parts.Add($"{NsqlKeywords.MinValue} {min}");
-        }
-        return parts.Count == 0 ? null : string.Join(", ", parts);
-    }
-
-    private static string TimingText(Syn.Triggers.TriggerTiming timing) => timing switch
-    {
-        Syn.Triggers.TriggerTiming.Before => NsqlKeywords.Before,
-        Syn.Triggers.TriggerTiming.After => NsqlKeywords.After,
-        _ => $"{NsqlKeywords.Instead} {NsqlKeywords.Of}",
-    };
-
-    private static string EventsText(Syn.Triggers.CreateTriggerStatement statement)
-    {
-        var parts = new List<string>(4);
-        if (statement.Events.HasFlag(Syn.Triggers.TriggerEvent.Insert))
-        {
-            parts.Add(NsqlKeywords.Insert);
-        }
-        if (statement.Events.HasFlag(Syn.Triggers.TriggerEvent.Update))
-        {
-            parts.Add(statement.UpdateOfColumns is { Count: > 0 } columns ? $"{NsqlKeywords.Update} {NsqlKeywords.Of} ({ColumnsText(columns)})" : NsqlKeywords.Update);
-        }
-        if (statement.Events.HasFlag(Syn.Triggers.TriggerEvent.Delete))
-        {
-            parts.Add(NsqlKeywords.Delete);
-        }
-        if (statement.Events.HasFlag(Syn.Triggers.TriggerEvent.Truncate))
-        {
-            parts.Add(NsqlKeywords.Truncate);
-        }
-        return string.Join($" {NsqlKeywords.Or} ", parts);
-    }
-
-    private static string ActionText(Syn.Constraints.ReferentialAction action) => action switch
-    {
-        Syn.Constraints.ReferentialAction.Cascade => NsqlKeywords.Cascade,
-        Syn.Constraints.ReferentialAction.SetNull => $"{NsqlKeywords.Set} {NsqlKeywords.Null}",
-        Syn.Constraints.ReferentialAction.SetDefault => $"{NsqlKeywords.Set} {NsqlKeywords.Default}",
-        _ => $"{NsqlKeywords.No} {NsqlKeywords.Action}",
-    };
-
-    private static string PrivilegesText(Syn.Tables.TablePrivilege privileges)
-    {
-        var parts = new List<string>();
-        if (privileges.HasFlag(Syn.Tables.TablePrivilege.Select))
-        {
-            parts.Add(NsqlKeywords.Select);
-        }
-        if (privileges.HasFlag(Syn.Tables.TablePrivilege.Insert))
-        {
-            parts.Add(NsqlKeywords.Insert);
-        }
-        if (privileges.HasFlag(Syn.Tables.TablePrivilege.Update))
-        {
-            parts.Add(NsqlKeywords.Update);
-        }
-        if (privileges.HasFlag(Syn.Tables.TablePrivilege.Delete))
-        {
-            parts.Add(NsqlKeywords.Delete);
-        }
-        return string.Join(", ", parts);
+        var text = sb.ToString().TrimEnd('\n');
+        return text.Length == 0 ? string.Empty : text + "\n";
     }
 
     /// <summary>
-    /// The canonical keyword for an object kind; the spelling variants (MATERIALIZED VIEW, FUNCTION,
-    /// PROCEDURE) normalize to it.
+    /// Whether a statement's layout is already canonical: the right number of blank lines before it (none for the
+    /// first statement or one that hugs its subject, one otherwise) and a body that renders to exactly its source.
     /// </summary>
-    private static string KindKeyword(ObjectKind kind) => kind switch
-    {
-        ObjectKind.Table => NsqlKeywords.Table,
-        ObjectKind.View => NsqlKeywords.View,
-        ObjectKind.Enum => NsqlKeywords.Enum,
-        ObjectKind.Sequence => NsqlKeywords.Sequence,
-        ObjectKind.Routine => NsqlKeywords.Routine,
-        ObjectKind.Domain => NsqlKeywords.Domain,
-        ObjectKind.CompositeType => NsqlKeywords.Type,
-        ObjectKind.Extension => NsqlKeywords.Extension,
-        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
-    };
+    private static bool IsFormatted(NsqlStatement statement, bool first) =>
+        LeadingBlankLines(statement) == (first || Attached(statement) ? 0 : 1)
+        && RenderStatement(statement) == statement.ToSource().Trim();
 
-    private static string Qualified(QualifiedName name) =>
-        name.Schema is { } schema ? $"{EscapedIdentifier(schema)}.{EscapedIdentifier(name.Name)}" : EscapedIdentifier(name.Name);
-
-    private static string TypeText(TypeName type)
+    /// <summary>The canonical rendering of one statement (leading comments, body, trailing comment), no outer blanks.</summary>
+    private static string RenderStatement(NsqlStatement statement)
     {
-        var text = type.Schema is { } schema ? $"{EscapedIdentifier(schema)}.{EscapedIdentifier(type.Name)}" : EscapedIdentifier(type.Name);
-        return type.Arguments is { } arguments ? $"{text}({arguments})" : text;
+        var sb = new StringBuilder();
+        AppendItem(sb, Render(statement));
+        return sb.ToString().Trim();
     }
 
-    private static string ColumnsText(IReadOnlyList<Identifier> columns) => string.Join(", ", columns.Select(EscapedIdentifier));
-
-    private static string DollarDelimiter(SqlText body)
+    /// <summary>The blank lines separating a statement (or its leading comment) from what precedes it.</summary>
+    private static int LeadingBlankLines(NsqlStatement statement)
     {
-        if (!body.Value.Contains("$$", StringComparison.Ordinal))
+        var leading = statement.DocComment is { } doc ? doc.Leading : FirstToken(statement).Leading;
+        var count = 0;
+        foreach (var item in leading)
         {
-            return "$$";
-        }
-        for (var i = 1; ; i++)
-        {
-            var tag = $"$body{i.ToString(CultureInfo.InvariantCulture)}$";
-            if (!body.Value.Contains(tag, StringComparison.Ordinal))
+            if (item.Kind == TriviaKind.EndOfLine)
             {
-                return tag;
+                count++;
+            }
+            else if (item.IsComment)
+            {
+                break;
+            }
+        }
+        return count;
+    }
+
+    // --- one statement --------------------------------------------------------
+
+    private static Item Render(NsqlStatement statement)
+    {
+        var (leading, blanksBeforeBody) = LeadingRegion(statement);
+        return new Item
+        {
+            Source = statement,
+            Leading = leading,
+            BlanksBeforeBody = blanksBeforeBody,
+            Body = Body(statement),
+            Trailing = TrailingComment(LastToken(statement)),
+        };
+    }
+
+    private static void AppendItem(StringBuilder sb, Item item)
+    {
+        foreach (var lead in item.Leading)
+        {
+            AppendBlankLines(sb, lead.BlanksBefore);
+            sb.Append(lead.Text).Append('\n');
+        }
+        if (item.Body is { } body)
+        {
+            AppendBlankLines(sb, item.BlanksBeforeBody);
+            sb.Append(body);
+            if (item.Trailing is { } trailing)
+            {
+                sb.Append(Indent).Append(trailing);
             }
         }
     }
 
-    private static void WriteDocComment(StringBuilder sb, string? comment, string indent)
+    private static string Body(NsqlStatement statement) => statement switch
     {
-        if (comment is null)
+        CreateTableStatement table => Broken(Header(statement, table.OpenParenToken), RenderMembers(table.Members, table.CloseParenToken)) + NsqlSymbols.Semicolon,
+        BlockStatement block => Broken(Header(statement, block.OpenParenToken), RenderMembers(block.Attributes, block.CloseParenToken)) + NsqlSymbols.Semicolon,
+        SchemaTemplateStatement template => Template(template),
+        TableTemplateStatement template => Template(template),
+        _ => Verbatim(statement),
+    };
+
+    /// <summary>The statement's significant tokens (doc-comment, leading, and trailing comments excluded), verbatim.</summary>
+    private static string Verbatim(NsqlStatement statement) => EmitTokens(FlattenTokens(statement));
+
+    /// <summary>The header of a broken statement — everything up to (not including) the open paren — verbatim.</summary>
+    private static string Header(NsqlNode statement, Token? open)
+    {
+        var tokens = FlattenTokens(statement);
+        if (open is { } paren)
         {
-            return;
+            tokens = [.. tokens.TakeWhile(t => t != paren)];
         }
-        foreach (var line in comment.Split('\n'))
+        return EmitTokens(tokens);
+    }
+
+    /// <summary>Renders each element of a separated list to a <see cref="Member"/>, taking the trailing comment from
+    /// the element or the comma that follows it (a same-line comment after either trails the member).</summary>
+    private static List<Member> RenderMembers<T>(SeparatedSyntaxList<T> list, Token? close) where T : NsqlNode
+    {
+        var members = new List<Member>();
+        for (var i = 0; i < list.Count; i++)
         {
-            sb.Append(indent).Append("--- ").AppendLine(line);
+            var separator = i < list.Separators.Count ? list.Separators[i] : (Token?)null;
+            members.Add(new Member
+            {
+                Leading = CommentLines(FirstToken(list[i]).Leading, (list[i] as TableMember)?.DocComment),
+                Content = NodeText(list[i]),
+                Trailing = TrailingComment(LastToken(list[i])) ?? (separator is { } comma ? TrailingComment(comma) : null),
+            });
+        }
+
+        // Comments between the last member and the closing paren are dangling own-line comments; each keeps its line.
+        if (close is { } paren)
+        {
+            foreach (var lead in CommentLines(paren.Leading))
+            {
+                members.Add(new Member { Leading = [lead], Content = null });
+            }
+        }
+        return members;
+    }
+
+    /// <summary>Emits a broken <c>header (\n  member,\n  …\n)</c> body.</summary>
+    private static string Broken(string header, List<Member> members)
+    {
+        var list = members;
+        var lastContent = list.FindLastIndex(m => m.Content is not null);
+
+        var sb = new StringBuilder(header).Append(" (");
+        for (var i = 0; i < list.Count; i++)
+        {
+            var member = list[i];
+            foreach (var comment in member.Leading)
+            {
+                sb.Append('\n').Append(Indent).Append(comment.Text);
+            }
+            if (member.Content is { } content)
+            {
+                sb.Append('\n').Append(Indent).Append(content);
+                if (i < lastContent)
+                {
+                    sb.Append(',');
+                }
+                if (member.Trailing is { } trailing)
+                {
+                    sb.Append(Indent).Append(trailing);
+                }
+            }
+        }
+        return sb.Append("\n)").ToString();
+    }
+
+    /// <summary>Emits a <c>TEMPLATE … BEGIN … END;</c>: header verbatim, BEGIN/END on their own lines, body indented.</summary>
+    private static string Template(TemplateStatement template)
+    {
+        var header = Header(template, template.BeginKeyword);
+        var sb = new StringBuilder(header).Append("\nBEGIN");
+
+        if (template is TableTemplateStatement table)
+        {
+            var body = Broken("", RenderMembers(table.Members, close: null));
+            // Drop the synthetic " (" head and trailing "\n)" the member renderer adds — a template body has neither.
+            sb.Append(body[" (".Length..^"\n)".Length]);
+        }
+        else if (template is SchemaTemplateStatement schema)
+        {
+            // The body is a mini-document: inner statements separated by a blank line, then indented one level.
+            var items = schema.Statements.Select(Render).ToList();
+            if (items.Count > 0)
+            {
+                var inner = new StringBuilder();
+                for (var i = 0; i < items.Count; i++)
+                {
+                    if (i > 0)
+                    {
+                        inner.Append("\n\n");
+                    }
+                    AppendItem(inner, items[i]);
+                }
+                // Indent each body line one level — but never inside a dollar-quoted block, so a script body stays
+                // put (and re-formatting is idempotent).
+                string? openTag = null;
+                foreach (var line in inner.ToString().Split('\n'))
+                {
+                    sb.Append('\n');
+                    if (line.Length > 0)
+                    {
+                        if (openTag is null)
+                        {
+                            sb.Append(Indent);
+                        }
+                        sb.Append(line);
+                    }
+                    openTag = AdvanceDollarQuoteState(line, openTag);
+                }
+            }
+        }
+
+        return sb.Append("\nEND;").ToString();
+    }
+
+    // --- token emission -------------------------------------------------------
+
+    /// <summary>All the node's tokens in source order, doc-comments excluded (they lead the statement, placed separately).</summary>
+    private static List<Token> FlattenTokens(NsqlNode node)
+    {
+        var tokens = new List<Token>();
+        Collect(node);
+        return tokens;
+
+        void Collect(NsqlNode current)
+        {
+            foreach (var child in current.Children)
+            {
+                if (child.AsToken() is { } token)
+                {
+                    if (token.Kind != TokenKind.DocComment)
+                    {
+                        tokens.Add(token);
+                    }
+                }
+                else
+                {
+                    Collect(child.AsNode()!);
+                }
+            }
         }
     }
 
-    private static string EscapedIdentifier(Identifier identifier) => NeedsQuoting(identifier)
-        ? $"\"{identifier.Value.Replace("\"", "\"\"")}\""
-        : identifier.Value;
-
-    private static bool NeedsQuoting(Identifier identifier)
+    /// <summary>
+    /// Emits a token run verbatim — raw text and interior trivia (whitespace and comments) — dropping only the
+    /// leading trivia of the first token and the trailing trivia of the last (the statement's edges, placed
+    /// separately as leading/trailing comments), then trimming.
+    /// </summary>
+    private static string EmitTokens(IReadOnlyList<Token> tokens)
     {
-        if (identifier.Value.Length == 0 || !NsqlLexer.IsIdentifierStart(identifier.Value[0]) || NsqlKeywords.MemberOpeners.Contains(identifier.Value))
+        var sb = new StringBuilder();
+        for (var i = 0; i < tokens.Count; i++)
         {
-            return true;
+            if (i > 0)
+            {
+                // A synthetic (factory-built) token carries no trivia and no source position, so an empty gap before
+                // it gets a synthesized separator — otherwise the tokens would jam together. Parsed trees keep their
+                // own trivia (empty gaps like `app.users` stay tight).
+                if (tokens[i - 1].Trailing.Count == 0 && tokens[i].Leading.Count == 0 && tokens[i].Position.Line == 0)
+                {
+                    sb.Append(Separator(tokens[i - 1], tokens[i]));
+                }
+                else
+                {
+                    AppendTrivia(sb, tokens[i].Leading);
+                }
+            }
+            sb.Append(tokens[i].Raw);
+            if (i < tokens.Count - 1)
+            {
+                AppendTrivia(sb, tokens[i].Trailing);
+            }
+        }
+        return sb.ToString().Trim();
+    }
+
+    /// <summary>
+    /// The separator synthesized in an empty gap between two synthetic tokens: a space, but tight where SQL reads
+    /// wrong with one — no space before a closer or separator, none after an opener, none either side of a dot, and
+    /// none before a call/argument paren.
+    /// </summary>
+    private static string Separator(Token left, Token right)
+    {
+        if (right.Kind is TokenKind.Semicolon or TokenKind.Comma or TokenKind.RightParen or TokenKind.RightBrace or TokenKind.Dot)
+        {
+            return "";
+        }
+        if (left.Kind is TokenKind.LeftParen or TokenKind.LeftBrace or TokenKind.Dot)
+        {
+            return "";
+        }
+        if (right.Kind is TokenKind.LeftParen)
+        {
+            // A call/argument paren hugs a preceding name (`decimal(18,2)`, `fn(a)`); after a keyword or any other
+            // token (`AS (…)`, `KEY (…)`, `, (…)`) it takes a space.
+            var hugsName = left.Kind is TokenKind.QuotedIdentifier
+                || (left.Kind is TokenKind.Identifier && !NsqlKeywords.All.Contains(left.Text));
+            return hugsName ? "" : " ";
+        }
+        return " ";
+    }
+
+    private static string NodeText(NsqlNode node) => EmitTokens(FlattenTokens(node));
+
+    private static void AppendTrivia(StringBuilder sb, IReadOnlyList<Trivia> trivia)
+    {
+        foreach (var item in trivia)
+        {
+            sb.Append(item.Text);
+        }
+    }
+
+    // --- comments -------------------------------------------------------------
+
+    /// <summary>
+    /// The comment lines that lead a statement or member — the source comments in its leading trivia, then its
+    /// doc-comment (if any) — each with the (capped) blank lines the source had before it.
+    /// </summary>
+    private static List<Lead> CommentLines(IReadOnlyList<Trivia> trivia, Token? doc = null)
+    {
+        var leads = new List<Lead>();
+        var newlines = 0;
+        var seen = false;
+        foreach (var item in trivia)
+        {
+            if (item.Kind == TriviaKind.EndOfLine)
+            {
+                newlines++;
+            }
+            else if (item.IsComment)
+            {
+                leads.Add(new Lead(FormatComment(item.Text), seen ? Math.Max(0, newlines - 1) : 0));
+                newlines = 0;
+                seen = true;
+            }
+        }
+        if (doc is { } comment)
+        {
+            leads.Add(new Lead(FormatDoc(comment.Text), seen ? Math.Max(0, newlines - 1) : 0));
+        }
+        return leads;
+    }
+
+    /// <summary>A doc-comment re-emitted in canonical <c>--- line</c> form, one line per merged line.</summary>
+    private static string FormatDoc(string text) => string.Join('\n', text.Split('\n').Select(line => "--- " + line));
+
+    /// <summary>
+    /// The leading comment lines of a statement (source comments then its doc-comment), and the blank lines to keep
+    /// between them and the statement body.
+    /// </summary>
+    private static (List<Lead> Leads, int BlanksBeforeBody) LeadingRegion(NsqlStatement statement)
+    {
+        var leads = new List<Lead>();
+        var newlines = 0;
+        var seen = false;
+
+        void Scan(IReadOnlyList<Trivia> trivia)
+        {
+            foreach (var item in trivia)
+            {
+                if (item.Kind == TriviaKind.EndOfLine)
+                {
+                    newlines++;
+                }
+                else if (item.IsComment)
+                {
+                    leads.Add(new Lead(FormatComment(item.Text), seen ? Math.Max(0, newlines - 1) : 0));
+                    newlines = 0;
+                    seen = true;
+                }
+            }
         }
 
-        return !identifier.Value.All(NsqlLexer.IsIdentifierPart);
+        if (statement.DocComment is { } doc)
+        {
+            Scan(doc.Leading);
+            leads.Add(new Lead(FormatDoc(doc.Text), seen ? Math.Max(0, newlines - 1) : 0));
+            newlines = 0;
+            seen = true;
+            Scan(FirstSignificantToken(statement).Leading);
+        }
+        else
+        {
+            Scan(FirstToken(statement).Leading);
+        }
+
+        return (leads, seen ? Math.Max(0, newlines - 1) : 0);
+    }
+
+    /// <summary>The trailing line comment on <paramref name="token"/> (on the same line as it, before any newline), or null.</summary>
+    private static string? TrailingComment(Token token)
+    {
+        Trivia? found = null;
+        foreach (var item in token.Trailing)
+        {
+            if (item.Kind == TriviaKind.EndOfLine)
+            {
+                break;
+            }
+            if (item.IsComment)
+            {
+                found = item;
+            }
+        }
+        return found is { } comment ? FormatComment(comment.Text) : null;
+    }
+
+    private static string FormatComment(string text) => text.TrimEnd();
+
+    // --- blank lines / tree helpers -------------------------------------------
+
+    private static void AppendBlankLines(StringBuilder sb, int count)
+    {
+        for (var i = 0; i < Math.Min(count, MaxBlankLines); i++)
+        {
+            sb.Append('\n');
+        }
+    }
+
+    private static Token FirstToken(NsqlNode node)
+    {
+        foreach (var child in node.Children)
+        {
+            return child.AsToken() ?? FirstToken(child.AsNode()!);
+        }
+        return default;
+    }
+
+    /// <summary>The first token that is not a doc-comment (the statement's leading keyword).</summary>
+    private static Token FirstSignificantToken(NsqlNode node) => FlattenTokens(node) is [var first, ..] ? first : default;
+
+    private static Token LastToken(NsqlNode node)
+    {
+        Token last = default;
+        foreach (var child in node.Children)
+        {
+            last = child.AsToken() ?? LastToken(child.AsNode()!);
+        }
+        return last;
+    }
+
+    /// <summary>
+    /// Tracks whether a line ends inside a dollar-quoted block. A body only closes on its own tag, so <c>$$</c>
+    /// inside a <c>$body$</c> block stays interior text.
+    /// </summary>
+    private static string? AdvanceDollarQuoteState(string line, string? openTag)
+    {
+        var i = 0;
+        while (i < line.Length)
+        {
+            if (openTag is null)
+            {
+                var open = FindDollarTag(line, i);
+                if (open is null)
+                {
+                    break;
+                }
+                openTag = open.Value.Tag;
+                i = open.Value.End;
+            }
+            else
+            {
+                var close = line.IndexOf(openTag, i, StringComparison.Ordinal);
+                if (close < 0)
+                {
+                    break;
+                }
+                i = close + openTag.Length;
+                openTag = null;
+            }
+        }
+        return openTag;
+    }
+
+    /// <summary>Finds the next <c>$tag$</c> delimiter at or after <paramref name="from"/>, returning it and the index just past it.</summary>
+    private static (string Tag, int End)? FindDollarTag(string line, int from)
+    {
+        for (var i = line.IndexOf('$', from); i >= 0; i = line.IndexOf('$', i + 1))
+        {
+            var close = i + 1;
+            while (close < line.Length && (char.IsLetterOrDigit(line[close]) || line[close] == '_'))
+            {
+                close++;
+            }
+            if (close < line.Length && line[close] == '$')
+            {
+                return (line[i..(close + 1)], close + 1);
+            }
+        }
+        return null;
+    }
+
+    private sealed class Item
+    {
+        public NsqlStatement? Source { get; init; }
+        public required List<Lead> Leading { get; init; }
+        public required string? Body { get; init; }
+        public int BlanksBeforeBody { get; init; }
+        public string? Trailing { get; init; }
+    }
+
+    private readonly record struct Lead(string Text, int BlanksBefore);
+
+    private sealed class Member
+    {
+        public required List<Lead> Leading { get; init; }
+        public string? Content { get; init; }
+        public string? Trailing { get; init; }
     }
 }

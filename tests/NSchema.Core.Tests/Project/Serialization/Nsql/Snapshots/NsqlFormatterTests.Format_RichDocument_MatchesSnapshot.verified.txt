@@ -1,9 +1,8 @@
-﻿NSCHEMA (
+﻿DATABASE (
   dialect = postgres
 );
 
 create schema app;
-
 grant usage on schema app to readonly;
 
 --- The order status.
