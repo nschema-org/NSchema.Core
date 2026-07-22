@@ -879,8 +879,11 @@ internal sealed partial class NsqlParser
             var columns = ParseColumnList();
             return new PrimaryKeyDefinition(name, columns)
             {
-                Doc = doc?.Text, DocComment = doc,
-                ConstraintKeyword = constraint, PrimaryKeyword = primary, KeyKeyword = key,
+                Doc = doc?.Text,
+                DocComment = doc,
+                ConstraintKeyword = constraint,
+                PrimaryKeyword = primary,
+                KeyKeyword = key,
             };
         }
         if (_current.IsKeyword(NsqlKeywords.Foreign))
@@ -896,9 +899,13 @@ internal sealed partial class NsqlParser
             var actions = actionsStart.Position.Offset < _current.Position.Offset ? RawSpanFrom(actionsStart, _current) : (Token?)null;
             return new ForeignKeyDefinition(name, columns, referencedTable, refColumns, onDelete, onUpdate)
             {
-                Doc = doc?.Text, DocComment = doc,
-                ConstraintKeyword = constraint, ForeignKeyword = foreign, KeyKeyword = key,
-                ReferencesKeyword = references, ActionsToken = actions,
+                Doc = doc?.Text,
+                DocComment = doc,
+                ConstraintKeyword = constraint,
+                ForeignKeyword = foreign,
+                KeyKeyword = key,
+                ReferencesKeyword = references,
+                ActionsToken = actions,
             };
         }
         if (_current.IsKeyword(NsqlKeywords.Unique))
@@ -907,8 +914,10 @@ internal sealed partial class NsqlParser
             var columns = ParseColumnList();
             return new UniqueDefinition(name, columns)
             {
-                Doc = doc?.Text, DocComment = doc,
-                ConstraintKeyword = constraint, UniqueKeyword = unique,
+                Doc = doc?.Text,
+                DocComment = doc,
+                ConstraintKeyword = constraint,
+                UniqueKeyword = unique,
             };
         }
         if (_current.IsKeyword(NsqlKeywords.Check))
@@ -917,9 +926,13 @@ internal sealed partial class NsqlParser
             var (open, expression, span, close) = CaptureParenthesizedToken();
             return new CheckDefinition(name, expression)
             {
-                Doc = doc?.Text, DocComment = doc,
-                ConstraintKeyword = constraint, CheckKeyword = check,
-                OpenParenToken = open, ExpressionToken = span, CloseParenToken = close,
+                Doc = doc?.Text,
+                DocComment = doc,
+                ConstraintKeyword = constraint,
+                CheckKeyword = check,
+                OpenParenToken = open,
+                ExpressionToken = span,
+                CloseParenToken = close,
             };
         }
         if (_current.IsKeyword(NsqlKeywords.Exclude))
