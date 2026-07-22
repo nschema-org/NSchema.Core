@@ -97,7 +97,7 @@ public sealed class NsqlQuotedIdentifierTests
         };
 
         // Act
-        var written = NsqlFormatter.Format(database);
+        var written = NsqlWriter.Write(database);
 
         // Assert
         written.ShouldContain("CREATE TABLE app.\"Order Details\"");
@@ -129,7 +129,7 @@ public sealed class NsqlQuotedIdentifierTests
         };
 
         // Act
-        var reparsed = new TestNsqlParser(NsqlFormatter.Format(database)).Parse().Database;
+        var reparsed = new TestNsqlParser(NsqlWriter.Write(database)).Parse().Database;
 
         // Assert
         var schema = reparsed.Schemas.ShouldHaveSingleItem();
@@ -146,7 +146,7 @@ public sealed class NsqlQuotedIdentifierTests
         const string source = "CREATE TABLE app.\"Order Details\" (\"weird \"\"col\"\"\" int NOT NULL);";
 
         // Act
-        var formatted = NsqlFormatter.Format(source).Value!;
+        var formatted = NsqlWriter.Format(source).Value!;
 
         // Assert — the formatter emits source verbatim between structural breaks, quotes intact.
         formatted.ShouldContain("\"Order Details\"");

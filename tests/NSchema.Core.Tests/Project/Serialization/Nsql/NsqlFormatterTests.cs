@@ -4,7 +4,7 @@ namespace NSchema.Tests.Project.Serialization.Nsql;
 
 public sealed class NsqlFormatterTests
 {
-    private static string Format(string source) => NsqlFormatter.Format(source).Value!;
+    private static string Format(string source) => NsqlWriter.Format(source).Value!;
 
     // -------------------------------------------------------------------------
     // Layout normalisation
@@ -492,7 +492,7 @@ public sealed class NsqlFormatterTests
             """;
 
         // Act
-        var result = NsqlFormatter.Format(source + "\n");
+        var result = NsqlWriter.Format(source + "\n");
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -514,7 +514,7 @@ public sealed class NsqlFormatterTests
             """;
 
         // Act
-        var result = NsqlFormatter.Format(source);
+        var result = NsqlWriter.Format(source);
 
         // Assert — the messy table (blank-line gap and reflow) and the over-spaced schema; the first is clean.
         result.Warnings.Select(w => w.Position.Line).ShouldBe([2, 6]);
@@ -528,7 +528,7 @@ public sealed class NsqlFormatterTests
         const string source = "SCRIPT x RUN ONCE ON ADD COLUMN app.users.email AS $$ SELECT 1; $$;";
 
         // Act
-        var result = NsqlFormatter.Format(source);
+        var result = NsqlWriter.Format(source);
 
         // Assert
         result.IsSuccess.ShouldBeFalse();

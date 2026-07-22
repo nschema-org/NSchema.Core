@@ -187,11 +187,11 @@ Every NSQL-producing surface becomes: build nodes → print through the formatte
   the "attached" grouping (grants/triggers/indexes/renames hug their subject). **New canonical:** a clause
   paren after a *name* now prints call-style (`enum('a')`, `orgs(id)`) — matching a clause paren exactly
   needs per-node context (deferred structural rules). `NsqlWriter`/formatter/template snapshots regenerated.
-- **`NsqlWriter` deleted; one text surface (done, 2026-07-23).** The writer merged into `NsqlFormatter`:
-  `Format` now overloads on `string` → `Result` (parse+print+check), `NsqlDocument` → `string` (print), and
-  `Database`[`, ProjectDirectives`] → `string` (build+print). The pipeline reads cleanly — `SyntaxBuilder`
-  owns model→tree (and the raw-span fragment renderers, moved there from `NsqlWriter`), `NsqlFormatter` owns
-  →text. `ImportOperation`'s accidental double-format collapsed to a single `Format(document)`.
+- **One text surface, named `NsqlWriter` (done, 2026-07-23).** Formatter + writer collapsed into a single
+  `NsqlWriter` (the counterpart to `NsqlReader`). Verb by input: `Write(NsqlDocument|Database[, directives])`
+  → `string` serializes a structure; `Format(string)` → `Result` reformats source (the only one that parses,
+  hence the `Result`). `SyntaxBuilder` owns model→tree and the raw-span fragment renderers (moved there);
+  `NsqlWriter` owns →text. `ImportOperation`'s accidental double-format collapsed to a single `Write(document)`.
 - **Still to do:** rebuild `LockFileManager` on `BlockStatement` nodes, `GetScaffoldTemplate` → typed
   nodes, the nullable-`Token?` → missing-sentinel split, and the deferred structural rules (which would let
   clause parens after a name take their space back).

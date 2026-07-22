@@ -70,7 +70,7 @@ public sealed class NsqlParserIndexDepthTests
             "CREATE UNIQUE INDEX t_ix ON app.t USING btree (c DESC NULLS LAST, (lower(a))) INCLUDE (b) WHERE (c IS NOT NULL);";
         var schema = new TestNsqlParser(ddl).Parse().Database;
 
-        var reparsed = new TestNsqlParser(NsqlFormatter.Format(schema)).Parse().Database
+        var reparsed = new TestNsqlParser(NsqlWriter.Write(schema)).Parse().Database
             .Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem().Indexes.ShouldHaveSingleItem();
         reparsed.IsUnique.ShouldBeTrue();
         reparsed.Method.ShouldBe("btree");

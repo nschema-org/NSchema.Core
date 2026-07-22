@@ -10,9 +10,9 @@ using NSchema.Project.Nsql.Tokens;
 namespace NSchema.Project.Nsql;
 
 /// <summary>
-/// Reformats NSchema DDL <em>gently</em>, normalizing layout.
+/// Writes NSchema SQL. The counterpart to <see cref="NsqlReader"/>.
 /// </summary>
-public static class NsqlFormatter
+public static class NsqlWriter
 {
     private const int MaxBlankLines = 1;
     private const string Indent = "  ";
@@ -65,20 +65,20 @@ public static class NsqlFormatter
     /// tree formats exactly as <see cref="Format(string)"/>'s value.
     /// </summary>
     /// <param name="document">The document tree to print.</param>
-    public static string Format(NsqlDocument document)
+    public static string Write(NsqlDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
         return Render(document);
     }
 
-    /// <summary>Renders a domain model as canonical NSchema source.</summary>
-    /// <param name="database">The schema to render.</param>
-    public static string Format(Database database) => Render(SyntaxBuilder.Build(database));
+    /// <summary>Writes a domain model as canonical NSchema source.</summary>
+    /// <param name="database">The schema to write.</param>
+    public static string Write(Database database) => Render(SyntaxBuilder.Build(database));
 
-    /// <summary>Renders a whole project (schema plus directives) as canonical NSchema source.</summary>
-    /// <param name="database">The schema to render.</param>
-    /// <param name="directives">The directives to render after the schema.</param>
-    public static string Format(Database database, ProjectDirectives directives) => Render(SyntaxBuilder.Build(database, directives));
+    /// <summary>Writes a whole project (schema plus directives) as canonical NSchema source.</summary>
+    /// <param name="database">The schema to write.</param>
+    /// <param name="directives">The directives to write after the schema.</param>
+    public static string Write(Database database, ProjectDirectives directives) => Render(SyntaxBuilder.Build(database, directives));
 
     /// <summary>Renders the whole document to canonical text, ending in a single newline (empty input yields "").</summary>
     private static string Render(NsqlDocument document)

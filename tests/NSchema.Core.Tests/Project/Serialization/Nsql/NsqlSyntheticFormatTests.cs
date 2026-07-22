@@ -28,7 +28,7 @@ public sealed class NsqlSyntheticFormatTests
         var document = SyntaxBuilder.Build(database, declareSchemas: true);
 
         // Act
-        var text = NsqlFormatter.Format(document);
+        var text = NsqlWriter.Write(document);
 
         // Assert — parses cleanly and reconstructs the schema, comment and all.
         NsqlReader.Read(text).IsSuccess.ShouldBeTrue();
@@ -45,7 +45,7 @@ public sealed class NsqlSyntheticFormatTests
         var document = SyntaxBuilder.Build(original, declareSchemas: true);
 
         // Act
-        var text = NsqlFormatter.Format(document);
+        var text = NsqlWriter.Write(document);
 
         // Assert — reading the printed tree straight back shows no drift.
         var reparsed = new TestNsqlParser(text).Parse().Database;
@@ -60,7 +60,7 @@ public sealed class NsqlSyntheticFormatTests
         var directives = TestData.RichDirectives();
 
         // Act
-        var text = NsqlFormatter.Format(SyntaxBuilder.Build(database, directives, declareSchemas: true));
+        var text = NsqlWriter.Write(SyntaxBuilder.Build(database, directives, declareSchemas: true));
 
         // Assert — parses, assembles, and re-emits identically to the original project.
         var read = NsqlReader.Read(text);
@@ -69,7 +69,7 @@ public sealed class NsqlSyntheticFormatTests
         assembled.IsSuccess.ShouldBeTrue(string.Join("; ", assembled.Diagnostics.Select(d => d.Message)));
 
         var project = assembled.Value!;
-        NsqlFormatter.Format(project.Database, project.Directives).ShouldBe(NsqlFormatter.Format(database, directives));
+        NsqlWriter.Write(project.Database, project.Directives).ShouldBe(NsqlWriter.Write(database, directives));
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public sealed class NsqlSyntheticFormatTests
         ]);
 
         // Act
-        var text = NsqlFormatter.Format(document);
+        var text = NsqlWriter.Write(document);
 
         // Assert
         var read = NsqlReader.Read(text);
@@ -109,7 +109,7 @@ public sealed class NsqlSyntheticFormatTests
         ]);
 
         // Act
-        var text = NsqlFormatter.Format(document);
+        var text = NsqlWriter.Write(document);
 
         // Assert — parses cleanly with the template and its application intact.
         var read = NsqlReader.Read(text);
