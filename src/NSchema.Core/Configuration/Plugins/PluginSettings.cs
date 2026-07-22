@@ -1,5 +1,6 @@
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
-using Microsoft.Extensions.Configuration;
+using System.Reflection;
 
 namespace NSchema.Configuration.Plugins;
 
@@ -27,33 +28,83 @@ public sealed record PluginSettings(PluginLabel? Label, IReadOnlyDictionary<stri
     /// <param name="ignoreUnknown">Whether to accept attributes that match no property (for forward-compatible formats), rather than reject them.</param>
     public Result<T> Get<T>(bool ignoreUnknown = false) where T : notnull
     {
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(Attributes.Select(a => new KeyValuePair<string, string?>(BinderKey(a.Key), a.Value)))
-            .Build();
+        // A blank instance the attributes mutate in place, so a partial bind still reports [Required] gaps and rides the result.
+        var instance = Activator.CreateInstance<T>();
+        var diagnostics = new List<Diagnostic>();
 
-        T instance;
-        try
+        foreach (var (key, value) in Attributes)
         {
-            // An empty block binds to null; fall back to a blank instance so [Required] still reports the gaps.
-            instance = configuration.Get<T>(options => options.ErrorOnUnknownConfiguration = !ignoreUnknown) ?? Activator.CreateInstance<T>();
-        }
-        catch (InvalidOperationException exception)
-        {
-            // The binder rejects an unknown key or a value that will not convert; surface it, not a crash.
-            return Diagnostic.Error(Source, exception.Message);
+            Assign(instance, key.Split('.'), depth: 0, key, value, ignoreUnknown, diagnostics);
         }
 
         var context = new ValidationContext(instance);
         var results = new List<ValidationResult>();
         Validator.TryValidateObject(instance, context, results, validateAllProperties: true);
 
-        return Result.From(instance, results.Select(result => Diagnostic.Error(Source, result.ErrorMessage ?? "Invalid configuration.")));
+        return Result.From(instance, diagnostics.Concat(results.Select(result => Diagnostic.Error(Source, result.ErrorMessage ?? "Invalid configuration."))));
     }
 
-    // The configuration binder matches keys to property names but does not fold snake_case; convert each dotted
-    // segment to PascalCase (connection_string → ConnectionString) and map the dots onto its ':' hierarchy separator.
-    private static string BinderKey(string key) =>
-        string.Join(':', key.Split('.').Select(PascalCase));
+    // Walks the dotted key onto its property path, creating intermediate objects, then converts and sets the leaf.
+    private static void Assign(object target, string[] path, int depth, string key, string? value, bool ignoreUnknown, List<Diagnostic> diagnostics)
+    {
+        var property = target.GetType().GetProperty(PascalCase(path[depth]), BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+        if (property is null)
+        {
+            if (!ignoreUnknown)
+            {
+                diagnostics.Add(Diagnostic.Error(Source, $"Unknown attribute '{key}'."));
+            }
+
+            return;
+        }
+
+        if (depth == path.Length - 1)
+        {
+            if (TryConvert(property.PropertyType, value, out var converted))
+            {
+                property.SetValue(target, converted);
+            }
+            else
+            {
+                diagnostics.Add(Diagnostic.Error(Source, $"Value '{value}' cannot be assigned to '{key}'."));
+            }
+
+            return;
+        }
+
+        var child = property.GetValue(target) ?? Activator.CreateInstance(property.PropertyType);
+        property.SetValue(target, child);
+        Assign(child!, path, depth + 1, key, value, ignoreUnknown, diagnostics);
+    }
+
+    // Converts a written value to the property's type: null onto anything nullable, enums by member name (case-insensitive),
+    // everything else through its type converter (which resolves any [TypeConverter], e.g. the value objects').
+    private static bool TryConvert(Type type, string? value, out object? result)
+    {
+        result = null;
+        var target = Nullable.GetUnderlyingType(type) ?? type;
+
+        if (value is null)
+        {
+            return !type.IsValueType || target != type;
+        }
+
+        if (target.IsEnum)
+        {
+            return Enum.TryParse(target, value, ignoreCase: true, out result);
+        }
+
+        try
+        {
+            result = TypeDescriptor.GetConverter(target).ConvertFromInvariantString(value);
+            return true;
+        }
+        catch (Exception)
+        {
+            // Any converter failure (a value that does not fit) is a diagnostic, not a crash.
+            return false;
+        }
+    }
 
     private static string PascalCase(string segment) =>
         string.Concat(segment.Split('_').Select(part => part.Length == 0 ? part : char.ToUpperInvariant(part[0]) + part[1..]));

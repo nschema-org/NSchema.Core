@@ -1,4 +1,6 @@
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using NSchema.Model.Services;
 
 namespace NSchema.Configuration.Model;
 
@@ -14,8 +16,8 @@ namespace NSchema.Configuration.Model;
 /// Equality is structural (<c>[5.0,6.0)</c> equals <c>[5.0.0, 6.0.0)</c>), and <see cref="ToString"/> renders the canonical text,
 /// which feeds package resolution.
 /// </remarks>
-[System.ComponentModel.TypeConverter(typeof(VersionRangeConverter))]
-public sealed record VersionRange
+[TypeConverter(typeof(ParsableTypeConverter<VersionRange>))]
+public sealed record VersionRange : IParsable<VersionRange>
 {
     private VersionRange(SemanticVersion? minimum, bool minimumInclusive, SemanticVersion? maximum, bool maximumInclusive)
     {
@@ -44,9 +46,16 @@ public sealed record VersionRange
     /// Parses <paramref name="text"/> under the range grammar, throwing when it is neither a version nor a
     /// version range.
     /// </summary>
-    public static VersionRange Parse(string text) => TryParse(text, out var range)
+    public static VersionRange Parse(string text, IFormatProvider? provider = null) => TryParse(text, out var range)
         ? range
         : throw new FormatException($"'{text}' is not a valid version or version range.");
+
+    /// <inheritdoc cref="Parse(string, IFormatProvider?)" />
+    public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out VersionRange result)
+    {
+        result = s is not null && TryParse(s, out var range) ? range : null;
+        return result is not null;
+    }
 
     /// <summary>
     /// Parses <paramref name="text"/> under the range grammar: a bare version (exact), or an interval.

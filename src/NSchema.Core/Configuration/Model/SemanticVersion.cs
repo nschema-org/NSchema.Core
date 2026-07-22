@@ -1,5 +1,7 @@
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using NSchema.Model.Services;
 
 namespace NSchema.Configuration.Model;
 
@@ -16,8 +18,9 @@ namespace NSchema.Configuration.Model;
 /// <param name="Patch">The patch version.</param>
 /// <param name="Revision">The fourth numeric part, or zero when the version has only three.</param>
 /// <param name="Prerelease">The prerelease identifiers, or <see langword="null"/> for a release version.</param>
-[System.ComponentModel.TypeConverter(typeof(SemanticVersionConverter))]
-public sealed record SemanticVersion(int Major, int Minor, int Patch, int Revision, string? Prerelease) : IComparable<SemanticVersion>
+[TypeConverter(typeof(ParsableTypeConverter<SemanticVersion>))]
+public sealed record SemanticVersion(int Major, int Minor, int Patch, int Revision, string? Prerelease)
+    : IComparable<SemanticVersion>, IParsable<SemanticVersion>
 {
     /// <summary>
     /// Whether this is a prerelease version (it carries a prerelease label).
@@ -27,9 +30,16 @@ public sealed record SemanticVersion(int Major, int Minor, int Patch, int Revisi
     /// <summary>
     /// Parses <paramref name="text"/> as a semantic version, throwing when it is not one.
     /// </summary>
-    public static SemanticVersion Parse(string text) => TryParse(text, out var version)
+    public static SemanticVersion Parse(string text, IFormatProvider? provider = null) => TryParse(text, out var version)
         ? version
         : throw new FormatException($"'{text}' is not a valid semantic version.");
+
+    /// <inheritdoc cref="Parse(string, IFormatProvider?)" />
+    public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out SemanticVersion result)
+    {
+        result = s is not null && TryParse(s, out var version) ? version : null;
+        return result is not null;
+    }
 
     /// <summary>
     /// Parses <paramref name="text"/> as a semantic version.

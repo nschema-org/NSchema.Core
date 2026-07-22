@@ -1,5 +1,7 @@
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using NSchema.Model;
+using NSchema.Model.Services;
 
 namespace NSchema.Configuration.Plugins;
 
@@ -7,14 +9,24 @@ namespace NSchema.Configuration.Plugins;
 /// The local name a configuration refers to a plugin by: the label on a <c>PLUGIN</c> statement, referenced
 /// by <c>DATABASE</c> and <c>STATE</c>.
 /// </summary>
-[System.ComponentModel.TypeConverter(typeof(PluginLabelConverter))]
-public sealed record PluginLabel : ValueObject<string>
+[TypeConverter(typeof(ParsableTypeConverter<PluginLabel>))]
+public sealed record PluginLabel : ValueObject<string>, IParsable<PluginLabel>
 {
     /// <summary>
     /// Wraps the label as written.
     /// </summary>
     public PluginLabel(string value) : base(value)
     {
+    }
+
+    /// <summary>Wraps a label as written.</summary>
+    public static PluginLabel Parse(string s, IFormatProvider? provider = null) => new(s);
+
+    /// <summary>Wraps a label as written.</summary>
+    public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out PluginLabel result)
+    {
+        result = s is null ? null : new PluginLabel(s);
+        return result is not null;
     }
 
     /// <summary>
