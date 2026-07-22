@@ -1,3 +1,5 @@
+using NSchema.Project.Nsql.Tokens;
+
 namespace NSchema.Project.Nsql.Syntax;
 
 /// <summary>
@@ -7,4 +9,69 @@ namespace NSchema.Project.Nsql.Syntax;
 /// <param name="Schema">The schema qualifier for a user-defined type, or <see langword="null"/>.</param>
 /// <param name="Name">The type name.</param>
 /// <param name="Arguments">The text inside the parentheses (e.g. <c>100</c> or <c>10,2</c>), or <see langword="null"/>.</param>
-public sealed record TypeName(Identifier? Schema, Identifier Name, string? Arguments = null) : NsqlNode;
+public sealed record TypeName(Identifier? Schema, Identifier Name, string? Arguments = null) : NsqlNode
+{
+    /// <summary>
+    /// The <c>.</c> token after the schema qualifier, when parsed qualified.
+    /// </summary>
+    public Token? SchemaDotToken { get; init; }
+
+    /// <summary>
+    /// The <c>(</c> token opening the arguments, when parsed with arguments.
+    /// </summary>
+    public Token? OpenParenToken { get; init; }
+
+    /// <summary>
+    /// The precision (first) argument token, when parsed with arguments.
+    /// </summary>
+    public Token? PrecisionToken { get; init; }
+
+    /// <summary>
+    /// The <c>,</c> token between precision and scale, when parsed with a scale.
+    /// </summary>
+    public Token? CommaToken { get; init; }
+
+    /// <summary>The scale (second) argument token, when parsed with a scale.</summary>
+    public Token? ScaleToken { get; init; }
+
+    /// <summary>
+    /// The <c>)</c> token closing the arguments, when parsed with arguments.
+    /// </summary>
+    public Token? CloseParenToken { get; init; }
+
+    internal override IEnumerable<NsqlChild> Children
+    {
+        get
+        {
+            if (Schema != null)
+            {
+                yield return Schema;
+                if (SchemaDotToken is { } dot)
+                {
+                    yield return dot;
+                }
+            }
+            yield return Name;
+            if (OpenParenToken is { } open)
+            {
+                yield return open;
+            }
+            if (PrecisionToken is { } precision)
+            {
+                yield return precision;
+            }
+            if (CommaToken is { } comma)
+            {
+                yield return comma;
+            }
+            if (ScaleToken is { } scale)
+            {
+                yield return scale;
+            }
+            if (CloseParenToken is { } close)
+            {
+                yield return close;
+            }
+        }
+    }
+}

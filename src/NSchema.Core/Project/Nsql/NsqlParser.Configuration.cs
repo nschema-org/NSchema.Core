@@ -9,9 +9,13 @@ internal sealed partial class NsqlParser
     /// Parses the whole document as a configuration file: a sequence of blocks, of which only PLUGIN, ENGINE,
     /// DATABASE, and STATE are legal. Configuration and project statements never share a file.
     /// </summary>
-    public NsqlBlockDocument ParseConfiguration() => new(ParseDocumentBody(ParseConfigurationBlock));
+    public NsqlBlockDocument ParseConfiguration()
+    {
+        var statements = ParseDocumentBody(ParseConfigurationBlock);
+        return new NsqlBlockDocument(statements) { EndOfFile = _current };
+    }
 
-    private BlockStatement ParseConfigurationBlock(string? doc)
+    private BlockStatement ParseConfigurationBlock(Token? doc)
     {
         if (CurrentBlockKeyword() is not { } keyword || keyword == BlockKeyword.Lock)
         {

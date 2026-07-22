@@ -12,45 +12,45 @@ internal sealed partial class NsqlParser
     /// <summary>
     /// Parses a template definition.
     /// </summary>
-    private NsqlStatement ParseTemplate(string? doc)
+    private NsqlStatement ParseTemplate(Token? doc)
     {
-        var position = _current.Position;
-        Advance(); // TEMPLATE
-        var namePosition = _current.Position;
+        var template = Advance(); // TEMPLATE
         var name = ExpectIdentifierNode("a template name");
-        var forTable = ParseTemplateKindIsTable();
-        ExpectKeyword(NsqlKeywords.Begin);
+        var (forKeyword, kindKeyword, forTable) = ParseTemplateKind();
+        var begin = ExpectKeyword(NsqlKeywords.Begin);
 
+        var header = new TemplateHeader(template, forKeyword, kindKeyword, begin, doc);
         return forTable
-            ? ParseTableTemplateBody(position, name, doc)
-            : ParseSchemaTemplateBody(position, name, namePosition, doc);
+            ? ParseTableTemplateBody(header, name)
+            : ParseSchemaTemplateBody(header, name);
     }
+
+    /// <summary>The tokens of a template's header — <c>TEMPLATE [FOR SCHEMA|TABLE] BEGIN</c> — and its doc-comment.</summary>
+    private readonly record struct TemplateHeader(Token Template, Token? For, Token? Kind, Token Begin, Token? Doc);
 
     /// <summary>
     /// Parses the optional kind marker after the template name: <c>FOR SCHEMA</c> (the default) or <c>FOR TABLE</c>.
     /// </summary>
-    private bool ParseTemplateKindIsTable()
+    private (Token? For, Token? Kind, bool IsTable) ParseTemplateKind()
     {
         if (!_current.IsKeyword(NsqlKeywords.For))
         {
-            return false;
+            return (null, null, false);
         }
-        Advance(); // FOR
+        var forKeyword = Advance(); // FOR
 
         if (_current.IsKeyword(NsqlKeywords.Schema))
         {
-            Advance();
-            return false;
+            return (forKeyword, Advance(), false);
         }
         if (_current.IsKeyword(NsqlKeywords.Table))
         {
-            Advance();
-            return true;
+            return (forKeyword, Advance(), true);
         }
         throw Error($"Expected SCHEMA or TABLE after FOR, found '{_current.Text}'.");
     }
 
-    private SchemaTemplateStatement ParseSchemaTemplateBody(SourcePosition position, Identifier name, SourcePosition namePosition, string? doc)
+    private SchemaTemplateStatement ParseSchemaTemplateBody(TemplateHeader header, Identifier name)
     {
         var statements = new List<NsqlStatement>();
         _inTemplateBody = true;
@@ -60,7 +60,7 @@ internal sealed partial class NsqlParser
             {
                 if (_current.Kind == TokenKind.EndOfFile)
                 {
-                    throw new NsqlSyntaxException($"Unterminated template '{name.Value}'; expected END.", namePosition);
+                    throw new NsqlSyntaxException($"Unterminated template '{name.Value}'; expected END.", name.Position);
                 }
 
                 var statementDoc = TakePendingDoc();
@@ -83,18 +83,30 @@ internal sealed partial class NsqlParser
         {
             _inTemplateBody = false;
         }
-        Advance(); // END
-        Expect(TokenKind.Semicolon, "';'");
+        var end = Advance(); // END
+        var semicolon = Expect(TokenKind.Semicolon, "';'");
 
-        return new SchemaTemplateStatement(name, statements) { Position = position, Doc = doc };
+        return new SchemaTemplateStatement(name, statements)
+        {
+            Position = header.Template.Position,
+            Doc = header.Doc?.Text,
+            DocComment = header.Doc,
+            TemplateKeyword = header.Template,
+            ForKeyword = header.For,
+            KindKeyword = header.Kind,
+            BeginKeyword = header.Begin,
+            EndKeyword = end,
+            SemicolonToken = semicolon,
+        };
     }
 
     /// <summary>
     /// Parses a table template's body — comma-separated table members, the same grammar as a table body.
     /// </summary>
-    private TableTemplateStatement ParseTableTemplateBody(SourcePosition position, Identifier name, string? doc)
+    private TableTemplateStatement ParseTableTemplateBody(TemplateHeader header, Identifier name)
     {
         var members = new List<TableMember>();
+        var separators = new List<Token>();
         _inTemplateBody = true;
         _inTableTemplateBody = true;
         try
@@ -107,7 +119,7 @@ internal sealed partial class NsqlParser
                     var itemDoc = TakePendingDoc();
                     members.Add(ParseTableItem(itemDoc, ref primaryKeySeen));
                 }
-                while (Match(TokenKind.Comma));
+                while (TryConsumeSeparator(TokenKind.Comma, separators));
             }
         }
         finally
@@ -115,10 +127,21 @@ internal sealed partial class NsqlParser
             _inTemplateBody = false;
             _inTableTemplateBody = false;
         }
-        ExpectKeyword(NsqlKeywords.End);
-        Expect(TokenKind.Semicolon, "';'");
+        var end = ExpectKeyword(NsqlKeywords.End);
+        var semicolon = Expect(TokenKind.Semicolon, "';'");
 
-        return new TableTemplateStatement(name, members) { Position = position, Doc = doc };
+        return new TableTemplateStatement(name, new SeparatedSyntaxList<TableMember>(members, separators))
+        {
+            Position = header.Template.Position,
+            Doc = header.Doc?.Text,
+            DocComment = header.Doc,
+            TemplateKeyword = header.Template,
+            ForKeyword = header.For,
+            KindKeyword = header.Kind,
+            BeginKeyword = header.Begin,
+            EndKeyword = end,
+            SemicolonToken = semicolon,
+        };
     }
 
     /// <summary>
@@ -136,7 +159,7 @@ internal sealed partial class NsqlParser
         }
     }
 
-    private NsqlStatement ParseTemplateStatement(string? doc)
+    private NsqlStatement ParseTemplateStatement(Token? doc)
     {
         if (_current.IsKeyword(NsqlKeywords.Create))
         {
@@ -180,29 +203,38 @@ internal sealed partial class NsqlParser
     /// <summary>
     /// Parses a template application: <c>APPLY TEMPLATE name IN SCHEMA a[, b …];</c>.
     /// </summary>
-    private ApplyTemplateStatement ParseApplyTemplate(string? doc)
+    private ApplyTemplateStatement ParseApplyTemplate(Token? doc)
     {
-        var position = _current.Position;
-        Advance(); // APPLY
-        ExpectKeyword(NsqlKeywords.Template);
+        var apply = Advance(); // APPLY
+        var templateKeyword = ExpectKeyword(NsqlKeywords.Template);
         var name = ExpectIdentifierNode("a template name");
-        ExpectKeyword(NsqlKeywords.In);
-        ExpectKeyword(NsqlKeywords.Schema);
+        var inKeyword = ExpectKeyword(NsqlKeywords.In);
+        var schemaKeyword = ExpectKeyword(NsqlKeywords.Schema);
 
         var schemaNames = new List<Identifier>();
+        var separators = new List<Token>();
         do
         {
-            var schemaPosition = _current.Position;
             var schemaName = ExpectIdentifierNode("a schema name");
             if (schemaNames.Any(s => string.Equals(s.Value, schemaName.Value, StringComparison.Ordinal)))
             {
-                throw new NsqlSyntaxException($"Schema '{schemaName.Value}' is listed more than once.", schemaPosition);
+                throw new NsqlSyntaxException($"Schema '{schemaName.Value}' is listed more than once.", schemaName.Position);
             }
             schemaNames.Add(schemaName);
         }
-        while (Match(TokenKind.Comma));
-        Expect(TokenKind.Semicolon, "';'");
+        while (TryConsumeSeparator(TokenKind.Comma, separators));
+        var semicolon = Expect(TokenKind.Semicolon, "';'");
 
-        return new ApplyTemplateStatement(name, schemaNames) { Position = position, Doc = doc };
+        return new ApplyTemplateStatement(name, new SeparatedSyntaxList<Identifier>(schemaNames, separators))
+        {
+            Position = apply.Position,
+            Doc = doc?.Text,
+            DocComment = doc,
+            ApplyKeyword = apply,
+            TemplateKeyword = templateKeyword,
+            InKeyword = inKeyword,
+            SchemaKeyword = schemaKeyword,
+            SemicolonToken = semicolon,
+        };
     }
 }

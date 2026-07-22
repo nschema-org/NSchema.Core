@@ -1,3 +1,5 @@
+using NSchema.Project.Nsql.Tokens;
+
 namespace NSchema.Project.Nsql.Syntax.Scripts;
 
 /// <summary>
@@ -6,4 +8,22 @@ namespace NSchema.Project.Nsql.Syntax.Scripts;
 /// </summary>
 /// <param name="Trigger">The change trigger.</param>
 /// <param name="Path">The target path as written.</param>
-public sealed record ChangeEventClause(ChangeTrigger Trigger, MemberPath Path) : ScriptEventClause;
+public sealed record ChangeEventClause(ChangeTrigger Trigger, MemberPath Path) : ScriptEventClause
+{
+    /// <summary>
+    /// The keyword token(s) naming the change (e.g. <c>ADD COLUMN</c>), when parsed.
+    /// </summary>
+    public IReadOnlyList<Token> TriggerKeywords { get; init; } = [];
+
+    internal override IEnumerable<NsqlChild> Children
+    {
+        get
+        {
+            foreach (var keyword in TriggerKeywords)
+            {
+                yield return keyword;
+            }
+            yield return Path;
+        }
+    }
+}

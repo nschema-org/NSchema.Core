@@ -1,4 +1,5 @@
 using NSchema.Model;
+using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql.Syntax.Triggers;
 
@@ -8,4 +9,21 @@ namespace NSchema.Project.Nsql.Syntax.Triggers;
 /// </summary>
 /// <param name="Function">The function reference as written.</param>
 /// <param name="Arguments">The argument list, verbatim (usually empty).</param>
-public sealed record ExecuteFunctionAction(QualifiedName Function, SqlText Arguments) : TriggerAction;
+public sealed record ExecuteFunctionAction(QualifiedName Function, SqlText Arguments) : TriggerAction
+{
+    /// <summary>
+    /// The verbatim span of the whole action (<c>EXECUTE FUNCTION function(args)</c>), when parsed.
+    /// </summary>
+    public Token? ActionToken { get; init; }
+
+    internal override IEnumerable<NsqlChild> Children
+    {
+        get
+        {
+            if (ActionToken is { } action)
+            {
+                yield return action;
+            }
+        }
+    }
+}

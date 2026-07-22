@@ -1,3 +1,4 @@
+using System.Text;
 
 namespace NSchema.Project.Nsql.Tokens;
 
@@ -12,7 +13,7 @@ namespace NSchema.Project.Nsql.Tokens;
 /// <see cref="TokenKind.EndOfFile"/>.
 /// </param>
 /// <param name="Position">Where the token begins in the source.</param>
-internal readonly record struct Token(TokenKind Kind, string Text, SourcePosition Position)
+public readonly record struct Token(TokenKind Kind, string Text, SourcePosition Position)
 {
     private static readonly Trivia[] _noTrivia = [];
 
@@ -76,4 +77,20 @@ internal readonly record struct Token(TokenKind Kind, string Text, SourcePositio
     /// Whether this token can serve as an object name: a bare or quoted identifier.
     /// </summary>
     public bool IsName => Kind is TokenKind.Identifier or TokenKind.QuotedIdentifier;
+
+    /// <summary>
+    /// Writes the token back to source: leading trivia, then the raw text, then trailing trivia.
+    /// </summary>
+    internal void WriteTo(StringBuilder sb)
+    {
+        foreach (var trivia in Leading)
+        {
+            sb.Append(trivia.Text);
+        }
+        sb.Append(Raw);
+        foreach (var trivia in Trailing)
+        {
+            sb.Append(trivia.Text);
+        }
+    }
 }

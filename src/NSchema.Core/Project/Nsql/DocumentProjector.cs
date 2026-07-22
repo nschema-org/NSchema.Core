@@ -58,7 +58,7 @@ internal static class DocumentProjector
             case Syn.Enums.CreateEnumStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
-                    schemas.AddEnum(schema, new EnumType { Name = name, Values = [.. s.Values], Comment = s.Doc }, s.Name.Position);
+                    schemas.AddEnum(schema, new EnumType { Name = name, Values = [.. s.Values.Select(v => v.Value)], Comment = s.Doc }, s.Name.Position);
                     break;
                 }
             case Syn.Domains.CreateDomainStatement s:
@@ -96,7 +96,7 @@ internal static class DocumentProjector
             case Syn.Tables.GrantTableStatement s:
                 {
                     var (schema, table) = Bind(s.On, context);
-                    schemas.AddTableGrant(schema, table, new TableGrant(Name(s.Role), Map(s.Privileges)), s.On.Position);
+                    schemas.AddTableGrant(schema, table, new TableGrant(Name(s.Role), Map(s.PrivilegeFlags)), s.On.Position);
                     break;
                 }
             default:

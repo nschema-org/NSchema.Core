@@ -1,4 +1,5 @@
 using NSchema.Model;
+using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql.Syntax.Tables;
 
@@ -21,4 +22,27 @@ public sealed record ColumnDefinition(
     IdentityOptionsClause? IdentityOptions = null,
     SqlText? Default = null,
     SqlText? Generated = null
-) : TableMember;
+) : TableMember
+{
+    /// <summary>
+    /// The verbatim span of the modifiers after the type (<c>NOT NULL</c>, <c>IDENTITY</c>, <c>DEFAULT</c>, <c>GENERATED</c>), when parsed with any.
+    /// </summary>
+    public Token? ModifiersToken { get; init; }
+
+    internal override IEnumerable<NsqlChild> Children
+    {
+        get
+        {
+            if (DocComment is { } doc)
+            {
+                yield return doc;
+            }
+            yield return Name;
+            yield return Type;
+            if (ModifiersToken is { } modifiers)
+            {
+                yield return modifiers;
+            }
+        }
+    }
+}

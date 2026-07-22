@@ -7,7 +7,7 @@ namespace NSchema.Project.Nsql.Tokens;
 /// <param name="Kind">The kind of trivia.</param>
 /// <param name="Text">The verbatim source text.</param>
 /// <param name="Position">Where the trivia begins in the source.</param>
-internal readonly record struct Trivia(TriviaKind Kind, string Text, SourcePosition Position)
+public readonly record struct Trivia(TriviaKind Kind, string Text, SourcePosition Position)
 {
     /// <summary>
     /// Whether this trivia is a comment (as opposed to whitespace or a line break).

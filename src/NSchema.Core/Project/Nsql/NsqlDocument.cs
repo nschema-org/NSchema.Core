@@ -6,10 +6,7 @@ namespace NSchema.Project.Nsql;
 /// A parsed NSchema project source file: the statements as written, in order. One document is one file.
 /// </summary>
 /// <param name="Statements">The top-level statements in source order.</param>
-public sealed record NsqlDocument(IReadOnlyList<NsqlStatement> Statements)
+public sealed record NsqlDocument(IReadOnlyList<NsqlStatement> Statements) : NsqlSourceDocument
 {
-    /// <summary>
-    /// The file the document was read from, or <see langword="null"/> when parsed from raw source.
-    /// </summary>
-    public string? FilePath { get; init; }
+    private protected override IReadOnlyList<NsqlStatement> StatementNodes => Statements;
 }

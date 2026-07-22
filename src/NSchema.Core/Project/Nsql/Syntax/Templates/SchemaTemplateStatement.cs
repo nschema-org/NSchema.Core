@@ -6,4 +6,45 @@ namespace NSchema.Project.Nsql.Syntax.Templates;
 /// </summary>
 /// <param name="Name">The template name.</param>
 /// <param name="Statements">The body statements, unexpanded.</param>
-public sealed record SchemaTemplateStatement(Identifier Name, IReadOnlyList<NsqlStatement> Statements) : TemplateStatement(Name);
+public sealed record SchemaTemplateStatement(Identifier Name, IReadOnlyList<NsqlStatement> Statements) : TemplateStatement(Name)
+{
+    internal override IEnumerable<NsqlChild> Children
+    {
+        get
+        {
+            if (DocComment is { } doc)
+            {
+                yield return doc;
+            }
+            if (TemplateKeyword is { } template)
+            {
+                yield return template;
+            }
+            yield return Name;
+            if (ForKeyword is { } forKeyword)
+            {
+                yield return forKeyword;
+            }
+            if (KindKeyword is { } kind)
+            {
+                yield return kind;
+            }
+            if (BeginKeyword is { } begin)
+            {
+                yield return begin;
+            }
+            foreach (var statement in Statements)
+            {
+                yield return statement;
+            }
+            if (EndKeyword is { } end)
+            {
+                yield return end;
+            }
+            if (SemicolonToken is { } semicolon)
+            {
+                yield return semicolon;
+            }
+        }
+    }
+}

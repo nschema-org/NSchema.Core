@@ -1,4 +1,5 @@
 using NSchema.Project.Nsql.Syntax.Tables;
+using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql.Syntax.Constraints;
 
@@ -13,9 +14,70 @@ namespace NSchema.Project.Nsql.Syntax.Constraints;
 /// <param name="OnUpdate">The <c>ON UPDATE</c> action (default <see cref="ReferentialAction.NoAction"/>).</param>
 public sealed record ForeignKeyDefinition(
     Identifier Name,
-    IReadOnlyList<Identifier> Columns,
+    ColumnList Columns,
     QualifiedName References,
-    IReadOnlyList<Identifier> ReferencedColumns,
+    ColumnList ReferencedColumns,
     ReferentialAction OnDelete = ReferentialAction.NoAction,
     ReferentialAction OnUpdate = ReferentialAction.NoAction
-) : TableMember;
+) : TableMember
+{
+    /// <summary>
+    /// The <c>CONSTRAINT</c> keyword token, when parsed.
+    /// </summary>
+    public Token? ConstraintKeyword { get; init; }
+
+    /// <summary>
+    /// The <c>FOREIGN</c> keyword token, when parsed.
+    /// </summary>
+    public Token? ForeignKeyword { get; init; }
+
+    /// <summary>
+    /// The <c>KEY</c> keyword token, when parsed.
+    /// </summary>
+    public Token? KeyKeyword { get; init; }
+
+    /// <summary>
+    /// The <c>REFERENCES</c> keyword token, when parsed.
+    /// </summary>
+    public Token? ReferencesKeyword { get; init; }
+
+    /// <summary>
+    /// The verbatim span of the <c>ON DELETE</c>/<c>ON UPDATE</c> actions, when parsed with any.
+    /// </summary>
+    public Token? ActionsToken { get; init; }
+
+    internal override IEnumerable<NsqlChild> Children
+    {
+        get
+        {
+            if (DocComment is { } doc)
+            {
+                yield return doc;
+            }
+            if (ConstraintKeyword is { } constraint)
+            {
+                yield return constraint;
+            }
+            yield return Name;
+            if (ForeignKeyword is { } foreign)
+            {
+                yield return foreign;
+            }
+            if (KeyKeyword is { } key)
+            {
+                yield return key;
+            }
+            yield return Columns;
+            if (ReferencesKeyword is { } references)
+            {
+                yield return references;
+            }
+            yield return References;
+            yield return ReferencedColumns;
+            if (ActionsToken is { } actions)
+            {
+                yield return actions;
+            }
+        }
+    }
+}

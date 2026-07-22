@@ -4,7 +4,7 @@ namespace NSchema.Project.Nsql.Tokens;
 /// The kinds of token the <see cref="NsqlLexer"/> produces for NSchema DDL. Keywords are not distinguished here —
 /// they are lexed as <see cref="Identifier"/> and matched case-insensitively by the parser.
 /// </summary>
-internal enum TokenKind
+public enum TokenKind
 {
     /// <summary>
     /// An identifier or keyword (e.g. <c>users</c>, <c>CREATE</c>). Keywords are matched by the parser.
@@ -101,6 +101,12 @@ internal enum TokenKind
     /// Any other single punctuation character the lexer does not structurally recognise (e.g. <c>&gt;</c>, <c>&amp;</c>, <c>:</c>).
     /// </summary>
     Symbol,
+
+    /// <summary>
+    /// A verbatim opaque region (a view body, routine definition, default expression, …). The lexer never emits
+    /// this; the parser mints it from a source slice so an opaque span reprints exactly.
+    /// </summary>
+    RawSpan,
 
     /// <summary>
     /// The end of the input.

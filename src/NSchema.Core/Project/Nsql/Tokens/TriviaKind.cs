@@ -4,7 +4,7 @@ namespace NSchema.Project.Nsql.Tokens;
 /// The kinds of trivia the <see cref="NsqlLexer"/> attaches to tokens: the source text that carries no
 /// syntactic meaning but must be preserved for a lossless round-trip. Doc-comments are tokens, not trivia.
 /// </summary>
-internal enum TriviaKind
+public enum TriviaKind
 {
     /// <summary>
     /// A run of spaces and tabs (never crossing a line boundary).
@@ -25,4 +25,10 @@ internal enum TriviaKind
     /// A source block comment (<c>/* … */</c>, not a <c>/** … */</c> doc-comment), kept verbatim with its delimiters.
     /// </summary>
     BlockComment,
+
+    /// <summary>
+    /// A run of tokens the parser skipped recovering from a syntax error.
+    /// The lexer never emits this; the parser attaches it to the next token so a document with errors still round-trips.
+    /// </summary>
+    Skipped,
 }

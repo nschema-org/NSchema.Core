@@ -9,9 +9,13 @@ internal sealed partial class NsqlParser
     /// Parses the whole document under the lockfile grammar: only <c>LOCK</c> statements are legal. The lockfile
     /// is a machine-managed artifact, distinct from the configuration and project grammars.
     /// </summary>
-    public NsqlBlockDocument ParseLock() => new(ParseDocumentBody(ParseLockBlock));
+    public NsqlBlockDocument ParseLock()
+    {
+        var statements = ParseDocumentBody(ParseLockBlock);
+        return new NsqlBlockDocument(statements) { EndOfFile = _current };
+    }
 
-    private BlockStatement ParseLockBlock(string? doc)
+    private BlockStatement ParseLockBlock(Token? doc)
     {
         if (CurrentBlockKeyword() != BlockKeyword.Lock)
         {

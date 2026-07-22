@@ -1,4 +1,5 @@
 using NSchema.Model;
+using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql.Syntax.Indexes;
 
@@ -14,4 +15,70 @@ public sealed record IndexElement(
     SqlText? Expression = null,
     IndexSort Sort = IndexSort.Default,
     IndexNulls Nulls = IndexNulls.Default
-) : NsqlNode;
+) : NsqlNode
+{
+    /// <summary>
+    /// The <c>(</c> token, when parsed with an expression key.
+    /// </summary>
+    public Token? OpenParenToken { get; init; }
+
+    /// <summary>
+    /// The verbatim expression span token, when parsed with an expression key.
+    /// </summary>
+    public Token? ExpressionToken { get; init; }
+
+    /// <summary>
+    /// The <c>)</c> token, when parsed with an expression key.
+    /// </summary>
+    public Token? CloseParenToken { get; init; }
+
+    /// <summary>
+    /// The <c>ASC</c>/<c>DESC</c> token, when parsed with a sort direction.
+    /// </summary>
+    public Token? SortToken { get; init; }
+
+    /// <summary>
+    /// The <c>NULLS</c> keyword token, when parsed with a null ordering.
+    /// </summary>
+    public Token? NullsKeyword { get; init; }
+
+    /// <summary>
+    /// The <c>FIRST</c>/<c>LAST</c> token, when parsed with a null ordering.
+    /// </summary>
+    public Token? NullsPositionToken { get; init; }
+
+    internal override IEnumerable<NsqlChild> Children
+    {
+        get
+        {
+            if (Column is { } column)
+            {
+                yield return column;
+            }
+            if (OpenParenToken is { } open)
+            {
+                yield return open;
+            }
+            if (ExpressionToken is { } expression)
+            {
+                yield return expression;
+            }
+            if (CloseParenToken is { } close)
+            {
+                yield return close;
+            }
+            if (SortToken is { } sort)
+            {
+                yield return sort;
+            }
+            if (NullsKeyword is { } nulls)
+            {
+                yield return nulls;
+            }
+            if (NullsPositionToken is { } position)
+            {
+                yield return position;
+            }
+        }
+    }
+}

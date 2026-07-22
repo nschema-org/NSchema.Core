@@ -13,30 +13,57 @@ internal sealed partial class NsqlParser
     /// fully qualified (a bare name for SCHEMA, a three-part path for COLUMN); the target is always a bare
     /// name — a rename never moves an object across containers.
     /// </summary>
-    private NsqlStatement ParseRename(string? doc)
+    private NsqlStatement ParseRename(Token? doc)
     {
-        var position = _current.Position;
-        Advance(); // RENAME
+        var rename = Advance(); // RENAME
+        var position = rename.Position;
 
         if (_current.IsKeyword(NsqlKeywords.Schema))
         {
-            Advance();
+            var schemaKeyword = Advance();
             var from = ExpectIdentifierNode("a schema name");
-            var to = ParseRenameTarget("a schema name");
-            return new RenameSchemaStatement(from, to) { Position = position, Doc = doc };
+            var (to, target, semicolon) = ParseRenameTarget("a schema name");
+            return new RenameSchemaStatement(from, target)
+            {
+                Position = position,
+                Doc = doc?.Text,
+                DocComment = doc,
+                RenameKeyword = rename,
+                SchemaKeyword = schemaKeyword,
+                ToKeyword = to,
+                SemicolonToken = semicolon,
+            };
         }
         if (_current.IsKeyword(NsqlKeywords.Column))
         {
-            Advance();
+            var columnKeyword = Advance();
             var from = ParseColumnPath();
-            var to = ParseRenameTarget("a column name");
-            return new RenameColumnStatement(from, to) { Position = position, Doc = doc };
+            var (to, target, semicolon) = ParseRenameTarget("a column name");
+            return new RenameColumnStatement(from, target)
+            {
+                Position = position,
+                Doc = doc?.Text,
+                DocComment = doc,
+                RenameKeyword = rename,
+                ColumnKeyword = columnKeyword,
+                ToKeyword = to,
+                SemicolonToken = semicolon,
+            };
         }
-        if (TryParseObjectKind() is { } kind)
+        if (TryParseObjectKind() is { } parsed)
         {
             var from = ParseQualifiedNameNode();
-            var to = ParseRenameTarget(RenameTargetNoun(kind));
-            return new RenameObjectStatement(kind, from, to) { Position = position, Doc = doc };
+            var (to, target, semicolon) = ParseRenameTarget(RenameTargetNoun(parsed.Kind));
+            return new RenameObjectStatement(parsed.Kind, from, target)
+            {
+                Position = position,
+                Doc = doc?.Text,
+                DocComment = doc,
+                RenameKeyword = rename,
+                KindKeywords = parsed.Keywords,
+                ToKeyword = to,
+                SemicolonToken = semicolon,
+            };
         }
 
         throw Error("Expected a renameable kind: SCHEMA, TABLE, COLUMN, VIEW, ENUM, DOMAIN, TYPE, SEQUENCE, FUNCTION, PROCEDURE or ROUTINE.");
@@ -47,45 +74,40 @@ internal sealed partial class NsqlParser
     /// MATERIALIZED VIEW both name a view, and FUNCTION, PROCEDURE and ROUTINE all name a routine (they share
     /// one name space) — the concrete kind is resolved from the current state when the directive is planned.
     /// </summary>
-    private ObjectKind? TryParseObjectKind()
+    private (ObjectKind Kind, IReadOnlyList<Token> Keywords)? TryParseObjectKind()
     {
         if (_current.IsKeyword(NsqlKeywords.Table))
         {
-            Advance();
-            return ObjectKind.Table;
+            return (ObjectKind.Table, [Advance()]);
         }
         if (_current.IsAnyKeyword(NsqlKeywords.View, NsqlKeywords.Materialized))
         {
-            if (Advance().IsKeyword(NsqlKeywords.Materialized))
+            var first = Advance();
+            if (first.IsKeyword(NsqlKeywords.Materialized))
             {
-                ExpectKeyword(NsqlKeywords.View);
+                return (ObjectKind.View, [first, ExpectKeyword(NsqlKeywords.View)]);
             }
-            return ObjectKind.View;
+            return (ObjectKind.View, [first]);
         }
         if (_current.IsKeyword(NsqlKeywords.Enum))
         {
-            Advance();
-            return ObjectKind.Enum;
+            return (ObjectKind.Enum, [Advance()]);
         }
         if (_current.IsKeyword(NsqlKeywords.Domain))
         {
-            Advance();
-            return ObjectKind.Domain;
+            return (ObjectKind.Domain, [Advance()]);
         }
         if (_current.IsKeyword(NsqlKeywords.Type))
         {
-            Advance();
-            return ObjectKind.CompositeType;
+            return (ObjectKind.CompositeType, [Advance()]);
         }
         if (_current.IsKeyword(NsqlKeywords.Sequence))
         {
-            Advance();
-            return ObjectKind.Sequence;
+            return (ObjectKind.Sequence, [Advance()]);
         }
         if (_current.IsAnyKeyword(NsqlKeywords.Function, NsqlKeywords.Procedure, NsqlKeywords.Routine))
         {
-            Advance();
-            return ObjectKind.Routine;
+            return (ObjectKind.Routine, [Advance()]);
         }
         return null;
     }
@@ -106,12 +128,12 @@ internal sealed partial class NsqlParser
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };
 
-    private Identifier ParseRenameTarget(string what)
+    private (Token To, Identifier Name, Token Semicolon) ParseRenameTarget(string what)
     {
-        ExpectKeyword(NsqlKeywords.To);
-        var to = ExpectIdentifierNode(what);
-        Expect(TokenKind.Semicolon, "';'");
-        return to;
+        var to = ExpectKeyword(NsqlKeywords.To);
+        var name = ExpectIdentifierNode(what);
+        var semicolon = Expect(TokenKind.Semicolon, "';'");
+        return (to, name, semicolon);
     }
 
     /// <summary>
@@ -120,15 +142,20 @@ internal sealed partial class NsqlParser
     private MemberPath ParseColumnPath()
     {
         var first = ExpectIdentifierNode("a schema name");
-        Expect(TokenKind.Dot, "'.' in the column path");
+        var firstDot = Expect(TokenKind.Dot, "'.' in the column path");
         var second = ExpectIdentifierNode("a table name");
-        if (_inTemplateBody && !Match(TokenKind.Dot))
+        if (_inTemplateBody && _current.Kind != TokenKind.Dot)
         {
-            // table.column. The schema is decided when the template is applied.
-            return new MemberPath(null, first, second) { Position = first.Position };
+            // table.column. The schema is decided when the template is applied; the one dot is the member dot.
+            return new MemberPath(null, first, second) { Position = first.Position, MemberDotToken = firstDot };
         }
-        Expect(TokenKind.Dot, "'.' in the column path (schema.table.column)");
+        var secondDot = Expect(TokenKind.Dot, "'.' in the column path (schema.table.column)");
         var column = ExpectIdentifierNode("a column name");
-        return new MemberPath(first, second, column) { Position = first.Position };
+        return new MemberPath(first, second, column)
+        {
+            Position = first.Position,
+            SchemaDotToken = firstDot,
+            MemberDotToken = secondDot,
+        };
     }
 }

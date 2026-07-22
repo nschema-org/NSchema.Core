@@ -97,7 +97,8 @@ internal static class SyntaxBuilder
 
         foreach (var enumType in schema.Enums)
         {
-            statements.Add(new Syn.Enums.CreateEnumStatement(Qualified(schema.Name, enumType.Name), enumType.Values.Select(v => v.Value).ToList())
+            statements.Add(new Syn.Enums.CreateEnumStatement(Qualified(schema.Name, enumType.Name),
+                new Syn.SeparatedSyntaxList<Syn.Enums.EnumValue>(enumType.Values.Select(v => Syn.Enums.EnumValue.Synthetic(v.Value)).ToList()))
             {
                 Position = _none,
                 Doc = enumType.Comment,
@@ -118,7 +119,8 @@ internal static class SyntaxBuilder
         foreach (var compositeType in schema.CompositeTypes)
         {
             statements.Add(new Syn.CompositeTypes.CreateCompositeTypeStatement(Qualified(schema.Name, compositeType.Name),
-                compositeType.Fields.Select(f => new Syn.CompositeTypes.CompositeFieldDefinition(Name(f.Name), Type(f.DataType)) { Position = _none }).ToList())
+                new Syn.SeparatedSyntaxList<Syn.CompositeTypes.CompositeFieldDefinition>(
+                    compositeType.Fields.Select(f => new Syn.CompositeTypes.CompositeFieldDefinition(Name(f.Name), Type(f.DataType)) { Position = _none }).ToList()))
             {
                 Position = _none,
                 Doc = compositeType.Comment,
@@ -174,12 +176,12 @@ internal static class SyntaxBuilder
         }
         if (table.PrimaryKey is { } pk)
         {
-            members.Add(new Syn.Constraints.PrimaryKeyDefinition(Name(pk.Name), Names(pk.ColumnNames)) { Position = _none, Doc = pk.Comment });
+            members.Add(new Syn.Constraints.PrimaryKeyDefinition(Name(pk.Name), ColumnList(pk.ColumnNames)) { Position = _none, Doc = pk.Comment });
         }
         foreach (var fk in table.ForeignKeys)
         {
-            members.Add(new Syn.Constraints.ForeignKeyDefinition(Name(fk.Name), Names(fk.ColumnNames),
-                Qualified(fk.References.Schema, fk.References.Name), Names(fk.ReferencedColumnNames),
+            members.Add(new Syn.Constraints.ForeignKeyDefinition(Name(fk.Name), ColumnList(fk.ColumnNames),
+                Qualified(fk.References.Schema, fk.References.Name), ColumnList(fk.ReferencedColumnNames),
                 Action(fk.OnDelete), Action(fk.OnUpdate))
             {
                 Position = _none,
@@ -188,7 +190,7 @@ internal static class SyntaxBuilder
         }
         foreach (var unique in table.UniqueConstraints)
         {
-            members.Add(new Syn.Constraints.UniqueDefinition(Name(unique.Name), Names(unique.ColumnNames)) { Position = _none, Doc = unique.Comment });
+            members.Add(new Syn.Constraints.UniqueDefinition(Name(unique.Name), ColumnList(unique.ColumnNames)) { Position = _none, Doc = unique.Comment });
         }
         foreach (var check in table.CheckConstraints)
         {
@@ -197,7 +199,8 @@ internal static class SyntaxBuilder
         foreach (var exclusion in table.ExclusionConstraints)
         {
             members.Add(new Syn.Constraints.ExclusionDefinition(Name(exclusion.Name),
-                exclusion.Elements.Select(e => new Syn.Constraints.ExclusionElement(e.Operator, OptionalName(e.Column), e.Expression) { Position = _none }).ToList(),
+                new Syn.SeparatedSyntaxList<Syn.Constraints.ExclusionElement>(
+                    exclusion.Elements.Select(e => new Syn.Constraints.ExclusionElement(e.Operator, OptionalName(e.Column), e.Expression) { Position = _none }).ToList()),
                 OptionalName(exclusion.Method), exclusion.Predicate)
             {
                 Position = _none,
@@ -208,14 +211,14 @@ internal static class SyntaxBuilder
         {
             members.Add(new Syn.Indexes.IndexDefinition(Name(index.Name), index.IsUnique, Keys(index.Columns),
                 OptionalName(index.Method),
-                Names(index.Include), index.Predicate)
+                IncludeList(index.Include), index.Predicate)
             {
                 Position = _none,
                 Doc = index.Comment,
             });
         }
 
-        statements.Add(new Syn.Tables.CreateTableStatement(Qualified(schemaName, table.Name), members)
+        statements.Add(new Syn.Tables.CreateTableStatement(Qualified(schemaName, table.Name), new Syn.SeparatedSyntaxList<Syn.Tables.TableMember>(members))
         {
             Position = _none,
             Doc = table.Comment,
@@ -250,7 +253,7 @@ internal static class SyntaxBuilder
         {
             statements.Add(new Syn.Indexes.CreateIndexStatement(Name(index.Name), index.IsUnique, Qualified(schemaName, view.Name),
                 Keys(index.Columns), OptionalName(index.Method),
-                Names(index.Include), index.Predicate)
+                IncludeList(index.Include), index.Predicate)
             {
                 Position = _none,
                 Doc = index.Comment,
@@ -315,11 +318,13 @@ internal static class SyntaxBuilder
 
     // --- leaf conversions -------------------------------------------------------------
 
-    private static Identifier Name(SqlIdentifier name) => new(name.Value) { Position = _none };
+    private static Identifier Name(SqlIdentifier name) => Identifier.Synthetic(name.Value);
 
     private static Identifier? OptionalName(SqlIdentifier? name) => name is null ? null : Name(name);
 
     private static List<Identifier> Names(IReadOnlyList<SqlIdentifier> names) => names.Select(Name).ToList();
+
+    private static Syn.ColumnList ColumnList(IReadOnlyList<SqlIdentifier> names) => Syn.ColumnList.Synthetic(Names(names));
 
     private static QualifiedName Qualified(SqlIdentifier schema, SqlIdentifier name) =>
         new(Name(schema), Name(name)) { Position = _none };
@@ -332,9 +337,9 @@ internal static class SyntaxBuilder
     {
         // The type carries its qualifier and arguments as components, so read them straight across — no
         // rendering to a string and splitting it back apart.
-        var schema = type.Schema is { } qualifier ? new Identifier(qualifier.Value) { Position = _none } : null;
+        var schema = type.Schema is { } qualifier ? Identifier.Synthetic(qualifier.Value) : null;
         var arguments = Arguments(type);
-        return new TypeName(schema, new Identifier(type.Name.Value) { Position = _none }, arguments) { Position = _none };
+        return new TypeName(schema, Identifier.Synthetic(type.Name.Value), arguments) { Position = _none };
     }
 
     private static string? Arguments(SqlType type)
@@ -360,8 +365,10 @@ internal static class SyntaxBuilder
                 Position = _none,
             };
 
-    private static List<Syn.Indexes.IndexElement> Keys(IReadOnlyList<IndexColumn> columns) =>
-        columns.Select(c => new Syn.Indexes.IndexElement(OptionalName(c.Column), c.Expression, Sort(c.Sort), Nulls(c.Nulls)) { Position = _none }).ToList();
+    private static Syn.SeparatedSyntaxList<Syn.Indexes.IndexElement> Keys(IReadOnlyList<IndexColumn> columns) =>
+        new(columns.Select(c => new Syn.Indexes.IndexElement(OptionalName(c.Column), c.Expression, Sort(c.Sort), Nulls(c.Nulls)) { Position = _none }).ToList());
+
+    private static Syn.ColumnList? IncludeList(IReadOnlyList<SqlIdentifier> names) => names.Count == 0 ? null : ColumnList(names);
 
     private static Syn.Constraints.ReferentialAction Action(ReferentialAction action) => action switch
     {
@@ -402,14 +409,14 @@ internal static class SyntaxBuilder
         return mapped;
     }
 
-    private static Syn.Tables.TablePrivilege Privileges(TablePrivilege privileges)
+    private static Syn.SeparatedSyntaxList<Syn.Tables.Privilege> Privileges(TablePrivilege privileges)
     {
-        var mapped = Syn.Tables.TablePrivilege.None;
-        if (privileges.HasFlag(TablePrivilege.Select)) { mapped |= Syn.Tables.TablePrivilege.Select; }
-        if (privileges.HasFlag(TablePrivilege.Insert)) { mapped |= Syn.Tables.TablePrivilege.Insert; }
-        if (privileges.HasFlag(TablePrivilege.Update)) { mapped |= Syn.Tables.TablePrivilege.Update; }
-        if (privileges.HasFlag(TablePrivilege.Delete)) { mapped |= Syn.Tables.TablePrivilege.Delete; }
-        return mapped;
+        var mapped = new List<Syn.Tables.Privilege>();
+        if (privileges.HasFlag(TablePrivilege.Select)) { mapped.Add(Syn.Tables.Privilege.Synthetic(Syn.Tables.TablePrivilege.Select)); }
+        if (privileges.HasFlag(TablePrivilege.Insert)) { mapped.Add(Syn.Tables.Privilege.Synthetic(Syn.Tables.TablePrivilege.Insert)); }
+        if (privileges.HasFlag(TablePrivilege.Update)) { mapped.Add(Syn.Tables.Privilege.Synthetic(Syn.Tables.TablePrivilege.Update)); }
+        if (privileges.HasFlag(TablePrivilege.Delete)) { mapped.Add(Syn.Tables.Privilege.Synthetic(Syn.Tables.TablePrivilege.Delete)); }
+        return new Syn.SeparatedSyntaxList<Syn.Tables.Privilege>(mapped);
     }
 
     private static Syn.Scripts.ChangeTrigger Trigger(ChangeTrigger trigger) => trigger switch

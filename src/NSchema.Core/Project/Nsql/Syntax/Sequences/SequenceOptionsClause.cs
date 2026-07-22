@@ -1,3 +1,5 @@
+using NSchema.Project.Nsql.Tokens;
+
 namespace NSchema.Project.Nsql.Syntax.Sequences;
 
 /// <summary>
@@ -18,4 +20,39 @@ public sealed record SequenceOptionsClause(
     long? MaxValue = null,
     long? Cache = null,
     bool Cycle = false
-) : NsqlNode;
+) : NsqlNode
+{
+    /// <summary>
+    /// The <c>(</c> token, when parsed.
+    /// </summary>
+    public Token? OpenParenToken { get; init; }
+
+    /// <summary>
+    /// The verbatim options-interior span token, when parsed.
+    /// </summary>
+    public Token? InteriorToken { get; init; }
+
+    /// <summary>
+    /// The <c>)</c> token, when parsed.
+    /// </summary>
+    public Token? CloseParenToken { get; init; }
+
+    internal override IEnumerable<NsqlChild> Children
+    {
+        get
+        {
+            if (OpenParenToken is { } open)
+            {
+                yield return open;
+            }
+            if (InteriorToken is { } interior)
+            {
+                yield return interior;
+            }
+            if (CloseParenToken is { } close)
+            {
+                yield return close;
+            }
+        }
+    }
+}

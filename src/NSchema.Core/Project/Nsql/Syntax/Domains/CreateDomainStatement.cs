@@ -1,5 +1,6 @@
 using NSchema.Model;
 using NSchema.Project.Nsql.Syntax.Constraints;
+using NSchema.Project.Nsql.Tokens;
 
 namespace NSchema.Project.Nsql.Syntax.Domains;
 
@@ -23,4 +24,62 @@ public sealed record CreateDomainStatement(
     /// The named check constraints (empty when absent).
     /// </summary>
     public IReadOnlyList<CheckDefinition> Checks { get; init; } = Checks ?? [];
+
+    /// <summary>
+    /// The <c>CREATE</c> keyword token, when parsed.
+    /// </summary>
+    public Token? CreateKeyword { get; init; }
+
+    /// <summary>
+    /// The <c>DOMAIN</c> keyword token, when parsed.
+    /// </summary>
+    public Token? DomainKeyword { get; init; }
+
+    /// <summary>
+    /// The <c>AS</c> keyword token, when parsed.
+    /// </summary>
+    public Token? AsKeyword { get; init; }
+
+    /// <summary>
+    /// The verbatim span of the clauses after the type (<c>NOT NULL</c>, checks, <c>DEFAULT</c>), when parsed with any.
+    /// </summary>
+    public Token? TailToken { get; init; }
+
+    /// <summary>
+    /// The terminating <c>;</c> token, when parsed.
+    /// </summary>
+    public Token? SemicolonToken { get; init; }
+
+    internal override IEnumerable<NsqlChild> Children
+    {
+        get
+        {
+            if (DocComment is { } doc)
+            {
+                yield return doc;
+            }
+            if (CreateKeyword is { } create)
+            {
+                yield return create;
+            }
+            if (DomainKeyword is { } domain)
+            {
+                yield return domain;
+            }
+            yield return Name;
+            if (AsKeyword is { } asKeyword)
+            {
+                yield return asKeyword;
+            }
+            yield return Type;
+            if (TailToken is { } tail)
+            {
+                yield return tail;
+            }
+            if (SemicolonToken is { } semicolon)
+            {
+                yield return semicolon;
+            }
+        }
+    }
 }

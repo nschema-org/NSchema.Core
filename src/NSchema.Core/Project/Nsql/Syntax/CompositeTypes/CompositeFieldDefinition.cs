@@ -5,4 +5,7 @@ namespace NSchema.Project.Nsql.Syntax.CompositeTypes;
 /// </summary>
 /// <param name="Name">The field name.</param>
 /// <param name="Type">The field type as written.</param>
-public sealed record CompositeFieldDefinition(Identifier Name, TypeName Type) : NsqlNode;
+public sealed record CompositeFieldDefinition(Identifier Name, TypeName Type) : NsqlNode
+{
+    internal override IEnumerable<NsqlChild> Children => [Name, Type];
+}

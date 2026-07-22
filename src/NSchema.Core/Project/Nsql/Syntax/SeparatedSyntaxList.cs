@@ -1,0 +1,62 @@
+using System.Collections;
+using NSchema.Project.Nsql.Tokens;
+
+namespace NSchema.Project.Nsql.Syntax;
+
+/// <summary>
+/// A comma-separated list of syntax nodes: the element nodes plus the separator tokens between them,
+/// A synthetic list carries elements only (no separator tokens); the formatter supplies them.
+/// </summary>
+/// <typeparam name="T">The element node type.</typeparam>
+public readonly struct SeparatedSyntaxList<T> : IReadOnlyList<T> where T : NsqlNode
+{
+    /// <summary>
+    /// Builds a list from its elements and the separator tokens between them.
+    /// </summary>
+    public SeparatedSyntaxList(IReadOnlyList<T> elements, IReadOnlyList<Token> separators)
+    {
+        Elements = elements;
+        Separators = separators;
+    }
+
+    /// <summary>
+    /// Builds a synthetic list (elements only, no separator tokens).
+    /// </summary>
+    public SeparatedSyntaxList(IReadOnlyList<T> elements) : this(elements, [])
+    {
+    }
+
+    private IReadOnlyList<T> Elements => field ?? [];
+    private IReadOnlyList<Token> Separators => field ?? [];
+
+    /// <inheritdoc/>
+    public int Count => Elements.Count;
+
+    /// <inheritdoc/>
+    public T this[int index] => Elements[index];
+
+    /// <inheritdoc/>
+    public IEnumerator<T> GetEnumerator() => Elements.GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    /// <summary>
+    /// The elements and separator tokens in source order, for the printer.
+    /// </summary>
+    internal IEnumerable<NsqlChild> Children
+    {
+        get
+        {
+            var elements = Elements;
+            var separators = Separators;
+            for (var i = 0; i < elements.Count; i++)
+            {
+                yield return elements[i];
+                if (i < separators.Count)
+                {
+                    yield return separators[i];
+                }
+            }
+        }
+    }
+}

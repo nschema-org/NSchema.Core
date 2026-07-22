@@ -71,7 +71,7 @@ public static class NsqlWriter
             case Syn.Enums.CreateEnumStatement s:
                 WriteDocComment(sb, s.Doc, indent: "");
                 sb.Append($"{NsqlKeywords.Create} {NsqlKeywords.Enum} ").Append(Qualified(s.Name));
-                sb.Append(" (").Append(string.Join(", ", s.Values.Select(v => $"'{v.Replace("'", "''")}'"))).AppendLine(");");
+                sb.Append(" (").Append(string.Join(", ", s.Values.Select(v => $"'{v.Value.Replace("'", "''")}'"))).AppendLine(");");
                 break;
             case Syn.Domains.CreateDomainStatement s:
                 WriteDocComment(sb, s.Doc, indent: "");
@@ -117,7 +117,7 @@ public static class NsqlWriter
                 WriteTable(sb, s);
                 break;
             case Syn.Tables.GrantTableStatement s:
-                sb.Append($"{NsqlKeywords.Grant} ").Append(PrivilegesText(s.Privileges))
+                sb.Append($"{NsqlKeywords.Grant} ").Append(PrivilegesText(s.PrivilegeFlags))
                     .Append($" {NsqlKeywords.On} ").Append(Qualified(s.On))
                     .Append($" {NsqlKeywords.To} ").Append(EscapedIdentifier(s.Role)).AppendLine(";");
                 break;
