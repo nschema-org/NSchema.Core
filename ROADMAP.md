@@ -35,11 +35,6 @@ where checks run inside the plan/apply pipeline.
 A lossless syntax tree for NSQL, and `NSchema.Language` as the eventual home of the language layer. Unlocks structural
 reformatting, typed scaffolding for plugins (no more raw strings), and the guided interactive bootstrap.
 
-### [Plugin safety](roadmap/plugin-maturation.md)
-
-At the moment, there's no guarantee that the plugins you install are compatible with the version of NSchema you're using. We're also missing a lot of
-utility features like updating plugins, listing outdated plugins, supporting version ranges, lockfiles, etc.
-
 ### Other, more vague, plans
 
 - **Row-level security for Postgres.** Pure fidelity. No dependency on roles. Pilot kind for the per-kind handler decomposition.
