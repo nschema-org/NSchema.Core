@@ -78,6 +78,9 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **SQL type conversion risk.** `SqlType.ConversionRiskTo` assesses whether converting stored values can fail.
 - **Ephemeral state.** `UseEphemeralState()` registers an in-memory state store and matching lock, intended for disposable databases.
 - **Object-granular targeting.** `PlanningScope` now takes object addresses alongside schema name.
+- **Address parsing.** `NsqlReader.ReadAddress` parses a `schema`, `schema.object`, or `schema.object.member` fragment into an `Address`, resolving quoted segments
+- **`SchemaAddress` completes the address taxonomy.** A schema has a first-class `Address` alongside `ObjectAddress` and `MemberAddress`.
+- **`Token.QuotedIdentifier`.** Synthesizes a quoted-identifier token (decoded text, quoted-and-escaped raw), the counterpart to `Token.StringLiteral`.
 - **`PLUGIN` declares plugin dependencies.** `PLUGIN <label> ( source = '…', version = '…' );` separates dependency declaration from configuration.
 - **`ENGINE` asserts the engine and/or host version.** `ENGINE ( version = '…', host_version = '…' );` — `version` is checked against the engine (Core), `host_version` against the host tool.
 - **The engine handshake.** `PluginHandshake.Validate` checks a loaded plugin assembly against the hosting engine before any of its types are instantiated.

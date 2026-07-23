@@ -1,3 +1,4 @@
+using NSchema.Model;
 using NSchema.Project.Model.Directives;
 using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Tokens;
@@ -193,6 +194,34 @@ internal sealed partial class NsqlParser
         var dot = Advance();
         var name = ExpectIdentifierNode("a table name");
         return new QualifiedName(first, name) { DotToken = dot };
+    }
+
+    /// <summary>
+    /// Parses a whole address fragment to end of input.
+    /// </summary>
+    public Address ParseAddress()
+    {
+        var segments = new List<Identifier> { ExpectIdentifierNode("an identifier") };
+        while (_current.Kind == TokenKind.Dot)
+        {
+            if (segments.Count == 3)
+            {
+                throw Error("An address has at most three parts: schema.object.member.");
+            }
+            Advance();
+            segments.Add(ExpectIdentifierNode("an identifier"));
+        }
+        if (_current.Kind != TokenKind.EndOfFile)
+        {
+            throw Error($"Unexpected '{_current.Text}'.");
+        }
+        return segments switch
+        {
+            [var schema] => new SchemaAddress(schema.Value),
+            [var schema, var name] => new ObjectAddress(schema.Value, name.Value),
+            [var schema, var obj, var member] => new MemberAddress(schema.Value, obj.Value, member.Value),
+            _ => throw Error("An address has at most three parts: schema.object.member."),
+        };
     }
 
     // --- token cursor helpers -----------------------------------------------------
