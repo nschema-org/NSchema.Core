@@ -15,9 +15,9 @@ internal static class DatabaseAligner
         // Applied renames, keyed by current names (what the tree carries before alignment); the logs are the
         // same renames keyed by declared names (what the tree carries after).
         var schemaRenames = new Dictionary<SqlIdentifier, SqlIdentifier>();
-        var schemaLog = new Dictionary<SqlIdentifier, SqlIdentifier>();
-        var objectRenames = new Dictionary<ObjectIdentity, SqlIdentifier>();
-        var objectLog = new Dictionary<ObjectIdentity, SqlIdentifier>();
+        var schemaLog = new Dictionary<SchemaAddress, SqlIdentifier>();
+        var objectRenames = new Dictionary<ObjectAddress, SqlIdentifier>();
+        var objectLog = new Dictionary<ObjectAddress, SqlIdentifier>();
         var columnRenames = new Dictionary<MemberAddress, SqlIdentifier>();
         var columnLog = new Dictionary<MemberAddress, SqlIdentifier>();
 
@@ -25,33 +25,35 @@ internal static class DatabaseAligner
         // entities land in the declared schema, so the logs key through the applied schema renames.
         foreach (var rename in directives.SchemaRenames)
         {
-            if (current.Schemas.All(s => s.Name != rename.From))
+            var from = rename.From.Schema;
+            var to = rename.To.Schema;
+            if (current.Schemas.All(s => s.Name != from))
             {
-                if (current.Schemas.Any(s => s.Name == rename.To))
+                if (current.Schemas.Any(s => s.Name == to))
                 {
-                    diagnostics.Add(DiffDiagnostics.AppliedRename("schema", rename.From.Value, rename.To));
+                    diagnostics.Add(DiffDiagnostics.AppliedRename("schema", from.Value, to));
                 }
                 continue;
             }
 
-            if (desired.Schemas.Any(s => s.Name == rename.From))
+            if (desired.Schemas.Any(s => s.Name == from))
             {
-                diagnostics.Add(DiffDiagnostics.AmbiguousRenameSourceStillDeclared("schema", rename.To.Value, rename.From));
+                diagnostics.Add(DiffDiagnostics.AmbiguousRenameSourceStillDeclared("schema", to.Value, from));
                 continue;
             }
-            if (current.Schemas.Any(s => s.Name == rename.To))
+            if (current.Schemas.Any(s => s.Name == to))
             {
-                diagnostics.Add(DiffDiagnostics.AmbiguousRenameTargetTaken("schema", rename.To.Value, rename.From, rename.To));
+                diagnostics.Add(DiffDiagnostics.AmbiguousRenameTargetTaken("schema", to.Value, from, to));
                 continue;
             }
 
-            schemaRenames[rename.From] = rename.To;
-            schemaLog[rename.To] = rename.From;
+            schemaRenames[from] = to;
+            schemaLog[rename.To] = from;
         }
 
         foreach (var rename in directives.ObjectRenames)
         {
-            var kind = rename.From.Kind;
+            var kind = rename.From.Kind!.Value;
             var schema = current.Schemas.FirstOrDefault(s => s.Name == rename.From.Schema);
             if (schema is null || schema.Objects().All(o => o.Kind != kind || o.Name != rename.From.Name))
             {
@@ -77,7 +79,7 @@ internal static class DatabaseAligner
             }
 
             objectRenames[rename.From] = rename.To;
-            objectLog[new ObjectIdentity(kind, declaredSchema, rename.To)] = rename.From.Name;
+            objectLog[new ObjectAddress(declaredSchema, rename.To, kind)] = rename.From.Name;
         }
 
         foreach (var rename in directives.MemberRenames)
@@ -94,7 +96,7 @@ internal static class DatabaseAligner
             }
 
             var declaredSchema = schemaRenames.GetValueOrDefault(rename.From.Schema, rename.From.Schema);
-            var declaredTable = objectRenames.GetValueOrDefault(new ObjectIdentity(ObjectKind.Table, rename.From.Schema, rename.From.Object), rename.From.Object);
+            var declaredTable = objectRenames.GetValueOrDefault(new ObjectAddress(rename.From.Schema, rename.From.Object, ObjectKind.Table), rename.From.Object);
             var address = new MemberAddress(declaredSchema, declaredTable, rename.To);
             if (desired.Schemas.FirstOrDefault(s => s.Name == declaredSchema)
                     ?.Tables.FirstOrDefault(t => t.Name == declaredTable)
@@ -137,7 +139,7 @@ internal static class DatabaseAligner
             }
             foreach (var obj in schema.Objects())
             {
-                if (objectRenames.TryGetValue(new ObjectIdentity(obj.Kind, currentSchemaName, obj.Name), out var objectName))
+                if (objectRenames.TryGetValue(new ObjectAddress(currentSchemaName, obj.Name, obj.Kind), out var objectName))
                 {
                     obj.Name = objectName;
                 }

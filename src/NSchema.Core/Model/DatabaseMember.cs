@@ -13,6 +13,12 @@ namespace NSchema.Model;
 public abstract class DatabaseMember : DatabaseElement
 {
     /// <summary>
+    /// The member's address, or <see langword="null"/> when it is not yet owned by an object in a tree.
+    /// </summary>
+    public override MemberAddress? Address =>
+        Parent is { Schema: { } schema } ? new MemberAddress(schema.Name, Parent.Name, Name) : null;
+
+    /// <summary>
     /// The object that owns the member, or <see langword="null"/> when it has not been placed in a tree.
     /// </summary>
     [JsonIgnore]

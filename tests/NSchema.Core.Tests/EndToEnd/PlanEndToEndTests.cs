@@ -155,11 +155,11 @@ public sealed class PlanEndToEndTests : IDisposable
         // A teardown destroys what NSchema manages; management is normally established by an apply, adopted
         // here through state surgery. billing stays unmanaged — the plan may only sever, never tear it down.
         await Manage(app, new IdentitySet(
-            Schemas: ["app"],
-            Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress("app", "users"))]));
+            Schemas: [new SchemaAddress("app")],
+            Objects: [new ObjectAddress("app", "users") with { Kind = ObjectKind.Table }]));
 
         var result = await app.Operations.Plan(
-            new PlanArguments { Target = PlanTarget.Empty, Scope = PlanningScope.To("app") },
+            new PlanArguments { Target = PlanTarget.Empty, Scope = PlanningScope.To(new SchemaAddress("app")) },
             TestContext.Current.CancellationToken);
 
         var diff = result.Value.ShouldNotBeNull().Plan.ShouldNotBeNull().Diff;
@@ -198,8 +198,8 @@ public sealed class PlanEndToEndTests : IDisposable
         schema.Kind.ShouldBe(ChangeKind.Add);
         schema.Tables.ShouldHaveSingleItem().Name.ShouldBe("users");
 
-        plan.Managed.Schemas.ShouldBe(["app"]);
-        plan.Managed.Objects.ShouldHaveSingleItem().ShouldBe(new ObjectIdentity(ObjectKind.Table, users));
+        plan.Managed.Schemas.Select(s => s.Schema).ShouldBe(["app"]);
+        plan.Managed.Objects.ShouldHaveSingleItem().ShouldBe(users with { Kind = ObjectKind.Table });
     }
 
     [Fact]
@@ -222,8 +222,8 @@ public sealed class PlanEndToEndTests : IDisposable
         // A teardown destroys what NSchema manages; management is normally established by an apply, adopted
         // here through state surgery.
         await Manage(app, new IdentitySet(
-            Schemas: ["app"],
-            Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress("app", "users"))]));
+            Schemas: [new SchemaAddress("app")],
+            Objects: [new ObjectAddress("app", "users") with { Kind = ObjectKind.Table }]));
 
         var result = await app.Operations.Plan(new PlanArguments { Target = PlanTarget.Empty }, TestContext.Current.CancellationToken);
 

@@ -15,6 +15,9 @@ namespace NSchema.Model.Schemas;
 [DebuggerDisplay("{Name,nq} ({Tables.Count} tables)")]
 public sealed class Schema : DatabaseElement, IEquatable<Schema>
 {
+    /// <inheritdoc/>
+    public override SchemaAddress Address => new(Name);
+
     /// <summary>
     /// A list of tables that are part of the schema.
     /// </summary>

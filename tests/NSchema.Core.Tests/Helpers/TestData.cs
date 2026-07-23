@@ -149,16 +149,16 @@ public static class TestData
     /// Shared so the writer round-trip pins the whole grammar.
     /// </summary>
     public static ProjectDirectives RichDirectives() => new(
-        SchemaRenames: [new SchemaRenameDirective("legacy_app", "app")],
+        SchemaRenames: [new SchemaRenameDirective(new SchemaAddress("legacy_app"), new SchemaAddress("app"))],
         ObjectRenames:
         [
-            new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, Current("members")), "users"),
-            new ObjectRenameDirective(new ObjectIdentity(ObjectKind.View, Current("legacy_directory")), "user_directory"),
-            new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Enum, Current("importance")), "priority"),
-            new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Sequence, Current("bill_id")), "invoice_id"),
-            new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Routine, Current("clean_code")), "normalize_code"),
-            new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Domain, Current("legacy_id")), "typeid"),
-            new ObjectRenameDirective(new ObjectIdentity(ObjectKind.CompositeType, Current("legacy_address")), "address"),
+            new ObjectRenameDirective(Current("members") with { Kind = ObjectKind.Table }, "users"),
+            new ObjectRenameDirective(Current("legacy_directory") with { Kind = ObjectKind.View }, "user_directory"),
+            new ObjectRenameDirective(Current("importance") with { Kind = ObjectKind.Enum }, "priority"),
+            new ObjectRenameDirective(Current("bill_id") with { Kind = ObjectKind.Sequence }, "invoice_id"),
+            new ObjectRenameDirective(Current("clean_code") with { Kind = ObjectKind.Routine }, "normalize_code"),
+            new ObjectRenameDirective(Current("legacy_id") with { Kind = ObjectKind.Domain }, "typeid"),
+            new ObjectRenameDirective(Current("legacy_address") with { Kind = ObjectKind.CompositeType }, "address"),
         ],
         MemberRenames: [new MemberRenameDirective(new MemberAddress("legacy_app", "members", "short_code"), "code")]);
 

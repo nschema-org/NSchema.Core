@@ -199,7 +199,7 @@ public sealed class NsqlParserTests
     public void Parse_RenameView_BecomesADirective()
         => Directives("CREATE SCHEMA app; CREATE VIEW app.v AS SELECT 1 FROM app.t; RENAME VIEW app.old_v TO v;")
             .ObjectRenames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRenameDirective(new ObjectIdentity(ObjectKind.View, new ObjectAddress("app", "old_v")), "v"));
+            .ShouldBe(new ObjectRenameDirective(new ObjectAddress("app", "old_v") with { Kind = ObjectKind.View }, "v"));
 
     [Fact]
     public void Parse_CreateView_WithDocComment_AttachesComment()
@@ -265,7 +265,7 @@ public sealed class NsqlParserTests
     public void Parse_RenameEnum_BecomesADirective()
         => Directives("CREATE SCHEMA app; CREATE ENUM app.status ('a'); RENAME ENUM app.state TO status;")
             .ObjectRenames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Enum, new ObjectAddress("app", "state")), "status"));
+            .ShouldBe(new ObjectRenameDirective(new ObjectAddress("app", "state") with { Kind = ObjectKind.Enum }, "status"));
 
     [Fact]
     public void Parse_CreateEnum_WithDocComment_AttachesComment()
@@ -293,7 +293,7 @@ public sealed class NsqlParserTests
     public void Parse_RenameSequence_BecomesADirective()
         => Directives("CREATE SCHEMA app; CREATE SEQUENCE app.invoice_id; RENAME SEQUENCE app.bill_id TO invoice_id;")
             .ObjectRenames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Sequence, new ObjectAddress("app", "bill_id")), "invoice_id"));
+            .ShouldBe(new ObjectRenameDirective(new ObjectAddress("app", "bill_id") with { Kind = ObjectKind.Sequence }, "invoice_id"));
 
     [Fact]
     public void Parse_CreateSequence_WithDocComment_AttachesComment()
@@ -329,7 +329,7 @@ public sealed class NsqlParserTests
     {
         var directives = Directives("CREATE SCHEMA app; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$; RENAME FUNCTION app.old_f TO f;");
         directives.ObjectRenames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Routine, new ObjectAddress("app", "old_f")), "f"));
+            .ShouldBe(new ObjectRenameDirective(new ObjectAddress("app", "old_f") with { Kind = ObjectKind.Routine }, "f"));
     }
 
     [Fact]

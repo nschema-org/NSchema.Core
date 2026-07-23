@@ -34,6 +34,20 @@ internal static class DiffDiagnostics
     public static Diagnostic InferredColumnMayBlockRemoval(IEnumerable<Address> addresses) => Diagnostic.Warning("scope",
         $"{Render(addresses)} appear to be typed by something this plan removes. The type name is unqualified, so NSchema matched it by name alone — if the match is right, the database will reject the removal at apply. Check before applying: migrate those columns off the type first, or keep it declared.");
 
+    /// <summary>
+    /// Foreign keys this run adds whose target it will neither create nor find, so they are left out rather
+    /// than emitted as a plan the database would reject.
+    /// </summary>
+    public static Diagnostic ForeignKeyTargetOutOfScope(IEnumerable<Address> addresses) => Diagnostic.Warning("scope",
+        $"This plan leaves out {Render(addresses)}: each references a table outside its scope that does not exist yet, so creating the constraint would fail. The tables are created without them — widen the scope to include the referenced tables, then re-plan to add the constraints.");
+
+    /// <summary>
+    /// Additions naming a type this run will neither create nor find. A type is part of the object's shape, so
+    /// unlike a constraint there is nothing to leave out — the plan is blocked instead.
+    /// </summary>
+    public static Diagnostic TypeTargetOutOfScope(IEnumerable<Address> dependents, IEnumerable<Address> types) => Diagnostic.Error("scope",
+        $"This plan cannot be applied: {Render(dependents)} are typed by {Render(types)}, which it does not create and the database does not have. A type cannot be left out the way a constraint can — it is part of the object's shape — so the plan is blocked. Widen the scope to include those types, then re-plan.");
+
     private static string Render(IEnumerable<Address> addresses) =>
         string.Join(", ", addresses.Select(a => $"'{a}'"));
 

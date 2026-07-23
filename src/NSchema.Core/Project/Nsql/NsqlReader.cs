@@ -1,3 +1,5 @@
+using NSchema.Model;
+
 namespace NSchema.Project.Nsql;
 
 /// <summary>
@@ -18,6 +20,23 @@ public static class NsqlReader
         var parser = new NsqlParser(source);
         var document = parser.Parse();
         return Result<NsqlDocument, NsqlDiagnostic>.From(document, parser.Errors.Select(NsqlDiagnostics.Syntax).ToList());
+    }
+
+    /// <summary>
+    /// Reads a single address fragment, resolving quoted segments.
+    /// </summary>
+    /// <param name="source">The address text, e.g. a CLI scope target.</param>
+    public static Result<Address, NsqlDiagnostic> ReadAddress(string source)
+    {
+        var parser = new NsqlParser(source);
+        try
+        {
+            return Result<Address, NsqlDiagnostic>.Success(parser.ParseAddress());
+        }
+        catch (NsqlSyntaxException exception)
+        {
+            return Result<Address, NsqlDiagnostic>.Failure(NsqlDiagnostics.Syntax(exception));
+        }
     }
 
     /// <summary>

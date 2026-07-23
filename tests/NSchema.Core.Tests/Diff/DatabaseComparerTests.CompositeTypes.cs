@@ -84,7 +84,7 @@ public partial class DatabaseComparerTests
         var diff = DiffCompositeTypes(
             [new CompositeType { Name = "legacy_address", Fields = [new CompositeField("street", SqlType.Text)] }],
             [new CompositeType { Name = "address", Fields = [new CompositeField("street", SqlType.Text)] }],
-            new ProjectDirectives(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.CompositeType, App("legacy_address")), "address")]));
+            new ProjectDirectives(ObjectRenames: [new ObjectRenameDirective(App("legacy_address") with { Kind = ObjectKind.CompositeType }, "address")]));
 
         diff!.RenamedFrom.ShouldBe("legacy_address");
     }

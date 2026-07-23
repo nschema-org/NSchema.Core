@@ -7,6 +7,7 @@ using NSchema.Diff.Model.Services;
 using NSchema.Diff.Model.Tables;
 using NSchema.Diff.Model.Views;
 using NSchema.Model;
+using NSchema.Model.Columns;
 using NSchema.Model.Scripts;
 using NSchema.Model.Services;
 
@@ -112,12 +113,31 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
         var narrowed = this with { Schemas = [.. Schemas.Select(s => s.ScopedTo(scope)).OfType<SchemaDiff>()] };
 
         var graph = new DependencyGraph(current);
+        List<Diagnostic> diagnostics = [];
+
+        // An added foreign key cannot reach a table this run will neither create nor find. Leaving it out keeps
+        // the plan applyable — a constraint is a definition, re-creatable once the target is in play.
+        if (UnreachableForeignKeys(narrowed, scope, graph) is { Count: > 0 } unreachable)
+        {
+            narrowed = WithoutForeignKeys(narrowed, unreachable);
+            diagnostics.Add(DiffDiagnostics.ForeignKeyTargetOutOfScope(unreachable));
+        }
+
+        // A type is part of the shape of what names it, so there is nothing to leave out: an addition reaching
+        // a type this run will neither create nor find blocks the plan, which is still carried for review.
+        if (UnreachableTypes(narrowed, scope, graph) is { Count: > 0 } unreachableTypes)
+        {
+            diagnostics.Add(DiffDiagnostics.TypeTargetOutOfScope(
+                unreachableTypes.Select(t => t.Dependent).Distinct(),
+                unreachableTypes.Select(t => (Address)t.Type).Distinct()));
+        }
+
         var removals = Removals(narrowed).ToList();
 
         var severed = graph.AllDependentsOf(removals).Where(OutOfScope).ToList();
         if (severed.Count == 0)
         {
-            return Result.Success(narrowed);
+            return Result.From(narrowed, diagnostics);
         }
 
         // Everything reached without believing a guess is asserted; the remainder is hedged, because an edge
@@ -130,7 +150,6 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
         // removal instead of widening the plan.
         var (blocked, severable) = (Columns(severed), Others(severed));
 
-        List<Diagnostic> diagnostics = [];
         if (Others(stated) is { Count: > 0 } statedSeverable)
         {
             diagnostics.Add(DiffDiagnostics.SeveredOutOfScope(statedSeverable.Select(n => n.Address)));
@@ -162,6 +181,126 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
 
         static List<DependencyNode> Others(IEnumerable<DependencyNode> nodes) =>
             [.. nodes.Where(n => n.Kind != DependencyKind.Column)];
+    }
+
+    /// <summary>
+    /// The foreign keys this run adds whose referenced table it will neither create (out of scope) nor find
+    /// (absent from the current database).
+    /// </summary>
+    private static List<MemberAddress> UnreachableForeignKeys(DatabaseDiff diff, PlanningScope scope, DependencyGraph graph) =>
+    [
+        .. from schema in diff.Schemas
+           from table in schema.Tables
+           from key in table.ForeignKeys
+           where key.Kind == ChangeKind.Add
+               && key.Definition is { } definition
+               && !scope.Contains(definition.References)
+               && graph.At(definition.References).Count == 0
+           select new MemberAddress(table.Schema, table.Name, key.Name)
+    ];
+
+    /// <summary>
+    /// The additions naming a user type this run will neither create (out of scope) nor find (absent from the
+    /// current database).
+    /// </summary>
+    private static List<(Address Dependent, ObjectAddress Type)> UnreachableTypes(DatabaseDiff diff, PlanningScope scope, DependencyGraph graph) =>
+        [.. IntroducedTypes(diff).Where(t => !scope.Contains(t.Type) && graph.At(t.Type).Count == 0)];
+
+    /// <summary>
+    /// Every user type this diff newly names, with what names it. Only a schema-qualified type names its target
+    /// outright — a bare name is resolved against what already exists, so it can only reach something present.
+    /// </summary>
+    private static IEnumerable<(Address Dependent, ObjectAddress Type)> IntroducedTypes(DatabaseDiff diff)
+    {
+        foreach (var schema in diff.Schemas)
+        {
+            foreach (var table in schema.Tables)
+            {
+                // A created table carries its columns inline; a modified one carries them as column changes.
+                if (table.Definition is { } created)
+                {
+                    foreach (var column in created.Columns)
+                    {
+                        if (Named(column.Type) is { } type)
+                        {
+                            yield return (new MemberAddress(table.Schema, table.Name, column.Name), type);
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (var column in table.Columns)
+                    {
+                        if (Named(column.Kind == ChangeKind.Add ? column.Definition?.Type : column.Type?.New) is { } type)
+                        {
+                            yield return (new MemberAddress(table.Schema, table.Name, column.Name), type);
+                        }
+                    }
+                }
+            }
+
+            foreach (var domain in schema.Domains)
+            {
+                if (Named(domain.Kind == ChangeKind.Add ? domain.Definition?.DataType : domain.DataType?.New) is { } type)
+                {
+                    yield return (new ObjectAddress(domain.Schema, domain.Name), type);
+                }
+            }
+
+            foreach (var composite in schema.CompositeTypes)
+            {
+                var address = new ObjectAddress(composite.Schema, composite.Name);
+                var fields = composite.Definition is { } createdType
+                    ? createdType.Fields.Select(f => f.DataType)
+                    : composite.Fields.Select(f => f.Definition?.DataType);
+                foreach (var field in fields)
+                {
+                    if (Named(field) is { } type)
+                    {
+                        yield return (address, type);
+                    }
+                }
+            }
+        }
+
+        static ObjectAddress? Named(SqlType? type) =>
+            type?.Schema is { } schema ? new ObjectAddress(schema, type.Name) : null;
+    }
+
+    /// <summary>
+    /// Drops the named foreign keys from the diff. A created table carries its constraints inline on its
+    /// definition, so those lose them there too.
+    /// </summary>
+    private static DatabaseDiff WithoutForeignKeys(DatabaseDiff diff, IEnumerable<MemberAddress> dropped)
+    {
+        var drop = dropped.ToHashSet();
+        return diff with
+        {
+            Schemas = [.. diff.Schemas.Select(schema => schema with { Tables = [.. schema.Tables.Select(Strip)] })],
+        };
+
+        TableDiff Strip(TableDiff table)
+        {
+            var kept = table.ForeignKeys.Where(k => !Dropped(table, k.Name)).ToList();
+            if (kept.Count == table.ForeignKeys.Count)
+            {
+                return table;
+            }
+
+            var definition = table.Definition;
+            if (definition is not null)
+            {
+                definition = definition.Clone();
+                foreach (var key in definition.ForeignKeys.Where(k => Dropped(table, k.Name)).ToList())
+                {
+                    definition.ForeignKeys.Remove(key);
+                }
+            }
+
+            return table with { ForeignKeys = kept, Definition = definition };
+        }
+
+        bool Dropped(TableDiff table, SqlIdentifier name) => drop.Contains(new MemberAddress(table.Schema, table.Name, name));
     }
 
     /// <summary>

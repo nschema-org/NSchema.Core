@@ -8,7 +8,7 @@ namespace NSchema.Model;
 /// </summary>
 /// <remarks>
 /// An object knows what it is (<see cref="Kind"/>) and where it lives (<see cref="Schema"/> — wired by the
-/// containing schema as the tree is built), so it owns its own <see cref="Identity"/>. Table members carry
+/// containing schema as the tree is built), so it owns its own <see cref="Address"/>. Table members carry
 /// their owning object the same way (<see cref="DatabaseMember.Parent"/>). Equality between objects is
 /// structural over the declared definition and deliberately excludes the parent and the comment — the differ
 /// compares objects from two different trees, and location is identity, not structure.
@@ -41,9 +41,8 @@ public abstract class DatabaseObject : DatabaseElement
     public abstract ObjectKind Kind { get; }
 
     /// <summary>
-    /// The object's full identity, or <see langword="null"/> when it is database-global or not yet part of a
-    /// schema (global objects are identified by bare name).
+    /// The object's address, or <see langword="null"/> when it is database-global or not yet part of a schema
+    /// (a global object's address is supplied by the deriving type).
     /// </summary>
-    [JsonIgnore]
-    public ObjectIdentity? Identity => Schema is null ? null : new ObjectIdentity(Kind, Schema.Name, Name);
+    public override Address? Address => Schema is null ? null : new ObjectAddress(Schema.Name, Name, Kind);
 }

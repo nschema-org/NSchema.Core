@@ -166,8 +166,8 @@ public sealed class DatabaseComparerSnapshotTests
             MemberRenames: [new MemberRenameDirective(new MemberAddress("app", "users", "email"), "email_address")],
             ObjectRenames:
             [
-                new ObjectRenameDirective(new ObjectIdentity(ObjectKind.View, new ObjectAddress("app", "legacy_report")), "report"),
-                new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Enum, new ObjectAddress("app", "importance")), "priority"),
+                new ObjectRenameDirective(new ObjectAddress("app", "legacy_report") with { Kind = ObjectKind.View }, "report"),
+                new ObjectRenameDirective(new ObjectAddress("app", "importance") with { Kind = ObjectKind.Enum }, "priority"),
             ]);
 
         return Verify(Compare(current, desired, directives));

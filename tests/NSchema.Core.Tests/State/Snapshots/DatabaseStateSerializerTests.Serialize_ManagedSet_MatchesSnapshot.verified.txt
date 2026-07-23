@@ -7,13 +7,16 @@
     ],
     objects: [
       {
-        kind: Table,
         schema: app,
-        name: users
+        name: users,
+        kind: Table
       }
     ],
     extensions: [
-      citext
+      {
+        schema: null,
+        name: citext
+      }
     ]
   }
 }

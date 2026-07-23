@@ -50,11 +50,11 @@ public sealed record ProjectDirectives(
     public ProjectDirectives ScopedTo(PlanningScope scope)
     {
         // A current schema name maps to its declared name through the schema renames.
-        var declaredNames = SchemaRenames.ToDictionary(r => r.From, r => r.To);
+        var declaredNames = SchemaRenames.ToDictionary(r => r.From.Schema, r => r.To.Schema);
 
         return new ProjectDirectives(
             [.. SchemaRenames.Where(r => scope.Contains(r.From) || scope.Contains(r.To))],
-            [.. ObjectRenames.Where(r => InScope(r.From.Address) || InScope(new ObjectAddress(r.From.Schema, r.To)))],
+            [.. ObjectRenames.Where(r => InScope(r.From) || InScope(r.ToAddress))],
             [.. MemberRenames.Where(r => InScope(r.From.Owner))],
             [.. ChangeScripts.Where(ChangeInScope)],
             [.. DeploymentScripts.Where(DeploymentInScope)]);

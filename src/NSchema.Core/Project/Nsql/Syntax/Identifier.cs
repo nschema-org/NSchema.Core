@@ -20,7 +20,7 @@ public sealed record Identifier(Token Token) : NsqlNode
     /// </summary>
     public static Identifier Synthetic(string value) =>
         new(NeedsQuoting(value)
-            ? new Token(TokenKind.QuotedIdentifier, value, SourcePosition.None) { Raw = $"\"{value.Replace("\"", "\"\"")}\"" }
+            ? Token.QuotedIdentifier(value)
             : new Token(TokenKind.Identifier, value, SourcePosition.None));
 
     /// <summary>

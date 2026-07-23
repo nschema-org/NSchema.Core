@@ -5,6 +5,6 @@ namespace NSchema.Project.Model.Directives;
 /// <summary>
 /// A schema rename directive.
 /// </summary>
-/// <param name="From">The schema's current name.</param>
-/// <param name="To">The declared name the schema is renamed to.</param>
-public sealed record SchemaRenameDirective(SqlIdentifier From, SqlIdentifier To);
+/// <param name="From">The schema's current address.</param>
+/// <param name="To">The address the schema is renamed to.</param>
+public sealed record SchemaRenameDirective(SchemaAddress From, SchemaAddress To);

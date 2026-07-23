@@ -1,5 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-
 namespace NSchema.Model;
 
 /// <summary>
@@ -10,77 +8,42 @@ namespace NSchema.Model;
 /// </remarks>
 public sealed record PlanningScope
 {
-    private PlanningScope(IReadOnlyList<SqlIdentifier> schemas, IReadOnlyList<ObjectAddress> objects, bool unscoped)
-    {
-        Schemas = schemas;
-        Objects = objects;
-        SchemaNames = unscoped ? null : [.. schemas.Concat(objects.Select(o => o.Schema)).Distinct()];
-    }
+    private PlanningScope(IReadOnlyList<Address> addresses) => Addresses = addresses;
 
     /// <summary>
     /// Every schema the source can see.
     /// </summary>
-    public static PlanningScope All { get; } = new([], [], unscoped: true);
+    public static PlanningScope All { get; } = new([]);
 
     /// <summary>
-    /// A scope covering the named schemas wholly (case-insensitive). An empty set normalizes to <see cref="All"/>.
+    /// A scope covering the given addresses. An empty set normalizes to <see cref="All"/>.
     /// </summary>
-    /// <param name="schemaNames">The schema names under management.</param>
-    public static PlanningScope To(params IEnumerable<SqlIdentifier> schemaNames) => To(schemaNames, []);
-
-    /// <summary>
-    /// A scope covering the addressed objects alone. An empty set normalizes to <see cref="All"/>.
-    /// </summary>
-    /// <param name="objects">The addresses of the objects under management.</param>
-    public static PlanningScope To(IEnumerable<ObjectAddress> objects) => To([], objects);
-
-    /// <summary>
-    /// A scope covering the named schemas wholly and the addressed objects alone.
-    /// Empty of both normalizes to <see cref="All"/>.
-    /// </summary>
-    /// <param name="schemaNames">The schema names under management.</param>
-    /// <param name="objects">The addresses of the objects under management.</param>
-    public static PlanningScope To(IEnumerable<SqlIdentifier> schemaNames, IEnumerable<ObjectAddress> objects)
+    /// <param name="addresses">The addresses under management.</param>
+    public static PlanningScope To(params IEnumerable<Address> addresses)
     {
-        var names = schemaNames.Distinct().ToList();
-        var addresses = objects.Where(o => !names.Contains(o.Schema)).Distinct().ToList();
-        return names.Count == 0 && addresses.Count == 0 ? All : new PlanningScope(names, addresses, unscoped: false);
+        var list = addresses.Distinct().ToList();
+        // An address already covered by a broader entry is redundant.
+        var kept = list.Where(a => !list.Any(b => !b.Equals(a) && b.Covers(a))).ToList();
+        return kept.Count == 0 ? All : new PlanningScope(kept);
     }
 
     /// <summary>
-    /// The names of the wholly-covered schemas; empty when the scope is <see cref="All"/> or objects-only.
+    /// The addresses the scope covers.
     /// </summary>
-    public IReadOnlyList<SqlIdentifier> Schemas { get; }
+    public IReadOnlyList<Address> Addresses { get; }
 
     /// <summary>
-    /// The addresses of the objects the scope covers individually, beyond the wholly-covered schemas.
+    /// Whether this scope covers everything — it holds no addresses to narrow the run.
     /// </summary>
-    public IReadOnlyList<ObjectAddress> Objects { get; }
+    public bool IsUnscoped => Addresses.Count == 0;
 
     /// <summary>
-    /// Every schema this scope reads — the named schemas plus each addressed object's schema — or
-    /// <see langword="null"/> when the scope is <see cref="All"/>.
+    /// Whether the scope covers the given address — an entry equals it or contains it.
     /// </summary>
-    public IReadOnlyList<SqlIdentifier>? SchemaNames { get; }
-
-    /// <summary>
-    /// Whether this scope includes every schema.
-    /// </summary>
-    [MemberNotNullWhen(false, nameof(SchemaNames))]
-    public bool IsUnscoped => SchemaNames is null;
+    public bool Contains(Address address) => IsUnscoped || Addresses.Any(a => a.Covers(address));
 
     /// <summary>
     /// Whether the scope covers the named schema and everything inside it.
     /// </summary>
-    public bool Contains(SqlIdentifier schemaName) => IsUnscoped || Schemas.Contains(schemaName);
-
-    /// <summary>
-    /// Whether the scope covers the addressed object: its schema is wholly covered, or it is addressed itself.
-    /// </summary>
-    public bool Contains(ObjectAddress address) => Contains(address.Schema) || Objects.Contains(address);
-
-    /// <summary>
-    /// Whether the scope covers the identified object.
-    /// </summary>
-    public bool Contains(ObjectIdentity identity) => Contains(identity.Address);
+    public bool Contains(SqlIdentifier schemaName) => Contains(new SchemaAddress(schemaName));
 }

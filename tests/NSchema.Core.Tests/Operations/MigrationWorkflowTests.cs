@@ -247,14 +247,14 @@ public sealed class MigrationWorkflowTests
         });
 
         // Act
-        await sut.ComputePlan(PlanTarget.Empty, PlanningScope.To("app"), TestContext.Current.CancellationToken);
+        await sut.ComputePlan(PlanTarget.Empty, PlanningScope.To(new SchemaAddress("app")), TestContext.Current.CancellationToken);
 
         // Assert — the scope reaches the planner, which narrows the difference it computes. The current side
         // stays whole: a scoped teardown may still have to disturb what it is not tearing down.
         _planner.Received(1).Plan(
             Arg.Is<CurrentState>(c => c!.Database.Schemas.Select(s => s.Name.Value).SequenceEqual(new[] { "app", "billing" })),
             Arg.Any<ProjectDefinition>(),
-            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.SchemaNames!.Select(n => n.Value).SequenceEqual(new[] { "app" })));
+            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.Addresses.Select(a => a.Value).SequenceEqual(new[] { "app" })));
     }
 
     [Fact]
@@ -432,21 +432,21 @@ public sealed class MigrationWorkflowTests
         ReadOnlyMemory<byte>? written = null;
         await store.Write(Arg.Do<ReadOnlyMemory<byte>>(m => written = m), Arg.Any<CancellationToken>());
         var sut = BuildSut(store);
-        var managed = new IdentitySet(Schemas: ["app"]);
+        var managed = new IdentitySet(Schemas: [new SchemaAddress("app")]);
         var applied = EmptyPlan() with { Managed = managed };
 
         // Act
         await sut.Refresh(applied, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        _stateSerializer.Deserialize(written!.Value).Managed.Schemas.ShouldBe(["app"]);
+        _stateSerializer.Deserialize(written!.Value).Managed.Schemas.Select(s => s.Schema).ShouldBe(["app"]);
     }
 
     [Fact]
     public async Task Refresh_WithoutAnAppliedPlan_PreservesTheManagedSet()
     {
         // Arrange — a plain refresh observes; it neither adopts nor abandons anything.
-        var managed = new IdentitySet(Schemas: ["app"]);
+        var managed = new IdentitySet(Schemas: [new SchemaAddress("app")]);
         var store = Substitute.For<IDatabaseStateStore>();
         store.Read(Arg.Any<CancellationToken>())
             .Returns(_stateSerializer.Serialize(new DatabaseState(new Database { Schemas = [] }) with { Managed = managed }));
@@ -458,7 +458,7 @@ public sealed class MigrationWorkflowTests
         await sut.Refresh(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        _stateSerializer.Deserialize(written!.Value).Managed.Schemas.ShouldBe(["app"]);
+        _stateSerializer.Deserialize(written!.Value).Managed.Schemas.Select(s => s.Schema).ShouldBe(["app"]);
     }
 
     [Fact]
@@ -628,7 +628,7 @@ public sealed class MigrationWorkflowTests
             new Schema { Name = "unmanaged" },
         ],
         }) with
-        { Managed = new IdentitySet(Schemas: ["legacy"]) });
+        { Managed = new IdentitySet(Schemas: [new SchemaAddress("legacy")]) });
 
         // Act
         await sut.ComputePlan(PlanTarget.Project, PlanningScope.All, TestContext.Current.CancellationToken);
@@ -637,7 +637,7 @@ public sealed class MigrationWorkflowTests
         _planner.Received(1).Plan(
             Arg.Any<CurrentState>(),
             Arg.Any<ProjectDefinition>(),
-            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.SchemaNames!.Select(n => n.Value).Order().SequenceEqual(new[] { "admin", "app", "legacy" })));
+            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.Addresses.Select(a => a.Value).Order().SequenceEqual(new[] { "admin", "app", "legacy" })));
     }
 
     [Fact]
@@ -649,10 +649,10 @@ public sealed class MigrationWorkflowTests
             .Returns(call => { desiredScope = call.Arg<PlanningScope>(); return ProjectDefinition(new Database { Schemas = [] }); });
 
         // Act
-        await _sut.ComputePlan(PlanTarget.Project, PlanningScope.To("app", "legacy"), TestContext.Current.CancellationToken);
+        await _sut.ComputePlan(PlanTarget.Project, PlanningScope.To(new SchemaAddress("app"), new SchemaAddress("legacy")), TestContext.Current.CancellationToken);
 
         // Assert — the project read is load-bearing: template instances bind at aggregation.
-        desiredScope!.SchemaNames.ShouldBe(["app", "legacy"]);
+        desiredScope!.Addresses.Select(a => a.Value).ShouldBe(["app", "legacy"]);
     }
 
     [Fact]
@@ -665,14 +665,14 @@ public sealed class MigrationWorkflowTests
         });
 
         // Act
-        await sut.ComputePlan(PlanTarget.Project, PlanningScope.To("app"), TestContext.Current.CancellationToken);
+        await sut.ComputePlan(PlanTarget.Project, PlanningScope.To(new SchemaAddress("app")), TestContext.Current.CancellationToken);
 
         // Assert — narrowing the current side here would hide the out-of-scope objects a scoped run may still
         // disturb, so the planner is handed everything and told what is in play.
         _planner.Received(1).Plan(
             Arg.Is<CurrentState>(c => c!.Database.Schemas.Select(s => s.Name.Value).SequenceEqual(new[] { "app", "other" })),
             Arg.Any<ProjectDefinition>(),
-            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.SchemaNames!.Select(n => n.Value).SequenceEqual(new[] { "app" })));
+            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.Addresses.Select(a => a.Value).SequenceEqual(new[] { "app" })));
     }
 
     [Fact]

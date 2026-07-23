@@ -208,7 +208,7 @@ Every NSQL-producing surface becomes: build nodes → print through the formatte
   that the parser or `SyntaxBuilder` always fills. The sentinel is also the seat for future error recovery
   (a mandatory token left missing instead of throwing). Genuinely-optional tokens stay `Token?`.
 - **Still to do:** the deferred structural rules (which would let clause parens after a name take their space
-  back, and could add an inline-short-block form so lockfiles stay compact).
+  back).
 
 - `SyntaxBuilder` graduates to the public syntax-factory surface (naming TBD when it lands).
 - `NsqlWriter`: already model→nodes→text; swap its printer for the formatter. Import output

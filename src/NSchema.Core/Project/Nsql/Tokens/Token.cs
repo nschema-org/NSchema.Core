@@ -65,6 +65,13 @@ public readonly record struct Token(TokenKind Kind, string Text, SourcePosition 
         new(TokenKind.String, value, SourcePosition.None) { Raw = $"'{value.Replace("'", "''")}'" };
 
     /// <summary>
+    /// A synthetic double-quoted identifier token (text decoded, raw quoted and escaped).
+    /// </summary>
+    /// <param name="value">The decoded identifier value.</param>
+    public static Token QuotedIdentifier(string value) =>
+        new(TokenKind.QuotedIdentifier, value, SourcePosition.None) { Raw = $"\"{value.Replace("\"", "\"\"")}\"" };
+
+    /// <summary>
     /// A synthetic verbatim-span token whose raw text reprints as-is.
     /// </summary>
     /// <param name="text">The verbatim text.</param>

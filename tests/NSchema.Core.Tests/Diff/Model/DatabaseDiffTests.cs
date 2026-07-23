@@ -1,5 +1,6 @@
 using NSchema.Diff.Model;
 using NSchema.Diff.Model.Columns;
+using NSchema.Diff.Model.Constraints;
 using NSchema.Diff.Model.Enums;
 using NSchema.Diff.Model.Schemas;
 using NSchema.Diff.Model.Services;
@@ -103,7 +104,7 @@ public sealed class DatabaseDiffTests
     public void ScopedTo_ScopedTeardown_SeversTheOutOfScopeForeignKey_WithoutDroppingItsTable()
     {
         // Act — tear down app only. billing.orders keeps its rows; only the constraint aimed at app.users goes.
-        var result = TeardownDiff().ScopedTo(PlanningScope.To("app"), CurrentDatabase());
+        var result = TeardownDiff().ScopedTo(PlanningScope.To(new SchemaAddress("app")), CurrentDatabase());
 
         // Assert
         var billing = result.Value!.Schemas.Single(s => s.Name == "billing");
@@ -119,7 +120,7 @@ public sealed class DatabaseDiffTests
     public void ScopedTo_ScopedTeardown_DropsTheOutOfScopeViewThatReadsIt()
     {
         // Act — a view's dependency is embedded in its body, so there is nothing to sever but the view.
-        var result = TeardownDiff().ScopedTo(PlanningScope.To("app"), CurrentDatabase());
+        var result = TeardownDiff().ScopedTo(PlanningScope.To(new SchemaAddress("app")), CurrentDatabase());
 
         // Assert
         var billing = result.Value!.Schemas.Single(s => s.Name == "billing");
@@ -132,7 +133,7 @@ public sealed class DatabaseDiffTests
     public void ScopedTo_ScopedTeardown_StillTearsDownTheScopedSchema()
     {
         // Act
-        var result = TeardownDiff().ScopedTo(PlanningScope.To("app"), CurrentDatabase());
+        var result = TeardownDiff().ScopedTo(PlanningScope.To(new SchemaAddress("app")), CurrentDatabase());
 
         // Assert
         var app = result.Value!.Schemas.Single(s => s.Name == "app");
@@ -146,7 +147,7 @@ public sealed class DatabaseDiffTests
         // Act — a plan that touches what it was not asked to touch must announce it, not do it quietly. And
         // the two edge kinds are not equally trustworthy: the foreign key names its table outright, while the
         // view was scanned out of SQL nobody parsed.
-        var result = TeardownDiff().ScopedTo(PlanningScope.To("app"), CurrentDatabase());
+        var result = TeardownDiff().ScopedTo(PlanningScope.To(new SchemaAddress("app")), CurrentDatabase());
 
         // Assert
         result.Diagnostics.Count.ShouldBe(2);
@@ -164,7 +165,7 @@ public sealed class DatabaseDiffTests
     public void ScopedTo_ScopeThatDisturbsNothing_WidensNothing_AndIsQuiet()
     {
         // Arrange — tearing billing down costs app nothing: the dependencies point the other way.
-        var result = TeardownDiff().ScopedTo(PlanningScope.To("billing"), CurrentDatabase());
+        var result = TeardownDiff().ScopedTo(PlanningScope.To(new SchemaAddress("billing")), CurrentDatabase());
 
         // Assert
         result.Value!.Schemas.ShouldHaveSingleItem().Name.ShouldBe("billing");
@@ -183,7 +184,7 @@ public sealed class DatabaseDiffTests
         ]);
 
         // Act
-        var result = diff.ScopedTo(PlanningScope.To("app"), CurrentDatabase());
+        var result = diff.ScopedTo(PlanningScope.To(new SchemaAddress("app")), CurrentDatabase());
 
         // Assert
         result.Value!.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
@@ -218,7 +219,7 @@ public sealed class DatabaseDiffTests
         var current = DatabaseWithEnumTypedColumn(SqlType.Custom("app", "status"));
 
         // Act
-        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To("app"), current);
+        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To(new SchemaAddress("app")), current);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -235,7 +236,7 @@ public sealed class DatabaseDiffTests
         var current = DatabaseWithEnumTypedColumn(SqlType.Custom("status"));
 
         // Act
-        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To("app"), current);
+        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To(new SchemaAddress("app")), current);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -258,7 +259,7 @@ public sealed class DatabaseDiffTests
         };
 
         // Act
-        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To("app"), current);
+        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To(new SchemaAddress("app")), current);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -295,6 +296,155 @@ public sealed class DatabaseDiffTests
         var app = result.Value!.Schemas.ShouldHaveSingleItem();
         app.Comment.ShouldBeNull();
         app.Tables.ShouldHaveSingleItem().Name.ShouldBe("users");
+    }
+
+    private static DatabaseDiff AddedInvoicesReferencing(ObjectAddress references)
+    {
+        var foreignKey = new ForeignKey
+        {
+            Name = "fk_invoices_customer",
+            ColumnNames = ["customer_id"],
+            References = references,
+            ReferencedColumnNames = ["id"],
+        };
+        return new DatabaseDiff(
+        [
+            new SchemaDiff("billing", Tables:
+            [
+                new TableDiff("billing", "invoices", ChangeKind.Add,
+                    ForeignKeys: [new ForeignKeyDiff(ChangeKind.Add, "fk_invoices_customer", foreignKey)],
+                    Definition: new Table
+                    {
+                        Name = "invoices",
+                        Columns = [new Column { Name = "customer_id", Type = SqlType.Int }],
+                        ForeignKeys = [foreignKey],
+                    }),
+            ]),
+        ]);
+    }
+
+    [Fact]
+    public void ScopedTo_AddedForeignKeyWhoseTargetIsOutOfScopeAndAbsent_IsLeftOutWithAWarning()
+    {
+        // Arrange — the table is created in scope, but references app.customers, which this run will neither
+        // create (out of scope) nor find (absent from the current database). A plan that emitted it would fail.
+        var diff = AddedInvoicesReferencing(new ObjectAddress("app", "customers"));
+
+        // Act
+        var result = diff.ScopedTo(PlanningScope.To([Target("billing", "invoices")]), CurrentDatabase());
+
+        // Assert — the table is still created, just without the constraint, and the omission is reported.
+        result.IsSuccess.ShouldBeTrue();
+        var table = result.Value!.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem();
+        table.ForeignKeys.ShouldBeEmpty();
+        table.Definition!.ForeignKeys.ShouldBeEmpty(); // a created table carries its constraints inline
+        result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
+            DiffDiagnostics.ForeignKeyTargetOutOfScope([new MemberAddress("billing", "invoices", "fk_invoices_customer")]));
+    }
+
+    [Fact]
+    public void ScopedTo_AddedForeignKeyWhoseTargetIsOutOfScopeButPresent_IsKept()
+    {
+        // Arrange — app.users already exists, so the constraint applies cleanly even unscoped.
+        var diff = AddedInvoicesReferencing(new ObjectAddress("app", "users"));
+
+        // Act
+        var result = diff.ScopedTo(PlanningScope.To([Target("billing", "invoices")]), CurrentDatabase());
+
+        // Assert
+        var table = result.Value!.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem();
+        table.ForeignKeys.ShouldHaveSingleItem();
+        table.Definition!.ForeignKeys.ShouldHaveSingleItem();
+        result.Diagnostics.ShouldBeEmpty();
+    }
+
+    private static DatabaseDiff AddsColumnTyped(SqlType type) => new(
+    [
+        new SchemaDiff("billing", Tables:
+        [
+            new TableDiff("billing", "orders", ChangeKind.Modify, Columns:
+            [
+                new ColumnDiff("state", ChangeKind.Add, new Column { Name = "state", Type = type }),
+            ]),
+        ]),
+    ]);
+
+    [Fact]
+    public void ScopedTo_AdditionTypedByAnOutOfScopeAbsentType_Blocks()
+    {
+        // Arrange — the column names app.status, which this run will neither create (out of scope) nor find.
+        // A type is part of the column's shape, so unlike a constraint there is nothing to leave out.
+        var diff = AddsColumnTyped(SqlType.Custom("app", "status"));
+
+        // Act
+        var result = diff.ScopedTo(PlanningScope.To([Target("billing", "orders")]), CurrentDatabase());
+
+        // Assert — blocked, with the plan still carried for review.
+        result.IsFailure.ShouldBeTrue();
+        result.Value.ShouldNotBeNull();
+        result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
+            DiffDiagnostics.TypeTargetOutOfScope(
+                [new MemberAddress("billing", "orders", "state")],
+                [new ObjectAddress("app", "status")]));
+    }
+
+    [Fact]
+    public void ScopedTo_AdditionTypedByAnOutOfScopeTypeThatExists_IsAllowed()
+    {
+        // Arrange — app.status is already in the database, so the column applies cleanly even unscoped.
+        var current = DatabaseWithEnumTypedColumn(SqlType.Custom("app", "status"));
+
+        // Act
+        var result = AddsColumnTyped(SqlType.Custom("app", "status"))
+            .ScopedTo(PlanningScope.To([Target("billing", "orders")]), current);
+
+        // Assert
+        result.IsSuccess.ShouldBeTrue();
+        result.Diagnostics.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void ScopedTo_AdditionTypedByABareName_IsNotBlocked()
+    {
+        // Arrange — a bare name is resolved against what already exists, so it can only ever reach something
+        // present. Nothing to block on, and a guess must not block a plan that need not be.
+        var result = AddsColumnTyped(SqlType.Custom("status"))
+            .ScopedTo(PlanningScope.To([Target("billing", "orders")]), CurrentDatabase());
+
+        // Assert
+        result.IsSuccess.ShouldBeTrue();
+        result.Diagnostics.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void ScopedTo_ForeignKeyAddedToAnExistingTable_IsLeftOutWhenItsTargetIsUnreachable()
+    {
+        // Arrange — a modified table carries the constraint as its own change rather than inline.
+        var diff = new DatabaseDiff(
+        [
+            new SchemaDiff("billing", Tables:
+            [
+                new TableDiff("billing", "orders", ChangeKind.Modify, ForeignKeys:
+                [
+                    new ForeignKeyDiff(ChangeKind.Add, "fk_orders_customer", new ForeignKey
+                    {
+                        Name = "fk_orders_customer",
+                        ColumnNames = ["customer_id"],
+                        References = new ObjectAddress("app", "customers"),
+                        ReferencedColumnNames = ["id"],
+                    }),
+                ]),
+            ]),
+        ]);
+
+        // Act
+        var result = diff.ScopedTo(PlanningScope.To([Target("billing", "orders")]), CurrentDatabase());
+
+        // Assert
+        var table = result.Value!.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem();
+        table.ForeignKeys.ShouldBeEmpty();
+        result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
+            DiffDiagnostics.ForeignKeyTargetOutOfScope([new MemberAddress("billing", "orders", "fk_orders_customer")]));
     }
 
     [Fact]
