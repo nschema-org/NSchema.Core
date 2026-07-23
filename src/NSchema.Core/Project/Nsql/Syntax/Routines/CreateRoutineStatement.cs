@@ -23,9 +23,9 @@ public sealed record CreateRoutineStatement(
     public Token CreateKeyword { get; init; } = Token.Keyword(NsqlKeywords.Create);
 
     /// <summary>
-    /// The <c>FUNCTION</c>/<c>PROCEDURE</c> keyword token, when parsed.
+    /// The <c>FUNCTION</c>/<c>PROCEDURE</c> keyword token.
     /// </summary>
-    public Token? KindKeyword { get; init; }
+    public Token KindKeyword { get; init; } = Token.Keyword(Kind == RoutineKind.Procedure ? NsqlKeywords.Procedure : NsqlKeywords.Function);
 
     /// <summary>
     /// The <c>(</c> token opening the arguments.
@@ -33,9 +33,9 @@ public sealed record CreateRoutineStatement(
     public Token OpenParenToken { get; init; } = Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
 
     /// <summary>
-    /// The verbatim argument-list span token, when parsed.
+    /// The verbatim argument-list span token.
     /// </summary>
-    public Token? ArgumentsToken { get; init; }
+    public Token ArgumentsToken { get; init; } = Token.Span(Arguments.Value);
 
     /// <summary>
     /// The <c>)</c> token closing the arguments.
@@ -43,9 +43,9 @@ public sealed record CreateRoutineStatement(
     public Token CloseParenToken { get; init; } = Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
 
     /// <summary>
-    /// The verbatim definition span token, when parsed.
+    /// The verbatim definition span token.
     /// </summary>
-    public Token? DefinitionToken { get; init; }
+    public Token DefinitionToken { get; init; } = Token.Span(Definition.Value.TrimEnd());
 
     /// <summary>
     /// The terminating <c>;</c> token.
@@ -61,18 +61,12 @@ public sealed record CreateRoutineStatement(
                 yield return doc;
             }
             yield return CreateKeyword;
-            yield return KindKeyword ?? Token.Keyword(Kind == RoutineKind.Procedure ? NsqlKeywords.Procedure : NsqlKeywords.Function);
+            yield return KindKeyword;
             yield return Name;
             yield return OpenParenToken;
-            if (ArgumentsToken is { } arguments)
-            {
-                yield return arguments;
-            }
+            yield return ArgumentsToken;
             yield return CloseParenToken;
-            if (DefinitionToken is { } definition)
-            {
-                yield return definition;
-            }
+            yield return DefinitionToken;
             yield return SemicolonToken;
         }
     }

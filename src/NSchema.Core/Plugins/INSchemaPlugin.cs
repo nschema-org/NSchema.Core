@@ -1,3 +1,5 @@
+using NSchema.Project.Nsql.Syntax.Blocks;
+
 namespace NSchema.Plugins;
 
 /// <summary>
@@ -12,9 +14,5 @@ public interface INSchemaPlugin
     /// Builds the starter configuration block this plugin contributes when a new project is scaffolded.
     /// </summary>
     /// <param name="context">Describes what is being scaffolded (e.g. the target environment).</param>
-    /// <remarks>
-    /// The template is source text, not a model, so it can carry comments.
-    /// The host formats it, so canonical styling is applied without losing them.
-    /// </remarks>
-    string GetScaffoldTemplate(ScaffoldContext context);
+    BlockStatement GetScaffoldTemplate(ScaffoldContext context);
 }

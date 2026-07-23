@@ -12,18 +12,15 @@ namespace NSchema.Project.Nsql.Syntax.Triggers;
 public sealed record ExecuteFunctionAction(QualifiedName Function, SqlText Arguments) : TriggerAction
 {
     /// <summary>
-    /// The verbatim span of the whole action (<c>EXECUTE FUNCTION function(args)</c>), when parsed.
+    /// The verbatim span of the whole action (<c>EXECUTE FUNCTION function(args)</c>) — filled by the parser or a factory.
     /// </summary>
-    public Token? ActionToken { get; init; }
+    public Token ActionToken { get; init; } = Token.Missing;
 
     internal override IEnumerable<NsqlChild> Children
     {
         get
         {
-            if (ActionToken is { } action)
-            {
-                yield return action;
-            }
+            yield return ActionToken;
         }
     }
 }

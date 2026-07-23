@@ -27,9 +27,9 @@ public sealed record ExclusionElement(string Operator, Identifier? Column = null
     public Token? CloseParenToken { get; init; }
 
     /// <summary>
-    /// The verbatim <c>WITH operator</c> span token, when parsed.
+    /// The verbatim <c>WITH operator</c> span token.
     /// </summary>
-    public Token? WithOperatorToken { get; init; }
+    public Token WithOperatorToken { get; init; } = Token.Span($"{NsqlKeywords.With} {Operator}");
 
     internal override IEnumerable<NsqlChild> Children
     {
@@ -45,7 +45,7 @@ public sealed record ExclusionElement(string Operator, Identifier? Column = null
                 yield return ExpressionToken ?? Token.Span(expression.Value);
                 yield return CloseParenToken ?? Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
             }
-            yield return WithOperatorToken ?? Token.Span($"{NsqlKeywords.With} {Operator}");
+            yield return WithOperatorToken;
         }
     }
 }

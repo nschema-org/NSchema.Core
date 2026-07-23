@@ -9,9 +9,9 @@ namespace NSchema.Project.Nsql.Syntax.Scripts;
 public sealed record DeploymentEventClause(DeploymentPhase Phase) : ScriptEventClause
 {
     /// <summary>
-    /// The <c>PRE</c>/<c>POST</c> keyword token, when parsed.
+    /// The <c>PRE</c>/<c>POST</c> keyword token.
     /// </summary>
-    public Token? PhaseKeyword { get; init; }
+    public Token PhaseKeyword { get; init; } = Token.Keyword(Phase == DeploymentPhase.Pre ? NsqlKeywords.Pre : NsqlKeywords.Post);
 
     /// <summary>
     /// The <c>DEPLOYMENT</c> keyword token.
@@ -22,7 +22,7 @@ public sealed record DeploymentEventClause(DeploymentPhase Phase) : ScriptEventC
     {
         get
         {
-            yield return PhaseKeyword ?? Token.Keyword(Phase == DeploymentPhase.Pre ? NsqlKeywords.Pre : NsqlKeywords.Post);
+            yield return PhaseKeyword;
             yield return DeploymentKeyword;
         }
     }

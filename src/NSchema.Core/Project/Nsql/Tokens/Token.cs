@@ -71,6 +71,16 @@ public readonly record struct Token(TokenKind Kind, string Text, SourcePosition 
     public static Token Span(string text) => new(TokenKind.RawSpan, text, SourcePosition.None);
 
     /// <summary>
+    /// A zero-width placeholder for a mandatory token slot that nothing has filled yet — prints as nothing.
+    /// </summary>
+    public static readonly Token Missing = new(TokenKind.Missing, "", SourcePosition.None);
+
+    /// <summary>
+    /// Whether this is the <see cref="Missing"/> placeholder for an unsupplied mandatory token.
+    /// </summary>
+    public bool IsMissing => Kind == TokenKind.Missing;
+
+    /// <summary>
     /// Whether this token is an identifier whose text matches <paramref name="keyword"/>, case-insensitively.
     /// </summary>
     /// <param name="keyword">The keyword to test against.</param>

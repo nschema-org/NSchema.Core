@@ -109,6 +109,12 @@ public enum TokenKind
     RawSpan,
 
     /// <summary>
+    /// A zero-width placeholder for a grammatically-mandatory token that has not been supplied —
+    /// the default of a non-nullable token slot until a parser or factory fills it.
+    /// </summary>
+    Missing,
+
+    /// <summary>
     /// The end of the input.
     /// </summary>
     EndOfFile

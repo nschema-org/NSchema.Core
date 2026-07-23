@@ -192,9 +192,23 @@ Every NSQL-producing surface becomes: build nodes → print through the formatte
   → `string` serializes a structure; `Format(string)` → `Result` reformats source (the only one that parses,
   hence the `Result`). `SyntaxBuilder` owns model→tree and the raw-span fragment renderers (moved there);
   `NsqlWriter` owns →text. `ImportOperation`'s accidental double-format collapsed to a single `Write(document)`.
-- **Still to do:** rebuild `LockFileManager` on `BlockStatement` nodes, `GetScaffoldTemplate` → typed
-  nodes, the nullable-`Token?` → missing-sentinel split, and the deferred structural rules (which would let
-  clause parens after a name take their space back).
+- **Producers on the CST (done, 2026-07-23).** `LockFileManager.Write` builds `LOCK` `BlockStatement`s and
+  renders them through `NsqlWriter.Write` — no more hand-built `LOCK ( … );` strings. Lockfiles are now
+  multi-line canonical blocks (the block-broken form); machine-managed, still round-trips. `INSchemaPlugin`.
+  `GetScaffoldTemplate` returns a `BlockStatement` instead of a string (breaking plugin-API change, no impl
+  yet). Comments are not lost: a block-level `---` rides as the block's doc-comment, and inline `--` comments
+  ride as `LineComment` trivia on a token (`Trivia`/`Token.Leading`/`Trailing` are public) — the formatter
+  renders both.
+- **Nullable-token split (done, 2026-07-23).** A `Token?` now means "grammatically optional" only. Every
+  grammatically-mandatory slot is non-nullable `Token`: those derivable from a semantic field default to it
+  (`CheckDefinition.ExpressionToken = Token.Span(Expression.Value)`, `BlockAttribute` key/value, routine
+  kind/args/definition, view body, deployment phase, exclusion `WITH op`, block keyword) — dropping the
+  `?? synth` from their `Children`; the rest (script/trigger bodies, trigger header, execute-function action,
+  sequence interior) default to a new zero-width `Token.Missing` sentinel (`TokenKind.Missing`, `IsMissing`)
+  that the parser or `SyntaxBuilder` always fills. The sentinel is also the seat for future error recovery
+  (a mandatory token left missing instead of throwing). Genuinely-optional tokens stay `Token?`.
+- **Still to do:** the deferred structural rules (which would let clause parens after a name take their space
+  back, and could add an inline-short-block form so lockfiles stay compact).
 
 - `SyntaxBuilder` graduates to the public syntax-factory surface (naming TBD when it lands).
 - `NsqlWriter`: already model→nodes→text; swap its printer for the formatter. Import output
