@@ -152,8 +152,6 @@ internal static class SyntaxBuilder
             {
                 Doc = routine.Comment,
                 DocComment = DocToken(routine.Comment),
-                ArgumentsToken = Token.Span(routine.Arguments.Value),
-                DefinitionToken = Token.Span(routine.Definition.Value.TrimEnd()),
             });
         }
 
@@ -386,7 +384,8 @@ internal static class SyntaxBuilder
         }
         var clause = new Syn.Sequences.SequenceOptionsClause(options.DataType is { } type ? Type(type) : null,
             options.StartWith, options.IncrementBy, options.MinValue, options.MaxValue, options.Cache, options.Cycle);
-        return clause with { InteriorToken = SequenceOptionsText(clause) is { } text ? Token.Span(text) : null };
+        // The clause exists only when there are options, so the interior text is always present.
+        return clause with { InteriorToken = Token.Span(SequenceOptionsText(clause) ?? "") };
     }
 
     private static Syn.SeparatedSyntaxList<Syn.Indexes.IndexElement> Keys(IReadOnlyList<IndexColumn> columns) =>

@@ -65,9 +65,9 @@ public sealed record ScriptStatement(
     public Token AsKeyword { get; init; } = Token.Keyword(NsqlKeywords.As);
 
     /// <summary>
-    /// The dollar-quoted body token, when parsed.
+    /// The dollar-quoted body token — filled by the parser or a factory (its delimiter is chosen from the body).
     /// </summary>
-    public Token? BodyToken { get; init; }
+    public Token BodyToken { get; init; } = Token.Missing;
 
     /// <summary>
     /// The terminating <c>;</c> token.
@@ -98,10 +98,7 @@ public sealed record ScriptStatement(
                 yield return OptionsCloseParenToken ?? Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
             }
             yield return AsKeyword;
-            if (BodyToken is { } body)
-            {
-                yield return body;
-            }
+            yield return BodyToken;
             yield return SemicolonToken;
         }
     }

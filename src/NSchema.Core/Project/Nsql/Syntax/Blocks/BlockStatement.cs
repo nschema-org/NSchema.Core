@@ -14,7 +14,7 @@ public sealed record BlockStatement(BlockKeyword Keyword, Identifier? Label, Sep
     /// <summary>
     /// The block's leading keyword token, when parsed.
     /// </summary>
-    public Token? KeywordToken { get; init; }
+    public Token KeywordToken { get; init; } = Token.Keyword(KeywordText(Keyword));
 
     /// <summary>
     /// The <c>(</c> token opening the attributes.
@@ -39,7 +39,7 @@ public sealed record BlockStatement(BlockKeyword Keyword, Identifier? Label, Sep
             {
                 yield return doc;
             }
-            yield return KeywordToken ?? Token.Keyword(KeywordText());
+            yield return KeywordToken;
             if (Label is { } label)
             {
                 yield return label;
@@ -54,7 +54,7 @@ public sealed record BlockStatement(BlockKeyword Keyword, Identifier? Label, Sep
         }
     }
 
-    private string KeywordText() => Keyword switch
+    private static string KeywordText(BlockKeyword keyword) => keyword switch
     {
         BlockKeyword.Plugin => NsqlKeywords.Plugin,
         BlockKeyword.Engine => NsqlKeywords.Engine,

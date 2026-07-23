@@ -27,9 +27,9 @@ public sealed record CheckDefinition(Identifier Name, SqlText Expression) : Tabl
     public Token OpenParenToken { get; init; } = Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
 
     /// <summary>
-    /// The verbatim check-expression span token, when parsed as a table member.
+    /// The verbatim check-expression span token.
     /// </summary>
-    public Token? ExpressionToken { get; init; }
+    public Token ExpressionToken { get; init; } = Token.Span(Expression.Value);
 
     /// <summary>
     /// The <c>)</c> token.
@@ -48,7 +48,7 @@ public sealed record CheckDefinition(Identifier Name, SqlText Expression) : Tabl
             yield return Name;
             yield return CheckKeyword;
             yield return OpenParenToken;
-            yield return ExpressionToken ?? Token.Span(Expression.Value);
+            yield return ExpressionToken;
             yield return CloseParenToken;
         }
     }

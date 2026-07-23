@@ -28,9 +28,9 @@ public sealed record SequenceOptionsClause(
     public Token OpenParenToken { get; init; } = Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
 
     /// <summary>
-    /// The verbatim options-interior span token, when parsed.
+    /// The verbatim options-interior span token — filled by the parser or a factory.
     /// </summary>
-    public Token? InteriorToken { get; init; }
+    public Token InteriorToken { get; init; } = Token.Missing;
 
     /// <summary>
     /// The <c>)</c> token.
@@ -42,10 +42,7 @@ public sealed record SequenceOptionsClause(
         get
         {
             yield return OpenParenToken;
-            if (InteriorToken is { } interior)
-            {
-                yield return interior;
-            }
+            yield return InteriorToken;
             yield return CloseParenToken;
         }
     }

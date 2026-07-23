@@ -36,9 +36,9 @@ public sealed record CreateViewStatement(
     public Token AsKeyword { get; init; } = Token.Keyword(NsqlKeywords.As);
 
     /// <summary>
-    /// The verbatim view-body span token, when parsed.
+    /// The verbatim view-body span token.
     /// </summary>
-    public Token? BodyToken { get; init; }
+    public Token BodyToken { get; init; } = Token.Span(Body.Value);
 
     /// <summary>
     /// The terminating <c>;</c> token.
@@ -61,7 +61,7 @@ public sealed record CreateViewStatement(
             yield return ViewKeyword;
             yield return Name;
             yield return AsKeyword;
-            yield return BodyToken ?? Token.Span(Body.Value);
+            yield return BodyToken;
             yield return SemicolonToken;
         }
     }

@@ -37,9 +37,9 @@ public sealed record CreateTriggerStatement(
     public Token TriggerKeyword { get; init; } = Token.Keyword(NsqlKeywords.Trigger);
 
     /// <summary>
-    /// The verbatim span of the header (timing, events, <c>ON</c> table, <c>FOR EACH</c>, <c>WHEN</c>), when parsed.
+    /// The verbatim span of the header (timing, events, <c>ON</c> table, <c>FOR EACH</c>, <c>WHEN</c>) — filled by the parser or a factory.
     /// </summary>
-    public Token? HeaderToken { get; init; }
+    public Token HeaderToken { get; init; } = Token.Missing;
 
     /// <summary>
     /// The terminating <c>;</c> token.
@@ -57,10 +57,7 @@ public sealed record CreateTriggerStatement(
             yield return CreateKeyword;
             yield return TriggerKeyword;
             yield return Name;
-            if (HeaderToken is { } header)
-            {
-                yield return header;
-            }
+            yield return HeaderToken;
             yield return Action;
             yield return SemicolonToken;
         }

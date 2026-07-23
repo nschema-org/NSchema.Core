@@ -10,27 +10,27 @@ namespace NSchema.Project.Nsql.Syntax.Blocks;
 public sealed record BlockAttribute(string Key, string Value) : NsqlNode
 {
     /// <summary>
-    /// The verbatim (possibly dotted) key span token, when parsed.
+    /// The verbatim (possibly dotted) key span token.
     /// </summary>
-    public Token? KeyToken { get; init; }
+    public Token KeyToken { get; init; } = Token.Span(Key);
 
     /// <summary>
-    /// The <c>=</c> token, when parsed.
+    /// The <c>=</c> token.
     /// </summary>
-    public Token? EqualsToken { get; init; }
+    public Token EqualsToken { get; init; } = Token.Punctuation(TokenKind.Equals, NsqlSymbols.Equal);
 
     /// <summary>
-    /// The verbatim value span token, when parsed.
+    /// The verbatim value span token.
     /// </summary>
-    public Token? ValueToken { get; init; }
+    public Token ValueToken { get; init; } = Token.StringLiteral(Value);
 
     internal override IEnumerable<NsqlChild> Children
     {
         get
         {
-            yield return KeyToken ?? Token.Span(Key);
-            yield return EqualsToken ?? Token.Punctuation(TokenKind.Equals, NsqlSymbols.Equal);
-            yield return ValueToken ?? Token.StringLiteral(Value);
+            yield return KeyToken;
+            yield return EqualsToken;
+            yield return ValueToken;
         }
     }
 }
