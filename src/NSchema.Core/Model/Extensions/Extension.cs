@@ -12,6 +12,11 @@ public sealed class Extension : DatabaseObject, IEquatable<Extension>
     public override ObjectKind Kind => ObjectKind.Extension;
 
     /// <summary>
+    /// An extension is database-global, so its address carries no schema.
+    /// </summary>
+    public override ScopedAddress Address => new(null, Name);
+
+    /// <summary>
     /// The requested version, or <see langword="null"/> to accept whatever the provider installs.
     /// </summary>
     public string? Version { get; set; }

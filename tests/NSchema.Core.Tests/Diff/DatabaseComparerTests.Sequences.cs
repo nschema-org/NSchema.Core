@@ -53,7 +53,7 @@ public partial class DatabaseComparerTests
         var diff = DiffSequences(
             [new Sequence { Name = "bill_id" }],
             [new Sequence { Name = "invoice_id" }],
-            new ProjectDirectives(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Sequence, App("bill_id")), "invoice_id")]));
+            new ProjectDirectives(ObjectRenames: [new ObjectRenameDirective(App("bill_id") with { Kind = ObjectKind.Sequence }, "invoice_id")]));
 
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.RenamedFrom.ShouldBe("bill_id");

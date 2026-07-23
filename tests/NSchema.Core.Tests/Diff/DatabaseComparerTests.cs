@@ -58,7 +58,7 @@ public partial class DatabaseComparerTests
 
     /// <summary>Directives renaming table <c>app.&lt;from&gt;</c> to <paramref name="to"/>.</summary>
     private static ProjectDirectives TableRename(string from, string to) =>
-        new(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, App(from)), to)]);
+        new(ObjectRenames: [new ObjectRenameDirective(App(from) with { Kind = ObjectKind.Table }, to)]);
 
     /// <summary>Directives renaming column <c>app.t.&lt;from&gt;</c> to <paramref name="to"/>.</summary>
     private static ProjectDirectives ColumnRename(string from, string to, string table = "t") =>
@@ -218,7 +218,7 @@ public partial class DatabaseComparerTests
         var current = Db(new Schema { Name = "app_old", Grants = [new SchemaGrant("writer")] });
         var desired = Db(new Schema { Name = "app", Grants = [new SchemaGrant("reader")], Comment = "new comment" });
         var directives = new ProjectDirectives(
-            SchemaRenames: [new SchemaRenameDirective("app_old", "app")]);
+            SchemaRenames: [new SchemaRenameDirective(new SchemaAddress("app_old"), new SchemaAddress("app"))]);
 
         var schema = Compare(current, desired, directives).Schemas.ShouldHaveSingleItem();
 
@@ -344,8 +344,8 @@ public partial class DatabaseComparerTests
         var desired = Db(new Schema { Name = "core", Tables = [new Table { Name = "people", Columns = [new Column { Name = "full_name", Type = SqlType.Text }] }] });
         SqlIdentifier sales = "sales";
         var directives = new ProjectDirectives(
-            SchemaRenames: [new SchemaRenameDirective(sales, "core")],
-            ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(sales, "users")), "people")],
+            SchemaRenames: [new SchemaRenameDirective(new SchemaAddress(sales), new SchemaAddress("core"))],
+            ObjectRenames: [new ObjectRenameDirective(new ObjectAddress(sales, "users") with { Kind = ObjectKind.Table }, "people")],
             MemberRenames: [new MemberRenameDirective(new MemberAddress(sales, "users", "name"), "full_name")]);
 
         var schema = Compare(current, desired, directives).Schemas.ShouldHaveSingleItem();

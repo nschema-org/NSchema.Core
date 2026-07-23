@@ -25,13 +25,13 @@ public sealed class NsqlParserDirectiveTests
     public void Parse_RenameSchema_TakesBareNames()
         => Directives("CREATE SCHEMA core; RENAME SCHEMA sales TO core;")
             .SchemaRenames.ShouldHaveSingleItem()
-            .ShouldBe(new SchemaRenameDirective("sales", "core"));
+            .ShouldBe(new SchemaRenameDirective(new SchemaAddress("sales"), new SchemaAddress("core")));
 
     [Fact]
     public void Parse_RenameTable_TakesQualifiedFromAndBareTo()
         => Directives("CREATE SCHEMA app; CREATE TABLE app.people ( id int NOT NULL ); RENAME TABLE app.users TO people;")
             .ObjectRenames.ShouldHaveSingleItem()
-            .ShouldBe(new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, App("users")), "people"));
+            .ShouldBe(new ObjectRenameDirective(App("users") with { Kind = ObjectKind.Table }, "people"));
 
     [Fact]
     public void Parse_RenameColumn_TakesAThreePartPath()

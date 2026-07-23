@@ -28,7 +28,7 @@ public sealed class PlanningScopeTests
 
         scope.Contains(App).ShouldBeTrue();
         scope.Contains(Address("app", "users")).ShouldBeTrue();
-        scope.Contains(new ObjectIdentity(ObjectKind.Table, Address("app", "users"))).ShouldBeTrue();
+        scope.Contains(Address("app", "users") with { Kind = ObjectKind.Table }).ShouldBeTrue();
     }
 
     [Fact]
@@ -50,8 +50,8 @@ public sealed class PlanningScopeTests
         // at the address is covered.
         var scope = PlanningScope.To([Address("app", "users")]);
 
-        scope.Contains(new ObjectIdentity(ObjectKind.Table, Address("app", "users"))).ShouldBeTrue();
-        scope.Contains(new ObjectIdentity(ObjectKind.View, Address("app", "users"))).ShouldBeTrue();
+        scope.Contains(Address("app", "users") with { Kind = ObjectKind.Table }).ShouldBeTrue();
+        scope.Contains(Address("app", "users") with { Kind = ObjectKind.View }).ShouldBeTrue();
     }
 
     [Fact]

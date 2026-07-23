@@ -80,6 +80,9 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **Object-granular targeting.** `PlanningScope` covers a single list of `Address`es (`PlanningScope.To(addresses)` / `scope.Addresses`), mixing whole-schema and object-level targets.
 - **Address parsing.** `NsqlReader.ReadAddress` parses a `schema`, `schema.object`, or `schema.object.member` fragment into an `Address`, resolving quoted segments
 - **`SchemaAddress` completes the address taxonomy.** A schema has a first-class `Address` alongside `ObjectAddress` and `MemberAddress`.
+- **Address containment.** `Address.Covers(other)` expresses downward containment (a schema covers its objects and members; an object covers its members).
+- **Scope and identity are address-based.** `PlanningScope` is scoped when it holds any address (schema or object).
+- **`ObjectAddress` carries an optional `Kind`.** A null kind addresses every kind sharing the name (kind-free targeting); a set kind disambiguates same-named objects.
 - **`Token.QuotedIdentifier`.** Synthesizes a quoted-identifier token (decoded text, quoted-and-escaped raw), the counterpart to `Token.StringLiteral`.
 - **`PLUGIN` declares plugin dependencies.** `PLUGIN <label> ( source = '…', version = '…' );` separates dependency declaration from configuration.
 - **`ENGINE` asserts the engine and/or host version.** `ENGINE ( version = '…', host_version = '…' );` — `version` is checked against the engine (Core), `host_version` against the host tool.

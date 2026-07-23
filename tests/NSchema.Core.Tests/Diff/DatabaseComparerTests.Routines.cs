@@ -88,7 +88,7 @@ public partial class DatabaseComparerTests
     public void Compare_Renamed_SetsRenamedFrom()
     {
         var diff = DiffRoutines([Fn("old_f", "", Def)], [Fn("f", "", Def)],
-            new ProjectDirectives(ObjectRenames: [new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Routine, App("old_f")), "f")]));
+            new ProjectDirectives(ObjectRenames: [new ObjectRenameDirective(App("old_f") with { Kind = ObjectKind.Routine }, "f")]));
 
         diff!.RenamedFrom.ShouldBe("old_f");
         diff.Definition.ShouldBeNull(); // nothing else changed, so it is a rename only

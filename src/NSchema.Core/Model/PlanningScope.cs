@@ -46,9 +46,4 @@ public sealed record PlanningScope
     /// Whether the scope covers the named schema and everything inside it.
     /// </summary>
     public bool Contains(SqlIdentifier schemaName) => Contains(new SchemaAddress(schemaName));
-
-    /// <summary>
-    /// Whether the scope covers the identified object.
-    /// </summary>
-    public bool Contains(ObjectIdentity identity) => Contains(identity.Address);
 }

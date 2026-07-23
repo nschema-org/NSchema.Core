@@ -74,7 +74,7 @@ internal sealed class MigrationPlanner(
         var directives = desired.Directives;
 
         // Objects declared inside a renamed schema exist under the schema's current name until the rename applies.
-        var currentSchemaNames = directives.SchemaRenames.ToDictionary(r => r.To, r => r.From);
+        var currentSchemaNames = directives.SchemaRenames.ToDictionary(r => r.To.Schema, r => r.From.Schema);
         var declaredUnderCurrentNames = declared.Objects
             .Where(o => currentSchemaNames.ContainsKey(o.Schema))
             .Select(o => o with { Schema = currentSchemaNames[o.Schema] });
@@ -94,9 +94,9 @@ internal sealed class MigrationPlanner(
         foreach (var schema in declared.Schemas)
         {
             if (!observed.Schemas.Contains(schema)
-                && observed.Schemas.FirstOrDefault(o => EqualsIgnoringCase(o, schema)) is { } match)
+                && observed.Schemas.FirstOrDefault(o => EqualsIgnoringCase(o.Schema, schema.Schema)) is { } match)
             {
-                yield return PlanDiagnostics.CaseOnlySchemaMismatch(schema, match);
+                yield return PlanDiagnostics.CaseOnlySchemaMismatch(schema.Schema, match.Schema);
             }
         }
 
@@ -114,9 +114,9 @@ internal sealed class MigrationPlanner(
         foreach (var extension in declared.Extensions)
         {
             if (!observed.Extensions.Contains(extension)
-                && observed.Extensions.FirstOrDefault(o => EqualsIgnoringCase(o, extension)) is { } match)
+                && observed.Extensions.FirstOrDefault(o => EqualsIgnoringCase(o.Name, extension.Name)) is { } match)
             {
-                yield return PlanDiagnostics.CaseOnlyExtensionMismatch(extension, match);
+                yield return PlanDiagnostics.CaseOnlyExtensionMismatch(extension.Name, match.Name);
             }
         }
     }

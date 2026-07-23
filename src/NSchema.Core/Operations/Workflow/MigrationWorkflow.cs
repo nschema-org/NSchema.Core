@@ -62,7 +62,7 @@ internal sealed class MigrationWorkflow(
 
         // An unscoped run auto-scopes to a union of the project and the existing state.
         var scopeInEffect = scope.IsUnscoped
-            ? PlanningScope.To(project.AddressedSchemas.Concat(state.Managed.Schemas.Select(s => new SchemaAddress(s))))
+            ? PlanningScope.To(project.AddressedSchemas.Concat(state.Managed.Schemas))
             : scope;
 
         progress.Report(OperationProgress.Step($"Migration will be scoped to: {Describe(scopeInEffect)}"));

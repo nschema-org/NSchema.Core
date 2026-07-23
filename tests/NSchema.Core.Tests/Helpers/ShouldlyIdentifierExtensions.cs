@@ -19,4 +19,9 @@ internal static class ShouldlyIdentifierExtensions
     {
         public void ShouldBe(string? expected) => (actual?.ToString()).ShouldBe(expected);
     }
+
+    extension(SchemaAddress? actual)
+    {
+        public void ShouldBe(string? expected) => (actual?.Schema.Value).ShouldBe(expected);
+    }
 }

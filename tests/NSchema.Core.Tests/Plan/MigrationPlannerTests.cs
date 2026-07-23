@@ -163,8 +163,8 @@ public sealed class MigrationPlannerTests
         var current = new CurrentState(new Database { Schemas = [new Schema { Name = app, Tables = [new Table { Name = "mine" }, new Table { Name = "theirs" }] }] })
         {
             Managed = new IdentitySet(
-                Schemas: [app],
-                Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, "mine"))]),
+                Schemas: [new SchemaAddress(app)],
+                Objects: [new ObjectAddress(app, "mine") with { Kind = ObjectKind.Table }]),
         };
 
         // Act
@@ -187,8 +187,8 @@ public sealed class MigrationPlannerTests
         var plan = Sut.Plan(_current, desired, PlanningScope.All).Value!;
 
         // Assert — within scope, management after an apply is exactly what the project declares.
-        plan.Managed.Schemas.ShouldBe([app]);
-        plan.Managed.Objects.ShouldBe([new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, "users"))]);
+        plan.Managed.Schemas.Select(s => s.Schema).ShouldBe([app]);
+        plan.Managed.Objects.ShouldBe([new ObjectAddress(app, "users") with { Kind = ObjectKind.Table }]);
     }
 
     [Fact]
@@ -200,8 +200,8 @@ public sealed class MigrationPlannerTests
         var current = new CurrentState(_emptySchema)
         {
             Managed = new IdentitySet(
-                Schemas: [billing],
-                Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress(billing, "invoices"))]),
+                Schemas: [new SchemaAddress(billing)],
+                Objects: [new ObjectAddress(billing, "invoices") with { Kind = ObjectKind.Table }]),
         };
         var desired = new ProjectDefinition(new Database { Schemas = [new Schema { Name = app }] });
 
@@ -209,8 +209,8 @@ public sealed class MigrationPlannerTests
         var plan = Sut.Plan(current, desired, PlanningScope.To(new SchemaAddress(app))).Value!;
 
         // Assert
-        plan.Managed.Schemas.ShouldBe([app, billing], ignoreOrder: true);
-        plan.Managed.Objects.ShouldHaveSingleItem().Address.Schema.ShouldBe(billing);
+        plan.Managed.Schemas.Select(s => s.Schema).ShouldBe([app, billing], ignoreOrder: true);
+        plan.Managed.Objects.ShouldHaveSingleItem().Schema.ShouldBe(billing);
     }
 
     [Fact]
@@ -219,18 +219,18 @@ public sealed class MigrationPlannerTests
         // Arrange — targeting one object converges only it towards nothing: the container and its siblings
         // stay managed, because an object entry covers nothing above or beside itself.
         SqlIdentifier app = "app";
-        var users = new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, "users"));
-        var orders = new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, "orders"));
+        var users = new ObjectAddress(app, "users") with { Kind = ObjectKind.Table };
+        var orders = new ObjectAddress(app, "orders") with { Kind = ObjectKind.Table };
         var current = new CurrentState(_emptySchema)
         {
-            Managed = new IdentitySet(Schemas: [app], Objects: [users, orders]),
+            Managed = new IdentitySet(Schemas: [new SchemaAddress(app)], Objects: [users, orders]),
         };
 
         // Act
-        var plan = Sut.Plan(current, new ProjectDefinition(new Database()), PlanningScope.To([users.Address])).Value!;
+        var plan = Sut.Plan(current, new ProjectDefinition(new Database()), PlanningScope.To([users])).Value!;
 
         // Assert
-        plan.Managed.Schemas.ShouldBe([app]);
+        plan.Managed.Schemas.Select(s => s.Schema).ShouldBe([app]);
         plan.Managed.Objects.ShouldBe([orders]);
     }
 
@@ -241,7 +241,7 @@ public sealed class MigrationPlannerTests
         SqlIdentifier app = "app";
         var current = new CurrentState(_emptySchema)
         {
-            Managed = new IdentitySet(Schemas: [app]),
+            Managed = new IdentitySet(Schemas: [new SchemaAddress(app)]),
         };
 
         // Act — an unrestricted teardown's scope covers every managed schema (derived by the workflow).
@@ -343,8 +343,8 @@ public sealed class MigrationPlannerTests
 
         // Assert
         result.Warnings.ShouldContain(PlanDiagnostics.CaseOnlyMismatch(
-            new ObjectIdentity(ObjectKind.Table, new ObjectAddress("app", "Users")),
-            new ObjectIdentity(ObjectKind.Table, new ObjectAddress("app", "users"))));
+            new ObjectAddress("app", "Users") with { Kind = ObjectKind.Table },
+            new ObjectAddress("app", "users") with { Kind = ObjectKind.Table }));
     }
 
     [Fact]

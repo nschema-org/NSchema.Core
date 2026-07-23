@@ -432,21 +432,21 @@ public sealed class MigrationWorkflowTests
         ReadOnlyMemory<byte>? written = null;
         await store.Write(Arg.Do<ReadOnlyMemory<byte>>(m => written = m), Arg.Any<CancellationToken>());
         var sut = BuildSut(store);
-        var managed = new IdentitySet(Schemas: ["app"]);
+        var managed = new IdentitySet(Schemas: [new SchemaAddress("app")]);
         var applied = EmptyPlan() with { Managed = managed };
 
         // Act
         await sut.Refresh(applied, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        _stateSerializer.Deserialize(written!.Value).Managed.Schemas.ShouldBe(["app"]);
+        _stateSerializer.Deserialize(written!.Value).Managed.Schemas.Select(s => s.Schema).ShouldBe(["app"]);
     }
 
     [Fact]
     public async Task Refresh_WithoutAnAppliedPlan_PreservesTheManagedSet()
     {
         // Arrange — a plain refresh observes; it neither adopts nor abandons anything.
-        var managed = new IdentitySet(Schemas: ["app"]);
+        var managed = new IdentitySet(Schemas: [new SchemaAddress("app")]);
         var store = Substitute.For<IDatabaseStateStore>();
         store.Read(Arg.Any<CancellationToken>())
             .Returns(_stateSerializer.Serialize(new DatabaseState(new Database { Schemas = [] }) with { Managed = managed }));
@@ -458,7 +458,7 @@ public sealed class MigrationWorkflowTests
         await sut.Refresh(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        _stateSerializer.Deserialize(written!.Value).Managed.Schemas.ShouldBe(["app"]);
+        _stateSerializer.Deserialize(written!.Value).Managed.Schemas.Select(s => s.Schema).ShouldBe(["app"]);
     }
 
     [Fact]
@@ -628,7 +628,7 @@ public sealed class MigrationWorkflowTests
             new Schema { Name = "unmanaged" },
         ],
         }) with
-        { Managed = new IdentitySet(Schemas: ["legacy"]) });
+        { Managed = new IdentitySet(Schemas: [new SchemaAddress("legacy")]) });
 
         // Act
         await sut.ComputePlan(PlanTarget.Project, PlanningScope.All, TestContext.Current.CancellationToken);

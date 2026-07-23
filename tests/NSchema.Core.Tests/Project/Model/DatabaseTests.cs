@@ -69,11 +69,11 @@ public sealed class DatabaseTests
         var project = new ProjectDefinition(
             new Database { Schemas = [new Schema { Name = core }, new Schema { Name = "audit" }] },
             new ProjectDirectives(
-                SchemaRenames: [new SchemaRenameDirective(sales, core)],
+                SchemaRenames: [new SchemaRenameDirective(new SchemaAddress(sales), new SchemaAddress(core))],
                 ObjectRenames:
                 [
-                    new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(sales, "old")), "current"),
-                    new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress("audit", "stale")), "fresh"),
+                    new ObjectRenameDirective(new ObjectAddress(sales, "old") with { Kind = ObjectKind.Table }, "current"),
+                    new ObjectRenameDirective(new ObjectAddress("audit", "stale") with { Kind = ObjectKind.Table }, "fresh"),
                 ]));
 
         var filtered = project.ScopedTo(PlanningScope.To(new SchemaAddress(core))).Directives;
@@ -92,8 +92,8 @@ public sealed class DatabaseTests
         var directives = new ProjectDirectives(
             ObjectRenames:
             [
-                new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, "customers")), "users"),
-                new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress(app, "stale")), "fresh"),
+                new ObjectRenameDirective(new ObjectAddress(app, "customers") with { Kind = ObjectKind.Table }, "users"),
+                new ObjectRenameDirective(new ObjectAddress(app, "stale") with { Kind = ObjectKind.Table }, "fresh"),
             ],
             MemberRenames: [new MemberRenameDirective(new MemberAddress(app, "users", "mail"), "email")],
             ChangeScripts:
@@ -101,7 +101,7 @@ public sealed class DatabaseTests
                 new ChangeScript("backfill", "UPDATE 1;", new ChangeTarget(app, "users", "email", ChangeTrigger.AddColumn)),
                 new ChangeScript("other", "UPDATE 2;", new ChangeTarget(app, "orders", "total", ChangeTrigger.AddColumn)),
             ],
-            DeploymentScripts: [new DeploymentScript("seed", "SELECT 1;", app, DeploymentPhase.Pre)]);
+            DeploymentScripts: [new DeploymentScript("seed", "SELECT 1;", new SchemaAddress(app), DeploymentPhase.Pre)]);
 
         var filtered = directives.ScopedTo(PlanningScope.To([users]));
 

@@ -13,7 +13,7 @@ public sealed record ChangeScript(
     SqlIdentifier Name,
     SqlText Sql,
     ChangeTarget Target
-) : Script(Name, Sql, Target.Schema)
+) : Script(Name, Sql, Target.ScopeSchema)
 {
     /// <summary>
     /// The fully qualified path of the change target (<c>schema.table.member</c>).

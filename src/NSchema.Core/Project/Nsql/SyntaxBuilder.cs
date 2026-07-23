@@ -65,13 +65,14 @@ internal static class SyntaxBuilder
     {
         foreach (var rename in directives.SchemaRenames)
         {
-            statements.Add(new Syn.Schemas.RenameSchemaStatement(Name(rename.From), Name(rename.To)));
+            statements.Add(new Syn.Schemas.RenameSchemaStatement(Name(rename.From.Schema), Name(rename.To.Schema)));
         }
         foreach (var rename in directives.ObjectRenames)
         {
-            statements.Add(new RenameObjectStatement(rename.From.Kind, Qualified(rename.From.Schema, rename.From.Name), Name(rename.To))
+            var kind = rename.From.Kind!.Value;
+            statements.Add(new RenameObjectStatement(kind, Qualified(rename.From.Schema, rename.From.Name), Name(rename.To))
             {
-                KindKeywords = [Token.Keyword(KindKeyword(rename.From.Kind))],
+                KindKeywords = [Token.Keyword(KindKeyword(kind))],
             });
         }
         foreach (var rename in directives.MemberRenames)

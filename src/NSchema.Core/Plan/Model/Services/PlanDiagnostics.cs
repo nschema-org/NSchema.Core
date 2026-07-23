@@ -17,7 +17,7 @@ internal static class PlanDiagnostics
     /// <summary>
     /// A declared object matches an observed one only up to case.
     /// </summary>
-    public static Diagnostic CaseOnlyMismatch(ObjectIdentity declared, ObjectIdentity observed) =>
+    public static Diagnostic CaseOnlyMismatch(ObjectAddress declared, ObjectAddress observed) =>
         Diagnostic.Warning(Source, $"The project declares '{declared}' but the database has '{observed}', which differs only in case. Identifiers are case-sensitive, so these are different objects; if they should be the same one, match the declared spelling to the database's.");
 
     /// <summary>

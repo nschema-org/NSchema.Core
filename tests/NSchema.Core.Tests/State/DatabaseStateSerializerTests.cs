@@ -143,10 +143,52 @@ public sealed class DatabaseStateSerializerTests
         => VerifyJson(Encoding.UTF8.GetString(_sut.Serialize(new DatabaseState(new Database { Schemas = [] })
         {
             Managed = new IdentitySet(
-                Schemas: ["app"],
-                Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress("app", "users"))],
-                Extensions: ["citext"]),
+                Schemas: [new SchemaAddress("app")],
+                Objects: [new ObjectAddress("app", "users") with { Kind = ObjectKind.Table }],
+                Extensions: [new ScopedAddress(null, "citext")]),
         }).Span));
+
+    [Fact]
+    public Task Serialize_ManagedSetAcrossEveryLevel_MatchesSnapshot()
+        // Pins the managed set at all three levels and across object kinds — including names a dotted path
+        // could not carry unquoted, which is why each address is structural on the wire.
+        => VerifyJson(Encoding.UTF8.GetString(_sut.Serialize(new DatabaseState(new Database { Schemas = [] })
+        {
+            Managed = new IdentitySet(
+                Schemas: [new SchemaAddress("app"), new SchemaAddress("my.schema")],
+                Objects:
+                [
+                    new ObjectAddress("app", "users", ObjectKind.Table),
+                    new ObjectAddress("app", "active_users", ObjectKind.View),
+                    new ObjectAddress("app", "user_id_seq", ObjectKind.Sequence),
+                    new ObjectAddress("my.schema", "Order Details", ObjectKind.Table),
+                ],
+                Extensions: [new ScopedAddress(null, "citext"), new ScopedAddress(null, "uuid-ossp")]),
+        }).Span));
+
+    [Fact]
+    public void RoundTrip_PreservesTheManagedSet()
+    {
+        // Arrange — every level, including names that would need quoting if written as a path.
+        var managed = new IdentitySet(
+            Schemas: [new SchemaAddress("app"), new SchemaAddress("my.schema")],
+            Objects:
+            [
+                new ObjectAddress("app", "users", ObjectKind.Table),
+                new ObjectAddress("my.schema", "Order Details", ObjectKind.View),
+            ],
+            Extensions: [new ScopedAddress(null, "citext")]);
+
+        // Act
+        var restored = _sut
+            .Deserialize(_sut.Serialize(new DatabaseState(new Database { Schemas = [] }) { Managed = managed }))
+            .Managed;
+
+        // Assert — kinds and hostile names survive the wire.
+        restored.Schemas.ShouldBe(managed.Schemas);
+        restored.Objects.ShouldBe(managed.Objects);
+        restored.Extensions.ShouldBe(managed.Extensions);
+    }
 
     [Fact]
     public void Deserialize_PayloadWithoutManagedSet_ReadsAsNothingManaged()

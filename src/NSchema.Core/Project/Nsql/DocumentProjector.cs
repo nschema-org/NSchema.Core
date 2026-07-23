@@ -209,7 +209,7 @@ internal static class DocumentProjector
             case Syn.Scripts.DeploymentEventClause deployment:
                 // A hand-written deployment script is global (null scope); a templated one scopes to the
                 // applied schema. A bare RUN (null condition) is the default, RUN ALWAYS.
-                scripts.Add(new DeploymentScript(Name(statement.Name), sql, context, Map(deployment.Phase))
+                scripts.Add(new DeploymentScript(Name(statement.Name), sql, context is { } scope ? new SchemaAddress(scope) : null, Map(deployment.Phase))
                 {
                     RunOutsideTransaction = statement.RunOutsideTransaction,
                     RunCondition = Map(statement.RunCondition),

@@ -21,7 +21,7 @@ internal static class DirectiveValidator
         var declaredNames = new Dictionary<SqlIdentifier, SqlIdentifier>();
         foreach (var rename in directives.SchemaRenames)
         {
-            declaredNames.TryAdd(rename.From, rename.To);
+            declaredNames.TryAdd(rename.From.Schema, rename.To.Schema);
         }
 
         return ValidateSchemaRenames(directives, index)
@@ -32,7 +32,7 @@ internal static class DirectiveValidator
     private static IEnumerable<Diagnostic> ValidateSchemaRenames(ProjectDirectives directives, DatabaseLookup index)
     {
         foreach (var d in ValidateRenameShape("schema",
-            directives.SchemaRenames.Select(r => (Container: 0, r.From, r.To)).ToList(),
+            directives.SchemaRenames.Select(r => (Container: 0, From: r.From.Schema, To: r.To.Schema)).ToList(),
             (_, name) => name.Value))
         {
             yield return d;
@@ -40,13 +40,13 @@ internal static class DirectiveValidator
 
         foreach (var rename in directives.SchemaRenames)
         {
-            if (index.FindSchema(rename.To) is null)
+            if (index.FindSchema(rename.To.Schema) is null)
             {
-                yield return ProjectDiagnostics.RenameTargetNotDeclared("schema", rename.From.Value, rename.To);
+                yield return ProjectDiagnostics.RenameTargetNotDeclared("schema", rename.From.Value, rename.To.Schema);
             }
-            if (index.FindSchema(rename.From) is not null)
+            if (index.FindSchema(rename.From.Schema) is not null)
             {
-                yield return ProjectDiagnostics.RenameSourceStillDeclared("schema", rename.From.Value, rename.To);
+                yield return ProjectDiagnostics.RenameSourceStillDeclared("schema", rename.From.Value, rename.To.Schema);
             }
         }
     }
@@ -101,7 +101,7 @@ internal static class DirectiveValidator
         var tableRenames = new Dictionary<ObjectAddress, SqlIdentifier>();
         foreach (var rename in directives.ObjectRenames.Where(r => r.From.Kind == ObjectKind.Table))
         {
-            tableRenames.TryAdd(rename.From.Address, rename.To);
+            tableRenames.TryAdd(rename.From with { Kind = null }, rename.To);
         }
         foreach (var rename in directives.MemberRenames)
         {

@@ -19,7 +19,7 @@ public sealed record ProjectDefinition(Database Database, ProjectDirectives? Dir
     /// </summary>
     public SchemaAddress[] AddressedSchemas => Database.Schemas
         .Select(s => s.Name)
-        .Concat(Directives.SchemaRenames.Select(r => r.From))
+        .Concat(Directives.SchemaRenames.Select(r => r.From.Schema))
         .Distinct()
         .Select(name => new SchemaAddress(name))
         .ToArray();

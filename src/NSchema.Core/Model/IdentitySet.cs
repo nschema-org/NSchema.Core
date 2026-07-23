@@ -7,9 +7,9 @@ namespace NSchema.Model;
 /// objects, and database-global extensions. Membership is by value.
 /// </summary>
 public sealed record IdentitySet(
-    IReadOnlyList<SqlIdentifier>? Schemas = null,
-    IReadOnlyList<ObjectIdentity>? Objects = null,
-    IReadOnlyList<SqlIdentifier>? Extensions = null
+    IReadOnlyList<SchemaAddress>? Schemas = null,
+    IReadOnlyList<ObjectAddress>? Objects = null,
+    IReadOnlyList<ScopedAddress>? Extensions = null
 )
 {
     /// <summary>
@@ -18,19 +18,19 @@ public sealed record IdentitySet(
     public static IdentitySet Empty { get; } = new();
 
     /// <summary>
-    /// The schema names in the set.
+    /// The schemas in the set.
     /// </summary>
-    public IReadOnlyList<SqlIdentifier> Schemas { get; init; } = Schemas ?? [];
+    public IReadOnlyList<SchemaAddress> Schemas { get; init; } = Schemas ?? [];
 
     /// <summary>
     /// The schema-level object identities in the set.
     /// </summary>
-    public IReadOnlyList<ObjectIdentity> Objects { get; init; } = Objects ?? [];
+    public IReadOnlyList<ObjectAddress> Objects { get; init; } = Objects ?? [];
 
     /// <summary>
-    /// The extension names in the set.
+    /// The extensions in the set.
     /// </summary>
-    public IReadOnlyList<SqlIdentifier> Extensions { get; init; } = Extensions ?? [];
+    public IReadOnlyList<ScopedAddress> Extensions { get; init; } = Extensions ?? [];
 
     /// <summary>
     /// Whether the set contains no identities.
@@ -41,23 +41,23 @@ public sealed record IdentitySet(
     /// <summary>
     /// Whether the named schema is in the set.
     /// </summary>
-    public bool ContainsSchema(SqlIdentifier name) => Schemas.Contains(name);
+    public bool ContainsSchema(SqlIdentifier name) => Schemas.Contains(new SchemaAddress(name));
 
     /// <summary>
     /// Whether the object identity is in the set.
     /// </summary>
-    public bool ContainsObject(ObjectIdentity identity) => Objects.Contains(identity);
+    public bool ContainsObject(ObjectAddress address) => Objects.Contains(address);
 
     /// <summary>
     /// Whether the object is in the set: schema-scoped objects match by identity, global ones by name.
     /// </summary>
     public bool Contains(DatabaseObject obj) =>
-        obj.Identity is { } identity ? ContainsObject(identity) : ContainsExtension(obj.Name);
+        obj.Address is ObjectAddress identity ? ContainsObject(identity) : ContainsExtension(obj.Name);
 
     /// <summary>
     /// Whether the named extension is in the set.
     /// </summary>
-    public bool ContainsExtension(SqlIdentifier name) => Extensions.Contains(name);
+    public bool ContainsExtension(SqlIdentifier name) => Extensions.Contains(new ScopedAddress(null, name));
 
     /// <summary>
     /// The set containing every identity in either set.

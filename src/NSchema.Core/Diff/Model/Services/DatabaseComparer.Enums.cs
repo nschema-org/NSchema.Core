@@ -9,7 +9,7 @@ internal sealed partial class DatabaseComparer
 {
     private static List<EnumDiff> CompareEnums(SqlIdentifier schemaName, IReadOnlyList<EnumType> current, Schema desired, RenameLog renames) =>
         CompareObjects(current, desired.Enums,
-            name => renames.RenamedFrom(new ObjectIdentity(ObjectKind.Enum, schemaName, name)),
+            name => renames.RenamedFrom(new ObjectAddress(schemaName, name, ObjectKind.Enum)),
             enumType => new EnumDiff(schemaName, enumType.Name, ChangeKind.Remove),
             enumType => BuildNewEnum(schemaName, enumType),
             (currentEnum, desiredEnum, renamedFrom) => BuildModifiedEnum(schemaName, currentEnum, desiredEnum, renamedFrom));

@@ -13,7 +13,7 @@ internal static class ModelSerialization
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-        Converters = { new JsonStringEnumConverter(), new ValueObjectJsonConverter() },
+        Converters = { new JsonStringEnumConverter(), new ValueObjectJsonConverter(), new SchemaAddressJsonConverter(), new ObjectAddressJsonConverter() },
         TypeInfoResolver = new DefaultJsonTypeInfoResolver
         {
             Modifiers = { InheritJsonIgnore }
@@ -35,13 +35,30 @@ internal static class ModelSerialization
                 continue;
             }
 
-            if (propertyInfo.GetCustomAttribute<JsonIgnoreAttribute>() is null)
+            if (!IsJsonIgnored(propertyInfo))
             {
                 continue;
             }
 
             jsonTypeInfo.Properties.RemoveAt(i--);
         }
+    }
+
+    // GetCustomAttribute does not follow overridden properties (attribute inheritance is a no-op for
+    // properties), so walk the declaring-type chain for a [JsonIgnore] on a same-named property — e.g. an
+    // abstract base whose overrides omit it.
+    private static bool IsJsonIgnored(PropertyInfo property)
+    {
+        for (var type = property.DeclaringType; type is not null; type = type.BaseType)
+        {
+            if (type.GetProperty(property.Name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                    ?.GetCustomAttribute<JsonIgnoreAttribute>(inherit: false) is not null)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
 }

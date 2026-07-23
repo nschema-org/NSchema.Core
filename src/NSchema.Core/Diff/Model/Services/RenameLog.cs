@@ -7,14 +7,15 @@ namespace NSchema.Diff.Model.Services;
 /// </summary>
 internal sealed class RenameLog
 {
-    private readonly IReadOnlyDictionary<SqlIdentifier, SqlIdentifier> _schemas;
-    private readonly IReadOnlyDictionary<ObjectIdentity, SqlIdentifier> _objects;
+    private readonly IReadOnlyDictionary<SchemaAddress, SqlIdentifier> _schemas;
+    private readonly IReadOnlyDictionary<ObjectAddress, SqlIdentifier> _objects;
     private readonly IReadOnlyDictionary<MemberAddress, SqlIdentifier> _columns;
 
     internal RenameLog(
-        IReadOnlyDictionary<SqlIdentifier, SqlIdentifier> schemas,
-        IReadOnlyDictionary<ObjectIdentity, SqlIdentifier> objects,
-        IReadOnlyDictionary<MemberAddress, SqlIdentifier> columns)
+        IReadOnlyDictionary<SchemaAddress, SqlIdentifier> schemas,
+        IReadOnlyDictionary<ObjectAddress, SqlIdentifier> objects,
+        IReadOnlyDictionary<MemberAddress, SqlIdentifier> columns
+    )
     {
         _schemas = schemas;
         _objects = objects;
@@ -25,21 +26,22 @@ internal sealed class RenameLog
     /// The empty log — nothing was renamed.
     /// </summary>
     public static RenameLog Empty { get; } = new(
-        new Dictionary<SqlIdentifier, SqlIdentifier>(),
-        new Dictionary<ObjectIdentity, SqlIdentifier>(),
-        new Dictionary<MemberAddress, SqlIdentifier>());
+        new Dictionary<SchemaAddress, SqlIdentifier>(),
+        new Dictionary<ObjectAddress, SqlIdentifier>(),
+        new Dictionary<MemberAddress, SqlIdentifier>()
+    );
 
     /// <summary>
     /// The previous name of the schema now named <paramref name="declared"/>, or <see langword="null"/> when
     /// it was not renamed.
     /// </summary>
-    public SqlIdentifier? RenamedFrom(SqlIdentifier declared) => _schemas.GetValueOrDefault(declared);
+    public SqlIdentifier? RenamedFrom(SchemaAddress declared) => _schemas.GetValueOrDefault(declared);
 
     /// <summary>
     /// The previous name of the object now at <paramref name="declared"/>, or <see langword="null"/> when it
     /// was not renamed.
     /// </summary>
-    public SqlIdentifier? RenamedFrom(ObjectIdentity declared) => _objects.GetValueOrDefault(declared);
+    public SqlIdentifier? RenamedFrom(ObjectAddress declared) => _objects.GetValueOrDefault(declared);
 
     /// <summary>
     /// The previous name of the column now at <paramref name="declared"/>, or <see langword="null"/> when it
