@@ -16,4 +16,7 @@ public sealed record ScopedAddress(SqlIdentifier? Schema, SqlIdentifier Name) : 
     /// <inheritdoc />
     [JsonIgnore]
     public override SqlIdentifier? SchemaName => Schema;
+
+    /// <inheritdoc />
+    public override bool Covers(Address other) => Equals(other);
 }

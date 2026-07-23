@@ -14,6 +14,9 @@ public sealed record MemberAddress(SqlIdentifier Schema, SqlIdentifier Object, S
     /// <inheritdoc />
     public override SqlIdentifier? SchemaName => Schema;
 
+    /// <inheritdoc />
+    public override bool Covers(Address other) => Equals(other);
+
     /// <summary>
     /// The address of the object that owns the member.
     /// </summary>

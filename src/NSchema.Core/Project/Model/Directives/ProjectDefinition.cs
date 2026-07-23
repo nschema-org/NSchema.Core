@@ -15,12 +15,13 @@ public sealed record ProjectDefinition(Database Database, ProjectDirectives? Dir
     public ProjectDirectives Directives { get; init; } = Directives ?? ProjectDirectives.Empty;
 
     /// <summary>
-    /// Every schema name the project manages.
+    /// The address of every schema the project manages.
     /// </summary>
-    public SqlIdentifier[] AddressedSchemaNames => Database.Schemas
+    public SchemaAddress[] AddressedSchemas => Database.Schemas
         .Select(s => s.Name)
         .Concat(Directives.SchemaRenames.Select(r => r.From))
         .Distinct()
+        .Select(name => new SchemaAddress(name))
         .ToArray();
 
     /// <summary>

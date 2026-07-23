@@ -12,4 +12,7 @@ public sealed record ObjectAddress(SqlIdentifier Schema, SqlIdentifier Name) : A
 
     /// <inheritdoc />
     public override SqlIdentifier? SchemaName => Schema;
+
+    /// <inheritdoc />
+    public override bool Covers(Address other) => Equals(other) || (other is MemberAddress member && member.Owner.Equals(this));
 }

@@ -10,5 +10,8 @@ public sealed record SchemaAddress(SqlIdentifier Schema) : Address
     public override string Value => Schema.Value;
 
     /// <inheritdoc />
-    public override SqlIdentifier? SchemaName => null;
+    public override SqlIdentifier? SchemaName => Schema;
+
+    /// <inheritdoc />
+    public override bool Covers(Address other) => other.SchemaName == Schema;
 }

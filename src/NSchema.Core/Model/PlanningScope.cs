@@ -21,12 +21,9 @@ public sealed record PlanningScope
     /// <param name="addresses">The addresses under management.</param>
     public static PlanningScope To(params IEnumerable<Address> addresses)
     {
-        var wholeSchemas = addresses.OfType<SchemaAddress>().Select(a => a.Schema).ToHashSet();
-        // An address whose schema is already covered wholly is redundant.
-        var kept = addresses
-            .Where(a => a is SchemaAddress || a.SchemaName is not { } schema || !wholeSchemas.Contains(schema))
-            .Distinct()
-            .ToList();
+        var list = addresses.Distinct().ToList();
+        // An address already covered by a broader entry is redundant.
+        var kept = list.Where(a => !list.Any(b => !b.Equals(a) && b.Covers(a))).ToList();
         return kept.Count == 0 ? All : new PlanningScope(kept);
     }
 
@@ -41,14 +38,14 @@ public sealed record PlanningScope
     public bool IsUnscoped => Addresses.Count == 0;
 
     /// <summary>
-    /// Whether the scope covers the named schema and everything inside it.
+    /// Whether the scope covers the given address — an entry equals it or contains it.
     /// </summary>
-    public bool Contains(SqlIdentifier schemaName) => IsUnscoped || Addresses.Contains(new SchemaAddress(schemaName));
+    public bool Contains(Address address) => IsUnscoped || Addresses.Any(a => a.Covers(address));
 
     /// <summary>
-    /// Whether the scope covers the addressed object: its schema is wholly covered, or it is addressed itself.
+    /// Whether the scope covers the named schema and everything inside it.
     /// </summary>
-    public bool Contains(ObjectAddress address) => Contains(address.Schema) || Addresses.Contains(address);
+    public bool Contains(SqlIdentifier schemaName) => Contains(new SchemaAddress(schemaName));
 
     /// <summary>
     /// Whether the scope covers the identified object.
