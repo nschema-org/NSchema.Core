@@ -358,6 +358,64 @@ public sealed class DatabaseDiffTests
         result.Diagnostics.ShouldBeEmpty();
     }
 
+    private static DatabaseDiff AddsColumnTyped(SqlType type) => new(
+    [
+        new SchemaDiff("billing", Tables:
+        [
+            new TableDiff("billing", "orders", ChangeKind.Modify, Columns:
+            [
+                new ColumnDiff("state", ChangeKind.Add, new Column { Name = "state", Type = type }),
+            ]),
+        ]),
+    ]);
+
+    [Fact]
+    public void ScopedTo_AdditionTypedByAnOutOfScopeAbsentType_Blocks()
+    {
+        // Arrange — the column names app.status, which this run will neither create (out of scope) nor find.
+        // A type is part of the column's shape, so unlike a constraint there is nothing to leave out.
+        var diff = AddsColumnTyped(SqlType.Custom("app", "status"));
+
+        // Act
+        var result = diff.ScopedTo(PlanningScope.To([Target("billing", "orders")]), CurrentDatabase());
+
+        // Assert — blocked, with the plan still carried for review.
+        result.IsFailure.ShouldBeTrue();
+        result.Value.ShouldNotBeNull();
+        result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
+            DiffDiagnostics.TypeTargetOutOfScope(
+                [new MemberAddress("billing", "orders", "state")],
+                [new ObjectAddress("app", "status")]));
+    }
+
+    [Fact]
+    public void ScopedTo_AdditionTypedByAnOutOfScopeTypeThatExists_IsAllowed()
+    {
+        // Arrange — app.status is already in the database, so the column applies cleanly even unscoped.
+        var current = DatabaseWithEnumTypedColumn(SqlType.Custom("app", "status"));
+
+        // Act
+        var result = AddsColumnTyped(SqlType.Custom("app", "status"))
+            .ScopedTo(PlanningScope.To([Target("billing", "orders")]), current);
+
+        // Assert
+        result.IsSuccess.ShouldBeTrue();
+        result.Diagnostics.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void ScopedTo_AdditionTypedByABareName_IsNotBlocked()
+    {
+        // Arrange — a bare name is resolved against what already exists, so it can only ever reach something
+        // present. Nothing to block on, and a guess must not block a plan that need not be.
+        var result = AddsColumnTyped(SqlType.Custom("status"))
+            .ScopedTo(PlanningScope.To([Target("billing", "orders")]), CurrentDatabase());
+
+        // Assert
+        result.IsSuccess.ShouldBeTrue();
+        result.Diagnostics.ShouldBeEmpty();
+    }
+
     [Fact]
     public void ScopedTo_ForeignKeyAddedToAnExistingTable_IsLeftOutWhenItsTargetIsUnreachable()
     {
