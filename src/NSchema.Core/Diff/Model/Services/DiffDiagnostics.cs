@@ -34,6 +34,13 @@ internal static class DiffDiagnostics
     public static Diagnostic InferredColumnMayBlockRemoval(IEnumerable<Address> addresses) => Diagnostic.Warning("scope",
         $"{Render(addresses)} appear to be typed by something this plan removes. The type name is unqualified, so NSchema matched it by name alone — if the match is right, the database will reject the removal at apply. Check before applying: migrate those columns off the type first, or keep it declared.");
 
+    /// <summary>
+    /// Foreign keys this run adds whose target it will neither create nor find, so they are left out rather
+    /// than emitted as a plan the database would reject.
+    /// </summary>
+    public static Diagnostic ForeignKeyTargetOutOfScope(IEnumerable<Address> addresses) => Diagnostic.Warning("scope",
+        $"This plan leaves out {Render(addresses)}: each references a table outside its scope that does not exist yet, so creating the constraint would fail. The tables are created without them — widen the scope to include the referenced tables, then re-plan to add the constraints.");
+
     private static string Render(IEnumerable<Address> addresses) =>
         string.Join(", ", addresses.Select(a => $"'{a}'"));
 

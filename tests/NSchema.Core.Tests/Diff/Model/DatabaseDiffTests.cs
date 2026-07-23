@@ -1,5 +1,6 @@
 using NSchema.Diff.Model;
 using NSchema.Diff.Model.Columns;
+using NSchema.Diff.Model.Constraints;
 using NSchema.Diff.Model.Enums;
 using NSchema.Diff.Model.Schemas;
 using NSchema.Diff.Model.Services;
@@ -295,6 +296,97 @@ public sealed class DatabaseDiffTests
         var app = result.Value!.Schemas.ShouldHaveSingleItem();
         app.Comment.ShouldBeNull();
         app.Tables.ShouldHaveSingleItem().Name.ShouldBe("users");
+    }
+
+    private static DatabaseDiff AddedInvoicesReferencing(ObjectAddress references)
+    {
+        var foreignKey = new ForeignKey
+        {
+            Name = "fk_invoices_customer",
+            ColumnNames = ["customer_id"],
+            References = references,
+            ReferencedColumnNames = ["id"],
+        };
+        return new DatabaseDiff(
+        [
+            new SchemaDiff("billing", Tables:
+            [
+                new TableDiff("billing", "invoices", ChangeKind.Add,
+                    ForeignKeys: [new ForeignKeyDiff(ChangeKind.Add, "fk_invoices_customer", foreignKey)],
+                    Definition: new Table
+                    {
+                        Name = "invoices",
+                        Columns = [new Column { Name = "customer_id", Type = SqlType.Int }],
+                        ForeignKeys = [foreignKey],
+                    }),
+            ]),
+        ]);
+    }
+
+    [Fact]
+    public void ScopedTo_AddedForeignKeyWhoseTargetIsOutOfScopeAndAbsent_IsLeftOutWithAWarning()
+    {
+        // Arrange — the table is created in scope, but references app.customers, which this run will neither
+        // create (out of scope) nor find (absent from the current database). A plan that emitted it would fail.
+        var diff = AddedInvoicesReferencing(new ObjectAddress("app", "customers"));
+
+        // Act
+        var result = diff.ScopedTo(PlanningScope.To([Target("billing", "invoices")]), CurrentDatabase());
+
+        // Assert — the table is still created, just without the constraint, and the omission is reported.
+        result.IsSuccess.ShouldBeTrue();
+        var table = result.Value!.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem();
+        table.ForeignKeys.ShouldBeEmpty();
+        table.Definition!.ForeignKeys.ShouldBeEmpty(); // a created table carries its constraints inline
+        result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
+            DiffDiagnostics.ForeignKeyTargetOutOfScope([new MemberAddress("billing", "invoices", "fk_invoices_customer")]));
+    }
+
+    [Fact]
+    public void ScopedTo_AddedForeignKeyWhoseTargetIsOutOfScopeButPresent_IsKept()
+    {
+        // Arrange — app.users already exists, so the constraint applies cleanly even unscoped.
+        var diff = AddedInvoicesReferencing(new ObjectAddress("app", "users"));
+
+        // Act
+        var result = diff.ScopedTo(PlanningScope.To([Target("billing", "invoices")]), CurrentDatabase());
+
+        // Assert
+        var table = result.Value!.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem();
+        table.ForeignKeys.ShouldHaveSingleItem();
+        table.Definition!.ForeignKeys.ShouldHaveSingleItem();
+        result.Diagnostics.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void ScopedTo_ForeignKeyAddedToAnExistingTable_IsLeftOutWhenItsTargetIsUnreachable()
+    {
+        // Arrange — a modified table carries the constraint as its own change rather than inline.
+        var diff = new DatabaseDiff(
+        [
+            new SchemaDiff("billing", Tables:
+            [
+                new TableDiff("billing", "orders", ChangeKind.Modify, ForeignKeys:
+                [
+                    new ForeignKeyDiff(ChangeKind.Add, "fk_orders_customer", new ForeignKey
+                    {
+                        Name = "fk_orders_customer",
+                        ColumnNames = ["customer_id"],
+                        References = new ObjectAddress("app", "customers"),
+                        ReferencedColumnNames = ["id"],
+                    }),
+                ]),
+            ]),
+        ]);
+
+        // Act
+        var result = diff.ScopedTo(PlanningScope.To([Target("billing", "orders")]), CurrentDatabase());
+
+        // Assert
+        var table = result.Value!.Schemas.ShouldHaveSingleItem().Tables.ShouldHaveSingleItem();
+        table.ForeignKeys.ShouldBeEmpty();
+        result.Diagnostics.ShouldHaveSingleItem().ShouldBe(
+            DiffDiagnostics.ForeignKeyTargetOutOfScope([new MemberAddress("billing", "orders", "fk_orders_customer")]));
     }
 
     [Fact]
