@@ -159,7 +159,7 @@ public sealed class PlanEndToEndTests : IDisposable
             Objects: [new ObjectIdentity(ObjectKind.Table, new ObjectAddress("app", "users"))]));
 
         var result = await app.Operations.Plan(
-            new PlanArguments { Target = PlanTarget.Empty, Scope = PlanningScope.To("app") },
+            new PlanArguments { Target = PlanTarget.Empty, Scope = PlanningScope.To(new SchemaAddress("app")) },
             TestContext.Current.CancellationToken);
 
         var diff = result.Value.ShouldNotBeNull().Plan.ShouldNotBeNull().Diff;

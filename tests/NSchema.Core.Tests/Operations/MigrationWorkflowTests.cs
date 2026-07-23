@@ -247,14 +247,14 @@ public sealed class MigrationWorkflowTests
         });
 
         // Act
-        await sut.ComputePlan(PlanTarget.Empty, PlanningScope.To("app"), TestContext.Current.CancellationToken);
+        await sut.ComputePlan(PlanTarget.Empty, PlanningScope.To(new SchemaAddress("app")), TestContext.Current.CancellationToken);
 
         // Assert — the scope reaches the planner, which narrows the difference it computes. The current side
         // stays whole: a scoped teardown may still have to disturb what it is not tearing down.
         _planner.Received(1).Plan(
             Arg.Is<CurrentState>(c => c!.Database.Schemas.Select(s => s.Name.Value).SequenceEqual(new[] { "app", "billing" })),
             Arg.Any<ProjectDefinition>(),
-            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.SchemaNames!.Select(n => n.Value).SequenceEqual(new[] { "app" })));
+            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.Addresses.Select(a => a.Value).SequenceEqual(new[] { "app" })));
     }
 
     [Fact]
@@ -637,7 +637,7 @@ public sealed class MigrationWorkflowTests
         _planner.Received(1).Plan(
             Arg.Any<CurrentState>(),
             Arg.Any<ProjectDefinition>(),
-            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.SchemaNames!.Select(n => n.Value).Order().SequenceEqual(new[] { "admin", "app", "legacy" })));
+            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.Addresses.Select(a => a.Value).Order().SequenceEqual(new[] { "admin", "app", "legacy" })));
     }
 
     [Fact]
@@ -649,10 +649,10 @@ public sealed class MigrationWorkflowTests
             .Returns(call => { desiredScope = call.Arg<PlanningScope>(); return ProjectDefinition(new Database { Schemas = [] }); });
 
         // Act
-        await _sut.ComputePlan(PlanTarget.Project, PlanningScope.To("app", "legacy"), TestContext.Current.CancellationToken);
+        await _sut.ComputePlan(PlanTarget.Project, PlanningScope.To(new SchemaAddress("app"), new SchemaAddress("legacy")), TestContext.Current.CancellationToken);
 
         // Assert — the project read is load-bearing: template instances bind at aggregation.
-        desiredScope!.SchemaNames.ShouldBe(["app", "legacy"]);
+        desiredScope!.Addresses.Select(a => a.Value).ShouldBe(["app", "legacy"]);
     }
 
     [Fact]
@@ -665,14 +665,14 @@ public sealed class MigrationWorkflowTests
         });
 
         // Act
-        await sut.ComputePlan(PlanTarget.Project, PlanningScope.To("app"), TestContext.Current.CancellationToken);
+        await sut.ComputePlan(PlanTarget.Project, PlanningScope.To(new SchemaAddress("app")), TestContext.Current.CancellationToken);
 
         // Assert — narrowing the current side here would hide the out-of-scope objects a scoped run may still
         // disturb, so the planner is handed everything and told what is in play.
         _planner.Received(1).Plan(
             Arg.Is<CurrentState>(c => c!.Database.Schemas.Select(s => s.Name.Value).SequenceEqual(new[] { "app", "other" })),
             Arg.Any<ProjectDefinition>(),
-            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.SchemaNames!.Select(n => n.Value).SequenceEqual(new[] { "app" })));
+            Arg.Is<PlanningScope>(s => !s!.IsUnscoped && s.Addresses.Select(a => a.Value).SequenceEqual(new[] { "app" })));
     }
 
     [Fact]

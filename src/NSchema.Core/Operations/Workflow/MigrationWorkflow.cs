@@ -62,7 +62,7 @@ internal sealed class MigrationWorkflow(
 
         // An unscoped run auto-scopes to a union of the project and the existing state.
         var scopeInEffect = scope.IsUnscoped
-            ? PlanningScope.To(project.AddressedSchemaNames.Concat(state.Managed.Schemas).Distinct())
+            ? PlanningScope.To(project.AddressedSchemaNames.Concat(state.Managed.Schemas).Distinct().Select(s => new SchemaAddress(s)))
             : scope;
 
         progress.Report(OperationProgress.Step($"Migration will be scoped to: {Describe(scopeInEffect)}"));
@@ -158,7 +158,7 @@ internal sealed class MigrationWorkflow(
     private static string Describe(PlanningScope scope) =>
         scope.IsUnscoped
             ? "(all)"
-            : string.Join(", ", scope.Schemas.Select(s => s.ToString()).Concat(scope.Objects.Select(o => o.ToString())));
+            : string.Join(", ", scope.Addresses.Select(a => a.Value));
 
     /// <summary>
     /// Emits the verbose census of what the loaded project declares.

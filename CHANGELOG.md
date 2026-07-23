@@ -77,7 +77,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **Atomic table-fragment merge.** `Table.TryMergeMembers` applies a complete table-member fragment or reports its conflicts.
 - **SQL type conversion risk.** `SqlType.ConversionRiskTo` assesses whether converting stored values can fail.
 - **Ephemeral state.** `UseEphemeralState()` registers an in-memory state store and matching lock, intended for disposable databases.
-- **Object-granular targeting.** `PlanningScope` now takes object addresses alongside schema name.
+- **Object-granular targeting.** `PlanningScope` covers a single list of `Address`es (`PlanningScope.To(addresses)` / `scope.Addresses`), mixing whole-schema and object-level targets.
 - **Address parsing.** `NsqlReader.ReadAddress` parses a `schema`, `schema.object`, or `schema.object.member` fragment into an `Address`, resolving quoted segments
 - **`SchemaAddress` completes the address taxonomy.** A schema has a first-class `Address` alongside `ObjectAddress` and `MemberAddress`.
 - **`Token.QuotedIdentifier`.** Synthesizes a quoted-identifier token (decoded text, quoted-and-escaped raw), the counterpart to `Token.StringLiteral`.

@@ -114,7 +114,7 @@ public sealed class IdentitySetTests
     public void Scope_Covers_ImpliesDownwardThroughContainment()
     {
         // A scope is a cover, not an enumeration: covering a schema covers everything inside it.
-        var scope = PlanningScope.To(_app);
+        var scope = PlanningScope.To(new SchemaAddress(_app));
 
         scope.Contains(_app).ShouldBeTrue();
         scope.Contains(Table("users")).ShouldBeTrue();
@@ -131,7 +131,7 @@ public sealed class IdentitySetTests
             Objects: [Table("users"), new ObjectIdentity(ObjectKind.Table, new ObjectAddress("other", "t"))],
             Extensions: ["citext"]);
 
-        var covered = set.CoveredBy(PlanningScope.To(_app));
+        var covered = set.CoveredBy(PlanningScope.To(new SchemaAddress(_app)));
 
         covered.Schemas.ShouldBe([_app]);
         covered.Objects.ShouldBe([Table("users")]);
@@ -165,7 +165,7 @@ public sealed class IdentitySetTests
             Extensions = [new Extension { Name = "citext" }],
         };
 
-        var scoped = database.ScopedTo(PlanningScope.To(_app));
+        var scoped = database.ScopedTo(PlanningScope.To(new SchemaAddress(_app)));
 
         scoped.Schemas.ShouldHaveSingleItem().Name.ShouldBe(_app);
         scoped.Schemas[0].Tables.ShouldHaveSingleItem().Name.ShouldBe("users");

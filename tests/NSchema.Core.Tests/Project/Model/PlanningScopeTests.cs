@@ -10,19 +10,21 @@ public sealed class PlanningScopeTests
 {
     private static readonly SqlIdentifier App = new("app");
 
+    private static SchemaAddress Schema(string name) => new(name);
+
     private static ObjectAddress Address(string schema, string name) => new(schema, name);
 
     [Fact]
-    public void To_EmptyOfBoth_NormalizesToAll()
+    public void To_Empty_NormalizesToAll()
     {
-        PlanningScope.To([], []).ShouldBeSameAs(PlanningScope.All);
-        PlanningScope.To(Enumerable.Empty<ObjectAddress>()).ShouldBeSameAs(PlanningScope.All);
+        PlanningScope.To([]).ShouldBeSameAs(PlanningScope.All);
+        PlanningScope.To(Enumerable.Empty<Address>()).ShouldBeSameAs(PlanningScope.All);
     }
 
     [Fact]
     public void SchemaEntry_CoversTheSchema_AndEverythingInsideIt()
     {
-        var scope = PlanningScope.To(App);
+        var scope = PlanningScope.To(Schema("app"));
 
         scope.Contains(App).ShouldBeTrue();
         scope.Contains(Address("app", "users")).ShouldBeTrue();
@@ -55,27 +57,32 @@ public sealed class PlanningScopeTests
     [Fact]
     public void ObjectEntry_InsideANamedSchema_IsAbsorbed()
     {
-        var scope = PlanningScope.To([App], [Address("app", "users"), Address("billing", "orders")]);
+        var scope = PlanningScope.To([Schema("app"), Address("app", "users"), Address("billing", "orders")]);
 
-        scope.Objects.ShouldHaveSingleItem().ShouldBe(Address("billing", "orders"));
-        scope.Schemas.ShouldBe([App]);
+        scope.Addresses.ShouldBe([Schema("app"), Address("billing", "orders")]);
     }
 
     [Fact]
-    public void SchemaNames_ProjectsTheObjectSchemas_ForTheReadSeams()
+    public void AnyAddress_MakesTheScopeScoped()
     {
-        // The read seams take schema names; an object entry still means its schema must be read.
-        var scope = PlanningScope.To([App], [Address("billing", "orders")]);
+        // A scope is narrowed by any address, whole-schema or object alike.
+        var scope = PlanningScope.To([Schema("app"), Address("billing", "orders")]);
 
-        scope.SchemaNames.ShouldBe([App, "billing"]);
-        scope.Schemas.ShouldBe([App]);
         scope.IsUnscoped.ShouldBeFalse();
+        scope.Addresses.ShouldBe([Schema("app"), Address("billing", "orders")]);
+    }
+
+    [Fact]
+    public void All_IsUnscoped()
+    {
+        PlanningScope.All.IsUnscoped.ShouldBeTrue();
+        PlanningScope.To([Address("app", "users")]).IsUnscoped.ShouldBeFalse();
     }
 
     [Fact]
     public void Contains_IsCaseSensitive_AtBothGranularities()
     {
-        var scope = PlanningScope.To([App], [Address("billing", "orders")]);
+        var scope = PlanningScope.To([Schema("app"), Address("billing", "orders")]);
 
         scope.Contains("APP").ShouldBeFalse();
         scope.Contains(Address("Billing", "Orders")).ShouldBeFalse();

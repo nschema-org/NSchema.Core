@@ -54,7 +54,7 @@ public sealed class MigrationPlannerTests
         _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(TwoSchemaDiff(), []));
 
         // Act
-        var result = Sut.Plan(_current, _desired, PlanningScope.To("app"));
+        var result = Sut.Plan(_current, _desired, PlanningScope.To(new SchemaAddress("app")));
 
         // Assert
         result.Value!.Diff.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
@@ -70,7 +70,7 @@ public sealed class MigrationPlannerTests
         _planPolicies.Add(policy);
 
         // Act
-        Sut.Plan(_current, _desired, PlanningScope.To("app"));
+        Sut.Plan(_current, _desired, PlanningScope.To(new SchemaAddress("app")));
 
         // Assert
         policy.Received(1).Validate(Arg.Is<MigrationPlan>(p => p!.Diff.Schemas.Count == 1
@@ -84,7 +84,7 @@ public sealed class MigrationPlannerTests
         _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(TwoSchemaDiff(), []));
 
         // Act
-        Sut.Plan(_current, _desired, PlanningScope.To("app"));
+        Sut.Plan(_current, _desired, PlanningScope.To(new SchemaAddress("app")));
 
         // Assert
         _linearizer.Received(1).Linearize(Arg.Is<DatabaseDiff>(d => d!.Schemas.Count == 1));
@@ -206,7 +206,7 @@ public sealed class MigrationPlannerTests
         var desired = new ProjectDefinition(new Database { Schemas = [new Schema { Name = app }] });
 
         // Act
-        var plan = Sut.Plan(current, desired, PlanningScope.To(app)).Value!;
+        var plan = Sut.Plan(current, desired, PlanningScope.To(new SchemaAddress(app))).Value!;
 
         // Assert
         plan.Managed.Schemas.ShouldBe([app, billing], ignoreOrder: true);
@@ -245,7 +245,7 @@ public sealed class MigrationPlannerTests
         };
 
         // Act — an unrestricted teardown's scope covers every managed schema (derived by the workflow).
-        var plan = Sut.Plan(current, new ProjectDefinition(new Database()), PlanningScope.To(app)).Value!;
+        var plan = Sut.Plan(current, new ProjectDefinition(new Database()), PlanningScope.To(new SchemaAddress(app))).Value!;
 
         // Assert
         plan.Managed.IsEmpty.ShouldBeTrue();

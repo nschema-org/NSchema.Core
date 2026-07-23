@@ -103,7 +103,7 @@ public sealed class DatabaseDiffTests
     public void ScopedTo_ScopedTeardown_SeversTheOutOfScopeForeignKey_WithoutDroppingItsTable()
     {
         // Act — tear down app only. billing.orders keeps its rows; only the constraint aimed at app.users goes.
-        var result = TeardownDiff().ScopedTo(PlanningScope.To("app"), CurrentDatabase());
+        var result = TeardownDiff().ScopedTo(PlanningScope.To(new SchemaAddress("app")), CurrentDatabase());
 
         // Assert
         var billing = result.Value!.Schemas.Single(s => s.Name == "billing");
@@ -119,7 +119,7 @@ public sealed class DatabaseDiffTests
     public void ScopedTo_ScopedTeardown_DropsTheOutOfScopeViewThatReadsIt()
     {
         // Act — a view's dependency is embedded in its body, so there is nothing to sever but the view.
-        var result = TeardownDiff().ScopedTo(PlanningScope.To("app"), CurrentDatabase());
+        var result = TeardownDiff().ScopedTo(PlanningScope.To(new SchemaAddress("app")), CurrentDatabase());
 
         // Assert
         var billing = result.Value!.Schemas.Single(s => s.Name == "billing");
@@ -132,7 +132,7 @@ public sealed class DatabaseDiffTests
     public void ScopedTo_ScopedTeardown_StillTearsDownTheScopedSchema()
     {
         // Act
-        var result = TeardownDiff().ScopedTo(PlanningScope.To("app"), CurrentDatabase());
+        var result = TeardownDiff().ScopedTo(PlanningScope.To(new SchemaAddress("app")), CurrentDatabase());
 
         // Assert
         var app = result.Value!.Schemas.Single(s => s.Name == "app");
@@ -146,7 +146,7 @@ public sealed class DatabaseDiffTests
         // Act — a plan that touches what it was not asked to touch must announce it, not do it quietly. And
         // the two edge kinds are not equally trustworthy: the foreign key names its table outright, while the
         // view was scanned out of SQL nobody parsed.
-        var result = TeardownDiff().ScopedTo(PlanningScope.To("app"), CurrentDatabase());
+        var result = TeardownDiff().ScopedTo(PlanningScope.To(new SchemaAddress("app")), CurrentDatabase());
 
         // Assert
         result.Diagnostics.Count.ShouldBe(2);
@@ -164,7 +164,7 @@ public sealed class DatabaseDiffTests
     public void ScopedTo_ScopeThatDisturbsNothing_WidensNothing_AndIsQuiet()
     {
         // Arrange — tearing billing down costs app nothing: the dependencies point the other way.
-        var result = TeardownDiff().ScopedTo(PlanningScope.To("billing"), CurrentDatabase());
+        var result = TeardownDiff().ScopedTo(PlanningScope.To(new SchemaAddress("billing")), CurrentDatabase());
 
         // Assert
         result.Value!.Schemas.ShouldHaveSingleItem().Name.ShouldBe("billing");
@@ -183,7 +183,7 @@ public sealed class DatabaseDiffTests
         ]);
 
         // Act
-        var result = diff.ScopedTo(PlanningScope.To("app"), CurrentDatabase());
+        var result = diff.ScopedTo(PlanningScope.To(new SchemaAddress("app")), CurrentDatabase());
 
         // Assert
         result.Value!.Schemas.ShouldHaveSingleItem().Name.ShouldBe("app");
@@ -218,7 +218,7 @@ public sealed class DatabaseDiffTests
         var current = DatabaseWithEnumTypedColumn(SqlType.Custom("app", "status"));
 
         // Act
-        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To("app"), current);
+        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To(new SchemaAddress("app")), current);
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -235,7 +235,7 @@ public sealed class DatabaseDiffTests
         var current = DatabaseWithEnumTypedColumn(SqlType.Custom("status"));
 
         // Act
-        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To("app"), current);
+        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To(new SchemaAddress("app")), current);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -258,7 +258,7 @@ public sealed class DatabaseDiffTests
         };
 
         // Act
-        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To("app"), current);
+        var result = EnumRemovalDiff().ScopedTo(PlanningScope.To(new SchemaAddress("app")), current);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();

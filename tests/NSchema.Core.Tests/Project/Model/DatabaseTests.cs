@@ -22,7 +22,7 @@ public sealed class DatabaseTests
     [Fact]
     public void ScopedTo_RestrictsSchemas()
     {
-        var result = Sample().ScopedTo(PlanningScope.To("app"));
+        var result = Sample().ScopedTo(PlanningScope.To(new SchemaAddress("app")));
 
         result.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
@@ -32,7 +32,7 @@ public sealed class DatabaseTests
     {
         var schema = new Database { Schemas = [new Schema { Name = "App" }] };
 
-        var result = schema.ScopedTo(PlanningScope.To("app"));
+        var result = schema.ScopedTo(PlanningScope.To(new SchemaAddress("app")));
 
         result.Schemas.ShouldBeEmpty();
     }
@@ -40,7 +40,7 @@ public sealed class DatabaseTests
     [Fact]
     public void ScopedTo_NamesNotPresent_AreIgnored()
     {
-        var result = Sample().ScopedTo(PlanningScope.To("app", "does-not-exist"));
+        var result = Sample().ScopedTo(PlanningScope.To(new SchemaAddress("app"), new SchemaAddress("does-not-exist")));
 
         result.Schemas.Select(s => s.Name).ShouldBe(["app"]);
     }
@@ -76,7 +76,7 @@ public sealed class DatabaseTests
                     new ObjectRenameDirective(new ObjectIdentity(ObjectKind.Table, new ObjectAddress("audit", "stale")), "fresh"),
                 ]));
 
-        var filtered = project.ScopedTo(PlanningScope.To(core)).Directives;
+        var filtered = project.ScopedTo(PlanningScope.To(new SchemaAddress(core))).Directives;
 
         filtered.SchemaRenames.ShouldHaveSingleItem(); // kept — its To side is in scope
         filtered.ObjectRenames.ShouldHaveSingleItem().From.Schema.ShouldBe(sales); // resolves through the rename

@@ -46,7 +46,7 @@ public sealed class PlanOperationTests
     public async Task Execute_ForwardsScopeToComputePlan()
     {
         // Act
-        await _sut.Execute(Args(scope: PlanningScope.To("app", "legacy")), TestContext.Current.CancellationToken);
+        await _sut.Execute(Args(scope: PlanningScope.To(new SchemaAddress("app"), new SchemaAddress("legacy"))), TestContext.Current.CancellationToken);
 
         // Assert
         await _workflow.Received(1).ComputePlan(
@@ -58,7 +58,7 @@ public sealed class PlanOperationTests
     public async Task Execute_Teardown_ForwardsScopeToComputePlan()
     {
         // Act — scoping is no longer special-cased: a teardown narrows like any other plan.
-        await _sut.Execute(Args(PlanTarget.Empty, scope: PlanningScope.To("app")), TestContext.Current.CancellationToken);
+        await _sut.Execute(Args(PlanTarget.Empty, scope: PlanningScope.To(new SchemaAddress("app"))), TestContext.Current.CancellationToken);
 
         // Assert
         await _workflow.Received(1).ComputePlan(
