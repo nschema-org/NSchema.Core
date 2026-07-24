@@ -30,11 +30,6 @@ Project and plan policies: correctness checks (like "all tables must have a prim
 user-written rules. The `.editorconfig`-vs-plugins tension resolved by splitting: style went to linting, and plugins land here,
 where checks run inside the plan/apply pipeline.
 
-### [Language package](roadmap/language-package.md)
-
-A lossless syntax tree for NSQL, and `NSchema.Language` as the eventual home of the language layer. Unlocks structural
-reformatting, typed scaffolding for plugins (no more raw strings), and the guided interactive bootstrap.
-
 ### Other, more vague, plans
 
 - **Row-level security for Postgres.** Pure fidelity. No dependency on roles. Pilot kind for the per-kind handler decomposition.
