@@ -8,7 +8,7 @@ namespace NSchema.Diff.Backends;
 /// </summary>
 /// <remarks>
 /// Provides structural equality for types and other SQL elements, to eliminate provider introspection causing drift on a roundtrip.
-/// Prefer under-normalizing, when equality is ambiguous, becauseover-normalizing would silently swallow a real change.
+/// Prefer under-normalizing, when equality is ambiguous, because over-normalizing would silently swallow a real change.
 /// </remarks>
 public class SqlEquivalence
 {
