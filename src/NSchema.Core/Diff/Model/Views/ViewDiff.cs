@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using NSchema.Diff.Model.Indexes;
 using NSchema.Model;
@@ -67,6 +68,12 @@ public sealed record ViewDiff : ISchemaObjectDiff
     /// The change to the view's comment, if any.
     /// </summary>
     public ValueChange<string>? Comment { get; init; }
+
+    /// <summary>
+    /// Whether this is a view being created, and so carries the <see cref="Definition"/> to create it from.
+    /// </summary>
+    [MemberNotNullWhen(true, nameof(Definition))]
+    public bool IsAdd() => Kind == ChangeKind.Add && Definition is not null;
 
     /// <summary>
     /// A view being created, named by its own definition.

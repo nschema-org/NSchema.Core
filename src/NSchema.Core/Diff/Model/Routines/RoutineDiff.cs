@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using NSchema.Model;
 using NSchema.Model.Routines;
@@ -51,6 +52,12 @@ public sealed record RoutineDiff : ISchemaObjectDiff
     /// The change to the routine's comment, if any.
     /// </summary>
     public ValueChange<string>? Comment { get; init; }
+
+    /// <summary>
+    /// Whether this is a routine being created, and so carries the <see cref="Definition"/> to create it from.
+    /// </summary>
+    [MemberNotNullWhen(true, nameof(Definition))]
+    public bool IsAdd() => Kind == ChangeKind.Add && Definition is not null;
 
     /// <summary>
     /// A routine being created, named by its own definition.

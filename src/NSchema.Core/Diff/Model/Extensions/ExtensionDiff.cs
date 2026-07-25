@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using NSchema.Model;
 using NSchema.Model.Extensions;
@@ -41,6 +42,12 @@ public sealed record ExtensionDiff : INamedObjectDiff
     /// The change to the database extension's comment, if any.
     /// </summary>
     public ValueChange<string>? Comment { get; init; }
+
+    /// <summary>
+    /// Whether this is a extension being installed, and so carries the <see cref="Definition"/> to create it from.
+    /// </summary>
+    [MemberNotNullWhen(true, nameof(Definition))]
+    public bool IsAdd() => Kind == ChangeKind.Add && Definition is not null;
 
     /// <summary>
     /// A database extension being created, named by its own definition.

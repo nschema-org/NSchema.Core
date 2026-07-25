@@ -222,15 +222,16 @@ internal sealed class PlanLinearizer : IPlanLinearizer
     /// Emits one schema-object kind: create on add, drop on remove, and on modify a rename (when one is
     /// recorded) followed by the kind's own modify actions; a comment change trails every non-remove.
     /// </summary>
-    private static void EmitObjects<T>(
+    private static void EmitObjects<T, TDefinition>(
         IReadOnlyList<T> objects,
         List<MigrationAction> actions,
-        Func<T, MigrationAction> create,
+        Func<T, TDefinition?> definition,
+        Func<T, TDefinition, MigrationAction> create,
         Func<T, MigrationAction> drop,
         Func<T, SqlIdentifier, MigrationAction> rename,
         Func<T, ValueChange<string>, MigrationAction> comment,
         Action<T> modify
-    ) where T : ISchemaObjectDiff
+    ) where T : ISchemaObjectDiff where TDefinition : class
     {
         // The rename and comment builders receive the narrowed value rather than re-reading it: the guard is
         // here, so the lambda should not have to restate that it holds.
@@ -238,8 +239,12 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         {
             switch (diff.Kind)
             {
+                // An add always carries the definition to create from; one without is not a change we can emit.
+                case ChangeKind.Add when definition(diff) is { } toCreate:
+                    actions.Add(create(diff, toCreate));
+                    break;
+
                 case ChangeKind.Add:
-                    actions.Add(create(diff));
                     break;
 
                 case ChangeKind.Remove:
@@ -264,7 +269,8 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
     private static void EmitRoutines(SchemaDiff schema, List<MigrationAction> actions) =>
         EmitObjects(schema.Routines, actions,
-            r => new CreateRoutine(r.Schema, r.Definition!),
+            r => r.Definition,
+            (r, definition) => new CreateRoutine(r.Schema, definition),
             r => new DropRoutine(new ObjectAddress(r.Schema, r.Name), r.RoutineKind),
             (r, renamedFrom) => new RenameRoutine(new ObjectAddress(r.Schema, renamedFrom), r.Name, r.RoutineKind),
             (r, comment) => new SetRoutineComment(new ObjectAddress(r.Schema, r.Name), comment.Old, comment.New, r.RoutineKind),
@@ -284,7 +290,8 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
     private static void EmitDomains(SchemaDiff schema, List<MigrationAction> actions) =>
         EmitObjects(schema.Domains, actions,
-            d => new CreateDomain(d.Schema, d.Definition!),
+            d => d.Definition,
+            (d, definition) => new CreateDomain(d.Schema, definition),
             d => new DropDomain(new ObjectAddress(d.Schema, d.Name)),
             (d, renamedFrom) => new RenameDomain(new ObjectAddress(d.Schema, renamedFrom), d.Name),
             (d, comment) => new SetDomainComment(new ObjectAddress(d.Schema, d.Name), comment.Old, comment.New),
@@ -316,7 +323,8 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
     private static void EmitCompositeTypes(SchemaDiff schema, List<MigrationAction> actions) =>
         EmitObjects(schema.CompositeTypes, actions,
-            t => new CreateCompositeType(t.Schema, t.Definition!),
+            t => t.Definition,
+            (t, definition) => new CreateCompositeType(t.Schema, definition),
             t => new DropCompositeType(new ObjectAddress(t.Schema, t.Name)),
             (t, renamedFrom) => new RenameCompositeType(new ObjectAddress(t.Schema, renamedFrom), t.Name),
             (t, comment) => new SetCompositeTypeComment(new ObjectAddress(t.Schema, t.Name), comment.Old, comment.New),
@@ -337,7 +345,8 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
     private static void EmitEnums(SchemaDiff schema, List<MigrationAction> actions) =>
         EmitObjects(schema.Enums, actions,
-            e => new CreateEnum(e.Schema, e.Definition!),
+            e => e.Definition,
+            (e, definition) => new CreateEnum(e.Schema, definition),
             e => new DropEnum(new ObjectAddress(e.Schema, e.Name)),
             (e, renamedFrom) => new RenameEnum(new ObjectAddress(e.Schema, renamedFrom), e.Name),
             (e, comment) => new SetEnumComment(new ObjectAddress(e.Schema, e.Name), comment.Old, comment.New),
@@ -354,7 +363,8 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
     private static void EmitSequences(SchemaDiff schema, List<MigrationAction> actions) =>
         EmitObjects(schema.Sequences, actions,
-            s => new CreateSequence(s.Schema, s.Definition!),
+            s => s.Definition,
+            (s, definition) => new CreateSequence(s.Schema, definition),
             s => new DropSequence(new ObjectAddress(s.Schema, s.Name)),
             (s, renamedFrom) => new RenameSequence(new ObjectAddress(s.Schema, renamedFrom), s.Name),
             (s, comment) => new SetSequenceComment(new ObjectAddress(s.Schema, s.Name), comment.Old, comment.New),
@@ -385,17 +395,20 @@ internal sealed class PlanLinearizer : IPlanLinearizer
     {
         switch (table.Kind)
         {
-            case ChangeKind.Add:
+            case ChangeKind.Add when table.IsAdd():
                 // The columns and every table constraint are created inline by CREATE TABLE (carried on
                 // Definition); only indexes, triggers, comments and grants arrive as separate actions.
-                actions.Add(new CreateTable(table.Schema, table.Definition!));
-                if (table.Comment is not null)
+                actions.Add(new CreateTable(table.Schema, table.Definition));
+                if (table.Comment is { } tableComment)
                 {
-                    actions.Add(new SetTableComment(new ObjectAddress(table.Schema, table.Name), table.Comment.Old, table.Comment.New));
+                    actions.Add(new SetTableComment(new ObjectAddress(table.Schema, table.Name), tableComment.Old, tableComment.New));
                 }
-                foreach (var column in table.Columns.Where(c => c.Comment is not null))
+                foreach (var column in table.Columns)
                 {
-                    actions.Add(new SetColumnComment(new MemberAddress(table.Schema, table.Name, column.Name), column.Comment!.Old, column.Comment.New));
+                    if (column.Comment is { } columnComment)
+                    {
+                        actions.Add(new SetColumnComment(new MemberAddress(table.Schema, table.Name, column.Name), columnComment.Old, columnComment.New));
+                    }
                 }
                 EmitConstraints(table, actions);
                 EmitIndexes(table, actions);
@@ -512,27 +525,32 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         var foldAdds = table.Kind == ChangeKind.Add;
 
         EmitConstraintKind(table.PrimaryKeys, actions, foldAdds,
-            pk => new AddPrimaryKey(new ObjectAddress(table.Schema, table.Name), pk.Definition!),
+            pk => pk.Definition,
+            (pk, definition) => new AddPrimaryKey(new ObjectAddress(table.Schema, table.Name), definition),
             pk => new DropPrimaryKey(new MemberAddress(table.Schema, preRenameName, pk.Name)),
             (pk, comment) => new SetConstraintComment(new MemberAddress(table.Schema, table.Name, pk.Name), comment.Old, comment.New));
 
         EmitConstraintKind(table.ForeignKeys, actions, foldAdds,
-            fk => new AddForeignKey(new ObjectAddress(table.Schema, table.Name), fk.Definition!),
+            fk => fk.Definition,
+            (fk, definition) => new AddForeignKey(new ObjectAddress(table.Schema, table.Name), definition),
             fk => new DropForeignKey(new MemberAddress(table.Schema, preRenameName, fk.Name)),
             (fk, comment) => new SetConstraintComment(new MemberAddress(table.Schema, table.Name, fk.Name), comment.Old, comment.New));
 
         EmitConstraintKind(table.UniqueConstraints, actions, foldAdds,
-            uq => new AddUniqueConstraint(new ObjectAddress(table.Schema, table.Name), uq.Definition!),
+            uq => uq.Definition,
+            (uq, definition) => new AddUniqueConstraint(new ObjectAddress(table.Schema, table.Name), definition),
             uq => new DropUniqueConstraint(new MemberAddress(table.Schema, preRenameName, uq.Name)),
             (uq, comment) => new SetConstraintComment(new MemberAddress(table.Schema, table.Name, uq.Name), comment.Old, comment.New));
 
         EmitConstraintKind(table.Checks, actions, foldAdds,
-            ck => new AddCheckConstraint(new ObjectAddress(table.Schema, table.Name), ck.Definition!),
+            ck => ck.Definition,
+            (ck, definition) => new AddCheckConstraint(new ObjectAddress(table.Schema, table.Name), definition),
             ck => new DropCheckConstraint(new MemberAddress(table.Schema, preRenameName, ck.Name)),
             (ck, comment) => new SetConstraintComment(new MemberAddress(table.Schema, table.Name, ck.Name), comment.Old, comment.New));
 
         EmitConstraintKind(table.ExclusionConstraints, actions, foldAdds,
-            ex => new AddExclusionConstraint(new ObjectAddress(table.Schema, table.Name), ex.Definition!),
+            ex => ex.Definition,
+            (ex, definition) => new AddExclusionConstraint(new ObjectAddress(table.Schema, table.Name), definition),
             ex => new DropExclusionConstraint(new MemberAddress(table.Schema, preRenameName, ex.Name)),
             (ex, comment) => new SetConstraintComment(new MemberAddress(table.Schema, table.Name, ex.Name), comment.Old, comment.New));
     }
@@ -543,14 +561,15 @@ internal sealed class PlanLinearizer : IPlanLinearizer
     /// adds), then the change itself. A constraint Modify is always a comment-only change. When <paramref
     /// name="foldAdds"/> is set the table is being created, so an add is inlined into the CREATE TABLE and skipped.
     /// </summary>
-    private static void EmitConstraintKind<T>(
+    private static void EmitConstraintKind<T, TDefinition>(
         IReadOnlyList<T> constraints,
         List<MigrationAction> actions,
         bool foldAdds,
-        Func<T, MigrationAction> add,
+        Func<T, TDefinition?> definition,
+        Func<T, TDefinition, MigrationAction> add,
         Func<T, MigrationAction> drop,
         Func<T, ValueChange<string>, MigrationAction> comment
-    ) where T : IMigratableDiff
+    ) where T : IMigratableDiff where TDefinition : class
     {
         foreach (var constraint in constraints)
         {
@@ -562,8 +581,8 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             EmitConstraintMigration(constraint.Kind, constraint.MigrationScript, actions);
             switch (constraint.Kind)
             {
-                case ChangeKind.Add:
-                    actions.Add(add(constraint));
+                case ChangeKind.Add when definition(constraint) is { } toAdd:
+                    actions.Add(add(constraint, toAdd));
                     break;
                 case ChangeKind.Remove:
                     actions.Add(drop(constraint));

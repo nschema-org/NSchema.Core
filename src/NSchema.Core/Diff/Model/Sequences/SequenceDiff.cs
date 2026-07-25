@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using NSchema.Model;
 using NSchema.Model.Sequences;
@@ -46,6 +47,12 @@ public sealed record SequenceDiff : ISchemaObjectDiff
     /// The change to the sequence's comment, if any.
     /// </summary>
     public ValueChange<string>? Comment { get; init; }
+
+    /// <summary>
+    /// Whether this is a sequence being created, and so carries the <see cref="Definition"/> to create it from.
+    /// </summary>
+    [MemberNotNullWhen(true, nameof(Definition))]
+    public bool IsAdd() => Kind == ChangeKind.Add && Definition is not null;
 
     /// <summary>
     /// A sequence being created, named by its own definition.

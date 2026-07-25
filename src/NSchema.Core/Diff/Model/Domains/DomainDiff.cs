@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using NSchema.Diff.Model.Constraints;
 using NSchema.Model;
@@ -63,6 +64,12 @@ public sealed record DomainDiff : ISchemaObjectDiff
     /// The change to the domain's comment, if any.
     /// </summary>
     public ValueChange<string>? Comment { get; init; }
+
+    /// <summary>
+    /// Whether this is a domain being created, and so carries the <see cref="Definition"/> to create it from.
+    /// </summary>
+    [MemberNotNullWhen(true, nameof(Definition))]
+    public bool IsAdd() => Kind == ChangeKind.Add && Definition is not null;
 
     /// <summary>
     /// A domain being created, named by its own definition.

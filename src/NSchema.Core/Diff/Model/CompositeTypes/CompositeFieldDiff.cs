@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using NSchema.Model;
 using NSchema.Model.Columns;
@@ -32,6 +33,12 @@ public sealed record CompositeFieldDiff
     /// The change to the field's type, set on an in-place retype (<c>ALTER ATTRIBUTE … TYPE</c>).
     /// </summary>
     public ValueChange<SqlType>? Type { get; init; }
+
+    /// <summary>
+    /// Whether this is a field being added, and so carries the <see cref="Definition"/> to create it from.
+    /// </summary>
+    [MemberNotNullWhen(true, nameof(Definition))]
+    public bool IsAdd() => Kind == ChangeKind.Add && Definition is not null;
 
     /// <summary>
     /// A field being created, named by its own definition.

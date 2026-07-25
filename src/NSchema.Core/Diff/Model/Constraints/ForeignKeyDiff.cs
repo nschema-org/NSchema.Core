@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using NSchema.Model;
 using NSchema.Model.Scripts;
@@ -37,6 +38,12 @@ public sealed record ForeignKeyDiff : IMigratableDiff
     /// The change-event script matched to this change, run at this point in the plan (<see langword="null"/> when none).
     /// </summary>
     public ChangeScript? MigrationScript { get; init; }
+
+    /// <summary>
+    /// Whether this is a foreign key being created, and so carries the <see cref="Definition"/> to create it from.
+    /// </summary>
+    [MemberNotNullWhen(true, nameof(Definition))]
+    public bool IsAdd() => Kind == ChangeKind.Add && Definition is not null;
 
     /// <summary>
     /// A foreign key being created, named by its own definition.

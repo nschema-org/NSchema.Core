@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using NSchema.Diff.Model.Columns;
 using NSchema.Diff.Model.Constraints;
@@ -90,6 +91,12 @@ public sealed record TableDiff : ISchemaObjectDiff
     /// The full table definition when the table is being created; otherwise <see langword="null"/>.
     /// </summary>
     public Table? Definition { get; init; }
+
+    /// <summary>
+    /// Whether this is a table being created, and so carries the <see cref="Definition"/> to create it from.
+    /// </summary>
+    [MemberNotNullWhen(true, nameof(Definition))]
+    public bool IsAdd() => Kind == ChangeKind.Add && Definition is not null;
 
     /// <summary>
     /// A table being created, named by its own definition.
