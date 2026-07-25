@@ -54,7 +54,7 @@ public sealed class NSchemaApplication : IDisposable
     public IDatabaseProvider Database => _database.Value;
 
     /// <summary>
-    /// Reads the desired project declared by the DDL.
+    /// Reads the project declared by the DDL.
     /// </summary>
     public IProjectProvider ProjectDefinition => _project.Value;
 

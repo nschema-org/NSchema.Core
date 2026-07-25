@@ -11,7 +11,7 @@ namespace NSchema.Plan.Model.Services;
 /// <summary>
 /// Default <see cref="IMigrationPlanner"/>.
 /// </summary>
-/// <param name="comparer">Produces the complete diff from the current state and the desired project.</param>
+/// <param name="comparer">Produces the complete diff from the current state and the project.</param>
 /// <param name="linearizer">Derives the ordered actions from the diff, weaving its scripts in.</param>
 /// <param name="projectPolicies">Policies that validate the declared project.</param>
 /// <param name="planPolicies">Policies that validate the complete plan (e.g. destructive-change checks).</param>
@@ -24,10 +24,10 @@ internal sealed class MigrationPlanner(
     SqlDialect? dialect = null
 ) : IMigrationPlanner
 {
-    public Result Validate(ProjectDefinition desired) =>
-        Result.From(projectPolicies.SelectMany(p => p.Validate(desired)));
+    public Result Validate(ProjectDefinition project) =>
+        Result.From(projectPolicies.SelectMany(p => p.Validate(project)));
 
-    public Result<MigrationPlan> Plan(CurrentState current, ProjectDefinition desired, PlanningScope scope)
+    public Result<MigrationPlan> Plan(CurrentState current, ProjectDefinition project, PlanningScope scope)
     {
         if (dialect is null)
         {
@@ -37,25 +37,25 @@ internal sealed class MigrationPlanner(
         var diagnostics = new DiagnosticCollector();
 
         // Validate the declared project.
-        diagnostics.Add(Validate(desired));
+        diagnostics.Add(Validate(project));
 
         // Identifiers are case-sensitive, so a declared name matching reality only up to case is a different
         // object — almost always a misspelled adoption. Warn before the diff turns it into a create beside
         // the existing object.
-        diagnostics.Add(Result.From(CaseMismatches(current.Database.Identities(), desired.Database.Identities())));
+        diagnostics.Add(Result.From(CaseMismatches(current.Database.Identities(), project.Database.Identities())));
 
         // The plan converges what NSchema manages: the current side is the observation restricted to the
         // managed identities plus everything the project declares or addresses.
-        var visible = current.FilteredTo(ManagementFilter(current, desired));
+        var visible = current.FilteredTo(ManagementFilter(current, project));
 
         // Compare it with the current state.
-        var compared = diagnostics.Require(comparer.Compare(visible, desired));
+        var compared = diagnostics.Require(comparer.Compare(visible, project));
 
         // Compute and scope the resulting diff. Widening consults the full observation:
         // an unmanaged dependency would still physically block a drop, so we need to warn on it.
         var diff = diagnostics.Require(compared.ScopedTo(scope, current.Database));
 
-        var plan = Realize(diff, dialect, ManagedAfterApply(current, desired, scope), diagnostics);
+        var plan = Realize(diff, dialect, ManagedAfterApply(current, project, scope), diagnostics);
 
         // Validate the complete plan — post-render, so policies see exactly what an apply would execute.
         diagnostics.Add(planPolicies.SelectMany(p => p.Validate(plan)));
@@ -68,10 +68,10 @@ internal sealed class MigrationPlanner(
     /// a renamed schema's current name), and every rename directive's source — renames address current reality,
     /// so their sources are under management too.
     /// </summary>
-    private static IdentitySet ManagementFilter(CurrentState current, ProjectDefinition desired)
+    private static IdentitySet ManagementFilter(CurrentState current, ProjectDefinition project)
     {
-        var declared = desired.Database.Identities();
-        var directives = desired.Directives;
+        var declared = project.Database.Identities();
+        var directives = project.Directives;
 
         // Objects declared inside a renamed schema exist under the schema's current name until the rename applies.
         var currentSchemaNames = directives.SchemaRenames.ToDictionary(r => r.To.Schema, r => r.From.Schema);
@@ -129,10 +129,10 @@ internal sealed class MigrationPlanner(
     /// apply is exactly what the project declares there — created, adopted, renamed, or gone; outside it,
     /// whatever was already managed stays managed. Extensions are database-global, so they are always in scope.
     /// </summary>
-    private static IdentitySet ManagedAfterApply(CurrentState current, ProjectDefinition desired, PlanningScope scope)
+    private static IdentitySet ManagedAfterApply(CurrentState current, ProjectDefinition project, PlanningScope scope)
     {
         var retained = current.Managed.Except(current.Managed.CoveredBy(scope));
-        return desired.ScopedTo(scope).Database.Identities().Union(retained);
+        return project.ScopedTo(scope).Database.Identities().Union(retained);
     }
 
     /// <summary>

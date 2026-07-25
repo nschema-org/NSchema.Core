@@ -5,7 +5,7 @@ namespace NSchema.Operations;
 /// <summary>
 /// The result of applying a plan.
 /// </summary>
-/// <param name="AppliedPlan">The plan that was applied. An empty plan means the target already matched the desired schema.</param>
+/// <param name="AppliedPlan">The plan that was applied. An empty plan means the recorded state already matched the target.</param>
 public sealed record ApplyResult(MigrationPlan AppliedPlan)
 {
     /// <summary>

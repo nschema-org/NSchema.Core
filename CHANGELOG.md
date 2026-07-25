@@ -24,7 +24,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **DataMigrations are Scripts now.** This reflects the syntax changes introduce in [4.4.0] so the model becomes consistent.
 - **Templates accept object-level directives.** A `TEMPLATE` body may now contain the object-level `RENAME` directive (table, column, view, enum, domain, type, sequence, routine) alongside its declarations and scripts.
 - **Scripts split into `ChangeScript` and `DeploymentScript`.** `Script` is now an abstract base carrying the common behavior (name, SQL, scope, hash, reference, run condition);
-- **"Desired" is Project now." `IDesiredSchemaProvider` becomes `IProjectProvider` the project is the desired state by definition.
+- **"Desired" is Project now.** `IDesiredSchemaProvider` becomes `IProjectProvider` — the project is the desired state by definition. Progress output follows: `Loading project...`, `Validating project...`, and the plan census now reads `Project:` / `Recorded state:`.
 - **`AddDdlSchemas` is `AddProjectSource` now.** The files describe the whole project (schema, scripts, templates, config), not just schema DDL.
 - **Result<T> use consistency.** Lots of interfaces have been neatened up to return a `Result<T>` instead of throwing to allow for error/warning accumulation
 - **The diff now includes scripts.** Rather than being tacked on to the plan, scripts are now a first-class part of the diff, carried where they run rather than in a central list.

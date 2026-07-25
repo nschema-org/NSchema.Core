@@ -15,7 +15,7 @@ public interface INSchemaDatabasePlugin : INSchemaPlugin
     Result Configure(NSchemaApplicationBuilder builder, PluginSettings settings);
 
     /// <summary>
-    /// Builds the starter desired-schema DDL this provider contributes when a new project is scaffolded.
+    /// Builds the starter project DDL this provider contributes when a new project is scaffolded.
     /// </summary>
     string GetSampleSchema();
 }
