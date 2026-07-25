@@ -35,18 +35,24 @@ public sealed class DatabaseDiffTests
     [Fact]
     public void ChangeScripts_WalksTheNodesTheyRideOn()
     {
+        // Act
         var change = Change("backfill");
 
+        // Assert
         WithChangeScript(change).ChangeScripts().ShouldBe(new[] { change });
     }
 
     [Fact]
     public void AllScripts_IsChangeScriptsThenDeploymentScripts()
     {
+        // Arrange
         var change = Change("backfill");
         var deploy = Deployment("seed");
+
+        // Act
         var diff = WithChangeScript(change) with { DeploymentScripts = [deploy] };
 
+        // Assert
         diff.AllScripts().ShouldBe(new Script[] { change, deploy });
     }
 

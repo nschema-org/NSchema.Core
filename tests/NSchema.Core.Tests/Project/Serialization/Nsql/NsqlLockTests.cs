@@ -19,7 +19,10 @@ public sealed class NsqlLockTests
     [Fact]
     public void ReadLock_Statement_ParsesSourceAndVersion()
     {
+        // Act
         var statement = Read("LOCK ( source = 'NSchema.Postgres', version = '5.0.0-alpha.2' );")
+
+        // Assert
             .ShouldHaveSingleItem();
 
         statement.Settings.Select(a => a.Key).ShouldBe(["source", "version"]);
@@ -30,13 +33,17 @@ public sealed class NsqlLockTests
     [Fact]
     public void ReadLock_MultipleStatements_KeepDeclarationOrder()
     {
+        // Arrange
         var statements = Read(
             """
             LOCK ( source = 'NSchema.Postgres', version = '5.0.0-alpha.2' );
             LOCK ( source = 'NSchema.Aws',      version = '5.0.0-alpha.2' );
             """);
 
+        // Act
         statements.Select(s => s.Settings[0].Value)
+
+        // Assert
             .ShouldBe(["NSchema.Postgres", "NSchema.Aws"]);
     }
 

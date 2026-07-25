@@ -176,6 +176,7 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_NewUniqueConstraintWithComment_FoldsCommentAsModify()
     {
+        // Arrange
         var table = DiffTable(
             new Table { Name = "users", Columns = [new Column { Name = "email", Type = SqlType.Text }] },
             new Table
@@ -185,7 +186,10 @@ public partial class DatabaseComparerTests
                 UniqueConstraints = [new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"], Comment = "lookup" }],
             });
 
+        // Act
         table!.UniqueConstraints.Select(c => (c.Kind, c.Comment?.New))
+
+        // Assert
             .ShouldBe([(ChangeKind.Add, null), (ChangeKind.Modify, "lookup")]);
     }
 
@@ -410,8 +414,10 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_ExclusionAdded_EmitsAdd()
     {
+        // Act
         var table = DiffTable(Bookings(), Bookings(NoOverlap()));
 
+        // Assert
         var exclusion = table!.ExclusionConstraints.ShouldHaveSingleItem();
         exclusion.Kind.ShouldBe(ChangeKind.Add);
         exclusion.Definition!.Method.ShouldBe("gist");
@@ -434,7 +440,10 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_ExclusionCommentOnlyChange_EmitsModify()
     {
+        // Act
         var exclusion = DiffTable(Bookings(NoOverlap(comment: "old")), Bookings(NoOverlap(comment: "new")))!
+
+        // Assert
             .ExclusionConstraints.ShouldHaveSingleItem();
         exclusion.Kind.ShouldBe(ChangeKind.Modify);
         exclusion.Comment.ShouldBe(new ValueChange<string>("old", "new"));

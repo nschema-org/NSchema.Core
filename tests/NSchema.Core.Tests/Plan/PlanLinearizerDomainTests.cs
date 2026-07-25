@@ -68,6 +68,7 @@ public sealed class PlanLinearizerDomainTests
     [Fact]
     public void DomainCreate_IsOrderedBeforeCreateTable()
     {
+        // Arrange
         // A column may use the domain as its type, so the domain must be created first.
         var plan = _linearizer.Linearize(new DatabaseDiff([SchemaDiff.Added("app") with
         {
@@ -76,7 +77,11 @@ public sealed class PlanLinearizerDomainTests
         }]));
 
         var createDomain = plan.Select((a, i) => (a, i)).Single(x => x.a is CreateDomain).i;
+
+        // Act
         var createTable = plan.Select((a, i) => (a, i)).Single(x => x.a is CreateTable).i;
+
+        // Assert
         createDomain.ShouldBeLessThan(createTable);
     }
 }

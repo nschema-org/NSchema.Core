@@ -110,17 +110,21 @@ public sealed class ConfigurationProviderTests : IDisposable
     [Fact]
     public async Task Load_HostVersionSatisfied_Succeeds()
     {
+        // Act
         var config = Write("config.sql", "ENGINE ( host_version = '[5.0,6.0)' );");
 
+        // Assert
         (await Load([config], SemanticVersion.Parse("5.1.0"))).IsSuccess.ShouldBeTrue();
     }
 
     [Fact]
     public async Task Load_HostVersion_WithoutAHost_IsNotApplicable()
     {
+        // Act
         // A host_version assertion has nothing to check when the engine is embedded directly (no host supplied).
         var config = Write("config.sql", "ENGINE ( host_version = '[5.2,6.0)' );");
 
+        // Assert
         (await Load([config], hostVersion: null)).IsSuccess.ShouldBeTrue();
     }
 

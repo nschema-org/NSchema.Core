@@ -41,6 +41,7 @@ public sealed class PlanLinearizerMaterializedViewTests
     [Fact]
     public void RecreatedMaterializedView_DropsBeforeItCreates()
     {
+        // Arrange
         var mv = new View { Name = "daily", Body = "SELECT 2", IsMaterialized = true };
         var actions = Linearize(ViewDiff.Modified("app", "daily") with
         {
@@ -50,7 +51,11 @@ public sealed class PlanLinearizerMaterializedViewTests
         });
 
         var drop = actions.Select((a, i) => (a, i)).Single(x => x.a is DropView).i;
+
+        // Act
         var create = actions.Select((a, i) => (a, i)).Single(x => x.a is CreateView).i;
+
+        // Assert
         drop.ShouldBeLessThan(create);
     }
 
@@ -74,6 +79,7 @@ public sealed class PlanLinearizerMaterializedViewTests
     [Fact]
     public void RenamedMaterializedView_IndexDropTargetsOldName()
     {
+        // Arrange
         // The index drop sorts before RenameView, so it runs while the view still carries its old name; the
         // index create sorts after and targets the new one.
         var actions = Linearize(ViewDiff.Modified("app", "daily") with
@@ -89,7 +95,11 @@ public sealed class PlanLinearizerMaterializedViewTests
         actions.OfType<DropIndex>().ShouldHaveSingleItem().Index.Object.ShouldBe("nightly");
         actions.OfType<CreateIndex>().ShouldHaveSingleItem().Table.Name.ShouldBe("daily");
         var dropIndex = actions.Select((a, i) => (a, i)).Single(x => x.a is DropIndex).i;
+
+        // Act
         var rename = actions.Select((a, i) => (a, i)).Single(x => x.a is RenameView).i;
+
+        // Assert
         dropIndex.ShouldBeLessThan(rename);
     }
 

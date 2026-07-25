@@ -63,6 +63,7 @@ public sealed class PlanLinearizerCompositeTypeTests
     [Fact]
     public void CompositeTypeCreate_IsOrderedBeforeCreateTable()
     {
+        // Arrange
         // A column may use the composite type as its type, so the type must be created first.
         var plan = _linearizer.Linearize(new DatabaseDiff([SchemaDiff.Added("app") with
         {
@@ -71,7 +72,11 @@ public sealed class PlanLinearizerCompositeTypeTests
         }]));
 
         var createType = plan.Select((a, i) => (a, i)).Single(x => x.a is CreateCompositeType).i;
+
+        // Act
         var createTable = plan.Select((a, i) => (a, i)).Single(x => x.a is CreateTable).i;
+
+        // Assert
         createType.ShouldBeLessThan(createTable);
     }
 }

@@ -359,6 +359,7 @@ public sealed class StructuralIntegrityPolicyTests
     [Fact]
     public void Error_WhenNameReusedAcrossObjectKinds()
     {
+        // Arrange
         // A table and a view called 'foo' cannot coexist — they share one name space in the database.
         var schema = new Database
         {
@@ -369,8 +370,10 @@ public sealed class StructuralIntegrityPolicyTests
         ],
         };
 
+        // Act
         var diagnostics = _sut.Validate(schema).ToList();
 
+        // Assert
         diagnostics.ShouldContain(d => d.Message.Contains("reuses the name 'foo'") && d.Message.Contains("table") && d.Message.Contains("view"));
     }
 

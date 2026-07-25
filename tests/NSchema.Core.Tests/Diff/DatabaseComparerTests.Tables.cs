@@ -17,11 +17,14 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_FullSchema_DropsCurrentTableNotInDesired()
     {
+        // Arrange
         var current = Db(new Schema { Name = "app", Tables = [new Table { Name = "stale", Columns = [new Column { Name = "id", Type = SqlType.Int }] }] });
         var desired = Db(new Schema { Name = "app", Tables = [new Table { Name = "fresh", Columns = [new Column { Name = "id", Type = SqlType.Int }] }] });
 
+        // Act
         var tables = Compare(current, desired).Schemas.Single().Tables;
 
+        // Assert
         tables.Single(t => t.Name.Value.Equals("stale")).Kind.ShouldBe(ChangeKind.Remove);
     }
 
@@ -32,11 +35,15 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_TableRename_SetsRenamedFrom()
     {
+            // Arrange
         var table = DiffTable(
             new Table { Name = "people", Columns = [new Column { Name = "id", Type = SqlType.Int }] },
             new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] },
+
+            // Act
             TableRename("people", "users"));
 
+            // Assert
         table.ShouldNotBeNull();
         table.Kind.ShouldBe(ChangeKind.Modify);
         table.RenamedFrom.ShouldBe("people");
@@ -73,12 +80,16 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_PlainRename_IsNotTreatedAsAmbiguous()
     {
+            // Arrange
         // A rename whose old name is gone and whose new name is free is unambiguous and must still work.
         var table = DiffTable(
             new Table { Name = "people", Columns = [new Column { Name = "id", Type = SqlType.Int }] },
             new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] },
+
+            // Act
             TableRename("people", "users"));
 
+            // Assert
         table.ShouldNotBeNull();
         table.Kind.ShouldBe(ChangeKind.Modify);
         table.RenamedFrom.ShouldBe("people");

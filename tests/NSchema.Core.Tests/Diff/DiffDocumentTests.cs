@@ -128,8 +128,10 @@ public sealed class DiffDocumentTests
     [Fact]
     public void From_EmptyDiff_IsEmptyWithZeroSummary()
     {
+        // Act
         var document = DiffDocument.From(DiffOf());
 
+        // Assert
         document.IsEmpty.ShouldBeTrue();
         document.Lines.ShouldBeEmpty();
         document.Summary.ShouldBe(new DiffSummary(0, 0, 0));
@@ -175,8 +177,10 @@ public sealed class DiffDocumentTests
     [Fact]
     public void From_SchemaWithNullKind_SkipsHeaderButEmitsTables()
     {
+        // Act
         var lines = DiffDocument.From(WithTable(Table("users", ChangeKind.Add))).Lines;
 
+        // Assert
         lines.ShouldNotContain(line => line.Text.Contains("schema app"));
         lines.ShouldContain(line => line.Kind == ChangeKind.Add && line.Text == "table app.users");
     }
@@ -208,6 +212,7 @@ public sealed class DiffDocumentTests
     [Fact]
     public void From_AddedTable_SeparatesColumnBlockFromTrailingBlockWithSpacer()
     {
+        // Arrange
         var table = Table("users", ChangeKind.Add,
             columns: [AddColumn(new Column { Name = "id", Type = SqlType.Int })],
             indexes: [IndexDiff.Added(new TableIndex { Name = "users_id_ix", Columns = ["id"] })]);
@@ -218,8 +223,12 @@ public sealed class DiffDocumentTests
 
         columnIndex.ShouldBeGreaterThanOrEqualTo(0);
         indexIndex.ShouldBeGreaterThan(columnIndex);
+
+        // Act
         // Exactly one kindless spacer line separates the column block from the trailing index block.
         var between = lines.Skip(columnIndex + 1).Take(indexIndex - columnIndex - 1).ToList();
+
+        // Assert
         between.ShouldHaveSingleItem().Kind.ShouldBeNull();
     }
 
@@ -413,6 +422,7 @@ public sealed class DiffDocumentTests
     [Fact]
     public void From_CarriesChangeKindOnContentLines_WithoutMarkersInText()
     {
+        // Arrange
         var diff = WithTable(Table("users", ChangeKind.Add, columns: [AddColumn(new Column { Name = "id", Type = SqlType.Int })]));
 
         var document = DiffDocument.From(diff);
@@ -423,8 +433,11 @@ public sealed class DiffDocumentTests
         header.Depth.ShouldBe(0);
         header.Text.ShouldBe("table app.users");
 
+        // Act
         // The column is a detail beneath it: same kind, one level deeper, still marker-free.
         var column = document.Lines.Single(line => line.Text.StartsWith("id "));
+
+        // Assert
         column.Kind.ShouldBe(ChangeKind.Add);
         column.Depth.ShouldBe(1);
         column.Text.ShouldNotContain("+");
@@ -433,8 +446,10 @@ public sealed class DiffDocumentTests
     [Fact]
     public void From_SpacerLinesAreKindlessAndEmpty()
     {
+        // Act
         var document = DiffDocument.From(DiffOf([Schema("app", ChangeKind.Add)]));
 
+        // Assert
         // Every blank spacer is a kindless, empty line — a formatter renders or ignores it as it sees fit.
         document.Lines.Where(line => line.Kind is null).ShouldAllBe(line => line.Text == "");
     }

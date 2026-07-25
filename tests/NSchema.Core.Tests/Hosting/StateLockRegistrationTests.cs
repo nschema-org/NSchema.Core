@@ -18,8 +18,10 @@ public sealed class StateLockRegistrationTests
     [Fact]
     public void NoStore_RegistersNoLock()
     {
+        // Act
         var services = Build(_ => { });
 
+        // Assert
         // No backend, no lock: there is no placeholder to acquire — operations simply run unlocked.
         services.GetService<IStateLock>().ShouldBeNull();
     }
@@ -27,37 +29,51 @@ public sealed class StateLockRegistrationTests
     [Fact]
     public void UseFileState_AutoRegistersAFileLockAtDerivedPath()
     {
+        // Arrange
         var services = Build(b => b.UseFileState("state/schema.json"));
 
+        // Act
         services.GetRequiredService<IStateLock>().ShouldBeOfType<FileStateLock>();
+
+        // Assert
         services.GetRequiredService<IOptions<FileStateLockOptions>>().Value.Path.ShouldBe("state/schema.json.lock");
     }
 
     [Fact]
     public void EphemeralState_RegistersOneInMemoryInstanceForBothSeams()
     {
+        // Arrange
         var services = Build(b => b.UseEphemeralState());
 
+        // Act
         var store = services.GetRequiredService<IDatabaseStateStore>().ShouldBeOfType<EphemeralStateStore>();
+
+        // Assert
         services.GetRequiredService<IStateLock>().ShouldBeSameAs(store);
     }
 
     [Fact]
     public void StoreThatAlsoLocks_RegistersTheSameInstanceForBothSeams()
     {
+        // Arrange
         var services = Build(b => b.UseStateStore<LockingStore>());
 
         var store = services.GetRequiredService<IDatabaseStateStore>();
+
+        // Act
         var stateLock = services.GetRequiredService<IStateLock>();
 
+        // Assert
         stateLock.ShouldBeSameAs(store);
     }
 
     [Fact]
     public void StoreThatDoesNotLock_LeavesLockingOff()
     {
+        // Act
         var services = Build(b => b.UseStateStore<StoreOnly>());
 
+        // Assert
         // A store with no lock leaves IStateLock unregistered, so the state-mutating operations run unlocked.
         services.GetService<IStateLock>().ShouldBeNull();
     }

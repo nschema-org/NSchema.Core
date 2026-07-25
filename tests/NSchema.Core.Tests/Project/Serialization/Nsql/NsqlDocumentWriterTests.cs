@@ -48,6 +48,7 @@ public sealed class ProjectedDocumentWriterTests
     [Fact]
     public void Write_PreAndPostScripts_RoundTrip()
     {
+        // Act
         var formatted = AssertRoundTrips(
             """
             SCRIPT enable_citext RUN ON PRE DEPLOYMENT AS $$
@@ -59,6 +60,7 @@ public sealed class ProjectedDocumentWriterTests
             $$;
             """);
 
+        // Assert
         formatted.ShouldContain("SCRIPT enable_citext RUN ON PRE DEPLOYMENT AS $$");
         formatted.ShouldContain("SCRIPT reindex RUN ON POST DEPLOYMENT (run_outside_transaction = true) AS $$");
     }
@@ -71,8 +73,10 @@ public sealed class ProjectedDocumentWriterTests
     [Fact]
     public void Write_ScriptBodyContainingDoubleDollar_PicksASafeTag()
     {
+        // Act
         var formatted = AssertRoundTrips("SCRIPT x RUN ON PRE DEPLOYMENT AS $outer$ SELECT '$$' AS v $outer$;");
 
+        // Assert
         // The default $$ delimiter would collide with the body, so the writer must choose a tagged delimiter.
         formatted.ShouldNotContain("AS $$");
         formatted.ShouldContain("$body1$");
@@ -109,8 +113,10 @@ public sealed class ProjectedDocumentWriterTests
     [Fact]
     public void Write_MigrationBodyContainingDoubleDollar_PicksASafeTag()
     {
+        // Act
         var formatted = AssertRoundTrips("SCRIPT x RUN ON ADD COLUMN app.t.c AS $outer$ SELECT '$$' AS v $outer$;");
 
+        // Assert
         // The default $$ delimiter would collide with the body, so the writer must choose a tagged delimiter.
         formatted.ShouldNotContain("AS $$");
         formatted.ShouldContain("$body1$");
@@ -141,6 +147,7 @@ public sealed class ProjectedDocumentWriterTests
     [Fact]
     public void Write_EmitsSchemaThenScripts_RegardlessOfSourceOrder()
     {
+        // Arrange
         // Source deliberately interleaves: script, then schema.
         var document = new TestNsqlParser(
             """
@@ -151,8 +158,11 @@ public sealed class ProjectedDocumentWriterTests
         var formatted = Write(document);
 
         var schema = formatted.IndexOf("CREATE SCHEMA app", StringComparison.Ordinal);
+
+        // Act
         var script = formatted.IndexOf("POST DEPLOYMENT", StringComparison.Ordinal);
 
+        // Assert
         schema.ShouldBeLessThan(script);
     }
 

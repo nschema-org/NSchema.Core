@@ -37,6 +37,7 @@ public sealed class PlanLinearizerSnapshotTests
     [Fact]
     public Task Linearize_RichDiff_OrdersActionsSafely()
     {
+        // Arrange
         // A new schema; a newly-added table (columns, PK and constraints carried inline on Definition, with a
         // separate index and grant); a modified table (add/drop/retype columns, new index, dropped FK); two added
         // views (one reading the other), a renamed view, and a dropped view; a dropped schema carrying its own
@@ -155,8 +156,10 @@ public sealed class PlanLinearizerSnapshotTests
                 },
             ]);
 
+        // Act
         var plan = _linearizer.Linearize(diff);
 
+        // Assert
         return Verify(plan.Select(a => new { Type = a.GetType().Name, Action = a }));
     }
 }

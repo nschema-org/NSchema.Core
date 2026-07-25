@@ -17,7 +17,10 @@ public sealed class NsqlParserCompositeTypeTests
     [Fact]
     public void Parse_SimpleType_CapturesNameAndFields()
     {
+        // Act
         var type = ParseType("CREATE TYPE app.address AS (street text, zip int);");
+
+        // Assert
         type.Name.ShouldBe("address");
         type.Fields.Count.ShouldBe(2);
         type.Fields[0].Name.ShouldBe("street");

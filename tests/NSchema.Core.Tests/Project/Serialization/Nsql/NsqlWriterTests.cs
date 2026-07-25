@@ -190,14 +190,17 @@ public sealed class NsqlWriterTests
     [Fact]
     public void Write_WithoutSchemaDeclarations_EmitsOnlyMemberObjects()
     {
+        // Arrange
         var schema = new Database
         {
             Schemas = [new Schema { Name = "app",
             Tables = [new Table { Name = "t", Columns = [new Column { Name = "id", Type = SqlType.Int }] }] }],
         };
 
+        // Act
         var ddl = NsqlWriter.Write(SyntaxBuilder.Build(schema, declareSchemas: false));
 
+        // Assert
         ddl.ShouldNotContain("CREATE SCHEMA");
         ddl.ShouldStartWith("CREATE TABLE app.t");
     }

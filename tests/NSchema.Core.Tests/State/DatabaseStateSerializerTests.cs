@@ -117,13 +117,16 @@ public sealed class DatabaseStateSerializerTests
     [Fact]
     public void Serialize_WritesTheLedgerAsScripts()
     {
+        // Arrange
         // Pins the wire field name — renaming it silently empties every existing ledger.
         var state = new DatabaseState(
             new Database { Schemas = [] },
             [new ScriptExecution(new ScopedAddress(null, "api-login"), "abc123", DateTimeOffset.UnixEpoch)]);
 
+        // Act
         var json = Encoding.UTF8.GetString(_sut.Serialize(state).Span);
 
+        // Assert
         json.ShouldContain("\"scripts\"");
     }
 
@@ -193,14 +196,17 @@ public sealed class DatabaseStateSerializerTests
     [Fact]
     public void Deserialize_PayloadWithoutManagedSet_ReadsAsNothingManaged()
     {
+        // Arrange
         // A state file written before the managed set existed must still load.
         const string json =
             """
             { "version": 1, "database": { "schemas": [] }, "scripts": [] }
             """;
 
+        // Act
         var state = _sut.Deserialize(Encoding.UTF8.GetBytes(json));
 
+        // Assert
         state.Managed.IsEmpty.ShouldBeTrue();
     }
 

@@ -22,24 +22,34 @@ public sealed class PlanLinearizerExtensionTests
     [Fact]
     public void CreateExtension_IsEmittedBeforeSchemaCreation()
     {
+        // Arrange
         var actions = _linearizer.Linearize(Diff(
             [ExtensionDiff.Added(new Extension { Name = "citext" })],
             SchemaDiff.Added("app")));
 
         var createExtension = actions.Select((a, i) => (a, i)).Single(x => x.a is CreateExtension).i;
+
+        // Act
         var createSchema = actions.Select((a, i) => (a, i)).Single(x => x.a is CreateSchema).i;
+
+        // Assert
         createExtension.ShouldBeLessThan(createSchema);
     }
 
     [Fact]
     public void DropExtension_IsEmittedAfterSchemaDrop()
     {
+        // Arrange
         var actions = _linearizer.Linearize(Diff(
             [ExtensionDiff.Removed("citext")],
             SchemaDiff.Removed("app")));
 
         var dropExtension = actions.Select((a, i) => (a, i)).Single(x => x.a is DropExtension).i;
+
+        // Act
         var dropSchema = actions.Select((a, i) => (a, i)).Single(x => x.a is DropSchema).i;
+
+        // Assert
         dropExtension.ShouldBeGreaterThan(dropSchema);
     }
 

@@ -20,6 +20,7 @@ public sealed class NsqlConfigurationTests
     [Fact]
     public void ReadConfiguration_UnlabelledStatement_ParsesTypeAndAttributes()
     {
+        // Act
         var statement = Read(
             """
             STATE (
@@ -28,6 +29,7 @@ public sealed class NsqlConfigurationTests
             );
             """).ShouldHaveSingleItem();
 
+        // Assert
         statement.Keyword.ShouldBe(SettingsKeyword.State);
         statement.Label.ShouldBeNull();
         statement.Settings.Select(a => a.Key).ShouldBe(["dialect", "transaction_mode"]);
@@ -50,6 +52,7 @@ public sealed class NsqlConfigurationTests
     [Fact]
     public void ReadConfiguration_ParsesAllValueKinds()
     {
+        // Act
         var settings = Read(
             """
             DATABASE postgres (
@@ -62,6 +65,7 @@ public sealed class NsqlConfigurationTests
             );
             """).Single().Settings;
 
+        // Assert
         settings.Single(a => a.Key == "schema_search_path").Value.ShouldBe("app");
         settings.Single(a => a.Key == "connection_timeout").Value.ShouldBe("1000");
         settings.Single(a => a.Key == "statement_cache").Value.ShouldBe("-1");
@@ -81,6 +85,7 @@ public sealed class NsqlConfigurationTests
     [Fact]
     public void ReadConfiguration_MultipleStatements_KeepDeclarationOrder()
     {
+        // Act
         var statements = Read(
             """
             STATE file ( path = 'state/app.nsstate' );
@@ -88,6 +93,7 @@ public sealed class NsqlConfigurationTests
             STATE s3 ( bucket = 'state' );
             """);
 
+        // Assert
         statements.Select(s => s.Keyword).ShouldBe([SettingsKeyword.State, SettingsKeyword.Database, SettingsKeyword.State]);
     }
 
@@ -108,7 +114,10 @@ public sealed class NsqlConfigurationTests
     [Fact]
     public void ReadConfiguration_PluginStatement_Parses()
     {
+        // Act
         var statement = Read("PLUGIN pg ( source = 'NSchema.Postgres', version = '5.0.1' );")
+
+        // Assert
             .ShouldHaveSingleItem();
 
         statement.Keyword.ShouldBe(SettingsKeyword.Plugin);

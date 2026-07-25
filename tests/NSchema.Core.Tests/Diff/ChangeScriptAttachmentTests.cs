@@ -156,27 +156,33 @@ public class ChangeScriptAttachmentTests
     [Fact]
     public void UnattachedScript_ReportsADeadMigrationDiagnostic()
     {
+        // Arrange
         // Nothing in the diff matches the script, so decoration leaves it behind and says so.
         var script = Change(ChangeTrigger.AddColumn, "phone");
         var currentDb = new Database { Schemas = [new Schema { Name = "app", Tables = [Users(Id)] }] };
         var desiredDb = new Database { Schemas = [new Schema { Name = "app", Tables = [Users(Id, new Column { Name = "email", Type = SqlType.Text })] }] };
         var diff = _sut.Compare(AlignedDatabase.Unaligned(currentDb), desiredDb);
 
+        // Act
         var result = ChangeScriptDecorator.Decorate(diff, [script]);
 
+        // Assert
         result.Diagnostics.ShouldHaveSingleItem().ShouldBe(DiffDiagnostics.DeadMigration(script));
     }
 
     [Fact]
     public void AttachedScript_ReportsNoDiagnostics()
     {
+        // Arrange
         var script = Change(ChangeTrigger.AddColumn, "email");
         var currentDb = new Database { Schemas = [new Schema { Name = "app", Tables = [Users(Id)] }] };
         var desiredDb = new Database { Schemas = [new Schema { Name = "app", Tables = [Users(Id, new Column { Name = "email", Type = SqlType.Text })] }] };
         var diff = _sut.Compare(AlignedDatabase.Unaligned(currentDb), desiredDb);
 
+        // Act
         var result = ChangeScriptDecorator.Decorate(diff, [script]);
 
+        // Assert
         result.Diagnostics.ShouldBeEmpty();
     }
 

@@ -72,8 +72,10 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_BothEmpty_ProducesEmptyDiff()
     {
+        // Act
         var diff = Compare(Db(), Db());
 
+        // Assert
         diff.IsEmpty.ShouldBeTrue();
         diff.Schemas.ShouldBeEmpty();
     }
@@ -146,6 +148,7 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_CreateTable_AddsEveryColumnWithDefinitionAndFoldedComment()
     {
+        // Arrange
         var current = Db(new Schema { Name = "app" });
         var desired = Db(new Schema
         {
@@ -158,8 +161,10 @@ public partial class DatabaseComparerTests
         ],
         });
 
+        // Act
         var table = Compare(current, desired).Schemas.Single().Tables.Single();
 
+        // Assert
         table.Kind.ShouldBe(ChangeKind.Add);
         table.Columns.Select(c => c.Name).ShouldBe(["id", "email"]);
         table.Columns.ShouldAllBe(c => c.Kind == ChangeKind.Add && c.Definition != null);
@@ -184,6 +189,7 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_GroupsIndexesConstraintsAndGrantsUnderTheirTable()
     {
+        // Arrange
         DatabaseMemberCollection<Column> Columns() => [new Column { Name = "id", Type = SqlType.Int }, new Column { Name = "user_id", Type = SqlType.Int }];
         var current = Db(new Schema { Name = "app", Tables = [new Table { Name = "orders", Columns = Columns() }] });
         var desired = Db(new Schema
@@ -201,8 +207,10 @@ public partial class DatabaseComparerTests
         ],
         });
 
+        // Act
         var table = Compare(current, desired).Schemas.Single().Tables.Single();
 
+        // Assert
         table.PrimaryKeys.Select(c => (c.Kind, c.Name.Value)).ShouldBe([(ChangeKind.Add, "orders_pkey")]);
         table.ForeignKeys.Select(c => (c.Kind, c.Name.Value)).ShouldBe([(ChangeKind.Add, "orders_user_fk")]);
         table.UniqueConstraints.Select(c => (c.Kind, c.Name.Value)).ShouldBe([(ChangeKind.Add, "orders_user_uq")]);
@@ -306,13 +314,16 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_CaseVariantNames_AreDifferentObjects()
     {
+        // Arrange
         // Identifiers are case-sensitive: an introspected "Users" and a declared "users" are different
         // tables (the planner warns about the near-miss before the diff turns it into a create).
         var current = Db(new Schema { Name = "App", Tables = [new Table { Name = "Users", Columns = [new Column { Name = "ID", Type = SqlType.Int }] }] });
         var desired = Db(new Schema { Name = "app", Tables = [new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] }] });
 
+        // Act
         var diff = Compare(current, desired);
 
+        // Assert
         diff.IsEmpty.ShouldBeFalse();
         diff.Schemas.Select(s => s.Name.Value).ShouldBe(["App", "app"], ignoreOrder: true);
     }
@@ -320,6 +331,7 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_CaseVariantColumnReferences_AreAChange()
     {
+        // Arrange
         // References inside definitions (primary-key and index column lists) are identifiers too, so a
         // casing difference between the introspected and declared spelling is a change.
         Table Build(string id, string email) => new Table
@@ -330,8 +342,10 @@ public partial class DatabaseComparerTests
             Indexes = [new TableIndex { Name = "users_email_ix", Columns = [email] }],
         };
 
+        // Act
         var diff = DiffTable(Build("ID", "Email"), Build("id", "email"));
 
+        // Assert
         diff.ShouldNotBeNull();
     }
 

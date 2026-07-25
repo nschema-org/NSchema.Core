@@ -53,11 +53,15 @@ public sealed class PlanFileManagerTests
     [Fact]
     public void Serialize_ThenDeserialize_RoundTripsTheWholeEnvelope()
     {
+        // Arrange
         var original = SampleEnvelope();
 
         var json = Json(original);
+
+        // Act
         var roundTripped = _sut.Deserialize(_sut.Serialize(original));
 
+        // Assert
         // A read + write cycle reproduces the exact same document, including the polymorphic script events and the diff.
         Json(roundTripped).ShouldBe(json);
     }
@@ -77,9 +81,11 @@ public sealed class PlanFileManagerTests
     [Fact]
     public void Serialize_StampsTheCurrentVersion_WithoutTheCallerSupplyingIt()
     {
+        // Act
         // The caller never passes a version; the format owns it.
         var roundTripped = _sut.Deserialize(_sut.Serialize(SampleEnvelope()));
 
+        // Assert
         roundTripped.Version.ShouldBe(PlanFileEnvelope.CurrentVersion);
         roundTripped.CreatedAt.ShouldBe(DateTimeOffset.UnixEpoch);
     }
@@ -87,19 +93,26 @@ public sealed class PlanFileManagerTests
     [Fact]
     public void Deserialize_RestoresConcreteScriptEventsInOrder()
     {
+            // Arrange
         var roundTripped = _sut.Deserialize(_sut.Serialize(SampleEnvelope()));
 
         // The discriminator must reconstruct each concrete script record, not the abstract base, and keep order.
         roundTripped.Plan.Diff.AllScripts().Select(s => s.GetType()).ShouldBe(
+
+            // Act
             [typeof(ChangeScript), typeof(DeploymentScript), typeof(DeploymentScript)]);
+
+            // Assert
         roundTripped.Plan.Diff.AllScripts().ShouldBe(SampleEnvelope().Plan.Diff.AllScripts());
     }
 
     [Fact]
     public void Deserialize_RestoresStatementDetail()
     {
+        // Act
         var roundTripped = _sut.Deserialize(_sut.Serialize(SampleEnvelope()));
 
+        // Assert
         roundTripped.Plan.Statements.ShouldBe(SampleEnvelope().Plan.Statements);
         roundTripped.Plan.Statements[1].RunOutsideTransaction.ShouldBeTrue();
     }
@@ -107,12 +120,16 @@ public sealed class PlanFileManagerTests
     [Fact]
     public async Task Write_ThenRead_RoundTripsThroughAFile()
     {
+            // Arrange
         var path = Path.Combine(Path.GetTempPath(), $"nschema-plan-{Guid.NewGuid():N}.json");
         try
         {
             await _sut.Write(path, SampleEnvelope(), TestContext.Current.CancellationToken);
+
+            // Act
             var roundTripped = await _sut.Read(path, TestContext.Current.CancellationToken);
 
+            // Assert
             Json(roundTripped.Require()).ShouldBe(Json(SampleEnvelope()));
         }
         finally
@@ -160,8 +177,10 @@ public sealed class PlanFileManagerTests
     [Fact]
     public void Deserialize_Garbage_ThrowsPlanFileDeserializationException()
     {
+        // Act
         var garbage = Encoding.UTF8.GetBytes("not json at all");
 
+        // Assert
         Should.Throw<PlanFileDeserializationException>(() => _sut.Deserialize(garbage));
     }
 }
