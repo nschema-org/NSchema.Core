@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NSchema.Model;
 using NSchema.Model.Scripts;
 using NSchema.Model.Tables;
@@ -7,14 +8,51 @@ namespace NSchema.Diff.Model.Constraints;
 /// <summary>
 /// Describes a change to a table's primary key.
 /// </summary>
-/// <param name="Kind">The change to the primary key.</param>
-/// <param name="Name">The primary key constraint name.</param>
-/// <param name="Definition">The primary key definition for an added primary key; otherwise <see langword="null"/>.</param>
-/// <param name="Comment">The change to the constraint's comment, if any (carried on a comment-only <see cref="ChangeKind.Modify"/>).</param>
-public sealed record PrimaryKeyDiff(ChangeKind Kind, SqlIdentifier Name, PrimaryKey? Definition = null, ValueChange<string>? Comment = null) : IMigratableDiff
+public sealed record PrimaryKeyDiff : IMigratableDiff
 {
+    [JsonConstructor]
+    private PrimaryKeyDiff() { }
+
+    /// <summary>
+    /// The change to the primary key.
+    /// </summary>
+    public required ChangeKind Kind { get; init; }
+
+    /// <summary>
+    /// The primary key constraint name.
+    /// </summary>
+    public required SqlIdentifier Name { get; init; }
+
+    /// <summary>
+    /// The primary key definition for an added primary key; otherwise <see langword="null"/>.
+    /// </summary>
+    public PrimaryKey? Definition { get; init; }
+
+    /// <summary>
+    /// The change to the constraint's comment, if any.
+    /// </summary>
+    public ValueChange<string>? Comment { get; init; }
+
     /// <summary>
     /// The change-event script matched to this change, run at this point in the plan (<see langword="null"/> when none).
     /// </summary>
     public ChangeScript? MigrationScript { get; init; }
+
+    /// <summary>
+    /// A primary key being created, named by its own definition.
+    /// </summary>
+    public static PrimaryKeyDiff Added(PrimaryKey definition) =>
+        new() { Kind = ChangeKind.Add, Name = definition.Name, Definition = definition };
+
+    /// <summary>
+    /// A primary key being dropped.
+    /// </summary>
+    public static PrimaryKeyDiff Removed(SqlIdentifier name) =>
+        new() { Kind = ChangeKind.Remove, Name = name };
+
+    /// <summary>
+    /// A comment change applied in place — the only modification a key takes without being recreated.
+    /// </summary>
+    public static PrimaryKeyDiff CommentChanged(SqlIdentifier name, ValueChange<string> comment) =>
+        new() { Kind = ChangeKind.Modify, Name = name, Comment = comment };
 }

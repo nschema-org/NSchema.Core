@@ -1,10 +1,12 @@
 using System.Text;
 using NSchema.Diff.Model;
 using NSchema.Diff.Model.Columns;
+using NSchema.Diff.Model.Constraints;
 using NSchema.Diff.Model.Schemas;
 using NSchema.Diff.Model.Tables;
 using NSchema.Model.Columns;
 using NSchema.Model.Scripts;
+using NSchema.Model.Tables;
 using NSchema.Plan.Model;
 using NSchema.Plan.PlanFile;
 
@@ -23,7 +25,8 @@ public sealed class PlanFileManagerTests
         var backfill = new ChangeScript("backfill", "UPDATE app.users SET email = ''",
             new ChangeTarget("app", "users", "email", ChangeTrigger.AddColumn));
         var email = new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text }) { MigrationScript = backfill };
-        var users = new TableDiff("app", "users", ChangeKind.Modify, Columns: [email]);
+        var key = PrimaryKeyDiff.Added(new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] });
+        var users = new TableDiff("app", "users", ChangeKind.Modify, Columns: [email], PrimaryKeys: [key]);
         var plan = new MigrationPlan(
             new DatabaseDiff([new SchemaDiff("app", Tables: [users])])
             {

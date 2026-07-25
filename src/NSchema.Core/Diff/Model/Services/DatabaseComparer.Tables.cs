@@ -77,7 +77,7 @@ internal sealed partial class DatabaseComparer
         var primaryKey = new List<PrimaryKeyDiff>();
         if (table.PrimaryKey is { Comment: not null } pk)
         {
-            primaryKey.Add(new PrimaryKeyDiff(ChangeKind.Modify, pk.Name, null, new ValueChange<string>(null, pk.Comment)));
+            primaryKey.Add(PrimaryKeyDiff.CommentChanged(pk.Name, new ValueChange<string>(null, pk.Comment)));
         }
 
         var grants = new List<GrantChange>();

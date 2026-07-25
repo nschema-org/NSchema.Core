@@ -171,9 +171,8 @@ public sealed class PlanLinearizerDataMigrationTests
         {
             RunOutsideTransaction = true,
         };
-        var constraint = new PrimaryKeyDiff(ChangeKind.Add, "users_pk",
-            new PrimaryKey { Name = "users_pk", ColumnNames = ["id"] })
-        { MigrationScript = migration };
+        var constraint = PrimaryKeyDiff.Added(new PrimaryKey { Name = "users_pk", ColumnNames = ["id"] })
+            with { MigrationScript = migration };
 
         // Act
         var plan = LinearizeTable(new TableDiff("app", "users", ChangeKind.Modify, PrimaryKeys: [constraint]));

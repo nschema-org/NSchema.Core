@@ -23,7 +23,7 @@ public partial class DatabaseComparerTests
             new Table { Name = "users", PrimaryKey = new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] }, Columns = [new Column { Name = "id", Type = SqlType.Int }] });
 
         table!.PrimaryKeys.ShouldHaveSingleItem().ShouldBe(
-            new PrimaryKeyDiff(ChangeKind.Add, "users_pkey", new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] }));
+            PrimaryKeyDiff.Added(new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] }));
     }
 
     [Fact]

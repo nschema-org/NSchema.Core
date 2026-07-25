@@ -21,7 +21,7 @@ internal sealed partial class DatabaseComparer
             if (current.Comment != desired.Comment)
             {
                 LogPrimaryKeyCommentChanged(desired.Name, owner);
-                result.Add(new PrimaryKeyDiff(ChangeKind.Modify, desired.Name, null, new ValueChange<string>(current.Comment, desired.Comment)));
+                result.Add(PrimaryKeyDiff.CommentChanged(desired.Name, new ValueChange<string>(current.Comment, desired.Comment)));
             }
             else
             {
@@ -39,15 +39,15 @@ internal sealed partial class DatabaseComparer
         if (current is not null)
         {
             LogPrimaryKeyDropping(current.Name, owner);
-            result.Add(new PrimaryKeyDiff(ChangeKind.Remove, current.Name, null));
+            result.Add(PrimaryKeyDiff.Removed(current.Name));
         }
         if (desired is not null)
         {
             LogPrimaryKeyAdding(desired.Name, owner);
-            result.Add(new PrimaryKeyDiff(ChangeKind.Add, desired.Name, desired));
+            result.Add(PrimaryKeyDiff.Added(desired));
             if (desired.Comment is not null)
             {
-                result.Add(new PrimaryKeyDiff(ChangeKind.Modify, desired.Name, null, new ValueChange<string>(null, desired.Comment)));
+                result.Add(PrimaryKeyDiff.CommentChanged(desired.Name, new ValueChange<string>(null, desired.Comment)));
             }
         }
         return result;

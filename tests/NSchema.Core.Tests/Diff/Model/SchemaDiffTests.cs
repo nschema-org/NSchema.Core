@@ -9,6 +9,7 @@ using NSchema.Diff.Model.Sequences;
 using NSchema.Diff.Model.Tables;
 using NSchema.Diff.Model.Views;
 using NSchema.Model.Routines;
+using NSchema.Model.Tables;
 
 namespace NSchema.Tests.Diff.Model;
 
@@ -41,7 +42,7 @@ public sealed class SchemaDiffTests
         var table = new TableDiff("app", "users", ChangeKind.Modify,
             Columns: [new ColumnDiff("id", ChangeKind.Add, null, null, null, null, null, null, null)],
             Indexes: [new IndexDiff(ChangeKind.Add, "ix", null, null)],
-            PrimaryKeys: [new PrimaryKeyDiff(ChangeKind.Add, "pk", null)],
+            PrimaryKeys: [PrimaryKeyDiff.Added(new PrimaryKey { Name = "pk", ColumnNames = ["id"] })],
             ForeignKeys: [new ForeignKeyDiff(ChangeKind.Add, "fk", null)],
             UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "uq", null)],
             Checks: [new CheckConstraintDiff(ChangeKind.Add, "ck", null)]);

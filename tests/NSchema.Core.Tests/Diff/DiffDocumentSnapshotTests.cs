@@ -52,7 +52,7 @@ public sealed class DiffDocumentSnapshotTests
             ],
             Grants: [new GrantChange(ChangeKind.Add, "readers", TablePrivilege.Select)],
             Indexes: [new IndexDiff(ChangeKind.Add, "users_name_ix", new TableIndex { Name = "users_name_ix", Columns = ["name"], IsUnique = true }, null)],
-            PrimaryKeys: [new PrimaryKeyDiff(ChangeKind.Add, "users_pkey", null)],
+            PrimaryKeys: [PrimaryKeyDiff.Added(new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] })],
             UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", null)],
             Checks: [new CheckConstraintDiff(ChangeKind.Add, "users_age_chk", null)]);
 
@@ -70,7 +70,7 @@ public sealed class DiffDocumentSnapshotTests
             ],
             Grants: [new GrantChange(ChangeKind.Remove, "writers", TablePrivilege.Insert)],
             Indexes: [],
-            PrimaryKeys: [new PrimaryKeyDiff(ChangeKind.Modify, "orders_pkey", null, new ValueChange<string>("old note", "new note"))],
+            PrimaryKeys: [PrimaryKeyDiff.CommentChanged("orders_pkey", new ValueChange<string>("old note", "new note"))],
             ForeignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null)],
             UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Remove, "orders_code_uq", null)],
             Checks: [new CheckConstraintDiff(ChangeKind.Remove, "orders_total_chk", null)],

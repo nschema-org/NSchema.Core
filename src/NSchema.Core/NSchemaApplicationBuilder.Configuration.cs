@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSchema.Apply;
+using NSchema.Deployment.Backends;
 using NSchema.Diff.Backends;
 using NSchema.Operations.Progress;
 using NSchema.Plan.Backends;
@@ -54,6 +55,16 @@ public partial class NSchemaApplicationBuilder
     public NSchemaApplicationBuilder UseSqlEquivalence<T>() where T : SqlEquivalence
     {
         Services.Replace(ServiceDescriptor.Singleton<SqlEquivalence, T>());
+        return this;
+    }
+
+    /// <summary>
+    /// Registers the <see cref="IDatabaseIntrospector"/> that reads the live database schema (the online source).
+    /// Typically called by a database-provider extension.
+    /// </summary>
+    public NSchemaApplicationBuilder UseDatabaseIntrospector<T>() where T : class, IDatabaseIntrospector
+    {
+        Services.Replace(ServiceDescriptor.Singleton<IDatabaseIntrospector, T>());
         return this;
     }
 

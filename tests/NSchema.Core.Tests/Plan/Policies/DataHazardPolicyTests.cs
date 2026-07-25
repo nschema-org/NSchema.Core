@@ -230,7 +230,7 @@ public class DataHazardPolicyTests
     {
         // Arrange — promoting existing columns to a primary key fails on duplicates or NULLs.
         var diff = ModifiedTable(primaryKey:
-            [new PrimaryKeyDiff(ChangeKind.Add, "users_pk", new PrimaryKey { Name = "users_pk", ColumnNames = ["tenant_id", "email"] })]);
+            [PrimaryKeyDiff.Added(new PrimaryKey { Name = "users_pk", ColumnNames = ["tenant_id", "email"] })]);
 
         // Act
         var results = _sut.Validate(diff).ToList();
@@ -415,10 +415,8 @@ public class DataHazardPolicyTests
         // Arrange — a matched migration declares how the data is de-duplicated/backfilled before the key lands.
         var diff = ModifiedTable(primaryKey:
         [
-            new PrimaryKeyDiff(ChangeKind.Add, "users_pk", new PrimaryKey { Name = "users_pk", ColumnNames = ["tenant_id", "email"] })
-            {
-                MigrationScript = Migration(ChangeTrigger.AddConstraint, "users_pk"),
-            },
+            PrimaryKeyDiff.Added(new PrimaryKey { Name = "users_pk", ColumnNames = ["tenant_id", "email"] })
+                with { MigrationScript = Migration(ChangeTrigger.AddConstraint, "users_pk") },
         ]);
 
         // Act / Assert

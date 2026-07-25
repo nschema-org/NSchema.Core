@@ -250,7 +250,7 @@ public sealed class DiffDocumentTests
 
     [Fact]
     public void From_PrimaryKeyConstraint_EmitsLabel()
-        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, primaryKey: [new PrimaryKeyDiff(ChangeKind.Add, "users_pkey", null)])), ChangeKind.Add, "primary key users_pkey");
+        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, primaryKey: [PrimaryKeyDiff.Added(new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] })])), ChangeKind.Add, "primary key users_pkey");
 
     [Fact]
     public void From_ForeignKeyConstraint_EmitsLabel()

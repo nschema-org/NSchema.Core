@@ -260,7 +260,7 @@ public sealed class PlanLinearizerTests
     {
         // Drops and revokes sort before RenameTable, so they execute while the table still carries its old name.
         var table = TableNode("accounts", ChangeKind.Modify, renamedFrom: "users",
-            primaryKey: [new PrimaryKeyDiff(ChangeKind.Remove, "users_pkey")],
+            primaryKey: [PrimaryKeyDiff.Removed("users_pkey")],
             foreignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "users_org_fk")],
             uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Remove, "users_email_uq")],
             checks: [new CheckConstraintDiff(ChangeKind.Remove, "users_age_chk")],
@@ -344,7 +344,7 @@ public sealed class PlanLinearizerTests
             uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "orders_code_uq", new UniqueConstraint { Name = "orders_code_uq", ColumnNames = ["code"] })],
             checks: [new CheckConstraintDiff(ChangeKind.Add, "orders_total_chk", new CheckConstraint { Name = "orders_total_chk", Expression = "total >= 0" })],
             exclusionConstraints: [new ExclusionConstraintDiff(ChangeKind.Add, "no_overlap", new ExclusionConstraint { Name = "no_overlap", Elements = [new ExclusionElement("&&", "slot")], Method = "gist" })],
-            primaryKey: [new PrimaryKeyDiff(ChangeKind.Modify, "orders_pkey", null, new ValueChange<string>(null, "the key"))]);
+            primaryKey: [PrimaryKeyDiff.CommentChanged("orders_pkey", new ValueChange<string>(null, "the key"))]);
 
         var plan = LinearizeTable(table);
 
@@ -468,7 +468,7 @@ public sealed class PlanLinearizerTests
     public void Linearize_AddPrimaryKey_EmitsAddPrimaryKey()
     {
         var pk = new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] };
-        var constraint = new PrimaryKeyDiff(ChangeKind.Add, "users_pkey", pk);
+        var constraint = PrimaryKeyDiff.Added(pk);
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, primaryKey: [constraint]))
             .OfType<AddPrimaryKey>().ShouldHaveSingleItem().PrimaryKey.Name.ShouldBe("users_pkey");
@@ -477,7 +477,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_RemovePrimaryKey_EmitsDropPrimaryKey()
     {
-        var constraint = new PrimaryKeyDiff(ChangeKind.Remove, "users_pkey", null);
+        var constraint = PrimaryKeyDiff.Removed("users_pkey");
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, primaryKey: [constraint]))
             .OfType<DropPrimaryKey>().ShouldHaveSingleItem().PrimaryKey.Member.ShouldBe("users_pkey");
@@ -574,7 +574,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_PrimaryKeyCommentChange_EmitsSetConstraintComment()
     {
-        var constraint = new PrimaryKeyDiff(ChangeKind.Modify, "users_pkey", null, new ValueChange<string>(null, "surrogate key"));
+        var constraint = PrimaryKeyDiff.CommentChanged("users_pkey", new ValueChange<string>(null, "surrogate key"));
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, primaryKey: [constraint]))
             .OfType<SetConstraintComment>().ShouldHaveSingleItem().NewComment.ShouldBe("surrogate key");
@@ -654,7 +654,7 @@ public sealed class PlanLinearizerTests
     {
         var plan = LinearizeTable(TableNode("users", ChangeKind.Modify,
             columns: [AddedColumn(new Column { Name = "id", Type = SqlType.Int })],
-            primaryKey: [new PrimaryKeyDiff(ChangeKind.Add, "users_pkey", new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] })]));
+            primaryKey: [PrimaryKeyDiff.Added(new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] })]));
 
         IndexOf<AddColumn>(plan).ShouldBeLessThan(IndexOf<AddPrimaryKey>(plan));
     }
@@ -664,8 +664,8 @@ public sealed class PlanLinearizerTests
     {
         var plan = LinearizeTable(TableNode("users", ChangeKind.Modify, primaryKey:
         [
-            new PrimaryKeyDiff(ChangeKind.Remove, "users_pkey", null),
-            new PrimaryKeyDiff(ChangeKind.Add, "users_pkey", new PrimaryKey { Name = "users_pkey", ColumnNames = ["id", "tenant"] }),
+            PrimaryKeyDiff.Removed("users_pkey"),
+            PrimaryKeyDiff.Added(new PrimaryKey { Name = "users_pkey", ColumnNames = ["id", "tenant"] }),
         ]));
 
         IndexOf<DropPrimaryKey>(plan).ShouldBeLessThan(IndexOf<AddPrimaryKey>(plan));
