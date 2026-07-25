@@ -60,8 +60,14 @@ public sealed class PlanLinearizerTests
     )
         => SchemaForKind(kind, name) with
         {
-            RenamedFrom = renamedFrom, Comment = comment, Grants = grants ?? [], Tables = tables ?? [],
-            Views = views ?? [], Enums = enums ?? [], Sequences = sequences ?? [], Routines = routines ?? [],
+            RenamedFrom = renamedFrom,
+            Comment = comment,
+            Grants = grants ?? [],
+            Tables = tables ?? [],
+            Views = views ?? [],
+            Enums = enums ?? [],
+            Sequences = sequences ?? [],
+            Routines = routines ?? [],
         };
 
     /// <summary>The empty diff for a schema kind (null = the schema itself is untouched).</summary>
@@ -92,11 +98,17 @@ public sealed class PlanLinearizerTests
         Table? definition = null)
         => ForKind(kind, schema, name, definition) with
         {
-            RenamedFrom = renamedFrom, Comment = comment,
-            Columns = columns ?? [], Grants = grants ?? [], Indexes = indexes ?? [],
-            PrimaryKeys = primaryKey ?? [], ForeignKeys = foreignKeys ?? [],
-            UniqueConstraints = uniqueConstraints ?? [], Checks = checks ?? [],
-            ExclusionConstraints = exclusionConstraints ?? [], Triggers = triggers ?? [],
+            RenamedFrom = renamedFrom,
+            Comment = comment,
+            Columns = columns ?? [],
+            Grants = grants ?? [],
+            Indexes = indexes ?? [],
+            PrimaryKeys = primaryKey ?? [],
+            ForeignKeys = foreignKeys ?? [],
+            UniqueConstraints = uniqueConstraints ?? [],
+            Checks = checks ?? [],
+            ExclusionConstraints = exclusionConstraints ?? [],
+            Triggers = triggers ?? [],
         };
 
     /// <summary>The empty diff for a kind, so a test can then set only the members it cares about.</summary>
@@ -129,8 +141,13 @@ public sealed class PlanLinearizerTests
             IsNullable = nullability?.New ?? false,
         }) with
         {
-            RenamedFrom = renamedFrom, Type = type, Nullability = nullability,
-            Default = @default, Identity = identity, Comment = comment, Generated = generated,
+            RenamedFrom = renamedFrom,
+            Type = type,
+            Nullability = nullability,
+            Default = @default,
+            Identity = identity,
+            Comment = comment,
+            Generated = generated,
         };
 
     private static ViewDiff AddView(string name, string schema = "app", params (string Schema, string Name)[] dependsOn)
@@ -370,7 +387,7 @@ public sealed class PlanLinearizerTests
         // linearizer emits no separate Add* action for it; a constraint comment still arrives on its own.
         var table = TableNode("orders", ChangeKind.Add,
             definition: new Table { Name = "orders" },
-            foreignKeys: [ForeignKeyDiff.Added(new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] })],
+            foreignKeys: [ForeignKeyDiff.Added(new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new ObjectAddress("app", "users"), ReferencedColumnNames = ["id"] })],
             uniqueConstraints: [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "orders_code_uq", ColumnNames = ["code"] })],
             checks: [CheckConstraintDiff.Added(new CheckConstraint { Name = "orders_total_chk", Expression = "total >= 0" })],
             exclusionConstraints: [ExclusionConstraintDiff.Added(new ExclusionConstraint { Name = "no_overlap", Elements = [new ExclusionElement("&&", "slot")], Method = "gist" })],
@@ -516,7 +533,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_AddForeignKey_EmitsAddForeignKey()
     {
-        var fk = new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] };
+        var fk = new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new ObjectAddress("app", "users"), ReferencedColumnNames = ["id"] };
         var constraint = ForeignKeyDiff.Added(fk);
 
         LinearizeTable(TableNode("orders", ChangeKind.Modify, foreignKeys: [constraint]))
@@ -733,7 +750,7 @@ public sealed class PlanLinearizerTests
         // A foreign key may target a unique constraint, so the constraint must be created first.
         var plan = LinearizeTable(TableNode("orders", ChangeKind.Modify,
             uniqueConstraints: [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "orders_code_uq", ColumnNames = ["code"] })],
-            foreignKeys: [ForeignKeyDiff.Added(new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] })]));
+            foreignKeys: [ForeignKeyDiff.Added(new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new ObjectAddress("app", "users"), ReferencedColumnNames = ["id"] })]));
 
         IndexOf<AddUniqueConstraint>(plan).ShouldBeLessThan(IndexOf<AddForeignKey>(plan));
     }

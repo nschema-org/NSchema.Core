@@ -1,5 +1,6 @@
 using NSchema.Diff.Model;
 using NSchema.Diff.Model.Constraints;
+using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.Indexes;
 using NSchema.Model.Schemas;
@@ -100,7 +101,7 @@ public partial class DatabaseComparerTests
         {
             Name = "orders",
             Columns = [new Column { Name = "id", Type = SqlType.Int }, new Column { Name = "user_id", Type = SqlType.Int }],
-            ForeignKeys = [new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] }],
+            ForeignKeys = [new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new ObjectAddress("app", "users"), ReferencedColumnNames = ["id"] }],
             Indexes = [new TableIndex { Name = "orders_user_ix", Columns = ["user_id"], Comment = "lookup" }],
             Grants = [new TableGrant("reader", TablePrivilege.Select)],
         };
@@ -108,7 +109,7 @@ public partial class DatabaseComparerTests
         var table = Compare(Db(new Schema { Name = "app" }),
             Db(new Schema { Name = "app", Tables = [desired] })).Schemas.Single().Tables.Single();
 
-        table.ForeignKeys.ShouldHaveSingleItem().ShouldBe(ForeignKeyDiff.Added(new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] }));
+        table.ForeignKeys.ShouldHaveSingleItem().ShouldBe(ForeignKeyDiff.Added(new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new ObjectAddress("app", "users"), ReferencedColumnNames = ["id"] }));
         table.Grants.ShouldHaveSingleItem().Privileges.ShouldBe(TablePrivilege.Select);
         // A new index carries both its definition and a folded comment change.
         table.Indexes.Select(i => i.Kind).ShouldBe([ChangeKind.Add, ChangeKind.Modify]);

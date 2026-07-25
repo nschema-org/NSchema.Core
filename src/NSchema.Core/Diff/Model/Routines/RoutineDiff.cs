@@ -57,7 +57,11 @@ public sealed record RoutineDiff : ISchemaObjectDiff
     /// </summary>
     public static RoutineDiff Added(SqlIdentifier schema, Routine definition) => new()
     {
-        Schema = schema, Name = definition.Name, Kind = ChangeKind.Add, Definition = definition, RoutineKind = definition.RoutineKind,
+        Schema = schema,
+        Name = definition.Name,
+        Kind = ChangeKind.Add,
+        Definition = definition,
+        RoutineKind = definition.RoutineKind,
         Comment = ValueChange.Between(null, definition.Comment),
     };
 

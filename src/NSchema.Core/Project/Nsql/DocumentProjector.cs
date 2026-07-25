@@ -78,7 +78,7 @@ internal static class DocumentProjector
             case Syn.Sequences.CreateSequenceStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
-                    schemas.AddSequence(schema, new Sequence { Name = name, Options = ProjectSequenceOptions(s.Options) ?? new(), Comment = s.Doc }, s.Name.Position);
+                    schemas.AddSequence(schema, new Sequence { Name = name, Options = ProjectSequenceOptions(s.Options) ?? new SequenceOptions(), Comment = s.Doc }, s.Name.Position);
                     break;
                 }
             case Syn.Extensions.CreateExtensionStatement s:

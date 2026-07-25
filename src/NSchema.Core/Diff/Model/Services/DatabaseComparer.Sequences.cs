@@ -29,7 +29,9 @@ internal sealed partial class DatabaseComparer
 
         return SequenceDiff.Modified(schema, desired.Name) with
         {
-            RenamedFrom = renamedFrom, Options = options, Comment = comment,
+            RenamedFrom = renamedFrom,
+            Options = options,
+            Comment = comment,
         };
     }
 }

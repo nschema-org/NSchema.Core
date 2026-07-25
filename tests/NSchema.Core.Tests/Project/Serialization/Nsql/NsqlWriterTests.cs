@@ -114,7 +114,7 @@ public sealed class NsqlWriterTests
         {
             Name = "orders",
             Columns = [new Column { Name = "user_id", Type = SqlType.Int }],
-            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"], OnDelete = ReferentialAction.Cascade, OnUpdate = ReferentialAction.SetNull }],
+            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["user_id"], References = new ObjectAddress("app", "users"), ReferencedColumnNames = ["id"], OnDelete = ReferentialAction.Cascade, OnUpdate = ReferentialAction.SetNull }],
         })
             .ShouldContain("CONSTRAINT fk FOREIGN KEY (user_id) REFERENCES app.users(id) ON DELETE CASCADE ON UPDATE SET NULL");
 
@@ -124,7 +124,7 @@ public sealed class NsqlWriterTests
         {
             Name = "orders",
             Columns = [new Column { Name = "user_id", Type = SqlType.Int }],
-            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] }],
+            ForeignKeys = [new ForeignKey { Name = "fk", ColumnNames = ["user_id"], References = new ObjectAddress("app", "users"), ReferencedColumnNames = ["id"] }],
         })
             .ShouldNotContain("ON DELETE");
 

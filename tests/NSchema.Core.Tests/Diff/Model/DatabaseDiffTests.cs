@@ -27,7 +27,7 @@ public sealed class DatabaseDiffTests
 
     private static DatabaseDiff WithChangeScript(ChangeScript change)
     {
-        var column = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text }) with{ MigrationScript = change };
+        var column = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text }) with { MigrationScript = change };
         var table = TableDiff.Modified("app", "users") with { Columns = [column] };
         return new DatabaseDiff([SchemaDiff.Containing("app") with { Tables = [table] }]);
     }
@@ -72,7 +72,7 @@ public sealed class DatabaseDiffTests
         new Schema { Name = "billing",
             Tables = [
                 new Table { Name = "orders", Columns = [new Column { Name = "id", Type = SqlType.Int }],
-                    ForeignKeys = [new ForeignKey { Name = "fk_orders_user", ColumnNames = ["id"], References = new("app", "users"), ReferencedColumnNames = ["id"] }] },
+                    ForeignKeys = [new ForeignKey { Name = "fk_orders_user", ColumnNames = ["id"], References = new ObjectAddress("app", "users"), ReferencedColumnNames = ["id"] }] },
             ],
             Views = [new View { Name = "summary", Body = "select * from app.users", DependsOn = [new ObjectAddress("app", "users")] }] },
     ],

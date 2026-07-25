@@ -10,13 +10,13 @@ using NSchema.Diff.Model.Tables;
 using NSchema.Diff.Model.Views;
 using NSchema.Model;
 using NSchema.Model.Columns;
-using NSchema.Model.Enums;
-using NSchema.Model.Sequences;
-using NSchema.Model.Views;
 using NSchema.Model.Constraints;
+using NSchema.Model.Enums;
 using NSchema.Model.Indexes;
 using NSchema.Model.Routines;
+using NSchema.Model.Sequences;
 using NSchema.Model.Tables;
+using NSchema.Model.Views;
 
 namespace NSchema.Tests.Diff.Model;
 

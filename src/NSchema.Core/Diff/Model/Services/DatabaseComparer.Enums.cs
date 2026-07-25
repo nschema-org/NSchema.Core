@@ -39,7 +39,10 @@ internal sealed partial class DatabaseComparer
 
         return EnumDiff.Modified(schema, desired.Name) with
         {
-            RenamedFrom = renamedFrom, AddedValues = additions ?? [], Values = values, Comment = comment,
+            RenamedFrom = renamedFrom,
+            AddedValues = additions ?? [],
+            Values = values,
+            Comment = comment,
         };
     }
 

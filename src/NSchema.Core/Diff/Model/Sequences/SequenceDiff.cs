@@ -52,7 +52,10 @@ public sealed record SequenceDiff : ISchemaObjectDiff
     /// </summary>
     public static SequenceDiff Added(SqlIdentifier schema, Sequence definition) => new()
     {
-        Schema = schema, Name = definition.Name, Kind = ChangeKind.Add, Definition = definition,
+        Schema = schema,
+        Name = definition.Name,
+        Kind = ChangeKind.Add,
+        Definition = definition,
         Comment = ValueChange.Between(null, definition.Comment),
     };
 

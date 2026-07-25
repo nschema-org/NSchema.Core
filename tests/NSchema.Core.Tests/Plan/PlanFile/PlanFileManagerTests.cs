@@ -24,7 +24,7 @@ public sealed class PlanFileManagerTests
         // statements with execution metadata, so the round-trip exercises the whole artifact.
         var backfill = new ChangeScript("backfill", "UPDATE app.users SET email = ''",
             new ChangeTarget("app", "users", "email", ChangeTrigger.AddColumn));
-        var email = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text }) with{ MigrationScript = backfill };
+        var email = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text }) with { MigrationScript = backfill };
         var key = PrimaryKeyDiff.Added(new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] });
         var users = TableDiff.Modified("app", "users") with
         {

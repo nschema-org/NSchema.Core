@@ -397,10 +397,11 @@ public sealed class DiffDocumentSnapshotTests
         var backfill = ChangeScript("backfill_emails", ChangeTrigger.AddColumn, "email");
         var retype = ChangeScript("retype_totals", ChangeTrigger.AlterColumnType, "total");
         var dedupe = ChangeScript("dedupe_emails", ChangeTrigger.AddConstraint, "users_email_uq");
-        var email = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text }) with{ MigrationScript = backfill };
+        var email = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text }) with { MigrationScript = backfill };
         var total = ColumnDiff.Modified(new Column { Name = "total", Type = SqlType.Int })
-            with { Type = new ValueChange<SqlType>(SqlType.Text, SqlType.Int), MigrationScript = retype };
-        var uq = UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] }) with{ MigrationScript = dedupe };
+            with
+        { Type = new ValueChange<SqlType>(SqlType.Text, SqlType.Int), MigrationScript = retype };
+        var uq = UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] }) with { MigrationScript = dedupe };
         var table = TableDiff.Modified("app", "users") with
         {
             Columns = [email, total],
@@ -422,7 +423,7 @@ public sealed class DiffDocumentSnapshotTests
     {
         var backfill = new ChangeScript("backfill_emails", "UPDATE app.users SET email = '';",
             new ChangeTarget("app", "users", "email", ChangeTrigger.AddColumn));
-        var email = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text }) with{ MigrationScript = backfill };
+        var email = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text }) with { MigrationScript = backfill };
         var table = TableDiff.Modified("app", "users") with { Columns = [email] };
         return new DatabaseDiff([SchemaDiff.Containing("app") with { Tables = [table] }])
         {

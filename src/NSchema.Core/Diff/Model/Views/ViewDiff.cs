@@ -73,9 +73,13 @@ public sealed record ViewDiff : ISchemaObjectDiff
     /// </summary>
     public static ViewDiff Added(SqlIdentifier schema, View definition) => new()
     {
-        Schema = schema, Name = definition.Name, Kind = ChangeKind.Add, Definition = definition,
+        Schema = schema,
+        Name = definition.Name,
+        Kind = ChangeKind.Add,
+        Definition = definition,
         Comment = ValueChange.Between(null, definition.Comment),
-        DependsOn = definition.DependsOn, IsMaterialized = definition.IsMaterialized,
+        DependsOn = definition.DependsOn,
+        IsMaterialized = definition.IsMaterialized,
     };
 
     /// <summary>

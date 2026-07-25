@@ -33,7 +33,9 @@ internal sealed partial class DatabaseComparer
 
         return CompositeTypeDiff.Modified(schema, desired.Name) with
         {
-            RenamedFrom = renamedFrom, Fields = fields, Comment = comment,
+            RenamedFrom = renamedFrom,
+            Fields = fields,
+            Comment = comment,
         };
     }
 

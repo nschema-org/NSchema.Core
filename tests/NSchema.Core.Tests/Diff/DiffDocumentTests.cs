@@ -36,7 +36,10 @@ public sealed class DiffDocumentTests
         IReadOnlyList<TableDiff>? tables = null
     ) => SchemaForKind(kind, name) with
     {
-        RenamedFrom = renamedFrom, Comment = comment, Grants = grants ?? [], Tables = tables ?? [],
+        RenamedFrom = renamedFrom,
+        Comment = comment,
+        Grants = grants ?? [],
+        Tables = tables ?? [],
     };
 
     /// <summary>The empty diff for a schema kind (null = the schema itself is untouched).</summary>
@@ -63,10 +66,15 @@ public sealed class DiffDocumentTests
         IReadOnlyList<CheckConstraintDiff>? checks = null)
         => ForKind(kind, schema, name) with
         {
-            RenamedFrom = renamedFrom, Comment = comment,
-            Columns = columns ?? [], Grants = grants ?? [], Indexes = indexes ?? [],
-            PrimaryKeys = primaryKey ?? [], ForeignKeys = foreignKeys ?? [],
-            UniqueConstraints = uniqueConstraints ?? [], Checks = checks ?? [],
+            RenamedFrom = renamedFrom,
+            Comment = comment,
+            Columns = columns ?? [],
+            Grants = grants ?? [],
+            Indexes = indexes ?? [],
+            PrimaryKeys = primaryKey ?? [],
+            ForeignKeys = foreignKeys ?? [],
+            UniqueConstraints = uniqueConstraints ?? [],
+            Checks = checks ?? [],
         };
 
     /// <summary>The empty diff for a kind, so a test can then set only the members it cares about.</summary>
@@ -97,8 +105,12 @@ public sealed class DiffDocumentTests
             IsNullable = nullability?.New ?? false,
         }) with
         {
-            RenamedFrom = renamedFrom, Type = type, Nullability = nullability,
-            Default = @default, Identity = identity, Comment = comment,
+            RenamedFrom = renamedFrom,
+            Type = type,
+            Nullability = nullability,
+            Default = @default,
+            Identity = identity,
+            Comment = comment,
         };
 
     /// <summary>Wraps a single table-changing schema (null schema kind) for brevity.</summary>
@@ -355,7 +367,8 @@ public sealed class DiffDocumentTests
     [Fact]
     public void From_ViewAdd_AppendsCommentSuffix()
         => ShouldHaveLine(WithView(ViewDiff.Added("app", new View { Name = "active_users", Body = "SELECT 1" })
-                with { Comment = new ValueChange<string>(null, "active") }), ChangeKind.Add, "view app.active_users (\"active\")");
+                with
+        { Comment = new ValueChange<string>(null, "active") }), ChangeKind.Add, "view app.active_users (\"active\")");
 
     [Fact]
     public void From_ViewBodyReplace_EmitsModifyHeader()

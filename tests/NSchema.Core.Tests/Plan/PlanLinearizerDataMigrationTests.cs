@@ -39,7 +39,7 @@ public sealed class PlanLinearizerDataMigrationTests
         // Arrange — a NOT NULL, no-default column with a matched backfill cannot land in one step against a
         // populated table: it is added nullable, backfilled, then tightened.
         var migration = Migration(ChangeTrigger.AddColumn, "email", name: "backfill_emails");
-        var column = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text }) with{ MigrationScript = migration };
+        var column = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text }) with { MigrationScript = migration };
 
         // Act
         var plan = LinearizeColumn(column);
@@ -63,7 +63,7 @@ public sealed class PlanLinearizerDataMigrationTests
     {
         // Arrange — a nullable add needs no decomposition: the column lands as declared, then the migration runs.
         var migration = Migration(ChangeTrigger.AddColumn, "email");
-        var column = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text, IsNullable = true }) with{ MigrationScript = migration };
+        var column = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text, IsNullable = true }) with { MigrationScript = migration };
 
         // Act
         var plan = LinearizeColumn(column);
@@ -90,7 +90,7 @@ public sealed class PlanLinearizerDataMigrationTests
             _ => new Column { Name = "email", Type = SqlType.Text, GeneratedExpression = "lower(name)" },
         };
         var migration = Migration(ChangeTrigger.AddColumn, "email");
-        var column = ColumnDiff.Added(definition) with{ MigrationScript = migration };
+        var column = ColumnDiff.Added(definition) with { MigrationScript = migration };
 
         // Act
         var plan = LinearizeColumn(column);
@@ -130,7 +130,8 @@ public sealed class PlanLinearizerDataMigrationTests
         // Arrange — the migration de-duplicates the data the constraint depends on.
         var migration = Migration(ChangeTrigger.AddConstraint, "users_email_uq");
         var constraint = UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] })
-        with{ MigrationScript = migration };
+        with
+        { MigrationScript = migration };
 
         // Act
         var plan = LinearizeTable(TableDiff.Modified("app", "users") with { UniqueConstraints = [constraint] });
@@ -147,11 +148,13 @@ public sealed class PlanLinearizerDataMigrationTests
         // Arrange — two annotated column adds; their migrations share a priority band, so the stable sort
         // preserves the diff's declaration order.
         var first = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text, IsNullable = true })
-        with{
+        with
+        {
             MigrationScript = Migration(ChangeTrigger.AddColumn, "email", name: "first"),
         };
         var second = ColumnDiff.Added(new Column { Name = "phone", Type = SqlType.Text, IsNullable = true })
-        with{
+        with
+        {
             MigrationScript = Migration(ChangeTrigger.AddColumn, "phone", name: "second"),
         };
 
@@ -172,7 +175,8 @@ public sealed class PlanLinearizerDataMigrationTests
             RunOutsideTransaction = true,
         };
         var constraint = PrimaryKeyDiff.Added(new PrimaryKey { Name = "users_pk", ColumnNames = ["id"] })
-            with { MigrationScript = migration };
+            with
+        { MigrationScript = migration };
 
         // Act
         var plan = LinearizeTable(TableDiff.Modified("app", "users") with { PrimaryKeys = [constraint] });

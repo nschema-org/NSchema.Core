@@ -47,7 +47,9 @@ public sealed record ExtensionDiff : INamedObjectDiff
     /// </summary>
     public static ExtensionDiff Added(Extension definition) => new()
     {
-        Name = definition.Name, Kind = ChangeKind.Add, Definition = definition,
+        Name = definition.Name,
+        Kind = ChangeKind.Add,
+        Definition = definition,
         Comment = ValueChange.Between(null, definition.Comment),
     };
 

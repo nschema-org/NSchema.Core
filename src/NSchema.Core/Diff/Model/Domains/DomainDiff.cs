@@ -69,7 +69,10 @@ public sealed record DomainDiff : ISchemaObjectDiff
     /// </summary>
     public static DomainDiff Added(SqlIdentifier schema, DomainType definition) => new()
     {
-        Schema = schema, Name = definition.Name, Kind = ChangeKind.Add, Definition = definition,
+        Schema = schema,
+        Name = definition.Name,
+        Kind = ChangeKind.Add,
+        Definition = definition,
         Comment = ValueChange.Between(null, definition.Comment),
     };
 

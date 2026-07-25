@@ -71,5 +71,5 @@ public sealed record PackageId : ValueObject<string>, IParsable<PackageId>
     /// Wraps the id. One-way: an id never converts silently back to a bare string.
     /// </summary>
     [return: NotNullIfNotNull(nameof(value))]
-    public static implicit operator PackageId?(string? value) => value is null ? null : new(value);
+    public static implicit operator PackageId?(string? value) => value is null ? null : new PackageId(value);
 }

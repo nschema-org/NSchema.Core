@@ -43,15 +43,15 @@ public sealed class PlanLinearizerSnapshotTests
         // table, view, enum and sequence (all dropped before the schema). Enough cross-kind work to exercise the
         // priority ordering and the view dependency sort.
         var newTable = TableDiff.Added("app", new Table
-            {
-                Name = "users",
-                PrimaryKey = new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] },
-                Columns = [
+        {
+            Name = "users",
+            PrimaryKey = new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] },
+            Columns = [
                     new Column { Name = "id", Type = SqlType.BigInt, IsIdentity = true, IdentityOptions = new IdentityOptions(1, 1, 1) },
                     new Column { Name = "name", Type = SqlType.VarChar(255) },
                 ],
-                UniqueConstraints = [new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] }],
-            }) with
+            UniqueConstraints = [new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] }],
+        }) with
         {
             Columns = [],
             Grants = [new GrantChange(ChangeKind.Add, "readers", TablePrivilege.Select)],
