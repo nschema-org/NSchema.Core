@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NSchema.Model;
 using NSchema.Model.Enums;
 
@@ -6,30 +7,82 @@ namespace NSchema.Diff.Model.Enums;
 /// <summary>
 /// Describes a change to an enum type.
 /// </summary>
-/// <param name="Schema">The name of the schema the enum belongs to.</param>
-/// <param name="Name">The enum name.</param>
-/// <param name="Kind">The change to the enum.</param>
-/// <param name="RenamedFrom">The previous enum name when the enum is being renamed; otherwise <see langword="null"/>.</param>
-/// <param name="Definition">The enum definition for an added enum; otherwise <see langword="null"/>.</param>
-/// <param name="AddedValues">The values being added for a value-compatible modification, in execution order.</param>
-/// <param name="Values">The change to the value list, set whenever it changed at all (including changes that
-/// cannot be planned), so drift can display it.</param>
-/// <param name="Comment">The change to the enum's comment, if any.</param>
-public sealed record EnumDiff(
-    SqlIdentifier Schema,
-    SqlIdentifier Name,
-    ChangeKind Kind,
-    SqlIdentifier? RenamedFrom = null,
-    EnumType? Definition = null,
-    IReadOnlyList<EnumValueAddition>? AddedValues = null,
-    ValueChange<IReadOnlyList<EnumLabel>>? Values = null,
-    ValueChange<string>? Comment = null
-) : ISchemaObjectDiff
+public sealed record EnumDiff : ISchemaObjectDiff
 {
+    [JsonConstructor]
+    private EnumDiff() { }
+
+    /// <summary>
+    /// The name of the schema the enum type belongs to.
+    /// </summary>
+    public required SqlIdentifier Schema { get; init; }
+
+    /// <summary>
+    /// The enum type name.
+    /// </summary>
+    public required SqlIdentifier Name { get; init; }
+
+    /// <summary>
+    /// The change to the enum type.
+    /// </summary>
+    public required ChangeKind Kind { get; init; }
+
+    /// <summary>
+    /// The previous name when renamed; otherwise <see langword="null"/>.
+    /// </summary>
+    public SqlIdentifier? RenamedFrom { get; init; }
+
+    /// <summary>
+    /// The definition for an added enum type; otherwise <see langword="null"/>.
+    /// </summary>
+    public EnumType? Definition { get; init; }
+
     /// <summary>
     /// The values being added for a value-compatible modification, in execution order.
     /// </summary>
-    public IReadOnlyList<EnumValueAddition> AddedValues { get; init; } = AddedValues ?? [];
+    public IReadOnlyList<EnumValueAddition> AddedValues { get; init; } = [];
+
+    /// <summary>
+    /// The change to the value list, set whenever it changed at all (including changes that cannot be planned), so drift can display it.
+    /// </summary>
+    public ValueChange<IReadOnlyList<EnumLabel>>? Values { get; init; }
+
+    /// <summary>
+    /// The change to the enum type's comment, if any.
+    /// </summary>
+    public ValueChange<string>? Comment { get; init; }
+
+    /// <summary>
+    /// An enum type being created, named by its own definition.
+    /// </summary>
+    public static EnumDiff Added(SqlIdentifier schema, EnumType definition) => new()
+    {
+        Schema = schema,
+        Name = definition.Name,
+        Kind = ChangeKind.Add,
+        Definition = definition,
+        Comment = ValueChange.Between(null, definition.Comment),
+    };
+
+    /// <summary>
+    /// An enum type being dropped.
+    /// </summary>
+    public static EnumDiff Removed(SqlIdentifier schema, SqlIdentifier name) => new()
+    {
+        Schema = schema,
+        Name = name,
+        Kind = ChangeKind.Remove
+    };
+
+    /// <summary>
+    /// An enum type altered in place; the individual changes are set on the result.
+    /// </summary>
+    public static EnumDiff Modified(SqlIdentifier schema, SqlIdentifier name) => new()
+    {
+        Schema = schema,
+        Name = name,
+        Kind = ChangeKind.Modify
+    };
 
     /// <summary>
     /// The value list changed but cannot be expressed as additions — a value was removed or reordered. Planning

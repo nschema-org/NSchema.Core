@@ -85,45 +85,47 @@ public sealed class PlanLinearizerSnapshotTests
         // reads active_users) is created after it.
         var views = new ViewDiff[]
         {
-            new("app", "user_summary", ChangeKind.Add,
-                Definition: new View { Name = "user_summary", Body = "SELECT * FROM app.active_users", DependsOn = [new ObjectAddress("app", "active_users")] },
-                DependsOn: [new ObjectAddress("app", "active_users")]),
-            new("app", "active_users", ChangeKind.Add,
-                Definition: new View { Name = "active_users", Body = "SELECT * FROM app.users", DependsOn = [new ObjectAddress("app", "users")] },
-                DependsOn: [new ObjectAddress("app", "users")]),
-            new("app", "report", ChangeKind.Modify, RenamedFrom: "legacy_report"),
-            new("app", "stale_view", ChangeKind.Remove),
+            ViewDiff.Added("app", new View { Name = "user_summary", Body = "SELECT * FROM app.active_users", DependsOn = [new ObjectAddress("app", "active_users")] }),
+            ViewDiff.Added("app", new View { Name = "active_users", Body = "SELECT * FROM app.users", DependsOn = [new ObjectAddress("app", "users")] }),
+            ViewDiff.Modified("app", "report") with { RenamedFrom = "legacy_report" },
+            ViewDiff.Removed("app", "stale_view"),
         };
 
         // Enums and sequences: additions (created before tables), an anchored value addition, a rename,
         // an options change, and drops (after tables, before the schema drop).
         var enums = new EnumDiff[]
         {
-            new("app", "order_status", ChangeKind.Add, Definition: new EnumType { Name = "order_status", Values = ["pending", "shipped"] }),
-            new("app", "priority", ChangeKind.Modify, RenamedFrom: "importance",
-                AddedValues: [new EnumValueAddition("medium", After: "low")]),
-            new("app", "stale_enum", ChangeKind.Remove),
+            EnumDiff.Added("app", new EnumType { Name = "order_status", Values = ["pending", "shipped"] }),
+            EnumDiff.Modified("app", "priority") with
+            {
+                RenamedFrom = "importance",
+                AddedValues = [new EnumValueAddition("medium", After: "low")],
+            },
+            EnumDiff.Removed("app", "stale_enum"),
         };
         var sequences = new SequenceDiff[]
         {
-            new("app", "order_id", ChangeKind.Add, Definition: new Sequence { Name = "order_id", Options = new SequenceOptions(StartWith: 100) }),
-            new("app", "ticket_id", ChangeKind.Modify,
-                Options: new ValueChange<SequenceOptions>(new SequenceOptions(StartWith: 1), new SequenceOptions(StartWith: 1000))),
-            new("app", "stale_seq", ChangeKind.Remove),
+            SequenceDiff.Added("app", new Sequence { Name = "order_id", Options = new SequenceOptions(StartWith: 100) }),
+            SequenceDiff.Modified("app", "ticket_id") with
+            {
+                Options = new ValueChange<SequenceOptions>(new SequenceOptions(StartWith: 1), new SequenceOptions(StartWith: 1000)),
+            },
+            SequenceDiff.Removed("app", "stale_seq"),
         };
 
         // Routines: an add, a rename + signature change (rename then recreate), drops, and a procedure.
         var routines = new RoutineDiff[]
         {
-            new("app", "add_tax", ChangeKind.Add, RoutineKind.Function,
-                Definition: new Routine { Name = "add_tax", RoutineKind = RoutineKind.Function, Arguments = "amount numeric", Definition = "RETURNS numeric AS $$ SELECT amount $$" }),
-            new("app", "score", ChangeKind.Modify, RoutineKind.Function, RenamedFrom: "old_score",
-                Definition: new Routine { Name = "score", RoutineKind = RoutineKind.Function, Arguments = "user_id bigint, weight numeric", Definition = "RETURNS numeric AS $$ SELECT 1 $$" },
-                Arguments: new ValueChange<SqlText>("user_id bigint", "user_id bigint, weight numeric")),
-            new("app", "stale_fn", ChangeKind.Remove, RoutineKind.Function),
-            new("app", "archive", ChangeKind.Add, RoutineKind.Procedure,
-                Definition: new Routine { Name = "archive", RoutineKind = RoutineKind.Procedure, Arguments = "before date", Definition = "LANGUAGE sql AS $$ DELETE $$" }),
-            new("app", "stale_proc", ChangeKind.Remove, RoutineKind.Procedure),
+            RoutineDiff.Added("app", new Routine { Name = "add_tax", RoutineKind = RoutineKind.Function, Arguments = "amount numeric", Definition = "RETURNS numeric AS $$ SELECT amount $$" }),
+            RoutineDiff.Modified("app", "score", RoutineKind.Function) with
+            {
+                RenamedFrom = "old_score",
+                Definition = new Routine { Name = "score", RoutineKind = RoutineKind.Function, Arguments = "user_id bigint, weight numeric", Definition = "RETURNS numeric AS $$ SELECT 1 $$" },
+                Arguments = new ValueChange<SqlText>("user_id bigint", "user_id bigint, weight numeric"),
+            },
+            RoutineDiff.Removed("app", "stale_fn", RoutineKind.Function),
+            RoutineDiff.Added("app", new Routine { Name = "archive", RoutineKind = RoutineKind.Procedure, Arguments = "before date", Definition = "LANGUAGE sql AS $$ DELETE $$" }),
+            RoutineDiff.Removed("app", "stale_proc", RoutineKind.Procedure),
         };
 
         var diff = new DatabaseDiff(
@@ -147,9 +149,9 @@ public sealed class PlanLinearizerSnapshotTests
                 {
                     Grants = [],
                     Tables = [TableDiff.Removed("scratch", "temp_data")],
-                    Views = [new ViewDiff("scratch", "temp_view", ChangeKind.Remove)],
-                    Enums = [new EnumDiff("scratch", "temp_status", ChangeKind.Remove)],
-                    Sequences = [new SequenceDiff("scratch", "temp_seq", ChangeKind.Remove)],
+                    Views = [ViewDiff.Removed("scratch", "temp_view")],
+                    Enums = [EnumDiff.Removed("scratch", "temp_status")],
+                    Sequences = [SequenceDiff.Removed("scratch", "temp_seq")],
                 },
             ]);
 

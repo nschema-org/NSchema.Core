@@ -23,7 +23,7 @@ public sealed class PlanLinearizerExtensionTests
     public void CreateExtension_IsEmittedBeforeSchemaCreation()
     {
         var actions = _linearizer.Linearize(Diff(
-            [new ExtensionDiff("citext", ChangeKind.Add, Definition: new Extension { Name = "citext" })],
+            [ExtensionDiff.Added(new Extension { Name = "citext" })],
             SchemaDiff.Added("app")));
 
         var createExtension = actions.Select((a, i) => (a, i)).Single(x => x.a is CreateExtension).i;
@@ -35,7 +35,7 @@ public sealed class PlanLinearizerExtensionTests
     public void DropExtension_IsEmittedAfterSchemaDrop()
     {
         var actions = _linearizer.Linearize(Diff(
-            [new ExtensionDiff("citext", ChangeKind.Remove)],
+            [ExtensionDiff.Removed("citext")],
             SchemaDiff.Removed("app")));
 
         var dropExtension = actions.Select((a, i) => (a, i)).Single(x => x.a is DropExtension).i;
@@ -47,8 +47,7 @@ public sealed class PlanLinearizerExtensionTests
     public void AddedExtension_WithComment_EmitsCreateThenSetComment()
     {
         var actions = _linearizer.Linearize(Diff(
-            [new ExtensionDiff("postgis", ChangeKind.Add, Definition: new Extension { Name = "postgis", Comment = "gis" },
-                Comment: new ValueChange<string>(null, "gis"))]));
+            [ExtensionDiff.Added(new Extension { Name = "postgis", Comment = "gis" }) with { Comment = new ValueChange<string>(null, "gis") }]));
 
         actions.OfType<CreateExtension>().ShouldHaveSingleItem().Extension.Name.ShouldBe("postgis");
         actions.OfType<SetExtensionComment>().ShouldHaveSingleItem().NewComment.ShouldBe("gis");
@@ -58,7 +57,7 @@ public sealed class PlanLinearizerExtensionTests
     public void ModifiedExtension_VersionChange_EmitsAlterExtension()
     {
         var actions = _linearizer.Linearize(Diff(
-            [new ExtensionDiff("postgis", ChangeKind.Modify, Version: new ValueChange<string>("3.3", "3.4"))]));
+            [ExtensionDiff.Modified("postgis") with { Version = new ValueChange<string>("3.3", "3.4") }]));
 
         var alter = actions.OfType<AlterExtension>().ShouldHaveSingleItem();
         alter.OldVersion.ShouldBe("3.3");

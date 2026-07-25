@@ -17,13 +17,11 @@ internal sealed partial class DatabaseComparer
     ) =>
         CompareObjects(current, desired,
             _ => null,
-            extension => new ExtensionDiff(extension.Name, ChangeKind.Remove),
+            extension => ExtensionDiff.Removed(extension.Name),
             BuildNewExtension,
             (currentExtension, desiredExtension, _) => BuildModifiedExtension(currentExtension, desiredExtension));
 
-    private static ExtensionDiff BuildNewExtension(Extension extension) =>
-        new(extension.Name, ChangeKind.Add, Definition: extension,
-            Comment: ValueChange.Between(null, extension.Comment));
+    private static ExtensionDiff BuildNewExtension(Extension extension) => ExtensionDiff.Added(extension);
 
     private static ExtensionDiff? BuildModifiedExtension(Extension current, Extension desired)
     {
@@ -37,6 +35,6 @@ internal sealed partial class DatabaseComparer
             return null;
         }
 
-        return new ExtensionDiff(desired.Name, ChangeKind.Modify, null, version, comment);
+        return ExtensionDiff.Modified(desired.Name) with { Version = version, Comment = comment };
     }
 }

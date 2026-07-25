@@ -350,43 +350,48 @@ public sealed class DiffDocumentTests
 
     [Fact]
     public void From_ViewAdd_EmitsSchemaObjectAddress()
-        => ShouldHaveLine(WithView(new ViewDiff("app", "active_users", ChangeKind.Add, Definition: new View { Name = "active_users", Body = "SELECT 1" })), ChangeKind.Add, "view app.active_users");
+        => ShouldHaveLine(WithView(ViewDiff.Added("app", new View { Name = "active_users", Body = "SELECT 1" })), ChangeKind.Add, "view app.active_users");
 
     [Fact]
     public void From_ViewAdd_AppendsCommentSuffix()
-        => ShouldHaveLine(WithView(new ViewDiff("app", "active_users", ChangeKind.Add,
-                Definition: new View { Name = "active_users", Body = "SELECT 1" }, Comment: new ValueChange<string>(null, "active"))), ChangeKind.Add, "view app.active_users (\"active\")");
+        => ShouldHaveLine(WithView(ViewDiff.Added("app", new View { Name = "active_users", Body = "SELECT 1" })
+                with { Comment = new ValueChange<string>(null, "active") }), ChangeKind.Add, "view app.active_users (\"active\")");
 
     [Fact]
     public void From_ViewBodyReplace_EmitsModifyHeader()
-        => ShouldHaveLine(WithView(new ViewDiff("app", "daily_totals", ChangeKind.Modify,
-                Definition: new View { Name = "daily_totals", Body = "SELECT sum(x) FROM app.sales" })), ChangeKind.Modify, "view app.daily_totals");
+        => ShouldHaveLine(WithView(ViewDiff.Modified("app", "daily_totals") with { Definition = new View { Name = "daily_totals", Body = "SELECT sum(x) FROM app.sales" } }), ChangeKind.Modify, "view app.daily_totals");
 
     [Fact]
     public void From_ViewCommentOnlyChange_EmitsCommentDiff()
-        => ShouldHaveLine(WithView(new ViewDiff("app", "summary", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new"))), ChangeKind.Modify, "view app.summary comment: \"old\" → \"new\"");
+        => ShouldHaveLine(WithView(ViewDiff.Modified("app", "summary") with { Comment = new ValueChange<string>("old", "new") }), ChangeKind.Modify, "view app.summary comment: \"old\" → \"new\"");
 
     [Fact]
     public void From_ViewRename_EmitsArrowWithSchemaQualifier()
-        => ShouldHaveLine(WithView(new ViewDiff("app", "report", ChangeKind.Modify, RenamedFrom: "legacy_report")), ChangeKind.Modify, "view app.legacy_report → report");
+        => ShouldHaveLine(WithView(ViewDiff.Modified("app", "report") with { RenamedFrom = "legacy_report" }), ChangeKind.Modify, "view app.legacy_report → report");
 
     [Fact]
     public void From_ViewToMaterializedFlip_EmitsLabelTransition()
-        => ShouldHaveLine(WithView(new ViewDiff("app", "totals", ChangeKind.Modify,
-                Definition: new View { Name = "totals", Body = "SELECT 1", IsMaterialized = true }, IsMaterialized: true,
-                Materialized: new ValueChange<bool>(false, true), RequiresRecreate: true)),
+        => ShouldHaveLine(WithView(ViewDiff.Modified("app", "totals") with
+        {
+            Definition = new View { Name = "totals", Body = "SELECT 1", IsMaterialized = true },
+            IsMaterialized = true,
+            Materialized = new ValueChange<bool>(false, true),
+            RequiresRecreate = true,
+        }),
             ChangeKind.Modify, "view → materialized view app.totals");
 
     [Fact]
     public void From_MaterializedToViewFlip_EmitsLabelTransition()
-        => ShouldHaveLine(WithView(new ViewDiff("app", "totals", ChangeKind.Modify,
-                Definition: new View { Name = "totals", Body = "SELECT 1" },
-                Materialized: new ValueChange<bool>(true, false), RequiresRecreate: true)),
+        => ShouldHaveLine(WithView(ViewDiff.Modified("app", "totals") with
+        {
+            Materialized = new ValueChange<bool>(true, false),
+            RequiresRecreate = true,
+        }),
             ChangeKind.Modify, "materialized view → view app.totals");
 
     [Fact]
     public void From_ViewRemove_EmitsRemoveHeader()
-        => ShouldHaveLine(WithView(new ViewDiff("app", "stale_view", ChangeKind.Remove)), ChangeKind.Remove, "view app.stale_view");
+        => ShouldHaveLine(WithView(ViewDiff.Removed("app", "stale_view")), ChangeKind.Remove, "view app.stale_view");
 
     // -------------------------------------------------------------------------
     // Document shape

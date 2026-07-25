@@ -28,21 +28,22 @@ public sealed class PlanLinearizerDomainTests
 
     [Fact]
     public void AddedDomain_EmitsCreateDomain()
-        => Linearize(new DomainDiff("app", "d", ChangeKind.Add, Definition: new DomainType { Name = "d", DataType = SqlType.Text }))
+        => Linearize(DomainDiff.Added("app", new DomainType { Name = "d", DataType = SqlType.Text }))
             .ShouldHaveSingleItem().ShouldBeOfType<CreateDomain>().DomainType.Name.ShouldBe("d");
 
     [Fact]
     public void BaseTypeChange_EmitsRecreateDomain()
-        => Linearize(new DomainDiff("app", "d", ChangeKind.Modify, Definition: new DomainType { Name = "d", DataType = SqlType.Int },
-                DataType: new ValueChange<SqlType>(SqlType.Text, SqlType.Int)))
+        => Linearize(DomainDiff.Modified("app", "d") with { Definition = new DomainType { Name = "d", DataType = SqlType.Int }, DataType = new ValueChange<SqlType>(SqlType.Text, SqlType.Int) })
             .ShouldHaveSingleItem().ShouldBeOfType<RecreateDomain>();
 
     [Fact]
     public void DefaultAndNotNullChange_EmitInPlaceAlters()
     {
-        var plan = Linearize(new DomainDiff("app", "d", ChangeKind.Modify,
-            Default: new ValueChange<SqlDefaultExpression>(null, "0"),
-            NotNull: new ValueChange<bool>(false, true)));
+        var plan = Linearize(DomainDiff.Modified("app", "d") with
+        {
+            Default = new ValueChange<SqlDefaultExpression>(null, "0"),
+            NotNull = new ValueChange<bool>(false, true),
+        });
 
         plan.OfType<RecreateDomain>().ShouldBeEmpty();
         plan.OfType<AlterDomainDefault>().ShouldHaveSingleItem().NewDefault.ShouldBe("0");
@@ -52,11 +53,13 @@ public sealed class PlanLinearizerDomainTests
     [Fact]
     public void CheckChanges_EmitAddAndDropDomainCheck()
     {
-        var plan = Linearize(new DomainDiff("app", "d", ChangeKind.Modify, Checks:
-        [
+        var plan = Linearize(DomainDiff.Modified("app", "d") with
+        {
+            Checks = [
             CheckConstraintDiff.Added(new CheckConstraint { Name = "new_chk", Expression = "VALUE > 0" }),
             CheckConstraintDiff.Removed("old_chk"),
-        ]));
+        ],
+        });
 
         plan.OfType<AddDomainCheck>().ShouldHaveSingleItem().Check.Name.ShouldBe("new_chk");
         plan.OfType<DropDomainCheck>().ShouldHaveSingleItem().Check.Member.ShouldBe("old_chk");
@@ -69,7 +72,7 @@ public sealed class PlanLinearizerDomainTests
         var plan = _linearizer.Linearize(new DatabaseDiff([SchemaDiff.Added("app") with
         {
             Tables = [TableDiff.Added("app", new Table { Name = "t" })],
-            Domains = [new DomainDiff("app", "d", ChangeKind.Add, Definition: new DomainType { Name = "d", DataType = SqlType.Text })],
+            Domains = [DomainDiff.Added("app", new DomainType { Name = "d", DataType = SqlType.Text })],
         }]));
 
         var createDomain = plan.Select((a, i) => (a, i)).Single(x => x.a is CreateDomain).i;

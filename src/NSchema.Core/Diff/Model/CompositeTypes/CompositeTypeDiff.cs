@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NSchema.Model;
 using NSchema.Model.CompositeTypes;
 
@@ -6,25 +7,75 @@ namespace NSchema.Diff.Model.CompositeTypes;
 /// <summary>
 /// Describes a change to a composite type.
 /// </summary>
-/// <param name="Schema">The name of the schema the composite type belongs to.</param>
-/// <param name="Name">The composite type name.</param>
-/// <param name="Kind">The change to the composite type.</param>
-/// <param name="RenamedFrom">The previous name when the type is being renamed; otherwise <see langword="null"/>.</param>
-/// <param name="Definition">The full definition for an added type (its fields are created inline); otherwise <see langword="null"/>.</param>
-/// <param name="Fields">In-place field changes (added/dropped/retyped via <c>ALTER TYPE</c>) on an existing type.</param>
-/// <param name="Comment">The change to the type's comment, if any.</param>
-public sealed record CompositeTypeDiff(
-    SqlIdentifier Schema,
-    SqlIdentifier Name,
-    ChangeKind Kind,
-    SqlIdentifier? RenamedFrom = null,
-    CompositeType? Definition = null,
-    IReadOnlyList<CompositeFieldDiff>? Fields = null,
-    ValueChange<string>? Comment = null
-) : ISchemaObjectDiff
+public sealed record CompositeTypeDiff : ISchemaObjectDiff
 {
+    [JsonConstructor]
+    private CompositeTypeDiff() { }
+
     /// <summary>
-    /// In-place field changes on an existing composite type; empty on an add (the fields ride on the definition).
+    /// The name of the schema the composite type belongs to.
     /// </summary>
-    public IReadOnlyList<CompositeFieldDiff> Fields { get; init; } = Fields ?? [];
+    public required SqlIdentifier Schema { get; init; }
+
+    /// <summary>
+    /// The composite type name.
+    /// </summary>
+    public required SqlIdentifier Name { get; init; }
+
+    /// <summary>
+    /// The change to the composite type.
+    /// </summary>
+    public required ChangeKind Kind { get; init; }
+
+    /// <summary>
+    /// The previous name when renamed; otherwise <see langword="null"/>.
+    /// </summary>
+    public SqlIdentifier? RenamedFrom { get; init; }
+
+    /// <summary>
+    /// The definition for an added composite type; otherwise <see langword="null"/>.
+    /// </summary>
+    public CompositeType? Definition { get; init; }
+
+    /// <summary>
+    /// In-place field changes (added/dropped/retyped via <c>ALTER TYPE</c>) on an existing type.
+    /// </summary>
+    public IReadOnlyList<CompositeFieldDiff> Fields { get; init; } = [];
+
+    /// <summary>
+    /// The change to the composite type's comment, if any.
+    /// </summary>
+    public ValueChange<string>? Comment { get; init; }
+
+    /// <summary>
+    /// A composite type being created, named by its own definition.
+    /// </summary>
+    public static CompositeTypeDiff Added(SqlIdentifier schema, CompositeType definition) => new()
+    {
+        Schema = schema,
+        Name = definition.Name,
+        Kind = ChangeKind.Add,
+        Definition = definition,
+        Comment = ValueChange.Between(null, definition.Comment),
+    };
+
+    /// <summary>
+    /// A composite type being dropped.
+    /// </summary>
+    public static CompositeTypeDiff Removed(SqlIdentifier schema, SqlIdentifier name) => new()
+    {
+        Schema = schema,
+        Name = name,
+        Kind = ChangeKind.Remove
+    };
+
+    /// <summary>
+    /// A composite type altered in place; the individual changes are set on the result.
+    /// </summary>
+    public static CompositeTypeDiff Modified(SqlIdentifier schema, SqlIdentifier name) => new()
+    {
+        Schema = schema,
+        Name = name,
+        Kind = ChangeKind.Modify
+    };
 }

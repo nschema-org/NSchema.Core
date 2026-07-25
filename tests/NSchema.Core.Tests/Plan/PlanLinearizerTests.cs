@@ -137,11 +137,11 @@ public sealed class PlanLinearizerTests
     {
         var deps = dependsOn.Select(d => new ObjectAddress(d.Schema, d.Name)).ToList();
         var view = new View { Name = name, Body = $"SELECT * FROM source_of_{name}", DependsOn = deps };
-        return new ViewDiff(schema, name, ChangeKind.Add, Definition: view, DependsOn: deps);
+        return ViewDiff.Added(schema, view) with { DependsOn = deps };
     }
 
     private static ViewDiff RemoveView(string name, string schema = "app", params (string Schema, string Name)[] dependsOn)
-        => new(schema, name, ChangeKind.Remove, DependsOn: dependsOn.Select(d => new ObjectAddress(d.Schema, d.Name)).ToList());
+        => ViewDiff.Removed(schema, name) with { DependsOn = [.. dependsOn.Select(d => new ObjectAddress(d.Schema, d.Name))] };
 
     private static TableDiff AddTable(string name, string schema = "app")
         => TableDiff.Added(schema, new Table { Name = name });
@@ -814,7 +814,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_EmitsRenameViewForRenamedView()
     {
-        var plan = Linearize(SchemaNode("app", views: [new ViewDiff("app", "active", ChangeKind.Modify, RenamedFrom: "legacy")]));
+        var plan = Linearize(SchemaNode("app", views: [ViewDiff.Modified("app", "active") with { RenamedFrom = "legacy" }]));
 
         var rename = plan.OfType<RenameView>().ShouldHaveSingleItem();
         rename.View.Name.ShouldBe("legacy");
@@ -826,7 +826,7 @@ public sealed class PlanLinearizerTests
     public void Linearize_EmitsSetViewCommentForCommentChange()
     {
         var plan = Linearize(SchemaNode("app", views:
-            [new ViewDiff("app", "active", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new"))]));
+            [ViewDiff.Modified("app", "active") with { Comment = new ValueChange<string>("old", "new") }]));
 
         var comment = plan.OfType<SetViewComment>().ShouldHaveSingleItem();
         comment.View.Name.ShouldBe("active");
@@ -851,21 +851,21 @@ public sealed class PlanLinearizerTests
     public void Linearize_AddEnum_EmitsCreateEnumFromDefinition()
     {
         var plan = Linearize(SchemaNode("app", enums:
-            [new EnumDiff("app", "status", ChangeKind.Add, Definition: new EnumType { Name = "status", Values = ["a", "b"] })]));
+            [EnumDiff.Added("app", new EnumType { Name = "status", Values = ["a", "b"] })]));
 
         plan.ShouldHaveSingleItem().ShouldBeOfType<CreateEnum>().Enum.Values.ShouldBe(["a", "b"]);
     }
 
     [Fact]
     public void Linearize_RemoveEnum_EmitsDropEnum()
-        => Linearize(SchemaNode("app", enums: [new EnumDiff("app", "status", ChangeKind.Remove)]))
+        => Linearize(SchemaNode("app", enums: [EnumDiff.Removed("app", "status")]))
             .ShouldHaveSingleItem().ShouldBeOfType<DropEnum>().Enum.Name.ShouldBe("status");
 
     [Fact]
     public void Linearize_RenamedEnum_EmitsRenameEnum_NotCreateOrDrop()
     {
         var plan = Linearize(SchemaNode("app", enums:
-            [new EnumDiff("app", "status", ChangeKind.Modify, RenamedFrom: "state")]));
+            [EnumDiff.Modified("app", "status") with { RenamedFrom = "state" }]));
 
         plan.ShouldHaveSingleItem().ShouldBeOfType<RenameEnum>()
             .ShouldSatisfyAllConditions(r => r.Enum.Name.ShouldBe("state"), r => r.NewName.ShouldBe("status"));
@@ -876,11 +876,13 @@ public sealed class PlanLinearizerTests
     {
         var plan = Linearize(SchemaNode("app", enums:
         [
-            new EnumDiff("app", "status", ChangeKind.Modify, AddedValues:
-            [
+            EnumDiff.Modified("app", "status") with
+            {
+                AddedValues = [
                 new EnumValueAddition("a", Before: "c"),
                 new EnumValueAddition("b", After: "a"),
-            ]),
+            ],
+            },
         ]));
 
         var additions = plan.OfType<AddEnumValue>().ToList();
@@ -891,7 +893,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_EnumComment_EmitsSetEnumComment()
         => Linearize(SchemaNode("app", enums:
-            [new EnumDiff("app", "status", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new"))]))
+            [EnumDiff.Modified("app", "status") with { Comment = new ValueChange<string>("old", "new") }]))
             .ShouldHaveSingleItem().ShouldBeOfType<SetEnumComment>()
             .ShouldSatisfyAllConditions(c => c.OldComment.ShouldBe("old"), c => c.NewComment.ShouldBe("new"));
 
@@ -902,8 +904,10 @@ public sealed class PlanLinearizerTests
         // EnumValueRemovalDiffPolicy fails the run at the workflow level instead.
         var plan = Linearize(SchemaNode("app", enums:
         [
-            new EnumDiff("app", "status", ChangeKind.Modify,
-                Values: new ValueChange<IReadOnlyList<EnumLabel>>(["a", "b"], ["a"])),
+            EnumDiff.Modified("app", "status") with
+            {
+                Values = new ValueChange<IReadOnlyList<EnumLabel>>(["a", "b"], ["a"]),
+            },
         ]));
 
         plan.ShouldBeEmpty();
@@ -917,20 +921,20 @@ public sealed class PlanLinearizerTests
     public void Linearize_AddSequence_EmitsCreateSequenceFromDefinition()
     {
         var plan = Linearize(SchemaNode("app", sequences:
-            [new SequenceDiff("app", "order_id", ChangeKind.Add, Definition: new Sequence { Name = "order_id", Options = new SequenceOptions(StartWith: 100) })]));
+            [SequenceDiff.Added("app", new Sequence { Name = "order_id", Options = new SequenceOptions(StartWith: 100) })]));
 
         plan.ShouldHaveSingleItem().ShouldBeOfType<CreateSequence>().Sequence.Options.StartWith.ShouldBe(100);
     }
 
     [Fact]
     public void Linearize_RemoveSequence_EmitsDropSequence()
-        => Linearize(SchemaNode("app", sequences: [new SequenceDiff("app", "order_id", ChangeKind.Remove)]))
+        => Linearize(SchemaNode("app", sequences: [SequenceDiff.Removed("app", "order_id")]))
             .ShouldHaveSingleItem().ShouldBeOfType<DropSequence>().Sequence.Name.ShouldBe("order_id");
 
     [Fact]
     public void Linearize_RenamedSequence_EmitsRenameSequence()
         => Linearize(SchemaNode("app", sequences:
-            [new SequenceDiff("app", "invoice_id", ChangeKind.Modify, RenamedFrom: "bill_id")]))
+            [SequenceDiff.Modified("app", "invoice_id") with { RenamedFrom = "bill_id" }]))
             .ShouldHaveSingleItem().ShouldBeOfType<RenameSequence>()
             .ShouldSatisfyAllConditions(r => r.Sequence.Name.ShouldBe("bill_id"), r => r.NewName.ShouldBe("invoice_id"));
 
@@ -940,7 +944,7 @@ public sealed class PlanLinearizerTests
         var options = new ValueChange<SequenceOptions>(
             new SequenceOptions(StartWith: 1), new SequenceOptions(StartWith: 100));
 
-        Linearize(SchemaNode("app", sequences: [new SequenceDiff("app", "order_id", ChangeKind.Modify, Options: options)]))
+        Linearize(SchemaNode("app", sequences: [SequenceDiff.Modified("app", "order_id") with { Options = options }]))
             .ShouldHaveSingleItem().ShouldBeOfType<AlterSequence>()
             .ShouldSatisfyAllConditions(
                 a => a.OldOptions.StartWith.ShouldBe(1),
@@ -950,7 +954,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_SequenceComment_EmitsSetSequenceComment()
         => Linearize(SchemaNode("app", sequences:
-            [new SequenceDiff("app", "order_id", ChangeKind.Modify, Comment: new ValueChange<string>(null, "order numbers"))]))
+            [SequenceDiff.Modified("app", "order_id") with { Comment = new ValueChange<string>(null, "order numbers") }]))
             .ShouldHaveSingleItem().ShouldBeOfType<SetSequenceComment>().NewComment.ShouldBe("order numbers");
 
     // -------------------------------------------------------------------------
@@ -963,8 +967,8 @@ public sealed class PlanLinearizerTests
         // A column may use the enum type and a default may call the sequence, so both exist first.
         var plan = Linearize(SchemaNode("app", ChangeKind.Add,
             tables: [TableNode("users", ChangeKind.Add, definition: new Table { Name = "users" })],
-            enums: [new EnumDiff("app", "status", ChangeKind.Add, Definition: new EnumType { Name = "status", Values = ["a"] })],
-            sequences: [new SequenceDiff("app", "order_id", ChangeKind.Add, Definition: new Sequence { Name = "order_id" })]));
+            enums: [EnumDiff.Added("app", new EnumType { Name = "status", Values = ["a"] })],
+            sequences: [SequenceDiff.Added("app", new Sequence { Name = "order_id" })]));
 
         IndexOf<CreateSchema>(plan).ShouldBeLessThan(IndexOf<CreateEnum>(plan));
         IndexOf<CreateEnum>(plan).ShouldBeLessThan(IndexOf<CreateTable>(plan));
@@ -985,7 +989,7 @@ public sealed class PlanLinearizerTests
                         @default: new ValueChange<SqlDefaultExpression>(null, "'a'")),
                 ]),
             ],
-            enums: [new EnumDiff("app", "status", ChangeKind.Modify, AddedValues: [new EnumValueAddition("a")])]));
+            enums: [EnumDiff.Modified("app", "status") with { AddedValues = [new EnumValueAddition("a")] }]));
 
         IndexOf<AddEnumValue>(plan).ShouldBeLessThan(IndexOf<AlterColumn>(plan));
         IndexOf<AddEnumValue>(plan).ShouldBeLessThan(IndexOf<SetColumnDefault>(plan));
@@ -997,8 +1001,8 @@ public sealed class PlanLinearizerTests
         var plan = Linearize(
             SchemaNode("app",
                 tables: [TableNode("users", ChangeKind.Remove)],
-                enums: [new EnumDiff("app", "status", ChangeKind.Remove)],
-                sequences: [new SequenceDiff("app", "order_id", ChangeKind.Remove)]),
+                enums: [EnumDiff.Removed("app", "status")],
+                sequences: [SequenceDiff.Removed("app", "order_id")]),
             SchemaNode("scratch", ChangeKind.Remove));
 
         IndexOf<DropTable>(plan).ShouldBeLessThan(IndexOf<DropEnum>(plan));
@@ -1013,7 +1017,7 @@ public sealed class PlanLinearizerTests
         // A new table's columns reference the enum by its new name, so the rename must land first.
         var plan = Linearize(SchemaNode("app",
             tables: [TableNode("users", ChangeKind.Add, definition: new Table { Name = "users" })],
-            enums: [new EnumDiff("app", "status", ChangeKind.Modify, RenamedFrom: "state")]));
+            enums: [EnumDiff.Modified("app", "status") with { RenamedFrom = "state" }]));
 
         IndexOf<RenameEnum>(plan).ShouldBeLessThan(IndexOf<CreateTable>(plan));
     }
@@ -1027,12 +1031,12 @@ public sealed class PlanLinearizerTests
 
     [Fact]
     public void Linearize_AddFunction_EmitsCreateRoutineFromDefinition()
-        => Linearize(SchemaNode("app", routines: [new RoutineDiff("app", "f", ChangeKind.Add, RoutineKind.Function, Definition: _fn)]))
+        => Linearize(SchemaNode("app", routines: [RoutineDiff.Added("app", _fn)]))
             .ShouldHaveSingleItem().ShouldBeOfType<CreateRoutine>().Routine.Arguments.ShouldBe("a int");
 
     [Fact]
     public void Linearize_RemoveRoutine_EmitsDropRoutine()
-        => Linearize(SchemaNode("app", routines: [new RoutineDiff("app", "f", ChangeKind.Remove, RoutineKind.Function)]))
+        => Linearize(SchemaNode("app", routines: [RoutineDiff.Removed("app", "f", RoutineKind.Function)]))
             .ShouldHaveSingleItem().ShouldBeOfType<DropRoutine>().Routine.Name.ShouldBe("f");
 
     [Fact]
@@ -1040,7 +1044,7 @@ public sealed class PlanLinearizerTests
     {
         // A definition-only change replaces in place (CREATE OR REPLACE semantics, like a view body change).
         var plan = Linearize(SchemaNode("app", routines:
-            [new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function, Definition: _fn)]));
+            [RoutineDiff.Modified("app", "f", RoutineKind.Function) with { Definition = _fn }]));
 
         plan.ShouldHaveSingleItem().ShouldBeOfType<CreateRoutine>();
         plan.OfType<RecreateRoutine>().ShouldBeEmpty();
@@ -1049,14 +1053,16 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_RoutineSignatureChange_EmitsRecreateRoutine()
         => Linearize(SchemaNode("app", routines:
-            [new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function, Definition: _fn,
-                Arguments: new ValueChange<SqlText>("a int", "a int, b text"))]))
+            [RoutineDiff.Modified("app", "f", RoutineKind.Function) with
+            {
+                Arguments = new ValueChange<SqlText>("a int", "a int, b text"),
+            }]))
             .ShouldHaveSingleItem().ShouldBeOfType<RecreateRoutine>();
 
     [Fact]
     public void Linearize_RenamedRoutine_EmitsRenameRoutine()
         => Linearize(SchemaNode("app", routines:
-            [new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function, RenamedFrom: "old_f")]))
+            [RoutineDiff.Modified("app", "f", RoutineKind.Function) with { RenamedFrom = "old_f" }]))
             .ShouldHaveSingleItem().ShouldBeOfType<RenameRoutine>()
             .ShouldSatisfyAllConditions(r => r.Routine.Name.ShouldBe("old_f"), r => r.NewName.ShouldBe("f"));
 
@@ -1065,8 +1071,11 @@ public sealed class PlanLinearizerTests
     {
         // The recreate targets the final name, so the rename must land first.
         var plan = Linearize(SchemaNode("app", routines:
-            [new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function, RenamedFrom: "old_f", Definition: _fn,
-                Arguments: new ValueChange<SqlText>("a int", "a int, b text"))]));
+            [RoutineDiff.Modified("app", "f", RoutineKind.Function) with
+            {
+                RenamedFrom = "old_f",
+                Arguments = new ValueChange<SqlText>("a int", "a int, b text"),
+            }]));
 
         IndexOf<RenameRoutine>(plan).ShouldBeLessThan(IndexOf<RecreateRoutine>(plan));
     }
@@ -1074,7 +1083,10 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_RoutineComment_EmitsSetRoutineComment()
         => Linearize(SchemaNode("app", routines:
-            [new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function, Comment: new ValueChange<string>("old", "new"))]))
+            [RoutineDiff.Modified("app", "f", RoutineKind.Function) with
+            {
+                Comment = new ValueChange<string>("old", "new"),
+            }]))
             .ShouldHaveSingleItem().ShouldBeOfType<SetRoutineComment>()
             .ShouldSatisfyAllConditions(c => c.OldComment.ShouldBe("old"), c => c.NewComment.ShouldBe("new"));
 
@@ -1083,10 +1095,14 @@ public sealed class PlanLinearizerTests
     {
         var plan = Linearize(SchemaNode("app", routines:
         [
-            new RoutineDiff("app", "p", ChangeKind.Add, RoutineKind.Procedure, Definition: _proc),
-            new RoutineDiff("app", "q", ChangeKind.Modify, RoutineKind.Procedure, RenamedFrom: "old_q",
-                Definition: _proc, Arguments: new ValueChange<SqlText>("", "before date")),
-            new RoutineDiff("app", "stale", ChangeKind.Remove, RoutineKind.Procedure),
+            RoutineDiff.Added("app", _proc),
+            RoutineDiff.Modified("app", "q", RoutineKind.Procedure) with
+            {
+                Definition = _proc,
+                RenamedFrom = "old_q",
+                Arguments = new ValueChange<SqlText>("", "before date"),
+            },
+            RoutineDiff.Removed("app", "stale", RoutineKind.Procedure),
         ]));
 
         plan.OfType<CreateRoutine>().ShouldHaveSingleItem();
@@ -1101,11 +1117,11 @@ public sealed class PlanLinearizerTests
         // Column DEFAULTs and CHECKs may call routines, and routine args may use enum types.
         var plan = Linearize(SchemaNode("app", ChangeKind.Add,
             tables: [TableNode("users", ChangeKind.Add, definition: new Table { Name = "users" })],
-            enums: [new EnumDiff("app", "status", ChangeKind.Add, Definition: new EnumType { Name = "status", Values = ["a"] })],
+            enums: [EnumDiff.Added("app", new EnumType { Name = "status", Values = ["a"] })],
             routines:
             [
-                new RoutineDiff("app", "f", ChangeKind.Add, RoutineKind.Function, Definition: _fn),
-                new RoutineDiff("app", "p", ChangeKind.Add, RoutineKind.Procedure, Definition: _proc),
+                RoutineDiff.Added("app", _fn),
+                RoutineDiff.Added("app", _proc),
             ]));
 
         IndexOf<CreateEnum>(plan).ShouldBeLessThan(IndexOf<CreateRoutine>(plan));
@@ -1117,8 +1133,8 @@ public sealed class PlanLinearizerTests
     {
         var plan = Linearize(SchemaNode("app",
             tables: [TableNode("users", ChangeKind.Remove)],
-            enums: [new EnumDiff("app", "status", ChangeKind.Remove)],
-            routines: [new RoutineDiff("app", "f", ChangeKind.Remove, RoutineKind.Function)]));
+            enums: [EnumDiff.Removed("app", "status")],
+            routines: [RoutineDiff.Removed("app", "f", RoutineKind.Function)]));
 
         IndexOf<DropTable>(plan).ShouldBeLessThan(IndexOf<DropRoutine>(plan));
         IndexOf<DropRoutine>(plan).ShouldBeLessThan(IndexOf<DropEnum>(plan));
@@ -1132,8 +1148,8 @@ public sealed class PlanLinearizerTests
             views: [AddView("v"), RemoveView("stale_v")],
             routines:
             [
-                new RoutineDiff("app", "f", ChangeKind.Add, RoutineKind.Function, Definition: _fn),
-                new RoutineDiff("app", "stale_f", ChangeKind.Remove, RoutineKind.Function),
+                RoutineDiff.Added("app", _fn),
+                RoutineDiff.Removed("app", "stale_f", RoutineKind.Function),
             ]));
 
         IndexOf<CreateRoutine>(plan).ShouldBeLessThan(IndexOfCreateView(plan, "v"));

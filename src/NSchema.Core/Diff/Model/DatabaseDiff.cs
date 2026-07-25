@@ -337,15 +337,15 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
                 Tables = [.. SeveredTables(bySchema)],
                 Views = [.. bySchema
                     .Where(n => n.Kind == DependencyKind.View)
-                    .Select(n => new ViewDiff(bySchema.Key, ((ObjectAddress)n.Address).Name, ChangeKind.Remove))
+                    .Select(n => ViewDiff.Removed(bySchema.Key, ((ObjectAddress)n.Address).Name))
                     .OrderBy(v => v.Name)],
                 Domains = [.. bySchema
                     .Where(n => n.Kind == DependencyKind.Domain)
-                    .Select(n => new DomainDiff(bySchema.Key, ((ObjectAddress)n.Address).Name, ChangeKind.Remove))
+                    .Select(n => DomainDiff.Removed(bySchema.Key, ((ObjectAddress)n.Address).Name))
                     .OrderBy(d => d.Name)],
                 CompositeTypes = [.. bySchema
                     .Where(n => n.Kind == DependencyKind.CompositeType)
-                    .Select(n => new CompositeTypeDiff(bySchema.Key, ((ObjectAddress)n.Address).Name, ChangeKind.Remove))
+                    .Select(n => CompositeTypeDiff.Removed(bySchema.Key, ((ObjectAddress)n.Address).Name))
                     .OrderBy(c => c.Name)],
             };
 

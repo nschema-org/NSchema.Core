@@ -25,24 +25,25 @@ public sealed class PlanLinearizerCompositeTypeTests
 
     [Fact]
     public void AddedCompositeType_EmitsCreateCompositeType()
-        => Linearize(new CompositeTypeDiff("app", "address", ChangeKind.Add,
-                Definition: new CompositeType { Name = "address", Fields = [new CompositeField("street", SqlType.Text)] }))
+        => Linearize(CompositeTypeDiff.Added("app", new CompositeType { Name = "address", Fields = [new CompositeField("street", SqlType.Text)] }))
             .ShouldHaveSingleItem().ShouldBeOfType<CreateCompositeType>().CompositeType.Name.ShouldBe("address");
 
     [Fact]
     public void RemovedCompositeType_EmitsDropCompositeType()
-        => Linearize(new CompositeTypeDiff("app", "address", ChangeKind.Remove))
+        => Linearize(CompositeTypeDiff.Removed("app", "address"))
             .ShouldHaveSingleItem().ShouldBeOfType<DropCompositeType>().Type.Name.ShouldBe("address");
 
     [Fact]
     public void FieldChanges_EmitInPlaceFieldActions()
     {
-        var plan = Linearize(new CompositeTypeDiff("app", "address", ChangeKind.Modify, Fields:
-        [
+        var plan = Linearize(CompositeTypeDiff.Modified("app", "address") with
+        {
+            Fields = [
             CompositeFieldDiff.Added(new CompositeField("zip", SqlType.Int)),
             CompositeFieldDiff.Removed("old"),
             CompositeFieldDiff.TypeChanged("street", new ValueChange<SqlType>(SqlType.Text, SqlType.VarChar(255))),
-        ]));
+        ],
+        });
 
         plan.OfType<AddCompositeField>().ShouldHaveSingleItem().Field.Name.ShouldBe("zip");
         plan.OfType<DropCompositeField>().ShouldHaveSingleItem().Field.Member.ShouldBe("old");
@@ -51,12 +52,12 @@ public sealed class PlanLinearizerCompositeTypeTests
 
     [Fact]
     public void RenamedCompositeType_EmitsRenameCompositeType()
-        => Linearize(new CompositeTypeDiff("app", "address", ChangeKind.Modify, RenamedFrom: "legacy_address"))
+        => Linearize(CompositeTypeDiff.Modified("app", "address") with { RenamedFrom = "legacy_address" })
             .OfType<RenameCompositeType>().ShouldHaveSingleItem().NewName.ShouldBe("address");
 
     [Fact]
     public void CommentChange_EmitsSetCompositeTypeComment()
-        => Linearize(new CompositeTypeDiff("app", "address", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new")))
+        => Linearize(CompositeTypeDiff.Modified("app", "address") with { Comment = new ValueChange<string>("old", "new") })
             .OfType<SetCompositeTypeComment>().ShouldHaveSingleItem().NewComment.ShouldBe("new");
 
     [Fact]
@@ -66,8 +67,7 @@ public sealed class PlanLinearizerCompositeTypeTests
         var plan = _linearizer.Linearize(new DatabaseDiff([SchemaDiff.Added("app") with
         {
             Tables = [TableDiff.Added("app", new Table { Name = "t" })],
-            CompositeTypes = [new CompositeTypeDiff("app", "address", ChangeKind.Add,
-                Definition: new CompositeType { Name = "address", Fields = [new CompositeField("street", SqlType.Text)] })],
+            CompositeTypes = [CompositeTypeDiff.Added("app", new CompositeType { Name = "address", Fields = [new CompositeField("street", SqlType.Text)] })],
         }]));
 
         var createType = plan.Select((a, i) => (a, i)).Single(x => x.a is CreateCompositeType).i;

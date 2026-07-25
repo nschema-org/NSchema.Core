@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NSchema.Diff.Model.Constraints;
 using NSchema.Model;
 using NSchema.Model.Columns;
@@ -8,33 +9,85 @@ namespace NSchema.Diff.Model.Domains;
 /// <summary>
 /// Describes a change to a domain.
 /// </summary>
-/// <param name="Schema">The name of the schema the domain belongs to.</param>
-/// <param name="Name">The domain name.</param>
-/// <param name="Kind">The change to the domain.</param>
-/// <param name="RenamedFrom">The previous domain name when the domain is being renamed; otherwise <see langword="null"/>.</param>
-/// <param name="Definition">The desired domain for an add or a base-type recreate; otherwise <see langword="null"/>.</param>
-/// <param name="DataType">The change to the base type, set when it changed (which forces a recreate).</param>
-/// <param name="Default">The change to the default expression, if any (applied in place with <c>ALTER DOMAIN</c>).</param>
-/// <param name="NotNull">The change to the not-null requirement, if any (applied in place with <c>ALTER DOMAIN</c>).</param>
-/// <param name="Checks">In-place check-constraint changes (added/dropped via <c>ALTER DOMAIN</c>).</param>
-/// <param name="Comment">The change to the domain's comment, if any.</param>
-public sealed record DomainDiff(
-    SqlIdentifier Schema,
-    SqlIdentifier Name,
-    ChangeKind Kind,
-    SqlIdentifier? RenamedFrom = null,
-    DomainType? Definition = null,
-    ValueChange<SqlType>? DataType = null,
-    ValueChange<SqlDefaultExpression>? Default = null,
-    ValueChange<bool>? NotNull = null,
-    IReadOnlyList<CheckConstraintDiff>? Checks = null,
-    ValueChange<string>? Comment = null
-) : ISchemaObjectDiff
+public sealed record DomainDiff : ISchemaObjectDiff
 {
+    [JsonConstructor]
+    private DomainDiff() { }
+
     /// <summary>
-    /// In-place check-constraint changes on the domain (added or dropped); empty when none or when recreating.
+    /// The name of the schema the domain belongs to.
     /// </summary>
-    public IReadOnlyList<CheckConstraintDiff> Checks { get; init; } = Checks ?? [];
+    public required SqlIdentifier Schema { get; init; }
+
+    /// <summary>
+    /// The domain name.
+    /// </summary>
+    public required SqlIdentifier Name { get; init; }
+
+    /// <summary>
+    /// The change to the domain.
+    /// </summary>
+    public required ChangeKind Kind { get; init; }
+
+    /// <summary>
+    /// The previous name when renamed; otherwise <see langword="null"/>.
+    /// </summary>
+    public SqlIdentifier? RenamedFrom { get; init; }
+
+    /// <summary>
+    /// The definition for an added domain; otherwise <see langword="null"/>.
+    /// </summary>
+    public DomainType? Definition { get; init; }
+
+    /// <summary>
+    /// The change to the base type, set when it changed (which forces a recreate).
+    /// </summary>
+    public ValueChange<SqlType>? DataType { get; init; }
+
+    /// <summary>
+    /// The change to the default expression, if any (applied in place with <c>ALTER DOMAIN</c>).
+    /// </summary>
+    public ValueChange<SqlDefaultExpression>? Default { get; init; }
+
+    /// <summary>
+    /// The change to the not-null requirement, if any (applied in place with <c>ALTER DOMAIN</c>).
+    /// </summary>
+    public ValueChange<bool>? NotNull { get; init; }
+
+    /// <summary>
+    /// In-place check-constraint changes (added/dropped via <c>ALTER DOMAIN</c>).
+    /// </summary>
+    public IReadOnlyList<CheckConstraintDiff> Checks { get; init; } = [];
+
+    /// <summary>
+    /// The change to the domain's comment, if any.
+    /// </summary>
+    public ValueChange<string>? Comment { get; init; }
+
+    /// <summary>
+    /// A domain being created, named by its own definition.
+    /// </summary>
+    public static DomainDiff Added(SqlIdentifier schema, DomainType definition) => new()
+    {
+        Schema = schema, Name = definition.Name, Kind = ChangeKind.Add, Definition = definition,
+        Comment = ValueChange.Between(null, definition.Comment),
+    };
+
+    /// <summary>
+    /// A domain being dropped.
+    /// </summary>
+    public static DomainDiff Removed(SqlIdentifier schema, SqlIdentifier name) =>
+        new() { Schema = schema, Name = name, Kind = ChangeKind.Remove };
+
+    /// <summary>
+    /// A domain altered in place; the individual changes are set on the result.
+    /// </summary>
+    public static DomainDiff Modified(SqlIdentifier schema, SqlIdentifier name) => new()
+    {
+        Schema = schema,
+        Name = name,
+        Kind = ChangeKind.Modify
+    };
 
     /// <summary>
     /// The base type changed, so the domain must be dropped and recreated — Postgres has no

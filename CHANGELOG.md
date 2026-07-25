@@ -14,6 +14,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 
 - **Column alterations are unified.** Dialects now receive a single `AlterColumn` action for a column's type and nullability changes, which they can render as one or more statements.
 - **Member diffs are built by factory.** `PrimaryKeyDiff`, `ForeignKeyDiff`, `UniqueConstraintDiff`, `CheckConstraintDiff`, `ExclusionConstraintDiff`, `IndexDiff` and `TriggerDiff` expose `Added(definition)`, `Removed(name)` and `CommentChanged(name, change)` in place of a constructor.
+- **Object diffs are built by factory too.** Every schema-level diff — table, column, view, enum, domain, sequence, routine, composite type, extension and schema is constructed through `Added` / `Removed` / `Modified` and refined with `with`, replacing constructors.
 - **Better domain mode naming.** `Database` and `Schema` are now the main entry points into the domain model.
 - **The SQL dialect seam is the abstract `SqlDialect` class.** A dialect overrides one method per migration action. Standard SQL is rendered by the base through an overridable identifier-quoting kernel.
 - **Identifiers are case-sensitive.** An identifier's identity is its exact written text: `users` and `Users` are no-longer considered equivalent.

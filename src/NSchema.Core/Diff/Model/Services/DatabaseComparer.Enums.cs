@@ -10,13 +10,12 @@ internal sealed partial class DatabaseComparer
     private static List<EnumDiff> CompareEnums(SqlIdentifier schemaName, IReadOnlyList<EnumType> current, Schema desired, RenameLog renames) =>
         CompareObjects(current, desired.Enums,
             name => renames.RenamedFrom(new ObjectAddress(schemaName, name, ObjectKind.Enum)),
-            enumType => new EnumDiff(schemaName, enumType.Name, ChangeKind.Remove),
+            enumType => EnumDiff.Removed(schemaName, enumType.Name),
             enumType => BuildNewEnum(schemaName, enumType),
             (currentEnum, desiredEnum, renamedFrom) => BuildModifiedEnum(schemaName, currentEnum, desiredEnum, renamedFrom));
 
     private static EnumDiff BuildNewEnum(SqlIdentifier schema, EnumType enumType) =>
-        new(schema, enumType.Name, ChangeKind.Add, Definition: enumType,
-            Comment: ValueChange.Between(null, enumType.Comment));
+        EnumDiff.Added(schema, enumType);
 
     // Enum values are additions-only: a value-compatible change carries the anchored additions, while a removal
     // or reorder carries only the old/new value lists (AddedValues stays empty, so RequiresRecreate is true).
@@ -38,7 +37,10 @@ internal sealed partial class DatabaseComparer
             return null;
         }
 
-        return new EnumDiff(schema, desired.Name, ChangeKind.Modify, renamedFrom, null, additions, values, comment);
+        return EnumDiff.Modified(schema, desired.Name) with
+        {
+            RenamedFrom = renamedFrom, AddedValues = additions ?? [], Values = values, Comment = comment,
+        };
     }
 
     /// <summary>

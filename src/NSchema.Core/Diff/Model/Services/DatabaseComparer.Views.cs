@@ -16,12 +16,9 @@ internal sealed partial class DatabaseComparer
             (currentView, desiredView, renamedFrom) => BuildModifiedView(schemaName, currentView, desiredView, renamedFrom));
 
     private static ViewDiff RemovedView(SqlIdentifier schema, View view) =>
-        new(schema, view.Name, ChangeKind.Remove, DependsOn: view.DependsOn, IsMaterialized: view.IsMaterialized);
+        ViewDiff.Removed(schema, view.Name) with { DependsOn = view.DependsOn, IsMaterialized = view.IsMaterialized };
 
-    private static ViewDiff BuildNewView(SqlIdentifier schema, View view) =>
-        new(schema, view.Name, ChangeKind.Add, Definition: view,
-            Comment: ValueChange.Between(null, view.Comment),
-            DependsOn: view.DependsOn, IsMaterialized: view.IsMaterialized);
+    private static ViewDiff BuildNewView(SqlIdentifier schema, View view) => ViewDiff.Added(schema, view);
 
     // A view's body is opaque, so any textual change is a replace. For a plain view that replace is in place
     // (CREATE OR REPLACE VIEW); for a materialized view it must be a drop + recreate (there is no
@@ -52,10 +49,16 @@ internal sealed partial class DatabaseComparer
             return null;
         }
 
-        return new ViewDiff(schema, desired.Name, ChangeKind.Modify, renamedFrom,
-            carryDefinition ? desired : null, comment, desired.DependsOn,
-            IsMaterialized: desired.IsMaterialized,
-            Materialized: materializationFlipped ? new ValueChange<bool>(current.IsMaterialized, desired.IsMaterialized) : null,
-            RequiresRecreate: requiresRecreate, Indexes: indexes);
+        return ViewDiff.Modified(schema, desired.Name) with
+        {
+            RenamedFrom = renamedFrom,
+            Definition = carryDefinition ? desired : null,
+            Comment = comment,
+            DependsOn = desired.DependsOn,
+            IsMaterialized = desired.IsMaterialized,
+            Materialized = materializationFlipped ? new ValueChange<bool>(current.IsMaterialized, desired.IsMaterialized) : null,
+            RequiresRecreate = requiresRecreate,
+            Indexes = indexes,
+        };
     }
 }

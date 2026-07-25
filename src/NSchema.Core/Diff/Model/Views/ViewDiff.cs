@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NSchema.Diff.Model.Indexes;
 using NSchema.Model;
 using NSchema.Model.Views;
@@ -5,40 +6,87 @@ using NSchema.Model.Views;
 namespace NSchema.Diff.Model.Views;
 
 /// <summary>
-/// Describes a change to a view (plain or materialized).
+/// Describes a change to a view.
 /// </summary>
-/// <param name="Schema">The name of the schema the view belongs to.</param>
-/// <param name="Name">The view name.</param>
-/// <param name="Kind">The change to the view.</param>
-/// <param name="RenamedFrom">The previous view name when the view is being renamed; otherwise <see langword="null"/>.</param>
-/// <param name="Definition">The view definition for an added or body-modified view; otherwise <see langword="null"/>.</param>
-/// <param name="Comment">The change to the view's comment, if any.</param>
-/// <param name="DependsOn">The objects the view reads, used to order it relative to other views in the plan.</param>
-/// <param name="IsMaterialized">Whether the view is materialized (after the change, for a modified view).</param>
-/// <param name="Materialized">The change to the view's materialization when it converts between a plain and a materialized view; otherwise <see langword="null"/>.</param>
-/// <param name="RequiresRecreate">Whether the change must be applied as a drop + recreate rather than an in-place replace</param>
-/// <param name="Indexes">In-place index changes on a materialized view whose body is unchanged.</param>
-public sealed record ViewDiff(
-    SqlIdentifier Schema,
-    SqlIdentifier Name,
-    ChangeKind Kind,
-    SqlIdentifier? RenamedFrom = null,
-    View? Definition = null,
-    ValueChange<string>? Comment = null,
-    IReadOnlyList<ObjectAddress>? DependsOn = null,
-    bool IsMaterialized = false,
-    ValueChange<bool>? Materialized = null,
-    bool RequiresRecreate = false,
-    IReadOnlyList<IndexDiff>? Indexes = null
-) : ISchemaObjectDiff
+public sealed record ViewDiff : ISchemaObjectDiff
 {
+    [JsonConstructor]
+    private ViewDiff() { }
+
+    /// <summary>
+    /// The name of the schema the view belongs to.
+    /// </summary>
+    public required SqlIdentifier Schema { get; init; }
+
+    /// <summary>
+    /// The view name.
+    /// </summary>
+    public required SqlIdentifier Name { get; init; }
+
+    /// <summary>
+    /// The change to the view.
+    /// </summary>
+    public required ChangeKind Kind { get; init; }
+
+    /// <summary>
+    /// The previous name when renamed; otherwise <see langword="null"/>.
+    /// </summary>
+    public SqlIdentifier? RenamedFrom { get; init; }
+
+    /// <summary>
+    /// The definition for an added view; otherwise <see langword="null"/>.
+    /// </summary>
+    public View? Definition { get; init; }
+
     /// <summary>
     /// The objects the view reads, used to order it relative to other views in the plan.
     /// </summary>
-    public IReadOnlyList<ObjectAddress> DependsOn { get; init; } = DependsOn ?? [];
+    public IReadOnlyList<ObjectAddress> DependsOn { get; init; } = [];
+
+    /// <summary>
+    /// Whether the view is materialized (after the change, for a modified view).
+    /// </summary>
+    public bool IsMaterialized { get; init; }
+
+    /// <summary>
+    /// The change to the view's materialization when it converts between a plain and a materialized view.
+    /// </summary>
+    public ValueChange<bool>? Materialized { get; init; }
+
+    /// <summary>
+    /// Whether the change must be applied as a drop + recreate rather than an in-place replace.
+    /// </summary>
+    public bool RequiresRecreate { get; init; }
 
     /// <summary>
     /// In-place index changes on a materialized view whose body is unchanged.
     /// </summary>
-    public IReadOnlyList<IndexDiff> Indexes { get; init; } = Indexes ?? [];
+    public IReadOnlyList<IndexDiff> Indexes { get; init; } = [];
+
+    /// <summary>
+    /// The change to the view's comment, if any.
+    /// </summary>
+    public ValueChange<string>? Comment { get; init; }
+
+    /// <summary>
+    /// A view being created, named by its own definition.
+    /// </summary>
+    public static ViewDiff Added(SqlIdentifier schema, View definition) => new()
+    {
+        Schema = schema, Name = definition.Name, Kind = ChangeKind.Add, Definition = definition,
+        Comment = ValueChange.Between(null, definition.Comment),
+        DependsOn = definition.DependsOn, IsMaterialized = definition.IsMaterialized,
+    };
+
+    /// <summary>
+    /// A view being dropped.
+    /// </summary>
+    public static ViewDiff Removed(SqlIdentifier schema, SqlIdentifier name) =>
+        new() { Schema = schema, Name = name, Kind = ChangeKind.Remove };
+
+    /// <summary>
+    /// A view altered in place; the individual changes are set on the result.
+    /// </summary>
+    public static ViewDiff Modified(SqlIdentifier schema, SqlIdentifier name) =>
+        new() { Schema = schema, Name = name, Kind = ChangeKind.Modify };
 }

@@ -87,7 +87,7 @@ public sealed class DatabaseDiffTests
         SchemaDiff.Removed("billing") with
         {
             Tables = [TableDiff.Removed("billing", "orders")],
-            Views = [new ViewDiff("billing", "summary", ChangeKind.Remove)],
+            Views = [ViewDiff.Removed("billing", "summary")],
         },
     ]);
 
@@ -198,7 +198,7 @@ public sealed class DatabaseDiffTests
     /// </summary>
     private static DatabaseDiff EnumRemovalDiff() => new(
     [
-        SchemaDiff.Containing("app") with { Enums = [new EnumDiff("app", "status", ChangeKind.Remove)] },
+        SchemaDiff.Containing("app") with { Enums = [EnumDiff.Removed("app", "status")] },
     ]);
 
     /// <summary>

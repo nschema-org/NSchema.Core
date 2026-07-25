@@ -190,7 +190,7 @@ public class DestructiveActionPolicyTests
             {
                 Grants = [],
                 Tables = [],
-                Views = [new ViewDiff("app", "active_users", ChangeKind.Remove)],
+                Views = [ViewDiff.Removed("app", "active_users")],
             },
         ]);
 
@@ -213,7 +213,7 @@ public class DestructiveActionPolicyTests
             {
                 Grants = [],
                 Tables = [],
-                Views = [new ViewDiff("app", "active_users", ChangeKind.Add, Definition: view)],
+                Views = [ViewDiff.Added("app", view)],
             },
         ]);
 
@@ -227,7 +227,7 @@ public class DestructiveActionPolicyTests
         // Arrange — dropping an enum is destructive (columns using it would lose their type definition).
         _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff([
-            SchemaDiff.Containing("app") with { Enums = [new EnumDiff("app", "status", ChangeKind.Remove)] },
+            SchemaDiff.Containing("app") with { Enums = [EnumDiff.Removed("app", "status")] },
         ]);
 
         // Act
@@ -244,7 +244,7 @@ public class DestructiveActionPolicyTests
         // Arrange — dropping a sequence loses its current position.
         _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff([
-            SchemaDiff.Containing("app") with { Sequences = [new SequenceDiff("app", "order_id", ChangeKind.Remove)] },
+            SchemaDiff.Containing("app") with { Sequences = [SequenceDiff.Removed("app", "order_id")] },
         ]);
 
         // Act
@@ -263,8 +263,8 @@ public class DestructiveActionPolicyTests
         var diff = new DatabaseDiff([
             SchemaDiff.Containing("app") with
             {
-                Enums = [new EnumDiff("app", "status", ChangeKind.Add, Definition: new EnumType { Name = "status", Values = ["a"] })],
-                Sequences = [new SequenceDiff("app", "order_id", ChangeKind.Add, Definition: new Sequence { Name = "order_id" })],
+                Enums = [EnumDiff.Added("app", new EnumType { Name = "status", Values = ["a"] })],
+                Sequences = [SequenceDiff.Added("app", new Sequence { Name = "order_id" })],
             },
         ]);
 
@@ -281,8 +281,8 @@ public class DestructiveActionPolicyTests
             SchemaDiff.Containing("app") with
             {
                 Routines = [
-                new RoutineDiff("app", "f", ChangeKind.Remove, RoutineKind.Function),
-                new RoutineDiff("app", "p", ChangeKind.Remove, RoutineKind.Procedure),
+                RoutineDiff.Removed("app", "f", RoutineKind.Function),
+                RoutineDiff.Removed("app", "p", RoutineKind.Procedure),
             ],
             },
         ]);
@@ -306,8 +306,11 @@ public class DestructiveActionPolicyTests
             SchemaDiff.Containing("app") with
             {
                 Routines = [
-                new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function, Definition: fn,
-                    Arguments: new ValueChange<SqlText>("a int", "a int, b text")),
+                RoutineDiff.Modified("app", "f", RoutineKind.Function) with
+                {
+                    Definition = fn,
+                    Arguments = new ValueChange<SqlText>("a int", "a int, b text"),
+                },
             ],
             },
         ]);
@@ -321,7 +324,7 @@ public class DestructiveActionPolicyTests
     {
         // Arrange — dropping a database-global extension removes shared infrastructure (and its dependents).
         _options.Value.Policy = PolicyEnforcement.Error;
-        var diff = new DatabaseDiff(Extensions: [new ExtensionDiff("citext", ChangeKind.Remove)]);
+        var diff = new DatabaseDiff(Extensions: [ExtensionDiff.Removed("citext")]);
 
         // Act
         var errors = _sut.Validate(diff).ToList();
@@ -337,7 +340,7 @@ public class DestructiveActionPolicyTests
         // Arrange — installing an extension loses nothing.
         _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff(Extensions:
-            [new ExtensionDiff("citext", ChangeKind.Add, Definition: new Extension { Name = "citext" })]);
+            [ExtensionDiff.Added(new Extension { Name = "citext" })]);
 
         // Act / Assert
         _sut.Validate(diff).ShouldBeEmpty();

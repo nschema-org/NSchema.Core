@@ -118,29 +118,35 @@ public sealed class DiffDocumentSnapshotTests
                 SchemaDiff.Containing("app") with
                 {
                     Views = [
-                    new ViewDiff("app", "active_users", ChangeKind.Add,
-                        Definition: new View { Name = "active_users", Body = "SELECT id FROM app.users WHERE active" },
-                        Comment: new ValueChange<string>(null, "currently active users")),
-                    new ViewDiff("app", "daily_totals", ChangeKind.Modify,
-                        Definition: new View { Name = "daily_totals", Body = "SELECT date, sum(amount) FROM app.sales GROUP BY date" }),
-                    new ViewDiff("app", "summary", ChangeKind.Modify,
-                        Comment: new ValueChange<string>("old summary", "new summary")),
-                    new ViewDiff("app", "report", ChangeKind.Modify, RenamedFrom: "legacy_report"),
-                    new ViewDiff("app", "stale_view", ChangeKind.Remove),
+                    ViewDiff.Added("app", new View { Name = "active_users", Body = "SELECT id FROM app.users WHERE active" }) with { Comment = new ValueChange<string>(null, "currently active users") },
+                    ViewDiff.Modified("app", "daily_totals") with { Definition = new View { Name = "daily_totals", Body = "SELECT date, sum(amount) FROM app.sales GROUP BY date" } },
+                    ViewDiff.Modified("app", "summary") with
+                    {
+                        Comment = new ValueChange<string>("old summary", "new summary"),
+                    },
+                    ViewDiff.Modified("app", "report") with { RenamedFrom = "legacy_report" },
+                    ViewDiff.Removed("app", "stale_view"),
                     // Materialized views: an add (with index on the definition) and an in-place index change.
-                    new ViewDiff("app", "mv_sales", ChangeKind.Add,
-                        Definition: new View { Name = "mv_sales", Body = "SELECT date, sum(amount) FROM app.sales GROUP BY date", IsMaterialized = true },
-                        Comment: new ValueChange<string>(null, "sales rollup"), IsMaterialized: true),
-                    new ViewDiff("app", "mv_active", ChangeKind.Modify, IsMaterialized: true,
-                        Indexes:
-                        [
+                    ViewDiff.Added("app", new View { Name = "mv_sales", Body = "SELECT date, sum(amount) FROM app.sales GROUP BY date", IsMaterialized = true }) with
+                    { Comment = new ValueChange<string>(null, "sales rollup"),
+                        IsMaterialized = true,
+                    },
+                    ViewDiff.Modified("app", "mv_active") with
+                    {
+                        IsMaterialized = true,
+                        Indexes = [
                             IndexDiff.Added(new TableIndex { Name = "mv_active_ix", Columns = ["id"] }),
                             IndexDiff.Removed("mv_active_old_ix"),
-                        ]),
+                        ],
+                    },
                     // A plain → materialized conversion (a recreate carrying the materialization flip).
-                    new ViewDiff("app", "hourly_totals", ChangeKind.Modify,
-                        Definition: new View { Name = "hourly_totals", Body = "SELECT date_trunc('hour', at), sum(amount) FROM app.sales GROUP BY 1", IsMaterialized = true },
-                        IsMaterialized: true, Materialized: new ValueChange<bool>(false, true), RequiresRecreate: true),
+                    ViewDiff.Modified("app", "hourly_totals") with
+                    {
+                        Definition = new View { Name = "hourly_totals", Body = "SELECT date_trunc('hour', at), sum(amount) FROM app.sales GROUP BY 1", IsMaterialized = true },
+                        IsMaterialized = true,
+                        Materialized = new ValueChange<bool>(false, true),
+                        RequiresRecreate = true,
+                    },
                 ],
                 },
             ]);
@@ -158,23 +164,24 @@ public sealed class DiffDocumentSnapshotTests
                 SchemaDiff.Containing("app") with
                 {
                     Enums = [
-                    new EnumDiff("app", "order_status", ChangeKind.Add,
-                        Definition: new EnumType { Name = "order_status", Values = ["pending", "shipped", "delivered"] },
-                        Comment: new ValueChange<string>(null, "order lifecycle")),
-                    new EnumDiff("app", "priority", ChangeKind.Modify,
-                        AddedValues:
-                        [
+                    EnumDiff.Added("app", new EnumType { Name = "order_status", Values = ["pending", "shipped", "delivered"] })
+                        with { Comment = new ValueChange<string>(null, "order lifecycle") },
+                    EnumDiff.Modified("app", "priority") with
+                    {
+                        AddedValues = [
                             new EnumValueAddition("lowest", Before: "low"),
                             new EnumValueAddition("medium", After: "low"),
                             new EnumValueAddition("highest"),
                         ],
-                        Values: new ValueChange<IReadOnlyList<EnumLabel>>(["low", "high"], ["lowest", "low", "medium", "high", "highest"])),
-                    new EnumDiff("app", "severity", ChangeKind.Modify,
-                        Values: new ValueChange<IReadOnlyList<EnumLabel>>(["info", "warn", "error"], ["warn", "error"])),
-                    new EnumDiff("app", "kind", ChangeKind.Modify,
-                        Comment: new ValueChange<string>("old note", "new note")),
-                    new EnumDiff("app", "status", ChangeKind.Modify, RenamedFrom: "state"),
-                    new EnumDiff("app", "stale_enum", ChangeKind.Remove),
+                        Values = new ValueChange<IReadOnlyList<EnumLabel>>(["low", "high"], ["lowest", "low", "medium", "high", "highest"]),
+                    },
+                    EnumDiff.Modified("app", "severity") with
+                    {
+                        Values = new ValueChange<IReadOnlyList<EnumLabel>>(["info", "warn", "error"], ["warn", "error"]),
+                    },
+                    EnumDiff.Modified("app", "kind") with { Comment = new ValueChange<string>("old note", "new note") },
+                    EnumDiff.Modified("app", "status") with { RenamedFrom = "state" },
+                    EnumDiff.Removed("app", "stale_enum"),
                 ],
                 },
             ]);
@@ -192,20 +199,22 @@ public sealed class DiffDocumentSnapshotTests
                 SchemaDiff.Containing("app") with
                 {
                     Sequences = [
-                    new SequenceDiff("app", "order_id", ChangeKind.Add,
-                        Definition: new Sequence { Name = "order_id",
-                            Options = new SequenceOptions(SqlType.BigInt, StartWith: 100, IncrementBy: 5, MaxValue: 999999, Cache: 10, Cycle: true) },
-                        Comment: new ValueChange<string>(null, "order numbers")),
-                    new SequenceDiff("app", "invoice_id", ChangeKind.Add,
-                        Definition: new Sequence { Name = "invoice_id" }),
-                    new SequenceDiff("app", "ticket_id", ChangeKind.Modify,
-                        Options: new ValueChange<SequenceOptions>(
+                    SequenceDiff.Added("app", new Sequence { Name = "order_id",
+                            Options = new SequenceOptions(SqlType.BigInt, StartWith: 100, IncrementBy: 5, MaxValue: 999999, Cache: 10, Cycle: true) })
+                        with { Comment = new ValueChange<string>(null, "order numbers") },
+                    SequenceDiff.Added("app", new Sequence { Name = "invoice_id" }),
+                    SequenceDiff.Modified("app", "ticket_id") with
+                    {
+                        Options = new ValueChange<SequenceOptions>(
                             new SequenceOptions(StartWith: 1, IncrementBy: 1),
-                            new SequenceOptions(StartWith: 1000, IncrementBy: 10, Cycle: true))),
-                    new SequenceDiff("app", "audit_id", ChangeKind.Modify,
-                        Comment: new ValueChange<string>("old note", "new note")),
-                    new SequenceDiff("app", "batch_id", ChangeKind.Modify, RenamedFrom: "job_id"),
-                    new SequenceDiff("app", "stale_seq", ChangeKind.Remove),
+                            new SequenceOptions(StartWith: 1000, IncrementBy: 10, Cycle: true)),
+                    },
+                    SequenceDiff.Modified("app", "audit_id") with
+                    {
+                        Comment = new ValueChange<string>("old note", "new note"),
+                    },
+                    SequenceDiff.Modified("app", "batch_id") with { RenamedFrom = "job_id" },
+                    SequenceDiff.Removed("app", "stale_seq"),
                 ],
                 },
             ]);
@@ -230,22 +239,26 @@ public sealed class DiffDocumentSnapshotTests
                 SchemaDiff.Containing("app") with
                 {
                     Routines = [
-                        new RoutineDiff("app", "add_tax", ChangeKind.Add, RoutineKind.Function, Definition: addTax,
-                            Comment: new ValueChange<string>(null, "adds tax")),
-                        new RoutineDiff("app", "normalize", ChangeKind.Modify, RoutineKind.Function,
-                            Definition: new Routine { Name = "normalize", RoutineKind = RoutineKind.Function, Arguments = "code text", Definition = "RETURNS text AS $$ SELECT lower(code) $$" }),
-                        new RoutineDiff("app", "score", ChangeKind.Modify, RoutineKind.Function,
-                            Definition: new Routine { Name = "score", RoutineKind = RoutineKind.Function, Arguments = "user_id bigint, weight numeric", Definition = "RETURNS numeric AS $$ SELECT 1 $$" },
-                            Arguments: new ValueChange<SqlText>("user_id bigint", "user_id bigint, weight numeric")),
-                        new RoutineDiff("app", "renamed_fn", ChangeKind.Modify, RoutineKind.Function, RenamedFrom: "old_fn"),
-                        new RoutineDiff("app", "noted", ChangeKind.Modify, RoutineKind.Function, Comment: new ValueChange<string>("old note", "new note")),
-                        new RoutineDiff("app", "stale_fn", ChangeKind.Remove, RoutineKind.Function),
-                        new RoutineDiff("app", "archive", ChangeKind.Add, RoutineKind.Procedure,
-                            Definition: new Routine { Name = "archive", RoutineKind = RoutineKind.Procedure, Arguments = "before date", Definition = "LANGUAGE sql AS $$ DELETE $$" }),
-                        new RoutineDiff("app", "cleanup", ChangeKind.Modify, RoutineKind.Procedure,
-                            Definition: new Routine { Name = "cleanup", RoutineKind = RoutineKind.Procedure, Arguments = "", Definition = "LANGUAGE sql AS $$ TRUNCATE $$" },
-                            Arguments: new ValueChange<SqlText>("batch int", "")),
-                        new RoutineDiff("app", "stale_proc", ChangeKind.Remove, RoutineKind.Procedure),
+                        RoutineDiff.Added("app", addTax) with { Comment = new ValueChange<string>(null, "adds tax") },
+                        RoutineDiff.Modified("app", "normalize", RoutineKind.Function) with { Definition = new Routine { Name = "normalize", RoutineKind = RoutineKind.Function, Arguments = "code text", Definition = "RETURNS text AS $$ SELECT lower(code) $$" } },
+                        RoutineDiff.Modified("app", "score", RoutineKind.Function) with
+                        {
+                            Definition = new Routine { Name = "score", RoutineKind = RoutineKind.Function, Arguments = "user_id bigint, weight numeric", Definition = "RETURNS numeric AS $$ SELECT 1 $$" },
+                            Arguments = new ValueChange<SqlText>("user_id bigint", "user_id bigint, weight numeric"),
+                        },
+                        RoutineDiff.Modified("app", "renamed_fn", RoutineKind.Function) with { RenamedFrom = "old_fn" },
+                        RoutineDiff.Modified("app", "noted", RoutineKind.Function) with
+                        {
+                            Comment = new ValueChange<string>("old note", "new note"),
+                        },
+                        RoutineDiff.Removed("app", "stale_fn", RoutineKind.Function),
+                        RoutineDiff.Added("app", new Routine { Name = "archive", RoutineKind = RoutineKind.Procedure, Arguments = "before date", Definition = "LANGUAGE sql AS $$ DELETE $$" }),
+                        RoutineDiff.Modified("app", "cleanup", RoutineKind.Procedure) with
+                        {
+                            Definition = new Routine { Name = "cleanup", RoutineKind = RoutineKind.Procedure, Arguments = "", Definition = "LANGUAGE sql AS $$ TRUNCATE $$" },
+                            Arguments = new ValueChange<SqlText>("batch int", ""),
+                        },
+                        RoutineDiff.Removed("app", "stale_proc", RoutineKind.Procedure),
                     ],
                 },
             ]);
@@ -260,12 +273,12 @@ public sealed class DiffDocumentSnapshotTests
         return new DatabaseDiff(
             Extensions:
             [
-                new ExtensionDiff("postgis", ChangeKind.Add, Definition: new Extension { Name = "postgis", Version = "3.4" },
-                    Comment: new ValueChange<string>(null, "spatial types")),
-                new ExtensionDiff("citext", ChangeKind.Add, Definition: new Extension { Name = "citext" }),
-                new ExtensionDiff("vector", ChangeKind.Modify, Version: new ValueChange<string>("0.6.0", "0.7.0")),
-                new ExtensionDiff("hstore", ChangeKind.Modify, Comment: new ValueChange<string>("old note", "new note")),
-                new ExtensionDiff("legacy_ext", ChangeKind.Remove),
+                ExtensionDiff.Added(new Extension { Name = "postgis", Version = "3.4" })
+                        with { Comment = new ValueChange<string>(null, "spatial types") },
+                ExtensionDiff.Added(new Extension { Name = "citext" }),
+                ExtensionDiff.Modified("vector") with { Version = new ValueChange<string>("0.6.0", "0.7.0") },
+                ExtensionDiff.Modified("hstore") with { Comment = new ValueChange<string>("old note", "new note") },
+                ExtensionDiff.Removed("legacy_ext"),
             ]);
     }
 
@@ -306,21 +319,23 @@ public sealed class DiffDocumentSnapshotTests
                 SchemaDiff.Containing("app") with
                 {
                     Domains = [
-                    new DomainDiff("app", "typeid", ChangeKind.Add,
-                        Definition: new DomainType { Name = "typeid", DataType = SqlType.Text, NotNull = true },
-                        Comment: new ValueChange<string>(null, "id as text")),
-                    new DomainDiff("app", "code", ChangeKind.Modify,
-                        Definition: new DomainType { Name = "code", DataType = SqlType.VarChar(8) },
-                        DataType: new ValueChange<SqlType>(SqlType.Text, SqlType.VarChar(8))),
-                    new DomainDiff("app", "amount", ChangeKind.Modify,
-                        Default: new ValueChange<SqlDefaultExpression>(null, "0"),
-                        NotNull: new ValueChange<bool>(false, true),
-                        Checks: [CheckConstraintDiff.Added(new CheckConstraint { Name = "amount_pos", Expression = "VALUE >= 0" })]),
-                    new DomainDiff("app", "email", ChangeKind.Modify,
-                        Checks: [CheckConstraintDiff.Removed("email_fmt")]),
-                    new DomainDiff("app", "renamed_d", ChangeKind.Modify, RenamedFrom: "old_d"),
-                    new DomainDiff("app", "noted", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new")),
-                    new DomainDiff("app", "stale_d", ChangeKind.Remove),
+                    DomainDiff.Added("app", new DomainType { Name = "typeid", DataType = SqlType.Text, NotNull = true })
+                        with { Comment = new ValueChange<string>(null, "id as text") },
+                    DomainDiff.Modified("app", "code") with
+                    {
+                        Definition = new DomainType { Name = "code", DataType = SqlType.VarChar(8) },
+                        DataType = new ValueChange<SqlType>(SqlType.Text, SqlType.VarChar(8)),
+                    },
+                    DomainDiff.Modified("app", "amount") with
+                    {
+                        Default = new ValueChange<SqlDefaultExpression>(null, "0"),
+                        NotNull = new ValueChange<bool>(false, true),
+                        Checks = [CheckConstraintDiff.Added(new CheckConstraint { Name = "amount_pos", Expression = "VALUE >= 0" })],
+                    },
+                    DomainDiff.Modified("app", "email") with { Checks = [CheckConstraintDiff.Removed("email_fmt")] },
+                    DomainDiff.Modified("app", "renamed_d") with { RenamedFrom = "old_d" },
+                    DomainDiff.Modified("app", "noted") with { Comment = new ValueChange<string>("old", "new") },
+                    DomainDiff.Removed("app", "stale_d"),
                 ],
                 },
             ]);
@@ -337,18 +352,19 @@ public sealed class DiffDocumentSnapshotTests
                 SchemaDiff.Containing("app") with
                 {
                     CompositeTypes = [
-                    new CompositeTypeDiff("app", "address", ChangeKind.Add,
-                        Definition: new CompositeType { Name = "address", Fields = [new CompositeField("street", SqlType.Text), new CompositeField("zip", SqlType.Int)] },
-                        Comment: new ValueChange<string>(null, "a postal address")),
-                    new CompositeTypeDiff("app", "money", ChangeKind.Modify, Fields:
-                    [
+                    CompositeTypeDiff.Added("app", new CompositeType { Name = "address", Fields = [new CompositeField("street", SqlType.Text), new CompositeField("zip", SqlType.Int)] })
+                        with { Comment = new ValueChange<string>(null, "a postal address") },
+                    CompositeTypeDiff.Modified("app", "money") with
+                    {
+                        Fields = [
                         CompositeFieldDiff.Added(new CompositeField("currency", SqlType.Text)),
                         CompositeFieldDiff.TypeChanged("amount", new ValueChange<SqlType>(SqlType.Int, SqlType.Decimal(18, 2))),
                         CompositeFieldDiff.Removed("legacy"),
-                    ]),
-                    new CompositeTypeDiff("app", "renamed_t", ChangeKind.Modify, RenamedFrom: "old_t"),
-                    new CompositeTypeDiff("app", "noted", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new")),
-                    new CompositeTypeDiff("app", "stale_t", ChangeKind.Remove),
+                    ],
+                    },
+                    CompositeTypeDiff.Modified("app", "renamed_t") with { RenamedFrom = "old_t" },
+                    CompositeTypeDiff.Modified("app", "noted") with { Comment = new ValueChange<string>("old", "new") },
+                    CompositeTypeDiff.Removed("app", "stale_t"),
                 ],
                 },
             ]);

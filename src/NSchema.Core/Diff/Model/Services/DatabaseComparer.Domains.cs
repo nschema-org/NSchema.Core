@@ -12,13 +12,12 @@ internal sealed partial class DatabaseComparer
     private List<DomainDiff> CompareDomains(SqlIdentifier schemaName, IReadOnlyList<DomainType> current, Schema desired, RenameLog renames) =>
         CompareObjects(current, desired.Domains,
             name => renames.RenamedFrom(new ObjectAddress(schemaName, name, ObjectKind.Domain)),
-            domain => new DomainDiff(schemaName, domain.Name, ChangeKind.Remove),
+            domain => DomainDiff.Removed(schemaName, domain.Name),
             domain => BuildNewDomain(schemaName, domain),
             (currentDomain, desiredDomain, renamedFrom) => BuildModifiedDomain(schemaName, currentDomain, desiredDomain, renamedFrom));
 
     private static DomainDiff BuildNewDomain(SqlIdentifier schema, DomainType domain) =>
-        new(schema, domain.Name, ChangeKind.Add, Definition: domain,
-            Comment: ValueChange.Between(null, domain.Comment));
+        DomainDiff.Added(schema, domain);
 
     // The base type cannot be altered in place (no ALTER DOMAIN … TYPE), so a change to it is a drop + recreate;
     // the default, not-null and checks then ride along on the definition. Every other change (default, not-null,
@@ -47,7 +46,15 @@ internal sealed partial class DatabaseComparer
             return null;
         }
 
-        return new DomainDiff(schema, desired.Name, ChangeKind.Modify, renamedFrom,
-            requiresRecreate ? desired : null, dataType, @default, notNull, checks, comment);
+        return DomainDiff.Modified(schema, desired.Name) with
+        {
+            RenamedFrom = renamedFrom,
+            Definition = requiresRecreate ? desired : null,
+            DataType = dataType,
+            Default = @default,
+            NotNull = notNull,
+            Checks = checks,
+            Comment = comment,
+        };
     }
 }

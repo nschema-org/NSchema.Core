@@ -10,6 +10,9 @@ using NSchema.Diff.Model.Tables;
 using NSchema.Diff.Model.Views;
 using NSchema.Model;
 using NSchema.Model.Columns;
+using NSchema.Model.Enums;
+using NSchema.Model.Sequences;
+using NSchema.Model.Views;
 using NSchema.Model.Constraints;
 using NSchema.Model.Indexes;
 using NSchema.Model.Routines;
@@ -27,12 +30,12 @@ public sealed class SchemaDiffTests
         var diff = SchemaDiff.Containing("app") with
         {
             Tables = [TableDiff.Added("app", new Table { Name = "users" })],
-            Views = [new ViewDiff("app", "v", ChangeKind.Add)],
-            Enums = [new EnumDiff("app", "e", ChangeKind.Add)],
-            Sequences = [new SequenceDiff("app", "q", ChangeKind.Add)],
+            Views = [ViewDiff.Added("app", new View { Name = "v", Body = "SELECT 1" })],
+            Enums = [EnumDiff.Added("app", new EnumType { Name = "e", Values = ["a"] })],
+            Sequences = [SequenceDiff.Added("app", new Sequence { Name = "q" })],
             Routines = [
-                new RoutineDiff("app", "f", ChangeKind.Add, RoutineKind.Function),
-                new RoutineDiff("app", "p", ChangeKind.Add, RoutineKind.Procedure),
+                RoutineDiff.Added("app", new Routine { Name = "f", RoutineKind = RoutineKind.Function, Arguments = "", Definition = "BEGIN END" }),
+                RoutineDiff.Added("app", new Routine { Name = "p", RoutineKind = RoutineKind.Procedure, Arguments = "", Definition = "BEGIN END" }),
             ],
         };
 
@@ -64,12 +67,12 @@ public sealed class SchemaDiffTests
             SchemaDiff.Containing("app") with
             {
                 Tables = [TableDiff.Added("app", new Table { Name = "users" })],
-                Views = [new ViewDiff("app", "v", ChangeKind.Modify)],
-                Enums = [new EnumDiff("app", "e", ChangeKind.Remove)],
-                Sequences = [new SequenceDiff("app", "q", ChangeKind.Add)],
+                Views = [ViewDiff.Modified("app", "v")],
+                Enums = [EnumDiff.Removed("app", "e")],
+                Sequences = [SequenceDiff.Added("app", new Sequence { Name = "q" })],
                 Routines = [
-                    new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function),
-                    new RoutineDiff("app", "p", ChangeKind.Remove, RoutineKind.Procedure),
+                    RoutineDiff.Modified("app", "f", RoutineKind.Function),
+                    RoutineDiff.Removed("app", "p", RoutineKind.Procedure),
                 ],
             },
         ]);

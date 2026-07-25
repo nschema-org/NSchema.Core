@@ -10,13 +10,12 @@ internal sealed partial class DatabaseComparer
     private static List<RoutineDiff> CompareRoutines(SqlIdentifier schemaName, IReadOnlyList<Routine> current, Schema desired, RenameLog renames) =>
         CompareObjects(current, desired.Routines,
             name => renames.RenamedFrom(new ObjectAddress(schemaName, name, ObjectKind.Routine)),
-            routine => new RoutineDiff(schemaName, routine.Name, ChangeKind.Remove, routine.RoutineKind),
+            routine => RoutineDiff.Removed(schemaName, routine.Name, routine.RoutineKind),
             routine => BuildNewRoutine(schemaName, routine),
             (currentRoutine, desiredRoutine, renamedFrom) => BuildModifiedRoutine(schemaName, currentRoutine, desiredRoutine, renamedFrom));
 
     private static RoutineDiff BuildNewRoutine(SqlIdentifier schema, Routine routine) =>
-        new(schema, routine.Name, ChangeKind.Add, routine.RoutineKind, Definition: routine,
-            Comment: ValueChange.Between(null, routine.Comment));
+        RoutineDiff.Added(schema, routine);
 
     // The arguments and definition are opaque, compared for cosmetic equivalence. A definition-only change is
     // a replace (the provider emits CREATE OR REPLACE); an argument change forces a drop + recreate, because a
@@ -38,9 +37,12 @@ internal sealed partial class DatabaseComparer
         }
 
         var recreate = argumentsChanged || kindChanged;
-        return new RoutineDiff(schema, desired.Name, ChangeKind.Modify, desired.RoutineKind, renamedFrom,
-            Definition: recreate || definitionChanged ? desired : null,
-            Arguments: recreate ? new ValueChange<SqlText>(current.Arguments, desired.Arguments) : null,
-            Comment: comment);
+        return RoutineDiff.Modified(schema, desired.Name, desired.RoutineKind) with
+        {
+            RenamedFrom = renamedFrom,
+            Definition = recreate || definitionChanged ? desired : null,
+            Arguments = recreate ? new ValueChange<SqlText>(current.Arguments, desired.Arguments) : null,
+            Comment = comment,
+        };
     }
 }
