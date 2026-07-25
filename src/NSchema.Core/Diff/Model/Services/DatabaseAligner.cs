@@ -53,7 +53,12 @@ internal static class DatabaseAligner
 
         foreach (var rename in directives.ObjectRenames)
         {
-            var kind = rename.From.Kind!.Value;
+            // An object rename always names the kind it renames; one without is not a rename we can align.
+            if (rename.From.Kind is not { } kind)
+            {
+                continue;
+            }
+
             var schema = current.Schemas.FirstOrDefault(s => s.Name == rename.From.Schema);
             if (schema is null || schema.Objects().All(o => o.Kind != kind || o.Name != rename.From.Name))
             {

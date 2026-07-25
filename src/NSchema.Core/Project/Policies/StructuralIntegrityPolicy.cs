@@ -206,7 +206,7 @@ internal sealed class StructuralIntegrityPolicy : IProjectPolicy
         // so they don't affect the match.
         return table.Indexes.Any(i => i is { IsUnique: true, Predicate: null }
             && i.Columns.All(c => c.Column is not null)
-            && referenced.SetEquals(i.Columns.Select(c => c.Column!)));
+            && referenced.SetEquals(i.Columns.Select(c => c.Column).OfType<SqlIdentifier>()));
     }
 
     private static IEnumerable<SqlIdentifier> Duplicates(IEnumerable<SqlIdentifier> names) => names

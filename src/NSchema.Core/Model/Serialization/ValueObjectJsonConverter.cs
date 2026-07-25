@@ -13,9 +13,13 @@ internal sealed class ValueObjectJsonConverter : JsonConverterFactory
     public override bool CanConvert(Type typeToConvert) => GetValueType(typeToConvert) is not null;
 
     /// <inheritdoc />
-    public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options) =>
-        (JsonConverter)Activator.CreateInstance(
-            typeof(Converter<,>).MakeGenericType(typeToConvert, GetValueType(typeToConvert)!))!;
+    public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options)
+    {
+        var valueType = GetValueType(typeToConvert)
+            ?? throw new ArgumentException($"'{typeToConvert}' is not a value object.", nameof(typeToConvert));
+
+        return (JsonConverter)Activator.CreateInstance(typeof(Converter<,>).MakeGenericType(typeToConvert, valueType))!;
+    }
 
     private static Type? GetValueType(Type type)
     {

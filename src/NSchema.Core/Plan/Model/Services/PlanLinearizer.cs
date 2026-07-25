@@ -106,7 +106,10 @@ internal sealed class PlanLinearizer : IPlanLinearizer
 
         foreach (var view in OrderByDependency(creates))
         {
-            actions.Add(new CreateView(view.Schema, view.Definition!));
+            if (view.Definition is { } definition)
+            {
+                actions.Add(new CreateView(view.Schema, definition));
+            }
         }
 
         // Dropped views go out dependents-first: the reverse of the create order. A renamed view recreating is
@@ -142,8 +145,8 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         {
             switch (extension.Kind)
             {
-                case ChangeKind.Add:
-                    actions.Add(new CreateExtension(extension.Definition!));
+                case ChangeKind.Add when extension.IsAdd():
+                    actions.Add(new CreateExtension(extension.Definition));
                     break;
 
                 case ChangeKind.Remove:
@@ -278,13 +281,11 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             {
                 // A signature (or kind) change recreates (a replace under different arguments would create a
                 // separate overload); a definition-only change replaces in place.
-                if (r.RequiresRecreate)
+                if (r.Definition is { } definition)
                 {
-                    actions.Add(new RecreateRoutine(r.Schema, r.Definition!));
-                }
-                else if (r.Definition is not null)
-                {
-                    actions.Add(new CreateRoutine(r.Schema, r.Definition));
+                    actions.Add(r.RequiresRecreate
+                        ? new RecreateRoutine(r.Schema, definition)
+                        : new CreateRoutine(r.Schema, definition));
                 }
             });
 
@@ -301,7 +302,10 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 // with the definition); otherwise each facet is altered in place.
                 if (d.RequiresRecreate)
                 {
-                    actions.Add(new RecreateDomain(d.Schema, d.Definition!));
+                    if (d.Definition is { } definition)
+                    {
+                        actions.Add(new RecreateDomain(d.Schema, definition));
+                    }
                     return;
                 }
 
@@ -315,9 +319,14 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 }
                 foreach (var check in d.Checks)
                 {
-                    actions.Add(check.Kind == ChangeKind.Remove
-                        ? new DropDomainCheck(new MemberAddress(d.Schema, d.Name, check.Name))
-                        : new AddDomainCheck(new ObjectAddress(d.Schema, d.Name), check.Definition!));
+                    if (check.Kind == ChangeKind.Remove)
+                    {
+                        actions.Add(new DropDomainCheck(new MemberAddress(d.Schema, d.Name, check.Name)));
+                    }
+                    else if (check.Definition is { } definition)
+                    {
+                        actions.Add(new AddDomainCheck(new ObjectAddress(d.Schema, d.Name), definition));
+                    }
                 }
             });
 
@@ -334,11 +343,14 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 // field is dropped, a new field is added. There is no recreate.
                 foreach (var field in t.Fields)
                 {
-                    actions.Add(field.Kind switch
+                    actions.Add(field switch
                     {
-                        ChangeKind.Remove => new DropCompositeField(new MemberAddress(t.Schema, t.Name, field.Name)),
-                        ChangeKind.Modify => new AlterCompositeFieldType(new MemberAddress(t.Schema, t.Name, field.Name), field.Type!.Old!, field.Type.New!),
-                        _ => new AddCompositeField(new ObjectAddress(t.Schema, t.Name), field.Definition!),
+                        { Kind: ChangeKind.Remove } => new DropCompositeField(new MemberAddress(t.Schema, t.Name, field.Name)),
+                        { Kind: ChangeKind.Modify, Type: { Old: { } oldType, New: { } newType } } =>
+                            new AlterCompositeFieldType(new MemberAddress(t.Schema, t.Name, field.Name), oldType, newType),
+                        { Definition: { } definition } => new AddCompositeField(new ObjectAddress(t.Schema, t.Name), definition),
+                        _ => throw new NotSupportedException(
+                            $"Cannot linearize composite field change {field.Kind} on '{t.Schema}.{t.Name}'."),
                     });
                 }
             });

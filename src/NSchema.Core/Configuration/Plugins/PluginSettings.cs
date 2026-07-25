@@ -72,9 +72,14 @@ public sealed record PluginSettings(PluginLabel? Label, IReadOnlyDictionary<stri
             return;
         }
 
-        var child = property.GetValue(target) ?? Activator.CreateInstance(property.PropertyType);
+        if ((property.GetValue(target) ?? Activator.CreateInstance(property.PropertyType)) is not { } child)
+        {
+            diagnostics.Add(Diagnostic.Error(Source, $"Value '{value}' cannot be assigned to '{key}'."));
+            return;
+        }
+
         property.SetValue(target, child);
-        Assign(child!, path, depth + 1, key, value, ignoreUnknown, diagnostics);
+        Assign(child, path, depth + 1, key, value, ignoreUnknown, diagnostics);
     }
 
     // Converts a written value to the property's type: null onto anything nullable, enums by member name (case-insensitive),

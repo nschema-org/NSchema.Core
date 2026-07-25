@@ -311,9 +311,9 @@ public static class NsqlWriter
                         tokens.Add(token);
                     }
                 }
-                else
+                else if (child.AsNode() is { } childNode)
                 {
-                    Collect(child.AsNode()!);
+                    Collect(childNode);
                 }
             }
         }
@@ -499,7 +499,11 @@ public static class NsqlWriter
     {
         foreach (var child in node.Children)
         {
-            return child.AsToken() ?? FirstToken(child.AsNode()!);
+            if (child.AsToken() is { } token)
+            {
+                return token;
+            }
+            return child.AsNode() is { } childNode ? FirstToken(childNode) : default;
         }
         return default;
     }
@@ -512,7 +516,8 @@ public static class NsqlWriter
         Token last = default;
         foreach (var child in node.Children)
         {
-            last = child.AsToken() ?? LastToken(child.AsNode()!);
+            last = child.AsToken()
+                ?? (child.AsNode() is { } childNode ? LastToken(childNode) : default);
         }
         return last;
     }

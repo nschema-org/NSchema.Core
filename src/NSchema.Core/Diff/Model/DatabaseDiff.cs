@@ -330,7 +330,16 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
     {
         var schemas = diff.Schemas.ToList();
 
-        foreach (var bySchema in severed.Where(n => n.Address.SchemaName is not null).GroupBy(n => n.Address.SchemaName!))
+        var schemaScoped = new List<(SqlIdentifier Schema, DependencyNode Node)>();
+        foreach (var node in severed)
+        {
+            if (node.Address.SchemaName is { } schemaName)
+            {
+                schemaScoped.Add((schemaName, node));
+            }
+        }
+
+        foreach (var bySchema in schemaScoped.GroupBy(x => x.Schema, x => x.Node))
         {
             var addition = SchemaDiff.Containing(bySchema.Key) with
             {

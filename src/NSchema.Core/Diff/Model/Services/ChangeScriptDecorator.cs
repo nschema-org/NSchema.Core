@@ -16,9 +16,17 @@ internal static class ChangeScriptDecorator
             return diff;
         }
 
-        var byTable = scripts
-            .Where(script => script.Target.TableAddress is not null)
-            .GroupBy(script => script.Target.TableAddress!)
+        var targeted = new List<(ObjectAddress Table, ChangeScript Script)>();
+        foreach (var script in scripts)
+        {
+            if (script.Target.TableAddress is { } table)
+            {
+                targeted.Add((table, script));
+            }
+        }
+
+        var byTable = targeted
+            .GroupBy(entry => entry.Table, entry => entry.Script)
             .ToDictionary(group => group.Key, IReadOnlyDictionary<ChangeTarget, ChangeScript> (group) => group
                 .GroupBy(script => script.Target)
                 .ToDictionary(target => target.Key, target => target.First()));

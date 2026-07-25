@@ -1072,6 +1072,7 @@ public sealed class PlanLinearizerTests
         => Linearize(SchemaNode("app", routines:
             [RoutineDiff.Modified("app", "f", RoutineKind.Function) with
             {
+                Definition = _fn,
                 Arguments = new ValueChange<SqlText>("a int", "a int, b text"),
             }]))
             .ShouldHaveSingleItem().ShouldBeOfType<RecreateRoutine>();
@@ -1091,6 +1092,7 @@ public sealed class PlanLinearizerTests
             [RoutineDiff.Modified("app", "f", RoutineKind.Function) with
             {
                 RenamedFrom = "old_f",
+                Definition = _fn,
                 Arguments = new ValueChange<SqlText>("a int", "a int, b text"),
             }]));
 
