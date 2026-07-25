@@ -67,7 +67,7 @@ public sealed class PlanLinearizerDomainTests
     {
         // A column may use the domain as its type, so the domain must be created first.
         var plan = _linearizer.Linearize(new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add,
-            Tables: [new TableDiff("app", "t", ChangeKind.Add, Definition: new Table { Name = "t" })],
+            Tables: [TableDiff.Added("app", new Table { Name = "t" })],
             Domains: [new DomainDiff("app", "d", ChangeKind.Add, Definition: new DomainType { Name = "d", DataType = SqlType.Text })])]));
 
         var createDomain = plan.Select((a, i) => (a, i)).Single(x => x.a is CreateDomain).i;

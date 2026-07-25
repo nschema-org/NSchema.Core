@@ -24,7 +24,7 @@ public sealed class SchemaDiffTests
         // Kind-agnostic consumers (GetSummary, the destructive policy) rely on this covering every per-kind
         // collection — a new object kind must be added here, which this test makes loud.
         var diff = new SchemaDiff("app",
-            Tables: [new TableDiff("app", "users", ChangeKind.Add)],
+            Tables: [TableDiff.Added("app", new Table { Name = "users" })],
             Views: [new ViewDiff("app", "v", ChangeKind.Add)],
             Enums: [new EnumDiff("app", "e", ChangeKind.Add)],
             Sequences: [new SequenceDiff("app", "q", ChangeKind.Add)],
@@ -42,13 +42,15 @@ public sealed class SchemaDiffTests
     {
         // Kind-agnostic consumers (GetSummary, the destructive policy) rely on this covering every member
         // collection — a new member kind must be added here, which this test makes loud.
-        var table = new TableDiff("app", "users", ChangeKind.Modify,
-            Columns: [new ColumnDiff("id", ChangeKind.Add, null, null, null, null, null, null, null)],
-            Indexes: [IndexDiff.Added(new TableIndex { Name = "ix", Columns = ["id"] })],
-            PrimaryKeys: [PrimaryKeyDiff.Added(new PrimaryKey { Name = "pk", ColumnNames = ["id"] })],
-            ForeignKeys: [ForeignKeyDiff.Added(new ForeignKey { Name = "fk", ColumnNames = ["id"], References = new ObjectAddress("app", "other"), ReferencedColumnNames = ["id"] })],
-            UniqueConstraints: [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "uq", ColumnNames = ["id"] })],
-            Checks: [CheckConstraintDiff.Added(new CheckConstraint { Name = "ck", Expression = "id > 0" })]);
+        var table = TableDiff.Modified("app", "users") with
+        {
+            Columns = [new ColumnDiff("id", ChangeKind.Add, null, null, null, null, null, null, null)],
+            Indexes = [IndexDiff.Added(new TableIndex { Name = "ix", Columns = ["id"] })],
+            PrimaryKeys = [PrimaryKeyDiff.Added(new PrimaryKey { Name = "pk", ColumnNames = ["id"] })],
+            ForeignKeys = [ForeignKeyDiff.Added(new ForeignKey { Name = "fk", ColumnNames = ["id"], References = new ObjectAddress("app", "other"), ReferencedColumnNames = ["id"] })],
+            UniqueConstraints = [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "uq", ColumnNames = ["id"] })],
+            Checks = [CheckConstraintDiff.Added(new CheckConstraint { Name = "ck", Expression = "id > 0" })],
+        };
 
         table.EnumerateMembers().Select(m => m.Name).ShouldBe(["id", "ix", "pk", "fk", "uq", "ck"]);
     }
@@ -58,7 +60,7 @@ public sealed class SchemaDiffTests
     {
         var diff = new DatabaseDiff([
             new SchemaDiff("app",
-                Tables: [new TableDiff("app", "users", ChangeKind.Add)],
+                Tables: [TableDiff.Added("app", new Table { Name = "users" })],
                 Views: [new ViewDiff("app", "v", ChangeKind.Modify)],
                 Enums: [new EnumDiff("app", "e", ChangeKind.Remove)],
                 Sequences: [new SequenceDiff("app", "q", ChangeKind.Add)],

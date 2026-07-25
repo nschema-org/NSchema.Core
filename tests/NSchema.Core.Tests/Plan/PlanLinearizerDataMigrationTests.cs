@@ -28,7 +28,7 @@ public sealed class PlanLinearizerDataMigrationTests
         => _linearizer.Linearize(new DatabaseDiff([new SchemaDiff("app", Tables: [table])]));
 
     private IReadOnlyList<MigrationAction> LinearizeColumn(ColumnDiff column)
-        => LinearizeTable(new TableDiff("app", "users", ChangeKind.Modify, Columns: [column]));
+        => LinearizeTable(TableDiff.Modified("app", "users") with { Columns = [column] });
 
     private static ChangeScript Migration(ChangeTrigger trigger, string member, string? name = null, string? sql = null) =>
         new(name ?? member, sql ?? $"UPDATE app.users -- {member}", new ChangeTarget("app", "users", member, trigger));
@@ -132,7 +132,7 @@ public sealed class PlanLinearizerDataMigrationTests
         with{ MigrationScript = migration };
 
         // Act
-        var plan = LinearizeTable(new TableDiff("app", "users", ChangeKind.Modify, UniqueConstraints: [constraint]));
+        var plan = LinearizeTable(TableDiff.Modified("app", "users") with { UniqueConstraints = [constraint] });
 
         // Assert
         plan.Count.ShouldBe(2);
@@ -155,7 +155,7 @@ public sealed class PlanLinearizerDataMigrationTests
         };
 
         // Act
-        var plan = LinearizeTable(new TableDiff("app", "users", ChangeKind.Modify, Columns: [first, second]));
+        var plan = LinearizeTable(TableDiff.Modified("app", "users") with { Columns = [first, second] });
 
         // Assert
         plan.OfType<ExecuteScript>().Select(m => m.Script.Name).ShouldBe(["first", "second"]);
@@ -174,7 +174,7 @@ public sealed class PlanLinearizerDataMigrationTests
             with { MigrationScript = migration };
 
         // Act
-        var plan = LinearizeTable(new TableDiff("app", "users", ChangeKind.Modify, PrimaryKeys: [constraint]));
+        var plan = LinearizeTable(TableDiff.Modified("app", "users") with { PrimaryKeys = [constraint] });
 
         // Assert — the action carries the declared script itself, nothing copied field-by-field.
         plan.OfType<ExecuteScript>().ShouldHaveSingleItem().Script.ShouldBe(migration);

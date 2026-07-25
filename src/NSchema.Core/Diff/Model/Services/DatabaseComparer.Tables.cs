@@ -24,7 +24,7 @@ internal sealed partial class DatabaseComparer
             else
             {
                 LogTableNotInDesired(schemaName, currentTable.Name);
-                result.Add(RemovedTable(schemaName, currentTable.Name));
+                result.Add(TableDiff.Removed(schemaName, currentTable.Name));
             }
         }
 
@@ -48,9 +48,6 @@ internal sealed partial class DatabaseComparer
 
         return result.OrderBy(t => t.Name).ToList();
     }
-
-    private static TableDiff RemovedTable(SqlIdentifier schema, SqlIdentifier name) =>
-        new(schema, name, ChangeKind.Remove);
 
     private TableDiff BuildNewTable(SqlIdentifier schemaName, Table table)
     {
@@ -92,7 +89,19 @@ internal sealed partial class DatabaseComparer
         // The full table definition rides along so the linearizer can emit a single CREATE TABLE (with the
         // primary key and columns inline) without reconstructing it from the column diffs. The primary key is
         // therefore created inline (no PrimaryKeyDiff); everything else arrives as a separate add.
-        return new TableDiff(schemaName, table.Name, ChangeKind.Add, null, comment, columns, grants, indexes, primaryKey, foreignKeys, uniqueConstraints, checks, exclusions, triggers, table);
+        return TableDiff.Added(schemaName, table) with
+        {
+            Comment = comment,
+            Columns = columns,
+            Grants = grants,
+            Indexes = indexes,
+            PrimaryKeys = primaryKey,
+            ForeignKeys = foreignKeys,
+            UniqueConstraints = uniqueConstraints,
+            Checks = checks,
+            ExclusionConstraints = exclusions,
+            Triggers = triggers,
+        };
     }
 
     private TableDiff? BuildModifiedTable(SqlIdentifier schemaName, Table current, Table desired, SqlIdentifier? renamedFrom, RenameLog renames)
@@ -134,6 +143,19 @@ internal sealed partial class DatabaseComparer
             return null;
         }
 
-        return new TableDiff(schemaName, desired.Name, ChangeKind.Modify, renamedFrom, comment, columns, grants, indexes, primaryKey, foreignKeys, uniqueConstraints, checks, exclusions, triggers);
+        return TableDiff.Modified(schemaName, desired.Name) with
+        {
+            RenamedFrom = renamedFrom,
+            Comment = comment,
+            Columns = columns,
+            Grants = grants,
+            Indexes = indexes,
+            PrimaryKeys = primaryKey,
+            ForeignKeys = foreignKeys,
+            UniqueConstraints = uniqueConstraints,
+            Checks = checks,
+            ExclusionConstraints = exclusions,
+            Triggers = triggers,
+        };
     }
 }

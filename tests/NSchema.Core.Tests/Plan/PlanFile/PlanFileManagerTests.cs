@@ -26,7 +26,11 @@ public sealed class PlanFileManagerTests
             new ChangeTarget("app", "users", "email", ChangeTrigger.AddColumn));
         var email = new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text }) { MigrationScript = backfill };
         var key = PrimaryKeyDiff.Added(new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] });
-        var users = new TableDiff("app", "users", ChangeKind.Modify, Columns: [email], PrimaryKeys: [key]);
+        var users = TableDiff.Modified("app", "users") with
+        {
+            Columns = [email],
+            PrimaryKeys = [key],
+        };
         var plan = new MigrationPlan(
             new DatabaseDiff([new SchemaDiff("app", Tables: [users])])
             {
@@ -131,10 +135,12 @@ public sealed class PlanFileManagerTests
         [
             new SchemaDiff("app", Tables:
             [
-                new TableDiff("app", "users", ChangeKind.Modify, Columns:
-                [
+                TableDiff.Modified("app", "users") with
+                {
+                    Columns = [
                     new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text }) { MigrationScript = migration },
-                ]),
+                ],
+                },
             ]),
         ]);
         var envelope = new PlanFileEnvelope(

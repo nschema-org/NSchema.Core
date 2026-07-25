@@ -77,8 +77,22 @@ public sealed class PlanLinearizerTests
         IReadOnlyList<ExclusionConstraintDiff>? exclusionConstraints = null,
         IReadOnlyList<TriggerDiff>? triggers = null,
         Table? definition = null)
-        => new(schema, name, kind, renamedFrom, comment, columns ?? [], grants ?? [], indexes ?? [],
-            primaryKey ?? [], foreignKeys ?? [], uniqueConstraints ?? [], checks ?? [], exclusionConstraints ?? [], triggers ?? [], definition);
+        => ForKind(kind, schema, name, definition) with
+        {
+            RenamedFrom = renamedFrom, Comment = comment,
+            Columns = columns ?? [], Grants = grants ?? [], Indexes = indexes ?? [],
+            PrimaryKeys = primaryKey ?? [], ForeignKeys = foreignKeys ?? [],
+            UniqueConstraints = uniqueConstraints ?? [], Checks = checks ?? [],
+            ExclusionConstraints = exclusionConstraints ?? [], Triggers = triggers ?? [],
+        };
+
+    /// <summary>The empty diff for a kind, so a test can then set only the members it cares about.</summary>
+    private static TableDiff ForKind(ChangeKind kind, string schema, string name, Table? definition) => kind switch
+    {
+        ChangeKind.Add => TableDiff.Added(schema, definition ?? new Table { Name = name }),
+        ChangeKind.Remove => TableDiff.Removed(schema, name),
+        _ => TableDiff.Modified(schema, name),
+    };
 
     private static ColumnDiff AddedColumn(Column definition, ValueChange<string>? comment = null)
         => new(definition.Name, ChangeKind.Add, definition, null, null, null, null, null, comment);
@@ -114,7 +128,7 @@ public sealed class PlanLinearizerTests
         => new(schema, name, ChangeKind.Remove, DependsOn: dependsOn.Select(d => new ObjectAddress(d.Schema, d.Name)).ToList());
 
     private static TableDiff AddTable(string name, string schema = "app")
-        => new(schema, name, ChangeKind.Add, Definition: new Table { Name = name });
+        => TableDiff.Added(schema, new Table { Name = name });
 
     private static int IndexOfCreateView(IReadOnlyList<MigrationAction> plan, string name)
         => plan.ToList().FindIndex(a => a is CreateView v && v.View.Name.Value.Equals(name));

@@ -64,7 +64,7 @@ public sealed class PlanLinearizerCompositeTypeTests
     {
         // A column may use the composite type as its type, so the type must be created first.
         var plan = _linearizer.Linearize(new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add,
-            Tables: [new TableDiff("app", "t", ChangeKind.Add, Definition: new Table { Name = "t" })],
+            Tables: [TableDiff.Added("app", new Table { Name = "t" })],
             CompositeTypes: [new CompositeTypeDiff("app", "address", ChangeKind.Add,
                 Definition: new CompositeType { Name = "address", Fields = [new CompositeField("street", SqlType.Text)] })])]));
 

@@ -28,9 +28,10 @@ public sealed class PlanLinearizerTriggerTests
     public void CreateTrigger_IsEmittedAfterItsTableIsCreated()
     {
         var trigger = new Trigger { Name = "audit", Timing = TriggerTiming.After, Events = TriggerEvent.Insert, Function = new RoutineReference("app", "log") };
-        var table = new TableDiff("app", "users", ChangeKind.Add,
-            Triggers: [TriggerDiff.Added(trigger)],
-            Definition: new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] });
+        var table = TableDiff.Added("app", new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] }) with
+        {
+            Triggers = [TriggerDiff.Added(trigger)],
+        };
 
         var actions = _linearizer.Linearize(new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add, Tables: [table])]));
 
@@ -40,9 +41,8 @@ public sealed class PlanLinearizerTriggerTests
     [Fact]
     public void DropTrigger_IsEmittedBeforeTablesAreDropped()
     {
-        var modified = new TableDiff("app", "users", ChangeKind.Modify,
-            Triggers: [TriggerDiff.Removed("audit")]);
-        var dropped = new TableDiff("app", "legacy", ChangeKind.Remove);
+        var modified = TableDiff.Modified("app", "users") with { Triggers = [TriggerDiff.Removed("audit")] };
+        var dropped = TableDiff.Removed("app", "legacy");
 
         var actions = _linearizer.Linearize(new DatabaseDiff([new SchemaDiff("app", Tables: [modified, dropped])]));
 
@@ -53,13 +53,13 @@ public sealed class PlanLinearizerTriggerTests
     public void AddedTrigger_WithComment_EmitsCreateThenSetComment()
     {
         var trigger = new Trigger { Name = "audit", Timing = TriggerTiming.After, Events = TriggerEvent.Insert, Function = new RoutineReference("app", "log"), Comment = "note" };
-        var table = new TableDiff("app", "users", ChangeKind.Add,
-            Triggers:
-            [
+        var table = TableDiff.Added("app", new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] }) with
+        {
+            Triggers = [
                 TriggerDiff.Added(trigger),
                 TriggerDiff.CommentChanged("audit", new ValueChange<string>(null, "note")),
             ],
-            Definition: new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] });
+        };
 
         var actions = _linearizer.Linearize(new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add, Tables: [table])]));
 

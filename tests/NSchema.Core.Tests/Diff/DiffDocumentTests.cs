@@ -49,8 +49,21 @@ public sealed class DiffDocumentTests
         IReadOnlyList<ForeignKeyDiff>? foreignKeys = null,
         IReadOnlyList<UniqueConstraintDiff>? uniqueConstraints = null,
         IReadOnlyList<CheckConstraintDiff>? checks = null)
-        => new(schema, name, kind, renamedFrom, comment, columns ?? [], grants ?? [], indexes ?? [],
-            primaryKey ?? [], foreignKeys ?? [], uniqueConstraints ?? [], checks ?? []);
+        => ForKind(kind, schema, name) with
+        {
+            RenamedFrom = renamedFrom, Comment = comment,
+            Columns = columns ?? [], Grants = grants ?? [], Indexes = indexes ?? [],
+            PrimaryKeys = primaryKey ?? [], ForeignKeys = foreignKeys ?? [],
+            UniqueConstraints = uniqueConstraints ?? [], Checks = checks ?? [],
+        };
+
+    /// <summary>The empty diff for a kind, so a test can then set only the members it cares about.</summary>
+    private static TableDiff ForKind(ChangeKind kind, string schema, string name) => kind switch
+    {
+        ChangeKind.Add => TableDiff.Added(schema, new Table { Name = name }),
+        ChangeKind.Remove => TableDiff.Removed(schema, name),
+        _ => TableDiff.Modified(schema, name),
+    };
 
     private static ColumnDiff AddColumn(Column definition, ValueChange<string>? comment = null)
         => new(definition.Name, ChangeKind.Add, definition, null, null, null, null, null, comment);

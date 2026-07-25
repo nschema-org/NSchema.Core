@@ -41,26 +41,26 @@ public sealed class DiffDocumentSnapshotTests
     /// </summary>
     private static DatabaseDiff RichDiff()
     {
-        var addedTable = new TableDiff(
-            Schema: "app", Name: "users", Kind: ChangeKind.Add, RenamedFrom: null,
-            Comment: new ValueChange<string>(null, "all users"),
-            Columns:
+        var addedTable = TableDiff.Added("app", new Table { Name = "users" }) with
+        {
+            Comment = new ValueChange<string>(null, "all users"),
+            Columns =
             [
                 new ColumnDiff("id", ChangeKind.Add, new Column { Name = "id", Type = SqlType.BigInt, IsIdentity = true,
                     IdentityOptions = new IdentityOptions(1, 1, 1) }, null, null, null, null, null, null),
                 new ColumnDiff("name", ChangeKind.Add, new Column { Name = "name", Type = SqlType.VarChar(255), DefaultExpression = "'anonymous'" }, null, null, null, null, null, null),
             ],
-            Grants: [new GrantChange(ChangeKind.Add, "readers", TablePrivilege.Select)],
-            Indexes: [IndexDiff.Added(new TableIndex { Name = "users_name_ix", Columns = ["name"], IsUnique = true })],
-            PrimaryKeys: [PrimaryKeyDiff.Added(new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] })],
-            UniqueConstraints: [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] })],
-            Checks: [CheckConstraintDiff.Added(new CheckConstraint { Name = "users_age_chk", Expression = "age >= 0" })]);
+            Grants = [new GrantChange(ChangeKind.Add, "readers", TablePrivilege.Select)],
+            Indexes = [IndexDiff.Added(new TableIndex { Name = "users_name_ix", Columns = ["name"], IsUnique = true })],
+            PrimaryKeys = [PrimaryKeyDiff.Added(new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] })],
+            UniqueConstraints = [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] })],
+            Checks = [CheckConstraintDiff.Added(new CheckConstraint { Name = "users_age_chk", Expression = "age >= 0" })],
+        };
 
-        var modifiedTable = new TableDiff(
-            Schema: "app", Name: "orders", Kind: ChangeKind.Modify, RenamedFrom: "purchases",
-            Comment: null,
-            Columns:
-            [
+        var modifiedTable = TableDiff.Modified("app", "orders") with
+        {
+            RenamedFrom = "purchases",
+            Columns = [
                 new ColumnDiff("total", ChangeKind.Modify, null, null,
                     Type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
                     Nullability: new ValueChange<bool>(true, false), Default: null, Identity: null, Comment: null),
@@ -68,17 +68,17 @@ public sealed class DiffDocumentSnapshotTests
                 new ColumnDiff("amount", ChangeKind.Add, new Column { Name = "amount", Type = SqlType.Int, GeneratedExpression = "total * 100" }, null, null, null, null, null, null),
                 new ColumnDiff("legacy_flag", ChangeKind.Remove, new Column { Name = "legacy_flag", Type = SqlType.Boolean }, null, null, null, null, null, null),
             ],
-            Grants: [new GrantChange(ChangeKind.Remove, "writers", TablePrivilege.Insert)],
-            Indexes: [],
-            PrimaryKeys: [PrimaryKeyDiff.CommentChanged("orders_pkey", new ValueChange<string>("old note", "new note"))],
-            ForeignKeys: [ForeignKeyDiff.Removed("orders_user_fk")],
-            UniqueConstraints: [UniqueConstraintDiff.Removed("orders_code_uq")],
-            Checks: [CheckConstraintDiff.Removed("orders_total_chk")],
-            ExclusionConstraints:
-            [
+            Grants = [new GrantChange(ChangeKind.Remove, "writers", TablePrivilege.Insert)],
+            Indexes = [],
+            PrimaryKeys = [PrimaryKeyDiff.CommentChanged("orders_pkey", new ValueChange<string>("old note", "new note"))],
+            ForeignKeys = [ForeignKeyDiff.Removed("orders_user_fk")],
+            UniqueConstraints = [UniqueConstraintDiff.Removed("orders_code_uq")],
+            Checks = [CheckConstraintDiff.Removed("orders_total_chk")],
+            ExclusionConstraints = [
                 ExclusionConstraintDiff.Added(new ExclusionConstraint { Name = "orders_slot_excl", Elements = [new ExclusionElement("&&", "slot")], Method = "gist" }),
                 ExclusionConstraintDiff.Removed("orders_old_excl"),
-            ]);
+            ],
+        };
 
         return new DatabaseDiff(
             Schemas:
@@ -259,12 +259,14 @@ public sealed class DiffDocumentSnapshotTests
             [
                 new SchemaDiff("app", Tables:
                 [
-                    new TableDiff("app", "users", ChangeKind.Modify, Triggers:
-                    [
+                    TableDiff.Modified("app", "users") with
+                    {
+                        Triggers = [
                         TriggerDiff.Added(audit),
                         TriggerDiff.CommentChanged("noted", new ValueChange<string>("old note", "new note")),
                         TriggerDiff.Removed("stale_trg"),
-                    ]),
+                    ],
+                    },
                 ]),
             ]);
     }
@@ -355,7 +357,11 @@ public sealed class DiffDocumentSnapshotTests
         var email = new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text }) { MigrationScript = backfill };
         var total = new ColumnDiff("total", ChangeKind.Modify, Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int)) { MigrationScript = retype };
         var uq = UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] }) with{ MigrationScript = dedupe };
-        var table = new TableDiff("app", "users", ChangeKind.Modify, Columns: [email, total], UniqueConstraints: [uq]);
+        var table = TableDiff.Modified("app", "users") with
+        {
+            Columns = [email, total],
+            UniqueConstraints = [uq],
+        };
         return new DatabaseDiff([new SchemaDiff("app", Tables: [table])]);
     }
 
@@ -373,7 +379,7 @@ public sealed class DiffDocumentSnapshotTests
         var backfill = new ChangeScript("backfill_emails", "UPDATE app.users SET email = '';",
             new ChangeTarget("app", "users", "email", ChangeTrigger.AddColumn));
         var email = new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text }) { MigrationScript = backfill };
-        var table = new TableDiff("app", "users", ChangeKind.Modify, Columns: [email]);
+        var table = TableDiff.Modified("app", "users") with { Columns = [email] };
         return new DatabaseDiff([new SchemaDiff("app", Tables: [table])])
         {
             DeploymentScripts =

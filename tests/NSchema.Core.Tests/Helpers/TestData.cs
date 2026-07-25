@@ -38,7 +38,13 @@ public static class TestData
     /// <summary>Builds a diff that drops the named tables from the <c>identity</c> schema.</summary>
     public static DatabaseDiff DiffWithDroppedTables(params string[] tableNames) => new(
         [new SchemaDiff("identity", null, null, null, [],
-            [.. tableNames.Select(name => new TableDiff("identity", name, ChangeKind.Remove, null, null, [], [], [], []))])]);
+            [.. tableNames.Select(name => TableDiff.Removed("identity", name) with
+            {
+                Columns = [],
+                Grants = [],
+                Indexes = [],
+                PrimaryKeys = [],
+            })])]);
 
     /// <summary>
     /// A schema exercising every domain feature (identity, facets, comments, foreign keys,

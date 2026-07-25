@@ -28,7 +28,7 @@ public sealed class DatabaseDiffTests
     private static DatabaseDiff WithChangeScript(ChangeScript change)
     {
         var column = new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text }) { MigrationScript = change };
-        var table = new TableDiff("app", "users", ChangeKind.Modify, Columns: [column]);
+        var table = TableDiff.Modified("app", "users") with { Columns = [column] };
         return new DatabaseDiff([new SchemaDiff("app", Tables: [table])]);
     }
 
@@ -83,9 +83,9 @@ public sealed class DatabaseDiffTests
     /// </summary>
     private static DatabaseDiff TeardownDiff() => new(
     [
-        new SchemaDiff("app", ChangeKind.Remove, Tables: [new TableDiff("app", "users", ChangeKind.Remove)]),
+        new SchemaDiff("app", ChangeKind.Remove, Tables: [TableDiff.Removed("app", "users")]),
         new SchemaDiff("billing", ChangeKind.Remove,
-            Tables: [new TableDiff("billing", "orders", ChangeKind.Remove)],
+            Tables: [TableDiff.Removed("billing", "orders")],
             Views: [new ViewDiff("billing", "summary", ChangeKind.Remove)]),
     ]);
 
@@ -179,7 +179,7 @@ public sealed class DatabaseDiffTests
         // comparing whole states manufactures a removal for everything else. Narrowing must discard those.
         var diff = new DatabaseDiff(
         [
-            new SchemaDiff("app", Tables: [new TableDiff("app", "users", ChangeKind.Add)]),
+            new SchemaDiff("app", Tables: [TableDiff.Added("app", new Table { Name = "users" })]),
             new SchemaDiff("unmanaged", ChangeKind.Remove),
         ]);
 
@@ -284,8 +284,8 @@ public sealed class DatabaseDiffTests
             new SchemaDiff("app",
                 Comment: new ValueChange<string>("old", "new"),
                 Tables: [
-                    new TableDiff("app", "users", ChangeKind.Modify),
-                    new TableDiff("app", "orders", ChangeKind.Modify),
+                    TableDiff.Modified("app", "users"),
+                    TableDiff.Modified("app", "orders"),
                 ]),
         ]);
 
@@ -311,14 +311,15 @@ public sealed class DatabaseDiffTests
         [
             new SchemaDiff("billing", Tables:
             [
-                new TableDiff("billing", "invoices", ChangeKind.Add,
-                    ForeignKeys: [ForeignKeyDiff.Added(foreignKey)],
-                    Definition: new Table
+                TableDiff.Added("billing", new Table
                     {
                         Name = "invoices",
                         Columns = [new Column { Name = "customer_id", Type = SqlType.Int }],
                         ForeignKeys = [foreignKey],
-                    }),
+                    }) with
+                {
+                    ForeignKeys = [ForeignKeyDiff.Added(foreignKey)],
+                },
             ]),
         ]);
     }
@@ -362,10 +363,12 @@ public sealed class DatabaseDiffTests
     [
         new SchemaDiff("billing", Tables:
         [
-            new TableDiff("billing", "orders", ChangeKind.Modify, Columns:
-            [
+            TableDiff.Modified("billing", "orders") with
+            {
+                Columns = [
                 new ColumnDiff("state", ChangeKind.Add, new Column { Name = "state", Type = type }),
-            ]),
+            ],
+            },
         ]),
     ]);
 
@@ -424,8 +427,9 @@ public sealed class DatabaseDiffTests
         [
             new SchemaDiff("billing", Tables:
             [
-                new TableDiff("billing", "orders", ChangeKind.Modify, ForeignKeys:
-                [
+                TableDiff.Modified("billing", "orders") with
+                {
+                    ForeignKeys = [
                     ForeignKeyDiff.Added(new ForeignKey
                     {
                         Name = "fk_orders_customer",
@@ -433,7 +437,8 @@ public sealed class DatabaseDiffTests
                         References = new ObjectAddress("app", "customers"),
                         ReferencedColumnNames = ["id"],
                     }),
-                ]),
+                ],
+                },
             ]),
         ]);
 
@@ -456,8 +461,8 @@ public sealed class DatabaseDiffTests
         [
             new SchemaDiff("app", ChangeKind.Add,
                 Tables: [
-                    new TableDiff("app", "users", ChangeKind.Add),
-                    new TableDiff("app", "orders", ChangeKind.Add),
+                    TableDiff.Added("app", new Table { Name = "users" }),
+                    TableDiff.Added("app", new Table { Name = "orders" }),
                 ]),
         ]);
 

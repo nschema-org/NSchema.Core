@@ -42,12 +42,7 @@ public sealed class PlanLinearizerSnapshotTests
         // views (one reading the other), a renamed view, and a dropped view; a dropped schema carrying its own
         // table, view, enum and sequence (all dropped before the schema). Enough cross-kind work to exercise the
         // priority ordering and the view dependency sort.
-        var newTable = new TableDiff("app", "users", ChangeKind.Add, null, null,
-            Columns: [],
-            Grants: [new GrantChange(ChangeKind.Add, "readers", TablePrivilege.Select)],
-            Indexes: [IndexDiff.Added(new TableIndex { Name = "users_name_ix", Columns = ["name"], IsUnique = true })],
-            UniqueConstraints: [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] })],
-            Definition: new Table
+        var newTable = TableDiff.Added("app", new Table
             {
                 Name = "users",
                 PrimaryKey = new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] },
@@ -56,11 +51,18 @@ public sealed class PlanLinearizerSnapshotTests
                     new Column { Name = "name", Type = SqlType.VarChar(255) },
                 ],
                 UniqueConstraints = [new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] }],
-            });
+            }) with
+        {
+            Columns = [],
+            Grants = [new GrantChange(ChangeKind.Add, "readers", TablePrivilege.Select)],
+            Indexes = [IndexDiff.Added(new TableIndex { Name = "users_name_ix", Columns = ["name"], IsUnique = true })],
+            UniqueConstraints = [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] })],
+        };
 
-        var modifiedTable = new TableDiff("app", "orders", ChangeKind.Modify, "purchases", null,
-            Columns:
-            [
+        var modifiedTable = TableDiff.Modified("app", "orders") with
+        {
+            RenamedFrom = "purchases",
+            Columns = [
                 new ColumnDiff("total", ChangeKind.Modify, new Column { Name = "total", Type = SqlType.BigInt }, null,
                     Type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
                     Nullability: new ValueChange<bool>(true, false), Default: null, Identity: null, Comment: null),
@@ -68,12 +70,13 @@ public sealed class PlanLinearizerSnapshotTests
                 new ColumnDiff("total_label", ChangeKind.Modify, Generated: new ValueChange<SqlText>(null, "total::text")),
                 new ColumnDiff("legacy_flag", ChangeKind.Remove, new Column { Name = "legacy_flag", Type = SqlType.Boolean }, null, null, null, null, null, null),
             ],
-            Grants: [],
-            Indexes: [IndexDiff.Added(new TableIndex { Name = "orders_total_ix", Columns = [new IndexColumn("total", Sort: IndexSort.Descending)], Method = "btree", Include = ["code"] })],
-            ForeignKeys: [ForeignKeyDiff.Removed("orders_user_fk")],
-            UniqueConstraints: [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "orders_code_uq", ColumnNames = ["code"] })],
-            Checks: [CheckConstraintDiff.Added(new CheckConstraint { Name = "orders_total_chk", Expression = "total >= 0" })],
-            ExclusionConstraints: [ExclusionConstraintDiff.Added(new ExclusionConstraint { Name = "orders_slot_excl", Elements = [new ExclusionElement("&&", "slot")], Method = "gist" })]);
+            Grants = [],
+            Indexes = [IndexDiff.Added(new TableIndex { Name = "orders_total_ix", Columns = [new IndexColumn("total", Sort: IndexSort.Descending)], Method = "btree", Include = ["code"] })],
+            ForeignKeys = [ForeignKeyDiff.Removed("orders_user_fk")],
+            UniqueConstraints = [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "orders_code_uq", ColumnNames = ["code"] })],
+            Checks = [CheckConstraintDiff.Added(new CheckConstraint { Name = "orders_total_chk", Expression = "total >= 0" })],
+            ExclusionConstraints = [ExclusionConstraintDiff.Added(new ExclusionConstraint { Name = "orders_slot_excl", Elements = [new ExclusionElement("&&", "slot")], Method = "gist" })],
+        };
 
         // Listed dependent-first on purpose: the dependency sort must reorder them so user_summary (which
         // reads active_users) is created after it.
@@ -126,7 +129,7 @@ public sealed class PlanLinearizerSnapshotTests
                 new SchemaDiff("reporting", ChangeKind.Add, null, null, [], []),
                 new SchemaDiff("app", null, null, null, [], [newTable, modifiedTable], views, enums, sequences, routines),
                 new SchemaDiff("scratch", ChangeKind.Remove, null, null, [],
-                    [new TableDiff("scratch", "temp_data", ChangeKind.Remove)],
+                    [TableDiff.Removed("scratch", "temp_data")],
                     [new ViewDiff("scratch", "temp_view", ChangeKind.Remove)],
                     [new EnumDiff("scratch", "temp_status", ChangeKind.Remove)],
                     [new SequenceDiff("scratch", "temp_seq", ChangeKind.Remove)]),

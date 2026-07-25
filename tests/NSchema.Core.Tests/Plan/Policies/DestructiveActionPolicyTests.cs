@@ -126,8 +126,13 @@ public class DestructiveActionPolicyTests
     {
         // Arrange — dropping a unique constraint removes a structural guarantee (and a possible FK target).
         _options.Value.Policy = PolicyEnforcement.Error;
-        var diff = TableChange(new TableDiff("app", "users", ChangeKind.Modify, null, null, [], [], [],
-            UniqueConstraints: [UniqueConstraintDiff.Removed("users_email_uq")]));
+        var diff = TableChange(TableDiff.Modified("app", "users") with
+        {
+            Columns = [],
+            Grants = [],
+            Indexes = [],
+            UniqueConstraints = [UniqueConstraintDiff.Removed("users_email_uq")],
+        });
 
         // Act
         var errors = _sut.Validate(diff).ToList();
@@ -142,8 +147,13 @@ public class DestructiveActionPolicyTests
     {
         // Arrange — dropping an exclusion constraint removes a structural guarantee, like a unique constraint.
         _options.Value.Policy = PolicyEnforcement.Error;
-        var diff = TableChange(new TableDiff("app", "bookings", ChangeKind.Modify, null, null, [], [], [],
-            ExclusionConstraints: [ExclusionConstraintDiff.Removed("no_overlap")]));
+        var diff = TableChange(TableDiff.Modified("app", "bookings") with
+        {
+            Columns = [],
+            Grants = [],
+            Indexes = [],
+            ExclusionConstraints = [ExclusionConstraintDiff.Removed("no_overlap")],
+        });
 
         // Act
         var errors = _sut.Validate(diff).ToList();
@@ -158,8 +168,13 @@ public class DestructiveActionPolicyTests
     {
         // Arrange — dropping a check only loosens validation; no data is lost, so it is not destructive.
         _options.Value.Policy = PolicyEnforcement.Error;
-        var diff = TableChange(new TableDiff("app", "users", ChangeKind.Modify, null, null, [], [], [],
-            Checks: [CheckConstraintDiff.Removed("users_age_chk")]));
+        var diff = TableChange(TableDiff.Modified("app", "users") with
+        {
+            Columns = [],
+            Grants = [],
+            Indexes = [],
+            Checks = [CheckConstraintDiff.Removed("users_age_chk")],
+        });
 
         // Act / Assert
         _sut.Validate(diff).ShouldBeEmpty();

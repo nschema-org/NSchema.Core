@@ -96,9 +96,10 @@ public class DataHazardPolicyTests
         var diff = new DatabaseDiff([
             new SchemaDiff("app", Tables:
             [
-                new TableDiff("app", "users", ChangeKind.Add,
-                    Columns: [new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text })],
-                    Definition: table),
+                TableDiff.Added("app", table) with
+                {
+                    Columns = [new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text })],
+                },
             ]),
         ]);
 
@@ -473,8 +474,13 @@ public class DataHazardPolicyTests
         new([
             new SchemaDiff("app", Tables:
             [
-                new TableDiff("app", "users", ChangeKind.Modify,
-                    Columns: columns, Indexes: indexes, PrimaryKeys: primaryKey, UniqueConstraints: uniqueConstraints),
+                TableDiff.Modified("app", "users") with
+                {
+                    Columns = columns ?? [],
+                    Indexes = indexes ?? [],
+                    PrimaryKeys = primaryKey ?? [],
+                    UniqueConstraints = uniqueConstraints ?? [],
+                },
             ]),
         ]);
 }

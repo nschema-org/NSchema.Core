@@ -375,10 +375,9 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
         .Where(n => n.Kind == DependencyKind.ForeignKey)
         .Select(n => (MemberAddress)n.Address)
         .GroupBy(a => (a.Schema, a.Object))
-        .Select(byTable => new TableDiff(
-            byTable.Key.Schema,
-            byTable.Key.Object,
-            ChangeKind.Modify,
-            ForeignKeys: [.. byTable.Select(a => ForeignKeyDiff.Removed(a.Member)).OrderBy(f => f.Name)]))
+        .Select(byTable => TableDiff.Modified(byTable.Key.Schema, byTable.Key.Object) with
+        {
+            ForeignKeys = [.. byTable.Select(a => ForeignKeyDiff.Removed(a.Member)).OrderBy(f => f.Name)],
+        })
         .OrderBy(t => t.Name);
 }
