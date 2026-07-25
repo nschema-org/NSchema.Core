@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
-namespace NSchema;
+namespace NSchema.Diagnostics;
 
 /// <summary>
 /// Renderer-neutral message text that remembers which spans were merged values.

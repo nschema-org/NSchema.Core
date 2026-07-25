@@ -1,4 +1,4 @@
-namespace NSchema;
+namespace NSchema.Diagnostics;
 
 /// <summary>
 /// A single structured finding, <see cref="Result{T}"/>, and the policy diagnostics.

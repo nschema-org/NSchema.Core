@@ -1,4 +1,5 @@
 using NSchema.Configuration.Model;
+
 namespace NSchema.Configuration.Plugins;
 
 /// <summary>

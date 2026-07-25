@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace NSchema;
+namespace NSchema.Diagnostics;
 
 /// <summary>
 /// The outcome of an operation that yields no value.

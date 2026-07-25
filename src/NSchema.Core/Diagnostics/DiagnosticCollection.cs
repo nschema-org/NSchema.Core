@@ -1,6 +1,6 @@
 using System.Collections;
 
-namespace NSchema;
+namespace NSchema.Diagnostics;
 
 /// <summary>
 /// An ordered set of diagnostics.

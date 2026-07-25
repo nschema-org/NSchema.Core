@@ -55,6 +55,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="NSchema.Diagnostics" />
     <Using Include="NSchema.Extensions" />
   </ItemGroup>
 

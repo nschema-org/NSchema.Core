@@ -1,4 +1,4 @@
-namespace NSchema;
+namespace NSchema.Diagnostics;
 
 /// <summary>
 /// The severity of a <see cref="Diagnostic"/> finding.

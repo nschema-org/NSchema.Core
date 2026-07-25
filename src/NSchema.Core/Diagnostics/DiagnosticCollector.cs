@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace NSchema;
+namespace NSchema.Diagnostics;
 
 /// <summary>
 /// Accumulates the diagnostics of a multi-step <see cref="Result"/> run.

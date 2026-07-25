@@ -3,6 +3,7 @@ using NSchema.Configuration.Model;
 using NSchema.Project.Nsql;
 using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Syntax.Settings;
+
 namespace NSchema.Configuration;
 
 /// <summary>

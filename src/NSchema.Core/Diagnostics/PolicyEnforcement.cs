@@ -1,4 +1,4 @@
-namespace NSchema;
+namespace NSchema.Diagnostics;
 
 /// <summary>
 /// How the migration pipeline reacts when a policy reports a finding.

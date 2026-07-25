@@ -1,4 +1,4 @@
-namespace NSchema;
+namespace NSchema.Diagnostics;
 
 /// <summary>
 /// A read-only view over an ordered set of diagnostics.
