@@ -1,6 +1,7 @@
 using NSchema.Diff.Model;
 using NSchema.Diff.Model.Columns;
 using NSchema.Diff.Model.Extensions;
+using NSchema.Diff.Model.Indexes;
 using NSchema.Diff.Model.Schemas;
 using NSchema.Diff.Model.Tables;
 using NSchema.Diff.Model.Views;
@@ -98,12 +99,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 // renamed view they run while it still carries its old name.
                 foreach (var index in view.Indexes)
                 {
-                    actions.Add(index.Kind switch
-                    {
-                        ChangeKind.Add => new CreateIndex(new ObjectAddress(view.Schema, view.Name), index.Definition!),
-                        ChangeKind.Remove => new DropIndex(new MemberAddress(view.Schema, view.RenamedFrom ?? view.Name, index.Name)),
-                        _ => new SetIndexComment(new MemberAddress(view.Schema, view.Name, index.Name), index.Comment!.Old, index.Comment.New),
-                    });
+                    actions.Add(IndexAction(view.Schema, view.Name, view.RenamedFrom ?? view.Name, index));
                 }
             }
         }
@@ -231,11 +227,13 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         List<MigrationAction> actions,
         Func<T, MigrationAction> create,
         Func<T, MigrationAction> drop,
-        Func<T, MigrationAction> rename,
-        Func<T, MigrationAction> comment,
+        Func<T, SqlIdentifier, MigrationAction> rename,
+        Func<T, ValueChange<string>, MigrationAction> comment,
         Action<T> modify
     ) where T : ISchemaObjectDiff
     {
+        // The rename and comment builders receive the narrowed value rather than re-reading it: the guard is
+        // here, so the lambda should not have to restate that it holds.
         foreach (var diff in objects)
         {
             switch (diff.Kind)
@@ -249,17 +247,17 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                     break;
 
                 default: // Modify
-                    if (diff.RenamedFrom is not null)
+                    if (diff.RenamedFrom is { } renamedFrom)
                     {
-                        actions.Add(rename(diff));
+                        actions.Add(rename(diff, renamedFrom));
                     }
                     modify(diff);
                     break;
             }
 
-            if (diff.Kind != ChangeKind.Remove && diff.Comment is not null)
+            if (diff.Kind != ChangeKind.Remove && diff.Comment is { } changedComment)
             {
-                actions.Add(comment(diff));
+                actions.Add(comment(diff, changedComment));
             }
         }
     }
@@ -268,8 +266,8 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         EmitObjects(schema.Routines, actions,
             r => new CreateRoutine(r.Schema, r.Definition!),
             r => new DropRoutine(new ObjectAddress(r.Schema, r.Name), r.RoutineKind),
-            r => new RenameRoutine(new ObjectAddress(r.Schema, r.RenamedFrom!), r.Name, r.RoutineKind),
-            r => new SetRoutineComment(new ObjectAddress(r.Schema, r.Name), r.Comment!.Old, r.Comment.New, r.RoutineKind),
+            (r, renamedFrom) => new RenameRoutine(new ObjectAddress(r.Schema, renamedFrom), r.Name, r.RoutineKind),
+            (r, comment) => new SetRoutineComment(new ObjectAddress(r.Schema, r.Name), comment.Old, comment.New, r.RoutineKind),
             r =>
             {
                 // A signature (or kind) change recreates (a replace under different arguments would create a
@@ -288,8 +286,8 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         EmitObjects(schema.Domains, actions,
             d => new CreateDomain(d.Schema, d.Definition!),
             d => new DropDomain(new ObjectAddress(d.Schema, d.Name)),
-            d => new RenameDomain(new ObjectAddress(d.Schema, d.RenamedFrom!), d.Name),
-            d => new SetDomainComment(new ObjectAddress(d.Schema, d.Name), d.Comment!.Old, d.Comment.New),
+            (d, renamedFrom) => new RenameDomain(new ObjectAddress(d.Schema, renamedFrom), d.Name),
+            (d, comment) => new SetDomainComment(new ObjectAddress(d.Schema, d.Name), comment.Old, comment.New),
             d =>
             {
                 // A base-type change can't be altered in place, so it recreates (default/not-null/checks rebuild
@@ -320,8 +318,8 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         EmitObjects(schema.CompositeTypes, actions,
             t => new CreateCompositeType(t.Schema, t.Definition!),
             t => new DropCompositeType(new ObjectAddress(t.Schema, t.Name)),
-            t => new RenameCompositeType(new ObjectAddress(t.Schema, t.RenamedFrom!), t.Name),
-            t => new SetCompositeTypeComment(new ObjectAddress(t.Schema, t.Name), t.Comment!.Old, t.Comment.New),
+            (t, renamedFrom) => new RenameCompositeType(new ObjectAddress(t.Schema, renamedFrom), t.Name),
+            (t, comment) => new SetCompositeTypeComment(new ObjectAddress(t.Schema, t.Name), comment.Old, comment.New),
             t =>
             {
                 // Every field change applies in place: a matched field whose type differs is retyped, a missing
@@ -341,8 +339,8 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         EmitObjects(schema.Enums, actions,
             e => new CreateEnum(e.Schema, e.Definition!),
             e => new DropEnum(new ObjectAddress(e.Schema, e.Name)),
-            e => new RenameEnum(new ObjectAddress(e.Schema, e.RenamedFrom!), e.Name),
-            e => new SetEnumComment(new ObjectAddress(e.Schema, e.Name), e.Comment!.Old, e.Comment.New),
+            (e, renamedFrom) => new RenameEnum(new ObjectAddress(e.Schema, renamedFrom), e.Name),
+            (e, comment) => new SetEnumComment(new ObjectAddress(e.Schema, e.Name), comment.Old, comment.New),
             e =>
             {
                 // Additions are emitted in list order so each anchor exists when its addition runs (the
@@ -358,13 +356,13 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         EmitObjects(schema.Sequences, actions,
             s => new CreateSequence(s.Schema, s.Definition!),
             s => new DropSequence(new ObjectAddress(s.Schema, s.Name)),
-            s => new RenameSequence(new ObjectAddress(s.Schema, s.RenamedFrom!), s.Name),
-            s => new SetSequenceComment(new ObjectAddress(s.Schema, s.Name), s.Comment!.Old, s.Comment.New),
+            (s, renamedFrom) => new RenameSequence(new ObjectAddress(s.Schema, renamedFrom), s.Name),
+            (s, comment) => new SetSequenceComment(new ObjectAddress(s.Schema, s.Name), comment.Old, comment.New),
             s =>
             {
-                if (s.Options is not null)
+                if (s.Options is { Old: { } oldOptions, New: { } newOptions })
                 {
-                    actions.Add(new AlterSequence(new ObjectAddress(s.Schema, s.Name), s.Options.Old!, s.Options.New!));
+                    actions.Add(new AlterSequence(new ObjectAddress(s.Schema, s.Name), oldOptions, newOptions));
                 }
             });
 
@@ -516,27 +514,27 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         EmitConstraintKind(table.PrimaryKeys, actions, foldAdds,
             pk => new AddPrimaryKey(new ObjectAddress(table.Schema, table.Name), pk.Definition!),
             pk => new DropPrimaryKey(new MemberAddress(table.Schema, preRenameName, pk.Name)),
-            pk => new SetConstraintComment(new MemberAddress(table.Schema, table.Name, pk.Name), pk.Comment!.Old, pk.Comment.New));
+            (pk, comment) => new SetConstraintComment(new MemberAddress(table.Schema, table.Name, pk.Name), comment.Old, comment.New));
 
         EmitConstraintKind(table.ForeignKeys, actions, foldAdds,
             fk => new AddForeignKey(new ObjectAddress(table.Schema, table.Name), fk.Definition!),
             fk => new DropForeignKey(new MemberAddress(table.Schema, preRenameName, fk.Name)),
-            fk => new SetConstraintComment(new MemberAddress(table.Schema, table.Name, fk.Name), fk.Comment!.Old, fk.Comment.New));
+            (fk, comment) => new SetConstraintComment(new MemberAddress(table.Schema, table.Name, fk.Name), comment.Old, comment.New));
 
         EmitConstraintKind(table.UniqueConstraints, actions, foldAdds,
             uq => new AddUniqueConstraint(new ObjectAddress(table.Schema, table.Name), uq.Definition!),
             uq => new DropUniqueConstraint(new MemberAddress(table.Schema, preRenameName, uq.Name)),
-            uq => new SetConstraintComment(new MemberAddress(table.Schema, table.Name, uq.Name), uq.Comment!.Old, uq.Comment.New));
+            (uq, comment) => new SetConstraintComment(new MemberAddress(table.Schema, table.Name, uq.Name), comment.Old, comment.New));
 
         EmitConstraintKind(table.Checks, actions, foldAdds,
             ck => new AddCheckConstraint(new ObjectAddress(table.Schema, table.Name), ck.Definition!),
             ck => new DropCheckConstraint(new MemberAddress(table.Schema, preRenameName, ck.Name)),
-            ck => new SetConstraintComment(new MemberAddress(table.Schema, table.Name, ck.Name), ck.Comment!.Old, ck.Comment.New));
+            (ck, comment) => new SetConstraintComment(new MemberAddress(table.Schema, table.Name, ck.Name), comment.Old, comment.New));
 
         EmitConstraintKind(table.ExclusionConstraints, actions, foldAdds,
             ex => new AddExclusionConstraint(new ObjectAddress(table.Schema, table.Name), ex.Definition!),
             ex => new DropExclusionConstraint(new MemberAddress(table.Schema, preRenameName, ex.Name)),
-            ex => new SetConstraintComment(new MemberAddress(table.Schema, table.Name, ex.Name), ex.Comment!.Old, ex.Comment.New));
+            (ex, comment) => new SetConstraintComment(new MemberAddress(table.Schema, table.Name, ex.Name), comment.Old, comment.New));
     }
 
     /// <summary>
@@ -551,7 +549,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         bool foldAdds,
         Func<T, MigrationAction> add,
         Func<T, MigrationAction> drop,
-        Func<T, MigrationAction> comment
+        Func<T, ValueChange<string>, MigrationAction> comment
     ) where T : IMigratableDiff
     {
         foreach (var constraint in constraints)
@@ -562,12 +560,19 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             }
 
             EmitConstraintMigration(constraint.Kind, constraint.MigrationScript, actions);
-            actions.Add(constraint.Kind switch
+            switch (constraint.Kind)
             {
-                ChangeKind.Add => add(constraint),
-                ChangeKind.Remove => drop(constraint),
-                _ => comment(constraint),
-            });
+                case ChangeKind.Add:
+                    actions.Add(add(constraint));
+                    break;
+                case ChangeKind.Remove:
+                    actions.Add(drop(constraint));
+                    break;
+                // A member Modify is a comment change and nothing else, so one without a comment has nothing to emit.
+                case ChangeKind.Modify when constraint.Comment is { } changed:
+                    actions.Add(comment(constraint, changed));
+                    break;
+            }
         }
     }
 
@@ -583,24 +588,33 @@ internal sealed class PlanLinearizer : IPlanLinearizer
     {
         foreach (var index in table.Indexes)
         {
-            actions.Add(index.Kind switch
-            {
-                ChangeKind.Add => new CreateIndex(new ObjectAddress(table.Schema, table.Name), index.Definition!),
-                ChangeKind.Remove => new DropIndex(new MemberAddress(table.Schema, table.RenamedFrom ?? table.Name, index.Name)),
-                _ => new SetIndexComment(new MemberAddress(table.Schema, table.Name, index.Name), index.Comment!.Old, index.Comment.New),
-            });
+            actions.Add(IndexAction(table.Schema, table.Name, table.RenamedFrom ?? table.Name, index));
         }
     }
+
+    /// <summary>
+    /// The action for one index change on <paramref name="owner"/>. Drops target <paramref name="preRenameName"/>,
+    /// since they sort before the owner's rename and so run while it still carries its old name.
+    /// </summary>
+    private static MigrationAction IndexAction(SqlIdentifier schema, SqlIdentifier owner, SqlIdentifier preRenameName, IndexDiff index) => index switch
+    {
+        { Kind: ChangeKind.Add, Definition: { } definition } => new CreateIndex(new ObjectAddress(schema, owner), definition),
+        { Kind: ChangeKind.Remove } => new DropIndex(new MemberAddress(schema, preRenameName, index.Name)),
+        { Comment: { } comment } => new SetIndexComment(new MemberAddress(schema, owner, index.Name), comment.Old, comment.New),
+        _ => throw new NotSupportedException($"Cannot linearize index change {index.Kind} on '{schema}.{owner}'."),
+    };
+
 
     private static void EmitTriggers(TableDiff table, List<MigrationAction> actions)
     {
         foreach (var trigger in table.Triggers)
         {
-            actions.Add(trigger.Kind switch
+            actions.Add(trigger switch
             {
-                ChangeKind.Add => new CreateTrigger(new ObjectAddress(table.Schema, table.Name), trigger.Definition!),
-                ChangeKind.Remove => new DropTrigger(new MemberAddress(table.Schema, table.RenamedFrom ?? table.Name, trigger.Name)),
-                _ => new SetTriggerComment(new MemberAddress(table.Schema, table.Name, trigger.Name), trigger.Comment!.Old, trigger.Comment.New),
+                { Kind: ChangeKind.Add, Definition: { } definition } => new CreateTrigger(new ObjectAddress(table.Schema, table.Name), definition),
+                { Kind: ChangeKind.Remove } => new DropTrigger(new MemberAddress(table.Schema, table.RenamedFrom ?? table.Name, trigger.Name)),
+                { Comment: { } comment } => new SetTriggerComment(new MemberAddress(table.Schema, table.Name, trigger.Name), comment.Old, comment.New),
+                _ => throw new NotSupportedException($"Cannot linearize trigger change {trigger.Kind} on '{table.Schema}.{table.Name}'."),
             });
         }
     }
@@ -609,9 +623,14 @@ internal sealed class PlanLinearizer : IPlanLinearizer
     {
         foreach (var grant in table.Grants)
         {
+            if (grant.Privileges is not { } privileges)
+            {
+                continue;
+            }
+
             actions.Add(grant.Kind == ChangeKind.Add
-                ? new GrantTablePrivileges(new ObjectAddress(table.Schema, table.Name), grant.Role, grant.Privileges!.Value)
-                : new RevokeTablePrivileges(new ObjectAddress(table.Schema, table.RenamedFrom ?? table.Name), grant.Role, grant.Privileges!.Value));
+                ? new GrantTablePrivileges(new ObjectAddress(table.Schema, table.Name), grant.Role, privileges)
+                : new RevokeTablePrivileges(new ObjectAddress(table.Schema, table.RenamedFrom ?? table.Name), grant.Role, privileges));
         }
     }
 }

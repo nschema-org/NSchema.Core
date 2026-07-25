@@ -16,4 +16,9 @@ public interface INamedObjectDiff
     /// The change to the object.
     /// </summary>
     ChangeKind Kind { get; }
+
+    /// <summary>
+    /// The change to the object's comment, if any.
+    /// </summary>
+    ValueChange<string>? Comment { get; }
 }
