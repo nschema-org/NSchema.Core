@@ -7,7 +7,7 @@ using NSchema.State;
 using NSchema.State.Backends;
 using NSchema.State.Locks;
 using NSchema.State.Locks.Backends;
-using NSchema.State.Model;
+using NSchema.State.Domain;
 
 namespace NSchema.Tests.Operations;
 

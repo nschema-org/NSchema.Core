@@ -1,15 +1,15 @@
-using NSchema.Diff.Model;
-using NSchema.Diff.Model.Schemas;
-using NSchema.Diff.Model.Tables;
-using NSchema.Diff.Model.Triggers;
+using NSchema.Diff.Domain;
+using NSchema.Diff.Domain.Schemas;
+using NSchema.Diff.Domain.Tables;
+using NSchema.Diff.Domain.Triggers;
 using NSchema.Model.Columns;
 using NSchema.Model.Routines;
 using NSchema.Model.Tables;
 using NSchema.Model.Triggers;
-using NSchema.Plan.Model;
-using NSchema.Plan.Model.Services;
-using NSchema.Plan.Model.Tables;
-using NSchema.Plan.Model.Triggers;
+using NSchema.Plan.Domain;
+using NSchema.Plan.Domain.Services;
+using NSchema.Plan.Domain.Tables;
+using NSchema.Plan.Domain.Triggers;
 
 namespace NSchema.Tests.Plan;
 

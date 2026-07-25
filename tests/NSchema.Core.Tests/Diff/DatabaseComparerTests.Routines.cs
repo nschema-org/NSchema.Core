@@ -1,9 +1,9 @@
-using NSchema.Diff.Model;
-using NSchema.Diff.Model.Routines;
+using NSchema.Diff.Domain;
+using NSchema.Diff.Domain.Routines;
 using NSchema.Model;
 using NSchema.Model.Routines;
 using NSchema.Model.Schemas;
-using NSchema.Project.Model.Directives;
+using NSchema.Project.Domain.Directives;
 
 namespace NSchema.Tests.Diff;
 

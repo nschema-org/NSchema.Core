@@ -3,7 +3,7 @@ using NSchema.Model.Columns;
 using NSchema.Model.Schemas;
 using NSchema.Model.Scripts;
 using NSchema.Project;
-using NSchema.Project.Model.Directives;
+using NSchema.Project.Domain.Directives;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Project.Templates;

@@ -11,7 +11,7 @@ using NSchema.Model.Sequences;
 using NSchema.Model.Tables;
 using NSchema.Model.Triggers;
 using NSchema.Model.Views;
-using NSchema.Project.Model.Directives;
+using NSchema.Project.Domain.Directives;
 using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Tokens;
 using Syn = NSchema.Project.Nsql.Syntax;

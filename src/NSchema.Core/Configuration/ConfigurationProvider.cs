@@ -1,5 +1,5 @@
 using NSchema.Configuration.Engine;
-using NSchema.Configuration.Model;
+using NSchema.Configuration.Domain;
 using NSchema.Project.Nsql;
 using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Syntax.Settings;

@@ -1,9 +1,9 @@
 using NSchema.Model;
 using NSchema.Model.Scripts;
-using NSchema.Project.Model.Directives;
-using NSchema.Project.Model.Services;
+using NSchema.Project.Domain.Directives;
 using NSchema.Project.Nsql;
 using NSchema.Project.Nsql.Syntax.Templates;
+using NSchema.Project.Projection;
 
 namespace NSchema.Project;
 

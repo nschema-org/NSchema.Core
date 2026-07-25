@@ -1,6 +1,6 @@
 using NSchema.Model.Columns;
 using NSchema.Model.CompositeTypes;
-using NSchema.Project.Model.Directives;
+using NSchema.Project.Domain.Directives;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;

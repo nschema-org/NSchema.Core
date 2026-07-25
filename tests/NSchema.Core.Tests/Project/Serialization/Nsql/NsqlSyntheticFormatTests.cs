@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using NSchema.Diff.Backends;
-using NSchema.Diff.Model.Services;
+using NSchema.Diff.Domain.Services;
 using NSchema.Model;
 using NSchema.Model.Schemas;
 using NSchema.Project.Nsql;
@@ -9,7 +9,7 @@ using NSchema.Project.Nsql.Syntax.Settings;
 using NSchema.Project.Nsql.Syntax.Tables;
 using NSchema.Project.Nsql.Syntax.Templates;
 using NSchema.Project.Nsql.Tokens;
-using DatabaseComparer = NSchema.Diff.Model.Services.DatabaseComparer;
+using DatabaseComparer = NSchema.Diff.Domain.Services.DatabaseComparer;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;
 

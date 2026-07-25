@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using NSchema.Diff.Backends;
-using NSchema.Diff.Model.Services;
+using NSchema.Diff.Domain.Services;
 using NSchema.Project.Nsql;
-using DatabaseComparer = NSchema.Diff.Model.Services.DatabaseComparer;
+using DatabaseComparer = NSchema.Diff.Domain.Services.DatabaseComparer;
 
 namespace NSchema.Tests.EndToEnd;
 

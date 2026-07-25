@@ -1,6 +1,6 @@
 using System.Text;
 using NSchema.Model;
-using NSchema.Project.Model.Directives;
+using NSchema.Project.Domain.Directives;
 using NSchema.Project.Nsql.Syntax;
 using NSchema.Project.Nsql.Syntax.Settings;
 using NSchema.Project.Nsql.Syntax.Tables;

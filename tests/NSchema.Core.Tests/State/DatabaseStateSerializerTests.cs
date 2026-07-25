@@ -4,7 +4,7 @@ using NSchema.Model.Columns;
 using NSchema.Model.Schemas;
 using NSchema.Model.Tables;
 using NSchema.State;
-using NSchema.State.Model;
+using NSchema.State.Domain;
 
 namespace NSchema.Tests.State;
 

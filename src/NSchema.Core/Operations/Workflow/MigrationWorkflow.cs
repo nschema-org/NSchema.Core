@@ -1,13 +1,13 @@
 using NSchema.Deployment;
-using NSchema.Diff.Model.Services;
+using NSchema.Diff.Domain.Services;
 using NSchema.Model;
 using NSchema.Operations.Progress;
-using NSchema.Plan.Model;
-using NSchema.Plan.Model.Services;
+using NSchema.Plan.Domain;
+using NSchema.Plan.Domain.Services;
 using NSchema.Project;
-using NSchema.Project.Model.Directives;
+using NSchema.Project.Domain.Directives;
 using NSchema.State;
-using NSchema.State.Model;
+using NSchema.State.Domain;
 
 namespace NSchema.Operations.Workflow;
 

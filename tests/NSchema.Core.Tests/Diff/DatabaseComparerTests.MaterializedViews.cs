@@ -1,4 +1,4 @@
-using NSchema.Diff.Model;
+using NSchema.Diff.Domain;
 using NSchema.Model;
 using NSchema.Model.Indexes;
 using NSchema.Model.Views;

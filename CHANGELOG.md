@@ -22,6 +22,8 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **Parsing is lossless.** The syntax tree now preserves every character of the source, including comments, whitespace, and layout.
 - **Management directives.** The language now separates *declarations* (what the schema is) from *directives* (how the difference is managed). This includes RENAME and SCRIPT.
 - **Every namespace has moved.** Namespaces are vertically sliced of the form `NSchema.<Feature>.<Capability>`.
+- **A slice's domain layer is `Domain`, not `Model`.**
+- **The shared primitives live in `NSchema.Diagnostics`.**
 - **The schema model is `NSchema.Model` now.** It owns the top-level domain model for databases.
 - **DataMigrations are Scripts now.** This reflects the syntax changes introduce in [4.4.0] so the model becomes consistent.
 - **Templates accept object-level directives.** A `TEMPLATE` body may now contain the object-level `RENAME` directive (table, column, view, enum, domain, type, sequence, routine) alongside its declarations and scripts.

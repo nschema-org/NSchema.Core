@@ -1,6 +1,6 @@
-using NSchema.Diff.Model;
-using NSchema.Diff.Model.Enums;
-using NSchema.Diff.Model.Schemas;
+using NSchema.Diff.Domain;
+using NSchema.Diff.Domain.Enums;
+using NSchema.Diff.Domain.Schemas;
 using NSchema.Model.Enums;
 using NSchema.Plan.Policies;
 

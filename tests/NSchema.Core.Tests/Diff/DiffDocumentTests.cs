@@ -1,10 +1,10 @@
-using NSchema.Diff.Model;
-using NSchema.Diff.Model.Columns;
-using NSchema.Diff.Model.Constraints;
-using NSchema.Diff.Model.Indexes;
-using NSchema.Diff.Model.Schemas;
-using NSchema.Diff.Model.Tables;
-using NSchema.Diff.Model.Views;
+using NSchema.Diff.Domain;
+using NSchema.Diff.Domain.Columns;
+using NSchema.Diff.Domain.Constraints;
+using NSchema.Diff.Domain.Indexes;
+using NSchema.Diff.Domain.Schemas;
+using NSchema.Diff.Domain.Tables;
+using NSchema.Diff.Domain.Views;
 using NSchema.Diff.Rendering;
 using NSchema.Model;
 using NSchema.Model.Columns;

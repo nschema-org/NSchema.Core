@@ -1,6 +1,6 @@
 using System.Text.Json;
 using NSchema.Model.Serialization;
-using NSchema.State.Model;
+using NSchema.State.Domain;
 
 namespace NSchema.State;
 

@@ -1,13 +1,13 @@
 using System.Text;
-using NSchema.Diff.Model;
-using NSchema.Diff.Model.Columns;
-using NSchema.Diff.Model.Constraints;
-using NSchema.Diff.Model.Schemas;
-using NSchema.Diff.Model.Tables;
+using NSchema.Diff.Domain;
+using NSchema.Diff.Domain.Columns;
+using NSchema.Diff.Domain.Constraints;
+using NSchema.Diff.Domain.Schemas;
+using NSchema.Diff.Domain.Tables;
 using NSchema.Model.Columns;
 using NSchema.Model.Scripts;
 using NSchema.Model.Tables;
-using NSchema.Plan.Model;
+using NSchema.Plan.Domain;
 using NSchema.Plan.PlanFile;
 
 namespace NSchema.Tests.Plan.PlanFile;

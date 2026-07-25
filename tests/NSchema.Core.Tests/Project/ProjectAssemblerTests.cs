@@ -1,5 +1,5 @@
 using NSchema.Model;
-using NSchema.Project.Model.Services;
+using NSchema.Project;
 using NSchema.Project.Nsql;
 
 namespace NSchema.Tests.Project;
@@ -10,7 +10,7 @@ namespace NSchema.Tests.Project;
 /// </summary>
 public sealed class ProjectAssemblerTests
 {
-    private static NsqlDiagnostic SingleError(Result<NSchema.Project.Model.Directives.ProjectDefinition> result)
+    private static NsqlDiagnostic SingleError(Result<NSchema.Project.Domain.Directives.ProjectDefinition> result)
         => result.Errors.ShouldHaveSingleItem().ShouldBeOfType<NsqlDiagnostic>();
 
     // ── Aggregation across files ──────────────────────────────────────────────

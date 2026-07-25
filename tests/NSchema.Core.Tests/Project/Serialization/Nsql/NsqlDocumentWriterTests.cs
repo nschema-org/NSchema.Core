@@ -1,10 +1,10 @@
 using System.Text;
 using NSchema.Model;
 using NSchema.Model.Schemas;
-using NSchema.Project.Model.Directives;
+using NSchema.Project.Domain.Directives;
 using NSchema.Project.Nsql;
 using NSchema.State;
-using NSchema.State.Model;
+using NSchema.State.Domain;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;
 

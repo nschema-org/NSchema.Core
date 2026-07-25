@@ -13,10 +13,10 @@ using NSchema.Model.Sequences;
 using NSchema.Model.Tables;
 using NSchema.Model.Triggers;
 using NSchema.Model.Views;
-using NSchema.Project.Model.Directives;
+using NSchema.Project.Domain.Directives;
 using NSchema.Project.Nsql;
 using NSchema.State;
-using NSchema.State.Model;
+using NSchema.State.Domain;
 
 namespace NSchema.Tests.Project.Serialization.Nsql;
 
