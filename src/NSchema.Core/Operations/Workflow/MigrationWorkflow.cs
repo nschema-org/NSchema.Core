@@ -166,7 +166,7 @@ internal sealed class MigrationWorkflow(
     private void ReportProjectDetail(ProjectDefinition project)
     {
         var scriptCount = project.Directives.DeploymentScripts.Count + project.Directives.ChangeScripts.Count;
-        progress.Report(OperationProgress.Detail($"Project: {StatusHelpers.Describe(project.Database)}, " +
+        progress.Report(OperationProgress.Detail($"Declared: {StatusHelpers.Describe(project.Database)}, " +
             $"{StatusHelpers.Count(scriptCount, "script")}."));
     }
 }
