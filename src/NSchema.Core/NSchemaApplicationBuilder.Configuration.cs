@@ -11,20 +11,20 @@ namespace NSchema;
 public partial class NSchemaApplicationBuilder
 {
     /// <summary>
-    /// Configures the policy to apply when a destructive action is detected in the migration plan.
+    /// Configures how destructive actions are handled in the migration.
     /// </summary>
-    public NSchemaApplicationBuilder WithDestructiveActionPolicy(PolicyEnforcement policy)
+    public NSchemaApplicationBuilder WithDestructiveActions(PolicyEnforcement enforcement)
     {
-        Services.Configure<DestructiveActionOptions>(o => o.Policy = policy);
+        Services.Configure<DestructiveActionOptions>(o => o.Policy = enforcement);
         return this;
     }
 
     /// <summary>
-    /// Configures the policy to apply when the migration plan contains a change that can fail on existing data.
+    /// Configures how changes that can fail on existing data are handled..
     /// </summary>
-    public NSchemaApplicationBuilder WithDataHazardPolicy(PolicyEnforcement policy)
+    public NSchemaApplicationBuilder WithDataHazards(PolicyEnforcement enforcement)
     {
-        Services.Configure<DataHazardOptions>(o => o.Policy = policy);
+        Services.Configure<DataHazardOptions>(o => o.Policy = enforcement);
         return this;
     }
 

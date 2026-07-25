@@ -54,7 +54,7 @@ internal static class ChangeScriptDecorator
                 { Kind: ChangeKind.Modify, Type: not null } when Match(ChangeTrigger.AlterColumnType, column.Name) is { } m => column with { MigrationScript = m },
                 _ => column,
             }).ToList(),
-            PrimaryKey = AttachConstraints(table.PrimaryKey, Match, (pk, m) => pk with { MigrationScript = m }),
+            PrimaryKeys = AttachConstraints(table.PrimaryKeys, Match, (pk, m) => pk with { MigrationScript = m }),
             UniqueConstraints = AttachConstraints(table.UniqueConstraints, Match, (uc, m) => uc with { MigrationScript = m }),
             ForeignKeys = AttachConstraints(table.ForeignKeys, Match, (fk, m) => fk with { MigrationScript = m }),
             Checks = AttachConstraints(table.Checks, Match, (check, m) => check with { MigrationScript = m }),

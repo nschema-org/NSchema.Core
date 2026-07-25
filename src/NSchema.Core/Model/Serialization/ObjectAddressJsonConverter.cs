@@ -1,13 +1,13 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace NSchema.Model.Services;
+namespace NSchema.Model.Serialization;
 
 /// <summary>
 /// Serializes an <see cref="ObjectAddress"/> as <c>{ schema, name }</c>, adding <c>kind</c> only when the
 /// address is kind-specific — so a kind-free reference carries no null noise.
 /// </summary>
-public sealed class ObjectAddressJsonConverter : JsonConverter<ObjectAddress>
+internal sealed class ObjectAddressJsonConverter : JsonConverter<ObjectAddress>
 {
     /// <inheritdoc />
     public override ObjectAddress Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)

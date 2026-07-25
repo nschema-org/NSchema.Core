@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using NSchema.Model;
-using NSchema.Model.Services;
+using NSchema.Model.Serialization;
 
 namespace NSchema.State.Locks;
 

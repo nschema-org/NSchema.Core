@@ -203,7 +203,7 @@ public partial class DatabaseComparerTests
 
         var table = Compare(current, desired).Schemas.Single().Tables.Single();
 
-        table.PrimaryKey.Select(c => (c.Kind, c.Name.Value)).ShouldBe([(ChangeKind.Add, "orders_pkey")]);
+        table.PrimaryKeys.Select(c => (c.Kind, c.Name.Value)).ShouldBe([(ChangeKind.Add, "orders_pkey")]);
         table.ForeignKeys.Select(c => (c.Kind, c.Name.Value)).ShouldBe([(ChangeKind.Add, "orders_user_fk")]);
         table.UniqueConstraints.Select(c => (c.Kind, c.Name.Value)).ShouldBe([(ChangeKind.Add, "orders_user_uq")]);
         table.Checks.Select(c => (c.Kind, c.Name.Value)).ShouldBe([(ChangeKind.Add, "orders_id_chk")]);

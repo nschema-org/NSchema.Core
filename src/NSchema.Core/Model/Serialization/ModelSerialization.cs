@@ -3,22 +3,22 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 
-namespace NSchema.Model.Services;
+namespace NSchema.Model.Serialization;
 
 internal static class ModelSerialization
 {
-    public static JsonSerializerOptions Options { get; } = new()
+    public static JsonSerializerOptions Options { get; } = new JsonSerializerOptions
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-        Converters = { new JsonStringEnumConverter(), new ValueObjectJsonConverter(), new SchemaAddressJsonConverter(), new ObjectAddressJsonConverter() },
+        Converters = { new JsonStringEnumConverter() },
         TypeInfoResolver = new DefaultJsonTypeInfoResolver
         {
             Modifiers = { InheritJsonIgnore }
         }
-    };
+    }.AddModelConverters();
 
     // https://github.com/dotnet/runtime/issues/50078#issuecomment-2192460403
     private static void InheritJsonIgnore(JsonTypeInfo jsonTypeInfo)

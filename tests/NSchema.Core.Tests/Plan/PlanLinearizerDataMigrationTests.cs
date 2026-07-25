@@ -176,7 +176,7 @@ public sealed class PlanLinearizerDataMigrationTests
         { MigrationScript = migration };
 
         // Act
-        var plan = LinearizeTable(new TableDiff("app", "users", ChangeKind.Modify, PrimaryKey: [constraint]));
+        var plan = LinearizeTable(new TableDiff("app", "users", ChangeKind.Modify, PrimaryKeys: [constraint]));
 
         // Assert — the action carries the declared script itself, nothing copied field-by-field.
         plan.OfType<ExecuteScript>().ShouldHaveSingleItem().Script.ShouldBe(migration);

@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace NSchema.Model.Services;
+namespace NSchema.Model.Serialization;
 
 /// <summary>
 /// Serializes any <see cref="IParsable{TSelf}"/> as its canonical text, round-tripping through its own <c>Parse</c>.

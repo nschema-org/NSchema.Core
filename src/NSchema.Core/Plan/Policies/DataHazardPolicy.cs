@@ -94,7 +94,7 @@ internal sealed class DataHazardPolicy(IOptions<DataHazardOptions> options) : IP
             .ToHashSet();
 
         // A matched migration means the user has declared how the data gets into shape (de-duplicated, backfilled) before the constraint lands, so it silences the hazard.
-        foreach (var primaryKey in table.PrimaryKey.Where(p => p is { Kind: ChangeKind.Add, MigrationScript: null }))
+        foreach (var primaryKey in table.PrimaryKeys.Where(p => p is { Kind: ChangeKind.Add, MigrationScript: null }))
         {
             var existing = ExistingColumns(primaryKey.Definition?.ColumnNames, addedColumns);
             if (existing.Count > 0)

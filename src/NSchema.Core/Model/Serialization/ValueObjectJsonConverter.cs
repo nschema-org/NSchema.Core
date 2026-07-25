@@ -2,12 +2,12 @@ using System.Linq.Expressions;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace NSchema.Model.Services;
+namespace NSchema.Model.Serialization;
 
 /// <summary>
 /// Serializes a <see cref="ValueObject{TValue}"/> as its bare value.
 /// </summary>
-public sealed class ValueObjectJsonConverter : JsonConverterFactory
+internal sealed class ValueObjectJsonConverter : JsonConverterFactory
 {
     /// <inheritdoc />
     public override bool CanConvert(Type typeToConvert) => GetValueType(typeToConvert) is not null;

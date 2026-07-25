@@ -25,9 +25,9 @@ public sealed class StateLockRegistrationTests
     }
 
     [Fact]
-    public void FileStateStore_AutoRegistersAFileLockAtDerivedPath()
+    public void UseFileState_AutoRegistersAFileLockAtDerivedPath()
     {
-        var services = Build(b => b.UseFileStateStore("state/schema.json"));
+        var services = Build(b => b.UseFileState("state/schema.json"));
 
         services.GetRequiredService<IStateLock>().ShouldBeOfType<FileStateLock>();
         services.GetRequiredService<IOptions<FileStateLockOptions>>().Value.Path.ShouldBe("state/schema.json.lock");
@@ -65,7 +65,7 @@ public sealed class StateLockRegistrationTests
     [Fact]
     public void ExplicitLockBeforeStore_Wins()
     {
-        var services = Build(b => b.UseStateLock<CustomLock>().UseFileStateStore("schema.json"));
+        var services = Build(b => b.UseStateLock<CustomLock>().UseFileState("schema.json"));
 
         services.GetRequiredService<IStateLock>().ShouldBeOfType<CustomLock>();
     }
@@ -73,7 +73,7 @@ public sealed class StateLockRegistrationTests
     [Fact]
     public void ExplicitLockAfterStore_Wins()
     {
-        var services = Build(b => b.UseFileStateStore("schema.json").UseStateLock<CustomLock>());
+        var services = Build(b => b.UseFileState("schema.json").UseStateLock<CustomLock>());
 
         services.GetRequiredService<IStateLock>().ShouldBeOfType<CustomLock>();
     }

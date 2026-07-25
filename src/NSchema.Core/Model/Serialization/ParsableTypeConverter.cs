@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Globalization;
 
-namespace NSchema.Model.Services;
+namespace NSchema.Model.Serialization;
 
 /// <summary>
 /// Converts a string to any <see cref="IParsable{TSelf}"/> through its own <c>Parse</c>, so one converter serves

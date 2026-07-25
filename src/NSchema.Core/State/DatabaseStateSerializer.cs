@@ -1,5 +1,5 @@
 using System.Text.Json;
-using NSchema.Model.Services;
+using NSchema.Model.Serialization;
 using NSchema.State.Model;
 
 namespace NSchema.State;

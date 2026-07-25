@@ -39,11 +39,16 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **`SqlDialect` replaces `ISqlGenerator`.** (registered with `UseSqlDialect<T>()`).
 - **`IStateLockManager` replaces `IStateLockCoordinator`.** Lines up with with `ISchemaStateManager`.
 - **`IPlanFileManager` replaces `IPlanFileWriter`.** It reads saved plans too, so "writer" undersold it.
+- **`UseFileState` replaces `UseFileStateStore`.** It registers the lock alongside the store, so "store" undersold it — matching `UseEphemeralState`, which does the same. `UseStateStore` and `UseStateLock` still register a single seam each.
+- **`TableDiff.PrimaryKeys` replaces `TableDiff.PrimaryKey`.** It has always been a list — replacing a key is a remove *and* an add — so the singular name misread as one change.
+- **The serialization types live in `NSchema.Model.Serialization`.** They move out of `NSchema.Model.Services`, which is for services over the model.
+- **`options.AddModelConverters()` composes the model's JSON conventions.** A consumer serializing NSchema types adds the converters to its own `JsonSerializerOptions` rather than naming them — persistence wants indented, complete output and a console stream wants terse single lines, so only the conventions are shared. The converters themselves are internal now.
 - **`IDatabaseIntrospector` replaces `ISchemaProvider`.** More honest about what it does now that the interface doesn't serve both the current and desired sides, and named for what it returns.
 - **Plugin `Configure` returns `Result`.** Configuration errors are diagnostics like everything else.
 - **Opaque SQL is `SqlText` now.** Every schema-model field carrying SQL that NSchema stores verbatim but does not interpret is typed `SqlText` instead of `string`.
 - **A qualified type's schema is a component now.** `SqlType` carries the schema of a user-defined type (e.g. `app` in `app.order_status`) as a structural `Schema` property rather than folded into its nam.
-- **`PolicyEnforcement` absorbs `DestructiveActionPolicy`.** `WithDestructiveActionPolicy` takes the shared enum, gaining `Ignore`.
+- **`PolicyEnforcement` absorbs the `DestructiveActionPolicy` enum.** The shared enum gains `Ignore`.
+- **`WithDestructiveActions` and `WithDataHazards` replace `WithDestructiveActionPolicy` and `WithDataHazardPolicy`.** They set how a built-in policy is enforced, which the old names read as registering one — `AddPlanPolicy<T>()` is what registers.
 - **The state ledger field is `scripts` now.** Pre-5.0 `executedScripts` payloads read as an empty ledger. Refresh (or untaint) existing state under the state-format compatibility policy's major-version rules.
 - **Configuration is part of the language.** `ENGINE`, `PLUGIN`, `DATABASE` and `STATE` parse as ordinary statements, in the one grammar that carries declarations and directives. Which statements a given file *should* hold is a consumer's rule, not the parser's: each subsystem picks out the statements it understands and ignores the rest.
 - **`DATABASE` and `STATE` replace `PROVIDER` and `BACKEND`.** Each names the thing it configures rather than the role that supplies it.
@@ -78,7 +83,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **Change-script targets are value objects.** `ChangeScript` now takes a `ChangeTarget` instead of separate trigger and path values.
 - **Atomic table-fragment merge.** `Table.TryMergeMembers` applies a complete table-member fragment or reports its conflicts.
 - **SQL type conversion risk.** `SqlType.ConversionRiskTo` assesses whether converting stored values can fail.
-- **Ephemeral state.** `UseEphemeralState()` registers an in-memory state store and matching lock, intended for disposable databases.
+- **Ephemeral state.** `UseEphemeralState()` registers an in-memory state store, which serves as the lock too, intended for disposable databases.
 - **Object-granular targeting.** `PlanningScope` covers a single list of `Address`es (`PlanningScope.To(addresses)` / `scope.Addresses`), mixing whole-schema and object-level targets.
 - **Address parsing.** `NsqlReader.ReadAddress` parses a `schema`, `schema.object`, or `schema.object.member` fragment into an `Address`, resolving quoted segments
 - **`SchemaAddress` completes the address taxonomy.** A schema has a first-class `Address` alongside `ObjectAddress` and `MemberAddress`.

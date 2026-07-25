@@ -22,7 +22,7 @@ public partial class DatabaseComparerTests
             new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] },
             new Table { Name = "users", PrimaryKey = new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] }, Columns = [new Column { Name = "id", Type = SqlType.Int }] });
 
-        table!.PrimaryKey.ShouldHaveSingleItem().ShouldBe(
+        table!.PrimaryKeys.ShouldHaveSingleItem().ShouldBe(
             new PrimaryKeyDiff(ChangeKind.Add, "users_pkey", new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] }));
     }
 
@@ -33,7 +33,7 @@ public partial class DatabaseComparerTests
             new Table { Name = "users", PrimaryKey = new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] }, Columns = [new Column { Name = "id", Type = SqlType.Int }] },
             new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] });
 
-        table!.PrimaryKey.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
+        table!.PrimaryKeys.ShouldHaveSingleItem().Kind.ShouldBe(ChangeKind.Remove);
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public partial class DatabaseComparerTests
             new Table { Name = "users", PrimaryKey = new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] }, Columns = [new Column { Name = "id", Type = SqlType.Int }] },
             new Table { Name = "users", PrimaryKey = new PrimaryKey { Name = "users_pkey", ColumnNames = ["id", "tenant"] }, Columns = [new Column { Name = "id", Type = SqlType.Int }] });
 
-        table!.PrimaryKey.Select(c => c.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
+        table!.PrimaryKeys.Select(c => c.Kind).ShouldBe([ChangeKind.Remove, ChangeKind.Add]);
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public partial class DatabaseComparerTests
             new Table { Name = "users", PrimaryKey = new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"], Comment = "old" }, Columns = [new Column { Name = "id", Type = SqlType.Int }] },
             new Table { Name = "users", PrimaryKey = new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"], Comment = "new" }, Columns = [new Column { Name = "id", Type = SqlType.Int }] });
 
-        var pk = table!.PrimaryKey.ShouldHaveSingleItem();
+        var pk = table!.PrimaryKeys.ShouldHaveSingleItem();
         pk.Kind.ShouldBe(ChangeKind.Modify);
         pk.Comment.ShouldBe(new ValueChange<string>("old", "new"));
     }

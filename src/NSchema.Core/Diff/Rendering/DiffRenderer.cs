@@ -128,7 +128,7 @@ internal static class DiffRenderer
 
         // A new table renders its columns as a block, separated from the constraint/index/grant block by a
         // blank line. An existing table lists its column changes inline with everything that follows.
-        var hasTrailingBlock = table.PrimaryKey.Count > 0 || table.ForeignKeys.Count > 0
+        var hasTrailingBlock = table.PrimaryKeys.Count > 0 || table.ForeignKeys.Count > 0
             || table.UniqueConstraints.Count > 0 || table.Checks.Count > 0
             || table.Indexes.Count > 0 || table.Triggers.Count > 0 || table.Grants.Count > 0;
         if (table is { Kind: ChangeKind.Add, Columns.Count: > 0 } && hasTrailingBlock)
@@ -136,7 +136,7 @@ internal static class DiffRenderer
             lines.Add(DiffLine.Blank);
         }
 
-        foreach (var pk in table.PrimaryKey)
+        foreach (var pk in table.PrimaryKeys)
         {
             AppendDetail(lines, pk.Kind, MemberText("primary key", pk.Name, pk.Kind, pk.Comment) + MigrationSuffix(pk.MigrationScript));
         }

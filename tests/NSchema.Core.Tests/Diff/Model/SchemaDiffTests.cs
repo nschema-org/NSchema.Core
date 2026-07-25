@@ -41,7 +41,7 @@ public sealed class SchemaDiffTests
         var table = new TableDiff("app", "users", ChangeKind.Modify,
             Columns: [new ColumnDiff("id", ChangeKind.Add, null, null, null, null, null, null, null)],
             Indexes: [new IndexDiff(ChangeKind.Add, "ix", null, null)],
-            PrimaryKey: [new PrimaryKeyDiff(ChangeKind.Add, "pk", null)],
+            PrimaryKeys: [new PrimaryKeyDiff(ChangeKind.Add, "pk", null)],
             ForeignKeys: [new ForeignKeyDiff(ChangeKind.Add, "fk", null)],
             UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "uq", null)],
             Checks: [new CheckConstraintDiff(ChangeKind.Add, "ck", null)]);

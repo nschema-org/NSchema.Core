@@ -477,7 +477,7 @@ public class DataHazardPolicyTests
             new SchemaDiff("app", Tables:
             [
                 new TableDiff("app", "users", ChangeKind.Modify,
-                    Columns: columns, Indexes: indexes, PrimaryKey: primaryKey, UniqueConstraints: uniqueConstraints),
+                    Columns: columns, Indexes: indexes, PrimaryKeys: primaryKey, UniqueConstraints: uniqueConstraints),
             ]),
         ]);
 }

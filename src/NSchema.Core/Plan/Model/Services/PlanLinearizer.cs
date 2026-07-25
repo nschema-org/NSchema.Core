@@ -513,7 +513,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         // into the CREATE TABLE and only comment changes still arrive as separate actions.
         var foldAdds = table.Kind == ChangeKind.Add;
 
-        EmitConstraintKind(table.PrimaryKey, actions, foldAdds,
+        EmitConstraintKind(table.PrimaryKeys, actions, foldAdds,
             pk => new AddPrimaryKey(new(table.Schema, table.Name), pk.Definition!),
             pk => new DropPrimaryKey(new(table.Schema, preRenameName, pk.Name)),
             pk => new SetConstraintComment(new(table.Schema, table.Name, pk.Name), pk.Comment!.Old, pk.Comment.New));

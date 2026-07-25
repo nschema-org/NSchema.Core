@@ -79,7 +79,7 @@ public class ChangeScriptAttachmentTests
             Users(Id, new PrimaryKey { Name = "users_pk", ColumnNames = ["id"] }),
             script);
 
-        diff.PrimaryKey.Single().MigrationScript.ShouldBe(script);
+        diff.PrimaryKeys.Single().MigrationScript.ShouldBe(script);
     }
 
     [Fact]

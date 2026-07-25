@@ -18,7 +18,7 @@ namespace NSchema.Diff.Model.Tables;
 /// <param name="Columns">The changed columns, ordered as encountered in the plan.</param>
 /// <param name="Grants">Privileges granted or revoked on the table.</param>
 /// <param name="Indexes">Index changes on the table.</param>
-/// <param name="PrimaryKey">Primary key changes on the table.</param>
+/// <param name="PrimaryKeys">Primary key changes on the table.</param>
 /// <param name="ForeignKeys">Foreign key changes on the table.</param>
 /// <param name="UniqueConstraints">Unique constraint changes on the table.</param>
 /// <param name="Checks">Check constraint changes on the table.</param>
@@ -36,7 +36,7 @@ public sealed record TableDiff(
     IReadOnlyList<ColumnDiff>? Columns = null,
     IReadOnlyList<GrantChange>? Grants = null,
     IReadOnlyList<IndexDiff>? Indexes = null,
-    IReadOnlyList<PrimaryKeyDiff>? PrimaryKey = null,
+    IReadOnlyList<PrimaryKeyDiff>? PrimaryKeys = null,
     IReadOnlyList<ForeignKeyDiff>? ForeignKeys = null,
     IReadOnlyList<UniqueConstraintDiff>? UniqueConstraints = null,
     IReadOnlyList<CheckConstraintDiff>? Checks = null,
@@ -63,7 +63,7 @@ public sealed record TableDiff(
     /// <summary>
     /// Primary key changes on the table.
     /// </summary>
-    public IReadOnlyList<PrimaryKeyDiff> PrimaryKey { get; init; } = PrimaryKey ?? [];
+    public IReadOnlyList<PrimaryKeyDiff> PrimaryKeys { get; init; } = PrimaryKeys ?? [];
 
     /// <summary>
     /// Foreign key changes on the table.
@@ -98,7 +98,7 @@ public sealed record TableDiff(
     public IEnumerable<INamedObjectDiff> EnumerateMembers() =>
         Columns.Cast<INamedObjectDiff>()
             .Concat(Indexes)
-            .Concat(PrimaryKey)
+            .Concat(PrimaryKeys)
             .Concat(ForeignKeys)
             .Concat(UniqueConstraints)
             .Concat(Checks)

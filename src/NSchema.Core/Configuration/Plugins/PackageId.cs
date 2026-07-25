@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using NSchema.Model;
-using NSchema.Model.Services;
+using NSchema.Model.Serialization;
 
 namespace NSchema.Configuration.Plugins;
 
