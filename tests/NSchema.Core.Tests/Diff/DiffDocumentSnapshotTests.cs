@@ -12,7 +12,7 @@ using NSchema.Diff.Model.Sequences;
 using NSchema.Diff.Model.Tables;
 using NSchema.Diff.Model.Triggers;
 using NSchema.Diff.Model.Views;
-using NSchema.Diff.Reader;
+using NSchema.Diff.Rendering;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.CompositeTypes;
@@ -31,11 +31,10 @@ using NSchema.Model.Views;
 namespace NSchema.Tests.Diff;
 
 /// <summary>
-/// Snapshot coverage for <see cref="DiffReader"/>.
+/// Snapshot coverage for <see cref="DiffDocument"/>.
 /// </summary>
-public sealed class DiffReaderSnapshotTests
+public sealed class DiffDocumentSnapshotTests
 {
-    private static DiffDocument Read(DatabaseDiff diff) => DiffReader.Read(diff);
 
     /// <summary>
     /// A diff exercising add/modify/remove across schemas, tables, columns, indexes, constraints, and grants.
@@ -193,10 +192,10 @@ public sealed class DiffReaderSnapshotTests
     }
 
     [Fact]
-    public Task Read_RichDiff() => Verify(Read(RichDiff()));
+    public Task From_RichDiff() => Verify(DiffDocument.From(RichDiff()));
 
     [Fact]
-    public Task Read_ViewChanges() => Verify(Read(ViewChangesDiff()));
+    public Task From_ViewChanges() => Verify(DiffDocument.From(ViewChangesDiff()));
 
     /// <summary>
     /// A diff exercising every function change kind: an add (showing arguments), a body-only replace, a
@@ -301,7 +300,7 @@ public sealed class DiffReaderSnapshotTests
     }
 
     [Fact]
-    public Task Read_EnumChanges() => Verify(Read(EnumChangesDiff()));
+    public Task From_EnumChanges() => Verify(DiffDocument.From(EnumChangesDiff()));
 
     private static DatabaseDiff CompositeTypeChangesDiff()
     {
@@ -327,22 +326,22 @@ public sealed class DiffReaderSnapshotTests
     }
 
     [Fact]
-    public Task Read_DomainChanges() => Verify(Read(DomainChangesDiff()));
+    public Task From_DomainChanges() => Verify(DiffDocument.From(DomainChangesDiff()));
 
     [Fact]
-    public Task Read_CompositeTypeChanges() => Verify(Read(CompositeTypeChangesDiff()));
+    public Task From_CompositeTypeChanges() => Verify(DiffDocument.From(CompositeTypeChangesDiff()));
 
     [Fact]
-    public Task Read_ExtensionChanges() => Verify(Read(ExtensionChangesDiff()));
+    public Task From_ExtensionChanges() => Verify(DiffDocument.From(ExtensionChangesDiff()));
 
     [Fact]
-    public Task Read_TriggerChanges() => Verify(Read(TriggerChangesDiff()));
+    public Task From_TriggerChanges() => Verify(DiffDocument.From(TriggerChangesDiff()));
 
     [Fact]
-    public Task Read_RoutineChanges() => Verify(Read(RoutineChangesDiff()));
+    public Task From_RoutineChanges() => Verify(DiffDocument.From(RoutineChangesDiff()));
 
     [Fact]
-    public Task Read_SequenceChanges() => Verify(Read(SequenceChangesDiff()));
+    public Task From_SequenceChanges() => Verify(DiffDocument.From(SequenceChangesDiff()));
 
     /// <summary>
     /// A diff whose changes carry matched data migrations: a required column add backed by a named backfill, a
@@ -364,7 +363,7 @@ public sealed class DiffReaderSnapshotTests
         new(name, $"-- {name}", new ChangeTarget("app", "users", member, trigger));
 
     [Fact]
-    public Task Read_DataMigrationAnnotations() => Verify(Read(DataMigrationAnnotationsDiff()));
+    public Task From_DataMigrationAnnotations() => Verify(DiffDocument.From(DataMigrationAnnotationsDiff()));
 
     /// <summary>
     /// A diff whose root scripts list carries every event kind: deployment bookends and a matched change event.
@@ -386,8 +385,8 @@ public sealed class DiffReaderSnapshotTests
     }
 
     [Fact]
-    public Task Read_Scripts() => Verify(Read(ScriptsDiff()));
+    public Task From_Scripts() => Verify(DiffDocument.From(ScriptsDiff()));
 
     [Fact]
-    public Task Read_EmptyDiff() => Verify(Read(new DatabaseDiff([])));
+    public Task From_EmptyDiff() => Verify(DiffDocument.From(new DatabaseDiff([])));
 }

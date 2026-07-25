@@ -16,17 +16,14 @@ using NSchema.Model.Scripts;
 using NSchema.Model.Sequences;
 using NSchema.Model.Tables;
 
-namespace NSchema.Diff.Reader;
+namespace NSchema.Diff.Rendering;
 
 /// <summary>
-/// Converts a complex diff into a format that can be output line by line.
+/// Walks a diff and emits the <see cref="DiffDocument"/> behind <see cref="DiffDocument.From"/>.
 /// </summary>
-public static class DiffReader
+internal static class DiffRenderer
 {
-    /// <summary>
-    /// Reads the diff into a document shape that's easier to render line-by-line.
-    /// </summary>
-    public static DiffDocument Read(DatabaseDiff diff)
+    public static DiffDocument Render(DatabaseDiff diff)
     {
         var lines = new List<DiffLine>();
         if (diff.IsEmpty)

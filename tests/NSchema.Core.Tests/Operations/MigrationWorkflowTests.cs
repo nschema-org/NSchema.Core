@@ -206,7 +206,7 @@ public sealed class MigrationWorkflowTests
         await sut.ComputePlan(PlanTarget.Project, PlanningScope.All, TestContext.Current.CancellationToken);
 
         // Assert — verbose census is transient narration, emitted as Detail-level progress.
-        _progress.Received().Report(OperationProgress.Detail("Project: 1 schema, 2 tables, 1 script."));
+        _progress.Received().Report(OperationProgress.Detail("Declared: 1 schema, 2 tables, 1 script."));
         _progress.Received().Report(OperationProgress.Detail("Recorded state: 1 schema, 0 tables."));
     }
 

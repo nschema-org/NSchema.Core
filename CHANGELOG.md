@@ -24,7 +24,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **DataMigrations are Scripts now.** This reflects the syntax changes introduce in [4.4.0] so the model becomes consistent.
 - **Templates accept object-level directives.** A `TEMPLATE` body may now contain the object-level `RENAME` directive (table, column, view, enum, domain, type, sequence, routine) alongside its declarations and scripts.
 - **Scripts split into `ChangeScript` and `DeploymentScript`.** `Script` is now an abstract base carrying the common behavior (name, SQL, scope, hash, reference, run condition);
-- **"Desired" is Project now.** `IDesiredSchemaProvider` becomes `IProjectProvider` — the project is the desired state by definition. Progress output follows: `Loading project...`, `Validating project...`, and the plan census now reads `Project:` / `Recorded state:`.
+- **"Desired" is Project now.** `IDesiredSchemaProvider` becomes `IProjectProvider` — the project is the desired state by definition. Progress output follows: `Loading project...`, `Validating project...`, and the plan census now reads `Declared:` / `Recorded state:`.
 - **`AddDdlSchemas` is `AddProjectSource` now.** The files describe the whole project (schema, scripts, templates, config), not just schema DDL.
 - **Result<T> use consistency.** Lots of interfaces have been neatened up to return a `Result<T>` instead of throwing to allow for error/warning accumulation
 - **The diff now includes scripts.** Rather than being tacked on to the plan, scripts are now a first-class part of the diff, carried where they run rather than in a central list.
@@ -53,7 +53,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **`NsqlReader` replaces `DdlReader` and diagnostics are structural.** `NsqlReader.Read`/`ReadFile` return `Result<NsqlDocument, NsqlDiagnostic>`, the new diagnostic-typed result, with each finding carrying its source position.
 - **`DdlReader.Read` returns `Result<DdlDocument>`.** A syntax error is an error diagnostic instead of a thrown exception, and the parser now recovers at statement boundaries.
 - **`DatabaseSchema` is pure data now.** `Filter` joined `Combine` off the model, into the projection machinery.
-- **`DiffReader` is a static class now.** The `.Default` singleton is gone; call `DiffReader.Read(diff)` directly, matching `NsqlReader` and `NsqlWriter`.
+- **`DiffDocument.From(diff)` replaces `DiffReader.Read(diff)`.** The reader type and its `.Default` singleton are both gone, and the namespace is `NSchema.Diff.Rendering`: "reader" named the wrong direction, since a `DatabaseDiff` is projected into display lines rather than parsed from anything.
 - **`SchemaScope` replaces bare schema-name arrays.** `GetProject`, `GetSchema`, and the plan/drift/import arguments take a scope record.
 - **State locks receive complete metadata.** `IStateLockManager.Acquire` takes `AcquireLockArguments` with the operation, TTL, and skip-lock; it creates the `StateLockInfo` atomically recorded by `IStateLock.Acquire`.
 - **`IPlanFileManager.Read` returns `Result<PlanFileEnvelope>`.** An unreadable or corrupt plan file is a failure carrying diagnostics.

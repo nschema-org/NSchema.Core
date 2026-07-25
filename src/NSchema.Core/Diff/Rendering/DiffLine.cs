@@ -1,6 +1,6 @@
 using NSchema.Diff.Model;
 
-namespace NSchema.Diff.Reader;
+namespace NSchema.Diff.Rendering;
 
 /// <summary>
 /// A single line of a rendered <see cref="DatabaseDiff"/>.
