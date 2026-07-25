@@ -1,13 +1,13 @@
 using NSchema.Project.Nsql.Tokens;
 
-namespace NSchema.Project.Nsql.Syntax.Blocks;
+namespace NSchema.Project.Nsql.Syntax.Settings;
 
 /// <summary>
-/// A single <c>key = value</c> attribute of a block; the key may be dotted (<c>pool.max</c>).
+/// A single <c>key = value</c> setting; the key may be dotted (<c>pool.max</c>).
 /// </summary>
 /// <param name="Key">The attribute key as written.</param>
 /// <param name="Value">The attribute value as written; the binder converts it to the target type.</param>
-public sealed record BlockAttribute(string Key, string Value) : NsqlNode
+public sealed record Setting(string Key, string Value) : NsqlNode
 {
     /// <summary>
     /// The verbatim (possibly dotted) key span token.

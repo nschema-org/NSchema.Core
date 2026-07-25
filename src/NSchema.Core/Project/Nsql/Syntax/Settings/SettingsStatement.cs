@@ -1,28 +1,28 @@
 using NSchema.Project.Nsql.Tokens;
 
-namespace NSchema.Project.Nsql.Syntax.Blocks;
+namespace NSchema.Project.Nsql.Syntax.Settings;
 
 /// <summary>
-/// A block: <c>KEYWORD [label] ( key = value, … );</c>. One shape for every keyword; the
+/// A settings statement: <c>KEYWORD [label] ( key = value, … );</c>. One shape for every keyword; the
 /// <paramref name="Keyword"/> says which. The configuration file and the lockfile are both sequences of these.
 /// </summary>
-/// <param name="Keyword">The keyword the block leads with.</param>
+/// <param name="Keyword">The keyword the statement leads with.</param>
 /// <param name="Label">The optional bare label (e.g. the <c>postgres</c> in <c>DATABASE postgres (…)</c>).</param>
-/// <param name="Attributes">The attribute list.</param>
-public sealed record BlockStatement(BlockKeyword Keyword, Identifier? Label, SeparatedSyntaxList<BlockAttribute> Attributes) : NsqlStatement
+/// <param name="Settings">The attribute list.</param>
+public sealed record SettingsStatement(SettingsKeyword Keyword, Identifier? Label, SeparatedSyntaxList<Setting> Settings) : NsqlStatement
 {
     /// <summary>
-    /// The block's leading keyword token, when parsed.
+    /// The statement's leading keyword token, when parsed.
     /// </summary>
     public Token KeywordToken { get; init; } = Token.Keyword(KeywordText(Keyword));
 
     /// <summary>
-    /// The <c>(</c> token opening the attributes.
+    /// The <c>(</c> token opening the settings.
     /// </summary>
     public Token OpenParenToken { get; init; } = Token.Punctuation(TokenKind.LeftParen, NsqlSymbols.LeftParen);
 
     /// <summary>
-    /// The <c>)</c> token closing the attributes.
+    /// The <c>)</c> token closing the settings.
     /// </summary>
     public Token CloseParenToken { get; init; } = Token.Punctuation(TokenKind.RightParen, NsqlSymbols.RightParen);
 
@@ -45,7 +45,7 @@ public sealed record BlockStatement(BlockKeyword Keyword, Identifier? Label, Sep
                 yield return label;
             }
             yield return OpenParenToken;
-            foreach (var child in Attributes.Children)
+            foreach (var child in Settings.Children)
             {
                 yield return child;
             }
@@ -54,12 +54,12 @@ public sealed record BlockStatement(BlockKeyword Keyword, Identifier? Label, Sep
         }
     }
 
-    private static string KeywordText(BlockKeyword keyword) => keyword switch
+    private static string KeywordText(SettingsKeyword keyword) => keyword switch
     {
-        BlockKeyword.Plugin => NsqlKeywords.Plugin,
-        BlockKeyword.Engine => NsqlKeywords.Engine,
-        BlockKeyword.Database => NsqlKeywords.Database,
-        BlockKeyword.State => NsqlKeywords.State,
+        SettingsKeyword.Plugin => NsqlKeywords.Plugin,
+        SettingsKeyword.Engine => NsqlKeywords.Engine,
+        SettingsKeyword.Database => NsqlKeywords.Database,
+        SettingsKeyword.State => NsqlKeywords.State,
         _ => NsqlKeywords.Lock,
     };
 }

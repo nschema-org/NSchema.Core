@@ -3,7 +3,7 @@ using NSchema.Configuration.Engine;
 using NSchema.Configuration.Model;
 using NSchema.Configuration.Plugins;
 using NSchema.Project.Nsql;
-using NSchema.Project.Nsql.Syntax.Blocks;
+using NSchema.Project.Nsql.Syntax.Settings;
 
 namespace NSchema.Tests.Configuration;
 
@@ -42,7 +42,7 @@ public sealed class ConfigurationAssemblerTests
         result.IsSuccess.ShouldBeTrue();
         result.Value.Plugins.ShouldHaveSingleItem().ShouldBe(new PluginDeclaration("pg", new PackageReference { Source = "NSchema.Postgres", Version = VersionRange.Parse("5.0.1") }));
         result.Value.Engine.ShouldBe(new EngineConfiguration { Version = VersionRange.Parse("[5.0,6.0)") });
-        result.Value.Database!.Attribute("host").ShouldBe("localhost");
+        result.Value.Database!.Value("host").ShouldBe("localhost");
         result.Value.State!.Label.ShouldBe("file");
     }
 
@@ -72,13 +72,13 @@ public sealed class ConfigurationAssemblerTests
         var database = ConfigurationAssembler.Assemble([document]).Value!.Database!;
 
         // Assert — every value kind flattens to its string form (the binder converts to the target type later).
-        database.Attribute("schema_search_path").ShouldBe("app");
-        database.Attribute("connection_timeout").ShouldBe("1000");
-        database.Attribute("statement_cache").ShouldBe("-1");
-        database.Attribute("prefer_simple").ShouldBe("true");
-        database.Attribute("ssl").ShouldBe("false");
-        database.Attribute("transaction_mode").ShouldBe("single");
-        database.Attribute("pool.max").ShouldBe("10");
+        database.Value("schema_search_path").ShouldBe("app");
+        database.Value("connection_timeout").ShouldBe("1000");
+        database.Value("statement_cache").ShouldBe("-1");
+        database.Value("prefer_simple").ShouldBe("true");
+        database.Value("ssl").ShouldBe("false");
+        database.Value("transaction_mode").ShouldBe("single");
+        database.Value("pool.max").ShouldBe("10");
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public sealed class ConfigurationAssemblerTests
     {
         var document = Doc($"{Plugin} DATABASE pg ( Dialect = 'postgres' );");
 
-        ConfigurationAssembler.Assemble([document]).Value!.Database!.Attribute("dialect").ShouldBe("postgres");
+        ConfigurationAssembler.Assemble([document]).Value!.Database!.Value("dialect").ShouldBe("postgres");
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public sealed class ConfigurationAssemblerTests
     {
         var document = Doc("DATABASE pg ( host = 'localhost' );");
 
-        var label = document.Statements.OfType<BlockStatement>().Single().Label!;
+        var label = document.Statements.OfType<SettingsStatement>().Single().Label!;
         ConfigurationAssembler.Assemble([document]).Errors.ShouldHaveSingleItem()
             .ShouldBe(PluginDiagnostics.UnknownPluginLabel("DATABASE", "pg", label.Position));
     }

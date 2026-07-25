@@ -42,7 +42,7 @@ internal static class ProjectAssembler
                     case ApplyTemplateStatement application:
                         applications.Add(new TemplateApplication(application, document.FilePath));
                         break;
-                    case Nsql.Syntax.Blocks.BlockStatement:
+                    case Nsql.Syntax.Settings.SettingsStatement:
                         // Configuration is not project content; the configuration read seam interprets it.
                         break;
                     case var directive when directives.TryAdd(directive):

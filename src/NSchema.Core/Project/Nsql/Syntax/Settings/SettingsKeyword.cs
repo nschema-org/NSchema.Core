@@ -1,9 +1,9 @@
-namespace NSchema.Project.Nsql.Syntax.Blocks;
+namespace NSchema.Project.Nsql.Syntax.Settings;
 
 /// <summary>
-/// The keyword a block leads with, identifying what it declares.
+/// The keyword a settings statement leads with, identifying what it declares.
 /// </summary>
-public enum BlockKeyword
+public enum SettingsKeyword
 {
     /// <summary>
     /// <c>PLUGIN</c> — declares a plugin dependency.

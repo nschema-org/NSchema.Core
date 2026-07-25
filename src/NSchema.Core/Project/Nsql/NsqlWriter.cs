@@ -2,7 +2,7 @@ using System.Text;
 using NSchema.Model;
 using NSchema.Project.Model.Directives;
 using NSchema.Project.Nsql.Syntax;
-using NSchema.Project.Nsql.Syntax.Blocks;
+using NSchema.Project.Nsql.Syntax.Settings;
 using NSchema.Project.Nsql.Syntax.Tables;
 using NSchema.Project.Nsql.Syntax.Templates;
 using NSchema.Project.Nsql.Tokens;
@@ -165,7 +165,7 @@ public static class NsqlWriter
     private static string Body(NsqlStatement statement) => statement switch
     {
         CreateTableStatement table => Broken(Header(statement, table.OpenParenToken), RenderMembers(table.Members, table.CloseParenToken)) + NsqlSymbols.Semicolon,
-        BlockStatement block => Broken(Header(statement, block.OpenParenToken), RenderMembers(block.Attributes, block.CloseParenToken)) + NsqlSymbols.Semicolon,
+        SettingsStatement settings => Broken(Header(statement, settings.OpenParenToken), RenderMembers(settings.Settings, settings.CloseParenToken)) + NsqlSymbols.Semicolon,
         SchemaTemplateStatement template => Template(template),
         TableTemplateStatement template => Template(template),
         _ => Verbatim(statement),

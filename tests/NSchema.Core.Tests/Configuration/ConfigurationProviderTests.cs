@@ -49,7 +49,7 @@ public sealed class ConfigurationProviderTests : IDisposable
         result.IsSuccess.ShouldBeTrue();
         result.Value.Plugins.ShouldHaveSingleItem().ShouldBe(new PluginDeclaration("pg", new PackageReference { Source = "NSchema.Postgres", Version = VersionRange.Parse("5.0.1") }));
         result.Value.Engine.ShouldBe(new EngineConfiguration { Version = VersionRange.Parse("[5.0,6.0)") });
-        result.Value.Database!.Attribute("host").ShouldBe("localhost");
+        result.Value.Database!.Value("host").ShouldBe("localhost");
         result.Value.State!.Label.ShouldBe("file");
     }
 
@@ -145,6 +145,6 @@ public sealed class ConfigurationProviderTests : IDisposable
         // Assert
         result.IsSuccess.ShouldBeTrue();
         result.Value.State!.Label.ShouldBe("s3");
-        result.Value.State!.Attribute("bucket").ShouldBe("prod");
+        result.Value.State!.Value("bucket").ShouldBe("prod");
     }
 }

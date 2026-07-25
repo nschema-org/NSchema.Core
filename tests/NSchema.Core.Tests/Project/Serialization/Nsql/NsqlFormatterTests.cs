@@ -222,7 +222,7 @@ public sealed class NsqlFormatterTests
     public void Format_Migration_StartsANewStatement()
     {
         // SCRIPT is a statement keyword: it must break away from the preceding statement with one blank line
-        // (rather than being mistaken for a configuration block or trailing content).
+        // (rather than being mistaken for a settings statement or trailing content).
         const string input =
             """
             create schema app;
@@ -286,7 +286,7 @@ public sealed class NsqlFormatterTests
     // -------------------------------------------------------------------------
 
     [Fact]
-    public void Format_ConfigBlock_BreaksAttributesOnePerLine()
+    public void Format_SettingsStatement_BreaksSettingsOnePerLine()
         => Format("DATABASE ( dialect = postgres, colour = false );")
             .ShouldBe("DATABASE (\n  dialect = postgres,\n  colour = false\n);\n");
 

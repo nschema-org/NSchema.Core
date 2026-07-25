@@ -11,7 +11,7 @@ public interface INSchemaDatabasePlugin : INSchemaPlugin
     /// Registers this provider onto the application being built, interpreting the project's <c>DATABASE</c> statement.
     /// </summary>
     /// <param name="builder">The application builder to register the provider's services on.</param>
-    /// <param name="settings">The block's bound settings.</param>
+    /// <param name="settings">The statement's bound settings.</param>
     Result Configure(NSchemaApplicationBuilder builder, PluginSettings settings);
 
     /// <summary>
