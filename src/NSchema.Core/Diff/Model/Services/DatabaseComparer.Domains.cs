@@ -40,7 +40,7 @@ internal sealed partial class DatabaseComparer
         IReadOnlyList<CheckConstraintDiff> checks = requiresRecreate
             ? []
             : CompareTableMembers(new ObjectAddress(schema, desired.Name), "DomainType check", current.Checks, desired.Checks,
-                (kind, name, definition, checkComment) => new CheckConstraintDiff(kind, name, definition, checkComment));
+                CheckConstraintDiff.Added, CheckConstraintDiff.Removed, CheckConstraintDiff.CommentChanged);
 
         if (renamedFrom is null && dataType is null && @default is null && notNull is null && checks.Count == 0 && comment is null)
         {

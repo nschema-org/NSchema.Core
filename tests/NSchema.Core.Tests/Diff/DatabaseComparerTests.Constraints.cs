@@ -110,7 +110,7 @@ public partial class DatabaseComparerTests
             });
 
         table!.UniqueConstraints.ShouldHaveSingleItem().ShouldBe(
-            new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] }));
+            UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] }));
     }
 
     [Fact]
@@ -226,7 +226,7 @@ public partial class DatabaseComparerTests
             });
 
         table!.Checks.ShouldHaveSingleItem().ShouldBe(
-            new CheckConstraintDiff(ChangeKind.Add, "users_age_chk", new CheckConstraint { Name = "users_age_chk", Expression = "age >= 0" }));
+            CheckConstraintDiff.Added(new CheckConstraint { Name = "users_age_chk", Expression = "age >= 0" }));
     }
 
     [Fact]
@@ -326,9 +326,9 @@ public partial class DatabaseComparerTests
 
         table.Kind.ShouldBe(ChangeKind.Add);
         table.UniqueConstraints.ShouldHaveSingleItem().ShouldBe(
-            new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] }));
+            UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] }));
         table.Checks.ShouldHaveSingleItem().ShouldBe(
-            new CheckConstraintDiff(ChangeKind.Add, "users_age_chk", new CheckConstraint { Name = "users_age_chk", Expression = "age >= 0" }));
+            CheckConstraintDiff.Added(new CheckConstraint { Name = "users_age_chk", Expression = "age >= 0" }));
     }
 
     // -------------------------------------------------------------------------

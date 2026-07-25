@@ -8,6 +8,9 @@ using NSchema.Diff.Model.Schemas;
 using NSchema.Diff.Model.Sequences;
 using NSchema.Diff.Model.Tables;
 using NSchema.Diff.Model.Views;
+using NSchema.Model;
+using NSchema.Model.Constraints;
+using NSchema.Model.Indexes;
 using NSchema.Model.Routines;
 using NSchema.Model.Tables;
 
@@ -41,11 +44,11 @@ public sealed class SchemaDiffTests
         // collection — a new member kind must be added here, which this test makes loud.
         var table = new TableDiff("app", "users", ChangeKind.Modify,
             Columns: [new ColumnDiff("id", ChangeKind.Add, null, null, null, null, null, null, null)],
-            Indexes: [new IndexDiff(ChangeKind.Add, "ix", null, null)],
+            Indexes: [IndexDiff.Added(new TableIndex { Name = "ix", Columns = ["id"] })],
             PrimaryKeys: [PrimaryKeyDiff.Added(new PrimaryKey { Name = "pk", ColumnNames = ["id"] })],
-            ForeignKeys: [new ForeignKeyDiff(ChangeKind.Add, "fk", null)],
-            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "uq", null)],
-            Checks: [new CheckConstraintDiff(ChangeKind.Add, "ck", null)]);
+            ForeignKeys: [ForeignKeyDiff.Added(new ForeignKey { Name = "fk", ColumnNames = ["id"], References = new ObjectAddress("app", "other"), ReferencedColumnNames = ["id"] })],
+            UniqueConstraints: [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "uq", ColumnNames = ["id"] })],
+            Checks: [CheckConstraintDiff.Added(new CheckConstraint { Name = "ck", Expression = "id > 0" })]);
 
         table.EnumerateMembers().Select(m => m.Name).ShouldBe(["id", "ix", "pk", "fk", "uq", "ck"]);
     }

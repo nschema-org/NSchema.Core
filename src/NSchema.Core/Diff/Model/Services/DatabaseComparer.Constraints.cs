@@ -55,21 +55,21 @@ internal sealed partial class DatabaseComparer
 
     private List<ForeignKeyDiff> CompareForeignKeys(ObjectAddress owner, IReadOnlyList<ForeignKey> current, IReadOnlyList<ForeignKey> desired) =>
         CompareTableMembers(owner, "Foreign key", current, desired,
-            (kind, name, definition, comment) => new ForeignKeyDiff(kind, name, definition, comment));
+            ForeignKeyDiff.Added, ForeignKeyDiff.Removed, ForeignKeyDiff.CommentChanged);
 
     private List<UniqueConstraintDiff> CompareUniqueConstraints(ObjectAddress owner, IReadOnlyList<UniqueConstraint> current, IReadOnlyList<UniqueConstraint> desired) =>
         CompareTableMembers(owner, "Unique constraint", current, desired,
-            (kind, name, definition, comment) => new UniqueConstraintDiff(kind, name, definition, comment));
+            UniqueConstraintDiff.Added, UniqueConstraintDiff.Removed, UniqueConstraintDiff.CommentChanged);
 
     private List<CheckConstraintDiff> CompareChecks(ObjectAddress owner, IReadOnlyList<CheckConstraint> current, IReadOnlyList<CheckConstraint> desired) =>
         CompareTableMembers(owner, "Check constraint", current, desired,
-            (kind, name, definition, comment) => new CheckConstraintDiff(kind, name, definition, comment));
+            CheckConstraintDiff.Added, CheckConstraintDiff.Removed, CheckConstraintDiff.CommentChanged);
 
     private List<ExclusionConstraintDiff> CompareExclusionConstraints(ObjectAddress owner, IReadOnlyList<ExclusionConstraint> current, IReadOnlyList<ExclusionConstraint> desired) =>
         CompareTableMembers(owner, "Exclusion constraint", current, desired,
-            (kind, name, definition, comment) => new ExclusionConstraintDiff(kind, name, definition, comment));
+            ExclusionConstraintDiff.Added, ExclusionConstraintDiff.Removed, ExclusionConstraintDiff.CommentChanged);
 
     private List<IndexDiff> CompareIndexes(ObjectAddress owner, IReadOnlyList<TableIndex> current, IReadOnlyList<TableIndex> desired) =>
         CompareTableMembers(owner, "Index", current, desired,
-            (kind, name, definition, comment) => new IndexDiff(kind, name, definition, comment));
+            IndexDiff.Added, IndexDiff.Removed, IndexDiff.CommentChanged);
 }

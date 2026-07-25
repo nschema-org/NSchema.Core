@@ -52,8 +52,8 @@ public sealed class PlanLinearizerMaterializedViewTests
         var actions = Linearize(new ViewDiff("app", "daily", ChangeKind.Modify, IsMaterialized: true,
             Indexes:
             [
-                new IndexDiff(ChangeKind.Add, "daily_ix", new TableIndex { Name = "daily_ix", Columns = ["x"] }),
-                new IndexDiff(ChangeKind.Remove, "old_ix"),
+                IndexDiff.Added(new TableIndex { Name = "daily_ix", Columns = ["x"] }),
+                IndexDiff.Removed("old_ix"),
             ]));
 
         actions.OfType<CreateIndex>().ShouldHaveSingleItem().Table.Name.ShouldBe("daily");
@@ -69,8 +69,8 @@ public sealed class PlanLinearizerMaterializedViewTests
         var actions = Linearize(new ViewDiff("app", "daily", ChangeKind.Modify, RenamedFrom: "nightly", IsMaterialized: true,
             Indexes:
             [
-                new IndexDiff(ChangeKind.Add, "daily_ix", new TableIndex { Name = "daily_ix", Columns = ["x"] }),
-                new IndexDiff(ChangeKind.Remove, "old_ix"),
+                IndexDiff.Added(new TableIndex { Name = "daily_ix", Columns = ["x"] }),
+                IndexDiff.Removed("old_ix"),
             ]));
 
         actions.OfType<DropIndex>().ShouldHaveSingleItem().Index.Object.ShouldBe("nightly");

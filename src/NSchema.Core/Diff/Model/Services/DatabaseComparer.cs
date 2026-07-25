@@ -114,7 +114,9 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger,
         string memberKind,
         IReadOnlyList<TModel> current,
         IReadOnlyList<TModel> desired,
-        Func<ChangeKind, SqlIdentifier, TModel?, ValueChange<string>?, TDiff> diff
+        Func<TModel, TDiff> added,
+        Func<SqlIdentifier, TDiff> removed,
+        Func<SqlIdentifier, ValueChange<string>, TDiff> commentChanged
     ) where TModel : DatabaseElement
     {
         var result = new List<TDiff>();
@@ -127,12 +129,12 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger,
                 || !currentMember.Equals(matchingDesired))
             {
                 LogTableMemberMissingOrChanged(memberKind, currentMember.Name, owner);
-                result.Add(diff(ChangeKind.Remove, currentMember.Name, null, null));
+                result.Add(removed(currentMember.Name));
             }
             else if (currentMember.Comment != matchingDesired.Comment)
             {
                 LogTableMemberCommentChanged(memberKind, currentMember.Name, owner);
-                result.Add(diff(ChangeKind.Modify, currentMember.Name, null, new ValueChange<string>(currentMember.Comment, matchingDesired.Comment)));
+                result.Add(commentChanged(currentMember.Name, new ValueChange<string>(currentMember.Comment, matchingDesired.Comment)));
             }
             else
             {
@@ -146,10 +148,10 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger,
                 || !matchingCurrent.Equals(desiredMember))
             {
                 LogTableMemberNewOrChanged(memberKind, desiredMember.Name, owner);
-                result.Add(diff(ChangeKind.Add, desiredMember.Name, desiredMember, null));
+                result.Add(added(desiredMember));
                 if (desiredMember.Comment is not null)
                 {
-                    result.Add(diff(ChangeKind.Modify, desiredMember.Name, null, new ValueChange<string>(null, desiredMember.Comment)));
+                    result.Add(commentChanged(desiredMember.Name, new ValueChange<string>(null, desiredMember.Comment)));
                 }
             }
             else

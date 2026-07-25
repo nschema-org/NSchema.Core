@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NSchema.Model;
 using NSchema.Model.Triggers;
 
@@ -6,8 +7,46 @@ namespace NSchema.Diff.Model.Triggers;
 /// <summary>
 /// Describes a change to a table trigger.
 /// </summary>
-/// <param name="Kind">The change to the trigger.</param>
-/// <param name="Name">The trigger name.</param>
-/// <param name="Definition">The full trigger definition for a created trigger; otherwise <see langword="null"/>.</param>
-/// <param name="Comment">The change to the trigger's comment, if any.</param>
-public sealed record TriggerDiff(ChangeKind Kind, SqlIdentifier Name, Trigger? Definition = null, ValueChange<string>? Comment = null) : INamedObjectDiff;
+public sealed record TriggerDiff : INamedObjectDiff
+{
+    [JsonConstructor]
+    private TriggerDiff() { }
+
+    /// <summary>
+    /// The change to the trigger.
+    /// </summary>
+    public required ChangeKind Kind { get; init; }
+
+    /// <summary>
+    /// The trigger name.
+    /// </summary>
+    public required SqlIdentifier Name { get; init; }
+
+    /// <summary>
+    /// The definition for an added trigger; otherwise <see langword="null"/>.
+    /// </summary>
+    public Trigger? Definition { get; init; }
+
+    /// <summary>
+    /// The change to the comment, if any.
+    /// </summary>
+    public ValueChange<string>? Comment { get; init; }
+
+    /// <summary>
+    /// A trigger being created, named by its own definition.
+    /// </summary>
+    public static TriggerDiff Added(Trigger definition) =>
+        new() { Kind = ChangeKind.Add, Name = definition.Name, Definition = definition };
+
+    /// <summary>
+    /// A trigger being dropped.
+    /// </summary>
+    public static TriggerDiff Removed(SqlIdentifier name) =>
+        new() { Kind = ChangeKind.Remove, Name = name };
+
+    /// <summary>
+    /// A comment change applied in place.
+    /// </summary>
+    public static TriggerDiff CommentChanged(SqlIdentifier name, ValueChange<string> comment) =>
+        new() { Kind = ChangeKind.Modify, Name = name, Comment = comment };
+}

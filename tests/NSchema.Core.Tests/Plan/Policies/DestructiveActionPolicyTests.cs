@@ -127,7 +127,7 @@ public class DestructiveActionPolicyTests
         // Arrange — dropping a unique constraint removes a structural guarantee (and a possible FK target).
         _options.Value.Policy = PolicyEnforcement.Error;
         var diff = TableChange(new TableDiff("app", "users", ChangeKind.Modify, null, null, [], [], [],
-            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Remove, "users_email_uq", null)]));
+            UniqueConstraints: [UniqueConstraintDiff.Removed("users_email_uq")]));
 
         // Act
         var errors = _sut.Validate(diff).ToList();
@@ -143,7 +143,7 @@ public class DestructiveActionPolicyTests
         // Arrange — dropping an exclusion constraint removes a structural guarantee, like a unique constraint.
         _options.Value.Policy = PolicyEnforcement.Error;
         var diff = TableChange(new TableDiff("app", "bookings", ChangeKind.Modify, null, null, [], [], [],
-            ExclusionConstraints: [new ExclusionConstraintDiff(ChangeKind.Remove, "no_overlap", null)]));
+            ExclusionConstraints: [ExclusionConstraintDiff.Removed("no_overlap")]));
 
         // Act
         var errors = _sut.Validate(diff).ToList();
@@ -159,7 +159,7 @@ public class DestructiveActionPolicyTests
         // Arrange — dropping a check only loosens validation; no data is lost, so it is not destructive.
         _options.Value.Policy = PolicyEnforcement.Error;
         var diff = TableChange(new TableDiff("app", "users", ChangeKind.Modify, null, null, [], [], [],
-            Checks: [new CheckConstraintDiff(ChangeKind.Remove, "users_age_chk", null)]));
+            Checks: [CheckConstraintDiff.Removed("users_age_chk")]));
 
         // Act / Assert
         _sut.Validate(diff).ShouldBeEmpty();

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NSchema.Model;
 using NSchema.Model.Constraints;
 using NSchema.Model.Scripts;
@@ -7,14 +8,51 @@ namespace NSchema.Diff.Model.Constraints;
 /// <summary>
 /// Describes a change to a table's exclusion constraint. A changed exclusion constraint surfaces as a Remove followed by an Add.
 /// </summary>
-/// <param name="Kind">The change to the exclusion constraint.</param>
-/// <param name="Name">The exclusion constraint name.</param>
-/// <param name="Definition">The exclusion constraint definition for an added constraint; otherwise <see langword="null"/>.</param>
-/// <param name="Comment">The change to the constraint's comment, if any (carried on a comment-only <see cref="ChangeKind.Modify"/>).</param>
-public sealed record ExclusionConstraintDiff(ChangeKind Kind, SqlIdentifier Name, ExclusionConstraint? Definition = null, ValueChange<string>? Comment = null) : IMigratableDiff
+public sealed record ExclusionConstraintDiff : IMigratableDiff
 {
+    [JsonConstructor]
+    private ExclusionConstraintDiff() { }
+
+    /// <summary>
+    /// The change to the exclusion constraint.
+    /// </summary>
+    public required ChangeKind Kind { get; init; }
+
+    /// <summary>
+    /// The exclusion constraint name.
+    /// </summary>
+    public required SqlIdentifier Name { get; init; }
+
+    /// <summary>
+    /// The definition for an added exclusion constraint; otherwise <see langword="null"/>.
+    /// </summary>
+    public ExclusionConstraint? Definition { get; init; }
+
+    /// <summary>
+    /// The change to the comment, if any.
+    /// </summary>
+    public ValueChange<string>? Comment { get; init; }
+
     /// <summary>
     /// The change-event script matched to this change, run at this point in the plan (<see langword="null"/> when none).
     /// </summary>
     public ChangeScript? MigrationScript { get; init; }
+
+    /// <summary>
+    /// An exclusion constraint being created, named by its own definition.
+    /// </summary>
+    public static ExclusionConstraintDiff Added(ExclusionConstraint definition) =>
+        new() { Kind = ChangeKind.Add, Name = definition.Name, Definition = definition };
+
+    /// <summary>
+    /// An exclusion constraint being dropped.
+    /// </summary>
+    public static ExclusionConstraintDiff Removed(SqlIdentifier name) =>
+        new() { Kind = ChangeKind.Remove, Name = name };
+
+    /// <summary>
+    /// A comment change applied in place.
+    /// </summary>
+    public static ExclusionConstraintDiff CommentChanged(SqlIdentifier name, ValueChange<string> comment) =>
+        new() { Kind = ChangeKind.Modify, Name = name, Comment = comment };
 }

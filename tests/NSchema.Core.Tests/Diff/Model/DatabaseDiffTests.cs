@@ -312,7 +312,7 @@ public sealed class DatabaseDiffTests
             new SchemaDiff("billing", Tables:
             [
                 new TableDiff("billing", "invoices", ChangeKind.Add,
-                    ForeignKeys: [new ForeignKeyDiff(ChangeKind.Add, "fk_invoices_customer", foreignKey)],
+                    ForeignKeys: [ForeignKeyDiff.Added(foreignKey)],
                     Definition: new Table
                     {
                         Name = "invoices",
@@ -426,7 +426,7 @@ public sealed class DatabaseDiffTests
             [
                 new TableDiff("billing", "orders", ChangeKind.Modify, ForeignKeys:
                 [
-                    new ForeignKeyDiff(ChangeKind.Add, "fk_orders_customer", new ForeignKey
+                    ForeignKeyDiff.Added(new ForeignKey
                     {
                         Name = "fk_orders_customer",
                         ColumnNames = ["customer_id"],

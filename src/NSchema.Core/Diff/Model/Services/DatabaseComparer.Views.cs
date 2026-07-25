@@ -42,7 +42,7 @@ internal sealed partial class DatabaseComparer
         IReadOnlyList<IndexDiff> indexes = requiresRecreate
             ? []
             : CompareTableMembers(new ObjectAddress(schema, desired.Name), "Index", current.Indexes, desired.Indexes,
-                (kind, name, definition, indexComment) => new IndexDiff(kind, name, definition, indexComment));
+                IndexDiff.Added, IndexDiff.Removed, IndexDiff.CommentChanged);
 
         // The definition is carried whenever the body must be (re)written: a recreate, or a plain-view replace.
         var carryDefinition = requiresRecreate || (bodyChanged && !desired.IsMaterialized);

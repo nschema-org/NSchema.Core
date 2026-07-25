@@ -39,9 +39,9 @@ public sealed class PlanLinearizerCompositeTypeTests
     {
         var plan = Linearize(new CompositeTypeDiff("app", "address", ChangeKind.Modify, Fields:
         [
-            new CompositeFieldDiff(ChangeKind.Add, "zip", new CompositeField("zip", SqlType.Int)),
-            new CompositeFieldDiff(ChangeKind.Remove, "old"),
-            new CompositeFieldDiff(ChangeKind.Modify, "street", Type: new ValueChange<SqlType>(SqlType.Text, SqlType.VarChar(255))),
+            CompositeFieldDiff.Added(new CompositeField("zip", SqlType.Int)),
+            CompositeFieldDiff.Removed("old"),
+            CompositeFieldDiff.TypeChanged("street", new ValueChange<SqlType>(SqlType.Text, SqlType.VarChar(255))),
         ]));
 
         plan.OfType<AddCompositeField>().ShouldHaveSingleItem().Field.Name.ShouldBe("zip");

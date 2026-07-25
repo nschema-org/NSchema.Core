@@ -10,5 +10,5 @@ internal sealed partial class DatabaseComparer
     // Equals excludes the comment), and a comment-only change is an in-place modify.
     private List<TriggerDiff> CompareTriggers(ObjectAddress owner, IReadOnlyList<Trigger> current, IReadOnlyList<Trigger> desired) =>
         CompareTableMembers(owner, "Trigger", current, desired,
-            (kind, name, definition, comment) => new TriggerDiff(kind, name, definition, comment));
+            TriggerDiff.Added, TriggerDiff.Removed, TriggerDiff.CommentChanged);
 }

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NSchema.Model;
 using NSchema.Model.Indexes;
 
@@ -6,8 +7,46 @@ namespace NSchema.Diff.Model.Indexes;
 /// <summary>
 /// Describes a change to a table index.
 /// </summary>
-/// <param name="Kind">The change to the index.</param>
-/// <param name="Name">The index name.</param>
-/// <param name="Definition">The full index definition for a created index; otherwise <see langword="null"/>.</param>
-/// <param name="Comment">The change to the index's comment, if any.</param>
-public sealed record IndexDiff(ChangeKind Kind, SqlIdentifier Name, TableIndex? Definition = null, ValueChange<string>? Comment = null) : INamedObjectDiff;
+public sealed record IndexDiff : INamedObjectDiff
+{
+    [JsonConstructor]
+    private IndexDiff() { }
+
+    /// <summary>
+    /// The change to the index.
+    /// </summary>
+    public required ChangeKind Kind { get; init; }
+
+    /// <summary>
+    /// The index name.
+    /// </summary>
+    public required SqlIdentifier Name { get; init; }
+
+    /// <summary>
+    /// The definition for an added index; otherwise <see langword="null"/>.
+    /// </summary>
+    public TableIndex? Definition { get; init; }
+
+    /// <summary>
+    /// The change to the comment, if any.
+    /// </summary>
+    public ValueChange<string>? Comment { get; init; }
+
+    /// <summary>
+    /// An index being created, named by its own definition.
+    /// </summary>
+    public static IndexDiff Added(TableIndex definition) =>
+        new() { Kind = ChangeKind.Add, Name = definition.Name, Definition = definition };
+
+    /// <summary>
+    /// An index being dropped.
+    /// </summary>
+    public static IndexDiff Removed(SqlIdentifier name) =>
+        new() { Kind = ChangeKind.Remove, Name = name };
+
+    /// <summary>
+    /// A comment change applied in place.
+    /// </summary>
+    public static IndexDiff CommentChanged(SqlIdentifier name, ValueChange<string> comment) =>
+        new() { Kind = ChangeKind.Modify, Name = name, Comment = comment };
+}

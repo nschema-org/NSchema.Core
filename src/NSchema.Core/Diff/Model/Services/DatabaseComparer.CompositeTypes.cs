@@ -43,11 +43,11 @@ internal sealed partial class DatabaseComparer
             var match = desired.FirstOrDefault(d => d.Name == currentField.Name);
             if (match is null)
             {
-                result.Add(new CompositeFieldDiff(ChangeKind.Remove, currentField.Name));
+                result.Add(CompositeFieldDiff.Removed(currentField.Name));
             }
             else if (!equivalence.Types.Equals(match.DataType, currentField.DataType))
             {
-                result.Add(new CompositeFieldDiff(ChangeKind.Modify, currentField.Name, Type: new ValueChange<SqlType>(currentField.DataType, match.DataType)));
+                result.Add(CompositeFieldDiff.TypeChanged(currentField.Name, new ValueChange<SqlType>(currentField.DataType, match.DataType)));
             }
         }
 
@@ -55,7 +55,7 @@ internal sealed partial class DatabaseComparer
         {
             if (current.All(c => c.Name != desiredField.Name))
             {
-                result.Add(new CompositeFieldDiff(ChangeKind.Add, desiredField.Name, desiredField));
+                result.Add(CompositeFieldDiff.Added(desiredField));
             }
         }
 

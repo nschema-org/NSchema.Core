@@ -51,10 +51,10 @@ public sealed class DiffDocumentSnapshotTests
                 new ColumnDiff("name", ChangeKind.Add, new Column { Name = "name", Type = SqlType.VarChar(255), DefaultExpression = "'anonymous'" }, null, null, null, null, null, null),
             ],
             Grants: [new GrantChange(ChangeKind.Add, "readers", TablePrivilege.Select)],
-            Indexes: [new IndexDiff(ChangeKind.Add, "users_name_ix", new TableIndex { Name = "users_name_ix", Columns = ["name"], IsUnique = true }, null)],
+            Indexes: [IndexDiff.Added(new TableIndex { Name = "users_name_ix", Columns = ["name"], IsUnique = true })],
             PrimaryKeys: [PrimaryKeyDiff.Added(new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] })],
-            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", null)],
-            Checks: [new CheckConstraintDiff(ChangeKind.Add, "users_age_chk", null)]);
+            UniqueConstraints: [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] })],
+            Checks: [CheckConstraintDiff.Added(new CheckConstraint { Name = "users_age_chk", Expression = "age >= 0" })]);
 
         var modifiedTable = new TableDiff(
             Schema: "app", Name: "orders", Kind: ChangeKind.Modify, RenamedFrom: "purchases",
@@ -71,13 +71,13 @@ public sealed class DiffDocumentSnapshotTests
             Grants: [new GrantChange(ChangeKind.Remove, "writers", TablePrivilege.Insert)],
             Indexes: [],
             PrimaryKeys: [PrimaryKeyDiff.CommentChanged("orders_pkey", new ValueChange<string>("old note", "new note"))],
-            ForeignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null)],
-            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Remove, "orders_code_uq", null)],
-            Checks: [new CheckConstraintDiff(ChangeKind.Remove, "orders_total_chk", null)],
+            ForeignKeys: [ForeignKeyDiff.Removed("orders_user_fk")],
+            UniqueConstraints: [UniqueConstraintDiff.Removed("orders_code_uq")],
+            Checks: [CheckConstraintDiff.Removed("orders_total_chk")],
             ExclusionConstraints:
             [
-                new ExclusionConstraintDiff(ChangeKind.Add, "orders_slot_excl", new ExclusionConstraint { Name = "orders_slot_excl", Elements = [new ExclusionElement("&&", "slot")], Method = "gist" }),
-                new ExclusionConstraintDiff(ChangeKind.Remove, "orders_old_excl", null),
+                ExclusionConstraintDiff.Added(new ExclusionConstraint { Name = "orders_slot_excl", Elements = [new ExclusionElement("&&", "slot")], Method = "gist" }),
+                ExclusionConstraintDiff.Removed("orders_old_excl"),
             ]);
 
         return new DatabaseDiff(
@@ -119,8 +119,8 @@ public sealed class DiffDocumentSnapshotTests
                     new ViewDiff("app", "mv_active", ChangeKind.Modify, IsMaterialized: true,
                         Indexes:
                         [
-                            new IndexDiff(ChangeKind.Add, "mv_active_ix", new TableIndex { Name = "mv_active_ix", Columns = ["id"] }),
-                            new IndexDiff(ChangeKind.Remove, "mv_active_old_ix"),
+                            IndexDiff.Added(new TableIndex { Name = "mv_active_ix", Columns = ["id"] }),
+                            IndexDiff.Removed("mv_active_old_ix"),
                         ]),
                     // A plain → materialized conversion (a recreate carrying the materialization flip).
                     new ViewDiff("app", "hourly_totals", ChangeKind.Modify,
@@ -261,9 +261,9 @@ public sealed class DiffDocumentSnapshotTests
                 [
                     new TableDiff("app", "users", ChangeKind.Modify, Triggers:
                     [
-                        new TriggerDiff(ChangeKind.Add, "audit", audit),
-                        new TriggerDiff(ChangeKind.Modify, "noted", null, new ValueChange<string>("old note", "new note")),
-                        new TriggerDiff(ChangeKind.Remove, "stale_trg"),
+                        TriggerDiff.Added(audit),
+                        TriggerDiff.CommentChanged("noted", new ValueChange<string>("old note", "new note")),
+                        TriggerDiff.Removed("stale_trg"),
                     ]),
                 ]),
             ]);
@@ -289,9 +289,9 @@ public sealed class DiffDocumentSnapshotTests
                     new DomainDiff("app", "amount", ChangeKind.Modify,
                         Default: new ValueChange<SqlDefaultExpression>(null, "0"),
                         NotNull: new ValueChange<bool>(false, true),
-                        Checks: [new CheckConstraintDiff(ChangeKind.Add, "amount_pos", new CheckConstraint { Name = "amount_pos", Expression = "VALUE >= 0" })]),
+                        Checks: [CheckConstraintDiff.Added(new CheckConstraint { Name = "amount_pos", Expression = "VALUE >= 0" })]),
                     new DomainDiff("app", "email", ChangeKind.Modify,
-                        Checks: [new CheckConstraintDiff(ChangeKind.Remove, "email_fmt")]),
+                        Checks: [CheckConstraintDiff.Removed("email_fmt")]),
                     new DomainDiff("app", "renamed_d", ChangeKind.Modify, RenamedFrom: "old_d"),
                     new DomainDiff("app", "noted", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new")),
                     new DomainDiff("app", "stale_d", ChangeKind.Remove),
@@ -314,9 +314,9 @@ public sealed class DiffDocumentSnapshotTests
                         Comment: new ValueChange<string>(null, "a postal address")),
                     new CompositeTypeDiff("app", "money", ChangeKind.Modify, Fields:
                     [
-                        new CompositeFieldDiff(ChangeKind.Add, "currency", new CompositeField("currency", SqlType.Text)),
-                        new CompositeFieldDiff(ChangeKind.Modify, "amount", Type: new ValueChange<SqlType>(SqlType.Int, SqlType.Decimal(18, 2))),
-                        new CompositeFieldDiff(ChangeKind.Remove, "legacy"),
+                        CompositeFieldDiff.Added(new CompositeField("currency", SqlType.Text)),
+                        CompositeFieldDiff.TypeChanged("amount", new ValueChange<SqlType>(SqlType.Int, SqlType.Decimal(18, 2))),
+                        CompositeFieldDiff.Removed("legacy"),
                     ]),
                     new CompositeTypeDiff("app", "renamed_t", ChangeKind.Modify, RenamedFrom: "old_t"),
                     new CompositeTypeDiff("app", "noted", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new")),
@@ -354,7 +354,7 @@ public sealed class DiffDocumentSnapshotTests
         var dedupe = ChangeScript("dedupe_emails", ChangeTrigger.AddConstraint, "users_email_uq");
         var email = new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text }) { MigrationScript = backfill };
         var total = new ColumnDiff("total", ChangeKind.Modify, Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int)) { MigrationScript = retype };
-        var uq = new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] }) { MigrationScript = dedupe };
+        var uq = UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] }) with{ MigrationScript = dedupe };
         var table = new TableDiff("app", "users", ChangeKind.Modify, Columns: [email, total], UniqueConstraints: [uq]);
         return new DatabaseDiff([new SchemaDiff("app", Tables: [table])]);
     }

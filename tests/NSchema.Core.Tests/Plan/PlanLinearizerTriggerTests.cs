@@ -29,7 +29,7 @@ public sealed class PlanLinearizerTriggerTests
     {
         var trigger = new Trigger { Name = "audit", Timing = TriggerTiming.After, Events = TriggerEvent.Insert, Function = new RoutineReference("app", "log") };
         var table = new TableDiff("app", "users", ChangeKind.Add,
-            Triggers: [new TriggerDiff(ChangeKind.Add, "audit", trigger)],
+            Triggers: [TriggerDiff.Added(trigger)],
             Definition: new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] });
 
         var actions = _linearizer.Linearize(new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add, Tables: [table])]));
@@ -41,7 +41,7 @@ public sealed class PlanLinearizerTriggerTests
     public void DropTrigger_IsEmittedBeforeTablesAreDropped()
     {
         var modified = new TableDiff("app", "users", ChangeKind.Modify,
-            Triggers: [new TriggerDiff(ChangeKind.Remove, "audit")]);
+            Triggers: [TriggerDiff.Removed("audit")]);
         var dropped = new TableDiff("app", "legacy", ChangeKind.Remove);
 
         var actions = _linearizer.Linearize(new DatabaseDiff([new SchemaDiff("app", Tables: [modified, dropped])]));
@@ -56,8 +56,8 @@ public sealed class PlanLinearizerTriggerTests
         var table = new TableDiff("app", "users", ChangeKind.Add,
             Triggers:
             [
-                new TriggerDiff(ChangeKind.Add, "audit", trigger),
-                new TriggerDiff(ChangeKind.Modify, "audit", null, new ValueChange<string>(null, "note")),
+                TriggerDiff.Added(trigger),
+                TriggerDiff.CommentChanged("audit", new ValueChange<string>(null, "note")),
             ],
             Definition: new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] });
 

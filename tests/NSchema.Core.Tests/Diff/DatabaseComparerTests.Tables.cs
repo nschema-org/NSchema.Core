@@ -108,8 +108,7 @@ public partial class DatabaseComparerTests
         var table = Compare(Db(new Schema { Name = "app" }),
             Db(new Schema { Name = "app", Tables = [desired] })).Schemas.Single().Tables.Single();
 
-        table.ForeignKeys.ShouldHaveSingleItem().ShouldBe(new ForeignKeyDiff(ChangeKind.Add, "orders_user_fk",
-            new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] }));
+        table.ForeignKeys.ShouldHaveSingleItem().ShouldBe(ForeignKeyDiff.Added(new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] }));
         table.Grants.ShouldHaveSingleItem().Privileges.ShouldBe(TablePrivilege.Select);
         // A new index carries both its definition and a folded comment change.
         table.Indexes.Select(i => i.Kind).ShouldBe([ChangeKind.Add, ChangeKind.Modify]);

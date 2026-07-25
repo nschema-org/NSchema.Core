@@ -45,8 +45,8 @@ public sealed class PlanLinearizerSnapshotTests
         var newTable = new TableDiff("app", "users", ChangeKind.Add, null, null,
             Columns: [],
             Grants: [new GrantChange(ChangeKind.Add, "readers", TablePrivilege.Select)],
-            Indexes: [new IndexDiff(ChangeKind.Add, "users_name_ix", new TableIndex { Name = "users_name_ix", Columns = ["name"], IsUnique = true }, null)],
-            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] })],
+            Indexes: [IndexDiff.Added(new TableIndex { Name = "users_name_ix", Columns = ["name"], IsUnique = true })],
+            UniqueConstraints: [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] })],
             Definition: new Table
             {
                 Name = "users",
@@ -69,13 +69,11 @@ public sealed class PlanLinearizerSnapshotTests
                 new ColumnDiff("legacy_flag", ChangeKind.Remove, new Column { Name = "legacy_flag", Type = SqlType.Boolean }, null, null, null, null, null, null),
             ],
             Grants: [],
-            Indexes: [new IndexDiff(ChangeKind.Add, "orders_total_ix",
-                new TableIndex { Name = "orders_total_ix", Columns = [new IndexColumn("total", Sort: IndexSort.Descending)], Method = "btree", Include = ["code"] }, null)],
-            ForeignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null)],
-            UniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "orders_code_uq", new UniqueConstraint { Name = "orders_code_uq", ColumnNames = ["code"] })],
-            Checks: [new CheckConstraintDiff(ChangeKind.Add, "orders_total_chk", new CheckConstraint { Name = "orders_total_chk", Expression = "total >= 0" })],
-            ExclusionConstraints: [new ExclusionConstraintDiff(ChangeKind.Add, "orders_slot_excl",
-                new ExclusionConstraint { Name = "orders_slot_excl", Elements = [new ExclusionElement("&&", "slot")], Method = "gist" })]);
+            Indexes: [IndexDiff.Added(new TableIndex { Name = "orders_total_ix", Columns = [new IndexColumn("total", Sort: IndexSort.Descending)], Method = "btree", Include = ["code"] })],
+            ForeignKeys: [ForeignKeyDiff.Removed("orders_user_fk")],
+            UniqueConstraints: [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "orders_code_uq", ColumnNames = ["code"] })],
+            Checks: [CheckConstraintDiff.Added(new CheckConstraint { Name = "orders_total_chk", Expression = "total >= 0" })],
+            ExclusionConstraints: [ExclusionConstraintDiff.Added(new ExclusionConstraint { Name = "orders_slot_excl", Elements = [new ExclusionElement("&&", "slot")], Method = "gist" })]);
 
         // Listed dependent-first on purpose: the dependency sort must reorder them so user_summary (which
         // reads active_users) is created after it.

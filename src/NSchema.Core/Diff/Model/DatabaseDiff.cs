@@ -379,6 +379,6 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
             byTable.Key.Schema,
             byTable.Key.Object,
             ChangeKind.Modify,
-            ForeignKeys: [.. byTable.Select(a => new ForeignKeyDiff(ChangeKind.Remove, a.Member)).OrderBy(f => f.Name)]))
+            ForeignKeys: [.. byTable.Select(a => ForeignKeyDiff.Removed(a.Member)).OrderBy(f => f.Name)]))
         .OrderBy(t => t.Name);
 }

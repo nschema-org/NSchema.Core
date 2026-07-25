@@ -246,7 +246,7 @@ public class DataHazardPolicyTests
     {
         // Arrange
         var diff = ModifiedTable(uniqueConstraints:
-            [new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] })]);
+            [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] })]);
 
         // Act
         var results = _sut.Validate(diff).ToList();
@@ -264,7 +264,7 @@ public class DataHazardPolicyTests
         var diff = ModifiedTable(
             columns: [new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text, IsNullable = true })],
             uniqueConstraints:
-                [new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] })]);
+                [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] })]);
 
         // Act / Assert
         _sut.Validate(diff).ShouldBeEmpty();
@@ -275,7 +275,7 @@ public class DataHazardPolicyTests
     {
         // Arrange — dropping uniqueness cannot fail on data (the destructive policy owns that concern).
         var diff = ModifiedTable(uniqueConstraints:
-            [new UniqueConstraintDiff(ChangeKind.Remove, "users_email_uq")]);
+            [UniqueConstraintDiff.Removed("users_email_uq")]);
 
         // Act / Assert
         _sut.Validate(diff).ShouldBeEmpty();
@@ -286,7 +286,7 @@ public class DataHazardPolicyTests
     {
         // Arrange
         var diff = ModifiedTable(indexes:
-            [new IndexDiff(ChangeKind.Add, "ix_users_email", new TableIndex { Name = "ix_users_email", Columns = ["email"], IsUnique = true })]);
+            [IndexDiff.Added(new TableIndex { Name = "ix_users_email", Columns = ["email"], IsUnique = true })]);
 
         // Act
         var results = _sut.Validate(diff).ToList();
@@ -302,8 +302,7 @@ public class DataHazardPolicyTests
         // Arrange — an expression key is opaque, so it is assumed to read pre-existing data.
         var diff = ModifiedTable(indexes:
         [
-            new IndexDiff(ChangeKind.Add, "ix_users_email",
-                new TableIndex { Name = "ix_users_email", Columns = [new IndexColumn(Expression: "lower(email)")], IsUnique = true }),
+            IndexDiff.Added(new TableIndex { Name = "ix_users_email", Columns = [new IndexColumn(Expression: "lower(email)")], IsUnique = true }),
         ]);
 
         // Act
@@ -318,7 +317,7 @@ public class DataHazardPolicyTests
     {
         // Arrange — a plain index enforces nothing, so it cannot fail on data.
         var diff = ModifiedTable(indexes:
-            [new IndexDiff(ChangeKind.Add, "ix_users_email", new TableIndex { Name = "ix_users_email", Columns = ["email"] })]);
+            [IndexDiff.Added(new TableIndex { Name = "ix_users_email", Columns = ["email"] })]);
 
         // Act / Assert
         _sut.Validate(diff).ShouldBeEmpty();
@@ -330,7 +329,7 @@ public class DataHazardPolicyTests
         // Arrange
         var diff = ModifiedTable(
             columns: [new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text, IsNullable = true })],
-            indexes: [new IndexDiff(ChangeKind.Add, "ix_users_email", new TableIndex { Name = "ix_users_email", Columns = ["email"], IsUnique = true })]);
+            indexes: [IndexDiff.Added(new TableIndex { Name = "ix_users_email", Columns = ["email"], IsUnique = true })]);
 
         // Act / Assert
         _sut.Validate(diff).ShouldBeEmpty();
@@ -343,7 +342,7 @@ public class DataHazardPolicyTests
         var diff = ModifiedTable(
             columns: [new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text })],
             uniqueConstraints:
-                [new UniqueConstraintDiff(ChangeKind.Add, "users_name_uq", new UniqueConstraint { Name = "users_name_uq", ColumnNames = ["name"] })]);
+                [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_name_uq", ColumnNames = ["name"] })]);
 
         // Act
         var results = _sut.Validate(diff).ToList();
@@ -429,8 +428,8 @@ public class DataHazardPolicyTests
         // Arrange
         var diff = ModifiedTable(uniqueConstraints:
         [
-            new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] })
-            {
+            UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] })
+            with{
                 MigrationScript = Migration(ChangeTrigger.AddConstraint, "users_email_uq"),
             },
         ]);
@@ -447,13 +446,13 @@ public class DataHazardPolicyTests
         var diff = ModifiedTable(
             uniqueConstraints:
             [
-                new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] })
-                {
+                UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] })
+                with{
                     MigrationScript = Migration(ChangeTrigger.AddConstraint, "users_email_uq"),
                 },
             ],
             indexes:
-                [new IndexDiff(ChangeKind.Add, "ix_users_name", new TableIndex { Name = "ix_users_name", Columns = ["name"], IsUnique = true })]);
+                [IndexDiff.Added(new TableIndex { Name = "ix_users_name", Columns = ["name"], IsUnique = true })]);
 
         // Act
         var results = _sut.Validate(diff).ToList();

@@ -54,8 +54,8 @@ public sealed class PlanLinearizerDomainTests
     {
         var plan = Linearize(new DomainDiff("app", "d", ChangeKind.Modify, Checks:
         [
-            new CheckConstraintDiff(ChangeKind.Add, "new_chk", new CheckConstraint { Name = "new_chk", Expression = "VALUE > 0" }),
-            new CheckConstraintDiff(ChangeKind.Remove, "old_chk"),
+            CheckConstraintDiff.Added(new CheckConstraint { Name = "new_chk", Expression = "VALUE > 0" }),
+            CheckConstraintDiff.Removed("old_chk"),
         ]));
 
         plan.OfType<AddDomainCheck>().ShouldHaveSingleItem().Check.Name.ShouldBe("new_chk");

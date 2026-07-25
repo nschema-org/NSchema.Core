@@ -128,9 +128,8 @@ public sealed class PlanLinearizerDataMigrationTests
     {
         // Arrange — the migration de-duplicates the data the constraint depends on.
         var migration = Migration(ChangeTrigger.AddConstraint, "users_email_uq");
-        var constraint = new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq",
-            new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] })
-        { MigrationScript = migration };
+        var constraint = UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] })
+        with{ MigrationScript = migration };
 
         // Act
         var plan = LinearizeTable(new TableDiff("app", "users", ChangeKind.Modify, UniqueConstraints: [constraint]));

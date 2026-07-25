@@ -8,6 +8,7 @@ using NSchema.Diff.Model.Views;
 using NSchema.Diff.Rendering;
 using NSchema.Model;
 using NSchema.Model.Columns;
+using NSchema.Model.Constraints;
 using NSchema.Model.Indexes;
 using NSchema.Model.Tables;
 using NSchema.Model.Views;
@@ -164,7 +165,7 @@ public sealed class DiffDocumentTests
     {
         var table = Table("users", ChangeKind.Add,
             columns: [AddColumn(new Column { Name = "id", Type = SqlType.Int })],
-            indexes: [new IndexDiff(ChangeKind.Add, "users_id_ix", new TableIndex { Name = "users_id_ix", Columns = ["id"] }, null)]);
+            indexes: [IndexDiff.Added(new TableIndex { Name = "users_id_ix", Columns = ["id"] })]);
 
         var lines = DiffDocument.From(WithTable(table)).Lines;
         var columnIndex = IndexOf(lines, line => line.Text.Contains("id int not null"));
@@ -254,20 +255,20 @@ public sealed class DiffDocumentTests
 
     [Fact]
     public void From_ForeignKeyConstraint_EmitsLabel()
-        => ShouldHaveLine(WithTable(Table("orders", ChangeKind.Modify, foreignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null)])), ChangeKind.Remove, "foreign key orders_user_fk");
+        => ShouldHaveLine(WithTable(Table("orders", ChangeKind.Modify, foreignKeys: [ForeignKeyDiff.Removed("orders_user_fk")])), ChangeKind.Remove, "foreign key orders_user_fk");
 
     [Fact]
     public void From_UniqueConstraint_EmitsLabel()
-        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", null)])), ChangeKind.Add, "unique constraint users_email_uq");
+        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, uniqueConstraints: [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] })])), ChangeKind.Add, "unique constraint users_email_uq");
 
     [Fact]
     public void From_CheckConstraint_EmitsLabel()
-        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, checks: [new CheckConstraintDiff(ChangeKind.Remove, "users_age_chk", null)])), ChangeKind.Remove, "check constraint users_age_chk");
+        => ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, checks: [CheckConstraintDiff.Removed("users_age_chk")])), ChangeKind.Remove, "check constraint users_age_chk");
 
     [Fact]
     public void From_ConstraintCommentChange_EmitsCommentDiff()
     {
-        var unique = new UniqueConstraintDiff(ChangeKind.Modify, "users_email_uq", null, new ValueChange<string>("old", "new"));
+        var unique = UniqueConstraintDiff.CommentChanged("users_email_uq", new ValueChange<string>("old", "new"));
 
         ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, uniqueConstraints: [unique])), ChangeKind.Modify, "unique constraint users_email_uq comment: \"old\" → \"new\"");
     }
@@ -275,7 +276,7 @@ public sealed class DiffDocumentTests
     [Fact]
     public void From_IndexAdd_EmitsName()
     {
-        var index = new IndexDiff(ChangeKind.Add, "users_email_ux", new TableIndex { Name = "users_email_ux", Columns = ["email"], IsUnique = true }, null);
+        var index = IndexDiff.Added(new TableIndex { Name = "users_email_ux", Columns = ["email"], IsUnique = true });
 
         ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, indexes: [index])), ChangeKind.Add, "index users_email_ux");
     }
@@ -283,7 +284,7 @@ public sealed class DiffDocumentTests
     [Fact]
     public void From_IndexCommentModify_EmitsOldToNew()
     {
-        var index = new IndexDiff(ChangeKind.Modify, "users_email_ux", null, new ValueChange<string>(null, "speed"));
+        var index = IndexDiff.CommentChanged("users_email_ux", new ValueChange<string>(null, "speed"));
 
         ShouldHaveLine(WithTable(Table("users", ChangeKind.Modify, indexes: [index])), ChangeKind.Modify, "index users_email_ux comment: <none> → \"speed\"");
     }

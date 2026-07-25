@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NSchema.Model;
 using NSchema.Model.Columns;
 using NSchema.Model.CompositeTypes;
@@ -7,8 +8,46 @@ namespace NSchema.Diff.Model.CompositeTypes;
 /// <summary>
 /// Describes a change to a single field of a composite type.
 /// </summary>
-/// <param name="Kind">The change to the field.</param>
-/// <param name="Name">The field name.</param>
-/// <param name="Definition">The field definition for an added field; otherwise <see langword="null"/>.</param>
-/// <param name="Type">The change to the field's type, set on an in-place retype (<c>ALTER ATTRIBUTE … TYPE</c>).</param>
-public sealed record CompositeFieldDiff(ChangeKind Kind, SqlIdentifier Name, CompositeField? Definition = null, ValueChange<SqlType>? Type = null);
+public sealed record CompositeFieldDiff
+{
+    [JsonConstructor]
+    private CompositeFieldDiff() { }
+
+    /// <summary>
+    /// The change to the field.
+    /// </summary>
+    public required ChangeKind Kind { get; init; }
+
+    /// <summary>
+    /// The field name.
+    /// </summary>
+    public required SqlIdentifier Name { get; init; }
+
+    /// <summary>
+    /// The definition for an added field; otherwise <see langword="null"/>.
+    /// </summary>
+    public CompositeField? Definition { get; init; }
+
+    /// <summary>
+    /// The change to the field's type, set on an in-place retype (<c>ALTER ATTRIBUTE … TYPE</c>).
+    /// </summary>
+    public ValueChange<SqlType>? Type { get; init; }
+
+    /// <summary>
+    /// A field being created, named by its own definition.
+    /// </summary>
+    public static CompositeFieldDiff Added(CompositeField definition) =>
+        new() { Kind = ChangeKind.Add, Name = definition.Name, Definition = definition };
+
+    /// <summary>
+    /// A field being dropped.
+    /// </summary>
+    public static CompositeFieldDiff Removed(SqlIdentifier name) =>
+        new() { Kind = ChangeKind.Remove, Name = name };
+
+    /// <summary>
+    /// An in-place retype (<c>ALTER ATTRIBUTE … TYPE</c>).
+    /// </summary>
+    public static CompositeFieldDiff TypeChanged(SqlIdentifier name, ValueChange<SqlType> type) =>
+        new() { Kind = ChangeKind.Modify, Name = name, Type = type };
+}

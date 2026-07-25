@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NSchema.Model;
 using NSchema.Model.Constraints;
 using NSchema.Model.Scripts;
@@ -7,14 +8,51 @@ namespace NSchema.Diff.Model.Constraints;
 /// <summary>
 /// Describes a change to a table's unique constraint. A changed unique constraint surfaces as a Remove followed by an Add.
 /// </summary>
-/// <param name="Kind">The change to the unique constraint.</param>
-/// <param name="Name">The unique constraint name.</param>
-/// <param name="Definition">The unique constraint definition for an added constraint; otherwise <see langword="null"/>.</param>
-/// <param name="Comment">The change to the constraint's comment, if any (carried on a comment-only <see cref="ChangeKind.Modify"/>).</param>
-public sealed record UniqueConstraintDiff(ChangeKind Kind, SqlIdentifier Name, UniqueConstraint? Definition = null, ValueChange<string>? Comment = null) : IMigratableDiff
+public sealed record UniqueConstraintDiff : IMigratableDiff
 {
+    [JsonConstructor]
+    private UniqueConstraintDiff() { }
+
+    /// <summary>
+    /// The change to the unique constraint.
+    /// </summary>
+    public required ChangeKind Kind { get; init; }
+
+    /// <summary>
+    /// The unique constraint name.
+    /// </summary>
+    public required SqlIdentifier Name { get; init; }
+
+    /// <summary>
+    /// The definition for an added unique constraint; otherwise <see langword="null"/>.
+    /// </summary>
+    public UniqueConstraint? Definition { get; init; }
+
+    /// <summary>
+    /// The change to the comment, if any.
+    /// </summary>
+    public ValueChange<string>? Comment { get; init; }
+
     /// <summary>
     /// The change-event script matched to this change, run at this point in the plan (<see langword="null"/> when none).
     /// </summary>
     public ChangeScript? MigrationScript { get; init; }
+
+    /// <summary>
+    /// A unique constraint being created, named by its own definition.
+    /// </summary>
+    public static UniqueConstraintDiff Added(UniqueConstraint definition) =>
+        new() { Kind = ChangeKind.Add, Name = definition.Name, Definition = definition };
+
+    /// <summary>
+    /// A unique constraint being dropped.
+    /// </summary>
+    public static UniqueConstraintDiff Removed(SqlIdentifier name) =>
+        new() { Kind = ChangeKind.Remove, Name = name };
+
+    /// <summary>
+    /// A comment change applied in place.
+    /// </summary>
+    public static UniqueConstraintDiff CommentChanged(SqlIdentifier name, ValueChange<string> comment) =>
+        new() { Kind = ChangeKind.Modify, Name = name, Comment = comment };
 }

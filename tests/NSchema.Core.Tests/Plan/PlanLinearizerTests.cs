@@ -261,12 +261,12 @@ public sealed class PlanLinearizerTests
         // Drops and revokes sort before RenameTable, so they execute while the table still carries its old name.
         var table = TableNode("accounts", ChangeKind.Modify, renamedFrom: "users",
             primaryKey: [PrimaryKeyDiff.Removed("users_pkey")],
-            foreignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "users_org_fk")],
-            uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Remove, "users_email_uq")],
-            checks: [new CheckConstraintDiff(ChangeKind.Remove, "users_age_chk")],
-            exclusionConstraints: [new ExclusionConstraintDiff(ChangeKind.Remove, "no_overlap")],
-            indexes: [new IndexDiff(ChangeKind.Remove, "users_email_ix")],
-            triggers: [new TriggerDiff(ChangeKind.Remove, "users_audit_trg")],
+            foreignKeys: [ForeignKeyDiff.Removed("users_org_fk")],
+            uniqueConstraints: [UniqueConstraintDiff.Removed("users_email_uq")],
+            checks: [CheckConstraintDiff.Removed("users_age_chk")],
+            exclusionConstraints: [ExclusionConstraintDiff.Removed("no_overlap")],
+            indexes: [IndexDiff.Removed("users_email_ix")],
+            triggers: [TriggerDiff.Removed("users_audit_trg")],
             grants: [new GrantChange(ChangeKind.Remove, "reader", TablePrivilege.Select)]);
 
         var plan = LinearizeTable(table);
@@ -288,8 +288,8 @@ public sealed class PlanLinearizerTests
         // Child diff nodes carry the new schema name, so the schema rename must run before their drops for the
         // schema-qualified names to resolve.
         var table = TableNode("orders", ChangeKind.Modify, schema: "sales",
-            foreignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk")],
-            triggers: [new TriggerDiff(ChangeKind.Remove, "orders_audit_trg")]);
+            foreignKeys: [ForeignKeyDiff.Removed("orders_user_fk")],
+            triggers: [TriggerDiff.Removed("orders_audit_trg")]);
         var plan = Linearize(SchemaNode("sales", ChangeKind.Modify, renamedFrom: "shop",
             grants: [new GrantChange(ChangeKind.Remove, "reader")],
             tables: [table]));
@@ -304,8 +304,8 @@ public sealed class PlanLinearizerTests
     public void Linearize_RenamedTable_AddsTargetNewName()
     {
         var table = TableNode("accounts", ChangeKind.Modify, renamedFrom: "users",
-            uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "accounts_email_uq", new UniqueConstraint { Name = "accounts_email_uq", ColumnNames = ["email"] })],
-            indexes: [new IndexDiff(ChangeKind.Add, "accounts_email_ix", new TableIndex { Name = "accounts_email_ix", Columns = ["email"] })]);
+            uniqueConstraints: [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "accounts_email_uq", ColumnNames = ["email"] })],
+            indexes: [IndexDiff.Added(new TableIndex { Name = "accounts_email_ix", Columns = ["email"] })]);
 
         var plan = LinearizeTable(table);
 
@@ -340,10 +340,10 @@ public sealed class PlanLinearizerTests
         // linearizer emits no separate Add* action for it; a constraint comment still arrives on its own.
         var table = TableNode("orders", ChangeKind.Add,
             definition: new Table { Name = "orders" },
-            foreignKeys: [new ForeignKeyDiff(ChangeKind.Add, "orders_user_fk", new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] })],
-            uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "orders_code_uq", new UniqueConstraint { Name = "orders_code_uq", ColumnNames = ["code"] })],
-            checks: [new CheckConstraintDiff(ChangeKind.Add, "orders_total_chk", new CheckConstraint { Name = "orders_total_chk", Expression = "total >= 0" })],
-            exclusionConstraints: [new ExclusionConstraintDiff(ChangeKind.Add, "no_overlap", new ExclusionConstraint { Name = "no_overlap", Elements = [new ExclusionElement("&&", "slot")], Method = "gist" })],
+            foreignKeys: [ForeignKeyDiff.Added(new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] })],
+            uniqueConstraints: [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "orders_code_uq", ColumnNames = ["code"] })],
+            checks: [CheckConstraintDiff.Added(new CheckConstraint { Name = "orders_total_chk", Expression = "total >= 0" })],
+            exclusionConstraints: [ExclusionConstraintDiff.Added(new ExclusionConstraint { Name = "no_overlap", Elements = [new ExclusionElement("&&", "slot")], Method = "gist" })],
             primaryKey: [PrimaryKeyDiff.CommentChanged("orders_pkey", new ValueChange<string>(null, "the key"))]);
 
         var plan = LinearizeTable(table);
@@ -487,7 +487,7 @@ public sealed class PlanLinearizerTests
     public void Linearize_AddForeignKey_EmitsAddForeignKey()
     {
         var fk = new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] };
-        var constraint = new ForeignKeyDiff(ChangeKind.Add, "orders_user_fk", fk);
+        var constraint = ForeignKeyDiff.Added(fk);
 
         LinearizeTable(TableNode("orders", ChangeKind.Modify, foreignKeys: [constraint]))
             .OfType<AddForeignKey>().ShouldHaveSingleItem().ForeignKey.Name.ShouldBe("orders_user_fk");
@@ -496,7 +496,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_RemoveForeignKey_EmitsDropForeignKey()
     {
-        var constraint = new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null);
+        var constraint = ForeignKeyDiff.Removed("orders_user_fk");
 
         LinearizeTable(TableNode("orders", ChangeKind.Modify, foreignKeys: [constraint]))
             .OfType<DropForeignKey>().ShouldHaveSingleItem().ForeignKey.Member.ShouldBe("orders_user_fk");
@@ -506,7 +506,7 @@ public sealed class PlanLinearizerTests
     public void Linearize_AddExclusionConstraint_EmitsAddExclusionConstraint()
     {
         var exclusion = new ExclusionConstraint { Name = "no_overlap", Elements = [new ExclusionElement("&&", "during")], Method = "gist" };
-        var constraint = new ExclusionConstraintDiff(ChangeKind.Add, "no_overlap", exclusion);
+        var constraint = ExclusionConstraintDiff.Added(exclusion);
 
         LinearizeTable(TableNode("bookings", ChangeKind.Modify, exclusionConstraints: [constraint]))
             .OfType<AddExclusionConstraint>().ShouldHaveSingleItem().ExclusionConstraint.Name.ShouldBe("no_overlap");
@@ -515,7 +515,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_RemoveExclusionConstraint_EmitsDropExclusionConstraint()
     {
-        var constraint = new ExclusionConstraintDiff(ChangeKind.Remove, "no_overlap", null);
+        var constraint = ExclusionConstraintDiff.Removed("no_overlap");
 
         LinearizeTable(TableNode("bookings", ChangeKind.Modify, exclusionConstraints: [constraint]))
             .OfType<DropExclusionConstraint>().ShouldHaveSingleItem().Constraint.Member.ShouldBe("no_overlap");
@@ -525,7 +525,7 @@ public sealed class PlanLinearizerTests
     public void Linearize_AddUniqueConstraint_EmitsAddUniqueConstraint()
     {
         var unique = new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] };
-        var constraint = new UniqueConstraintDiff(ChangeKind.Add, "users_email_uq", unique);
+        var constraint = UniqueConstraintDiff.Added(unique);
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, uniqueConstraints: [constraint]))
             .OfType<AddUniqueConstraint>().ShouldHaveSingleItem().UniqueConstraint.Name.ShouldBe("users_email_uq");
@@ -534,7 +534,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_RemoveUniqueConstraint_EmitsDropUniqueConstraint()
     {
-        var constraint = new UniqueConstraintDiff(ChangeKind.Remove, "users_email_uq", null);
+        var constraint = UniqueConstraintDiff.Removed("users_email_uq");
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, uniqueConstraints: [constraint]))
             .OfType<DropUniqueConstraint>().ShouldHaveSingleItem().Constraint.Member.ShouldBe("users_email_uq");
@@ -544,7 +544,7 @@ public sealed class PlanLinearizerTests
     public void Linearize_AddCheckConstraint_EmitsAddCheckConstraint()
     {
         var check = new CheckConstraint { Name = "users_age_chk", Expression = "age >= 0" };
-        var constraint = new CheckConstraintDiff(ChangeKind.Add, "users_age_chk", check);
+        var constraint = CheckConstraintDiff.Added(check);
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, checks: [constraint]))
             .OfType<AddCheckConstraint>().ShouldHaveSingleItem().CheckConstraint.Name.ShouldBe("users_age_chk");
@@ -553,7 +553,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_RemoveCheckConstraint_EmitsDropCheckConstraint()
     {
-        var constraint = new CheckConstraintDiff(ChangeKind.Remove, "users_age_chk", null);
+        var constraint = CheckConstraintDiff.Removed("users_age_chk");
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, checks: [constraint]))
             .OfType<DropCheckConstraint>().ShouldHaveSingleItem().Constraint.Member.ShouldBe("users_age_chk");
@@ -562,7 +562,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_UniqueConstraintCommentChange_EmitsSetConstraintComment()
     {
-        var constraint = new UniqueConstraintDiff(ChangeKind.Modify, "users_email_uq", null, new ValueChange<string>("old", "new"));
+        var constraint = UniqueConstraintDiff.CommentChanged("users_email_uq", new ValueChange<string>("old", "new"));
 
         var action = LinearizeTable(TableNode("users", ChangeKind.Modify, uniqueConstraints: [constraint]))
             .OfType<SetConstraintComment>().ShouldHaveSingleItem();
@@ -583,7 +583,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_AddIndex_EmitsCreateIndex()
     {
-        var index = new IndexDiff(ChangeKind.Add, "users_email_ix", new TableIndex { Name = "users_email_ix", Columns = ["email"] }, null);
+        var index = IndexDiff.Added(new TableIndex { Name = "users_email_ix", Columns = ["email"] });
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, indexes: [index]))
             .OfType<CreateIndex>().ShouldHaveSingleItem().Index.Name.ShouldBe("users_email_ix");
@@ -592,7 +592,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_RemoveIndex_EmitsDropIndex()
     {
-        var index = new IndexDiff(ChangeKind.Remove, "users_email_ix", null, null);
+        var index = IndexDiff.Removed("users_email_ix");
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, indexes: [index]))
             .OfType<DropIndex>().ShouldHaveSingleItem().Index.Member.ShouldBe("users_email_ix");
@@ -601,7 +601,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_ModifyIndexComment_EmitsSetIndexComment()
     {
-        var index = new IndexDiff(ChangeKind.Modify, "users_email_ix", null, new ValueChange<string>("old", "new"));
+        var index = IndexDiff.CommentChanged("users_email_ix", new ValueChange<string>("old", "new"));
 
         LinearizeTable(TableNode("users", ChangeKind.Modify, indexes: [index]))
             .OfType<SetIndexComment>().ShouldHaveSingleItem()
@@ -690,7 +690,7 @@ public sealed class PlanLinearizerTests
     {
         var plan = Linearize(SchemaNode("app", tables:
         [
-            TableNode("orders", ChangeKind.Modify, foreignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null)]),
+            TableNode("orders", ChangeKind.Modify, foreignKeys: [ForeignKeyDiff.Removed("orders_user_fk")]),
             TableNode("users", ChangeKind.Remove),
         ]));
 
@@ -702,8 +702,8 @@ public sealed class PlanLinearizerTests
     {
         // A foreign key may target a unique constraint, so the constraint must be created first.
         var plan = LinearizeTable(TableNode("orders", ChangeKind.Modify,
-            uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Add, "orders_code_uq", new UniqueConstraint { Name = "orders_code_uq", ColumnNames = ["code"] })],
-            foreignKeys: [new ForeignKeyDiff(ChangeKind.Add, "orders_user_fk", new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] })]));
+            uniqueConstraints: [UniqueConstraintDiff.Added(new UniqueConstraint { Name = "orders_code_uq", ColumnNames = ["code"] })],
+            foreignKeys: [ForeignKeyDiff.Added(new ForeignKey { Name = "orders_user_fk", ColumnNames = ["user_id"], References = new("app", "users"), ReferencedColumnNames = ["id"] })]));
 
         IndexOf<AddUniqueConstraint>(plan).ShouldBeLessThan(IndexOf<AddForeignKey>(plan));
     }
@@ -713,8 +713,8 @@ public sealed class PlanLinearizerTests
     {
         // The mirror of the add ordering: a referencing foreign key is dropped before the constraint it targets.
         var plan = LinearizeTable(TableNode("orders", ChangeKind.Modify,
-            foreignKeys: [new ForeignKeyDiff(ChangeKind.Remove, "orders_user_fk", null)],
-            uniqueConstraints: [new UniqueConstraintDiff(ChangeKind.Remove, "orders_code_uq", null)]));
+            foreignKeys: [ForeignKeyDiff.Removed("orders_user_fk")],
+            uniqueConstraints: [UniqueConstraintDiff.Removed("orders_code_uq")]));
 
         IndexOf<DropForeignKey>(plan).ShouldBeLessThan(IndexOf<DropUniqueConstraint>(plan));
     }
