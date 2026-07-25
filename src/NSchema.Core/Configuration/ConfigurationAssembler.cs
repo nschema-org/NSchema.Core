@@ -18,7 +18,11 @@ internal static class ConfigurationAssembler
     /// Validates and resolves <paramref name="documents"/> into the configuration they declare.
     /// </summary>
     /// <param name="documents">The configuration documents resolved together; only their settings statements are bound.</param>
-    public static Result<ConfigurationDefinition, NsqlDiagnostic> Assemble(IReadOnlyList<NsqlDocument> documents)
+    /// <param name="environment">The environment overrides to apply; the process environment when not supplied.</param>
+    public static Result<ConfigurationDefinition, NsqlDiagnostic> Assemble(
+        IReadOnlyList<NsqlDocument> documents,
+        IReadOnlyDictionary<string, string?>? environment = null
+    )
     {
         var diagnostics = new List<NsqlDiagnostic>();
 
@@ -32,8 +36,8 @@ internal static class ConfigurationAssembler
         var definition = new ConfigurationDefinition(
             plugins,
             Sole(byKeyword[SettingsKeyword.Engine], NsqlKeywords.Engine, diagnostics)?.Bind<EngineConfiguration>(diagnostics),
-            Reference(byKeyword[SettingsKeyword.Database], NsqlKeywords.Database, plugins, diagnostics),
-            Reference(byKeyword[SettingsKeyword.State], NsqlKeywords.State, plugins, diagnostics));
+            Reference(byKeyword[SettingsKeyword.Database], NsqlKeywords.Database, plugins, diagnostics, environment),
+            Reference(byKeyword[SettingsKeyword.State], NsqlKeywords.State, plugins, diagnostics, environment));
 
         return Result<ConfigurationDefinition, NsqlDiagnostic>.From(definition, diagnostics);
     }
@@ -69,7 +73,13 @@ internal static class ConfigurationAssembler
     }
 
     // A provider reference (DATABASE/STATE): at most one, labelled, and resolving to a declared or built-in plugin.
-    private static PluginSettings? Reference(IEnumerable<Located> statements, string keyword, IReadOnlyList<PluginDeclaration> plugins, List<NsqlDiagnostic> diagnostics)
+    private static PluginSettings? Reference(
+        IEnumerable<Located> statements,
+        string keyword,
+        IReadOnlyList<PluginDeclaration> plugins,
+        List<NsqlDiagnostic> diagnostics,
+        IReadOnlyDictionary<string, string?>? environment
+    )
     {
         if (Sole(statements, keyword, diagnostics) is not { } located)
         {
@@ -89,7 +99,7 @@ internal static class ConfigurationAssembler
             return null;
         }
 
-        return located.Statement.ToSettings();
+        return EnvironmentSettings.Overlay(located.Statement.ToSettings(), keyword, environment);
     }
 
     // Enforces at-most-one for a keyword, returning the first and reporting each one beyond it as a duplicate.
