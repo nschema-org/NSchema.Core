@@ -30,28 +30,28 @@ public sealed class DirectiveValidatorTests
     [Fact]
     public void Validate_WellFormedRename_ProducesNothing()
     {
-            // Arrange
+        // Arrange
         var project = Project(new ProjectDirectives(
                 ObjectRenames: [new ObjectRenameDirective(App("users") with { Kind = ObjectKind.Table }, "people")]),
 
             // Act
             AppSchema(Table("people", "id")));
 
-            // Assert
+        // Assert
         Validate(project).ShouldBeEmpty();
     }
 
     [Fact]
     public void Validate_RenameTargetNotDeclared_IsAnError()
     {
-            // Arrange
+        // Arrange
         var project = Project(new ProjectDirectives(
                 ObjectRenames: [new ObjectRenameDirective(App("users") with { Kind = ObjectKind.Table }, "people")]),
 
             // Act
             AppSchema());
 
-            // Assert
+        // Assert
         Validate(project).ShouldHaveSingleItem()
             .ShouldBe(ProjectDiagnostics.RenameTargetNotDeclared("table", "app.users", "people"));
     }
@@ -59,14 +59,14 @@ public sealed class DirectiveValidatorTests
     [Fact]
     public void Validate_RenameSourceStillDeclared_IsAnError()
     {
-            // Arrange
+        // Arrange
         var project = Project(new ProjectDirectives(
                 ObjectRenames: [new ObjectRenameDirective(App("users") with { Kind = ObjectKind.Table }, "people")]),
 
             // Act
             AppSchema(Table("people", "id"), Table("users", "id")));
 
-            // Assert
+        // Assert
         Validate(project).ShouldHaveSingleItem()
             .ShouldBe(ProjectDiagnostics.RenameSourceStillDeclared("table", "app.users", "people"));
     }
@@ -84,21 +84,21 @@ public sealed class DirectiveValidatorTests
     [Fact]
     public void Validate_SelfRename_IsAnError()
     {
-            // Arrange
+        // Arrange
         var project = Project(new ProjectDirectives(
                 ObjectRenames: [new ObjectRenameDirective(App("users") with { Kind = ObjectKind.Table }, "users")]),
 
             // Act
             AppSchema(Table("users", "id")));
 
-            // Assert
+        // Assert
         Validate(project).ShouldContain(ProjectDiagnostics.SelfRename("table", "app.users"));
     }
 
     [Fact]
     public void Validate_TwoRenamesSharingASource_IsAnError()
     {
-            // Arrange
+        // Arrange
         var project = Project(new ProjectDirectives(
                 ObjectRenames:
                 [
@@ -109,14 +109,14 @@ public sealed class DirectiveValidatorTests
             // Act
             AppSchema(Table("people", "id"), Table("members", "id")));
 
-            // Assert
+        // Assert
         Validate(project).ShouldContain(ProjectDiagnostics.DuplicateRenameSource("table", "app.users"));
     }
 
     [Fact]
     public void Validate_TwoRenamesSharingATarget_IsAnError()
     {
-            // Arrange
+        // Arrange
         var project = Project(new ProjectDirectives(
                 ObjectRenames:
                 [
@@ -127,14 +127,14 @@ public sealed class DirectiveValidatorTests
             // Act
             AppSchema(Table("people", "id")));
 
-            // Assert
+        // Assert
         Validate(project).ShouldContain(ProjectDiagnostics.DuplicateRenameTarget("table", "app.people"));
     }
 
     [Fact]
     public void Validate_RenameChain_IsAnError()
     {
-            // Arrange
+        // Arrange
         // a → b and b → c: renames are unordered, so the chain is ambiguous, whichever way it is written.
         var project = Project(new ProjectDirectives(
                 ObjectRenames:
@@ -146,7 +146,7 @@ public sealed class DirectiveValidatorTests
             // Act
             AppSchema(Table("b", "id"), Table("c", "id")));
 
-            // Assert
+        // Assert
         Validate(project).ShouldContain(ProjectDiagnostics.RenameChain("table", "app.b"));
     }
 
@@ -188,14 +188,14 @@ public sealed class DirectiveValidatorTests
     [Fact]
     public void Validate_ColumnRenameTargetNotDeclared_IsAnError()
     {
-            // Arrange
+        // Arrange
         var project = Project(new ProjectDirectives(
                 MemberRenames: [new MemberRenameDirective(new MemberAddress(_app, "users", "name"), "full_name")]),
 
             // Act
             AppSchema(Table("users", "id")));
 
-            // Assert
+        // Assert
         Validate(project).ShouldHaveSingleItem()
             .ShouldBe(ProjectDiagnostics.RenameTargetNotDeclared("column", "app.users.name", "full_name"));
     }
@@ -203,14 +203,14 @@ public sealed class DirectiveValidatorTests
     [Fact]
     public void Validate_ColumnRenameIntoUndeclaredTable_IsAnError()
     {
-            // Arrange
+        // Arrange
         var project = Project(new ProjectDirectives(
                 MemberRenames: [new MemberRenameDirective(new MemberAddress(_app, "ghost", "name"), "full_name")]),
 
             // Act
             AppSchema());
 
-            // Assert
+        // Assert
         Validate(project).ShouldHaveSingleItem()
             .ShouldBe(ProjectDiagnostics.DirectiveTableNotDeclared(new MemberAddress(_app, "ghost", "name")));
     }

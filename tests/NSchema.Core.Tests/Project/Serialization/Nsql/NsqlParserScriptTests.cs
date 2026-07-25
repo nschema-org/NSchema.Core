@@ -55,7 +55,7 @@ public sealed class NsqlParserScriptTests
     [Fact]
     public void Parse_RunOutsideTransactionOption_IsCaptured()
     {
-            // Arrange
+        // Arrange
         var script = ReadScripts(
 
             // Act

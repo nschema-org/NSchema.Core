@@ -38,14 +38,14 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_ViewBodyChange_IsModifyCarryingNewDefinition()
     {
-            // Arrange
+        // Arrange
         var diff = DiffViews(
             [View("active", "SELECT id FROM app.users")],
 
             // Act
             [View("active", "SELECT id, name FROM app.users")]);
 
-            // Assert
+        // Assert
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.Definition!.Body.ShouldBe("SELECT id, name FROM app.users"); // replace
         diff.RenamedFrom.ShouldBeNull();
@@ -54,14 +54,14 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_ViewCommentOnlyChange_IsModifyWithoutDefinition()
     {
-            // Arrange
+        // Arrange
         var diff = DiffViews(
             [View("active", "SELECT * FROM app.users", comment: "old")],
 
             // Act
             [View("active", "SELECT * FROM app.users", comment: "new")]);
 
-            // Assert
+        // Assert
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.Definition.ShouldBeNull(); // no body change -> no replace
         diff.Comment.ShouldBe(new ValueChange<string>("old", "new"));

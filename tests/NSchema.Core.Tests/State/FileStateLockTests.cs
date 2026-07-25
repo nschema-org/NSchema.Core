@@ -95,7 +95,7 @@ public sealed class FileStateLockTests : IDisposable
     [Fact]
     public async Task Acquire_WhenAlreadyHeld_ThrowsWithHolderInfo()
     {
-            // Arrange
+        // Arrange
         await _sut.Acquire(Lock("apply"), TestContext.Current.CancellationToken);
 
         var ex = await Should.ThrowAsync<StateLockedException>(
@@ -103,7 +103,7 @@ public sealed class FileStateLockTests : IDisposable
             // Act
             () => _sut.Acquire(Lock("destroy")));
 
-            // Assert
+        // Assert
         ex.ExistingLock.ShouldNotBeNull();
         ex.ExistingLock.Operation.ShouldBe("apply");
         ex.Message.ShouldContain(_path);

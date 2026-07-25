@@ -32,13 +32,13 @@ public sealed class NsqlParserMaterializedViewTests
     [Fact]
     public void Parse_StandaloneIndexOnMaterializedView_Attaches()
     {
-            // Arrange
+        // Arrange
         var view = ParseView(
 
             // Act
             "CREATE MATERIALIZED VIEW app.daily AS SELECT date FROM app.t; CREATE INDEX daily_ix ON app.daily (date);");
 
-            // Assert
+        // Assert
         var index = view.Indexes.ShouldHaveSingleItem();
         index.Name.ShouldBe("daily_ix");
         index.Columns.Select(c => c.Column?.Value).ShouldBe(["date"]);

@@ -331,7 +331,7 @@ public sealed class NsqlParserTemplateTests
     [Fact]
     public void Expand_TableTemplate_UnqualifiedForeignKeyBindsToTheIncludingTablesSchema()
     {
-            // Arrange
+        // Arrange
         var source =
             """
             CREATE SCHEMA app;
@@ -353,7 +353,7 @@ public sealed class NsqlParserTemplateTests
             // Act
             .Tables.Single(t => t.Name == "orders");
 
-            // Assert
+        // Assert
         orders.ForeignKeys.ShouldHaveSingleItem().References.Schema.ShouldBe("app");
     }
 

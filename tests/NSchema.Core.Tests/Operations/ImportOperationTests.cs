@@ -394,7 +394,7 @@ public sealed class ImportOperationTests : IDisposable
     [Fact]
     public async Task Execute_WritesFormatterCanonicalNsql()
     {
-            // Arrange
+        // Arrange
         // Import output must already be in the formatter's canonical layout, so running `fmt` over an
         // imported file changes nothing. This is the invariant that keeps the two DDL paths from drifting.
         Source(RichSchema());

@@ -62,14 +62,14 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_BodyChange_IsReplaceNotRecreate()
     {
-            // Arrange
+        // Arrange
         var diff = DiffRoutines(
             [Fn("f", "a int", "RETURNS int AS $$ SELECT 1 $$")],
 
             // Act
             [Fn("f", "a int", "RETURNS int AS $$ SELECT 2 $$")]);
 
-            // Assert
+        // Assert
         diff!.Kind.ShouldBe(ChangeKind.Modify);
         diff.Definition.ShouldNotBeNull();
         diff.Arguments.ShouldBeNull();

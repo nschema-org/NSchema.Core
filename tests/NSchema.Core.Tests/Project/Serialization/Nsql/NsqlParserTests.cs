@@ -150,7 +150,7 @@ public sealed class NsqlParserTests
     [Fact]
     public void Parse_StandaloneIndexOnTable_AttachesToTable()
     {
-            // Arrange
+        // Arrange
         var table = ParseSingleSchema(
             "CREATE SCHEMA app; CREATE TABLE app.users (id int NOT NULL, email text NOT NULL); " +
 
@@ -169,7 +169,7 @@ public sealed class NsqlParserTests
     [Fact]
     public void Parse_StandaloneAndInlineIndexes_Coexist()
     {
-            // Arrange
+        // Arrange
         var table = ParseSingleSchema(
             "CREATE SCHEMA app; CREATE TABLE app.users (id int NOT NULL, email text NOT NULL, INDEX users_id_ix (id)); " +
 
@@ -312,13 +312,13 @@ public sealed class NsqlParserTests
     [Fact]
     public void Parse_CreateSequence_WithEveryOption_CapturesThemAll()
     {
-            // Arrange
+        // Arrange
         var schema = ParseSingleSchema(
 
             // Act
             "CREATE SCHEMA app; CREATE SEQUENCE app.order_id (AS bigint, START 100, INCREMENT 5, MINVALUE 1, MAXVALUE 999999, CACHE 10, CYCLE);");
 
-            // Assert
+        // Assert
         schema.Sequences.ShouldHaveSingleItem().Options.ShouldBe(
             new SequenceOptions(SqlType.BigInt, StartWith: 100, IncrementBy: 5, MinValue: 1, MaxValue: 999999, Cache: 10, Cycle: true));
     }
@@ -348,13 +348,13 @@ public sealed class NsqlParserTests
     [Fact]
     public void Parse_CreateFunction_DollarQuotedBodyWithInternalSemicolons_RunsToTheRealTerminator()
     {
-            // Arrange
+        // Arrange
         var schema = ParseSingleSchema(
 
             // Act
             "CREATE SCHEMA app; CREATE FUNCTION app.f() RETURNS int LANGUAGE plpgsql AS $body$ BEGIN RETURN 1; END; $body$; CREATE TABLE app.t (id int);");
 
-            // Assert
+        // Assert
         schema.Routines.ShouldHaveSingleItem().Definition.Value.ShouldContain("BEGIN RETURN 1; END;");
         schema.Tables.ShouldHaveSingleItem(); // parsing resumed correctly after the function
     }

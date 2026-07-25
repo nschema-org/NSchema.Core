@@ -47,13 +47,13 @@ public sealed class NsqlParserDomainTests
     [Fact]
     public void Parse_AllClauses_CapturesEachInOrder()
     {
-            // Arrange
+        // Arrange
         var domain = ParseDomain(
 
             // Act
             "CREATE DOMAIN app.email AS text NOT NULL CONSTRAINT email_fmt CHECK (VALUE ~ '@') DEFAULT 'x@y';");
 
-            // Assert
+        // Assert
         domain.DataType.ShouldBe(SqlType.Text);
         domain.NotNull.ShouldBeTrue();
         domain.Checks.ShouldHaveSingleItem().Name.ShouldBe("email_fmt");

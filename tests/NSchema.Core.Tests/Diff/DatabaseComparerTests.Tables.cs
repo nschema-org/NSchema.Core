@@ -35,7 +35,7 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_TableRename_SetsRenamedFrom()
     {
-            // Arrange
+        // Arrange
         var table = DiffTable(
             new Table { Name = "people", Columns = [new Column { Name = "id", Type = SqlType.Int }] },
             new Table { Name = "users", Columns = [new Column { Name = "id", Type = SqlType.Int }] },
@@ -43,7 +43,7 @@ public partial class DatabaseComparerTests
             // Act
             TableRename("people", "users"));
 
-            // Assert
+        // Assert
         table.ShouldNotBeNull();
         table.Kind.ShouldBe(ChangeKind.Modify);
         table.RenamedFrom.ShouldBe("people");
@@ -80,7 +80,7 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_PlainRename_IsNotTreatedAsAmbiguous()
     {
-            // Arrange
+        // Arrange
         // A rename whose old name is gone and whose new name is free is unambiguous and must still work.
         var table = DiffTable(
             new Table { Name = "people", Columns = [new Column { Name = "id", Type = SqlType.Int }] },
@@ -89,7 +89,7 @@ public partial class DatabaseComparerTests
             // Act
             TableRename("people", "users"));
 
-            // Assert
+        // Assert
         table.ShouldNotBeNull();
         table.Kind.ShouldBe(ChangeKind.Modify);
         table.RenamedFrom.ShouldBe("people");

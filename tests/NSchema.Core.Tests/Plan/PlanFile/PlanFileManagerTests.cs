@@ -93,7 +93,7 @@ public sealed class PlanFileManagerTests
     [Fact]
     public void Deserialize_RestoresConcreteScriptEventsInOrder()
     {
-            // Arrange
+        // Arrange
         var roundTripped = _sut.Deserialize(_sut.Serialize(SampleEnvelope()));
 
         // The discriminator must reconstruct each concrete script record, not the abstract base, and keep order.
@@ -102,7 +102,7 @@ public sealed class PlanFileManagerTests
             // Act
             [typeof(ChangeScript), typeof(DeploymentScript), typeof(DeploymentScript)]);
 
-            // Assert
+        // Assert
         roundTripped.Plan.Diff.AllScripts().ShouldBe(SampleEnvelope().Plan.Diff.AllScripts());
     }
 
@@ -120,7 +120,7 @@ public sealed class PlanFileManagerTests
     [Fact]
     public async Task Write_ThenRead_RoundTripsThroughAFile()
     {
-            // Arrange
+        // Arrange
         var path = Path.Combine(Path.GetTempPath(), $"nschema-plan-{Guid.NewGuid():N}.json");
         try
         {

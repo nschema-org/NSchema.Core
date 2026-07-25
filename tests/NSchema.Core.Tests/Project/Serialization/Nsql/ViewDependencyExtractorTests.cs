@@ -49,13 +49,13 @@ public sealed class ViewDependencyExtractorTests
     [Fact]
     public void Extract_NestedCtes_ExcludesAllCteNames()
     {
-            // Arrange
+        // Arrange
         var deps = Extract(
 
             // Act
             "WITH a AS (SELECT 1 FROM app.t1), b AS (SELECT 1 FROM a JOIN app.t2 x ON true) SELECT * FROM b");
 
-            // Assert
+        // Assert
         deps.ShouldBe([("app", "t1"), ("app", "t2")]);
     }
 

@@ -102,7 +102,7 @@ public sealed class AddProjectSourceTests : IDisposable
     [Fact]
     public async Task AddSqlSchemas_MatchingNothing_FailsTheRead()
     {
-            // Arrange
+        // Arrange
         // Planning against an empty desired schema would read as "drop everything", so a pattern that
         // resolves to no files is a configuration error rather than an empty schema.
         var builder = NSchemaApplication.CreateBuilder();
@@ -114,7 +114,7 @@ public sealed class AddProjectSourceTests : IDisposable
             // Act
             .GetProject(PlanningScope.All, TestContext.Current.CancellationToken);
 
-            // Assert
+        // Assert
         project.IsFailure.ShouldBeTrue();
         project.Errors.ShouldHaveSingleItem().ShouldBe(ProjectDiagnostics.NoFilesMatched());
     }

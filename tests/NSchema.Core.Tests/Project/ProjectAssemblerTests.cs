@@ -18,28 +18,28 @@ public sealed class ProjectAssemblerTests
     [Fact]
     public void Assemble_DistinctSchemasAcrossFiles_ProducesAllSchemas()
     {
-            // Arrange
+        // Arrange
         var result = TestNsqlParser.Assemble(
             "CREATE SCHEMA app; CREATE TABLE app.users (id int);",
 
             // Act
             "CREATE SCHEMA admin; CREATE TABLE admin.roles (id int);").Require();
 
-            // Assert
+        // Assert
         result.Database.Schemas.Select(s => s.Name).ShouldBe(["app", "admin"]);
     }
 
     [Fact]
     public void Assemble_SameSchemaAcrossFiles_MergesObjects()
     {
-            // Arrange
+        // Arrange
         var result = TestNsqlParser.Assemble(
             "CREATE SCHEMA app; CREATE TABLE app.users (id int); CREATE VIEW app.active AS SELECT 1 FROM app.users;",
 
             // Act
             "CREATE TABLE app.posts (id int); CREATE VIEW app.recent AS SELECT 1 FROM app.posts;").Require();
 
-            // Assert
+        // Assert
         var schema = result.Database.Schemas.ShouldHaveSingleItem();
         schema.Tables.Select(t => t.Name).ShouldBe(["users", "posts"]);
         schema.Views.Select(v => v.Name).ShouldBe(["active", "recent"]);
@@ -48,14 +48,14 @@ public sealed class ProjectAssemblerTests
     [Fact]
     public void Assemble_SchemaDeclaredInOneFile_CarriesItsCommentToTheMerge()
     {
-            // Arrange
+        // Arrange
         var result = TestNsqlParser.Assemble(
             "--- App schema\nCREATE SCHEMA app;",
 
             // Act
             "CREATE TABLE app.posts (id int);").Require();
 
-            // Assert
+        // Assert
         var schema = result.Database.Schemas.ShouldHaveSingleItem();
         schema.Comment.ShouldBe("App schema");
         schema.Tables.ShouldHaveSingleItem().Name.ShouldBe("posts");
@@ -64,14 +64,14 @@ public sealed class ProjectAssemblerTests
     [Fact]
     public void Assemble_SchemaGrantsAcrossFiles_UnionAndDedup()
     {
-            // Arrange
+        // Arrange
         var result = TestNsqlParser.Assemble(
             "CREATE SCHEMA app; GRANT USAGE ON SCHEMA app TO app_user;",
 
             // Act
             "GRANT USAGE ON SCHEMA app TO reporting; GRANT USAGE ON SCHEMA app TO app_user;").Require();
 
-            // Assert
+        // Assert
         result.Database.Schemas.Single().Grants.Select(g => g.Role).ShouldBe(["app_user", "reporting"], ignoreOrder: true);
     }
 
@@ -111,28 +111,28 @@ public sealed class ProjectAssemblerTests
     [Fact]
     public void Assemble_DuplicateRoutineAcrossFiles_IsAnError()
     {
-            // Arrange
+        // Arrange
         var result = TestNsqlParser.Assemble(
             "CREATE SCHEMA app; CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 1 $$;",
 
             // Act
             "CREATE FUNCTION app.f() RETURNS int AS $$ SELECT 2 $$;");
 
-            // Assert
+        // Assert
         SingleError(result).Message.ShouldContain("Routine 'app.f' is already declared");
     }
 
     [Fact]
     public void Assemble_FunctionAndProcedureAcrossFiles_ShareOneNameSpace()
     {
-            // Arrange
+        // Arrange
         var result = TestNsqlParser.Assemble(
             "CREATE SCHEMA app; CREATE FUNCTION app.r() RETURNS int AS $$ SELECT 1 $$;",
 
             // Act
             "CREATE PROCEDURE app.r() AS $$ SELECT 1 $$;");
 
-            // Assert
+        // Assert
         SingleError(result).Message.ShouldContain("share one name space");
     }
 
@@ -205,14 +205,14 @@ public sealed class ProjectAssemblerTests
     [Fact]
     public void Assemble_SameTableGrantInTwoFiles_IsOneGrant()
     {
-            // Arrange
+        // Arrange
         var result = TestNsqlParser.Assemble(
             "CREATE SCHEMA app; CREATE TABLE app.users (id int); GRANT SELECT ON app.users TO readers;",
 
             // Act
             "GRANT SELECT ON app.users TO readers;").Require();
 
-            // Assert
+        // Assert
         result.Database.Schemas.Single().Tables.Single().Grants.ShouldHaveSingleItem();
     }
 

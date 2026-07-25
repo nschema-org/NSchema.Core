@@ -145,14 +145,14 @@ public sealed class NsqlParserTableTests
     [Fact]
     public void Constraint_ForeignKey_CapturesReferenceAndActions()
     {
-            // Arrange
+        // Arrange
         var fk = ParseTable(
             "user_id int, CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES app.users (id) ON DELETE CASCADE ON UPDATE SET NULL")
 
             // Act
             .ForeignKeys.Single();
 
-            // Assert
+        // Assert
         fk.Name.ShouldBe("fk_user");
         fk.ColumnNames.ShouldBe(["user_id"]);
         fk.References.Schema.ShouldBe("app");

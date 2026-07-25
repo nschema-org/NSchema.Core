@@ -817,7 +817,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_OrdersDropTableAndDropSchemaLast()
     {
-            // Arrange
+        // Arrange
         var plan = Linearize(
             SchemaNode("new_app", ChangeKind.Add, tables: [TableNode("users", ChangeKind.Add, schema: "new_app", definition: new Table { Name = "users" })]),
             SchemaNode("old_app", ChangeKind.Remove),
@@ -825,7 +825,7 @@ public sealed class PlanLinearizerTests
             // Act
             SchemaNode("app", tables: [TableNode("stale", ChangeKind.Remove)]));
 
-            // Assert
+        // Assert
         // Destructive table/schema drops run after every constructive action.
         IndexOf<CreateSchema>(plan).ShouldBeLessThan(IndexOf<DropTable>(plan));
         IndexOf<CreateTable>(plan).ShouldBeLessThan(IndexOf<DropTable>(plan));
@@ -858,7 +858,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_OrdersDropForeignKeyBeforeDropUniqueConstraint()
     {
-            // Arrange
+        // Arrange
         // The mirror of the add ordering: a referencing foreign key is dropped before the constraint it targets.
         var plan = LinearizeTable(TableNode("orders", ChangeKind.Modify,
             foreignKeys: [ForeignKeyDiff.Removed("orders_user_fk")],
@@ -866,7 +866,7 @@ public sealed class PlanLinearizerTests
             // Act
             uniqueConstraints: [UniqueConstraintDiff.Removed("orders_code_uq")]));
 
-            // Assert
+        // Assert
         IndexOf<DropForeignKey>(plan).ShouldBeLessThan(IndexOf<DropUniqueConstraint>(plan));
     }
 
@@ -888,14 +888,14 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_CreatesViewsInTransitiveDependencyOrder()
     {
-            // Arrange
+        // Arrange
         // c -> b -> a
         var plan = Linearize(SchemaNode("app", views:
 
             // Act
             [AddView("c", "app", ("app", "b")), AddView("b", "app", ("app", "a")), AddView("a")]));
 
-            // Assert
+        // Assert
         IndexOfCreateView(plan, "a").ShouldBeLessThan(IndexOfCreateView(plan, "b"));
         IndexOfCreateView(plan, "b").ShouldBeLessThan(IndexOfCreateView(plan, "c"));
     }
@@ -914,7 +914,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_OrdersViewDependenciesAcrossSchemas()
     {
-            // Arrange
+        // Arrange
         // A view in "reporting" reads a view in "core"; the core view must be created first.
         var plan = Linearize(
             SchemaNode("reporting", views: [AddView("summary", "reporting", ("core", "base"))]),
@@ -922,7 +922,7 @@ public sealed class PlanLinearizerTests
             // Act
             SchemaNode("core", views: [AddView("base", "core")]));
 
-            // Assert
+        // Assert
         IndexOfCreateView(plan, "base").ShouldBeLessThan(IndexOfCreateView(plan, "summary"));
     }
 
@@ -939,14 +939,14 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_OrdersDropViewBeforeDropTable()
     {
-            // Arrange
+        // Arrange
         var plan = Linearize(SchemaNode("app",
             tables: [TableNode("t", ChangeKind.Remove)],
 
             // Act
             views: [RemoveView("v", "app", ("app", "t"))]));
 
-            // Assert
+        // Assert
         IndexOfDropView(plan, "v").ShouldBeLessThan(IndexOf<DropTable>(plan));
     }
 
@@ -1007,13 +1007,13 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_RenamedEnum_EmitsRenameEnum_NotCreateOrDrop()
     {
-            // Arrange
+        // Arrange
         var plan = Linearize(SchemaNode("app", enums:
 
             // Act
             [EnumDiff.Modified("app", "status") with { RenamedFrom = "state" }]));
 
-            // Assert
+        // Assert
         plan.ShouldHaveSingleItem().ShouldBeOfType<RenameEnum>()
             .ShouldSatisfyAllConditions(r => r.Enum.Name.ShouldBe("state"), r => r.NewName.ShouldBe("status"));
     }
@@ -1153,7 +1153,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_OrdersEnumAndSequenceDropsAfterDropTable_BeforeDropSchema()
     {
-            // Arrange
+        // Arrange
         var plan = Linearize(
             SchemaNode("app",
                 tables: [TableNode("users", ChangeKind.Remove)],
@@ -1163,7 +1163,7 @@ public sealed class PlanLinearizerTests
             // Act
             SchemaNode("scratch", ChangeKind.Remove));
 
-            // Assert
+        // Assert
         IndexOf<DropTable>(plan).ShouldBeLessThan(IndexOf<DropEnum>(plan));
         IndexOf<DropTable>(plan).ShouldBeLessThan(IndexOf<DropSequence>(plan));
         IndexOf<DropEnum>(plan).ShouldBeLessThan(IndexOf<DropSchema>(plan));
@@ -1173,7 +1173,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_OrdersRenameEnumBeforeCreateTable()
     {
-            // Arrange
+        // Arrange
         // A new table's columns reference the enum by its new name, so the rename must land first.
         var plan = Linearize(SchemaNode("app",
             tables: [TableNode("users", ChangeKind.Add, definition: new Table { Name = "users" })],
@@ -1181,7 +1181,7 @@ public sealed class PlanLinearizerTests
             // Act
             enums: [EnumDiff.Modified("app", "status") with { RenamedFrom = "state" }]));
 
-            // Assert
+        // Assert
         IndexOf<RenameEnum>(plan).ShouldBeLessThan(IndexOf<CreateTable>(plan));
     }
 
@@ -1205,14 +1205,14 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_RoutineBodyChange_EmitsCreateRoutine_NotRecreate()
     {
-            // Arrange
+        // Arrange
         // A definition-only change replaces in place (CREATE OR REPLACE semantics, like a view body change).
         var plan = Linearize(SchemaNode("app", routines:
 
             // Act
             [RoutineDiff.Modified("app", "f", RoutineKind.Function) with { Definition = _fn }]));
 
-            // Assert
+        // Assert
         plan.ShouldHaveSingleItem().ShouldBeOfType<CreateRoutine>();
         plan.OfType<RecreateRoutine>().ShouldBeEmpty();
     }
@@ -1300,7 +1300,7 @@ public sealed class PlanLinearizerTests
     [Fact]
     public void Linearize_OrdersRoutineDropsAfterDropTable_BeforeDropEnum()
     {
-            // Arrange
+        // Arrange
         var plan = Linearize(SchemaNode("app",
             tables: [TableNode("users", ChangeKind.Remove)],
             enums: [EnumDiff.Removed("app", "status")],
@@ -1308,7 +1308,7 @@ public sealed class PlanLinearizerTests
             // Act
             routines: [RoutineDiff.Removed("app", "f", RoutineKind.Function)]));
 
-            // Assert
+        // Assert
         IndexOf<DropTable>(plan).ShouldBeLessThan(IndexOf<DropRoutine>(plan));
         IndexOf<DropRoutine>(plan).ShouldBeLessThan(IndexOf<DropEnum>(plan));
     }
