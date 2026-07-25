@@ -25,7 +25,7 @@ public sealed class PlanLinearizerDataMigrationTests
     private readonly PlanLinearizer _linearizer = new();
 
     private IReadOnlyList<MigrationAction> LinearizeTable(TableDiff table)
-        => _linearizer.Linearize(new DatabaseDiff([new SchemaDiff("app", Tables: [table])]));
+        => _linearizer.Linearize(new DatabaseDiff([SchemaDiff.Containing("app") with { Tables = [table] }]));
 
     private IReadOnlyList<MigrationAction> LinearizeColumn(ColumnDiff column)
         => LinearizeTable(TableDiff.Modified("app", "users") with { Columns = [column] });
@@ -39,7 +39,7 @@ public sealed class PlanLinearizerDataMigrationTests
         // Arrange — a NOT NULL, no-default column with a matched backfill cannot land in one step against a
         // populated table: it is added nullable, backfilled, then tightened.
         var migration = Migration(ChangeTrigger.AddColumn, "email", name: "backfill_emails");
-        var column = new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text }) { MigrationScript = migration };
+        var column = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text }) with{ MigrationScript = migration };
 
         // Act
         var plan = LinearizeColumn(column);
@@ -63,7 +63,7 @@ public sealed class PlanLinearizerDataMigrationTests
     {
         // Arrange — a nullable add needs no decomposition: the column lands as declared, then the migration runs.
         var migration = Migration(ChangeTrigger.AddColumn, "email");
-        var column = new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text, IsNullable = true }) { MigrationScript = migration };
+        var column = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text, IsNullable = true }) with{ MigrationScript = migration };
 
         // Act
         var plan = LinearizeColumn(column);
@@ -90,7 +90,7 @@ public sealed class PlanLinearizerDataMigrationTests
             _ => new Column { Name = "email", Type = SqlType.Text, GeneratedExpression = "lower(name)" },
         };
         var migration = Migration(ChangeTrigger.AddColumn, "email");
-        var column = new ColumnDiff("email", ChangeKind.Add, definition) { MigrationScript = migration };
+        var column = ColumnDiff.Added(definition) with{ MigrationScript = migration };
 
         // Act
         var plan = LinearizeColumn(column);
@@ -107,10 +107,11 @@ public sealed class PlanLinearizerDataMigrationTests
     {
         // Arrange — the migration's SQL prepares the data for the cast, so it must run first.
         var migration = Migration(ChangeTrigger.AlterColumnType, "total");
-        var column = new ColumnDiff("total", ChangeKind.Modify,
-            new Column { Name = "total", Type = SqlType.Int },
-            Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int))
-        { MigrationScript = migration };
+        var column = ColumnDiff.Modified(new Column { Name = "total", Type = SqlType.Int }) with
+        {
+            Type = new ValueChange<SqlType>(SqlType.Text, SqlType.Int),
+            MigrationScript = migration,
+        };
 
         // Act
         var plan = LinearizeColumn(column);
@@ -145,12 +146,12 @@ public sealed class PlanLinearizerDataMigrationTests
     {
         // Arrange — two annotated column adds; their migrations share a priority band, so the stable sort
         // preserves the diff's declaration order.
-        var first = new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text, IsNullable = true })
-        {
+        var first = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text, IsNullable = true })
+        with{
             MigrationScript = Migration(ChangeTrigger.AddColumn, "email", name: "first"),
         };
-        var second = new ColumnDiff("phone", ChangeKind.Add, new Column { Name = "phone", Type = SqlType.Text, IsNullable = true })
-        {
+        var second = ColumnDiff.Added(new Column { Name = "phone", Type = SqlType.Text, IsNullable = true })
+        with{
             MigrationScript = Migration(ChangeTrigger.AddColumn, "phone", name: "second"),
         };
 

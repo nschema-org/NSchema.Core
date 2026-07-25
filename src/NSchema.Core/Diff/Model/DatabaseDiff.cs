@@ -332,21 +332,22 @@ public sealed record DatabaseDiff(IReadOnlyList<SchemaDiff>? Schemas = null, IRe
 
         foreach (var bySchema in severed.Where(n => n.Address.SchemaName is not null).GroupBy(n => n.Address.SchemaName!))
         {
-            var addition = new SchemaDiff(
-                bySchema.Key,
-                Tables: [.. SeveredTables(bySchema)],
-                Views: [.. bySchema
+            var addition = SchemaDiff.Containing(bySchema.Key) with
+            {
+                Tables = [.. SeveredTables(bySchema)],
+                Views = [.. bySchema
                     .Where(n => n.Kind == DependencyKind.View)
                     .Select(n => new ViewDiff(bySchema.Key, ((ObjectAddress)n.Address).Name, ChangeKind.Remove))
                     .OrderBy(v => v.Name)],
-                Domains: [.. bySchema
+                Domains = [.. bySchema
                     .Where(n => n.Kind == DependencyKind.Domain)
                     .Select(n => new DomainDiff(bySchema.Key, ((ObjectAddress)n.Address).Name, ChangeKind.Remove))
                     .OrderBy(d => d.Name)],
-                CompositeTypes: [.. bySchema
+                CompositeTypes = [.. bySchema
                     .Where(n => n.Kind == DependencyKind.CompositeType)
                     .Select(n => new CompositeTypeDiff(bySchema.Key, ((ObjectAddress)n.Address).Name, ChangeKind.Remove))
-                    .OrderBy(c => c.Name)]);
+                    .OrderBy(c => c.Name)],
+            };
 
             var index = schemas.FindIndex(s => s.Name == bySchema.Key);
             if (index < 0)

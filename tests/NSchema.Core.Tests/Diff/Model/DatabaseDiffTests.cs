@@ -27,9 +27,9 @@ public sealed class DatabaseDiffTests
 
     private static DatabaseDiff WithChangeScript(ChangeScript change)
     {
-        var column = new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text }) { MigrationScript = change };
+        var column = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text }) with{ MigrationScript = change };
         var table = TableDiff.Modified("app", "users") with { Columns = [column] };
-        return new DatabaseDiff([new SchemaDiff("app", Tables: [table])]);
+        return new DatabaseDiff([SchemaDiff.Containing("app") with { Tables = [table] }]);
     }
 
     [Fact]
@@ -83,10 +83,12 @@ public sealed class DatabaseDiffTests
     /// </summary>
     private static DatabaseDiff TeardownDiff() => new(
     [
-        new SchemaDiff("app", ChangeKind.Remove, Tables: [TableDiff.Removed("app", "users")]),
-        new SchemaDiff("billing", ChangeKind.Remove,
-            Tables: [TableDiff.Removed("billing", "orders")],
-            Views: [new ViewDiff("billing", "summary", ChangeKind.Remove)]),
+        SchemaDiff.Removed("app") with { Tables = [TableDiff.Removed("app", "users")] },
+        SchemaDiff.Removed("billing") with
+        {
+            Tables = [TableDiff.Removed("billing", "orders")],
+            Views = [new ViewDiff("billing", "summary", ChangeKind.Remove)],
+        },
     ]);
 
     [Fact]
@@ -179,8 +181,8 @@ public sealed class DatabaseDiffTests
         // comparing whole states manufactures a removal for everything else. Narrowing must discard those.
         var diff = new DatabaseDiff(
         [
-            new SchemaDiff("app", Tables: [TableDiff.Added("app", new Table { Name = "users" })]),
-            new SchemaDiff("unmanaged", ChangeKind.Remove),
+            SchemaDiff.Containing("app") with { Tables = [TableDiff.Added("app", new Table { Name = "users" })] },
+            SchemaDiff.Removed("unmanaged"),
         ]);
 
         // Act
@@ -196,7 +198,7 @@ public sealed class DatabaseDiffTests
     /// </summary>
     private static DatabaseDiff EnumRemovalDiff() => new(
     [
-        new SchemaDiff("app", Enums: [new EnumDiff("app", "status", ChangeKind.Remove)]),
+        SchemaDiff.Containing("app") with { Enums = [new EnumDiff("app", "status", ChangeKind.Remove)] },
     ]);
 
     /// <summary>
@@ -281,12 +283,14 @@ public sealed class DatabaseDiffTests
         // not below any object, so targeting an object never drags it in.
         var diff = new DatabaseDiff(
         [
-            new SchemaDiff("app",
-                Comment: new ValueChange<string>("old", "new"),
-                Tables: [
+            SchemaDiff.Containing("app") with
+            {
+                Comment = new ValueChange<string>("old", "new"),
+                Tables = [
                     TableDiff.Modified("app", "users"),
                     TableDiff.Modified("app", "orders"),
-                ]),
+                ],
+            },
         ]);
 
         // Act
@@ -309,8 +313,9 @@ public sealed class DatabaseDiffTests
         };
         return new DatabaseDiff(
         [
-            new SchemaDiff("billing", Tables:
-            [
+            SchemaDiff.Containing("billing") with
+            {
+                Tables = [
                 TableDiff.Added("billing", new Table
                     {
                         Name = "invoices",
@@ -320,7 +325,8 @@ public sealed class DatabaseDiffTests
                 {
                     ForeignKeys = [ForeignKeyDiff.Added(foreignKey)],
                 },
-            ]),
+            ],
+            },
         ]);
     }
 
@@ -361,15 +367,17 @@ public sealed class DatabaseDiffTests
 
     private static DatabaseDiff AddsColumnTyped(SqlType type) => new(
     [
-        new SchemaDiff("billing", Tables:
-        [
+        SchemaDiff.Containing("billing") with
+        {
+            Tables = [
             TableDiff.Modified("billing", "orders") with
             {
                 Columns = [
-                new ColumnDiff("state", ChangeKind.Add, new Column { Name = "state", Type = type }),
+                ColumnDiff.Added(new Column { Name = "state", Type = type }),
             ],
             },
-        ]),
+        ],
+        },
     ]);
 
     [Fact]
@@ -425,8 +433,9 @@ public sealed class DatabaseDiffTests
         // Arrange — a modified table carries the constraint as its own change rather than inline.
         var diff = new DatabaseDiff(
         [
-            new SchemaDiff("billing", Tables:
-            [
+            SchemaDiff.Containing("billing") with
+            {
+                Tables = [
                 TableDiff.Modified("billing", "orders") with
                 {
                     ForeignKeys = [
@@ -439,7 +448,8 @@ public sealed class DatabaseDiffTests
                     }),
                 ],
                 },
-            ]),
+            ],
+            },
         ]);
 
         // Act
@@ -459,11 +469,13 @@ public sealed class DatabaseDiffTests
         // dependency of the target, not a schema-level facet to strip.
         var diff = new DatabaseDiff(
         [
-            new SchemaDiff("app", ChangeKind.Add,
-                Tables: [
+            SchemaDiff.Added("app") with
+            {
+                Tables = [
                     TableDiff.Added("app", new Table { Name = "users" }),
                     TableDiff.Added("app", new Table { Name = "orders" }),
-                ]),
+                ],
+            },
         ]);
 
         // Act

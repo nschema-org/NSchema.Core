@@ -14,7 +14,7 @@ public sealed class PlanOperationTests
     private readonly IPlanFileManager _planFile = Substitute.For<IPlanFileManager>();
 
     private readonly MigrationPlan _plan = new(
-        new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add)]),
+        new DatabaseDiff([SchemaDiff.Added("app")]),
         [new SqlStatement("CREATE SCHEMA app")]);
 
     private readonly PlanOperation _sut;

@@ -42,8 +42,8 @@ public sealed class MigrationPlannerTests
     /// <summary>A difference touching two schemas, so a scope has something to narrow away.</summary>
     private static DatabaseDiff TwoSchemaDiff() => new(
     [
-        new SchemaDiff("app", ChangeKind.Remove),
-        new SchemaDiff("billing", ChangeKind.Remove),
+        SchemaDiff.Removed("app"),
+        SchemaDiff.Removed("billing"),
     ]);
 
     [Fact]

@@ -34,7 +34,19 @@ public sealed class DiffDocumentTests
         ValueChange<string>? comment = null,
         IReadOnlyList<GrantChange>? grants = null,
         IReadOnlyList<TableDiff>? tables = null
-    ) => new(name, kind, renamedFrom, comment, grants ?? [], tables ?? []);
+    ) => SchemaForKind(kind, name) with
+    {
+        RenamedFrom = renamedFrom, Comment = comment, Grants = grants ?? [], Tables = tables ?? [],
+    };
+
+    /// <summary>The empty diff for a schema kind (null = the schema itself is untouched).</summary>
+    private static SchemaDiff SchemaForKind(ChangeKind? kind, string name) => kind switch
+    {
+        ChangeKind.Add => SchemaDiff.Added(name),
+        ChangeKind.Remove => SchemaDiff.Removed(name),
+        ChangeKind.Modify => SchemaDiff.Modified(name),
+        _ => SchemaDiff.Containing(name),
+    };
 
     private static TableDiff Table(
         string name,
@@ -66,10 +78,9 @@ public sealed class DiffDocumentTests
     };
 
     private static ColumnDiff AddColumn(Column definition, ValueChange<string>? comment = null)
-        => new(definition.Name, ChangeKind.Add, definition, null, null, null, null, null, comment);
+        => comment is null ? ColumnDiff.Added(definition) : ColumnDiff.Added(definition) with { Comment = comment };
 
-    private static ColumnDiff RemoveColumn(Column definition)
-        => new(definition.Name, ChangeKind.Remove, definition, null, null, null, null, null, null);
+    private static ColumnDiff RemoveColumn(Column definition) => ColumnDiff.Removed(definition);
 
     private static ColumnDiff ModifyColumn(
         string name,
@@ -79,7 +90,16 @@ public sealed class DiffDocumentTests
         ValueChange<SqlDefaultExpression>? @default = null,
         ValueChange<IdentityOptions>? identity = null,
         ValueChange<string>? comment = null)
-        => new(name, ChangeKind.Modify, null, renamedFrom, type, nullability, @default, identity, comment);
+        => ColumnDiff.Modified(new Column
+        {
+            Name = name,
+            Type = type?.New ?? SqlType.Text,
+            IsNullable = nullability?.New ?? false,
+        }) with
+        {
+            RenamedFrom = renamedFrom, Type = type, Nullability = nullability,
+            Default = @default, Identity = identity, Comment = comment,
+        };
 
     /// <summary>Wraps a single table-changing schema (null schema kind) for brevity.</summary>
     private static DatabaseDiff WithTable(TableDiff table)
@@ -87,7 +107,7 @@ public sealed class DiffDocumentTests
 
     /// <summary>Wraps a single view-changing schema (null schema kind) for brevity.</summary>
     private static DatabaseDiff WithView(ViewDiff view)
-        => DiffOf([new SchemaDiff("app", Views: [view])]);
+        => DiffOf([SchemaDiff.Containing("app") with { Views = [view] }]);
 
     // -------------------------------------------------------------------------
     // Empty / summary

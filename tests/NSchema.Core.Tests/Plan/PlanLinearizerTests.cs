@@ -58,8 +58,21 @@ public sealed class PlanLinearizerTests
         IReadOnlyList<SequenceDiff>? sequences = null,
         IReadOnlyList<RoutineDiff>? routines = null
     )
-        => new(name, kind, renamedFrom, comment, grants ?? [], tables ?? [], views ?? [], enums ?? [], sequences ?? [],
-            routines ?? []);
+        => SchemaForKind(kind, name) with
+        {
+            RenamedFrom = renamedFrom, Comment = comment, Grants = grants ?? [], Tables = tables ?? [],
+            Views = views ?? [], Enums = enums ?? [], Sequences = sequences ?? [], Routines = routines ?? [],
+        };
+
+    /// <summary>The empty diff for a schema kind (null = the schema itself is untouched).</summary>
+    private static SchemaDiff SchemaForKind(ChangeKind? kind, string name) => kind switch
+    {
+        ChangeKind.Add => SchemaDiff.Added(name),
+        ChangeKind.Remove => SchemaDiff.Removed(name),
+        ChangeKind.Modify => SchemaDiff.Modified(name),
+        _ => SchemaDiff.Containing(name),
+    };
+
 
     private static TableDiff TableNode(
         string name,
@@ -95,10 +108,9 @@ public sealed class PlanLinearizerTests
     };
 
     private static ColumnDiff AddedColumn(Column definition, ValueChange<string>? comment = null)
-        => new(definition.Name, ChangeKind.Add, definition, null, null, null, null, null, comment);
+        => comment is null ? ColumnDiff.Added(definition) : ColumnDiff.Added(definition) with { Comment = comment };
 
-    private static ColumnDiff RemovedColumn(Column definition)
-        => new(definition.Name, ChangeKind.Remove, definition, null, null, null, null, null, null);
+    private static ColumnDiff RemovedColumn(Column definition) => ColumnDiff.Removed(definition);
 
     private static ColumnDiff ModifiedColumn(
         string name,
@@ -110,12 +122,16 @@ public sealed class PlanLinearizerTests
         ValueChange<string>? comment = null,
         ValueChange<SqlText>? generated = null,
         Column? definition = null)
-        => new(name, ChangeKind.Modify, definition ?? new Column
+        => ColumnDiff.Modified(definition ?? new Column
         {
             Name = name,
             Type = type?.New ?? SqlType.Text,
             IsNullable = nullability?.New ?? false,
-        }, renamedFrom, type, nullability, @default, identity, comment, generated);
+        }) with
+        {
+            RenamedFrom = renamedFrom, Type = type, Nullability = nullability,
+            Default = @default, Identity = identity, Comment = comment, Generated = generated,
+        };
 
     private static ViewDiff AddView(string name, string schema = "app", params (string Schema, string Name)[] dependsOn)
     {

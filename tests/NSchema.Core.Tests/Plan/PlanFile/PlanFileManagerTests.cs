@@ -24,7 +24,7 @@ public sealed class PlanFileManagerTests
         // statements with execution metadata, so the round-trip exercises the whole artifact.
         var backfill = new ChangeScript("backfill", "UPDATE app.users SET email = ''",
             new ChangeTarget("app", "users", "email", ChangeTrigger.AddColumn));
-        var email = new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text }) { MigrationScript = backfill };
+        var email = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text }) with{ MigrationScript = backfill };
         var key = PrimaryKeyDiff.Added(new PrimaryKey { Name = "users_pkey", ColumnNames = ["id"] });
         var users = TableDiff.Modified("app", "users") with
         {
@@ -32,7 +32,7 @@ public sealed class PlanFileManagerTests
             PrimaryKeys = [key],
         };
         var plan = new MigrationPlan(
-            new DatabaseDiff([new SchemaDiff("app", Tables: [users])])
+            new DatabaseDiff([SchemaDiff.Containing("app") with { Tables = [users] }])
             {
                 // Both deployment bookends at the root; the change script rides its column above.
                 DeploymentScripts =
@@ -133,15 +133,17 @@ public sealed class PlanFileManagerTests
         };
         var diff = new DatabaseDiff(
         [
-            new SchemaDiff("app", Tables:
-            [
+            SchemaDiff.Containing("app") with
+            {
+                Tables = [
                 TableDiff.Modified("app", "users") with
                 {
                     Columns = [
-                    new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text }) { MigrationScript = migration },
+                    ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text }) with{ MigrationScript = migration },
                 ],
                 },
-            ]),
+            ],
+            },
         ]);
         var envelope = new PlanFileEnvelope(
             new MigrationPlan(diff, [new SqlStatement("UPDATE app.users SET email = ''", RunOutsideTransaction: true)]),

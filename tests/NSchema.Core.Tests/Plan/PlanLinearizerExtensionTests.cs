@@ -24,7 +24,7 @@ public sealed class PlanLinearizerExtensionTests
     {
         var actions = _linearizer.Linearize(Diff(
             [new ExtensionDiff("citext", ChangeKind.Add, Definition: new Extension { Name = "citext" })],
-            new SchemaDiff("app", ChangeKind.Add)));
+            SchemaDiff.Added("app")));
 
         var createExtension = actions.Select((a, i) => (a, i)).Single(x => x.a is CreateExtension).i;
         var createSchema = actions.Select((a, i) => (a, i)).Single(x => x.a is CreateSchema).i;
@@ -36,7 +36,7 @@ public sealed class PlanLinearizerExtensionTests
     {
         var actions = _linearizer.Linearize(Diff(
             [new ExtensionDiff("citext", ChangeKind.Remove)],
-            new SchemaDiff("app", ChangeKind.Remove)));
+            SchemaDiff.Removed("app")));
 
         var dropExtension = actions.Select((a, i) => (a, i)).Single(x => x.a is DropExtension).i;
         var dropSchema = actions.Select((a, i) => (a, i)).Single(x => x.a is DropSchema).i;

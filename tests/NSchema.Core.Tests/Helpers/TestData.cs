@@ -33,18 +33,25 @@ public static class TestData
 
     /// <summary>A diff that only adds a schema.</summary>
     public static readonly DatabaseDiff NonDestructiveDiff = new(
-        [new SchemaDiff("identity", ChangeKind.Add, null, null, [], [])]);
+        [SchemaDiff.Added("identity") with
+        {
+            Grants = [],
+            Tables = [],
+        }]);
 
     /// <summary>Builds a diff that drops the named tables from the <c>identity</c> schema.</summary>
     public static DatabaseDiff DiffWithDroppedTables(params string[] tableNames) => new(
-        [new SchemaDiff("identity", null, null, null, [],
-            [.. tableNames.Select(name => TableDiff.Removed("identity", name) with
+        [SchemaDiff.Containing("identity") with
+        {
+            Grants = [],
+            Tables = [.. tableNames.Select(name => TableDiff.Removed("identity", name) with
             {
                 Columns = [],
                 Grants = [],
                 Indexes = [],
                 PrimaryKeys = [],
-            })])]);
+            })],
+        }]);
 
     /// <summary>
     /// A schema exercising every domain feature (identity, facets, comments, foreign keys,

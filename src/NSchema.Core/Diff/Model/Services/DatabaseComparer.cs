@@ -203,7 +203,18 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger,
         var comment = desired.Comment is not null ? new ValueChange<string>(null, desired.Comment) : null;
         var grants = desired.Grants.Select(grant => new GrantChange(ChangeKind.Add, grant.Role, null)).ToList();
 
-        return new SchemaDiff(desired.Name, ChangeKind.Add, null, comment, grants, tables, views, enums, sequences, routines, domains, compositeTypes);
+        return SchemaDiff.Added(desired.Name) with
+        {
+            Comment = comment,
+            Grants = grants,
+            Tables = tables,
+            Views = views,
+            Enums = enums,
+            Sequences = sequences,
+            Routines = routines,
+            Domains = domains,
+            CompositeTypes = compositeTypes,
+        };
     }
 
     // A removed schema takes all of its objects with it. Rather than lean on a provider-specific DROP SCHEMA CASCADE
@@ -212,16 +223,16 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger,
     private SchemaDiff BuildRemovedSchema(Schema current)
     {
         var empty = new Schema { Name = current.Name };
-        return new SchemaDiff(
-            current.Name,
-            ChangeKind.Remove,
-            Tables: CompareTables(current.Name, current.Tables, empty, RenameLog.Empty),
-            Views: CompareViews(current.Name, current.Views, empty, RenameLog.Empty),
-            Enums: CompareEnums(current.Name, current.Enums, empty, RenameLog.Empty),
-            Sequences: CompareSequences(current.Name, current.Sequences, empty, RenameLog.Empty),
-            Routines: CompareRoutines(current.Name, current.Routines, empty, RenameLog.Empty),
-            Domains: CompareDomains(current.Name, current.Domains, empty, RenameLog.Empty),
-            CompositeTypes: CompareCompositeTypes(current.Name, current.CompositeTypes, empty, RenameLog.Empty));
+        return SchemaDiff.Removed(current.Name) with
+        {
+            Tables = CompareTables(current.Name, current.Tables, empty, RenameLog.Empty),
+            Views = CompareViews(current.Name, current.Views, empty, RenameLog.Empty),
+            Enums = CompareEnums(current.Name, current.Enums, empty, RenameLog.Empty),
+            Sequences = CompareSequences(current.Name, current.Sequences, empty, RenameLog.Empty),
+            Routines = CompareRoutines(current.Name, current.Routines, empty, RenameLog.Empty),
+            Domains = CompareDomains(current.Name, current.Domains, empty, RenameLog.Empty),
+            CompositeTypes = CompareCompositeTypes(current.Name, current.CompositeTypes, empty, RenameLog.Empty),
+        };
     }
 
     private SchemaDiff? BuildModifiedSchema(Schema current, Schema desired, RenameLog renames)
@@ -261,6 +272,19 @@ internal sealed partial class DatabaseComparer(ILogger<DatabaseComparer> logger,
             return null;
         }
 
-        return new SchemaDiff(desired.Name, schemaLevelChange ? ChangeKind.Modify : null, renamedFrom, comment, grants, tables, views, enums, sequences, routines, domains, compositeTypes);
+        var schema = schemaLevelChange ? SchemaDiff.Modified(desired.Name) : SchemaDiff.Containing(desired.Name);
+        return schema with
+        {
+            RenamedFrom = renamedFrom,
+            Comment = comment,
+            Grants = grants,
+            Tables = tables,
+            Views = views,
+            Enums = enums,
+            Sequences = sequences,
+            Routines = routines,
+            Domains = domains,
+            CompositeTypes = compositeTypes,
+        };
     }
 }

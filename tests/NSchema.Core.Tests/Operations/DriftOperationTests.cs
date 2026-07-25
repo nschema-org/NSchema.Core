@@ -22,7 +22,7 @@ public sealed class DriftOperationTests
 
     private readonly Database _recorded = new Database { Schemas = [new Schema { Name = "app" }] };
     private readonly Database _live = new Database { Schemas = [new Schema { Name = "app" }, new Schema { Name = "audit" }] };
-    private readonly DatabaseDiff _diff = new([new SchemaDiff("audit", ChangeKind.Add)]);
+    private readonly DatabaseDiff _diff = new([SchemaDiff.Added("audit")]);
 
     private readonly DriftOperation _sut;
 

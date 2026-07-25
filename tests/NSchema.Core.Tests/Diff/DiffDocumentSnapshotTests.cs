@@ -46,9 +46,9 @@ public sealed class DiffDocumentSnapshotTests
             Comment = new ValueChange<string>(null, "all users"),
             Columns =
             [
-                new ColumnDiff("id", ChangeKind.Add, new Column { Name = "id", Type = SqlType.BigInt, IsIdentity = true,
-                    IdentityOptions = new IdentityOptions(1, 1, 1) }, null, null, null, null, null, null),
-                new ColumnDiff("name", ChangeKind.Add, new Column { Name = "name", Type = SqlType.VarChar(255), DefaultExpression = "'anonymous'" }, null, null, null, null, null, null),
+                ColumnDiff.Added(new Column { Name = "id", Type = SqlType.BigInt, IsIdentity = true,
+                    IdentityOptions = new IdentityOptions(1, 1, 1) }),
+                ColumnDiff.Added(new Column { Name = "name", Type = SqlType.VarChar(255), DefaultExpression = "'anonymous'" }),
             ],
             Grants = [new GrantChange(ChangeKind.Add, "readers", TablePrivilege.Select)],
             Indexes = [IndexDiff.Added(new TableIndex { Name = "users_name_ix", Columns = ["name"], IsUnique = true })],
@@ -61,12 +61,16 @@ public sealed class DiffDocumentSnapshotTests
         {
             RenamedFrom = "purchases",
             Columns = [
-                new ColumnDiff("total", ChangeKind.Modify, null, null,
-                    Type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
-                    Nullability: new ValueChange<bool>(true, false), Default: null, Identity: null, Comment: null),
-                new ColumnDiff("total_label", ChangeKind.Modify, Generated: new ValueChange<SqlText>(null, "total::text")),
-                new ColumnDiff("amount", ChangeKind.Add, new Column { Name = "amount", Type = SqlType.Int, GeneratedExpression = "total * 100" }, null, null, null, null, null, null),
-                new ColumnDiff("legacy_flag", ChangeKind.Remove, new Column { Name = "legacy_flag", Type = SqlType.Boolean }, null, null, null, null, null, null),
+                ColumnDiff.Modified(new Column { Name = "total", Type = SqlType.BigInt })
+                    with
+                    {
+                        Type = new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
+                        Nullability = new ValueChange<bool>(true, false),
+                    },
+                ColumnDiff.Modified(new Column { Name = "total_label", Type = SqlType.Text })
+                    with { Generated = new ValueChange<SqlText>(null, "total::text") },
+                ColumnDiff.Added(new Column { Name = "amount", Type = SqlType.Int, GeneratedExpression = "total * 100" }),
+                ColumnDiff.Removed(new Column { Name = "legacy_flag", Type = SqlType.Boolean }),
             ],
             Grants = [new GrantChange(ChangeKind.Remove, "writers", TablePrivilege.Insert)],
             Indexes = [],
@@ -83,12 +87,22 @@ public sealed class DiffDocumentSnapshotTests
         return new DatabaseDiff(
             Schemas:
             [
-                new SchemaDiff("reporting", ChangeKind.Add, null,
-                    Comment: new ValueChange<string>(null, "analytics"),
-                    Grants: [new GrantChange(ChangeKind.Add, "analyst", null)],
-                    Tables: []),
-                new SchemaDiff("app", null, null, null, [], [addedTable, modifiedTable]),
-                new SchemaDiff("scratch", ChangeKind.Remove, null, null, [], []),
+                SchemaDiff.Added("reporting") with
+                {
+                    Comment = new ValueChange<string>(null, "analytics"),
+                    Grants = [new GrantChange(ChangeKind.Add, "analyst", null)],
+                    Tables = [],
+                },
+                SchemaDiff.Containing("app") with
+                {
+                    Grants = [],
+                    Tables = [addedTable, modifiedTable],
+                },
+                SchemaDiff.Removed("scratch") with
+                {
+                    Grants = [],
+                    Tables = [],
+                },
             ]);
     }
 
@@ -101,8 +115,9 @@ public sealed class DiffDocumentSnapshotTests
         return new DatabaseDiff(
             Schemas:
             [
-                new SchemaDiff("app", Views:
-                [
+                SchemaDiff.Containing("app") with
+                {
+                    Views = [
                     new ViewDiff("app", "active_users", ChangeKind.Add,
                         Definition: new View { Name = "active_users", Body = "SELECT id FROM app.users WHERE active" },
                         Comment: new ValueChange<string>(null, "currently active users")),
@@ -126,7 +141,8 @@ public sealed class DiffDocumentSnapshotTests
                     new ViewDiff("app", "hourly_totals", ChangeKind.Modify,
                         Definition: new View { Name = "hourly_totals", Body = "SELECT date_trunc('hour', at), sum(amount) FROM app.sales GROUP BY 1", IsMaterialized = true },
                         IsMaterialized: true, Materialized: new ValueChange<bool>(false, true), RequiresRecreate: true),
-                ]),
+                ],
+                },
             ]);
     }
 
@@ -139,8 +155,9 @@ public sealed class DiffDocumentSnapshotTests
         return new DatabaseDiff(
             Schemas:
             [
-                new SchemaDiff("app", Enums:
-                [
+                SchemaDiff.Containing("app") with
+                {
+                    Enums = [
                     new EnumDiff("app", "order_status", ChangeKind.Add,
                         Definition: new EnumType { Name = "order_status", Values = ["pending", "shipped", "delivered"] },
                         Comment: new ValueChange<string>(null, "order lifecycle")),
@@ -158,7 +175,8 @@ public sealed class DiffDocumentSnapshotTests
                         Comment: new ValueChange<string>("old note", "new note")),
                     new EnumDiff("app", "status", ChangeKind.Modify, RenamedFrom: "state"),
                     new EnumDiff("app", "stale_enum", ChangeKind.Remove),
-                ]),
+                ],
+                },
             ]);
     }
 
@@ -171,8 +189,9 @@ public sealed class DiffDocumentSnapshotTests
         return new DatabaseDiff(
             Schemas:
             [
-                new SchemaDiff("app", Sequences:
-                [
+                SchemaDiff.Containing("app") with
+                {
+                    Sequences = [
                     new SequenceDiff("app", "order_id", ChangeKind.Add,
                         Definition: new Sequence { Name = "order_id",
                             Options = new SequenceOptions(SqlType.BigInt, StartWith: 100, IncrementBy: 5, MaxValue: 999999, Cache: 10, Cycle: true) },
@@ -187,7 +206,8 @@ public sealed class DiffDocumentSnapshotTests
                         Comment: new ValueChange<string>("old note", "new note")),
                     new SequenceDiff("app", "batch_id", ChangeKind.Modify, RenamedFrom: "job_id"),
                     new SequenceDiff("app", "stale_seq", ChangeKind.Remove),
-                ]),
+                ],
+                },
             ]);
     }
 
@@ -207,9 +227,9 @@ public sealed class DiffDocumentSnapshotTests
         return new DatabaseDiff(
             Schemas:
             [
-                new SchemaDiff("app",
-                    Routines:
-                    [
+                SchemaDiff.Containing("app") with
+                {
+                    Routines = [
                         new RoutineDiff("app", "add_tax", ChangeKind.Add, RoutineKind.Function, Definition: addTax,
                             Comment: new ValueChange<string>(null, "adds tax")),
                         new RoutineDiff("app", "normalize", ChangeKind.Modify, RoutineKind.Function,
@@ -226,7 +246,8 @@ public sealed class DiffDocumentSnapshotTests
                             Definition: new Routine { Name = "cleanup", RoutineKind = RoutineKind.Procedure, Arguments = "", Definition = "LANGUAGE sql AS $$ TRUNCATE $$" },
                             Arguments: new ValueChange<SqlText>("batch int", "")),
                         new RoutineDiff("app", "stale_proc", ChangeKind.Remove, RoutineKind.Procedure),
-                    ]),
+                    ],
+                },
             ]);
     }
 
@@ -257,8 +278,9 @@ public sealed class DiffDocumentSnapshotTests
         return new DatabaseDiff(
             Schemas:
             [
-                new SchemaDiff("app", Tables:
-                [
+                SchemaDiff.Containing("app") with
+                {
+                    Tables = [
                     TableDiff.Modified("app", "users") with
                     {
                         Triggers = [
@@ -267,7 +289,8 @@ public sealed class DiffDocumentSnapshotTests
                         TriggerDiff.Removed("stale_trg"),
                     ],
                     },
-                ]),
+                ],
+                },
             ]);
     }
 
@@ -280,8 +303,9 @@ public sealed class DiffDocumentSnapshotTests
         return new DatabaseDiff(
             Schemas:
             [
-                new SchemaDiff("app", Domains:
-                [
+                SchemaDiff.Containing("app") with
+                {
+                    Domains = [
                     new DomainDiff("app", "typeid", ChangeKind.Add,
                         Definition: new DomainType { Name = "typeid", DataType = SqlType.Text, NotNull = true },
                         Comment: new ValueChange<string>(null, "id as text")),
@@ -297,7 +321,8 @@ public sealed class DiffDocumentSnapshotTests
                     new DomainDiff("app", "renamed_d", ChangeKind.Modify, RenamedFrom: "old_d"),
                     new DomainDiff("app", "noted", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new")),
                     new DomainDiff("app", "stale_d", ChangeKind.Remove),
-                ]),
+                ],
+                },
             ]);
     }
 
@@ -309,8 +334,9 @@ public sealed class DiffDocumentSnapshotTests
         return new DatabaseDiff(
             Schemas:
             [
-                new SchemaDiff("app", CompositeTypes:
-                [
+                SchemaDiff.Containing("app") with
+                {
+                    CompositeTypes = [
                     new CompositeTypeDiff("app", "address", ChangeKind.Add,
                         Definition: new CompositeType { Name = "address", Fields = [new CompositeField("street", SqlType.Text), new CompositeField("zip", SqlType.Int)] },
                         Comment: new ValueChange<string>(null, "a postal address")),
@@ -323,7 +349,8 @@ public sealed class DiffDocumentSnapshotTests
                     new CompositeTypeDiff("app", "renamed_t", ChangeKind.Modify, RenamedFrom: "old_t"),
                     new CompositeTypeDiff("app", "noted", ChangeKind.Modify, Comment: new ValueChange<string>("old", "new")),
                     new CompositeTypeDiff("app", "stale_t", ChangeKind.Remove),
-                ]),
+                ],
+                },
             ]);
     }
 
@@ -354,15 +381,16 @@ public sealed class DiffDocumentSnapshotTests
         var backfill = ChangeScript("backfill_emails", ChangeTrigger.AddColumn, "email");
         var retype = ChangeScript("retype_totals", ChangeTrigger.AlterColumnType, "total");
         var dedupe = ChangeScript("dedupe_emails", ChangeTrigger.AddConstraint, "users_email_uq");
-        var email = new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text }) { MigrationScript = backfill };
-        var total = new ColumnDiff("total", ChangeKind.Modify, Type: new ValueChange<SqlType>(SqlType.Text, SqlType.Int)) { MigrationScript = retype };
+        var email = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text }) with{ MigrationScript = backfill };
+        var total = ColumnDiff.Modified(new Column { Name = "total", Type = SqlType.Int })
+            with { Type = new ValueChange<SqlType>(SqlType.Text, SqlType.Int), MigrationScript = retype };
         var uq = UniqueConstraintDiff.Added(new UniqueConstraint { Name = "users_email_uq", ColumnNames = ["email"] }) with{ MigrationScript = dedupe };
         var table = TableDiff.Modified("app", "users") with
         {
             Columns = [email, total],
             UniqueConstraints = [uq],
         };
-        return new DatabaseDiff([new SchemaDiff("app", Tables: [table])]);
+        return new DatabaseDiff([SchemaDiff.Containing("app") with { Tables = [table] }]);
     }
 
     private static ChangeScript ChangeScript(string name, ChangeTrigger trigger, string member) =>
@@ -378,9 +406,9 @@ public sealed class DiffDocumentSnapshotTests
     {
         var backfill = new ChangeScript("backfill_emails", "UPDATE app.users SET email = '';",
             new ChangeTarget("app", "users", "email", ChangeTrigger.AddColumn));
-        var email = new ColumnDiff("email", ChangeKind.Add, new Column { Name = "email", Type = SqlType.Text }) { MigrationScript = backfill };
+        var email = ColumnDiff.Added(new Column { Name = "email", Type = SqlType.Text }) with{ MigrationScript = backfill };
         var table = TableDiff.Modified("app", "users") with { Columns = [email] };
-        return new DatabaseDiff([new SchemaDiff("app", Tables: [table])])
+        return new DatabaseDiff([SchemaDiff.Containing("app") with { Tables = [table] }])
         {
             DeploymentScripts =
             [

@@ -21,7 +21,7 @@ public sealed class PlanLinearizerCompositeTypeTests
     private readonly PlanLinearizer _linearizer = new();
 
     private IReadOnlyList<MigrationAction> Linearize(CompositeTypeDiff type) =>
-        _linearizer.Linearize(new DatabaseDiff([new SchemaDiff("app", CompositeTypes: [type])]));
+        _linearizer.Linearize(new DatabaseDiff([SchemaDiff.Containing("app") with { CompositeTypes = [type] }]));
 
     [Fact]
     public void AddedCompositeType_EmitsCreateCompositeType()
@@ -63,10 +63,12 @@ public sealed class PlanLinearizerCompositeTypeTests
     public void CompositeTypeCreate_IsOrderedBeforeCreateTable()
     {
         // A column may use the composite type as its type, so the type must be created first.
-        var plan = _linearizer.Linearize(new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add,
-            Tables: [TableDiff.Added("app", new Table { Name = "t" })],
-            CompositeTypes: [new CompositeTypeDiff("app", "address", ChangeKind.Add,
-                Definition: new CompositeType { Name = "address", Fields = [new CompositeField("street", SqlType.Text)] })])]));
+        var plan = _linearizer.Linearize(new DatabaseDiff([SchemaDiff.Added("app") with
+        {
+            Tables = [TableDiff.Added("app", new Table { Name = "t" })],
+            CompositeTypes = [new CompositeTypeDiff("app", "address", ChangeKind.Add,
+                Definition: new CompositeType { Name = "address", Fields = [new CompositeField("street", SqlType.Text)] })],
+        }]));
 
         var createType = plan.Select((a, i) => (a, i)).Single(x => x.a is CreateCompositeType).i;
         var createTable = plan.Select((a, i) => (a, i)).Single(x => x.a is CreateTable).i;

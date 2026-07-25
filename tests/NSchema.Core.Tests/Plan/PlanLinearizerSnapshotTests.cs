@@ -63,12 +63,15 @@ public sealed class PlanLinearizerSnapshotTests
         {
             RenamedFrom = "purchases",
             Columns = [
-                new ColumnDiff("total", ChangeKind.Modify, new Column { Name = "total", Type = SqlType.BigInt }, null,
-                    Type: new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
-                    Nullability: new ValueChange<bool>(true, false), Default: null, Identity: null, Comment: null),
-                new ColumnDiff("notes", ChangeKind.Add, new Column { Name = "notes", Type = SqlType.Text, IsNullable = true }, null, null, null, null, null, null),
-                new ColumnDiff("total_label", ChangeKind.Modify, Generated: new ValueChange<SqlText>(null, "total::text")),
-                new ColumnDiff("legacy_flag", ChangeKind.Remove, new Column { Name = "legacy_flag", Type = SqlType.Boolean }, null, null, null, null, null, null),
+                ColumnDiff.Modified(new Column { Name = "total", Type = SqlType.BigInt }) with
+                {
+                    Type = new ValueChange<SqlType>(SqlType.Int, SqlType.BigInt),
+                    Nullability = new ValueChange<bool>(true, false),
+                },
+                ColumnDiff.Added(new Column { Name = "notes", Type = SqlType.Text, IsNullable = true }),
+                ColumnDiff.Modified(new Column { Name = "total_label", Type = SqlType.Text })
+                    with { Generated = new ValueChange<SqlText>(null, "total::text") },
+                ColumnDiff.Removed(new Column { Name = "legacy_flag", Type = SqlType.Boolean }),
             ],
             Grants = [],
             Indexes = [IndexDiff.Added(new TableIndex { Name = "orders_total_ix", Columns = [new IndexColumn("total", Sort: IndexSort.Descending)], Method = "btree", Include = ["code"] })],
@@ -126,13 +129,28 @@ public sealed class PlanLinearizerSnapshotTests
         var diff = new DatabaseDiff(
             Schemas:
             [
-                new SchemaDiff("reporting", ChangeKind.Add, null, null, [], []),
-                new SchemaDiff("app", null, null, null, [], [newTable, modifiedTable], views, enums, sequences, routines),
-                new SchemaDiff("scratch", ChangeKind.Remove, null, null, [],
-                    [TableDiff.Removed("scratch", "temp_data")],
-                    [new ViewDiff("scratch", "temp_view", ChangeKind.Remove)],
-                    [new EnumDiff("scratch", "temp_status", ChangeKind.Remove)],
-                    [new SequenceDiff("scratch", "temp_seq", ChangeKind.Remove)]),
+                SchemaDiff.Added("reporting") with
+                {
+                    Grants = [],
+                    Tables = [],
+                },
+                SchemaDiff.Containing("app") with
+                {
+                    Grants = [],
+                    Tables = [newTable, modifiedTable],
+                    Views = views,
+                    Enums = enums,
+                    Sequences = sequences,
+                    Routines = routines,
+                },
+                SchemaDiff.Removed("scratch") with
+                {
+                    Grants = [],
+                    Tables = [TableDiff.Removed("scratch", "temp_data")],
+                    Views = [new ViewDiff("scratch", "temp_view", ChangeKind.Remove)],
+                    Enums = [new EnumDiff("scratch", "temp_status", ChangeKind.Remove)],
+                    Sequences = [new SequenceDiff("scratch", "temp_seq", ChangeKind.Remove)],
+                },
             ]);
 
         var plan = _linearizer.Linearize(diff);

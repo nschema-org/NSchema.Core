@@ -9,6 +9,7 @@ using NSchema.Diff.Model.Sequences;
 using NSchema.Diff.Model.Tables;
 using NSchema.Diff.Model.Views;
 using NSchema.Model;
+using NSchema.Model.Columns;
 using NSchema.Model.Constraints;
 using NSchema.Model.Indexes;
 using NSchema.Model.Routines;
@@ -23,16 +24,17 @@ public sealed class SchemaDiffTests
     {
         // Kind-agnostic consumers (GetSummary, the destructive policy) rely on this covering every per-kind
         // collection — a new object kind must be added here, which this test makes loud.
-        var diff = new SchemaDiff("app",
-            Tables: [TableDiff.Added("app", new Table { Name = "users" })],
-            Views: [new ViewDiff("app", "v", ChangeKind.Add)],
-            Enums: [new EnumDiff("app", "e", ChangeKind.Add)],
-            Sequences: [new SequenceDiff("app", "q", ChangeKind.Add)],
-            Routines:
-            [
+        var diff = SchemaDiff.Containing("app") with
+        {
+            Tables = [TableDiff.Added("app", new Table { Name = "users" })],
+            Views = [new ViewDiff("app", "v", ChangeKind.Add)],
+            Enums = [new EnumDiff("app", "e", ChangeKind.Add)],
+            Sequences = [new SequenceDiff("app", "q", ChangeKind.Add)],
+            Routines = [
                 new RoutineDiff("app", "f", ChangeKind.Add, RoutineKind.Function),
                 new RoutineDiff("app", "p", ChangeKind.Add, RoutineKind.Procedure),
-            ]);
+            ],
+        };
 
         diff.EnumerateObjects().Select(o => o.Name).ShouldBe(["users", "v", "e", "q", "f", "p"]);
     }
@@ -44,7 +46,7 @@ public sealed class SchemaDiffTests
         // collection — a new member kind must be added here, which this test makes loud.
         var table = TableDiff.Modified("app", "users") with
         {
-            Columns = [new ColumnDiff("id", ChangeKind.Add, null, null, null, null, null, null, null)],
+            Columns = [ColumnDiff.Added(new Column { Name = "id", Type = SqlType.Int })],
             Indexes = [IndexDiff.Added(new TableIndex { Name = "ix", Columns = ["id"] })],
             PrimaryKeys = [PrimaryKeyDiff.Added(new PrimaryKey { Name = "pk", ColumnNames = ["id"] })],
             ForeignKeys = [ForeignKeyDiff.Added(new ForeignKey { Name = "fk", ColumnNames = ["id"], References = new ObjectAddress("app", "other"), ReferencedColumnNames = ["id"] })],
@@ -59,16 +61,17 @@ public sealed class SchemaDiffTests
     public void GetSummary_CountsEveryObjectKind()
     {
         var diff = new DatabaseDiff([
-            new SchemaDiff("app",
-                Tables: [TableDiff.Added("app", new Table { Name = "users" })],
-                Views: [new ViewDiff("app", "v", ChangeKind.Modify)],
-                Enums: [new EnumDiff("app", "e", ChangeKind.Remove)],
-                Sequences: [new SequenceDiff("app", "q", ChangeKind.Add)],
-                Routines:
-                [
+            SchemaDiff.Containing("app") with
+            {
+                Tables = [TableDiff.Added("app", new Table { Name = "users" })],
+                Views = [new ViewDiff("app", "v", ChangeKind.Modify)],
+                Enums = [new EnumDiff("app", "e", ChangeKind.Remove)],
+                Sequences = [new SequenceDiff("app", "q", ChangeKind.Add)],
+                Routines = [
                     new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function),
                     new RoutineDiff("app", "p", ChangeKind.Remove, RoutineKind.Procedure),
-                ]),
+                ],
+            },
         ]);
 
         diff.GetSummary().ShouldBe(new DiffSummary(Added: 2, Modified: 2, Removed: 2));

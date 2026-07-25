@@ -186,7 +186,12 @@ public class DestructiveActionPolicyTests
         // Arrange — dropping a view is destructive (its definition is lost from managed state).
         _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff([
-            new SchemaDiff("app", null, null, null, [], [], [new ViewDiff("app", "active_users", ChangeKind.Remove)]),
+            SchemaDiff.Containing("app") with
+            {
+                Grants = [],
+                Tables = [],
+                Views = [new ViewDiff("app", "active_users", ChangeKind.Remove)],
+            },
         ]);
 
         // Act
@@ -204,7 +209,12 @@ public class DestructiveActionPolicyTests
         _options.Value.Policy = PolicyEnforcement.Error;
         var view = new View { Name = "active_users", Body = "SELECT * FROM app.users" };
         var diff = new DatabaseDiff([
-            new SchemaDiff("app", null, null, null, [], [], [new ViewDiff("app", "active_users", ChangeKind.Add, Definition: view)]),
+            SchemaDiff.Containing("app") with
+            {
+                Grants = [],
+                Tables = [],
+                Views = [new ViewDiff("app", "active_users", ChangeKind.Add, Definition: view)],
+            },
         ]);
 
         // Act / Assert
@@ -217,7 +227,7 @@ public class DestructiveActionPolicyTests
         // Arrange — dropping an enum is destructive (columns using it would lose their type definition).
         _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff([
-            new SchemaDiff("app", Enums: [new EnumDiff("app", "status", ChangeKind.Remove)]),
+            SchemaDiff.Containing("app") with { Enums = [new EnumDiff("app", "status", ChangeKind.Remove)] },
         ]);
 
         // Act
@@ -234,7 +244,7 @@ public class DestructiveActionPolicyTests
         // Arrange — dropping a sequence loses its current position.
         _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff([
-            new SchemaDiff("app", Sequences: [new SequenceDiff("app", "order_id", ChangeKind.Remove)]),
+            SchemaDiff.Containing("app") with { Sequences = [new SequenceDiff("app", "order_id", ChangeKind.Remove)] },
         ]);
 
         // Act
@@ -251,9 +261,11 @@ public class DestructiveActionPolicyTests
         // Arrange — creating an enum or sequence loses nothing.
         _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff([
-            new SchemaDiff("app",
-                Enums: [new EnumDiff("app", "status", ChangeKind.Add, Definition: new EnumType { Name = "status", Values = ["a"] })],
-                Sequences: [new SequenceDiff("app", "order_id", ChangeKind.Add, Definition: new Sequence { Name = "order_id" })]),
+            SchemaDiff.Containing("app") with
+            {
+                Enums = [new EnumDiff("app", "status", ChangeKind.Add, Definition: new EnumType { Name = "status", Values = ["a"] })],
+                Sequences = [new SequenceDiff("app", "order_id", ChangeKind.Add, Definition: new Sequence { Name = "order_id" })],
+            },
         ]);
 
         // Act / Assert
@@ -266,11 +278,13 @@ public class DestructiveActionPolicyTests
         // Arrange — dropping a routine loses its definition from managed state.
         _options.Value.Policy = PolicyEnforcement.Error;
         var diff = new DatabaseDiff([
-            new SchemaDiff("app", Routines:
-            [
+            SchemaDiff.Containing("app") with
+            {
+                Routines = [
                 new RoutineDiff("app", "f", ChangeKind.Remove, RoutineKind.Function),
                 new RoutineDiff("app", "p", ChangeKind.Remove, RoutineKind.Procedure),
-            ]),
+            ],
+            },
         ]);
 
         // Act
@@ -289,11 +303,13 @@ public class DestructiveActionPolicyTests
         _options.Value.Policy = PolicyEnforcement.Error;
         var fn = new Routine { Name = "f", RoutineKind = RoutineKind.Function, Arguments = "a int, b text", Definition = "RETURNS int AS $$ SELECT 1 $$" };
         var diff = new DatabaseDiff([
-            new SchemaDiff("app", Routines:
-            [
+            SchemaDiff.Containing("app") with
+            {
+                Routines = [
                 new RoutineDiff("app", "f", ChangeKind.Modify, RoutineKind.Function, Definition: fn,
                     Arguments: new ValueChange<SqlText>("a int", "a int, b text")),
-            ]),
+            ],
+            },
         ]);
 
         // Act / Assert
@@ -328,5 +344,9 @@ public class DestructiveActionPolicyTests
     }
 
     private static DatabaseDiff TableChange(TableDiff table) =>
-        new([new SchemaDiff("app", null, null, null, [], [table])]);
+        new([SchemaDiff.Containing("app") with
+        {
+            Grants = [],
+            Tables = [table],
+        }]);
 }

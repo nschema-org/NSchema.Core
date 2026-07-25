@@ -11,7 +11,7 @@ public sealed class EnumValueRemovalPolicyTests
     private readonly EnumValueRemovalPolicy _sut = new();
 
     private static DatabaseDiff DiffWithEnum(EnumDiff enumDiff) =>
-        new([new SchemaDiff("app", Enums: [enumDiff])]);
+        new([SchemaDiff.Containing("app") with { Enums = [enumDiff] }]);
 
     private static EnumDiff ValueRemoval() => new("app", "status", ChangeKind.Modify,
         Values: new ValueChange<IReadOnlyList<EnumLabel>>(["a", "b"], ["a"]));

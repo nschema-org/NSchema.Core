@@ -449,7 +449,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 }
                 else
                 {
-                    actions.Add(new AddColumn(new(table.Schema, table.Name), column.Definition!));
+                    actions.Add(new AddColumn(new(table.Schema, table.Name), column.Definition));
                     if (column.MigrationScript is { } migration)
                     {
                         actions.Add(new ExecuteScript(migration));
@@ -462,7 +462,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 break;
 
             case ChangeKind.Remove:
-                actions.Add(new DropColumn(new(table.Schema, table.Name), column.Definition!));
+                actions.Add(new DropColumn(new(table.Schema, table.Name), column.Definition));
                 break;
 
             case ChangeKind.Modify:
@@ -480,7 +480,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 }
                 if (column.Type is not null || column.Nullability is not null)
                 {
-                    actions.Add(new AlterColumn(new(table.Schema, table.Name), column.Definition!, column.Type, column.Nullability));
+                    actions.Add(new AlterColumn(new(table.Schema, table.Name), column.Definition, column.Type, column.Nullability));
                 }
                 if (column.Default is not null)
                 {

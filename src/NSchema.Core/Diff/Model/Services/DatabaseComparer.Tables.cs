@@ -54,12 +54,7 @@ internal sealed partial class DatabaseComparer
         LogTableCreating(schemaName, table.Name);
         var owner = new ObjectAddress(schemaName, table.Name);
 
-        var columns = table.Columns
-            .Select(column => new ColumnDiff(
-                column.Name, ChangeKind.Add, column, RenamedFrom: null,
-                Type: null, Nullability: null, Default: null, Identity: null,
-                Comment: column.Comment is not null ? new ValueChange<string>(null, column.Comment) : null))
-            .ToList();
+        var columns = table.Columns.Select(ColumnDiff.Added).ToList();
 
         // Every list member arrives by diffing against an empty current side — the same path a modified table
         // takes, so a member's comment folds in as a trailing Modify either way.

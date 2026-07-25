@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NSchema.Diff.Model.CompositeTypes;
 using NSchema.Diff.Model.Domains;
 using NSchema.Diff.Model.Enums;
@@ -12,72 +13,90 @@ namespace NSchema.Diff.Model.Schemas;
 /// <summary>
 /// Describes the changes in a given schema and its tables.
 /// </summary>
-/// <param name="Name">The schema name.</param>
-/// <param name="Kind">The change to the schema entity itself, or <see langword="null"/> when only its children have changes.</param>
-/// <param name="RenamedFrom">The previous schema name when the schema is being renamed; otherwise <see langword="null"/>.</param>
-/// <param name="Comment">The change to the schema's comment, if any.</param>
-/// <param name="Grants">Usage grants and revocations on the schema.</param>
-/// <param name="Tables">The changed tables within this schema, ordered by name.</param>
-/// <param name="Views">The changed views within this schema, ordered by name.</param>
-/// <param name="Enums">The changed enum types within this schema, ordered by name.</param>
-/// <param name="Sequences">The changed sequences within this schema, ordered by name.</param>
-/// <param name="Routines">The changed routines (functions and procedures) within this schema, ordered by name.</param>
-/// <param name="Domains">The changed domains within this schema, ordered by name.</param>
-/// <param name="CompositeTypes">The changed composite types within this schema, ordered by name.</param>
-public sealed record SchemaDiff(
-    SqlIdentifier Name,
-    ChangeKind? Kind = null,
-    SqlIdentifier? RenamedFrom = null,
-    ValueChange<string>? Comment = null,
-    IReadOnlyList<GrantChange>? Grants = null,
-    IReadOnlyList<TableDiff>? Tables = null,
-    IReadOnlyList<ViewDiff>? Views = null,
-    IReadOnlyList<EnumDiff>? Enums = null,
-    IReadOnlyList<SequenceDiff>? Sequences = null,
-    IReadOnlyList<RoutineDiff>? Routines = null,
-    IReadOnlyList<DomainDiff>? Domains = null,
-    IReadOnlyList<CompositeTypeDiff>? CompositeTypes = null
-)
+public sealed record SchemaDiff
 {
+    [JsonConstructor]
+    private SchemaDiff() { }
+
+    /// <summary>
+    /// The schema name.
+    /// </summary>
+    public required SqlIdentifier Name { get; init; }
+
+    /// <summary>
+    /// The change to the schema itself, or <see langword="null"/> when only its contents changed.
+    /// </summary>
+    public ChangeKind? Kind { get; init; }
+
+    /// <summary>
+    /// The previous schema name when renamed; otherwise <see langword="null"/>.
+    /// </summary>
+    public SqlIdentifier? RenamedFrom { get; init; }
+
+    /// <summary>
+    /// The change to the schema's comment, if any.
+    /// </summary>
+    public ValueChange<string>? Comment { get; init; }
+
     /// <summary>
     /// Usage grants and revocations on the schema.
     /// </summary>
-    public IReadOnlyList<GrantChange> Grants { get; init; } = Grants ?? [];
+    public IReadOnlyList<GrantChange> Grants { get; init; } = [];
 
     /// <summary>
     /// The changed tables within this schema, ordered by name.
     /// </summary>
-    public IReadOnlyList<TableDiff> Tables { get; init; } = Tables ?? [];
+    public IReadOnlyList<TableDiff> Tables { get; init; } = [];
 
     /// <summary>
     /// The changed views within this schema, ordered by name.
     /// </summary>
-    public IReadOnlyList<ViewDiff> Views { get; init; } = Views ?? [];
+    public IReadOnlyList<ViewDiff> Views { get; init; } = [];
 
     /// <summary>
     /// The changed enum types within this schema, ordered by name.
     /// </summary>
-    public IReadOnlyList<EnumDiff> Enums { get; init; } = Enums ?? [];
+    public IReadOnlyList<EnumDiff> Enums { get; init; } = [];
 
     /// <summary>
     /// The changed sequences within this schema, ordered by name.
     /// </summary>
-    public IReadOnlyList<SequenceDiff> Sequences { get; init; } = Sequences ?? [];
+    public IReadOnlyList<SequenceDiff> Sequences { get; init; } = [];
 
     /// <summary>
     /// The changed routines (functions and procedures) within this schema, ordered by name.
     /// </summary>
-    public IReadOnlyList<RoutineDiff> Routines { get; init; } = Routines ?? [];
+    public IReadOnlyList<RoutineDiff> Routines { get; init; } = [];
 
     /// <summary>
     /// The changed domains within this schema, ordered by name.
     /// </summary>
-    public IReadOnlyList<DomainDiff> Domains { get; init; } = Domains ?? [];
+    public IReadOnlyList<DomainDiff> Domains { get; init; } = [];
 
     /// <summary>
     /// The changed composite types within this schema, ordered by name.
     /// </summary>
-    public IReadOnlyList<CompositeTypeDiff> CompositeTypes { get; init; } = CompositeTypes ?? [];
+    public IReadOnlyList<CompositeTypeDiff> CompositeTypes { get; init; } = [];
+
+    /// <summary>
+    /// A schema being created.
+    /// </summary>
+    public static SchemaDiff Added(SqlIdentifier name) => new() { Name = name, Kind = ChangeKind.Add };
+
+    /// <summary>
+    /// A schema being dropped, along with everything it contains.
+    /// </summary>
+    public static SchemaDiff Removed(SqlIdentifier name) => new() { Name = name, Kind = ChangeKind.Remove };
+
+    /// <summary>
+    /// A schema whose own definition changed — renamed, or its comment or grants altered.
+    /// </summary>
+    public static SchemaDiff Modified(SqlIdentifier name) => new() { Name = name, Kind = ChangeKind.Modify };
+
+    /// <summary>
+    /// A schema untouched in itself, carried only because objects inside it changed.
+    /// </summary>
+    public static SchemaDiff Containing(SqlIdentifier name) => new() { Name = name };
 
     /// <summary>
     /// Narrows this schema's changes to what <paramref name="scope"/> covers, or <see langword="null"/> when nothing in it is covered.

@@ -33,7 +33,7 @@ public sealed class PlanLinearizerTriggerTests
             Triggers = [TriggerDiff.Added(trigger)],
         };
 
-        var actions = _linearizer.Linearize(new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add, Tables: [table])]));
+        var actions = _linearizer.Linearize(new DatabaseDiff([SchemaDiff.Added("app") with { Tables = [table] }]));
 
         IndexOf<CreateTrigger>(actions).ShouldBeGreaterThan(IndexOf<CreateTable>(actions));
     }
@@ -44,7 +44,7 @@ public sealed class PlanLinearizerTriggerTests
         var modified = TableDiff.Modified("app", "users") with { Triggers = [TriggerDiff.Removed("audit")] };
         var dropped = TableDiff.Removed("app", "legacy");
 
-        var actions = _linearizer.Linearize(new DatabaseDiff([new SchemaDiff("app", Tables: [modified, dropped])]));
+        var actions = _linearizer.Linearize(new DatabaseDiff([SchemaDiff.Containing("app") with { Tables = [modified, dropped] }]));
 
         IndexOf<DropTrigger>(actions).ShouldBeLessThan(IndexOf<DropTable>(actions));
     }
@@ -61,7 +61,7 @@ public sealed class PlanLinearizerTriggerTests
             ],
         };
 
-        var actions = _linearizer.Linearize(new DatabaseDiff([new SchemaDiff("app", ChangeKind.Add, Tables: [table])]));
+        var actions = _linearizer.Linearize(new DatabaseDiff([SchemaDiff.Added("app") with { Tables = [table] }]));
 
         actions.OfType<CreateTrigger>().ShouldHaveSingleItem().Trigger.Name.ShouldBe("audit");
         actions.OfType<SetTriggerComment>().ShouldHaveSingleItem().NewComment.ShouldBe("note");

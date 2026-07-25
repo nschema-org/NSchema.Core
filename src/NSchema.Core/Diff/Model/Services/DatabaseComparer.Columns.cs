@@ -20,7 +20,7 @@ internal sealed partial class DatabaseComparer
             else
             {
                 LogColumnNotInDesired(owner, current[j].Name);
-                result.Add(new ColumnDiff(current[j].Name, ChangeKind.Remove, current[j], null, null, null, null, null, null));
+                result.Add(ColumnDiff.Removed(current[j]));
             }
         }
 
@@ -30,8 +30,7 @@ internal sealed partial class DatabaseComparer
             if (forDesired[i] is not { } matchingCurrent)
             {
                 LogColumnNew(owner, desiredCol.Name);
-                var comment = desiredCol.Comment is not null ? new ValueChange<string>(null, desiredCol.Comment) : null;
-                result.Add(new ColumnDiff(desiredCol.Name, ChangeKind.Add, desiredCol, null, null, null, null, null, comment));
+                result.Add(ColumnDiff.Added(desiredCol));
             }
             else
             {
@@ -124,6 +123,15 @@ internal sealed partial class DatabaseComparer
             return null;
         }
 
-        return new ColumnDiff(desired.Name, ChangeKind.Modify, desired, renamedFrom, type, nullability, @default, identity, comment, generated);
+        return ColumnDiff.Modified(desired) with
+        {
+            RenamedFrom = renamedFrom,
+            Type = type,
+            Nullability = nullability,
+            Default = @default,
+            Identity = identity,
+            Comment = comment,
+            Generated = generated,
+        };
     }
 }
