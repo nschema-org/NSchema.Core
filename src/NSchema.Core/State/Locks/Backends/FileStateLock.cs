@@ -8,17 +8,20 @@ namespace NSchema.State.Locks.Backends;
 /// </summary>
 internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IStateLock
 {
-    public async Task<IStateLockHandle> Acquire(StateLockInfo lockInfo, CancellationToken cancellationToken = default)
+    private const string Source = "lock";
+
+    public async Task<Result<IStateLockHandle>> Acquire(StateLockInfo lockInfo, CancellationToken cancellationToken = default)
     {
         var path = options.Value.Path;
         var directory = Path.GetDirectoryName(Path.GetFullPath(path));
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
 
         try
         {
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
             // FileMode.CreateNew is the atomic "create only if it doesn't already exist" primitive — this is what
             // makes acquisition mutually exclusive across processes on the local machine.
             await using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
@@ -34,17 +37,22 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
                 $"The state is locked by {heldBy}. Wait for it to complete, or remove the lock file at '{path}' if it is stale.",
                 existing);
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The lock file could not be written for a reason other than contention — an unwritable directory, say.
+            return Result.Failure<IStateLockHandle>(LockDiagnostics.Unreachable(Source, ex));
+        }
 
-        return new Handle(path, lockInfo);
+        return Result.Success<IStateLockHandle>(new Handle(path, lockInfo));
     }
 
-    public async Task<StateLockInfo?> Peek(CancellationToken cancellationToken = default)
+    public async Task<Result<LockPeekResult>> Peek(CancellationToken cancellationToken = default)
     {
         var path = options.Value.Path;
-        return File.Exists(path) ? await TryReadInfo(path, cancellationToken) : null;
+        return new LockPeekResult(File.Exists(path) ? await TryReadInfo(path, cancellationToken) : null);
     }
 
-    public ValueTask Release(CancellationToken cancellationToken = default)
+    public ValueTask<Result> Release(CancellationToken cancellationToken = default)
     {
         var path = options.Value.Path;
 
@@ -58,7 +66,7 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
             // Best-effort; a missing file means nothing was held, and a leftover can be removed by hand.
         }
 
-        return ValueTask.CompletedTask;
+        return ValueTask.FromResult(Result.Success());
     }
 
     private static async Task<StateLockInfo?> TryReadInfo(string path, CancellationToken cancellationToken)
@@ -81,11 +89,11 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
 
         public StateLockInfo Info => info;
 
-        public async ValueTask Release(CancellationToken cancellationToken = default)
+        public async ValueTask<Result> Release(CancellationToken cancellationToken = default)
         {
             if (_released)
             {
-                return;
+                return Result.Success();
             }
             _released = true;
 
@@ -103,6 +111,8 @@ internal sealed class FileStateLock(IOptions<FileStateLockOptions> options) : IS
                     // Best-effort release; a leftover file can be removed by hand.
                 }
             }
+
+            return Result.Success();
         }
     }
 }

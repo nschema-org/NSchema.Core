@@ -9,13 +9,13 @@ public interface IDatabaseStateStore
     /// Reads the persisted schema snapshot.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>The persisted snapshot, or <see langword="null"/> if no snapshot exists yet (bootstrap).</returns>
-    Task<ReadOnlyMemory<byte>?> Read(CancellationToken cancellationToken = default);
+    /// <returns>The persisted snapshot (whose payload is <see langword="null"/> when nothing is recorded yet), or a failure.</returns>
+    Task<Result<StoreReadResult>> Read(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Writes a schema snapshot, replacing any existing state.
     /// </summary>
     /// <param name="state">The serialized snapshot to persist.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    Task Write(ReadOnlyMemory<byte> state, CancellationToken cancellationToken = default);
+    Task<Result> Write(ReadOnlyMemory<byte> state, CancellationToken cancellationToken = default);
 }

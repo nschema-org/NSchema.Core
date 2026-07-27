@@ -80,6 +80,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **Managed extensions honor removal-by-absence.** A declared extension becomes managed on apply and is dropped when un-declared.
 - **A foreign key into an undeclared table is a warning, not an error.** The target may exist unmanaged (gradual adoption), so the structural policy advises instead of blocking.
 - **Constraints fold into table creates.** A newly-created table's foreign keys, unique and check constraints are now rendered inline in its `CREATE TABLE` rather than as trailing `ALTER TABLE ADD CONSTRAINT` statements.
+- **More contracts return `Result<T>`.** All the backend and locking contracts return `Result<T>` instead of throwing.
 
 ### Added
 

@@ -12,25 +12,26 @@ internal sealed class EphemeralStateStore : IDatabaseStateStore, IStateLock
     private ReadOnlyMemory<byte>? _payload;
     private StateLockInfo? _held;
 
-    public Task<ReadOnlyMemory<byte>?> Read(CancellationToken cancellationToken = default)
+    // In-memory: nothing here can be unreachable, so every outcome is a success.
+    public Task<Result<StoreReadResult>> Read(CancellationToken cancellationToken = default)
     {
         lock (_gate)
         {
-            return Task.FromResult(_payload);
+            return Task.FromResult(Result.Success(new StoreReadResult(_payload)));
         }
     }
 
-    public Task Write(ReadOnlyMemory<byte> state, CancellationToken cancellationToken = default)
+    public Task<Result> Write(ReadOnlyMemory<byte> state, CancellationToken cancellationToken = default)
     {
         lock (_gate)
         {
             // Copy: the caller's buffer must not be able to mutate the stored payload after the write.
             _payload = state.ToArray();
         }
-        return Task.CompletedTask;
+        return Task.FromResult(Result.Success());
     }
 
-    public Task<IStateLockHandle> Acquire(StateLockInfo lockInfo, CancellationToken cancellationToken = default)
+    public Task<Result<IStateLockHandle>> Acquire(StateLockInfo lockInfo, CancellationToken cancellationToken = default)
     {
         lock (_gate)
         {
@@ -42,32 +43,32 @@ internal sealed class EphemeralStateStore : IDatabaseStateStore, IStateLock
             }
 
             _held = lockInfo;
-            return Task.FromResult<IStateLockHandle>(new Handle(this, _held));
+            return Task.FromResult(Result.Success<IStateLockHandle>(new Handle(this, _held)));
         }
     }
 
-    public Task<StateLockInfo?> Peek(CancellationToken cancellationToken = default)
+    public Task<Result<LockPeekResult>> Peek(CancellationToken cancellationToken = default)
     {
         lock (_gate)
         {
-            return Task.FromResult(_held);
+            return Task.FromResult(Result.Success(new LockPeekResult(_held)));
         }
     }
 
-    public ValueTask Release(CancellationToken cancellationToken = default)
+    public ValueTask<Result> Release(CancellationToken cancellationToken = default)
     {
         lock (_gate)
         {
             _held = null;
         }
-        return ValueTask.CompletedTask;
+        return ValueTask.FromResult(Result.Success());
     }
 
     private sealed class Handle(EphemeralStateStore owner, StateLockInfo info) : IStateLockHandle
     {
         public StateLockInfo Info => info;
 
-        public ValueTask Release(CancellationToken cancellationToken = default)
+        public ValueTask<Result> Release(CancellationToken cancellationToken = default)
         {
             lock (owner._gate)
             {
@@ -77,7 +78,7 @@ internal sealed class EphemeralStateStore : IDatabaseStateStore, IStateLock
                     owner._held = null;
                 }
             }
-            return ValueTask.CompletedTask;
+            return ValueTask.FromResult(Result.Success());
         }
     }
 }

@@ -12,25 +12,28 @@ namespace NSchema.State.Backends;
 internal sealed class FileDatabaseStateStore(IOptions<FileDatabaseStateStoreOptions> options) : IDatabaseStateStore
 {
     /// <inheritdoc />
-    public async Task<ReadOnlyMemory<byte>?> Read(CancellationToken cancellationToken = default)
+    public async Task<Result<StoreReadResult>> Read(CancellationToken cancellationToken = default)
     {
         if (!File.Exists(options.Value.Path))
         {
-            return null;
+            return new StoreReadResult(null);
         }
 
-        return await File.ReadAllBytesAsync(options.Value.Path, cancellationToken);
+        try
+        {
+            return new StoreReadResult(await File.ReadAllBytesAsync(options.Value.Path, cancellationToken));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return Result.Failure<StoreReadResult>(StateDiagnostics.Unreachable(ex));
+        }
     }
 
     /// <inheritdoc />
-    public async Task Write(ReadOnlyMemory<byte> state, CancellationToken cancellationToken = default)
+    public async Task<Result> Write(ReadOnlyMemory<byte> state, CancellationToken cancellationToken = default)
     {
         var path = Path.GetFullPath(options.Value.Path);
         var directory = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
 
         // Write to a sibling temp file and atomically rename it into place, so a concurrent reader (e.g. a plan reading
         // the recorded state while an apply captures new state) never observes a half-written file. The temp must live
@@ -38,8 +41,19 @@ internal sealed class FileDatabaseStateStore(IOptions<FileDatabaseStateStoreOpti
         var temp = $"{path}.{Guid.NewGuid():N}.tmp";
         try
         {
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
             await File.WriteAllBytesAsync(temp, state, cancellationToken);
             File.Move(temp, path, overwrite: true);
+            return Result.Success();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            TryDelete(temp);
+            return Result.From(StateDiagnostics.Unreachable(ex));
         }
         catch
         {
