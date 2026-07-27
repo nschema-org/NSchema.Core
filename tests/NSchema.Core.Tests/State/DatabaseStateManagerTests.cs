@@ -1,8 +1,8 @@
 using NSchema.Model;
-using NSubstitute.ExceptionExtensions;
 using NSchema.State;
 using NSchema.State.Backends;
 using NSchema.State.Domain;
+using NSubstitute.ExceptionExtensions;
 
 namespace NSchema.Tests.State;
 
