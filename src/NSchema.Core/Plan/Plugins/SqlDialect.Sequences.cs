@@ -3,7 +3,7 @@ using NSchema.Model.Sequences;
 using NSchema.Plan.Domain;
 using NSchema.Plan.Domain.Sequences;
 
-namespace NSchema.Plan.Backends;
+namespace NSchema.Plan.Plugins;
 
 public abstract partial class SqlDialect
 {

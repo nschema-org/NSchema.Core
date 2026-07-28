@@ -14,7 +14,7 @@ using NSchema.Model.Sequences;
 using NSchema.Model.Tables;
 using NSchema.Model.Triggers;
 using NSchema.Model.Views;
-using NSchema.Plan.Backends;
+using NSchema.Plan.Plugins;
 using NSchema.Plan.Domain;
 using NSchema.Plan.Domain.Columns;
 using NSchema.Plan.Domain.CompositeTypes;

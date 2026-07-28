@@ -1,4 +1,4 @@
-namespace NSchema.State.Backends;
+namespace NSchema.State.Plugins;
 
 /// <summary>
 /// The outcome of reading the raw payload from a state store.

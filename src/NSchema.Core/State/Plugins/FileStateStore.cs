@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
 
-namespace NSchema.State.Backends;
+namespace NSchema.State.Plugins;
 
 /// <summary>
 /// An <see cref="IDatabaseStateStore"/> that persists the database snapshot to a file on the local filesystem.

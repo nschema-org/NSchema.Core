@@ -1,6 +1,6 @@
 using System.Text;
 using Microsoft.Extensions.Options;
-using NSchema.State.Backends;
+using NSchema.State.Plugins;
 
 namespace NSchema.Tests.State;
 

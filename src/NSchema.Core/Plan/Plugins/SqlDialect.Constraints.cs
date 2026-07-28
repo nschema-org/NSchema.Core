@@ -2,7 +2,7 @@ using NSchema.Model.Constraints;
 using NSchema.Plan.Domain;
 using NSchema.Plan.Domain.Constraints;
 
-namespace NSchema.Plan.Backends;
+namespace NSchema.Plan.Plugins;
 
 public abstract partial class SqlDialect
 {

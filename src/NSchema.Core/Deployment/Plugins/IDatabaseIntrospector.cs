@@ -1,6 +1,6 @@
 using NSchema.Model;
 
-namespace NSchema.Deployment.Backends;
+namespace NSchema.Deployment.Plugins;
 
 /// <summary>
 /// Introspects the live database into the schema model.

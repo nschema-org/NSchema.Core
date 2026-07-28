@@ -1,4 +1,4 @@
-namespace NSchema.State.Backends;
+namespace NSchema.State.Plugins;
 
 /// <summary>
 /// Persists and retrieves a serialized snapshot of the current database schema, so migration plans can be computed offline.

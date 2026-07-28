@@ -1,4 +1,4 @@
-namespace NSchema.State.Locks.Backends;
+namespace NSchema.State.Locks.Plugins;
 
 /// <summary>
 /// Options for configuring a <see cref="FileStateLock"/> instance.

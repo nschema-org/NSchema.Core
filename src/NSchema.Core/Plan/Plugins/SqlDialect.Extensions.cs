@@ -1,7 +1,7 @@
 using NSchema.Plan.Domain;
 using NSchema.Plan.Domain.Extensions;
 
-namespace NSchema.Plan.Backends;
+namespace NSchema.Plan.Plugins;
 
 public abstract partial class SqlDialect
 {

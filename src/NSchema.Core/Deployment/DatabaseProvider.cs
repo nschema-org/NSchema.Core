@@ -1,4 +1,4 @@
-using NSchema.Deployment.Backends;
+using NSchema.Deployment.Plugins;
 using NSchema.Model;
 
 namespace NSchema.Deployment;

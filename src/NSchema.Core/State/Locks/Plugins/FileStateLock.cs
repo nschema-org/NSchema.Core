@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 
-namespace NSchema.State.Locks.Backends;
+namespace NSchema.State.Locks.Plugins;
 
 /// <summary>
 /// An <see cref="IStateLock"/> that holds the lock as a file on the local filesystem.

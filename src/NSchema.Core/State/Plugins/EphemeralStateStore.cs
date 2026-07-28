@@ -1,7 +1,7 @@
 using NSchema.State.Locks;
-using NSchema.State.Locks.Backends;
+using NSchema.State.Locks.Plugins;
 
-namespace NSchema.State.Backends;
+namespace NSchema.State.Plugins;
 
 /// <summary>
 /// An in-memory state backend for disposable databases.

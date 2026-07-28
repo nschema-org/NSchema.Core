@@ -15,7 +15,7 @@ using NSchema.Plan.Domain.Tables;
 using NSchema.Plan.Domain.Triggers;
 using NSchema.Plan.Domain.Views;
 
-namespace NSchema.Plan.Backends;
+namespace NSchema.Plan.Plugins;
 
 /// <summary>
 /// The SQL dialect a database provider plugs in.

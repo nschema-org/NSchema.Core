@@ -1,4 +1,4 @@
-using NSchema.State.Locks.Backends;
+using NSchema.State.Locks.Plugins;
 
 namespace NSchema.State.Locks;
 

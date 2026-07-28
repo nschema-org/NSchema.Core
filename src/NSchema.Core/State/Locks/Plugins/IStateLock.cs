@@ -1,4 +1,4 @@
-namespace NSchema.State.Locks.Backends;
+namespace NSchema.State.Locks.Plugins;
 
 /// <summary>
 /// Coordinates exclusive access to the shared state.

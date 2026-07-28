@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using NSchema.Deployment;
-using NSchema.Deployment.Backends;
+using NSchema.Deployment.Plugins;
 using NSchema.Model;
 using NSchema.Model.Schemas;
 

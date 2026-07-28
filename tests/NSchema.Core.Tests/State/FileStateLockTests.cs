@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
 using NSchema.State.Locks;
-using NSchema.State.Locks.Backends;
+using NSchema.State.Locks.Plugins;
 
 namespace NSchema.Tests.State;
 

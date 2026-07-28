@@ -1,4 +1,4 @@
-namespace NSchema.State.Backends;
+namespace NSchema.State.Plugins;
 
 /// <summary>
 /// Options for configuring a <see cref="FileDatabaseStateStore"/> instance.

@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.Model.Columns;
 
-namespace NSchema.Diff.Backends;
+namespace NSchema.Diff.Plugins;
 
 /// <summary>
 /// The provider's comparison-side vocabulary.

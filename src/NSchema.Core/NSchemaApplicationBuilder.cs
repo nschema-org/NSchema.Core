@@ -6,7 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NSchema.Apply;
 using NSchema.Deployment;
-using NSchema.Diff.Backends;
+using NSchema.Diff.Plugins;
 using NSchema.Diff.Domain.Services;
 using NSchema.Operations;
 using NSchema.Operations.Progress;

@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using NSchema.State.Backends;
+using NSchema.State.Plugins;
 
 namespace NSchema.Tests.State;
 

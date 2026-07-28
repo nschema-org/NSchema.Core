@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using NSchema.Diff.Backends;
+using NSchema.Diff.Plugins;
 using NSchema.Diff.Domain.Schemas;
 using NSchema.Diff.Domain.Tables;
 using NSchema.Model;

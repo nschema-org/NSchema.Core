@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using NSchema.Plan.Domain;
 
-namespace NSchema.Plan.Backends;
+namespace NSchema.Plan.Plugins;
 
 /// <summary>
 /// Diagnostics minted for <see cref="SqlDialect"/> renderings.
