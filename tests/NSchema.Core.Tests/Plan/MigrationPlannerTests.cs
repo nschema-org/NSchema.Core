@@ -36,7 +36,7 @@ public sealed class MigrationPlannerTests
     public MigrationPlannerTests()
     {
         _differ.Compare(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>()).Returns(Result.From(_emptyDiff, []));
-        _linearizer.Linearize(Arg.Any<DatabaseDiff>()).Returns(_ => []);
+        _linearizer.Linearize(Arg.Any<DatabaseDiff>(), Arg.Any<PlanDependencies>()).Returns(_ => []);
     }
 
     /// <summary>A difference touching two schemas, so a scope has something to narrow away.</summary>
@@ -87,7 +87,7 @@ public sealed class MigrationPlannerTests
         Sut.Plan(_current, _desired, PlanningScope.To(new SchemaAddress("app")));
 
         // Assert
-        _linearizer.Received(1).Linearize(Arg.Is<DatabaseDiff>(d => d!.Schemas.Count == 1));
+        _linearizer.Received(1).Linearize(Arg.Is<DatabaseDiff>(d => d!.Schemas.Count == 1), Arg.Any<PlanDependencies>());
     }
 
     [Fact]
@@ -290,7 +290,7 @@ public sealed class MigrationPlannerTests
         // Arrange — the linearizer's ordered actions render one by one through the dialect; the stub renders
         // an ExecuteScript as its verbatim Statement, carrying the transaction placement.
         var script = new DeploymentScript("seed", "INSERT INTO app.c VALUES (1);", null, DeploymentPhase.Post) { RunOutsideTransaction = true };
-        _linearizer.Linearize(Arg.Any<DatabaseDiff>())
+        _linearizer.Linearize(Arg.Any<DatabaseDiff>(), Arg.Any<PlanDependencies>())
             .Returns(_ => [new CreateSchema("app"), new ExecuteScript(script)]);
 
         // Act

@@ -11,6 +11,7 @@ internal interface IPlanLinearizer
     /// Produces the ordered migration plan that realizes the given diff.
     /// </summary>
     /// <param name="diff">The structured diff to linearize.</param>
+    /// <param name="dependencies">The edges ordering the objects the diff touches against each other.</param>
     /// <returns>The dependency-ordered action list.</returns>
-    IReadOnlyList<MigrationAction> Linearize(DatabaseDiff diff);
+    IReadOnlyList<MigrationAction> Linearize(DatabaseDiff diff, PlanDependencies dependencies);
 }

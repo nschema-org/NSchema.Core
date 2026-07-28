@@ -29,7 +29,7 @@ namespace NSchema.Plan.Domain.Services;
 /// </summary>
 internal sealed class PlanLinearizer : IPlanLinearizer
 {
-    public IReadOnlyList<MigrationAction> Linearize(DatabaseDiff diff)
+    public IReadOnlyList<MigrationAction> Linearize(DatabaseDiff diff, PlanDependencies dependencies)
     {
         var actions = new List<MigrationAction>();
         EmitExtensions(diff, actions);
@@ -38,9 +38,11 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             EmitSchema(schema, actions);
         }
 
-        // Views are emitted in one cross-schema pass: their create/drop order is governed by a dependency sort
-        // (a view after what it reads, dropped before), which the per-schema walk above cannot express.
-        EmitViews(diff, actions);
+        // Tables and views are each emitted in one cross-schema pass: their create/drop order is governed by a
+        // dependency sort (created after what they need, dropped before it), which the per-schema walk above
+        // cannot express — a foreign key or a view body may reach into another schema.
+        EmitTables(diff, dependencies, actions);
+        EmitViews(diff, dependencies, actions);
 
         actions = [.. MigrationActionOrdering.Order(actions)];
 
@@ -52,11 +54,65 @@ internal sealed class PlanLinearizer : IPlanLinearizer
         diff.DeploymentScripts.Where(s => s.Phase == phase).Select(s => new ExecuteScript(s));
 
     /// <summary>
+    /// Emits the table actions across every schema, in the order their foreign keys require: a table is created
+    /// after the tables it references and dropped before them.
+    /// </summary>
+    private static void EmitTables(DatabaseDiff diff, PlanDependencies dependencies, List<MigrationAction> actions)
+    {
+        var tables = diff.Schemas.SelectMany(schema => schema.Tables).ToList();
+
+        foreach (var table in InCreationOrder([.. tables.Where(table => table.Kind != ChangeKind.Remove)], dependencies))
+        {
+            EmitTable(table, actions);
+        }
+
+        foreach (var table in InRemovalOrder([.. tables.Where(table => table.Kind == ChangeKind.Remove)], dependencies))
+        {
+            EmitTable(table, actions);
+        }
+    }
+
+    /// <summary>
+    /// The objects in the order they can be created: each after the objects it requires.
+    /// </summary>
+    private static IReadOnlyList<T> InCreationOrder<T>(IReadOnlyList<T> objects, PlanDependencies dependencies)
+        where T : ISchemaObjectDiff =>
+        Ordered(objects, o => new ObjectAddress(o.Schema, o.Name), dependencies.Requires);
+
+    /// <summary>
+    /// The objects in the order they can be dropped: each before the objects it is required by. Addressed under
+    /// the name they currently carry, which is the one the current side knows them by.
+    /// </summary>
+    private static IReadOnlyList<T> InRemovalOrder<T>(IReadOnlyList<T> objects, PlanDependencies dependencies)
+        where T : ISchemaObjectDiff =>
+        Ordered(objects, o => new ObjectAddress(o.Schema, o.RenamedFrom ?? o.Name), dependencies.RequiredBy);
+
+    /// <summary>
+    /// The instance-level ordering layered on top of the fixed action-type order: where two objects of the same
+    /// kind change together and one requires the other, the type order cannot separate them — this can.
+    /// </summary>
+    /// <remarks>
+    /// Only an edge between two objects being changed together orders anything; everything else the graph knows
+    /// about is left where it is. Cycles are broken rather than reported: mutual foreign keys are legal, and a
+    /// view cycle can only come from a dependency NSchema inferred, which is too weak a thing to fail a plan on.
+    /// </remarks>
+    private static IReadOnlyList<T> Ordered<T>(
+        IReadOnlyList<T> objects,
+        Func<T, ObjectAddress> address,
+        Func<ObjectAddress, IReadOnlyCollection<ObjectAddress>> edges
+    ) where T : ISchemaObjectDiff =>
+        objects.OrderedByDependencies(
+            address,
+            o => edges(address(o)),
+            o => $"{o.Schema}.{o.Name}",
+            allowCycles: true);
+
+    /// <summary>
     /// Emits the view actions across every schema. <see cref="CreateView"/>s are appended in dependency order and
     /// <see cref="DropView"/>s in the reverse, so that once the stable type sort above gathers each kind into its
     /// band, a view is created after the views it reads and dropped before them.
     /// </summary>
-    private static void EmitViews(DatabaseDiff diff, List<MigrationAction> actions)
+    private static void EmitViews(DatabaseDiff diff, PlanDependencies dependencies, List<MigrationAction> actions)
     {
         var creates = new List<ViewDiff>();
         var drops = new List<ViewDiff>();
@@ -104,7 +160,7 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             }
         }
 
-        foreach (var view in OrderByDependency(creates))
+        foreach (var view in InCreationOrder(creates, dependencies))
         {
             if (view.Definition is { } definition)
             {
@@ -112,27 +168,14 @@ internal sealed class PlanLinearizer : IPlanLinearizer
             }
         }
 
-        // Dropped views go out dependents-first: the reverse of the create order. A renamed view recreating is
-        // dropped under its old name (no rename precedes the drop), and a converting view is dropped as what it
-        // currently is — IsMaterialized reflects the desired side, so a flip drops with the old materialization.
-        foreach (var view in OrderByDependency(drops).Reverse())
+        // A renamed view recreating is dropped under its old name (no rename precedes the drop), and a converting
+        // view is dropped as what it currently is — IsMaterialized reflects the desired side, so a flip drops with
+        // the old materialization.
+        foreach (var view in InRemovalOrder(drops, dependencies))
         {
             actions.Add(new DropView(new ObjectAddress(view.Schema, view.RenamedFrom ?? view.Name), view.Materialized?.Old ?? view.IsMaterialized));
         }
     }
-
-    /// <summary>
-    /// The instance-level ordering layered on top of the fixed action-type order: where two views are created
-    /// together and one reads the other, the type order can't separate them — a dependency sort must.
-    /// </summary>
-    private static IReadOnlyList<ViewDiff> OrderByDependency(IReadOnlyList<ViewDiff> views) =>
-        views.OrderedByDependencies(
-            ViewKey,
-            view => view.DependsOn.Select(d => (d.Schema, d.Name)),
-            view => $"view {view.Schema}.{view.Name}");
-
-    private static (SqlIdentifier Schema, SqlIdentifier Name) ViewKey(ViewDiff view) => (view.Schema, view.Name);
-
 
     /// <summary>
     /// Emits the root-level extension actions. Ordering (extensions created/updated before schemas, dropped after
@@ -180,25 +223,17 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitRoutines(schema, actions);
                 EmitDomains(schema, actions);
                 EmitCompositeTypes(schema, actions);
-                foreach (var table in schema.Tables)
-                {
-                    EmitTable(table, actions);
-                }
                 break;
 
             case ChangeKind.Remove:
                 // Drop everything the schema contains before the schema itself, rather than relying on a
-                // provider-specific DROP SCHEMA CASCADE. The final type-sort orders these object drops ahead of the
-                // DropSchema, and views are emitted by the cross-schema view pass.
+                // provider-specific DROP SCHEMA CASCADE. The final type-sort orders these object drops ahead of
+                // the DropSchema, and tables and views are emitted by their own cross-schema passes.
                 EmitEnums(schema, actions);
                 EmitSequences(schema, actions);
                 EmitRoutines(schema, actions);
                 EmitDomains(schema, actions);
                 EmitCompositeTypes(schema, actions);
-                foreach (var table in schema.Tables)
-                {
-                    EmitTable(table, actions);
-                }
                 actions.Add(new DropSchema(schema.Name));
                 break;
 
@@ -213,10 +248,6 @@ internal sealed class PlanLinearizer : IPlanLinearizer
                 EmitRoutines(schema, actions);
                 EmitDomains(schema, actions);
                 EmitCompositeTypes(schema, actions);
-                foreach (var table in schema.Tables)
-                {
-                    EmitTable(table, actions);
-                }
                 break;
         }
     }

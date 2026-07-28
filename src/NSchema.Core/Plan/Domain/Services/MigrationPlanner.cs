@@ -55,7 +55,8 @@ internal sealed class MigrationPlanner(
         // an unmanaged dependency would still physically block a drop, so we need to warn on it.
         var diff = diagnostics.Require(compared.ScopedTo(scope, current.Database));
 
-        var plan = Realize(diff, dialect, ManagedAfterApply(current, project, scope), diagnostics);
+        var dependencies = new PlanDependencies(current.Database, project.Database);
+        var plan = Realize(diff, dependencies, dialect, ManagedAfterApply(current, project, scope), diagnostics);
 
         // Validate the complete plan — post-render, so policies see exactly what an apply would execute.
         diagnostics.Add(planPolicies.SelectMany(p => p.Validate(plan)));
@@ -139,10 +140,16 @@ internal sealed class MigrationPlanner(
     /// Constructs an executable plan from a diff. A rendering's diagnostics ride the plan result — an
     /// unsupported action is an error that blocks application, not a hole in the statement list silently.
     /// </summary>
-    private MigrationPlan Realize(DatabaseDiff diff, SqlDialect sql, IdentitySet managed, DiagnosticCollector diagnostics)
+    private MigrationPlan Realize(
+        DatabaseDiff diff,
+        PlanDependencies dependencies,
+        SqlDialect sql,
+        IdentitySet managed,
+        DiagnosticCollector diagnostics
+    )
     {
         var planStatements = new List<SqlStatement>();
-        foreach (var action in linearizer.Linearize(diff))
+        foreach (var action in linearizer.Linearize(diff, dependencies))
         {
             if (diagnostics.TryTake(sql.Generate(action), out var actionStatements))
             {

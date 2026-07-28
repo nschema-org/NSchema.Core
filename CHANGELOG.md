@@ -117,6 +117,10 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - `PolicyDiagnostics`, `PluginConfigureResult`, and the `DestructiveActionPolicy` enum — all made redundant by first-class severity on `Result` and the shared `PolicyEnforcement`.
 - `DdlSyntaxException`, `PlanFileDeserializationException`, and `StateDeserializationException` are now internal; the read seams surface these failures as diagnostics.
 - `MigrationAction.IsDestructive` has been removed. Destructiveness is judged from the diff by `DestructiveActionPolicy`, not per action.
+- `ViewDiff.DependsOn` has been removed.
+### Fixed
+
+- **Tables are created and dropped in foreign-key order.** A table is now always created after the tables it references and dropped before them, across schemas, so a teardown no longer fails on a table another one still points at.
 
 ## [4.6.1] - 2026-07-10
 
