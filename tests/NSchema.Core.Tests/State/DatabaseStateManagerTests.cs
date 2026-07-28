@@ -1,7 +1,7 @@
 using NSchema.Model;
 using NSchema.State;
-using NSchema.State.Plugins;
 using NSchema.State.Domain;
+using NSchema.State.Plugins;
 using NSubstitute.ExceptionExtensions;
 
 namespace NSchema.Tests.State;

@@ -7,8 +7,8 @@ using NSchema.Model.Schemas;
 using NSchema.Operations;
 using NSchema.Operations.Progress;
 using NSchema.State;
-using NSchema.State.Plugins;
 using NSchema.State.Domain;
+using NSchema.State.Plugins;
 
 namespace NSchema.Tests.Operations;
 

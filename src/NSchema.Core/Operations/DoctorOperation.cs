@@ -2,8 +2,8 @@ using NSchema.Deployment.Plugins;
 using NSchema.Model;
 using NSchema.Operations.Progress;
 using NSchema.State;
-using NSchema.State.Plugins;
 using NSchema.State.Locks.Plugins;
+using NSchema.State.Plugins;
 
 namespace NSchema.Operations;
 

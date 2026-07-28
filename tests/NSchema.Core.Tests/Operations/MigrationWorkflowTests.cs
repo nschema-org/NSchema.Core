@@ -13,8 +13,8 @@ using NSchema.Plan.Domain.Services;
 using NSchema.Project;
 using NSchema.Project.Domain.Directives;
 using NSchema.State;
-using NSchema.State.Plugins;
 using NSchema.State.Domain;
+using NSchema.State.Plugins;
 
 namespace NSchema.Tests.Operations;
 

@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using NSchema.State.Plugins;
 using NSchema.State.Locks.Plugins;
+using NSchema.State.Plugins;
 
 namespace NSchema;
 
