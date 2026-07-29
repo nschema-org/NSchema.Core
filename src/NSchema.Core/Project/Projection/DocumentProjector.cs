@@ -64,7 +64,7 @@ internal static class DocumentProjector
             case Syn.Domains.CreateDomainStatement s:
                 {
                     var (schema, name) = Bind(s.Name, context);
-                    DatabaseMemberCollection<CheckConstraint> checks = [.. s.Checks.Select(c => new CheckConstraint { Name = Name(c.Name), Expression = c.Expression })];
+                    ObjectMemberCollection<CheckConstraint> checks = [.. s.Checks.Select(c => new CheckConstraint { Name = Name(c.Name), Expression = c.Expression })];
                     schemas.AddDomain(schema, new DomainType { Name = name, DataType = ParseType(s.Type), Default = ProjectDefault(s.Default), NotNull = s.NotNull, Checks = checks, Comment = s.Doc }, s.Name.Position);
                     break;
                 }
@@ -108,12 +108,12 @@ internal static class DocumentProjector
         SqlIdentifier name, string? doc, IReadOnlyList<Syn.Tables.TableMember> members, SqlIdentifier? context = null)
     {
         PrimaryKey? primaryKey = null;
-        var columns = new DatabaseMemberCollection<Column>();
-        var foreignKeys = new DatabaseMemberCollection<ForeignKey>();
-        var uniqueConstraints = new DatabaseMemberCollection<UniqueConstraint>();
-        var checkConstraints = new DatabaseMemberCollection<CheckConstraint>();
-        var exclusionConstraints = new DatabaseMemberCollection<ExclusionConstraint>();
-        var indexes = new DatabaseMemberCollection<TableIndex>();
+        var columns = new ObjectMemberCollection<Column>();
+        var foreignKeys = new ObjectMemberCollection<ForeignKey>();
+        var uniqueConstraints = new ObjectMemberCollection<UniqueConstraint>();
+        var checkConstraints = new ObjectMemberCollection<CheckConstraint>();
+        var exclusionConstraints = new ObjectMemberCollection<ExclusionConstraint>();
+        var indexes = new ObjectMemberCollection<TableIndex>();
         var includes = new List<(SqlIdentifier TemplateName, int ColumnPosition)>();
 
         foreach (var member in members)

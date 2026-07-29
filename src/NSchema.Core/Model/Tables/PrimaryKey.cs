@@ -6,7 +6,7 @@ namespace NSchema.Model.Tables;
 /// Represents a primary key constraint in a database schema.
 /// </summary>
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public sealed class PrimaryKey : DatabaseMember, IEquatable<PrimaryKey>
+public sealed class PrimaryKey : ObjectMember, IEquatable<PrimaryKey>
 {
     /// <summary>
     /// A list of column names that are part of the primary key constraint.

@@ -6,7 +6,7 @@ namespace NSchema.Model.Routines;
 /// Represents a database routine. A function or a procedure (see <see cref="RoutineKind"/>).
 /// </summary>
 [DebuggerDisplay("{Name,nq} ({RoutineKind})")]
-public sealed class Routine : DatabaseObject, IEquatable<Routine>
+public sealed class Routine : SchemaObject, IEquatable<Routine>
 {
     /// <inheritdoc/>
     public override ObjectKind Kind => ObjectKind.Routine;

@@ -6,7 +6,7 @@ namespace NSchema.Model.Constraints;
 /// Represents a check constraint in a database schema.
 /// </summary>
 [DebuggerDisplay("{Name,nq}: {Expression,nq}")]
-public sealed class CheckConstraint : DatabaseMember, IEquatable<CheckConstraint>
+public sealed class CheckConstraint : ObjectMember, IEquatable<CheckConstraint>
 {
     /// <summary>
     /// The SQL boolean expression the constraint enforces.

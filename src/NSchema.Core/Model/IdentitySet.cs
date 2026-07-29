@@ -49,10 +49,9 @@ public sealed record IdentitySet(
     public bool ContainsObject(ObjectAddress address) => Objects.Contains(address);
 
     /// <summary>
-    /// Whether the object is in the set: schema-scoped objects match by identity, global ones by name.
+    /// Whether the object is in the set.
     /// </summary>
-    public bool Contains(DatabaseObject obj) =>
-        obj.Address is ObjectAddress identity ? ContainsObject(identity) : ContainsExtension(obj.Name);
+    public bool Contains(SchemaObject obj) => ContainsObject(obj.Address);
 
     /// <summary>
     /// Whether the named extension is in the set.

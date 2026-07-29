@@ -6,7 +6,7 @@ namespace NSchema.Model.Sequences;
 /// Represents a sequence: a named integer generator.
 /// </summary>
 [DebuggerDisplay("{Name,nq} (sequence)")]
-public sealed class Sequence : DatabaseObject, IEquatable<Sequence>
+public sealed class Sequence : SchemaObject, IEquatable<Sequence>
 {
     /// <inheritdoc/>
     public override ObjectKind Kind => ObjectKind.Sequence;

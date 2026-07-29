@@ -133,7 +133,7 @@ public partial class DatabaseComparerTests
     [Fact]
     public void Compare_UniqueConstraintColumnsChanged_EmitsRemoveThenAdd()
     {
-        DatabaseMemberCollection<Column> Columns() => [new Column { Name = "email", Type = SqlType.Text }, new Column { Name = "tenant", Type = SqlType.Int }];
+        ObjectMemberCollection<Column> Columns() => [new Column { Name = "email", Type = SqlType.Text }, new Column { Name = "tenant", Type = SqlType.Int }];
         var table = DiffTable(
             new Table
             {

@@ -190,7 +190,7 @@ public partial class DatabaseComparerTests
     public void Compare_GroupsIndexesConstraintsAndGrantsUnderTheirTable()
     {
         // Arrange
-        DatabaseMemberCollection<Column> Columns() => [new Column { Name = "id", Type = SqlType.Int }, new Column { Name = "user_id", Type = SqlType.Int }];
+        ObjectMemberCollection<Column> Columns() => [new Column { Name = "id", Type = SqlType.Int }, new Column { Name = "user_id", Type = SqlType.Int }];
         var current = Db(new Schema { Name = "app", Tables = [new Table { Name = "orders", Columns = Columns() }] });
         var desired = Db(new Schema
         {

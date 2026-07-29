@@ -12,7 +12,7 @@ public partial class DatabaseComparerTests
     // Materialized views (View with IsMaterialized + Indexes)
     // -------------------------------------------------------------------------
 
-    private static View Matview(string name, string body, DatabaseMemberCollection<TableIndex>? indexes = null, string? comment = null) =>
+    private static View Matview(string name, string body, ObjectMemberCollection<TableIndex>? indexes = null, string? comment = null) =>
         new View { Name = name, Body = body, DependsOn = ViewDependencyExtractor.Extract(body, "app"), IsMaterialized = true, Indexes = indexes ?? [], Comment = comment };
 
     [Fact]

@@ -25,6 +25,8 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 - **A slice's domain layer is `Domain`, not `Model`.**
 - **The shared primitives live in `NSchema.Diagnostics`.**
 - **The schema model is `NSchema.Model` now.** It owns the top-level domain model for databases.
+- **The model is layered by what contains what.** A `DatabaseObject` belongs to the database, a `SchemaObject` to a schema, and an `ObjectMember` to a schema object.
+- **An element's `Address` is never null.** A schema object addresses itself as an `ObjectAddress` and a member as a `MemberAddress`, so neither needs narrowing or a cast.
 - **DataMigrations are Scripts now.** This reflects the syntax changes introduce in [4.4.0] so the model becomes consistent.
 - **Templates accept object-level directives.** A `TEMPLATE` body may now contain the object-level `RENAME` directive (table, column, view, enum, domain, type, sequence, routine) alongside its declarations and scripts.
 - **Scripts split into `ChangeScript` and `DeploymentScript`.** `Script` is now an abstract base carrying the common behavior (name, SQL, scope, hash, reference, run condition);

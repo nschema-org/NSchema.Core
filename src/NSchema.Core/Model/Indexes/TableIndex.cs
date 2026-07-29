@@ -6,7 +6,7 @@ namespace NSchema.Model.Indexes;
 /// Represents an index on a table or materialized view within the database schema.
 /// </summary>
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public sealed class TableIndex : DatabaseMember, IEquatable<TableIndex>
+public sealed class TableIndex : ObjectMember, IEquatable<TableIndex>
 {
     /// <summary>
     /// The index keys (columns or expressions) in order.

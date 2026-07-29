@@ -6,7 +6,7 @@ namespace NSchema.Model.Enums;
 /// Represents an enum type: a named, ordered set of string values.
 /// </summary>
 [DebuggerDisplay("{Name,nq} ({Values.Count} values)")]
-public sealed class EnumType : DatabaseObject, IEquatable<EnumType>
+public sealed class EnumType : SchemaObject, IEquatable<EnumType>
 {
     /// <inheritdoc/>
     public override ObjectKind Kind => ObjectKind.Enum;

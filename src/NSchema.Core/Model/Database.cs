@@ -25,7 +25,7 @@ public sealed class Database : IEquatable<Database>
     /// Every schema-level object of type <typeparamref name="T"/> across the database's schemas, each paired
     /// with the name of the schema that holds it.
     /// </summary>
-    public IEnumerable<(SqlIdentifier Schema, T Object)> Objects<T>() where T : DatabaseObject =>
+    public IEnumerable<(SqlIdentifier Schema, T Object)> Objects<T>() where T : SchemaObject =>
         Schemas.SelectMany(s => s.Objects().OfType<T>().Select(o => (Schema: s.Name, Object: o)));
 
     /// <summary>
@@ -33,7 +33,7 @@ public sealed class Database : IEquatable<Database>
     /// </summary>
     public IdentitySet Identities() => new(
         [.. Schemas.Select(s => s.Address)],
-        [.. Schemas.SelectMany(s => s.Objects()).Select(o => o.Address).OfType<ObjectAddress>()],
+        [.. Schemas.SelectMany(s => s.Objects()).Select(o => o.Address)],
         [.. Extensions.Select(e => e.Address)]);
 
     /// <summary>
@@ -51,7 +51,7 @@ public sealed class Database : IEquatable<Database>
     public Database FilteredTo(IdentitySet identities) => new()
     {
         Schemas = [.. Schemas.Select(schema => Filter(schema, identities)).OfType<Schema>()],
-        Extensions = [.. Extensions.Where(identities.Contains).Select(e => e.Clone())],
+        Extensions = [.. Extensions.Where(e => identities.ContainsExtension(e.Name)).Select(e => e.Clone())],
     };
 
     private static Schema? Filter(Schema schema, IdentitySet identities)

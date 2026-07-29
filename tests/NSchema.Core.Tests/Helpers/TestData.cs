@@ -183,6 +183,6 @@ public static class TestData
         new View { Name = name, Body = body, DependsOn = ViewDependencyExtractor.Extract(body, "app"), Comment = comment };
 
     /// <summary>Builds a materialized view (optionally with indexes), dependencies derived from its body.</summary>
-    private static View MaterializedView(string name, string body, string? comment = null, DatabaseMemberCollection<TableIndex>? indexes = null) =>
+    private static View MaterializedView(string name, string body, string? comment = null, ObjectMemberCollection<TableIndex>? indexes = null) =>
         new View { Name = name, Body = body, DependsOn = ViewDependencyExtractor.Extract(body, "app"), IsMaterialized = true, Indexes = indexes ?? [], Comment = comment };
 }
