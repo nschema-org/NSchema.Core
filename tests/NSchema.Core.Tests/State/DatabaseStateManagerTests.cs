@@ -203,7 +203,7 @@ public sealed class DatabaseStateManagerTests
 
     private void StoreIsUnreachable()
     {
-        var unreachable = Diagnostic.Error("state", "Could not reach the state store: Connection refused");
+        var unreachable = Diagnostic.Error("state", "could-not-reach-the", "Could not reach the state store: Connection refused");
         _store.Read(Arg.Any<CancellationToken>()).Returns(Result.Failure<StoreReadResult>(unreachable));
         _store.Write(Arg.Any<ReadOnlyMemory<byte>>(), Arg.Any<CancellationToken>()).Returns(Result.From(unreachable));
     }

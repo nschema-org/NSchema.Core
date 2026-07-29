@@ -160,7 +160,7 @@ public sealed class ProjectComparerTests
         // Assert
         comparison.Require().AllScripts().ShouldBeEmpty();
         var diagnostic = comparison.Diagnostics.ShouldHaveSingleItem();
-        diagnostic.Source.ShouldBe("data-migrations");
+        diagnostic.Code.ShouldBe("dead-migration");
         diagnostic.Severity.ShouldBe(DiagnosticSeverity.Info);
         diagnostic.Message.ShouldBe(
             "Migration 'app.backfill_emails' (ADD COLUMN app.users.email) matches no change in this plan.");
@@ -231,7 +231,7 @@ public sealed class ProjectComparerTests
         // Assert
         var diagnostic = comparison.Diagnostics.ShouldHaveSingleItem();
         diagnostic.Severity.ShouldBe(DiagnosticSeverity.Info);
-        diagnostic.Source.ShouldBe("directives");
+        diagnostic.Code.ShouldBe("applied-rename");
         diagnostic.Message.ShouldContain("The table 'app.users'");
         diagnostic.Message.ShouldContain("already been renamed to 'people'");
     }

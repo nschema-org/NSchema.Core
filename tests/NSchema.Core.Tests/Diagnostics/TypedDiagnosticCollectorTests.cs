@@ -11,10 +11,10 @@ public sealed class TypedDiagnosticCollectorTests
     private readonly DiagnosticCollector<NsqlDiagnostic> _sut = new();
 
     private static NsqlDiagnostic Error(string message = "boom") =>
-        new("syntax", message, DiagnosticSeverity.Error, new SourcePosition(Offset: 0, Line: 1, Column: 1));
+        new("syntax", "error", message, DiagnosticSeverity.Error, new SourcePosition(Offset: 0, Line: 1, Column: 1));
 
     private static NsqlDiagnostic Warning(string message = "careful") =>
-        new("syntax", message, DiagnosticSeverity.Warning, new SourcePosition(Offset: 12, Line: 2, Column: 1));
+        new("syntax", "warning", message, DiagnosticSeverity.Warning, new SourcePosition(Offset: 12, Line: 2, Column: 1));
 
     [Fact]
     public void Add_AbsorbsATypedResultsDiagnostics()
@@ -105,7 +105,7 @@ public sealed class TypedDiagnosticCollectorTests
     public void ImplicitConversion_FromDiagnostic_ToValuelessResult_IsFailure()
     {
         // Act
-        Result result = Diagnostic.Error("source", "boom");
+        Result result = Diagnostic.Error("source", "boom", "boom");
 
         // Assert
         result.IsFailure.ShouldBeTrue();

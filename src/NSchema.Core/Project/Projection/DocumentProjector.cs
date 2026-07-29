@@ -251,10 +251,8 @@ internal static class DocumentProjector
         var stray = fragment.Schemas.FirstOrDefault(s => s.Name != SchemaToken.TargetSchemaPlaceholder);
         if (stray is not null)
         {
-            diagnostics.Add(new NsqlDiagnostic("project",
-                $"Template '{statement.Name.Value}' declares objects in schema '{stray.Name}'; objects inside a template must use " +
-                $"unqualified names so they are created in each schema the template is applied to. (at {statement.Name.Position}).",
-                DiagnosticSeverity.Error, statement.Name.Position));
+            diagnostics.Add(TemplateDiagnostics.QualifiedTemplateObject(
+                statement.Name.Value, stray.Name, statement.Name.Position));
         }
         return diagnostics;
     }

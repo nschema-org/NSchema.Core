@@ -128,7 +128,7 @@ internal static class ConfigurationAssembler
         public T? Bind<T>(DiagnosticCollection<NsqlDiagnostic> diagnostics) where T : notnull
         {
             var result = Statement.ToSettings().Get<T>();
-            diagnostics.AddRange(result.Diagnostics.Select(d => Stamp(new NsqlDiagnostic(d.Source, d.Text, d.Severity, Statement.Position))));
+            diagnostics.AddRange(result.Diagnostics.Select(d => Stamp(new NsqlDiagnostic(d.Source, d.Code, d.Text, d.Severity, Statement.Position))));
             return result.IsSuccess ? result.Require() : default;
         }
 

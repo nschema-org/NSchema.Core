@@ -14,11 +14,11 @@ internal static class ConfigurationDiagnostics
     /// A second statement of a kind the configuration holds at most one of.
     /// </summary>
     public static NsqlDiagnostic DuplicateStatement(string statement, SourcePosition position) =>
-        new(Source, $"A configuration holds at most one {statement:text} statement.", DiagnosticSeverity.Error, position);
+        new(Source, "duplicate-statement", $"A configuration holds at most one {statement:text} statement.", DiagnosticSeverity.Error, position);
 
     /// <summary>
     /// A <c>DATABASE</c>/<c>STATE</c> statement with no label, so it names no plugin.
     /// </summary>
     public static NsqlDiagnostic UnlabelledReference(string statement, SourcePosition position) =>
-        new(Source, $"A {statement:text} statement needs a label naming the plugin that serves it.", DiagnosticSeverity.Error, position);
+        new(Source, "unlabelled-reference", $"A {statement:text} statement needs a label naming the plugin that serves it.", DiagnosticSeverity.Error, position);
 }

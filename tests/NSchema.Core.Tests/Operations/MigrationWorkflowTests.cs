@@ -98,7 +98,7 @@ public sealed class MigrationWorkflowTests
     public async Task Validate_PolicyViolation_ReturnsErrorFindings_WithoutReporting()
     {
         // Arrange
-        _planner.Validate(Arg.Any<ProjectDefinition>()).Returns(Result.From(Diagnostic.Error("P1", "msg")));
+        _planner.Validate(Arg.Any<ProjectDefinition>()).Returns(Result.From(Diagnostic.Error("P1", "msg", "msg")));
 
         // Act
         var findings = await _sut.Validate(TestContext.Current.CancellationToken);
@@ -113,7 +113,7 @@ public sealed class MigrationWorkflowTests
     {
         // Arrange
         _planner.Validate(Arg.Any<ProjectDefinition>())
-            .Returns(Result.From(new Diagnostic("P1", "info", DiagnosticSeverity.Info)));
+            .Returns(Result.From(new Diagnostic("P1", "policy-finding", "info", DiagnosticSeverity.Info)));
 
         // Act
         var findings = await _sut.Validate(TestContext.Current.CancellationToken);
@@ -127,7 +127,7 @@ public sealed class MigrationWorkflowTests
     public async Task Validate_ProjectDiagnostics_AreCarriedInTheFindings()
     {
         // Arrange — findings raised while reading the DDL (e.g. deprecated syntax) arrive on the read result.
-        var project = Result.From(TestProjects.Project(new Database { Schemas = [] }), [Diagnostic.Warning("deprecations", "old form")]);
+        var project = Result.From(TestProjects.Project(new Database { Schemas = [] }), [Diagnostic.Warning("deprecations", "old-form", "old form")]);
         _projectProvider.GetProject(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>()).Returns(project);
 
         // Act
@@ -283,7 +283,7 @@ public sealed class MigrationWorkflowTests
         // Arrange — a teardown genuinely is destructive, so the finding is correct rather than noise. It must
         // stay possible, but it does not have to be easy.
         _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>(), Arg.Any<PlanningScope>())
-            .Returns(Result.From(EmptyPlan(), [Diagnostic.Error("destructive", "drops everything")]));
+            .Returns(Result.From(EmptyPlan(), [Diagnostic.Error("destructive", "drops-everything", "drops everything")]));
 
         // Act
         var result = await _sut.ComputePlan(PlanTarget.Empty, PlanningScope.All, TestContext.Current.CancellationToken);
@@ -312,11 +312,11 @@ public sealed class MigrationWorkflowTests
     public async Task ComputePlan_ReadDiagnostics_ArePrependedToThePlannerResult()
     {
         // Arrange — the pure planner never sees read provenance; this shell merges it into the outcome.
-        var project = Result.From(TestProjects.Project(new Database { Schemas = [] }), [Diagnostic.Warning("deprecations", "old form")]);
+        var project = Result.From(TestProjects.Project(new Database { Schemas = [] }), [Diagnostic.Warning("deprecations", "old-form", "old form")]);
         _projectProvider.GetProject(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>()).Returns(project);
         _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>(), Arg.Any<PlanningScope>())
             .Returns(Result.From(EmptyPlan(),
-                [Diagnostic.Warning("data-hazards", "hazard")]));
+                [Diagnostic.Warning("data-hazards", "hazard", "hazard")]));
 
         // Act
         var result = await _sut.ComputePlan(PlanTarget.Project, PlanningScope.All, TestContext.Current.CancellationToken);
@@ -330,10 +330,10 @@ public sealed class MigrationWorkflowTests
     public async Task ComputePlan_ReadDiagnostics_AreCarriedOnAPlannerFailureToo()
     {
         // Arrange
-        var project = Result.From(TestProjects.Project(new Database { Schemas = [] }), [Diagnostic.Warning("deprecations", "old form")]);
+        var project = Result.From(TestProjects.Project(new Database { Schemas = [] }), [Diagnostic.Warning("deprecations", "old-form", "old form")]);
         _projectProvider.GetProject(Arg.Any<PlanningScope>(), Arg.Any<CancellationToken>()).Returns(project);
         _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>(), Arg.Any<PlanningScope>())
-            .Returns(Result.Failure<MigrationPlan>([Diagnostic.Error("P1", "blocked")]));
+            .Returns(Result.Failure<MigrationPlan>([Diagnostic.Error("P1", "blocked", "blocked")]));
 
         // Act
         var result = await _sut.ComputePlan(PlanTarget.Project, PlanningScope.All, TestContext.Current.CancellationToken);
@@ -583,7 +583,7 @@ public sealed class MigrationWorkflowTests
     public async Task ComputePlan_PolicyViolation_ReturnsErrors_WithoutThrowingOrReporting()
     {
         // Arrange
-        var errors = new[] { Diagnostic.Error("P1", "msg") };
+        var errors = new[] { Diagnostic.Error("P1", "msg", "msg") };
         _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>(), Arg.Any<PlanningScope>())
             .Returns(Result.Failure<MigrationPlan>(errors));
 
@@ -601,7 +601,7 @@ public sealed class MigrationWorkflowTests
         // Arrange: a diff policy (e.g. destructive-action on a dropped table) fails, so the result
         // carries errors but also the diff that triggered them — for the caller to render.
         var diff = new DatabaseDiff([]);
-        var errors = new[] { Diagnostic.Error("destructive", "drops table") };
+        var errors = new[] { Diagnostic.Error("destructive", "drops-table", "drops table") };
         _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>(), Arg.Any<PlanningScope>())
             .Returns(Result.From(new MigrationPlan(diff, []), errors));
 
@@ -617,7 +617,7 @@ public sealed class MigrationWorkflowTests
     public async Task ComputePlan_CarriesNonErrorDiagnostics_WithoutReporting()
     {
         // Arrange
-        var diagnostics = new[] { new Diagnostic("P1", "info", DiagnosticSeverity.Info) };
+        var diagnostics = new[] { new Diagnostic("P1", "policy-finding", "info", DiagnosticSeverity.Info) };
         var plan = EmptyPlan();
         _planner.Plan(Arg.Any<CurrentState>(), Arg.Any<ProjectDefinition>(), Arg.Any<PlanningScope>())
             .Returns(Result.From(plan, diagnostics));

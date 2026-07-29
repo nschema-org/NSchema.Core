@@ -11,11 +11,11 @@ internal static class TableDiagnostics
     /// Adopting members that would give the table a second primary key.
     /// </summary>
     public static Diagnostic DuplicatePrimaryKey(SqlIdentifier table) =>
-        Diagnostic.Error(Source, $"Table '{table}' already declares a primary key.");
+        Diagnostic.Error(Source, "duplicate-primary-key", $"Table '{table}' already declares a primary key.");
 
     /// <summary>
     /// Adopting a member under a name the table already uses for that kind.
     /// </summary>
     public static Diagnostic DuplicateMember(SqlIdentifier table, MemberKind kind, SqlIdentifier member) =>
-        Diagnostic.Error(Source, $"Table '{table}' already declares {kind.Display():text} '{member}'.");
+        Diagnostic.Error(Source, "duplicate-member", $"Table '{table}' already declares {kind.Display():text} '{member}'.");
 }

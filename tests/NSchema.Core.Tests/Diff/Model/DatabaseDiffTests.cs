@@ -160,13 +160,12 @@ public sealed class DatabaseDiffTests
         // Assert
         result.Diagnostics.Count.ShouldBe(2);
 
-        var stated = result.Diagnostics.Single(d => d.Message.Contains("billing.orders.fk_orders_user"));
-        stated.Source.ShouldBe("scope");
+        var stated = result.Diagnostics.Single(d => d.Code == "severed-out-of-scope");
+        stated.Message.ShouldContain("billing.orders.fk_orders_user");
         stated.Message.ShouldNotContain("billing.summary");
 
-        var inferred = result.Diagnostics.Single(d => d.Message.Contains("billing.summary"));
-        inferred.Source.ShouldBe("scope");
-        inferred.Message.ShouldContain("appear to depend");
+        var inferred = result.Diagnostics.Single(d => d.Code == "inferred-severed-out-of-scope");
+        inferred.Message.ShouldContain("billing.summary");
     }
 
     [Fact]

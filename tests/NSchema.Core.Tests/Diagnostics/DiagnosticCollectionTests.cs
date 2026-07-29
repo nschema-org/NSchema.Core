@@ -6,11 +6,11 @@ public sealed class DiagnosticCollectionTests
 {
     private readonly DiagnosticCollection _sut = new();
 
-    private static Diagnostic Info(string message = "fyi") => Diagnostic.Info("source", message);
+    private static Diagnostic Info(string message = "fyi") => Diagnostic.Info("source", "info", message);
 
-    private static Diagnostic Error(string message = "boom") => Diagnostic.Error("source", message);
+    private static Diagnostic Error(string message = "boom") => Diagnostic.Error("source", "error", message);
 
-    private static Diagnostic Warning(string message = "careful") => Diagnostic.Warning("source", message);
+    private static Diagnostic Warning(string message = "careful") => Diagnostic.Warning("source", "warning", message);
 
     [Fact]
     public void Add_CollectsFindings_InInsertionOrder()
@@ -90,7 +90,7 @@ public sealed class DiagnosticCollectionTests
     {
         // Arrange
         var typed = new DiagnosticCollection<NsqlDiagnostic>(
-            [new NsqlDiagnostic("syntax", "boom", DiagnosticSeverity.Error, new SourcePosition(0, 1, 1))]);
+            [new NsqlDiagnostic("syntax", "syntax-error", "boom", DiagnosticSeverity.Error, new SourcePosition(0, 1, 1))]);
 
         // Act
         typed.Demote(DiagnosticSeverity.Warning);
@@ -104,7 +104,7 @@ public sealed class DiagnosticCollectionTests
     public void TypedCollection_FoldsUpward_AsTheBaseView()
     {
         // Arrange — covariance: a producer's typed collection is a base-typed view without translation.
-        var error = new NsqlDiagnostic("syntax", "boom", DiagnosticSeverity.Error, new SourcePosition(0, 1, 1));
+        var error = new NsqlDiagnostic("syntax", "syntax-error", "boom", DiagnosticSeverity.Error, new SourcePosition(0, 1, 1));
         IDiagnosticCollection<Diagnostic> view = new DiagnosticCollection<NsqlDiagnostic>([error]);
 
         // Act & Assert

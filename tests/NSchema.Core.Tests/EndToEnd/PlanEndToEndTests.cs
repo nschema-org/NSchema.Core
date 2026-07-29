@@ -183,7 +183,7 @@ public sealed class PlanEndToEndTests : IDisposable
         orders.ForeignKeys.ShouldHaveSingleItem().Change.ShouldBe(ChangeKind.Remove);
 
         // And the reach outside the scope is announced rather than done quietly.
-        result.Diagnostics.ShouldContain(d => d.Source == "scope" && d.Message.Contains("billing.orders.fk_orders_user"));
+        result.Diagnostics.ShouldContain(d => d.Code == "severed-out-of-scope" && d.Message.Contains("billing.orders.fk_orders_user"));
     }
 
     [Fact]

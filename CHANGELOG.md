@@ -12,6 +12,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 
 ### Changed
 
+- **A diagnostic's `Source` is what produced it, and only that.** The differ reported findings under four topics (`scope`, `directives`, `run-once`, `data-migrations`) where the producer was the differ; those topics now live in the code, which is where a finding's identity belongs.
 - **Column alterations are unified.** Dialects now receive a single `AlterColumn` action for a column's type and nullability changes, which they can render as one or more statements.
 - **Member diffs are built by factory.** `PrimaryKeyDiff`, `ForeignKeyDiff`, `UniqueConstraintDiff`, `CheckConstraintDiff`, `ExclusionConstraintDiff`, `IndexDiff` and `TriggerDiff` expose `Added(definition)`, `Removed(name)` and `CommentChanged(name, change)` in place of a constructor.
 - **Object diffs are built by factory too.** Every schema-level diff — table, column, view, enum, domain, sequence, routine, composite type, extension and schema is constructed through `Added` / `Removed` / `Modified` and refined with `with`, replacing constructors.
@@ -90,6 +91,7 @@ v5.0 is a Core rearchitecture, aiming for better project health, with clear sepa
 
 ### Added
 
+- **A diagnostic carries a code.** `Diagnostic.Code` names a finding independently of how it is worded, so a message can be reworded without breaking anything that refers to it. A code is restricted to hyphen-separated lowercase words, so it is usable as a settings key, and an invalid one is rejected rather than rewritten. Every code is unique across NSchema — the producer is not always known at compile time, so the code alone addresses a finding.
 - **A diagnostic collection folds to a result.** `ToResult()` and `ToResult(value)` move onto `DiagnosticCollection<TDiagnostic>`, so accumulating findings and returning them needs no collector. A collection can also be built from a collection expression.
 - **A typed result lifts like a plain one.** `Result<TValue, TDiagnostic>` converts implicitly from a value and from a single diagnostic, and a value-less `Result` converts from a diagnostic — so a method returns one directly instead of naming the result type to construct it.
 - **`SqlDialect.CanAlterForeignKeys`.** A dialect states whether a foreign key can be added to, or dropped from, a table that already exists. One that cannot (SQLite) keeps every key on the `CREATE TABLE` that declares it, and the plan never separates one from its table.

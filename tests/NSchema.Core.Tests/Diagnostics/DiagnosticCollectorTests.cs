@@ -4,9 +4,9 @@ public sealed class DiagnosticCollectorTests
 {
     private readonly DiagnosticCollector _sut = new();
 
-    private static Diagnostic Error(string message = "boom") => Diagnostic.Error("source", message);
+    private static Diagnostic Error(string message = "boom") => Diagnostic.Error("source", "error", message);
 
-    private static Diagnostic Warning(string message = "careful") => Diagnostic.Warning("source", message);
+    private static Diagnostic Warning(string message = "careful") => Diagnostic.Warning("source", "warning", message);
 
     // -------------------------------------------------------------------------
     // Add

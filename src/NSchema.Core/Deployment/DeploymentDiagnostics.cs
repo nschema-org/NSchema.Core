@@ -11,5 +11,5 @@ internal static class DeploymentDiagnostics
     /// An online read without a registered live database provider.
     /// </summary>
     public static Diagnostic NoOnlineSource =>
-        Diagnostic.Error(Source, "No online database provider is registered.");
+        Diagnostic.Error(Source, "no-online-source", "No online database provider is registered.");
 }
