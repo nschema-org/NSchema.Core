@@ -79,7 +79,7 @@ internal sealed class MigrationPlanner(
 
         // Objects declared inside a renamed schema exist under the schema's current name until the rename applies.
         var currentSchemaNames = directives.SchemaRenames.ToDictionary(r => r.To.Name, r => r.From.Name);
-        var declaredUnderCurrentNames = declared.Objects
+        var declaredUnderCurrentNames = declared.SchemaObjects
             .Where(o => currentSchemaNames.ContainsKey(o.Schema))
             .Select(o => o with { Schema = currentSchemaNames[o.Schema] });
 
@@ -122,10 +122,10 @@ internal sealed class MigrationPlanner(
             }
         }
 
-        foreach (var identity in declared.Objects)
+        foreach (var identity in declared.SchemaObjects)
         {
-            if (!observed.Objects.Contains(identity)
-                && observed.Objects.FirstOrDefault(o => o.Kind == identity.Kind
+            if (!observed.SchemaObjects.Contains(identity)
+                && observed.SchemaObjects.FirstOrDefault(o => o.Kind == identity.Kind
                     && EqualsIgnoringCase(o.Schema, identity.Schema)
                     && EqualsIgnoringCase(o.Name, identity.Name)) is { } match)
             {
@@ -159,7 +159,7 @@ internal sealed class MigrationPlanner(
 
         var implicitSchemas = scoped.Schemas.Where(s => s.IsImplicit).Select(s => s.Address).ToHashSet();
 
-        return (declared with { Schemas = [.. declared.Schemas.Where(s => !implicitSchemas.Contains(s))] })
+        return (declared with { DatabaseObjects = [.. declared.DatabaseObjects.Where(o => !implicitSchemas.Contains(o))] })
             .Union(retained);
     }
 

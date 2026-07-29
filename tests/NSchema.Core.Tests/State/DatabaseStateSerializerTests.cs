@@ -147,9 +147,8 @@ public sealed class DatabaseStateSerializerTests
         => VerifyJson(Encoding.UTF8.GetString(_sut.Serialize(new DatabaseState(new Database { Schemas = [] })
         {
             Managed = new IdentitySet(
-                Schemas: [DatabaseAddress.Schema("app")],
-                Objects: [new ObjectAddress("app", "users") with { Kind = SchemaObjectKind.Table }],
-                Extensions: [DatabaseAddress.Extension("citext")]),
+                DatabaseObjects: [DatabaseAddress.Schema("app"), DatabaseAddress.Extension("citext")],
+                SchemaObjects: [new ObjectAddress("app", "users") with { Kind = SchemaObjectKind.Table }]),
         }).Span));
 
     [Fact]
@@ -159,15 +158,14 @@ public sealed class DatabaseStateSerializerTests
         => VerifyJson(Encoding.UTF8.GetString(_sut.Serialize(new DatabaseState(new Database { Schemas = [] })
         {
             Managed = new IdentitySet(
-                Schemas: [DatabaseAddress.Schema("app"), DatabaseAddress.Schema("my.schema")],
-                Objects:
+                DatabaseObjects: [DatabaseAddress.Schema("app"), DatabaseAddress.Schema("my.schema"), DatabaseAddress.Extension("citext"), DatabaseAddress.Extension("uuid-ossp")],
+                SchemaObjects:
                 [
                     new ObjectAddress("app", "users", SchemaObjectKind.Table),
                     new ObjectAddress("app", "active_users", SchemaObjectKind.View),
                     new ObjectAddress("app", "user_id_seq", SchemaObjectKind.Sequence),
                     new ObjectAddress("my.schema", "Order Details", SchemaObjectKind.Table),
-                ],
-                Extensions: [DatabaseAddress.Extension("citext"), DatabaseAddress.Extension("uuid-ossp")]),
+                ]),
         }).Span));
 
     [Fact]
@@ -175,13 +173,12 @@ public sealed class DatabaseStateSerializerTests
     {
         // Arrange — every level, including names that would need quoting if written as a path.
         var managed = new IdentitySet(
-            Schemas: [DatabaseAddress.Schema("app"), DatabaseAddress.Schema("my.schema")],
-            Objects:
+            DatabaseObjects: [DatabaseAddress.Schema("app"), DatabaseAddress.Schema("my.schema"), DatabaseAddress.Extension("citext")],
+            SchemaObjects:
             [
                 new ObjectAddress("app", "users", SchemaObjectKind.Table),
                 new ObjectAddress("my.schema", "Order Details", SchemaObjectKind.View),
-            ],
-            Extensions: [DatabaseAddress.Extension("citext")]);
+            ]);
 
         // Act
         var restored = _sut
@@ -189,9 +186,8 @@ public sealed class DatabaseStateSerializerTests
             .Managed;
 
         // Assert — kinds and hostile names survive the wire.
-        restored.Schemas.ShouldBe(managed.Schemas);
-        restored.Objects.ShouldBe(managed.Objects);
-        restored.Extensions.ShouldBe(managed.Extensions);
+        restored.DatabaseObjects.ShouldBe(managed.DatabaseObjects);
+        restored.SchemaObjects.ShouldBe(managed.SchemaObjects);
     }
 
     [Fact]

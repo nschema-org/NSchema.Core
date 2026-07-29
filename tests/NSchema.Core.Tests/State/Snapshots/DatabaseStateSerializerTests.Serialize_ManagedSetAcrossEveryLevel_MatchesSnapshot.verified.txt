@@ -2,7 +2,7 @@
   version: 1,
   database: {},
   managed: {
-    schemas: [
+    databaseObjects: [
       {
         name: app,
         kind: Schema
@@ -10,9 +10,17 @@
       {
         name: my.schema,
         kind: Schema
+      },
+      {
+        name: citext,
+        kind: Extension
+      },
+      {
+        name: uuid-ossp,
+        kind: Extension
       }
     ],
-    objects: [
+    schemaObjects: [
       {
         schema: app,
         name: users,
@@ -32,16 +40,6 @@
         schema: my.schema,
         name: Order Details,
         kind: Table
-      }
-    ],
-    extensions: [
-      {
-        name: citext,
-        kind: Extension
-      },
-      {
-        name: uuid-ossp,
-        kind: Extension
       }
     ]
   }

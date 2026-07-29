@@ -24,7 +24,7 @@ public sealed class DatabaseTests
     {
         // Arrange — the object is managed, the schema holding it is not.
         var database = Db(Schema("app", Table("users")));
-        var identities = new IdentitySet(Objects: [new ObjectAddress("app", "users", SchemaObjectKind.Table)]);
+        var identities = new IdentitySet(SchemaObjects: [new ObjectAddress("app", "users", SchemaObjectKind.Table)]);
 
         // Act
         var filtered = database.FilteredTo(identities);
@@ -39,7 +39,7 @@ public sealed class DatabaseTests
     public void FilteredTo_DropsASchemaTheSetNamesNothingIn()
     {
         // Act
-        var filtered = Db(Schema("app", Table("users"))).FilteredTo(new IdentitySet(Schemas: [DatabaseAddress.Schema("other")]));
+        var filtered = Db(Schema("app", Table("users"))).FilteredTo(new IdentitySet(DatabaseObjects: [DatabaseAddress.Schema("other")]));
 
         // Assert
         filtered.Schemas.ShouldBeEmpty();
@@ -50,7 +50,7 @@ public sealed class DatabaseTests
     {
         // Act
         var filtered = Db(Schema("app", Table("users"))).FilteredTo(
-            new IdentitySet(Schemas: [DatabaseAddress.Schema("app")], Objects: [new ObjectAddress("app", "users", SchemaObjectKind.Table)]));
+            new IdentitySet(DatabaseObjects: [DatabaseAddress.Schema("app")], SchemaObjects: [new ObjectAddress("app", "users", SchemaObjectKind.Table)]));
 
         // Assert
         filtered.Schemas.ShouldHaveSingleItem().IsImplicit.ShouldBeFalse();

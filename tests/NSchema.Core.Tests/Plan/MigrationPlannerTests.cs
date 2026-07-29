@@ -164,8 +164,8 @@ public sealed class MigrationPlannerTests
         var current = new CurrentState(new Database { Schemas = [new Schema { Name = app, Tables = [new Table { Name = "mine" }, new Table { Name = "theirs" }] }] })
         {
             Managed = new IdentitySet(
-                Schemas: [DatabaseAddress.Schema(app)],
-                Objects: [new ObjectAddress(app, "mine") with { Kind = SchemaObjectKind.Table }]),
+                DatabaseObjects: [DatabaseAddress.Schema(app)],
+                SchemaObjects: [new ObjectAddress(app, "mine") with { Kind = SchemaObjectKind.Table }]),
         };
 
         // Act
@@ -189,7 +189,7 @@ public sealed class MigrationPlannerTests
 
         // Assert — within scope, management after an apply is exactly what the project declares.
         plan.Managed.Schemas.Select(s => s.Name).ShouldBe([app]);
-        plan.Managed.Objects.ShouldBe([new ObjectAddress(app, "users") with { Kind = SchemaObjectKind.Table }]);
+        plan.Managed.SchemaObjects.ShouldBe([new ObjectAddress(app, "users") with { Kind = SchemaObjectKind.Table }]);
     }
 
     [Fact]
@@ -207,7 +207,7 @@ public sealed class MigrationPlannerTests
 
         // Assert — a container NSchema was never asked to own is not something a teardown may drop.
         plan.Managed.Schemas.ShouldBeEmpty();
-        plan.Managed.Objects.ShouldBe([new ObjectAddress(app, "users") with { Kind = SchemaObjectKind.Table }]);
+        plan.Managed.SchemaObjects.ShouldBe([new ObjectAddress(app, "users") with { Kind = SchemaObjectKind.Table }]);
     }
 
     [Fact]
@@ -219,8 +219,8 @@ public sealed class MigrationPlannerTests
         var current = new CurrentState(_emptySchema)
         {
             Managed = new IdentitySet(
-                Schemas: [DatabaseAddress.Schema(billing)],
-                Objects: [new ObjectAddress(billing, "invoices") with { Kind = SchemaObjectKind.Table }]),
+                DatabaseObjects: [DatabaseAddress.Schema(billing)],
+                SchemaObjects: [new ObjectAddress(billing, "invoices") with { Kind = SchemaObjectKind.Table }]),
         };
         var desired = new ProjectDefinition(new Database { Schemas = [new Schema { Name = app }] });
 
@@ -229,7 +229,7 @@ public sealed class MigrationPlannerTests
 
         // Assert
         plan.Managed.Schemas.Select(s => s.Name).ShouldBe([app, billing], ignoreOrder: true);
-        plan.Managed.Objects.ShouldHaveSingleItem().Schema.ShouldBe(billing);
+        plan.Managed.SchemaObjects.ShouldHaveSingleItem().Schema.ShouldBe(billing);
     }
 
     [Fact]
@@ -242,7 +242,7 @@ public sealed class MigrationPlannerTests
         var orders = new ObjectAddress(app, "orders") with { Kind = SchemaObjectKind.Table };
         var current = new CurrentState(_emptySchema)
         {
-            Managed = new IdentitySet(Schemas: [DatabaseAddress.Schema(app)], Objects: [users, orders]),
+            Managed = new IdentitySet(DatabaseObjects: [DatabaseAddress.Schema(app)], SchemaObjects: [users, orders]),
         };
 
         // Act
@@ -250,7 +250,7 @@ public sealed class MigrationPlannerTests
 
         // Assert
         plan.Managed.Schemas.Select(s => s.Name).ShouldBe([app]);
-        plan.Managed.Objects.ShouldBe([orders]);
+        plan.Managed.SchemaObjects.ShouldBe([orders]);
     }
 
     [Fact]
@@ -260,7 +260,7 @@ public sealed class MigrationPlannerTests
         SqlIdentifier app = "app";
         var current = new CurrentState(_emptySchema)
         {
-            Managed = new IdentitySet(Schemas: [DatabaseAddress.Schema(app)]),
+            Managed = new IdentitySet(DatabaseObjects: [DatabaseAddress.Schema(app)]),
         };
 
         // Act — an unrestricted teardown's scope covers every managed schema (derived by the workflow).

@@ -32,9 +32,8 @@ public sealed class Database : IEquatable<Database>
     /// The identity of everything the database contains: its schemas, their objects, and its extensions.
     /// </summary>
     public IdentitySet Identities() => new(
-        [.. Schemas.Select(s => s.Address)],
-        [.. Schemas.SelectMany(s => s.Objects()).Select(o => o.Address)],
-        [.. Extensions.Select(e => e.Address)]);
+        [.. Schemas.Select(s => s.Address), .. Extensions.Select(e => e.Address)],
+        [.. Schemas.SelectMany(s => s.Objects()).Select(o => o.Address)]);
 
     /// <summary>
     /// Returns a deep copy of the database.
@@ -85,7 +84,10 @@ public sealed class Database : IEquatable<Database>
         // A targeted object still needs its container in the tree, even though the scope does not cover the
         // schema itself.
         var covered = Identities().CoveredBy(scope);
-        return FilteredTo(covered with { Schemas = [.. covered.Schemas.Union(covered.Objects.Select(o => DatabaseAddress.Schema(o.Schema)))] });
+        return FilteredTo(covered with
+        {
+            DatabaseObjects = [.. covered.DatabaseObjects.Union(covered.SchemaObjects.Select(o => DatabaseAddress.Schema(o.Schema)))],
+        });
     }
 
     /// <summary>

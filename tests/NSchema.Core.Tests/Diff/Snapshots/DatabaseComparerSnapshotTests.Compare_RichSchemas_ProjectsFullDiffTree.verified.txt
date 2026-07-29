@@ -53,6 +53,7 @@
                   Member: {
                     Value: legacy_flag
                   },
+                  Kind: Column,
                   Owner: {
                     Schema: {
                       Value: app
@@ -92,6 +93,7 @@
                   Member: {
                     Value: id
                   },
+                  Kind: Column,
                   Owner: {
                     Schema: {
                       Value: app
@@ -143,6 +145,7 @@
                   Member: {
                     Value: email_address
                   },
+                  Kind: Column,
                   Owner: {
                     Schema: {
                       Value: app
@@ -200,6 +203,7 @@
                   Member: {
                     Value: email_upper
                   },
+                  Kind: Column,
                   Owner: {
                     Schema: {
                       Value: app
@@ -257,6 +261,7 @@
                   Member: {
                     Value: users_email_ix
                   },
+                  Kind: Index,
                   Owner: {
                     Schema: {
                       Value: app
@@ -296,6 +301,7 @@
                   Member: {
                     Value: users_email_uq
                   },
+                  Kind: UniqueConstraint,
                   Owner: {
                     Schema: {
                       Value: app
@@ -333,6 +339,7 @@
                   Member: {
                     Value: users_id_chk
                   },
+                  Kind: CheckConstraint,
                   Owner: {
                     Schema: {
                       Value: app
@@ -378,6 +385,7 @@
                   Member: {
                     Value: users_span_excl
                   },
+                  Kind: ExclusionConstraint,
                   Owner: {
                     Schema: {
                       Value: app

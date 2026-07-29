@@ -16,7 +16,7 @@ public abstract class ObjectMember : DatabaseElement
     /// <inheritdoc />
     /// <exception cref="InvalidOperationException">The member is not owned by an object in a schema, so it has no address.</exception>
     public override MemberAddress Address => Parent is { Schema: { } schema }
-        ? new MemberAddress(schema.Name, Parent.Name, Name)
+        ? new MemberAddress(schema.Name, Parent.Name, Name, Kind)
         : throw new InvalidOperationException(
             $"'{Name}' has no address because it does not belong to an object in a schema. Add it to one first.");
 

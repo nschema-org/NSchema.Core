@@ -442,7 +442,7 @@ public sealed class MigrationWorkflowTests
         ReadOnlyMemory<byte>? written = null;
         await store.Write(Arg.Do<ReadOnlyMemory<byte>>(m => written = m), Arg.Any<CancellationToken>());
         var sut = BuildSut(store);
-        var managed = new IdentitySet(Schemas: [DatabaseAddress.Schema("app")]);
+        var managed = new IdentitySet(DatabaseObjects: [DatabaseAddress.Schema("app")]);
         var applied = EmptyPlan() with { Managed = managed };
 
         // Act
@@ -456,7 +456,7 @@ public sealed class MigrationWorkflowTests
     public async Task Refresh_WithoutAnAppliedPlan_PreservesTheManagedSet()
     {
         // Arrange — a plain refresh observes; it neither adopts nor abandons anything.
-        var managed = new IdentitySet(Schemas: [DatabaseAddress.Schema("app")]);
+        var managed = new IdentitySet(DatabaseObjects: [DatabaseAddress.Schema("app")]);
         var store = Substitute.For<IDatabaseStateStore>();
         store.Read(Arg.Any<CancellationToken>()).Returns(Result.Success(new StoreReadResult(null)));
         store.Write(Arg.Any<ReadOnlyMemory<byte>>(), Arg.Any<CancellationToken>()).Returns(Result.Success());
@@ -650,7 +650,7 @@ public sealed class MigrationWorkflowTests
             new Schema { Name = "unmanaged" },
         ],
         }) with
-        { Managed = new IdentitySet(Schemas: [DatabaseAddress.Schema("legacy")]) });
+        { Managed = new IdentitySet(DatabaseObjects: [DatabaseAddress.Schema("legacy")]) });
 
         // Act
         await sut.ComputePlan(PlanTarget.Project, PlanningScope.All, TestContext.Current.CancellationToken);

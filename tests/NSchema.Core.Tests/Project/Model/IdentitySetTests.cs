@@ -18,9 +18,8 @@ public sealed class IdentitySetTests
     {
         // Arrange
         var set = new IdentitySet(
-            Schemas: [DatabaseAddress.Schema(_app)],
-            Objects: [Table("users")],
-            Extensions: [DatabaseAddress.Extension("citext")]);
+            DatabaseObjects: [DatabaseAddress.Schema(_app), DatabaseAddress.Extension("citext")],
+            SchemaObjects: [Table("users")]);
 
         // Assert
         set.ContainsSchema("app").ShouldBeTrue();
@@ -34,29 +33,29 @@ public sealed class IdentitySetTests
     public void Union_MergesDistinct()
     {
         // Arrange
-        var left = new IdentitySet(Schemas: [DatabaseAddress.Schema(_app)], Objects: [Table("users")]);
-        var right = new IdentitySet(Schemas: [DatabaseAddress.Schema(_app)], Objects: [Table("orders")]);
+        var left = new IdentitySet(DatabaseObjects: [DatabaseAddress.Schema(_app)], SchemaObjects: [Table("users")]);
+        var right = new IdentitySet(DatabaseObjects: [DatabaseAddress.Schema(_app)], SchemaObjects: [Table("orders")]);
 
         // Act
         var union = left.Union(right);
 
         // Assert
         union.Schemas.Select(s => s.Name).ShouldBe([_app]);
-        union.Objects.ShouldBe([Table("users"), Table("orders")]);
+        union.SchemaObjects.ShouldBe([Table("users"), Table("orders")]);
     }
 
     [Fact]
     public void Except_RemovesByValue()
     {
         // Arrange
-        var set = new IdentitySet(Schemas: [DatabaseAddress.Schema(_app)], Objects: [Table("users"), Table("orders")]);
+        var set = new IdentitySet(DatabaseObjects: [DatabaseAddress.Schema(_app)], SchemaObjects: [Table("users"), Table("orders")]);
 
         // Act
-        var remaining = set.Except(new IdentitySet(Objects: [Table("users")]));
+        var remaining = set.Except(new IdentitySet(SchemaObjects: [Table("users")]));
 
         // Assert
         remaining.Schemas.Select(s => s.Name).ShouldBe([_app]);
-        remaining.Objects.ShouldBe([Table("orders")]);
+        remaining.SchemaObjects.ShouldBe([Table("orders")]);
     }
 
     [Fact]
@@ -127,14 +126,13 @@ public sealed class IdentitySetTests
         // The bridge between the two surfaces: the extensional record filtered by the intensional cover.
         // Extensions are database-global, so every scope covers them.
         var set = new IdentitySet(
-            Schemas: [DatabaseAddress.Schema(_app), DatabaseAddress.Schema("other")],
-            Objects: [Table("users"), new ObjectAddress("other", "t") with { Kind = SchemaObjectKind.Table }],
-            Extensions: [DatabaseAddress.Extension("citext")]);
+            DatabaseObjects: [DatabaseAddress.Schema(_app), DatabaseAddress.Schema("other"), DatabaseAddress.Extension("citext")],
+            SchemaObjects: [Table("users"), new ObjectAddress("other", "t") with { Kind = SchemaObjectKind.Table }]);
 
         var covered = set.CoveredBy(PlanningScope.To(DatabaseAddress.Schema(_app)));
 
         covered.Schemas.Select(s => s.Name).ShouldBe([_app]);
-        covered.Objects.ShouldBe([Table("users")]);
+        covered.SchemaObjects.ShouldBe([Table("users")]);
         covered.Extensions.Select(e => e.Name).ShouldBe(["citext"]);
     }
 
@@ -144,14 +142,13 @@ public sealed class IdentitySetTests
         // The managed-set math depends on this: targeting an object must not claim (or release) management
         // of its schema container. Extensions stay database-global, covered by every scope.
         var set = new IdentitySet(
-            Schemas: [DatabaseAddress.Schema(_app)],
-            Objects: [Table("users"), Table("orders")],
-            Extensions: [DatabaseAddress.Extension("citext")]);
+            DatabaseObjects: [DatabaseAddress.Schema(_app), DatabaseAddress.Extension("citext")],
+            SchemaObjects: [Table("users"), Table("orders")]);
 
         var covered = set.CoveredBy(PlanningScope.To([new ObjectAddress(_app, "users")]));
 
         covered.Schemas.ShouldBeEmpty();
-        covered.Objects.ShouldBe([Table("users")]);
+        covered.SchemaObjects.ShouldBe([Table("users")]);
         covered.Extensions.Select(e => e.Name).ShouldBe(["citext"]);
     }
 
@@ -187,7 +184,7 @@ public sealed class IdentitySetTests
 
         // Assert
         identities.Schemas.Select(s => s.Name).ShouldBe([_app]);
-        identities.Objects.ShouldBe([Table("users"), new ObjectAddress(_app, "v") with { Kind = SchemaObjectKind.View }], ignoreOrder: true);
+        identities.SchemaObjects.ShouldBe([Table("users"), new ObjectAddress(_app, "v") with { Kind = SchemaObjectKind.View }], ignoreOrder: true);
         identities.Extensions.Select(e => e.Name).ShouldBe(["citext"]);
     }
 
@@ -206,9 +203,8 @@ public sealed class IdentitySetTests
 
         // Act
         var filtered = database.FilteredTo(new IdentitySet(
-            Schemas: [DatabaseAddress.Schema(_app)],
-            Objects: [Table("mine")],
-            Extensions: [DatabaseAddress.Extension("citext")]));
+            DatabaseObjects: [DatabaseAddress.Schema(_app), DatabaseAddress.Extension("citext")],
+            SchemaObjects: [Table("mine")]));
 
         // Assert — the unmatched schema, table, and extension are all gone.
         var schema = filtered.Schemas.ShouldHaveSingleItem();
